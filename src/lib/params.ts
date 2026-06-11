@@ -2,15 +2,27 @@
  * Lexigotchi economic parameters — the single tunable surface for the Phase 0 sim.
  *
  * Every value here maps to a storage variable behind multisig on-chain (spec v0.2 §intro:
- * "implement it as a storage variable behind admin/multisig, not a constant"). Prices are
- * PLACEHOLDERS pending the Phase 0 tokenomics sim (v0.2 §7 open question); the mechanics
- * (splits, odds, pity, hunger, distribution shape) are decided.
+ * "implement it as a storage variable behind admin/multisig, not a constant").
  *
- * All amounts are in $WORD. ETH only ever enters via the mint auto-swap (v0.2 §4) and is
- * converted to $WORD before any accounting — so the whole model is $WORD-denominated.
+ * PRICING IS USD-PEGGED (decision, June 2026). $WORD is a ~$23.6K-mcap micro-cap (100B
+ * supply, ~$21K liquidity), so its USD price swings hard; rather than fix $WORD amounts and
+ * let cost-to-play drift, prices are defined as USD targets and the multisig re-sets the
+ * on-chain $WORD amounts as the price moves. The sim therefore runs in USD — pool, jackpot,
+ * and burn read directly in dollars — and `priceWord()` converts a USD target to the $WORD
+ * amount to set on-chain. ETH entering via the mint auto-swap (v0.2 §4) is just another
+ * way to source the $WORD.
  */
 
 import { DEMAND_MULTIPLE } from "./economy";
+
+/** Live $WORD price (Uniswap/Base `0x304e…fb4b`). The peg input the multisig updates. */
+export const WORD_USD_PRICE = 0.0000002368;
+/** $WORD per $1 (≈ 4.22M at the current price). */
+export const WORD_PER_USD = 1 / WORD_USD_PRICE;
+/** Convert a USD price target to the $WORD amount to set on-chain at a given peg. */
+export function priceWord(usd: number, wordUsd: number = WORD_USD_PRICE): number {
+  return usd / wordUsd;
+}
 
 /** A revenue split routes an incoming $WORD fee into the four buckets. Must sum to 1. */
 export interface Split {
@@ -21,13 +33,25 @@ export interface Split {
 }
 
 export interface Params {
-  /** Prices in $WORD (placeholders — the sim exists to set these). */
+  /** Prices in USD (USD-pegged; `priceWord(usd)` gives the on-chain $WORD amount). */
   prices: {
     pack: number; // pack of 5 letters, full price (volume loop)
     dailyMint: number; // 1 discounted single per FID per day (habit loop)
     roll: number; // flat upgrade-roll fee (v0.1 §5.3; rarity-scaled is P2)
     claim: number; // flat claim fee (v0.1 §5.4; tier-scaled is P2)
     snack: number; // one snack feeds one staked word for one day
+  };
+
+  /**
+   * One-time treasury bootstrap of the faucets at launch, in USD (decision: bootstrap the
+   * jackpot pool). Fee inflow starts at $0 and there is barely a market to buy $WORD from,
+   * so the team seeds the jackpot (a launch prize) and optionally the Rewards Pool (early
+   * yield) from the 10B+ treasury. A one-time seed, NOT an ongoing emission — solvency by
+   * construction still holds.
+   */
+  seed: {
+    jackpot: number;
+    pool: number;
   };
 
   /** Fee splits per revenue source (v0.1 §6 table — unchanged in v0.2). */
@@ -100,12 +124,21 @@ export interface Params {
 }
 
 export const DEFAULT_PARAMS: Params = {
+  // USD targets (accessible/bootstrap — see decisions.md). $WORD amounts via priceWord().
   prices: {
-    pack: 500,
-    dailyMint: 60,
-    roll: 100,
-    claim: 250,
-    snack: 15,
+    pack: 0.6, // ≈ 2.53M $WORD at the current peg
+    dailyMint: 0.05, // ≈ 211K $WORD — near-free habit hook
+    roll: 0.15, // ≈ 633K $WORD — cheap gamble, do many
+    claim: 0.5, // ≈ 2.11M $WORD — a commitment
+    snack: 0.02, // ≈ 84K $WORD — trivial daily care
+  },
+  seed: {
+    // Compliance (pricing review): do NOT seed the chance-based jackpot from treasury — an
+    // operator-funded prize is the core lottery risk. Bootstrap the YIELD pool only; the
+    // jackpot self-funds from fee splits. Treasury's other lever is LP depth (a market op,
+    // see docs/pricing-review.md + `npm run market`), not a faucet seed.
+    jackpot: 0,
+    pool: 240, // ≈ 1.01B $WORD — gives the first UPPERCASE stakers something to earn
   },
   splits: {
     packMint: { pool: 0.4, jackpot: 0.1, burn: 0.2, treasury: 0.3 },

@@ -78,8 +78,15 @@ export interface DayMetrics {
 export interface SimResult {
   days: DayMetrics[];
   final: DayMetrics;
-  /** Per-player ROI summary for staker viability. */
-  playerRoi: { archetype: Archetype; spent: number; earned: number; net: number }[];
+  /** Per-archetype ROI + participation summary (viability + accessibility). */
+  playerRoi: {
+    archetype: Archetype;
+    spent: number;
+    earned: number;
+    net: number;
+    claims: number;
+    players: number;
+  }[];
   /** Notable invariant / health findings surfaced during the run. */
   notes: string[];
   /** Equilibrium estimate for the Rewards Pool given observed pool inflow. */

@@ -69,12 +69,51 @@ spec-completeness + art critics). The solvency core survived all three skeptics 
 real defects**; the one real (low) finding — a dead royalty faucet — is now fixed, and the art
 findings are implemented. Full writeup: `docs/phase-0-review.md`.
 
-## Open questions still owed (carried from spec)
+## Pricing & launch economics (decided June 2026)
 
-- **Pricing** (daily/pack/roll/claim/snack in $WORD) — the sim is the tool; needs real
-  daily-active estimates + a $WORD-liquidity reality check to set absolute numbers.
-- **Cap multiple (2.5×)** — if realistic DAU implies mint-out < ~6 months, revisit before
-  mainnet (v0.2 §5.5). The sim's mint-out-day output is the lever to watch.
-- **Secondary-market modeling** — add a lightweight letter market to the sim to test the
-  casual-player economic role properly.
-- **Legal pass on the jackpot** (Phase 3) and **LHAW answer-chain migration** — unchanged.
+$WORD is **live** on Base (Uniswap `0x304e…fb4b`): price ~$0.0000002368, **mcap/FDV ~$23.6K**,
+~100B supply, **liquidity ~$21.5K**, ~$10/day volume. Team treasury 10B+ $WORD (~$2,370).
+
+- **USD-pegged pricing** (decision): prices are USD targets; the multisig re-sets the on-chain
+  $WORD amounts as the price moves. The sim runs in USD; `priceWord()` converts. `WORD_USD_PRICE`
+  is the live peg input.
+- **Price ladder** (accessible/bootstrap — the review confirmed price is not the bottleneck):
+  daily **$0.05** · pack **$0.60** · roll **$0.15** · claim **$0.50** · snack **$0.02**.
+- **Treasury bootstrap** (decision: bootstrap; compliance-reconciled): seed the **Rewards Pool**
+  ($240) only. **`seed.jackpot = 0`** — an operator-funded chance prize is the core lottery risk
+  (compliance verdict: rework). The jackpot self-funds from fee splits. Treasury's other lever
+  is **LP depth** (a market op, not a faucet seed).
+- **Mechanical peg** (recommended): peg off a 30-min TWAP, repeg on |Δ|>10–15% or weekly, ±25%/day
+  cap — NOT a discretionary multisig lever (market-integrity crux). The AMM layer shows a *weekly*
+  repeg already holds cost-to-play within ~10%, so this is cheap to honor.
+
+**What the AMM/market layer found** (`npm run market` — constant-product layer over the game sim):
+- The game drives ~$20.6K of $WORD buy-demand (~87% of mcap) → a **~6.4× price pump** (mcap →
+  ~$152K), but **gradual** over the day-60–90 mint rush, not a violent spike.
+- **Liquidity self-heals**: buy pressure deepens the pool **$21K → ~$55K** organically.
+- **Burn ≈ 12% of supply** (not the 42% the flat-peg sim implied — each $WORD is worth more as
+  it's burned).
+- **LP depth is the pump lever** ($5K LP → 5.1×, $10K → 4.2×), but treasury (~$2.4K) only funds
+  ~$1.5–2K of it; real flattening needs ETH-paired liquidity.
+
+**Structural launch risks surfaced by the 4-lens review** (`docs/pricing-review.md`) — these
+matter more than the prices:
+- **Compliance: rework the jackpot + get counsel BEFORE Phase 1** (not Phase 3). Add no-purchase
+  free entry, geo/age-gating, official rules; stop the "lottery" language; minimize operator rake.
+- **Collection completes ~day 64 → retention cliff** (active 596→138). Raising the cap multiple
+  does NOT help (claim-race-gated). Needs a **renewable late-game loop** (UPPERCASE evolution
+  stages / weekly bounties / seasons).
+- **Market-integrity**: publish a treasury lock/vesting policy, the peg formula, seed tx links,
+  a 48h sell-notice; reframe all copy from price/demand to play/collection; never publish the
+  demand number.
+
+## Open questions still owed
+
+- **Cap multiple (2.5×) / mint cadence** — mint-out is ~2 months at any real scale and is
+  population-driven, not price-driven; pace it with cadence (waves), not price. (A bigger cap
+  does not delay *dictionary completion* — that's claim-race-gated.)
+- **Secondary letter market** — still omitted from the sim; the highest-value next iteration
+  (and the casual-accessibility case depends on it).
+- **Demand damping in the market layer** — currently demand is held at the game-sim level; a
+  fuller model would damp it by cost-to-play. (Minor while cost-to-play stays ~1.1×.)
+- **LHAW answer-chain migration** — unchanged (Phase 3 dependency).

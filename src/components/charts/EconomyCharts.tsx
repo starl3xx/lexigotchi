@@ -69,7 +69,7 @@ export function EconomyCharts({ days }: { days: ChartDay[] }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Chart
-        title="Rewards Pool & Jackpot ($WORD)"
+        title="Rewards Pool & Jackpot (USD)"
         data={days}
         lines={[
           { key: "pool", color: "#2a9d8f", label: "Rewards Pool" },
@@ -77,7 +77,7 @@ export function EconomyCharts({ days }: { days: ChartDay[] }) {
         ]}
       />
       <Chart
-        title="Cumulative burn vs treasury ($WORD)"
+        title="Cumulative burn vs treasury (USD)"
         data={days}
         lines={[
           { key: "burnedTotal", color: "#d8463f", label: "Burned" },
@@ -93,7 +93,7 @@ export function EconomyCharts({ days }: { days: ChartDay[] }) {
         ]}
       />
       <Chart
-        title="Daily yield distributed ($WORD)"
+        title="Daily yield distributed (USD)"
         data={days}
         lines={[{ key: "distributionToday", color: "#2a9d8f", label: "Yield / day" }]}
       />

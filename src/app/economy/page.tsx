@@ -20,11 +20,12 @@ export default function EconomyPage() {
     distributionToday: d.distributionToday,
   }));
   const f = res.final;
+  const $ = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
   const cards = [
-    ["Rewards Pool", `${fmt(f.pool)} $WORD`, `equilibrium ~${fmt(res.poolEquilibrium)}`],
-    ["Burned", `${fmt(f.burnedTotal)} $WORD`, "deflationary pressure"],
-    ["Treasury", `${fmt(f.treasuryTotal)} $WORD`, "team / ops"],
+    ["Rewards Pool", $(f.pool), `equilibrium ~${$(res.poolEquilibrium)}`],
+    ["Burned", $(f.burnedTotal), "deflationary (USD)"],
+    ["$WORD demand", $(f.externalInflowTotal), "bought to play · vs ~$23.6K mcap"],
     ["Claims", `${fmt(f.totalClaims)} / 4,438`, `${fmt(f.uppercaseWords)} UPPERCASE`],
   ];
 
@@ -40,9 +41,12 @@ export default function EconomyPage() {
           negative. The sim exists to set pricing and reveal how the solvent system behaves.
         </p>
         <p className="text-xs text-ink/60">
-          Prices ($WORD): daily {DEFAULT_PARAMS.prices.dailyMint} · pack {DEFAULT_PARAMS.prices.pack} ·
-          roll {DEFAULT_PARAMS.prices.roll} · claim {DEFAULT_PARAMS.prices.claim} · snack{" "}
-          {DEFAULT_PARAMS.prices.snack}. Placeholders — tune via <code>src/lib/params.ts</code>.
+          USD-pegged prices (sim runs in USD): daily ${DEFAULT_PARAMS.prices.dailyMint} · pack $
+          {DEFAULT_PARAMS.prices.pack} · roll ${DEFAULT_PARAMS.prices.roll} · claim $
+          {DEFAULT_PARAMS.prices.claim} · snack ${DEFAULT_PARAMS.prices.snack}. One-time treasury
+          seed: jackpot ${DEFAULT_PARAMS.seed.jackpot} + pool ${DEFAULT_PARAMS.seed.pool}. $WORD is
+          a ~$23.6K micro-cap, so prices are re-pegged on-chain as the price moves. Tune via{" "}
+          <code>src/lib/params.ts</code>.
         </p>
       </header>
 

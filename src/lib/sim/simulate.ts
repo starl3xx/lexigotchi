@@ -79,7 +79,9 @@ let claimGen = 0;
 
 interface ArchetypeConfig {
   share: number; // population share
-  dailyBudgetMean: number; // $WORD external top-up per active day
+  // USD/day spend appetite (external top-up). The single biggest behavioral assumption —
+  // calibrate against real launch data. Conservative defaults for a pre-traction micro-cap.
+  dailyBudgetMean: number;
   dailyBudgetSd: number;
   fidProb: number;
   packPropensity: number; // packs purchased per active day (expected)
@@ -93,27 +95,27 @@ interface ArchetypeConfig {
 
 const ARCHETYPES: Record<Archetype, ArchetypeConfig> = {
   casual: {
-    share: 0.5, dailyBudgetMean: 80, dailyBudgetSd: 40, fidProb: 0.9,
+    share: 0.5, dailyBudgetMean: 0.4, dailyBudgetSd: 0.25, fidProb: 0.9,
     packPropensity: 0.15, rollsPerDay: 0.2, claimsPerDay: 0.3, feedDiscipline: 0.6,
     churnPerDay: 0.012, wantsUppercase: false, grailHunter: false,
   },
   collector: {
-    share: 0.25, dailyBudgetMean: 300, dailyBudgetSd: 120, fidProb: 0.85,
+    share: 0.25, dailyBudgetMean: 2.0, dailyBudgetSd: 1.0, fidProb: 0.85,
     packPropensity: 1.2, rollsPerDay: 0.6, claimsPerDay: 1.5, feedDiscipline: 0.85,
     churnPerDay: 0.006, wantsUppercase: false, grailHunter: true,
   },
   gambler: {
-    share: 0.12, dailyBudgetMean: 400, dailyBudgetSd: 200, fidProb: 0.8,
+    share: 0.12, dailyBudgetMean: 2.5, dailyBudgetSd: 1.3, fidProb: 0.8,
     packPropensity: 0.9, rollsPerDay: 4, claimsPerDay: 0.8, feedDiscipline: 0.8,
     churnPerDay: 0.008, wantsUppercase: true, grailHunter: false,
   },
   staker: {
-    share: 0.08, dailyBudgetMean: 350, dailyBudgetSd: 150, fidProb: 0.9,
+    share: 0.08, dailyBudgetMean: 2.2, dailyBudgetSd: 1.0, fidProb: 0.9,
     packPropensity: 0.8, rollsPerDay: 2.5, claimsPerDay: 1, feedDiscipline: 0.97,
     churnPerDay: 0.003, wantsUppercase: true, grailHunter: false,
   },
   whale: {
-    share: 0.05, dailyBudgetMean: 2000, dailyBudgetSd: 1000, fidProb: 0.75,
+    share: 0.05, dailyBudgetMean: 15, dailyBudgetSd: 8, fidProb: 0.75,
     packPropensity: 4, rollsPerDay: 8, claimsPerDay: 3, feedDiscipline: 0.99,
     churnPerDay: 0.002, wantsUppercase: true, grailHunter: true,
   },
@@ -126,6 +128,8 @@ export interface SimConfig {
   population: number;
   rampDays: number;
   params: Params;
+  /** Multiplier on every archetype's daily spend appetite (models population affluence). */
+  budgetScale?: number;
 }
 
 export const DEFAULT_SIM_CONFIG: SimConfig = {
@@ -134,6 +138,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   population: 800,
   rampDays: 60,
   params: DEFAULT_PARAMS,
+  budgetScale: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -143,6 +148,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
 class World {
   rng: Rng;
   params: Params;
+  budgetScale: number;
   ledger = new Ledger();
   players: Player[] = [];
   /** cumulative lowercase letters minted per letter index (cap enforcement). */
@@ -159,8 +165,12 @@ class World {
   constructor(cfg: SimConfig) {
     this.rng = new Rng(cfg.seed);
     this.params = cfg.params;
+    this.budgetScale = cfg.budgetScale ?? 1;
     this.caps = ALPHABET.map((L) => supplyCap(L, cfg.params.supply.demandMultiple));
     this.answerOrder = this.rng.shuffle([...WORDS]);
+    // one-time treasury bootstrap of the faucets (decision: bootstrap the jackpot pool)
+    this.ledger.pool = cfg.params.seed.pool;
+    this.ledger.jackpot = cfg.params.seed.jackpot;
   }
 
   capRemaining(idx: number): number {
@@ -334,7 +344,8 @@ function playerTurn(player: Player, world: World, day: number): void {
   // Top up toward today's intended budget, recycling any accumulated balance (winnings /
   // savings) first — so external inflow self-limits once a player is flush, and a small
   // daily budget naturally accumulates across days into the occasional bigger purchase.
-  const dayBudget = Math.max(0, gaussian(rng, cfg.dailyBudgetMean, cfg.dailyBudgetSd));
+  const scale = world.budgetScale;
+  const dayBudget = Math.max(0, gaussian(rng, cfg.dailyBudgetMean * scale, cfg.dailyBudgetSd * scale));
   const external = Math.max(0, dayBudget - player.balance);
   player.balance += external;
   world.ledger.recordExternalInflow(external);
@@ -635,11 +646,13 @@ function snapshot(
 function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult {
   const final = days[days.length - 1];
   // per-archetype ROI
-  const roiMap = new Map<Archetype, { spent: number; earned: number }>();
+  const roiMap = new Map<Archetype, { spent: number; earned: number; claims: number; players: number }>();
   for (const pl of world.players) {
-    const cur = roiMap.get(pl.archetype) ?? { spent: 0, earned: 0 };
+    const cur = roiMap.get(pl.archetype) ?? { spent: 0, earned: 0, claims: 0, players: 0 };
     cur.spent += pl.spent;
     cur.earned += pl.earned;
+    cur.claims += pl.words.size;
+    cur.players += 1;
     roiMap.set(pl.archetype, cur);
   }
   const playerRoi = [...roiMap.entries()].map(([archetype, v]) => ({
@@ -647,6 +660,8 @@ function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult 
     spent: v.spent,
     earned: v.earned,
     net: v.earned - v.spent,
+    claims: v.claims,
+    players: v.players,
   }));
 
   // pool equilibrium estimate: trailing-window mean pool inflow / daily distribution rate
