@@ -47,6 +47,9 @@ export interface Player {
   /** Lifetime accounting for ROI metrics. */
   spent: number;
   earned: number;
+  /** Portion of `earned` that came specifically from selling letters on the swap market
+   *  (isolated so recoup can be read cleanly, separate from lumpy yield/jackpot winnings). */
+  tradeEarned: number;
   /** Day index the player most recently took any action (for retention metrics). */
   lastActiveDay: number;
   joinedDay: number;
@@ -73,6 +76,15 @@ export interface DayMetrics {
   lettersMintedTotal: number;
   /** Fraction of each letter's global cap consumed (mint-out pressure). */
   capConsumption: Record<string, number>;
+  /** Gross claims ever made (monotonic; counts re-claims after dissolution) — claim velocity. */
+  claimsEverTotal: number;
+  /** Words dissolved cumulatively (names returned to the claimable pool). */
+  dissolutionsTotal: number;
+  /** Letters cleared on the secondary swap market (today / cumulative). */
+  lettersTradedToday: number;
+  lettersTradedTotal: number;
+  /** Secondary GMV in USD cleared today (letters × floor). */
+  tradeVolumeUsdToday: number;
 }
 
 export interface SimResult {
@@ -83,6 +95,8 @@ export interface SimResult {
     archetype: Archetype;
     spent: number;
     earned: number;
+    /** Of `earned`, the part from selling letters on the swap market (clean recoup signal). */
+    recoup: number;
     net: number;
     claims: number;
     players: number;

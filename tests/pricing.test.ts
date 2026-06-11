@@ -16,7 +16,7 @@ describe("USD-pegged pricing", () => {
   it("priceWord converts USD targets to $WORD at the live peg", () => {
     expect(priceWord(1)).toBeCloseTo(WORD_PER_USD, 6);
     expect(priceWord(DEFAULT_PARAMS.prices.pack)).toBeCloseTo(DEFAULT_PARAMS.prices.pack / WORD_USD_PRICE, 0);
-    // a $0.60 pack is a few million $WORD at a sub-microcent token
+    // a sub-dollar price is a few million $WORD at a sub-microcent token
     expect(priceWord(0.6)).toBeGreaterThan(1e6);
   });
 

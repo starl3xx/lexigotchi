@@ -59,6 +59,14 @@ Key properties to carry into `Rolls.sol` / pack mints:
 4. **Level/state is read at reveal and checked against the commit** — prevents replaying a
    signature against a different state. Lexigotchi rolls must bind the signed payload to the
    exact `(owner, letterId, pityStreak)` so a stale signature can't be reused.
+5. **Pity must key on the WORD-OWNER address for escrowed-letter rolls — never the token
+   holder.** When a letter is escrowed inside a Word, the 1155 is held by `Words.sol`, not the
+   player. If `Rolls.sol` keys pity on `msg.sender`-as-1155-holder (or on the current token
+   holder), every player rolling escrowed letters collapses onto the **escrow contract's
+   single shared counter** — a player could pump that shared streak with cheap rolls and then
+   harvest near-cap-probability upgrades on anyone's escrowed word. Key pity on the Word
+   owner's address (the beneficial owner), resolved from `Words.ownerOf(tokenId)`, for both
+   loose and escrowed rolls. Document this explicitly in `Rolls.sol`.
 
 ## Jackpot in EGGS (and why Lexigotchi diverges)
 
@@ -72,7 +80,7 @@ the *answer* comes from the pre-committed `AnswerChain`, not from `prevrandao`.
 
 | EGGS surface | Lexigotchi contract | Notes |
 |---|---|---|
-| `commitToLevelUpChicken` / `levelUpChicken` + `superHen` signer | `Rolls.sol` | Same commit→signed-reveal; bind payload to `(owner,letterId,pityStreak)`; pity per `(owner,letterId)` (1155s are fungible). `*Failed` event on failure. |
+| `commitToLevelUpChicken` / `levelUpChicken` + `superHen` signer | `Rolls.sol` | Same commit→signed-reveal; bind payload to `(owner,letterId,pityStreak)`; pity per `(owner,letterId)` (1155s are fungible) — and `owner` = the **Word owner** for escrowed rolls, not the escrow contract that holds the 1155 (see property #5). `*Failed` event on failure. |
 | pack purchase commit→reveal | `Letters.sol` | 1155, 52 ids, per-id supply caps, demand-mirrored odds; ETH→$WORD auto-swap at mint (v0.2 §4). |
 | `chickenLevels` as mutable state | `Words.sol` | Case derived from escrowed letters; `tokenId = keccak256(word)`; one NFT per word. |
 | `stake`/`unstake` + `EggsStaking.sol` | `Staking.sol` | UPPERCASE-only yield, hunger accounting; expose feed-state read for Jackpot. |

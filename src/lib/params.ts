@@ -15,8 +15,12 @@
 
 import { DEMAND_MULTIPLE } from "./economy";
 
-/** Live $WORD price (Uniswap/Base `0x304e…fb4b`). The peg input the multisig updates. */
-export const WORD_USD_PRICE = 0.0000002368;
+/**
+ * Live $WORD price, USD. Source: WORD/WETH pool on Base (`0xc5db…a275`), via GeckoTerminal as of
+ * 2026-06-11 — price ~$2.357e-7, liquidity ~$21.2K, FDV ~$23.5K, 24h volume ~$0 (dormant
+ * micro-cap, paired with WETH). The peg input the multisig updates.
+ */
+export const WORD_USD_PRICE = 0.00000023569;
 /** $WORD per $1 (≈ 4.22M at the current price). */
 export const WORD_PER_USD = 1 / WORD_USD_PRICE;
 /** Convert a USD price target to the $WORD amount to set on-chain at a given peg. */
@@ -61,7 +65,8 @@ export interface Params {
     roll: Split;
     claim: Split;
     snack: Split; // 100% burn
-    royalty: Split; // 2.5% secondary royalty → 100% Rewards Pool (v0.2 §8)
+    royalty: Split; // 2.5% secondary royalty → 100% Treasury (overrides v0.2 §8's pool routing:
+    // marketplace royalties arrive in ETH, and Treasury holds ETH without an ETH→$WORD swap)
   };
 
   /** Upgrade roll (v0.2 §1.4): 45% base, +10pp per consecutive fail, cap 85%, reset on success. */
@@ -101,14 +106,14 @@ export interface Params {
     eligibilityRequiresNotHungry: boolean;
   };
 
-  /** Secondary-market royalty (v0.2 §8). */
+  /** Secondary-market royalty (v0.2 §8, destination overridden — see `splits.royalty`). */
   market: {
     royaltyRate: number; // e.g., 0.025
     /**
      * Macro abstraction for Phase 0: daily secondary GMV modeled as this fraction of the
-     * day's PRIMARY fee GMV (mints+rolls+claims). Royalty on it routes 100% to the pool.
-     * This exercises the royalty faucet without a (fragile) per-letter matching engine;
-     * full letter redistribution is a deliberate next-iteration item (see decisions.md).
+     * day's PRIMARY fee GMV (mints+rolls+claims). Royalty on it routes per `splits.royalty`
+     * (now 100% Treasury). This exercises the royalty faucet without a (fragile) per-letter
+     * matching engine; full letter redistribution is modeled via `trading` (see decisions.md).
      */
     secondaryVolumeRatio: number;
   };
@@ -121,14 +126,54 @@ export interface Params {
   supply: {
     demandMultiple: number;
   };
+
+  /**
+   * Secondary letter liquidity — a SIM LEVER for the "should we build a swap primitive?"
+   * decision (not yet a product). Models a simple daily clearing: blocked claimers bid for
+   * the letters they need toward their nearest unclaimed word; everyone lists a fraction of
+   * their duplicate (surplus) letters at a floor. $WORD changes hands player-to-player
+   * (recoup for sellers, claim velocity for buyers) and ONLY the secondary royalty leaks to
+   * the pool, so solvency is untouched. OFF by default so the baseline + spec tests are
+   * unchanged; the experiment toggles it on (`npm run trade-exp`). This is NOT a marketplace —
+   * the eventual contract is a two-sided swap escrow; open price discovery stays on integrated
+   * venues (v0.2 §8). See docs/decisions.md.
+   */
+  trading: {
+    enabled: boolean;
+    /** Fraction of each player's surplus (held-beyond-one) letters listed per day. */
+    listSurplusFraction: number;
+    /** Secondary floor price per letter, as a fraction of the per-letter primary pack cost. */
+    floorFraction: number;
+    /** Max letters a blocked claimer bids for toward its nearest unclaimed word per day. */
+    maxBidLetters: number;
+  };
+
+  /**
+   * Dissolution (v0.1 §5.4, reaffirmed v0.2 §6) — the only liquidity escape hatch for a bad
+   * claim: burn the Word NFT, recover its 5 escrowed letters, return the name to the claimable
+   * pool (trophy history persists). A SIM LEVER (default off). Modeled as a VOLUNTARY redeploy
+   * act, NOT a consequence of neglect: a player who chases better/UPPERCASE words recycles a
+   * "dead" (still all-lowercase, never upgraded) low-tier claim to recover its letters. The
+   * mechanic's *real* value — de-risking claims so people claim more boldly because they can
+   * exit, plus freeing names for gifting/re-claim drama — is behavioral and outside this
+   * greedy-claim agent model; the sim sees only the mechanical churn. Contract-side this stays
+   * in `Words.sol` regardless of the sim. See docs/decisions.md.
+   */
+  dissolution: {
+    enabled: boolean;
+    /** Daily probability a redeploy-motivated owner dissolves a dead low-tier all-lowercase word. */
+    dailyProb: number;
+    /** Only dissolve at/below this tier rank (0=Common…4=Legendary) — nobody burns a grail. */
+    maxTierRank: number;
+  };
 }
 
 export const DEFAULT_PARAMS: Params = {
   // USD targets (accessible/bootstrap — see decisions.md). $WORD amounts via priceWord().
   prices: {
-    pack: 0.6, // ≈ 2.53M $WORD at the current peg
+    pack: 1.0, // ≈ 4.22M $WORD at the current peg (5 letters → $0.20/letter primary)
     dailyMint: 0.05, // ≈ 211K $WORD — near-free habit hook
-    roll: 0.15, // ≈ 633K $WORD — cheap gamble, do many
+    roll: 0.25, // ≈ 1.06M $WORD — the core sink; ~1.9 rolls/success ≈ $0.48 per UPPERCASE letter
     claim: 0.5, // ≈ 2.11M $WORD — a commitment
     snack: 0.02, // ≈ 84K $WORD — trivial daily care
   },
@@ -146,7 +191,7 @@ export const DEFAULT_PARAMS: Params = {
     roll: { pool: 0.4, jackpot: 0.25, burn: 0.2, treasury: 0.15 },
     claim: { pool: 0.25, jackpot: 0.25, burn: 0.25, treasury: 0.25 },
     snack: { pool: 0, jackpot: 0, burn: 1, treasury: 0 },
-    royalty: { pool: 1, jackpot: 0, burn: 0, treasury: 0 },
+    royalty: { pool: 0, jackpot: 0, burn: 0, treasury: 1 },
   },
   roll: {
     baseSuccess: 0.45,
@@ -169,10 +214,25 @@ export const DEFAULT_PARAMS: Params = {
   },
   market: {
     royaltyRate: 0.025,
-    secondaryVolumeRatio: 0.35,
+    // Open composability (decision, June 2026) ⇒ external-marketplace royalties are optional and
+    // largely uncollected, so external secondary royalty is modeled as 0. The in-house swap fee
+    // (the `trading` lever) is the only ENFORCED royalty → Treasury. Any external royalty that
+    // does get paid is upside. See docs/decisions.md "Royalty & marketplace architecture".
+    secondaryVolumeRatio: 0,
   },
   supply: {
     demandMultiple: DEMAND_MULTIPLE,
+  },
+  trading: {
+    enabled: false,
+    listSurplusFraction: 0.5, // half of your duplicate letters get listed
+    floorFraction: 0.6, // 60% of the $0.20/letter primary cost ≈ a $0.12 secondary floor
+    maxBidLetters: 3, // a blocked claimer chases at most 3 letters toward its nearest word
+  },
+  dissolution: {
+    enabled: false,
+    dailyProb: 0.05, // a redeploy-minded owner recycles a dead low-tier claim ~5%/day
+    maxTierRank: 1, // Common + Uncommon only — grails are never burned
   },
 };
 

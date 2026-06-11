@@ -1,5 +1,11 @@
 # Pricing & launch-economics review (4-lens pressure-test)
 
+> **Numbers as of the original $0.60-pack / $0.15-roll ladder (the version reviewed here).** The
+> ladder was later revised (pack $1.00, roll $0.25, royalty→Treasury) and re-simulated 2026-06-11;
+> see `docs/decisions.md` for current figures (demand ~$27K, ~8.8× pump, completion ~day 70). The
+> *structural* findings below — compliance rework, the retention cliff, market-integrity — are
+> ladder-independent and still stand.
+
 A multi-lens review (tokenomics/market-structure, product/retention, compliance/legal,
 GTM/market-integrity) of the proposed USD-pegged prices + treasury-seeded jackpot + the
 "game as $WORD catalyst" strategy. Verdicts: tokenomics **ship-with-changes**, product

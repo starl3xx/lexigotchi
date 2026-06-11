@@ -73,6 +73,10 @@ const WORD_INDEX = new Map<string, number>(WORDS.map((w, i) => [w, i]));
 const claimVisited = new Int32Array(NUM_WORDS);
 let claimGen = 0;
 
+const TIER_RANK: Record<Tier, number> = {
+  Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4,
+};
+
 // ---------------------------------------------------------------------------
 // Archetypes — behavioral policies (tunable)
 // ---------------------------------------------------------------------------
@@ -161,6 +165,12 @@ class World {
   lettersMintedTotal = 0;
   nextPlayerId = 0;
   jackpotWins: { day: number; word: string; amount: number }[] = [];
+  /** Gross claims ever made (monotonic; survives dissolution+re-claim) — claim velocity. */
+  claimsEver = 0;
+  /** Words dissolved cumulatively (names freed back to the claimable pool). */
+  dissolutionsTotal = 0;
+  /** Letters cleared on the secondary swap market, cumulative. */
+  lettersTradedTotal = 0;
 
   constructor(cfg: SimConfig) {
     this.rng = new Rng(cfg.seed);
@@ -217,6 +227,7 @@ function makePlayer(world: World, archetype: Archetype, day: number): Player {
     freeSnackUsedToday: false,
     spent: 0,
     earned: 0,
+    tradeEarned: 0,
     lastActiveDay: day,
     joinedDay: day,
   };
@@ -240,9 +251,6 @@ function findClaimable(
 ): { word: string; upper: boolean } | null {
   claimGen++;
   let best: { word: string; upper: boolean; tier: number } | null = null;
-  const tierRank: Record<Tier, number> = {
-    Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4,
-  };
   let checked = 0;
   for (let li = 0; li < 26; li++) {
     if (player.lower[li] === 0 && player.upper[li] === 0) continue;
@@ -259,7 +267,7 @@ function findClaimable(
           : null;
       if (upper === null) continue;
       if (!grail) return { word: info.word, upper }; // first match
-      const tr = tierRank[info.tier];
+      const tr = TIER_RANK[info.tier];
       if (!best || tr > best.tier) best = { word: info.word, upper, tier: tr };
       if (++checked > 64) break; // bound grail search
     }
@@ -329,6 +337,179 @@ function chooseRollTarget(player: Player, wantsUppercase: boolean): RollTarget |
 }
 
 // ---------------------------------------------------------------------------
+// Dissolution + secondary letter clearing (sim levers, off by default)
+// ---------------------------------------------------------------------------
+
+/**
+ * The lowercase letters a player most needs to complete its NEAREST unclaimed word — the
+ * unclaimed word it already holds the most letters toward. Returns the missing letter indices
+ * (with multiplicity), capped at `max`. Bounded scan (mirrors findClaimable's pruning), and
+ * only meaningful for players who can't already spell anything (callers pre-check that).
+ */
+function findNearest(player: Player, world: World, max: number): number[] | null {
+  if (max <= 0) return null;
+  claimGen++;
+  let best: { missing: number[]; have: number } | null = null;
+  let checked = 0;
+  outer: for (let li = 0; li < 26; li++) {
+    if (player.lower[li] === 0) continue;
+    for (const widx of WORDS_BY_RAREST[li]) {
+      if (claimVisited[widx] === claimGen) continue;
+      claimVisited[widx] = claimGen;
+      const info = WORD_INFO[widx];
+      if (world.claims.has(info.word)) continue;
+      let have = 0;
+      const missing: number[] = [];
+      for (const [idx, cnt] of info.pairs) {
+        const h = Math.min(player.lower[idx], cnt);
+        have += h;
+        for (let k = h; k < cnt; k++) missing.push(idx);
+      }
+      if (missing.length === 0) continue; // already spellable — not a bidder's target
+      if (!best || have > best.have) best = { missing, have };
+      if (++checked > 64) break outer;
+    }
+  }
+  if (!best) return null;
+  return best.missing.slice(0, max);
+}
+
+/**
+ * Dissolution — a VOLUNTARY redeploy act, not a consequence of neglect. Only players who chase
+ * better/UPPERCASE words (`wantsUppercase || grailHunter`) recycle a "dead" claim: a staked,
+ * still-all-lowercase (never upgraded), low-tier word whose letters are worth more redeployed
+ * than the word is worth held. Burning it returns the 5 letters to loose inventory and frees
+ * the name back to the claimable pool (trophy persists in the registry — immaterial here).
+ *
+ * NOTE the limitation: dissolution's headline benefit is BEHAVIORAL — it de-risks claiming
+ * (you'll claim more boldly knowing you can exit) and enables gifting/re-claim drama. This
+ * greedy-claim agent model claims regardless of risk, so it can only show the *mechanical*
+ * churn (letters freed → re-claimed), never the de-risking. Read the dissolution columns as
+ * "what the exit does mechanically," not as a verdict on the feature.
+ */
+function runDissolution(world: World): void {
+  const p = world.params;
+  for (const pl of world.players) {
+    const cfg = ARCHETYPES[pl.archetype];
+    if (!cfg.wantsUppercase && !cfg.grailHunter) continue; // pure holders don't recycle
+    for (const [word, w] of [...pl.words]) {
+      if (!w.staked) continue;
+      if (wordCase(w) !== "lowercase") continue; // a word they're upgrading isn't "dead"
+      if (TIER_RANK[w.tier] > p.dissolution.maxTierRank) continue;
+      if (!world.rng.chance(p.dissolution.dailyProb)) continue;
+      for (let pos = 0; pos < 5; pos++) {
+        const idx = word.charCodeAt(pos) - A_CODE;
+        if (w.upper[pos]) pl.upper[idx] += 1;
+        else pl.lower[idx] += 1;
+      }
+      pl.words.delete(word);
+      world.claims.delete(word); // name back to the claimable pool
+      world.dissolutionsTotal += 1;
+    }
+  }
+}
+
+/** Largest-remainder apportionment of `total` integer units across `weights` (each fill ≤ its
+ *  weight). Used to settle a letter market pro-rata while keeping the integer total exact. */
+function apportion(weights: number[], total: number): number[] {
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (sum <= 0 || total <= 0) return weights.map(() => 0);
+  const raw = weights.map((w) => (w / sum) * total);
+  const fill = raw.map((r) => Math.floor(r));
+  let assigned = fill.reduce((a, b) => a + b, 0);
+  const order = raw
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (const { i } of order) {
+    if (assigned >= total) break;
+    if (fill[i] < weights[i]) {
+      fill[i] += 1;
+      assigned += 1;
+    }
+  }
+  return fill;
+}
+
+/**
+ * Secondary letter clearing — the "swap primitive" lever. Once per day:
+ *   asks  = a fraction of every active player's surplus (held-beyond-one) lowercase letters
+ *   bids  = the letters each BLOCKED claimer needs toward its nearest unclaimed word
+ *           (bids capped by what the buyer can afford at the floor, so no balance goes negative)
+ * Each letter index clears at the floor; matched = min(asks, bids), apportioned pro-rata.
+ * Buyers pay the floor (recorded as spend, letter added to inventory → faster claims);
+ * sellers receive floor×(1−royalty) (recorded as recoup); the royalty routes per splits.royalty
+ * (now Treasury). Player-to-player $WORD only — solvency is untouched (just the royalty leak).
+ */
+function runClearing(world: World): { letters: number; volumeUsd: number } {
+  const p = world.params;
+  const floorUsd = (p.prices.pack / 5) * p.trading.floorFraction;
+  if (floorUsd <= 0) return { letters: 0, volumeUsd: 0 };
+
+  const sellers: { pl: Player; qty: number }[][] = Array.from({ length: 26 }, () => []);
+  const buyers: { pl: Player; qty: number }[][] = Array.from({ length: 26 }, () => []);
+  const askTotal = new Array(26).fill(0);
+  const bidTotal = new Array(26).fill(0);
+
+  for (const pl of world.players) {
+    if (!pl.active) continue;
+    for (let li = 0; li < 26; li++) {
+      const surplus = Math.floor(p.trading.listSurplusFraction * Math.max(0, pl.lower[li] - 1));
+      if (surplus > 0) {
+        sellers[li].push({ pl, qty: surplus });
+        askTotal[li] += surplus;
+      }
+    }
+    const cfg = ARCHETYPES[pl.archetype];
+    if (cfg.claimsPerDay <= 0) continue;
+    if (findClaimable(pl, world, false)) continue; // not blocked — already has a claim to make
+    const afford = Math.floor(pl.balance / floorUsd);
+    const want = findNearest(pl, world, Math.min(p.trading.maxBidLetters, afford));
+    if (!want) continue;
+    const per = new Map<number, number>();
+    for (const idx of want) per.set(idx, (per.get(idx) ?? 0) + 1);
+    for (const [idx, qty] of per) {
+      buyers[idx].push({ pl, qty });
+      bidTotal[idx] += qty;
+    }
+  }
+
+  const royaltyRate = p.market.royaltyRate;
+  let letters = 0;
+  let volumeUsd = 0;
+  for (let li = 0; li < 26; li++) {
+    const matched = Math.min(askTotal[li], bidTotal[li]);
+    if (matched <= 0) continue;
+    const buyFill = apportion(buyers[li].map((b) => b.qty), matched);
+    const sellFill = apportion(sellers[li].map((s) => s.qty), matched);
+    for (let i = 0; i < buyers[li].length; i++) {
+      const f = buyFill[i];
+      if (f <= 0) continue;
+      const b = buyers[li][i];
+      const cost = f * floorUsd;
+      b.pl.balance -= cost;
+      b.pl.spent += cost;
+      b.pl.lower[li] += f;
+    }
+    for (let i = 0; i < sellers[li].length; i++) {
+      const f = sellFill[i];
+      if (f <= 0) continue;
+      const s = sellers[li][i];
+      const proceeds = f * floorUsd * (1 - royaltyRate);
+      s.pl.balance += proceeds;
+      s.pl.earned += proceeds;
+      s.pl.tradeEarned += proceeds;
+      s.pl.lower[li] -= f;
+    }
+    letters += matched;
+    volumeUsd += matched * floorUsd;
+  }
+  const royaltyUsd = volumeUsd * royaltyRate;
+  if (royaltyUsd > 0) world.ledger.route(royaltyUsd, p.splits.royalty);
+  world.lettersTradedTotal += letters;
+  return { letters, volumeUsd };
+}
+
+// ---------------------------------------------------------------------------
 // The day loop
 // ---------------------------------------------------------------------------
 
@@ -376,6 +557,7 @@ function playerTurn(player: Player, world: World, day: number): void {
     world.ledger.route(p.prices.claim, p.splits.claim);
     escrowClaim(player, found.word, found.upper);
     world.claims.set(found.word, player.id);
+    world.claimsEver += 1;
   }
 
   // 3) Stake any unstaked claimed words (free, instant)
@@ -465,6 +647,23 @@ function hungerYieldFactor(w: ClaimedWord, p: Params): number {
   return 1;
 }
 
+/**
+ * Conservation guard: letters are only ever MINTED — claiming escrows them, dissolution
+ * returns them, trading moves them between players, but none of those create or destroy a
+ * letter. So (all loose letters) + 5×(words currently held) must always equal lettersMinted.
+ * Run only when a lever is on (it's the new code that could break this); throws if violated.
+ */
+function assertLettersConserved(world: World): void {
+  let loose = 0;
+  for (const pl of world.players) {
+    for (let i = 0; i < 26; i++) loose += pl.lower[i] + pl.upper[i];
+  }
+  const total = loose + world.claims.size * 5;
+  if (total !== world.lettersMintedTotal) {
+    throw new Error(`Letter conservation violated: held ${total} vs minted ${world.lettersMintedTotal}`);
+  }
+}
+
 function isJackpotEligible(w: ClaimedWord, p: Params): boolean {
   if (!w.staked) return false;
   if (p.jackpot.eligibilityRequiresNotHungry && effectiveMissed(w) >= p.care.hungryAfterDays) {
@@ -517,12 +716,26 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
       }
     }
 
-    // ---- secondary-market royalty → Rewards Pool (v0.2 §8) ----
-    // Macro abstraction: daily secondary GMV ≈ a fraction of the day's primary fee GMV;
-    // its 2.5% royalty funds the pool. (Full per-letter resale is a next-iteration item.)
-    const secondaryVolume = world.ledger.grossRoutedToday * world.params.market.secondaryVolumeRatio;
-    const royalty = secondaryVolume * world.params.market.royaltyRate;
-    if (royalty > 0) world.ledger.route(royalty, world.params.splits.royalty);
+    // ---- dissolution: neglected low-tier claims burn back to letters, freeing the name ----
+    if (world.params.dissolution.enabled) runDissolution(world);
+
+    // ---- secondary letter clearing (the swap-primitive lever) ----
+    // When trading is modeled, the secondary royalty comes from REAL cleared volume and the
+    // macro proxy below is turned OFF, so the experiment isolates the modeled-trading effect.
+    let tradeLetters = 0;
+    let tradeVolumeUsd = 0;
+    if (world.params.trading.enabled) {
+      const t = runClearing(world);
+      tradeLetters = t.letters;
+      tradeVolumeUsd = t.volumeUsd;
+    } else {
+      // ---- secondary-market royalty → Treasury (splits.royalty), MACRO PROXY ----
+      // Daily secondary GMV ≈ a fraction of the day's primary fee GMV; its 2.5% royalty routes
+      // per splits.royalty (now Treasury). Stand-in until per-letter resale is modeled (`trading`).
+      const secondaryVolume = world.ledger.grossRoutedToday * world.params.market.secondaryVolumeRatio;
+      const royalty = secondaryVolume * world.params.market.royaltyRate;
+      if (royalty > 0) world.ledger.route(royalty, world.params.splits.royalty);
+    }
 
     // ---- daily yield distribution (v0.2 §1.5): honor the configured yield gate ----
     // yieldRequiresUppercase=true (the v0.2 decision) restricts yield to full-UPPERCASE
@@ -574,7 +787,8 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
     }
 
     world.ledger.assertSolvent();
-    days.push(snapshot(world, day, distributed, jackpotPaid, rolledOver));
+    if (world.params.trading.enabled || world.params.dissolution.enabled) assertLettersConserved(world);
+    days.push(snapshot(world, day, distributed, jackpotPaid, rolledOver, tradeLetters, tradeVolumeUsd));
   }
 
   return summarize(world, days, cfg);
@@ -602,6 +816,8 @@ function snapshot(
   distributed: number,
   jackpotPaid: number,
   rolledOver: boolean,
+  tradeLetters: number,
+  tradeVolumeUsd: number,
 ): DayMetrics {
   let staked = 0;
   let uppercase = 0;
@@ -640,17 +856,23 @@ function snapshot(
     activePlayers: world.players.filter((pl) => pl.active).length,
     lettersMintedTotal: world.lettersMintedTotal,
     capConsumption,
+    claimsEverTotal: world.claimsEver,
+    dissolutionsTotal: world.dissolutionsTotal,
+    lettersTradedToday: tradeLetters,
+    lettersTradedTotal: world.lettersTradedTotal,
+    tradeVolumeUsdToday: tradeVolumeUsd,
   };
 }
 
 function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult {
   const final = days[days.length - 1];
   // per-archetype ROI
-  const roiMap = new Map<Archetype, { spent: number; earned: number; claims: number; players: number }>();
+  const roiMap = new Map<Archetype, { spent: number; earned: number; recoup: number; claims: number; players: number }>();
   for (const pl of world.players) {
-    const cur = roiMap.get(pl.archetype) ?? { spent: 0, earned: 0, claims: 0, players: 0 };
+    const cur = roiMap.get(pl.archetype) ?? { spent: 0, earned: 0, recoup: 0, claims: 0, players: 0 };
     cur.spent += pl.spent;
     cur.earned += pl.earned;
+    cur.recoup += pl.tradeEarned;
     cur.claims += pl.words.size;
     cur.players += 1;
     roiMap.set(pl.archetype, cur);
@@ -659,6 +881,7 @@ function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult 
     archetype,
     spent: v.spent,
     earned: v.earned,
+    recoup: v.recoup,
     net: v.earned - v.spent,
     claims: v.claims,
     players: v.players,
@@ -701,6 +924,16 @@ function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult 
       `${world.jackpotWins.length} wins, biggest ${biggest.toLocaleString()} $WORD. ` +
       `Escalation is an EARLY-game effect — once most words are held, the answer is almost always claimed, so it pays ~daily.`,
   );
+
+  if (cfg.params.trading.enabled || cfg.params.dissolution.enabled) {
+    // identity: currently-held (final.totalClaims) === gross claims − dissolutions
+    notes.push(
+      `Levers on — trading:${cfg.params.trading.enabled} dissolution:${cfg.params.dissolution.enabled}. ` +
+        `${final.lettersTradedTotal.toLocaleString()} letters cleared on the swap market; ` +
+        `${world.claimsEver.toLocaleString()} gross claims ` +
+        `(${final.dissolutionsTotal.toLocaleString()} dissolved → ${final.totalClaims.toLocaleString()} held now).`,
+    );
+  }
 
   return {
     days,
