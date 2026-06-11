@@ -37,8 +37,8 @@ export interface MarketParams {
 }
 
 export const DEFAULT_MARKET: MarketParams = {
-  initLiquidityUsd: 21566,
-  initPriceUsd: 0.0000002368,
+  initLiquidityUsd: 21236, // live WORD/WETH pool reserve, Base `0xc5db…a275`, 2026-06-11
+  initPriceUsd: 0.00000023569, // live $WORD spot, same source (matches params.WORD_USD_PRICE)
   fee: 0.003,
   sellbackRate: 0.5,
   repegTriggerPct: 0.1,

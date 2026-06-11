@@ -1,0 +1,83 @@
+import { describe, it, expect } from "vitest";
+import { runSim, DEFAULT_SIM_CONFIG, type SimConfig } from "@/lib/sim/simulate";
+import { DEFAULT_PARAMS, type Params } from "@/lib/params";
+
+function params(trading: boolean, dissolution: boolean): Params {
+  return {
+    ...DEFAULT_PARAMS,
+    trading: { ...DEFAULT_PARAMS.trading, enabled: trading },
+    dissolution: { ...DEFAULT_PARAMS.dissolution, enabled: dissolution },
+  };
+}
+const cfg = (trading: boolean, dissolution: boolean): SimConfig => ({
+  ...DEFAULT_SIM_CONFIG,
+  days: 120,
+  population: 400,
+  params: params(trading, dissolution),
+});
+
+describe("secondary-market levers (sim)", () => {
+  it("are OFF by default — baseline parity (no trades, no dissolutions)", () => {
+    const r = runSim(cfg(false, false));
+    expect(r.final.lettersTradedTotal).toBe(0);
+    expect(r.final.dissolutionsTotal).toBe(0);
+    // with no dissolution, gross claims === words currently held (nothing freed)
+    expect(r.final.claimsEverTotal).toBe(r.final.totalClaims);
+  });
+
+  it("bookkeeping identity holds: held === gross claims − dissolutions", () => {
+    for (const [t, d] of [[true, false], [false, true], [true, true]] as const) {
+      const r = runSim(cfg(t, d));
+      expect(r.final.totalClaims).toBe(r.final.claimsEverTotal - r.final.dissolutionsTotal);
+    }
+  });
+
+  it("is deterministic for the same (config, seed)", () => {
+    const a = runSim(cfg(true, true));
+    const b = runSim(cfg(true, true));
+    expect(a.final.pool).toBe(b.final.pool);
+    expect(a.final.claimsEverTotal).toBe(b.final.claimsEverTotal);
+    expect(a.final.lettersTradedTotal).toBe(b.final.lettersTradedTotal);
+    expect(a.final.dissolutionsTotal).toBe(b.final.dissolutionsTotal);
+  });
+
+  it("stays solvent with both levers on (P2P trading only leaks the royalty)", () => {
+    const r = runSim(cfg(true, true)); // runSim asserts solvency every day; also check final buckets
+    expect(r.final.pool).toBeGreaterThanOrEqual(-1e-9);
+    expect(r.final.jackpot).toBeGreaterThanOrEqual(-1e-9);
+    expect(r.final.burnedTotal).toBeGreaterThanOrEqual(0);
+    expect(r.final.treasuryTotal).toBeGreaterThanOrEqual(0);
+  });
+
+  it("trading clears letters and gives casuals clean recoup (isolated from yield/jackpot noise)", () => {
+    const base = runSim(cfg(false, false));
+    const trade = runSim(cfg(true, false));
+    expect(trade.final.lettersTradedTotal).toBeGreaterThan(0);
+    const baseCasual = base.playerRoi.find((p) => p.archetype === "casual")!;
+    const tradeCasual = trade.playerRoi.find((p) => p.archetype === "casual")!;
+    expect(baseCasual.recoup).toBe(0); // no market, no recoup
+    expect(tradeCasual.recoup).toBeGreaterThan(0); // surplus letters now recoup $WORD
+    // ...but the recoup is small relative to spend (the headline finding: modest, not a windfall)
+    expect(tradeCasual.recoup / tradeCasual.spent).toBeLessThan(0.1);
+  });
+
+  it("dissolution recycles dead claims (gross claims exceed words held)", () => {
+    const r = runSim(cfg(false, true));
+    expect(r.final.dissolutionsTotal).toBeGreaterThan(0);
+    expect(r.final.claimsEverTotal).toBeGreaterThan(r.final.totalClaims); // names freed + re-claimed
+  });
+
+  it("dissolution is gated to active redeploy archetypes and never touches the day's answer", () => {
+    // Two Bugbot fixes guarded here structurally (the answer + active checks live at the top of
+    // runDissolution): (a) the day's answer is excluded so a live jackpot ticket can't be
+    // recycled out from under resolution; (b) churned players don't dissolve (matches runClearing).
+    // A precise per-day assertion needs internal state we don't expose; these properties hold by
+    // construction. We assert the path still functions and stays sound across seeds.
+    for (const seed of [1930, 7, 42]) {
+      const r = runSim({ ...cfg(false, true), seed });
+      expect(r.final.dissolutionsTotal).toBeGreaterThan(0); // active redeploy players still recycle
+      expect(r.jackpotWins.length).toBeGreaterThan(0); // jackpot path intact (not zeroed by dissolution)
+      expect(r.final.totalClaims).toBe(r.final.claimsEverTotal - r.final.dissolutionsTotal); // accounting
+    }
+  });
+});

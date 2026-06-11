@@ -1,5 +1,11 @@
 # Pricing & launch-economics review (4-lens pressure-test)
 
+> **Numbers as of the original $0.60-pack / $0.15-roll ladder (the version reviewed here).** The
+> ladder was later revised (pack $1.00, roll $0.25, royalty→Treasury) and re-simulated 2026-06-11;
+> see `docs/decisions.md` for current figures (demand ~$27K, ~8.8× pump, completion ~day 70). The
+> *structural* findings below — compliance rework, the retention cliff, market-integrity — are
+> ladder-independent and still stand.
+
 A multi-lens review (tokenomics/market-structure, product/retention, compliance/legal,
 GTM/market-integrity) of the proposed USD-pegged prices + treasury-seeded jackpot + the
 "game as $WORD catalyst" strategy. Verdicts: tokenomics **ship-with-changes**, product
@@ -66,6 +72,7 @@ mint-out/recoup/burn are computed on the real price path. This is the highest-va
 ## What stays as-is
 - The **USD-pegged** decision (correct response to a micro-cap whose price will move).
 - The **cheap price ladder** (daily $0.05 / pack $0.60 / roll $0.15 / claim $0.50 / snack $0.02).
+  *(Original figures; later revised to pack $1.00 / roll $0.25 — see `decisions.md`.)*
 - **Solvency by construction** (unanimously confirmed sound).
 - Roll odds, hunger gating, UPPERCASE-yield split (product suggests *also* a small base yield
   for any staked+fed word at 0.25–0.5× — worth modeling, not required).
