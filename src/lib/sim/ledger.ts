@@ -60,6 +60,20 @@ export class Ledger {
     return paid;
   }
 
+  /**
+   * Move `amount` out of the Rewards Pool into the theme-bounty side pool (lever: bounty). Caps at
+   * the pool balance so it can never go negative; returns the amount actually moved (the caller —
+   * `World.carveToBounty` — credits the side pool, keeping conservation exact). This is a transfer
+   * WITHIN player rewards (yield → bounty), not a new emission, so solvency is untouched. NOT
+   * counted as yield outflow — `poolOutflowToday` stays "yield paid," so the equilibrium estimate
+   * keeps its meaning.
+   */
+  carveFromPool(amount: number): number {
+    const moved = Math.min(Math.max(0, amount), this.pool);
+    this.pool -= moved;
+    return moved;
+  }
+
   /** Invariant: no bucket may be negative. Called every day by the sim. */
   assertSolvent(): void {
     if (this.pool < -1e-9) throw new Error(`Insolvent: pool=${this.pool}`);
