@@ -50,7 +50,8 @@ seed; **absolute magnitudes depend on player-budget assumptions** (placeholders)
 3. **The Rewards Pool finds an equilibrium**, not an ever-rising balance: `pool* ≈
    (daily pool inflow) / (daily distribution rate)`. With UPPERCASE-only yield, early payouts
    are tiny (few uppercase words) and the pool grows; as upgrades accumulate, outflow rises
-   and the pool settles toward `pool*`.
+   and the pool settles toward `pool*`. (The printed `est. equilibrium` uses trailing-30-day
+   inflow and assumes it holds — a post-mint-out shape shift can move the true level.)
 4. **Jackpot escalation is driven by neglect, not just the early game.** The claim-rush window
    produces the first big rollovers; but after the churn+hunger fix (Bugbot finding #8), a
    *held-but-hungry* word is jackpot-ineligible, so rollovers stay high (~53% of days) even at
@@ -155,18 +156,17 @@ Surfaced while walking the game loop; recorded so they don't drift into the cont
   the swap gains a second rationale beyond casual recoup: it's the enforceable royalty channel.
   `params.market.royaltyRate` should be read as the **in-house swap fee**, not an external
   royalty we can rely on.
-- **Modeling consequence (owed in the re-sim):** the sim's macro-royalty proxy (the trading-OFF
-  path) routes `grossGMV × secondaryVolumeRatio × royaltyRate` to Treasury *as if external
-  royalties are collected* — under open composability they mostly aren't, so it **overstates
-  Treasury inflow**. Correct stance: model external royalty ≈ 0 and treat the in-house swap fee
-  (the `trading` lever) as the sole royalty → Treasury. Not yet changed in code; folded into the
-  deferred re-sim with the new prices.
+- **Modeling consequence (implemented 2026-06-11):** the macro-royalty proxy (the trading-OFF
+  path) would route `grossGMV × secondaryVolumeRatio × royaltyRate` to Treasury *as if external
+  royalties are collected* — under open composability they mostly aren't. So `secondaryVolumeRatio`
+  is now set to **0** in `params.ts` (external royalty ≈ 0); the in-house swap fee (the `trading`
+  lever) is the sole royalty → Treasury. Applied in the live-data re-sim.
 
 ## Secondary letter market — sim experiment (June 11, 2026)
 
 Built the lever the gate demanded *before* committing to a swap-primitive build: a SIMPLE daily
 clearing (surplus duplicate letters list at a floor; blocked claimers bid for letters toward
-their nearest unclaimed word; P2P $WORD, only the 2.5% royalty leaks to the pool) plus
+their nearest unclaimed word; P2P $WORD, only the 2.5% royalty leaks out — to Treasury) plus
 DISSOLUTION (voluntary recycle of dead low-tier claims), as two independent, default-off toggles
 in `params.ts`. Run: `npm run trade-exp`. Verified: 36 tests, a daily letter-conservation guard
 (held + 5×words == minted, every day), determinism, and a 5-seed robustness sweep.
@@ -179,7 +179,10 @@ case, not the numbers.** Specifically, robust across seeds:
   so completion is gated by claim-race *ordering*, not letter scarcity — and the one thing
   trading can't manufacture is more *rare* letters, which is the only real per-word bottleneck.
   The "let me buy the one Z I'm missing" story is true individually but doesn't move the aggregate
-  because nobody has spare Z's to sell.
+  because nobody has spare Z's to sell. *Caveat:* this rests on the **flat floor** — a rarity-tiered
+  floor would price spare rare letters higher and might draw more onto the market, so don't
+  over-read the scarcity verdict (the tiered floor is the next refinement). Seed 42 also shows a
+  dissolution-only completion ceiling (`never` alone; `d179` only once trading is added too).
 - **Casual recoup is real but small and stable: ~4.4–4.7% of casual spend** (≈ $0.38/casual over
   270d on the revised ladder; was ~3% at the $0.60 pack — it tracks the floor, which is derived
   from pack price). NOT a windfall — it's "pulling junk letters isn't a total loss." NB: measure
@@ -195,14 +198,19 @@ case, not the numbers.** Specifically, robust across seeds:
 **Implication for the build:** a swap-escrow is cheap (one small contract) and the social/UX case
 (exact-match discovery, mutuals gifting, a psychological floor under surplus) is genuinely good —
 so build it *light*. Do NOT scope or justify it as a major economic/retention lever; the sim says
-it isn't one. The day-64 completion cliff still needs a *renewable late-game loop*, which neither
+it isn't one. The day-70 completion cliff still needs a *renewable late-game loop*, which neither
 trading nor dissolution addresses.
 
 **Known model limits (don't over-read):** demand detection is a bounded "nearest unclaimed word"
-scan (lowercase path); the floor is flat (no rarity pricing — a rarity-tiered floor would let
-scarce letters clear higher and is the obvious next refinement); dissolution can't capture the
-de-risking benefit; churn is exogenous so literal *retention* isn't measurable (casual recoup +
-claim count stand in for it).
+scan (lowercase path, ≤64 words, ≤3 letters/day bid) — deliberately conservative, so it sets a
+*lower* bound on blocked-claimer demand; the floor is flat (no rarity pricing — a rarity-tiered
+floor would let scarce letters clear higher and is the obvious next refinement); dissolution can't
+capture the de-risking benefit. **Most important — churn is exogenous, so literal re-engagement of
+churned players cannot be modeled.** "Casual recoup / +claims" measures earnings *while active*,
+NOT retention of lapsed players. So the original question — *"does a letter market move
+retention?"* — is **not answered here**; the sim only shows active casuals claim slightly more. A
+5–10% re-engagement rate among churned casuals would reshape the case and is invisible to this
+model. Making churn endogenous (success → lower churn) is the way to actually test retention.
 
 ## Open questions still owed
 

@@ -410,7 +410,10 @@ function runDissolution(world: World): void {
 }
 
 /** Largest-remainder apportionment of `total` integer units across `weights` (each fill ≤ its
- *  weight). Used to settle a letter market pro-rata while keeping the integer total exact. */
+ *  weight). Used to settle a letter market pro-rata while keeping the integer total exact.
+ *  PRECONDITION: total ≤ sum(weights). The caller guarantees it (matched = min(askTotal, bidTotal)
+ *  ≤ each total); if violated, the remainder loop can't place all of `total` and the result sums
+ *  short — caller must not rely on apportion to clamp an oversized total. */
 function apportion(weights: number[], total: number): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
   if (sum <= 0 || total <= 0) return weights.map(() => 0);

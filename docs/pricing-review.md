@@ -72,6 +72,7 @@ mint-out/recoup/burn are computed on the real price path. This is the highest-va
 ## What stays as-is
 - The **USD-pegged** decision (correct response to a micro-cap whose price will move).
 - The **cheap price ladder** (daily $0.05 / pack $0.60 / roll $0.15 / claim $0.50 / snack $0.02).
+  *(Original figures; later revised to pack $1.00 / roll $0.25 — see `decisions.md`.)*
 - **Solvency by construction** (unanimously confirmed sound).
 - Roll odds, hunger gating, UPPERCASE-yield split (product suggests *also* a small base yield
   for any staked+fed word at 0.25–0.5× — worth modeling, not required).

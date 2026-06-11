@@ -17,7 +17,7 @@ import { DEMAND_MULTIPLE } from "./economy";
 
 /**
  * Live $WORD price, USD. Source: WORD/WETH pool on Base (`0xc5db…a275`), via GeckoTerminal as of
- * 2026-06-11 — price ~$2.357e-7, liquidity ~$21.2K, FDV ~$23.5K, 24h volume ~$0 (dormant
+ * 2026-06-11 — price ~$2.3569e-7, liquidity ~$21.2K, FDV ~$23.5K, 24h volume ~$0 (dormant
  * micro-cap, paired with WETH). The peg input the multisig updates.
  */
 export const WORD_USD_PRICE = 0.00000023569;
