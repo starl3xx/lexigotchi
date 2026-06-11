@@ -1,0 +1,39 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# typescript incremental build info
+*.tsbuildinfo
+
+# production
+/build
+/dist
+
+# testing / coverage
+/coverage
+
+# generated economy artifacts are committed on purpose (see scripts/derive-economy.ts),
+# but local sim scratch output is not:
+/sim-output
+
+# misc
+.DS_Store
+*.pem
+.vscode/*
+!.vscode/extensions.json
+
+# env
+.env
+.env*.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
