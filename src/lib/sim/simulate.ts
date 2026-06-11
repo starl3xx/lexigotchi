@@ -250,11 +250,12 @@ function escrowClaim(player: Player, word: string): void {
   });
 }
 
-/** Pick a lowercase escrowed position to roll toward UPPERCASE, or a loose letter. */
-function chooseRollTarget(
-  player: Player,
-): { kind: "escrow"; word: string; pos: number; letterIdx: number } | { kind: "loose"; letterIdx: number } | null {
-  // prefer pushing a staked/claimed word toward full-UPPERCASE (yield)
+type RollTarget =
+  | { kind: "escrow"; word: string; pos: number; letterIdx: number }
+  | { kind: "loose"; letterIdx: number };
+
+/** The most promising claimed-word escrow position to push toward UPPERCASE (yield). */
+function escrowRollTarget(player: Player): RollTarget | null {
   let bestWord: ClaimedWord | null = null;
   for (const w of player.words.values()) {
     if (wordCase(w) === "UPPERCASE") continue;
@@ -265,20 +266,34 @@ function chooseRollTarget(
       if (score(w) > score(bestWord)) bestWord = w;
     }
   }
-  if (bestWord) {
-    const info = WORD_INFO[WORD_INDEX.get(bestWord.word)!];
-    for (let pos = 0; pos < 5; pos++) {
-      if (!bestWord.upper[pos]) {
-        const letterIdx = bestWord.word.charCodeAt(pos) - A_CODE;
-        return { kind: "escrow", word: bestWord.word, pos, letterIdx };
-      }
+  if (!bestWord) return null;
+  for (let pos = 0; pos < 5; pos++) {
+    if (!bestWord.upper[pos]) {
+      const letterIdx = bestWord.word.charCodeAt(pos) - A_CODE;
+      return { kind: "escrow", word: bestWord.word, pos, letterIdx };
     }
   }
-  // else roll a loose lowercase letter (gambler dopamine)
+  return null;
+}
+
+/** Any loose lowercase letter to roll (the gamble, no yield intent). */
+function looseRollTarget(player: Player): RollTarget | null {
   for (let li = 0; li < 26; li++) {
     if (player.lower[li] > 0) return { kind: "loose", letterIdx: li };
   }
   return null;
+}
+
+/**
+ * Pick what to roll. `wantsUppercase` archetypes grind their claimed words toward full
+ * UPPERCASE (chasing the yield upgrade); others spend the same rolls on loose letters (the
+ * gamble) and don't pursue word completion. Roll *volume* (and fee revenue) is identical
+ * either way — the flag only steers which letters get upgraded.
+ */
+function chooseRollTarget(player: Player, wantsUppercase: boolean): RollTarget | null {
+  return wantsUppercase
+    ? (escrowRollTarget(player) ?? looseRollTarget(player))
+    : (looseRollTarget(player) ?? escrowRollTarget(player));
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +366,7 @@ function playerTurn(player: Player, world: World, day: number): void {
   // 5) Upgrade rolls toward UPPERCASE (the core sink)
   let rolls = poisson(rng, cfg.rollsPerDay);
   while (rolls-- > 0 && canSpend(p.prices.roll)) {
-    const target = chooseRollTarget(player);
+    const target = chooseRollTarget(player, cfg.wantsUppercase);
     if (!target) break;
     spend(p.prices.roll);
     world.ledger.route(p.prices.roll, p.splits.roll);
@@ -376,13 +391,16 @@ function playerTurn(player: Player, world: World, day: number): void {
     let minted = 0;
     for (let i = 0; i < 5; i++) {
       const idx = world.mintLetter();
-      if (idx === null) break;
+      if (idx === null) break; // global supply exhausted mid-pack (only at the very end)
       player.lower[idx] += 1;
       minted++;
     }
     if (minted === 0) break;
-    spend(p.prices.pack);
-    world.ledger.route(p.prices.pack, p.splits.packMint);
+    // Charge pro-rata for letters actually received — a partial pack near mint-out must not
+    // bill for 5 (which would overstate revenue exactly in the finite-mint-sink window).
+    const cost = p.prices.pack * (minted / 5);
+    spend(cost);
+    world.ledger.route(cost, p.splits.packMint);
   }
 
   player.lastActiveDay = day;
