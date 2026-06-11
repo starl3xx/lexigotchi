@@ -375,8 +375,8 @@ function findNearest(player: Player, world: World, max: number): number[] | null
 }
 
 /**
- * Dissolution — a VOLUNTARY redeploy act, not a consequence of neglect. Only players who chase
- * better/UPPERCASE words (`wantsUppercase || grailHunter`) recycle a "dead" claim: a staked,
+ * Dissolution — a VOLUNTARY redeploy act, not a consequence of neglect. Only *active* players who
+ * chase better/UPPERCASE words (`wantsUppercase || grailHunter`) recycle a "dead" claim: a staked,
  * still-all-lowercase (never upgraded), low-tier word whose letters are worth more redeployed
  * than the word is worth held. Burning it returns the 5 letters to loose inventory and frees
  * the name back to the claimable pool (trophy persists in the registry — immaterial here).
@@ -393,6 +393,7 @@ function findNearest(player: Player, world: World, max: number): number[] | null
 function runDissolution(world: World, answer: string): void {
   const p = world.params;
   for (const pl of world.players) {
+    if (!pl.active) continue; // voluntary act — churned players don't recycle (matches runClearing)
     const cfg = ARCHETYPES[pl.archetype];
     if (!cfg.wantsUppercase && !cfg.grailHunter) continue; // pure holders don't recycle
     for (const [word, w] of [...pl.words]) {

@@ -190,11 +190,13 @@ case, not the numbers.** Specifically, robust across seeds:
   recoup from the isolated `recoup` field, never total `earned` — earned is dominated by lumpy
   yield/jackpot and swings ±100% seed-to-seed, which nearly tricked this analysis.
 - **Casuals get modestly more claims (+4–11%)** with trading (buying toward near-complete words).
-- **Dissolution** mechanically churns ownership (gross claims +~120%, mostly re-grabs of recycled
-  commons) and bumps casual claims ~+24% (whales recycle dead commons → casuals pick up the freed
-  names). But its *headline* value — de-risking claims so people claim more boldly, and gifting/
-  re-claim drama — is **behavioral and invisible to a greedy-claim agent model**. Treat the
-  dissolution columns as "mechanical churn only," not a verdict on the feature.
+- **Dissolution** mechanically churns ownership (gross claims +~85%, mostly re-grabs of recycled
+  commons by *active* redeploy players) and bumps casual claims ~+16% (they pick up the freed
+  names). It slightly *raises* jackpot rollover (≈59% vs 57% baseline) — dissolving a live word
+  opens a brief unclaimed window before re-claim. Its *headline* value — de-risking claims so
+  people claim more boldly, and gifting/re-claim drama — is **behavioral and invisible to a
+  greedy-claim agent model**. Treat the dissolution columns as "mechanical churn only," not a
+  verdict on the feature.
 
 **Implication for the build:** a swap-escrow is cheap (one small contract) and the social/UX case
 (exact-match discovery, mutuals gifting, a psychological floor under surplus) is genuinely good —
