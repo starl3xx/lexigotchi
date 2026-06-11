@@ -16,6 +16,7 @@
     "sweep": "tsx scripts/price-sweep.ts",
     "market": "tsx scripts/market.ts",
     "trade-exp": "tsx scripts/trading-experiment.ts",
+    "loop-exp": "tsx scripts/loop-experiment.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

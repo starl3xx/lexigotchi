@@ -215,6 +215,97 @@ retention?"* — is **not answered here**; the sim only shows active casuals cla
 5–10% re-engagement rate among churned casuals would reshape the case and is invisible to this
 model. Making churn endogenous (success → lower churn) is the way to actually test retention.
 
+## Jackpot architecture — decoupled from LHAW (June 11, 2026)
+
+**Decision: Lexigotchi runs its OWN daily jackpot; LHAW becomes a bonus tie-in, not a core
+dependency.** Corrects a spec misalignment — Let's Have A Word! runs on *rounds* (not daily) with
+no winning word every day, so gating the core jackpot on "the daily LHAW answer" (v0.1 / v0.2 §2)
+was both factually wrong and a needless external dependency. Two jackpots now:
+
+- **Core daily jackpot (self-contained).** Lexigotchi picks one dictionary word per day from its
+  OWN pre-committed sequence (its own `AnswerChain` — Lexigotchi's commit cadence, NOT LHAW-sourced).
+  Resolution is unchanged: a single `keccak256(word)` lookup — claimed + staked + not-hungry → pay
+  the pot, else roll over; case-agnostic. Funded by the **Jackpot** fee bucket as today. **This
+  removes the v0.1/v0.2 "LHAW answer hash-chain" Phase-3 HARD dependency from core gameplay** — the
+  game launches on its own clock.
+- **LHAW bonus jackpot (soft tie-in).** When an LHAW *round* resolves its secret word, a Lexigotchi
+  player who **owns** that word wins a bonus.
+  - **Separate pool** (decision): its own accrual, so LHAW's irregular cadence can't destabilize the
+    daily jackpot and each pool stays solvent-by-construction. Funded by a thin slice carved from
+    the jackpot fee share (placeholder %, set when the bonus is modeled).
+  - **Ownership-only** (decision): NO staked/not-hungry gate — pure ownership of the LHAW winning
+    word wins (a serendipitous surprise-delight that also rewards collectors who don't stake).
+  - **Read-only soft integration**: an oracle/indexer reads LHAW's resolved winning word. If it's
+    down, the core daily jackpot is unaffected. LHAW is upside, never a blocker.
+
+**Sim status:** the sim ALREADY models the core daily jackpot correctly — `answerOrder =
+rng.shuffle([...WORDS])` *is* "Lexigotchi picks a word/day from its own sequence" (the old "LHAW
+answer" label was a misnomer, now reframed in code/UI). The **bonus pool is NOT modeled** —
+upside-only and irregular; documented as a Phase-1 addition (model it when sizing the carve %).
+
+**Fairness/compliance unchanged:** the daily word is still a chance payout, so it stays unsteerable
+via Lexigotchi's own pre-committed hash-chain, and the lottery-compliance rework (no-purchase free
+entry, geo/age-gating, official rules, `seed.jackpot = 0`) applies to BOTH jackpots. Ownership-only
+on the bonus doesn't change its chance nature (which word LHAW picks is the chance element).
+
+## Renewable late-game loop — sim experiment (June 11, 2026)
+
+The day-70 completion cliff (pricing review: active 596→138) is the biggest unresolved risk. Built
+the owner-named fix as two independent **default-off levers** (mirroring trading/dissolution): run
+`npm run loop-exp`; tests in `tests/loop.test.ts` (now **43 total**).
+
+- **`prestige`** — a full-UPPERCASE staked Word ascends L1..L4 (EGGS parity). Each attempt pays the
+  roll fee + burns a snack on a pity ramp; **success** bumps the level (monotonic), **failure is a
+  no-op** (asset untouched — same compliance stance as rolls). Reuses the roll budget (no new assumed
+  spend). Each level multiplies that word's yield + bounty weight. Solvency-neutral by construction
+  (a bigger slice of the **same** `pool × rate` pot).
+- **`bounty`** — a weekly featured **category** (`THEMES` in `simulate.ts`: rare-letter / repeated /
+  -ING / vowel-start / -Y / Epic-or-Legendary, 0.7%–32.8% of the dict). At period end, every owner of
+  a staked + not-hungry matching word shares a pool **carved zero-sum from `pool` inflow** (15%) —
+  NOT from jackpot (which empties daily late-game). A claimer steers toward matching words with prob
+  `chaseProbability` (the load-bearing behavioral assumption).
+
+**Two decisions taken:** (1) **provable economics only** — the endogenous-churn / κ\* retention
+instrument was deliberately **not** built (churn=f(success) would be an *assumed input*, not a
+measurement — the tautology trap). Churn stays exogenous; **retention is explicitly unanswered here**
+(a live cohort is the honest artifact). (2) **theme/category bounty**, not a single featured word (one
+word = one owner = just a second jackpot; a theme reaches the whole base).
+
+**What the sim CAN prove, and did (seed 1930 + 5-seed sweep):**
+- **Solvency + conservation hold**, including a stress row (both on, `chaseProbability=1.0`): every
+  seed solvent, `bountyPool` ~$2 residual, daily `assertSolvent` + `assertBountyConserved` held.
+- **Prestige is a *modest, finite* durable sink**: fee throughput past mint-out **+3% (prestige),
+  +5% (both)**; +1%–+7% across seeds. It **deepens** the post-completion economy for the ~25%
+  UPPERCASE cohort — it does not transform it (4 levels × maxed words is finite, by design).
+- **Bounty is *not* a fee sink** (−2% on its own): it's a zero-sum redistribution + a goal. Its real
+  demand channel — acquiring matching words — is **mostly invisible post-completion** (no word
+  secondary market is modeled), so the bounty's economic effect here is a **lower bound**.
+- **Prestige mildly concentrates yield onto whales**: whale yield-share **48.1%** (flat-weight
+  control, `mult=1.0`) → **~52%** (`mult=1.10`), i.e. ~+4pp from the boost itself (the rest is
+  stream-divergence noise the control isolates). The gentle 1.10 default keeps it marginal; casuals
+  get ~0% of yield either way (no UPPERCASE words).
+- **Bounty reaches casuals** — the one bright result: **~21% of bounty payouts go to casuals** (vs
+  ~0% of yield), **~218 words eligible per period** (a broad share, not a single-winner jackpot),
+  whale share only ~5–7%. `chaseProbability` 0.25→1.0 lifts casual bounty share 19.8%→25.4%.
+- **Completion timing is noise-dominated** (d66–never across seeds, both directions) — same as the
+  trading finding; do not read a velocity signal into it.
+
+**What it does NOT prove:** retention (churn exogenous), and post-completion word-acquisition demand
+(no word market). Neither lever dramatically moves the sim's economic metrics — *because the things
+they exist to move (retention, re-acquisition demand) are exactly what this sim can't see.*
+
+**Build verdict (evidence-gated):**
+- **Prestige — build it, scoped honestly:** a modest finite sink + a depth/engagement goal for the
+  whale/staker cohort. Keep the **gentle 1.10** multiplier (cap whale concentration). NOT a broad
+  cliff fix — it doesn't reach casuals.
+- **Bounty — build it as the casual-reachable renewable goal,** but justify it on **reach + the
+  behavioral/social case** (a weekly reason to log in, feed, and acquire), not on the sim's economic
+  deltas — which understate it (no post-completion word market), exactly like dissolution's
+  de-risking was invisible to a greedy-claim model. The theme breadth (and a possible rarity-aware
+  bounty weight) is a tuning knob; `chaseProbability` is the assumption to pin with real data.
+- **Recommended defaults:** prestige `{levels 4, fee = roll $0.25, 1.10×/level}`; bounty `{periodDays
+  7, carve 15% from pool, requiresNotHungry, chaseProbability 0.5}`. All default **off**.
+
 ## Open questions still owed
 
 - **Cap multiple (2.5×) / mint cadence** — mint-out is ~2 months at any real scale and is
@@ -223,6 +314,15 @@ model. Making churn endogenous (success → lower churn) is the way to actually 
 - **Secondary letter market** — ✅ now modeled (see the experiment section above). Verdict: weak
   economic lever (~4.5% casual recoup, no reliable velocity gain), strong social case → build the
   swap primitive light. Refinement owed: a rarity-tiered floor (scarce letters should clear higher).
+- **Renewable late-game loop** — ✅ now modeled (prestige + theme bounty; see "Renewable late-game
+  loop" above). Verdict: prestige = a modest finite durable sink + mild whale yield-concentration;
+  theme bounty = the casual-reachable goal whose economic demand the sim *understates* (no
+  post-completion word market). Build both light, on reach + behavioral grounds. Still owed: a
+  rarity-aware bounty weight, real `chaseProbability` calibration, and — the honest gap — **retention
+  itself is unmeasured** (churn is exogenous; a live cohort, not this sim, is the artifact for it).
 - **Demand damping in the market layer** — currently demand is held at the game-sim level; a
   fuller model would damp it by cost-to-play. (Minor while cost-to-play stays ~1.1×.)
-- **LHAW answer-chain migration** — unchanged (Phase 3 dependency).
+- **Daily-word `AnswerChain`** — Lexigotchi's OWN pre-committed daily-word hash-chain (no longer
+  the LHAW dependency; see "Jackpot architecture"). Still owed: commit cadence + reveal mechanics.
+- **LHAW bonus integration** — the read-only oracle that reads LHAW's resolved winning word, plus
+  the separate bonus-pool carve %. Phase-1, upside-only (not blocking).

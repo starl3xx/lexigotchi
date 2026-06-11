@@ -67,6 +67,7 @@ export interface Params {
     snack: Split; // 100% burn
     royalty: Split; // 2.5% secondary royalty → 100% Treasury (overrides v0.2 §8's pool routing:
     // marketplace royalties arrive in ETH, and Treasury holds ETH without an ETH→$WORD swap)
+    prestige?: Split; // optional; the prestige commit fee routes here, else falls back to `roll`
   };
 
   /** Upgrade roll (v0.2 §1.4): 45% base, +10pp per consecutive fail, cap 85%, reset on success. */
@@ -166,6 +167,68 @@ export interface Params {
     /** Only dissolve at/below this tier rank (0=Common…4=Legendary) — nobody burns a grail. */
     maxTierRank: number;
   };
+
+  /**
+   * Prestige / ascension (renewable late-game loop, sim LEVER — default off). A full-UPPERCASE
+   * staked Word ascends through `levels` Gilded stages (EGGS chicken-level parity). Each attempt
+   * pays `commitFeeUsd` (routed via `splits.prestige ?? splits.roll`) + burns `snacksPerAttempt`
+   * snacks (100% burn), and succeeds on a pity ramp identical in shape to upgrade rolls. SUCCESS
+   * bumps the level (monotonic, never decremented) and resets pity; FAILURE is an explicit no-op —
+   * level, case, and escrowed letters untouched (compliance: an upgrade fee with probabilistic
+   * timing, never a wager on principal — same stance as rolls). Each level multiplies that word's
+   * stake-yield weight (`yieldMultPerLevel^level`) and bounty weight (`bountyMultPerLevel^level`).
+   *
+   * Solvency-neutral by construction: prestige yield-weight takes a bigger slice of the SAME fixed
+   * `pool × dailyDistributionRate` pot — it never enlarges the pot. Models the durable-sink DEPTH
+   * extension for the ~25% UPPERCASE-chasing cohort (a FINITE sink: `levels` × maxed words); the
+   * renewable engine is `bounty`. `yieldMultPerLevel` is deliberately gentle (1.10, not 1.25) to
+   * limit whale yield concentration — sweep higher as a sensitivity row, not a default. See
+   * docs/decisions.md "Renewable late-game loop".
+   */
+  prestige: {
+    enabled: boolean;
+    /** Number of Gilded ascension stages above full-UPPERCASE (EGGS parity: 4). */
+    levels: number;
+    /** USD commit fee per attempt (default = roll fee). Routes via `splits.prestige ?? splits.roll`. */
+    commitFeeUsd: number;
+    baseSuccess: number; // mirrors roll odds (45% base)
+    pityStep: number; // +10pp per consecutive fail on that word
+    pityCap: number; // cap 85%
+    /** Snacks burned per attempt (100% burn via `splits.snack`). */
+    snacksPerAttempt: number;
+    /** A word's stake-yield weight is multiplied by this per prestige level. */
+    yieldMultPerLevel: number;
+    /** A word's bounty weight is multiplied by this per prestige level. */
+    bountyMultPerLevel: number;
+  };
+
+  /**
+   * Theme bounty (renewable late-game loop, sim LEVER — default off). Every `periodDays`, Lexigotchi
+   * features a CATEGORY of words (a predicate over the static dictionary — see `THEMES` in
+   * simulate.ts). At period end, every player holding a theme-matching word STAKED + not-hungry
+   * shares the bounty pool pro-rata (weighted by prestige). Reaches the whole base (the casual
+   * cohort that IS the day-70 cliff), re-driving claim/feed/prestige demand toward matching words;
+   * an unsatisfied period rolls forward. Never a wager on principal; never touches holdings.
+   *
+   * Funded ZERO-SUM: `carveFraction` of the day's POOL inflow is skimmed into a side `bountyPool`
+   * (a redistribution from passive staking-yield to the active goal) — NOT from the jackpot bucket,
+   * which is emptied every win and pays ~daily late-game (carving it would raid the headline
+   * escalation). The carve is a pure bucket→pool transfer, never a `route()`, so there is NO
+   * `splits.bounty`. `chaseProbability` (how often a claimer steers toward a matching word) is the
+   * load-bearing behavioral assumption — sweep it; read magnitudes as sensitivity. See
+   * docs/decisions.md "Renewable late-game loop".
+   */
+  bounty: {
+    enabled: boolean;
+    /** Days per featured-category period (the theme rotates each period). */
+    periodDays: number;
+    /** Fraction of the day's POOL inflow skimmed into the bounty pool (zero-sum vs yield). */
+    carveFraction: number;
+    /** Require not-hungry to collect (a hungry word can't win, mirroring jackpot/yield gates). */
+    requiresNotHungry: boolean;
+    /** Probability a claimer steers a given claim toward a theme-matching unclaimed word. */
+    chaseProbability: number;
+  };
 }
 
 export const DEFAULT_PARAMS: Params = {
@@ -234,11 +297,36 @@ export const DEFAULT_PARAMS: Params = {
     dailyProb: 0.05, // a redeploy-minded owner recycles a dead low-tier claim ~5%/day
     maxTierRank: 1, // Common + Uncommon only — grails are never burned
   },
+  prestige: {
+    enabled: false,
+    levels: 4, // EGGS chicken-level parity
+    commitFeeUsd: 0.25, // = roll fee; routes via splits.prestige ?? splits.roll
+    baseSuccess: 0.45,
+    pityStep: 0.1,
+    pityCap: 0.85,
+    snacksPerAttempt: 1, // burns one snack per attempt (100% burn)
+    yieldMultPerLevel: 1.1, // gentle — caps a maxed Legendary at ~11.7× a base Common (not ~19.5×)
+    bountyMultPerLevel: 1.1,
+  },
+  bounty: {
+    enabled: false,
+    periodDays: 7, // a new featured category each week
+    carveFraction: 0.15, // skim 15% of daily pool inflow into the bounty pool (zero-sum vs yield)
+    requiresNotHungry: true,
+    chaseProbability: 0.5, // load-bearing behavioral assumption — swept in the experiment
+  },
+  // NB: no `splits.prestige` default — leaving it undefined makes the commit fee fall back to
+  // `splits.roll`, and keeps `assertSplitsValid` from validating a non-existent split.
 };
 
 /** Probability of a successful roll given a pity streak (consecutive prior failures). */
 export function rollSuccessProbability(pityStreak: number, p: Params = DEFAULT_PARAMS): number {
   return Math.min(p.roll.pityCap, p.roll.baseSuccess + p.roll.pityStep * pityStreak);
+}
+
+/** Probability of a successful prestige attempt given that word's pity streak (mirrors rolls). */
+export function prestigeSuccessProbability(pityStreak: number, p: Params = DEFAULT_PARAMS): number {
+  return Math.min(p.prestige.pityCap, p.prestige.baseSuccess + p.prestige.pityStep * pityStreak);
 }
 
 /** Expected rolls to one success at base odds (geometric, ignoring pity ceiling effects). */
@@ -258,6 +346,7 @@ export function expectedRollsToSuccess(p: Params = DEFAULT_PARAMS): number {
 /** Validate every split sums to 1 (±epsilon). Throws with the offending key. */
 export function assertSplitsValid(p: Params = DEFAULT_PARAMS): void {
   for (const [key, s] of Object.entries(p.splits)) {
+    if (!s) continue; // optional splits (e.g. prestige) may be undefined → fall back elsewhere
     const sum = s.pool + s.jackpot + s.burn + s.treasury;
     if (Math.abs(sum - 1) > 1e-9) {
       throw new Error(`Split "${key}" sums to ${sum}, expected 1`);

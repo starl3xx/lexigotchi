@@ -20,7 +20,12 @@ import {
   CASE_MULTIPLIER,
   type Tier,
 } from "../economy";
-import { DEFAULT_PARAMS, rollSuccessProbability, type Params } from "../params";
+import {
+  DEFAULT_PARAMS,
+  rollSuccessProbability,
+  prestigeSuccessProbability,
+  type Params,
+} from "../params";
 import { Rng } from "../rng";
 import { Ledger } from "./ledger";
 import {
@@ -76,6 +81,35 @@ let claimGen = 0;
 const TIER_RANK: Record<Tier, number> = {
   Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4,
 };
+
+// ---------------------------------------------------------------------------
+// Theme bounty — featured categories (sim lever: bounty)
+// ---------------------------------------------------------------------------
+
+/**
+ * Rotating bounty categories: each is a predicate over the (5-letter, UPPERCASE) dictionary,
+ * precomputed once into a Set of matching words (like WORDS_BY_RAREST). The active theme cycles
+ * `THEMES[floor(day/periodDays) % THEMES.length]`. Breadth varies deliberately — broad themes reach
+ * casuals, narrow ones concentrate — so a multi-period run averages over the mix.
+ */
+export const THEMES: { name: string; test: (w: string) => boolean }[] = [
+  { name: "contains a rare letter (Q/Z/X/J)", test: (w) => /[QZXJ]/.test(w) },
+  { name: "has a repeated letter", test: (w) => new Set(w).size < w.length },
+  { name: "ends in -ING", test: (w) => w.endsWith("ING") },
+  { name: "starts with a vowel", test: (w) => "AEIOU".includes(w[0]) },
+  { name: "ends in Y", test: (w) => w.endsWith("Y") },
+  {
+    name: "Epic or Legendary",
+    test: (w) => {
+      const t = wordTier(w);
+      return t === "Epic" || t === "Legendary";
+    },
+  },
+];
+export const THEME_WORDSETS: Set<string>[] = THEMES.map((t) => new Set(WORDS.filter((w) => t.test(w))));
+function activeThemeIndex(day: number, periodDays: number): number {
+  return Math.floor(day / periodDays) % THEMES.length;
+}
 
 // ---------------------------------------------------------------------------
 // Archetypes — behavioral policies (tunable)
@@ -171,12 +205,20 @@ class World {
   dissolutionsTotal = 0;
   /** Letters cleared on the secondary swap market, cumulative. */
   lettersTradedTotal = 0;
+  /** Theme-bounty side pool + conservation counters (lever: bounty). NOT a 5th ledger bucket. */
+  bountyPool = 0;
+  bountyCarvedTotal = 0;
+  bountyPaidTotal = 0;
+  /** Prestige attempts made on the current day (reset by the day loop). */
+  prestigeAttemptsToday = 0;
 
   constructor(cfg: SimConfig) {
     this.rng = new Rng(cfg.seed);
     this.params = cfg.params;
     this.budgetScale = cfg.budgetScale ?? 1;
     this.caps = ALPHABET.map((L) => supplyCap(L, cfg.params.supply.demandMultiple));
+    // Lexigotchi's OWN daily-word sequence (its AnswerChain) — a self-contained jackpot draw,
+    // NOT LHAW-sourced. LHAW is a separate ownership-only bonus, not modeled here. (decisions.md)
     this.answerOrder = this.rng.shuffle([...WORDS]);
     // one-time treasury bootstrap of the faucets (decision: bootstrap the jackpot pool)
     this.ledger.pool = cfg.params.seed.pool;
@@ -197,6 +239,21 @@ class World {
     this.globalMinted[idx] += 1;
     this.lettersMintedTotal += 1;
     return idx;
+  }
+
+  /** Skim `amount` from the Rewards Pool into the bounty pool (zero-sum vs yield, lever: bounty). */
+  carveToBounty(amount: number): void {
+    const moved = this.ledger.carveFromPool(amount);
+    this.bountyPool += moved;
+    this.bountyCarvedTotal += moved;
+  }
+
+  /** Pay `amount` from the bounty pool; caps at the balance, never negative (mirrors payFromPool). */
+  payFromBountyPool(amount: number): number {
+    const paid = Math.min(amount, this.bountyPool);
+    this.bountyPool -= paid;
+    this.bountyPaidTotal += paid;
+    return paid;
   }
 }
 
@@ -228,6 +285,8 @@ function makePlayer(world: World, archetype: Archetype, day: number): Player {
     spent: 0,
     earned: 0,
     tradeEarned: 0,
+    yieldEarned: 0,
+    bountyEarned: 0,
     lastActiveDay: day,
     joinedDay: day,
   };
@@ -248,9 +307,11 @@ function findClaimable(
   player: Player,
   world: World,
   grail: boolean,
+  preferSet?: Set<string>,
 ): { word: string; upper: boolean } | null {
   claimGen++;
   let best: { word: string; upper: boolean; tier: number } | null = null;
+  let firstAny: { word: string; upper: boolean } | null = null; // fallback when chasing a theme
   let checked = 0;
   for (let li = 0; li < 26; li++) {
     if (player.lower[li] === 0 && player.upper[li] === 0) continue;
@@ -266,14 +327,22 @@ function findClaimable(
           ? true
           : null;
       if (upper === null) continue;
-      if (!grail) return { word: info.word, upper }; // first match
+      // theme chase (lever: bounty): a matching claimable word wins immediately, over tier/first
+      if (preferSet && preferSet.has(info.word)) return { word: info.word, upper };
+      if (!grail) {
+        if (!preferSet) return { word: info.word, upper }; // first match (original behavior)
+        if (!firstAny) firstAny = { word: info.word, upper }; // remember, keep scanning for a theme hit
+        if (++checked > 64) return firstAny; // bound the extra theme scan
+        continue;
+      }
       const tr = TIER_RANK[info.tier];
       if (!best || tr > best.tier) best = { word: info.word, upper, tier: tr };
       if (++checked > 64) break; // bound grail search
     }
     if (!grail && best) break;
   }
-  return best ? { word: best.word, upper: best.upper } : null;
+  if (best) return { word: best.word, upper: best.upper };
+  return firstAny;
 }
 
 function escrowClaim(player: Player, word: string, upper: boolean): void {
@@ -287,6 +356,8 @@ function escrowClaim(player: Player, word: string, upper: boolean): void {
     staked: false,
     daysUnfed: 0,
     fedToday: false,
+    prestigeLevel: 0,
+    prestigePity: 0,
   });
 }
 
@@ -334,6 +405,34 @@ function chooseRollTarget(player: Player, wantsUppercase: boolean): RollTarget |
   return wantsUppercase
     ? (escrowRollTarget(player) ?? looseRollTarget(player))
     : (looseRollTarget(player) ?? escrowRollTarget(player));
+}
+
+/**
+ * The staked, full-UPPERCASE word most in need of ascension (lowest prestige level first, so a
+ * player advances their maxed words evenly — the conservative, less-concentrating choice). Returns
+ * null when prestige is disabled, so the roll loop is byte-identical at baseline. (Lever: prestige.)
+ */
+function prestigeTarget(player: Player, p: Params): ClaimedWord | null {
+  if (!p.prestige.enabled) return null;
+  let best: ClaimedWord | null = null;
+  for (const w of player.words.values()) {
+    if (!w.staked) continue;
+    if (wordCase(w) !== "UPPERCASE") continue;
+    if (w.prestigeLevel >= p.prestige.levels) continue;
+    if (!best || w.prestigeLevel < best.prestigeLevel) best = w;
+  }
+  return best;
+}
+
+/** Stake-yield multiplier from a word's prestige level — `mult^level`, = 1 at level 0 (identity
+ *  when prestige is disabled, since the level never leaves 0, so yield weight is unchanged). */
+function prestigeYieldMult(w: ClaimedWord, p: Params): number {
+  return p.prestige.yieldMultPerLevel ** w.prestigeLevel;
+}
+
+/** Bounty-weight multiplier from a word's prestige level — `mult^level`, = 1 at level 0. */
+function prestigeBountyMult(w: ClaimedWord, p: Params): number {
+  return p.prestige.bountyMultPerLevel ** w.prestigeLevel;
 }
 
 // ---------------------------------------------------------------------------
@@ -556,10 +655,15 @@ function playerTurn(player: Player, world: World, day: number): void {
     }
   }
 
-  // 2) Claims (assemble owned letters into a permanent word)
+  // 2) Claims (assemble owned letters into a permanent word). When a bounty is live, a claimer
+  //    steers toward a theme-matching word with prob `chaseProbability` (the demand channel). The
+  //    `bountyOn && rng.chance(...)` short-circuits, so a disabled bounty makes ZERO extra draws.
+  const bountyOn = p.bounty.enabled;
+  const themeSet = bountyOn ? THEME_WORDSETS[activeThemeIndex(day, p.bounty.periodDays)] : null;
   let claims = poisson(rng, cfg.claimsPerDay);
   while (claims-- > 0 && canSpend(p.prices.claim)) {
-    const found = findClaimable(player, world, cfg.grailHunter);
+    const prefer = bountyOn && rng.chance(p.bounty.chaseProbability) ? themeSet! : undefined;
+    const found = findClaimable(player, world, cfg.grailHunter, prefer);
     if (!found) break;
     spend(p.prices.claim);
     world.ledger.route(p.prices.claim, p.splits.claim);
@@ -591,6 +695,28 @@ function playerTurn(player: Player, world: World, day: number): void {
   // 5) Upgrade rolls toward UPPERCASE (the core sink)
   let rolls = poisson(rng, cfg.rollsPerDay);
   while (rolls-- > 0 && canSpend(p.prices.roll)) {
+    // Prestige (lever) takes priority once an upgrade-chaser has a maxed full-UPPERCASE staked word,
+    // REUSING this roll budget (conservative: no new assumed spend — post-completion these rolls
+    // would otherwise hit a null target). Disabled ⇒ prestigeTarget is null ⇒ branch skipped ⇒ the
+    // roll loop is byte-identical to baseline (no extra RNG draw).
+    const pTarget = cfg.wantsUppercase || cfg.grailHunter ? prestigeTarget(player, p) : null;
+    if (pTarget && canSpend(p.prestige.commitFeeUsd)) {
+      spend(p.prestige.commitFeeUsd);
+      world.ledger.route(p.prestige.commitFeeUsd, p.splits.prestige ?? p.splits.roll);
+      const prestigeSnack = p.prices.snack * p.prestige.snacksPerAttempt;
+      if (canSpend(prestigeSnack)) {
+        spend(prestigeSnack);
+        world.ledger.route(prestigeSnack, p.splits.snack); // 100% burn
+      }
+      if (rng.chance(prestigeSuccessProbability(pTarget.prestigePity, p))) {
+        pTarget.prestigeLevel += 1; // success: ascend (monotonic) + reset pity
+        pTarget.prestigePity = 0;
+      } else {
+        pTarget.prestigePity += 1; // fail: explicit no-op — level/case/letters untouched
+      }
+      world.prestigeAttemptsToday += 1;
+      continue;
+    }
     const target = chooseRollTarget(player, cfg.wantsUppercase);
     if (!target) break;
     spend(p.prices.roll);
@@ -672,6 +798,21 @@ function assertLettersConserved(world: World): void {
   }
 }
 
+/**
+ * Bounty conservation (lever: bounty): every $WORD skimmed into the bounty pool is either still in
+ * it or has been paid to a winner — `carved == paid + pool`. Run only when the lever is on; throws
+ * on any leak (cent-exact, mirroring assertLettersConserved / the ledger's solvency assert).
+ */
+function assertBountyConserved(world: World): void {
+  const diff = Math.abs(world.bountyCarvedTotal - (world.bountyPaidTotal + world.bountyPool));
+  if (diff > 1e-6) {
+    throw new Error(
+      `Bounty conservation violated: carved ${world.bountyCarvedTotal} vs paid+pool ` +
+        `${world.bountyPaidTotal + world.bountyPool}`,
+    );
+  }
+}
+
 function isJackpotEligible(w: ClaimedWord, p: Params): boolean {
   if (!w.staked) return false;
   if (p.jackpot.eligibilityRequiresNotHungry && effectiveMissed(w) >= p.care.hungryAfterDays) {
@@ -687,6 +828,7 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
 
   for (let day = 0; day < cfg.days; day++) {
     world.ledger.beginDay();
+    world.prestigeAttemptsToday = 0;
 
     // onboarding ramp: add a slice of the roster each day until exhausted
     const targetCount = Math.min(
@@ -749,6 +891,13 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
       if (royalty > 0) world.ledger.route(royalty, world.params.splits.royalty);
     }
 
+    // ---- bounty carve (lever: bounty) ---- skim a fraction of TODAY's pool inflow into the
+    // bounty side pool BEFORE yield distributes, so the day's yield reflects the post-carve pool
+    // (the carve competes with yield — a zero-sum redistribution from passive staking to the goal).
+    if (world.params.bounty.enabled) {
+      world.carveToBounty(world.ledger.poolInflowToday * world.params.bounty.carveFraction);
+    }
+
     // ---- daily yield distribution (v0.2 §1.5): honor the configured yield gate ----
     // yieldRequiresUppercase=true (the v0.2 decision) restricts yield to full-UPPERCASE
     // words at tier weight; =false models the v0.1 scheme where any staked word earns at
@@ -763,7 +912,13 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
         if (requireUpper && wc !== "UPPERCASE") continue;
         const factor = hungerYieldFactor(w, world.params);
         if (factor === 0) continue;
-        const weight = TIER_WEIGHT[w.tier] * (requireUpper ? 1 : CASE_MULTIPLIER[wc]) * factor;
+        // prestigeYieldMult is 1 at level 0 (so this is identity when prestige is disabled — the
+        // level never leaves 0), and takes a bigger slice of the SAME pot when ascended (solvency-neutral).
+        const weight =
+          TIER_WEIGHT[w.tier] *
+          (requireUpper ? 1 : CASE_MULTIPLIER[wc]) *
+          factor *
+          prestigeYieldMult(w, world.params);
         totalWeight += weight;
         eligible.push({ w, owner: pl, weight });
       }
@@ -776,7 +931,45 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
         const paid = world.ledger.payFromPool(share);
         e.owner.balance += paid;
         e.owner.earned += paid;
+        e.owner.yieldEarned += paid; // isolated for the yield-concentration check
         distributed += paid;
+      }
+    }
+
+    // ---- bounty resolution (lever: bounty) ---- on the period's LAST day, pay the accrued bounty
+    // pool pro-rata to every owner holding a staked + not-hungry word in the period's theme set,
+    // weighted by prestige. Runs AFTER the hunger tick (daysUnfed is final) and after the carve.
+    // Non-end days: the pool just accrues. An unsatisfied period simply rolls forward.
+    let bountyPaid = 0;
+    let bountyEligible = 0;
+    if (world.params.bounty.enabled) {
+      const bp = world.params.bounty;
+      const isPeriodEnd = day % bp.periodDays === bp.periodDays - 1;
+      if (isPeriodEnd && world.bountyPool > 1e-9) {
+        const themeSet = THEME_WORDSETS[activeThemeIndex(day, bp.periodDays)];
+        const winners: { owner: Player; weight: number }[] = [];
+        let totalW = 0;
+        for (const pl of world.players) {
+          for (const w of pl.words.values()) {
+            if (!w.staked) continue;
+            if (!themeSet.has(w.word)) continue;
+            if (bp.requiresNotHungry && effectiveMissed(w) >= world.params.care.hungryAfterDays) continue;
+            const weight = prestigeBountyMult(w, world.params);
+            winners.push({ owner: pl, weight });
+            totalW += weight;
+          }
+        }
+        bountyEligible = winners.length;
+        if (totalW > 0) {
+          const pot = world.bountyPool; // pro-rata over the accrued pool (shares sum to the pot)
+          for (const wn of winners) {
+            const paid = world.payFromBountyPool(pot * (wn.weight / totalW));
+            wn.owner.balance += paid;
+            wn.owner.earned += paid;
+            wn.owner.bountyEarned += paid;
+            bountyPaid += paid;
+          }
+        }
       }
     }
 
@@ -799,7 +992,10 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
 
     world.ledger.assertSolvent();
     if (world.params.trading.enabled || world.params.dissolution.enabled) assertLettersConserved(world);
-    days.push(snapshot(world, day, distributed, jackpotPaid, rolledOver, tradeLetters, tradeVolumeUsd));
+    if (world.params.bounty.enabled) assertBountyConserved(world);
+    days.push(
+      snapshot(world, day, distributed, jackpotPaid, rolledOver, tradeLetters, tradeVolumeUsd, bountyPaid, bountyEligible),
+    );
   }
 
   return summarize(world, days, cfg);
@@ -829,15 +1025,19 @@ function snapshot(
   rolledOver: boolean,
   tradeLetters: number,
   tradeVolumeUsd: number,
+  bountyPaid: number,
+  bountyEligible: number,
 ): DayMetrics {
   let staked = 0;
   let uppercase = 0;
   let yieldEligible = 0;
+  let prestigeLevelsTotal = 0;
   const claimers = new Set<number>();
   for (const pl of world.players) {
     for (const w of pl.words.values()) {
       claimers.add(pl.id);
       if (w.staked) staked++;
+      prestigeLevelsTotal += w.prestigeLevel;
       if (wordCase(w) === "UPPERCASE") {
         uppercase++;
         if (w.staked && hungerYieldFactor(w, world.params) > 0) yieldEligible++;
@@ -872,18 +1072,33 @@ function snapshot(
     lettersTradedToday: tradeLetters,
     lettersTradedTotal: world.lettersTradedTotal,
     tradeVolumeUsdToday: tradeVolumeUsd,
+    grossRoutedToday: world.ledger.grossRoutedToday,
+    bountyPool: world.bountyPool,
+    bountyCarvedTotal: world.bountyCarvedTotal,
+    bountyPaidTotal: world.bountyPaidTotal,
+    bountyPaidToday: bountyPaid,
+    bountyEligibleWords: bountyEligible,
+    prestigeLevelsTotal,
+    prestigeAttemptsToday: world.prestigeAttemptsToday,
   };
 }
 
 function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult {
   const final = days[days.length - 1];
   // per-archetype ROI
-  const roiMap = new Map<Archetype, { spent: number; earned: number; recoup: number; claims: number; players: number }>();
+  const roiMap = new Map<
+    Archetype,
+    { spent: number; earned: number; recoup: number; yieldEarned: number; bountyEarned: number; claims: number; players: number }
+  >();
   for (const pl of world.players) {
-    const cur = roiMap.get(pl.archetype) ?? { spent: 0, earned: 0, recoup: 0, claims: 0, players: 0 };
+    const cur =
+      roiMap.get(pl.archetype) ??
+      { spent: 0, earned: 0, recoup: 0, yieldEarned: 0, bountyEarned: 0, claims: 0, players: 0 };
     cur.spent += pl.spent;
     cur.earned += pl.earned;
     cur.recoup += pl.tradeEarned;
+    cur.yieldEarned += pl.yieldEarned;
+    cur.bountyEarned += pl.bountyEarned;
     cur.claims += pl.words.size;
     cur.players += 1;
     roiMap.set(pl.archetype, cur);
@@ -893,6 +1108,8 @@ function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult 
     spent: v.spent,
     earned: v.earned,
     recoup: v.recoup,
+    yieldEarned: v.yieldEarned,
+    bountyEarned: v.bountyEarned,
     net: v.earned - v.spent,
     claims: v.claims,
     players: v.players,
@@ -943,6 +1160,22 @@ function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult 
         `${final.lettersTradedTotal.toLocaleString()} letters cleared on the swap market; ` +
         `${world.claimsEver.toLocaleString()} gross claims ` +
         `(${final.dissolutionsTotal.toLocaleString()} dissolved → ${final.totalClaims.toLocaleString()} held now).`,
+    );
+  }
+
+  if (cfg.params.prestige.enabled || cfg.params.bounty.enabled) {
+    // durable-sink-revival check: total fee throughput AFTER mint-out (baseline decays to ~snacks)
+    const past = mintOutDay >= 0 ? days.slice(mintOutDay) : [];
+    const grossPast = past.reduce((a, d) => a + d.grossRoutedToday, 0);
+    notes.push(
+      `Late-game loop on — prestige:${cfg.params.prestige.enabled} bounty:${cfg.params.bounty.enabled}. ` +
+        `${final.prestigeLevelsTotal.toLocaleString()} prestige levels held; ` +
+        `bounty pool ${Math.round(final.bountyPool).toLocaleString()} $WORD, ` +
+        `${Math.round(world.bountyPaidTotal).toLocaleString()} paid out. ` +
+        (mintOutDay >= 0
+          ? `Post-mint-out fee throughput ${Math.round(grossPast).toLocaleString()} $WORD over ${past.length}d ` +
+            `(the durable-sink-revival signal — compare vs baseline).`
+          : `Letters not minted out in window — read the pre-completion deltas.`),
     );
   }
 

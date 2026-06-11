@@ -80,7 +80,7 @@ export default function CharactersPage() {
         <h2 className="font-display text-2xl font-extrabold">A claimed word is a chorus line</h2>
         <p className="max-w-2xl text-sm text-ink/80">
           Five characters holding hands. Lowercase words shuffle side to side; full-UPPERCASE
-          words do the synchronized kick. Trophy words — past LHAW answers — wear a medal.
+          words do the synchronized kick. Trophy words — past daily winning words — wear a medal.
           <strong> JAZZY</strong> is the launch hero: the rarest word in the dictionary.
         </p>
         <div className="grid gap-4 md:grid-cols-2">

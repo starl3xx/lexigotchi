@@ -15,6 +15,10 @@ export interface ClaimedWord {
   daysUnfed: number;
   /** Set during a turn when the word is fed; consumed by the post-turn hunger tick. */
   fedToday: boolean;
+  /** Prestige/ascension stage (0 = un-ascended). Monotonic — never decremented. Lever: prestige. */
+  prestigeLevel: number;
+  /** Consecutive failed prestige attempts on this word (the prestige pity streak). */
+  prestigePity: number;
 }
 
 export function wordCase(w: ClaimedWord): WordCase {
@@ -50,6 +54,10 @@ export interface Player {
   /** Portion of `earned` that came specifically from selling letters on the swap market
    *  (isolated so recoup can be read cleanly, separate from lumpy yield/jackpot winnings). */
   tradeEarned: number;
+  /** Portion of `earned` from staking yield (isolated for the yield-concentration check). */
+  yieldEarned: number;
+  /** Portion of `earned` from theme-bounty payouts (isolated, like `tradeEarned`). Lever: bounty. */
+  bountyEarned: number;
   /** Day index the player most recently took any action (for retention metrics). */
   lastActiveDay: number;
   joinedDay: number;
@@ -85,6 +93,18 @@ export interface DayMetrics {
   lettersTradedTotal: number;
   /** Secondary GMV in USD cleared today (letters × floor). */
   tradeVolumeUsdToday: number;
+  /** Total $WORD routed through the ledger today (all buckets) — durable-activity proxy past mint-out. */
+  grossRoutedToday: number;
+  /** Theme-bounty state (lever: bounty). `carved == paid + pool` is the conservation identity. */
+  bountyPool: number;
+  bountyCarvedTotal: number;
+  bountyPaidTotal: number;
+  bountyPaidToday: number;
+  /** Staked + not-hungry words matching the period theme, counted at the last resolution. */
+  bountyEligibleWords: number;
+  /** Prestige state (lever: prestige): cumulative levels across all words; attempts made today. */
+  prestigeLevelsTotal: number;
+  prestigeAttemptsToday: number;
 }
 
 export interface SimResult {
@@ -97,6 +117,10 @@ export interface SimResult {
     earned: number;
     /** Of `earned`, the part from selling letters on the swap market (clean recoup signal). */
     recoup: number;
+    /** Of `earned`, the part from staking yield (for the yield-concentration check). */
+    yieldEarned: number;
+    /** Of `earned`, the part from theme-bounty payouts (clean bounty signal). */
+    bountyEarned: number;
     net: number;
     claims: number;
     players: number;

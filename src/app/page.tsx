@@ -8,7 +8,7 @@ const LOOP = [
   ["Raise", "Roll lowercase → UPPERCASE. 45% base, pity to 85%. Capitals are raised, never pulled."],
   ["Claim", "Spell a dictionary word, escrow its 5 letters → a permanent, unique Word NFT."],
   ["Stake & Snack", "Stake to earn. UPPERCASE words draw yield; any staked word is a jackpot ticket. Feed them or they get hungry."],
-  ["Win", "The daily LHAW answer is the jackpot draw. Hold it, staked & fed → you win the pot."],
+  ["Win", "Lexigotchi picks a secret word each day — the jackpot draw. Hold it, staked & fed → you win the pot."],
 ];
 
 export default function Home() {

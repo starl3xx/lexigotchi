@@ -71,10 +71,13 @@ Key properties to carry into `Rolls.sol` / pack mints:
 ## Jackpot in EGGS (and why Lexigotchi diverges)
 
 `drawJackpot()` selects winners with `keccak256(block.prevrandao, i) % ticketCount`. That is
-fine for EGGS' raffle but **insufficient for Lexigotchi**, where the jackpot is gated on the
-LHAW answer and money rides on the answer not being steerable. Lexigotchi's `Jackpot.sol`
-resolves a *single* lookup — does `keccak256(todaysAnswer)` exist, staked, not hungry? — and
-the *answer* comes from the pre-committed `AnswerChain`, not from `prevrandao`.
+fine for EGGS' raffle but **insufficient for Lexigotchi**, where the **core daily jackpot** is
+gated on Lexigotchi's OWN daily word and money rides on that word not being steerable.
+`Jackpot.sol` resolves a *single* lookup — does `keccak256(dailyWord)` exist, staked, not hungry?
+— and the *word* comes from Lexigotchi's own pre-committed `AnswerChain` (its own daily commit
+cadence, **NOT LHAW-sourced**), not from `prevrandao`. A separate **ownership-only bonus** pays
+out when an LHAW round's secret word happens to be owned by a player — a soft, read-only tie-in,
+never a core dependency (see decisions.md "Jackpot architecture").
 
 ## Mapping to Lexigotchi contracts (Foundry, OZ upgradeable)
 
@@ -84,7 +87,7 @@ the *answer* comes from the pre-committed `AnswerChain`, not from `prevrandao`.
 | pack purchase commit→reveal | `Letters.sol` | 1155, 52 ids, per-id supply caps, demand-mirrored odds; ETH→$WORD auto-swap at mint (v0.2 §4). |
 | `chickenLevels` as mutable state | `Words.sol` | Case derived from escrowed letters; `tokenId = keccak256(word)`; one NFT per word. |
 | `stake`/`unstake` + `EggsStaking.sol` | `Staking.sol` | UPPERCASE-only yield, hunger accounting; expose feed-state read for Jackpot. |
-| `drawJackpot` + Megapot | `Jackpot.sol` + `AnswerChain` | Replace prevrandao with hash-chain answer verification (P0 Phase 3). |
+| `drawJackpot` + Megapot | `Jackpot.sol` + `AnswerChain` (Lexigotchi's own daily-word commit) + LHAW bonus oracle | Core daily jackpot is self-contained (own hash-chain, NO LHAW dependency — no longer Phase-3-blocked); a separate ownership-only **bonus** triggers when an LHAW round's word is owned (soft, read-only). |
 | `burnFees` | fee router | Splits in storage, tunable behind multisig (v0.2). |
 
 **Toolchain decision:** Foundry (forge) for Lexigotchi — invariant/fuzz testing is the right
