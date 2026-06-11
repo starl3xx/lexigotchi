@@ -11,7 +11,15 @@
  * Determinism: seeded RNG end-to-end, so a (config, seed) pair always yields one economy.
  */
 import { WORDS } from "../dictionary";
-import { ALPHABET, LETTER_ODDS, supplyCap, wordTier, TIER_WEIGHT, type Tier } from "../economy";
+import {
+  ALPHABET,
+  LETTER_ODDS,
+  supplyCap,
+  wordTier,
+  TIER_WEIGHT,
+  CASE_MULTIPLIER,
+  type Tier,
+} from "../economy";
 import { DEFAULT_PARAMS, rollSuccessProbability, type Params } from "../params";
 import { Rng } from "../rng";
 import { Ledger } from "./ledger";
@@ -478,16 +486,21 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
     const royalty = secondaryVolume * world.params.market.royaltyRate;
     if (royalty > 0) world.ledger.route(royalty, world.params.splits.royalty);
 
-    // ---- daily yield distribution: UPPERCASE-only, hunger-weighted ----
+    // ---- daily yield distribution (v0.2 §1.5): honor the configured yield gate ----
+    // yieldRequiresUppercase=true (the v0.2 decision) restricts yield to full-UPPERCASE
+    // words at tier weight; =false models the v0.1 scheme where any staked word earns at
+    // tier × case multiplier. Reading the flag makes it a real lever, not decoration.
+    const requireUpper = world.params.staking.yieldRequiresUppercase;
     let totalWeight = 0;
     const eligible: { w: ClaimedWord; owner: Player; weight: number }[] = [];
     for (const pl of world.players) {
       for (const w of pl.words.values()) {
         if (!w.staked) continue;
-        if (wordCase(w) !== "UPPERCASE") continue; // yield is UPPERCASE-only (v0.2 §1.5)
+        const wc = wordCase(w);
+        if (requireUpper && wc !== "UPPERCASE") continue;
         const factor = hungerYieldFactor(w, world.params);
         if (factor === 0) continue;
-        const weight = TIER_WEIGHT[w.tier] * factor;
+        const weight = TIER_WEIGHT[w.tier] * (requireUpper ? 1 : CASE_MULTIPLIER[wc]) * factor;
         totalWeight += weight;
         eligible.push({ w, owner: pl, weight });
       }

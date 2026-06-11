@@ -10,6 +10,8 @@
  * converted to $WORD before any accounting — so the whole model is $WORD-denominated.
  */
 
+import { DEMAND_MULTIPLE } from "./economy";
+
 /** A revenue split routes an incoming $WORD fee into the four buckets. Must sum to 1. */
 export interface Split {
   pool: number; // → Rewards Pool (funds UPPERCASE yield)
@@ -50,8 +52,12 @@ export interface Params {
   staking: {
     /** Daily Rewards-Pool payout as a fraction of current pool balance (self-scaling; never drains). */
     dailyDistributionRate: number;
-    /** Yield is exclusive to full-UPPERCASE words. Jackpot eligibility is any case. */
-    yieldRequiresUppercase: true;
+    /**
+     * true (the v0.2 decision): yield is exclusive to full-UPPERCASE words, at tier weight.
+     * false: the v0.1 scheme — any staked word earns at tier × case multiplier. The sim
+     * reads this flag, so it is a real lever for comparing the two yield models.
+     */
+    yieldRequiresUppercase: boolean;
   };
 
   /** Care / hunger (v0.2 §1.6). Hunger gates BOTH yield and jackpot eligibility. */
@@ -84,7 +90,11 @@ export interface Params {
     secondaryVolumeRatio: number;
   };
 
-  /** Global per-letter supply cap multiple (v0.1 §5.2; revisit if mint-out < 6mo, v0.2 §5.5). */
+  /**
+   * Global per-letter supply cap multiple (v0.1 §5.2; revisit if mint-out < 6mo, v0.2 §5.5).
+   * Sourced from `economy.DEMAND_MULTIPLE` so the sim's caps always match the published
+   * Lexidex / LETTER_SUPPLY_CAP tables — change the multiple THERE, not here.
+   */
   supply: {
     demandMultiple: number;
   };
@@ -131,7 +141,7 @@ export const DEFAULT_PARAMS: Params = {
     secondaryVolumeRatio: 0.35,
   },
   supply: {
-    demandMultiple: 2.5,
+    demandMultiple: DEMAND_MULTIPLE,
   },
 };
 
