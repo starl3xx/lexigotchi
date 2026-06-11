@@ -55,7 +55,6 @@ row("sellback 30%", { lpSeedUsd: 5000, sellbackRate: 0.3 });
 row("sellback 70%", { lpSeedUsd: 5000, sellbackRate: 0.7 });
 
 const base = marketSim(flows, DEFAULT_MARKET);
-const lp5 = marketSim(flows, { ...DEFAULT_MARKET, lpSeedUsd: 5000 });
 console.log(`\n--- price path (base, no LP add) ---`);
 for (const d of [0, 29, 59, 89, 179, days - 1].filter((d, i, a) => d < days && a.indexOf(d) === i)) {
   const md = base.days[d];

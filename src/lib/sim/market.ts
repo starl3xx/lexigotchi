@@ -109,8 +109,10 @@ export function marketSim(daily: DailyFlow[], mp: MarketParams = DEFAULT_MARKET)
     const d = daily[i];
     const sellUsd = mp.sellbackRate * d.earningsToday;
     const netUsd = d.externalInflowToday - sellUsd;
-    // buys add USD to the reserve (minus fee) and pull $WORD out; sells do the reverse.
-    const eff = netUsd >= 0 ? netUsd * (1 - mp.fee) : netUsd * (1 + mp.fee);
+    // The AMM fee always shrinks the EFFECTIVE swap size (less price impact), regardless of
+    // direction — buys add slightly less USD to the reserve, sells remove slightly less. So
+    // apply (1 − fee) to the flow magnitude either way (a sell is netUsd < 0).
+    const eff = netUsd * (1 - mp.fee);
     rUsd = Math.max(1e-6, rUsd + eff);
     rWord = k / rUsd;
     const price = rUsd / rWord;

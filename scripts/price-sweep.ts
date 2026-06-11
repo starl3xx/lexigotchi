@@ -53,8 +53,8 @@ function metrics(res: SimResult): M {
     const i = D.findIndex(pred);
     return i < 0 ? null : i + 1;
   };
-  const win = Math.min(60, D.length - 1);
-  const dailyBurn = (last.burnedTotal - D[D.length - 1 - win].burnedTotal) / win;
+  const win = Math.max(1, Math.min(60, D.length - 1)); // guard the 1-day degenerate case
+  const dailyBurn = (last.burnedTotal - D[Math.max(0, D.length - 1 - win)].burnedTotal) / win;
   const totalClaims = res.playerRoi.reduce((a, r) => a + r.claims, 0) || 1;
   const recoup = (a: string) => {
     const r = res.playerRoi.find((x) => x.archetype === a);
