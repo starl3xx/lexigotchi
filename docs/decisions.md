@@ -181,8 +181,9 @@ case, not the numbers.** Specifically, robust across seeds:
   The "let me buy the one Z I'm missing" story is true individually but doesn't move the aggregate
   because nobody has spare Z's to sell. *Caveat:* this rests on the **flat floor** — a rarity-tiered
   floor would price spare rare letters higher and might draw more onto the market, so don't
-  over-read the scarcity verdict (the tiered floor is the next refinement). Seed 42 also shows a
-  dissolution-only completion ceiling (`never` alone; `d179` only once trading is added too).
+  over-read the scarcity verdict (the tiered floor is the next refinement). Dissolution alone can
+  also leave the dictionary perpetually a few words short of 100% (some always mid-recycle);
+  adding trading lets it re-complete, but late.
 - **Casual recoup is real but small and stable: ~4.4–4.7% of casual spend** (≈ $0.38/casual over
   270d on the revised ladder; was ~3% at the $0.60 pack — it tracks the floor, which is derived
   from pack price). NOT a windfall — it's "pulling junk letters isn't a total loss." NB: measure

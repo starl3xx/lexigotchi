@@ -66,4 +66,16 @@ describe("secondary-market levers (sim)", () => {
     expect(r.final.dissolutionsTotal).toBeGreaterThan(0);
     expect(r.final.claimsEverTotal).toBeGreaterThan(r.final.totalClaims); // names freed + re-claimed
   });
+
+  it("dissolution never recycles the day's answer — no jackpot win-suppression (Bugbot #3)", () => {
+    // The bug: runDissolution ran before jackpot resolution and could dissolve the day's answer
+    // word, voiding a legitimate jackpot and inflating rollovers. A correct dissolution frees
+    // names (more claiming → MORE answer-days claimed), so its rollover rate must NOT exceed
+    // baseline. Drop the `word === answer` guard and this assertion fails.
+    const rollover = (r: ReturnType<typeof runSim>) =>
+      r.days.filter((d) => d.jackpotRolledOver).length / r.days.length;
+    const base = rollover(runSim(cfg(false, false)));
+    const diss = rollover(runSim(cfg(false, true)));
+    expect(diss).toBeLessThanOrEqual(base + 0.02); // dissolution must not inflate rollovers
+  });
 });

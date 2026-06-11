@@ -381,18 +381,22 @@ function findNearest(player: Player, world: World, max: number): number[] | null
  * than the word is worth held. Burning it returns the 5 letters to loose inventory and frees
  * the name back to the claimable pool (trophy persists in the registry — immaterial here).
  *
+ * The day's `answer` is passed in and never dissolved: nobody recycles a live jackpot ticket,
+ * and since dissolution runs before jackpot resolution, dissolving it would void a legit win.
+ *
  * NOTE the limitation: dissolution's headline benefit is BEHAVIORAL — it de-risks claiming
  * (you'll claim more boldly knowing you can exit) and enables gifting/re-claim drama. This
  * greedy-claim agent model claims regardless of risk, so it can only show the *mechanical*
  * churn (letters freed → re-claimed), never the de-risking. Read the dissolution columns as
  * "what the exit does mechanically," not as a verdict on the feature.
  */
-function runDissolution(world: World): void {
+function runDissolution(world: World, answer: string): void {
   const p = world.params;
   for (const pl of world.players) {
     const cfg = ARCHETYPES[pl.archetype];
     if (!cfg.wantsUppercase && !cfg.grailHunter) continue; // pure holders don't recycle
     for (const [word, w] of [...pl.words]) {
+      if (word === answer) continue; // never recycle the day's live answer ticket (Bugbot #3)
       if (!w.staked) continue;
       if (wordCase(w) !== "lowercase") continue; // a word they're upgrading isn't "dead"
       if (TIER_RANK[w.tier] > p.dissolution.maxTierRank) continue;
@@ -719,8 +723,12 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
       }
     }
 
-    // ---- dissolution: neglected low-tier claims burn back to letters, freeing the name ----
-    if (world.params.dissolution.enabled) runDissolution(world);
+    // ---- dissolution: voluntary recycle of dead low-tier claims, freeing the name ----
+    // Compute the day's answer up front and EXCLUDE it from dissolution: a rational owner never
+    // recycles the live lottery ticket, and since dissolution runs before jackpot resolution
+    // below, dissolving it here would wrongly void a legitimate same-day jackpot (Bugbot #3).
+    const answer = world.answerOrder[day % world.answerOrder.length];
+    if (world.params.dissolution.enabled) runDissolution(world, answer);
 
     // ---- secondary letter clearing (the swap-primitive lever) ----
     // When trading is modeled, the secondary royalty comes from REAL cleared volume and the
@@ -771,8 +779,7 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
       }
     }
 
-    // ---- jackpot resolution ----
-    const answer = world.answerOrder[day % world.answerOrder.length];
+    // ---- jackpot resolution ---- (answer computed above, before dissolution)
     world.trophies.add(answer);
     let jackpotPaid = 0;
     let rolledOver = true;
