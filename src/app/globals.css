@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Futura", "Century Gothic", Georgia, serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  background-color: theme(colors.paper.DEFAULT);
+  color: theme(colors.ink);
+  /* faint aged-paper grain */
+  background-image: radial-gradient(theme(colors.paper.dark) 0.5px, transparent 0.5px);
+  background-size: 14px 14px;
+}
+
+/* Halftone/cel feel for cards */
+.cel {
+  border: 3px solid theme(colors.ink);
+  box-shadow: 4px 4px 0 theme(colors.ink);
+}
+
+.tile {
+  background: theme(colors.tile);
+  border: 3px solid theme(colors.ink);
+  box-shadow: 3px 3px 0 theme(colors.ink);
+  border-radius: 8px;
+}
