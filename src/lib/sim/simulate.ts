@@ -212,47 +212,60 @@ function makePlayer(world: World, archetype: Archetype, day: number): Player {
   };
 }
 
-/** Find an unclaimed word the player can spell from their LOWERCASE inventory. */
-function findClaimable(player: Player, world: World, grail: boolean): string | null {
+/** Can the player spell this word from a single-case inventory (lower or upper)? */
+function canSpell(info: WordInfo, inv: number[]): boolean {
+  for (const [idx, cnt] of info.pairs) if (inv[idx] < cnt) return false;
+  return true;
+}
+
+/**
+ * Find an unclaimed word the player can spell from 5 UNIFORM-case letters — all-lowercase
+ * (the common path) OR all-UPPERCASE (built from loose rolls). v0.2 §5.4 allows either, as
+ * long as the set is uniform; Mixed sets cannot initiate a claim.
+ */
+function findClaimable(
+  player: Player,
+  world: World,
+  grail: boolean,
+): { word: string; upper: boolean } | null {
   claimGen++;
-  let best: { idx: number; tier: number } | null = null;
+  let best: { word: string; upper: boolean; tier: number } | null = null;
   const tierRank: Record<Tier, number> = {
     Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4,
   };
   let checked = 0;
   for (let li = 0; li < 26; li++) {
-    if (player.lower[li] === 0) continue;
+    if (player.lower[li] === 0 && player.upper[li] === 0) continue;
     for (const widx of WORDS_BY_RAREST[li]) {
       if (claimVisited[widx] === claimGen) continue;
       claimVisited[widx] = claimGen;
       const info = WORD_INFO[widx];
       if (world.claims.has(info.word)) continue;
-      // can the player spell it from lowercase holdings?
-      let ok = true;
-      for (const [idx, cnt] of info.pairs) {
-        if (player.lower[idx] < cnt) {
-          ok = false;
-          break;
-        }
-      }
-      if (!ok) continue;
-      if (!grail) return info.word; // first match
+      // prefer a lowercase claim; fall back to an all-uppercase one
+      const upper: boolean | null = canSpell(info, player.lower)
+        ? false
+        : canSpell(info, player.upper)
+          ? true
+          : null;
+      if (upper === null) continue;
+      if (!grail) return { word: info.word, upper }; // first match
       const tr = tierRank[info.tier];
-      if (!best || tr > best.tier) best = { idx: widx, tier: tr };
+      if (!best || tr > best.tier) best = { word: info.word, upper, tier: tr };
       if (++checked > 64) break; // bound grail search
     }
     if (!grail && best) break;
   }
-  return best ? WORD_INFO[best.idx].word : null;
+  return best ? { word: best.word, upper: best.upper } : null;
 }
 
-function escrowClaim(player: Player, word: string): void {
+function escrowClaim(player: Player, word: string, upper: boolean): void {
   const info = WORD_INFO[WORD_INDEX.get(word)!];
-  for (const [idx, cnt] of info.pairs) player.lower[idx] -= cnt;
+  const inv = upper ? player.upper : player.lower; // debit the inventory the claim used
+  for (const [idx, cnt] of info.pairs) inv[idx] -= cnt;
   player.words.set(word, {
     word,
     tier: info.tier,
-    upper: [false, false, false, false, false],
+    upper: [upper, upper, upper, upper, upper], // case derived from escrow contents (v0.2 §2)
     staked: false,
     daysUnfed: 0,
   });
@@ -362,12 +375,12 @@ function playerTurn(player: Player, world: World, day: number): void {
   // 3) Claims (assemble owned letters into a permanent word)
   let claims = poisson(rng, cfg.claimsPerDay);
   while (claims-- > 0 && canSpend(p.prices.claim)) {
-    const word = findClaimable(player, world, cfg.grailHunter);
-    if (!word) break;
+    const found = findClaimable(player, world, cfg.grailHunter);
+    if (!found) break;
     spend(p.prices.claim);
     world.ledger.route(p.prices.claim, p.splits.claim);
-    escrowClaim(player, word);
-    world.claims.set(word, player.id);
+    escrowClaim(player, found.word, found.upper);
+    world.claims.set(found.word, player.id);
   }
 
   // 4) Stake any unstaked claimed words (free, instant)
@@ -545,11 +558,18 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
 }
 
 function buildArchetypeRoster(population: number): Archetype[] {
+  const entries = Object.entries(ARCHETYPES) as [Archetype, ArchetypeConfig][];
+  // Largest-remainder apportionment so the roster is EXACTLY `population` (per-archetype
+  // rounding would otherwise drift, and onboarding caps players at roster.length).
+  const counts = entries.map(([arch, cfg]) => {
+    const raw = population * cfg.share;
+    return { arch, n: Math.floor(raw), frac: raw - Math.floor(raw) };
+  });
+  let assigned = counts.reduce((a, c) => a + c.n, 0);
+  counts.sort((a, b) => b.frac - a.frac);
+  for (let i = 0; assigned < population; i++, assigned++) counts[i % counts.length].n++;
   const roster: Archetype[] = [];
-  for (const [arch, cfg] of Object.entries(ARCHETYPES) as [Archetype, ArchetypeConfig][]) {
-    const n = Math.round(population * cfg.share);
-    for (let i = 0; i < n; i++) roster.push(arch);
-  }
+  for (const c of counts) for (let i = 0; i < c.n; i++) roster.push(c.arch);
   return roster;
 }
 
