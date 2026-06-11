@@ -13,6 +13,8 @@
     "start": "next start",
     "derive": "tsx scripts/derive-economy.ts",
     "sim": "tsx scripts/run-sim.ts",
+    "sweep": "tsx scripts/price-sweep.ts",
+    "market": "tsx scripts/market.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

@@ -4,7 +4,12 @@
  *   npm run sim -- --days 365 --population 1500 --seed 7
  */
 import { runSim, DEFAULT_SIM_CONFIG, type SimConfig } from "../src/lib/sim/simulate";
-import { DEFAULT_PARAMS, expectedRollsToSuccess, assertSplitsValid } from "../src/lib/params";
+import {
+  DEFAULT_PARAMS,
+  expectedRollsToSuccess,
+  assertSplitsValid,
+  WORD_PER_USD,
+} from "../src/lib/params";
 
 function arg(name: string, fallback: number): number {
   const i = process.argv.indexOf(`--${name}`);
@@ -27,9 +32,10 @@ console.log(`\n=== LEXIGOTCHI ECONOMY SIM (v0.2 mechanics) ===`);
 console.log(
   `days=${cfg.days}  population=${cfg.population}  ramp=${cfg.rampDays}d  seed=${cfg.seed}`,
 );
+const P = DEFAULT_PARAMS.prices;
 console.log(
-  `prices($WORD): daily=${DEFAULT_PARAMS.prices.dailyMint} pack=${DEFAULT_PARAMS.prices.pack} ` +
-    `roll=${DEFAULT_PARAMS.prices.roll} claim=${DEFAULT_PARAMS.prices.claim} snack=${DEFAULT_PARAMS.prices.snack}`,
+  `prices(USD, sim is USD-native): daily=$${P.dailyMint} pack=$${P.pack} roll=$${P.roll} claim=$${P.claim} snack=$${P.snack}  ` +
+    `· seed: jackpot $${DEFAULT_PARAMS.seed.jackpot} pool $${DEFAULT_PARAMS.seed.pool}`,
 );
 console.log(
   `roll: ${pct(DEFAULT_PARAMS.roll.baseSuccess)} base +${pct(DEFAULT_PARAMS.roll.pityStep)}/fail ` +
@@ -68,18 +74,19 @@ for (const d of marks) {
 }
 
 const f = res.final;
-console.log(`\n--- final state (day ${cfg.days}) ---`);
-console.log(`Rewards Pool:     ${fmt(f.pool)} $WORD   (est. equilibrium ~${fmt(res.poolEquilibrium)})`);
-console.log(`Jackpot pot:      ${fmt(f.jackpot)} $WORD`);
-console.log(`Burned (total):   ${fmt(f.burnedTotal)} $WORD`);
-console.log(`Treasury (total): ${fmt(f.treasuryTotal)} $WORD`);
-console.log(`External inflow:  ${fmt(f.externalInflowTotal)} $WORD (DEX buys into the economy)`);
+const wm = (usd: number) => `${(usd * WORD_PER_USD / 1e6).toFixed(1)}M $WORD`;
+console.log(`\n--- final state (day ${cfg.days}) · all $ are USD ---`);
+console.log(`Rewards Pool:     $${fmt(f.pool)}   (est. equilibrium ~$${fmt(res.poolEquilibrium)})`);
+console.log(`Jackpot pot:      $${fmt(f.jackpot)}`);
+console.log(`Burned (total):   $${fmt(f.burnedTotal)}  (${wm(f.burnedTotal)})`);
+console.log(`Treasury (total): $${fmt(f.treasuryTotal)}`);
+console.log(`$WORD demand:     $${fmt(f.externalInflowTotal)}  (${wm(f.externalInflowTotal)}) bought to play — vs ~$23.6K current mcap`);
 console.log(`Claims:           ${fmt(f.totalClaims)} / 4438  (${pct(f.totalClaims / 4438)} of dictionary)`);
 console.log(`Unique claimers:  ${fmt(f.uniqueClaimers)}`);
 console.log(`Staked words:     ${fmt(f.stakedWords)}  (UPPERCASE: ${fmt(f.uppercaseWords)}, yield-eligible: ${fmt(f.yieldEligibleWords)})`);
 console.log(`Letters minted:   ${fmt(f.lettersMintedTotal)} / 55,467 cap`);
 
-console.log(`\n--- per-archetype ROI (earned − spent, $WORD) ---`);
+console.log(`\n--- per-archetype ROI (earned − spent, USD) ---`);
 for (const r of res.playerRoi.sort((a, b) => b.net - a.net)) {
   const roi = r.spent > 0 ? r.earned / r.spent : 0;
   console.log(
