@@ -49,9 +49,11 @@ seed; **absolute magnitudes depend on player-budget assumptions** (placeholders)
    (daily pool inflow) / (daily distribution rate)`. With UPPERCASE-only yield, early payouts
    are tiny (few uppercase words) and the pool grows; as upgrades accumulate, outflow rises
    and the pool settles toward `pool*`.
-4. **Jackpot escalation is an early-game effect.** Once most words are claimed+staked, the
-   daily answer is almost always held, so the pot pays ~daily and never escalates. The big
-   "rollover jackpot" marketing moments live in the claim-rush window.
+4. **Jackpot escalation is driven by neglect, not just the early game.** The claim-rush window
+   produces the first big rollovers; but after the churn+hunger fix (Bugbot finding #8), a
+   *held-but-hungry* word is jackpot-ineligible, so rollovers stay high (~53% of days) even at
+   saturation — neglected words can't claim the pot, so it keeps escalating. Player churn +
+   hunger are first-order faucet gates, not flavor.
 5. **Strongly deflationary.** Burn (snacks 100% + 20% of mints/rolls + 25% of claims) far
    exceeds treasury accrual — $WORD is net-burned over the run.
 6. **Casual players (50% of the base) can be shut out of claiming** and earn ~0% because

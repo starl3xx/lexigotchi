@@ -46,3 +46,28 @@ casual-shut-out finding (50% of players earn ~0% because high-budget archetypes 
 race) is real *as modeled* but overstated: real letter liquidity + the showcase let low-budget
 players monetize and complete words. Adding a lightweight letter market is the highest-value
 next sim iteration, and would let us properly test casual retention (Goal #3).
+
+## Automated review (Cursor Bugbot) — 4 rounds, 8 findings, 0 false positives
+
+The PR was then put through Cursor Bugbot, which re-reviews on every push. It surfaced **eight
+genuine issues across four rounds** — all real, none spurious — hardening the sim's fidelity
+(none touched the solvency *core*, which held throughout):
+
+| # | Finding | Sev | Fix |
+|---|---|---|---|
+| 1 | Partial pack charged full price | Med | Pro-rata pricing (`pack × minted/5`) |
+| 2 | `wantsUppercase` flag unread | Low | Wired into roll targeting |
+| 3 | `yieldRequiresUppercase` ignored | Med | Made a real lever (v0.2/v0.1 yield toggle) |
+| 4 | Demand-multiple defined twice | Med | Single source (`economy.DEMAND_MULTIPLE`) |
+| 5 | `prices.singlePull` / `snacksPerWordPerDay` dead | — | Removed / wired (proactive audit) |
+| 6 | All-UPPERCASE claims omitted | Med | `findClaimable`/`escrowClaim` handle uniform-case claims |
+| 7 | Roster size ≠ population | Low | Largest-remainder apportionment |
+| 8 | Churned stakers freeze hunger; care before staking | Med/Low | Global post-turn hunger tick + feed-after-stake |
+
+**Finding #8 was the most consequential.** Before it, churned owners' staked words stayed
+frozen-as-fed and drew yield + jackpot eligibility forever. Fixing it materially corrected the
+headline dynamics: **yield-eligible words 2.76k → 1.71k** (≈37% belonged to neglectful/churned
+owners) and **jackpot rollovers 29% → 53%** (neglected words become jackpot-ineligible, so the
+day's answer is more often held-but-hungry). The lesson for the contracts: **player churn +
+hunger are first-order faucet gates**, not flavor — neglect is what keeps the jackpot escalating.
+Bugbot returned a clean pass on the final commit.
