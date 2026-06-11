@@ -25,7 +25,6 @@ export interface Params {
   prices: {
     pack: number; // pack of 5 letters, full price (volume loop)
     dailyMint: number; // 1 discounted single per FID per day (habit loop)
-    singlePull: number; // ad-hoc single pull at a premium (non-daily)
     roll: number; // flat upgrade-roll fee (v0.1 §5.3; rarity-scaled is P2)
     claim: number; // flat claim fee (v0.1 §5.4; tier-scaled is P2)
     snack: number; // one snack feeds one staked word for one day
@@ -104,7 +103,6 @@ export const DEFAULT_PARAMS: Params = {
   prices: {
     pack: 500,
     dailyMint: 60,
-    singlePull: 120,
     roll: 100,
     claim: 250,
     snack: 15,

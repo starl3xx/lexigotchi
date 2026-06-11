@@ -342,16 +342,18 @@ function playerTurn(player: Player, world: World, day: number): void {
     }
   }
 
-  // 2) Feed staked words (protect yield + jackpot eligibility) — free snack first
+  // 2) Feed staked words (protect yield + jackpot eligibility) — free snack first.
+  // A word eats `snacksPerWordPerDay` snacks/day; the daily check-in covers one feeding.
+  const snackCost = p.prices.snack * p.care.snacksPerWordPerDay;
   for (const w of player.words.values()) {
     if (!w.staked) continue;
     let fed = false;
     if (p.care.freeDailySnack && !player.freeSnackUsedToday) {
       player.freeSnackUsedToday = true;
       fed = true;
-    } else if (rng.chance(cfg.feedDiscipline) && canSpend(p.prices.snack)) {
-      spend(p.prices.snack);
-      world.ledger.route(p.prices.snack, p.splits.snack); // 100% burn
+    } else if (rng.chance(cfg.feedDiscipline) && canSpend(snackCost)) {
+      spend(snackCost);
+      world.ledger.route(snackCost, p.splits.snack); // 100% burn
       fed = true;
     }
     w.daysUnfed = fed ? 0 : w.daysUnfed + 1;
