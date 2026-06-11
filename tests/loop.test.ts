@@ -7,6 +7,7 @@ interface Opts {
   bounty?: boolean;
   chaseProbability?: number;
   yieldMultPerLevel?: number;
+  rarityWeight?: number;
 }
 function params(o: Opts): Params {
   return {
@@ -20,9 +21,14 @@ function params(o: Opts): Params {
       ...DEFAULT_PARAMS.bounty,
       enabled: !!o.bounty,
       ...(o.chaseProbability !== undefined ? { chaseProbability: o.chaseProbability } : {}),
+      ...(o.rarityWeight !== undefined ? { rarityWeight: o.rarityWeight } : {}),
     },
   };
 }
+const whaleBountyShare = (r: ReturnType<typeof runSim>) => {
+  const t = r.playerRoi.reduce((a, p) => a + p.bountyEarned, 0);
+  return t > 0 ? r.playerRoi.find((p) => p.archetype === "whale")!.bountyEarned / t : 0;
+};
 const cfg = (o: Opts): SimConfig => ({
   ...DEFAULT_SIM_CONFIG,
   days: 120,
@@ -114,5 +120,13 @@ describe("renewable late-game loop levers (sim)", () => {
     const casualYieldShare = totalYield > 0 ? casual.yieldEarned / totalYield : 0;
     expect(casualBountyShare).toBeGreaterThan(0.1); // casuals get a real slice of the bounty
     expect(casualBountyShare).toBeGreaterThan(casualYieldShare); // …far more than of yield
+  });
+
+  it("rarity-aware bounty weight shifts payouts toward rare-word holders", () => {
+    // The split weights each match by tier^rarityWeight. Whales hold the rarest words, so raising
+    // rarityWeight must move bounty share toward them (deterministic at this fixed config/seed).
+    const flat = runSim(cfg({ bounty: true, rarityWeight: 0 }));
+    const steep = runSim(cfg({ bounty: true, rarityWeight: 2 }));
+    expect(whaleBountyShare(steep)).toBeGreaterThan(whaleBountyShare(flat));
   });
 });

@@ -228,6 +228,19 @@ export interface Params {
     requiresNotHungry: boolean;
     /** Probability a claimer steers a given claim toward a theme-matching unclaimed word. */
     chaseProbability: number;
+    /**
+     * Rarity tilt of the pro-rata split: a matching word's bounty weight is
+     * `TIER_WEIGHT[tier] ** rarityWeight × prestigeMult`. This is the breadth ↔ rarity-incentive dial:
+     *   0 = FLAT — every matching word shares equally (maximises casual reach, the bounty's headline
+     *       virtue, since casuals mostly hold Commons);
+     *   1 = TIER-PROPORTIONAL — matches how staking yield already treats tier (Common 1 … Legendary 8),
+     *       so it rewards owning/holding/feeding RARE matching words and gives collectors a reason to
+     *       acquire them (driving the secondary market the flat model can't show) — at the cost of some
+     *       casual reach;
+     *   >1 = steeper still.
+     * Default 1.0 for consistency with yield's tier treatment; sweep it (see `npm run loop-exp`).
+     */
+    rarityWeight: number;
   };
 }
 
@@ -314,6 +327,7 @@ export const DEFAULT_PARAMS: Params = {
     carveFraction: 0.15, // skim 15% of daily pool inflow into the bounty pool (zero-sum vs yield)
     requiresNotHungry: true,
     chaseProbability: 0.5, // load-bearing behavioral assumption — swept in the experiment
+    rarityWeight: 1.0, // tier-proportional (matches yield); 0 = flat. The breadth↔rarity dial.
   },
   // NB: no `splits.prestige` default — leaving it undefined makes the commit fee fall back to
   // `splits.roll`, and keeps `assertSplitsValid` from validating a non-existent split.

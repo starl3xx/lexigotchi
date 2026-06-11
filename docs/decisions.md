@@ -263,7 +263,9 @@ the owner-named fix as two independent **default-off levers** (mirroring trading
   -ING / vowel-start / -Y / Epic-or-Legendary, 0.7%–32.8% of the dict). At period end, every owner of
   a staked + not-hungry matching word shares a pool **carved zero-sum from `pool` inflow** (15%) —
   NOT from jackpot (which empties daily late-game). A claimer steers toward matching words with prob
-  `chaseProbability` (the load-bearing behavioral assumption).
+  `chaseProbability` (the load-bearing behavioral assumption). The pro-rata split is **rarity-aware**:
+  each match is weighted `TIER_WEIGHT[tier] ** rarityWeight × prestigeMult` — the **breadth ↔ rarity
+  dial** (`rarityWeight` 0 = flat / max casual reach, 1 = tier-proportional like yield, default 1.0).
 
 **Two decisions taken:** (1) **provable economics only** — the endogenous-churn / κ\* retention
 instrument was deliberately **not** built (churn=f(success) would be an *assumed input*, not a
@@ -284,9 +286,13 @@ word = one owner = just a second jackpot; a theme reaches the whole base).
   control, `mult=1.0`) → **~52%** (`mult=1.10`), i.e. ~+4pp from the boost itself (the rest is
   stream-divergence noise the control isolates). The gentle 1.10 default keeps it marginal; casuals
   get ~0% of yield either way (no UPPERCASE words).
-- **Bounty reaches casuals** — the one bright result: **~21% of bounty payouts go to casuals** (vs
-  ~0% of yield), **~218 words eligible per period** (a broad share, not a single-winner jackpot),
-  whale share only ~5–7%. `chaseProbability` 0.25→1.0 lifts casual bounty share 19.8%→25.4%.
+- **Bounty reaches casuals** — the one bright result: **~18% of payouts go to casuals at the rw=1
+  default (~21% flat)** (vs ~0% of yield), **~220 words eligible per period** (a broad share, not a
+  single-winner jackpot). **Collectors dominate (~64–72%)** — they're the high-claim grail hunters
+  holding the most matching words — so rarity weighting mostly redistributes *within* them, not away
+  from casuals; the visible rarity lever is **whale share 4.4% (flat) → 8.8% (rarityWeight 2)**.
+  `chaseProbability` 0.25→1.0 lifts casual bounty share 19.8%→25.4%. Net: rarity weighting costs only
+  ~3pp of casual reach to add a real rare-word incentive (the secondary-acquisition driver).
 - **Completion timing is noise-dominated** (d66–never across seeds, both directions) — same as the
   trading finding; do not read a velocity signal into it.
 
@@ -301,10 +307,11 @@ they exist to move (retention, re-acquisition demand) are exactly what this sim 
 - **Bounty — build it as the casual-reachable renewable goal,** but justify it on **reach + the
   behavioral/social case** (a weekly reason to log in, feed, and acquire), not on the sim's economic
   deltas — which understate it (no post-completion word market), exactly like dissolution's
-  de-risking was invisible to a greedy-claim model. The theme breadth (and a possible rarity-aware
-  bounty weight) is a tuning knob; `chaseProbability` is the assumption to pin with real data.
+  de-risking was invisible to a greedy-claim model. The theme breadth and the **`rarityWeight` dial**
+  (now implemented) are tuning knobs; `chaseProbability` is the assumption to pin with real data.
 - **Recommended defaults:** prestige `{levels 4, fee = roll $0.25, 1.10×/level}`; bounty `{periodDays
-  7, carve 15% from pool, requiresNotHungry, chaseProbability 0.5}`. All default **off**.
+  7, carve 15% from pool, requiresNotHungry, chaseProbability 0.5, rarityWeight 1.0}`. All default
+  **off**. (`rarityWeight` 0.5 is the breadth-favouring alternative if casual reach matters more.)
 
 ## Open questions still owed
 
@@ -317,9 +324,10 @@ they exist to move (retention, re-acquisition demand) are exactly what this sim 
 - **Renewable late-game loop** — ✅ now modeled (prestige + theme bounty; see "Renewable late-game
   loop" above). Verdict: prestige = a modest finite durable sink + mild whale yield-concentration;
   theme bounty = the casual-reachable goal whose economic demand the sim *understates* (no
-  post-completion word market). Build both light, on reach + behavioral grounds. Still owed: a
-  rarity-aware bounty weight, real `chaseProbability` calibration, and — the honest gap — **retention
-  itself is unmeasured** (churn is exogenous; a live cohort, not this sim, is the artifact for it).
+  post-completion word market). Build both light, on reach + behavioral grounds. Rarity-aware bounty
+  weight ✅ now added (`rarityWeight` dial, default tier-proportional). Still owed: real
+  `chaseProbability` calibration, and — the honest gap — **retention itself is unmeasured** (churn is
+  exogenous; a live cohort, not this sim, is the artifact for it).
 - **Demand damping in the market layer** — currently demand is held at the game-sim level; a
   fuller model would damp it by cost-to-play. (Minor while cost-to-play stays ~1.1×.)
 - **Daily-word `AnswerChain`** — Lexigotchi's OWN pre-committed daily-word hash-chain (no longer
