@@ -215,6 +215,39 @@ retention?"* — is **not answered here**; the sim only shows active casuals cla
 5–10% re-engagement rate among churned casuals would reshape the case and is invisible to this
 model. Making churn endogenous (success → lower churn) is the way to actually test retention.
 
+## Jackpot architecture — decoupled from LHAW (June 11, 2026)
+
+**Decision: Lexigotchi runs its OWN daily jackpot; LHAW becomes a bonus tie-in, not a core
+dependency.** Corrects a spec misalignment — Let's Have A Word! runs on *rounds* (not daily) with
+no winning word every day, so gating the core jackpot on "the daily LHAW answer" (v0.1 / v0.2 §2)
+was both factually wrong and a needless external dependency. Two jackpots now:
+
+- **Core daily jackpot (self-contained).** Lexigotchi picks one dictionary word per day from its
+  OWN pre-committed sequence (its own `AnswerChain` — Lexigotchi's commit cadence, NOT LHAW-sourced).
+  Resolution is unchanged: a single `keccak256(word)` lookup — claimed + staked + not-hungry → pay
+  the pot, else roll over; case-agnostic. Funded by the **Jackpot** fee bucket as today. **This
+  removes the v0.1/v0.2 "LHAW answer hash-chain" Phase-3 HARD dependency from core gameplay** — the
+  game launches on its own clock.
+- **LHAW bonus jackpot (soft tie-in).** When an LHAW *round* resolves its secret word, a Lexigotchi
+  player who **owns** that word wins a bonus.
+  - **Separate pool** (decision): its own accrual, so LHAW's irregular cadence can't destabilize the
+    daily jackpot and each pool stays solvent-by-construction. Funded by a thin slice carved from
+    the jackpot fee share (placeholder %, set when the bonus is modeled).
+  - **Ownership-only** (decision): NO staked/not-hungry gate — pure ownership of the LHAW winning
+    word wins (a serendipitous surprise-delight that also rewards collectors who don't stake).
+  - **Read-only soft integration**: an oracle/indexer reads LHAW's resolved winning word. If it's
+    down, the core daily jackpot is unaffected. LHAW is upside, never a blocker.
+
+**Sim status:** the sim ALREADY models the core daily jackpot correctly — `answerOrder =
+rng.shuffle([...WORDS])` *is* "Lexigotchi picks a word/day from its own sequence" (the old "LHAW
+answer" label was a misnomer, now reframed in code/UI). The **bonus pool is NOT modeled** —
+upside-only and irregular; documented as a Phase-1 addition (model it when sizing the carve %).
+
+**Fairness/compliance unchanged:** the daily word is still a chance payout, so it stays unsteerable
+via Lexigotchi's own pre-committed hash-chain, and the lottery-compliance rework (no-purchase free
+entry, geo/age-gating, official rules, `seed.jackpot = 0`) applies to BOTH jackpots. Ownership-only
+on the bonus doesn't change its chance nature (which word LHAW picks is the chance element).
+
 ## Open questions still owed
 
 - **Cap multiple (2.5×) / mint cadence** — mint-out is ~2 months at any real scale and is
@@ -225,4 +258,7 @@ model. Making churn endogenous (success → lower churn) is the way to actually 
   swap primitive light. Refinement owed: a rarity-tiered floor (scarce letters should clear higher).
 - **Demand damping in the market layer** — currently demand is held at the game-sim level; a
   fuller model would damp it by cost-to-play. (Minor while cost-to-play stays ~1.1×.)
-- **LHAW answer-chain migration** — unchanged (Phase 3 dependency).
+- **Daily-word `AnswerChain`** — Lexigotchi's OWN pre-committed daily-word hash-chain (no longer
+  the LHAW dependency; see "Jackpot architecture"). Still owed: commit cadence + reveal mechanics.
+- **LHAW bonus integration** — the read-only oracle that reads LHAW's resolved winning word, plus
+  the separate bonus-pool carve %. Phase-1, upside-only (not blocking).

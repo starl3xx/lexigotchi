@@ -53,7 +53,7 @@ export function WordChorus({
       />
       {trophy && (
         <div className="mt-1 flex items-center gap-1 font-display text-sm font-bold text-gold-deep">
-          <span aria-hidden>★</span> trophy — a past LHAW answer
+          <span aria-hidden>★</span> trophy — a past daily winning word
         </div>
       )}
     </div>
