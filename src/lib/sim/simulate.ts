@@ -435,6 +435,15 @@ function prestigeBountyMult(w: ClaimedWord, p: Params): number {
   return p.prestige.bountyMultPerLevel ** w.prestigeLevel;
 }
 
+/**
+ * A staked word's pro-rata bounty weight: rarity (`tier ^ rarityWeight`) × prestige multiplier.
+ * `rarityWeight = 0` is flat (every matching word equal — max casual reach); `= 1` is
+ * tier-proportional (rewards rare matching words, like yield treats tier). See params.bounty.
+ */
+function bountyWeight(w: ClaimedWord, p: Params): number {
+  return TIER_WEIGHT[w.tier] ** p.bounty.rarityWeight * prestigeBountyMult(w, p);
+}
+
 // ---------------------------------------------------------------------------
 // Dissolution + secondary letter clearing (sim levers, off by default)
 // ---------------------------------------------------------------------------
@@ -954,7 +963,7 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
             if (!w.staked) continue;
             if (!themeSet.has(w.word)) continue;
             if (bp.requiresNotHungry && effectiveMissed(w) >= world.params.care.hungryAfterDays) continue;
-            const weight = prestigeBountyMult(w, world.params);
+            const weight = bountyWeight(w, world.params);
             winners.push({ owner: pl, weight });
             totalW += weight;
           }

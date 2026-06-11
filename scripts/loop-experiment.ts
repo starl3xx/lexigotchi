@@ -32,6 +32,7 @@ interface Opts {
   chaseProbability?: number;
   yieldMultPerLevel?: number;
   carveFraction?: number;
+  rarityWeight?: number;
 }
 function makeParams(o: Opts): Params {
   return {
@@ -46,6 +47,7 @@ function makeParams(o: Opts): Params {
       enabled: !!o.bounty,
       ...(o.chaseProbability !== undefined ? { chaseProbability: o.chaseProbability } : {}),
       ...(o.carveFraction !== undefined ? { carveFraction: o.carveFraction } : {}),
+      ...(o.rarityWeight !== undefined ? { rarityWeight: o.rarityWeight } : {}),
     },
   };
 }
@@ -190,6 +192,29 @@ for (const cf of [0.05, 0.15, 0.3]) {
       padL(totalBounty(r) > 0 ? pctOf(bountyShare(r, "casual")) : "—", 18),
   );
 }
+
+// ── sensitivity: bounty.rarityWeight (the breadth ↔ rarity dial) ────────────────────────────
+console.log("\nSENSITIVITY — bounty.rarityWeight (flat reach ↔ reward rare matching words)");
+console.log(
+  pad("rarityWt", 12) +
+    padL("casual %", 12) +
+    padL("collector %", 14) +
+    padL("whale %", 12) +
+    padL("bounty paid", 14),
+);
+console.log("─".repeat(64));
+for (const rw of [0, 0.5, 1.0, 2.0]) {
+  const r = run(SEED, { bounty: true, rarityWeight: rw });
+  const tot = totalBounty(r);
+  console.log(
+    pad(rw.toFixed(1), 12) +
+      padL(tot > 0 ? pctOf(bountyShare(r, "casual")) : "—", 12) +
+      padL(tot > 0 ? pctOf(bountyShare(r, "collector")) : "—", 14) +
+      padL(tot > 0 ? pctOf(bountyShare(r, "whale")) : "—", 12) +
+      padL(k(tot), 14),
+  );
+}
+console.log(`  (rarityWt=0 = flat: every match equal, max casual reach. default 1.0 = tier-proportional.)`);
 
 // ── seed robustness: +both vs baseline (is the revival stable?) ──────────────────────────────
 console.log("\n\nSEED ROBUSTNESS — +both vs baseline (does the sink-revival hold across seeds?)");
