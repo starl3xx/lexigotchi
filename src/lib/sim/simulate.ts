@@ -268,6 +268,7 @@ function escrowClaim(player: Player, word: string, upper: boolean): void {
     upper: [upper, upper, upper, upper, upper], // case derived from escrow contents (v0.2 §2)
     staked: false,
     daysUnfed: 0,
+    fedToday: false,
   });
 }
 
@@ -355,24 +356,7 @@ function playerTurn(player: Player, world: World, day: number): void {
     }
   }
 
-  // 2) Feed staked words (protect yield + jackpot eligibility) — free snack first.
-  // A word eats `snacksPerWordPerDay` snacks/day; the daily check-in covers one feeding.
-  const snackCost = p.prices.snack * p.care.snacksPerWordPerDay;
-  for (const w of player.words.values()) {
-    if (!w.staked) continue;
-    let fed = false;
-    if (p.care.freeDailySnack && !player.freeSnackUsedToday) {
-      player.freeSnackUsedToday = true;
-      fed = true;
-    } else if (rng.chance(cfg.feedDiscipline) && canSpend(snackCost)) {
-      spend(snackCost);
-      world.ledger.route(snackCost, p.splits.snack); // 100% burn
-      fed = true;
-    }
-    w.daysUnfed = fed ? 0 : w.daysUnfed + 1;
-  }
-
-  // 3) Claims (assemble owned letters into a permanent word)
+  // 2) Claims (assemble owned letters into a permanent word)
   let claims = poisson(rng, cfg.claimsPerDay);
   while (claims-- > 0 && canSpend(p.prices.claim)) {
     const found = findClaimable(player, world, cfg.grailHunter);
@@ -383,8 +367,25 @@ function playerTurn(player: Player, world: World, day: number): void {
     world.claims.set(found.word, player.id);
   }
 
-  // 4) Stake any unstaked claimed words (free, instant)
+  // 3) Stake any unstaked claimed words (free, instant)
   for (const w of player.words.values()) if (!w.staked) w.staked = true;
+
+  // 4) Feed staked words AFTER staking, so a word claimed + auto-staked this same turn can
+  //    eat too. A word eats `snacksPerWordPerDay` snacks/day; the check-in covers one feeding.
+  //    We only MARK who got fed here — the daysUnfed advance happens in the post-turn hunger
+  //    tick, so churned owners' words also get hungry.
+  const snackCost = p.prices.snack * p.care.snacksPerWordPerDay;
+  for (const w of player.words.values()) {
+    if (!w.staked) continue;
+    if (p.care.freeDailySnack && !player.freeSnackUsedToday) {
+      player.freeSnackUsedToday = true;
+      w.fedToday = true;
+    } else if (rng.chance(cfg.feedDiscipline) && canSpend(snackCost)) {
+      spend(snackCost);
+      world.ledger.route(snackCost, p.splits.snack); // 100% burn
+      w.fedToday = true;
+    }
+  }
 
   // 5) Upgrade rolls toward UPPERCASE (the core sink)
   let rolls = poisson(rng, cfg.rollsPerDay);
@@ -493,6 +494,17 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
     const order = world.rng.shuffle(world.players.filter((pl) => pl.active).map((pl) => pl.id));
     const byId = new Map(world.players.map((pl) => [pl.id, pl]));
     for (const id of order) playerTurn(byId.get(id)!, world, day);
+
+    // ---- hunger tick: advance daysUnfed for EVERY staked word, active owner or churned ----
+    // Churned owners skip playerTurn, so without this their words would stay frozen-as-fed and
+    // keep full yield weight + jackpot eligibility forever. v0.2 care must still apply to them.
+    for (const pl of world.players) {
+      for (const w of pl.words.values()) {
+        if (!w.staked) continue;
+        w.daysUnfed = w.fedToday ? 0 : w.daysUnfed + 1;
+        w.fedToday = false;
+      }
+    }
 
     // ---- secondary-market royalty → Rewards Pool (v0.2 §8) ----
     // Macro abstraction: daily secondary GMV ≈ a fraction of the day's primary fee GMV;

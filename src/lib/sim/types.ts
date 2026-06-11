@@ -13,6 +13,8 @@ export interface ClaimedWord {
   staked: boolean;
   /** Consecutive days the staked word has gone unfed (0 = fed today). */
   daysUnfed: number;
+  /** Set during a turn when the word is fed; consumed by the post-turn hunger tick. */
+  fedToday: boolean;
 }
 
 export function wordCase(w: ClaimedWord): WordCase {
