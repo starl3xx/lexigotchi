@@ -2,7 +2,7 @@
 /** Shared rubber-hose UI primitives for the play prototype — cel borders, hard shadows, wood tiles. */
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Tier } from "@/lib/economy";
-import { useGame, type Hunger } from "./state";
+import { useGame, type Hunger, type Toast } from "./state";
 
 // ---------------------------------------------------------------------------
 // Button — tactile cel button (the shadow "presses" on tap)
@@ -210,22 +210,26 @@ const TOAST_TONE = {
 
 export function Toaster() {
   const { state, dismissToast } = useGame();
-  useEffect(() => {
-    if (state.toasts.length === 0) return;
-    const timers = state.toasts.map((t) => setTimeout(() => dismissToast(t.id), 2600));
-    return () => timers.forEach(clearTimeout);
-  }, [state.toasts, dismissToast]);
-
   return (
     <div className="pointer-events-none absolute inset-x-0 top-2 z-50 flex flex-col items-center gap-2 px-4">
       {state.toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`pointer-events-auto max-w-full rounded-xl border-[3px] border-ink px-3 py-2 text-center text-sm font-bold shadow-[3px_3px_0_#1b1714] ${TOAST_TONE[t.tone]}`}
-        >
-          {t.text}
-        </div>
+        <ToastItem key={t.id} toast={t} onDone={dismissToast} />
       ))}
+    </div>
+  );
+}
+
+/** Each toast owns an independent mount-timer, so adding/removing toasts never resets the others. */
+function ToastItem({ toast, onDone }: { toast: Toast; onDone: (id: number) => void }) {
+  useEffect(() => {
+    const id = window.setTimeout(() => onDone(toast.id), 2600);
+    return () => window.clearTimeout(id);
+  }, [toast.id, onDone]);
+  return (
+    <div
+      className={`animate-pop pointer-events-auto max-w-full rounded-xl border-[3px] border-ink px-3 py-2 text-center text-sm font-bold shadow-[3px_3px_0_#1b1714] ${TOAST_TONE[toast.tone]}`}
+    >
+      {toast.text}
     </div>
   );
 }

@@ -81,7 +81,7 @@ export function WordSheet({ id }: { id: number }) {
         </Button>
         <Button
           variant="teal"
-          disabled={!word.staked || word.daysUnfed === 0}
+          disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(COST.snack))}
           onClick={() => g.feed(word.id)}
         >
           🍪 Feed {word.daysUnfed === 0 ? "✓" : ""}

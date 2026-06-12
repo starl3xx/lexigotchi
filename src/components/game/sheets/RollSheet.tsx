@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Rig } from "@/components/characters/Rig";
 import { Button, PityMeter, Sheet } from "../primitives";
-import { COST, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
+import { COST, charToIdx, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
 
 type Phase = "ready" | "rolling" | "win" | "miss";
 
@@ -15,7 +15,8 @@ export function RollSheet({ target }: { target: RollTarget }) {
   const loose = target.kind === "loose";
   const word = !loose ? state.words.find((w) => w.id === target.id) : undefined;
   const char = loose ? idxToChar(target.idx) : word ? word.word[target.pos] : "?";
-  const pity = loose ? state.pity[target.idx] : 0;
+  // word-position rolls share the per-letter pity streak (the (owner, letterId) rule)
+  const pity = loose ? state.pity[target.idx] : word ? state.pity[charToIdx(word.word[target.pos])] : 0;
 
   const close = () => {
     // returning from a word-position roll? pop back to the word sheet for flow

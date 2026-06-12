@@ -10,6 +10,7 @@
  */
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
   useReducer,
@@ -70,6 +71,8 @@ export interface OwnedWord {
   staked: boolean;
   daysUnfed: number;
   prestigeLevel: number;
+  /** Consecutive failed ascension attempts on this word (the prestige pity streak). */
+  prestigePity: number;
 }
 
 export type View =
@@ -190,7 +193,7 @@ function seedState(): GameState {
     staked: boolean,
     daysUnfed: number,
     prestigeLevel = 0,
-  ): OwnedWord => ({ id, word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel });
+  ): OwnedWord => ({ id, word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0 });
 
   const F = false;
   const T = true;
@@ -294,13 +297,21 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, lower, upper, pity, balance: spend(s, COST.roll) };
     }
     case "rollWord": {
+      // Pity keys on the LETTER being raised (the (owner, letterId) rule), shared with loose rolls.
+      const pity = s.pity.slice();
       const words = s.words.map((w) => {
         if (w.id !== a.id) return w;
+        const li = charToIdx(w.word[a.pos]);
         const up = w.upper.slice();
-        if (a.success) up[a.pos] = true;
+        if (a.success) {
+          up[a.pos] = true;
+          pity[li] = 0;
+        } else {
+          pity[li]++;
+        }
         return { ...w, upper: up };
       });
-      return { ...s, words, balance: spend(s, COST.roll) };
+      return { ...s, words, pity, balance: spend(s, COST.roll) };
     }
     case "claim": {
       const info = a.word;
@@ -315,6 +326,7 @@ function reducer(s: GameState, a: Action): GameState {
         staked: true, // auto-stake on claim (UX nicety)
         daysUnfed: 0,
         prestigeLevel: 0,
+        prestigePity: 0,
       };
       return {
         ...s,
@@ -330,29 +342,44 @@ function reducer(s: GameState, a: Action): GameState {
         words: s.words.map((w) => (w.id === a.id ? { ...w, staked: !w.staked } : w)),
       };
     case "feed": {
-      const usedFree = !s.freeSnackUsed;
+      const free = !s.freeSnackUsed;
+      if (!free && s.balance < COST.snack) return s; // can't afford (the UI gates this too)
       return {
         ...s,
         freeSnackUsed: true,
-        balance: usedFree ? s.balance : spend(s, COST.snack),
+        balance: free ? s.balance : spend(s, COST.snack),
         words: s.words.map((w) => (w.id === a.id ? { ...w, daysUnfed: 0 } : w)),
       };
     }
     case "feedAll": {
-      const hungryStaked = s.words.filter((w) => w.staked && w.daysUnfed > 0);
-      const freeApplies = !s.freeSnackUsed && hungryStaked.length > 0;
-      const paidCount = Math.max(0, hungryStaked.length - (freeApplies ? 1 : 0));
-      return {
-        ...s,
-        freeSnackUsed: s.freeSnackUsed || hungryStaked.length > 0,
-        balance: spend(s, paidCount * COST.snack),
-        words: s.words.map((w) => (w.staked ? { ...w, daysUnfed: 0 } : w)),
-      };
+      // Feed the free snack first, then as many paid ones as the balance allows — never go negative.
+      let bal = s.balance;
+      let free = !s.freeSnackUsed;
+      let touched = false;
+      const words = s.words.map((w) => {
+        if (!w.staked || w.daysUnfed === 0) return w;
+        if (free) {
+          free = false;
+          touched = true;
+          return { ...w, daysUnfed: 0 };
+        }
+        if (bal >= COST.snack) {
+          bal -= COST.snack;
+          touched = true;
+          return { ...w, daysUnfed: 0 };
+        }
+        return w; // can't afford this one — it stays hungry
+      });
+      return { ...s, balance: bal, freeSnackUsed: s.freeSnackUsed || touched, words };
     }
     case "prestige": {
+      const target = s.words.find((x) => x.id === a.id);
+      if (!target || target.prestigeLevel >= PRESTIGE_LEVELS) return s; // cap the level
       const words = s.words.map((w) => {
         if (w.id !== a.id) return w;
-        return a.success ? { ...w, prestigeLevel: w.prestigeLevel + 1 } : w;
+        return a.success
+          ? { ...w, prestigeLevel: w.prestigeLevel + 1, prestigePity: 0 }
+          : { ...w, prestigePity: w.prestigePity + 1 };
       });
       return { ...s, words, balance: spend(s, COST.prestige + COST.snack) };
     }
@@ -427,6 +454,8 @@ const Ctx = createContext<GameApi | null>(null);
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seedState);
   const rng = useRef(new Rng(1930));
+  // stable across renders (dispatch is stable) so the Toaster's per-toast timers don't reset
+  const dismissToast = useCallback((id: number) => dispatch({ t: "untoast", id }), []);
 
   const api = useMemo<GameApi>(() => {
     const r = rng.current;
@@ -439,7 +468,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       openSheet: (sheet) => dispatch({ t: "sheet", sheet }),
       closeSheet: () => dispatch({ t: "sheet", sheet: null }),
       toast,
-      dismissToast: (id) => dispatch({ t: "untoast", id }),
+      dismissToast,
       canAfford: (amount) => state.balance >= amount,
 
       dailyMint: () => {
@@ -459,28 +488,66 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return idxs;
       },
       rollLoose: (idx) => {
+        if (state.balance < COST.roll) {
+          toast("Not enough $WORD to roll", "bad");
+          return false;
+        }
         const success = r.chance(rollSuccessProbability(state.pity[idx]));
         dispatch({ t: "rollLoose", idx, success });
         return success;
       },
       rollWord: (id, pos) => {
-        const success = r.chance(rollSuccessProbability(0));
+        if (state.balance < COST.roll) {
+          toast("Not enough $WORD to roll", "bad");
+          return false;
+        }
+        const w = state.words.find((x) => x.id === id);
+        const li = w ? charToIdx(w.word[pos]) : 0; // pity keys on the letter being raised
+        const success = r.chance(rollSuccessProbability(state.pity[li]));
         dispatch({ t: "rollWord", id, pos, success });
         return success;
       },
       claim: (word, useUpper) => {
+        const inv = useUpper ? state.upper : state.lower;
+        if (
+          !WORD_SET.has(word) ||
+          state.words.some((w) => w.word === word) ||
+          !canSpell(word, inv) ||
+          state.balance < COST.claim
+        ) {
+          toast("Can't claim that word", "bad");
+          return;
+        }
         dispatch({ t: "claim", word, useUpper });
         toast(`Claimed ${word} — it's yours forever ✦`, "good");
       },
       toggleStake: (id) => dispatch({ t: "stake", id }),
-      feed: (id) => dispatch({ t: "feed", id }),
+      feed: (id) => {
+        if (state.freeSnackUsed && state.balance < COST.snack) {
+          toast("Not enough $WORD to feed", "bad");
+          return;
+        }
+        dispatch({ t: "feed", id });
+      },
       feedAll: () => {
+        const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0);
+        if (hungry.length === 0) {
+          toast("Everyone's already fed 😊", "info");
+          return;
+        }
+        const free = state.freeSnackUsed ? 0 : 1;
+        const affordable = free + Math.floor(state.balance / COST.snack);
         dispatch({ t: "feedAll" });
-        toast("Fed your collection 🍪", "good");
+        toast(affordable >= hungry.length ? "Fed your collection 🍪" : "Fed what you could afford 🍪", affordable >= hungry.length ? "good" : "info");
       },
       prestige: (id) => {
         const w = state.words.find((x) => x.id === id);
-        const success = r.chance(prestigeSuccessProbability(w?.prestigeLevel ?? 0));
+        if (!w || w.prestigeLevel >= PRESTIGE_LEVELS) return false;
+        if (state.balance < COST.prestige + COST.snack) {
+          toast("Not enough $WORD to ascend", "bad");
+          return false;
+        }
+        const success = r.chance(prestigeSuccessProbability(w.prestigePity));
         dispatch({ t: "prestige", id, success });
         return success;
       },
@@ -505,7 +572,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),
     };
-  }, [state]);
+  }, [state, dismissToast]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
