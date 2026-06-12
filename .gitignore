@@ -28,6 +28,9 @@ next-env.d.ts
 .vscode/*
 !.vscode/extensions.json
 
+# vercel
+.vercel
+
 # env
 .env
 .env*.local
