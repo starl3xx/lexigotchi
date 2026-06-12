@@ -1,0 +1,36 @@
+"use client";
+/** Pack reveal — the 5 freshly-pulled letters pop in one by one. */
+import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
+import { Sheet } from "../primitives";
+import { LetterTile } from "../LetterTile";
+import { Button } from "../primitives";
+import { idxToChar, useGame } from "../state";
+
+const RAREST = new Set(LETTERS_BY_FREQUENCY.slice(-6));
+
+export function PackReveal({ letters }: { letters: number[] }) {
+  const g = useGame();
+  const gotRare = letters.some((i) => RAREST.has(idxToChar(i)));
+  return (
+    <Sheet open onClose={g.closeSheet} title="Fresh pull 📦">
+      <div className="flex flex-wrap items-center justify-center gap-3 py-4">
+        {letters.map((i, k) => (
+          <div key={k} className="animate-pop" style={{ animationDelay: `${k * 0.11}s` }}>
+            <LetterTile char={idxToChar(i)} size={56} />
+          </div>
+        ))}
+      </div>
+      <p className="text-center text-sm text-ink/60">
+        {gotRare ? "Ooh — a rare one in there ✦" : "Five fresh lowercase kids for the bag."}
+      </p>
+      <div className="mt-4 flex gap-2">
+        <Button full variant="ghost" onClick={g.closeSheet}>
+          Stash it
+        </Button>
+        <Button full variant="primary" onClick={() => g.nav("claim")}>
+          Spell something →
+        </Button>
+      </div>
+    </Sheet>
+  );
+}

@@ -68,6 +68,16 @@ const config: Config = {
           "30%": { transform: "translateY(-12px) scaleY(1.06)" },
           "60%": { transform: "translateY(0) scaleY(0.94)" },
         },
+        // reveal pop for pack/roll outcomes
+        pop: {
+          "0%": { transform: "scale(0.4) rotate(-12deg)", opacity: "0" },
+          "70%": { transform: "scale(1.12) rotate(4deg)", opacity: "1" },
+          "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+        },
+        sheen: {
+          "0%": { transform: "translateX(-120%) skewX(-20deg)" },
+          "100%": { transform: "translateX(220%) skewX(-20deg)" },
+        },
       },
       animation: {
         idle: "idle 2.8s ease-in-out infinite",
@@ -78,6 +88,8 @@ const config: Config = {
         blink: "blink 2.5s linear infinite",
         shuffle: "shuffle 1.6s ease-in-out infinite",
         kick: "kick 0.9s ease-in-out infinite",
+        pop: "pop 0.45s ease-out both",
+        sheen: "sheen 1.1s ease-in-out",
       },
     },
   },

@@ -13,6 +13,7 @@ const NAV = [
   { href: "/characters", label: "Characters" },
   { href: "/lexidex", label: "Lexidex" },
   { href: "/economy", label: "Economy" },
+  { href: "/play", label: "▶ Play" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,12 +25,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="font-display text-xl font-extrabold tracking-tight">
               LEXIGOTCHI
             </Link>
-            <div className="flex gap-1 text-sm font-semibold">
-              {NAV.map((n) => (
-                <Link key={n.href} href={n.href} className="rounded px-3 py-1.5 hover:bg-tile">
-                  {n.label}
-                </Link>
-              ))}
+            <div className="flex items-center gap-1 text-sm font-semibold">
+              {NAV.map((n) =>
+                n.href === "/play" ? (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className="rounded-lg border-2 border-ink bg-candy px-3 py-1.5 font-bold text-paper shadow-[2px_2px_0_#1b1714] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                  >
+                    {n.label}
+                  </Link>
+                ) : (
+                  <Link key={n.href} href={n.href} className="rounded px-3 py-1.5 hover:bg-tile">
+                    {n.label}
+                  </Link>
+                ),
+              )}
             </div>
           </nav>
         </header>
