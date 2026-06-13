@@ -20,10 +20,15 @@ export function ShowcaseScreen() {
   const tray = (upper: boolean) =>
     (upper ? state.upper : state.lower).map((c, i) => ({ i, c })).filter((x) => x.c > 0);
 
-  const add = (idx: number, upper: boolean) => {
-    if (rack.length >= 8) return;
-    setRack([...rack, { idx, upper }]);
-  };
+  // functional updater so batched taps can't exceed 8 slots or place more than you own
+  const add = (idx: number, upper: boolean) =>
+    setRack((prev) => {
+      if (prev.length >= 8) return prev;
+      const owned = (upper ? state.upper : state.lower)[idx];
+      const usedInRack = prev.filter((s) => s.idx === idx && s.upper === upper).length;
+      if (owned - usedInRack <= 0) return prev;
+      return [...prev, { idx, upper }];
+    });
 
   return (
     <div className="space-y-3">

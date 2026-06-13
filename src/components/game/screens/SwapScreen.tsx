@@ -18,6 +18,13 @@ export function SwapScreen() {
 
   const giveUsed = (i: number) => give.filter((x) => x === i).length;
   const myLetters = state.lower.map((c, i) => ({ i, c })).filter((x) => x.c > 0);
+  // functional updater so batched taps can't offer more of a letter than the bag holds
+  const addGive = (i: number) =>
+    setGive((prev) => {
+      const usedInGive = prev.filter((x) => x === i).length;
+      if (state.lower[i] - usedInGive <= 0) return prev;
+      return [...prev, i];
+    });
   const fmtSet = (arr: number[]) =>
     arr.length ? arr.map((i) => idxToChar(i)).join(" ") : "—";
 
@@ -79,7 +86,7 @@ export function SwapScreen() {
           <div className="grid grid-cols-6 gap-2.5">
             {myLetters.map(({ i, c }) => {
               const avail = c - giveUsed(i);
-              return <LetterTile key={i} char={idxToChar(i)} count={avail} dim={avail <= 0} onClick={avail > 0 ? () => setGive([...give, i]) : undefined} />;
+              return <LetterTile key={i} char={idxToChar(i)} count={avail} dim={avail <= 0} onClick={avail > 0 ? () => addGive(i) : undefined} />;
             })}
           </div>
         )}

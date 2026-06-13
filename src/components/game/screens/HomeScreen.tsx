@@ -46,9 +46,9 @@ export function HomeScreen() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-display font-extrabold">
-                {needFood.length} {needFood.length === 1 ? "word is" : "words are"} hungry
+                {needFood.length} {needFood.length === 1 ? "word needs" : "words need"} feeding
               </div>
-              <div className="text-xs text-ink/60">Hungry words stop earning and can&apos;t win the jackpot.</div>
+              <div className="text-xs text-ink/60">Peckish words earn half; hungry ones (3+ days) earn nothing and can&apos;t win the jackpot.</div>
             </div>
             <Button variant="teal" onClick={g.feedAll}>🍪 Feed all</Button>
           </div>
