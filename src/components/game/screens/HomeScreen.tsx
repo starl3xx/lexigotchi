@@ -1,7 +1,7 @@
 "use client";
 /** Today — the daily hub: care alert, daily letter, jackpot teaser, bounty, quick actions. */
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
-import { COST, THEMES, fmtWord, hunger, useGame, type View } from "../state";
+import { COST, THEMES, fmtWord, hunger, jackpotEligible, useGame, type View } from "../state";
 
 export function HomeScreen() {
   const g = useGame();
@@ -27,8 +27,10 @@ export function HomeScreen() {
             <span>
               Today&apos;s word was <strong className="font-display">{state.jackpotWord}</strong>
             </span>
-          ) : ownsAnswer ? (
+          ) : ownsAnswer && jackpotEligible(ownsAnswer) ? (
             <span className="font-bold text-candy">You may be holding today&apos;s secret word 👀</span>
+          ) : ownsAnswer ? (
+            <span className="font-bold text-candy">You hold today&apos;s word — stake &amp; feed it to be in the draw!</span>
           ) : (
             <span className="text-ink/60">The secret word is hidden until the draw.</span>
           )}
