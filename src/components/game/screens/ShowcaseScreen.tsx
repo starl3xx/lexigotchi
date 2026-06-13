@@ -44,7 +44,7 @@ export function ShowcaseScreen() {
             <span className="self-center text-sm text-ink/45">tap letters below to build your showcase</span>
           ) : (
             rack.map((s, k) => (
-              <button key={k} onClick={() => setRack(rack.filter((_, i) => i !== k))} title="remove" className="animate-pop">
+              <button key={k} onClick={() => setRack((prev) => prev.filter((_, i) => i !== k))} title="remove" className="animate-pop">
                 <Rig letter={idxToChar(s.idx)} variant={s.upper ? "upper" : "lower"} size={Math.min(72, 360 / rack.length)} />
               </button>
             ))

@@ -77,7 +77,7 @@ export function ClaimScreen() {
                 char={idxToChar(idx)}
                 upper={useUpper}
                 size={48}
-                onClick={() => setRack(rack.filter((_, s) => s !== slot))}
+                onClick={() => setRack((prev) => prev.filter((_, s) => s !== slot))}
                 title="remove"
               />
             );
