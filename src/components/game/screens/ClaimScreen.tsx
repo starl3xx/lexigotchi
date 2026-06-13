@@ -32,6 +32,14 @@ export function ClaimScreen() {
     g.claim(word, useUpper);
     setRack([]);
   };
+  // functional updater so rapid/batched clicks can't push past 5 slots or beyond what you own
+  const addLetter = (i: number) =>
+    setRack((prev) => {
+      if (prev.length >= 5) return prev;
+      const used = prev.filter((x) => x === i).length;
+      if (inv[i] - used <= 0) return prev;
+      return [...prev, i];
+    });
 
   const upperCount = state.upper.reduce((a, b) => a + b, 0);
 
@@ -124,7 +132,7 @@ export function ClaimScreen() {
                   upper={useUpper}
                   count={avail}
                   dim={avail <= 0}
-                  onClick={avail > 0 && rack.length < 5 ? () => setRack([...rack, i]) : undefined}
+                  onClick={avail > 0 && rack.length < 5 ? () => addLetter(i) : undefined}
                   title={`add ${idxToChar(i)}`}
                 />
               );
