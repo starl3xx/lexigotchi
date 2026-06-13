@@ -79,7 +79,7 @@ export function HomeScreen() {
               disabled={!g.canAfford(COST.daily)}
               onClick={() => {
                 const idx = g.dailyMint();
-                if (idx === null) g.toast("Already claimed today", "info");
+                if (idx === null) g.toast(state.dailyMinted ? "Already claimed today" : "Not enough $WORD for the daily", "info");
               }}
             >
               Pull 🎟

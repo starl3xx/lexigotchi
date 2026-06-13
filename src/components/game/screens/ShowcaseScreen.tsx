@@ -14,10 +14,7 @@ interface Slot {
 export function ShowcaseScreen() {
   const g = useGame();
   const { state } = g;
-  const [rack, setRack] = useState<Slot[]>([
-    { idx: 6, upper: false },
-    { idx: 12, upper: false },
-  ]); // "gm" to start
+  const [rack, setRack] = useState<Slot[]>([]); // start empty — the player arranges letters they own
 
   const used = (idx: number, upper: boolean) => rack.filter((s) => s.idx === idx && s.upper === upper).length;
   const tray = (upper: boolean) =>
