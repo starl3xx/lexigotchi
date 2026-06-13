@@ -131,8 +131,9 @@ export function WordSheet({ id }: { id: number }) {
               variant="gold"
               disabled={!canPrestige || !g.canAfford(COST.prestige + COST.snack)}
               onClick={() => {
-                const ok = g.prestige(word.id);
-                g.toast(ok ? "Ascended! ★ a gilded glow-up" : "Ascension failed — no harm done", ok ? "good" : "info");
+                const res = g.prestige(word.id);
+                if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
+                g.toast(res ? "Ascended! ★ a gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
               {word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}

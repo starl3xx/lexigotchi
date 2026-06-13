@@ -31,8 +31,10 @@ export function JackpotScreen() {
               ))}
             </div>
             <Button full size="lg" variant="gold" onClick={() => {
-              const w = g.revealJackpot();
-              g.toast(w ? "JACKPOT! You held the word 🎉" : "Not your word today — it rolls over", w ? "good" : "info");
+              const res = g.revealJackpot();
+              if (res === "win") g.toast("JACKPOT! You held the word 🎉", "good");
+              else if (res === "lose") g.toast("Not your word today — it rolls over", "info");
+              // res === null → already drawn (double-tap); no toast
             }}>
               Reveal today&apos;s word 🎲
             </Button>

@@ -443,15 +443,18 @@ export interface GameApi {
   canAfford: (amount: number) => boolean;
   dailyMint: () => number | null;
   openPack: () => number[];
-  rollLoose: (idx: number) => boolean;
-  rollWord: (id: number, pos: number) => boolean;
+  /** null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss. */
+  rollLoose: (idx: number) => boolean | null;
+  rollWord: (id: number, pos: number) => boolean | null;
   claim: (word: string, useUpper: boolean) => void;
   toggleStake: (id: number) => void;
   feed: (id: number) => void;
   feedAll: () => void;
-  prestige: (id: number) => boolean;
+  /** null = the attempt didn't happen (ineligible / unaffordable); true = ascended, false = failed. */
+  prestige: (id: number) => boolean | null;
   dissolve: (id: number) => void;
-  revealJackpot: () => boolean;
+  /** null = no draw happened (already revealed); else the outcome. */
+  revealJackpot: () => "win" | "lose" | null;
   skipDay: () => void;
   // selectors
   spendable: (word: OwnedWord) => boolean;
@@ -497,10 +500,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return idxs;
       },
       rollLoose: (idx) => {
-        if (state.lower[idx] <= 0) return false; // no such loose letter to raise
+        if (state.lower[idx] <= 0) return null; // no such loose letter to raise
         if (state.balance < COST.roll) {
           toast("Not enough $WORD to roll", "bad");
-          return false;
+          return null;
         }
         const success = r.chance(rollSuccessProbability(state.pity[idx]));
         dispatch({ t: "rollLoose", idx, success });
@@ -508,10 +511,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       rollWord: (id, pos) => {
         const w = state.words.find((x) => x.id === id);
-        if (!w || pos < 0 || pos > 4 || w.upper[pos]) return false; // slot already raised / invalid
+        if (!w || pos < 0 || pos > 4 || w.upper[pos]) return null; // slot already raised / invalid
         if (state.balance < COST.roll) {
           toast("Not enough $WORD to roll", "bad");
-          return false;
+          return null;
         }
         const li = charToIdx(w.word[pos]); // pity keys on the letter being raised
         const success = r.chance(rollSuccessProbability(state.pity[li]));
@@ -560,10 +563,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       prestige: (id) => {
         const w = state.words.find((x) => x.id === id);
-        if (!w || w.prestigeLevel >= PRESTIGE_LEVELS || !w.staked || wordCase(w) !== "UPPERCASE") return false;
+        if (!w || w.prestigeLevel >= PRESTIGE_LEVELS || !w.staked || wordCase(w) !== "UPPERCASE") return null;
         if (state.balance < COST.prestige + COST.snack) {
           toast("Not enough $WORD to ascend", "bad");
-          return false;
+          return null;
         }
         const success = r.chance(prestigeSuccessProbability(w.prestigePity));
         dispatch({ t: "prestige", id, success });
@@ -575,11 +578,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (w) toast(`Dissolved ${w.word} — 5 letters recovered`, "info");
       },
       revealJackpot: () => {
-        if (state.jackpotRevealed) return false; // already drawn (the reducer is the real race-guard)
+        if (state.jackpotRevealed) return null; // already drawn (the reducer is the real race-guard)
         const owned = state.words.find((w) => w.word === state.jackpotWord);
         const won = !!owned && jackpotEligible(owned);
         dispatch({ t: "revealJackpot", won, amount: state.jackpotPot });
-        return won;
+        return won ? "win" : "lose";
       },
       skipDay: () => {
         const jackpotWord = r.pick(WORDS);

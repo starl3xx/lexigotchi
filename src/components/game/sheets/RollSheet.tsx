@@ -25,13 +25,15 @@ export function RollSheet({ target }: { target: RollTarget }) {
   };
 
   const reveal = () => {
-    if (!g.canAfford(COST.roll)) {
-      g.toast("Not enough $WORD to roll", "bad");
+    const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.id, target.pos);
+    if (result === null) {
+      // the roll never happened (no letter / slot already raised / unaffordable — api toasted why);
+      // don't fake a "No luck" miss
+      close();
       return;
     }
     setPhase("rolling");
-    const success = loose ? g.rollLoose(target.idx) : g.rollWord(target.id, target.pos);
-    window.setTimeout(() => setPhase(success ? "win" : "miss"), 850);
+    window.setTimeout(() => setPhase(result ? "win" : "miss"), 850);
   };
 
   const looseLeft = loose ? state.lower[target.idx] : 0;
