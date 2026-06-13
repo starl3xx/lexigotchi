@@ -1,7 +1,7 @@
 "use client";
 /** Bounty — the weekly featured category. Hold matching words, staked & fed, to share the pool. */
 import { TIER_WEIGHT } from "@/lib/economy";
-import { Button, Card, Countdown, EmptyState, SectionTitle } from "../primitives";
+import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { WordCard } from "../WordCard";
 import { THEMES, fmtWord, hunger, useGame } from "../state";
 
@@ -37,7 +37,7 @@ export function BountyScreen() {
         <div className="mt-2 flex items-end justify-between">
           <div>
             <div className="font-display text-2xl font-extrabold text-teal">{fmtWord(POOL)}</div>
-            <div className="text-xs text-ink/60">pool · resets in <Countdown /></div>
+            <div className="text-xs text-ink/60">pool · fresh theme each week</div>
           </div>
           <div className="text-right">
             <div className="font-display text-lg font-extrabold">~{fmtWord(POOL * share)}</div>

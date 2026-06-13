@@ -111,7 +111,7 @@ export function SwapScreen() {
         </SectionTitle>
         <div className="grid grid-cols-7 gap-1.5">
           {ALPHABET.map((L) => (
-            <LetterTile key={L} char={L} size={38} selected={want.includes(charToIdx(L))} onClick={() => setWant([...want, charToIdx(L)])} />
+            <LetterTile key={L} char={L} size={38} selected={want.includes(charToIdx(L))} onClick={() => setWant((prev) => [...prev, charToIdx(L)])} />
           ))}
         </div>
       </Card>
