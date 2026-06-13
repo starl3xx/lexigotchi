@@ -268,6 +268,7 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, toasts: s.toasts.filter((t) => t.id !== a.id) };
 
     case "dailyMint": {
+      if (s.dailyMinted || s.balance < COST.daily) return s; // once a day, and only if affordable
       const lower = s.lower.slice();
       lower[a.idx]++;
       return {
@@ -279,11 +280,13 @@ function reducer(s: GameState, a: Action): GameState {
       };
     }
     case "pack": {
+      if (s.balance < COST.pack) return s;
       const lower = s.lower.slice();
       for (const i of a.idxs) lower[i]++;
       return { ...s, lower, balance: spend(s, COST.pack) };
     }
     case "rollLoose": {
+      if (s.balance < COST.roll) return s;
       const lower = s.lower.slice();
       const upper = s.upper.slice();
       const pity = s.pity.slice();
@@ -300,7 +303,7 @@ function reducer(s: GameState, a: Action): GameState {
     }
     case "rollWord": {
       const target = s.words.find((w) => w.id === a.id);
-      if (!target || a.pos < 0 || a.pos > 4 || target.upper[a.pos]) return s; // only an un-raised slot rolls
+      if (!target || a.pos < 0 || a.pos > 4 || target.upper[a.pos] || s.balance < COST.roll) return s; // only an un-raised slot, if affordable
       // Pity keys on the LETTER being raised (the (owner, letterId) rule), shared with loose rolls.
       const pity = s.pity.slice();
       const words = s.words.map((w) => {
@@ -319,6 +322,15 @@ function reducer(s: GameState, a: Action): GameState {
     }
     case "claim": {
       const info = a.word;
+      // validate fully in the store too (not just the api): real word, not already owned, spellable, affordable
+      if (
+        !WORD_SET.has(info) ||
+        s.words.some((w) => w.word === info) ||
+        !canSpell(info, a.useUpper ? s.upper : s.lower) ||
+        s.balance < COST.claim
+      ) {
+        return s;
+      }
       const tier = wordTier(info);
       const src = a.useUpper ? s.upper.slice() : s.lower.slice();
       for (const ch of info) src[charToIdx(ch)]--;
@@ -380,8 +392,16 @@ function reducer(s: GameState, a: Action): GameState {
     }
     case "prestige": {
       const target = s.words.find((x) => x.id === a.id);
-      // only a staked, full-UPPERCASE word below the cap can ascend (matches the sim + UI)
-      if (!target || target.prestigeLevel >= PRESTIGE_LEVELS || !target.staked || wordCase(target) !== "UPPERCASE") return s;
+      // only a staked, full-UPPERCASE word below the cap can ascend (matches the sim + UI), if affordable
+      if (
+        !target ||
+        target.prestigeLevel >= PRESTIGE_LEVELS ||
+        !target.staked ||
+        wordCase(target) !== "UPPERCASE" ||
+        s.balance < COST.prestige + COST.snack
+      ) {
+        return s;
+      }
       const words = s.words.map((w) => {
         if (w.id !== a.id) return w;
         return a.success
