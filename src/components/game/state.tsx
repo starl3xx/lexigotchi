@@ -288,8 +288,10 @@ function reducer(s: GameState, a: Action): GameState {
       const upper = s.upper.slice();
       const pity = s.pity.slice();
       if (a.success) {
-        lower[a.idx]--;
-        upper[a.idx]++;
+        if (lower[a.idx] > 0) {
+          lower[a.idx]--; // never let a loose letter go negative
+          upper[a.idx]++;
+        }
         pity[a.idx] = 0;
       } else {
         pity[a.idx]++;
@@ -342,6 +344,8 @@ function reducer(s: GameState, a: Action): GameState {
         words: s.words.map((w) => (w.id === a.id ? { ...w, staked: !w.staked } : w)),
       };
     case "feed": {
+      const target = s.words.find((w) => w.id === a.id);
+      if (!target || !target.staked || target.daysUnfed === 0) return s; // nothing to feed — don't waste the snack
       const free = !s.freeSnackUsed;
       if (!free && s.balance < COST.snack) return s; // can't afford (the UI gates this too)
       return {
@@ -374,7 +378,8 @@ function reducer(s: GameState, a: Action): GameState {
     }
     case "prestige": {
       const target = s.words.find((x) => x.id === a.id);
-      if (!target || target.prestigeLevel >= PRESTIGE_LEVELS) return s; // cap the level
+      // only a staked, full-UPPERCASE word below the cap can ascend (matches the sim + UI)
+      if (!target || target.prestigeLevel >= PRESTIGE_LEVELS || !target.staked || wordCase(target) !== "UPPERCASE") return s;
       const words = s.words.map((w) => {
         if (w.id !== a.id) return w;
         return a.success
@@ -396,6 +401,7 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, lower, upper, words: s.words.filter((x) => x.id !== a.id), sheet: null };
     }
     case "revealJackpot":
+      if (s.jackpotRevealed) return s; // already drawn today — never pay the pot twice
       return {
         ...s,
         jackpotRevealed: true,
@@ -410,7 +416,8 @@ function reducer(s: GameState, a: Action): GameState {
         freeSnackUsed: false,
         jackpotWord: a.jackpotWord,
         jackpotRevealed: false,
-        jackpotPot: s.jackpotRevealed ? 12_000_000 : s.jackpotPot + 6_500_000,
+        // a won pot is already 0 → seed a fresh one; an unwon pot rolls forward + grows
+        jackpotPot: s.jackpotPot <= 0 ? 12_000_000 : s.jackpotPot + 6_500_000,
         bountyTheme: a.bountyTheme,
         words: s.words.map((w) => (w.staked ? { ...w, daysUnfed: w.daysUnfed + 1 } : w)),
       };
@@ -488,6 +495,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return idxs;
       },
       rollLoose: (idx) => {
+        if (state.lower[idx] <= 0) return false; // no such loose letter to raise
         if (state.balance < COST.roll) {
           toast("Not enough $WORD to roll", "bad");
           return false;
@@ -542,7 +550,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       prestige: (id) => {
         const w = state.words.find((x) => x.id === id);
-        if (!w || w.prestigeLevel >= PRESTIGE_LEVELS) return false;
+        if (!w || w.prestigeLevel >= PRESTIGE_LEVELS || !w.staked || wordCase(w) !== "UPPERCASE") return false;
         if (state.balance < COST.prestige + COST.snack) {
           toast("Not enough $WORD to ascend", "bad");
           return false;
@@ -557,6 +565,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (w) toast(`Dissolved ${w.word} — 5 letters recovered`, "info");
       },
       revealJackpot: () => {
+        if (state.jackpotRevealed) return false; // already drawn (the reducer is the real race-guard)
         const owned = state.words.find((w) => w.word === state.jackpotWord);
         const won = !!owned && jackpotEligible(owned);
         dispatch({ t: "revealJackpot", won, amount: state.jackpotPot });
