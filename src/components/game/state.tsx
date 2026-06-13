@@ -299,6 +299,8 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, lower, upper, pity, balance: spend(s, COST.roll) };
     }
     case "rollWord": {
+      const target = s.words.find((w) => w.id === a.id);
+      if (!target || a.pos < 0 || a.pos > 4 || target.upper[a.pos]) return s; // only an un-raised slot rolls
       // Pity keys on the LETTER being raised (the (owner, letterId) rule), shared with loose rolls.
       const pity = s.pity.slice();
       const words = s.words.map((w) => {
@@ -505,12 +507,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return success;
       },
       rollWord: (id, pos) => {
+        const w = state.words.find((x) => x.id === id);
+        if (!w || pos < 0 || pos > 4 || w.upper[pos]) return false; // slot already raised / invalid
         if (state.balance < COST.roll) {
           toast("Not enough $WORD to roll", "bad");
           return false;
         }
-        const w = state.words.find((x) => x.id === id);
-        const li = w ? charToIdx(w.word[pos]) : 0; // pity keys on the letter being raised
+        const li = charToIdx(w.word[pos]); // pity keys on the letter being raised
         const success = r.chance(rollSuccessProbability(state.pity[li]));
         dispatch({ t: "rollWord", id, pos, success });
         return success;
@@ -545,8 +548,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         const free = state.freeSnackUsed ? 0 : 1;
         const affordable = free + Math.floor(state.balance / COST.snack);
+        if (affordable === 0) {
+          toast("Not enough $WORD to feed", "bad");
+          return;
+        }
         dispatch({ t: "feedAll" });
-        toast(affordable >= hungry.length ? "Fed your collection 🍪" : "Fed what you could afford 🍪", affordable >= hungry.length ? "good" : "info");
+        toast(
+          affordable >= hungry.length ? "Fed your collection 🍪" : `Fed ${affordable} of ${hungry.length} — out of $WORD`,
+          affordable >= hungry.length ? "good" : "info",
+        );
       },
       prestige: (id) => {
         const w = state.words.find((x) => x.id === id);
