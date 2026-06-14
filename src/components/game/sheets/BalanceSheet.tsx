@@ -67,10 +67,10 @@ export function BalanceSheet() {
   }, []);
 
   const buy = async () => {
-    // On the web there's no Farcaster swap — go straight to DexScreener instead of provoking a
-    // viewToken rejection. In a Farcaster client (or before detection resolves) use the native
-    // swap, falling back to DexScreener only if it genuinely errors.
-    if (env === "web") {
+    // Only use the Farcaster native swap when we've DEFINITELY detected a mini-app context;
+    // web (and the not-yet-resolved case) goes straight to DexScreener. The Buy button is also
+    // disabled while env === "loading", so this branch is the belt to that suspenders.
+    if (env !== "farcaster") {
       openDex();
       return;
     }
@@ -113,7 +113,7 @@ export function BalanceSheet() {
         <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
       </Card>
 
-      <Button full size="lg" variant="primary" className="mt-3" onClick={buy}>
+      <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
         <ArrowsLeftRight weight="bold" /> Buy $WORD
       </Button>
       <p className="mt-1.5 text-center text-xs text-ink/55">
