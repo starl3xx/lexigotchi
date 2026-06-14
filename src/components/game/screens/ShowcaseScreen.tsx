@@ -6,6 +6,7 @@ import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Basket, ShareNetwork } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
+import { useShare } from "../useShare";
 
 interface Slot {
   idx: number;
@@ -15,7 +16,10 @@ interface Slot {
 export function ShowcaseScreen() {
   const g = useGame();
   const { state } = g;
+  const share = useShare();
   const [rack, setRack] = useState<Slot[]>([]); // start empty — the player arranges letters they own
+
+  const showcaseText = rack.map((s) => (s.upper ? idxToChar(s.idx) : idxToChar(s.idx).toLowerCase())).join("");
 
   const used = (idx: number, upper: boolean) => rack.filter((s) => s.idx === idx && s.upper === upper).length;
   const tray = (upper: boolean) =>
@@ -64,7 +68,7 @@ export function ShowcaseScreen() {
         size="lg"
         variant="primary"
         disabled={rack.length < 2}
-        onClick={() => g.toast("Cast to Farcaster (mock) — every showcase is an ad", "good")}
+        onClick={() => share({ text: `${showcaseText} — my Lexigotchi showcase ✨` })}
       >
         <ShareNetwork weight="fill" /> Cast to Farcaster
       </Button>

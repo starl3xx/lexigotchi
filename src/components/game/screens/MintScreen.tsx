@@ -5,10 +5,12 @@ import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Package, Sparkle, Ticket } from "../ui/icons";
 import { COST, fmtUsd, fmtWord, useGame } from "../state";
+import { useViewer } from "../useViewer";
 
 export function MintScreen() {
   const g = useGame();
   const { state } = g;
+  const viewer = useViewer();
   const common = LETTERS_BY_FREQUENCY.slice(0, 5);
   const rare = LETTERS_BY_FREQUENCY.slice(-5);
 
@@ -30,6 +32,16 @@ export function MintScreen() {
               Pulled today <Check weight="bold" size={13} className="text-teal" />
             </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
+          </div>
+        ) : !viewer.isAuthed ? (
+          // The daily single is gated on a Farcaster FID (v0.2 §5.3) — web players sign in to unlock it.
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-ink/70">
+              {viewer.environment === "loading" ? "Checking your Farcaster…" : "Connect Farcaster to unlock the FID daily."}
+            </span>
+            <Button variant="teal" disabled={viewer.environment === "loading"} onClick={viewer.signIn}>
+              <Ticket weight="fill" /> Connect
+            </Button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">

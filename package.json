@@ -17,19 +17,28 @@
     "market": "tsx scripts/market.ts",
     "trade-exp": "tsx scripts/trading-experiment.ts",
     "loop-exp": "tsx scripts/loop-experiment.ts",
+    "derive:contracts": "tsx scripts/derive-contracts-config.ts",
+    "contracts:setup": "bash contracts/setup.sh",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.3.0",
+    "@farcaster/quick-auth": "^0.0.8",
+    "@neynar/react": "^1.2.22",
     "@phosphor-icons/react": "^2.1.10",
+    "@pigment-css/react": "^0.0.31",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@openzeppelin/contracts": "^5.6.1",
+    "@openzeppelin/merkle-tree": "^1.0.8",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

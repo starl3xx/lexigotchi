@@ -93,6 +93,7 @@ export type Sheet =
   | { kind: "pack"; letters: number[] }
   | { kind: "roll"; target: RollTarget }
   | { kind: "balance" }
+  | { kind: "faq" }
   | null;
 
 export interface Toast {

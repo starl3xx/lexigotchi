@@ -4,8 +4,9 @@
  * desktop, full-bleed on mobile) wrapping every game screen, driven by the mock state store.
  * No contracts are wired; every action mutates local state so the full loop is explorable.
  */
-import { useEffect } from "react";
+import { NeynarAuthButton } from "@neynar/react";
 import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
+import { useViewer } from "./useViewer";
 import { Toaster } from "./primitives";
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
@@ -20,7 +21,8 @@ import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
-import { Backpack, DotsThree, Fire, House, IconContext, SkipForward, Sparkle, Trophy } from "./ui/icons";
+import { FaqSheet } from "./sheets/FaqSheet";
+import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, Smiley, Sparkle, Trophy } from "./ui/icons";
 
 export function GameApp() {
   return (
@@ -32,23 +34,8 @@ export function GameApp() {
 
 function Frame() {
   const { state } = useGame();
-  // Dismiss the Farcaster splash screen once mounted (required for mini apps; a no-op on web).
-  // Dynamically imported so the statically-prerendered route never touches the SDK during SSR.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const sdk = (await import("@farcaster/miniapp-sdk")).default;
-        if (!cancelled) await sdk.actions.ready();
-      } catch {
-        /* not in a Farcaster client — nothing to signal */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
+  // Farcaster splash screen — no manual call needed here.
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
       <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
@@ -65,6 +52,11 @@ function Frame() {
           <BottomNav />
           <Toaster />
           <SheetHost />
+          {/* Always-mounted, visually-hidden Sign In With Neynar trigger for web players;
+              useViewer().signIn() clicks it. Visible CTAs live in the screens/sheets. */}
+          <div data-lexi-siwn className="sr-only">
+            <NeynarAuthButton />
+          </div>
         </div>
       </div>
     </IconContext.Provider>
@@ -92,6 +84,7 @@ function SheetHost() {
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
+  if (state.sheet?.kind === "faq") return <FaqSheet />;
   return null;
 }
 
@@ -101,10 +94,21 @@ function SheetHost() {
 
 function TopBar() {
   const { state, skipDay, openSheet } = useGame();
+  const helpBtn = (
+    <button
+      onClick={() => openSheet({ kind: "faq" })}
+      title="How Lexigotchi works — FAQ"
+      aria-label="Open the FAQ"
+      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
+    >
+      <Question weight="bold" size={15} />
+    </button>
+  );
   return (
     <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5">
-      <div className="flex items-center gap-2">
-        <span className="font-display text-lg font-extrabold tracking-tight">LEXIGOTCHI</span>
+      <div className="flex items-center gap-1.5">
+        <ViewerChip />
+        <span className="font-display text-base font-extrabold tracking-tight">LEXIGOTCHI</span>
         <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy px-1.5 py-0.5 text-[10px] font-bold text-paper">
           <Fire weight="fill" size={12} /> {state.streak}
         </span>
@@ -119,6 +123,7 @@ function TopBar() {
           <div className="font-display text-sm font-extrabold">{fmtWord(state.balance)}</div>
           <div className="text-[9px] text-ink/60">{fmtUsd(state.balance)} · $WORD</div>
         </button>
+        {helpBtn}
         <button
           onClick={skipDay}
           title="Skip a day (prototype) — advances hunger + draws a new daily word"
@@ -129,6 +134,32 @@ function TopBar() {
         </button>
       </div>
     </header>
+  );
+}
+
+/** The player's Farcaster avatar (or a sign-in prompt on web). Opens the wallet/profile sheet. */
+function ViewerChip() {
+  const v = useViewer();
+  const { openSheet } = useGame();
+  if (v.environment === "loading") {
+    return <span className="h-7 w-7 animate-pulse rounded-full border-2 border-ink bg-paper-dark" />;
+  }
+  return (
+    <button
+      onClick={() => openSheet({ kind: "balance" })}
+      title={v.isAuthed ? `@${v.username}` : "Sign in"}
+      aria-label={v.isAuthed ? `Signed in as ${v.username}` : "Sign in & wallet"}
+      className="shrink-0 transition-transform active:translate-y-[1px]"
+    >
+      {v.pfpUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={v.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
+      ) : (
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink/60">
+          <Smiley weight="fill" size={15} />
+        </span>
+      )}
+    </button>
   );
 }
 
