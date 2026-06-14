@@ -38,6 +38,7 @@ export function GameApp() {
 
 /** Owns the once-only onboarding flag (persisted in localStorage) and exposes a replay action. */
 function OnboardingHost() {
+  const { closeSheet } = useGame();
   // Default true so SSR/first paint matches (no overlay → no hydration mismatch); the effect flips
   // it to false for first-run players right after mount.
   const [onboarded, setOnboarded] = useState(true);
@@ -54,16 +55,18 @@ function OnboardingHost() {
     } catch {
       /* ignore */
     }
+    closeSheet(); // never reveal a sheet that was left open under the overlay
     setOnboarded(true);
-  }, []);
+  }, [closeSheet]);
   const replay = useCallback(() => {
     try {
       localStorage.removeItem(ONBOARDED_KEY);
     } catch {
       /* ignore */
     }
+    closeSheet(); // start the intro from a clean slate, with no sheet underneath
     setOnboarded(false);
-  }, []);
+  }, [closeSheet]);
 
   return (
     <OnboardingContext.Provider value={{ replay }}>
