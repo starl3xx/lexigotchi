@@ -6,12 +6,14 @@ import { Button, Card, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { ArrowsDownUp, ShareNetwork } from "../ui/icons";
 import { charToIdx, fmtWord, idxToChar, useGame } from "../state";
+import { useShare } from "../useShare";
 
 const QUICK_WORD = [0, 500_000, 1_000_000, 2_500_000];
 
 export function SwapScreen() {
   const g = useGame();
   const { state } = g;
+  const share = useShare();
   const [give, setGive] = useState<number[]>([]);
   const [want, setWant] = useState<number[]>([]);
   const [ask, setAsk] = useState(0);
@@ -56,7 +58,16 @@ export function SwapScreen() {
             </div>
           </div>
         </Card>
-        <Button full size="lg" variant="primary" onClick={() => g.toast("Swap link copied — cast it", "good")}>
+        <Button
+          full
+          size="lg"
+          variant="primary"
+          onClick={() =>
+            share({
+              text: `Lexigotchi swap — you give me ${fmtSet(want)}, I give you ${fmtSet(give)}${ask > 0 ? ` + ${fmtWord(ask)} $WORD` : ""}. Deal?`,
+            })
+          }
+        >
           <ShareNetwork weight="fill" /> Share to Farcaster / X
         </Button>
         <Button full variant="ghost" onClick={reset}>

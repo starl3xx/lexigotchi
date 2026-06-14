@@ -45,4 +45,5 @@ export {
   Check,
   Plus,
   Lock,
+  Question,
 } from "@phosphor-icons/react";

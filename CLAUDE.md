@@ -6,17 +6,21 @@ Working notes for future sessions. Read `docs/spec/v0.2-changelog.md` first (it 
 ## What this is
 
 Phase 0 prototype of Lexigotchi — a $WORD collection game on Base (Farcaster mini app +
-web). This repo de-risks fun + solvency before contracts. **No Solidity yet** (Foundry, when
-it comes). Stack: Next.js App Router + TS + Tailwind + recharts; sim/economy core is
-**zero-runtime-dependency TS** so it runs via `tsx`/`vitest` regardless of the app.
+web). This repo de-risks fun + solvency, ships the playable mini app, and now carries the full
+**Foundry contract suite** (code-complete + tested, not yet deployed/audited — `contracts/`).
+Stack: Next.js App Router + TS + Tailwind + recharts; `@neynar/react` + `@farcaster/miniapp-sdk`
+for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `tsx`/`vitest`).
+The game is the front door: `/` redirects to **`/play`**; marketing/reference pages live under
+the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
 
 ## Commands
 
-- `npm run dev` — prototype app (Home / Characters / Lexidex / Economy)
+- `npm run dev` — the app; `/` → `/play` (the mini app). Marketing under `/about` etc.
 - `npm run sim -- --days 365 --population 1500 --seed 7` — economy/solvency report
-- `npm run derive` — regenerate `docs/economy.md` from the dictionary
-- `npm test` — economy reproduces spec Appendix A/B + solvency invariants hold (21 tests)
+- `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
+- `npm test` — economy + solvency invariants (44 vitest tests)
 - `npm run build` / `npm run typecheck`
+- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (21 forge tests)
 
 ## Architecture
 
@@ -32,6 +36,15 @@ it comes). Stack: Next.js App Router + TS + Tailwind + recharts; sim/economy cor
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
 - `src/components/characters/Rig.tsx` → shared rubber-hose rig for all 52 characters.
+- `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
+  reducer + seeded RNG), `Providers.tsx` (Neynar MiniAppProvider + SIWN), `useViewer.ts` (FID/identity),
+  `useShare.ts` (composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`).
+- `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
+  `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
+- `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
+  `Letters`/`Words`/`Rolls`/`Staking`/`Prestige`/`Jackpot`/`AnswerChain`/`YieldDistributor`/`Bounty`.
+  Deps are gitignored — run `npm run contracts:setup`. Trust seams (signer/keeper) documented in
+  `contracts/README.md`. Full mechanics reference: `GAME_DOCUMENTATION.md`; player FAQ: `FAQ.md`.
 
 ## v0.2 mechanics (the ones easy to get wrong)
 

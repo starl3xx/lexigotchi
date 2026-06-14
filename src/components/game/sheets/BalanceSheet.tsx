@@ -8,8 +8,9 @@
  */
 import { useEffect, useState } from "react";
 import { Button, Card, Sheet } from "../primitives";
-import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, Wallet } from "../ui/icons";
+import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
+import { useViewer } from "../useViewer";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
 const CAIP_WORD = `eip155:8453/erc20:${WORD_TOKEN}`;
@@ -22,6 +23,7 @@ type Eip1193 = { request: (args: { method: string; params?: unknown[] }) => Prom
 export function BalanceSheet() {
   const g = useGame();
   const { state } = g;
+  const viewer = useViewer();
   const [env, setEnv] = useState<"loading" | "farcaster" | "web">("loading");
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -104,6 +106,34 @@ export function BalanceSheet() {
 
   return (
     <Sheet open onClose={g.closeSheet} title="Your $WORD">
+      {/* Farcaster identity */}
+      {viewer.isAuthed ? (
+        <div className="mb-3 flex items-center gap-2.5">
+          {viewer.pfpUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={viewer.pfpUrl} alt="" className="h-10 w-10 rounded-full border-2 border-ink object-cover" />
+          ) : (
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-paper-dark text-ink/60">
+              <Smiley weight="fill" size={20} />
+            </span>
+          )}
+          <div className="leading-tight">
+            <div className="font-display font-extrabold">@{viewer.username ?? viewer.fid}</div>
+            <div className="text-xs text-ink/55">
+              {viewer.environment === "farcaster" ? "Connected via Farcaster" : "Signed in with Neynar"}
+              {viewer.fid ? ` · FID ${viewer.fid}` : ""}
+            </div>
+          </div>
+        </div>
+      ) : viewer.environment === "web" ? (
+        <Card className="mb-3 flex items-center justify-between bg-paper-dark/30">
+          <span className="text-sm text-ink/70">Not on Farcaster?</span>
+          <Button variant="teal" onClick={viewer.signIn}>
+            <Smiley weight="fill" /> Sign in
+          </Button>
+        </Card>
+      ) : null}
+
       <Card className="bg-gradient-to-b from-paper to-gold/15 text-center">
         <div className="flex items-center justify-center gap-1.5 text-ink/60">
           <Coins weight="fill" />
