@@ -137,7 +137,16 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector {
 
         c.revealed = true;
         bytes32 key = _pityKey(c.owner, c.letterIndex);
-        if (success) {
+        // Re-validate at reveal so a stale signed success (the loose letter was spent, the escrow
+        // position was already raised, or the word was dissolved since commit) becomes a no-op rather
+        // than a revert that would strand the paid fee.
+        bool ok = success
+            && (
+                c.kind == KIND_LOOSE
+                    ? letters.balanceOf(c.owner, c.letterIndex) > 0
+                    : _wordSlotRaisable(c.tokenId, c.pos)
+            );
+        if (ok) {
             if (c.kind == KIND_LOOSE) {
                 letters.upgrade(c.owner, c.letterIndex);
             } else {
@@ -145,11 +154,20 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector {
             }
             pity[key] = 0;
             emit RollSucceeded(commitId, c.owner, c.letterIndex);
+        } else if (success) {
+            emit RollFailed(commitId, c.owner, c.letterIndex, pity[key]); // signed success, but no longer applicable
         } else {
             uint32 p = pity[key] + 1; // failure never touches the asset — only the pity streak
             pity[key] = p;
             emit RollFailed(commitId, c.owner, c.letterIndex, p);
         }
+    }
+
+    /// @dev True if the escrow position can still be raised (token exists and the slot is lowercase).
+    function _wordSlotRaisable(uint256 tokenId, uint8 pos) internal view returns (bool) {
+        if (!words.exists(tokenId)) return false;
+        (, bool isUp) = words.escrowLetter(tokenId, pos);
+        return !isUp;
     }
 
     // --- views ------------------------------------------------------------------------------------

@@ -441,6 +441,46 @@ contract LexigotchiTest is Test {
         vm.stopPrank();
     }
 
+    function test_Prestige_parallelCommitsCannotExceedMax() public {
+        uint256 tokenId = _claimUpper(alice, 0);
+        _approveAll(alice);
+        vm.startPrank(alice);
+        words.approve(address(staking), tokenId);
+        staking.stake(tokenId);
+        vm.stopPrank();
+
+        // ascend to level 3 (maxLevel - 1) sequentially
+        for (uint8 i = 0; i < 3; i++) {
+            vm.prank(alice);
+            uint256 id = prestige.commitPrestige(tokenId);
+            prestige.reveal(id, true, _signPrestige(id, tokenId, alice, true));
+        }
+        assertEq(words.prestigeLevel(tokenId), 3, "at level 3");
+
+        // two commits while still level 3 (both pass the commit-time cap check)
+        vm.prank(alice);
+        uint256 a1 = prestige.commitPrestige(tokenId);
+        vm.prank(alice);
+        uint256 a2 = prestige.commitPrestige(tokenId);
+        prestige.reveal(a1, true, _signPrestige(a1, tokenId, alice, true));
+        assertEq(words.prestigeLevel(tokenId), 4, "reached max");
+        prestige.reveal(a2, true, _signPrestige(a2, tokenId, alice, true)); // re-check at reveal caps it
+        assertEq(words.prestigeLevel(tokenId), 4, "cannot exceed maxLevel via parallel commits");
+    }
+
+    function test_Prestige_unstakedRevealIsNoop() public {
+        uint256 tokenId = _claimUpper(alice, 1);
+        _approveAll(alice);
+        vm.startPrank(alice);
+        words.approve(address(staking), tokenId);
+        staking.stake(tokenId);
+        uint256 id = prestige.commitPrestige(tokenId);
+        staking.unstake(tokenId); // unstake after paying the fee, before reveal
+        vm.stopPrank();
+        prestige.reveal(id, true, _signPrestige(id, tokenId, alice, true));
+        assertEq(words.prestigeLevel(tokenId), 0, "an unstaked word never ascends");
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Merkle epochs — yield + bounty (funding + solvency + double-claim guard)
     // ---------------------------------------------------------------------------------------------

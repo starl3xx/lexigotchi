@@ -100,10 +100,18 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector {
         if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
 
         c.revealed = true;
-        if (success) {
+        // Re-validate eligibility AT REVEAL, not just at commit: a parallel commit may have already
+        // reached maxLevel, or the word may have been unstaked/transferred since commit. Only ascend
+        // if still eligible — otherwise consume the commit as a no-op (never push past maxLevel and
+        // never ascend an unstaked word).
+        bool eligible = success && staking.beneficialOwner(c.tokenId) == c.owner
+            && words.caseOf(c.tokenId) == CaseState.Uppercase && words.prestigeLevel(c.tokenId) < maxLevel;
+        if (eligible) {
             words.bumpPrestige(c.tokenId);
             prestigePity[c.tokenId] = 0;
             emit PrestigeSucceeded(commitId, c.tokenId, words.prestigeLevel(c.tokenId));
+        } else if (success) {
+            emit PrestigeFailed(commitId, c.tokenId, prestigePity[c.tokenId]); // signed success, but no longer eligible
         } else {
             uint32 p = prestigePity[c.tokenId] + 1; // failure never touches the asset
             prestigePity[c.tokenId] = p;
