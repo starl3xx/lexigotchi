@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ALPHABET } from "@/lib/economy";
 import { Button, Card, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
+import { ArrowsDownUp, ShareNetwork } from "../ui/icons";
 import { charToIdx, fmtWord, idxToChar, useGame } from "../state";
 
 const QUICK_WORD = [0, 500_000, 1_000_000, 2_500_000];
@@ -46,7 +47,7 @@ export function SwapScreen() {
               <div className="text-xs text-ink/55">they give you</div>
               <div className="font-display text-lg font-extrabold">{fmtSet(want)}</div>
             </div>
-            <div className="text-center text-2xl" aria-hidden>⇅</div>
+            <div className="flex justify-center text-ink/70"><ArrowsDownUp weight="bold" size={22} /></div>
             <div className="text-center">
               <div className="text-xs text-ink/55">you give</div>
               <div className="font-display text-lg font-extrabold">
@@ -55,8 +56,8 @@ export function SwapScreen() {
             </div>
           </div>
         </Card>
-        <Button full size="lg" variant="primary" onClick={() => g.toast("Swap link copied — cast it 🟣", "good")}>
-          Share to Farcaster / X
+        <Button full size="lg" variant="primary" onClick={() => g.toast("Swap link copied — cast it", "good")}>
+          <ShareNetwork weight="fill" /> Share to Farcaster / X
         </Button>
         <Button full variant="ghost" onClick={reset}>
           New swap

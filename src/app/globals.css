@@ -2,9 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Söhne (body) — vendored woff2 in /public/fonts, same set the griddle app uses. */
+@font-face { font-family: "Soehne"; src: url("/fonts/soehne-buch.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Soehne"; src: url("/fonts/soehne-kraftig.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Soehne"; src: url("/fonts/soehne-halbfett.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Soehne"; src: url("/fonts/soehne-dreiviertelfett.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Soehne"; src: url("/fonts/soehne-fett.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Soehne"; src: url("/fonts/soehne-extrafett.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
+
 :root {
   --font-display: "Futura", "Century Gothic", Georgia, serif;
-  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 body {

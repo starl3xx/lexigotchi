@@ -3,6 +3,7 @@
 import { TIER_WEIGHT } from "@/lib/economy";
 import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { WordCard } from "../WordCard";
+import { MagnifyingGlass, Medal } from "../ui/icons";
 import { THEMES, fmtWord, hunger, useGame } from "../state";
 
 const POOL = 9_400_000;
@@ -32,7 +33,7 @@ export function BountyScreen() {
             <div className="text-xs font-bold uppercase tracking-wide text-teal">This week&apos;s bounty</div>
             <div className="font-display text-xl font-extrabold">{theme.name}</div>
           </div>
-          <span className="text-4xl" aria-hidden>🏅</span>
+          <Medal weight="fill" size={40} className="text-teal" />
         </div>
         <div className="mt-2 flex items-end justify-between">
           <div>
@@ -54,7 +55,7 @@ export function BountyScreen() {
           Must be <strong>staked &amp; not hungry</strong>. Rarer matches earn a bigger slice (tier-weighted).
         </p>
         {matching.length === 0 ? (
-          <EmptyState emoji="🔍" title="No matches yet" sub="Claim or raise words that fit the theme to get in." />
+          <EmptyState Icon={MagnifyingGlass} title="No matches yet" sub="Claim or raise words that fit the theme to get in." />
         ) : (
           <div className="space-y-2">
             {matching.map((w) => <WordCard key={w.id} word={w} />)}

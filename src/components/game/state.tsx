@@ -92,6 +92,7 @@ export type Sheet =
   | { kind: "word"; id: number }
   | { kind: "pack"; letters: number[] }
   | { kind: "roll"; target: RollTarget }
+  | { kind: "balance" }
   | null;
 
 export interface Toast {
@@ -246,7 +247,8 @@ type Action =
   | { t: "prestige"; id: number; success: boolean }
   | { t: "dissolve"; id: number }
   | { t: "revealJackpot"; won: boolean; amount: number }
-  | { t: "skipDay"; jackpotWord: string; bountyTheme: number };
+  | { t: "skipDay"; jackpotWord: string; bountyTheme: number }
+  | { t: "addDemoBalance" };
 
 function spend(s: GameState, amount: number): number {
   return s.balance - amount;
@@ -422,6 +424,8 @@ function reducer(s: GameState, a: Action): GameState {
       });
       return { ...s, lower, upper, words: s.words.filter((x) => x.id !== a.id), sheet: null };
     }
+    case "addDemoBalance":
+      return { ...s, balance: s.balance + 10_000_000 }; // prototype top-up of the mock balance
     case "revealJackpot":
       if (s.jackpotRevealed) return s; // already drawn today — never pay the pot twice
       return {
@@ -476,6 +480,8 @@ export interface GameApi {
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;
   skipDay: () => void;
+  /** prototype-only: top up the mock $WORD balance for testing. */
+  addDemoBalance: () => void;
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
@@ -507,7 +513,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (state.dailyMinted || state.balance < COST.daily) return null;
         const idx = drawLetter();
         dispatch({ t: "dailyMint", idx });
-        toast(`Daily letter: ${idxToChar(idx)} · streak ${state.streak + 1} 🔥`, "good");
+        toast(`Daily letter: ${idxToChar(idx)} · streak ${state.streak + 1}`, "good");
         return idx;
       },
       openPack: () => {
@@ -553,7 +559,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           return;
         }
         dispatch({ t: "claim", word, useUpper });
-        toast(`Claimed ${word} — it's yours forever ✦`, "good");
+        toast(`Claimed ${word} — it's yours forever`, "good");
       },
       toggleStake: (id) => dispatch({ t: "stake", id }),
       feed: (id) => {
@@ -566,7 +572,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       feedAll: () => {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0);
         if (hungry.length === 0) {
-          toast("Everyone's already fed 😊", "info");
+          toast("Everyone's already fed", "info");
           return;
         }
         const free = state.freeSnackUsed ? 0 : 1;
@@ -577,7 +583,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         dispatch({ t: "feedAll" });
         toast(
-          affordable >= hungry.length ? "Fed your collection 🍪" : `Fed ${affordable} of ${hungry.length} — out of $WORD`,
+          affordable >= hungry.length ? "Fed your collection" : `Fed ${affordable} of ${hungry.length} — out of $WORD`,
           affordable >= hungry.length ? "good" : "info",
         );
       },
@@ -608,7 +614,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const jackpotWord = r.pick(WORDS);
         const bountyTheme = r.int(THEMES.length);
         dispatch({ t: "skipDay", jackpotWord, bountyTheme });
-        toast("A new day dawns ☀️", "info");
+        toast("A new day dawns", "info");
+      },
+      addDemoBalance: () => {
+        dispatch({ t: "addDemoBalance" });
+        toast("Added demo $WORD", "good");
       },
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",

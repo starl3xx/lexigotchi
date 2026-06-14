@@ -2,6 +2,7 @@
 /** Scrabble-tile letter rendering — the atom of the whole game. Lowercase = kid, UPPERCASE = glow-up. */
 import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
 import { Pill } from "./primitives";
+import { Crown, Sparkle, Star } from "./ui/icons";
 import { wordCase, type CaseState, type OwnedWord } from "./state";
 
 // the 6 rarest letters get a star (Q J X Z K V …)
@@ -42,13 +43,13 @@ export function LetterTile({
     >
       <span style={{ fontSize: size * 0.5 }}>{glyph}</span>
       {isRare && (
-        <span className="absolute -right-1 -top-1.5 text-[10px] text-gold-deep" aria-hidden>
-          ✦
+        <span className="absolute -right-1.5 -top-1.5 text-gold-deep" aria-hidden>
+          <Sparkle weight="fill" size={11} />
         </span>
       )}
       {upper && (
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px]" aria-hidden>
-          👑
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-gold-deep" aria-hidden>
+          <Crown weight="fill" size={13} />
         </span>
       )}
       {count !== undefined && count > 1 && (
@@ -89,8 +90,10 @@ export function CaseBadge({ word }: { word: OwnedWord }) {
 export function PrestigeStars({ level }: { level: number }) {
   if (level <= 0) return null;
   return (
-    <span className="text-gold-deep" title={`Gilded L${level}`} aria-label={`Gilded level ${level}`}>
-      {"★".repeat(level)}
+    <span className="inline-flex text-gold-deep" title={`Gilded L${level}`} aria-label={`Gilded level ${level}`}>
+      {Array.from({ length: level }).map((_, i) => (
+        <Star key={i} weight="fill" size={11} />
+      ))}
     </span>
   );
 }
