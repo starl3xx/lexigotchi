@@ -28,13 +28,14 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         uint256 claimed;
         uint256 meta; // themeId (bounty) or 0 (yield)
         bool open;
-        uint64 openedAt;
+        uint64 recoverableAt; // openedAt + claimWindow, SNAPSHOTTED so later tuning can't shrink it
     }
 
     IERC20 public immutable word;
     IFeeRouter public immutable feeRouter;
     address public keeper;
-    /// @notice How long after an epoch opens its unclaimed remainder is locked for claimers.
+    /// @notice How long after an epoch opens its unclaimed remainder is locked for claimers. Applied
+    ///         (snapshotted into the epoch) at open time, so changing it only affects future epochs.
     uint64 public claimWindow = 90 days;
 
     mapping(uint256 epochId => Epoch) public epochs;
@@ -71,8 +72,14 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         if (epochs[epochId].open) revert EpochExists();
         uint256 got = _pull(amount);
         if (got < amount) revert Underfunded(); // bucket short — keeper must size amount ≤ bucket
-        epochs[epochId] =
-            Epoch({root: root, funded: got, claimed: 0, meta: meta, open: true, openedAt: uint64(block.timestamp)});
+        epochs[epochId] = Epoch({
+            root: root,
+            funded: got,
+            claimed: 0,
+            meta: meta,
+            open: true,
+            recoverableAt: uint64(block.timestamp + claimWindow)
+        });
         emit EpochOpened(epochId, root, got, meta);
     }
 
@@ -101,7 +108,7 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         if (to == address(0)) revert ZeroAddress();
         Epoch storage e = epochs[epochId];
         if (!e.open) revert NoSuchEpoch();
-        if (block.timestamp < uint256(e.openedAt) + claimWindow) revert ClaimWindowOpen();
+        if (block.timestamp < e.recoverableAt) revert ClaimWindowOpen();
         uint256 remaining = e.funded - e.claimed;
         e.claimed = e.funded; // no further claims for this epoch
         if (remaining > 0) word.safeTransfer(to, remaining);

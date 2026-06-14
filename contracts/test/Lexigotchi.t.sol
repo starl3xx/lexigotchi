@@ -499,6 +499,9 @@ contract LexigotchiTest is Test {
         vm.prank(keeper);
         yield_.openEpoch(2, leaf, amount, 0);
 
+        // shrinking the global window can't retroactively unlock a live epoch (it's snapshotted at open)
+        yield_.setClaimWindow(0);
+
         // the owner cannot pull funds out of a LIVE epoch (players may still hold valid proofs)
         vm.expectRevert(MerkleEpochs.ClaimWindowOpen.selector);
         yield_.recoverUnclaimed(2, treasury);
