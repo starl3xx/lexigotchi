@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { wordTier } from "@/lib/economy";
 import { Button, Card, EmptyState, SectionTitle, TierBadge } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
+import { Basket, Crown, Lock, Sparkle } from "../ui/icons";
 import { COST, anagramsOf, fmtWord, idxToChar, spellableNow, useGame } from "../state";
 
 export function ClaimScreen() {
@@ -58,9 +59,9 @@ export function ClaimScreen() {
         <button
           onClick={() => swapCase(true)}
           disabled={upperCount < 5}
-          className={`flex-1 rounded-lg py-1.5 disabled:opacity-40 ${useUpper ? "bg-gold text-ink" : "text-ink/70"}`}
+          className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 disabled:opacity-40 ${useUpper ? "bg-gold text-ink" : "text-ink/70"}`}
         >
-          UPPERCASE {upperCount < 5 ? "🔒" : "👑"}
+          UPPERCASE {upperCount < 5 ? <Lock weight="fill" size={13} /> : <Crown weight="fill" size={13} />}
         </button>
       </div>
 
@@ -98,7 +99,7 @@ export function ClaimScreen() {
                   disabled={!g.canAfford(COST.claim)}
                   className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-paper shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
                 >
-                  {w} ✦
+                  {w} <Sparkle weight="fill" size={13} />
                 </button>
               ))}
             </div>
@@ -120,7 +121,7 @@ export function ClaimScreen() {
       <div>
         <SectionTitle>{useUpper ? "your raised letters" : "your letters"}</SectionTitle>
         {trayLetters.length === 0 ? (
-          <EmptyState emoji="🫙" title={useUpper ? "No raised letters yet" : "No letters"} sub="Mint a pack to fill your bag." />
+          <EmptyState Icon={Basket} title={useUpper ? "No raised letters yet" : "No letters"} sub="Mint a pack to fill your bag." />
         ) : (
           <div className="grid grid-cols-6 gap-2.5">
             {trayLetters.map(({ i, c }) => {

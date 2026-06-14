@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
+import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import {
   COST,
   PRESTIGE_LEVELS,
@@ -60,7 +61,11 @@ export function WordSheet({ id }: { id: number }) {
         <TierBadge tier={word.tier} />
         <CaseBadge word={word} />
         {word.staked ? <HungerBadge state={h} /> : null}
-        {word.staked && jackpotEligible(word) && <span className="text-xs text-teal">🎟 jackpot-ready</span>}
+        {word.staked && jackpotEligible(word) && (
+          <span className="inline-flex items-center gap-0.5 text-xs text-teal">
+            <Ticket weight="fill" size={12} /> jackpot-ready
+          </span>
+        )}
       </div>
 
       {isAnswer && jackpotEligible(word) && (
@@ -84,7 +89,7 @@ export function WordSheet({ id }: { id: number }) {
           disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(COST.snack))}
           onClick={() => g.feed(word.id)}
         >
-          🍪 Feed {word.daysUnfed === 0 ? "✓" : ""}
+          <Cookie weight="fill" /> Feed {word.daysUnfed === 0 && <Check weight="bold" size={14} />}
         </Button>
       </div>
 
@@ -95,7 +100,9 @@ export function WordSheet({ id }: { id: number }) {
           <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · 2× yield at 5/5</span>
         </div>
         {fullyRaised ? (
-          <div className="rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-deep">Fully raised 👑</div>
+          <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-deep">
+            Fully raised <Crown weight="fill" />
+          </div>
         ) : (
           <div className="flex items-center justify-center gap-1.5">
             {[...word.word].map((ch, i) =>
@@ -121,7 +128,9 @@ export function WordSheet({ id }: { id: number }) {
         <Card className="mb-3 bg-gradient-to-b from-paper to-gold/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-display font-extrabold">Ascend ★</div>
+              <div className="flex items-center gap-1 font-display font-extrabold">
+                Ascend <Star weight="fill" size={14} className="text-gold-deep" />
+              </div>
               <div className="text-xs text-ink/55">
                 Gilded L{word.prestigeLevel}
                 {word.prestigeLevel < PRESTIGE_LEVELS ? ` → L${word.prestigeLevel + 1} · +yield & bounty weight` : " · maxed"}
@@ -133,7 +142,7 @@ export function WordSheet({ id }: { id: number }) {
               onClick={() => {
                 const res = g.prestige(word.id);
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
-                g.toast(res ? "Ascended! ★ a gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
+                g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
               {word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}

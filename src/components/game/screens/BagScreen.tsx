@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, EmptyState, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
+import { Basket, Sparkle, TextAa } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
 
 export function BagScreen() {
@@ -34,7 +35,7 @@ export function BagScreen() {
               the kids · {lowerCount}
             </SectionTitle>
             {lowerOwned.length === 0 ? (
-              <EmptyState emoji="🫙" title="No loose letters" sub="Mint a pack to fill your bag." />
+              <EmptyState Icon={Basket} title="No loose letters" sub="Mint a pack to fill your bag." />
             ) : (
               <div className="grid grid-cols-6 gap-2.5">
                 {lowerOwned.map(({ i, c }) => (
@@ -63,7 +64,7 @@ export function BagScreen() {
           )}
 
           <Button full variant="ghost" onClick={() => g.nav("mint")}>
-            ✨ Mint more letters
+            <Sparkle weight="fill" /> Mint more letters
           </Button>
         </div>
       ) : (
@@ -72,7 +73,7 @@ export function BagScreen() {
             Claimed words
           </SectionTitle>
           {state.words.length === 0 ? (
-            <EmptyState emoji="🔤" title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+            <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
           ) : (
             state.words.map((w) => <WordCard key={w.id} word={w} />)
           )}

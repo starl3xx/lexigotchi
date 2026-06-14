@@ -3,6 +3,7 @@
 import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
+import { Check, Package, Sparkle, Ticket } from "../ui/icons";
 import { COST, fmtUsd, fmtWord, useGame } from "../state";
 
 export function MintScreen() {
@@ -25,14 +26,16 @@ export function MintScreen() {
         <SectionTitle action={<span className="text-xs text-ink/55">1 / day · FID</span>}>Daily single</SectionTitle>
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm text-ink/70">
-            <span>Pulled today ✓</span>
+            <span className="inline-flex items-center gap-1">
+              Pulled today <Check weight="bold" size={13} className="text-teal" />
+            </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-ink/70">The cheap habit pull. {fmtWord(COST.daily)} $WORD</span>
             <Button disabled={!g.canAfford(COST.daily)} onClick={() => g.dailyMint()}>
-              Pull 🎟
+              <Ticket weight="fill" /> Pull
             </Button>
           </div>
         )}
@@ -45,7 +48,7 @@ export function MintScreen() {
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
             <div className="text-xs text-ink/60">{fmtWord(COST.pack)} $WORD · {fmtUsd(COST.pack)}</div>
           </div>
-          <div className="text-4xl" aria-hidden>📦</div>
+          <Package weight="fill" size={40} className="text-candy" />
         </div>
         <Button
           full
@@ -58,7 +61,13 @@ export function MintScreen() {
             if (idxs.length) g.openSheet({ kind: "pack", letters: idxs });
           }}
         >
-          {g.canAfford(COST.pack) ? "Rip a pack open 📦" : "Not enough $WORD"}
+          {g.canAfford(COST.pack) ? (
+            <>
+              <Package weight="fill" /> Rip a pack open
+            </>
+          ) : (
+            "Not enough $WORD"
+          )}
         </Button>
       </Card>
 
@@ -73,7 +82,9 @@ export function MintScreen() {
             </div>
           </div>
           <div>
-            <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink/50">the chase ✦</div>
+            <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-ink/50">
+              the chase <Sparkle weight="fill" size={11} className="text-gold-deep" />
+            </div>
             <div className="flex gap-2">
               {rare.map((L) => <LetterTile key={L} char={L} size={38} />)}
             </div>

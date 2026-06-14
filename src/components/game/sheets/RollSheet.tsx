@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Rig } from "@/components/characters/Rig";
 import { Button, PityMeter, Sheet } from "../primitives";
+import { Crown } from "../ui/icons";
 import { COST, charToIdx, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
 
 type Phase = "ready" | "rolling" | "win" | "miss";
@@ -57,7 +58,9 @@ export function RollSheet({ target }: { target: RollTarget }) {
 
         {phase === "win" && (
           <div className="text-center">
-            <div className="font-display text-2xl font-extrabold text-gold-deep">RAISED! 👑</div>
+            <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
+              RAISED! <Crown weight="fill" />
+            </div>
             <p className="text-sm text-ink/60">A glow-up — top hat, monocle, 2× yield.</p>
           </div>
         )}

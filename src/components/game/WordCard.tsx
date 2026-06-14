@@ -2,6 +2,7 @@
 /** A claimed Word as a tappable list row → opens the word detail sheet. */
 import { HungerBadge, TierBadge } from "./primitives";
 import { CaseBadge, PrestigeStars, WordTiles } from "./LetterTile";
+import { Coins, Ticket } from "./ui/icons";
 import { hunger, jackpotEligible, useGame, wordCase, type OwnedWord } from "./state";
 
 export function WordCard({ word }: { word: OwnedWord }) {
@@ -23,7 +24,11 @@ export function WordCard({ word }: { word: OwnedWord }) {
           <div className="flex items-center gap-1.5 font-display text-base font-extrabold">
             {word.word}
             <PrestigeStars level={word.prestigeLevel} />
-            {earning && <span title="earning yield" aria-hidden>💰</span>}
+            {earning && (
+              <span title="earning yield" className="text-gold-deep">
+                <Coins weight="fill" size={14} />
+              </span>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <TierBadge tier={word.tier} />
@@ -32,12 +37,18 @@ export function WordCard({ word }: { word: OwnedWord }) {
         </div>
         <div className="flex flex-col items-end gap-1 text-right">
           <CaseBadge word={word} />
-          {answerReady && <span className="text-[11px] font-bold text-candy">today&apos;s word? 🎟</span>}
+          {answerReady && (
+            <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-candy">
+              today&apos;s word? <Ticket weight="fill" size={11} />
+            </span>
+          )}
           {isAnswer && !answerReady && (
             <span className="text-[11px] font-bold text-candy">today&apos;s word — stake &amp; feed!</span>
           )}
           {word.staked && jackpotEligible(word) && !isAnswer && (
-            <span className="text-[11px] text-teal">🎟 jackpot-ready</span>
+            <span className="inline-flex items-center gap-0.5 text-[11px] text-teal">
+              <Ticket weight="fill" size={11} /> jackpot-ready
+            </span>
           )}
         </div>
       </div>

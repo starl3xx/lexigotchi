@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Rig } from "@/components/characters/Rig";
 import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
+import { Basket, ShareNetwork } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
 
 interface Slot {
@@ -63,16 +64,16 @@ export function ShowcaseScreen() {
         size="lg"
         variant="primary"
         disabled={rack.length < 2}
-        onClick={() => g.toast("Cast to Farcaster ✦ (mock) — every showcase is an ad", "good")}
+        onClick={() => g.toast("Cast to Farcaster (mock) — every showcase is an ad", "good")}
       >
-        Cast to Farcaster 🟣
+        <ShareNetwork weight="fill" /> Cast to Farcaster
       </Button>
 
       {/* trays */}
       <div>
         <SectionTitle>the kids</SectionTitle>
         {tray(false).length === 0 ? (
-          <EmptyState emoji="🫙" title="No lowercase letters" />
+          <EmptyState Icon={Basket} title="No lowercase letters" />
         ) : (
           <div className="grid grid-cols-6 gap-2.5">
             {tray(false).map(({ i, c }) => {

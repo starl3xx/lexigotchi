@@ -2,6 +2,7 @@
 /** Shared rubber-hose UI primitives for the play prototype — cel borders, hard shadows, wood tiles. */
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Tier } from "@/lib/economy";
+import { Basket, Smiley, SmileyMeh, SmileyXEyes, X } from "./ui/icons";
 import { useGame, type Hunger, type Toast } from "./state";
 
 // ---------------------------------------------------------------------------
@@ -68,16 +69,16 @@ export function TierBadge({ tier }: { tier: Tier }) {
   return <Pill className={s.bg}>{s.label}</Pill>;
 }
 
-const HUNGER_STYLE: Record<Hunger, { bg: string; emoji: string; label: string }> = {
-  fed: { bg: "bg-teal/20 text-teal", emoji: "😊", label: "fed" },
-  peckish: { bg: "bg-gold/25 text-gold-deep", emoji: "😪", label: "peckish" },
-  hungry: { bg: "bg-candy/20 text-candy", emoji: "😵", label: "hungry" },
+const HUNGER_STYLE: Record<Hunger, { bg: string; Icon: typeof Smiley; label: string }> = {
+  fed: { bg: "bg-teal/20 text-teal", Icon: Smiley, label: "fed" },
+  peckish: { bg: "bg-gold/25 text-gold-deep", Icon: SmileyMeh, label: "peckish" },
+  hungry: { bg: "bg-candy/20 text-candy", Icon: SmileyXEyes, label: "hungry" },
 };
 export function HungerBadge({ state }: { state: Hunger }) {
   const s = HUNGER_STYLE[state];
   return (
     <Pill className={s.bg}>
-      <span aria-hidden>{s.emoji}</span> {s.label}
+      <s.Icon weight="fill" size={12} /> {s.label}
     </Pill>
   );
 }
@@ -152,10 +153,10 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
   );
 }
 
-export function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub?: string }) {
+export function EmptyState({ Icon, title, sub }: { Icon: typeof Basket; title: string; sub?: string }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl border-[3px] border-dashed border-ink/30 px-4 py-8 text-center">
-      <div className="text-3xl" aria-hidden>{emoji}</div>
+    <div className="flex flex-col items-center gap-1.5 rounded-2xl border-[3px] border-dashed border-ink/30 px-4 py-8 text-center">
+      <Icon size={32} weight="bold" className="text-ink/40" />
       <div className="font-display font-bold">{title}</div>
       {sub && <div className="max-w-[28ch] text-xs text-ink/60">{sub}</div>}
     </div>
@@ -189,7 +190,7 @@ export function Sheet({
             className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink font-bold"
             aria-label="Close"
           >
-            ✕
+            <X weight="bold" size={16} />
           </button>
         </div>
         <div className="px-4 pt-4">{children}</div>

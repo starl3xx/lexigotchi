@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
 import { Pill, TierBadge } from "../primitives";
+import { Check } from "../ui/icons";
 import { useGame } from "../state";
 
 const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Epic", "Legendary"];
@@ -68,7 +69,7 @@ export function LexidexScreen() {
                 <div className="font-display text-sm font-extrabold">{w}</div>
                 <TierBadge tier={wordTier(w)} />
               </div>
-              <span className="text-sm" aria-hidden>{owned ? "✓" : "·"}</span>
+              {owned ? <Check weight="bold" size={15} className="text-teal" /> : <span className="text-ink/30">·</span>}
             </button>
           );
         })}
