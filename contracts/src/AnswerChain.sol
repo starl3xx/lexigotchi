@@ -32,6 +32,7 @@ contract AnswerChain is Ownable2Step {
 
     error NotKeeper();
     error BadReveal();
+    error ChainLive();
     error ZeroAddress();
 
     constructor(bytes32 head, address _keeper, address initialOwner) Ownable(initialOwner) {
@@ -55,8 +56,11 @@ contract AnswerChain is Ownable2Step {
         emit WordRevealed(revealedDay, word, next);
     }
 
-    /// @notice (Re)commit the head before any reveals have desynced it — emergency/rotation only.
+    /// @notice (Re)commit the head — only before the chain starts (initial setup) or once it is
+    ///         exhausted (rotation). Never mid-stream, so the operator can't rewrite a future word
+    ///         after the chain is live — preserving the unsteerable guarantee.
     function setHead(bytes32 head) external onlyOwner {
+        if (revealedDay != 0 && currentCommit != bytes32(0)) revert ChainLive();
         currentCommit = head;
         emit HeadCommitted(head);
     }

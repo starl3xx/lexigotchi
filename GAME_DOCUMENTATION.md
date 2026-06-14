@@ -56,8 +56,10 @@ Most common → rarest letter order: **S E A … J Q**.
 - **Payment:** $WORD directly, **or ETH auto-swapped to $WORD** at mint time (Uniswap v3 /
   aggregator, slippage-bounded). All internal accounting is in $WORD; the Treasury never holds ETH
   from mints.
-- **Randomness:** commit→reveal. The buyer commits + pays, then reveals against the committed block's
-  hash (low-stakes lowercase draws → a trustless future-blockhash source is fine).
+- **Randomness:** the EGGS commit→server-signed reveal (same model as rolls). The buyer commits +
+  pays, then the backend signer reveals a fair demand-mirrored draw; per-letter caps are enforced
+  on-chain. There is no expiry window, so a paid commit is always revealable — a fee is never
+  forfeited and the buyer can't grind the draw by aborting an unfavourable one.
 
 ---
 

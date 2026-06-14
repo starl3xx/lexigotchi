@@ -69,13 +69,10 @@ contract LexigotchiTest is Test {
         feeRouter = new FeeRouter(word, treasury, address(this));
 
         uint32[26] memory cap;
-        uint32[26] memory weight;
         for (uint8 i = 0; i < 26; i++) {
             cap[i] = 1000;
-            weight[i] = 1;
         }
-        letters =
-            new LettersHarness(word, feeRouter, cap, weight, PACK, DAILY, signer, "ipfs://letters/", address(this));
+        letters = new LettersHarness(word, feeRouter, cap, PACK, DAILY, signer, "ipfs://letters/", address(this));
 
         _buildTree();
         words = new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, address(this));
@@ -163,8 +160,11 @@ contract LexigotchiTest is Test {
         vm.prank(alice);
         uint256 id = letters.commitPack();
 
-        vm.roll(block.number + 1);
-        letters.reveal(id);
+        uint8[] memory draw = new uint8[](5);
+        for (uint8 i = 0; i < 5; i++) {
+            draw[i] = i; // the signer's demand-mirrored draw (A..E here)
+        }
+        letters.reveal(id, draw, _signPack(id, alice, draw));
 
         uint256 total;
         for (uint8 i = 0; i < 26; i++) {
@@ -173,12 +173,17 @@ contract LexigotchiTest is Test {
         assertEq(total, 5, "five lowercase letters");
     }
 
-    function test_Reveal_revertsBeforeCommitBlockMined() public {
+    function test_PackReveal_badSignatureReverts() public {
         _approveAll(alice);
         vm.prank(alice);
         uint256 id = letters.commitPack();
-        vm.expectRevert(Letters.TooSoon.selector);
-        letters.reveal(id); // same block as commit
+        uint8[] memory draw = new uint8[](5);
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(letters), block.chainid, id, alice, draw))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBEEF, digest); // wrong key
+        vm.expectRevert(Letters.BadSignature.selector);
+        letters.reveal(id, draw, abi.encodePacked(r, s, v));
     }
 
     function test_DailyMint_fidGate() public {
@@ -382,6 +387,22 @@ contract LexigotchiTest is Test {
         jackpot.resolve("MOTEL", keccak256("salt1"), bytes32(0));
     }
 
+    function test_AnswerChain_setHeadLockedMidStream() public {
+        bytes32 terminal = bytes32(0);
+        bytes32 h2 = keccak256(abi.encode("MOTEL", keccak256("s2"), terminal));
+        bytes32 h1 = keccak256(abi.encode("CRANE", keccak256("s1"), h2));
+        AnswerChain ac = new AnswerChain(h1, address(this), address(this)); // keeper = this (reveal directly)
+
+        ac.setHead(h1); // allowed before any reveal (initial setup)
+        ac.reveal("CRANE", keccak256("s1"), h2); // day 1 → currentCommit = h2 (nonzero), mid-stream
+
+        vm.expectRevert(AnswerChain.ChainLive.selector);
+        ac.setHead(keccak256("evil")); // can't rewrite a live chain
+
+        ac.reveal("MOTEL", keccak256("s2"), terminal); // day 2 → currentCommit = 0, exhausted
+        ac.setHead(keccak256("rotated")); // rotation allowed once exhausted
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Prestige
     // ---------------------------------------------------------------------------------------------
@@ -575,6 +596,14 @@ contract LexigotchiTest is Test {
     }
 
     // --- signatures ---
+
+    function _signPack(uint256 id, address buyer, uint8[] memory letterIndexes) internal view returns (bytes memory) {
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(letters), block.chainid, id, buyer, letterIndexes))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
+        return abi.encodePacked(r, s, v);
+    }
 
     function _signDaily(address buyer, uint256 fid, uint256 deadline) internal view returns (bytes memory) {
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(

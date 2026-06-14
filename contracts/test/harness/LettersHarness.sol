@@ -12,13 +12,12 @@ contract LettersHarness is Letters {
         IERC20 _word,
         IFeeRouter _feeRouter,
         uint32[26] memory _cap,
-        uint32[26] memory _weight,
         uint256 _packPrice,
         uint256 _dailyPrice,
         address _signer,
         string memory _uri,
         address initialOwner
-    ) Letters(_word, _feeRouter, _cap, _weight, _packPrice, _dailyPrice, _signer, _uri, initialOwner) {}
+    ) Letters(_word, _feeRouter, _cap, _packPrice, _dailyPrice, _signer, _uri, initialOwner) {}
 
     function mintLower(address to, uint8 letterIndex, uint256 amount) external {
         mintedEver[letterIndex] += uint32(amount);

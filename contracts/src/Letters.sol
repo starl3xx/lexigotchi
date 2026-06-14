@@ -17,12 +17,11 @@ import {FeeCollector} from "./FeeCollector.sol";
  * @title Letters
  * @notice The 52-id letter ERC-1155 (lowercase id `i` = `i`, uppercase id `i` = `26+i`).
  *
- *         Mints are 100% lowercase (v0.2 §1.3) and demand-mirrored: each draw samples a letter by
- *         its share of dictionary slots (Appendix A), respecting per-letter supply caps
- *         (floor(slots × 2.5)). Randomness uses commit→blockhash reveal: the buyer commits and pays
- *         at commit, then reveals against the committed block's hash (low-stakes lowercase draws, so
- *         a future-blockhash source is acceptable and fully trustless — unlike the value-bearing
- *         rolls, which use the EGGS server-signed reveal in `Rolls.sol`).
+ *         Mints are 100% lowercase (v0.2 §1.3) and demand-mirrored: the signer draws each letter by
+ *         its share of dictionary slots (Appendix A); per-letter supply caps (floor(slots × 2.5)) are
+ *         enforced on-chain at reveal. Randomness uses the same EGGS commit→server-signed reveal as
+ *         rolls — there is NO expiry window, so a paid commit is always revealable and a fee is never
+ *         forfeited, and the buyer cannot grind the draw by selectively aborting an unfavourable one.
  *
  *         Two mint paths (v0.2 §1.2): a discounted DAILY single gated on a Farcaster FID via a
  *         backend-signed allowance (the off-chain Quick-Auth / Sybil gate), and full-price PACKS of
@@ -34,29 +33,22 @@ import {FeeCollector} from "./FeeCollector.sol";
 contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollector {
     using SafeERC20 for IERC20;
 
-    uint8 internal constant KIND_PACK = 0;
-    uint8 internal constant KIND_DAILY = 1;
     uint8 public constant PACK_SIZE = 5;
-    uint256 internal constant BLOCKHASH_WINDOW = 256;
 
     struct Commit {
         address buyer;
-        uint8 kind;
         uint8 count;
         bool revealed;
-        uint64 blockNumber;
     }
 
     // Letter economy (set at deploy from the canonical dictionary; tunable by the multisig).
     uint32[26] public cap; // per-letter supply cap = floor(slots × demandMultiple)
     uint32[26] public mintedEver; // cumulative primary lowercase mints (rolls don't change this)
-    uint32[26] internal cumWeight; // cumulative slot weights for the demand-mirrored draw
-    uint32 public totalWeight;
 
     uint256 public packPrice; // $WORD, full price (volume loop)
     uint256 public dailyPrice; // $WORD, discounted single (habit loop)
 
-    address public signer; // backend allowance signer for the FID-gated daily
+    address public signer; // backend signer: the FID-gated daily allowance + the reveal outcome
     ISwapRouter public swapRouter; // ETH→$WORD auto-swap
     // Contracts allowed to call `upgrade`: Rolls (loose-letter rolls) AND Words (escrowed-letter
     // rolls burn/mint on Words' own escrow balance, so Words must be authorized too).
@@ -67,7 +59,7 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     // and never collides with day 0. One discounted mint per FID per UTC day.
     mapping(uint256 fid => uint32 lastDailyDayPlusOne) public dailyUsed;
 
-    event Committed(uint256 indexed commitId, address indexed buyer, uint8 kind, uint8 count);
+    event Committed(uint256 indexed commitId, address indexed buyer, uint8 count);
     event Revealed(uint256 indexed commitId, address indexed buyer, uint256[] letterIds);
     event DailyMinted(uint256 indexed fid, address indexed buyer, uint32 day);
     event PricesSet(uint256 packPrice, uint256 dailyPrice);
@@ -77,10 +69,9 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     error NotUpgrader();
     error BadCommit();
-    error TooSoon();
-    error CommitExpired();
+    error BadReveal();
     error AlreadyRevealed();
-    error MintedOut();
+    error CapExceeded();
     error BadSignature();
     error AllowanceExpired();
     error DailyAlreadyUsed();
@@ -91,7 +82,6 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         IERC20 _word,
         IFeeRouter _feeRouter,
         uint32[26] memory _cap,
-        uint32[26] memory _weight,
         uint256 _packPrice,
         uint256 _dailyPrice,
         address _signer,
@@ -99,12 +89,6 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         address initialOwner
     ) ERC1155(_uri) Ownable(initialOwner) FeeCollector(_word, _feeRouter) {
         cap = _cap;
-        uint32 running;
-        for (uint8 i = 0; i < 26; i++) {
-            running += _weight[i];
-            cumWeight[i] = running;
-        }
-        totalWeight = running;
         packPrice = _packPrice;
         dailyPrice = _dailyPrice;
         signer = _signer;
@@ -112,10 +96,10 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     // --- mint: pack of five -----------------------------------------------------------------------
 
-    /// @notice Commit + pay for a pack of five (in $WORD). Reveal in a later block.
+    /// @notice Commit + pay for a pack of five (in $WORD). Reveal with the signer's outcome.
     function commitPack() external nonReentrant returns (uint256 commitId) {
         _collect(msg.sender, packPrice, FeeSource.PACK_MINT);
-        commitId = _newCommit(msg.sender, KIND_PACK, PACK_SIZE);
+        commitId = _newCommit(msg.sender, PACK_SIZE);
     }
 
     /// @notice Commit + pay for a pack with ETH (auto-swapped to $WORD; excess $WORD refunded).
@@ -125,7 +109,7 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         _routeHeld(packPrice, FeeSource.PACK_MINT);
         uint256 refund = out - packPrice;
         if (refund > 0) word.safeTransfer(msg.sender, refund);
-        commitId = _newCommit(msg.sender, KIND_PACK, PACK_SIZE);
+        commitId = _newCommit(msg.sender, PACK_SIZE);
     }
 
     // --- mint: FID-gated daily single -------------------------------------------------------------
@@ -139,7 +123,7 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     {
         _verifyDaily(fid, deadline, sig);
         _collect(msg.sender, dailyPrice, FeeSource.DAILY_MINT);
-        commitId = _newCommit(msg.sender, KIND_DAILY, 1);
+        commitId = _newCommit(msg.sender, 1);
         emit DailyMinted(fid, msg.sender, uint32(block.timestamp / 1 days));
     }
 
@@ -156,7 +140,7 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         _routeHeld(dailyPrice, FeeSource.DAILY_MINT);
         uint256 refund = out - dailyPrice;
         if (refund > 0) word.safeTransfer(msg.sender, refund);
-        commitId = _newCommit(msg.sender, KIND_DAILY, 1);
+        commitId = _newCommit(msg.sender, 1);
         emit DailyMinted(fid, msg.sender, uint32(block.timestamp / 1 days));
     }
 
@@ -173,42 +157,31 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     // --- reveal -----------------------------------------------------------------------------------
 
-    /// @notice Reveal a commit, minting its lowercase letters from the committed block's hash.
-    function reveal(uint256 commitId) external nonReentrant {
+    /// @notice Reveal a commit, minting its lowercase letters from the signer's fair, demand-mirrored
+    ///         draw. The signature is bound to this commit id (single-use); there is no expiry, so a
+    ///         paid commit is always revealable. Per-letter caps are enforced here on-chain.
+    function reveal(uint256 commitId, uint8[] calldata letterIndexes, bytes calldata sig) external nonReentrant {
         Commit storage c = commits[commitId];
         if (c.buyer == address(0)) revert BadCommit();
         if (c.revealed) revert AlreadyRevealed();
-        if (block.number <= c.blockNumber) revert TooSoon();
-        if (block.number > c.blockNumber + BLOCKHASH_WINDOW) revert CommitExpired();
-        bytes32 bh = blockhash(c.blockNumber);
-        if (bh == 0) revert CommitExpired();
+        if (letterIndexes.length != c.count) revert BadReveal();
+
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(this), block.chainid, commitId, c.buyer, letterIndexes))
+        );
+        if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
 
         c.revealed = true;
-        uint8 count = c.count;
-        uint256[] memory ids = new uint256[](count);
-        for (uint8 k = 0; k < count; k++) {
-            uint8 idx = _drawLetter(uint256(keccak256(abi.encode(bh, commitId, k))));
+        uint256[] memory ids = new uint256[](letterIndexes.length);
+        for (uint256 k = 0; k < letterIndexes.length; k++) {
+            uint8 idx = letterIndexes[k];
+            if (idx > 25) revert BadReveal();
+            if (mintedEver[idx] >= cap[idx]) revert CapExceeded(); // signer must draw an uncapped letter
             mintedEver[idx] += 1;
             _mint(c.buyer, idx, 1, ""); // lowercase id == alphabet index
             ids[k] = idx;
         }
         emit Revealed(commitId, c.buyer, ids);
-    }
-
-    /// @dev Demand-mirrored draw: pick a letter by slot-weight, skipping any at its supply cap.
-    function _drawLetter(uint256 seed) internal view returns (uint8) {
-        uint256 r = seed % totalWeight;
-        uint8 i = 0;
-        while (i < 25 && cumWeight[i] <= r) {
-            i++;
-        }
-        if (mintedEver[i] < cap[i]) return i;
-        // capped letter — deterministically scan to the next mintable letter
-        for (uint8 d = 1; d < 26; d++) {
-            uint8 j = uint8((i + d) % 26);
-            if (mintedEver[j] < cap[j]) return j;
-        }
-        revert MintedOut();
     }
 
     // --- upgrade (rolls only) ---------------------------------------------------------------------
@@ -230,10 +203,10 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         return cap;
     }
 
-    function _newCommit(address buyer, uint8 kind, uint8 count) internal returns (uint256 commitId) {
+    function _newCommit(address buyer, uint8 count) internal returns (uint256 commitId) {
         commitId = commits.length;
-        commits.push(Commit({buyer: buyer, kind: kind, count: count, revealed: false, blockNumber: uint64(block.number)}));
-        emit Committed(commitId, buyer, kind, count);
+        commits.push(Commit({buyer: buyer, count: count, revealed: false}));
+        emit Committed(commitId, buyer, count);
     }
 
     function setPrices(uint256 _packPrice, uint256 _dailyPrice) external onlyOwner {

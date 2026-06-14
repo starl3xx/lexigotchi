@@ -57,7 +57,6 @@ contract Deploy is Script {
         uint16 bountyCarveBps;
         string lettersUri;
         uint32[26] cap;
-        uint32[26] weight;
         bytes32 dictRoot;
     }
 
@@ -81,9 +80,8 @@ contract Deploy is Script {
         vm.startBroadcast();
 
         a.feeRouter = new FeeRouter(c.word, c.treasury, deployer);
-        a.letters = new Letters(
-            c.word, a.feeRouter, c.cap, c.weight, c.packPrice, c.dailyPrice, c.signer, c.lettersUri, deployer
-        );
+        a.letters =
+            new Letters(c.word, a.feeRouter, c.cap, c.packPrice, c.dailyPrice, c.signer, c.lettersUri, deployer);
         a.words = new Words(c.word, a.feeRouter, ILetters(address(a.letters)), c.dictRoot, c.claimPrice, deployer);
         a.rolls = new Rolls(c.word, a.feeRouter, ILetters(address(a.letters)), IWords(address(a.words)), c.rollPrice, c.signer);
         a.staking =
@@ -158,18 +156,16 @@ contract Deploy is Script {
         c.bountyCarveBps = uint16(vm.envOr("BOUNTY_CARVE_BPS", uint256(0)));
         c.lettersUri = vm.envOr("LETTERS_URI", string(""));
 
-        (c.cap, c.weight, c.dictRoot) = _readEconomy();
+        (c.cap, c.dictRoot) = _readEconomy();
     }
 
-    function _readEconomy() internal view returns (uint32[26] memory cap, uint32[26] memory weight, bytes32 dictRoot) {
+    function _readEconomy() internal view returns (uint32[26] memory cap, bytes32 dictRoot) {
         string memory json = vm.readFile("config/economy.json");
         dictRoot = vm.parseJsonBytes32(json, ".dictionaryRoot");
         uint256[] memory caps = vm.parseJsonUintArray(json, ".caps");
-        uint256[] memory weights = vm.parseJsonUintArray(json, ".weights");
-        require(caps.length == 26 && weights.length == 26, "economy.json: expected 26 letters");
+        require(caps.length == 26, "economy.json: expected 26 letters");
         for (uint256 i = 0; i < 26; i++) {
             cap[i] = uint32(caps[i]);
-            weight[i] = uint32(weights[i]);
         }
     }
 

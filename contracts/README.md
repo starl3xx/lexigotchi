@@ -34,7 +34,7 @@ The whole economy flows through one accounting hub, mirroring the sim's four-buc
 | Contract | Role |
 |---|---|
 | **FeeRouter** | Splits every fee into pool/jackpot/burn/treasury (tunable bps). Holds the pool/jackpot/bounty buckets; `payFrom*` caps each payout at its balance → **solvency by construction**. The bounty carve diverts a slice of the pool share zero-sum. |
-| **Letters** | 52-id ERC-1155 (lowercase `i`=`i`, uppercase `i`=`26+i`). 100%-lowercase demand-mirrored draws with per-letter caps; commit→blockhash reveal. Pack-of-5 + FID-gated daily single (backend-signed allowance); $WORD or ETH (auto-swap). `upgrade` (Rolls/Words only) burns a lowercase, mints its uppercase — conserving supply. |
+| **Letters** | 52-id ERC-1155 (lowercase `i`=`i`, uppercase `i`=`26+i`). 100%-lowercase demand-mirrored draws with per-letter caps; commit→server-signed reveal (no expiry, so fees are never forfeited). Pack-of-5 + FID-gated daily single (backend-signed allowance); $WORD or ETH (auto-swap). `upgrade` (Rolls/Words only) burns a lowercase, mints its uppercase — conserving supply. |
 | **Words** | One ERC-721 per dictionary word, `tokenId = keccak256(word)`; membership via Merkle proof. Escrows 5 uniform-case letters; **case is derived from the escrow, never stored**. In-place upgrade rolls; dissolve recovers letters + frees the name. |
 | **Rolls** | EGGS commit→**server-signed** reveal. Failure is an explicit no-op (asset untouched). Pity per `(beneficialOwner, letter)` — resolved through staking custody so escrowed-letter pity can't be shared/pumped. |
 | **Staking** | Custodial Word staking + the hunger clock (feed = snack, 100% burned). Owns the eligibility truth (staked + not-hungry) read by Jackpot. |
@@ -55,8 +55,8 @@ These mirror the EGGS reference (`docs/reference/eggs/PATTERN.md`) and are inten
   are impractical to iterate on-chain). Trusted for fairness of the share split; **never for
   solvency** — every payout is capped at funds actually pulled from a bucket.
 - **`owner` (multisig)** — tunes splits/prices/care/caps (spec: "storage behind admin/multisig").
-- **Pack/daily randomness** uses commit→blockhash (low-stakes lowercase draws); the value-bearing
-  rolls use the signed reveal.
+- **All mint / roll / prestige randomness** uses the EGGS commit→server-signed reveal — there is no
+  blockhash window, so a paid commit is always revealable and fees can't be stranded.
 
 ## Deploy
 
