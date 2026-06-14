@@ -13,7 +13,9 @@ import { fmtUsd, fmtWord, useGame } from "../state";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
 const CAIP_WORD = `eip155:8453/erc20:${WORD_TOKEN}`;
+const DEX_URL = `https://dexscreener.com/base/${WORD_TOKEN}`;
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const openDex = () => window.open(DEX_URL, "_blank", "noopener,noreferrer");
 
 type Eip1193 = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
 
@@ -30,10 +32,9 @@ export function BalanceSheet() {
     (async () => {
       try {
         const sdk = (await import("@farcaster/miniapp-sdk")).default;
-        const inMini = await Promise.race([
-          sdk.isInMiniApp(),
-          new Promise<boolean>((res) => setTimeout(() => res(false), 1500)),
-        ]);
+        // isInMiniApp resolves a definitive boolean (it has its own internal timeout); awaiting it
+        // directly avoids a race that could discard a slow-but-real "yes" and mislabel FC as web.
+        const inMini = await sdk.isInMiniApp();
         if (!alive) return;
         if (inMini) {
           setEnv("farcaster");
@@ -66,11 +67,18 @@ export function BalanceSheet() {
   }, []);
 
   const buy = async () => {
+    // On the web there's no Farcaster swap — go straight to DexScreener instead of provoking a
+    // viewToken rejection. In a Farcaster client (or before detection resolves) use the native
+    // swap, falling back to DexScreener only if it genuinely errors.
+    if (env === "web") {
+      openDex();
+      return;
+    }
     try {
       const sdk = (await import("@farcaster/miniapp-sdk")).default;
       await sdk.actions.viewToken({ token: CAIP_WORD }); // Farcaster native swap UI
     } catch {
-      window.open(`https://dexscreener.com/base/${WORD_TOKEN}`, "_blank", "noopener,noreferrer");
+      openDex();
     }
   };
 

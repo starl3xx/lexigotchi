@@ -4,6 +4,7 @@
  * desktop, full-bleed on mobile) wrapping every game screen, driven by the mock state store.
  * No contracts are wired; every action mutates local state so the full loop is explorable.
  */
+import { useEffect } from "react";
 import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
 import { Toaster } from "./primitives";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -31,6 +32,23 @@ export function GameApp() {
 
 function Frame() {
   const { state } = useGame();
+  // Dismiss the Farcaster splash screen once mounted (required for mini apps; a no-op on web).
+  // Dynamically imported so the statically-prerendered route never touches the SDK during SSR.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const sdk = (await import("@farcaster/miniapp-sdk")).default;
+        if (!cancelled) await sdk.actions.ready();
+      } catch {
+        /* not in a Farcaster client — nothing to signal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
       <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
