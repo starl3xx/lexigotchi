@@ -10,6 +10,7 @@ import { TOTAL_SUPPLY_CAP, TIER_COUNTS, LEGENDARIES } from "@/lib/economy";
 import { Sheet } from "../primitives";
 import { CaretRight } from "../ui/icons";
 import { useGame } from "../state";
+import { useOnboarding } from "../Onboarding";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b";
 
@@ -240,6 +241,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
 export function FaqSheet() {
   const g = useGame();
   const faq = useFaq();
+  const { replay } = useOnboarding();
   const [open, setOpen] = useState<number | null>(0);
   return (
     <Sheet open onClose={g.closeSheet} title="FAQ — how Lexigotchi works">
@@ -264,6 +266,15 @@ export function FaqSheet() {
             </div>
           );
         })}
+        <button
+          onClick={() => {
+            g.closeSheet();
+            replay();
+          }}
+          className="mx-auto mt-1 block text-xs font-bold text-candy underline"
+        >
+          Replay the intro
+        </button>
         <p className="pt-1 text-center text-xs text-ink/45">
           Phase 0 prototype · spec v0.2 · $WORD on Base
         </p>

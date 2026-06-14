@@ -4,9 +4,11 @@
  * desktop, full-bleed on mobile) wrapping every game screen, driven by the mock state store.
  * No contracts are wired; every action mutates local state so the full loop is explorable.
  */
+import { useCallback, useEffect, useState } from "react";
 import { NeynarAuthButton } from "@neynar/react";
 import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
 import { useViewer } from "./useViewer";
+import { Onboarding, OnboardingContext } from "./Onboarding";
 import { Toaster } from "./primitives";
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
@@ -24,15 +26,53 @@ import { BalanceSheet } from "./sheets/BalanceSheet";
 import { FaqSheet } from "./sheets/FaqSheet";
 import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, Smiley, Sparkle, Trophy } from "./ui/icons";
 
+const ONBOARDED_KEY = "lexigotchi:onboarded";
+
 export function GameApp() {
   return (
     <GameProvider>
-      <Frame />
+      <OnboardingHost />
     </GameProvider>
   );
 }
 
-function Frame() {
+/** Owns the once-only onboarding flag (persisted in localStorage) and exposes a replay action. */
+function OnboardingHost() {
+  // Default true so SSR/first paint matches (no overlay → no hydration mismatch); the effect flips
+  // it to false for first-run players right after mount.
+  const [onboarded, setOnboarded] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(ONBOARDED_KEY) !== "1") setOnboarded(false);
+    } catch {
+      /* storage unavailable — just skip onboarding */
+    }
+  }, []);
+  const finish = useCallback(() => {
+    try {
+      localStorage.setItem(ONBOARDED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setOnboarded(true);
+  }, []);
+  const replay = useCallback(() => {
+    try {
+      localStorage.removeItem(ONBOARDED_KEY);
+    } catch {
+      /* ignore */
+    }
+    setOnboarded(false);
+  }, []);
+
+  return (
+    <OnboardingContext.Provider value={{ replay }}>
+      <Frame onboarded={onboarded} onFinishOnboarding={finish} />
+    </OnboardingContext.Provider>
+  );
+}
+
+function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinishOnboarding: () => void }) {
   const { state } = useGame();
   // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
   // Farcaster splash screen — no manual call needed here.
@@ -57,6 +97,7 @@ function Frame() {
           <div data-lexi-siwn className="sr-only">
             <NeynarAuthButton />
           </div>
+          {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
         </div>
       </div>
     </IconContext.Provider>
