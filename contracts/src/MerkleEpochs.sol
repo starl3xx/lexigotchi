@@ -28,11 +28,14 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         uint256 claimed;
         uint256 meta; // themeId (bounty) or 0 (yield)
         bool open;
+        uint64 openedAt;
     }
 
     IERC20 public immutable word;
     IFeeRouter public immutable feeRouter;
     address public keeper;
+    /// @notice How long after an epoch opens its unclaimed remainder is locked for claimers.
+    uint64 public claimWindow = 90 days;
 
     mapping(uint256 epochId => Epoch) public epochs;
     mapping(uint256 epochId => mapping(uint256 tokenId => bool)) public hasClaimed;
@@ -41,6 +44,7 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
     event RewardClaimed(uint256 indexed epochId, uint256 indexed tokenId, address indexed account, uint256 amount);
     event UnclaimedRecovered(uint256 indexed epochId, address to, uint256 amount);
     event KeeperSet(address keeper);
+    event ClaimWindowSet(uint64 claimWindow);
 
     error NotKeeper();
     error EpochExists();
@@ -48,6 +52,7 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
     error AlreadyClaimed();
     error BadProof();
     error Underfunded();
+    error ClaimWindowOpen();
     error ZeroAddress();
 
     constructor(IERC20 _word, IFeeRouter _feeRouter, address _keeper, address initialOwner) Ownable(initialOwner) {
@@ -66,7 +71,8 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         if (epochs[epochId].open) revert EpochExists();
         uint256 got = _pull(amount);
         if (got < amount) revert Underfunded(); // bucket short — keeper must size amount ≤ bucket
-        epochs[epochId] = Epoch({root: root, funded: got, claimed: 0, meta: meta, open: true});
+        epochs[epochId] =
+            Epoch({root: root, funded: got, claimed: 0, meta: meta, open: true, openedAt: uint64(block.timestamp)});
         emit EpochOpened(epochId, root, got, meta);
     }
 
@@ -88,12 +94,14 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         emit RewardClaimed(epochId, tokenId, account, amount);
     }
 
-    /// @notice Recover the unclaimed remainder of a STALE epoch (multisig only; for epochs whose
-    ///         claim window has closed — sweeping a live epoch would strand late claimers).
+    /// @notice Recover the unclaimed remainder of a STALE epoch — only after its claim window has
+    ///         elapsed, so the owner can never pull funds out from under players who still hold valid
+    ///         proofs for a live epoch.
     function recoverUnclaimed(uint256 epochId, address to) external onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         Epoch storage e = epochs[epochId];
         if (!e.open) revert NoSuchEpoch();
+        if (block.timestamp < uint256(e.openedAt) + claimWindow) revert ClaimWindowOpen();
         uint256 remaining = e.funded - e.claimed;
         e.claimed = e.funded; // no further claims for this epoch
         if (remaining > 0) word.safeTransfer(to, remaining);
@@ -104,5 +112,11 @@ abstract contract MerkleEpochs is Ownable2Step, ReentrancyGuard {
         if (_keeper == address(0)) revert ZeroAddress();
         keeper = _keeper;
         emit KeeperSet(_keeper);
+    }
+
+    /// @notice Tune the claim window before opening epochs against it (multisig only).
+    function setClaimWindow(uint64 _claimWindow) external onlyOwner {
+        claimWindow = _claimWindow;
+        emit ClaimWindowSet(_claimWindow);
     }
 }

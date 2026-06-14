@@ -17,7 +17,9 @@ import {AnswerChain} from "./AnswerChain.sol";
  *         jackpot — only daily yield. The pot is funded by the jackpot fee share and held in the
  *         FeeRouter (solvency-capped), so the operator never funds the prize (seed.jackpot = 0).
  *
- *         One resolution per revealed day; `resolve` consumes the AnswerChain's latest reveal.
+ *         Reveal and resolution are ATOMIC: `resolve` advances the AnswerChain by exactly one day and
+ *         judges that same word in the same call, so a reveal and its resolution can never desync and
+ *         no day's eligibility check is ever skipped. Jackpot is therefore the AnswerChain's keeper.
  */
 contract Jackpot is Ownable2Step, ReentrancyGuard {
     IFeeRouter public immutable feeRouter;
@@ -33,7 +35,6 @@ contract Jackpot is Ownable2Step, ReentrancyGuard {
     event KeeperSet(address keeper);
 
     error NotKeeper();
-    error AlreadyResolved();
     error ZeroAddress();
 
     constructor(
@@ -51,14 +52,16 @@ contract Jackpot is Ownable2Step, ReentrancyGuard {
         keeper = _keeper;
     }
 
-    /// @notice Resolve today's jackpot against the AnswerChain's latest revealed word.
-    function resolve() external nonReentrant returns (bool won) {
+    /// @notice Reveal the next day's word on the AnswerChain and resolve its jackpot in one atomic
+    ///         step. Advancing the chain (which reverts on a bad reveal) and judging the word cannot
+    ///         desync, so no day is ever skipped. Jackpot must be the AnswerChain's keeper.
+    function resolve(string calldata word, bytes32 salt, bytes32 next) external nonReentrant returns (bool won) {
         if (msg.sender != keeper) revert NotKeeper();
+        answerChain.reveal(word, salt, next); // advances exactly one day; reverts on a bad reveal
         uint32 day = answerChain.revealedDay();
-        if (day <= lastResolvedDay) revert AlreadyResolved();
         lastResolvedDay = day;
 
-        uint256 tokenId = uint256(keccak256(bytes(answerChain.currentWord())));
+        uint256 tokenId = uint256(keccak256(bytes(word)));
         bool eligible =
             words.exists(tokenId) && staking.isStaked(tokenId) && !staking.isHungry(tokenId);
 

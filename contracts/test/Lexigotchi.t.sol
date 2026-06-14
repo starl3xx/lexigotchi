@@ -104,6 +104,7 @@ contract LexigotchiTest is Test {
         words.setRolls(address(rolls));
         words.setPrestige(address(prestige));
         rolls.setStaking(IStaking(address(staking)));
+        answerChain.setKeeper(address(jackpot)); // Jackpot reveals + resolves atomically
 
         word.mint(alice, 1e30);
         word.mint(bob, 1e30);
@@ -343,14 +344,11 @@ contract LexigotchiTest is Test {
         staking.stake(tokenId);
         vm.stopPrank();
 
-        // reveal today's word on the AnswerChain
-        vm.prank(keeper);
-        answerChain.reveal("CRANE", keccak256("salt1"), bytes32(0));
-
         uint256 pot = feeRouter.jackpotBalance();
         uint256 before = word.balanceOf(alice);
+        // reveal + resolve today's word atomically
         vm.prank(keeper);
-        bool won = jackpot.resolve();
+        bool won = jackpot.resolve("CRANE", keccak256("salt1"), bytes32(0));
         assertTrue(won, "staked + fed holder wins");
         assertEq(word.balanceOf(alice) - before, pot, "paid the full pot");
         assertEq(feeRouter.jackpotBalance(), 0, "pot emptied");
@@ -370,19 +368,18 @@ contract LexigotchiTest is Test {
         vm.warp(block.timestamp + 4 days); // unfed past the hungry threshold
         assertTrue(staking.isHungry(tokenId), "hungry");
 
-        vm.prank(keeper);
-        answerChain.reveal("CRANE", keccak256("salt1"), bytes32(0));
         uint256 pot = feeRouter.jackpotBalance();
         vm.prank(keeper);
-        bool won = jackpot.resolve();
+        bool won = jackpot.resolve("CRANE", keccak256("salt1"), bytes32(0));
         assertFalse(won, "hungry word can't win");
         assertEq(feeRouter.jackpotBalance(), pot, "pot rolls over intact");
     }
 
     function test_AnswerChain_badRevealReverts() public {
+        // resolve advances the chain; a wrong word fails the hash-chain check and reverts
         vm.prank(keeper);
         vm.expectRevert(AnswerChain.BadReveal.selector);
-        answerChain.reveal("MOTEL", keccak256("salt1"), bytes32(0)); // wrong word for the committed head
+        jackpot.resolve("MOTEL", keccak256("salt1"), bytes32(0));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -469,6 +466,27 @@ contract LexigotchiTest is Test {
         uint256 carve = (grossPool * 1500) / 10000;
         assertEq(feeRouter.bountyBalance(), carve, "carve to bounty");
         assertEq(feeRouter.poolBalance(), grossPool - carve, "pool reduced by carve");
+    }
+
+    function test_RecoverUnclaimed_gatedByClaimWindow() public {
+        _approveAll(bob);
+        vm.prank(bob);
+        letters.commitPack(); // grow the pool
+        uint256 amount = feeRouter.poolBalance() / 4;
+        uint256 tokenId = 555;
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(tokenId, alice, amount))));
+        vm.prank(keeper);
+        yield_.openEpoch(2, leaf, amount, 0);
+
+        // the owner cannot pull funds out of a LIVE epoch (players may still hold valid proofs)
+        vm.expectRevert(MerkleEpochs.ClaimWindowOpen.selector);
+        yield_.recoverUnclaimed(2, treasury);
+
+        // …only after the claim window elapses
+        vm.warp(block.timestamp + 91 days);
+        uint256 before = word.balanceOf(treasury);
+        yield_.recoverUnclaimed(2, treasury);
+        assertEq(word.balanceOf(treasury) - before, amount, "remainder swept after window");
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -121,6 +121,10 @@ contract Deploy is Script {
         a.words.setRolls(address(a.rolls));
         a.words.setPrestige(address(a.prestige));
         a.rolls.setStaking(IStaking(address(a.staking)));
+
+        // Jackpot reveals + resolves atomically, so it is the AnswerChain's keeper. The off-chain
+        // operator keeper drives it through Jackpot.resolve (Jackpot's own keeper).
+        a.answerChain.setKeeper(address(a.jackpot));
     }
 
     /// @dev v0.2 fee split table (params.ts splits.*), in basis points (sum 10_000 each).

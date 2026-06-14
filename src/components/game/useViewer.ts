@@ -30,8 +30,10 @@ export function useViewer(): Viewer {
 
   const signIn = useCallback(() => {
     // NeynarAuthButton drives the actual popup; expose a programmatic entry where useful.
-    const btn = document.querySelector<HTMLButtonElement>("[data-lexi-siwn] button");
-    btn?.click();
+    const el = document.querySelector<HTMLElement>(
+      "[data-lexi-siwn] button, [data-lexi-siwn] [role='button'], [data-lexi-siwn] a",
+    );
+    el?.click();
   }, []);
   const signOut = useCallback(() => neynar.logoutUser?.(), [neynar]);
 
