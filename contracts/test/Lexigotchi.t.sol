@@ -380,6 +380,33 @@ contract LexigotchiTest is Test {
         assertEq(feeRouter.jackpotBalance(), pot, "pot rolls over intact");
     }
 
+    function test_Staking_firstFeedEachDayIsFree() public {
+        uint256 t1 = _claimLower(alice, 0); // CRANE
+        uint256 t2 = _claimLower(alice, 1); // MOTEL
+        _approveAll(alice);
+        vm.startPrank(alice);
+        words.approve(address(staking), t1);
+        staking.stake(t1);
+        words.approve(address(staking), t2);
+        staking.stake(t2);
+        vm.stopPrank();
+
+        address burn = feeRouter.BURN_ADDRESS();
+        uint256 burned0 = word.balanceOf(burn);
+        vm.prank(alice);
+        staking.feed(t1); // first feed today → free
+        assertEq(word.balanceOf(burn), burned0, "first feed of the day is free");
+
+        vm.prank(alice);
+        staking.feed(t2); // second feed today → paid + burned
+        assertEq(word.balanceOf(burn), burned0 + SNACK, "second feed is paid + burned");
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(alice);
+        staking.feed(t1); // new day → free again
+        assertEq(word.balanceOf(burn), burned0 + SNACK, "free snack resets the next day");
+    }
+
     function test_AnswerChain_badRevealReverts() public {
         // resolve advances the chain; a wrong word fails the hash-chain check and reverts
         vm.prank(keeper);

@@ -13,7 +13,8 @@ import {FeeCollector} from "./FeeCollector.sol";
 /**
  * @title Staking
  * @notice Custodial staking for Word NFTs plus the hunger clock. Staking a Word transfers it here
- *         and starts it "fed"; feeding it (a snack, 100% burned, v0.2 §6) resets the clock. Hunger
+ *         and starts it "fed"; feeding resets the clock — the first feed each UTC day is free (the
+ *         v0.1 §5.6 check-in hook), every other feed costs a snack (100% burned). Hunger
  *         gates BOTH yield and jackpot eligibility (v0.2 §1.6): peckish (≥ peckishAfter) halves yield
  *         but keeps the jackpot ticket; hungry (≥ hungryAfter) earns nothing and cannot win the pot.
  *
@@ -28,14 +29,18 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
     uint256 public snackPrice; // $WORD per feed (100% burned)
     uint64 public peckishAfter; // seconds unfed → peckish
     uint64 public hungryAfter; // seconds unfed → hungry
+    bool public freeDailySnack = true; // one free snack per player per UTC day (v0.1 §5.6 check-in hook)
 
     mapping(uint256 tokenId => address) public stakerOf;
     mapping(uint256 tokenId => uint64) public lastFed;
+    // (UTC day + 1) on which a player last used their free snack; default 0 means "never".
+    mapping(address player => uint32 dayPlusOne) public freeSnackDayPlusOne;
 
     event Staked(uint256 indexed tokenId, address indexed staker);
     event Unstaked(uint256 indexed tokenId, address indexed staker);
     event Fed(uint256 indexed tokenId, address indexed staker, uint64 at);
     event CareParamsSet(uint64 peckishAfter, uint64 hungryAfter, uint256 snackPrice);
+    event FreeDailySnackSet(bool enabled);
 
     error NotStaked();
     error NotStaker();
@@ -74,7 +79,13 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
 
     function feed(uint256 tokenId) public nonReentrant {
         if (stakerOf[tokenId] == address(0)) revert NotStaked();
-        _collect(msg.sender, snackPrice, FeeSource.SNACK); // snacks are 100% burned
+        // The first feed of the UTC day is free (the check-in hook); every other feed is paid + burned.
+        uint32 todayPlusOne = uint32(block.timestamp / 1 days) + 1;
+        if (freeDailySnack && freeSnackDayPlusOne[msg.sender] != todayPlusOne) {
+            freeSnackDayPlusOne[msg.sender] = todayPlusOne;
+        } else {
+            _collect(msg.sender, snackPrice, FeeSource.SNACK); // snacks are 100% burned
+        }
         lastFed[tokenId] = uint64(block.timestamp);
         emit Fed(tokenId, stakerOf[tokenId], uint64(block.timestamp));
     }
@@ -118,5 +129,10 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
         hungryAfter = _hungryAfter;
         snackPrice = _snackPrice;
         emit CareParamsSet(_peckishAfter, _hungryAfter, _snackPrice);
+    }
+
+    function setFreeDailySnack(bool enabled) external onlyOwner {
+        freeDailySnack = enabled;
+        emit FreeDailySnackSet(enabled);
     }
 }
