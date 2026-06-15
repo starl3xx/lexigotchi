@@ -86,8 +86,12 @@ function castArg(a: TxArgValue): string {
 
 /** Render a copy-pasteable `cast send` command. */
 export function castCommand(intent: TxIntent): string {
-  // Shell-safe placeholder (an env-var ref) when the address isn't set yet — never literal `<…>`.
-  const target = intent.address ?? `$${intent.contractName.replace(/[^A-Za-z0-9]/g, "").toUpperCase()}_ADDR`;
+  // Shell-safe placeholder (an env-var ref) when the address is missing/empty/invalid — never a
+  // literal `<…>` and never an empty `""` that would render as a real (broken) target.
+  const target =
+    intent.address && isAddress(intent.address)
+      ? intent.address
+      : `$${intent.contractName.replace(/[^A-Za-z0-9]/g, "").toUpperCase()}_ADDR`;
   const args = intent.args.map(castArg).join(" ");
   const valueFlag = intent.value && intent.value !== "0" ? ` --value ${intent.value}` : "";
   const body = `cast send ${target} "${intent.signature}"${args ? " " + args : ""}${valueFlag}`;
@@ -116,7 +120,7 @@ function safeTransaction(intent: TxIntent) {
     }
   }
   return {
-    to: intent.address ?? "<set the deployed address>",
+    to: intent.address && isAddress(intent.address) ? intent.address : "<set the deployed address>",
     value: intent.value ?? "0",
     data: null,
     contractMethod: { inputs, name: intent.fn, payable: !!intent.value && intent.value !== "0" },

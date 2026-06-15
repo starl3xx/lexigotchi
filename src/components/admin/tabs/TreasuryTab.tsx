@@ -10,7 +10,7 @@ import type { PulsePayload } from "@/lib/admin/metrics";
 import { SEED_BUCKETS } from "@/lib/admin/contracts";
 import { loadDeployments, type Deployments } from "@/lib/admin/deployments";
 import { castCommand, safeBatchJson, validateIntent, type TxIntent } from "@/lib/admin/tx";
-import { fmtUsd, fmtWordCompact, shortAddr, usdToWordWei, WEI } from "@/lib/admin/format";
+import { fmtUsd, fmtWordCompact, isAddress, shortAddr, usdToWordWei, WEI } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, ErrorState, Field, KeyVal, MetricCard, SectionLabel, Select, Spinner, TextField, useFetch } from "../ui";
 import { Coins, Info, Lock, Trophy, Wallet, Warning } from "../icons";
 
@@ -106,10 +106,11 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
     if (Number.isFinite(n) && n > 0 && n <= 1e9) setWei(usdToWordWei(n));
   };
 
-  // Gate the rendered transactions exactly like TxOutput: a missing FeeRouter address or a
-  // bad amount must not produce a copy-paste cast / Safe batch that looks ready to run.
+  // Gate the rendered transactions exactly like TxOutput: a missing/empty FeeRouter or $WORD
+  // address, or a bad amount, must not produce a copy-paste cast / Safe batch that looks ready.
   const fundErrs = [...new Set([...validateIntent(intents[0]), ...validateIntent(intents[1])])];
-  const ready = fundErrs.length === 0;
+  const addrsOk = isAddress(feeRouter ?? "") && isAddress(wordToken ?? "");
+  const ready = fundErrs.length === 0 && addrsOk;
 
   return (
     <AdminCard title="Add $WORD to a reward pool">
@@ -148,7 +149,9 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
       ) : (
         <div className="mt-3">
           <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
-            {feeRouter ? fundErrs.join(" · ") : "Set the FeeRouter address in Deployments to build the funding transactions."}
+            {!addrsOk
+              ? "Set valid FeeRouter and $WORD token addresses in Deployments to build the funding transactions."
+              : fundErrs.join(" · ")}
           </Banner>
         </div>
       )}

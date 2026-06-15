@@ -18,7 +18,7 @@ import {
   type TxIntent,
 } from "@/lib/admin/tx";
 import { usdToWordWei } from "@/lib/admin/format";
-import { Banner, CopyButton, Field, StatusBadge, TextField, Toggle } from "./ui";
+import { Banner, ConfirmButton, CopyButton, Field, StatusBadge, TextField, Toggle } from "./ui";
 import { CaretDown, Lock, Warning } from "./icons";
 
 export function buildIntent(
@@ -142,6 +142,8 @@ export function OperationForm({
     ...initialValues(fn),
     ...(prefill ?? {}),
   }));
+  // Sensitive actions require a deliberate type-to-confirm before the transaction is revealed.
+  const [revealed, setRevealed] = useState(!fn.danger);
   const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
   const intent = useMemo(() => buildIntent(contract, fn, address, values), [contract, fn, address, values]);
   const errsByArg = useMemo(() => {
@@ -230,7 +232,18 @@ export function OperationForm({
         </div>
       )}
 
-      <TxOutput intent={intent} />
+      {revealed ? (
+        <TxOutput intent={intent} />
+      ) : (
+        <div className="mt-3 space-y-2">
+          <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
+            Sensitive action — double-check the arguments above, then type <code>{fn.fn}</code> to reveal the transaction.
+          </Banner>
+          <ConfirmButton phrase={fn.fn} onConfirm={() => setRevealed(true)}>
+            Reveal sensitive transaction
+          </ConfirmButton>
+        </div>
+      )}
     </div>
   );
 }

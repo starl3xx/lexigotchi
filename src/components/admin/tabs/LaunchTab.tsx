@@ -50,7 +50,9 @@ export function LaunchTab() {
   const missing = ENV.filter((f) => f.required && !(vals[f.key] ?? "").trim());
 
   const exportBlock = ENV.filter((f) => (vals[f.key] ?? "").trim() !== "")
-    .map((f) => `export ${f.key}="${vals[f.key].trim()}"`)
+    // Single-quote (with the '\'' escape) so a quote, $, backtick, or space in a value can't
+    // split the shell string when the block is pasted.
+    .map((f) => `export ${f.key}='${vals[f.key].trim().replace(/'/g, "'\\''")}'`)
     .join("\n");
   const command = [
     "# 0 · regenerate the on-chain economy config (caps + dictionary root) — run from the repo root",
