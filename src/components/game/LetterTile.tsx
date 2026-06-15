@@ -16,6 +16,9 @@ export function careState(w: OwnedWord): TileState {
   return h === "hungry" ? "hungry" : h === "peckish" ? "peckish" : "idle";
 }
 
+/** Clamp a raw prestige level (game data is a plain number) into the rig's 0–4 gild scale. */
+const asGild = (n: number): Gild => (n <= 0 ? 0 : n >= 4 ? 4 : (Math.round(n) as Gild));
+
 export function LetterTile({
   char,
   upper = false,
@@ -39,7 +42,7 @@ export function LetterTile({
   onClick?: () => void;
   title?: string;
   state?: TileState;
-  gild?: Gild;
+  gild?: number;
   value?: number;
   pose?: TilePose;
 }) {
@@ -48,7 +51,7 @@ export function LetterTile({
       char={char}
       upper={upper}
       state={state}
-      gild={gild}
+      gild={asGild(gild)}
       value={value}
       pose={pose}
       size={size}
@@ -74,10 +77,10 @@ export function WordTiles({
   upper: boolean[];
   size?: number;
   state?: TileState;
-  gild?: Gild;
+  gild?: number;
   detail?: TileDetail;
 }) {
-  return <TileWord word={word} upper={upper} state={state} gild={gild} size={size} detail={detail} />;
+  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} />;
 }
 
 const CASE_STYLE: Record<CaseState, string> = {

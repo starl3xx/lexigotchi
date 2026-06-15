@@ -47,7 +47,7 @@ export function WordSheet({ id }: { id: number }) {
     >
       {/* hero — the word as a row of tiles wearing the word's current care state */}
       <div className={`mb-3 flex justify-center rounded-2xl border-[3px] border-ink py-5 ${fullyRaised ? "bg-gold/15" : "bg-paper-dark/40"}`}>
-        <WordTiles word={word.word} upper={word.upper} size={54} state={careState(word)} detail="bust" />
+        <WordTiles word={word.word} upper={word.upper} size={54} state={careState(word)} gild={word.prestigeLevel} detail="bust" />
       </div>
 
       {/* status */}

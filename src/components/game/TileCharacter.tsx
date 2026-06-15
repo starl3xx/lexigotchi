@@ -530,13 +530,21 @@ export function TileCharacter({
     detail !== "auto" ? detail : size >= 100 ? "full" : size >= 60 ? "bust" : "tile";
   const showLimbs = lod === "full";
   const showFace = lod !== "tile";
-  // each LOD crops to what it draws, so the rendered box stays tight (no empty limb space in grids)
-  const VIEW =
+  // each LOD crops to what it draws, so the rendered box stays tight (no empty limb space in
+  // grids). Gilded tiles widen the crop symmetrically so the brass ring stack never clips.
+  const baseView =
     lod === "full"
-      ? { x: 0, y: 0, w: VB.w, h: VB.h }
+      ? { x: 0, y: 0, w: VB.w, h: VB.h, margin: 999 }
       : lod === "bust"
-        ? { x: 24, y: 58, w: 192, h: 204 }
-        : { x: 30, y: 86, w: 180, h: 180 };
+        ? { x: 24, y: 58, w: 192, h: 204, margin: 21 }
+        : { x: 30, y: 86, w: 180, h: 180, margin: 15 };
+  const gildPad = upper && g > 0 ? Math.max(0, Math.ceil(ringOuter(g)) - baseView.margin) : 0;
+  const VIEW = {
+    x: baseView.x - gildPad,
+    y: baseView.y - gildPad,
+    w: baseView.w + 2 * gildPad,
+    h: baseView.h + 2 * gildPad,
+  };
 
   // face colors per case
   const faceFill = upper ? "#ffffff" : TILE_FACE;
@@ -641,8 +649,9 @@ export function TileCharacter({
             {glyph}
           </text>
 
-          {/* crown topper (gild 4) — sits on the OUTER border edge; bounces with the body group */}
-          {g >= 4 && <Crown base={TOP - ringOuter(g)} />}
+          {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
+              still reads via the rings + pips (one crown per letter would clutter / clip) */}
+          {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} />}
 
           {/* gild pips on the lower face */}
           <Pips gild={g} />
