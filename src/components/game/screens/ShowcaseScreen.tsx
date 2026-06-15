@@ -1,9 +1,9 @@
 "use client";
 /** Showcase — arrange any letters you own into any string and cast it. Off-chain, pure vanity. */
 import { useState } from "react";
-import { Rig } from "@/components/characters/Rig";
 import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
+import { TileCharacter } from "../TileCharacter";
 import { Basket, ShareNetwork } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
 import { useShare } from "../useShare";
@@ -50,7 +50,7 @@ export function ShowcaseScreen() {
           ) : (
             rack.map((s, k) => (
               <button key={k} onClick={() => setRack((prev) => prev.filter((_, i) => i !== k))} title="remove" className="animate-pop">
-                <Rig letter={idxToChar(s.idx)} variant={s.upper ? "upper" : "lower"} size={Math.min(72, 360 / rack.length)} />
+                <TileCharacter char={idxToChar(s.idx)} upper={s.upper} detail="bust" size={Math.min(72, 360 / rack.length)} />
               </button>
             ))
           )}

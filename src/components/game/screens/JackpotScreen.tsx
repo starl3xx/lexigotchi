@@ -1,6 +1,5 @@
 "use client";
 /** Win — the daily jackpot. Lexigotchi picks a secret word; hold it staked & fed → take the pot. */
-import { WordChorus } from "@/components/characters/WordChorus";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { WordTiles } from "../LetterTile";
 import { Confetti, DiceFive, Gift, SmileyMeh, Star } from "../ui/icons";
@@ -59,7 +58,7 @@ export function JackpotScreen() {
               You held <strong>{state.jackpotWord}</strong>, staked &amp; fed. The pot is yours.
             </p>
             <div className="my-3 flex justify-center">
-              <WordChorus word={state.jackpotWord} variant="upper" earning trophy size={56} />
+              <WordTiles word={state.jackpotWord} upper={Array(5).fill(true)} state="celebrate" size={54} />
             </div>
           </div>
         ) : (

@@ -16,7 +16,7 @@ export function PackReveal({ letters }: { letters: number[] }) {
       <div className="flex flex-wrap items-center justify-center gap-3 py-4">
         {letters.map((i, k) => (
           <div key={k} className="animate-pop" style={{ animationDelay: `${k * 0.11}s` }}>
-            <LetterTile char={idxToChar(i)} size={56} />
+            <LetterTile char={idxToChar(i)} size={64} />
           </div>
         ))}
       </div>
