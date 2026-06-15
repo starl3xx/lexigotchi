@@ -53,15 +53,15 @@ export function LaunchTab() {
     .map((f) => `export ${f.key}="${vals[f.key].trim()}"`)
     .join("\n");
   const command = [
-    "# 0 · regenerate the on-chain economy config (caps + dictionary root)",
+    "# 0 · regenerate the on-chain economy config (caps + dictionary root) — run from the repo root",
     "npm run derive:contracts",
-    "cd contracts && npm run contracts:setup   # one-time: vendor forge-std + OpenZeppelin",
+    "npm run contracts:setup   # one-time: vendor forge-std + OpenZeppelin",
     "",
     "# 1 · env",
     exportBlock || "# (fill the required fields above)",
     "",
-    "# 2 · deploy + wire all 10 contracts, seed the v0.2 splits",
-    'forge script script/Deploy.s.sol:Deploy --rpc-url "$BASE_RPC" --broadcast --verify',
+    "# 2 · deploy + wire all 10 contracts, seed the v0.2 splits (forge runs from contracts/)",
+    'cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url "$BASE_RPC" --broadcast --verify',
   ].join("\n");
 
   return (

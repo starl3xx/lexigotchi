@@ -37,6 +37,7 @@ export type Tone = "ok" | "warning" | "error" | "accent";
 export interface MetricSeries {
   pool: number[];
   jackpot: number[];
+  bounty: number[];
   burned: number[];
   treasury: number[];
   dau: number[];
@@ -64,6 +65,7 @@ export interface PulsePayload {
     pool: number;
     poolEquilibrium: number;
     jackpot: number;
+    bountyPool: number;
     burned: number;
     treasury: number;
     externalInflow: number;
@@ -119,6 +121,7 @@ export function pulsePayload(): PulsePayload {
       pool: f.pool,
       poolEquilibrium: res.poolEquilibrium,
       jackpot: f.jackpot,
+      bountyPool: f.bountyPool,
       burned: f.burnedTotal,
       treasury: f.treasuryTotal,
       externalInflow: f.externalInflowTotal,
@@ -139,6 +142,7 @@ export function pulsePayload(): PulsePayload {
     series: {
       pool: days.map((d) => d.pool),
       jackpot: days.map((d) => d.jackpot),
+      bounty: days.map((d) => d.bountyPool),
       burned: days.map((d) => d.burnedTotal),
       treasury: days.map((d) => d.treasuryTotal),
       dau: days.map((d) => d.activePlayers),

@@ -9,10 +9,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { PulsePayload } from "@/lib/admin/metrics";
 import { SEED_BUCKETS } from "@/lib/admin/contracts";
 import { loadDeployments, type Deployments } from "@/lib/admin/deployments";
-import { castCommand, safeBatchJson, type TxIntent } from "@/lib/admin/tx";
+import { castCommand, safeBatchJson, validateIntent, type TxIntent } from "@/lib/admin/tx";
 import { fmtUsd, fmtWordCompact, shortAddr, usdToWordWei, WEI } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, ErrorState, Field, KeyVal, MetricCard, SectionLabel, Select, Spinner, TextField, useFetch } from "../ui";
-import { Coins, Info, Lock, Trophy, Wallet } from "../icons";
+import { Coins, Info, Lock, Trophy, Wallet, Warning } from "../icons";
 
 export function TreasuryTab() {
   const { data, loading, error, reload } = useFetch<PulsePayload>("/api/admin/pulse");
@@ -44,7 +44,7 @@ export function TreasuryTab() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <MetricCard icon={<Coins weight="bold" size={14} />} label="Rewards Pool" tone="accent" value={h ? fmtUsd(h.pool) : "—"} sub="funds UPPERCASE yield" series={data?.series.pool} />
           <MetricCard icon={<Trophy weight="bold" size={14} />} label="Jackpot" tone="warning" value={h ? fmtUsd(h.jackpot) : "—"} sub="self-funded from fees" series={data?.series.jackpot} />
-          <MetricCard icon={<Coins weight="bold" size={14} />} label="Bounty Pool" value="$0" sub="carve off / seed to fund" />
+          <MetricCard icon={<Coins weight="bold" size={14} />} label="Bounty Pool" value={h ? fmtUsd(h.bountyPool) : "—"} sub="carve off by default · seed to fund" series={data?.series.bounty} />
           <MetricCard icon={<Wallet weight="bold" size={14} />} label="Treasury (cum.)" value={h ? fmtUsd(h.treasury) : "—"} sub="leaves to the multisig per fee" series={data?.series.treasury} />
         </div>
       </section>
@@ -81,7 +81,7 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
       signature: "approve(address,uint256)",
       fn: "approve",
       args: [
-        { name: "spender", type: "address", value: feeRouter ?? "<FeeRouter address>" },
+        { name: "spender", type: "address", value: feeRouter ?? "" },
         { name: "amount", type: "uint256", value: wei },
       ],
     },
@@ -105,6 +105,11 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
     const n = Number(v);
     if (Number.isFinite(n) && n > 0 && n <= 1e9) setWei(usdToWordWei(n));
   };
+
+  // Gate the rendered transactions exactly like TxOutput: a missing FeeRouter address or a
+  // bad amount must not produce a copy-paste cast / Safe batch that looks ready to run.
+  const fundErrs = [...new Set([...validateIntent(intents[0]), ...validateIntent(intents[1])])];
+  const ready = fundErrs.length === 0;
 
   return (
     <AdminCard title="Add $WORD to a reward pool">
@@ -130,15 +135,23 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
         Seeding <strong>{bucketDef.label}</strong> — {bucketDef.desc}. ≈ {fmtWordCompact(wordAmount)} $WORD (from the amount above).
       </p>
 
-      <div className="mt-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-ink/45">cast (2 steps)</span>
-          <CopyButton small label="Copy Safe batch" text={safeBatchJson(intents, { name: `Seed ${bucketDef.label} with $WORD` })} />
+      {ready ? (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink/45">cast (2 steps)</span>
+            <CopyButton small label="Copy Safe batch" text={safeBatchJson(intents, { name: `Seed ${bucketDef.label} with $WORD` })} />
+          </div>
+          <pre className="overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[11px] leading-relaxed text-ink/85">
+            {`# 1 · approve\n${castCommand(intents[0])}\n\n# 2 · seed ${bucketDef.label}\n${castCommand(intents[1])}`}
+          </pre>
         </div>
-        <pre className="overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[11px] leading-relaxed text-ink/85">
-          {`# 1 · approve\n${castCommand(intents[0])}\n\n# 2 · seed ${bucketDef.label}\n${castCommand(intents[1])}`}
-        </pre>
-      </div>
+      ) : (
+        <div className="mt-3">
+          <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
+            {feeRouter ? fundErrs.join(" · ") : "Set the FeeRouter address in Deployments to build the funding transactions."}
+          </Banner>
+        </div>
+      )}
 
       <div className="mt-3 flex items-center gap-2">
         <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border-[3px] border-ink/40 bg-paper px-3 py-1.5 text-xs font-extrabold text-ink/40">
