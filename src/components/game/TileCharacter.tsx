@@ -538,7 +538,9 @@ export function TileCharacter({
       : lod === "bust"
         ? { x: 24, y: 58, w: 192, h: 204, margin: 21 }
         : { x: 30, y: 86, w: 180, h: 180, margin: 15 };
-  const gildPad = upper && g > 0 ? Math.max(0, Math.ceil(ringOuter(g)) - baseView.margin) : 0;
+  // every UPPERCASE tile draws a ring (the pale-blue LHAW skin at gild 0, brass once gilded),
+  // so the crop must widen for any upper tile — not only gilded ones — or the ring clips.
+  const gildPad = upper ? Math.max(0, Math.ceil(ringOuter(g)) - baseView.margin) : 0;
   const VIEW = {
     x: baseView.x - gildPad,
     y: baseView.y - gildPad,
