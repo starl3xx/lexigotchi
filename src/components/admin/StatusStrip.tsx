@@ -4,7 +4,7 @@
  * operator knows, at a glance, whether they're acting on a live suite or building plans.
  */
 import { CONTRACT_KEYS } from "@/lib/admin/deployments";
-import { shortAddr } from "@/lib/admin/format";
+import { isAddress, shortAddr } from "@/lib/admin/format";
 import { useDeployments } from "./useDeployments";
 import { StatusBadge } from "./ui";
 import { Cube, Key, Pulse, SealCheck } from "./icons";
@@ -12,7 +12,8 @@ import { Cube, Key, Pulse, SealCheck } from "./icons";
 export function StatusStrip() {
   const d = useDeployments();
 
-  const deployedCount = d ? CONTRACT_KEYS.filter((k) => !!d.contracts[k]).length : 0;
+  // Count only VALID addresses as deployed — consistent with the transaction builders / Access tab.
+  const deployedCount = d ? CONTRACT_KEYS.filter((k) => isAddress(d.contracts[k] ?? "")).length : 0;
   const live = deployedCount === CONTRACT_KEYS.length;
   const phase: { tone: "ok" | "warning" | "error" | "accent"; label: string } = live
     ? { tone: "ok", label: "Suite live" }

@@ -8,6 +8,7 @@
  * decide whether an action can execute live or stays a transaction plan.
  */
 import baseline from "../../../config/deployments.json";
+import { isAddress } from "./format";
 
 export type ContractKey =
   | "feeRouter"
@@ -119,12 +120,12 @@ export function clearDeployments(): void {
   }
 }
 
-/** Any contract addresses set at all? */
+/** Any valid contract address set at all? */
 export function anyDeployed(d: Deployments): boolean {
-  return CONTRACT_KEYS.some((k) => !!d.contracts[k]);
+  return CONTRACT_KEYS.some((k) => isAddress(d.contracts[k] ?? ""));
 }
 
-/** Whole suite present? */
+/** Whole suite present with valid addresses? */
 export function fullyDeployed(d: Deployments): boolean {
-  return CONTRACT_KEYS.every((k) => !!d.contracts[k]);
+  return CONTRACT_KEYS.every((k) => isAddress(d.contracts[k] ?? ""));
 }
