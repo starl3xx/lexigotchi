@@ -66,10 +66,13 @@ export function ParametersTab() {
       </AdminCard>
 
       {groups.map(([group, fns]) => (
-        <section key={group} className="space-y-3">
+        <section key={`${contract.key}:${group}`} className="space-y-3">
           <SectionLabel>{group}</SectionLabel>
           {fns.map((fn) => (
-            <OperationForm key={fn.fn} contract={contract} fn={fn} address={address} chainId={d?.chainId ?? 8453} />
+            // Key by contract too: function names repeat across contracts (setSigner, setKeeper,
+            // transferOwnership…), and an fn-only key would reuse a form instance — and its stale
+            // inputs / revealed-danger state — when switching contracts.
+            <OperationForm key={`${contract.key}:${fn.fn}`} contract={contract} fn={fn} address={address} chainId={d?.chainId ?? 8453} />
           ))}
         </section>
       ))}
