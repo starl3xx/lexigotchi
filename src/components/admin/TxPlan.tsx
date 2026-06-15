@@ -146,7 +146,10 @@ export function OperationForm({
   }));
   // Sensitive actions require a deliberate type-to-confirm before the transaction is revealed.
   const [revealed, setRevealed] = useState(!fn.danger);
-  const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
+  const set = (k: string, v: string) => {
+    setValues((p) => ({ ...p, [k]: v }));
+    if (fn.danger) setRevealed(false); // editing a sensitive action re-requires confirmation
+  };
   const intent = useMemo(() => buildIntent(contract, fn, address, values), [contract, fn, address, values]);
   const errsByArg = useMemo(() => {
     const e = new Set(validateIntent(intent).map((m) => m.split(" ")[0]));

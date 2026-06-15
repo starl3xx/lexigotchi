@@ -76,7 +76,15 @@ export function AccessTab() {
           accepts. Paste the multisig to generate both Safe batches.
         </p>
         <Field label="Multisig address" hint="the Safe that will own the suite">
-          <TextField value={multisig} onChange={(e) => setMultisig(e.target.value)} placeholder="0x…" invalid={multisig !== "" && !valid} />
+          <TextField
+            value={multisig}
+            onChange={(e) => {
+              setMultisig(e.target.value);
+              setRevealed(false); // re-require confirmation whenever the target owner changes
+            }}
+            placeholder="0x…"
+            invalid={multisig !== "" && !valid}
+          />
         </Field>
 
         {valid && !deployedAll && (
