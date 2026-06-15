@@ -10,8 +10,11 @@ import { Pill } from "./primitives";
 import { Star } from "./ui/icons";
 import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
 
-/** Map a word's hunger to the idle / peckish / hungry display state of its tiles. */
+/** Map a word's hunger to the idle / peckish / hungry display state of its tiles. Hunger only
+ *  advances for staked words (and only staked words show a hunger badge), so an unstaked word
+ *  always reads as idle — never stale peckish/hungry. */
 export function careState(w: OwnedWord): TileState {
+  if (!w.staked) return "idle";
   const h = hunger(w);
   return h === "hungry" ? "hungry" : h === "peckish" ? "peckish" : "idle";
 }

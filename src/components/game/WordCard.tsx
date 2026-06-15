@@ -19,7 +19,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
         ${answerReady ? "ring-2 ring-candy ring-offset-2 ring-offset-paper" : ""}`}
     >
       <div className="flex items-center gap-3">
-        <WordTiles word={word.word} upper={word.upper} size={30} state={careState(word)} />
+        <WordTiles word={word.word} upper={word.upper} size={30} state={careState(word)} detail="bust" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 font-display text-base font-extrabold">
             {word.word}
