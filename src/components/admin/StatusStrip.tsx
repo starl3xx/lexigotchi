@@ -3,24 +3,14 @@
  * Persistent operator status strip (LHAW parity) — always-visible deployment + health state so the
  * operator knows, at a glance, whether they're acting on a live suite or building plans.
  */
-import { useEffect, useState } from "react";
-import { loadDeployments, CONTRACT_KEYS, type Deployments } from "@/lib/admin/deployments";
+import { CONTRACT_KEYS } from "@/lib/admin/deployments";
 import { shortAddr } from "@/lib/admin/format";
+import { useDeployments } from "./useDeployments";
 import { StatusBadge } from "./ui";
 import { Cube, Key, Pulse, SealCheck } from "./icons";
 
 export function StatusStrip() {
-  const [d, setD] = useState<Deployments | null>(null);
-  useEffect(() => {
-    setD(loadDeployments());
-    const refresh = () => setD(loadDeployments());
-    window.addEventListener("lexi:deployments", refresh); // same-tab saves (custom event)
-    window.addEventListener("storage", refresh); // other tabs (native storage event)
-    return () => {
-      window.removeEventListener("lexi:deployments", refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, []);
+  const d = useDeployments();
 
   const deployedCount = d ? CONTRACT_KEYS.filter((k) => !!d.contracts[k]).length : 0;
   const live = deployedCount === CONTRACT_KEYS.length;

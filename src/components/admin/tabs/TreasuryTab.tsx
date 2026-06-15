@@ -5,10 +5,11 @@
  * then credit the Pool or Bounty bucket. The jackpot is deliberately not seedable — an
  * operator-funded chance pot is the core lottery risk (see params.ts), so it self-funds from fees.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { PulsePayload } from "@/lib/admin/metrics";
 import { SEED_BUCKETS } from "@/lib/admin/contracts";
-import { loadDeployments, type Deployments } from "@/lib/admin/deployments";
+import type { Deployments } from "@/lib/admin/deployments";
+import { useDeployments } from "../useDeployments";
 import { castCommand, safeBatchJson, validateIntent, type TxIntent } from "@/lib/admin/tx";
 import { fmtUsd, fmtWordCompact, isAddress, shortAddr, usdToWordWei, WEI } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, ErrorState, Field, KeyVal, MetricCard, SectionLabel, Select, Spinner, TextField, useFetch } from "../ui";
@@ -16,17 +17,7 @@ import { Coins, Info, Lock, Trophy, Wallet, Warning } from "../icons";
 
 export function TreasuryTab() {
   const { data, loading, error, reload } = useFetch<PulsePayload>("/api/admin/pulse");
-  const [d, setD] = useState<Deployments | null>(null);
-  useEffect(() => {
-    setD(loadDeployments());
-    const refresh = () => setD(loadDeployments());
-    window.addEventListener("lexi:deployments", refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener("lexi:deployments", refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, []);
+  const d = useDeployments();
 
   if (loading && !data) return <Spinner />;
   if (error) return <ErrorState msg={error} onRetry={reload} />;

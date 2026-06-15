@@ -4,12 +4,13 @@
  * contracts), the deploy-time wiring checklist, role addresses, and an honest account of the
  * emergency levers the suite actually has (there is no global pause — see the card).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CONTRACTS } from "@/lib/admin/contracts";
-import { loadDeployments, type Deployments } from "@/lib/admin/deployments";
-import { castCommand, safeBatchJson, type TxIntent } from "@/lib/admin/tx";
+import type { TxIntent } from "@/lib/admin/tx";
+import { castCommand, safeBatchJson } from "@/lib/admin/tx";
 import { isAddress, shortAddr } from "@/lib/admin/format";
-import { AdminCard, Banner, CopyButton, Field, KeyVal, SectionLabel, TextField } from "../ui";
+import { useDeployments } from "../useDeployments";
+import { AdminCard, Banner, ConfirmButton, CopyButton, Field, KeyVal, SectionLabel, TextField } from "../ui";
 import { Info, ShieldCheck, Warning } from "../icons";
 
 const WIRING = [
@@ -30,11 +31,13 @@ const LEVERS = [
 ];
 
 export function AccessTab() {
-  const [d, setD] = useState<Deployments | null>(null);
+  const d = useDeployments();
   const [multisig, setMultisig] = useState("");
-  useEffect(() => setD(loadDeployments()), []);
+  const [revealed, setRevealed] = useState(false);
 
   const valid = isAddress(multisig);
+  const missing = CONTRACTS.filter((c) => !isAddress(d?.contracts[c.key] ?? "")).map((c) => c.name);
+  const deployedAll = missing.length === 0;
   const transferIntents: TxIntent[] = useMemo(
     () =>
       CONTRACTS.map((c) => ({
@@ -76,7 +79,28 @@ export function AccessTab() {
           <TextField value={multisig} onChange={(e) => setMultisig(e.target.value)} placeholder="0x…" invalid={multisig !== "" && !valid} />
         </Field>
 
-        {valid && (
+        {valid && !deployedAll && (
+          <div className="mt-3">
+            <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
+              No deployed address yet for: {missing.join(", ")}. Set them in the Deployments tab before generating the
+              ownership handoff — otherwise the batch would target placeholders.
+            </Banner>
+          </div>
+        )}
+
+        {valid && deployedAll && !revealed && (
+          <div className="mt-4 space-y-2">
+            <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
+              Sensitive — this hands ownership of all {CONTRACTS.length} contracts to the multisig. Double-check the
+              address, then type <code>transferOwnership</code> to reveal the batch.
+            </Banner>
+            <ConfirmButton phrase="transferOwnership" onConfirm={() => setRevealed(true)}>
+              Reveal ownership handoff
+            </ConfirmButton>
+          </div>
+        )}
+
+        {valid && deployedAll && revealed && (
           <div className="mt-4 space-y-4">
             <div>
               <div className="mb-1 flex items-center justify-between">

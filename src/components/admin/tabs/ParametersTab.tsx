@@ -5,18 +5,17 @@
  * thresholds, bounty carve, dictionary root, role rotations). Each form emits a cast command + Safe
  * batch; nothing executes from here in Phase 0.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CONTRACTS } from "@/lib/admin/contracts";
-import { loadDeployments, type Deployments } from "@/lib/admin/deployments";
 import { shortAddr } from "@/lib/admin/format";
+import { useDeployments } from "../useDeployments";
 import { AdminCard, Banner, SectionLabel } from "../ui";
 import { OperationForm } from "../TxPlan";
 import { Faders, Info } from "../icons";
 
 export function ParametersTab() {
-  const [d, setD] = useState<Deployments | null>(null);
+  const d = useDeployments();
   const [sel, setSel] = useState(CONTRACTS[0].key);
-  useEffect(() => setD(loadDeployments()), []);
 
   const contract = CONTRACTS.find((c) => c.key === sel)!;
   const ownerFns = contract.fns.filter((f) => f.kind === "owner");

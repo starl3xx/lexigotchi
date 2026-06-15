@@ -4,10 +4,9 @@
  * daily jackpot, open yield epochs, open bounty periods. Plus a reference for the off-chain signer
  * duties (rolls / prestige / letter draws) that aren't transactions but back the commit→reveal flow.
  */
-import { useEffect, useState } from "react";
 import { keeperFns } from "@/lib/admin/contracts";
-import { loadDeployments, type Deployments } from "@/lib/admin/deployments";
 import { shortAddr } from "@/lib/admin/format";
+import { useDeployments } from "../useDeployments";
 import { AdminCard, Banner, KeyVal, SectionLabel } from "../ui";
 import { OperationForm } from "../TxPlan";
 import { Info, Key, Wrench } from "../icons";
@@ -20,8 +19,7 @@ const SIGNER_DUTIES = [
 ];
 
 export function KeeperTab() {
-  const [d, setD] = useState<Deployments | null>(null);
-  useEffect(() => setD(loadDeployments()), []);
+  const d = useDeployments();
   const duties = keeperFns();
 
   return (
