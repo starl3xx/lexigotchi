@@ -105,7 +105,7 @@ export function AccessTab() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">1 · Transfer all → multisig (run from deployer)</span>
-                <CopyButton small label="Copy Safe batch" text={safeBatchJson(transferIntents, { name: "Lexigotchi — transfer ownership to multisig" })} />
+                <CopyButton small label="Copy Safe batch" text={safeBatchJson(transferIntents, { name: "Lexigotchi — transfer ownership to multisig" }, d?.chainId ?? 8453)} />
               </div>
               <pre className="max-h-40 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[10px] leading-relaxed text-ink/75">
                 {transferIntents.map((i) => castCommand(i)).join("\n\n")}
@@ -114,7 +114,7 @@ export function AccessTab() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">2 · Accept all (run from the multisig)</span>
-                <CopyButton small label="Copy Safe batch" text={safeBatchJson(acceptIntents, { name: "Lexigotchi — accept ownership" })} />
+                <CopyButton small label="Copy Safe batch" text={safeBatchJson(acceptIntents, { name: "Lexigotchi — accept ownership" }, d?.chainId ?? 8453)} />
               </div>
               <pre className="max-h-40 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[10px] leading-relaxed text-ink/75">
                 {acceptIntents.map((i) => castCommand(i)).join("\n\n")}

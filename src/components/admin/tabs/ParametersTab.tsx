@@ -69,7 +69,7 @@ export function ParametersTab() {
         <section key={group} className="space-y-3">
           <SectionLabel>{group}</SectionLabel>
           {fns.map((fn) => (
-            <OperationForm key={fn.fn} contract={contract} fn={fn} address={address} />
+            <OperationForm key={fn.fn} contract={contract} fn={fn} address={address} chainId={d?.chainId ?? 8453} />
           ))}
         </section>
       ))}

@@ -40,7 +40,7 @@ export function KeeperTab() {
           <SectionLabel>
             {contract.name} · {fn.group}
           </SectionLabel>
-          <OperationForm contract={contract} fn={fn} address={d?.contracts[contract.key] ?? null} />
+          <OperationForm contract={contract} fn={fn} address={d?.contracts[contract.key] ?? null} chainId={d?.chainId ?? 8453} />
         </section>
       ))}
 

@@ -60,12 +60,12 @@ const usdHelpable = (type: string, name: string) =>
   type === "uint256" && /price|fee|cost|snack|amount/i.test(name);
 
 /** Renders the cast command + Safe batch + execute gate for a built intent. */
-export function TxOutput({ intent }: { intent: TxIntent }) {
+export function TxOutput({ intent, chainId = 8453 }: { intent: TxIntent; chainId?: number }) {
   const [showSafe, setShowSafe] = useState(false);
   const errs = validateIntent(intent);
   const ready = errs.length === 0;
   const cast = ready ? castCommand(intent) : "";
-  const safe = ready ? safeBatchJson([intent], { name: `${intent.contractName}.${intent.fn}` }) : "";
+  const safe = ready ? safeBatchJson([intent], { name: `${intent.contractName}.${intent.fn}` }, chainId) : "";
 
   return (
     <div className="mt-3 space-y-2">
@@ -132,11 +132,13 @@ export function OperationForm({
   fn,
   address,
   prefill,
+  chainId = 8453,
 }: {
   contract: ContractDef;
   fn: ContractFn;
   address?: string | null;
   prefill?: Record<string, string>;
+  chainId?: number;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => ({
     ...initialValues(fn),
@@ -233,7 +235,7 @@ export function OperationForm({
       )}
 
       {revealed ? (
-        <TxOutput intent={intent} />
+        <TxOutput intent={intent} chainId={chainId} />
       ) : (
         <div className="mt-3 space-y-2">
           <Banner tone="error" icon={<Warning weight="bold" size={14} />}>

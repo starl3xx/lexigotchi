@@ -131,7 +131,7 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-ink/45">cast (2 steps)</span>
-            <CopyButton small label="Copy Safe batch" text={safeBatchJson(intents, { name: `Seed ${bucketDef.label} with $WORD` })} />
+            <CopyButton small label="Copy Safe batch" text={safeBatchJson(intents, { name: `Seed ${bucketDef.label} with $WORD` }, deployments?.chainId ?? 8453)} />
           </div>
           <pre className="overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[11px] leading-relaxed text-ink/85">
             {`# 1 · approve\n${castCommand(intents[0])}\n\n# 2 · seed ${bucketDef.label}\n${castCommand(intents[1])}`}
