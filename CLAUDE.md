@@ -20,7 +20,8 @@ the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
 - `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
 - `npm test` — economy + solvency invariants (44 vitest tests)
 - `npm run build` / `npm run typecheck`
-- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (21 forge tests)
+- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (27 forge tests)
+- The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
 
@@ -45,6 +46,19 @@ the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
   `Letters`/`Words`/`Rolls`/`Staking`/`Prestige`/`Jackpot`/`AnswerChain`/`YieldDistributor`/`Bounty`.
   Deps are gitignored — run `npm run contracts:setup`. Trust seams (signer/keeper) documented in
   `contracts/README.md`. Full mechanics reference: `GAME_DOCUMENTATION.md`; player FAQ: `FAQ.md`.
+- `src/app/admin/` + `src/components/admin/` → the **operator console** (`/admin`), modeled on the
+  Griddle admin UI in Lexigotchi's design language. Shell: `AdminConsole.tsx` (sectioned tabs) gated by
+  `AdminGate.tsx`. Lib in `src/lib/admin/`: `metrics.ts` (memoized `runSim` → Pulse/Economy API payloads,
+  served by `src/app/api/admin/{pulse,economy}`), `contracts.ts` (the typed operator surface — every
+  owner/keeper fn + ctor, drives Parameters/Keeper/Access/Launch), `tx.ts` (`TxIntent` → `cast` cmd +
+  Safe batch; **no wagmi/viem** — execution is plan-only in Phase 0), `deployments.ts` (address registry,
+  baseline `config/deployments.json` + localStorage overrides), `auth.ts` (allowlist via
+  `NEXT_PUBLIC_ADMIN_*`, dev-open when unset), `format.ts` (USD↔$WORD-wei peg). Tabs in
+  `src/components/admin/tabs/`.
+- **`FeeRouter.seed(uint8 bucket, uint256 amount)`** (owner-only) was added so the admin can fund the
+  Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
+  invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery
+  compliance, `params.ts`). The only non-`route` way $WORD enters a bucket.
 
 ## v0.2 mechanics (the ones easy to get wrong)
 

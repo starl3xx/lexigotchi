@@ -12,7 +12,7 @@ OpenZeppelin is resolved from the repo's `node_modules`; `forge-std` is cloned. 
 npm install                 # at the repo root (installs @openzeppelin/contracts)
 npm run contracts:setup     # clones forge-std + vendors OZ into contracts/lib (gitignored)
 npm run contracts:build     # forge build
-npm run contracts:test      # forge test  (21 tests)
+npm run contracts:test      # forge test  (27 tests)
 npm run derive:contracts    # regenerate config/economy.json from the canonical dictionary
 ```
 
@@ -33,7 +33,7 @@ The whole economy flows through one accounting hub, mirroring the sim's four-buc
 
 | Contract | Role |
 |---|---|
-| **FeeRouter** | Splits every fee into pool/jackpot/burn/treasury (tunable bps). Holds the pool/jackpot/bounty buckets; `payFrom*` caps each payout at its balance → **solvency by construction**. The bounty carve diverts a slice of the pool share zero-sum. |
+| **FeeRouter** | Splits every fee into pool/jackpot/burn/treasury (tunable bps). Holds the pool/jackpot/bounty buckets; `payFrom*` caps each payout at its balance → **solvency by construction**. The bounty carve diverts a slice of the pool share zero-sum. Owner-only `seed(bucket, amount)` tops up the Pool (0) or Bounty (2) by pulling $WORD from the owner (the only non-`route` inflow); the Jackpot (1) reverts — it self-funds from fees (lottery compliance). |
 | **Letters** | 52-id ERC-1155 (lowercase `i`=`i`, uppercase `i`=`26+i`). 100%-lowercase demand-mirrored draws with per-letter caps; commit→server-signed reveal (no expiry, so fees are never forfeited). Pack-of-5 + FID-gated daily single (backend-signed allowance); $WORD or ETH (auto-swap). `upgrade` (Rolls/Words only) burns a lowercase, mints its uppercase — conserving supply. |
 | **Words** | One ERC-721 per dictionary word, `tokenId = keccak256(word)`; membership via Merkle proof. Escrows 5 uniform-case letters; **case is derived from the escrow, never stored**. In-place upgrade rolls; dissolve recovers letters + frees the name. |
 | **Rolls** | EGGS commit→**server-signed** reveal. Failure is an explicit no-op (asset untouched). Pity per `(beneficialOwner, letter)` — resolved through staking custody so escrowed-letter pity can't be shared/pumped. |

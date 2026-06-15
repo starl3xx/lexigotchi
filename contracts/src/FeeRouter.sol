@@ -64,6 +64,7 @@ contract FeeRouter is IFeeRouter, Ownable2Step, ReentrancyGuard {
     event CollectorSet(address indexed collector, bool allowed);
     event TreasurySet(address indexed treasury);
     event PayersSet(address poolPayer, address jackpotPayer, address bountyPayer);
+    event Seeded(uint8 indexed bucket, uint256 amount);
 
     error NotCollector();
     error BadSource();
@@ -71,6 +72,8 @@ contract FeeRouter is IFeeRouter, Ownable2Step, ReentrancyGuard {
     error SplitMustSumToBps();
     error Unauthorized();
     error ZeroAddress();
+    error JackpotNotSeedable();
+    error BadBucket();
 
     constructor(IERC20 _word, address _treasury, address initialOwner) Ownable(initialOwner) {
         if (address(_word) == address(0) || _treasury == address(0)) revert ZeroAddress();
@@ -137,6 +140,26 @@ contract FeeRouter is IFeeRouter, Ownable2Step, ReentrancyGuard {
     }
 
     // --- admin (multisig) ------------------------------------------------------------------------
+
+    /**
+     * @notice Owner-only top-up of a reward bucket. Pulls `amount` $WORD from the owner (requires a
+     *         prior approve) and credits the Rewards Pool (bucket 0) or the Bounty bucket (bucket 2).
+     *         The Jackpot (bucket 1) is intentionally NOT seedable: an operator-funded chance pot is
+     *         the core lottery-compliance risk (params.ts: seed.jackpot = 0), so the jackpot only
+     *         ever self-funds from fee splits. Solvency invariant is preserved — held $WORD and the
+     *         accounted bucket both rise by exactly `amount`.
+     */
+    function seed(uint8 bucket, uint256 amount) external onlyOwner nonReentrant {
+        if (bucket == 1) revert JackpotNotSeedable();
+        if (bucket != 0 && bucket != 2) revert BadBucket();
+        word.safeTransferFrom(msg.sender, address(this), amount);
+        if (bucket == 0) {
+            poolBalance += amount;
+        } else {
+            bountyBalance += amount;
+        }
+        emit Seeded(bucket, amount);
+    }
 
     function setSplit(uint8 source, Split calldata s) external onlyOwner {
         if (source >= FeeSource.COUNT) revert BadSource();
