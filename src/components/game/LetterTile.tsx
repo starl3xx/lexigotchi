@@ -5,7 +5,7 @@
  * tiles for free; they additionally accept `state` / `gild` / `value` so screens that hold word
  * data can surface a word's care + prestige. `CaseBadge` / `PrestigeStars` are unchanged.
  */
-import { TileCharacter, TileWord, type Gild, type TilePose, type TileState } from "./TileCharacter";
+import { TileCharacter, TileWord, type Gild, type TileDetail, type TilePose, type TileState } from "./TileCharacter";
 import { Pill } from "./primitives";
 import { Star } from "./ui/icons";
 import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
@@ -68,14 +68,16 @@ export function WordTiles({
   size = 34,
   state = "idle",
   gild = 0,
+  detail = "auto",
 }: {
   word: string;
   upper: boolean[];
   size?: number;
   state?: TileState;
   gild?: Gild;
+  detail?: TileDetail;
 }) {
-  return <TileWord word={word} upper={upper} state={state} gild={gild} size={size} />;
+  return <TileWord word={word} upper={upper} state={state} gild={gild} size={size} detail={detail} />;
 }
 
 const CASE_STYLE: Record<CaseState, string> = {

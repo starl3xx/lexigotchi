@@ -535,7 +535,7 @@ export function TileCharacter({
     lod === "full"
       ? { x: 0, y: 0, w: VB.w, h: VB.h }
       : lod === "bust"
-        ? { x: 30, y: 62, w: 180, h: 200 }
+        ? { x: 24, y: 58, w: 192, h: 204 }
         : { x: 30, y: 86, w: 180, h: 180 };
 
   // face colors per case

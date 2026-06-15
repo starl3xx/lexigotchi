@@ -58,7 +58,7 @@ export function JackpotScreen() {
               You held <strong>{state.jackpotWord}</strong>, staked &amp; fed. The pot is yours.
             </p>
             <div className="my-3 flex justify-center">
-              <WordTiles word={state.jackpotWord} upper={Array(5).fill(true)} state="celebrate" size={54} />
+              <WordTiles word={state.jackpotWord} upper={Array(5).fill(true)} state="celebrate" size={54} detail="bust" />
             </div>
           </div>
         ) : (
