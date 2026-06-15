@@ -23,11 +23,16 @@ function sim(): SimResult {
   return cache;
 }
 
-/** First day the tightest letter is ≥99% minted out (the completion-cliff onset), or null. */
+/**
+ * Mint-out day — the SINGLE definition shared with the sim (simulate.ts): the first day EVERY
+ * letter is ≥99.9% of its cap (the mint sink is fully exhausted). Returns the 1-based day, or null.
+ * Kept identical to the sim so the scorecard, the sink-durability ratio, and the "What the sim
+ * found" notes can't disagree on what "mint-out" means.
+ */
 function mintOutDay(res: SimResult): number | null {
   for (const d of res.days) {
-    const max = Math.max(0, ...Object.values(d.capConsumption));
-    if (max >= 0.99) return d.day + 1;
+    const vals = Object.values(d.capConsumption);
+    if (vals.length > 0 && vals.every((c) => c >= 0.999)) return d.day + 1;
   }
   return null;
 }
@@ -227,7 +232,7 @@ export function economyPayload(): EconomyPayload {
       value: mod ? `~day ${mod}` : "not reached",
       status: mod && mod < 90 ? "warning" : "ok",
       detail: mod
-        ? "When the tightest letter hits 99% of cap — the completion-cliff onset. Durable sinks (rolls, snacks) carry the economy after."
+        ? "When every letter is ≥99.9% of its cap — the mint sink is exhausted. Durable sinks (rolls, snacks) carry the economy after."
         : "Letters never fully minted out in this run.",
     },
     {
