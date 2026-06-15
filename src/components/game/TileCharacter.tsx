@@ -702,8 +702,9 @@ export function TileCharacter({
             </g>
           )}
 
-          {/* rare-letter glint */}
-          {showFace && RAREST.has(char.toUpperCase()) && g === 0 && (
+          {/* rare-letter glint — a corner badge (not part of the face), so show it at every LOD
+              incl. dense grids/word rows, matching the legacy tile. Gilded tiles use twinkles. */}
+          {RAREST.has(char.toUpperCase()) && g === 0 && (
             <path d={star4(T.x + T.w - 6, T.y + 6, 6, 2.2)} fill={GOLD} stroke={INK} strokeWidth={0.8} className={reduced ? "" : "animate-tc-twinkle"} style={PLANT} />
           )}
 
