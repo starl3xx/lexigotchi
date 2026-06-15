@@ -46,6 +46,7 @@ served at `/.well-known/farcaster.json`.
 | Area | Path | What |
 |---|---|---|
 | **Playable app** | `src/app/play`, `src/components/game/` | The portrait mini-app UI on a faithful mock store, wired to real Farcaster identity, wallet, buy, and cast flows. |
+| **Operator console** | `src/app/admin`, `src/components/admin/` | The owner/operator dashboard at `/admin` — sim-backed metrics, economy health, a contract-launch walkthrough, reward-pool funding, parameter/keeper transaction builders, and ownership handoff. |
 | **Smart contracts** | `contracts/` | The full Solidity suite (Foundry) — letters, words, rolls, staking, jackpot, bounty, prestige — code-complete and unit-tested. |
 | **Economy core** | `src/lib/economy.ts`, `params.ts`, `dictionary.ts` | The 4,438-word set, demand-mirrored letter odds, rarity tiers, and every tunable parameter — derived in code, asserted against the spec. |
 | **Solvency sim** | `src/lib/sim/` | A deterministic agent-based simulation + the four-bucket ledger that proves solvency before mainnet. |
@@ -83,7 +84,7 @@ payouts are capped at balance) and **failed rolls that provably never harm an as
 npm run contracts:setup    # vendor forge-std + OpenZeppelin into contracts/lib
 npm run derive:contracts   # write contracts/config/economy.json (caps, weights, dictionary root)
 npm run contracts:build
-npm run contracts:test     # 21 tests
+npm run contracts:test     # 27 tests
 ```
 
 > **Phase 0 — code-complete and unit-tested, not yet audited or deployed.** See
@@ -109,6 +110,35 @@ npm run typecheck && npm run build
 What the sim shows: solvency is structural; the mint sink is finite (letters mint out ~day 69), so the
 durable economy runs on rolls + snacks; the Rewards Pool finds an equilibrium; and the renewable
 loops are what keep the late game alive. Full findings in [`docs/decisions.md`](./docs/decisions.md).
+
+---
+
+## Operator console (`/admin`)
+
+The owner/operator dashboard, modeled on the Griddle admin UI in Lexigotchi's own design language.
+Sectioned tabs:
+
+- **Analytics** — _Pulse_ (bucket levels, collection, demand, solvency), _Economy_ (health
+  scorecard, fee splits, price table, per-archetype ROI, sink durability), _Supply_ (per-letter caps
+  vs demand, rarity tiers). Metrics are served by the deterministic economy sim (Phase 0); the
+  shapes match the on-chain reads that will fill them once the suite is live.
+- **Operations** — _Launch_ (assembles the `forge script Deploy` command + walks the deploy order
+  and post-launch checklist), _Treasury & Pools_ (**add $WORD to the Rewards Pool / Bounty bucket**),
+  _Parameters_ (every owner setter, as a transaction builder), _Keeper_ (resolve the daily jackpot,
+  open yield/bounty epochs), _Access & Safety_ (Ownable2Step handoff to the multisig, wiring
+  checklist, emergency levers).
+- **Settings** — _Deployments_ (the contract address registry) and _Broadcast_ (operator
+  announcements).
+
+Because the contracts aren't deployed yet, every on-chain action is built into a **transaction plan**
+— a copy-pasteable `cast send` command **and** a Gnosis Safe Transaction Builder batch — rather than
+signed in the browser (the right model for a multisig owner). Funding the pools uses an owner-only
+`FeeRouter.seed(bucket, amount)` added for this purpose (Pool + Bounty only; the jackpot self-funds
+from fees, never operator-seeded — the lottery-compliance stance from `params.ts`).
+
+Access is allowlisted via `NEXT_PUBLIC_ADMIN_FIDS` (dev-open locally; **fail-closed in production**
+when unset — set it to your FID, or `NEXT_PUBLIC_ADMIN_OPEN=1` to open deliberately). The real
+security boundary for any action is the owner's wallet signature, not the route gate.
 
 ---
 

@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockSwapRouter} from "./mocks/MockSwapRouter.sol";
@@ -149,6 +150,42 @@ contract LexigotchiTest is Test {
         word.transfer(address(feeRouter), 1e18);
         vm.expectRevert(FeeRouter.NotCollector.selector);
         feeRouter.route(FeeSource.ROLL, 1e18);
+    }
+
+    function test_FeeRouter_seedPoolAndBounty() public {
+        // owner (this test contract) tops up the Pool and Bounty buckets directly.
+        word.mint(address(this), 10e18);
+        word.approve(address(feeRouter), type(uint256).max);
+
+        feeRouter.seed(0, 3e18); // Rewards Pool
+        assertEq(feeRouter.poolBalance(), 3e18, "pool seeded");
+        feeRouter.seed(2, 2e18); // Bounty
+        assertEq(feeRouter.bountyBalance(), 2e18, "bounty seeded");
+
+        // solvency invariant preserved: held >= sum of live buckets
+        assertGe(
+            word.balanceOf(address(feeRouter)),
+            feeRouter.poolBalance() + feeRouter.jackpotBalance() + feeRouter.bountyBalance(),
+            "solvency"
+        );
+
+        // seed() must NOT make seeded $WORD claimable as an unaccounted fee through route():
+        // it raised both balanceOf and accounted by `amount`, so the surplus check is untouched.
+        feeRouter.setCollector(address(this), true);
+        vm.expectRevert(FeeRouter.FeeNotDelivered.selector);
+        feeRouter.route(FeeSource.ROLL, 1e18);
+
+        // the jackpot is intentionally NOT seedable (lottery-compliance: it self-funds from fees)
+        vm.expectRevert(FeeRouter.JackpotNotSeedable.selector);
+        feeRouter.seed(1, 1e18);
+        // any other invalid bucket id reverts distinctly
+        vm.expectRevert(FeeRouter.BadBucket.selector);
+        feeRouter.seed(5, 1e18);
+
+        // owner-only — pin the exact access-control revert (not a stray transfer/allowance revert)
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        feeRouter.seed(0, 1e18);
     }
 
     // ---------------------------------------------------------------------------------------------
