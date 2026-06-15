@@ -17,7 +17,7 @@ import {
   type TxArgValue,
   type TxIntent,
 } from "@/lib/admin/tx";
-import { usdToWordWei } from "@/lib/admin/format";
+import { isAddress, usdToWordWei } from "@/lib/admin/format";
 import { Banner, ConfirmButton, CopyButton, Field, StatusBadge, TextField, Toggle } from "./ui";
 import { CaretDown, Lock, Warning } from "./icons";
 
@@ -63,7 +63,10 @@ const usdHelpable = (type: string, name: string) =>
 export function TxOutput({ intent, chainId = 8453 }: { intent: TxIntent; chainId?: number }) {
   const [showSafe, setShowSafe] = useState(false);
   const errs = validateIntent(intent);
-  const ready = errs.length === 0;
+  // Also require a valid target address — a missing/malformed address must not render copy-ready
+  // output (the targets would silently fall back to placeholders).
+  const addrOk = isAddress(intent.address ?? "");
+  const ready = errs.length === 0 && addrOk;
   const cast = ready ? castCommand(intent) : "";
   const safe = ready ? safeBatchJson([intent], { name: `${intent.contractName}.${intent.fn}` }, chainId) : "";
 
@@ -71,7 +74,7 @@ export function TxOutput({ intent, chainId = 8453 }: { intent: TxIntent; chainId
     <div className="mt-3 space-y-2">
       {!ready && (
         <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
-          {errs.join(" · ")}
+          {errs.length ? errs.join(" · ") : "Set this contract's address in the Deployments tab to build the transaction."}
         </Banner>
       )}
       {ready && (
@@ -114,9 +117,9 @@ export function TxOutput({ intent, chainId = 8453 }: { intent: TxIntent; chainId
           <Lock weight="bold" size={13} /> Execute in wallet
         </button>
         <span className="text-[11px] text-ink/45">
-          {intent.address
+          {addrOk
             ? "live once a wallet layer is wired"
-            : "set the address in Deployments to target a live contract"}
+            : "set a valid address in Deployments to target a live contract"}
         </span>
       </div>
     </div>
