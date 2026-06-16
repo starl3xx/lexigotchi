@@ -598,8 +598,8 @@ export function TileCharacter({
       {/* gold burst rays (upgrade) — behind everything */}
       {state === "upgrade" && <BurstRays reduced={reduced} />}
 
-      {/* ground shadow — static, anchors the figure. Wide + pulled up so the shoes sit IN it. */}
-      {showLimbs && <ellipse cx={CX} cy={FOOT_Y - 4} rx={86} ry={12} fill={INK} opacity={0.17} />}
+      {/* ground shadow — static, anchors the figure. Wide, and sitting just under the shoes. */}
+      {showLimbs && <ellipse cx={CX} cy={FOOT_Y + 2} rx={86} ry={12} fill={INK} opacity={0.17} />}
 
       {/* shoes — planted, never animate */}
       {showLimbs && (
