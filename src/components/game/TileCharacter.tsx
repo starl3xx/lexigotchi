@@ -415,7 +415,8 @@ function Confetti({ reduced }: { reduced: boolean }) {
   return (
     <g>
       {Array.from({ length: 16 }, (_, i) => {
-        const x = 24 + (i * 197) % (VB.w - 48);
+        // spread across the full width — 137 is coprime with the range, so no clustering
+        const x = 12 + ((i * 137) % (VB.w - 24));
         const c = CONFETTI[i % CONFETTI.length];
         const delay = (i % 8) * 0.18;
         const startY = TOP - 18;
@@ -597,8 +598,8 @@ export function TileCharacter({
       {/* gold burst rays (upgrade) — behind everything */}
       {state === "upgrade" && <BurstRays reduced={reduced} />}
 
-      {/* ground shadow — static, anchors the figure */}
-      {showLimbs && <ellipse cx={CX} cy={FOOT_Y + 16} rx={66} ry={9} fill={INK} opacity={0.16} />}
+      {/* ground shadow — static, anchors the figure. Wide + pulled up so the shoes sit IN it. */}
+      {showLimbs && <ellipse cx={CX} cy={FOOT_Y - 4} rx={86} ry={12} fill={INK} opacity={0.17} />}
 
       {/* shoes — planted, never animate */}
       {showLimbs && (
