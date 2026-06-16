@@ -25,7 +25,7 @@ export function MintScreen() {
 
       {/* daily single */}
       <Card className="bg-paper">
-        <SectionTitle action={<span className="text-xs text-ink/55">1 / day · FID</span>}>Daily single</SectionTitle>
+        <SectionTitle action={<span className="text-xs font-bold text-teal">Free · 1 / day</span>}>Daily single</SectionTitle>
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm text-ink/70">
             <span className="inline-flex items-center gap-1">
@@ -45,9 +45,9 @@ export function MintScreen() {
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">The cheap habit pull. {fmtWord(COST.daily)} $WORD</span>
-            <Button disabled={!g.canAfford(COST.daily)} onClick={() => g.dailyMint()}>
-              <Ticket weight="fill" /> Pull
+            <span className="text-sm text-ink/70">One free letter, on the house — every day.</span>
+            <Button onClick={() => g.dailyMint()}>
+              <Ticket weight="fill" /> Pull free
             </Button>
           </div>
         )}
