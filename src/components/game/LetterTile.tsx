@@ -1,12 +1,26 @@
 "use client";
-/** Scrabble-tile letter rendering — the atom of the whole game. Lowercase = kid, UPPERCASE = glow-up. */
-import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
+/**
+ * Legacy tile API — now backed by the vaudeville {@link TileCharacter} rig. `LetterTile` and
+ * `WordTiles` keep their original prop surface so every existing call site upgrades to the new
+ * tiles for free; they additionally accept `state` / `gild` / `value` so screens that hold word
+ * data can surface a word's care + prestige. `CaseBadge` / `PrestigeStars` are unchanged.
+ */
+import { TileCharacter, TileWord, type Gild, type TileDetail, type TilePose, type TileState } from "./TileCharacter";
 import { Pill } from "./primitives";
-import { Crown, Sparkle, Star } from "./ui/icons";
-import { wordCase, type CaseState, type OwnedWord } from "./state";
+import { Star } from "./ui/icons";
+import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
 
-// the 6 rarest letters get a star (Q J X Z K V …)
-const RAREST = new Set(LETTERS_BY_FREQUENCY.slice(-6));
+/** Map a word's hunger to the idle / peckish / hungry display state of its tiles. Hunger only
+ *  advances for staked words (and only staked words show a hunger badge), so an unstaked word
+ *  always reads as idle — never stale peckish/hungry. */
+export function careState(w: OwnedWord): TileState {
+  if (!w.staked) return "idle";
+  const h = hunger(w);
+  return h === "hungry" ? "hungry" : h === "peckish" ? "peckish" : "idle";
+}
+
+/** Clamp a raw prestige level (game data is a plain number) into the rig's 0–4 gild scale. */
+const asGild = (n: number): Gild => (n <= 0 ? 0 : n >= 4 ? 4 : (Math.round(n) as Gild));
 
 export function LetterTile({
   char,
@@ -17,6 +31,10 @@ export function LetterTile({
   size = 44,
   onClick,
   title,
+  state = "idle",
+  gild = 0,
+  value,
+  pose = "rest",
 }: {
   char: string;
   upper?: boolean;
@@ -26,50 +44,46 @@ export function LetterTile({
   size?: number;
   onClick?: () => void;
   title?: string;
+  state?: TileState;
+  gild?: number;
+  value?: number;
+  pose?: TilePose;
 }) {
-  const glyph = upper ? char.toUpperCase() : char.toLowerCase();
-  const isRare = RAREST.has(char.toUpperCase());
-  const Tag = onClick ? "button" : "div";
   return (
-    <Tag
+    <TileCharacter
+      char={char}
+      upper={upper}
+      state={state}
+      gild={asGild(gild)}
+      value={value}
+      pose={pose}
+      size={size}
+      count={count}
+      selected={selected}
+      dim={dim}
       onClick={onClick}
       title={title}
-      style={{ width: size, height: size }}
-      className={`relative inline-flex shrink-0 items-center justify-center rounded-lg border-[3px] border-ink font-display font-extrabold leading-none transition-all
-        ${upper ? "bg-gold text-ink shadow-[2px_2px_0_#b07d20]" : "bg-tile text-ink shadow-[2px_2px_0_#1b1714]"}
-        ${selected ? "-translate-y-1 ring-2 ring-candy ring-offset-1 ring-offset-paper" : ""}
-        ${dim ? "opacity-35" : ""}
-        ${onClick ? "active:translate-x-[2px] active:translate-y-[2px] active:shadow-none" : ""}`}
-    >
-      <span style={{ fontSize: size * 0.5 }}>{glyph}</span>
-      {isRare && (
-        <span className="absolute -right-1.5 -top-1.5 text-gold-deep" aria-hidden>
-          <Sparkle weight="fill" size={11} />
-        </span>
-      )}
-      {upper && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-gold-deep" aria-hidden>
-          <Crown weight="fill" size={13} />
-        </span>
-      )}
-      {count !== undefined && count > 1 && (
-        <span className="absolute -bottom-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-paper px-1 text-[11px] font-bold">
-          {count}
-        </span>
-      )}
-    </Tag>
+    />
   );
 }
 
-/** A claimed word rendered as a tight row of 5 case-derived tiles. */
-export function WordTiles({ word, upper, size = 34 }: { word: string; upper: boolean[]; size?: number }) {
-  return (
-    <div className="flex gap-1">
-      {[...word].map((ch, i) => (
-        <LetterTile key={i} char={ch} upper={upper[i]} size={size} />
-      ))}
-    </div>
-  );
+/** A claimed word as a tight row of case-derived tiles (the "link" pose at full size). */
+export function WordTiles({
+  word,
+  upper,
+  size = 34,
+  state = "idle",
+  gild = 0,
+  detail = "auto",
+}: {
+  word: string;
+  upper: boolean[];
+  size?: number;
+  state?: TileState;
+  gild?: number;
+  detail?: TileDetail;
+}) {
+  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} />;
 }
 
 const CASE_STYLE: Record<CaseState, string> = {

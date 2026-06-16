@@ -2,7 +2,7 @@
 /** Word detail — stake, feed, raise letters to UPPERCASE, ascend (prestige), or dissolve. */
 import { useState } from "react";
 import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
-import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
+import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
 import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import {
   COST,
@@ -45,15 +45,9 @@ export function WordSheet({ id }: { id: number }) {
         </span>
       }
     >
-      {/* hero */}
+      {/* hero — the word as a row of tiles wearing the word's current care state */}
       <div className={`mb-3 flex justify-center rounded-2xl border-[3px] border-ink py-5 ${fullyRaised ? "bg-gold/15" : "bg-paper-dark/40"}`}>
-        <div className={c === "lowercase" ? "animate-shuffle" : fullyRaised ? "animate-kick" : ""}>
-          <div className="flex gap-1.5">
-            {[...word.word].map((ch, i) => (
-              <LetterTile key={i} char={ch} upper={word.upper[i]} size={46} />
-            ))}
-          </div>
-        </div>
+        <WordTiles word={word.word} upper={word.upper} size={54} state={careState(word)} gild={word.prestigeLevel} detail="bust" />
       </div>
 
       {/* status */}

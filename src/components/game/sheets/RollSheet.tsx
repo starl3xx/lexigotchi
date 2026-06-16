@@ -1,7 +1,7 @@
 "use client";
 /** Roll & Shine — commit→reveal an upgrade. Fail is a no-op (the asset is never harmed). */
 import { useState } from "react";
-import { Rig } from "@/components/characters/Rig";
+import { TileCharacter } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
 import { COST, charToIdx, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
@@ -45,9 +45,9 @@ export function RollSheet({ target }: { target: RollTarget }) {
         {/* the character */}
         <div className="relative flex h-44 items-end justify-center">
           {phase === "win" ? (
-            <Rig letter={char} variant="upper" state="celebrate" earning size={150} />
+            <TileCharacter char={char} upper state="upgrade" size={150} />
           ) : (
-            <Rig letter={char} variant="lower" state={phase === "rolling" ? "peckish" : "idle"} size={140} />
+            <TileCharacter char={char} state={phase === "rolling" ? "rolling" : "idle"} size={140} />
           )}
           {phase === "rolling" && (
             <div className="absolute inset-0 overflow-hidden">
@@ -61,7 +61,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
               RAISED! <Crown weight="fill" />
             </div>
-            <p className="text-sm text-ink/60">A glow-up — top hat, monocle, 2× yield.</p>
+            <p className="text-sm text-ink/60">A glow-up — it&apos;s the blue game tile now, 2× yield.</p>
           </div>
         )}
         {phase === "miss" && (

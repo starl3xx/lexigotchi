@@ -5,10 +5,9 @@
  * GameApp); replayable from the FAQ. Matches the cel / rubber-hose aesthetic of the game.
  */
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Rig } from "@/components/characters/Rig";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { Button } from "./primitives";
-import { LetterTile } from "./LetterTile";
+import { TileCharacter, TileWord } from "./TileCharacter";
 import { Confetti, Cookie, Sparkle, Trophy } from "./ui/icons";
 
 /** Lets any screen (e.g. the FAQ) replay the intro. Provided by GameApp's OnboardingHost. */
@@ -29,9 +28,9 @@ const STEPS: Step[] = [
     body: "Mint one free letter every day — or grab a pack of five anytime. Every letter is a little character you own.",
     visual: (
       <div className="flex items-end gap-1">
-        <Rig letter="W" variant="lower" state="idle" size={78} />
-        <Rig letter="O" variant="lower" state="celebrate" size={86} />
-        <Rig letter="R" variant="lower" state="idle" size={78} />
+        <TileCharacter char="W" detail="full" state="idle" size={84} />
+        <TileCharacter char="O" detail="full" state="celebrate" size={92} />
+        <TileCharacter char="R" detail="full" state="idle" size={84} />
       </div>
     ),
   },
@@ -39,13 +38,7 @@ const STEPS: Step[] = [
     n: 2,
     title: "Create words",
     body: `Spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a one-of-one — only one player can ever hold it.`,
-    visual: (
-      <div className="flex gap-1.5">
-        {[..."CRANE"].map((c, i) => (
-          <LetterTile key={i} char={c} size={46} />
-        ))}
-      </div>
-    ),
+    visual: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
   },
   {
     n: 3,
@@ -53,7 +46,7 @@ const STEPS: Step[] = [
     body: "Stake your words and check in daily to feed them. A fed word earns $WORD and stays in the running; a hungry one sits it out.",
     visual: (
       <div className="relative">
-        <Rig letter="Q" variant="upper" state="idle" earning size={120} />
+        <TileCharacter char="Q" upper detail="full" state="idle" size={120} />
         <span className="absolute -right-2 top-2 flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy shadow-[2px_2px_0_#1b1714]">
           <Cookie weight="fill" size={26} />
         </span>
