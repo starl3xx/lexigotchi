@@ -6,10 +6,12 @@ import { marketSim, flowsFromDays, DEFAULT_MARKET, WORD_SUPPLY } from "@/lib/sim
 describe("USD-pegged pricing", () => {
   it("prices are a sane USD ladder", () => {
     const p = DEFAULT_PARAMS.prices;
-    for (const v of Object.values(p)) expect(v).toBeGreaterThan(0);
+    // the daily single is intentionally FREE (zero-friction onboarding); everything else costs $WORD
+    expect(p.dailyMint).toBe(0);
+    for (const [k, v] of Object.entries(p)) if (k !== "dailyMint") expect(v).toBeGreaterThan(0);
     expect(p.pack).toBeGreaterThan(p.claim); // a pack of 5 costs more than one claim
     expect(p.claim).toBeGreaterThan(p.roll);
-    expect(p.dailyMint).toBeLessThan(p.pack); // the daily habit is cheap
+    expect(p.dailyMint).toBeLessThan(p.pack); // the free daily is the cheapest pull
     expect(p.snack).toBeLessThan(0.1); // care is trivially cheap
   });
 

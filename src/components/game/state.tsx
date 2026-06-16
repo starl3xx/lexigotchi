@@ -271,13 +271,12 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, toasts: s.toasts.filter((t) => t.id !== a.id) };
 
     case "dailyMint": {
-      if (s.dailyMinted || s.balance < COST.daily) return s; // once a day, and only if affordable
+      if (s.dailyMinted) return s; // free, once a day — no $WORD, no affordability gate
       const lower = s.lower.slice();
       lower[a.idx]++;
       return {
         ...s,
         lower,
-        balance: spend(s, COST.daily),
         dailyMinted: true,
         streak: s.streak + 1,
       };
