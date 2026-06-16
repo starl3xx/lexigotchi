@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
+import { OgTile } from "../_og/tile";
 
 /** Square app icon / splash image for the mini-app manifest. */
 export const dynamic = "force-static";
@@ -19,27 +20,11 @@ export function GET() {
           alignItems: "center",
           justifyContent: "center",
           background: "#f4ead2",
+          fontFamily: "Soehne",
         }}
       >
-        <div
-          style={{
-            width: 720,
-            height: 720,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 460,
-            fontWeight: 800,
-            fontFamily: "Soehne",
-            color: "#f4ead2",
-            background: "#d8463f",
-            border: "32px solid #1b1714",
-            borderRadius: 96,
-            boxShadow: "40px 40px 0 #1b1714",
-          }}
-        >
-          L
-        </div>
+        {/* a single glow-up tile — face + eyes, no limbs (reads bold at icon scale) */}
+        <OgTile char="L" upper w={900} limbs={false} />
       </div>
     ),
     {
