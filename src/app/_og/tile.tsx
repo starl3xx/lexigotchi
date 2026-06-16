@@ -54,13 +54,9 @@ export function OgTile({
             <path d={SHOE} transform="translate(150 300) scale(0.78 0.78)" fill={INK} />
             <path d="M 96 242 Q 84 275 90 294" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
             <path d="M 144 242 Q 156 275 150 294" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
-            {/* arms + mitt gloves */}
+            {/* arms (behind the tile — gloves are drawn in front, after the face) */}
             <path d="M 49 175 Q 28 206 36 232" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
             <path d="M 191 175 Q 212 206 204 232" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
-            <circle cx="40" cy="236" r="6.5" fill={EYE_WHITE} stroke={INK} strokeWidth="2.6" />
-            <circle cx="36" cy="232" r="13" fill={EYE_WHITE} stroke={INK} strokeWidth="2.8" />
-            <circle cx="208" cy="236" r="6.5" fill={EYE_WHITE} stroke={INK} strokeWidth="2.6" />
-            <circle cx="204" cy="232" r="13" fill={EYE_WHITE} stroke={INK} strokeWidth="2.8" />
           </g>
         )}
 
@@ -80,6 +76,16 @@ export function OgTile({
           stroke={upper ? LHAW : INK}
           strokeWidth={upper ? 12 : 4}
         />
+
+        {/* mitt gloves — in front of the tile face (matches the rig) */}
+        {limbs && (
+          <g>
+            <circle cx="40" cy="236" r="6.5" fill={EYE_WHITE} stroke={INK} strokeWidth="2.6" />
+            <circle cx="36" cy="232" r="13" fill={EYE_WHITE} stroke={INK} strokeWidth="2.8" />
+            <circle cx="208" cy="236" r="6.5" fill={EYE_WHITE} stroke={INK} strokeWidth="2.6" />
+            <circle cx="204" cy="232" r="13" fill={EYE_WHITE} stroke={INK} strokeWidth="2.8" />
+          </g>
+        )}
 
         {/* pie-eyes on the top edge */}
         <circle cx="94" cy="104" r={eyeR} fill={EYE_WHITE} stroke={INK} strokeWidth="3.4" />
