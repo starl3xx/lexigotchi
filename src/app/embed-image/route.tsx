@@ -1,7 +1,13 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { ImageResponse } from "next/og";
 
 /** Branded 3:2 share card used by the mini-app embed (`fc:miniapp` imageUrl) and OG previews. */
 export const dynamic = "force-static";
+
+// Söhne TTFs — Satori (next/og) can't read the app's woff2, so we ship ttf copies (same set LHAW uses).
+const soehneBold = readFileSync(join(process.cwd(), "public/fonts/soehne-fett.ttf"));
+const soehneBook = readFileSync(join(process.cwd(), "public/fonts/soehne-buch.ttf"));
 
 export function GET() {
   return new ImageResponse(
@@ -16,7 +22,7 @@ export function GET() {
           justifyContent: "center",
           background: "#f4ead2",
           color: "#1b1714",
-          fontFamily: "Georgia, serif",
+          fontFamily: "Soehne",
         }}
       >
         <div style={{ display: "flex", gap: 18, marginBottom: 32 }}>
@@ -48,6 +54,13 @@ export function GET() {
         </div>
       </div>
     ),
-    { width: 1200, height: 800 },
+    {
+      width: 1200,
+      height: 800,
+      fonts: [
+        { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
+        { name: "Soehne", data: soehneBook, weight: 400, style: "normal" },
+      ],
+    },
   );
 }

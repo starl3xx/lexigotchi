@@ -11,7 +11,9 @@
 @font-face { font-family: "Soehne"; src: url("/fonts/soehne-extrafett.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
 
 :root {
-  --font-display: "Futura", "Century Gothic", Georgia, serif;
+  /* Söhne everywhere — display + body share one family (design direction). Headings just
+     lean on the heavier weights (700–900) via Tailwind's font-extrabold etc. */
+  --font-display: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 

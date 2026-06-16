@@ -1,7 +1,12 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { ImageResponse } from "next/og";
 
 /** Square app icon / splash image for the mini-app manifest. */
 export const dynamic = "force-static";
+
+// Söhne bold TTF — Satori can't read the app's woff2 (same ttf set LHAW ships).
+const soehneBold = readFileSync(join(process.cwd(), "public/fonts/soehne-fett.ttf"));
 
 export function GET() {
   return new ImageResponse(
@@ -25,7 +30,7 @@ export function GET() {
             justifyContent: "center",
             fontSize: 460,
             fontWeight: 800,
-            fontFamily: "Georgia, serif",
+            fontFamily: "Soehne",
             color: "#f4ead2",
             background: "#d8463f",
             border: "32px solid #1b1714",
@@ -37,6 +42,10 @@ export function GET() {
         </div>
       </div>
     ),
-    { width: 1024, height: 1024 },
+    {
+      width: 1024,
+      height: 1024,
+      fonts: [{ name: "Soehne", data: soehneBold, weight: 800, style: "normal" }],
+    },
   );
 }

@@ -27,10 +27,10 @@ const STEPS: Step[] = [
     title: "Collect letters",
     body: "Mint one free letter every day — or grab a pack of five anytime. Every letter is a little character you own.",
     visual: (
-      <div className="flex items-end gap-1">
-        <TileCharacter char="W" detail="full" state="idle" size={84} />
-        <TileCharacter char="O" detail="full" state="celebrate" size={92} />
-        <TileCharacter char="R" detail="full" state="idle" size={84} />
+      <div className="flex items-end justify-center gap-1">
+        {[..."WORD"].map((c, i) => (
+          <TileCharacter key={i} char={c} detail="full" state="idle" size={76} />
+        ))}
       </div>
     ),
   },
