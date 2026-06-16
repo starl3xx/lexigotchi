@@ -49,7 +49,7 @@ export function OgTile({
       <svg width={w} height={h} viewBox={`${vb.x} ${vb.y} ${vb.W} ${vb.H}`} style={{ position: "absolute", left: 0, top: 0 }}>
         {limbs && (
           <g>
-            <ellipse cx="120" cy="296" rx="86" ry="12" fill={INK} opacity="0.17" />
+            <ellipse cx="120" cy="302" rx="86" ry="12" fill={INK} opacity="0.17" />
             <path d={SHOE} transform="translate(90 300) scale(-0.78 0.78)" fill={INK} />
             <path d={SHOE} transform="translate(150 300) scale(0.78 0.78)" fill={INK} />
             <path d="M 96 242 Q 84 275 90 294" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
