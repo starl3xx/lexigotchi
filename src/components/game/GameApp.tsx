@@ -26,7 +26,9 @@ import { BalanceSheet } from "./sheets/BalanceSheet";
 import { FaqSheet } from "./sheets/FaqSheet";
 import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, Smiley, Sparkle, Trophy } from "./ui/icons";
 
-const ONBOARDED_KEY = "lexigotchi:onboarded";
+// Bump the version suffix whenever the onboarding flow materially changes, so players who already
+// dismissed an older version see the new one once (v2 added the "Roll to upgrade" step).
+const ONBOARDED_KEY = "lexigotchi:onboarded:v2";
 
 export function GameApp() {
   return (

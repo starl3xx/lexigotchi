@@ -1,14 +1,14 @@
 "use client";
 /**
  * First-run onboarding — a 4-step, swipe-free carousel that teaches the whole game in one screen:
- * Collect → Create → Feed → Win. Shown once (persisted in localStorage by the OnboardingHost in
+ * Collect → Create → Roll → Feed & Win. Shown once (persisted in localStorage by the OnboardingHost in
  * GameApp); replayable from the FAQ. Matches the cel / rubber-hose aesthetic of the game.
  */
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { Button } from "./primitives";
 import { TileCharacter, TileWord } from "./TileCharacter";
-import { Confetti, Cookie, Sparkle, Trophy } from "./ui/icons";
+import { Confetti, Cookie, DiceFive, Sparkle, Trophy } from "./ui/icons";
 
 /** Lets any screen (e.g. the FAQ) replay the intro. Provided by GameApp's OnboardingHost. */
 export const OnboardingContext = createContext<{ replay: () => void }>({ replay: () => {} });
@@ -25,7 +25,7 @@ const STEPS: Step[] = [
   {
     n: 1,
     title: "Collect letters",
-    body: "Mint one free letter every day — or grab a pack of five anytime. Every letter is a little character you own.",
+    body: "Mint one free lowercase letter every day, or grab a pack of five anytime. Every letter is a little character you own and raise.",
     visual: (
       <div className="flex items-end justify-center gap-1">
         {[..."WORD"].map((c, i) => (
@@ -37,30 +37,32 @@ const STEPS: Step[] = [
   {
     n: 2,
     title: "Create words",
-    body: `Spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a one-of-one — only one player can ever hold it.`,
+    body: `Use your letters to spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a 1-of-1... only one player can ever hold it.`,
     visual: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
   },
   {
     n: 3,
-    title: "Keep them fed",
-    body: "Stake your words and check in daily to feed them. A fed word earns $WORD and stays in the running; a hungry one sits it out.",
+    title: "Roll to upgrade",
+    body: "Letters arrive lowercase. Roll to raise one to UPPERCASE: odds start at 45% and climb with every near-miss, and failed rolls never harm your letter. Any staked word can win the jackpot, but only UPPERCASE words earn $WORD every day.",
     visual: (
-      <div className="relative">
-        <TileCharacter char="Q" upper detail="full" state="idle" size={120} />
-        <span className="absolute -right-2 top-2 flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy shadow-[2px_2px_0_#1b1714]">
-          <Cookie weight="fill" size={26} />
-        </span>
+      <div className="flex items-center justify-center gap-3">
+        <TileCharacter char="R" detail="full" state="idle" size={68} />
+        <DiceFive weight="fill" size={34} className="shrink-0 text-candy" />
+        <TileCharacter char="R" upper detail="full" state="upgrade" size={94} />
       </div>
     ),
   },
   {
     n: 4,
-    title: "Win",
-    body: "One word wins the jackpot every single day. And every week, a themed bounty pays out to everyone holding a matching word.",
+    title: "Keep them fed and win",
+    body: "Stake your words and feed them daily! A fed word stays in the running; a hungry one sits it out. One word wins the jackpot every day, and a weekly themed bounty pays everyone holding a match.",
     visual: (
       <div className="relative flex items-center justify-center">
         <Confetti weight="fill" size={150} className="absolute text-candy/30" />
         <Trophy weight="fill" size={104} className="relative text-gold-deep" />
+        <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy shadow-[2px_2px_0_#1b1714]">
+          <Cookie weight="fill" size={22} />
+        </span>
         <Sparkle weight="fill" size={24} className="absolute -right-1 -top-1 text-gold" />
       </div>
     ),
