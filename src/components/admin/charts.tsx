@@ -1,7 +1,7 @@
 "use client";
 /**
- * Cel-styled recharts wrappers for the admin dashboard, matching the marketing /economy charts'
- * look (ink axes, faint grid, bordered tooltip) so visualizations feel native to Lexigotchi.
+ * Cel-styled recharts wrappers for the admin dashboard (ink axes, faint grid, bordered tooltip)
+ * so the visualizations feel native to Lexigotchi.
  */
 import {
   Bar,

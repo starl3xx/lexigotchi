@@ -14,8 +14,7 @@ lowercase to **UPPERCASE**, spell words from a 4,438-word dictionary to claim th
 ## Play it
 
 The game is a portrait Farcaster Mini App. The repo serves it at **`/play`** (the bare domain
-redirects there); the marketing/reference pages live under `/about`, `/characters`, `/lexidex`, and
-`/economy`.
+redirects there).
 
 ```bash
 npm install
@@ -50,7 +49,7 @@ served at `/.well-known/farcaster.json`.
 | **Smart contracts** | `contracts/` | The full Solidity suite (Foundry) — letters, words, rolls, staking, jackpot, bounty, prestige — code-complete and unit-tested. |
 | **Economy core** | `src/lib/economy.ts`, `params.ts`, `dictionary.ts` | The 4,438-word set, demand-mirrored letter odds, rarity tiers, and every tunable parameter — derived in code, asserted against the spec. |
 | **Solvency sim** | `src/lib/sim/` | A deterministic agent-based simulation + the four-bucket ledger that proves solvency before mainnet. |
-| **Characters** | `src/components/characters/Rig.tsx` | The shared 1930s rubber-hose rig driving all 52 letter characters. |
+| **Characters** | `src/components/game/TileCharacter.tsx` | The vaudeville tile rig driving all 52 letter characters — both cases, every state and gild stage. |
 | **Specs & decisions** | `docs/` | Product specs (v0.1 + v0.2), the decisions log, the pricing/Phase-0 reviews, and the EGGS commit/reveal reference. |
 
 ---

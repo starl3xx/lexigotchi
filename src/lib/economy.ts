@@ -201,7 +201,7 @@ export function stakeWeight(tier: Tier, caseState: CaseState): number {
 }
 
 // ---------------------------------------------------------------------------
-// Notable subsets (flavor for the Lexidex + marketing)
+// Notable subsets (flavor for the Lexidex)
 // ---------------------------------------------------------------------------
 
 export const Q_WORDS: readonly string[] = Object.freeze(WORDS.filter((w) => w.includes("Q")));

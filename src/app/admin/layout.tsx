@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 /**
  * Admin area. Wraps the operator console in the Farcaster providers (so the viewer identity gate
- * works) — kept off the marketing pages, which never load the SDK. Auth is enforced client-side by
+ * works) — scoped to this route, not loaded app-wide. Auth is enforced client-side by
  * <AdminGate>.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
