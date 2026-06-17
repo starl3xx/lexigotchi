@@ -5,12 +5,11 @@
  * share a cast before launch are promised a free 5-letter pack on day one. A two-step checklist
  * in Lexigotchi's cel / vaudeville aesthetic.
  *
- * Modelled on LHAW's `/splash` "OG Hunter" campaign, ported to Lexigotchi's design language and
- * its no-backend Phase 0. Key difference: there is no server to persist or verify the add/cast,
- * so step completion here is OPTIMISTIC (the SDK's own `added` flag + a localStorage marker for
- * the share). Real launch-day eligibility is reconciled operator-side from Neynar (who added the
- * app + a cast search for the `/play` embed) — NOT from these client flags. The screen makes a
- * promise; the airdrop is fulfilled from Neynar's record at launch.
+ * Modelled on LHAW's `/splash` "OG Hunter" campaign, in Lexigotchi's design language. Step state is
+ * now SERVER-BACKED: on mount we hydrate from `/api/campaign/status`, the add is persisted via
+ * `record-add` (through `useAddMiniApp`), and the share is Neynar-verified via `verify-cast` (the
+ * recorded proof = launch-day eligibility). The localStorage flags remain only as an optimistic
+ * echo for instant UI; the database is the source of truth for the airdrop.
  *
  * It renders OUTSIDE GameProvider (the gate short-circuits before the store mounts), so it must
  * NOT use `useGame` / `useShare` / the game Toaster. It talks to the Farcaster SDK directly and
@@ -21,6 +20,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SITE_URL } from "@/lib/site";
 import { useViewer } from "../useViewer";
 import { useAddMiniApp } from "../useAddMiniApp";
+import { confirmShareCast, fetchCampaignStatus } from "../campaignClient";
 import { TileCharacter, TileWord } from "../TileCharacter";
 import { Button } from "../primitives";
 import { Check, CircleNotch, Gift, Plus, ShareNetwork, Sparkle } from "../ui/icons";
@@ -66,6 +66,20 @@ export function PreLaunchScreen() {
     setSharedLocal(readFlag("shared", fid));
   }, [fid]);
 
+  // Server is the source of truth: promote to confirmed once the DB says added/shared (never demote).
+  useEffect(() => {
+    if (!inFarcaster) return;
+    let alive = true;
+    fetchCampaignStatus().then((s) => {
+      if (!alive || !s) return;
+      if (s.added) setAddedLocal(true);
+      if (s.shared) setSharedLocal(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [inFarcaster]);
+
   const added = addedRemote || addedLocal;
   const shared = sharedLocal;
   const done = added && shared;
@@ -102,6 +116,7 @@ export function PreLaunchScreen() {
       }
       setSharedLocal(true);
       writeFlag("shared", fid);
+      if (inFarcaster) void confirmShareCast(); // server-verify the cast (Neynar) → records the proof
     } catch {
       setNote("Couldn't open the composer — give it another go.");
     }

@@ -1,0 +1,66 @@
+/**
+ * Typed query helpers for the campaign / add-tracking tables. All keyed by an FID that the caller
+ * has ALREADY authenticated (see `getAuthedFid`). Writes are idempotent + write-once where it
+ * matters (the add timestamp and onboarding are never overwritten once set).
+ */
+import { eq, sql } from "drizzle-orm";
+import { getDb } from "./client";
+import { users, campaignCastProofs } from "./schema";
+
+/** Record that `fid` added the mini app (write-once), refreshing the notification token if supplied. */
+export async function markAdded(fid: number, notif?: { token?: string; url?: string }): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+  await db
+    .insert(users)
+    .values({ fid, addedMiniAppAt: now, notifToken: notif?.token, notifUrl: notif?.url })
+    .onConflictDoUpdate({
+      target: users.fid,
+      set: {
+        // keep the first add time; prefer a freshly-supplied notif token, else keep the existing one
+        addedMiniAppAt: sql`coalesce(${users.addedMiniAppAt}, excluded.added_mini_app_at)`,
+        notifToken: sql`coalesce(excluded.notif_token, ${users.notifToken})`,
+        notifUrl: sql`coalesce(excluded.notif_url, ${users.notifUrl})`,
+        updatedAt: now,
+      },
+    });
+}
+
+/** Record that `fid` finished onboarding (write-once). */
+export async function markOnboarded(fid: number): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+  await db
+    .insert(users)
+    .values({ fid, onboardedAt: now })
+    .onConflictDoUpdate({
+      target: users.fid,
+      set: { onboardedAt: sql`coalesce(${users.onboardedAt}, excluded.onboarded_at)`, updatedAt: now },
+    });
+}
+
+/** Store a server-verified share-cast proof for `fid` (one per FID). Ensures a users row exists. */
+export async function recordCastProof(fid: number, castHash: string, castUrl: string): Promise<void> {
+  const db = getDb();
+  await db.insert(campaignCastProofs).values({ fid, castHash, castUrl }).onConflictDoNothing();
+  await db.insert(users).values({ fid }).onConflictDoNothing();
+}
+
+export interface CampaignStatus {
+  added: boolean;
+  shared: boolean;
+  onboarded: boolean;
+  eligible: boolean;
+}
+
+/** The campaign state for `fid`: added + (verified) shared + onboarded, and eligibility (added && shared). */
+export async function getCampaignStatus(fid: number): Promise<CampaignStatus> {
+  const db = getDb();
+  const [u, proof] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.fid, fid), columns: { addedMiniAppAt: true, onboardedAt: true } }),
+    db.query.campaignCastProofs.findFirst({ where: eq(campaignCastProofs.fid, fid), columns: { fid: true } }),
+  ]);
+  const added = !!u?.addedMiniAppAt;
+  const shared = !!proof;
+  return { added, shared, onboarded: !!u?.onboardedAt, eligible: added && shared };
+}
