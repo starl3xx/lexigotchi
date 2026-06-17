@@ -27,11 +27,16 @@ export const ADMIN_FIDS: ReadonlySet<string> = new Set(parseList(process.env.NEX
 const IS_PROD = process.env.NODE_ENV === "production";
 const EXPLICIT_OPEN = process.env.NEXT_PUBLIC_ADMIN_OPEN === "1";
 
-/** True when the console runs without a sign-in gate: no allowlist AND (dev, or explicitly opened). */
-export const ADMIN_OPEN = ADMIN_FIDS.size === 0 && (!IS_PROD || EXPLICIT_OPEN);
+/**
+ * True when the console runs without a sign-in gate. `NEXT_PUBLIC_ADMIN_OPEN=1` is a deliberate
+ * MASTER OVERRIDE — it opens the console even in production and even if an allowlist is set (the
+ * escape hatch when SIWN / Neynar is unavailable). Otherwise the console is open only in dev when
+ * no allowlist is configured; a production build with no allowlist is fail-closed (see below).
+ */
+export const ADMIN_OPEN = EXPLICIT_OPEN || (ADMIN_FIDS.size === 0 && !IS_PROD);
 
 /** True when a production build has no allowlist and wasn't explicitly opened → locked, needs config. */
-export const ADMIN_UNCONFIGURED = IS_PROD && ADMIN_FIDS.size === 0 && !EXPLICIT_OPEN;
+export const ADMIN_UNCONFIGURED = IS_PROD && !EXPLICIT_OPEN && ADMIN_FIDS.size === 0;
 
 if (ADMIN_UNCONFIGURED && typeof window === "undefined") {
   // Build/server-side heads-up; the gate shows an actionable "not configured" screen to visitors.

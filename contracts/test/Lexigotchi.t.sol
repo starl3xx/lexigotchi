@@ -249,6 +249,105 @@ contract LexigotchiTest is Test {
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Letters — ETH auto-swap mint paths (v0.2 §4): swap ETH→$WORD, route the price, refund excess
+    // ---------------------------------------------------------------------------------------------
+
+    function test_PackMintETH_swapsRefundsAndRoutes() public {
+        // rate is 1e12 $WORD/wei; 1.5e8 wei → 150e18 out, packPrice 100e18, so 50e18 refunds.
+        uint256 value = 15e7; // 1.5e8 wei
+        uint256 out = value * swap.rate();
+        assertEq(out, 150e18, "mock swap output");
+
+        uint256 before = word.balanceOf(alice); // alice pays ETH, not $WORD
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        uint256 id = letters.commitPackETH{value: value}(PACK); // minWordOut = packPrice
+
+        // the swap mints $WORD to the collector; only the surplus over packPrice is refunded
+        assertEq(word.balanceOf(alice) - before, out - PACK, "excess $WORD refunded to buyer");
+        // packPrice routed through the PACK_MINT split (40/10/20/30 = pool/jackpot/burn/treasury)
+        assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool");
+        assertEq(feeRouter.jackpotBalance(), (PACK * 1000) / 10000, "jackpot");
+        assertEq(word.balanceOf(treasury), (PACK * 3000) / 10000, "treasury");
+        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()), (PACK * 2000) / 10000, "burn");
+        // nothing stranded in the collector, and a real pack commit was created
+        assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
+        assertEq(letters.commitCount(), id + 1, "commit recorded");
+    }
+
+    function test_PackMintETH_exactOutputNoRefund() public {
+        // out == packPrice → the `if (refund > 0)` branch is skipped, buyer gets nothing back
+        uint256 value = 1e8; // → 100e18 out == packPrice
+        uint256 before = word.balanceOf(alice);
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        letters.commitPackETH{value: value}(PACK);
+        assertEq(word.balanceOf(alice), before, "no refund on an exact swap");
+        assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool funded");
+        assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
+    }
+
+    function test_PackMintETH_insufficientOutputReverts() public {
+        // out (50e18) < packPrice (100e18) → Letters reverts after the looser router slippage check
+        uint256 value = 5e7; // → 50e18 out
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(Letters.InsufficientSwapOutput.selector);
+        letters.commitPackETH{value: value}(0); // minWordOut = 0 so the mock doesn't revert first
+    }
+
+    function test_PackMintETH_forwardsMinWordOut() public {
+        // minWordOut is passed straight to the router; an unmeetable bound reverts inside the swap
+        uint256 value = 1e8; // → 100e18 out
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(bytes("slippage"));
+        letters.commitPackETH{value: value}(200e18); // demand more than the swap yields
+    }
+
+    function test_DailyMintETH_swapsRefundsRoutesAndGatesFid() public {
+        uint256 fid = 6500;
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory sig = _signDaily(alice, fid, deadline);
+
+        uint256 value = 8e6; // → 8e18 out, dailyPrice 5e18, so 3e18 refunds
+        uint256 before = word.balanceOf(alice);
+        vm.deal(alice, 1 ether);
+
+        vm.expectEmit(true, true, false, true, address(letters));
+        emit Letters.DailyMinted(fid, alice, uint32(block.timestamp / 1 days));
+        vm.prank(alice);
+        letters.commitDailyETH{value: value}(fid, deadline, sig, DAILY);
+
+        assertEq(letters.dailyUsed(fid), uint32(block.timestamp / 1 days) + 1, "FID marked used today");
+        assertEq(word.balanceOf(alice) - before, (value * swap.rate()) - DAILY, "excess $WORD refunded");
+        assertEq(feeRouter.poolBalance(), (DAILY * 4000) / 10000, "pool funded via daily split");
+        assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
+
+        // a second ETH daily for the same FID on the same day is still gated
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(Letters.DailyAlreadyUsed.selector);
+        letters.commitDailyETH{value: value}(fid, deadline, sig, DAILY);
+    }
+
+    function test_DailyMintETH_insufficientOutputReverts() public {
+        uint256 fid = 42;
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory sig = _signDaily(alice, fid, deadline);
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(Letters.InsufficientSwapOutput.selector);
+        letters.commitDailyETH{value: 2e6}(fid, deadline, sig, 0); // → 2e18 out < dailyPrice
+    }
+
+    function test_SetSwapRouter_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        letters.setSwapRouter(swap);
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Words — claim (one-per-word, case derived), dissolve (recover + free name)
     // ---------------------------------------------------------------------------------------------
 
