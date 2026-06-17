@@ -61,7 +61,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
               RAISED! <Crown weight="fill" />
             </div>
-            <p className="text-sm text-ink/60">A glow-up — it&apos;s the blue game tile now, 2× yield.</p>
+            <p className="text-sm text-ink/60">Now UPPERCASE — the blue game tile. Spell it into an all-UPPERCASE word to earn $WORD.</p>
           </div>
         )}
         {phase === "miss" && (
