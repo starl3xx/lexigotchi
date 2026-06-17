@@ -37,13 +37,13 @@ const STEPS: Step[] = [
   {
     n: 2,
     title: "Create words",
-    body: `Spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a one-of-one — only one player can ever hold it.`,
+    body: `Use your letters to spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a 1-of-1... only one player can ever hold it.`,
     visual: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
   },
   {
     n: 3,
     title: "Roll to upgrade",
-    body: "Letters arrive lowercase. Roll to raise one to UPPERCASE — odds start at 45% and climb with every near-miss, and a failed roll never harms your letter. Any staked word can win the jackpot, but only UPPERCASE words earn the daily yield on top.",
+    body: "Letters arrive lowercase. Roll to raise one to UPPERCASE: odds start at 45% and climb with every near-miss, and failed rolls never harm your letter. Any staked word can win the jackpot, but only UPPERCASE words earn $WORD every day.",
     visual: (
       <div className="flex items-center justify-center gap-3">
         <TileCharacter char="R" detail="full" state="idle" size={68} />
@@ -55,7 +55,7 @@ const STEPS: Step[] = [
   {
     n: 4,
     title: "Keep them fed and win",
-    body: "Stake your words and feed them daily — a fed word stays in the running; a hungry one sits it out. One word wins the jackpot every day, and a weekly themed bounty pays everyone holding a match.",
+    body: "Stake your words and feed them daily! A fed word stays in the running; a hungry one sits it out. One word wins the jackpot every day, and a weekly themed bounty pays everyone holding a match.",
     visual: (
       <div className="relative flex items-center justify-center">
         <Confetti weight="fill" size={150} className="absolute text-candy/30" />
