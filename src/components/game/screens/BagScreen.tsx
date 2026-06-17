@@ -32,7 +32,7 @@ export function BagScreen() {
         <div className="space-y-4">
           <div>
             <SectionTitle action={<span className="text-xs text-ink/55">tap to raise →</span>}>
-              the kids · {lowerCount}
+              lowercase · {lowerCount}
             </SectionTitle>
             {lowerOwned.length === 0 ? (
               <EmptyState Icon={Basket} title="No loose letters" sub="Mint a pack to fill your bag." />
@@ -53,7 +53,7 @@ export function BagScreen() {
 
           {upperCount > 0 && (
             <div>
-              <SectionTitle>the glow-ups · {upperCount}</SectionTitle>
+              <SectionTitle>UPPERCASE · {upperCount}</SectionTitle>
               <div className="grid grid-cols-6 gap-2.5">
                 {upperOwned.map(({ i, c }) => (
                   <LetterTile key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />

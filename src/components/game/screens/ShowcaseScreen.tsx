@@ -75,7 +75,7 @@ export function ShowcaseScreen() {
 
       {/* trays */}
       <div>
-        <SectionTitle>the kids</SectionTitle>
+        <SectionTitle>lowercase</SectionTitle>
         {tray(false).length === 0 ? (
           <EmptyState Icon={Basket} title="No lowercase letters" />
         ) : (
@@ -92,7 +92,7 @@ export function ShowcaseScreen() {
 
       {tray(true).length > 0 && (
         <div>
-          <SectionTitle>the glow-ups</SectionTitle>
+          <SectionTitle>UPPERCASE</SectionTitle>
           <div className="grid grid-cols-6 gap-2.5">
             {tray(true).map(({ i, c }) => {
               const avail = c - used(i, true);
