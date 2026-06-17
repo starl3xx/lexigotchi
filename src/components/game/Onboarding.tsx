@@ -37,7 +37,7 @@ const STEPS: Step[] = [
   {
     n: 2,
     title: "Create words",
-    body: `Use your letters to spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a 1-of-1... only one player can ever hold it.`,
+    body: `Use your letters to spell a 5-letter word from the ${WORD_COUNT.toLocaleString()}-word dictionary. Each word is a 1-of-1 and can only be held by one player at a time.`,
     visual: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
   },
   {
