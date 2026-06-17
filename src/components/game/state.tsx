@@ -94,6 +94,7 @@ export type Sheet =
   | { kind: "roll"; target: RollTarget }
   | { kind: "balance" }
   | { kind: "faq" }
+  | { kind: "addapp" }
   | null;
 
 export interface Toast {
@@ -111,6 +112,8 @@ export interface GameState {
   streak: number;
   day: number;
   dailyMinted: boolean;
+  /** Daily/pack mints made this session — drives the one-time "add the mini app" nudge. */
+  mintCount: number;
   freeSnackUsed: boolean;
   jackpotWord: string;
   jackpotPot: number;
@@ -215,6 +218,7 @@ function seedState(): GameState {
     streak: 6,
     day: 0,
     dailyMinted: false,
+    mintCount: 0,
     freeSnackUsed: false,
     jackpotWord: "TEASE", // the player holds it, staked & fed → a winnable reveal
     jackpotPot: 18_500_000,
@@ -279,13 +283,14 @@ function reducer(s: GameState, a: Action): GameState {
         lower,
         dailyMinted: true,
         streak: s.streak + 1,
+        mintCount: s.mintCount + 1,
       };
     }
     case "pack": {
       if (s.balance < COST.pack) return s;
       const lower = s.lower.slice();
       for (const i of a.idxs) lower[i]++;
-      return { ...s, lower, balance: spend(s, COST.pack) };
+      return { ...s, lower, balance: spend(s, COST.pack), mintCount: s.mintCount + 1 };
     }
     case "rollLoose": {
       if (s.balance < COST.roll) return s;

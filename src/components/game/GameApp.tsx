@@ -26,6 +26,8 @@ import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
 import { FaqSheet } from "./sheets/FaqSheet";
+import { AddAppSheet } from "./sheets/AddAppSheet";
+import { AddAppHost } from "./AddAppHost";
 import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, Smiley, Sparkle, Trophy } from "./ui/icons";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
@@ -103,6 +105,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
           <BottomNav />
           <Toaster />
           <SheetHost />
+          <AddAppHost />
           {/* Always-mounted, visually-hidden Sign In With Neynar trigger for web players;
               useViewer().signIn() clicks it. Visible CTAs live in the screens/sheets. */}
           <div data-lexi-siwn className="sr-only">
@@ -137,6 +140,7 @@ function SheetHost() {
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
   if (state.sheet?.kind === "faq") return <FaqSheet />;
+  if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   return null;
 }
 

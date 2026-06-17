@@ -18,9 +18,9 @@
  * loads it) sits above GameApp in `play/page.tsx`.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useMiniApp } from "@neynar/react";
 import { SITE_URL } from "@/lib/site";
 import { useViewer } from "../useViewer";
+import { useAddMiniApp } from "../useAddMiniApp";
 import { TileCharacter, TileWord } from "../TileCharacter";
 import { Button } from "../primitives";
 import { Check, CircleNotch, Gift, Plus, ShareNetwork, Sparkle } from "../ui/icons";
@@ -51,15 +51,13 @@ function writeFlag(step: Step, fid: number | null) {
 }
 
 export function PreLaunchScreen() {
-  const mini = useMiniApp();
   const viewer = useViewer();
+  const { add, adding, added: addedRemote, inFarcaster, ready } = useAddMiniApp();
   const fid = viewer.fid;
-  const inFarcaster = viewer.environment === "farcaster";
-  const loading = viewer.environment === "loading";
+  const loading = !ready;
 
   const [addedLocal, setAddedLocal] = useState(false);
   const [sharedLocal, setSharedLocal] = useState(false);
-  const [adding, setAdding] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   // Hydrate optimistic flags client-side only (matches OnboardingHost — no SSR/first-paint mismatch).
@@ -68,28 +66,20 @@ export function PreLaunchScreen() {
     setSharedLocal(readFlag("shared", fid));
   }, [fid]);
 
-  const added = !!mini.added || addedLocal;
+  const added = addedRemote || addedLocal;
   const shared = sharedLocal;
   const done = added && shared;
 
   const handleAdd = useCallback(async () => {
     setNote(null);
-    setAdding(true);
-    try {
-      const sdk = (await import("@farcaster/miniapp-sdk")).default;
-      await sdk.actions.addMiniApp(); // no args; resolves { notificationDetails? }, throws on reject
+    const { ok, error } = await add();
+    if (ok) {
       setAddedLocal(true);
       writeFlag("added", fid);
-    } catch (err) {
-      const name = (err as { name?: string })?.name;
-      if (name === "AddMiniApp.RejectedByUser") setNote("No problem — tap Add whenever you're ready.");
-      else if (name === "AddMiniApp.InvalidDomainManifest")
-        setNote("Can't add just yet — the app isn't fully published. Try again shortly.");
-      else setNote("Couldn't add right now — give it another tap.");
-    } finally {
-      setAdding(false);
+    } else if (error) {
+      setNote(error);
     }
-  }, [fid]);
+  }, [add, fid]);
 
   const handleShare = useCallback(async () => {
     setNote(null);
