@@ -18,7 +18,7 @@ staked, fed word is the day's secret answer.
 
 ## How do I mint letters?
 
-Two ways: a discounted **daily single** (1 per Farcaster FID per day — the habit loop) and full-price
+Two ways: a free **daily single** (1 per Farcaster FID per day — the habit loop) and full-price
 **packs of 5**, anytime. Every mint is **100% lowercase**; a letter's pull rate equals its share of
 the 22,190 dictionary slots, so common letters come up often and Q/Z/X/J are the chase. You can pay
 in $WORD or ETH (auto-swapped to $WORD at mint).
@@ -28,7 +28,7 @@ in $WORD or ETH (auto-swapped to $WORD at mint).
 You **raise** them with rolls — capitals are never pulled directly. A roll succeeds at **45% base**,
 climbing **+10pp per consecutive miss** on that letter (a pity streak), capped at **85%** and reset on
 success (expected ~1.9 rolls per success). A failed roll **never burns or downgrades** your letter —
-it only bumps the pity. UPPERCASE words earn 2× yield.
+it only bumps the pity. Only UPPERCASE words earn daily yield.
 
 ## How does claiming a word work?
 
@@ -113,7 +113,7 @@ from the data.
 ## Do I need a Farcaster account?
 
 You can play in any Farcaster client (you're auto-connected) or on the open web by **signing in with
-Neynar** or connecting a Base wallet. The discounted **daily single is FID-gated**, so the daily needs
+Neynar** or connecting a Base wallet. The free **daily single is FID-gated**, so the daily needs
 a Farcaster account — packs and everything else work without one.
 
 ## How many words and letters are there?

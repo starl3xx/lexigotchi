@@ -12,7 +12,7 @@ OpenZeppelin is resolved from the repo's `node_modules`; `forge-std` is cloned. 
 npm install                 # at the repo root (installs @openzeppelin/contracts)
 npm run contracts:setup     # clones forge-std + vendors OZ into contracts/lib (gitignored)
 npm run contracts:build     # forge build
-npm run contracts:test      # forge test  (27 tests)
+npm run contracts:test      # forge test  (34 tests)
 npm run derive:contracts    # regenerate config/economy.json from the canonical dictionary
 ```
 

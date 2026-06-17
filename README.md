@@ -57,7 +57,7 @@ served at `/.well-known/farcaster.json`.
 
 ## The loop
 
-1. **Mint** lowercase letters — a discounted daily single (1 per Farcaster FID) or packs of 5. Odds
+1. **Mint** lowercase letters — a free daily single (1 per Farcaster FID) or packs of 5. Odds
    mirror the dictionary; capitals are never pulled.
 2. **Raise** a letter to UPPERCASE with a roll — 45% base, climbing to 85% on a pity streak. A failed
    roll never harms your letter.
@@ -84,7 +84,7 @@ payouts are capped at balance) and **failed rolls that provably never harm an as
 npm run contracts:setup    # vendor forge-std + OpenZeppelin into contracts/lib
 npm run derive:contracts   # write contracts/config/economy.json (caps, weights, dictionary root)
 npm run contracts:build
-npm run contracts:test     # 27 tests
+npm run contracts:test     # 34 tests
 ```
 
 > **Phase 0 — code-complete and unit-tested, not yet audited or deployed.** See
