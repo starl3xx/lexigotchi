@@ -1,6 +1,6 @@
 /**
  * Canonical site URL + Farcaster Mini App embed/manifest config, in one place so the `/play`
- * page meta, the marketing OG, and `/.well-known/farcaster.json` stay in sync.
+ * page meta and `/.well-known/farcaster.json` stay in sync.
  *
  * Set `NEXT_PUBLIC_URL` to the deployed origin (no trailing slash). The `accountAssociation`
  * proof is domain-specific and must be generated with the Farcaster Manifest Tool for the final

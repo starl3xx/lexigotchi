@@ -85,7 +85,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
       <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
         <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000]">
-          {/* faint aged-paper grain to match the marketing site */}
+          {/* faint aged-paper grain */}
           <div
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{ backgroundImage: "radial-gradient(#e7d7b0 0.5px, transparent 0.5px)", backgroundSize: "14px 14px" }}

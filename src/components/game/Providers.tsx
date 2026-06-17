@@ -4,7 +4,7 @@
  * Mini App SDK — it calls `sdk.actions.ready()`, exposes the user/context, haptics, and "added"
  * state via `useMiniApp()`. `NeynarContextProvider` powers Sign In With Neynar for players who
  * open Lexigotchi on the web (outside a Farcaster client). Everything Farcaster-specific lives
- * under here so the rest of the marketing site never loads the SDK.
+ * under here so the rest of the app never loads the SDK.
  */
 import "@neynar/react/dist/style.css";
 import { MiniAppProvider, NeynarContextProvider, Theme } from "@neynar/react";
