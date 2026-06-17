@@ -18,7 +18,7 @@ the on-chain architecture. Written to be fed to an LLM (or a new contributor) as
 
 | Step | Action | Outcome |
 |---|---|---|
-| **Mint** | Pull lowercase letters — a discounted daily single (FID-gated) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
+| **Mint** | Pull lowercase letters — a free daily single (FID-gated) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
 | **Raise** | Roll a lowercase letter toward UPPERCASE | A capital letter (45% base, pity to 85%); failure is harmless |
 | **Claim** | Spell a dictionary word with 5 uniform-case letters | One Word NFT (ERC-721); the 5 letters are escrowed inside it |
 | **Stake & Snack** | Stake a Word to earn; feed it snacks | UPPERCASE words draw yield; any staked, fed word is a jackpot ticket |
@@ -50,8 +50,8 @@ Most common → rarest letter order: **S E A … J Q**.
 
 | Path | Cadence | Price (USD target) | Notes |
 |---|---|---|---|
-| **Daily single** | 1 per Farcaster **FID** per UTC day | **$0.05** (~211K $WORD) | The habit loop. Requires an FID (off-chain Quick-Auth/Sybil gate → a backend-signed allowance). |
-| **Pack of 5** | Unlimited, anytime | **$1.00** (~4.22M $WORD) | The volume loop. $0.20/letter — 4× the per-letter cost of the daily. |
+| **Daily single** | 1 per Farcaster **FID** per UTC day | **Free** | The zero-friction habit loop. Requires an FID (off-chain Quick-Auth/Sybil gate → a backend-signed allowance). |
+| **Pack of 5** | Unlimited, anytime | **$1.00** (~4.22M $WORD) | The volume loop. $0.20/letter — the only paid mint path (the daily single is free). |
 
 - **Payment:** $WORD directly, **or ETH auto-swapped to $WORD** at mint time (Uniswap v3 /
   aggregator, slippage-bounded). All internal accounting is in $WORD; the Treasury never holds ETH
@@ -229,7 +229,7 @@ of claims) exceeds treasury accrual.
   moves. The sim runs in USD; `priceWord(usd)` converts at the live peg.
 - **$WORD:** ERC-20 on Base, `0x304e649e69979298bd1aee63e175adf07885fb4b`. ~100B supply, micro-cap
   (~$23.5K FDV, ~$21K liquidity as of June 2026), paired with WETH.
-- **Price ladder:** daily **$0.05** · pack **$1.00** · roll **$0.25** · claim **$0.50** · snack
+- **Price ladder:** daily **free** · pack **$1.00** · roll **$0.25** · claim **$0.50** · snack
   **$0.02** · prestige **$0.25**.
 - **Treasury bootstrap:** seed the **Rewards Pool** only (~$240); **never the jackpot**. The other
   lever is LP depth, not a faucet seed.
@@ -242,7 +242,7 @@ Every value below is a storage variable behind the multisig on-chain (the mechan
 number can be tuned).
 
 ```
-prices:   pack $1.00 · dailyMint $0.05 · roll $0.25 · claim $0.50 · snack $0.02
+prices:   pack $1.00 · dailyMint $0 (free) · roll $0.25 · claim $0.50 · snack $0.02
 roll:     baseSuccess 0.45 · pityStep +0.10 · pityCap 0.85
 staking:  dailyDistributionRate 0.01 · yieldRequiresUppercase true
 care:     peckishAfterDays 1 · hungryAfterDays 3 · peckishYieldFactor 0.5 · freeDailySnack true

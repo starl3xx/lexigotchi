@@ -40,7 +40,7 @@ export interface Params {
   /** Prices in USD (USD-pegged; `priceWord(usd)` gives the on-chain $WORD amount). */
   prices: {
     pack: number; // pack of 5 letters, full price (volume loop)
-    dailyMint: number; // 1 discounted single per FID per day (habit loop)
+    dailyMint: number; // 1 free single per FID per day (habit loop)
     roll: number; // flat upgrade-roll fee (v0.1 §5.3; rarity-scaled is P2)
     claim: number; // flat claim fee (v0.1 §5.4; tier-scaled is P2)
     snack: number; // one snack feeds one staked word for one day

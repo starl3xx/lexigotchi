@@ -18,9 +18,9 @@ the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
 - `npm run dev` — the app; `/` → `/play` (the mini app). Marketing under `/about` etc.
 - `npm run sim -- --days 365 --population 1500 --seed 7` — economy/solvency report
 - `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
-- `npm test` — economy + solvency invariants (44 vitest tests)
+- `npm test` — economy + solvency invariants (70 vitest tests)
 - `npm run build` / `npm run typecheck`
-- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (27 forge tests)
+- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (34 forge tests)
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
@@ -70,14 +70,16 @@ the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
-- Snacks 100% burn. Secondary royalty 2.5% → Rewards Pool.
+- Snacks 100% burn. The `ROYALTY` FeeSource is currently the in-house swap fee → 100% Treasury;
+  an ERC-2981 secondary royalty → Rewards Pool is unbuilt design intent for the future marketplace.
 
 ## Gotchas / conventions
 
 - The sim's **absolute** numbers depend on placeholder budgets — trust the **relative**
   dynamics (see `docs/decisions.md` findings). Key insight: the mint sink is finite; the
   durable economy runs on rolls + snacks.
-- The sim currently **omits secondary letter trading** — a known limitation that understates
-  low-budget players' options. Add a letter market before drawing casual-retention conclusions.
+- The sim now models secondary letter trading as a **default-off lever** (enable it to study
+  low-budget players' options); a rarity-tiered letter floor is still owed (`docs/decisions.md`).
+  Don't draw casual-retention conclusions with the lever left off.
 - Match the surrounding style; keep the economy derivation pure + tested. If you touch
   `economy.ts`, run `npm test` — the spec assertions are the guardrail.
