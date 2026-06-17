@@ -33,8 +33,15 @@ The game is the front door: `/` redirects to **`/play`**.
   tiebreak. Tested against the spec.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
-  proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`). Migrations in
-  `drizzle/`; liveness at `/api/health/db`. **No routes consume it yet** — foundation only.
+  proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`
+  (write-once add/onboard, cast proof, status). Migrations in `drizzle/`; liveness `/api/health/db`.
+- `src/app/api/campaign/` (`record-add` / `verify-cast` / `status` / `onboarded`) → the campaign API.
+  Every route derives the FID from a **verified Quick Auth JWT** (`src/lib/auth/quickAuth.ts`,
+  domain-pinned — never trusts a client-supplied fid). `verify-cast` confirms the share via Neynar
+  (`src/lib/neynar.ts`, raw REST + `NEYNAR_API_KEY`). The client calls these through
+  `src/components/game/campaignClient.ts` (`sdk.quickAuth.fetch`), wired into `useAddMiniApp` (add),
+  `PreLaunchScreen` (status + share), and onboarding. The verified-share path needs `NEXT_PUBLIC_URL`'s
+  host to match the manifest domain (the Quick Auth `aud`).
 - `src/lib/params.ts` → the **only** place to tune economics (prices/splits/odds/pity/hunger).
   Prices are placeholders; mechanics are v0.2-decided.
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).

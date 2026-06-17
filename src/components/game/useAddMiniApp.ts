@@ -11,6 +11,7 @@
 import { useCallback, useState } from "react";
 import { useMiniApp } from "@neynar/react";
 import { useViewer } from "./useViewer";
+import { recordAdd } from "./campaignClient";
 
 export interface AddResult {
   ok: boolean;
@@ -26,7 +27,8 @@ export function useAddMiniApp() {
     setAdding(true);
     try {
       const sdk = (await import("@farcaster/miniapp-sdk")).default;
-      await sdk.actions.addMiniApp(); // no args; resolves { notificationDetails? }
+      const result = await sdk.actions.addMiniApp(); // no args; resolves { notificationDetails? }
+      void recordAdd(result?.notificationDetails); // persist the add (+ notif token) server-side
       return { ok: true };
     } catch (err) {
       const name = (err as { name?: string })?.name;

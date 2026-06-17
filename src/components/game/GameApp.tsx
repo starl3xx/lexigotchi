@@ -11,6 +11,7 @@ import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
+import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
@@ -67,6 +68,7 @@ function OnboardingHost() {
     }
     closeSheet(); // never reveal a sheet that was left open under the overlay
     setOnboarded(true);
+    void markOnboardedServer(); // persist "onboarded" server-side (no-op outside a Farcaster client)
   }, [closeSheet]);
   const replay = useCallback(() => {
     try {
