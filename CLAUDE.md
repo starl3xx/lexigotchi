@@ -20,6 +20,7 @@ The game is the front door: `/` redirects to **`/play`**.
 - `npm test` — economy + solvency invariants (70 vitest tests)
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (34 forge tests)
+- `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
@@ -30,6 +31,10 @@ The game is the front door: `/` redirects to **`/play`**.
 - `src/lib/economy.ts` → letter slots/odds/caps + rarity tiers. **Derived, never hardcoded.**
   Formulas: caps = `floor(slots × 2.5)`; tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.
+- `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
+  (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
+  proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`). Migrations in
+  `drizzle/`; liveness at `/api/health/db`. **No routes consume it yet** — foundation only.
 - `src/lib/params.ts` → the **only** place to tune economics (prices/splits/odds/pity/hunger).
   Prices are placeholders; mechanics are v0.2-decided.
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).
