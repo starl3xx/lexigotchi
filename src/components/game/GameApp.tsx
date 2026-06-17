@@ -6,9 +6,11 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { NeynarAuthButton } from "@neynar/react";
+import { PRELAUNCH } from "@/lib/site";
 import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { Onboarding, OnboardingContext } from "./Onboarding";
+import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { Toaster } from "./primitives";
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
@@ -31,6 +33,10 @@ import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, S
 const ONBOARDED_KEY = "lexigotchi:onboarded:v2";
 
 export function GameApp() {
+  // Pre-launch campaign: short-circuit the whole game and run the "add the app + share a cast →
+  // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
+  // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.
+  if (PRELAUNCH) return <PreLaunchScreen />;
   return (
     <GameProvider>
       <OnboardingHost />
