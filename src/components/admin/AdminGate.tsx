@@ -5,7 +5,13 @@
  * Resolves the connected Farcaster identity (mini-app or Sign In With Neynar) and checks it against
  * the allowlist in `lib/admin/auth`. When no allowlist is configured the console is dev-open. The
  * real security boundary for any on-chain action is the owner's wallet signature, not this gate —
- * see the note in `auth.ts`. A hidden NeynarAuthButton powers web sign-in (clicked by viewer.signIn).
+ * see the note in `auth.ts`.
+ *
+ * SIWN note: we render Neynar's own <NeynarAuthButton/> directly (not a hidden proxy that's
+ * programmatically clicked) so the auth popup is opened by a genuine tap on Neynar's button —
+ * mobile popup blockers reliably kill synthetic clicks of hidden elements. SIWN still requires the
+ * page's origin to be in the client's Authorized Origins (dev.neynar.com) and a valid
+ * NEXT_PUBLIC_NEYNAR_CLIENT_ID baked into the build.
  */
 import { NeynarAuthButton } from "@neynar/react";
 import { useViewer } from "@/components/game/useViewer";
@@ -17,29 +23,24 @@ export function AdminGate() {
   const v = useViewer();
   const allowed = ADMIN_OPEN || (v.isAuthed && isAdminFid(v.fid));
 
-  return (
-    <>
-      {/* Hidden Sign In With Neynar trigger for web operators; viewer.signIn() clicks it. */}
-      <div data-lexi-siwn className="sr-only">
-        <NeynarAuthButton />
+  if (v.environment === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <CircleNotch weight="bold" size={28} className="animate-spin text-ink/40" />
       </div>
-
-      {v.environment === "loading" ? (
-        <div className="flex min-h-screen items-center justify-center bg-paper">
-          <CircleNotch weight="bold" size={28} className="animate-spin text-ink/40" />
-        </div>
-      ) : allowed ? (
-        <AdminConsole
-          operator={{
-            kind: ADMIN_OPEN ? "dev" : "fid",
-            label: v.username ? `@${v.username}` : v.fid ? `fid ${v.fid}` : "operator",
-          }}
-        />
-      ) : (
-        <GateScreen viewer={v} />
-      )}
-    </>
-  );
+    );
+  }
+  if (allowed) {
+    return (
+      <AdminConsole
+        operator={{
+          kind: ADMIN_OPEN ? "dev" : "fid",
+          label: v.username ? `@${v.username}` : v.fid ? `fid ${v.fid}` : "operator",
+        }}
+      />
+    );
+  }
+  return <GateScreen viewer={v} />;
 }
 
 function GateScreen({ viewer }: { viewer: ReturnType<typeof useViewer> }) {
@@ -73,26 +74,20 @@ function GateScreen({ viewer }: { viewer: ReturnType<typeof useViewer> }) {
         {viewer.isAuthed ? (
           <p className="mt-2 text-sm text-ink/65">
             Signed in as <strong>{viewer.username ? `@${viewer.username}` : `fid ${viewer.fid}`}</strong>, but this
-            identity isn&apos;t on the operator allowlist. Ask the owner to add your FID to{" "}
-            <code className="text-xs">NEXT_PUBLIC_ADMIN_FIDS</code>.
+            identity isn&apos;t on the operator allowlist. Add this FID to{" "}
+            <code className="text-xs">NEXT_PUBLIC_ADMIN_FIDS</code>, or switch accounts below.
           </p>
         ) : (
           <p className="mt-2 text-sm text-ink/65">
             This console is for the game&apos;s owner / operator. Sign in with your Farcaster account to continue.
           </p>
         )}
-        {!viewer.isAuthed && (
-          <button
-            onClick={viewer.signIn}
-            className="mt-4 rounded-xl border-[3px] border-ink bg-candy px-5 py-2.5 font-display font-extrabold text-paper shadow-[3px_3px_0_#1b1714] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
-          >
-            Sign in with Neynar
-          </button>
-        )}
+        {/* Neynar's own button — opened by a real tap, so the auth popup isn't blocked. */}
+        <div className="mt-4 flex justify-center">
+          <NeynarAuthButton />
+        </div>
         <p className="mt-4 text-xs text-ink/40">
-          <a href="/play" className="underline">
-            ← Back to the game
-          </a>
+          <a href="/play" className="underline">← Back to the game</a>
         </p>
       </div>
     </div>
