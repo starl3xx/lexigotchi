@@ -9,6 +9,14 @@
 export const SITE_URL = (process.env.NEXT_PUBLIC_URL ?? "https://lexigotchi.vercel.app").replace(/\/$/, "");
 export const SPLASH_BG = "#f4ead2"; // game's aged-paper cream
 
+/**
+ * Pre-launch campaign gate. When `NEXT_PUBLIC_PRELAUNCH === "1"`, `/play` shows the
+ * `PreLaunchScreen` (add-the-app + share-a-cast → free pack at launch) INSTEAD of the game.
+ * Unset/empty (or anything other than "1") = game is live — the safe, failure-open default.
+ * The `/admin` console is unaffected. Flip to "1" to run the campaign; remove it the day you launch.
+ */
+export const PRELAUNCH = process.env.NEXT_PUBLIC_PRELAUNCH === "1";
+
 const launchAction = (type: "launch_miniapp" | "launch_frame") => ({
   type,
   name: "Lexigotchi",
