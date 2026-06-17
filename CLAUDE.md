@@ -10,12 +10,11 @@ web). This repo de-risks fun + solvency, ships the playable mini app, and now ca
 **Foundry contract suite** (code-complete + tested, not yet deployed/audited — `contracts/`).
 Stack: Next.js App Router + TS + Tailwind + recharts; `@neynar/react` + `@farcaster/miniapp-sdk`
 for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `tsx`/`vitest`).
-The game is the front door: `/` redirects to **`/play`**; marketing/reference pages live under
-the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
+The game is the front door: `/` redirects to **`/play`**.
 
 ## Commands
 
-- `npm run dev` — the app; `/` → `/play` (the mini app). Marketing under `/about` etc.
+- `npm run dev` — the app; `/` → `/play` (the mini app).
 - `npm run sim -- --days 365 --population 1500 --seed 7` — economy/solvency report
 - `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
 - `npm test` — economy + solvency invariants (70 vitest tests)
@@ -36,7 +35,7 @@ the `(marketing)` route group (`/about`, `/characters`, `/lexidex`, `/economy`).
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
-- `src/components/characters/Rig.tsx` → shared rubber-hose rig for all 52 characters.
+- `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages).
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (Neynar MiniAppProvider + SIWN), `useViewer.ts` (FID/identity),
   `useShare.ts` (composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`).
