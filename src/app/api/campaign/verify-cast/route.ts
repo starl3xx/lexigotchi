@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { verifyShareCast } from "@/lib/neynar";
 import { getCampaignStatus, recordCastProof } from "@/lib/db/queries";
+import { allow } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,6 +12,8 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
   if (!fid) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!(await allow("verify-cast", fid)))
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   try {
     const status = await getCampaignStatus(fid);
