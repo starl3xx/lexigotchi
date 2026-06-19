@@ -42,6 +42,9 @@ The game is the front door: `/` redirects to **`/play`**.
   `src/components/game/campaignClient.ts` (`sdk.quickAuth.fetch`), wired into `useAddMiniApp` (add),
   `PreLaunchScreen` (status + share), and onboarding. The verified-share path needs `NEXT_PUBLIC_URL`'s
   host to match the manifest domain (the Quick Auth `aud`).
+- `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
+  keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
+  Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.
 - `src/lib/params.ts` → the **only** place to tune economics (prices/splits/odds/pity/hunger).
   Prices are placeholders; mechanics are v0.2-decided.
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).

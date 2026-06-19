@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { markAdded } from "@/lib/db/queries";
+import { allow } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // postgres-js + quick-auth need the Node runtime
@@ -10,6 +11,8 @@ export const runtime = "nodejs"; // postgres-js + quick-auth need the Node runti
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
   if (!fid) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!(await allow("record-add", fid)))
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let notif: { token?: string; url?: string } | undefined;
   try {
