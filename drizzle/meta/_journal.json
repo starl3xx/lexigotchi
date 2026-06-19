@@ -8,6 +8,13 @@
       "when": 1781730286792,
       "tag": "0000_late_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781888721613,
+      "tag": "0001_left_mauler",
+      "breakpoints": true
     }
   ]
 }

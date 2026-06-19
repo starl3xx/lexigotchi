@@ -45,6 +45,10 @@ The game is the front door: `/` redirects to **`/play`**.
 - `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
   keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
   Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.
+- `src/app/api/cron/reconcile-campaign` (hourly via `vercel.json`; auth `CRON_SECRET`, fails closed in
+  prod) → re-runs `verify-cast` for recent share-attempters whose proof missed the Neynar-lag window
+  (`reconcileShares` in `queries.ts`, gated by `users.share_attempted_at`, set on a verify-cast miss).
+  The campaign's eligibility backstop so nobody who shared is dropped.
 - `src/lib/params.ts` → the **only** place to tune economics (prices/splits/odds/pity/hunger).
   Prices are placeholders; mechanics are v0.2-decided.
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).

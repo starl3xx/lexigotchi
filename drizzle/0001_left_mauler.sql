@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "share_attempted_at" timestamp with time zone;

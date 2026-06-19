@@ -3,8 +3,9 @@
  * has ALREADY authenticated (see `getAuthedFid`). Writes are idempotent + write-once where it
  * matters (the add timestamp and onboarding are never overwritten once set).
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb } from "./client";
+import { verifyShareCast } from "@/lib/neynar";
 import { users, campaignCastProofs } from "./schema";
 
 /** Record that `fid` added the mini app (write-once), refreshing the notification token if supplied. */
@@ -44,6 +45,50 @@ export async function recordCastProof(fid: number, castHash: string, castUrl: st
   const db = getDb();
   await db.insert(campaignCastProofs).values({ fid, castHash, castUrl }).onConflictDoNothing();
   await db.insert(users).values({ fid }).onConflictDoNothing();
+}
+
+/** Remember that `fid` posted a share cast we couldn't verify yet (write-once) so the reconcile
+ *  cron retries it later, once Neynar has indexed the cast. */
+export async function markShareAttempted(fid: number): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+  await db
+    .insert(users)
+    .values({ fid, shareAttemptedAt: now })
+    .onConflictDoUpdate({
+      target: users.fid,
+      set: { shareAttemptedAt: sql`coalesce(${users.shareAttemptedAt}, excluded.share_attempted_at)`, updatedAt: now },
+    });
+}
+
+/**
+ * Launch-reconcile pass: for recent share-attempters who still lack a verified proof, re-run the
+ * Neynar check (which has since indexed the cast) and record proofs for any that now match. Bounded
+ * by `limit` per run and a recency window so the population stays small + self-draining. Returns
+ * `{ checked, proven }`. Called by the cron.
+ */
+export async function reconcileShares(limit = 40, windowDays = 14): Promise<{ checked: number; proven: number }> {
+  const db = getDb();
+  const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  // attempters within the window who have NO cast proof yet
+  const rows = await db
+    .select({ fid: users.fid })
+    .from(users)
+    .leftJoin(campaignCastProofs, eq(users.fid, campaignCastProofs.fid))
+    .where(and(isNotNull(users.shareAttemptedAt), gt(users.shareAttemptedAt, cutoff), isNull(campaignCastProofs.fid)))
+    .limit(limit);
+
+  let checked = 0;
+  let proven = 0;
+  for (const { fid } of rows) {
+    checked++;
+    const cast = await verifyShareCast(fid);
+    if (cast) {
+      await recordCastProof(fid, cast.castHash, cast.castUrl);
+      proven++;
+    }
+  }
+  return { checked, proven };
 }
 
 export interface CampaignStatus {

@@ -22,6 +22,10 @@ export const users = pgTable("users", {
   notifToken: text("notif_token"),
   notifUrl: text("notif_url"),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  /** Set when the player posts a share cast we couldn't verify on the spot (Neynar indexing lag) —
+   *  the launch-reconcile cron retries exactly these. A user leaves the cron's population the moment
+   *  a `campaign_cast_proofs` row lands for them. */
+  shareAttemptedAt: timestamp("share_attempted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

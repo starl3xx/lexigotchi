@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { verifyShareCast } from "@/lib/neynar";
-import { getCampaignStatus, recordCastProof } from "@/lib/db/queries";
+import { getCampaignStatus, markShareAttempted, recordCastProof } from "@/lib/db/queries";
 import { allow } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,11 @@ export async function POST(req: Request) {
     if (status.shared) return NextResponse.json({ ok: true, shared: true }); // already proven
 
     const cast = await verifyShareCast(fid);
-    if (!cast) return NextResponse.json({ ok: true, shared: false }); // not found yet (Neynar lag / no cast)
+    if (!cast) {
+      // Posted but not indexed yet (or no matching cast) — remember it so the reconcile cron retries.
+      await markShareAttempted(fid);
+      return NextResponse.json({ ok: true, shared: false });
+    }
 
     await recordCastProof(fid, cast.castHash, cast.castUrl);
     return NextResponse.json({ ok: true, shared: true });
