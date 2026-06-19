@@ -47,7 +47,9 @@ const miniappConfig = {
   splashImageUrl: `${SITE_URL}/icon-image`,
   splashBackgroundColor: SPLASH_BG,
   subtitle: "Raise letters. Own words.",
-  description: "A tamagotchi-style $WORD collection game on Base — raise letters to UPPERCASE, claim words, stake for the daily jackpot.",
+  // NB: the Farcaster manifest validator rejects special chars (incl. `$` and `—`) in `description`.
+  // Keep this to plain text — letters, spaces, commas, periods, hyphens only.
+  description: "A tamagotchi-style word collection game on Base. Raise letters to UPPERCASE, claim words, and chase the daily jackpot.",
   primaryCategory: "games",
   tags: ["game", "word", "collection", "base", "tamagotchi"],
 };
