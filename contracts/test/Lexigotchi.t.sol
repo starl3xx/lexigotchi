@@ -1043,6 +1043,22 @@ contract LexigotchiTest is Test {
         assertGt(prestige.snackCost(), sc0, "snack cost repegged");
     }
 
+    function test_FreeDaily_voucherIsDayScoped() public {
+        uint256 fid = 6500;
+        uint256 deadline = block.timestamp + 3 days; // deliberately long deadline
+        bytes memory sig = _signFreeDaily(alice, fid, deadline); // signed for today's UTC day
+
+        vm.prank(alice);
+        letters.commitDailyFree(fid, deadline, sig); // valid today
+
+        // next UTC day: dailyUsed resets, but the day is bound into the digest, so the SAME signature
+        // no longer verifies — the cross-day replay is closed.
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(alice);
+        vm.expectRevert(Letters.BadSignature.selector);
+        letters.commitDailyFree(fid, deadline, sig);
+    }
+
     // --- signatures ---
 
     function _signPack(uint256 id, address buyer, uint8[] memory letterIndexes) internal view returns (bytes memory) {
@@ -1055,7 +1071,7 @@ contract LexigotchiTest is Test {
 
     function _signDaily(address buyer, uint256 fid, uint256 deadline) internal view returns (bytes memory) {
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
-            keccak256(abi.encode(address(letters), block.chainid, buyer, fid, deadline))
+            keccak256(abi.encode(address(letters), block.chainid, buyer, fid, uint32(block.timestamp / 1 days), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
         return abi.encodePacked(r, s, v);
@@ -1063,7 +1079,7 @@ contract LexigotchiTest is Test {
 
     function _signFreeDaily(address buyer, uint256 fid, uint256 deadline) internal view returns (bytes memory) {
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
-            keccak256(abi.encode(address(letters), block.chainid, uint8(0), buyer, fid, deadline)) // uint8(0) = KIND_FREE_DAILY
+            keccak256(abi.encode(address(letters), block.chainid, uint8(0), buyer, fid, uint32(block.timestamp / 1 days), deadline)) // uint8(0) = KIND_FREE_DAILY
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
         return abi.encodePacked(r, s, v);

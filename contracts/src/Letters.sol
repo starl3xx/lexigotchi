@@ -161,13 +161,15 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     function _verifyDaily(uint256 fid, uint256 deadline, bytes calldata sig) internal {
         if (block.timestamp > deadline) revert AllowanceExpired();
+        // Bind the UTC day into the digest so one voucher is valid for exactly one day — `dailyUsed`
+        // resets at midnight, so without this a deadline that straddles midnight is replayable next day.
+        uint32 today = uint32(block.timestamp / 1 days);
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
-            keccak256(abi.encode(address(this), block.chainid, msg.sender, fid, deadline))
+            keccak256(abi.encode(address(this), block.chainid, msg.sender, fid, today, deadline))
         );
         if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
-        uint32 todayPlusOne = uint32(block.timestamp / 1 days) + 1;
-        if (dailyUsed[fid] == todayPlusOne) revert DailyAlreadyUsed();
-        dailyUsed[fid] = todayPlusOne;
+        if (dailyUsed[fid] == today + 1) revert DailyAlreadyUsed();
+        dailyUsed[fid] = today + 1;
     }
 
     // --- mint: free campaign vouchers (signer-gated, zero cost) -----------------------------------
@@ -202,13 +204,15 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     function _verifyFreeDaily(uint256 fid, uint256 deadline, bytes calldata sig) internal {
         if (block.timestamp > deadline) revert AllowanceExpired();
+        // Day-bound like the paid daily (see _verifyDaily) so a midnight-straddling voucher can't be
+        // replayed the next UTC day after the dailyUsed counter resets.
+        uint32 today = uint32(block.timestamp / 1 days);
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
-            keccak256(abi.encode(address(this), block.chainid, KIND_FREE_DAILY, msg.sender, fid, deadline))
+            keccak256(abi.encode(address(this), block.chainid, KIND_FREE_DAILY, msg.sender, fid, today, deadline))
         );
         if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
-        uint32 todayPlusOne = uint32(block.timestamp / 1 days) + 1;
-        if (dailyUsed[fid] == todayPlusOne) revert DailyAlreadyUsed();
-        dailyUsed[fid] = todayPlusOne;
+        if (dailyUsed[fid] == today + 1) revert DailyAlreadyUsed();
+        dailyUsed[fid] = today + 1;
     }
 
     function _verifyFreePack(uint256 fid, uint256 nonce, uint256 deadline, bytes calldata sig) internal {
