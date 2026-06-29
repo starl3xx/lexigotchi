@@ -12,6 +12,7 @@ import {ILetters} from "./interfaces/ILetters.sol";
 import {ISwapRouter} from "./interfaces/ISwapRouter.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
 import {FeeCollector} from "./FeeCollector.sol";
+import {RepegKeeper} from "./RepegKeeper.sol";
 
 /**
  * @title Letters
@@ -30,7 +31,7 @@ import {FeeCollector} from "./FeeCollector.sol";
  *         Uppercase is never minted directly — only via `upgrade` (a successful roll), which burns a
  *         lowercase and mints its uppercase counterpart, conserving total per-letter supply.
  */
-contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollector {
+contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     using SafeERC20 for IERC20;
 
     uint8 public constant PACK_SIZE = 5;
@@ -306,5 +307,31 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     function setURI(string calldata newuri) external onlyOwner {
         _setURI(newuri);
+    }
+
+    // --- repeg (price keeper) ---------------------------------------------------------------------
+
+    /// @notice Keeper-driven clamped repeg of pack + daily prices (each leg independent; an unchanged
+    ///         or zero leg is skipped, so the FREE daily — dailyPrice == 0 — is never moved off zero).
+    function repegPrices(uint256 packPrice_, uint256 dailyPrice_) external onlyPriceKeeper {
+        uint256 oldPack = packPrice;
+        if (_clampRepeg(oldPack, packPrice_)) {
+            packPrice = packPrice_;
+            emit Repegged("packPrice", oldPack, packPrice_);
+        }
+        uint256 oldDaily = dailyPrice;
+        if (_clampRepeg(oldDaily, dailyPrice_)) {
+            dailyPrice = dailyPrice_;
+            emit Repegged("dailyPrice", oldDaily, dailyPrice_);
+        }
+        emit PricesSet(packPrice, dailyPrice);
+    }
+
+    function setPriceKeeper(address keeper) external onlyOwner {
+        _setPriceKeeper(keeper);
+    }
+
+    function setMaxMoveBps(uint16 bps) external onlyOwner {
+        _setMaxMoveBps(bps);
     }
 }

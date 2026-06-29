@@ -10,6 +10,7 @@ import {IWords, CaseState} from "./interfaces/IWords.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
 import {FeeCollector} from "./FeeCollector.sol";
+import {RepegKeeper} from "./RepegKeeper.sol";
 
 /**
  * @title Prestige
@@ -22,7 +23,7 @@ import {FeeCollector} from "./FeeCollector.sol";
  *         applied off-chain by the distributors (a bigger slice of the *same* fixed pool — never
  *         enlarging it, so it stays solvency-neutral).
  */
-contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector {
+contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     IWords public immutable words;
     IStaking public immutable staking;
 
@@ -134,5 +135,34 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector {
         if (_signer == address(0)) revert ZeroAddress();
         signer = _signer;
         emit SignerSet(_signer);
+    }
+
+    // --- repeg (price keeper) ---------------------------------------------------------------------
+
+    /// @notice Keeper-driven clamped repeg of the prestige fee + snack cost ONLY; maxLevel is re-passed
+    ///         unchanged into the existing ParamsSet event (the keeper can't touch governance args).
+    function repegFees(uint256 prestigeFee_, uint256 snackCost_) external onlyPriceKeeper {
+        bool changed;
+        uint256 oldFee = prestigeFee;
+        if (_clampRepeg(oldFee, prestigeFee_)) {
+            prestigeFee = prestigeFee_;
+            emit Repegged("prestigeFee", oldFee, prestigeFee_);
+            changed = true;
+        }
+        uint256 oldSnack = snackCost;
+        if (_clampRepeg(oldSnack, snackCost_)) {
+            snackCost = snackCost_;
+            emit Repegged("snackCost", oldSnack, snackCost_);
+            changed = true;
+        }
+        if (changed) emit ParamsSet(maxLevel, prestigeFee, snackCost);
+    }
+
+    function setPriceKeeper(address keeper) external onlyOwner {
+        _setPriceKeeper(keeper);
+    }
+
+    function setMaxMoveBps(uint16 bps) external onlyOwner {
+        _setMaxMoveBps(bps);
     }
 }

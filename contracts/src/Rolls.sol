@@ -11,6 +11,7 @@ import {IWords} from "./interfaces/IWords.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
 import {FeeCollector} from "./FeeCollector.sol";
+import {RepegKeeper} from "./RepegKeeper.sol";
 
 /**
  * @title Rolls
@@ -28,7 +29,7 @@ import {FeeCollector} from "./FeeCollector.sol";
  *         is keyed on `(beneficialOwner, letterIndex)`, where the beneficial owner is resolved
  *         through staking custody back to the human (see PATTERN.md property #5).
  */
-contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector {
+contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     uint8 internal constant KIND_LOOSE = 0;
     uint8 internal constant KIND_WORD = 1;
 
@@ -209,5 +210,25 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector {
         if (_signer == address(0)) revert ZeroAddress();
         signer = _signer;
         emit SignerSet(_signer);
+    }
+
+    // --- repeg (price keeper) ---------------------------------------------------------------------
+
+    /// @notice Keeper-driven clamped repeg of the roll price (the durable-sink fee — primary target).
+    function repegRollPrice(uint256 price) external onlyPriceKeeper {
+        uint256 old = rollPrice;
+        if (_clampRepeg(old, price)) {
+            rollPrice = price;
+            emit RollPriceSet(price);
+            emit Repegged("rollPrice", old, price);
+        }
+    }
+
+    function setPriceKeeper(address keeper) external onlyOwner {
+        _setPriceKeeper(keeper);
+    }
+
+    function setMaxMoveBps(uint16 bps) external onlyOwner {
+        _setMaxMoveBps(bps);
     }
 }
