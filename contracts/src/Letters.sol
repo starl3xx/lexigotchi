@@ -317,7 +317,7 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     /// @notice Keeper-driven clamped repeg of pack + daily prices (each leg independent; an unchanged
     ///         or zero leg is skipped, so the FREE daily — dailyPrice == 0 — is never moved off zero).
-    function repegPrices(uint256 packPrice_, uint256 dailyPrice_) external onlyPriceKeeper {
+    function repegPrices(uint256 packPrice_, uint256 dailyPrice_) external onlyPriceKeeper repegRateLimited {
         uint256 oldPack = packPrice;
         if (_clampRepeg(oldPack, packPrice_)) {
             packPrice = packPrice_;

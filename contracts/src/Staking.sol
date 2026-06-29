@@ -141,7 +141,7 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
 
     /// @notice Keeper-driven clamped repeg of the snack price ONLY; the hunger thresholds are re-passed
     ///         unchanged into the existing CareParamsSet event (the keeper can't touch governance args).
-    function repegSnackPrice(uint256 snackPrice_) external onlyPriceKeeper {
+    function repegSnackPrice(uint256 snackPrice_) external onlyPriceKeeper repegRateLimited {
         uint256 old = snackPrice;
         if (_clampRepeg(old, snackPrice_)) {
             snackPrice = snackPrice_;

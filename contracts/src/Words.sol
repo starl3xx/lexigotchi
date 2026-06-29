@@ -214,7 +214,7 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
     // --- repeg (price keeper) ---------------------------------------------------------------------
 
     /// @notice Keeper-driven clamped repeg of the claim price.
-    function repegClaimPrice(uint256 price) external onlyPriceKeeper {
+    function repegClaimPrice(uint256 price) external onlyPriceKeeper repegRateLimited {
         uint256 old = claimPrice;
         if (_clampRepeg(old, price)) {
             claimPrice = price;
