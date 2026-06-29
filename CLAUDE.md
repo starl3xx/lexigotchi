@@ -81,8 +81,9 @@ The game is the front door: `/` redirects to **`/play`**.
   `bc_bu1cyzms` (base.dev) → `Attribution.toDataSuffix` (the `ox` lib) → a calldata suffix that credits
   our txs on Base. **Every on-chain write the app originates MUST carry it**: ERC-5792 wallets via
   `builderCapabilities()` on `wallet_sendCalls` (wagmi `useSendCalls` or the mini-app EIP-1193
-  provider), raw `eth_sendTransaction` via `appendBuilderSuffix(data)`. No tx layer exists yet (mock
-  store, no wagmi/viem) — route every send through ONE helper that reads this module when writes land.
+  provider), raw `eth_sendTransaction` via `appendBuilderSuffix(data)`. The single write chokepoint that
+  injects it is `src/lib/onchain/sendCalls.ts` (`sendCallsAttributed`) — every contract write routes
+  through it. The game's writes are still mock; **`docs/web3-runtime-plan.md`** is the runtime build plan.
 
 ## v0.2 mechanics (the ones easy to get wrong)
 
