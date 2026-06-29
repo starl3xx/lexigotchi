@@ -264,8 +264,8 @@ export const DEFAULT_PARAMS: Params = {
   splits: {
     packMint: { pool: 0.4, jackpot: 0.1, burn: 0.2, treasury: 0.3 },
     dailyMint: { pool: 0.4, jackpot: 0.1, burn: 0.2, treasury: 0.3 },
-    roll: { pool: 0.4, jackpot: 0.25, burn: 0.2, treasury: 0.15 },
-    claim: { pool: 0.25, jackpot: 0.25, burn: 0.25, treasury: 0.25 },
+    roll: { pool: 0.475, jackpot: 0.1, burn: 0.275, treasury: 0.15 }, // jackpot rake 10% (freed 15pp → burn+pool)
+    claim: { pool: 0.325, jackpot: 0.1, burn: 0.325, treasury: 0.25 }, // jackpot rake 10% (freed 15pp → burn+pool)
     snack: { pool: 0, jackpot: 0, burn: 1, treasury: 0 },
     royalty: { pool: 0, jackpot: 0, burn: 0, treasury: 1 },
   },

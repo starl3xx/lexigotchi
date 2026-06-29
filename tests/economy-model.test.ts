@@ -14,6 +14,11 @@ describe("params", () => {
     expect(() => assertSplitsValid(DEFAULT_PARAMS)).not.toThrow();
   });
 
+  it("jackpot rake on rolls + claims is 10% (launch decision: freed 15pp → burn + pool)", () => {
+    expect(DEFAULT_PARAMS.splits.roll.jackpot).toBeCloseTo(0.1);
+    expect(DEFAULT_PARAMS.splits.claim.jackpot).toBeCloseTo(0.1);
+  });
+
   it("roll odds match the v0.2 decision: 45% base, +10pp pity, cap 85%", () => {
     expect(rollSuccessProbability(0)).toBeCloseTo(0.45);
     expect(rollSuccessProbability(1)).toBeCloseTo(0.55);

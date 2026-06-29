@@ -129,10 +129,10 @@ contract Deploy is Script {
     function _setSplits(FeeRouter fr) internal {
         fr.setSplit(FeeSource.PACK_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
         fr.setSplit(FeeSource.DAILY_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        fr.setSplit(FeeSource.ROLL, FeeRouter.Split(4000, 2500, 2000, 1500));
-        fr.setSplit(FeeSource.CLAIM, FeeRouter.Split(2500, 2500, 2500, 2500));
+        fr.setSplit(FeeSource.ROLL, FeeRouter.Split(4750, 1000, 2750, 1500)); // jackpot rake 10% (freed 15pp → burn+pool)
+        fr.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500)); // jackpot rake 10% (freed 15pp → burn+pool)
         fr.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0)); // snacks 100% burn
-        fr.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4000, 2500, 2000, 1500)); // = roll
+        fr.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500)); // = roll
         fr.setSplit(FeeSource.ROYALTY, FeeRouter.Split(0, 0, 0, 10000)); // in-house swap fee → treasury
     }
 
