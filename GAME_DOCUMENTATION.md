@@ -53,9 +53,12 @@ Most common → rarest letter order: **S E A … J Q**.
 | **Daily single** | 1 per Farcaster **FID** per UTC day | **Free** | The zero-friction habit loop. Requires an FID (off-chain Quick-Auth/Sybil gate → a backend-signed allowance). |
 | **Pack of 5** | Unlimited, anytime | **$1.00** (~4.22M $WORD) | The volume loop. $0.20/letter — the only paid mint path (the daily single is free). |
 
-- **Payment:** $WORD directly, **or ETH auto-swapped to $WORD** at mint time (Uniswap v3 /
-  aggregator, slippage-bounded). All internal accounting is in $WORD; the Treasury never holds ETH
-  from mints.
+- **Payment:** **$WORD-only at launch** — ETH-only players buy $WORD first (the in-app swap +
+  DexScreener). The contracts also carry an **ETH auto-swap** mint path (Uniswap v3 / aggregator,
+  slippage-bounded), deferred until $WORD liquidity is deeper. All internal accounting is in $WORD.
+- **Free vouchers:** besides the paid paths, the backend signer can authorize **zero-cost** mints —
+  the free FID daily, and a **one-time free 5-pack** (the claim-on-first-open launch airdrop). Both
+  skip fees entirely and reveal the same demand-mirrored draw.
 - **Randomness:** the EGGS commit→server-signed reveal (same model as rolls). The buyer commits +
   pays, then the backend signer reveals a fair demand-mirrored draw; per-letter caps are enforced
   on-chain. There is no expiry window, so a paid commit is always revealable — a fee is never
@@ -211,22 +214,25 @@ buckets can never pay out more than they hold; burn and treasury shares leave im
 |---|---|---|---|---|
 | Pack mint | 40% | 10% | 20% | 30% |
 | Daily mint | 40% | 10% | 20% | 30% |
-| Roll | 40% | 25% | 20% | 15% |
-| Claim | 25% | 25% | 25% | 25% |
+| Roll | 47.5% | 10% | 27.5% | 15% |
+| Claim | 32.5% | 10% | 32.5% | 25% |
 | Snack | 0% | 0% | **100%** | 0% |
-| Prestige | 40% | 25% | 20% | 15% |
+| Prestige | 47.5% | 10% | 27.5% | 15% |
 | Royalty (in-house swap) | 0% | 0% | 0% | 100% |
 
-The **bounty carve** (default 15%, off until enabled) diverts a slice of the *pool* share into the
-bounty bucket. The economy is **strongly deflationary**: burn (snacks 100% + 20% of mints/rolls + 25%
-of claims) exceeds treasury accrual.
+Roll / claim / prestige route only **10%** to the jackpot — operator-rake minimization for lottery
+compliance; the freed share goes to burn + pool. The **bounty carve** (default 15%, off until enabled)
+diverts a slice of the *pool* share into the bounty bucket. The economy is **strongly deflationary**:
+burn (snacks 100% + 20% of mints + 27.5% of rolls + 32.5% of claims) exceeds treasury accrual.
 
 ---
 
 ## 14. Pricing
 
-- **USD-pegged.** Prices are USD targets; the multisig re-sets the on-chain $WORD amounts as the peg
-  moves. The sim runs in USD; `priceWord(usd)` converts at the live peg.
+- **USD-pegged, auto-repegged.** Prices are USD targets; an automated **`priceKeeper`** hot key
+  re-sets the on-chain $WORD amounts within a clamped `±maxMoveBps` band as the peg moves (no
+  multisig; the owner keeps an unclamped override, and the keeper can never cross zero). The sim runs
+  in USD; `priceWord(usd)` converts at the live peg.
 - **$WORD:** ERC-20 on Base, `0x304e649e69979298bd1aee63e175adf07885fb4b`. ~100B supply, micro-cap
   (~$23.5K FDV, ~$21K liquidity as of June 2026), paired with WETH.
 - **Price ladder:** daily **free** · pack **$1.00** · roll **$0.25** · claim **$0.50** · snack
@@ -238,8 +244,8 @@ of claims) exceeds treasury accrual.
 
 ## 15. Parameter reference (`src/lib/params.ts`)
 
-Every value below is a storage variable behind the multisig on-chain (the mechanic is fixed; the
-number can be tuned).
+Every value below is a storage variable behind the owner (a single hardware-wallet EOA — no multisig)
+on-chain (the mechanic is fixed; the number can be tuned).
 
 ```
 prices:   pack $1.00 · dailyMint $0 (free) · roll $0.25 · claim $0.50 · snack $0.02
@@ -265,7 +271,7 @@ trust model, and the deploy + pre-mainnet checklist.
 | Contract | Responsibility |
 |---|---|
 | `FeeRouter` | The four-bucket ledger: split fees, hold pool/jackpot/bounty, cap every payout at balance |
-| `Letters` | 52-id ERC-1155: demand-mirrored capped draws, commit/reveal, FID daily, ETH swap, `upgrade` |
+| `Letters` | 52-id ERC-1155: demand-mirrored capped draws, commit/reveal, FID daily + free vouchers (free daily / free-pack airdrop), ETH swap, clamped `priceKeeper` repeg, `upgrade` |
 | `Words` | One ERC-721 per word, Merkle dictionary, letter escrow, case-as-state, dissolve, prestige level |
 | `Rolls` | Commit→signed-reveal upgrades; fail no-op; pity per `(beneficialOwner, letter)` |
 | `Staking` | Word custody + hunger clock + snack feed; the eligibility truth read by Jackpot |
@@ -277,7 +283,9 @@ trust model, and the deploy + pre-mainnet checklist.
 **Trust seams (Phase 0, documented):** a backend `signer` decides roll/prestige outcomes (EGGS model)
 and authorizes the FID daily; a `keeper` reveals the daily word and posts the yield/bounty Merkle
 roots. Both are trusted for *fairness only* — never for solvency (every payout is bucket-capped) and
-never to harm an asset (failures are no-ops). The `owner` is a multisig.
+never to harm an asset (failures are no-ops). A distinct `priceKeeper` hot key may auto-repeg prices
+within a clamped band (solvency-irrelevant, can't cross zero). The `owner` is a single hardware-wallet
+EOA — **no multisig**.
 
 ---
 

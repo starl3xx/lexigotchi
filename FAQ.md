@@ -20,8 +20,8 @@ staked, fed word is the day's secret answer.
 
 Two ways: a free **daily single** (1 per Farcaster FID per day — the habit loop) and full-price
 **packs of 5**, anytime. Every mint is **100% lowercase**; a letter's pull rate equals its share of
-the 22,190 dictionary slots, so common letters come up often and Q/Z/X/J are the chase. You can pay
-in $WORD or ETH (auto-swapped to $WORD at mint).
+the 22,190 dictionary slots, so common letters come up often and Q/Z/X/J are the chase. Mints are
+**$WORD-only** at launch — tap the balance pill to buy $WORD first if you only hold ETH.
 
 ## How do I get UPPERCASE letters?
 
