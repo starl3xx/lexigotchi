@@ -141,7 +141,7 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
 
     /// @notice Keeper-driven clamped repeg of the prestige fee + snack cost ONLY; maxLevel is re-passed
     ///         unchanged into the existing ParamsSet event (the keeper can't touch governance args).
-    function repegFees(uint256 prestigeFee_, uint256 snackCost_) external onlyPriceKeeper {
+    function repegFees(uint256 prestigeFee_, uint256 snackCost_) external onlyPriceKeeper repegRateLimited {
         bool changed;
         uint256 oldFee = prestigeFee;
         if (_clampRepeg(oldFee, prestigeFee_)) {

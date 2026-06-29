@@ -10,8 +10,9 @@ pragma solidity 0.8.28;
  *         `onlyPriceKeeper` repeg entrypoints, which call `_clampRepeg` and write only price fields.
  *
  *         `priceKeeper` defaults to address(0) = repeg DISABLED (a safe freeze default); the owner
- *         wires the hot key post-deploy. The clamp bounds the blast radius of a bad price feed or a
- *         leaked keeper key: one repeg can move a price by at most `maxMoveBps`, can never move a price
+ *         wires the hot key post-deploy. The clamp + a per-contract REPEG_COOLDOWN bound the blast
+ *         radius of a bad price feed or a leaked keeper key: at most one `maxMoveBps` move per cooldown
+ *         window (so the per-call clamp cannot be looped in a single tx), can never move a price
  *         off zero, and can never zero a live price — so a price the owner has set to 0 (e.g. the FREE
  *         daily) can never start charging via the keeper, and a live price can never be zeroed by it.
  *         Going on/off zero, or moving beyond the band, stays an owner-only action via the original
@@ -19,9 +20,14 @@ pragma solidity 0.8.28;
  */
 abstract contract RepegKeeper {
     uint16 internal constant REPEG_DENOM_BPS = 10_000;
+    // Min seconds between repegs of THIS contract — at most one move per window, so a leaked keeper key
+    // can't loop the per-call clamp in a single tx/block to compound a price arbitrarily. Hardcoded so
+    // it can't be misconfigured to 0; the owner's unclamped setters remain the fast override.
+    uint32 internal constant REPEG_COOLDOWN = 5 minutes;
 
     address public priceKeeper;
     uint16 public maxMoveBps;
+    uint64 public lastRepegAt; // block time of this contract's last repeg (the cooldown anchor)
 
     event PriceKeeperSet(address priceKeeper);
     event MaxMoveBpsSet(uint16 maxMoveBps);
@@ -29,9 +35,23 @@ abstract contract RepegKeeper {
 
     error NotPriceKeeper();
     error RepegTooLarge();
+    error RepegTooSoon();
+    error BadMaxMoveBps();
 
     modifier onlyPriceKeeper() {
         if (msg.sender != priceKeeper) revert NotPriceKeeper();
+        _;
+    }
+
+    /// @dev At most one repeg of this contract per REPEG_COOLDOWN window. Within one tx/block
+    ///      `block.timestamp` is constant, so a second repeg always reverts — defeating the
+    ///      loop-the-clamp-in-one-tx exploit while leaving the keeper's normal (hourly / on-drift)
+    ///      cadence unaffected.
+    modifier repegRateLimited() {
+        // lastRepegAt == 0 ⇒ never repegged, so there is no prior move to space from (also keeps a
+        // low genesis/test block.timestamp from blocking the first repeg).
+        if (lastRepegAt != 0 && block.timestamp < uint256(lastRepegAt) + REPEG_COOLDOWN) revert RepegTooSoon();
+        lastRepegAt = uint64(block.timestamp);
         _;
     }
 
@@ -41,6 +61,7 @@ abstract contract RepegKeeper {
     }
 
     function _setMaxMoveBps(uint16 bps) internal {
+        if (bps > REPEG_DENOM_BPS) revert BadMaxMoveBps(); // a band > 100% would let one call ~halve/double a price
         maxMoveBps = bps;
         emit MaxMoveBpsSet(bps);
     }

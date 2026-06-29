@@ -962,6 +962,9 @@ contract LexigotchiTest is Test {
         rolls.repegRollPrice(up);
         assertEq(rolls.rollPrice(), up, "repegged within band");
 
+        // subsequent repegs must respect the per-contract cooldown
+        vm.warp(block.timestamp + 5 minutes);
+
         // a move past the band reverts, in both directions
         vm.prank(priceKeeperHot);
         vm.expectRevert(RepegKeeper.RepegTooLarge.selector);
@@ -1011,7 +1014,8 @@ contract LexigotchiTest is Test {
         assertEq(letters.packPrice(), pack1, "pack repegged");
         assertEq(letters.dailyPrice(), 0, "daily stays free");
 
-        // the keeper also cannot zero a live price
+        // (respect the cooldown before the next repeg) the keeper also cannot zero a live price
+        vm.warp(block.timestamp + 5 minutes);
         vm.prank(priceKeeperHot);
         vm.expectRevert(RepegKeeper.RepegTooLarge.selector);
         letters.repegPrices(0, 0);
@@ -1041,6 +1045,36 @@ contract LexigotchiTest is Test {
         assertEq(prestige.maxLevel(), ml, "maxLevel preserved");
         assertGt(prestige.prestigeFee(), f0, "fee repegged");
         assertGt(prestige.snackCost(), sc0, "snack cost repegged");
+    }
+
+    function test_Repeg_cooldownBlocksAtomicLoop() public {
+        rolls.setMaxMoveBps(2000);
+        rolls.setPriceKeeper(priceKeeperHot);
+        uint256 p0 = rolls.rollPrice();
+        uint256 up = p0 + (p0 * 2000) / 10000;
+
+        vm.prank(priceKeeperHot);
+        rolls.repegRollPrice(up); // first repeg succeeds
+
+        // a second repeg in the SAME block/window reverts — can't loop the clamp to compound a move
+        uint256 up2 = up + (up * 2000) / 10000;
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(RepegKeeper.RepegTooSoon.selector);
+        rolls.repegRollPrice(up2);
+
+        // after the cooldown elapses, the next repeg works
+        vm.warp(block.timestamp + 5 minutes);
+        vm.prank(priceKeeperHot);
+        rolls.repegRollPrice(up2);
+        assertEq(rolls.rollPrice(), up2, "repeg after cooldown");
+    }
+
+    function test_Repeg_maxMoveBpsCapped() public {
+        // a band > 100% is rejected; exactly 100% is the ceiling
+        vm.expectRevert(RepegKeeper.BadMaxMoveBps.selector);
+        rolls.setMaxMoveBps(10001);
+        rolls.setMaxMoveBps(10000);
+        assertEq(rolls.maxMoveBps(), 10000, "max band set");
     }
 
     function test_FreeDaily_voucherIsDayScoped() public {

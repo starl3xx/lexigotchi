@@ -215,7 +215,7 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     // --- repeg (price keeper) ---------------------------------------------------------------------
 
     /// @notice Keeper-driven clamped repeg of the roll price (the durable-sink fee — primary target).
-    function repegRollPrice(uint256 price) external onlyPriceKeeper {
+    function repegRollPrice(uint256 price) external onlyPriceKeeper repegRateLimited {
         uint256 old = rollPrice;
         if (_clampRepeg(old, price)) {
             rollPrice = price;
