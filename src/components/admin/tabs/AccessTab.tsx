@@ -1,6 +1,6 @@
 "use client";
 /**
- * Access & Safety — ownership handoff to the multisig (Ownable2Step, batched across all 10
+ * Access & Safety — ownership handoff to the owner key, a hardware wallet (Ownable2Step, batched across all 10
  * contracts), the deploy-time wiring checklist, role addresses, and an honest account of the
  * emergency levers the suite actually has (there is no global pause — see the card).
  */
@@ -70,12 +70,13 @@ export function AccessTab() {
         <h2 className="font-display text-lg font-extrabold">Access &amp; Safety</h2>
       </div>
 
-      <AdminCard title="Hand ownership to the multisig">
+      <AdminCard title="Hand ownership to the owner wallet">
         <p className="mb-3 text-sm text-ink/65">
-          Ownable2Step, two phases. First the deployer transfers all 10 contracts to the multisig; then the multisig
-          accepts. Paste the multisig to generate both Safe batches.
+          Ownable2Step, two phases. First the deployer transfers all 10 contracts to the owner wallet (a hardware
+          wallet); then the owner wallet accepts. Paste the owner address to build both steps — sign the cast send
+          commands from the wallet (an optional Safe batch is included too).
         </p>
-        <Field label="Multisig address" hint="the Safe that will own the suite">
+        <Field label="Owner address (hardware wallet)" hint="the single owner EOA — e.g. a Ledger — that will own the suite">
           <TextField
             value={multisig}
             onChange={(e) => {
@@ -91,7 +92,7 @@ export function AccessTab() {
           <div className="mt-3">
             <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
               No deployed address yet for: {missing.join(", ")}. Set them in the Deployments tab before generating the
-              ownership handoff — otherwise the batch would target placeholders.
+              ownership handoff — otherwise the transactions would target placeholders.
             </Banner>
           </div>
         )}
@@ -99,8 +100,8 @@ export function AccessTab() {
         {valid && deployedAll && !revealed && (
           <div className="mt-4 space-y-2">
             <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
-              Sensitive — this hands ownership of all {CONTRACTS.length} contracts to the multisig. Double-check the
-              address, then type <code>transferOwnership</code> to reveal the batch.
+              Sensitive — this hands ownership of all {CONTRACTS.length} contracts to the owner wallet. Double-check the
+              address, then type <code>transferOwnership</code> to reveal the transactions.
             </Banner>
             <ConfirmButton phrase="transferOwnership" onConfirm={() => setRevealed(true)}>
               Reveal ownership handoff
@@ -112,8 +113,8 @@ export function AccessTab() {
           <div className="mt-4 space-y-4">
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">1 · Transfer all → multisig (run from deployer)</span>
-                <CopyButton small label="Copy Safe batch" text={safeBatchJson(transferIntents, { name: "Lexigotchi — transfer ownership to multisig" }, d?.chainId ?? 8453)} />
+                <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">1 · Transfer all → owner wallet (run from deployer)</span>
+                <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(transferIntents, { name: "Lexigotchi — transfer ownership to owner wallet" }, d?.chainId ?? 8453)} />
               </div>
               <pre className="max-h-40 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[10px] leading-relaxed text-ink/75">
                 {transferIntents.map((i) => castCommand(i)).join("\n\n")}
@@ -121,8 +122,8 @@ export function AccessTab() {
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">2 · Accept all (run from the multisig)</span>
-                <CopyButton small label="Copy Safe batch" text={safeBatchJson(acceptIntents, { name: "Lexigotchi — accept ownership" }, d?.chainId ?? 8453)} />
+                <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">2 · Accept all (run from the owner wallet)</span>
+                <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(acceptIntents, { name: "Lexigotchi — accept ownership" }, d?.chainId ?? 8453)} />
               </div>
               <pre className="max-h-40 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[10px] leading-relaxed text-ink/75">
                 {acceptIntents.map((i) => castCommand(i)).join("\n\n")}

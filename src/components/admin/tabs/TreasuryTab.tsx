@@ -36,7 +36,7 @@ export function TreasuryTab() {
           <MetricCard icon={<Coins weight="bold" size={14} />} label="Rewards Pool" tone="accent" value={h ? fmtUsd(h.pool) : "—"} sub="funds UPPERCASE yield" series={data?.series.pool} />
           <MetricCard icon={<Trophy weight="bold" size={14} />} label="Jackpot" tone="warning" value={h ? fmtUsd(h.jackpot) : "—"} sub="self-funded from fees" series={data?.series.jackpot} />
           <MetricCard icon={<Coins weight="bold" size={14} />} label="Bounty Pool" value={h ? fmtUsd(h.bountyPool) : "—"} sub="carve off by default · seed to fund" series={data?.series.bounty} />
-          <MetricCard icon={<Wallet weight="bold" size={14} />} label="Treasury (cum.)" value={h ? fmtUsd(h.treasury) : "—"} sub="leaves to the multisig per fee" series={data?.series.treasury} />
+          <MetricCard icon={<Wallet weight="bold" size={14} />} label="Treasury (cum.)" value={h ? fmtUsd(h.treasury) : "—"} sub="leaves to the owner wallet per fee" series={data?.series.treasury} />
         </div>
       </section>
 
@@ -45,7 +45,7 @@ export function TreasuryTab() {
       <AdminCard title="Where the treasury balance lives">
         <p className="text-sm text-ink/70">
           There&apos;s no treasury &quot;withdraw&quot; — the treasury share of every fee is forwarded straight to the
-          treasury multisig (<span className="font-mono text-xs">{shortAddr(d?.roles.treasury)}</span>) the moment
+          treasury address — the owner wallet (<span className="font-mono text-xs">{shortAddr(d?.roles.treasury)}</span>) the moment
           it&apos;s routed. So the treasury balance is simply that wallet&apos;s $WORD. Snacks are 100% burned;
           royalties route 100% to treasury.
         </p>
@@ -108,7 +108,7 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
       <Banner tone="ok" icon={<Info weight="bold" size={14} />}>
         <span className="text-xs">
           Owner action. Two transactions: <strong>approve</strong> the FeeRouter to pull your $WORD, then{" "}
-          <strong>seed</strong> the bucket. Run from the owner / multisig.
+          <strong>seed</strong> the bucket. Run from the owner wallet (a hardware wallet).
         </span>
       </Banner>
 
@@ -131,7 +131,7 @@ function FundingCard({ deployments }: { deployments: Deployments | null }) {
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-ink/45">cast (2 steps)</span>
-            <CopyButton small label="Copy Safe batch" text={safeBatchJson(intents, { name: `Seed ${bucketDef.label} with $WORD` }, deployments?.chainId ?? 8453)} />
+            <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(intents, { name: `Seed ${bucketDef.label} with $WORD` }, deployments?.chainId ?? 8453)} />
           </div>
           <pre className="overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[11px] leading-relaxed text-ink/85">
             {`# 1 · approve\n${castCommand(intents[0])}\n\n# 2 · seed ${bucketDef.label}\n${castCommand(intents[1])}`}
