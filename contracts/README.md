@@ -47,14 +47,22 @@ The whole economy flows through one accounting hub, mirroring the sim's four-buc
 
 These mirror the EGGS reference (`docs/reference/eggs/PATTERN.md`) and are intentional Phase-0 choices:
 
-- **`signer` (rolls/prestige/daily-allowance)** — a backend key decides roll/prestige outcomes (EGGS
-  `superHen`) and authorizes the FID-gated daily. Trusted for *fairness*, never for solvency or for
-  harming an asset (failures are no-ops). Pity binding + single-use commit ids prevent replay.
+- **`signer` (rolls/prestige/daily-allowance + free vouchers)** — a backend key decides roll/prestige
+  outcomes (EGGS `superHen`), authorizes the FID-gated daily, and signs the FREE daily + one-time
+  free-pack vouchers (zero-cost mints; the Quick-Auth/Sybil gate is off-chain). Trusted for *fairness*,
+  never for solvency or for harming an asset (failures are no-ops). Pity binding, single-use commit
+  ids, KIND-tagged digests, and per-FID gates (`dailyUsed` / `freePackClaimed`) prevent replay.
 - **`keeper` (AnswerChain / Jackpot / distributors)** — reveals the daily word and posts the
   yield/bounty Merkle roots computed off-chain (the weights — UPPERCASE/tier/prestige/hunger/theme —
   are impractical to iterate on-chain). Trusted for fairness of the share split; **never for
   solvency** — every payout is capped at funds actually pulled from a bucket.
-- **`owner` (multisig)** — tunes splits/prices/care/caps (spec: "storage behind admin/multisig").
+- **`priceKeeper` (the 5 price contracts — a DISTINCT hot key)** — an automated peg keeper that nudges
+  on-chain prices within an owner-set `±maxMoveBps` band (no owner action per update). Separate from
+  the resolution `keeper` (smaller blast radius). **Solvency-irrelevant** — it only scales future fee
+  sizes within the clamp, never moves funds, and can never cross zero (can't start charging the free
+  daily, can't zero a live price). Defaults to `address(0)` = disabled until the owner wires it.
+- **`owner` (a single EOA — a hardware wallet, NO multisig)** — tunes splits/prices/care/caps and wires
+  the keeper roles. Used rarely; the unclamped price setters are the owner's override over the keeper.
 - **All mint / roll / prestige randomness** uses the EGGS commit→server-signed reveal — there is no
   blockhash window, so a paid commit is always revealable and fees can't be stranded.
 
@@ -66,19 +74,21 @@ cd contracts
 forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify
 ```
 
-Required env: `WORD_TOKEN` (defaults to the live $WORD), `TREASURY` (multisig), `SIGNER`, `KEEPER`,
-`ANSWERCHAIN_HEAD` (the precomputed reverse-hash-chain head). Optional: `SWAP_ROUTER`, the `*_PRICE`
-/ `*_FEE` overrides (in $WORD wei, set per the current USD peg), `PECKISH_AFTER`/`HUNGRY_AFTER`,
-`PRESTIGE_MAX_LEVEL`, `BOUNTY_CARVE_BPS`, `LETTERS_URI`. The script seeds the v0.2 fee-split table and
-wires every collector/payer. After deploy, transfer ownership of each contract to the multisig
-(`Ownable2Step`: `transferOwnership` → `acceptOwnership`).
+Required env: `WORD_TOKEN` (defaults to the live $WORD), `TREASURY` (the owner wallet), `SIGNER`,
+`KEEPER`, `ANSWERCHAIN_HEAD` (the precomputed reverse-hash-chain head). Optional: `SWAP_ROUTER`, the
+`*_PRICE` / `*_FEE` overrides (in $WORD wei, set per the current USD peg), `PECKISH_AFTER`/`HUNGRY_AFTER`,
+`PRESTIGE_MAX_LEVEL`, `BOUNTY_CARVE_BPS`, `LETTERS_URI`, `PRICE_KEEPER` (the repeg hot key; omit = repeg
+disabled), `MAX_MOVE_BPS` (the repeg band, default 2000 = ±20%). The script seeds the v0.2 fee-split
+table and wires every collector/payer. After deploy, transfer ownership of each contract to the owner
+wallet — a hardware-wallet EOA, no multisig (`Ownable2Step`: `transferOwnership` → `acceptOwnership`).
 
 ## Pre-mainnet checklist
 
 - [ ] Independent security audit (commit/reveal, escrow, FeeRouter accounting, Merkle distributors).
 - [ ] Lottery/compliance review of the jackpot (no-purchase free entry, geo/age gating, official
       rules) — `seed.jackpot = 0`, operator never funds the prize (see `docs/pricing-review.md`).
-- [ ] Multisig as `owner`/`treasury`; separate hot keys for `signer` and `keeper`.
+- [ ] `owner`/`treasury` = a single hardware-wallet EOA (no multisig); separate hot keys for `signer`,
+      `keeper`, and `priceKeeper`.
 - [ ] Production `SwapRouter` adapter over a real Uniswap v3 / aggregator route (slippage-bounded).
 - [ ] Fuzz/invariant campaign on FeeRouter solvency and letter-supply conservation.
 - [ ] Publish the AnswerChain head + the dictionary Merkle root for independent verification.
