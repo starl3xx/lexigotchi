@@ -77,6 +77,12 @@ The game is the front door: `/` redirects to **`/play`**.
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery
   compliance, `params.ts`). The only non-`route` way $WORD enters a bucket.
+- `src/lib/onchain/builderCode.ts` → **Base Builder Code attribution (ERC-8021)**. Our code
+  `bc_bu1cyzms` (base.dev) → `Attribution.toDataSuffix` (the `ox` lib) → a calldata suffix that credits
+  our txs on Base. **Every on-chain write the app originates MUST carry it**: ERC-5792 wallets via
+  `builderCapabilities()` on `wallet_sendCalls` (wagmi `useSendCalls` or the mini-app EIP-1193
+  provider), raw `eth_sendTransaction` via `appendBuilderSuffix(data)`. No tx layer exists yet (mock
+  store, no wagmi/viem) — route every send through ONE helper that reads this module when writes land.
 
 ## v0.2 mechanics (the ones easy to get wrong)
 
@@ -101,3 +107,6 @@ The game is the front door: `/` redirects to **`/play`**.
   Don't draw casual-retention conclusions with the lever left off.
 - Match the surrounding style; keep the economy derivation pure + tested. If you touch
   `economy.ts`, run `npm test` — the spec assertions are the guardrail.
+- **Builder-code attribution is mandatory**: every on-chain action routes through
+  `src/lib/onchain/builderCode.ts` (ERC-8021 suffix) or we silently forfeit Base builder rewards —
+  the tx still sends, it's just uncredited. `tests/builder-code.test.ts` is the round-trip guardrail.
