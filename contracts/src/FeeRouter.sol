@@ -7,17 +7,24 @@ import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
 
+/// @dev Minimal ERC20Burnable surface. The live $WORD (ClankerToken) is ERC20Burnable, so the burn
+///      share is a real `burn()` that reduces totalSupply — not a soft transfer to a dead address.
+interface IERC20Burnable {
+    function burn(uint256 amount) external;
+}
+
 /**
  * @title FeeRouter
  * @notice The economic heart of Lexigotchi: every $WORD fee in the game flows through here and is
  *         split into four buckets — Rewards Pool, Jackpot, Burn, Treasury — per a configurable,
- *         multisig-tunable split (spec v0.2: "a storage variable behind admin/multisig, not a
- *         constant"). It is the on-chain analog of `src/lib/sim/ledger.ts`.
+ *         owner-tunable split (spec v0.2: "a storage variable behind admin, not a constant"). It is
+ *         the on-chain analog of `src/lib/sim/ledger.ts`.
  *
  *         Solvency by construction: the pool / jackpot / bounty buckets are tracked as balances and
  *         their `payFrom*` functions cap every payout at the bucket's balance, so no bucket can ever
- *         go negative — exactly the invariant the sim asserts every day. Burn (→ 0x…dEaD) and
- *         Treasury shares leave immediately; the held $WORD always covers pool+jackpot+bounty.
+ *         go negative — exactly the invariant the sim asserts every day. The Burn share is a real
+ *         `$WORD.burn()` (reduces totalSupply) and Treasury leaves immediately; the held $WORD always
+ *         covers pool+jackpot+bounty.
  *
  *         The Bounty carve (the renewable late-game loop, default OFF / 0 bps) skims a fraction of
  *         the *pool* share into a side bounty bucket — a zero-sum redistribution from passive yield
@@ -27,7 +34,6 @@ contract FeeRouter is IFeeRouter, Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint16 public constant BPS = 10_000;
-    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     struct Split {
         uint16 pool;
@@ -107,7 +113,7 @@ contract FeeRouter is IFeeRouter, Ownable2Step, ReentrancyGuard {
         jackpotBalance += toJackpot;
         bountyBalance += carve;
         poolBalance += toPool;
-        if (toBurn > 0) word.safeTransfer(BURN_ADDRESS, toBurn);
+        if (toBurn > 0) IERC20Burnable(address(word)).burn(toBurn); // real burn → reduces $WORD totalSupply
         if (toTreasury > 0) word.safeTransfer(treasury, toTreasury);
 
         emit Routed(source, amount, toPool, toJackpot, carve, toBurn, toTreasury);
@@ -139,7 +145,7 @@ contract FeeRouter is IFeeRouter, Ownable2Step, ReentrancyGuard {
         emit PaidFromBounty(to, paid);
     }
 
-    // --- admin (multisig) ------------------------------------------------------------------------
+    // --- admin (owner) ---------------------------------------------------------------------------
 
     /**
      * @notice Owner-only top-up of a reward bucket. Pulls `amount` $WORD from the owner (requires a

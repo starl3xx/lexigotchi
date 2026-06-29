@@ -117,6 +117,7 @@ contract LexigotchiTest is Test {
     function test_FeeRouter_splitsAndSolvency() public {
         // deliver a fee as the (mock) PACK collector path: alice pays a pack, reveal not needed here
         _approveAll(alice);
+        uint256 supplyBefore = word.totalSupply();
         vm.prank(alice);
         letters.commitPack();
 
@@ -124,7 +125,7 @@ contract LexigotchiTest is Test {
         assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool");
         assertEq(feeRouter.jackpotBalance(), (PACK * 1000) / 10000, "jackpot");
         assertEq(word.balanceOf(treasury), (PACK * 3000) / 10000, "treasury");
-        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()), (PACK * 2000) / 10000, "burn");
+        assertEq(supplyBefore - word.totalSupply(), (PACK * 2000) / 10000, "burned (totalSupply drop)");
 
         // invariant: held $WORD >= sum of the live buckets
         assertGe(
@@ -145,12 +146,12 @@ contract LexigotchiTest is Test {
         word.transfer(address(feeRouter), amt);
         uint256 jp = feeRouter.jackpotBalance();
         uint256 pool = feeRouter.poolBalance();
-        uint256 burn = word.balanceOf(feeRouter.BURN_ADDRESS());
+        uint256 supply = word.totalSupply();
         uint256 tre = word.balanceOf(treasury);
         feeRouter.route(FeeSource.ROLL, amt);
         assertEq(feeRouter.jackpotBalance() - jp, (amt * 1000) / 10000, "roll jackpot 10%");
         assertEq(feeRouter.poolBalance() - pool, (amt * 4750) / 10000, "roll pool 47.5%");
-        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()) - burn, (amt * 2750) / 10000, "roll burn 27.5%");
+        assertEq(supply - word.totalSupply(), (amt * 2750) / 10000, "roll burn 27.5% (supply drop)");
         assertEq(word.balanceOf(treasury) - tre, (amt * 1500) / 10000, "roll treasury 15%");
 
         // CLAIM split = 32.5 / 10 / 32.5 / 25
@@ -158,12 +159,12 @@ contract LexigotchiTest is Test {
         word.transfer(address(feeRouter), amt);
         jp = feeRouter.jackpotBalance();
         pool = feeRouter.poolBalance();
-        burn = word.balanceOf(feeRouter.BURN_ADDRESS());
+        supply = word.totalSupply();
         tre = word.balanceOf(treasury);
         feeRouter.route(FeeSource.CLAIM, amt);
         assertEq(feeRouter.jackpotBalance() - jp, (amt * 1000) / 10000, "claim jackpot 10%");
         assertEq(feeRouter.poolBalance() - pool, (amt * 3250) / 10000, "claim pool 32.5%");
-        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()) - burn, (amt * 3250) / 10000, "claim burn 32.5%");
+        assertEq(supply - word.totalSupply(), (amt * 3250) / 10000, "claim burn 32.5% (supply drop)");
         assertEq(word.balanceOf(treasury) - tre, (amt * 2500) / 10000, "claim treasury 25%");
     }
 
@@ -402,6 +403,7 @@ contract LexigotchiTest is Test {
 
         uint256 before = word.balanceOf(alice); // alice pays ETH, not $WORD
         vm.deal(alice, 1 ether);
+        uint256 supplyBefore = word.totalSupply();
         vm.prank(alice);
         uint256 id = letters.commitPackETH{value: value}(PACK); // minWordOut = packPrice
 
@@ -411,7 +413,8 @@ contract LexigotchiTest is Test {
         assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool");
         assertEq(feeRouter.jackpotBalance(), (PACK * 1000) / 10000, "jackpot");
         assertEq(word.balanceOf(treasury), (PACK * 3000) / 10000, "treasury");
-        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()), (PACK * 2000) / 10000, "burn");
+        // burn reduces supply; supply also rose by the swap mint `out`, so isolate the burn
+        assertEq(supplyBefore + out - word.totalSupply(), (PACK * 2000) / 10000, "burned (supply drop)");
         // nothing stranded in the collector, and a real pack commit was created
         assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
         assertEq(letters.commitCount(), id + 1, "commit recorded");
@@ -669,20 +672,19 @@ contract LexigotchiTest is Test {
         staking.stake(t2);
         vm.stopPrank();
 
-        address burn = feeRouter.BURN_ADDRESS();
-        uint256 burned0 = word.balanceOf(burn);
+        uint256 supply0 = word.totalSupply();
         vm.prank(alice);
         staking.feed(t1); // first feed today → free
-        assertEq(word.balanceOf(burn), burned0, "first feed of the day is free");
+        assertEq(word.totalSupply(), supply0, "first feed of the day is free");
 
         vm.prank(alice);
         staking.feed(t2); // second feed today → paid + burned
-        assertEq(word.balanceOf(burn), burned0 + SNACK, "second feed is paid + burned");
+        assertEq(supply0 - word.totalSupply(), SNACK, "second feed is paid + burned");
 
         vm.warp(block.timestamp + 1 days);
         vm.prank(alice);
         staking.feed(t1); // new day → free again
-        assertEq(word.balanceOf(burn), burned0 + SNACK, "free snack resets the next day");
+        assertEq(supply0 - word.totalSupply(), SNACK, "free snack resets the next day");
     }
 
     function test_AnswerChain_badRevealReverts() public {
