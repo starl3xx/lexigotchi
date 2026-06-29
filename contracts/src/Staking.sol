@@ -80,6 +80,7 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
 
     function feed(uint256 tokenId) public nonReentrant {
         if (stakerOf[tokenId] == address(0)) revert NotStaked();
+        if (stakerOf[tokenId] != msg.sender) revert NotStaker(); // only the staker feeds their own word
         // The first feed of the UTC day is free (the check-in hook); every other feed is paid + burned.
         uint32 todayPlusOne = uint32(block.timestamp / 1 days) + 1;
         if (freeDailySnack && freeSnackDayPlusOne[msg.sender] != todayPlusOne) {
