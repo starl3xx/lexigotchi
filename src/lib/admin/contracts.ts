@@ -86,10 +86,10 @@ export interface FeeSourceDef {
 export const FEE_SOURCES: FeeSourceDef[] = [
   { id: 0, key: "PACK_MINT", label: "Pack mint", bps: [4000, 1000, 2000, 3000], note: "pack of 5 letters" },
   { id: 1, key: "DAILY_MINT", label: "Daily mint", bps: [4000, 1000, 2000, 3000], note: "FID-gated daily single" },
-  { id: 2, key: "ROLL", label: "Roll", bps: [4000, 2500, 2000, 1500], note: "upgrade roll fee" },
-  { id: 3, key: "CLAIM", label: "Claim", bps: [2500, 2500, 2500, 2500], note: "claim a word" },
+  { id: 2, key: "ROLL", label: "Roll", bps: [4750, 1000, 2750, 1500], note: "upgrade roll fee" },
+  { id: 3, key: "CLAIM", label: "Claim", bps: [3250, 1000, 3250, 2500], note: "claim a word" },
   { id: 4, key: "SNACK", label: "Snack", bps: [0, 0, 10000, 0], note: "100% burn" },
-  { id: 5, key: "PRESTIGE", label: "Prestige", bps: [4000, 2500, 2000, 1500], note: "ascension commit fee" },
+  { id: 5, key: "PRESTIGE", label: "Prestige", bps: [4750, 1000, 2750, 1500], note: "ascension commit fee" },
   { id: 6, key: "ROYALTY", label: "Royalty", bps: [0, 0, 0, 10000], note: "in-house swap fee → treasury" },
 ];
 

@@ -132,6 +132,39 @@ contract LexigotchiTest is Test {
         );
     }
 
+    function test_FeeRouter_rollAndClaimRakeIs10Pct() public {
+        // Launch decision (2026-06): jackpot rake on ROLL + CLAIM cut 25%->10%, freed 15pp split
+        // evenly to burn + pool (treasury flat). Pin both so the rake can't silently drift back.
+        feeRouter.setCollector(address(this), true);
+        uint256 amt = 1e18;
+
+        // ROLL split = 47.5 / 10 / 27.5 / 15
+        word.mint(address(this), amt);
+        word.transfer(address(feeRouter), amt);
+        uint256 jp = feeRouter.jackpotBalance();
+        uint256 pool = feeRouter.poolBalance();
+        uint256 burn = word.balanceOf(feeRouter.BURN_ADDRESS());
+        uint256 tre = word.balanceOf(treasury);
+        feeRouter.route(FeeSource.ROLL, amt);
+        assertEq(feeRouter.jackpotBalance() - jp, (amt * 1000) / 10000, "roll jackpot 10%");
+        assertEq(feeRouter.poolBalance() - pool, (amt * 4750) / 10000, "roll pool 47.5%");
+        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()) - burn, (amt * 2750) / 10000, "roll burn 27.5%");
+        assertEq(word.balanceOf(treasury) - tre, (amt * 1500) / 10000, "roll treasury 15%");
+
+        // CLAIM split = 32.5 / 10 / 32.5 / 25
+        word.mint(address(this), amt);
+        word.transfer(address(feeRouter), amt);
+        jp = feeRouter.jackpotBalance();
+        pool = feeRouter.poolBalance();
+        burn = word.balanceOf(feeRouter.BURN_ADDRESS());
+        tre = word.balanceOf(treasury);
+        feeRouter.route(FeeSource.CLAIM, amt);
+        assertEq(feeRouter.jackpotBalance() - jp, (amt * 1000) / 10000, "claim jackpot 10%");
+        assertEq(feeRouter.poolBalance() - pool, (amt * 3250) / 10000, "claim pool 32.5%");
+        assertEq(word.balanceOf(feeRouter.BURN_ADDRESS()) - burn, (amt * 3250) / 10000, "claim burn 32.5%");
+        assertEq(word.balanceOf(treasury) - tre, (amt * 2500) / 10000, "claim treasury 25%");
+    }
+
     function test_FeeRouter_payoutsCapAtBucketBalance() public {
         _approveAll(alice);
         vm.prank(alice);
@@ -723,10 +756,10 @@ contract LexigotchiTest is Test {
     function _setSplits() internal {
         feeRouter.setSplit(FeeSource.PACK_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
         feeRouter.setSplit(FeeSource.DAILY_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        feeRouter.setSplit(FeeSource.ROLL, FeeRouter.Split(4000, 2500, 2000, 1500));
-        feeRouter.setSplit(FeeSource.CLAIM, FeeRouter.Split(2500, 2500, 2500, 2500));
+        feeRouter.setSplit(FeeSource.ROLL, FeeRouter.Split(4750, 1000, 2750, 1500));
+        feeRouter.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500));
         feeRouter.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0));
-        feeRouter.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4000, 2500, 2000, 1500));
+        feeRouter.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500));
         feeRouter.setSplit(FeeSource.ROYALTY, FeeRouter.Split(0, 0, 0, 10000));
     }
 
