@@ -17,6 +17,14 @@ export const SPLASH_BG = "#f4ead2"; // game's aged-paper cream
  */
 export const PRELAUNCH = process.env.NEXT_PUBLIC_PRELAUNCH === "1";
 
+/**
+ * Base App mini-app identifier, emitted as `<meta name="base:app_id">` in the `/play` head so the
+ * Base App associates the rendered page with its registered mini app (the Base-app analogue of the
+ * Farcaster `accountAssociation` below). Baked in so it works without env config; `BASE_APP_ID`
+ * overrides it for other environments.
+ */
+export const BASE_APP_ID = process.env.BASE_APP_ID ?? "6a42a441852494bd76e6a47d";
+
 const launchAction = (type: "launch_miniapp" | "launch_frame") => ({
   type,
   name: "Lexigotchi",
