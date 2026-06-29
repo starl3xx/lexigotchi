@@ -23,7 +23,7 @@ interface EnvField {
 
 const ENV: EnvField[] = [
   { key: "BASE_RPC", label: "Base RPC URL", required: true, type: "text", help: "your Base mainnet RPC endpoint" },
-  { key: "TREASURY", label: "Treasury", required: true, type: "address", help: "treasury multisig" },
+  { key: "TREASURY", label: "Treasury", required: true, type: "address", help: "treasury address (the owner wallet)" },
   { key: "SIGNER", label: "Signer", required: true, type: "address", help: "backend key (draws / rolls / prestige)" },
   { key: "KEEPER", label: "Keeper", required: true, type: "address", help: "operator key (resolve / epochs)" },
   { key: "ANSWERCHAIN_HEAD", label: "AnswerChain head", required: true, type: "bytes32", help: "precomputed reverse hash-chain head" },
@@ -126,7 +126,7 @@ export function LaunchTab() {
           {[
             "Copy the 10 printed addresses into the Deployments tab (and commit config/deployments.json).",
             "Verify the wiring checklist (Access & Safety tab).",
-            "Transfer ownership of all 10 contracts to the multisig, then accept (Access & Safety).",
+            "Transfer ownership of all 10 contracts to the owner key (a hardware wallet), then accept (Access & Safety).",
             "Confirm the keeper + signer are the production keys; pre-commit the AnswerChain head.",
             "Seed the Rewards Pool if bootstrapping early yield (Treasury & Pools).",
           ].map((s, i) => (

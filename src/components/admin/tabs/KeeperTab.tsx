@@ -1,6 +1,6 @@
 "use client";
 /**
- * Keeper — the recurring operator duties (run from the keeper key, NOT the multisig): resolve the
+ * Keeper — the recurring operator duties (run from the keeper key, NOT the owner key): resolve the
  * daily jackpot, open yield epochs, open bounty periods. Plus a reference for the off-chain signer
  * duties (rolls / prestige / letter draws) that aren't transactions but back the commit→reveal flow.
  */
@@ -31,7 +31,7 @@ export function KeeperTab() {
 
       <Banner tone="warning" icon={<Key weight="bold" size={14} />}>
         These run from the <strong>keeper</strong> key (the operator hot key:{" "}
-        <span className="font-mono">{shortAddr(d?.roles.keeper)}</span>), not the multisig. Rotate the keeper in
+        <span className="font-mono">{shortAddr(d?.roles.keeper)}</span>), not the owner key (a hardware wallet). Rotate the keeper in
         Parameters to pause a duty in an emergency.
       </Banner>
 

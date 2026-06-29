@@ -1,12 +1,13 @@
 "use client";
 /**
  * Transaction-plan UI — turns a registry function into an editable form and renders the resulting
- * `TxIntent` as a copy-pasteable `cast send` command + a Gnosis Safe batch, with a gated execute
- * affordance. This is the shared engine behind the Parameters, Keeper, Treasury, and Access tabs.
+ * `TxIntent` as a copy-pasteable `cast send` command + an optional Gnosis Safe batch, with a gated
+ * execute affordance. This is the shared engine behind the Parameters, Keeper, Treasury, and Access tabs.
  *
- * In Phase 0 the contracts aren't deployed, so "execute" stays disabled — the cast command and Safe
- * JSON ARE the execution path (the owner runs them, ideally from the multisig). When the suite is
- * live and a wallet layer is added, the same TxIntent drives in-browser signing.
+ * In Phase 0 the contracts aren't deployed, so "execute" stays disabled — the cast command IS the
+ * execution path (the operator signs it from the owner/keeper wallet — the owner key is a hardware
+ * wallet; the Safe batch is optional, only if you execute via a Safe). When the suite is live and a
+ * wallet layer is added, the same TxIntent drives in-browser signing.
  */
 import { useMemo, useState } from "react";
 import type { ContractDef, ContractFn } from "@/lib/admin/contracts";
@@ -93,7 +94,7 @@ export function TxOutput({ intent, chainId = 8453 }: { intent: TxIntent; chainId
               onClick={() => setShowSafe((s) => !s)}
               className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-ink/45"
             >
-              <CaretDown weight="bold" size={12} className={showSafe ? "rotate-180" : ""} /> Safe transaction builder JSON
+              <CaretDown weight="bold" size={12} className={showSafe ? "rotate-180" : ""} /> Safe transaction builder JSON (optional — only if you execute via a Safe)
             </button>
             {showSafe && (
               <div className="mt-1">

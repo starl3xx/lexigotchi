@@ -1,9 +1,10 @@
 "use client";
 /**
  * Parameters — every owner-only setter across the suite, grouped by contract, rendered as a
- * transaction builder. These are the multisig-tunable storage variables (prices, splits, care
- * thresholds, bounty carve, dictionary root, role rotations). Each form emits a cast command + Safe
- * batch; nothing executes from here in Phase 0.
+ * transaction builder. These are the owner-tunable storage variables (prices, splits, care
+ * thresholds, bounty carve, dictionary root, role rotations) — set from the owner key (a hardware
+ * wallet). Each form emits a cast command (the primary execution path) plus an optional Safe batch;
+ * nothing executes from here in Phase 0.
  */
 import { useMemo, useState } from "react";
 import { CONTRACTS } from "@/lib/admin/contracts";
@@ -37,8 +38,8 @@ export function ParametersTab() {
       </div>
 
       <Banner tone="ok" icon={<Info weight="bold" size={14} />}>
-        These are <strong>owner</strong> actions — run them from the multisig that owns the suite. Each form builds the
-        exact transaction; copy the <code>cast</code> command or the Safe batch.
+        These are <strong>owner</strong> actions — run them from the owner key (a hardware wallet) that owns the suite. Each form builds the
+        exact transaction; copy the <code>cast</code> command (the primary execution path), or the optional Safe batch.
       </Banner>
 
       <div className="flex flex-wrap gap-2">
