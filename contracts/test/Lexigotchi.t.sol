@@ -20,6 +20,7 @@ import {AnswerChain} from "../src/AnswerChain.sol";
 import {Jackpot} from "../src/Jackpot.sol";
 import {YieldDistributor} from "../src/YieldDistributor.sol";
 import {Bounty} from "../src/Bounty.sol";
+import {RepegKeeper} from "../src/RepegKeeper.sol";
 import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
 import {ILetters} from "../src/interfaces/ILetters.sol";
 import {IWords, CaseState} from "../src/interfaces/IWords.sol";
@@ -50,6 +51,7 @@ contract LexigotchiTest is Test {
     address treasury = makeAddr("treasury");
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
+    address priceKeeperHot = makeAddr("priceKeeper");
 
     uint256 constant PACK = 100e18;
     uint256 constant DAILY = 5e18;
@@ -939,6 +941,106 @@ contract LexigotchiTest is Test {
 
     function _hashPair(bytes32 a, bytes32 b) internal pure returns (bytes32) {
         return a < b ? keccak256(abi.encode(a, b)) : keccak256(abi.encode(b, a));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // RepegKeeper — clamped onlyPriceKeeper auto-repeg (no multisig in the loop)
+    // ---------------------------------------------------------------------------------------------
+
+    function test_Repeg_clampBandAndKeeperAccess() public {
+        rolls.setMaxMoveBps(2000); // ±20%
+        rolls.setPriceKeeper(priceKeeperHot);
+        uint256 p0 = rolls.rollPrice();
+
+        // the owner is NOT the price keeper — owner uses the unclamped setter, never repeg
+        vm.expectRevert(RepegKeeper.NotPriceKeeper.selector);
+        rolls.repegRollPrice(p0 + 1);
+
+        // +20% is in band and applies verbatim
+        uint256 up = p0 + (p0 * 2000) / 10000;
+        vm.prank(priceKeeperHot);
+        rolls.repegRollPrice(up);
+        assertEq(rolls.rollPrice(), up, "repegged within band");
+
+        // a move past the band reverts, in both directions
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(RepegKeeper.RepegTooLarge.selector);
+        rolls.repegRollPrice(up + (up * 2000) / 10000 + 1);
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(RepegKeeper.RepegTooLarge.selector);
+        rolls.repegRollPrice(up - (up * 2000) / 10000 - 1);
+
+        // an unchanged value is a silent no-op
+        vm.prank(priceKeeperHot);
+        rolls.repegRollPrice(up);
+        assertEq(rolls.rollPrice(), up, "unchanged no-op");
+    }
+
+    function test_Repeg_disabledByDefaultAndOwnerOnlyConfig() public {
+        // priceKeeper defaults to address(0) → repeg is disabled until the owner wires it
+        uint256 target = rolls.rollPrice() + 1; // hoist the view call out of the pranked/expectRevert call
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(RepegKeeper.NotPriceKeeper.selector);
+        rolls.repegRollPrice(target);
+
+        // setPriceKeeper / setMaxMoveBps are owner-only — the keeper can't widen its band or re-point
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, priceKeeperHot));
+        rolls.setMaxMoveBps(9000);
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, priceKeeperHot));
+        rolls.setPriceKeeper(alice);
+    }
+
+    function test_Repeg_zeroGuardProtectsFreeDaily() public {
+        letters.setMaxMoveBps(2000);
+        letters.setPriceKeeper(priceKeeperHot);
+        // the owner sets the daily FREE (dailyPrice == 0); the keeper can never move it off zero
+        letters.setPrices(letters.packPrice(), 0);
+        assertEq(letters.dailyPrice(), 0, "daily free");
+
+        uint256 pack0 = letters.packPrice();
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(RepegKeeper.RepegTooLarge.selector);
+        letters.repegPrices(pack0, 1); // trying to start charging for the free daily
+
+        // pack repegs within band; the unchanged (zero) daily leg is skipped
+        uint256 pack1 = pack0 + (pack0 * 1000) / 10000; // +10%
+        vm.prank(priceKeeperHot);
+        letters.repegPrices(pack1, 0);
+        assertEq(letters.packPrice(), pack1, "pack repegged");
+        assertEq(letters.dailyPrice(), 0, "daily stays free");
+
+        // the keeper also cannot zero a live price
+        vm.prank(priceKeeperHot);
+        vm.expectRevert(RepegKeeper.RepegTooLarge.selector);
+        letters.repegPrices(0, 0);
+    }
+
+    function test_Repeg_stakingAndPrestigeTouchPriceOnly() public {
+        // Staking: snack price moves, hunger thresholds are preserved
+        staking.setMaxMoveBps(2000);
+        staking.setPriceKeeper(priceKeeperHot);
+        uint64 peck = staking.peckishAfter();
+        uint64 hun = staking.hungryAfter();
+        uint256 s0 = staking.snackPrice();
+        vm.prank(priceKeeperHot);
+        staking.repegSnackPrice(s0 + (s0 * 1000) / 10000);
+        assertGt(staking.snackPrice(), s0, "snack repegged");
+        assertEq(staking.peckishAfter(), peck, "peckish threshold preserved");
+        assertEq(staking.hungryAfter(), hun, "hungry threshold preserved");
+
+        // Prestige: fees move, maxLevel is preserved
+        prestige.setMaxMoveBps(2000);
+        prestige.setPriceKeeper(priceKeeperHot);
+        uint8 ml = prestige.maxLevel();
+        uint256 f0 = prestige.prestigeFee();
+        uint256 sc0 = prestige.snackCost();
+        vm.prank(priceKeeperHot);
+        prestige.repegFees(f0 + (f0 * 1000) / 10000, sc0 + (sc0 * 1000) / 10000);
+        assertEq(prestige.maxLevel(), ml, "maxLevel preserved");
+        assertGt(prestige.prestigeFee(), f0, "fee repegged");
+        assertGt(prestige.snackCost(), sc0, "snack cost repegged");
     }
 
     // --- signatures ---

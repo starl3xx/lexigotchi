@@ -9,6 +9,7 @@ import {IWords} from "./interfaces/IWords.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
 import {FeeCollector} from "./FeeCollector.sol";
+import {RepegKeeper} from "./RepegKeeper.sol";
 
 /**
  * @title Staking
@@ -23,7 +24,7 @@ import {FeeCollector} from "./FeeCollector.sol";
  *         tier off-chain). The actual UPPERCASE-only yield is streamed by `YieldDistributor` per
  *         epoch from the FeeRouter pool, so this contract holds no reward accounting itself.
  */
-contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCollector {
+contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     IWords public immutable words;
 
     uint256 public snackPrice; // $WORD per feed (100% burned)
@@ -134,5 +135,26 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
     function setFreeDailySnack(bool enabled) external onlyOwner {
         freeDailySnack = enabled;
         emit FreeDailySnackSet(enabled);
+    }
+
+    // --- repeg (price keeper) ---------------------------------------------------------------------
+
+    /// @notice Keeper-driven clamped repeg of the snack price ONLY; the hunger thresholds are re-passed
+    ///         unchanged into the existing CareParamsSet event (the keeper can't touch governance args).
+    function repegSnackPrice(uint256 snackPrice_) external onlyPriceKeeper {
+        uint256 old = snackPrice;
+        if (_clampRepeg(old, snackPrice_)) {
+            snackPrice = snackPrice_;
+            emit CareParamsSet(peckishAfter, hungryAfter, snackPrice_);
+            emit Repegged("snackPrice", old, snackPrice_);
+        }
+    }
+
+    function setPriceKeeper(address keeper) external onlyOwner {
+        _setPriceKeeper(keeper);
+    }
+
+    function setMaxMoveBps(uint16 bps) external onlyOwner {
+        _setMaxMoveBps(bps);
     }
 }

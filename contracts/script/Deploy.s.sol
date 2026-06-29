@@ -29,7 +29,7 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  *
  *         Fee splits are seeded from the v0.2 table (params.ts). The bounty carve and prestige tuning
  *         default OFF/gentle, matching the sim. Ownership stays with the deployer; hand it to the
- *         multisig post-deploy (Ownable2Step: transferOwnership → acceptOwnership).
+ *         owner wallet post-deploy (Ownable2Step: transferOwnership → acceptOwnership). No multisig.
  *
  *         Usage:
  *           forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify
@@ -55,6 +55,8 @@ contract Deploy is Script {
         uint64 hungryAfter;
         uint8 maxLevel;
         uint16 bountyCarveBps;
+        address priceKeeper;
+        uint16 maxMoveBps;
         string lettersUri;
         uint32[26] cap;
         bytes32 dictRoot;
@@ -123,6 +125,22 @@ contract Deploy is Script {
         // Jackpot reveals + resolves atomically, so it is the AnswerChain's keeper. The off-chain
         // operator keeper drives it through Jackpot.resolve (Jackpot's own keeper).
         a.answerChain.setKeeper(address(a.jackpot));
+
+        // Price-keeper repeg band on the 5 price contracts. priceKeeper stays address(0) (auto-repeg
+        // disabled) until the owner wires the hot key — a safe freeze default; the keeper is a distinct
+        // role from the resolution keeper above.
+        a.letters.setMaxMoveBps(c.maxMoveBps);
+        a.words.setMaxMoveBps(c.maxMoveBps);
+        a.rolls.setMaxMoveBps(c.maxMoveBps);
+        a.staking.setMaxMoveBps(c.maxMoveBps);
+        a.prestige.setMaxMoveBps(c.maxMoveBps);
+        if (c.priceKeeper != address(0)) {
+            a.letters.setPriceKeeper(c.priceKeeper);
+            a.words.setPriceKeeper(c.priceKeeper);
+            a.rolls.setPriceKeeper(c.priceKeeper);
+            a.staking.setPriceKeeper(c.priceKeeper);
+            a.prestige.setPriceKeeper(c.priceKeeper);
+        }
     }
 
     /// @dev v0.2 fee split table (params.ts splits.*), in basis points (sum 10_000 each).
@@ -154,6 +172,8 @@ contract Deploy is Script {
         c.hungryAfter = uint64(vm.envOr("HUNGRY_AFTER", uint256(3 days)));
         c.maxLevel = uint8(vm.envOr("PRESTIGE_MAX_LEVEL", uint256(4)));
         c.bountyCarveBps = uint16(vm.envOr("BOUNTY_CARVE_BPS", uint256(0)));
+        c.priceKeeper = vm.envOr("PRICE_KEEPER", address(0)); // address(0) = auto-repeg disabled
+        c.maxMoveBps = uint16(vm.envOr("MAX_MOVE_BPS", uint256(2000))); // ±20% per repeg
         c.lettersUri = vm.envOr("LETTERS_URI", string(""));
 
         (c.cap, c.dictRoot) = _readEconomy();

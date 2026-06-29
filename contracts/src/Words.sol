@@ -12,6 +12,7 @@ import {ILetters} from "./interfaces/ILetters.sol";
 import {IWords, CaseState} from "./interfaces/IWords.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
 import {FeeCollector} from "./FeeCollector.sol";
+import {RepegKeeper} from "./RepegKeeper.sol";
 
 /**
  * @title Words
@@ -25,7 +26,7 @@ import {FeeCollector} from "./FeeCollector.sol";
  *         escrow in place (`applyUpgrade`, called by Rolls). Dissolution burns the Word, returns its
  *         five letters in their current case, and frees the name for re-claim (v0.1 §5.4).
  */
-contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, FeeCollector {
+contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     uint8 internal constant FULL_MASK = 0x1F; // all five positions raised
 
     struct Escrow {
@@ -208,6 +209,26 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
         if (_prestige == address(0)) revert ZeroAddress();
         prestige = _prestige;
         emit PrestigeSet(_prestige);
+    }
+
+    // --- repeg (price keeper) ---------------------------------------------------------------------
+
+    /// @notice Keeper-driven clamped repeg of the claim price.
+    function repegClaimPrice(uint256 price) external onlyPriceKeeper {
+        uint256 old = claimPrice;
+        if (_clampRepeg(old, price)) {
+            claimPrice = price;
+            emit ClaimPriceSet(price);
+            emit Repegged("claimPrice", old, price);
+        }
+    }
+
+    function setPriceKeeper(address keeper) external onlyOwner {
+        _setPriceKeeper(keeper);
+    }
+
+    function setMaxMoveBps(uint16 bps) external onlyOwner {
+        _setMaxMoveBps(bps);
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC1155Holder, IERC165) returns (bool) {
