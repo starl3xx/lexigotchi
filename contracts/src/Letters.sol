@@ -35,6 +35,11 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     uint8 public constant PACK_SIZE = 5;
 
+    // Voucher KIND tags — bound into the free-mint signer digests so a voucher for one path can never
+    // be replayed onto another (or onto the paid daily, whose digest carries no kind field at all).
+    uint8 internal constant KIND_FREE_DAILY = 0;
+    uint8 internal constant KIND_FREE_PACK = 1;
+
     struct Commit {
         address buyer;
         uint8 count;
@@ -58,6 +63,10 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     // `dailyUsed` stores (UTC day + 1) of the last daily mint, so the default 0 means "never used"
     // and never collides with day 0. One discounted mint per FID per UTC day.
     mapping(uint256 fid => uint32 lastDailyDayPlusOne) public dailyUsed;
+    // Campaign airdrop: one free 5-pack per FID, ever (claim-on-first-open). `freePackOpen` is the
+    // owner's kill-switch to close the campaign.
+    mapping(uint256 fid => bool claimed) public freePackClaimed;
+    bool public freePackOpen = true;
 
     event Committed(uint256 indexed commitId, address indexed buyer, uint8 count);
     event Revealed(uint256 indexed commitId, address indexed buyer, uint256[] letterIds);
@@ -66,6 +75,9 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     event SignerSet(address signer);
     event SwapRouterSet(address swapRouter);
     event UpgraderSet(address upgrader, bool allowed);
+    event FreeDailyMinted(uint256 indexed fid, address indexed buyer, uint256 indexed commitId, uint32 day);
+    event FreePackMinted(uint256 indexed fid, address indexed buyer, uint256 indexed commitId, uint256 nonce);
+    event FreePackOpenSet(bool open);
 
     error NotUpgrader();
     error BadCommit();
@@ -77,6 +89,8 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     error DailyAlreadyUsed();
     error InsufficientSwapOutput();
     error ZeroAddress();
+    error FreePackAlreadyClaimed();
+    error FreePackClosed();
 
     constructor(
         IERC20 _word,
@@ -155,6 +169,58 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         dailyUsed[fid] = todayPlusOne;
     }
 
+    // --- mint: free campaign vouchers (signer-gated, zero cost) -----------------------------------
+
+    /// @notice Free FID-gated daily single — a signer-authorized zero-cost mint that skips payment
+    ///         entirely (no FeeRouter route, zero solvency impact). Shares the one-per-FID-per-UTC-day
+    ///         cap with the paid daily (a FID cannot take both the same day). The unchanged `reveal`
+    ///         still draws the demand-mirrored, cap-respecting letter — this voucher only authorizes the
+    ///         free commit; the draw needs its own signer signature.
+    function commitDailyFree(uint256 fid, uint256 deadline, bytes calldata sig)
+        external
+        nonReentrant
+        returns (uint256 commitId)
+    {
+        _verifyFreeDaily(fid, deadline, sig);
+        commitId = _newCommit(msg.sender, 1);
+        emit FreeDailyMinted(fid, msg.sender, commitId, uint32(block.timestamp / 1 days));
+    }
+
+    /// @notice One-time free 5-pack airdrop (the pre-launch claim-on-first-open campaign). Signer-gated,
+    ///         zero cost, once per FID; `nonce` is the campaign/voucher id. The owner can close the
+    ///         campaign with `setFreePackOpen`.
+    function commitPackFree(uint256 fid, uint256 nonce, uint256 deadline, bytes calldata sig)
+        external
+        nonReentrant
+        returns (uint256 commitId)
+    {
+        _verifyFreePack(fid, nonce, deadline, sig);
+        commitId = _newCommit(msg.sender, PACK_SIZE);
+        emit FreePackMinted(fid, msg.sender, commitId, nonce);
+    }
+
+    function _verifyFreeDaily(uint256 fid, uint256 deadline, bytes calldata sig) internal {
+        if (block.timestamp > deadline) revert AllowanceExpired();
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(this), block.chainid, KIND_FREE_DAILY, msg.sender, fid, deadline))
+        );
+        if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
+        uint32 todayPlusOne = uint32(block.timestamp / 1 days) + 1;
+        if (dailyUsed[fid] == todayPlusOne) revert DailyAlreadyUsed();
+        dailyUsed[fid] = todayPlusOne;
+    }
+
+    function _verifyFreePack(uint256 fid, uint256 nonce, uint256 deadline, bytes calldata sig) internal {
+        if (!freePackOpen) revert FreePackClosed();
+        if (block.timestamp > deadline) revert AllowanceExpired();
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(this), block.chainid, KIND_FREE_PACK, msg.sender, fid, nonce, deadline))
+        );
+        if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
+        if (freePackClaimed[fid]) revert FreePackAlreadyClaimed();
+        freePackClaimed[fid] = true; // checks-effects: set before the commit
+    }
+
     // --- reveal -----------------------------------------------------------------------------------
 
     /// @notice Reveal a commit, minting its lowercase letters from the signer's fair, demand-mirrored
@@ -219,6 +285,12 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
         if (_signer == address(0)) revert ZeroAddress();
         signer = _signer;
         emit SignerSet(_signer);
+    }
+
+    /// @notice Open or close the one-time free-pack campaign (the claim-on-first-open airdrop).
+    function setFreePackOpen(bool open) external onlyOwner {
+        freePackOpen = open;
+        emit FreePackOpenSet(open);
     }
 
     function setSwapRouter(ISwapRouter _swapRouter) external onlyOwner {

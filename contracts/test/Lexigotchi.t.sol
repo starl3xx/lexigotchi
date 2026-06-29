@@ -282,6 +282,113 @@ contract LexigotchiTest is Test {
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Letters — free campaign vouchers (free daily + one-time free pack), signer-gated, zero cost
+    // ---------------------------------------------------------------------------------------------
+
+    function test_FreeDaily_mintsFreeAndSharesGate() public {
+        uint256 fid = 6500;
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 poolBefore = feeRouter.poolBalance();
+
+        vm.prank(alice);
+        uint256 id = letters.commitDailyFree(fid, deadline, _signFreeDaily(alice, fid, deadline));
+
+        assertEq(feeRouter.poolBalance(), poolBefore, "no fee routed (free)");
+        assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD");
+        assertEq(letters.dailyUsed(fid), uint32(block.timestamp / 1 days) + 1, "daily gate marked");
+
+        // the unchanged reveal still draws exactly one capped lowercase
+        uint8[] memory draw = new uint8[](1);
+        draw[0] = 2; // 'c'
+        letters.reveal(id, draw, _signPack(id, alice, draw));
+        assertEq(letters.balanceOf(alice, 2), 1, "one lowercase minted");
+
+        // shares the one-per-FID-per-day gate with the PAID daily (either path reverts the same day)
+        vm.prank(alice);
+        vm.expectRevert(Letters.DailyAlreadyUsed.selector);
+        letters.commitDailyFree(fid, deadline, _signFreeDaily(alice, fid, deadline));
+        vm.prank(alice);
+        vm.expectRevert(Letters.DailyAlreadyUsed.selector);
+        letters.commitDaily(fid, deadline, _signDaily(alice, fid, deadline));
+    }
+
+    function test_FreeDaily_rejectsWrongWalletKindAndExpiry() public {
+        uint256 fid = 6500;
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // voucher signed for bob, redeemed by alice
+        vm.prank(alice);
+        vm.expectRevert(Letters.BadSignature.selector);
+        letters.commitDailyFree(fid, deadline, _signFreeDaily(bob, fid, deadline));
+
+        // a PAID daily voucher cannot be replayed onto the free path (kind-tag separation)
+        vm.prank(alice);
+        vm.expectRevert(Letters.BadSignature.selector);
+        letters.commitDailyFree(fid, deadline, _signDaily(alice, fid, deadline));
+
+        // expired deadline
+        vm.warp(deadline + 1);
+        vm.prank(alice);
+        vm.expectRevert(Letters.AllowanceExpired.selector);
+        letters.commitDailyFree(fid, deadline, _signFreeDaily(alice, fid, deadline));
+    }
+
+    function test_FreePack_mintsFiveOnceFree() public {
+        uint256 fid = 6500;
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 poolBefore = feeRouter.poolBalance();
+
+        vm.prank(alice);
+        uint256 id = letters.commitPackFree(fid, 1, deadline, _signFreePack(alice, fid, 1, deadline));
+
+        assertEq(feeRouter.poolBalance(), poolBefore, "no fee routed (free)");
+        assertTrue(letters.freePackClaimed(fid), "claimed flag set");
+
+        uint8[] memory draw = new uint8[](5);
+        for (uint8 i = 0; i < 5; i++) {
+            draw[i] = i;
+        }
+        letters.reveal(id, draw, _signPack(id, alice, draw));
+        uint256 total;
+        for (uint8 i = 0; i < 26; i++) {
+            total += letters.balanceOf(alice, i);
+        }
+        assertEq(total, 5, "five lowercase minted");
+
+        // one-time: a second claim reverts even with a fresh nonce
+        vm.prank(alice);
+        vm.expectRevert(Letters.FreePackAlreadyClaimed.selector);
+        letters.commitPackFree(fid, 2, deadline, _signFreePack(alice, fid, 2, deadline));
+    }
+
+    function test_FreePack_killSwitchKindAndWallet() public {
+        uint256 fid = 7000;
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // setFreePackOpen is owner-only
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        letters.setFreePackOpen(false);
+
+        // a closed campaign rejects claims; re-opening restores them
+        letters.setFreePackOpen(false);
+        vm.prank(alice);
+        vm.expectRevert(Letters.FreePackClosed.selector);
+        letters.commitPackFree(fid, 1, deadline, _signFreePack(alice, fid, 1, deadline));
+        letters.setFreePackOpen(true);
+
+        // voucher signed for bob, redeemed by alice
+        vm.prank(alice);
+        vm.expectRevert(Letters.BadSignature.selector);
+        letters.commitPackFree(fid, 1, deadline, _signFreePack(bob, fid, 1, deadline));
+
+        // a free-DAILY voucher cannot be replayed as a free-PACK (kind-tag separation)
+        vm.prank(alice);
+        vm.expectRevert(Letters.BadSignature.selector);
+        letters.commitPackFree(fid, 1, deadline, _signFreeDaily(alice, fid, deadline));
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Letters — ETH auto-swap mint paths (v0.2 §4): swap ETH→$WORD, route the price, refund excess
     // ---------------------------------------------------------------------------------------------
 
@@ -847,6 +954,26 @@ contract LexigotchiTest is Test {
     function _signDaily(address buyer, uint256 fid, uint256 deadline) internal view returns (bytes memory) {
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
             keccak256(abi.encode(address(letters), block.chainid, buyer, fid, deadline))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _signFreeDaily(address buyer, uint256 fid, uint256 deadline) internal view returns (bytes memory) {
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(letters), block.chainid, uint8(0), buyer, fid, deadline)) // uint8(0) = KIND_FREE_DAILY
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _signFreePack(address buyer, uint256 fid, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(letters), block.chainid, uint8(1), buyer, fid, nonce, deadline)) // uint8(1) = KIND_FREE_PACK
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
         return abi.encodePacked(r, s, v);
