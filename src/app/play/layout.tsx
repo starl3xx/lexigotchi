@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { miniAppEmbed, frameEmbed } from "@/lib/site";
+import { miniAppEmbed, frameEmbed, BASE_APP_ID } from "@/lib/site";
 
 /** The mini-app entry. Carries the `fc:miniapp` (+ legacy `fc:frame`) embed so a shared /play link
  *  renders a launchable Lexigotchi card in Farcaster clients. Renders full-bleed (no header/footer chrome). */
@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   other: {
     "fc:miniapp": JSON.stringify(miniAppEmbed),
     "fc:frame": JSON.stringify(frameEmbed),
+    "base:app_id": BASE_APP_ID,
   },
 };
 
