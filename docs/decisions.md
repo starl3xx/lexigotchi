@@ -72,6 +72,49 @@ spec-completeness + art critics). The solvency core survived all three skeptics 
 real defects**; the one real (low) finding — a dead royalty faucet — is now fixed, and the art
 findings are implemented. Full writeup: `docs/phase-0-review.md`.
 
+## Launch decisions — LOCKED (2026-06-22)
+
+The launch rulings from the decision walkthrough. These are the **live spec** — where they conflict
+with the dated analysis below (the $0.05 daily, the "multisig" peg language, the LP-depth lever, the
+old pump numbers), **these win**. The findings below stay as the historical record of what the sims
+showed; only the *decisions* changed.
+
+1. **Daily mint — FREE, FID-gated**, claimable in Farcaster clients AND the Base App (`base:app_id`
+   meta shipped). The FID is the only Sybil gate; never an ungated wallet daily.
+2. **Campaign airdrop — claim-on-first-open**: the eligible player connects and the signer mints a
+   one-time 5-pack voucher to their own wallet (idempotent vs `pack_grants`). No FID→address
+   resolution, no gas on no-shows.
+3. **Jackpot — operator rake cut 25%→10%** (freed share to burn/pool). **No AMOE** (owner's call);
+   the `AnswerChain` skill element is the non-lottery argument — counsel to vet chance-vs-skill.
+4. **Full letter supply at launch** (2.5× cap, ~55,467); no metered waves.
+5. **Price ladder v1 = current params** (pack $1 · roll $0.25 · claim $0.50 · snack $0.02 · **daily
+   free**); owner-tunable post-deploy. Free-daily re-sim: ~$27K demand, mint-out ~day 56, dictionary
+   100% ~day 90, solvency holds.
+6. **No treasury ETH seeded for liquidity** — launch on the ~$21K book; accept the ~8× pump (peak
+   mcap ~$190K, self-heals ~$60K; cost-to-play ~1.1× so players are unaffected). Still publish the
+   disclosures (holdings, lock/vesting, reframe copy to play-not-price).
+7. **Automated peg — an `onlyKeeper` repeg setter** + guardrails (drift threshold ~5%, max-move
+   clamp ~±25%/day, min-liquidity floor). Reuses LHAW's off-chain $WORD price fetch (same token)
+   but not its one-value-to-one-setter model.
+8. **$WORD-only at launch** (`SWAP_ROUTER` blank); ETH-only players use the Buy-$WORD redirect. No
+   swap-adapter build.
+9. **Mini-app AND general web wallet** play (two connector paths); the free daily stays FID-gated
+   (web users sign in with Neynar for it).
+10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
+11. **Prestige + bounty OFF at launch** (enable post-cohort); the secondary-letter swap is P1.
+
+**NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
+`seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,
+AnswerChain reveal, and now the repeg). This drops the Safe / `transferOwnership`-to-multisig step
+from the launch path.
+
+**Pre-freeze contract changes** (must land before the audit freeze — they alter the audited surface):
+(1) a free-daily signer voucher on `Letters`, (2) a free-pack signer voucher on `Letters`
+(claim-on-first-open airdrop), (3) the 10% jackpot-rake split default, (4) the `onlyKeeper` repeg
+setter. All small, riding existing suite patterns.
+
+**Builder code** `bc_bu1cyzms` rides every on-chain action (ERC-8021, `src/lib/onchain/builderCode.ts`).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
@@ -79,10 +122,10 @@ price **$2.357e-7**, **mcap/FDV ~$23.5K**, ~100B supply, **liquidity ~$21.2K**, 
 (dormant)**. Paired with WETH (so the LP + every secondary trade are ETH-denominated). Team
 treasury 10B+ $WORD (~$2,350).
 
-- **USD-pegged pricing** (decision): prices are USD targets; the multisig re-sets the on-chain
-  $WORD amounts as the price moves. The sim runs in USD; `priceWord()` converts. `WORD_USD_PRICE`
+- **USD-pegged pricing** (decision): prices are USD targets; an automated `onlyKeeper` keeper
+  re-sets the on-chain $WORD amounts as the price moves (no multisig — see Launch decisions). The sim runs in USD; `priceWord()` converts. `WORD_USD_PRICE`
   is the live peg input.
-- **Price ladder** (revised 2026-06-11): daily **$0.05** · pack **$1.00** · roll **$0.25** ·
+- **Price ladder** (revised 2026-06-11; _daily SUPERSEDED 2026-06-22 → **FREE**, see Launch decisions_): daily **$0.05** · pack **$1.00** · roll **$0.25** ·
   claim **$0.50** · snack **$0.02**. (Was pack $0.60 / roll $0.15; raised on owner's call.) Per
   letter: pack $0.20, daily $0.05 — the FID single is 4× cheaper/letter, sharpening the habit hook.
 - **Fee routing change (2026-06-11):** secondary royalty now **100% Treasury** (was 100% Pool,
@@ -93,7 +136,8 @@ treasury 10B+ $WORD (~$2,350).
   (compliance verdict: rework). The jackpot self-funds from fee splits. Treasury's other lever
   is **LP depth** (a market op, not a faucet seed).
 - **Mechanical peg** (recommended): peg off a 30-min TWAP, repeg on |Δ|>10–15% or weekly, ±25%/day
-  cap — NOT a discretionary multisig lever (market-integrity crux). The AMM layer shows a *weekly*
+  cap — a keeper rule, NOT a discretionary or multisig lever (market-integrity crux). **DECIDED: an
+  `onlyKeeper` repeg setter (see Launch decisions).** The AMM layer shows a *weekly*
   repeg already holds cost-to-play within ~10%, so this is cheap to honor.
 
 **What the AMM/market layer found** (`npm run market` — constant-product layer; revised ladder):

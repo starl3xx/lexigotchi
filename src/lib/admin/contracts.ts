@@ -243,7 +243,7 @@ export const CONTRACTS: ContractDef[] = [
         fn: "setPrices",
         signature: "setPrices(uint256,uint256)",
         title: "Set mint prices",
-        desc: "Re-peg the pack and daily-single $WORD prices as $WORD moves (USD targets: pack $1.00, daily $0.05).",
+        desc: "Re-peg the pack and daily-single $WORD prices as $WORD moves (USD targets: pack $1.00, daily free — the daily single is free, FID-gated).",
         kind: "owner",
         group: "Pricing",
         args: [
