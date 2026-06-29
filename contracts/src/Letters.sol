@@ -118,7 +118,17 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     }
 
     /// @notice Commit + pay for a pack with ETH (auto-swapped to $WORD; excess $WORD refunded).
-    function commitPackETH(uint256 minWordOut) external payable nonReentrant returns (uint256 commitId) {
+    ///         `deadline` bounds how long a pending tx may sit in the mempool before its swap executes:
+    ///         `minWordOut` caps the price but not the timing, and unlike the daily ETH path (already
+    ///         bounded by its voucher deadline in `_verifyDaily`) this anytime path carries no signature,
+    ///         so it needs its own expiry to avoid filling at a stale price after an indefinite delay.
+    function commitPackETH(uint256 minWordOut, uint256 deadline)
+        external
+        payable
+        nonReentrant
+        returns (uint256 commitId)
+    {
+        if (block.timestamp > deadline) revert AllowanceExpired();
         uint256 out = swapRouter.swapETHForWord{value: msg.value}(minWordOut, address(this));
         if (out < packPrice) revert InsufficientSwapOutput();
         _routeHeld(packPrice, FeeSource.PACK_MINT);

@@ -405,7 +405,7 @@ contract LexigotchiTest is Test {
         vm.deal(alice, 1 ether);
         uint256 supplyBefore = word.totalSupply();
         vm.prank(alice);
-        uint256 id = letters.commitPackETH{value: value}(PACK); // minWordOut = packPrice
+        uint256 id = letters.commitPackETH{value: value}(PACK, block.timestamp + 1 hours); // minWordOut = packPrice
 
         // the swap mints $WORD to the collector; only the surplus over packPrice is refunded
         assertEq(word.balanceOf(alice) - before, out - PACK, "excess $WORD refunded to buyer");
@@ -426,7 +426,7 @@ contract LexigotchiTest is Test {
         uint256 before = word.balanceOf(alice);
         vm.deal(alice, 1 ether);
         vm.prank(alice);
-        letters.commitPackETH{value: value}(PACK);
+        letters.commitPackETH{value: value}(PACK, block.timestamp + 1 hours);
         assertEq(word.balanceOf(alice), before, "no refund on an exact swap");
         assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool funded");
         assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
@@ -438,7 +438,7 @@ contract LexigotchiTest is Test {
         vm.deal(alice, 1 ether);
         vm.prank(alice);
         vm.expectRevert(Letters.InsufficientSwapOutput.selector);
-        letters.commitPackETH{value: value}(0); // minWordOut = 0 so the mock doesn't revert first
+        letters.commitPackETH{value: value}(0, block.timestamp + 1 hours); // minWordOut = 0 so the mock doesn't revert first
     }
 
     function test_PackMintETH_forwardsMinWordOut() public {
@@ -447,7 +447,18 @@ contract LexigotchiTest is Test {
         vm.deal(alice, 1 ether);
         vm.prank(alice);
         vm.expectRevert(bytes("slippage"));
-        letters.commitPackETH{value: value}(200e18); // demand more than the swap yields
+        letters.commitPackETH{value: value}(200e18, block.timestamp + 1 hours); // demand more than the swap yields
+    }
+
+    function test_PackMintETH_expiredDeadlineReverts() public {
+        // a stale ETH-pack tx past its deadline reverts rather than swapping at a later, stale price
+        uint256 value = 1e8; // → 100e18 out == packPrice (would otherwise succeed)
+        vm.deal(alice, 1 ether);
+        uint256 deadline = block.timestamp;
+        vm.warp(block.timestamp + 1); // now one second past the deadline
+        vm.prank(alice);
+        vm.expectRevert(Letters.AllowanceExpired.selector);
+        letters.commitPackETH{value: value}(PACK, deadline);
     }
 
     function test_DailyMintETH_swapsRefundsRoutesAndGatesFid() public {
@@ -685,6 +696,20 @@ contract LexigotchiTest is Test {
         vm.prank(alice);
         staking.feed(t1); // new day → free again
         assertEq(supply0 - word.totalSupply(), SNACK, "free snack resets the next day");
+    }
+
+    function test_Staking_feedOnlyByStaker() public {
+        uint256 t1 = _claimLower(alice, 0); // CRANE
+        _approveAll(alice);
+        vm.startPrank(alice);
+        words.approve(address(staking), t1);
+        staking.stake(t1);
+        vm.stopPrank();
+
+        // a non-staker cannot feed someone else's staked word (least authority)
+        vm.prank(bob);
+        vm.expectRevert(Staking.NotStaker.selector);
+        staking.feed(t1);
     }
 
     function test_AnswerChain_badRevealReverts() public {
