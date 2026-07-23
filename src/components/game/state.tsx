@@ -92,7 +92,9 @@ export type Sheet =
   | { kind: "word"; id: number }
   | { kind: "pack"; letters: number[] }
   | { kind: "roll"; target: RollTarget }
-  | { kind: "balance" }
+  // `need` = the action the player just got price-blocked on; BalanceSheet renders the shortfall
+  // banner so every "not enough $WORD" moment lands on the Buy path instead of a dead toast.
+  | { kind: "balance"; need?: { amount: number; action: string } }
   | { kind: "faq" }
   | { kind: "addapp" }
   | null;
@@ -504,6 +506,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const r = rng.current;
     const drawLetter = () => r.weightedIndex(LETTER_WEIGHTS);
     const toast = (text: string, tone: Toast["tone"] = "info") => dispatch({ t: "toast", text, tone });
+    // Every insufficient-balance dead end routes here: open the Buy sheet with what was blocked.
+    const needWord = (amount: number, action: string) =>
+      dispatch({ t: "sheet", sheet: { kind: "balance", need: { amount, action } } });
 
     return {
       state,
@@ -523,7 +528,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       openPack: () => {
         if (state.balance < COST.pack) {
-          toast("Not enough $WORD for a pack", "bad");
+          needWord(COST.pack, "a pack");
           return [];
         }
         const idxs = Array.from({ length: 5 }, drawLetter);
@@ -533,7 +538,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rollLoose: (idx) => {
         if (state.lower[idx] <= 0) return null; // no such loose letter to raise
         if (state.balance < COST.roll) {
-          toast("Not enough $WORD to roll", "bad");
+          needWord(COST.roll, "a roll");
           return null;
         }
         const success = r.chance(rollSuccessProbability(state.pity[idx]));
@@ -544,7 +549,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const w = state.words.find((x) => x.id === id);
         if (!w || pos < 0 || pos > 4 || w.upper[pos]) return null; // slot already raised / invalid
         if (state.balance < COST.roll) {
-          toast("Not enough $WORD to roll", "bad");
+          needWord(COST.roll, "a roll");
           return null;
         }
         const li = charToIdx(w.word[pos]); // pity keys on the letter being raised
@@ -554,13 +559,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       claim: (word, useUpper) => {
         const inv = useUpper ? state.upper : state.lower;
-        if (
-          !WORD_SET.has(word) ||
-          state.words.some((w) => w.word === word) ||
-          !canSpell(word, inv) ||
-          state.balance < COST.claim
-        ) {
+        if (!WORD_SET.has(word) || state.words.some((w) => w.word === word) || !canSpell(word, inv)) {
           toast("Can't claim that word", "bad");
+          return;
+        }
+        if (state.balance < COST.claim) {
+          needWord(COST.claim, "this claim"); // spellable but broke — a buy moment, not a dead end
           return;
         }
         dispatch({ t: "claim", word, useUpper });
@@ -569,7 +573,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       toggleStake: (id) => dispatch({ t: "stake", id }),
       feed: (id) => {
         if (state.freeSnackUsed && state.balance < COST.snack) {
-          toast("Not enough $WORD to feed", "bad");
+          needWord(COST.snack, "a snack");
           return;
         }
         dispatch({ t: "feed", id });
@@ -583,7 +587,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const free = state.freeSnackUsed ? 0 : 1;
         const affordable = free + Math.floor(state.balance / COST.snack);
         if (affordable === 0) {
-          toast("Not enough $WORD to feed", "bad");
+          needWord(COST.snack * hungry.length, "snacks");
           return;
         }
         dispatch({ t: "feedAll" });
@@ -596,7 +600,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const w = state.words.find((x) => x.id === id);
         if (!w || w.prestigeLevel >= PRESTIGE_LEVELS || !w.staked || wordCase(w) !== "UPPERCASE") return null;
         if (state.balance < COST.prestige + COST.snack) {
-          toast("Not enough $WORD to ascend", "bad");
+          needWord(COST.prestige + COST.snack, "an ascension");
           return null;
         }
         const success = r.chance(prestigeSuccessProbability(w.prestigePity));

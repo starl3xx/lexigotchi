@@ -61,7 +61,8 @@ function useFaq(): { q: string; a: ReactNode }[] {
           succeeds at <strong>45% base</strong>, climbing <strong>+10pp per consecutive miss</strong>{" "}
           on that letter (a pity streak), capped at <strong>85%</strong> and reset on success.
           Expected ~1.9 rolls per success. A failed roll <strong>never burns or downgrades</strong>{" "}
-          your letter — it only bumps the pity. UPPERCASE words earn 2× yield.
+          your letter — it only bumps the pity. Only fully-UPPERCASE words earn daily yield —
+          lowercase words earn none, but any staked, fed word can still win the jackpot.
         </>
       ),
     },
@@ -177,7 +178,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
           <button onClick={buy} className="font-bold text-candy underline">
             Open your wallet to buy $WORD →
           </button>{" "}
-          (native swap in Farcaster, or DexScreener on the web).
+          (native swap in Farcaster, or the $WORD swap page on the web).
         </>
       ),
     },

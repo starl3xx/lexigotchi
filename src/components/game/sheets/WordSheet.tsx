@@ -91,7 +91,7 @@ export function WordSheet({ id }: { id: number }) {
       <Card className="mb-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display font-extrabold">Raise to UPPERCASE</span>
-          <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · 2× yield at 5/5</span>
+          <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · yield unlocks at 5/5</span>
         </div>
         {fullyRaised ? (
           <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-deep">

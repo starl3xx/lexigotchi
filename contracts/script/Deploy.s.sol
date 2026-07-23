@@ -174,7 +174,10 @@ contract Deploy is Script {
         c.answerHead = vm.envBytes32("ANSWERCHAIN_HEAD");
 
         c.packPrice = vm.envOr("PACK_PRICE", uint256(4_220_000 ether));
-        c.dailyPrice = vm.envOr("DAILY_PRICE", uint256(211_000 ether));
+        // FREE daily (locked launch decision #1) — the voucher path is canonical and repegPrices
+        // skips zero legs, so 0 can never be moved off zero by the keeper. The old 211_000 ether
+        // default was the superseded $0.05-daily artifact.
+        c.dailyPrice = vm.envOr("DAILY_PRICE", uint256(0));
         c.rollPrice = vm.envOr("ROLL_PRICE", uint256(1_060_000 ether));
         c.claimPrice = vm.envOr("CLAIM_PRICE", uint256(2_110_000 ether));
         c.snackPrice = vm.envOr("SNACK_PRICE", uint256(84_000 ether));

@@ -67,19 +67,18 @@ export function MintScreen() {
           size="lg"
           variant="primary"
           className="mt-3"
-          disabled={!g.canAfford(COST.pack)}
           onClick={() => {
+            // broke ≠ blocked: route the intent to the Buy sheet with the exact shortfall
+            if (!g.canAfford(COST.pack)) {
+              g.openSheet({ kind: "balance", need: { amount: COST.pack, action: "a pack" } });
+              return;
+            }
             const idxs = g.openPack();
             if (idxs.length) g.openSheet({ kind: "pack", letters: idxs });
           }}
         >
-          {g.canAfford(COST.pack) ? (
-            <>
-              <Package weight="fill" /> Rip a pack open
-            </>
-          ) : (
-            "Not enough $WORD"
-          )}
+          <Package weight="fill" />
+          {g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
       </Card>
 
