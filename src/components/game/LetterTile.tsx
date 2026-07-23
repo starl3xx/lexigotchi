@@ -96,7 +96,7 @@ export function CaseBadge({ word }: { word: OwnedWord }) {
   const upcount = word.upper.filter(Boolean).length;
   return (
     <Pill className={CASE_STYLE[c]}>
-      {c === "UPPERCASE" ? "UPPERCASE · 2× yield" : c === "Mixed" ? `${upcount}/5 raised` : "lowercase"}
+      {c === "UPPERCASE" ? "UPPERCASE · earns yield" : c === "Mixed" ? `${upcount}/5 raised` : "lowercase"}
     </Pill>
   );
 }

@@ -118,11 +118,10 @@ export function HomeScreen() {
             </div>
             <Button
               variant="primary"
-              disabled={!g.canAfford(COST.daily)}
               onClick={() => {
                 const idx = g.dailyMint();
-                if (idx === null)
-                  g.toast(state.dailyMinted ? "Already claimed today" : "Not enough $WORD for the daily", "info");
+                // the daily is FREE (COST.daily = 0), so the only null case is "already pulled"
+                if (idx === null) g.toast("Already claimed today", "info");
               }}
             >
               <Ticket weight="fill" /> Pull

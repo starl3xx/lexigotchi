@@ -1,10 +1,13 @@
 "use client";
 /**
  * Your $WORD — balance + buy + wallet connect. Models the Let's Have A Word! integration:
- * "Buy $WORD" opens the Farcaster native swap (sdk.actions.viewToken) and falls back to
- * DexScreener on the web. Farcaster players are auto-connected via the mini-app wallet; web
- * players get a Connect-wallet flow (injected provider). The SDK is imported dynamically so
- * the statically-prerendered /play route never touches it during SSR.
+ * "Buy $WORD" opens the Farcaster native swap (sdk.actions.viewToken) and falls back to the
+ * clanker.world token page on the web — Clanker's own swap UI for this exact token (it routes
+ * the v4 hooked pool with no unlisted-token import warning; DexScreener was a chart, not a
+ * swap). When the sheet was opened from a price-blocked action (`need`), a shortfall banner
+ * shows exactly how much more $WORD that action takes. Farcaster players are auto-connected
+ * via the mini-app wallet; web players get a Connect-wallet flow (injected provider). The SDK
+ * is imported dynamically so the statically-prerendered /play route never touches it during SSR.
  */
 import { useEffect, useState } from "react";
 import { Button, Card, Sheet } from "../primitives";
@@ -14,9 +17,9 @@ import { useViewer } from "../useViewer";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
 const CAIP_WORD = `eip155:8453/erc20:${WORD_TOKEN}`;
-const DEX_URL = `https://dexscreener.com/base/${WORD_TOKEN}`;
+const BUY_URL = `https://www.clanker.world/clanker/${WORD_TOKEN}`; // Clanker's swap page for $WORD
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const openDex = () => window.open(DEX_URL, "_blank", "noopener,noreferrer");
+const openBuy = () => window.open(BUY_URL, "_blank", "noopener,noreferrer");
 
 type Eip1193 = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
 
@@ -70,17 +73,17 @@ export function BalanceSheet() {
 
   const buy = async () => {
     // Only use the Farcaster native swap when we've DEFINITELY detected a mini-app context;
-    // web (and the not-yet-resolved case) goes straight to DexScreener. The Buy button is also
-    // disabled while env === "loading", so this branch is the belt to that suspenders.
+    // web (and the not-yet-resolved case) goes to the clanker.world swap. The Buy button is
+    // also disabled while env === "loading", so this branch is the belt to that suspenders.
     if (env !== "farcaster") {
-      openDex();
+      openBuy();
       return;
     }
     try {
       const sdk = (await import("@farcaster/miniapp-sdk")).default;
       await sdk.actions.viewToken({ token: CAIP_WORD }); // Farcaster native swap UI
     } catch {
-      openDex();
+      openBuy();
     }
   };
 
@@ -104,8 +107,18 @@ export function BalanceSheet() {
     }
   };
 
+  const need = state.sheet?.kind === "balance" ? state.sheet.need : undefined;
+  const shortfall = need ? Math.max(0, need.amount - state.balance) : 0;
+
   return (
     <Sheet open onClose={g.closeSheet} title="Your $WORD">
+      {/* what just got blocked — the reason this sheet opened */}
+      {need && shortfall > 0 && (
+        <Card className="mb-3 border-candy bg-candy/10 text-center text-sm">
+          You need <strong>{fmtWord(shortfall)} more $WORD</strong> ({fmtUsd(shortfall)}) for {need.action}.
+        </Card>
+      )}
+
       {/* Farcaster identity */}
       {viewer.isAuthed ? (
         <div className="mb-3 flex items-center gap-2.5">
@@ -147,7 +160,7 @@ export function BalanceSheet() {
         <ArrowsLeftRight weight="bold" /> Buy $WORD
       </Button>
       <p className="mt-1.5 text-center text-xs text-ink/55">
-        Opens your wallet&apos;s swap in Farcaster, or DexScreener on the web.
+        Opens your wallet&apos;s swap in Farcaster, or the $WORD swap page on the web.
       </p>
 
       <Card className="mt-3">
