@@ -35,6 +35,10 @@ next-env.d.ts
 .env
 .env*.local
 
+# AnswerChain schedule — the full future jackpot answer preimages (SECRET + irreplaceable;
+# see scripts/generate-answer-chain.ts). Never commit.
+*.secret.json
+
 # foundry (smart contracts) — build artifacts + vendored deps; run `npm run contracts:setup`
 /contracts/out
 /contracts/cache

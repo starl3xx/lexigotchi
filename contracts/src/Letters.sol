@@ -2,12 +2,14 @@
 pragma solidity 0.8.28;
 
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ILetters} from "./interfaces/ILetters.sol";
 import {ISwapRouter} from "./interfaces/ISwapRouter.sol";
 import {IFeeRouter, FeeSource} from "./interfaces/IFeeRouter.sol";
@@ -31,7 +33,7 @@ import {RepegKeeper} from "./RepegKeeper.sol";
  *         Uppercase is never minted directly — only via `upgrade` (a successful roll), which burns a
  *         lowercase and mints its uppercase counterpart, conserving total per-letter supply.
  */
-contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
+contract Letters is ILetters, ERC1155, ERC2981, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     using SafeERC20 for IERC20;
 
     uint8 public constant PACK_SIZE = 5;
@@ -79,6 +81,7 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
     event FreeDailyMinted(uint256 indexed fid, address indexed buyer, uint256 indexed commitId, uint32 day);
     event FreePackMinted(uint256 indexed fid, address indexed buyer, uint256 indexed commitId, uint256 nonce);
     event FreePackOpenSet(bool open);
+    event RoyaltySet(address receiver, uint96 bps);
 
     error NotUpgrader();
     error BadCommit();
@@ -321,6 +324,22 @@ contract Letters is ILetters, ERC1155, Ownable2Step, ReentrancyGuard, FeeCollect
 
     function setURI(string calldata newuri) external onlyOwner {
         _setURI(newuri);
+    }
+
+    /// @notice EIP-2981 royalty — a SIGNAL only (decisions.md "Royalty & marketplace architecture"):
+    ///         open composability, no on-chain enforcement; honoring marketplaces pay the treasury.
+    function setDefaultRoyalty(address receiver, uint96 bps) external onlyOwner {
+        _setDefaultRoyalty(receiver, bps);
+        emit RoyaltySet(receiver, bps);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC1155, ERC2981, IERC165)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 
     // --- repeg (price keeper) ---------------------------------------------------------------------

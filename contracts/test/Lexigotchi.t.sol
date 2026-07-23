@@ -4,6 +4,9 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockSwapRouter} from "./mocks/MockSwapRouter.sol";
@@ -550,6 +553,54 @@ contract LexigotchiTest is Test {
         uint256 reId = words.claim("CRANE", false, _proof(0));
         vm.stopPrank();
         assertEq(words.ownerOf(reId), bob, "bob re-claimed");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Metadata + royalty signal — Words tokenURI (owner-set base), EIP-2981 on both token contracts
+    // ---------------------------------------------------------------------------------------------
+
+    function test_Words_tokenURI_ownerSetBase() public {
+        uint256 tokenId = _claimLower(alice, 0); // CRANE
+        assertEq(words.tokenURI(tokenId), "", "blank until the owner sets a base URI");
+
+        words.setBaseURI("https://lexigotchi.fun/api/word/");
+        assertEq(
+            words.tokenURI(tokenId),
+            string.concat("https://lexigotchi.fun/api/word/", Strings.toString(tokenId)),
+            "baseURI + decimal tokenId"
+        );
+
+        // an unclaimed word has no token, hence no URI
+        uint256 unclaimed = uint256(keccak256(bytes("BLAZE")));
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, unclaimed));
+        words.tokenURI(unclaimed);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.setBaseURI("x");
+    }
+
+    function test_RoyaltySignal_bothTokenContracts() public {
+        // as the deploy script wires it: 2.5% → treasury, a SIGNAL only (open composability)
+        letters.setDefaultRoyalty(treasury, 250);
+        words.setDefaultRoyalty(treasury, 250);
+
+        (address rcv, uint256 amt) = words.royaltyInfo(uint256(keccak256(bytes("CRANE"))), 1000e18);
+        assertEq(rcv, treasury, "Words royalty to treasury");
+        assertEq(amt, 25e18, "2.5% of the sale price");
+        (rcv, amt) = letters.royaltyInfo(0, 1000e18);
+        assertEq(rcv, treasury, "Letters royalty to treasury");
+        assertEq(amt, 25e18, "2.5% of the sale price");
+
+        assertTrue(words.supportsInterface(type(IERC2981).interfaceId), "Words signals 2981");
+        assertTrue(letters.supportsInterface(type(IERC2981).interfaceId), "Letters signals 2981");
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.setDefaultRoyalty(alice, 250);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        letters.setDefaultRoyalty(alice, 250);
+        vm.stopPrank();
     }
 
     // ---------------------------------------------------------------------------------------------

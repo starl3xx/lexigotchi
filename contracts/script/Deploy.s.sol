@@ -33,9 +33,10 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  *
  *         Usage:
  *           forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify
- *         Required env: WORD_TOKEN, TREASURY, SIGNER, KEEPER, ANSWERCHAIN_HEAD (bytes32).
+ *         Required env: WORD_TOKEN, TREASURY, SIGNER, KEEPER, ANSWERCHAIN_HEAD (bytes32 — generate
+ *         the chain + head with `npm run answerchain:generate`).
  *         Optional env: SWAP_ROUTER, *_PRICE / *_FEE, PECKISH_AFTER, HUNGRY_AFTER,
- *                       PRESTIGE_MAX_LEVEL, BOUNTY_CARVE_BPS, LETTERS_URI.
+ *                       PRESTIGE_MAX_LEVEL, BOUNTY_CARVE_BPS, LETTERS_URI, WORDS_URI, ROYALTY_BPS.
  */
 contract Deploy is Script {
     struct Config {
@@ -58,6 +59,8 @@ contract Deploy is Script {
         address priceKeeper;
         uint16 maxMoveBps;
         string lettersUri;
+        string wordsUri;
+        uint96 royaltyBps;
         uint32[26] cap;
         bytes32 dictRoot;
     }
@@ -118,6 +121,14 @@ contract Deploy is Script {
         a.letters.setUpgrader(address(a.words), true); // escrowed-letter rolls mutate Words' escrow
         if (c.swapRouter != address(0)) a.letters.setSwapRouter(ISwapRouter(c.swapRouter));
 
+        // EIP-2981 royalty SIGNAL (unenforced — open composability): 2.5% default → treasury,
+        // per decisions.md "Royalty & marketplace architecture".
+        if (c.royaltyBps > 0) {
+            a.letters.setDefaultRoyalty(c.treasury, c.royaltyBps);
+            a.words.setDefaultRoyalty(c.treasury, c.royaltyBps);
+        }
+        if (bytes(c.wordsUri).length > 0) a.words.setBaseURI(c.wordsUri);
+
         a.words.setRolls(address(a.rolls));
         a.words.setPrestige(address(a.prestige));
         a.rolls.setStaking(IStaking(address(a.staking)));
@@ -175,6 +186,8 @@ contract Deploy is Script {
         c.priceKeeper = vm.envOr("PRICE_KEEPER", address(0)); // address(0) = auto-repeg disabled
         c.maxMoveBps = uint16(vm.envOr("MAX_MOVE_BPS", uint256(2000))); // ±20% per repeg
         c.lettersUri = vm.envOr("LETTERS_URI", string(""));
+        c.wordsUri = vm.envOr("WORDS_URI", string(""));
+        c.royaltyBps = uint96(vm.envOr("ROYALTY_BPS", uint256(250))); // 2.5% EIP-2981 signal; 0 = skip
 
         (c.cap, c.dictRoot) = _readEconomy();
     }

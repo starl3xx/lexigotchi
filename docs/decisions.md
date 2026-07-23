@@ -94,8 +94,10 @@ showed; only the *decisions* changed.
    mcap ~$190K, self-heals ~$60K; cost-to-play ~1.1× so players are unaffected). Still publish the
    disclosures (holdings, lock/vesting, reframe copy to play-not-price).
 7. **Automated peg — an `onlyKeeper` repeg setter** + guardrails (drift threshold ~5%, max-move
-   clamp ~±25%/day, min-liquidity floor). Reuses LHAW's off-chain $WORD price fetch (same token)
-   but not its one-value-to-one-setter model.
+   clamp, min-liquidity floor). Shipped on-chain as `maxMoveBps` (default ±20%) per repeg with a
+   hardcoded 5-minute cooldown (`RepegKeeper`); the "~±25%/day" of the original ruling is keeper
+   *policy* — the daily cadence is enforced off-chain, not by the contract. Reuses LHAW's
+   off-chain $WORD price fetch (same token) but not its one-value-to-one-setter model.
 8. **$WORD-only at launch** (`SWAP_ROUTER` blank); ETH-only players use the Buy-$WORD redirect. No
    swap-adapter build.
 9. **Mini-app AND general web wallet** play (two connector paths); the free daily stays FID-gated
