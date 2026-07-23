@@ -83,7 +83,7 @@ payouts are capped at balance) and **failed rolls that provably never harm an as
 npm run contracts:setup    # vendor forge-std + OpenZeppelin into contracts/lib
 npm run derive:contracts   # write contracts/config/economy.json (caps, weights, dictionary root)
 npm run contracts:build
-npm run contracts:test     # 34 tests
+npm run contracts:test     # 54 tests
 ```
 
 > **Phase 0 — code-complete and unit-tested, not yet audited or deployed.** See

@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -26,7 +27,7 @@ import {RepegKeeper} from "./RepegKeeper.sol";
  *         escrow in place (`applyUpgrade`, called by Rolls). Dissolution burns the Word, returns its
  *         five letters in their current case, and frees the name for re-claim (v0.1 §5.4).
  */
-contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
+contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     uint8 internal constant FULL_MASK = 0x1F; // all five positions raised
 
     struct Escrow {
@@ -38,6 +39,7 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
     ILetters public immutable letters;
     bytes32 public dictionaryRoot; // Merkle root of keccak256(bytes(word)) over the 4,438 words
     uint256 public claimPrice; // $WORD
+    string internal baseTokenURI; // tokenURI = baseTokenURI + decimal tokenId (metadata is dynamic: case lives in escrow)
 
     mapping(uint256 tokenId => Escrow) internal escrows;
     mapping(uint256 tokenId => uint8) public prestigeLevel;
@@ -51,6 +53,8 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
     event PrestigeBumped(uint256 indexed tokenId, uint8 newLevel);
     event DictionaryRootSet(bytes32 root);
     event ClaimPriceSet(uint256 price);
+    event BaseURISet(string uri);
+    event RoyaltySet(address receiver, uint96 bps);
     event RollsSet(address rolls);
     event PrestigeSet(address prestige);
 
@@ -187,6 +191,12 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
         return prestigeLevel[tokenId];
     }
 
+    /// @dev OZ ERC721 composes `tokenURI` as `baseURI + tokenId` (decimal). The metadata server maps
+    ///      the id back to its word (the dictionary is fixed) and renders case from the live escrow.
+    function _baseURI() internal view override returns (string memory) {
+        return baseTokenURI;
+    }
+
     // --- admin ------------------------------------------------------------------------------------
 
     function setDictionaryRoot(bytes32 root) external onlyOwner {
@@ -211,6 +221,18 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
         emit PrestigeSet(_prestige);
     }
 
+    function setBaseURI(string calldata uri) external onlyOwner {
+        baseTokenURI = uri;
+        emit BaseURISet(uri);
+    }
+
+    /// @notice EIP-2981 royalty — a SIGNAL only (decisions.md "Royalty & marketplace architecture"):
+    ///         open composability, no on-chain enforcement; honoring marketplaces pay the treasury.
+    function setDefaultRoyalty(address receiver, uint96 bps) external onlyOwner {
+        _setDefaultRoyalty(receiver, bps);
+        emit RoyaltySet(receiver, bps);
+    }
+
     // --- repeg (price keeper) ---------------------------------------------------------------------
 
     /// @notice Keeper-driven clamped repeg of the claim price.
@@ -231,7 +253,12 @@ contract Words is IWords, ERC721, ERC1155Holder, Ownable2Step, ReentrancyGuard, 
         _setMaxMoveBps(bps);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC1155Holder, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC1155Holder, ERC2981, IERC165)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 }

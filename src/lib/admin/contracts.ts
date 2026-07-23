@@ -15,6 +15,7 @@ import type { ContractKey } from "./deployments";
 export type SolType =
   | "address"
   | "uint256"
+  | "uint96"
   | "uint64"
   | "uint32"
   | "uint16"
@@ -319,6 +320,18 @@ export const CONTRACTS: ContractDef[] = [
         args: [{ name: "newuri", type: "string" }],
       },
       {
+        fn: "setDefaultRoyalty",
+        signature: "setDefaultRoyalty(address,uint96)",
+        title: "Set royalty signal",
+        desc: "EIP-2981 royalty SIGNAL (unenforced — open composability). Deploy default: 2.5% to the treasury.",
+        kind: "owner",
+        group: "Metadata",
+        args: [
+          { name: "receiver", type: "address", help: "usually the treasury" },
+          { name: "bps", type: "uint96", default: "250", help: "basis points of the sale price (250 = 2.5%)" },
+        ],
+      },
+      {
         fn: "repegPrices",
         signature: "repegPrices(uint256,uint256)",
         title: "Repeg prices (keeper)",
@@ -376,6 +389,27 @@ export const CONTRACTS: ContractDef[] = [
         danger: true,
         args: [
           { name: "root", type: "bytes32", default: "0x0d48916cd7b9f350667ee831da1e50506571843845327ab7977ba563761866c8" },
+        ],
+      },
+      {
+        fn: "setBaseURI",
+        signature: "setBaseURI(string)",
+        title: "Set base token URI",
+        desc: "tokenURI = base + decimal tokenId; the metadata server maps the id to its word and renders case from the live escrow. Deploy env: WORDS_URI.",
+        kind: "owner",
+        group: "Metadata",
+        args: [{ name: "uri", type: "string", help: "e.g. https://lexigotchi.fun/api/word/" }],
+      },
+      {
+        fn: "setDefaultRoyalty",
+        signature: "setDefaultRoyalty(address,uint96)",
+        title: "Set royalty signal",
+        desc: "EIP-2981 royalty SIGNAL (unenforced — open composability). Deploy default: 2.5% to the treasury.",
+        kind: "owner",
+        group: "Metadata",
+        args: [
+          { name: "receiver", type: "address", help: "usually the treasury" },
+          { name: "bps", type: "uint96", default: "250", help: "basis points of the sale price (250 = 2.5%)" },
         ],
       },
       {

@@ -17,9 +17,11 @@ The game is the front door: `/` redirects to **`/play`**.
 - `npm run dev` — the app; `/` → `/play` (the mini app).
 - `npm run sim -- --days 365 --population 1500 --seed 7` — economy/solvency report
 - `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
-- `npm test` — economy + solvency invariants (70 vitest tests)
+- `npm test` — economy + solvency invariants (84 vitest tests)
 - `npm run build` / `npm run typecheck`
-- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (34 forge tests)
+- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (54 forge tests)
+- `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
+  Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
@@ -95,8 +97,9 @@ The game is the front door: `/` redirects to **`/play`**.
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
-- Snacks 100% burn. The `ROYALTY` FeeSource is currently the in-house swap fee → 100% Treasury;
-  an ERC-2981 secondary royalty → Rewards Pool is unbuilt design intent for the future marketplace.
+- Snacks 100% burn. The `ROYALTY` FeeSource is the in-house swap fee → 100% Treasury; both token
+  contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
+  composability, decisions.md "Royalty & marketplace architecture").
 
 ## Gotchas / conventions
 

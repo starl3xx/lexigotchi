@@ -8,8 +8,8 @@ deployed**. Solidity 0.8.28, OpenZeppelin 5.x, Foundry. Target chain: Base (8453
 | Contract | Responsibility |
 |---|---|
 | `FeeRouter` | 4-bucket fee split (Pool/Jackpot/Burn/Treasury), solvency-capped payouts, **real `$WORD.burn()`** |
-| `Letters` | ERC-1155 (52 ids); commit→signed-reveal mints, FID daily, **free vouchers** (free daily + one-time free-pack airdrop), ETH-swap path, `upgrade` |
-| `Words` | ERC-721 per dictionary word, Merkle-gated claim, 5-letter escrow, case-as-state, dissolve, prestige level |
+| `Letters` | ERC-1155 (52 ids); commit→signed-reveal mints, FID daily, **free vouchers** (free daily + one-time free-pack airdrop), ETH-swap path, `upgrade`, EIP-2981 signal |
+| `Words` | ERC-721 per dictionary word, Merkle-gated claim, 5-letter escrow, case-as-state, dissolve, prestige level, base-URI `tokenURI`, EIP-2981 signal |
 | `Rolls` | Commit→signed-reveal upgrades; fail = no-op; pity per `(beneficialOwner, letter)` |
 | `Staking` | Word custody + hunger clock + snack feed; eligibility truth for Jackpot |
 | `Prestige` | Ascension of full-UPPERCASE staked words (signed reveal, monotonic, fail = no-op) |
@@ -70,6 +70,8 @@ accounting + the `route()` surplus/delivered check; Words escrow + case-state; t
 
 ## Status
 
-`forge build` clean; **48 forge tests** (incl. the invariant campaign) + **76 vitest** (economy/solvency)
-green. Known gaps for the audit/launch (see `README.md` checklist): the AnswerChain head generation,
-the production swap-router adapter, and an external invariant/fuzz campaign beyond the FeeRouter one here.
+`forge build` clean; **54 forge tests** (incl. the invariant campaign and a cross-language
+AnswerChain vector — the schedule generator `scripts/generate-answer-chain.ts` and
+`AnswerChain.reveal` share a verified fixture) + **84 vitest** (economy/solvency) green. Known gaps
+for the audit/launch (see `README.md` checklist): the production swap-router adapter (deferred —
+$WORD-only launch), and an external invariant/fuzz campaign beyond the FeeRouter one here.
