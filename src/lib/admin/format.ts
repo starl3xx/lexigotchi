@@ -30,6 +30,15 @@ export function wordToWei(word: number): string {
   return (BigInt(Math.round(word)) * WEI).toString();
 }
 
+/** Whole-$WORD *digit string* → wei, without a float round-trip — for operator-typed price fields
+ *  where a 25-digit result must be exact. Any non-digit input (and the empty string) is 0, so a
+ *  malformed field can never emit a nonzero price. */
+export function wholeWordToWei(digits: string): string {
+  if (!/^\d+$/.test(digits.trim())) return "0";
+  const significant = digits.trim().replace(/^0+/, "");
+  return significant === "" ? "0" : `${significant}${"0".repeat(Number(WORD_DECIMALS))}`;
+}
+
 /** Compact $WORD label, e.g. 4_242_224 → "4.24M". Thresholds account for toFixed rounding so a
  *  value like 999_999 rolls to "1.00M" rather than the four-digit "1000.0K". */
 export function fmtWordCompact(word: number): string {

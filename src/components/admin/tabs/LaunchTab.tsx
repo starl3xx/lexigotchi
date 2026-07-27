@@ -19,7 +19,15 @@ import {
   type ContractKey,
 } from "@/lib/admin/deployments";
 import { DEFAULT_PARAMS } from "@/lib/params";
-import { fmtUsd, fmtWordCompact, isAddress, isBytes32, shortAddr, usdToWord } from "@/lib/admin/format";
+import {
+  fmtUsd,
+  fmtWordCompact,
+  isAddress,
+  isBytes32,
+  shortAddr,
+  usdToWord,
+  wholeWordToWei,
+} from "@/lib/admin/format";
 import economy from "../../../../contracts/config/economy.json";
 import { AdminCard, Banner, CopyButton, Field, SectionLabel, Select, TextField } from "../ui";
 import { Check, Database, Info, ListChecks, RocketLaunch, Warning } from "../icons";
@@ -104,12 +112,6 @@ function shQuote(s: string): string {
   return `'${s.replace(/'/g, "'\\''")}'`;
 }
 
-/** Whole $WORD → 18-decimal wei, string-only so we never touch float precision. */
-function wordToWeiStr(whole: string): string {
-  const digits = whole.replace(/^0+(?=\d)/, "");
-  return digits === "0" ? "0" : `${digits}${"0".repeat(18)}`;
-}
-
 const NAME_TO_KEY = new Map(CONTRACTS.map((c) => [c.name.toLowerCase(), c.key]));
 
 /** Pull `Name  0x…` pairs out of a pasted `forge script` log (order-independent, name-matched). */
@@ -157,7 +159,7 @@ export function LaunchTab() {
 
   const exportBlock = ENV.filter((f) => val(f.key) !== "")
     .map((f) => {
-      const raw = f.type === "word" && /^\d+$/.test(val(f.key)) ? wordToWeiStr(val(f.key)) : val(f.key);
+      const raw = f.type === "word" ? wholeWordToWei(val(f.key)) : val(f.key);
       const note = f.type === "word" ? `   # ${val(f.key)} $WORD` : "";
       return `export ${f.key}=${shQuote(raw)}${note}`;
     })

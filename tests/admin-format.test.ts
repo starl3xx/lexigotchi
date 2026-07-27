@@ -3,6 +3,7 @@ import {
   usdToWord,
   usdToWordWei,
   wordToWei,
+  wholeWordToWei,
   fmtWordCompact,
   fmtBps,
   isAddress,
@@ -36,6 +37,37 @@ describe("USD ↔ $WORD-wei peg", () => {
   it("usdToWordWei == wordToWei(round(usdToWord)) at the same peg", () => {
     for (const usd of [1, 5, 9, 100]) {
       expect(usdToWordWei(usd)).toBe(wordToWei(Math.round(usdToWord(usd))));
+    }
+  });
+});
+
+// The admin Launch tab takes operator-typed whole-$WORD prices and exports them as deploy env vars.
+// A wrong digit here ships a mispriced contract, so the string path is pinned exactly.
+describe("wholeWordToWei (operator-typed price fields)", () => {
+  it("scales digit strings exactly, with no float round-trip", () => {
+    expect(wholeWordToWei("1")).toBe(TEN18.toString());
+    expect(wholeWordToWei("4242861")).toBe((4_242_861n * TEN18).toString());
+    // Past 2^53 — where a Number round-trip would start losing digits.
+    expect(wholeWordToWei("9007199254740993")).toBe(`9007199254740993${"0".repeat(18)}`);
+  });
+
+  it("collapses every all-zero form to 0", () => {
+    for (const z of ["0", "00", "000", "0000000"]) expect(wholeWordToWei(z)).toBe("0");
+  });
+
+  it("strips leading zeros without inflating the value", () => {
+    expect(wholeWordToWei("007")).toBe((7n * TEN18).toString());
+    expect(wholeWordToWei("0100")).toBe((100n * TEN18).toString());
+  });
+
+  it("returns 0 for malformed input rather than a nonzero price", () => {
+    for (const bad of ["", "  ", "1.5", "-1", "1e6", "abc", "12a"]) expect(wholeWordToWei(bad)).toBe("0");
+  });
+
+  it("agrees with wordToWei on the peg-derived defaults the tab prefills", () => {
+    for (const usd of [1, 0.25, 0.5, 0.02]) {
+      const whole = Math.round(usdToWord(usd));
+      expect(wholeWordToWei(String(whole))).toBe(wordToWei(whole));
     }
   });
 });
