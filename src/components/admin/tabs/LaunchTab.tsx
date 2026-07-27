@@ -15,6 +15,7 @@ import { CONTRACTS } from "@/lib/admin/contracts";
 import {
   loadDeployments,
   saveDeployments,
+  fullyDeployed,
   CONTRACT_KEYS,
   type ContractKey,
 } from "@/lib/admin/deployments";
@@ -154,6 +155,7 @@ export function LaunchTab() {
   const missing = [
     ...ENV.filter((f) => f.required && !val(f.key)).map((f) => f.label),
     ...(needsSender && !isAddress(sign.sender) ? ["Deployer address"] : []),
+    ...(sign.mode === "account" && !sign.account.trim() ? ["Keystore account"] : []),
   ];
   const badFields = ENV.filter(invalid).map((f) => f.label);
   // One rule: the command renders only when the config is complete AND well-formed. Every partial
@@ -176,8 +178,10 @@ export function LaunchTab() {
 
   // Trim before emitting: isAddress() validates the trimmed string, so a pasted address with stray
   // whitespace passes the required check and would otherwise land verbatim in --sender.
+  // `0xYOUR_DEPLOYER` is a *loud* placeholder — forge rejects it and nobody mistakes it for an
+  // address. A keystore name has no such tell, so an empty one blocks (above) instead of defaulting.
   const sender = sign.sender.trim() || "0xYOUR_DEPLOYER";
-  const account = sign.account.trim() || "lexi-deployer";
+  const account = sign.account.trim();
   const signFlags =
     sign.mode === "ledger"
       ? `--ledger --sender ${sender}`
@@ -212,12 +216,17 @@ export function LaunchTab() {
     if (isAddress(val("TREASURY"))) roles.treasury = val("TREASURY");
     if (isAddress(val("SIGNER"))) roles.signer = val("SIGNER");
     if (isAddress(val("KEEPER"))) roles.keeper = val("KEEPER");
-    saveDeployments({
+    const next = {
       ...cur,
       wordToken: isAddress(val("WORD_TOKEN")) ? val("WORD_TOKEN") : cur.wordToken,
-      deployedAt: new Date().toISOString().slice(0, 10),
       roles,
       contracts: { ...cur.contracts, ...parsed },
+    };
+    // A partial paste is a work-in-progress capture, not a launch: only stamp the deploy date once
+    // the whole suite is present, or the exported JSON claims a mainnet date over empty slots.
+    saveDeployments({
+      ...next,
+      deployedAt: fullyDeployed(next) ? new Date().toISOString().slice(0, 10) : cur.deployedAt,
     });
     window.dispatchEvent(new Event("lexi:deployments"));
     setImported(parsedCount);
@@ -398,7 +407,8 @@ export function LaunchTab() {
         </div>
         <p className="mt-2 text-[11px] text-ink/45">
           Saving writes the addresses (plus treasury / signer / keeper from above) into the browser registry, the same
-          store the Deployments tab exports — commit that JSON to make it permanent.
+          store the Deployments tab exports — commit that JSON to make it permanent. A partial paste saves what it
+          found but leaves the deploy date alone; only all 10 stamp it.
         </p>
       </AdminCard>
 
