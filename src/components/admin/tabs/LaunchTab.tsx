@@ -98,6 +98,12 @@ const SIGN_MODES: { value: SignMode; label: string }[] = [
   { value: "key", label: "Raw private key (env)" },
 ];
 
+/** Single-quote a shell literal (with the '\'' escape) so a quote, $, backtick, or space in a value
+ *  can't split the string when the block is pasted. */
+function shQuote(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
 /** Whole $WORD → 18-decimal wei, string-only so we never touch float precision. */
 function wordToWeiStr(whole: string): string {
   const digits = whole.replace(/^0+(?=\d)/, "");
@@ -152,19 +158,20 @@ export function LaunchTab() {
   const exportBlock = ENV.filter((f) => val(f.key) !== "")
     .map((f) => {
       const raw = f.type === "word" && /^\d+$/.test(val(f.key)) ? wordToWeiStr(val(f.key)) : val(f.key);
-      // Single-quote (with the '\'' escape) so a quote, $, backtick, or space in a value can't
-      // split the shell string when the block is pasted.
-      const quoted = `'${raw.replace(/'/g, "'\\''")}'`;
       const note = f.type === "word" ? `   # ${val(f.key)} $WORD` : "";
-      return `export ${f.key}=${quoted}${note}`;
+      return `export ${f.key}=${shQuote(raw)}${note}`;
     })
     .join("\n");
 
+  // Trim before emitting: isAddress() validates the trimmed string, so a pasted address with stray
+  // whitespace passes the required check and would otherwise land verbatim in --sender.
+  const sender = sign.sender.trim() || "0xYOUR_DEPLOYER";
+  const account = sign.account.trim() || "lexi-deployer";
   const signFlags =
     sign.mode === "ledger"
-      ? `--ledger --sender ${sign.sender || "0xYOUR_DEPLOYER"}`
+      ? `--ledger --sender ${sender}`
       : sign.mode === "account"
-        ? `--account ${sign.account || "lexi-deployer"} --sender ${sign.sender || "0xYOUR_DEPLOYER"}`
+        ? `--account ${shQuote(account)} --sender ${sender}`
         : '--private-key "$DEPLOYER_PK"';
 
   const command = [
