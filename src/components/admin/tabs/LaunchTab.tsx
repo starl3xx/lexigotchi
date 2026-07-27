@@ -73,12 +73,12 @@ const ENV: EnvField[] = [
   { key: "SWAP_ROUTER", label: "Swap router", group: G.roles, type: "address", help: "ETH→$WORD adapter; blank = disabled" },
 
   // --- prices (whole $WORD in, wei out) ------------------------------------------------------------
-  { key: "PACK_PRICE", label: "Pack price", group: G.prices, type: "word", default: peg(P.pack), help: pegHint(P.pack) },
-  { key: "DAILY_PRICE", label: "Daily single", group: G.prices, type: "word", default: "0", help: "FREE + FID-gated — keep 0" },
-  { key: "ROLL_PRICE", label: "Roll price", group: G.prices, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
-  { key: "CLAIM_PRICE", label: "Claim price", group: G.prices, type: "word", default: peg(P.claim), help: pegHint(P.claim) },
-  { key: "SNACK_PRICE", label: "Snack price", group: G.prices, type: "word", default: peg(P.snack), help: pegHint(P.snack) },
-  { key: "PRESTIGE_FEE", label: "Prestige fee", group: G.prices, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
+  { key: "PACK_PRICE", label: "Pack price", group: G.prices, required: true, type: "word", default: peg(P.pack), help: pegHint(P.pack) },
+  { key: "DAILY_PRICE", label: "Daily single", group: G.prices, required: true, type: "word", default: "0", help: "FREE + FID-gated — keep 0" },
+  { key: "ROLL_PRICE", label: "Roll price", group: G.prices, required: true, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
+  { key: "CLAIM_PRICE", label: "Claim price", group: G.prices, required: true, type: "word", default: peg(P.claim), help: pegHint(P.claim) },
+  { key: "SNACK_PRICE", label: "Snack price", group: G.prices, required: true, type: "word", default: peg(P.snack), help: pegHint(P.snack) },
+  { key: "PRESTIGE_FEE", label: "Prestige fee", group: G.prices, required: true, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
 
   // --- care --------------------------------------------------------------------------------------
   { key: "PECKISH_AFTER", label: "Peckish after", group: G.care, type: "uint", default: "86400", help: "seconds unfed → ½ yield" },
@@ -156,9 +156,11 @@ export function LaunchTab() {
     ...(needsSender && !isAddress(sign.sender) ? ["Deployer address"] : []),
   ];
   const badFields = ENV.filter(invalid).map((f) => f.label);
-  // A malformed price coerces to 0 wei, which forge would happily accept — free packs, forever. The
-  // command is withheld entirely rather than handing over something that fails silently.
-  const blocked = badFields.length > 0;
+  // One rule: the command renders only when the config is complete AND well-formed. Every partial
+  // state here fails silently rather than loudly — a malformed price coerces to 0 wei (free packs),
+  // a cleared price drops its export line and Deploy.s.sol falls back to its frozen peg snapshot,
+  // and a bad --sender rides along in a command that looks ready. So none of them produce one.
+  const blocked = badFields.length > 0 || missing.length > 0;
   // A literal 0 is valid input but means free. Only the daily single is meant to be.
   const zeroPrices = ENV.filter(
     (f) => f.type === "word" && f.key !== "DAILY_PRICE" && /^0+$/.test(val(f.key)),
@@ -310,15 +312,14 @@ export function LaunchTab() {
         title="Deploy command"
         action={blocked ? undefined : <CopyButton text={command} label="Copy" />}
       >
-        {blocked && (
+        {badFields.length > 0 && (
           <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
-            Malformed: {badFields.join(", ")}. <strong>Command withheld</strong> — a malformed price
-            would export as <code>0</code> wei, and forge accepts that silently.
+            Malformed: {badFields.join(", ")}
           </Banner>
         )}
-        {!blocked && missing.length > 0 && (
+        {missing.length > 0 && (
           <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
-            Fill required fields: {missing.join(", ")}
+            Missing: {missing.join(", ")}
           </Banner>
         )}
         {!blocked && zeroPrices.length > 0 && (
@@ -329,7 +330,8 @@ export function LaunchTab() {
         )}
         {blocked ? (
           <div className="mt-2 rounded-xl border-2 border-dashed border-candy/50 bg-candy/[0.06] p-4 text-center text-xs font-bold text-ink/50">
-            Fix the fields above to generate the command.
+            Command withheld until every field above is filled and well-formed — an incomplete deploy
+            config fails silently, not loudly.
           </div>
         ) : (
           <pre className="mt-2 overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-3 font-mono text-[11px] leading-relaxed text-ink/85">
