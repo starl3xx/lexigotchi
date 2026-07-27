@@ -156,6 +156,13 @@ export function LaunchTab() {
     ...(needsSender && !isAddress(sign.sender) ? ["Deployer address"] : []),
   ];
   const badFields = ENV.filter(invalid).map((f) => f.label);
+  // A malformed price coerces to 0 wei, which forge would happily accept — free packs, forever. The
+  // command is withheld entirely rather than handing over something that fails silently.
+  const blocked = badFields.length > 0;
+  // A literal 0 is valid input but means free. Only the daily single is meant to be.
+  const zeroPrices = ENV.filter(
+    (f) => f.type === "word" && f.key !== "DAILY_PRICE" && /^0+$/.test(val(f.key)),
+  ).map((f) => f.label);
 
   const exportBlock = ENV.filter((f) => val(f.key) !== "")
     .map((f) => {
@@ -299,20 +306,36 @@ export function LaunchTab() {
         </p>
       </AdminCard>
 
-      <AdminCard title="Deploy command" action={<CopyButton text={command} label="Copy" />}>
-        {missing.length > 0 && (
+      <AdminCard
+        title="Deploy command"
+        action={blocked ? undefined : <CopyButton text={command} label="Copy" />}
+      >
+        {blocked && (
+          <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
+            Malformed: {badFields.join(", ")}. <strong>Command withheld</strong> — a malformed price
+            would export as <code>0</code> wei, and forge accepts that silently.
+          </Banner>
+        )}
+        {!blocked && missing.length > 0 && (
           <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
             Fill required fields: {missing.join(", ")}
           </Banner>
         )}
-        {badFields.length > 0 && (
-          <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
-            Malformed: {badFields.join(", ")}
+        {!blocked && zeroPrices.length > 0 && (
+          <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
+            Zero price on {zeroPrices.join(", ")} — that ships free forever. Only the daily single is
+            meant to be 0.
           </Banner>
         )}
-        <pre className="mt-2 overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-3 font-mono text-[11px] leading-relaxed text-ink/85">
-          {command}
-        </pre>
+        {blocked ? (
+          <div className="mt-2 rounded-xl border-2 border-dashed border-candy/50 bg-candy/[0.06] p-4 text-center text-xs font-bold text-ink/50">
+            Fix the fields above to generate the command.
+          </div>
+        ) : (
+          <pre className="mt-2 overflow-x-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-3 font-mono text-[11px] leading-relaxed text-ink/85">
+            {command}
+          </pre>
+        )}
       </AdminCard>
 
       <AdminCard title="Deploy order">
