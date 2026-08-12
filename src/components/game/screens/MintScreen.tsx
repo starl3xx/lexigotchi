@@ -3,7 +3,7 @@
 import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
-import { Check, Package, Sparkle, Ticket } from "../ui/icons";
+import { Check, Diamond, Package, Ticket } from "../ui/icons";
 import { COST, fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
 
@@ -101,7 +101,7 @@ export function MintScreen() {
           </div>
           <div>
             <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-ink/50">
-              grails <Sparkle weight="fill" size={11} className="text-gold-deep" />
+              grails <Diamond weight="fill" size={11} className="text-gold-deep" />
             </div>
             <div className="flex gap-2">
               {rare.map((L) => <LetterTile key={L} char={L} size={38} />)}

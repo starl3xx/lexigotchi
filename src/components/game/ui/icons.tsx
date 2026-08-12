@@ -9,6 +9,7 @@ export {
   House,
   Backpack,
   Sparkle,
+  Diamond,
   Trophy,
   Coins,
   DotsThree,
