@@ -112,8 +112,13 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
   // status is always "ready" and ChainGate never renders the connect prompt).
   const { connect, connectors } = useConnect();
   const connectWallet = useCallback(() => {
-    const target = connectors[0];
-    if (target) connect({ connector: target });
+    // connectors[0] is the Farcaster mini-app connector, which AUTO-connects inside a Farcaster
+    // host — so if this button is visible we are on the web, and picking [0] leaves an extension
+    // user unable to connect at all. Prefer the injected connector here and fall back only if it
+    // is absent.
+    const injected =
+      connectors.find((c) => c.type === "injected" || c.id === "injected") ?? connectors[0];
+    if (injected) connect({ connector: injected });
   }, [connect, connectors]);
   // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
   // Farcaster splash screen — no manual call needed here.

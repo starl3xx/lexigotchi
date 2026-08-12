@@ -38,6 +38,34 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response |
   }
 }
 
+/**
+ * Authenticated JSON POST for the signing routes (`/api/mint/*`, `/api/roll/*`, `/api/prestige/*`).
+ *
+ * These routes derive the FID from a verified Quick Auth JWT and 401 without one, so a plain
+ * `fetch` can never reach them — not even inside a Farcaster client. The token is attached by
+ * `sdk.quickAuth.fetch`, which is the ONLY way these get called.
+ *
+ * Returns `{ ok: false, error: "no_farcaster_host" }` on the web rather than throwing, so callers
+ * can tell "you need to open this in Farcaster" apart from a genuine server refusal.
+ */
+export async function authedPostJson<T = Record<string, never>>(
+  path: string,
+  body: unknown,
+): Promise<({ ok: true; error?: undefined } & T) | { ok: false; error: string }> {
+  if (!(await isFarcasterHost())) return { ok: false, error: "no_farcaster_host" };
+  const res = await authedFetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res) return { ok: false, error: "request_failed" };
+  try {
+    return await res.json();
+  } catch {
+    return { ok: false, error: `http_${res.status}` };
+  }
+}
+
 /** Persist that the player added the mini app (+ the notification token from `addMiniApp()`). */
 export async function recordAdd(notif?: { token?: string; url?: string }): Promise<void> {
   await authedFetch("/api/campaign/record-add", {

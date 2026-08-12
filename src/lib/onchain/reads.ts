@@ -134,6 +134,14 @@ export interface PlayerState {
   operator: { lettersToWords: boolean; wordsToStaking: boolean };
   /** Letter inventory by id: 0-25 lowercase, 26-51 UPPERCASE. */
   letters: number[];
+  /**
+   * Whether THIS ADDRESS still has today's free snack.
+   *
+   * Not the same thing as `params.freeDailySnack`, which is the contract-wide feature toggle and is
+   * simply true. Only the first feed per address per UTC day is free (Staking.sol:85-90); confusing
+   * the two skips the $WORD approval on every subsequent feed, which then reverts on allowance.
+   */
+  freeSnackAvailable: boolean;
 }
 
 /** All 52 letter ids — lowercase 0-25, uppercase 26-51. */
@@ -171,12 +179,17 @@ export async function readPlayerState(player: `0x${string}`): Promise<PlayerStat
         functionName: "balanceOfBatch",
         args: [LETTER_IDS.map(() => player), LETTER_IDS],
       },
+      { address: staking, abi: stakingAbi, functionName: "freeSnackDayPlusOne", args: [player] },
     ] as const,
   });
 
-  const [bal, aLetters, aWords, aStaking, aRolls, aPrestige, opLW, opWS, batch] = r as unknown as [
-    bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, bigint[],
+  const [bal, aLetters, aWords, aStaking, aRolls, aPrestige, opLW, opWS, batch, freeSnackDay] = r as unknown as [
+    bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, bigint[], number | bigint,
   ];
+
+  // Stored as day+1 so 0 can mean "never" — the free snack is spent only when it equals today+1.
+  const today = Math.floor((await readChainTime()) / 86_400);
+  const freeSnackAvailable = Number(freeSnackDay) !== today + 1;
 
   return {
     balanceWei: bal,
@@ -184,6 +197,7 @@ export async function readPlayerState(player: `0x${string}`): Promise<PlayerStat
     allowance: { letters: aLetters, words: aWords, staking: aStaking, rolls: aRolls, prestige: aPrestige },
     operator: { lettersToWords: opLW, wordsToStaking: opWS },
     letters: batch.map(Number),
+    freeSnackAvailable,
   };
 }
 
@@ -313,6 +327,116 @@ export async function waitForNewCommit(
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   return null;
+}
+
+/**
+ * Discover a freshly-created Rolls or Prestige commit.
+ *
+ * Same problem as Letters: `commitLooseRoll` / `commitWordRoll` / `commitPrestige` return the
+ * commitId as a Solidity return value, unreachable through `wallet_sendCalls`. The indexed
+ * `RollCommitted` / `PrestigeCommitted` events are the only way to learn it.
+ *
+ * Polls, because logs are not queryable the instant a transaction mines — a single empty query is
+ * indistinguishable from "the commit never happened", and here the player has already paid the fee.
+ * Returns null on timeout, meaning UNKNOWN, never failed.
+ */
+async function waitForCommitVia(
+  fetchIds: () => Promise<bigint[]>,
+  isRevealed: (id: bigint) => Promise<boolean>,
+  knownIds: readonly bigint[],
+  { timeoutMs = 60_000, intervalMs = 2_000 }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<bigint | null> {
+  const known = new Set(knownIds.map(String));
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const id of await fetchIds()) {
+      if (known.has(String(id))) continue;
+      if (!(await isRevealed(id))) return id;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
+}
+
+const ROLL_COMMITTED = {
+  type: "event",
+  name: "RollCommitted",
+  inputs: [
+    { name: "commitId", type: "uint256", indexed: true },
+    { name: "owner", type: "address", indexed: true },
+    { name: "letterIndex", type: "uint8", indexed: false },
+    { name: "kind", type: "uint8", indexed: false },
+    { name: "pity", type: "uint32", indexed: false },
+  ],
+} as const;
+
+const PRESTIGE_COMMITTED = {
+  type: "event",
+  name: "PrestigeCommitted",
+  inputs: [
+    { name: "commitId", type: "uint256", indexed: true },
+    { name: "tokenId", type: "uint256", indexed: true },
+    { name: "owner", type: "address", indexed: true },
+    { name: "pity", type: "uint32", indexed: false },
+  ],
+} as const;
+
+/** Open (unrevealed) roll commit ids for a player — used to snapshot before committing. */
+export async function readOpenRollCommits(owner: `0x${string}`): Promise<bigint[]> {
+  const rolls = addressOf("rolls");
+  const client = getPublicClient();
+  const logs = await client.getLogs({ address: rolls, event: ROLL_COMMITTED, args: { owner }, fromBlock: deployBlock(), toBlock: "latest" });
+  const out: bigint[] = [];
+  for (const l of logs) {
+    const id = l.args.commitId as bigint;
+    const c = (await client.readContract({ address: rolls, abi: rollsAbi, functionName: "commits", args: [id] })) as unknown as readonly [string, number, number, number, boolean, number, bigint];
+    if (!c[4]) out.push(id);
+  }
+  return out;
+}
+
+export async function waitForNewRollCommit(owner: `0x${string}`, knownIds: readonly bigint[]): Promise<bigint | null> {
+  const rolls = addressOf("rolls");
+  return waitForCommitVia(
+    async () => {
+      const logs = await getPublicClient().getLogs({ address: rolls, event: ROLL_COMMITTED, args: { owner }, fromBlock: deployBlock(), toBlock: "latest" });
+      return logs.map((l) => l.args.commitId as bigint);
+    },
+    async (id) => {
+      const c = (await getPublicClient().readContract({ address: rolls, abi: rollsAbi, functionName: "commits", args: [id] })) as unknown as readonly [string, number, number, number, boolean, number, bigint];
+      return Boolean(c[4]);
+    },
+    knownIds,
+  );
+}
+
+/** Open (unrevealed) prestige commit ids for a player. */
+export async function readOpenPrestigeCommits(owner: `0x${string}`): Promise<bigint[]> {
+  const prestige = addressOf("prestige");
+  const client = getPublicClient();
+  const logs = await client.getLogs({ address: prestige, event: PRESTIGE_COMMITTED, args: { owner }, fromBlock: deployBlock(), toBlock: "latest" });
+  const out: bigint[] = [];
+  for (const l of logs) {
+    const id = l.args.commitId as bigint;
+    const c = (await client.readContract({ address: prestige, abi: prestigeAbi, functionName: "commits", args: [id] })) as unknown as readonly [bigint, string, boolean, number];
+    if (!c[2]) out.push(id);
+  }
+  return out;
+}
+
+export async function waitForNewPrestigeCommit(owner: `0x${string}`, knownIds: readonly bigint[]): Promise<bigint | null> {
+  const prestige = addressOf("prestige");
+  return waitForCommitVia(
+    async () => {
+      const logs = await getPublicClient().getLogs({ address: prestige, event: PRESTIGE_COMMITTED, args: { owner }, fromBlock: deployBlock(), toBlock: "latest" });
+      return logs.map((l) => l.args.commitId as bigint);
+    },
+    async (id) => {
+      const c = (await getPublicClient().readContract({ address: prestige, abi: prestigeAbi, functionName: "commits", args: [id] })) as unknown as readonly [bigint, string, boolean, number];
+      return Boolean(c[2]);
+    },
+    knownIds,
+  );
 }
 
 export interface DayState {

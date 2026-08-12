@@ -38,10 +38,27 @@ import {
 } from "./state";
 import { rollSuccessProbability } from "@/lib/params";
 import { useOnchain } from "./useOnchain";
-import { readOwnedWords, readPity, readPendingCommits, waitForNewCommit, type ChainWord } from "@/lib/onchain/reads";
+import {
+  readOwnedWords,
+  readPity,
+  readPendingCommits,
+  waitForNewCommit,
+  readOpenRollCommits,
+  waitForNewRollCommit,
+  readOpenPrestigeCommits,
+  waitForNewPrestigeCommit,
+  type ChainWord,
+} from "@/lib/onchain/reads";
 import {
   commitFreePackCalls,
+  commitFreeDailyCalls,
   revealCalls,
+  commitLooseRollCalls,
+  commitWordRollCalls,
+  rollRevealCalls,
+  commitPrestigeCalls,
+  prestigeRevealCalls,
+  dissolveCalls,
   claimCalls,
   stakeCalls,
   unstakeCalls,
@@ -52,8 +69,16 @@ import {
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
+import { authedPostJson } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
+
+/** Signing-route response shapes. */
+// The two vouchers differ: the free pack is nonce-scoped, the daily is UTC-day-scoped.
+interface PackVoucher { fid: string; nonce: string; deadline: string; signature: `0x${string}` }
+interface DailyVoucher { fid: string; today: number; deadline: string; signature: `0x${string}` }
+interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
+interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 
 /** Chain words → the shape screens already destructure. */
 function toOwnedWord(w: ChainWord): OwnedWord {
@@ -151,13 +176,87 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     [chain, toast, wordsQ, pityQ],
   );
 
-  const notWired = useCallback(
-    (what: string) => {
-      toast(`${what} needs its signer route — not wired yet`, "info");
-      return null;
-    },
-    [toast],
+
+  /**
+   * POST to a signing route WITH the Quick Auth JWT.
+   *
+   * A plain fetch cannot reach these at all: every one derives the FID from a verified token and
+   * 401s without it, so the whole commit→reveal flow silently dead-ends at the first request.
+   */
+  const postJson = useCallback(
+    <T,>(url: string, body: unknown) => authedPostJson<T>(url, body),
+    [],
   );
+
+  /** Server error codes → something a player can act on. */
+  /**
+   * Does this player still have today's free snack?
+   *
+   * Requires BOTH the contract-wide toggle and this address not having used today's — using only
+   * the toggle (which is permanently true) skips the approval and reverts every feed after the
+   * first one each day.
+   */
+  const freeSnackAvailable = useCallback(
+    () => !!chain.params?.freeDailySnack && !!chain.player?.freeSnackAvailable,
+    [chain.params, chain.player],
+  );
+
+  const authError = useCallback((code: string | undefined, what: string) => {
+    if (code === "no_farcaster_host" || code === "unauthorized") {
+      return `${what} needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App`;
+    }
+    return `${what} unavailable: ${code ?? "unknown"}`;
+  }, []);
+
+  const dailyError = useCallback(
+    (code?: string) =>
+      code === "already_claimed_today"
+        ? "You've already taken today's letter — it resets at UTC midnight"
+        : authError(code, "The daily"),
+    [authError],
+  );
+
+  /**
+   * Second half of a Letters commit→reveal: discover the commit, get the draw, send the reveal.
+   *
+   * `stranded` is the important branch. The contracts have NO reveal expiry, so a commit that is
+   * paid for but never revealed stays open forever. The draw is deterministic in commitId, so
+   * retrying later yields the identical letters — which is why it is honest to tell the player it
+   * is waiting for them rather than that it failed.
+   */
+  const finishLetterCommit = useCallback(
+    async (before: readonly bigint[], strandedMsg: string) => {
+      if (!address) return;
+      toast("Opening…", "info");
+      const commit = await waitForNewCommit(address, before);
+      if (!commit) return void toast("Committed but slow to appear — it'll be waiting for you", "info");
+      const draw = await postJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
+      if (!draw?.ok) return void toast(authError(draw?.error, "Draw"), "bad");
+      const ok = await run("Reveal", () =>
+        revealCalls(commit.commitId, draw.reveal.letterIndexes, draw.reveal.signature),
+      );
+      if (!ok) return void toast(strandedMsg, "info");
+      dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
+    },
+    [address, postJson, run, toast, authError],
+  );
+
+  /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
+  const finishRoll = useCallback(
+    async (before: readonly bigint[]) => {
+      if (!address) return;
+      toast("Rolling…", "info");
+      const id = await waitForNewRollCommit(address, before);
+      if (id === null) return void toast("Roll committed but slow to appear — it'll be waiting", "info");
+      const draw = await postJson<{ reveal: OutcomeReveal }>("/api/roll/reveal", { commitId: String(id) });
+      if (!draw?.ok) return void toast(authError(draw?.error, "Roll"), "bad");
+      const ok = await run("Reveal", () => rollRevealCalls(id, draw.reveal.success, draw.reveal.signature));
+      if (!ok) return void toast("Your roll is paid for — reopen to finish it", "info");
+      toast(draw.reveal.success ? "Raised!" : "Missed — your odds go up next time", draw.reveal.success ? "good" : "info");
+    },
+    [address, postJson, run, toast, authError],
+  );
+
 
   const api: GameApi = useMemo(
     () => ({
@@ -172,7 +271,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // ChainGate keeps those screens off-screen entirely so nobody sees a false "you're broke".
       canAfford: (amount: number) => (chain.player ? chain.player.balance >= amount : false),
 
-      dailyMint: () => notWired("The daily"),
+      /** The FID-gated free daily: voucher → commit → discover → draw → reveal. */
+      dailyMint: () => {
+        void (async () => {
+          if (!address) return void toast("Connect a wallet first", "bad");
+          const res = await postJson<{ voucher: DailyVoucher }>("/api/mint/free-daily", { wallet: address });
+          if (!res?.ok) return void toast(dailyError(res?.error), "bad");
+          const v = res.voucher;
+          const before = (await readPendingCommits(address)).map((c) => c.commitId);
+          if (!(await run("Daily", () =>
+            commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature }),
+          ))) return;
+          await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it");
+        })();
+        return null;
+      },
 
       /**
        * The full two-transaction pack: voucher → commit → discover the commitId from the log →
@@ -183,12 +296,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         void (async () => {
           if (!address) return void toast("Connect a wallet first", "bad");
 
-          const res = await fetch("/api/mint/free-pack", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ wallet: address }),
-          }).then((r) => r.json());
-          if (!res.ok) return void toast(`Pack unavailable: ${res.error}`, "bad");
+          const res = await postJson<{ voucher: PackVoucher }>("/api/mint/free-pack", { wallet: address });
+          if (!res?.ok) return void toast(authError(res?.error, "Pack"), "bad");
 
           // Snapshot what was already outstanding so the new commit can be told apart from a
           // previously stranded one.
@@ -213,12 +322,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast("Pack is committed but slow to appear — it'll be waiting for you", "info");
           }
 
-          const draw = await fetch("/api/mint/reveal", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ commitId: String(commit.commitId) }),
-          }).then((r) => r.json());
-          if (!draw.ok) return void toast(`Draw failed: ${draw.error}`, "bad");
+          const draw = await postJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
+          if (!draw?.ok) return void toast(authError(draw?.error, "Draw"), "bad");
 
           const revealed = await run("Reveal", () =>
             revealCalls(commit.commitId, draw.reveal.letterIndexes, draw.reveal.signature),
@@ -232,9 +337,43 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         return [];
       },
 
-      rollLoose: () => notWired("Rolling"),
-      rollWord: () => notWired("Rolling"),
-      prestige: () => notWired("Ascension"),
+      rollLoose: (idx: number) => {
+        void (async () => {
+          if (!chain.params || !chain.player || !address) return;
+          const before = await readOpenRollCommits(address);
+          if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return;
+          await finishRoll(before);
+        })();
+        return null;
+      },
+
+      rollWord: (word: string, pos: number) => {
+        void (async () => {
+          if (!chain.params || !chain.player || !address) return;
+          const before = await readOpenRollCommits(address);
+          if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return;
+          await finishRoll(before);
+        })();
+        return null;
+      },
+
+      prestige: (word: string) => {
+        void (async () => {
+          if (!chain.params || !chain.player || !address) return;
+          const before = await readOpenPrestigeCommits(address);
+          if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return;
+          toast("Ascending…", "info");
+          const id = await waitForNewPrestigeCommit(address, before);
+          if (id === null) return void toast("Ascension committed but slow to appear — it'll be waiting", "info");
+          const draw = await postJson<{ reveal: OutcomeReveal }>("/api/prestige/reveal", { commitId: String(id) });
+          if (!draw?.ok) return void toast(authError(draw?.error, "Ascension"), "bad");
+          if (!(await run("Reveal", () => prestigeRevealCalls(id, draw.reveal.success, draw.reveal.signature)))) {
+            return void toast("Ascension is paid for — reopen to finish it", "info");
+          }
+          toast(draw.reveal.success ? `${word} ascended!` : `${word} held its ground`, draw.reveal.success ? "good" : "info");
+        })();
+        return null;
+      },
 
       claim: (word: string, useUpper: boolean) => {
         void (async () => {
@@ -258,7 +397,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       feed: (word: string) => {
         if (!chain.params || !chain.player) return;
         void run(`Feed ${word}`, () =>
-          feedCalls(tokenIdOf(word), chain.params!, chain.player!, chain.params!.freeDailySnack),
+          feedCalls(tokenIdOf(word), chain.params!, chain.player!, freeSnackAvailable()),
         );
       },
 
@@ -269,11 +408,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0).map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody's hungry", "info");
         void run("Feed all", () =>
-          feedManyCalls(hungry, chain.params!, chain.player!, chain.params!.freeDailySnack),
+          feedManyCalls(hungry, chain.params!, chain.player!, freeSnackAvailable()),
         );
       },
 
-      dissolve: () => notWired("Dissolve"),
+      dissolve: (word: string) => {
+        void (async () => {
+          if (!(await run(`Dissolve ${word}`, () => dissolveCalls(tokenIdOf(word), word)))) return;
+          dispatch({ t: "sheet", sheet: null });
+        })();
+      },
       revealJackpot: () => null,
       skipDay: () => toast("Time moves on its own here", "info"),
 
@@ -287,7 +431,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
     }),
-    [state, chain, address, run, toast, notWired],
+    [state, chain, address, run, toast, postJson, authError, dailyError, finishLetterCommit, finishRoll, freeSnackAvailable],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
