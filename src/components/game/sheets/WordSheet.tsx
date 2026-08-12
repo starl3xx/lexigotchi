@@ -15,10 +15,10 @@ import {
   wordCase,
 } from "../state";
 
-export function WordSheet({ id }: { id: number }) {
+export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
   const { state } = g;
-  const word = state.words.find((w) => w.id === id);
+  const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
 
   if (!word) {
@@ -75,13 +75,13 @@ export function WordSheet({ id }: { id: number }) {
 
       {/* care */}
       <div className="mb-3 grid grid-cols-2 gap-2">
-        <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.id)}>
+        <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.word)}>
           {word.staked ? "Unstake" : "Stake to earn"}
         </Button>
         <Button
           variant="teal"
           disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(COST.snack))}
-          onClick={() => g.feed(word.id)}
+          onClick={() => g.feed(word.word)}
         >
           <Cookie weight="fill" /> Feed {word.daysUnfed === 0 && <Check weight="bold" size={14} />}
         </Button>
@@ -107,7 +107,7 @@ export function WordSheet({ id }: { id: number }) {
                   key={i}
                   char={ch}
                   size={42}
-                  onClick={() => g.openSheet({ kind: "roll", target: { kind: "word", id: word.id, pos: i } })}
+                  onClick={() => g.openSheet({ kind: "roll", target: { kind: "word", word: word.word, pos: i } })}
                   title={`raise ${ch}`}
                 />
               ),
@@ -134,7 +134,7 @@ export function WordSheet({ id }: { id: number }) {
               variant="gold"
               disabled={!canPrestige || !g.canAfford(COST.prestige + COST.snack)}
               onClick={() => {
-                const res = g.prestige(word.id);
+                const res = g.prestige(word.word);
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
                 g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
@@ -150,7 +150,7 @@ export function WordSheet({ id }: { id: number }) {
       <div className="pt-1">
         {confirmDissolve ? (
           <div className="flex items-center gap-2">
-            <Button full variant="danger" onClick={() => g.dissolve(word.id)}>
+            <Button full variant="danger" onClick={() => g.dissolve(word.word)}>
               Burn & recover 5 letters
             </Button>
             <Button variant="ghost" onClick={() => setConfirmDissolve(false)}>

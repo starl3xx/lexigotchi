@@ -75,7 +75,7 @@ export function BagScreen() {
           {state.words.length === 0 ? (
             <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
           ) : (
-            state.words.map((w) => <WordCard key={w.id} word={w} />)
+            state.words.map((w) => <WordCard key={w.word} word={w} />)
           )}
         </div>
       )}

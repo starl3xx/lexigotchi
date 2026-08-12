@@ -137,7 +137,7 @@ function Screen({ view }: { view: View }) {
 
 function SheetHost() {
   const { state } = useGame();
-  if (state.sheet?.kind === "word") return <WordSheet id={state.sheet.id} />;
+  if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;

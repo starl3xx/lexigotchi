@@ -46,3 +46,21 @@ describe("rebuilt dictionary tree", () => {
     }
   });
 });
+
+describe("tokenId derivation", () => {
+  it("matches the on-chain keccak256(UPPERCASE word)", async () => {
+    const { tokenIdHexOf, tokenIdOf } = await import("@/lib/onchain/tokenId");
+    // Verified against `cast keccak "CRANE"` and the live Words NFT minted on Sepolia.
+    expect(tokenIdHexOf("CRANE")).toBe("0x053a04303a8853e6e41c7292210e5152aa36137238899a88dd3b25f2f7eee6d9");
+    expect(tokenIdOf("CRANE")).toBe(BigInt("0x053a04303a8853e6e41c7292210e5152aa36137238899a88dd3b25f2f7eee6d9"));
+  });
+
+  it("normalises case and whitespace — a lowercased word is a DIFFERENT token", async () => {
+    const { tokenIdHexOf } = await import("@/lib/onchain/tokenId");
+    const canonical = tokenIdHexOf("CRANE");
+    for (const v of ["crane", "Crane", " crane "]) expect(tokenIdHexOf(v)).toBe(canonical);
+    // The raw lowercase hash is genuinely different — this is why normalising matters.
+    const { keccak256, toBytes } = await import("viem");
+    expect(keccak256(toBytes("crane"))).not.toBe(canonical);
+  });
+});

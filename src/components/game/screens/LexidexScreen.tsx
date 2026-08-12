@@ -15,7 +15,7 @@ export function LexidexScreen() {
   const [q, setQ] = useState("");
   const [tier, setTier] = useState<Tier | "All">("All");
 
-  const ownedMap = useMemo(() => new Map(state.words.map((w) => [w.word, w.id])), [state.words]);
+  const ownedSet = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
 
   const results = useMemo(() => {
     const needle = q.trim().toUpperCase();
@@ -34,7 +34,7 @@ export function LexidexScreen() {
       <div className="flex items-baseline justify-between">
         <h1 className="font-display text-2xl font-extrabold">Lexidex</h1>
         <span className="text-xs text-ink/55">
-          {ownedMap.size}/{WORD_COUNT.toLocaleString()} owned
+          {ownedSet.size}/{WORD_COUNT.toLocaleString()} owned
         </span>
       </div>
 
@@ -58,11 +58,11 @@ export function LexidexScreen() {
 
       <div className="grid grid-cols-2 gap-2">
         {results.map((w) => {
-          const owned = ownedMap.get(w);
+          const owned = ownedSet.has(w);
           return (
             <button
               key={w}
-              onClick={() => (owned ? g.openSheet({ kind: "word", id: owned }) : g.toast(`${w} — unclaimed. Spell it to own it.`, "info"))}
+              onClick={() => (owned ? g.openSheet({ kind: "word", word: w }) : g.toast(`${w} — unclaimed. Spell it to own it.`, "info"))}
               className={`cel flex items-center justify-between rounded-xl bg-paper px-2.5 py-2 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${owned ? "ring-2 ring-teal ring-offset-1 ring-offset-paper" : ""}`}
             >
               <div>

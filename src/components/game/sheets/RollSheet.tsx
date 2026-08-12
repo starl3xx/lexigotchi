@@ -14,19 +14,19 @@ export function RollSheet({ target }: { target: RollTarget }) {
   const [phase, setPhase] = useState<Phase>("ready");
 
   const loose = target.kind === "loose";
-  const word = !loose ? state.words.find((w) => w.id === target.id) : undefined;
+  const word = !loose ? state.words.find((w) => w.word === target.word) : undefined;
   const char = loose ? idxToChar(target.idx) : word ? word.word[target.pos] : "?";
   // word-position rolls share the per-letter pity streak (the (owner, letterId) rule)
   const pity = loose ? state.pity[target.idx] : word ? state.pity[charToIdx(word.word[target.pos])] : 0;
 
   const close = () => {
     // returning from a word-position roll? pop back to the word sheet for flow
-    if (!loose && word) g.openSheet({ kind: "word", id: word.id });
+    if (!loose && word) g.openSheet({ kind: "word", word: word.word });
     else g.closeSheet();
   };
 
   const reveal = () => {
-    const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.id, target.pos);
+    const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.word, target.pos);
     if (result === null) {
       // the roll never happened (no letter / slot already raised / unaffordable — api toasted why);
       // don't fake a "No luck" miss
