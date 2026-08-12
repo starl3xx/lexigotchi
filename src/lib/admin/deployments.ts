@@ -7,8 +7,13 @@
  * known for good, paste them into the JSON and commit. Every operations tab reads `isDeployed()` to
  * decide whether an action can execute live or stays a transaction plan.
  */
-import baseline from "../../../config/deployments.json";
+import baseMainnet from "../../../config/deployments.json";
+import baseSepolia from "../../../config/deployments.base-sepolia.json";
+import { NETWORK } from "@/lib/onchain/network";
 import { isAddress } from "./format";
+
+/** The committed registry for the ACTIVE network (see lib/onchain/network). */
+const baseline = NETWORK.key === "base-sepolia" ? baseSepolia : baseMainnet;
 
 export type ContractKey =
   | "feeRouter"
@@ -33,7 +38,9 @@ export interface Deployments {
   contracts: Record<ContractKey, string | null>;
 }
 
-const STORAGE_KEY = "lexigotchi:deployments";
+// Namespaced by chain id: a testnet session's pasted addresses must never surface in a mainnet
+// build, where they would silently point operator transactions at the wrong contracts.
+const STORAGE_KEY = `lexigotchi:deployments:${NETWORK.id}`;
 
 export const CONTRACT_KEYS: ContractKey[] = [
   "feeRouter",

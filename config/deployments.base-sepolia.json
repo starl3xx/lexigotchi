@@ -1,0 +1,25 @@
+{
+  "_comment": "Base Sepolia REHEARSAL deployment (2026-08-12). Not production. $WORD here is contracts/test/mocks/MockERC20.sol with a permissionless mint() standing in for the real token, which exists only on mainnet, and the swap router is MockSwapRouter. The AnswerChain head is the throwaway rehearsal chain (contracts/answer-chain.sepolia-rehearsal.secret.json), NOT the production schedule. Selected by NEXT_PUBLIC_CHAIN_ID=84532.",
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-08-12",
+  "wordToken": "0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea",
+  "roles": {
+    "treasury": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
+    "signer": "0xc60062CBc714dBBc570D6A3E33bB7f59C0125490",
+    "keeper": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
+    "owner": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3"
+  },
+  "contracts": {
+    "feeRouter": "0xf73ede784b018F0dEFbDC91DEeb3aA3EC3Fa376f",
+    "letters": "0xdf7bB55D701d16d772Fad43f53eE4560De2De263",
+    "words": "0xD820ffEf97f223C5a1BFe6d1FD4096ab78cfc441",
+    "rolls": "0x87C79617FE94717706cC983cAF22052990393Cb0",
+    "staking": "0x5Ad5B9cCBe7860CfbBA1a59ed690C35C7C45Af7c",
+    "prestige": "0xf01733cf1Ba945AFB766404871dd0F64493312d8",
+    "answerChain": "0xBD5491871FbBc83A82592B859B2C5B98351B21Bd",
+    "jackpot": "0xeBFf3F598fA3a1f041F9b3D85cA7B017848100fa",
+    "yieldDistributor": "0x2734264697dc6F8A11A2D8b756Cb23A088fd68ad",
+    "bounty": "0xBe06aECeF1E72B9eA48f303f70261ec1601FE817"
+  }
+}

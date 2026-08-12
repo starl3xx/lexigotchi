@@ -10,6 +10,7 @@
  */
 import type { ContractKey } from "./deployments";
 import { isAddress, isBytes32 } from "./format";
+import { NETWORK } from "@/lib/onchain/network";
 
 export interface TxArgValue {
   name: string;
@@ -132,7 +133,7 @@ function safeTransaction(intent: TxIntent) {
 export function safeBatchJson(
   intents: TxIntent[],
   meta: { name: string; description?: string },
-  chainId = 8453,
+  chainId = NETWORK.id,
 ): string {
   const batch = {
     version: "1.0",
