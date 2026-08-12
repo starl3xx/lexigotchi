@@ -253,16 +253,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
   const finishRoll = useCallback(
-    async (before: readonly bigint[]) => {
-      if (!address) return;
+    async (before: readonly bigint[]): Promise<boolean | null> => {
+      if (!address) return null;
       toast("Rolling…", "info");
       const id = await waitForNewRollCommit(address, before);
-      if (id === null) return void toast("Roll committed but slow to appear — it'll be waiting", "info");
+      if (id === null) { toast("Roll committed but slow to appear — it'll be waiting", "info"); return null; }
       const draw = await postJson<{ reveal: OutcomeReveal }>("/api/roll/reveal", { commitId: String(id) });
-      if (!draw?.ok) return void toast(authError(draw?.error, "Roll"), "bad");
+      if (!draw?.ok) { toast(authError(draw?.error, "Roll"), "bad"); return null; }
       const ok = await run("Reveal", () => rollRevealCalls(id, draw.reveal.success, draw.reveal.signature));
-      if (!ok) return void toast("Your roll is paid for — reopen to finish it", "info");
-      toast(draw.reveal.success ? "Raised!" : "Missed — your odds go up next time", draw.reveal.success ? "good" : "info");
+      if (!ok) { toast("Your roll is paid for — reopen to finish it", "info"); return null; }
+      return draw.reveal.success;
     },
     [address, postJson, run, toast, authError],
   );
@@ -282,20 +282,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       canAfford: (amount: number) => (chain.player ? chain.player.balance >= amount : false),
 
       /** The FID-gated free daily: voucher → commit → discover → draw → reveal. */
-      dailyMint: () => {
-        void (async () => {
-          if (!address) return void toast("Connect a wallet first", "bad");
+      dailyMint: () =>
+        (async () => {
+          if (!address) { toast("Connect a wallet first", "bad"); return null; }
           const res = await postJson<{ voucher: DailyVoucher }>("/api/mint/free-daily", { wallet: address });
-          if (!res?.ok) return void toast(dailyError(res?.error), "bad");
+          if (!res?.ok) { toast(dailyError(res?.error), "bad"); return null; }
           const v = res.voucher;
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
           if (!(await run("Daily", () =>
             commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature }),
-          ))) return;
+          ))) return null;
           await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it");
-        })();
-        return "pending";
-      },
+          return null; // letters arrive via the pack sheet, not this return value
+        })(),
 
       /**
        * The full two-transaction pack: voucher → commit → discover the commitId from the log →
@@ -347,58 +346,56 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         return [];
       },
 
-      rollLoose: (idx: number) => {
-        void (async () => {
-          if (!chain.params || !chain.player || !address) return;
+      rollLoose: (idx: number) =>
+        (async () => {
+          if (!chain.params || !chain.player || !address) return null;
           // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
           // their voucher first so they fail free; a paid commit sent before this check leaves the
           // fee spent and the commit stranded with no way to finish it.
           if (!(await canSign())) {
-            return void toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            return null;
           }
           const before = await readOpenRollCommits(address);
-          if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return;
-          await finishRoll(before);
-        })();
-        return "pending";
-      },
+          if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return null;
+          return finishRoll(before);
+        })(),
 
-      rollWord: (word: string, pos: number) => {
-        void (async () => {
-          if (!chain.params || !chain.player || !address) return;
+      rollWord: (word: string, pos: number) =>
+        (async () => {
+          if (!chain.params || !chain.player || !address) return null;
           // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
           // their voucher first so they fail free; a paid commit sent before this check leaves the
           // fee spent and the commit stranded with no way to finish it.
           if (!(await canSign())) {
-            return void toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            return null;
           }
           const before = await readOpenRollCommits(address);
-          if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return;
-          await finishRoll(before);
-        })();
-        return "pending";
-      },
+          if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return null;
+          return finishRoll(before);
+        })(),
 
-      prestige: (word: string) => {
-        void (async () => {
-          if (!chain.params || !chain.player || !address) return;
+      prestige: (word: string) =>
+        (async () => {
+          if (!chain.params || !chain.player || !address) return null;
           if (!(await canSign())) {
-            return void toast("Ascension needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            toast("Ascension needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            return null;
           }
           const before = await readOpenPrestigeCommits(address);
-          if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return;
+          if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return null;
           toast("Ascending…", "info");
           const id = await waitForNewPrestigeCommit(address, before);
-          if (id === null) return void toast("Ascension committed but slow to appear — it'll be waiting", "info");
+          if (id === null) { toast("Ascension committed but slow to appear — it'll be waiting", "info"); return null; }
           const draw = await postJson<{ reveal: OutcomeReveal }>("/api/prestige/reveal", { commitId: String(id) });
-          if (!draw?.ok) return void toast(authError(draw?.error, "Ascension"), "bad");
+          if (!draw?.ok) { toast(authError(draw?.error, "Ascension"), "bad"); return null; }
           if (!(await run("Reveal", () => prestigeRevealCalls(id, draw.reveal.success, draw.reveal.signature)))) {
-            return void toast("Ascension is paid for — reopen to finish it", "info");
+            toast("Ascension is paid for — reopen to finish it", "info");
+            return null;
           }
-          toast(draw.reveal.success ? `${word} ascended!` : `${word} held its ground`, draw.reveal.success ? "good" : "info");
-        })();
-        return "pending";
-      },
+          return draw.reveal.success;
+        })(),
 
       claim: (word: string, useUpper: boolean) => {
         void (async () => {

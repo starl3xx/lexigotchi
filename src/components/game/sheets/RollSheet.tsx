@@ -27,10 +27,15 @@ export function RollSheet({ target }: { target: RollTarget }) {
 
   const reveal = () => {
     const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.word, target.pos);
-    if (result === "pending") {
-      // Started on-chain: the fee is committed and the outcome arrives via toast after the reveal
-      // transaction. Closing here would look identical to "nothing happened" while money moved.
+    if (result instanceof Promise) {
+      // The chain store resolves asynchronously (wallet prompt, then a reveal tx). Show the rolling
+      // state, but RECOVER on null — that covers a cancelled signature or a failed sign-in, where
+      // nothing was spent and the player must be able to try again without closing the sheet.
       setPhase("rolling");
+      void result.then((r) => {
+        if (r === null) setPhase("ready");
+        else setPhase(r ? "win" : "miss");
+      });
       return;
     }
     if (result === null) {

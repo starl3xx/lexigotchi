@@ -20,6 +20,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const { state } = g;
   const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
+  // Guards against a second tap during the async chain flow — each tap is a PAID commit.
+  const [ascending, setAscending] = useState(false);
 
   if (!word) {
     return (
@@ -132,14 +134,22 @@ export function WordSheet({ word: wordKey }: { word: string }) {
             </div>
             <Button
               variant="gold"
-              disabled={!canPrestige || !g.canAfford(COST.prestige + COST.snack)}
+              disabled={ascending || !canPrestige || !g.canAfford(COST.prestige + COST.snack)}
               onClick={() => {
                 const res = g.prestige(word.word);
+                // A promise means it resolves later; announcing success now would celebrate a
+                // gilded glow-up before the wallet prompt has even appeared. The chain store toasts
+                // its own outcome, so only the synchronous (mock) result is announced here.
+                if (res instanceof Promise) {
+                  setAscending(true);
+                  void res.finally(() => setAscending(false));
+                  return;
+                }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
                 g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
-              {word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
+              {ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
             </Button>
           </div>
           {!word.staked && <p className="mt-2 text-xs text-candy">Stake it first to ascend.</p>}

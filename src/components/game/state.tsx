@@ -482,21 +482,24 @@ export interface GameApi {
   dismissToast: (id: number) => void;
   // economy actions (return the outcome where the caller needs to animate it)
   canAfford: (amount: number) => boolean;
-  dailyMint: () => number | null | "pending";
+  dailyMint: () => number | null | Promise<number | null>;
   openPack: () => number[];
   /**
    * null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss.
-   * "pending" = it STARTED and resolves asynchronously — the chain store returns this because a
-   * roll is two transactions. Screens must not treat it as null: money has already moved.
+   *
+   * The chain store returns a PROMISE of that same value, because a roll is two transactions with a
+   * wallet prompt between them. A promise rather than a "pending" sentinel specifically so the
+   * caller learns the OUTCOME — including "the user cancelled" — instead of being told it started
+   * and left with no way back.
    */
-  rollLoose: (idx: number) => boolean | null | "pending";
-  rollWord: (word: string, pos: number) => boolean | null | "pending";
+  rollLoose: (idx: number) => boolean | null | Promise<boolean | null>;
+  rollWord: (word: string, pos: number) => boolean | null | Promise<boolean | null>;
   claim: (word: string, useUpper: boolean) => void;
   toggleStake: (word: string) => void;
   feed: (word: string) => void;
   feedAll: () => void;
-  /** null = the attempt didn't happen; true = ascended, false = failed; "pending" = started async. */
-  prestige: (word: string) => boolean | null | "pending";
+  /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
+  prestige: (word: string) => boolean | null | Promise<boolean | null>;
   dissolve: (word: string) => void;
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;
