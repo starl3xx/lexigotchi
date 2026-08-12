@@ -22,6 +22,8 @@ import { NETWORK } from "@/lib/onchain/network";
 const PARAMS_STALE_MS = 60_000;
 /** Player state changes with every action; keep it tight so buttons don't lie. */
 const PLAYER_STALE_MS = 5_000;
+/** Staggered re-reads after a write, to outlast RPC read-after-write lag (see send()). */
+const REFRESH_RETRIES = [2_000, 6_000];
 
 export interface OnchainState {
   address?: `0x${string}`;
@@ -75,7 +77,17 @@ export function useOnchain(): OnchainState {
       const result = await sendCallsAttributed(provider, address, calls);
       // The batch is not atomic, so an approval can land while the action fails. Never trust the
       // intended end state — re-read it.
+      //
+      // Read-after-write on a public RPC is NOT consistent: a read issued the instant a transaction
+      // mines routinely hits a node that hasn't caught up, returning pre-transaction state. This bit
+      // three separate verifications during the Sepolia rehearsal — balances that "didn't change",
+      // logs that "weren't there", a commit that "didn't exist" — every one of them a stale read of
+      // a change that had in fact landed. Refreshing once here would show the player their old bag
+      // and look exactly like a failed action.
       await refresh();
+      for (const delay of REFRESH_RETRIES) {
+        setTimeout(() => void refresh(), delay);
+      }
       return result;
     },
     [address, connector, refresh],
