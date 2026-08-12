@@ -18,6 +18,7 @@ import { ACTIVE_CHAIN } from "./chain";
 import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
 import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, erc1155ApprovalAbi } from "./abis";
 
+const ZERO = "0x0000000000000000000000000000000000000000";
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || undefined;
 
 let client: PublicClient | undefined;
@@ -363,6 +364,148 @@ export async function readPity(player: `0x${string}`): Promise<number[]> {
     })),
   });
   return (r as unknown as number[]).map(Number);
+}
+
+export interface ChainWord {
+  /** UPPERCASE dictionary key — the UI's primary key. */
+  word: string;
+  tokenId: bigint;
+  /** Per-position case of the five escrowed letters (true = UPPERCASE). */
+  upper: boolean[];
+  staked: boolean;
+  daysUnfed: number;
+  prestigeLevel: number;
+}
+
+const CLAIMED_EVENT = {
+  type: "event",
+  name: "Claimed",
+  inputs: [
+    { name: "tokenId", type: "uint256", indexed: true },
+    { name: "owner", type: "address", indexed: true },
+    { name: "word", type: "string", indexed: false },
+    { name: "uppercase", type: "bool", indexed: false },
+  ],
+} as const;
+
+const TRANSFER_EVENT = {
+  type: "event",
+  name: "Transfer",
+  inputs: [
+    { name: "from", type: "address", indexed: true },
+    { name: "to", type: "address", indexed: true },
+    { name: "tokenId", type: "uint256", indexed: true },
+  ],
+} as const;
+
+const STAKED_EVENT = {
+  type: "event",
+  name: "Staked",
+  inputs: [
+    { name: "tokenId", type: "uint256", indexed: true },
+    { name: "staker", type: "address", indexed: true },
+  ],
+} as const;
+
+/**
+ * Every Word the player beneficially owns.
+ *
+ * Two things make this harder than `ownerOf`:
+ *
+ *  1. STAKING TRANSFERS THE NFT. `Words.ownerOf(tokenId)` returns the Staking contract for anything
+ *     staked, so filtering on it silently drops exactly the words that earn yield and hold jackpot
+ *     tickets. It presents as "my best words vanished" and looks like a claim bug. Ownership is
+ *     resolved through `Staking.stakerOf`, falling back to `ownerOf` for unstaked ones.
+ *
+ *  2. tokenId IS keccak256(word), which is ONE-WAY. There is no on-chain path from an id back to its
+ *     word, so the string has to come from the `Claimed` event — hence the unfiltered Claimed scan
+ *     building an id→word map. A word acquired by transfer has no Claimed event naming this player,
+ *     which is why the map is built from all of them rather than only the player's.
+ */
+export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]> {
+  const words = addressOf("words");
+  const staking = addressOf("staking");
+  const client = getPublicClient();
+  const from = deployBlock();
+
+  const [claimedAll, transfersIn, stakedByPlayer, now] = await Promise.all([
+    client.getLogs({ address: words, event: CLAIMED_EVENT, fromBlock: from, toBlock: "latest" }),
+    client.getLogs({ address: words, event: TRANSFER_EVENT, args: { to: player }, fromBlock: from, toBlock: "latest" }),
+    client.getLogs({ address: staking, event: STAKED_EVENT, args: { staker: player }, fromBlock: from, toBlock: "latest" }),
+    readChainTime(),
+  ]);
+
+  const wordById = new Map<string, string>();
+  for (const l of claimedAll) wordById.set(String(l.args.tokenId), String(l.args.word).toUpperCase());
+
+  const candidates = new Set<string>();
+  for (const l of transfersIn) candidates.add(String(l.args.tokenId));
+  for (const l of stakedByPlayer) candidates.add(String(l.args.tokenId));
+  if (candidates.size === 0) return [];
+
+  const ids = [...candidates].map((s) => BigInt(s));
+
+  // Resolve current beneficial ownership. allowFailure because ownerOf REVERTS
+  // (ERC721NonexistentToken) for a dissolved word, which would otherwise poison the whole aggregate.
+  const ownership = await client.multicall({
+    allowFailure: true,
+    contracts: ids.flatMap((id) => [
+      { address: staking, abi: stakingAbi, functionName: "stakerOf" as const, args: [id] },
+      { address: words, abi: wordsAbi, functionName: "ownerOf" as const, args: [id] },
+    ]),
+  });
+
+  const owned: bigint[] = [];
+  const stakedFlag = new Map<string, boolean>();
+  ids.forEach((id, i) => {
+    const staker = ownership[i * 2];
+    const owner = ownership[i * 2 + 1];
+    const stakerAddr = staker.status === "success" ? String(staker.result) : ZERO;
+    const ownerAddr = owner.status === "success" ? String(owner.result) : ZERO;
+    const isStaked = stakerAddr.toLowerCase() === player.toLowerCase();
+    const isHeld = ownerAddr.toLowerCase() === player.toLowerCase();
+    if (isStaked || isHeld) {
+      owned.push(id);
+      stakedFlag.set(String(id), isStaked);
+    }
+  });
+  if (owned.length === 0) return [];
+
+  // Per-word detail. escrowLetter is 5 calls each because `escrows` is internal — there is no
+  // whole-struct getter (Words.sol:44).
+  const detail = await client.multicall({
+    allowFailure: false,
+    contracts: owned.flatMap((id) => [
+      { address: words, abi: wordsAbi, functionName: "prestigeLevel" as const, args: [id] },
+      { address: staking, abi: stakingAbi, functionName: "lastFed" as const, args: [id] },
+      ...Array.from({ length: 5 }, (_, pos) => ({
+        address: words,
+        abi: wordsAbi,
+        functionName: "escrowLetter" as const,
+        args: [id, pos],
+      })),
+    ]),
+  });
+
+  const PER = 7;
+  return owned.map((id, i) => {
+    const base = i * PER;
+    const prestigeLevel = Number(detail[base]);
+    const lastFed = Number(detail[base + 1]);
+    const upper = Array.from({ length: 5 }, (_, pos) => {
+      const r = detail[base + 2 + pos] as unknown as readonly [number, boolean];
+      return Boolean(r[1]);
+    });
+    return {
+      word: wordById.get(String(id)) ?? "?????",
+      tokenId: id,
+      upper,
+      staked: stakedFlag.get(String(id)) ?? false,
+      // lastFed 0 means never fed; treat it as freshly claimed rather than infinitely starving.
+      daysUnfed: lastFed === 0 ? 0 : Math.max(0, Math.floor((now - lastFed) / 86_400)),
+      prestigeLevel,
+    };
+  });
 }
 
 /** The chain's current block timestamp — the only correct source for the UTC day boundary. */
