@@ -15,7 +15,7 @@
  */
 import { createPublicClient, http, formatUnits, type PublicClient } from "viem";
 import { ACTIVE_CHAIN } from "./chain";
-import { addressOf, wordTokenAddress } from "./addresses";
+import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
 import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, erc1155ApprovalAbi } from "./abis";
 
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || undefined;
@@ -216,6 +216,153 @@ export async function readLetterSupply(): Promise<{ caps: number[]; minted: numb
   const caps = (capsResult as unknown as readonly number[]).map(Number);
   const minted = (mintedResults as unknown as number[]).map(Number);
   return { caps, minted, available: caps.map((c, i) => Math.max(0, c - (minted[i] ?? 0))) };
+}
+
+export interface PendingCommit {
+  commitId: bigint;
+  /** 1 for a daily, 5 for a pack — the reveal must supply exactly this many letters. */
+  count: number;
+  buyer: `0x${string}`;
+  blockNumber: bigint;
+}
+
+/**
+ * Unrevealed letter commits belonging to a player — the discovery step every commit→reveal flow
+ * needs, and the resume path for stranded ones.
+ *
+ * `commitPack` and friends return `commitId` as a Solidity return value, which is UNREACHABLE
+ * through `wallet_sendCalls` — the wallet hands back a batch id, not a decoded return. The only way
+ * to learn it is the indexed `Committed(commitId, buyer, count)` log, emitted by `_newCommit` for
+ * all four commit paths.
+ *
+ * This doubles as the stranded-commit recovery path, which matters more than it sounds: the
+ * contracts deliberately have NO reveal expiry, so an unrevealed paid commit stays open forever and
+ * the player's money stays spent. Anything that lands here and never clears is money owed.
+ */
+export async function readPendingCommits(player: `0x${string}`): Promise<PendingCommit[]> {
+  const letters = addressOf("letters");
+  const client = getPublicClient();
+
+  const logs = await client.getLogs({
+    address: letters,
+    event: {
+      type: "event",
+      name: "Committed",
+      inputs: [
+        { name: "commitId", type: "uint256", indexed: true },
+        { name: "buyer", type: "address", indexed: true },
+        { name: "count", type: "uint8", indexed: false },
+      ],
+    },
+    args: { buyer: player },
+    fromBlock: deployBlock(),
+    toBlock: "latest",
+  });
+
+  if (logs.length === 0) return [];
+
+  // A log proves the commit happened, not that it's still open — check revealed state on-chain.
+  const states = await client.multicall({
+    allowFailure: false,
+    contracts: logs.map((l) => ({
+      address: letters,
+      abi: lettersAbi,
+      functionName: "commits" as const,
+      args: [l.args.commitId as bigint],
+    })),
+  });
+
+  return logs
+    .map((l, i) => {
+      const s = states[i] as unknown as readonly [string, number, boolean];
+      return {
+        commitId: l.args.commitId as bigint,
+        count: Number(l.args.count),
+        buyer: l.args.buyer as `0x${string}`,
+        blockNumber: l.blockNumber ?? 0n,
+        revealed: Boolean(s[2]),
+      };
+    })
+    .filter((c) => !c.revealed)
+    .map(({ commitId, count, buyer, blockNumber }) => ({ commitId, count, buyer, blockNumber }));
+}
+
+/**
+ * Poll until a commit appears that wasn't in `knownIds`.
+ *
+ * Callers discovering a commit they JUST created cannot use `readPendingCommits` directly: logs are
+ * not queryable the instant a transaction mines, and a single read returns an empty list that is
+ * indistinguishable from "the commit failed". Verified against Sepolia — the same query returned 0
+ * immediately after mining and 1 a moment later.
+ *
+ * Returns null on timeout, which the caller must treat as "unknown", never as "failed": the commit
+ * may well exist, and the money is already spent.
+ */
+export async function waitForNewCommit(
+  player: `0x${string}`,
+  knownIds: readonly bigint[],
+  { timeoutMs = 60_000, intervalMs = 2_000 }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<PendingCommit | null> {
+  const known = new Set(knownIds.map(String));
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const pending = await readPendingCommits(player);
+    const fresh = pending.find((c) => !known.has(String(c.commitId)));
+    if (fresh) return fresh;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
+}
+
+export interface DayState {
+  /** The contract's day index: uint32(block.timestamp / 1 days). */
+  chainDay: number;
+  /** Seconds until the next UTC midnight — the chain's reset, NOT the player's local midnight. */
+  secondsUntilReset: number;
+  /** True when this FID has already taken today's daily. */
+  dailyUsed: boolean;
+}
+
+/**
+ * Day-boundary state, read from chain time.
+ *
+ * The daily resets at UTC midnight because the contract computes `block.timestamp / 1 days`. Any
+ * countdown driven by a local-midnight calculation is wrong for every player outside UTC, and wrong
+ * in the direction that tells them the daily is available when the contract will reject it.
+ */
+export async function readDayState(fid: bigint): Promise<DayState> {
+  const letters = addressOf("letters");
+  const [now, usedDayPlusOne] = await Promise.all([
+    readChainTime(),
+    getPublicClient().readContract({
+      address: letters,
+      abi: lettersAbi,
+      functionName: "dailyUsed",
+      args: [fid],
+    }) as Promise<number | bigint>,
+  ]);
+  const day = Math.floor(now / 86_400);
+  return {
+    chainDay: day,
+    secondsUntilReset: (day + 1) * 86_400 - now,
+    // The contract stores day+1 so that 0 means "never" — comparing against the raw day is off by one.
+    dailyUsed: Number(usedDayPlusOne) === day + 1,
+  };
+}
+
+/** Per-letter pity streaks for a player, indexed 0..25. Drives the roll odds the UI shows. */
+export async function readPity(player: `0x${string}`): Promise<number[]> {
+  const rolls = addressOf("rolls");
+  const r = await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: Array.from({ length: 26 }, (_, i) => ({
+      address: rolls,
+      abi: rollsAbi,
+      functionName: "pityOf" as const,
+      args: [player, i],
+    })),
+  });
+  return (r as unknown as number[]).map(Number);
 }
 
 /** The chain's current block timestamp — the only correct source for the UTC day boundary. */

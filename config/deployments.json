@@ -1,8 +1,9 @@
 {
-  "_comment": "Lexigotchi contract deployment registry. Filled in after `forge script Deploy` (see the admin Launch tab). The admin dashboard reads this to light up the live on-chain operations; until an address is set, that contract's ops stay in transaction-plan mode. Addresses are public — commit this file once deployed. The operator can also paste addresses into the admin Deployments tab, which persists them in the browser for the current session.",
+  "_comment": "Lexigotchi contract deployment registry. Filled in after `forge script Deploy` (see the admin Launch tab). The admin dashboard reads this to light up the live on-chain operations; until an address is set, that contract's ops stay in transaction-plan mode. Addresses are public \u2014 commit this file once deployed. The operator can also paste addresses into the admin Deployments tab, which persists them in the browser for the current session.",
   "network": "base",
   "chainId": 8453,
   "deployedAt": null,
+  "deployBlock": null,
   "wordToken": "0x304e649e69979298bd1aee63e175adf07885fb4b",
   "roles": {
     "treasury": null,

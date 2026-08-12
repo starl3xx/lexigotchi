@@ -29,6 +29,8 @@ export type ContractKey =
 type Registry = {
   network: string;
   chainId: number;
+  /** Block the suite was deployed in — the floor for event queries. */
+  deployBlock: number | null;
   wordToken: string;
   roles: Record<string, string | null>;
   contracts: Record<ContractKey, string | null>;
@@ -70,6 +72,14 @@ export function maybeAddressOf(key: ContractKey): `0x${string}` | null {
 export function wordTokenAddress(): `0x${string}` {
   if (!REGISTRY.wordToken) throw new MissingDeploymentError("wordToken");
   return REGISTRY.wordToken as `0x${string}`;
+}
+
+/**
+ * Block the suite was deployed in — the `fromBlock` floor for event queries.
+ * Scanning from genesis is both slow and rejected outright by most RPCs.
+ */
+export function deployBlock(): bigint {
+  return BigInt(REGISTRY.deployBlock ?? 0);
 }
 
 /** The backend signer role — the key that must sign every commit→reveal voucher. */
