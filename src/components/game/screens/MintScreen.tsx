@@ -58,7 +58,11 @@ export function MintScreen() {
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
-            <div className="text-xs text-ink/60">{fmtWord(COST.pack)} $WORD · {fmtUsd(COST.pack)}</div>
+            {/* On the chain store, openPack is the FREE campaign pack — pricing it would send the
+                exact audience it's for (empty balance) to the Buy sheet instead of the voucher. */}
+            <div className="text-xs text-ink/60">
+              {g.state.chainBacked ? "Free — campaign pack" : `${fmtWord(COST.pack)} $WORD · ${fmtUsd(COST.pack)}`}
+            </div>
           </div>
           <Package weight="fill" size={40} className="text-candy" />
         </div>
@@ -68,17 +72,20 @@ export function MintScreen() {
           variant="primary"
           className="mt-3"
           onClick={() => {
-            // broke ≠ blocked: route the intent to the Buy sheet with the exact shortfall
-            if (!g.canAfford(COST.pack)) {
+            // broke ≠ blocked: route the intent to the Buy sheet with the exact shortfall.
+            // Skipped entirely on the chain store, where this pack costs nothing.
+            if (!g.state.chainBacked && !g.canAfford(COST.pack)) {
               g.openSheet({ kind: "balance", need: { amount: COST.pack, action: "a pack" } });
               return;
             }
+            // Chain-backed: openPack drives the real two-tx flow and opens the sheet itself when
+            // the letters exist, so an empty return here is expected, not a failure.
             const idxs = g.openPack();
             if (idxs.length) g.openSheet({ kind: "pack", letters: idxs });
           }}
         >
           <Package weight="fill" />
-          {g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
+          {g.state.chainBacked || g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
       </Card>
 

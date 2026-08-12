@@ -63,8 +63,10 @@ export type CaseState = "lowercase" | "Mixed" | "UPPERCASE";
 export type Hunger = "fed" | "peckish" | "hungry";
 
 export interface OwnedWord {
-  id: number;
-  word: string; // UPPERCASE dictionary key
+  /** UPPERCASE dictionary key — the primary key. One NFT per word, so this is unique by
+   *  construction, human-readable in React keys, and already the argument Words.claim/dissolve take.
+   *  The on-chain tokenId is keccak256(word); derive it at the call site with tokenIdOf(). */
+  word: string;
   tier: Tier;
   /** per-position case of the 5 escrowed letters (true = uppercase). */
   upper: boolean[];
@@ -86,10 +88,10 @@ export type View =
   | "showcase"
   | "swap";
 
-export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; id: number; pos: number };
+export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: string; pos: number };
 
 export type Sheet =
-  | { kind: "word"; id: number }
+  | { kind: "word"; word: string }
   | { kind: "pack"; letters: number[] }
   | { kind: "roll"; target: RollTarget }
   // `need` = the action the player just got price-blocked on; BalanceSheet renders the shortfall
@@ -105,7 +107,18 @@ export interface Toast {
   tone: "good" | "bad" | "info";
 }
 
+/** Whether chain-derived state is actually known. See ChainGate — "loading" is not "zero". */
+export type ChainStatus = "no-wallet" | "loading" | "ready" | "error";
+
 export interface GameState {
+  /** The mock always knows its own state; the chain provider drives this for real. */
+  status: ChainStatus;
+  /** True when this store is backed by real contracts. Surfaces that some mock-only concepts
+   *  (streak, day counter, jackpot) have no chain equivalent YET, so the UI can hide them rather
+   *  than render a hardcoded 0 that reads as a genuine value. */
+  chainBacked: boolean;
+  /** Human-readable cause when status is "error". */
+  error?: string;
   balance: number; // $WORD
   lower: number[]; // [26] counts
   upper: number[]; // [26] counts
@@ -124,7 +137,6 @@ export interface GameState {
   view: View;
   sheet: Sheet;
   toasts: Toast[];
-  nextWordId: number;
   nextToastId: number;
 }
 
@@ -185,7 +197,7 @@ export const fmtUsd = (word: number) => `$${usdOf(word).toFixed(2)}`;
 // Seed (a populated starting save so every screen has life)
 // ---------------------------------------------------------------------------
 
-function seedState(): GameState {
+export function seedState(): GameState {
   const lower = new Array(26).fill(0);
   const upper = new Array(26).fill(0);
   // a believable starter bag — heavy on commons, a couple of rares
@@ -194,21 +206,20 @@ function seedState(): GameState {
   upper[charToIdx("E")]++;
 
   const mk = (
-    id: number,
     word: string,
     upperMask: boolean[],
     staked: boolean,
     daysUnfed: number,
     prestigeLevel = 0,
-  ): OwnedWord => ({ id, word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0 });
+  ): OwnedWord => ({ word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0 });
 
   const F = false;
   const T = true;
   const words: OwnedWord[] = [
-    mk(1, "TEASE", [F, F, F, F, F], true, 0), // lowercase, fed, staked — today's jackpot word
-    mk(2, "CRANE", [T, T, T, F, F], true, 1, 0), // mid-upgrade (Mixed), peckish
-    mk(3, "VIVID", [T, T, T, T, T], true, 3, 1), // UPPERCASE + prestige L1, but HUNGRY (needs feeding!)
-    mk(4, "MOTEL", [F, F, F, F, F], false, 0), // an unstaked spare
+    mk("TEASE", [F, F, F, F, F], true, 0), // lowercase, fed, staked — today's jackpot word
+    mk("CRANE", [T, T, T, F, F], true, 1, 0), // mid-upgrade (Mixed), peckish
+    mk("VIVID", [T, T, T, T, T], true, 3, 1), // UPPERCASE + prestige L1, but HUNGRY (needs feeding!)
+    mk("MOTEL", [F, F, F, F, F], false, 0), // an unstaked spare
   ];
 
   return {
@@ -229,7 +240,8 @@ function seedState(): GameState {
     view: "home",
     sheet: null,
     toasts: [],
-    nextWordId: 5,
+    status: "ready" as ChainStatus,
+    chainBacked: false,
     nextToastId: 1,
   };
 }
@@ -246,13 +258,13 @@ type Action =
   | { t: "dailyMint"; idx: number }
   | { t: "pack"; idxs: number[] }
   | { t: "rollLoose"; idx: number; success: boolean }
-  | { t: "rollWord"; id: number; pos: number; success: boolean }
+  | { t: "rollWord"; word: string; pos: number; success: boolean }
   | { t: "claim"; word: string; useUpper: boolean }
-  | { t: "stake"; id: number }
-  | { t: "feed"; id: number }
+  | { t: "stake"; word: string }
+  | { t: "feed"; word: string }
   | { t: "feedAll" }
-  | { t: "prestige"; id: number; success: boolean }
-  | { t: "dissolve"; id: number }
+  | { t: "prestige"; word: string; success: boolean }
+  | { t: "dissolve"; word: string }
   | { t: "revealJackpot"; won: boolean; amount: number }
   | { t: "skipDay"; jackpotWord: string; bountyTheme: number }
   | { t: "addDemoBalance" };
@@ -261,7 +273,7 @@ function spend(s: GameState, amount: number): number {
   return s.balance - amount;
 }
 
-function reducer(s: GameState, a: Action): GameState {
+export function reducer(s: GameState, a: Action): GameState {
   switch (a.t) {
     case "nav":
       return { ...s, view: a.view, sheet: null };
@@ -311,12 +323,12 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, lower, upper, pity, balance: spend(s, COST.roll) };
     }
     case "rollWord": {
-      const target = s.words.find((w) => w.id === a.id);
+      const target = s.words.find((w) => w.word === a.word);
       if (!target || a.pos < 0 || a.pos > 4 || target.upper[a.pos] || s.balance < COST.roll) return s; // only an un-raised slot, if affordable
       // Pity keys on the LETTER being raised (the (owner, letterId) rule), shared with loose rolls.
       const pity = s.pity.slice();
       const words = s.words.map((w) => {
-        if (w.id !== a.id) return w;
+        if (w.word !== a.word) return w;
         const li = charToIdx(w.word[a.pos]);
         const up = w.upper.slice();
         if (a.success) {
@@ -344,7 +356,6 @@ function reducer(s: GameState, a: Action): GameState {
       const src = a.useUpper ? s.upper.slice() : s.lower.slice();
       for (const ch of info) src[charToIdx(ch)]--;
       const word: OwnedWord = {
-        id: s.nextWordId,
         word: info,
         tier,
         upper: [a.useUpper, a.useUpper, a.useUpper, a.useUpper, a.useUpper],
@@ -358,16 +369,15 @@ function reducer(s: GameState, a: Action): GameState {
         [a.useUpper ? "upper" : "lower"]: src,
         words: [word, ...s.words],
         balance: spend(s, COST.claim),
-        nextWordId: s.nextWordId + 1,
       } as GameState;
     }
     case "stake":
       return {
         ...s,
-        words: s.words.map((w) => (w.id === a.id ? { ...w, staked: !w.staked } : w)),
+        words: s.words.map((w) => (w.word === a.word ? { ...w, staked: !w.staked } : w)),
       };
     case "feed": {
-      const target = s.words.find((w) => w.id === a.id);
+      const target = s.words.find((w) => w.word === a.word);
       if (!target || !target.staked || target.daysUnfed === 0) return s; // nothing to feed — don't waste the snack
       const free = !s.freeSnackUsed;
       if (!free && s.balance < COST.snack) return s; // can't afford (the UI gates this too)
@@ -375,7 +385,7 @@ function reducer(s: GameState, a: Action): GameState {
         ...s,
         freeSnackUsed: true,
         balance: free ? s.balance : spend(s, COST.snack),
-        words: s.words.map((w) => (w.id === a.id ? { ...w, daysUnfed: 0 } : w)),
+        words: s.words.map((w) => (w.word === a.word ? { ...w, daysUnfed: 0 } : w)),
       };
     }
     case "feedAll": {
@@ -400,7 +410,7 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, balance: bal, freeSnackUsed: s.freeSnackUsed || touched, words };
     }
     case "prestige": {
-      const target = s.words.find((x) => x.id === a.id);
+      const target = s.words.find((x) => x.word === a.word);
       // only a staked, full-UPPERCASE word below the cap can ascend (matches the sim + UI), if affordable
       if (
         !target ||
@@ -412,7 +422,7 @@ function reducer(s: GameState, a: Action): GameState {
         return s;
       }
       const words = s.words.map((w) => {
-        if (w.id !== a.id) return w;
+        if (w.word !== a.word) return w;
         return a.success
           ? { ...w, prestigeLevel: w.prestigeLevel + 1, prestigePity: 0 }
           : { ...w, prestigePity: w.prestigePity + 1 };
@@ -420,7 +430,7 @@ function reducer(s: GameState, a: Action): GameState {
       return { ...s, words, balance: spend(s, COST.prestige + COST.snack) };
     }
     case "dissolve": {
-      const w = s.words.find((x) => x.id === a.id);
+      const w = s.words.find((x) => x.word === a.word);
       if (!w) return s;
       const lower = s.lower.slice();
       const upper = s.upper.slice();
@@ -429,7 +439,7 @@ function reducer(s: GameState, a: Action): GameState {
         if (w.upper[i]) upper[idx]++;
         else lower[idx]++;
       });
-      return { ...s, lower, upper, words: s.words.filter((x) => x.id !== a.id), sheet: null };
+      return { ...s, lower, upper, words: s.words.filter((x) => x.word !== a.word), sheet: null };
     }
     case "addDemoBalance":
       return { ...s, balance: s.balance + 10_000_000 }; // prototype top-up of the mock balance
@@ -463,6 +473,12 @@ function reducer(s: GameState, a: Action): GameState {
 // Provider + hook
 // ---------------------------------------------------------------------------
 
+// The canonical definition (and the logic that produces it) lives in lib/onchain/guardedAction,
+// where it is unit-tested. Imported for use below and re-exported so screens can keep importing it
+// from the game store.
+import type { ActionOutcome } from "@/lib/onchain/guardedAction";
+export type { ActionOutcome };
+
 export interface GameApi {
   state: GameState;
   nav: (view: View) => void;
@@ -472,18 +488,25 @@ export interface GameApi {
   dismissToast: (id: number) => void;
   // economy actions (return the outcome where the caller needs to animate it)
   canAfford: (amount: number) => boolean;
-  dailyMint: () => number | null;
+  dailyMint: () => number | null | Promise<ActionOutcome>;
   openPack: () => number[];
-  /** null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss. */
-  rollLoose: (idx: number) => boolean | null;
-  rollWord: (id: number, pos: number) => boolean | null;
+  /**
+   * null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss.
+   *
+   * The chain store returns a PROMISE of that same value, because a roll is two transactions with a
+   * wallet prompt between them. A promise rather than a "pending" sentinel specifically so the
+   * caller learns the OUTCOME — including "the user cancelled" — instead of being told it started
+   * and left with no way back.
+   */
+  rollLoose: (idx: number) => boolean | null | Promise<ActionOutcome>;
+  rollWord: (word: string, pos: number) => boolean | null | Promise<ActionOutcome>;
   claim: (word: string, useUpper: boolean) => void;
-  toggleStake: (id: number) => void;
-  feed: (id: number) => void;
+  toggleStake: (word: string) => void;
+  feed: (word: string) => void;
   feedAll: () => void;
-  /** null = the attempt didn't happen (ineligible / unaffordable); true = ascended, false = failed. */
-  prestige: (id: number) => boolean | null;
-  dissolve: (id: number) => void;
+  /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
+  prestige: (word: string) => boolean | null | Promise<ActionOutcome>;
+  dissolve: (word: string) => void;
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;
   skipDay: () => void;
@@ -495,6 +518,8 @@ export interface GameApi {
 }
 
 const Ctx = createContext<GameApi | null>(null);
+/** Exported so ChainGameProvider can supply the same façade with chain-backed state. */
+export const GameCtx = Ctx;
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seedState);
@@ -545,8 +570,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "rollLoose", idx, success });
         return success;
       },
-      rollWord: (id, pos) => {
-        const w = state.words.find((x) => x.id === id);
+      rollWord: (word, pos) => {
+        const w = state.words.find((x) => x.word === word);
         if (!w || pos < 0 || pos > 4 || w.upper[pos]) return null; // slot already raised / invalid
         if (state.balance < COST.roll) {
           needWord(COST.roll, "a roll");
@@ -554,7 +579,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         const li = charToIdx(w.word[pos]); // pity keys on the letter being raised
         const success = r.chance(rollSuccessProbability(state.pity[li]));
-        dispatch({ t: "rollWord", id, pos, success });
+        dispatch({ t: "rollWord", word, pos, success });
         return success;
       },
       claim: (word, useUpper) => {
@@ -570,13 +595,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "claim", word, useUpper });
         toast(`Claimed ${word} — it's yours forever`, "good");
       },
-      toggleStake: (id) => dispatch({ t: "stake", id }),
-      feed: (id) => {
+      toggleStake: (word) => dispatch({ t: "stake", word }),
+      feed: (word) => {
         if (state.freeSnackUsed && state.balance < COST.snack) {
           needWord(COST.snack, "a snack");
           return;
         }
-        dispatch({ t: "feed", id });
+        dispatch({ t: "feed", word });
       },
       feedAll: () => {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0);
@@ -596,20 +621,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
           affordable >= hungry.length ? "good" : "info",
         );
       },
-      prestige: (id) => {
-        const w = state.words.find((x) => x.id === id);
+      prestige: (word) => {
+        const w = state.words.find((x) => x.word === word);
         if (!w || w.prestigeLevel >= PRESTIGE_LEVELS || !w.staked || wordCase(w) !== "UPPERCASE") return null;
         if (state.balance < COST.prestige + COST.snack) {
           needWord(COST.prestige + COST.snack, "an ascension");
           return null;
         }
         const success = r.chance(prestigeSuccessProbability(w.prestigePity));
-        dispatch({ t: "prestige", id, success });
+        dispatch({ t: "prestige", word, success });
         return success;
       },
-      dissolve: (id) => {
-        const w = state.words.find((x) => x.id === id);
-        dispatch({ t: "dissolve", id });
+      dissolve: (word) => {
+        const w = state.words.find((x) => x.word === word);
+        dispatch({ t: "dissolve", word });
         if (w) toast(`Dissolved ${w.word} — 5 letters recovered`, "info");
       },
       revealJackpot: () => {

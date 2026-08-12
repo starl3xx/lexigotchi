@@ -58,7 +58,7 @@ export function BountyScreen() {
           <EmptyState Icon={MagnifyingGlass} title="No matches yet" sub="Claim or raise words that fit the theme to get in." />
         ) : (
           <div className="space-y-2">
-            {matching.map((w) => <WordCard key={w.id} word={w} />)}
+            {matching.map((w) => <WordCard key={w.word} word={w} />)}
           </div>
         )}
         <Button full variant="teal" className="mt-3" onClick={() => g.nav("claim")}>

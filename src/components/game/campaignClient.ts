@@ -10,12 +10,70 @@
  */
 import sdk from "@farcaster/miniapp-sdk";
 
+/**
+ * Whether we're actually running inside a Farcaster host.
+ *
+ * Checked BEFORE touching `quickAuth`, not after. Wrapping the call in try/catch is not enough:
+ * outside a host the SDK rejects a promise internally that nothing awaits, so the failure escapes as
+ * an unhandled pageerror even though our own catch fires. Every web visitor hit that on load — the
+ * page still rendered, so it looked harmless, but it filled the console with a stack pointing into
+ * the SDK and would trip any error reporting the app ever gains.
+ *
+ * Cached because the answer cannot change within a page lifetime.
+ */
+let inMiniApp: Promise<boolean> | undefined;
+function isFarcasterHost(): Promise<boolean> {
+  inMiniApp ??= sdk.isInMiniApp().catch(() => false);
+  return inMiniApp;
+}
+
 async function authedFetch(path: string, init?: RequestInit): Promise<Response | null> {
+  // On the web this is a genuine no-op, which is what the callers already assume.
+  if (!(await isFarcasterHost())) return null;
   try {
     return await sdk.quickAuth.fetch(path, init);
   } catch (err) {
     console.error("[campaign] request failed:", path, err);
     return null;
+  }
+}
+
+/**
+ * Can we obtain a signed voucher at all?
+ *
+ * Exists so a PAID commit can be refused BEFORE the fee is taken. The daily and the pack fetch a
+ * voucher first, so they fail for free; a roll or an ascension pays first and only then needs a
+ * signature, which on the web would strand the commit with the money already gone.
+ */
+export function canSign(): Promise<boolean> {
+  return isFarcasterHost();
+}
+
+/**
+ * Authenticated JSON POST for the signing routes (`/api/mint/*`, `/api/roll/*`, `/api/prestige/*`).
+ *
+ * These routes derive the FID from a verified Quick Auth JWT and 401 without one, so a plain
+ * `fetch` can never reach them — not even inside a Farcaster client. The token is attached by
+ * `sdk.quickAuth.fetch`, which is the ONLY way these get called.
+ *
+ * Returns `{ ok: false, error: "no_farcaster_host" }` on the web rather than throwing, so callers
+ * can tell "you need to open this in Farcaster" apart from a genuine server refusal.
+ */
+export async function authedPostJson<T = Record<string, never>>(
+  path: string,
+  body: unknown,
+): Promise<({ ok: true; error?: undefined } & T) | { ok: false; error: string }> {
+  if (!(await isFarcasterHost())) return { ok: false, error: "no_farcaster_host" };
+  const res = await authedFetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res) return { ok: false, error: "request_failed" };
+  try {
+    return await res.json();
+  } catch {
+    return { ok: false, error: `http_${res.status}` };
   }
 }
 

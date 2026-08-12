@@ -13,6 +13,24 @@ import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
+import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
+import { useConnect } from "wagmi";
+import { ChainGameProvider } from "./ChainGameProvider";
+import { isSuiteDeployed } from "@/lib/onchain/addresses";
+import { NETWORK } from "@/lib/onchain/network";
+
+/**
+ * Which store backs the game.
+ *
+ * Chain-backed only when the suite actually has addresses on this network AND we're on a testnet —
+ * mainnet stays on the mock until the remaining signer routes exist, because a half-wired real
+ * economy is worse than an honest simulation. NEXT_PUBLIC_CHAIN_GAME=0 forces the mock back on for
+ * side-by-side comparison.
+ */
+function isChainBacked(): boolean {
+  if (process.env.NEXT_PUBLIC_CHAIN_GAME === "0") return false;
+  return isSuiteDeployed() && NETWORK.isTestnet;
+}
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
 import { MintScreen } from "./screens/MintScreen";
@@ -40,10 +58,11 @@ export function GameApp() {
   // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
   // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.
   if (PRELAUNCH) return <PreLaunchScreen />;
+  const Provider = isChainBacked() ? ChainGameProvider : GameProvider;
   return (
-    <GameProvider>
+    <Provider>
       <OnboardingHost />
-    </GameProvider>
+    </Provider>
   );
 }
 
@@ -89,6 +108,18 @@ function OnboardingHost() {
 
 function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinishOnboarding: () => void }) {
   const { state } = useGame();
+  // wagmi is mounted by <Providers> for both stores, so this is safe on the mock path too (where
+  // status is always "ready" and ChainGate never renders the connect prompt).
+  const { connect, connectors } = useConnect();
+  const connectWallet = useCallback(() => {
+    // connectors[0] is the Farcaster mini-app connector, which AUTO-connects inside a Farcaster
+    // host — so if this button is visible we are on the web, and picking [0] leaves an extension
+    // user unable to connect at all. Prefer the injected connector here and fall back only if it
+    // is absent.
+    const injected =
+      connectors.find((c) => c.type === "injected" || c.id === "injected") ?? connectors[0];
+    if (injected) connect({ connector: injected });
+  }, [connect, connectors]);
   // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
   // Farcaster splash screen — no manual call needed here.
   return (
@@ -102,7 +133,13 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
           />
           <TopBar />
           <main className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3">
-            <Screen view={state.view} />
+            {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
+                one bad screen holds its error state across every later navigation. */}
+            <ScreenErrorBoundary key={state.view}>
+              <ChainGate connect={connectWallet}>
+                <Screen view={state.view} />
+              </ChainGate>
+            </ScreenErrorBoundary>
           </main>
           <BottomNav />
           <Toaster />
@@ -137,7 +174,7 @@ function Screen({ view }: { view: View }) {
 
 function SheetHost() {
   const { state } = useGame();
-  if (state.sheet?.kind === "word") return <WordSheet id={state.sheet.id} />;
+  if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
@@ -167,9 +204,13 @@ function TopBar() {
       <div className="flex items-center gap-1.5">
         <ViewerChip />
         <span className="font-display text-base font-extrabold tracking-tight">LEXIGOTCHI</span>
-        <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy px-1.5 py-0.5 text-[10px] font-bold text-paper">
-          <Fire weight="fill" size={12} /> {state.streak}
-        </span>
+        {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
+            flame chip reads as a real streak the player just lost. Absent beats wrong. */}
+        {!state.chainBacked && (
+          <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy px-1.5 py-0.5 text-[10px] font-bold text-paper">
+            <Fire weight="fill" size={12} /> {state.streak}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -178,8 +219,14 @@ function TopBar() {
           aria-label="Your $WORD balance — open wallet"
           className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right leading-none transition-all active:translate-y-[1px]"
         >
-          <div className="font-display text-sm font-extrabold">{fmtWord(state.balance)}</div>
-          <div className="text-[9px] text-ink/60">{fmtUsd(state.balance)} · $WORD</div>
+          {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
+              are broke (or robbed), and every affordability affordance downstream agrees with it. */}
+          <div className="font-display text-sm font-extrabold">
+            {state.status === "ready" ? fmtWord(state.balance) : "—"}
+          </div>
+          <div className="text-[9px] text-ink/60">
+            {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
+          </div>
         </button>
         {helpBtn}
         <button

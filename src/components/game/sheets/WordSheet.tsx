@@ -15,11 +15,14 @@ import {
   wordCase,
 } from "../state";
 
-export function WordSheet({ id }: { id: number }) {
+export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
   const { state } = g;
-  const word = state.words.find((w) => w.id === id);
+  const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
+  // Guards against a second tap during the async chain flow — each tap is a PAID commit.
+  const [ascending, setAscending] = useState(false);
+  const [strandedNote, setStrandedNote] = useState("");
 
   if (!word) {
     return (
@@ -75,13 +78,13 @@ export function WordSheet({ id }: { id: number }) {
 
       {/* care */}
       <div className="mb-3 grid grid-cols-2 gap-2">
-        <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.id)}>
+        <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.word)}>
           {word.staked ? "Unstake" : "Stake to earn"}
         </Button>
         <Button
           variant="teal"
           disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(COST.snack))}
-          onClick={() => g.feed(word.id)}
+          onClick={() => g.feed(word.word)}
         >
           <Cookie weight="fill" /> Feed {word.daysUnfed === 0 && <Check weight="bold" size={14} />}
         </Button>
@@ -107,7 +110,7 @@ export function WordSheet({ id }: { id: number }) {
                   key={i}
                   char={ch}
                   size={42}
-                  onClick={() => g.openSheet({ kind: "roll", target: { kind: "word", id: word.id, pos: i } })}
+                  onClick={() => g.openSheet({ kind: "roll", target: { kind: "word", word: word.word, pos: i } })}
                   title={`raise ${ch}`}
                 />
               ),
@@ -132,16 +135,35 @@ export function WordSheet({ id }: { id: number }) {
             </div>
             <Button
               variant="gold"
-              disabled={!canPrestige || !g.canAfford(COST.prestige + COST.snack)}
+              disabled={ascending || !canPrestige || !g.canAfford(COST.prestige + COST.snack)}
               onClick={() => {
-                const res = g.prestige(word.id);
+                const res = g.prestige(word.word);
+                // A promise means it resolves later; announcing success now would celebrate a
+                // gilded glow-up before the wallet prompt has even appeared. The chain store toasts
+                // its own outcome, so only the synchronous (mock) result is announced here.
+                if (res instanceof Promise) {
+                  setAscending(true);
+                  void res
+                    .then((r) => {
+                      // Only re-enable when NOTHING was spent. A stranded commit is paid and still
+                      // open, so re-enabling would sell a second ascension on top of it.
+                      if (r.status === "stranded") setStrandedNote(r.note);
+                      else setAscending(false);
+                    })
+                    // A rejection does not say whether the fee was taken, so it must not re-enable
+                    // the button — that would sell a second ascension on top of an open commit.
+                    // Unknown is treated as paid, which is the safe direction.
+                    .catch(() => setStrandedNote("We lost track of this ascension — reopen to check"));
+                  return;
+                }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
                 g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
-              {word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
+              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
             </Button>
           </div>
+          {strandedNote && <p className="mt-2 text-xs text-gold-deep">{strandedNote}</p>}
           {!word.staked && <p className="mt-2 text-xs text-candy">Stake it first to ascend.</p>}
         </Card>
       )}
@@ -150,7 +172,7 @@ export function WordSheet({ id }: { id: number }) {
       <div className="pt-1">
         {confirmDissolve ? (
           <div className="flex items-center gap-2">
-            <Button full variant="danger" onClick={() => g.dissolve(word.id)}>
+            <Button full variant="danger" onClick={() => g.dissolve(word.word)}>
               Burn & recover 5 letters
             </Button>
             <Button variant="ghost" onClick={() => setConfirmDissolve(false)}>

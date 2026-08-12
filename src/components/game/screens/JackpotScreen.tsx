@@ -89,8 +89,8 @@ export function JackpotScreen() {
           <div className="flex flex-wrap gap-2">
             {tickets.map((w) => (
               <button
-                key={w.id}
-                onClick={() => g.openSheet({ kind: "word", id: w.id })}
+                key={w.word}
+                onClick={() => g.openSheet({ kind: "word", word: w.word })}
                 className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-paper px-2 py-1 text-sm font-bold"
               >
                 {w.word}

@@ -6,27 +6,50 @@ import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
 import { COST, charToIdx, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
 
-type Phase = "ready" | "rolling" | "win" | "miss";
+type Phase = "ready" | "rolling" | "win" | "miss" | "stranded";
 
 export function RollSheet({ target }: { target: RollTarget }) {
   const g = useGame();
   const { state } = g;
   const [phase, setPhase] = useState<Phase>("ready");
+  const [stranded, setStranded] = useState("");
 
   const loose = target.kind === "loose";
-  const word = !loose ? state.words.find((w) => w.id === target.id) : undefined;
+  const word = !loose ? state.words.find((w) => w.word === target.word) : undefined;
   const char = loose ? idxToChar(target.idx) : word ? word.word[target.pos] : "?";
   // word-position rolls share the per-letter pity streak (the (owner, letterId) rule)
   const pity = loose ? state.pity[target.idx] : word ? state.pity[charToIdx(word.word[target.pos])] : 0;
 
   const close = () => {
     // returning from a word-position roll? pop back to the word sheet for flow
-    if (!loose && word) g.openSheet({ kind: "word", id: word.id });
+    if (!loose && word) g.openSheet({ kind: "word", word: word.word });
     else g.closeSheet();
   };
 
   const reveal = () => {
-    const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.id, target.pos);
+    const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.word, target.pos);
+    if (result instanceof Promise) {
+      // The chain store resolves asynchronously (wallet prompt, then a reveal tx).
+      setPhase("rolling");
+      void result
+        .then((r) => {
+          // "not-started" means nothing was spent — a cancelled signature or a failed sign-in — so
+          // going back to ready is correct. "stranded" means the fee IS spent and the commit is
+          // open; returning to ready there would offer a second paid roll while the first sits
+          // unresolved.
+          if (r.status === "not-started") setPhase("ready");
+          else if (r.status === "stranded") { setStranded(r.note); setPhase("stranded"); }
+          else setPhase(r.success ? "win" : "miss");
+        })
+        // A rejection says NOTHING about whether the fee was taken, so it must not be treated as
+        // unpaid — returning to ready would offer a second paid roll on top of an open commit.
+        // Unknown resolves to stranded: the conservative direction is to withhold the retry.
+        .catch(() => {
+          setStranded("We lost track of this roll — reopen to check before rolling again");
+          setPhase("stranded");
+        });
+      return;
+    }
     if (result === null) {
       // the roll never happened (no letter / slot already raised / unaffordable — api toasted why);
       // don't fake a "No luck" miss
@@ -70,6 +93,14 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <p className="text-sm text-ink/60">Your letter is untouched — never burned. Pity climbs.</p>
           </div>
         )}
+        {/* Paid, unresolved. Deliberately NOT offering another roll: the fee is spent and the commit
+            is still open, so a retry would buy a second one and strand the first. */}
+        {phase === "stranded" && (
+          <div className="text-center">
+            <div className="font-display text-2xl font-extrabold text-gold-deep">Still rolling</div>
+            <p className="text-sm text-ink/60">{stranded}</p>
+          </div>
+        )}
         {(phase === "ready" || phase === "rolling") && (
           <div className="w-full max-w-[16rem]">
             <PityMeter pity={pity} />
@@ -86,6 +117,11 @@ export function RollSheet({ target }: { target: RollTarget }) {
         {phase === "rolling" && (
           <Button full size="lg" variant="gold" disabled>
             Rolling…
+          </Button>
+        )}
+        {phase === "stranded" && (
+          <Button full size="lg" variant="ghost" onClick={close}>
+            Close — we'll finish it
           </Button>
         )}
         {(phase === "win" || phase === "miss") && (
