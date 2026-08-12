@@ -20,13 +20,12 @@
  * multicall). See docs/web3-runtime-plan.md and CLAUDE.md's builder-code rule.
  */
 import { createConfig, http, type Config } from "wagmi";
-import { base, baseSepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { NETWORK } from "./network";
+import { ACTIVE_CHAIN, base, baseSepolia } from "./chain";
 
-/** viem chain object for the active network. */
-export const ACTIVE_CHAIN = NETWORK.id === baseSepolia.id ? baseSepolia : base;
+export { ACTIVE_CHAIN };
 
 /** Optional override; falls back to the chain's public RPC. A dedicated endpoint is strongly
  *  preferred — the public round-robin endpoints disagree about nonces under load. */
