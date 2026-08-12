@@ -62,7 +62,7 @@ const G = {
 
 const ENV: EnvField[] = [
   // --- network -----------------------------------------------------------------------------------
-  { key: "BASE_RPC", label: "Base RPC URL", group: G.keys, required: true, type: "text", help: "Base mainnet endpoint" },
+  { key: "BASE_RPC", label: "Base RPC URL", group: G.keys, required: true, type: "text", help: "dedicated endpoint — not a public round-robin (nonce races)" },
   { key: "ETHERSCAN_API_KEY", label: "Basescan API key", group: G.keys, type: "text", help: "required by --verify" },
 
   // --- roles -------------------------------------------------------------------------------------
@@ -200,9 +200,13 @@ export function LaunchTab() {
     exportBlock || "# (fill the required fields above)",
     "",
     "# 2 · deploy + wire all 10 contracts, seed the v0.2 splits (forge runs from contracts/)",
+    "#     --slow is NOT optional. It sends one tx at a time and waits for each receipt. Without it,",
+    "#     forge continues past a REJECTED tx: on the Sepolia rehearsal a 'nonce too low' on the",
+    "#     FeeRouter create still deployed the other 9 against an address that never existed, and",
+    "#     FeeCollector.feeRouter is immutable — every fee silently misrouted, unfixable, redeploy only.",
     "cd contracts && forge script script/Deploy.s.sol:Deploy \\",
     '  --rpc-url "$BASE_RPC" \\',
-    "  --broadcast --verify \\",
+    "  --broadcast --verify --slow \\",
     `  ${signFlags}`,
   ].join("\n");
 
@@ -415,13 +419,14 @@ export function LaunchTab() {
       <AdminCard title="After launch">
         <ul className="space-y-1.5 text-sm text-ink/75">
           {[
+            "FIRST: cast call each of Letters/Words/Rolls/Staking/Prestige feeRouter() and confirm all five equal the deployed FeeRouter. It is immutable — if any is wrong the suite misroutes every fee and must be redeployed.",
             "Capture the 10 printed addresses above, then export the JSON from Deployments and commit config/deployments.json.",
             "Verify the wiring checklist (Access & Safety tab) — collectors, payers, upgraders, AnswerChain keeper = Jackpot.",
             "Confirm the Words base URI resolves (tokenURI = base + decimal tokenId) and the metadata server is live.",
             "Transfer ownership of all 10 contracts to the owner key (a hardware wallet), then accept (Access & Safety).",
             "Confirm the keeper + signer are the production keys; leave the price keeper unset until repeg is needed.",
             "Seed the Rewards Pool if bootstrapping early yield (Treasury & Pools).",
-            "Open the free-pack campaign (Letters · setFreePackOpen) at launch, and close it when the window ends.",
+            "Close the free-pack campaign (Letters · setFreePackOpen false) when the window ends — it ships OPEN, so there is nothing to switch on at launch.",
           ].map((s, i) => (
             <li key={i} className="flex items-start gap-2">
               <ListChecks weight="bold" size={15} className="mt-0.5 shrink-0 text-teal" /> {s}
