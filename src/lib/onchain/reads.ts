@@ -186,6 +186,38 @@ export async function readPlayerState(player: `0x${string}`): Promise<PlayerStat
   };
 }
 
+/**
+ * Remaining primary supply per letter, indexed 0..25 — what the draw sampler must respect.
+ *
+ * `Letters.reveal` reverts CapExceeded if the signer draws a letter whose mintedEver has reached its
+ * cap (Letters.sol:263), which would strand a paid commit with no way to resolve it.
+ *
+ * Note the asymmetry in the contract's getters: `caps()` returns the whole uint32[26] in one call
+ * (Letters.sol:286), but `mintedEver` is a bare public array, so it needs 26 — hence one aggregate3
+ * rather than two round-trips.
+ */
+export async function readLetterSupply(): Promise<{ caps: number[]; minted: number[]; available: number[] }> {
+  const letters = addressOf("letters");
+  const client = getPublicClient();
+
+  const [capsResult, mintedResults] = await Promise.all([
+    client.readContract({ address: letters, abi: lettersAbi, functionName: "caps" }),
+    client.multicall({
+      allowFailure: false,
+      contracts: Array.from({ length: 26 }, (_, i) => ({
+        address: letters,
+        abi: lettersAbi,
+        functionName: "mintedEver" as const,
+        args: [BigInt(i)],
+      })),
+    }),
+  ]);
+
+  const caps = (capsResult as unknown as readonly number[]).map(Number);
+  const minted = (mintedResults as unknown as number[]).map(Number);
+  return { caps, minted, available: caps.map((c, i) => Math.max(0, c - (minted[i] ?? 0))) };
+}
+
 /** The chain's current block timestamp — the only correct source for the UTC day boundary. */
 export async function readChainTime(): Promise<number> {
   const block = await getPublicClient().getBlock();
