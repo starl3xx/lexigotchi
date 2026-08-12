@@ -150,9 +150,10 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                       if (r.status === "stranded") setStrandedNote(r.note);
                       else setAscending(false);
                     })
-                    // The provider is written not to reject, but a button that can latch forever is
-                    // not something to leave resting on that promise.
-                    .catch(() => setAscending(false));
+                    // A rejection does not say whether the fee was taken, so it must not re-enable
+                    // the button — that would sell a second ascension on top of an open commit.
+                    // Unknown is treated as paid, which is the safe direction.
+                    .catch(() => setStrandedNote("We lost track of this ascension — reopen to check"));
                   return;
                 }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)

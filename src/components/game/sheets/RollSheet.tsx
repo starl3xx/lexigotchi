@@ -41,8 +41,13 @@ export function RollSheet({ target }: { target: RollTarget }) {
           else if (r.status === "stranded") { setStranded(r.note); setPhase("stranded"); }
           else setPhase(r.success ? "win" : "miss");
         })
-        // Defensive: a rejection would otherwise leave the sheet stuck on a disabled Rolling…
-        .catch(() => setPhase("ready"));
+        // A rejection says NOTHING about whether the fee was taken, so it must not be treated as
+        // unpaid — returning to ready would offer a second paid roll on top of an open commit.
+        // Unknown resolves to stranded: the conservative direction is to withhold the retry.
+        .catch(() => {
+          setStranded("We lost track of this roll — reopen to check before rolling again");
+          setPhase("stranded");
+        });
       return;
     }
     if (result === null) {

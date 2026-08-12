@@ -70,6 +70,7 @@ import {
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
+import { guardedAction } from "@/lib/onchain/guardedAction";
 import { authedPostJson, canSign } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
@@ -197,29 +198,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * the toggle (which is permanently true) skips the approval and reverts every feed after the
    * first one each day.
    */
-  /**
-   * Run an action flow so it always RESOLVES to an ActionOutcome, never rejects.
-   *
-   * Chain reads throw on RPC errors, and a rejected promise carries no information about whether
-   * money moved — so every caller would have to guess, and a caller that forgets leaves its button
-   * stuck forever. Instead the flow reports when it has paid, and a throw after that point becomes
-   * "stranded" while a throw before it stays "not-started" and remains safely retryable.
-   */
+  /** See lib/onchain/guardedAction — the classification logic lives there so it can be tested. */
   const guarded = useCallback(
-    async (fn: (markPaid: () => void) => Promise<ActionOutcome>): Promise<ActionOutcome> => {
-      let paid = false;
-      try {
-        return await fn(() => {
-          paid = true;
-        });
-      } catch (err) {
-        const msg = (err as Error)?.message ?? "unknown error";
-        toast(`Something went wrong: ${msg.slice(0, 70)}`, "bad");
-        return paid
-          ? { status: "stranded", note: "Paid, but we lost track of it — reopen to finish it" }
-          : { status: "not-started" };
-      }
-    },
+    (flow: Parameters<typeof guardedAction>[0]) =>
+      guardedAction(flow, { onError: (m) => toast(`Something went wrong: ${m.slice(0, 70)}`, "bad") }),
     [toast],
   );
 

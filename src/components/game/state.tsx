@@ -473,24 +473,11 @@ export function reducer(s: GameState, a: Action): GameState {
 // Provider + hook
 // ---------------------------------------------------------------------------
 
-/**
- * The result of an action that may involve money.
- *
- * Three states, because conflating any two of them has caused a real bug on this branch:
- *
- *   not-started — nothing was spent (ineligible, cancelled signature, failed sign-in). Safe to retry.
- *   resolved    — it completed; `success` is the outcome.
- *   stranded    — the commit is PAID but unresolved (the reveal was rejected, 401'd, or the log
- *                 never appeared). Retrying buys a SECOND commit while the first stays open, and the
- *                 contracts have no reveal expiry, so it stays open forever.
- *
- * `null` cannot express the difference between the first and the last, which is exactly the
- * distinction a caller needs to decide whether to re-enable its button.
- */
-export type ActionOutcome =
-  | { status: "not-started" }
-  | { status: "resolved"; success: boolean }
-  | { status: "stranded"; note: string };
+// The canonical definition (and the logic that produces it) lives in lib/onchain/guardedAction,
+// where it is unit-tested. Imported for use below and re-exported so screens can keep importing it
+// from the game store.
+import type { ActionOutcome } from "@/lib/onchain/guardedAction";
+export type { ActionOutcome };
 
 export interface GameApi {
   state: GameState;
