@@ -13,6 +13,7 @@ import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
+import { ScreenErrorBoundary } from "./ChainGate";
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
 import { MintScreen } from "./screens/MintScreen";
@@ -102,7 +103,11 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
           />
           <TopBar />
           <main className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3">
-            <Screen view={state.view} />
+            {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
+                one bad screen holds its error state across every later navigation. */}
+            <ScreenErrorBoundary key={state.view}>
+              <Screen view={state.view} />
+            </ScreenErrorBoundary>
           </main>
           <BottomNav />
           <Toaster />

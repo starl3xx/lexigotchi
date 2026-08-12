@@ -107,7 +107,14 @@ export interface Toast {
   tone: "good" | "bad" | "info";
 }
 
+/** Whether chain-derived state is actually known. See ChainGate — "loading" is not "zero". */
+export type ChainStatus = "no-wallet" | "loading" | "ready" | "error";
+
 export interface GameState {
+  /** The mock always knows its own state; the chain provider drives this for real. */
+  status: ChainStatus;
+  /** Human-readable cause when status is "error". */
+  error?: string;
   balance: number; // $WORD
   lower: number[]; // [26] counts
   upper: number[]; // [26] counts
@@ -229,6 +236,7 @@ function seedState(): GameState {
     view: "home",
     sheet: null,
     toasts: [],
+    status: "ready" as ChainStatus,
     nextToastId: 1,
   };
 }
