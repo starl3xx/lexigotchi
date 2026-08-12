@@ -8,6 +8,7 @@ import { isAddress, shortAddr } from "@/lib/admin/format";
 import { useDeployments } from "./useDeployments";
 import { StatusBadge } from "./ui";
 import { Cube, Key, Pulse, SealCheck } from "./icons";
+import { NETWORK } from "@/lib/onchain/network";
 
 export function StatusStrip() {
   const d = useDeployments();
@@ -28,7 +29,7 @@ export function StatusStrip() {
         <StatusBadge tone={phase.tone}>{phase.label}</StatusBadge>
       </span>
       <span className="inline-flex items-center gap-1 text-ink/60">
-        network <strong className="text-ink">Base · {d?.chainId ?? 8453}</strong>
+        network <strong className="text-ink">{NETWORK.name} · {d?.chainId ?? NETWORK.id}</strong>
       </span>
       <span className="inline-flex items-center gap-1 font-mono text-ink/60">
         $WORD <strong className="text-ink">{shortAddr(d?.wordToken)}</strong>

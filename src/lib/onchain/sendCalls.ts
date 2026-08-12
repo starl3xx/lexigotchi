@@ -12,9 +12,11 @@
  * wallet, so attribution can never be skipped. See docs/web3-runtime-plan.md.
  */
 import { builderCapabilities, appendBuilderSuffix } from "./builderCode";
+import { NETWORK } from "./network";
 
-export const BASE_CHAIN_ID = 8453;
-export const BASE_CHAIN_ID_HEX = "0x2105"; // 8453
+/** The active chain (see ./network — Base mainnet unless NEXT_PUBLIC_CHAIN_ID says otherwise). */
+export const CHAIN_ID = NETWORK.id;
+export const CHAIN_ID_HEX = NETWORK.idHex;
 
 export interface Eip1193Provider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
@@ -47,7 +49,7 @@ export async function sendCallsAttributed(
         {
           version: "2.0.0",
           from,
-          chainId: BASE_CHAIN_ID_HEX,
+          chainId: CHAIN_ID_HEX,
           atomicRequired: false,
           calls: calls.map((c) => ({ to: c.to, data: c.data ?? "0x", value: c.value })),
           capabilities: builderCapabilities(),

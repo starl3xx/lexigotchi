@@ -12,6 +12,7 @@ import { isAddress, shortAddr } from "@/lib/admin/format";
 import { useDeployments } from "../useDeployments";
 import { AdminCard, Banner, ConfirmButton, CopyButton, Field, KeyVal, SectionLabel, TextField } from "../ui";
 import { Info, ShieldCheck, Warning } from "../icons";
+import { NETWORK } from "@/lib/onchain/network";
 
 const WIRING = [
   "FeeRouter.setCollector(Letters / Words / Rolls / Staking / Prestige, true)",
@@ -114,7 +115,7 @@ export function AccessTab() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">1 · Transfer all → owner wallet (run from deployer)</span>
-                <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(transferIntents, { name: "Lexigotchi — transfer ownership to owner wallet" }, d?.chainId ?? 8453)} />
+                <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(transferIntents, { name: "Lexigotchi — transfer ownership to owner wallet" }, d?.chainId ?? NETWORK.id)} />
               </div>
               <pre className="max-h-40 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[10px] leading-relaxed text-ink/75">
                 {transferIntents.map((i) => castCommand(i)).join("\n\n")}
@@ -123,7 +124,7 @@ export function AccessTab() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-ink/45">2 · Accept all (run from the owner wallet)</span>
-                <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(acceptIntents, { name: "Lexigotchi — accept ownership" }, d?.chainId ?? 8453)} />
+                <CopyButton small label="Copy Safe batch (optional)" text={safeBatchJson(acceptIntents, { name: "Lexigotchi — accept ownership" }, d?.chainId ?? NETWORK.id)} />
               </div>
               <pre className="max-h-40 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-2.5 font-mono text-[10px] leading-relaxed text-ink/75">
                 {acceptIntents.map((i) => castCommand(i)).join("\n\n")}

@@ -10,6 +10,7 @@ import { useDeployments } from "../useDeployments";
 import { AdminCard, Banner, KeyVal, SectionLabel } from "../ui";
 import { OperationForm } from "../TxPlan";
 import { Info, Key, Wrench } from "../icons";
+import { NETWORK } from "@/lib/onchain/network";
 
 const SIGNER_DUTIES = [
   ["Letter draws", "Draw a fair, demand-mirrored letter set under the per-letter caps, then sign the reveal so Letters.reveal can mint."],
@@ -40,7 +41,7 @@ export function KeeperTab() {
           <SectionLabel>
             {contract.name} · {fn.group}
           </SectionLabel>
-          <OperationForm contract={contract} fn={fn} address={d?.contracts[contract.key] ?? null} chainId={d?.chainId ?? 8453} />
+          <OperationForm contract={contract} fn={fn} address={d?.contracts[contract.key] ?? null} chainId={d?.chainId ?? NETWORK.id} />
         </section>
       ))}
 

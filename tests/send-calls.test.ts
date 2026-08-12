@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sendCallsAttributed, BASE_CHAIN_ID_HEX, type Eip1193Provider } from "@/lib/onchain/sendCalls";
+import { sendCallsAttributed, CHAIN_ID_HEX, type Eip1193Provider } from "@/lib/onchain/sendCalls";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
 
 const FROM = ("0x" + "1".repeat(40)) as `0x${string}`;
@@ -25,7 +25,7 @@ describe("sendCallsAttributed — the write chokepoint", () => {
     expect(seen[0].method).toBe("wallet_sendCalls");
     const p = (seen[0].params as Record<string, unknown>[])[0];
     expect(p.from).toBe(FROM);
-    expect(p.chainId).toBe(BASE_CHAIN_ID_HEX);
+    expect(p.chainId).toBe(CHAIN_ID_HEX);
     expect(p.capabilities).toEqual({ dataSuffix: { value: BUILDER_DATA_SUFFIX, optional: true } });
     expect((p.calls as Record<string, unknown>[])[0]).toMatchObject({ to: TO, data: DATA });
   });

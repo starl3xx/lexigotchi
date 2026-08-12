@@ -7,6 +7,7 @@
  * transaction values. $WORD is an 18-decimal ERC-20.
  */
 import { WORD_USD_PRICE, WORD_PER_USD, priceWord } from "@/lib/params";
+import { NETWORK, explorerAddress } from "@/lib/onchain/network";
 
 export { WORD_USD_PRICE, WORD_PER_USD, priceWord };
 
@@ -87,7 +88,6 @@ export function isBytes32(s: string): boolean {
   return /^0x[a-fA-F0-9]{64}$/.test(s.trim());
 }
 
-export const BASESCAN = "https://basescan.org";
-export function basescanAddress(addr: string): string {
-  return `${BASESCAN}/address/${addr}`;
-}
+/** Explorer origin for the ACTIVE network — Basescan on mainnet, Sepolia Basescan on testnet. */
+export const BASESCAN = NETWORK.explorer;
+export const basescanAddress = explorerAddress;

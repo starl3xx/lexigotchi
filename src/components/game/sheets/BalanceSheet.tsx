@@ -16,6 +16,9 @@ import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
+// Deliberately pinned to Base MAINNET, not the active network (lib/onchain/network). This is the buy
+// funnel: it points a wallet at the real $WORD token and Clanker's swap page, both of which exist
+// only on mainnet. On a testnet build it would otherwise offer to add an asset that isn't there.
 const CAIP_WORD = `eip155:8453/erc20:${WORD_TOKEN}`;
 const BUY_URL = `https://www.clanker.world/clanker/${WORD_TOKEN}`; // Clanker's swap page for $WORD
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;

@@ -21,6 +21,7 @@ import {
 import { isAddress, usdToWordWei } from "@/lib/admin/format";
 import { Banner, ConfirmButton, CopyButton, Field, StatusBadge, TextField, Toggle } from "./ui";
 import { CaretDown, Lock, Warning } from "./icons";
+import { NETWORK } from "@/lib/onchain/network";
 
 export function buildIntent(
   contract: ContractDef,
@@ -61,7 +62,7 @@ const usdHelpable = (type: string, name: string) =>
   type === "uint256" && /price|fee|cost|snack|amount/i.test(name);
 
 /** Renders the cast command + Safe batch + execute gate for a built intent. */
-export function TxOutput({ intent, chainId = 8453 }: { intent: TxIntent; chainId?: number }) {
+export function TxOutput({ intent, chainId = NETWORK.id }: { intent: TxIntent; chainId?: number }) {
   const [showSafe, setShowSafe] = useState(false);
   const errs = validateIntent(intent);
   // Also require a valid target address — a missing/malformed address must not render copy-ready
@@ -136,7 +137,7 @@ export function OperationForm({
   fn,
   address,
   prefill,
-  chainId = 8453,
+  chainId = NETWORK.id,
 }: {
   contract: ContractDef;
   fn: ContractFn;

@@ -13,6 +13,7 @@ import { useDeployments } from "../useDeployments";
 import { AdminCard, Banner, SectionLabel } from "../ui";
 import { OperationForm } from "../TxPlan";
 import { Faders, Info } from "../icons";
+import { NETWORK } from "@/lib/onchain/network";
 
 export function ParametersTab() {
   const d = useDeployments();
@@ -73,7 +74,7 @@ export function ParametersTab() {
             // Key by contract too: function names repeat across contracts (setSigner, setKeeper,
             // transferOwnership…), and an fn-only key would reuse a form instance — and its stale
             // inputs / revealed-danger state — when switching contracts.
-            <OperationForm key={`${contract.key}:${fn.fn}`} contract={contract} fn={fn} address={address} chainId={d?.chainId ?? 8453} />
+            <OperationForm key={`${contract.key}:${fn.fn}`} contract={contract} fn={fn} address={address} chainId={d?.chainId ?? NETWORK.id} />
           ))}
         </section>
       ))}

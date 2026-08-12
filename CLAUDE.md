@@ -79,6 +79,13 @@ The game is the front door: `/` redirects to **`/play`**.
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery
   compliance, `params.ts`). The only non-`route` way $WORD enters a bucket.
+- `src/lib/onchain/network.ts` → **the chain single-source-of-truth** (id / hex / explorer / CAIP-2),
+  selected by `NEXT_PUBLIC_CHAIN_ID`: Base mainnet (8453) when unset, Base Sepolia (84532) opt-in. An
+  unrecognised id **throws at boot** rather than falling back — a silent fallback would point a signed
+  tx at a chain nobody chose. Nothing may hardcode a chain id or explorer again. The deployment
+  registry follows it (`config/deployments.json` / `config/deployments.base-sepolia.json`) and the
+  admin's localStorage overrides are namespaced per chain. Deliberate exception: `BalanceSheet.tsx`
+  stays pinned to mainnet — it's the buy funnel for the real $WORD token.
 - `src/lib/onchain/builderCode.ts` → **Base Builder Code attribution (ERC-8021)**. Our code
   `bc_bu1cyzms` (base.dev) → `Attribution.toDataSuffix` (the `ox` lib) → a calldata suffix that credits
   our txs on Base. **Every on-chain write the app originates MUST carry it**: ERC-5792 wallets via
