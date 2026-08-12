@@ -22,6 +22,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const [confirmDissolve, setConfirmDissolve] = useState(false);
   // Guards against a second tap during the async chain flow — each tap is a PAID commit.
   const [ascending, setAscending] = useState(false);
+  const [strandedNote, setStrandedNote] = useState("");
 
   if (!word) {
     return (
@@ -142,16 +143,22 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                 // its own outcome, so only the synchronous (mock) result is announced here.
                 if (res instanceof Promise) {
                   setAscending(true);
-                  void res.finally(() => setAscending(false));
+                  void res.then((r) => {
+                    // Only re-enable when NOTHING was spent. A stranded commit is paid and still
+                    // open, so re-enabling would sell a second ascension on top of it.
+                    if (r.status === "stranded") setStrandedNote(r.note);
+                    else setAscending(false);
+                  });
                   return;
                 }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
                 g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
-              {ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
+              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
             </Button>
           </div>
+          {strandedNote && <p className="mt-2 text-xs text-gold-deep">{strandedNote}</p>}
           {!word.staked && <p className="mt-2 text-xs text-candy">Stake it first to ascend.</p>}
         </Card>
       )}

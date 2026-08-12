@@ -473,6 +473,25 @@ export function reducer(s: GameState, a: Action): GameState {
 // Provider + hook
 // ---------------------------------------------------------------------------
 
+/**
+ * The result of an action that may involve money.
+ *
+ * Three states, because conflating any two of them has caused a real bug on this branch:
+ *
+ *   not-started — nothing was spent (ineligible, cancelled signature, failed sign-in). Safe to retry.
+ *   resolved    — it completed; `success` is the outcome.
+ *   stranded    — the commit is PAID but unresolved (the reveal was rejected, 401'd, or the log
+ *                 never appeared). Retrying buys a SECOND commit while the first stays open, and the
+ *                 contracts have no reveal expiry, so it stays open forever.
+ *
+ * `null` cannot express the difference between the first and the last, which is exactly the
+ * distinction a caller needs to decide whether to re-enable its button.
+ */
+export type ActionOutcome =
+  | { status: "not-started" }
+  | { status: "resolved"; success: boolean }
+  | { status: "stranded"; note: string };
+
 export interface GameApi {
   state: GameState;
   nav: (view: View) => void;
@@ -482,7 +501,7 @@ export interface GameApi {
   dismissToast: (id: number) => void;
   // economy actions (return the outcome where the caller needs to animate it)
   canAfford: (amount: number) => boolean;
-  dailyMint: () => number | null | Promise<number | null>;
+  dailyMint: () => number | null | Promise<ActionOutcome>;
   openPack: () => number[];
   /**
    * null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss.
@@ -492,14 +511,14 @@ export interface GameApi {
    * caller learns the OUTCOME — including "the user cancelled" — instead of being told it started
    * and left with no way back.
    */
-  rollLoose: (idx: number) => boolean | null | Promise<boolean | null>;
-  rollWord: (word: string, pos: number) => boolean | null | Promise<boolean | null>;
+  rollLoose: (idx: number) => boolean | null | Promise<ActionOutcome>;
+  rollWord: (word: string, pos: number) => boolean | null | Promise<ActionOutcome>;
   claim: (word: string, useUpper: boolean) => void;
   toggleStake: (word: string) => void;
   feed: (word: string) => void;
   feedAll: () => void;
   /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
-  prestige: (word: string) => boolean | null | Promise<boolean | null>;
+  prestige: (word: string) => boolean | null | Promise<ActionOutcome>;
   dissolve: (word: string) => void;
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;

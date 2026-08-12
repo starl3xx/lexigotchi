@@ -6,12 +6,13 @@ import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
 import { COST, charToIdx, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
 
-type Phase = "ready" | "rolling" | "win" | "miss";
+type Phase = "ready" | "rolling" | "win" | "miss" | "stranded";
 
 export function RollSheet({ target }: { target: RollTarget }) {
   const g = useGame();
   const { state } = g;
   const [phase, setPhase] = useState<Phase>("ready");
+  const [stranded, setStranded] = useState("");
 
   const loose = target.kind === "loose";
   const word = !loose ? state.words.find((w) => w.word === target.word) : undefined;
@@ -28,13 +29,15 @@ export function RollSheet({ target }: { target: RollTarget }) {
   const reveal = () => {
     const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.word, target.pos);
     if (result instanceof Promise) {
-      // The chain store resolves asynchronously (wallet prompt, then a reveal tx). Show the rolling
-      // state, but RECOVER on null — that covers a cancelled signature or a failed sign-in, where
-      // nothing was spent and the player must be able to try again without closing the sheet.
+      // The chain store resolves asynchronously (wallet prompt, then a reveal tx).
       setPhase("rolling");
       void result.then((r) => {
-        if (r === null) setPhase("ready");
-        else setPhase(r ? "win" : "miss");
+        // "not-started" means nothing was spent — a cancelled signature or a failed sign-in — so
+        // going back to ready is correct. "stranded" means the fee IS spent and the commit is open;
+        // returning to ready there would offer a second paid roll while the first sits unresolved.
+        if (r.status === "not-started") setPhase("ready");
+        else if (r.status === "stranded") { setStranded(r.note); setPhase("stranded"); }
+        else setPhase(r.success ? "win" : "miss");
       });
       return;
     }
@@ -81,6 +84,14 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <p className="text-sm text-ink/60">Your letter is untouched — never burned. Pity climbs.</p>
           </div>
         )}
+        {/* Paid, unresolved. Deliberately NOT offering another roll: the fee is spent and the commit
+            is still open, so a retry would buy a second one and strand the first. */}
+        {phase === "stranded" && (
+          <div className="text-center">
+            <div className="font-display text-2xl font-extrabold text-gold-deep">Still rolling</div>
+            <p className="text-sm text-ink/60">{stranded}</p>
+          </div>
+        )}
         {(phase === "ready" || phase === "rolling") && (
           <div className="w-full max-w-[16rem]">
             <PityMeter pity={pity} />
@@ -97,6 +108,11 @@ export function RollSheet({ target }: { target: RollTarget }) {
         {phase === "rolling" && (
           <Button full size="lg" variant="gold" disabled>
             Rolling…
+          </Button>
+        )}
+        {phase === "stranded" && (
+          <Button full size="lg" variant="ghost" onClick={close}>
+            Close — we'll finish it
           </Button>
         )}
         {(phase === "win" || phase === "miss") && (
