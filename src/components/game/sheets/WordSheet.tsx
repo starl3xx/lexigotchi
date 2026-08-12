@@ -143,12 +143,16 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                 // its own outcome, so only the synchronous (mock) result is announced here.
                 if (res instanceof Promise) {
                   setAscending(true);
-                  void res.then((r) => {
-                    // Only re-enable when NOTHING was spent. A stranded commit is paid and still
-                    // open, so re-enabling would sell a second ascension on top of it.
-                    if (r.status === "stranded") setStrandedNote(r.note);
-                    else setAscending(false);
-                  });
+                  void res
+                    .then((r) => {
+                      // Only re-enable when NOTHING was spent. A stranded commit is paid and still
+                      // open, so re-enabling would sell a second ascension on top of it.
+                      if (r.status === "stranded") setStrandedNote(r.note);
+                      else setAscending(false);
+                    })
+                    // The provider is written not to reject, but a button that can latch forever is
+                    // not something to leave resting on that promise.
+                    .catch(() => setAscending(false));
                   return;
                 }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)

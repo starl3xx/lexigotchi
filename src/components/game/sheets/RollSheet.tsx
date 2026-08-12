@@ -31,14 +31,18 @@ export function RollSheet({ target }: { target: RollTarget }) {
     if (result instanceof Promise) {
       // The chain store resolves asynchronously (wallet prompt, then a reveal tx).
       setPhase("rolling");
-      void result.then((r) => {
-        // "not-started" means nothing was spent — a cancelled signature or a failed sign-in — so
-        // going back to ready is correct. "stranded" means the fee IS spent and the commit is open;
-        // returning to ready there would offer a second paid roll while the first sits unresolved.
-        if (r.status === "not-started") setPhase("ready");
-        else if (r.status === "stranded") { setStranded(r.note); setPhase("stranded"); }
-        else setPhase(r.success ? "win" : "miss");
-      });
+      void result
+        .then((r) => {
+          // "not-started" means nothing was spent — a cancelled signature or a failed sign-in — so
+          // going back to ready is correct. "stranded" means the fee IS spent and the commit is
+          // open; returning to ready there would offer a second paid roll while the first sits
+          // unresolved.
+          if (r.status === "not-started") setPhase("ready");
+          else if (r.status === "stranded") { setStranded(r.note); setPhase("stranded"); }
+          else setPhase(r.success ? "win" : "miss");
+        })
+        // Defensive: a rejection would otherwise leave the sheet stuck on a disabled Rolling…
+        .catch(() => setPhase("ready"));
       return;
     }
     if (result === null) {

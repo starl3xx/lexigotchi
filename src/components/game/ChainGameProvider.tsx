@@ -197,15 +197,36 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * the toggle (which is permanently true) skips the approval and reverts every feed after the
    * first one each day.
    */
-  const freeSnackAvailable = useCallback(
-    () => !!chain.params?.freeDailySnack && !!chain.player?.freeSnackAvailable,
-    [chain.params, chain.player],
+  /**
+   * Run an action flow so it always RESOLVES to an ActionOutcome, never rejects.
+   *
+   * Chain reads throw on RPC errors, and a rejected promise carries no information about whether
+   * money moved — so every caller would have to guess, and a caller that forgets leaves its button
+   * stuck forever. Instead the flow reports when it has paid, and a throw after that point becomes
+   * "stranded" while a throw before it stays "not-started" and remains safely retryable.
+   */
+  const guarded = useCallback(
+    async (fn: (markPaid: () => void) => Promise<ActionOutcome>): Promise<ActionOutcome> => {
+      let paid = false;
+      try {
+        return await fn(() => {
+          paid = true;
+        });
+      } catch (err) {
+        const msg = (err as Error)?.message ?? "unknown error";
+        toast(`Something went wrong: ${msg.slice(0, 70)}`, "bad");
+        return paid
+          ? { status: "stranded", note: "Paid, but we lost track of it — reopen to finish it" }
+          : { status: "not-started" };
+      }
+    },
+    [toast],
   );
 
   /**
    * Whether to SIZE a feed batch as free.
    *
-   * Deliberately always false. `freeSnackAvailable` is read before the send and goes stale the
+   * Deliberately always false. PlayerState.freeSnackAvailable is read before the send and goes stale the
    * moment the free snack is spent — and this code already documents that reads lag writes. Trusting
    * it to SKIP the approval turns one stale read into a reverted transaction. Sizing conservatively
    * costs a single max-approval, once, and then erc20ApprovalCalls returns [] forever.
@@ -290,7 +311,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
       /** The FID-gated free daily: voucher → commit → discover → draw → reveal. */
       dailyMint: () =>
-        (async () => {
+        guarded(async (markPaid) => {
           if (!address) { toast("Connect a wallet first", "bad"); return { status: "not-started" as const }; }
           const res = await postJson<{ voucher: DailyVoucher }>("/api/mint/free-daily", { wallet: address });
           if (!res?.ok) { toast(dailyError(res?.error), "bad"); return { status: "not-started" as const }; }
@@ -299,10 +320,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!(await run("Daily", () =>
             commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature }),
           ))) return { status: "not-started" as const };
+          markPaid();
           await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it");
           // Letters arrive via the pack sheet; the caller only needs "don't call this again".
           return { status: "resolved", success: true };
-        })(),
+        }),
 
       /**
        * The full two-transaction pack: voucher → commit → discover the commitId from the log →
@@ -355,7 +377,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       },
 
       rollLoose: (idx: number) =>
-        (async () => {
+        guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
           // their voucher first so they fail free; a paid commit sent before this check leaves the
@@ -366,11 +388,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           }
           const before = await readOpenRollCommits(address);
           if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return { status: "not-started" as const };
+          markPaid(); // the fee is taken from here on — no failure past this point is retryable
           return finishRoll(before);
-        })(),
+        }),
 
       rollWord: (word: string, pos: number) =>
-        (async () => {
+        guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
           // their voucher first so they fail free; a paid commit sent before this check leaves the
@@ -381,11 +404,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           }
           const before = await readOpenRollCommits(address);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
+          markPaid(); // the fee is taken from here on — no failure past this point is retryable
           return finishRoll(before);
-        })(),
+        }),
 
       prestige: (word: string) =>
-        (async () => {
+        guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           if (!(await canSign())) {
             toast("Ascension needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
@@ -393,6 +417,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           }
           const before = await readOpenPrestigeCommits(address);
           if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return { status: "not-started" as const };
+          markPaid(); // fee + burned snack are gone from here on
           toast("Ascending…", "info");
           const id = await waitForNewPrestigeCommit(address, before);
           if (id === null) {
@@ -410,7 +435,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           toast(draw.reveal.success ? `${word} ascended — a gilded glow-up` : `${word} held its ground`,
                 draw.reveal.success ? "good" : "info");
           return { status: "resolved", success: draw.reveal.success };
-        })(),
+        }),
 
       claim: (word: string, useUpper: boolean) => {
         void (async () => {
@@ -476,7 +501,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
     }),
-    [state, chain, address, run, toast, postJson, authError, dailyError, finishLetterCommit, finishRoll, freeSnackAvailable],
+    [state, chain, address, run, toast, postJson, authError, dailyError, finishLetterCommit, finishRoll, guarded],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
