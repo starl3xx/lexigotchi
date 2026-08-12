@@ -110,6 +110,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     () => ({
       ...ui,
       status,
+      chainBacked: true,
       error: chain.error,
       balance: chain.player?.balance ?? 0,
       lower: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,

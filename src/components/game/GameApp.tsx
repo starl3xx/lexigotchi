@@ -13,7 +13,8 @@ import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
-import { ScreenErrorBoundary } from "./ChainGate";
+import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
+import { useConnect } from "wagmi";
 import { ChainGameProvider } from "./ChainGameProvider";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
@@ -107,6 +108,13 @@ function OnboardingHost() {
 
 function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinishOnboarding: () => void }) {
   const { state } = useGame();
+  // wagmi is mounted by <Providers> for both stores, so this is safe on the mock path too (where
+  // status is always "ready" and ChainGate never renders the connect prompt).
+  const { connect, connectors } = useConnect();
+  const connectWallet = useCallback(() => {
+    const target = connectors[0];
+    if (target) connect({ connector: target });
+  }, [connect, connectors]);
   // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
   // Farcaster splash screen — no manual call needed here.
   return (
@@ -123,7 +131,9 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
             {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
                 one bad screen holds its error state across every later navigation. */}
             <ScreenErrorBoundary key={state.view}>
-              <Screen view={state.view} />
+              <ChainGate connect={connectWallet}>
+                <Screen view={state.view} />
+              </ChainGate>
             </ScreenErrorBoundary>
           </main>
           <BottomNav />
@@ -189,9 +199,13 @@ function TopBar() {
       <div className="flex items-center gap-1.5">
         <ViewerChip />
         <span className="font-display text-base font-extrabold tracking-tight">LEXIGOTCHI</span>
-        <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy px-1.5 py-0.5 text-[10px] font-bold text-paper">
-          <Fire weight="fill" size={12} /> {state.streak}
-        </span>
+        {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
+            flame chip reads as a real streak the player just lost. Absent beats wrong. */}
+        {!state.chainBacked && (
+          <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy px-1.5 py-0.5 text-[10px] font-bold text-paper">
+            <Fire weight="fill" size={12} /> {state.streak}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -200,8 +214,14 @@ function TopBar() {
           aria-label="Your $WORD balance — open wallet"
           className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right leading-none transition-all active:translate-y-[1px]"
         >
-          <div className="font-display text-sm font-extrabold">{fmtWord(state.balance)}</div>
-          <div className="text-[9px] text-ink/60">{fmtUsd(state.balance)} · $WORD</div>
+          {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
+              are broke (or robbed), and every affordability affordance downstream agrees with it. */}
+          <div className="font-display text-sm font-extrabold">
+            {state.status === "ready" ? fmtWord(state.balance) : "—"}
+          </div>
+          <div className="text-[9px] text-ink/60">
+            {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
+          </div>
         </button>
         {helpBtn}
         <button

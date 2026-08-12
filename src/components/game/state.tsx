@@ -113,6 +113,10 @@ export type ChainStatus = "no-wallet" | "loading" | "ready" | "error";
 export interface GameState {
   /** The mock always knows its own state; the chain provider drives this for real. */
   status: ChainStatus;
+  /** True when this store is backed by real contracts. Surfaces that some mock-only concepts
+   *  (streak, day counter, jackpot) have no chain equivalent YET, so the UI can hide them rather
+   *  than render a hardcoded 0 that reads as a genuine value. */
+  chainBacked: boolean;
   /** Human-readable cause when status is "error". */
   error?: string;
   balance: number; // $WORD
@@ -237,6 +241,7 @@ export function seedState(): GameState {
     sheet: null,
     toasts: [],
     status: "ready" as ChainStatus,
+    chainBacked: false,
     nextToastId: 1,
   };
 }
