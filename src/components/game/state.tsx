@@ -193,7 +193,7 @@ export const fmtUsd = (word: number) => `$${usdOf(word).toFixed(2)}`;
 // Seed (a populated starting save so every screen has life)
 // ---------------------------------------------------------------------------
 
-function seedState(): GameState {
+export function seedState(): GameState {
   const lower = new Array(26).fill(0);
   const upper = new Array(26).fill(0);
   // a believable starter bag — heavy on commons, a couple of rares
@@ -268,7 +268,7 @@ function spend(s: GameState, amount: number): number {
   return s.balance - amount;
 }
 
-function reducer(s: GameState, a: Action): GameState {
+export function reducer(s: GameState, a: Action): GameState {
   switch (a.t) {
     case "nav":
       return { ...s, view: a.view, sheet: null };
@@ -500,6 +500,8 @@ export interface GameApi {
 }
 
 const Ctx = createContext<GameApi | null>(null);
+/** Exported so ChainGameProvider can supply the same façade with chain-backed state. */
+export const GameCtx = Ctx;
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seedState);

@@ -14,6 +14,22 @@ import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
 import { ScreenErrorBoundary } from "./ChainGate";
+import { ChainGameProvider } from "./ChainGameProvider";
+import { isSuiteDeployed } from "@/lib/onchain/addresses";
+import { NETWORK } from "@/lib/onchain/network";
+
+/**
+ * Which store backs the game.
+ *
+ * Chain-backed only when the suite actually has addresses on this network AND we're on a testnet —
+ * mainnet stays on the mock until the remaining signer routes exist, because a half-wired real
+ * economy is worse than an honest simulation. NEXT_PUBLIC_CHAIN_GAME=0 forces the mock back on for
+ * side-by-side comparison.
+ */
+function isChainBacked(): boolean {
+  if (process.env.NEXT_PUBLIC_CHAIN_GAME === "0") return false;
+  return isSuiteDeployed() && NETWORK.isTestnet;
+}
 import { HomeScreen } from "./screens/HomeScreen";
 import { BagScreen } from "./screens/BagScreen";
 import { MintScreen } from "./screens/MintScreen";
@@ -41,10 +57,11 @@ export function GameApp() {
   // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
   // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.
   if (PRELAUNCH) return <PreLaunchScreen />;
+  const Provider = isChainBacked() ? ChainGameProvider : GameProvider;
   return (
-    <GameProvider>
+    <Provider>
       <OnboardingHost />
-    </GameProvider>
+    </Provider>
   );
 }
 
