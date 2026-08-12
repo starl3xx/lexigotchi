@@ -69,7 +69,7 @@ import {
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
-import { authedPostJson } from "./campaignClient";
+import { authedPostJson, canSign } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 
@@ -201,6 +201,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     [chain.params, chain.player],
   );
 
+  /**
+   * Whether to SIZE a feed batch as free.
+   *
+   * Deliberately always false. `freeSnackAvailable` is read before the send and goes stale the
+   * moment the free snack is spent — and this code already documents that reads lag writes. Trusting
+   * it to SKIP the approval turns one stale read into a reverted transaction. Sizing conservatively
+   * costs a single max-approval, once, and then erc20ApprovalCalls returns [] forever.
+   */
+  const feedSizingFree = false;
+
   const authError = useCallback((code: string | undefined, what: string) => {
     if (code === "no_farcaster_host" || code === "unauthorized") {
       return `${what} needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App`;
@@ -284,7 +294,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ))) return;
           await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it");
         })();
-        return null;
+        return "pending";
       },
 
       /**
@@ -340,26 +350,41 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       rollLoose: (idx: number) => {
         void (async () => {
           if (!chain.params || !chain.player || !address) return;
+          // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
+          // their voucher first so they fail free; a paid commit sent before this check leaves the
+          // fee spent and the commit stranded with no way to finish it.
+          if (!(await canSign())) {
+            return void toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+          }
           const before = await readOpenRollCommits(address);
           if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return;
           await finishRoll(before);
         })();
-        return null;
+        return "pending";
       },
 
       rollWord: (word: string, pos: number) => {
         void (async () => {
           if (!chain.params || !chain.player || !address) return;
+          // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
+          // their voucher first so they fail free; a paid commit sent before this check leaves the
+          // fee spent and the commit stranded with no way to finish it.
+          if (!(await canSign())) {
+            return void toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+          }
           const before = await readOpenRollCommits(address);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return;
           await finishRoll(before);
         })();
-        return null;
+        return "pending";
       },
 
       prestige: (word: string) => {
         void (async () => {
           if (!chain.params || !chain.player || !address) return;
+          if (!(await canSign())) {
+            return void toast("Ascension needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+          }
           const before = await readOpenPrestigeCommits(address);
           if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return;
           toast("Ascending…", "info");
@@ -372,7 +397,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           }
           toast(draw.reveal.success ? `${word} ascended!` : `${word} held its ground`, draw.reveal.success ? "good" : "info");
         })();
-        return null;
+        return "pending";
       },
 
       claim: (word: string, useUpper: boolean) => {
@@ -397,7 +422,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       feed: (word: string) => {
         if (!chain.params || !chain.player) return;
         void run(`Feed ${word}`, () =>
-          feedCalls(tokenIdOf(word), chain.params!, chain.player!, freeSnackAvailable()),
+          feedCalls(tokenIdOf(word), chain.params!, chain.player!, feedSizingFree),
         );
       },
 
@@ -408,13 +433,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0).map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody's hungry", "info");
         void run("Feed all", () =>
-          feedManyCalls(hungry, chain.params!, chain.player!, freeSnackAvailable()),
+          feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),
         );
       },
 
       dissolve: (word: string) => {
         void (async () => {
-          if (!(await run(`Dissolve ${word}`, () => dissolveCalls(tokenIdOf(word), word)))) return;
+          const w = state.words.find((x) => x.word === word);
+          if (!w) return;
+          const id = tokenIdOf(word);
+          // Words.dissolve requires msg.sender to be the ERC-721 owner. Staking HOLDS the NFT, so a
+          // staked word reverts NotOwner. Unstake in the same batch first.
+          const ok = await run(`Dissolve ${word}`, () =>
+            w.staked ? [...unstakeCalls(id), ...dissolveCalls(id, word)] : dissolveCalls(id, word),
+          );
+          if (!ok) return;
           dispatch({ t: "sheet", sheet: null });
         })();
       },

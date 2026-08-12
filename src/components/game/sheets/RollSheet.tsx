@@ -27,6 +27,12 @@ export function RollSheet({ target }: { target: RollTarget }) {
 
   const reveal = () => {
     const result = loose ? g.rollLoose(target.idx) : g.rollWord(target.word, target.pos);
+    if (result === "pending") {
+      // Started on-chain: the fee is committed and the outcome arrives via toast after the reveal
+      // transaction. Closing here would look identical to "nothing happened" while money moved.
+      setPhase("rolling");
+      return;
+    }
     if (result === null) {
       // the roll never happened (no letter / slot already raised / unaffordable — api toasted why);
       // don't fake a "No luck" miss

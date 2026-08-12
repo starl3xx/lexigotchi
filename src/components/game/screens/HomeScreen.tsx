@@ -120,7 +120,8 @@ export function HomeScreen() {
               variant="primary"
               onClick={() => {
                 const idx = g.dailyMint();
-                // the daily is FREE (COST.daily = 0), so the only null case is "already pulled"
+                // "pending" = the on-chain flow started; only a real null means "already pulled".
+                // Conflating them told a first-time player they had already claimed.
                 if (idx === null) g.toast("Already claimed today", "info");
               }}
             >

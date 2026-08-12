@@ -482,17 +482,21 @@ export interface GameApi {
   dismissToast: (id: number) => void;
   // economy actions (return the outcome where the caller needs to animate it)
   canAfford: (amount: number) => boolean;
-  dailyMint: () => number | null;
+  dailyMint: () => number | null | "pending";
   openPack: () => number[];
-  /** null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss. */
-  rollLoose: (idx: number) => boolean | null;
-  rollWord: (word: string, pos: number) => boolean | null;
+  /**
+   * null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss.
+   * "pending" = it STARTED and resolves asynchronously — the chain store returns this because a
+   * roll is two transactions. Screens must not treat it as null: money has already moved.
+   */
+  rollLoose: (idx: number) => boolean | null | "pending";
+  rollWord: (word: string, pos: number) => boolean | null | "pending";
   claim: (word: string, useUpper: boolean) => void;
   toggleStake: (word: string) => void;
   feed: (word: string) => void;
   feedAll: () => void;
-  /** null = the attempt didn't happen (ineligible / unaffordable); true = ascended, false = failed. */
-  prestige: (word: string) => boolean | null;
+  /** null = the attempt didn't happen; true = ascended, false = failed; "pending" = started async. */
+  prestige: (word: string) => boolean | null | "pending";
   dissolve: (word: string) => void;
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;

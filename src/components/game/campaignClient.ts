@@ -39,6 +39,17 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response |
 }
 
 /**
+ * Can we obtain a signed voucher at all?
+ *
+ * Exists so a PAID commit can be refused BEFORE the fee is taken. The daily and the pack fetch a
+ * voucher first, so they fail for free; a roll or an ascension pays first and only then needs a
+ * signature, which on the web would strand the commit with the money already gone.
+ */
+export function canSign(): Promise<boolean> {
+  return isFarcasterHost();
+}
+
+/**
  * Authenticated JSON POST for the signing routes (`/api/mint/*`, `/api/roll/*`, `/api/prestige/*`).
  *
  * These routes derive the FID from a verified Quick Auth JWT and 401 without one, so a plain
