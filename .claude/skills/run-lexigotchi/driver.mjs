@@ -111,8 +111,9 @@ if (WANT_WALLET) {
 }
 
 await page.goto(URL, { waitUntil: "domcontentloaded" });
-// Next compiles /play on demand; the first load is ~10s. Wait for the shell, not a fixed guess.
-await page.waitForSelector("header", { timeout: 60_000 });
+// Next compiles routes on demand; the first load is ~10s. Wait for real content, not a fixed guess.
+// `header` covers the game shell; `.cel` covers the admin gate card, which has no header.
+await page.waitForSelector("header, .cel", { timeout: 60_000 });
 await page.waitForTimeout(3000);
 
 // Onboarding covers the whole app on a fresh profile — dismiss it or nothing else is reachable.

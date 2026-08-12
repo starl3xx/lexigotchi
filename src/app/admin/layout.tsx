@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Admin area. Wraps the operator console in the Farcaster providers (so the viewer identity gate
- * works) — scoped to this route, not loaded app-wide. Auth is enforced client-side by
- * <AdminGate>.
+ * Admin area. Wraps the operator console in the shared providers — Farcaster (viewer identity) AND
+ * wagmi (the connected wallet the gate now allowlists on). Scoped to this route, not loaded
+ * app-wide. Auth is enforced client-side by <AdminGate>.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return <Providers>{children}</Providers>;

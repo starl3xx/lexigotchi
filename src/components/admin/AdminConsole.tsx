@@ -65,7 +65,7 @@ const TABS: TabDef[] = [
 
 const SECTIONS = ["Analytics", "Operations", "Settings"] as const;
 
-export function AdminConsole({ operator }: { operator: { label: string; kind: "fid" | "dev" } }) {
+export function AdminConsole({ operator }: { operator: { label: string; kind: "fid" | "wallet" | "dev" } }) {
   const [active, setActive] = useState<TabId>("pulse");
 
   // Keyboard shortcuts 1–9,0 → tab order (skip when typing in a field).
