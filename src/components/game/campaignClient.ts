@@ -10,7 +10,26 @@
  */
 import sdk from "@farcaster/miniapp-sdk";
 
+/**
+ * Whether we're actually running inside a Farcaster host.
+ *
+ * Checked BEFORE touching `quickAuth`, not after. Wrapping the call in try/catch is not enough:
+ * outside a host the SDK rejects a promise internally that nothing awaits, so the failure escapes as
+ * an unhandled pageerror even though our own catch fires. Every web visitor hit that on load — the
+ * page still rendered, so it looked harmless, but it filled the console with a stack pointing into
+ * the SDK and would trip any error reporting the app ever gains.
+ *
+ * Cached because the answer cannot change within a page lifetime.
+ */
+let inMiniApp: Promise<boolean> | undefined;
+function isFarcasterHost(): Promise<boolean> {
+  inMiniApp ??= sdk.isInMiniApp().catch(() => false);
+  return inMiniApp;
+}
+
 async function authedFetch(path: string, init?: RequestInit): Promise<Response | null> {
+  // On the web this is a genuine no-op, which is what the callers already assume.
+  if (!(await isFarcasterHost())) return null;
   try {
     return await sdk.quickAuth.fetch(path, init);
   } catch (err) {
