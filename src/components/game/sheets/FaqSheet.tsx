@@ -48,7 +48,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
           Two ways: a discounted <strong>daily single</strong> (1 per Farcaster FID per day — the
           habit loop) and full-price <strong>packs of 5</strong>, anytime. Every mint is{" "}
           <strong>100% lowercase</strong>; a letter&apos;s pull rate equals its share of the 22,190
-          dictionary slots, so common letters come up often and Q/Z/X/J are the chase. You can pay in
+          dictionary slots, so common letters come up often and Q/Z/X/J are the grails. You can pay in
           $WORD or ETH (auto-swapped to $WORD).
         </>
       ),
@@ -86,7 +86,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
           Every word is scored by how rare its letters are and bucketed into 5 tiers:{" "}
           <strong>Common ({TIER_COUNTS.Common.toLocaleString()})</strong>, Uncommon, Rare, Epic, and{" "}
           <strong>Legendary ({TIER_COUNTS.Legendary})</strong>. Rarer tiers carry more stake weight
-          (Common 1 → Legendary 8). <strong>JAZZY</strong> is the apex grail — the only word combining
+          (Common 1 → Legendary 8). <strong>JAZZY</strong> is the apex crown — the only word combining
           two distinct ultra-rares with a double letter.
         </>
       ),

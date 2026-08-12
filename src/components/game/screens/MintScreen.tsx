@@ -101,7 +101,7 @@ export function MintScreen() {
           </div>
           <div>
             <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-ink/50">
-              the chase <Sparkle weight="fill" size={11} className="text-gold-deep" />
+              grails <Sparkle weight="fill" size={11} className="text-gold-deep" />
             </div>
             <div className="flex gap-2">
               {rare.map((L) => <LetterTile key={L} char={L} size={38} />)}

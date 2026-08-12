@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lexigotchi — Action Map</title>
+<style>
+  :root{
+    --paper:#f4ead2; --paper-dark:#e7d7b0; --ink:#1b1714; --candy:#d8463f;
+    --teal:#2a9d8f; --gold:#e0a93b; --gold-deep:#b07d20; --gold-bright:#f0a617;
+    --blue:#3b82f6; --night:#1f3a4d; --billiard:#3e5c3a; --brass:#c8962b;
+    --curtain:#7b1e26; --tileface:#f8efdd; --edge:#c7ae84;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:"Soehne",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:var(--paper); color:var(--ink);
+    background-image:radial-gradient(var(--paper-dark) 0.5px,transparent 0.5px);
+    background-size:14px 14px;
+    padding:32px 20px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  header.top{text-align:center;margin-bottom:8px}
+  .kicker{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--candy)}
+  h1{font-size:clamp(28px,4vw,44px);font-weight:900;letter-spacing:-.02em;margin:.15em 0 .1em}
+  .sub{color:rgba(27,23,20,.65);font-size:15px;max-width:640px;margin:0 auto}
+
+  /* core-loop ribbon */
+  .loop{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:8px;margin:26px 0 34px}
+  .loop .chip{
+    display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+    border:3px solid var(--ink); border-radius:14px; padding:10px 14px; min-width:120px;
+    box-shadow:4px 4px 0 var(--ink); color:var(--paper); font-weight:800;
+  }
+  .loop .chip small{display:block;font-weight:600;font-size:11px;opacity:.85;letter-spacing:.04em;text-transform:uppercase}
+  .loop .arrow{display:flex;align-items:center;font-size:24px;font-weight:900;color:rgba(27,23,20,.45)}
+  .loop .repeat{align-self:center;border:2px dashed var(--ink);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:800;color:var(--ink);background:var(--paper-dark)}
+
+  /* clusters */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:20px}
+  .cluster{
+    border:3px solid var(--ink);border-radius:18px;overflow:hidden;background:var(--tileface);
+    box-shadow:5px 5px 0 var(--ink);display:flex;flex-direction:column;
+  }
+  .cluster.span2{grid-column:span 2}
+  @media(max-width:740px){.cluster.span2{grid-column:span 1}}
+  .chead{padding:12px 16px;border-bottom:3px solid var(--ink);color:var(--paper)}
+  .chead .row{display:flex;align-items:center;gap:10px}
+  .chead .badge{font-size:22px;line-height:1}
+  .chead h2{margin:0;font-size:18px;font-weight:900;letter-spacing:-.01em}
+  .chead .tag{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;border:2px solid currentColor;border-radius:999px;padding:2px 8px;opacity:.9}
+  .chead .blurb{margin:6px 0 0;font-size:12.5px;font-weight:600;opacity:.92}
+
+  .acts{padding:10px;display:flex;flex-direction:column;gap:8px}
+  .act{
+    display:flex;gap:11px;align-items:flex-start;background:var(--paper);
+    border:2px solid var(--ink);border-radius:12px;padding:10px 12px;
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .act:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
+  .act .ico{font-size:20px;line-height:1.2;flex:0 0 auto;width:24px;text-align:center}
+  .act .body{flex:1;min-width:0}
+  .act .nm{font-weight:800;font-size:14px}
+  .act .ds{font-size:12.5px;color:rgba(27,23,20,.68);margin-top:1px;line-height:1.35}
+  .act .meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .pill{font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;white-space:nowrap}
+  .pill.where{background:var(--paper-dark);color:var(--ink);border:1.5px solid rgba(27,23,20,.3)}
+  .pill.code{background:var(--night);color:#cfe3ee;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .pill.passive{background:var(--gold-bright);color:var(--ink);border:1.5px solid var(--ink)}
+
+  /* section label */
+  .seclabel{grid-column:1/-1;display:flex;align-items:center;gap:12px;margin:14px 2px 0;font-weight:900;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:rgba(27,23,20,.55)}
+  .seclabel::after{content:"";flex:1;height:3px;background:rgba(27,23,20,.15);border-radius:2px}
+
+  .proto .cluster{background:repeating-linear-gradient(45deg,var(--paper) 0 10px,var(--paper-dark) 10px 20px);opacity:.92}
+  footer{margin-top:34px;text-align:center;font-size:12px;color:rgba(27,23,20,.55)}
+  footer code{background:var(--paper-dark);padding:1px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Lexigotchi · player action map</div>
+    <h1>Everything a player can do</h1>
+    <p class="sub">Every action in the game, grouped by how related they are. The five stages across the top are the core loop; the rest are the satellites that hang off it.</p>
+  </header>
+
+  <div class="loop" id="loop"></div>
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    Derived from the game state API (<code>src/components/game/state.tsx</code>) + the screen / sheet triggers.
+    Passive payouts (yield, bounty) aren't taps — they happen <em>to</em> you when you've set things up right.
+  </footer>
+</div>
+
+<script>
+const LOOP = [
+  {name:"Get letters", sub:"acquire", color:"var(--candy)"},
+  {name:"Raise", sub:"gamble", color:"var(--gold-deep)"},
+  {name:"Claim", sub:"create", color:"var(--teal)"},
+  {name:"Care", sub:"maintain", color:"var(--billiard)"},
+  {name:"Win", sub:"earn", color:"var(--brass)"},
+];
+
+const CLUSTERS = [
+  { name:"Get letters", badge:"🎟️", tag:"acquire", color:"var(--candy)", fg:"var(--paper)",
+    blurb:"Bring letters — and the $WORD to pay for everything — into your bag.",
+    acts:[
+      {ico:"🎟️", nm:"Mint the free daily letter", ds:"One free lowercase letter, gated to your Farcaster FID, every day.", where:"Mint · Home", code:"dailyMint"},
+      {ico:"📦", nm:"Open a pack of 5", ds:"Buy five lowercase letters anytime — odds mirror the dictionary.", where:"Mint", code:"openPack"},
+      {ico:"💰", nm:"Buy $WORD", ds:"Top up your balance (pay in $WORD or ETH, auto-swapped).", where:"Balance", code:"—"},
+    ]},
+
+  { name:"Raise", badge:"🎲", tag:"gamble", color:"var(--gold-deep)", fg:"var(--paper)",
+    blurb:"The one gamble: raise a lowercase letter to UPPERCASE. A miss never harms it.",
+    acts:[
+      {ico:"🎲", nm:"Roll a loose letter", ds:"Gamble a lowercase letter → UPPERCASE. ~45%, climbs on a pity streak.", where:"Bag → Roll", code:"rollLoose"},
+      {ico:"🔡", nm:"Roll a letter inside a word", ds:"Raise one position of a claimed word, walking it toward all-caps.", where:"Word sheet → Roll", code:"rollWord"},
+    ]},
+
+  { name:"Claim", badge:"✍️", tag:"create", color:"var(--teal)", fg:"var(--paper)",
+    blurb:"Turn 5 same-case letters into a word you own — and recycle the ones you regret.",
+    acts:[
+      {ico:"✍️", nm:"Spell & claim a word", ds:"Escrow 5 uniform-case letters → a 1-of-1 word NFT (held by one player at a time).", where:"Spell", code:"claim"},
+      {ico:"♻️", nm:"Dissolve a word", ds:"Burn it, recover its 5 letters in their current case, and free the name.", where:"Word sheet", code:"dissolve"},
+    ]},
+
+  { name:"Care", badge:"🍪", tag:"maintain", color:"var(--billiard)", fg:"var(--paper)",
+    blurb:"The tamagotchi loop. Staked words get hungry; feed them or they sit out.",
+    acts:[
+      {ico:"📌", nm:"Stake / unstake a word", ds:"Put a word to work (earning + jackpot-eligible) — or pull it back out.", where:"Word sheet", code:"toggleStake"},
+      {ico:"🍪", nm:"Feed a word", ds:"Reset its hunger. First snack each day is free, then paid (100% burned).", where:"Word sheet", code:"feed"},
+      {ico:"🍪", nm:"Feed all hungry words", ds:"One tap to feed everything that needs it, as far as your balance goes.", where:"Home (care alert)", code:"feedAll"},
+    ]},
+
+  { name:"Win", badge:"🏆", tag:"earn", color:"var(--brass)", fg:"var(--paper)",
+    blurb:"Where $WORD comes back. Three earn paths + the deep-end ascension.",
+    acts:[
+      {ico:"🏆", nm:"Win the daily jackpot", ds:"If your staked, fed word is the day's secret word, you take the whole pot.", where:"Jackpot", code:"revealJackpot"},
+      {ico:"🎖️", nm:"Share the weekly bounty", ds:"Hold a staked, fed word matching the week's theme → split the pool.", where:"Bounty", code:"passive"},
+      {ico:"💎", nm:"Earn UPPERCASE yield", ds:"Staked all-caps words accrue daily $WORD from the rewards pool.", where:"passive", code:"passive"},
+      {ico:"👑", nm:"Ascend / gild a word", ds:"Push a full-UPPERCASE staked word through Gilded levels for more yield + bounty weight.", where:"Word sheet", code:"prestige"},
+    ]},
+
+  { sec:"Satellites — hang off the loop" },
+
+  { name:"Show off & trade", badge:"🎭", tag:"social", color:"var(--blue)", fg:"var(--paper)", span2:true,
+    blurb:"The growth + secondary-market surface. Every cast is an ad; swaps move letters peer-to-peer.",
+    acts:[
+      {ico:"🎭", nm:"Build a showcase & cast it", ds:"Arrange any letters you own into any string (no dictionary check) and cast it — pure flex.", where:"Showcase", code:"share"},
+      {ico:"🔁", nm:"Propose a letter swap", ds:"Offer a two-sided letter trade (\"my Q for your two Z's, + $WORD\") as a shareable cast.", where:"Swap", code:"share"},
+      {ico:"📣", nm:"Share a win or a claim", ds:"Cast your jackpot win, a fresh claim, or a lucky pull straight to Farcaster.", where:"result sheets", code:"useShare"},
+    ]},
+
+  { name:"Account & explore", badge:"🧭", tag:"meta", color:"var(--night)", fg:"var(--paper)",
+    blurb:"Identity, funds, and reference — the connective tissue.",
+    acts:[
+      {ico:"🔑", nm:"Sign in with Farcaster", ds:"Connect your account (in-client auto, or Sign In With Neynar on web). Unlocks the FID daily.", where:"Home · Mint · Balance", code:"signIn"},
+      {ico:"📖", nm:"Browse the Lexidex", ds:"Explore all 4,438 claimable words, their rarity tiers, and who owns what.", where:"Lexidex", code:"—"},
+      {ico:"❓", nm:"Open the FAQ / replay intro", ds:"How the whole thing works, replayable any time.", where:"FAQ", code:"—"},
+    ]},
+
+  { sec:"Prototype-only (debug — not real player actions)" },
+
+  { name:"Prototype controls", badge:"🧪", tag:"debug", color:"#6b6258", fg:"var(--paper)", span2:true, proto:true,
+    blurb:"Wired only so the mock is explorable end-to-end; these disappear on-chain.",
+    acts:[
+      {ico:"⏭️", nm:"Skip a day", ds:"Advance hunger one day and draw a fresh secret word + theme.", where:"Top bar", code:"skipDay"},
+      {ico:"🧪", nm:"Add demo $WORD", ds:"Top up the mock balance so every flow is testable.", where:"Balance", code:"addDemoBalance"},
+    ]},
+];
+
+const loopEl = document.getElementById("loop");
+LOOP.forEach((s,i)=>{
+  const chip = document.createElement("div");
+  chip.className="chip"; chip.style.background=s.color;
+  chip.innerHTML = `${s.name}<small>${s.sub}</small>`;
+  loopEl.appendChild(chip);
+  if(i<LOOP.length-1){const a=document.createElement("div");a.className="arrow";a.textContent="→";loopEl.appendChild(a);}
+});
+const rep=document.createElement("div");rep.className="repeat";rep.textContent="↺ repeat";loopEl.appendChild(rep);
+
+const grid = document.getElementById("grid");
+CLUSTERS.forEach(c=>{
+  if(c.sec){const l=document.createElement("div");l.className="seclabel";l.textContent=c.sec;grid.appendChild(l);return;}
+  const card=document.createElement("section");
+  card.className="cluster"+(c.span2?" span2":"")+(c.proto?" proto":"");
+  const dark = c.fg && c.fg.includes("paper");
+  card.innerHTML = `
+    <div class="chead" style="background:${c.color};color:${c.fg}">
+      <div class="row"><span class="badge">${c.badge}</span><h2>${c.name}</h2><span class="tag">${c.tag}</span></div>
+      <p class="blurb">${c.blurb}</p>
+    </div>
+    <div class="acts">${c.acts.map(a=>`
+      <div class="act">
+        <div class="ico">${a.ico}</div>
+        <div class="body">
+          <div class="nm">${a.nm}</div>
+          <div class="ds">${a.ds}</div>
+          <div class="meta">
+            ${a.where!=="passive"?`<span class="pill where">${a.where}</span>`:``}
+            ${a.code==="passive"?`<span class="pill passive">passive payout</span>`:(a.code!=="—"?`<span class="pill code">${a.code}()</span>`:``)}
+          </div>
+        </div>
+      </div>`).join("")}
+    </div>`;
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>

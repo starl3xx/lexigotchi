@@ -99,7 +99,7 @@ describe("rarity tiers (Appendix B)", () => {
     expect(LEGENDARIES.slice(0, 10)).toEqual(SPEC_LEGENDARIES.slice(0, 10));
   });
 
-  it("identifies all 8 doubled-ultra-rare grails", () => {
+  it("identifies all 8 doubled-ultra-rare crowns", () => {
     expect([...DOUBLED_ULTRA_RARES].sort()).toEqual(
       ["DIZZY", "FIZZY", "FUZZY", "JAZZY", "MEZZO", "PIZZA", "RAQQA", "XEROX"],
     );

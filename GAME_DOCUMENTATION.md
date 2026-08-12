@@ -37,7 +37,7 @@ Two renewable late-game loops sit on top: a **weekly theme bounty** (broad, casu
   total per-letter supply.
 - **Mint odds are demand-mirrored** (spec Appendix A): a letter's probability of being pulled equals
   its share of all letter slots in the dictionary. The dictionary has **22,190 slots** (= 5 × 4,438
-  words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the chase.
+  words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails.
 - **Per-letter supply caps** = `floor(slots × 2.5)` (the demand multiple). They sum to a global cap
   of **55,467 letters**. The sim shows all letters mint out around day 69 at scale; after that the
   durable economy runs on rolls + snacks, not minting.
@@ -114,7 +114,7 @@ score). Words are ranked ascending and cut at floor percentiles, with an alphabe
 | Legendary | top 1% | 45 | 8 |
 
 (The Uncommon/Rare boundary straddles a score tie; the combined 1,997 is the invariant.) **JAZZY** is
-the apex grail — the only word combining two distinct ultra-rares with a double letter.
+the apex crown — the only word combining two distinct ultra-rares with a double letter.
 
 ---
 

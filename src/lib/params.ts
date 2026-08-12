@@ -164,7 +164,7 @@ export interface Params {
     enabled: boolean;
     /** Daily probability a redeploy-motivated owner dissolves a dead low-tier all-lowercase word. */
     dailyProb: number;
-    /** Only dissolve at/below this tier rank (0=Common…4=Legendary) — nobody burns a grail. */
+    /** Only dissolve at/below this tier rank (0=Common…4=Legendary) — nobody burns a crown. */
     maxTierRank: number;
   };
 
@@ -308,7 +308,7 @@ export const DEFAULT_PARAMS: Params = {
   dissolution: {
     enabled: false,
     dailyProb: 0.05, // a redeploy-minded owner recycles a dead low-tier claim ~5%/day
-    maxTierRank: 1, // Common + Uncommon only — grails are never burned
+    maxTierRank: 1, // Common + Uncommon only — crowns are never burned
   },
   prestige: {
     enabled: false,

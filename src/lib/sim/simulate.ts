@@ -128,34 +128,34 @@ interface ArchetypeConfig {
   feedDiscipline: number; // prob of feeding each staked word
   churnPerDay: number;
   wantsUppercase: boolean; // pursues full-UPPERCASE staked words for yield
-  grailHunter: boolean; // prefers high-tier claims
+  crownHunter: boolean; // prefers high-tier claims
 }
 
 const ARCHETYPES: Record<Archetype, ArchetypeConfig> = {
   casual: {
     share: 0.5, dailyBudgetMean: 0.4, dailyBudgetSd: 0.25, fidProb: 0.9,
     packPropensity: 0.15, rollsPerDay: 0.2, claimsPerDay: 0.3, feedDiscipline: 0.6,
-    churnPerDay: 0.012, wantsUppercase: false, grailHunter: false,
+    churnPerDay: 0.012, wantsUppercase: false, crownHunter: false,
   },
   collector: {
     share: 0.25, dailyBudgetMean: 2.0, dailyBudgetSd: 1.0, fidProb: 0.85,
     packPropensity: 1.2, rollsPerDay: 0.6, claimsPerDay: 1.5, feedDiscipline: 0.85,
-    churnPerDay: 0.006, wantsUppercase: false, grailHunter: true,
+    churnPerDay: 0.006, wantsUppercase: false, crownHunter: true,
   },
   gambler: {
     share: 0.12, dailyBudgetMean: 2.5, dailyBudgetSd: 1.3, fidProb: 0.8,
     packPropensity: 0.9, rollsPerDay: 4, claimsPerDay: 0.8, feedDiscipline: 0.8,
-    churnPerDay: 0.008, wantsUppercase: true, grailHunter: false,
+    churnPerDay: 0.008, wantsUppercase: true, crownHunter: false,
   },
   staker: {
     share: 0.08, dailyBudgetMean: 2.2, dailyBudgetSd: 1.0, fidProb: 0.9,
     packPropensity: 0.8, rollsPerDay: 2.5, claimsPerDay: 1, feedDiscipline: 0.97,
-    churnPerDay: 0.003, wantsUppercase: true, grailHunter: false,
+    churnPerDay: 0.003, wantsUppercase: true, crownHunter: false,
   },
   whale: {
     share: 0.05, dailyBudgetMean: 15, dailyBudgetSd: 8, fidProb: 0.75,
     packPropensity: 4, rollsPerDay: 8, claimsPerDay: 3, feedDiscipline: 0.99,
-    churnPerDay: 0.002, wantsUppercase: true, grailHunter: true,
+    churnPerDay: 0.002, wantsUppercase: true, crownHunter: true,
   },
 };
 
@@ -306,7 +306,7 @@ function canSpell(info: WordInfo, inv: number[]): boolean {
 function findClaimable(
   player: Player,
   world: World,
-  grail: boolean,
+  crown: boolean,
   preferSet?: Set<string>,
 ): { word: string; upper: boolean } | null {
   claimGen++;
@@ -329,7 +329,7 @@ function findClaimable(
       if (upper === null) continue;
       // theme chase (lever: bounty): a matching claimable word wins immediately, over tier/first
       if (preferSet && preferSet.has(info.word)) return { word: info.word, upper };
-      if (!grail) {
+      if (!crown) {
         if (!preferSet) return { word: info.word, upper }; // first match (original behavior)
         if (!firstAny) firstAny = { word: info.word, upper }; // remember, keep scanning for a theme hit
         if (++checked > 64) return firstAny; // bound the extra theme scan
@@ -337,9 +337,9 @@ function findClaimable(
       }
       const tr = TIER_RANK[info.tier];
       if (!best || tr > best.tier) best = { word: info.word, upper, tier: tr };
-      if (++checked > 64) break; // bound grail search
+      if (++checked > 64) break; // bound crown search
     }
-    if (!grail && best) break;
+    if (!crown && best) break;
   }
   if (best) return { word: best.word, upper: best.upper };
   return firstAny;
@@ -484,7 +484,7 @@ function findNearest(player: Player, world: World, max: number): number[] | null
 
 /**
  * Dissolution — a VOLUNTARY redeploy act, not a consequence of neglect. Only *active* players who
- * chase better/UPPERCASE words (`wantsUppercase || grailHunter`) recycle a "dead" claim: a staked,
+ * chase better/UPPERCASE words (`wantsUppercase || crownHunter`) recycle a "dead" claim: a staked,
  * still-all-lowercase (never upgraded), low-tier word whose letters are worth more redeployed
  * than the word is worth held. Burning it returns the 5 letters to loose inventory and frees
  * the name back to the claimable pool (trophy persists in the registry — immaterial here).
@@ -503,7 +503,7 @@ function runDissolution(world: World, answer: string): void {
   for (const pl of world.players) {
     if (!pl.active) continue; // voluntary act — churned players don't recycle (matches runClearing)
     const cfg = ARCHETYPES[pl.archetype];
-    if (!cfg.wantsUppercase && !cfg.grailHunter) continue; // pure holders don't recycle
+    if (!cfg.wantsUppercase && !cfg.crownHunter) continue; // pure holders don't recycle
     for (const [word, w] of [...pl.words]) {
       if (word === answer) continue; // never recycle the day's live answer ticket (Bugbot #3)
       if (!w.staked) continue;
@@ -672,7 +672,7 @@ function playerTurn(player: Player, world: World, day: number): void {
   let claims = poisson(rng, cfg.claimsPerDay);
   while (claims-- > 0 && canSpend(p.prices.claim)) {
     const prefer = bountyOn && rng.chance(p.bounty.chaseProbability) ? themeSet! : undefined;
-    const found = findClaimable(player, world, cfg.grailHunter, prefer);
+    const found = findClaimable(player, world, cfg.crownHunter, prefer);
     if (!found) break;
     spend(p.prices.claim);
     world.ledger.route(p.prices.claim, p.splits.claim);
@@ -708,7 +708,7 @@ function playerTurn(player: Player, world: World, day: number): void {
     // REUSING this roll budget (conservative: no new assumed spend — post-completion these rolls
     // would otherwise hit a null target). Disabled ⇒ prestigeTarget is null ⇒ branch skipped ⇒ the
     // roll loop is byte-identical to baseline (no extra RNG draw).
-    const pTarget = cfg.wantsUppercase || cfg.grailHunter ? prestigeTarget(player, p) : null;
+    const pTarget = cfg.wantsUppercase || cfg.crownHunter ? prestigeTarget(player, p) : null;
     if (pTarget && canSpend(p.prestige.commitFeeUsd)) {
       spend(p.prestige.commitFeeUsd);
       world.ledger.route(p.prestige.commitFeeUsd, p.splits.prestige ?? p.splits.roll);

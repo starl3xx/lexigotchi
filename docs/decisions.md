@@ -334,7 +334,7 @@ word = one owner = just a second jackpot; a theme reaches the whole base).
   get ~0% of yield either way (no UPPERCASE words).
 - **Bounty reaches casuals** — the one bright result: **~18% of payouts go to casuals at the rw=1
   default (~21% flat)** (vs ~0% of yield), **~220 words eligible per period** (a broad share, not a
-  single-winner jackpot). **Collectors dominate (~64–72%)** — they're the high-claim grail hunters
+  single-winner jackpot). **Collectors dominate (~64–72%)** — they're the high-claim crown hunters
   holding the most matching words — so rarity weighting mostly redistributes *within* them, not away
   from casuals; the visible rarity lever is **whale share 4.4% (flat) → 8.8% (rarityWeight 2)**.
   `chaseProbability` 0.25→1.0 lifts casual bounty share 19.8%→25.4%. Net: rarity weighting costs only
