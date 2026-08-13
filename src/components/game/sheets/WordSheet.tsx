@@ -76,8 +76,18 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </Card>
       )}
 
+      {/* union-bag word held by a linked wallet — yours to admire, not to sign for. Every verb
+          below (stake, feed, roll, ascend, dissolve) acts on msg.sender's assets, so the sheet
+          says where it lives instead of offering buttons that would build guaranteed reverts. */}
+      {!word.mine && (
+        <Card className="mb-3 border-gold bg-gold/10 text-sm">
+          <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
+          It&apos;s part of your bag — connect that wallet to stake, feed, or raise it.
+        </Card>
+      )}
+
       {/* care */}
-      <div className="mb-3 grid grid-cols-2 gap-2">
+      <div className={`mb-3 grid grid-cols-2 gap-2 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
         <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.word)}>
           {word.staked ? "Unstake" : "Stake to earn"}
         </Button>
@@ -91,7 +101,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       </div>
 
       {/* raise letters */}
-      <Card className="mb-3">
+      <Card className={`mb-3 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display font-extrabold">Raise to UPPERCASE</span>
           <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · yield unlocks at 5/5</span>
@@ -122,7 +132,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
 
       {/* prestige */}
       {fullyRaised && (
-        <Card className="mb-3 bg-gradient-to-b from-paper to-gold/10">
+        <Card className={`mb-3 bg-gradient-to-b from-paper to-gold/10 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1 font-display font-extrabold">
@@ -168,8 +178,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </Card>
       )}
 
-      {/* dissolve */}
-      <div className="pt-1">
+      {/* dissolve — hidden entirely for a linked wallet's word (msg.sender-only, like the rest) */}
+      <div className={`pt-1 ${word.mine ? "" : "hidden"}`}>
         {confirmDissolve ? (
           <div className="flex items-center gap-2">
             <Button full variant="danger" onClick={() => g.dissolve(word.word)}>

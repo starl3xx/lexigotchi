@@ -4,7 +4,7 @@ import { useState } from "react";
 import { TileCharacter } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
-import { COST, charToIdx, fmtWord, idxToChar, useGame, type RollTarget } from "../state";
+import { COST, charToIdx, fmtWord, idxToChar, mineLower, useGame, type RollTarget } from "../state";
 
 type Phase = "ready" | "rolling" | "win" | "miss" | "stranded";
 
@@ -60,7 +60,8 @@ export function RollSheet({ target }: { target: RollTarget }) {
     window.setTimeout(() => setPhase(result ? "win" : "miss"), 850);
   };
 
-  const looseLeft = loose ? state.lower[target.idx] : 0;
+  // MINE, not the union — the roll commit checks msg.sender's balance of this letter.
+  const looseLeft = loose ? mineLower(state)[target.idx] : 0;
 
   return (
     <Sheet open onClose={close} title="Raise a letter">

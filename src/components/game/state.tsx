@@ -75,6 +75,13 @@ export interface OwnedWord {
   prestigeLevel: number;
   /** Consecutive failed ascension attempts on this word (the prestige pity streak). */
   prestigePity: number;
+  /**
+   * The union bag shows every linked wallet's words, but only the CONNECTED wallet can sign for
+   * its own — `mine` gates the verbs (stake/feed/roll/ascend/dissolve). Always true in the mock.
+   */
+  mine: boolean;
+  /** Where the word lives when it isn't the connected wallet's (lowercase address; chain only). */
+  holder?: string;
 }
 
 export type View =
@@ -120,8 +127,14 @@ export interface GameState {
   /** Human-readable cause when status is "error". */
   error?: string;
   balance: number; // $WORD
-  lower: number[]; // [26] counts
-  upper: number[]; // [26] counts
+  lower: number[]; // [26] counts — the UNION bag on chain (every linked wallet); mock = the one bag
+  upper: number[]; // [26] counts — same
+  /**
+   * The CONNECTED wallet's own counts — what claim/roll can actually spend. Chain-only; absent in
+   * the mock (whose one bag IS the connected wallet). Read via mineLower/mineUpper, never raw.
+   */
+  lowerMine?: number[];
+  upperMine?: number[];
   pity: number[]; // [26] loose-letter pity streak
   words: OwnedWord[];
   streak: number;
@@ -158,6 +171,14 @@ export function hunger(w: OwnedWord, p = DEFAULT_PARAMS): Hunger {
 export function jackpotEligible(w: OwnedWord): boolean {
   return w.staked && hunger(w) !== "hungry";
 }
+
+/**
+ * The letters the CONNECTED wallet can actually spend (claiming consumes them from msg.sender;
+ * rolls check msg.sender's balance). `lower`/`upper` are the DISPLAY union across linked wallets —
+ * spending against them would build transactions the contracts are guaranteed to revert.
+ */
+export const mineLower = (s: GameState): number[] => s.lowerMine ?? s.lower;
+export const mineUpper = (s: GameState): number[] => s.upperMine ?? s.upper;
 
 /** Bounty theme catalogue — mirrors src/lib/sim/simulate.ts THEMES. */
 export const THEMES: { name: string; short: string; test: (w: string) => boolean }[] = [
@@ -214,7 +235,7 @@ export function seedState(): GameState {
     staked: boolean,
     daysUnfed: number,
     prestigeLevel = 0,
-  ): OwnedWord => ({ word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0 });
+  ): OwnedWord => ({ word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0, mine: true });
 
   const F = false;
   const T = true;
@@ -366,6 +387,7 @@ export function reducer(s: GameState, a: Action): GameState {
         daysUnfed: 0,
         prestigeLevel: 0,
         prestigePity: 0,
+        mine: true,
       };
       return {
         ...s,

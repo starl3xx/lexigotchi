@@ -149,6 +149,22 @@ export interface PlayerState {
 const LETTER_IDS = Array.from({ length: 52 }, (_, i) => BigInt(i));
 
 /**
+ * Just the 52 letter balances for one wallet — the light read the union bag runs per LINKED
+ * wallet. readPlayerState carries allowances/approvals/snack state too, which only make sense for
+ * the CONNECTED wallet (they gate its transactions); fetching all that per linked wallet would be
+ * waste with a misleading shape.
+ */
+export async function readLetterCounts(player: `0x${string}`): Promise<number[]> {
+  const batch = (await getPublicClient().readContract({
+    address: addressOf("letters"),
+    abi: lettersAbi,
+    functionName: "balanceOfBatch",
+    args: [LETTER_IDS.map(() => player), LETTER_IDS],
+  })) as unknown as bigint[];
+  return batch.map(Number);
+}
+
+/**
  * Everything about one player, from one block.
  *
  * Letter balances come from a single `balanceOfBatch`, which also happens to be the only correct

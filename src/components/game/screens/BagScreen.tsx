@@ -5,7 +5,7 @@ import { Button, EmptyState, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
-import { idxToChar, useGame } from "../state";
+import { idxToChar, useGame, mineLower, mineUpper } from "../state";
 
 export function BagScreen() {
   const g = useGame();
@@ -16,6 +16,12 @@ export function BagScreen() {
   const upperOwned = state.upper.map((c, i) => ({ i, c })).filter((x) => x.c > 0);
   const lowerCount = state.lower.reduce((a, b) => a + b, 0);
   const upperCount = state.upper.reduce((a, b) => a + b, 0);
+
+  // The union bag counts everything the player's linked wallets hold; the difference from the
+  // connected wallet's own counts is what spelling/rolling can't touch from here.
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  const elsewhere =
+    lowerCount + upperCount - (sum(mineLower(state)) + sum(mineUpper(state)));
 
   return (
     <div className="space-y-3">
@@ -30,6 +36,12 @@ export function BagScreen() {
 
       {tab === "letters" ? (
         <div className="space-y-4">
+          {elsewhere > 0 && (
+            <p className="text-xs text-ink/55">
+              {elsewhere} of these live in your linked wallets — they count in your bag, but
+              spelling and rolling use the connected wallet&apos;s letters.
+            </p>
+          )}
           <div>
             <SectionTitle action={<span className="text-xs text-ink/55">tap to raise →</span>}>
               lowercase · {lowerCount}
