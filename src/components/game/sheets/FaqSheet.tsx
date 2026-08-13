@@ -205,6 +205,21 @@ function useFaq(): { q: string; a: ReactNode }[] {
       ),
     },
     {
+      q: "I play on web AND in the Farcaster app — is my bag shared?",
+      a: (
+        <>
+          Yes — your bag is <strong>one collection per person</strong>: everything held by your
+          connected wallet plus every wallet your <strong>Farcaster account has verified</strong>,
+          shown together wherever you play. Two details: letters always <strong>mint to the
+          wallet that&apos;s connected</strong>, and actions (spelling, rolling, staking, feeding)
+          need the wallet that holds the piece. So if you play on the web with a wallet your
+          account hasn&apos;t verified, those letters won&apos;t appear in the Farcaster app — the
+          fix is to <strong>verify that wallet</strong> (Warpcast → Settings → Verified addresses)
+          and your whole bag folds together, instantly and retroactively.
+        </>
+      ),
+    },
+    {
       q: "Do I need a Farcaster account?",
       a: (
         <>

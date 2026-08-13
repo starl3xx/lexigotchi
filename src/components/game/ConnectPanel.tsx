@@ -67,7 +67,7 @@ export function ConnectPanel() {
         tag="required"
         done={isConnected}
         doneLabel={shortAddr(address)}
-        blurb="Your letters and words live in it — the game can't start without one. On Farcaster? Use a wallet linked to your account, so you keep one bag everywhere."
+        blurb="Your letters and words live in it — the game can't start without one. On Farcaster? Use a verified wallet (or verify this one later in Warpcast) to keep one bag everywhere."
       >
         {hasBase && (
           // Hand-rolled in Base's brand (their premade button accepts no styling — props are
