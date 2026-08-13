@@ -117,10 +117,15 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
       <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
-        {/* clip-path, not just overflow-hidden: the sheet's backdrop-blur header and scroll body are
-            composited GPU layers, and Chromium lets those escape a rounded overflow clip — the sheet's
-            corners visibly poked past the device frame. clip-path clips composited children too. */}
-        <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000] sm:[clip-path:inset(0_round_2.4rem)]">
+        {/* Two-layer clip. The sheet's backdrop-blur header and scroll body are composited GPU
+            layers, and Chromium lets those escape a rounded overflow clip — so a clip-path is
+            required. But clip-path on the BORDERED element clips at the border box (radius
+            2.4rem), letting content paint over the 6px border ring at the corners — the second
+            corner artifact. So: the outer div owns border/radius/shadow, and an INNER wrapper
+            carries the clip at the padding-box radius (2.4rem − 6px ≈ 2.025rem), which composited
+            children cannot escape and which never touches the border. */}
+        <div className="relative h-full w-full max-w-[430px] bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000]">
+        <div className="relative flex h-full w-full flex-col overflow-hidden sm:rounded-[2.025rem] sm:[clip-path:inset(0_round_2.025rem)]">
           {/* faint aged-paper grain */}
           <div
             className="pointer-events-none absolute inset-0 opacity-60"
@@ -144,6 +149,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
               fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
           <WebSignInHost />
           {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
+        </div>
         </div>
       </div>
     </IconContext.Provider>
