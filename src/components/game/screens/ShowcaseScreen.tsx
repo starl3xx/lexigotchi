@@ -7,6 +7,11 @@ import { TileCharacter } from "../TileCharacter";
 import { Basket, ShareNetwork } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
 import { useShare } from "../useShare";
+import { useEffect, useState as useState2 } from "react";
+import { useAccount } from "wagmi";
+import { useViewer } from "../useViewer";
+import { ACHIEVEMENT_META } from "@/lib/keeper/achievements";
+import { bagWalletsOf } from "@/lib/onchain/unionBag";
 
 interface Slot {
   idx: number;
@@ -17,6 +22,21 @@ export function ShowcaseScreen() {
   const g = useGame();
   const { state } = g;
   const share = useShare();
+  const { address } = useAccount();
+  const viewer = useViewer();
+  // On-chain badges (EAS attestations for the whole bag). Empty is a fine answer; the section
+  // hides until something is earned.
+  const [badges, setBadges] = useState2<{ achievement: number; value: number }[]>([]);
+  useEffect(() => {
+    if (!state.chainBacked || !address) return;
+    const bag = bagWalletsOf(address, viewer.linkedWallets);
+    let dead = false;
+    void fetch(`/api/achievements?wallets=${bag.join(",")}`)
+      .then((r) => r.json())
+      .then((d) => { if (!dead && d?.ok) setBadges(d.achievements); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [state.chainBacked, address, viewer.linkedWallets]);
   const [rack, setRack] = useState<Slot[]>([]); // start empty — the player arranges letters they own
 
   const showcaseText = rack.map((s) => (s.upper ? idxToChar(s.idx) : idxToChar(s.idx).toLowerCase())).join("");
@@ -41,6 +61,21 @@ export function ShowcaseScreen() {
         <h1 className="font-display text-2xl font-extrabold">Showcase</h1>
         <p className="text-sm text-ink/60">Any letters, any order — no dictionary check. The flex that grows the game.</p>
       </div>
+
+      {badges.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {badges.map((b) => {
+            const meta = ACHIEVEMENT_META[b.achievement];
+            if (!meta) return null;
+            return (
+              <span key={b.achievement} className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold/15 px-2.5 py-1 text-xs font-bold" title="On-chain achievement (EAS attestation)">
+                {meta.emoji} {meta.name}
+                {b.achievement === 3 && b.value ? ` ${b.value}%` : ""}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* stage */}
       <Card className="bg-paper-dark/30">

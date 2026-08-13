@@ -23,5 +23,6 @@
   "yieldDistributor": "0x2734264697dc6F8A11A2D8b756Cb23A088fd68ad",
   "bounty": "0xBe06aECeF1E72B9eA48f303f70261ec1601FE817"
  },
- "_jackpotNote": "Jackpot redeployed 2026-08-13 (once-per-UTC-day resolve guard; lastResolvedDay now stores the real epoch-day). Old: 0xeBFf3F598fA3a1f041F9b3D85cA7B017848100fa \u2014 unwired from FeeRouter.setPayers and AnswerChain.setKeeper, dead."
+ "_jackpotNote": "Jackpot redeployed 2026-08-13 (once-per-UTC-day resolve guard; lastResolvedDay now stores the real epoch-day). Old: 0xeBFf3F598fA3a1f041F9b3D85cA7B017848100fa \u2014 unwired from FeeRouter.setPayers and AnswerChain.setKeeper, dead.",
+ "easAchievementsSchema": "0x6db0014788aac7bfd20d8e8a434aab51cd583466b2cc6f6cd8a83d0e3767293b"
 }
