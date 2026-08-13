@@ -154,11 +154,30 @@ export function BalanceSheet() {
           )}
         </div>
       ) : viewer.environment === "web" ? (
-        <Card className="mb-3 flex items-center justify-between bg-paper-dark/30">
-          <span className="text-sm text-ink/70">Not on Farcaster?</span>
-          <Button variant="teal" onClick={viewer.signIn}>
-            <Smiley weight="fill" /> Sign in
-          </Button>
+        // Signed out on the web. The old card just said "Not on Farcaster?" — with a wallet already
+        // connected that read as "something is missing", when the truth is two-part: the wallet is
+        // DONE (buy, hold, play), and identity is the optional upgrade that unlocks the daily.
+        <Card className="mb-3 bg-paper-dark/30">
+          {address && (
+            <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-teal">
+              <Check weight="bold" size={15} /> Wallet connected
+              <span className="font-mono text-xs font-normal text-ink/55">{short(address)}</span>
+              <span className="ml-auto text-xs font-normal text-ink/55">buy · hold · play</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-ink/70">
+              Want the <strong>free daily letter</strong>? Sign in — or use a Coinbase-verified wallet.
+            </span>
+            <button
+              onClick={viewer.signIn}
+              className="cel flex shrink-0 items-center gap-1.5 rounded-xl bg-[#855DCD] px-3 py-2 text-sm font-extrabold text-white"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/fc-arch-icon.png" alt="" className="h-3 w-auto" />
+              Sign in
+            </button>
+          </div>
         </Card>
       ) : null}
 

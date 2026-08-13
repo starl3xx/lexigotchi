@@ -116,7 +116,10 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
       <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
-        <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000]">
+        {/* clip-path, not just overflow-hidden: the sheet's backdrop-blur header and scroll body are
+            composited GPU layers, and Chromium lets those escape a rounded overflow clip — the sheet's
+            corners visibly poked past the device frame. clip-path clips composited children too. */}
+        <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000] sm:[clip-path:inset(0_round_2.4rem)]">
           {/* faint aged-paper grain */}
           <div
             className="pointer-events-none absolute inset-0 opacity-60"
