@@ -222,8 +222,35 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // predate a deploy.
       return `${what} needs a Farcaster sign-in — tap Connect to sign in`;
     }
+    if (code === "rate_limited") return `Too many tries — give it a moment, then tap ${what} again`;
     return `${what} unavailable: ${code ?? "unknown"}`;
   }, []);
+
+  /**
+   * The free pack's own refusals, which are mostly NOT errors — they are the campaign telling the
+   * player what they still have to do. Routing them through `authError` printed the wire code
+   * ("Pack unavailable: share_required"), which names the rule without naming the action.
+   */
+  const packError = useCallback(
+    (code?: string) => {
+      switch (code) {
+        case "add_required":
+          return "Add Lexigotchi first — that's step one of earning the free pack";
+        case "share_required":
+          return "Share your cast to unlock the free pack";
+        case "eligibility_unavailable":
+          // Configured-but-unreachable campaign DB. Nothing was spent and nothing was lost.
+          return "Can't check your free pack right now — try again in a minute";
+        case "already_claimed":
+          return "You've already opened your free pack";
+        case "campaign_closed":
+          return "The free-pack campaign has ended";
+        default:
+          return authError(code, "Pack");
+      }
+    },
+    [authError],
+  );
 
   const dailyError = useCallback(
     (code?: string) =>
@@ -321,7 +348,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!address) return void toast("Connect a wallet first", "bad");
 
           const res = await postJson<{ voucher: PackVoucher }>("/api/mint/free-pack", { wallet: address });
-          if (!res?.ok) return void toast(authError(res?.error, "Pack"), "bad");
+          if (!res?.ok) return void toast(packError(res?.error), "bad");
 
           // Snapshot what was already outstanding so the new commit can be told apart from a
           // previously stranded one.
@@ -486,7 +513,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
     }),
-    [state, chain, address, run, toast, postJson, authError, dailyError, finishLetterCommit, finishRoll, guarded],
+    [state, chain, address, run, toast, postJson, authError, dailyError, packError, finishLetterCommit, finishRoll, guarded],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
