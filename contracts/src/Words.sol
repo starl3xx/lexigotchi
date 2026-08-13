@@ -142,6 +142,12 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         emit Dissolved(tokenId, msg.sender, word_);
     }
 
+    /// @notice ERC-4906: tells metadata cachers (marketplaces, indexers) that `tokenId`'s
+    ///         appearance changed. Words are DYNAMIC — letters get raised to UPPERCASE and the
+    ///         gild deepens with prestige — and without this event a raised word keeps its stale
+    ///         lowercase render everywhere tokenURI was cached. (Jake, 2026-08-13.)
+    event MetadataUpdate(uint256 _tokenId);
+
     // --- escrow mutation (rolls / prestige) -------------------------------------------------------
 
     /// @inheritdoc IWords
@@ -154,6 +160,7 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         letters.upgrade(address(this), e.letters[pos]); // burns lowercase, mints uppercase into escrow
         e.upperMask |= uint8(1 << pos);
         emit Upgraded(tokenId, pos, e.letters[pos]);
+        emit MetadataUpdate(tokenId); // ERC-4906 — the word looks different now
     }
 
     /// @inheritdoc IWords
@@ -163,6 +170,7 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         uint8 lvl = prestigeLevel[tokenId] + 1;
         prestigeLevel[tokenId] = lvl;
         emit PrestigeBumped(tokenId, lvl);
+        emit MetadataUpdate(tokenId); // ERC-4906 — gilding deepened
     }
 
     // --- views ------------------------------------------------------------------------------------
@@ -259,6 +267,7 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         override(ERC721, ERC1155Holder, ERC2981, IERC165)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        // 0x49064906 = ERC-4906 (metadata update events) — cachers probe this before subscribing.
+        return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
     }
 }
