@@ -47,12 +47,16 @@ import { FaqSheet } from "./sheets/FaqSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { AddAppHost } from "./AddAppHost";
 import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, Smiley, Sparkle, Trophy } from "./ui/icons";
+import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
 // dismissed an older version see the new one once (v2 added the "Roll to upgrade" step).
 const ONBOARDED_KEY = "lexigotchi:onboarded:v2";
 
 export function GameApp() {
+  // Live $WORD peg — mounted HERE, above every screen, so the re-render on oracle arrival repaints
+  // all USD numbers at once (a lower mount could show two peg readings side by side).
+  useWordPrice();
   // Pre-launch campaign: short-circuit the whole game and run the "add the app + share a cast →
   // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
   // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.

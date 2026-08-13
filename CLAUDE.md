@@ -52,7 +52,12 @@ The game is the front door: `/` redirects to **`/play`**.
   (`reconcileShares` in `queries.ts`, gated by `users.share_attempted_at`, set on a verify-cast miss).
   The campaign's eligibility backstop so nobody who shared is dropped.
 - `src/lib/params.ts` → the **only** place to tune economics (prices/splits/odds/pity/hunger).
-  Prices are placeholders; mechanics are v0.2-decided.
+  Prices are placeholders; mechanics are v0.2-decided. `WORD_USD_PRICE` is now the **fallback**
+  peg only — the live price comes from `src/lib/oracle/wordPrice.ts` (GeckoTerminal token
+  endpoint, 60s cache) via `/api/oracle/word`, pushed into params' **call-time peg cell**
+  (`currentWordUsd`/`setLiveWordUsd`, mounted via `useWordPrice` in GameApp + AdminConsole).
+  USD↔$WORD conversions read the cell at call time; the **sim stays on the constant** for
+  determinism. Never let the cell feed the sim.
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.

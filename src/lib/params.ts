@@ -16,15 +16,37 @@
 import { DEMAND_MULTIPLE } from "./economy";
 
 /**
- * Live $WORD price, USD. Source: WORD/WETH pool on Base (`0xc5db…a275`), via GeckoTerminal as of
- * 2026-06-11 — price ~$2.3569e-7, liquidity ~$21.2K, FDV ~$23.5K, 24h volume ~$0 (dormant
- * micro-cap, paired with WETH). The peg input the multisig updates.
+ * FALLBACK $WORD price, USD — a GeckoTerminal snapshot of the WORD/WETH pool on Base
+ * (`0xc5db…a275`) as of 2026-06-11: price ~$2.3569e-7, liquidity ~$21.2K, FDV ~$23.5K.
+ *
+ * The LIVE price comes from `src/lib/oracle/wordPrice.ts` (GeckoTerminal's token endpoint) and is
+ * pushed into the peg cell below. This constant remains as (a) the seed before any fetch lands,
+ * (b) the answer when GeckoTerminal is unreachable, and (c) the SIM's input — the sim stays on the
+ * constant deliberately, so runs are deterministic and comparable across days.
  */
 export const WORD_USD_PRICE = 0.00000023569;
-/** $WORD per $1 (≈ 4.22M at the current price). */
+/** $WORD per $1 (≈ 4.22M at the fallback price). */
 export const WORD_PER_USD = 1 / WORD_USD_PRICE;
+
+/**
+ * The live peg cell. Defaults in `priceWord` / `usdToWord*` read it AT CALL TIME, which is what
+ * upgrades every USD↔$WORD conversion in the app and the admin the moment the oracle answers —
+ * no call-site changes. Module-level constants (the sim, the mock store's COST table) evaluate at
+ * import and stay on the fallback, which is the intended split: displays and operator tx-building
+ * follow the market; deterministic models don't.
+ */
+let liveWordUsd = WORD_USD_PRICE;
+/** Current peg: the oracle's price once fetched, the fallback constant before/without it. */
+export function currentWordUsd(): number {
+  return liveWordUsd;
+}
+/** Guarded: a NaN/zero/negative peg would mis-size every conversion, so garbage is ignored. */
+export function setLiveWordUsd(priceUsd: number): void {
+  if (Number.isFinite(priceUsd) && priceUsd > 0) liveWordUsd = priceUsd;
+}
+
 /** Convert a USD price target to the $WORD amount to set on-chain at a given peg. */
-export function priceWord(usd: number, wordUsd: number = WORD_USD_PRICE): number {
+export function priceWord(usd: number, wordUsd: number = currentWordUsd()): number {
   return usd / wordUsd;
 }
 
