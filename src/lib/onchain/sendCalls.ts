@@ -14,6 +14,21 @@
 import { builderCapabilities, appendBuilderSuffix } from "./builderCode";
 import { NETWORK } from "./network";
 
+/**
+ * ERC-7677 gas sponsorship, advertised via the ERC-5792 `paymasterService` capability.
+ *
+ * The URL is OUR /api/paymaster proxy (the CDP endpoint behind it embeds an API key and stays
+ * server-side). `optional: true` is load-bearing: wallets that don't speak 7677 must ignore the
+ * capability and fall through to user-paid gas, never reject the send. Toggled by
+ * NEXT_PUBLIC_PAYMASTER_ENABLED so a missing CDP setup degrades to exactly today's behavior.
+ * Read at call time (not module scope) so tests can flip it.
+ */
+export function paymasterCapability(): Record<string, unknown> {
+  if (process.env.NEXT_PUBLIC_PAYMASTER_ENABLED !== "1") return {};
+  if (typeof window === "undefined") return {};
+  return { paymasterService: { url: `${window.location.origin}/api/paymaster`, optional: true } };
+}
+
 /** The active chain (see ./network — Base mainnet unless NEXT_PUBLIC_CHAIN_ID says otherwise). */
 export const CHAIN_ID = NETWORK.id;
 export const CHAIN_ID_HEX = NETWORK.idHex;
@@ -109,7 +124,7 @@ export async function sendCallsAttributed(
           chainId: CHAIN_ID_HEX,
           atomicRequired: false,
           calls: calls.map((c) => ({ to: c.to, data: c.data ?? "0x", value: c.value })),
-          capabilities: builderCapabilities(),
+          capabilities: builderCapabilities(paymasterCapability()),
         },
       ],
     });
