@@ -45,7 +45,7 @@ export function ConnectPanel() {
     <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-paper p-5">
       <div className="text-center font-display text-lg font-extrabold">Get set up</div>
       <p className="mt-1 text-center text-sm text-ink/60">
-        A wallet holds your letters. Farcaster unlocks the free daily.
+        A wallet holds your letters. Farcaster — or a Coinbase-verified wallet — unlocks the free daily.
       </p>
 
       <div className="mt-5 flex flex-col gap-3">
@@ -85,7 +85,7 @@ export function ConnectPanel() {
         <Option
           done={viewer.isAuthed}
           doneLabel={viewer.username ? `@${viewer.username}` : viewer.fid ? `fid ${viewer.fid}` : ""}
-          caption="Unlocks the free daily letter — one per account, not per wallet."
+          caption="Unlocks the free daily — one per account. No Farcaster? A Coinbase-verified wallet works too."
         >
           <button
             onClick={viewer.signIn}

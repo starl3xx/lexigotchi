@@ -50,7 +50,7 @@ Most common → rarest letter order: **S E A … J Q**.
 
 | Path | Cadence | Price (USD target) | Notes |
 |---|---|---|---|
-| **Daily single** | 1 per Farcaster **FID** per UTC day | **Free** | The zero-friction habit loop. Requires an FID (off-chain Quick-Auth/Sybil gate → a backend-signed allowance). |
+| **Daily single** | 1 per identity per UTC day — a Farcaster **FID**, or a **Coinbase-verified wallet** (EAS attestation, KYC-backed) | **Free** | The zero-friction habit loop. Both identities resolve off-chain (Quick-Auth JWT / mainnet attestation read) into a backend-signed allowance; verified wallets use a disjoint `2^160 + address` key namespace in the same on-chain gate. |
 | **Pack of 5** | Unlimited, anytime | **$1.00** (~4.22M $WORD) | The volume loop. $0.20/letter — the only paid mint path (the daily single is free). |
 
 - **Payment:** **$WORD-only at launch** — ETH-only players buy $WORD first (the in-app swap +

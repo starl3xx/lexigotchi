@@ -81,6 +81,17 @@ showed; only the *decisions* changed.
 
 1. **Daily mint — FREE, FID-gated**, claimable in Farcaster clients AND the Base App (`base:app_id`
    meta shipped). The FID is the only Sybil gate; never an ungated wallet daily.
+   **AMENDED 2026-08-12 — verified-wallet daily added** (Jake's ruling). Two premises broke: Base
+   App dropped Farcaster/FID identity on 2026-04-09 (pure Base App users could not claim at all),
+   and a fresh FID costs ~$0.30 scriptable — a speed bump, not a wall. The daily is now gated on
+   **FID OR a Coinbase Verified Account** (EAS attestation on Base mainnet, KYC-backed, checked
+   server-side; `src/lib/onchain/verifications.ts`). Verified wallets use synthetic keys
+   `2^160 | address` in the same on-chain `dailyUsed` mapping — zero contract changes, audited
+   before build (the contract never interprets the key). Never an *unverified* wallet daily.
+   Known ceiling, accepted: one Coinbase account can attest ~3 addresses, so a maximally-equipped
+   human = up to 4 dailies/day (1 FID + 3 attested wallets), each behind KYC. Upgrade path: Base
+   Verify's per-consumer `identityHash` (strict one-human-one-claim) once access is granted —
+   applied via their interest form.
 2. **Campaign airdrop — claim-on-first-open**: the eligible player connects and the signer mints a
    one-time 5-pack voucher to their own wallet (idempotent vs `pack_grants`). No FID→address
    resolution, no gas on no-shows.

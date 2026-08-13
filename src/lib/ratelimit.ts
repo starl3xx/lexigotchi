@@ -11,7 +11,14 @@ import { Ratelimit } from "@upstash/ratelimit";
 import type { Redis } from "@upstash/redis";
 import { getRedis } from "./redis";
 
-export type RateKind = "verify-cast" | "record-add" | "onboarded" | "status" | "auth-nonce" | "auth-verify";
+export type RateKind =
+  | "verify-cast"
+  | "record-add"
+  | "onboarded"
+  | "status"
+  | "auth-nonce"
+  | "auth-verify"
+  | "verify-status";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -32,6 +39,10 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "5 m"), prefix: "rl:auth:nonce" });
     case "auth-verify":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "5 m"), prefix: "rl:auth:verify" });
+    // Attestation lookups, keyed by IP — pre-auth like the sign-in routes, but each hit costs two
+    // reads against the mainnet RPC, so it gets the same tight posture.
+    case "verify-status":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "5 m"), prefix: "rl:verify:status" });
   }
 }
 

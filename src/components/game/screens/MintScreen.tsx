@@ -5,12 +5,12 @@ import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
 import { COST, fmtUsd, fmtWord, useGame } from "../state";
-import { useViewer } from "../useViewer";
+import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 
 export function MintScreen() {
   const g = useGame();
   const { state } = g;
-  const viewer = useViewer();
+  const daily = useDailyEligibility();
   const common = LETTERS_BY_FREQUENCY.slice(0, 5);
   const rare = LETTERS_BY_FREQUENCY.slice(-5);
 
@@ -33,16 +33,10 @@ export function MintScreen() {
             </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
           </div>
-        ) : !viewer.isAuthed ? (
-          // The daily single is gated on a Farcaster FID (v0.2 §5.3) — web players sign in to unlock it.
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">
-              {viewer.environment === "loading" ? "Checking your Farcaster…" : "Connect Farcaster to unlock the FID daily."}
-            </span>
-            <Button variant="teal" disabled={viewer.environment === "loading"} onClick={viewer.signIn}>
-              <Ticket weight="fill" /> Connect
-            </Button>
-          </div>
+        ) : !daily.eligible ? (
+          // Locked. Two identities open it — Farcaster, or a Coinbase-verified wallet — and the
+          // shared DailyUnlock is the one place that offers both, so Home and Mint can't drift.
+          <DailyUnlock />
         ) : (
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-ink/70">One free letter, on the house — every day.</span>

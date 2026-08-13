@@ -18,12 +18,12 @@ import {
   Trophy,
 } from "../ui/icons";
 import { COST, THEMES, fmtWord, hunger, jackpotEligible, useGame, type View } from "../state";
-import { useViewer } from "../useViewer";
+import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 
 export function HomeScreen() {
   const g = useGame();
   const { state } = g;
-  const viewer = useViewer();
+  const daily = useDailyEligibility();
   const needFood = state.words.filter((w) => w.staked && hunger(w) !== "fed");
   const ownsAnswer = state.words.find((w) => w.word === state.jackpotWord);
   const theme = THEMES[state.bountyTheme];
@@ -95,21 +95,11 @@ export function HomeScreen() {
             </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
           </div>
-        ) : !viewer.isAuthed ? (
-          // The daily single is FID-gated (v0.2 §5.3) — mirror the Mint screen so a signed-out web
-          // player can't claim it (and bump their streak) from here. Inside a Farcaster client the
-          // viewer is auto-authed, so this branch never shows.
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm text-ink/70">
-              One free letter a day — the daily is FID-gated.
-              <div className="text-xs text-ink/50">
-                {viewer.environment === "loading" ? "Checking your Farcaster…" : "Connect Farcaster to unlock it."}
-              </div>
-            </div>
-            <Button variant="teal" disabled={viewer.environment === "loading"} onClick={viewer.signIn}>
-              <Ticket weight="fill" /> Connect
-            </Button>
-          </div>
+        ) : !daily.eligible ? (
+          // Locked — a signed-out web player can't claim it (and bump their streak) from here.
+          // The shared DailyUnlock offers both identities: Farcaster, or a Coinbase-verified
+          // wallet. Inside a Farcaster client the viewer is auto-authed, so this never shows.
+          <DailyUnlock />
         ) : (
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-ink/70">

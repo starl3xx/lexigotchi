@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { allow } from "@/lib/ratelimit";
+import { clientIp } from "@/lib/auth/clientIp";
 import { addressOf } from "@/lib/onchain/addresses";
 import { lettersRevealDigest } from "@/lib/onchain/digests";
 import { signDigest, drawLetters } from "@/lib/onchain/signer";
@@ -23,12 +24,17 @@ export const runtime = "nodejs";
  * the reveal is permissionless and the signer picks the outcome, so a sampler that rolled fresh each
  * call would let a player re-request until they liked their pack.
  *
+ * AUTH IS OPTIONAL, deliberately. Those two properties — buyer-bound signature, idempotent draw —
+ * mean this endpoint hands out nothing a caller can spend or reroll; the FID was only ever a
+ * rate-limit key. Requiring it anyway would strand the verified-wallet daily (Coinbase-attested
+ * players have no Farcaster JWT) with the letter already paid for on-chain. Anonymous callers are
+ * bucketed by IP instead.
+ *
  * Body: `{ commitId: "123" }`
  */
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
-  if (!fid) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  if (!(await allow("record-add", fid)))
+  if (!(await allow("record-add", fid ?? clientIp(req))))
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let commitIdRaw: string | undefined;

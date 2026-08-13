@@ -96,8 +96,13 @@ The game is the front door: `/` redirects to **`/play`**.
 
 ## v0.2 mechanics (the ones easy to get wrong)
 
-- Mints are **100% lowercase**; uppercase exists **only** via rolls. Daily single (FID-gated)
-  + packs of 5. ETH accepted via auto-swap → all accounting in $WORD.
+- Mints are **100% lowercase**; uppercase exists **only** via rolls. Daily single is gated on
+  **either** a Farcaster FID **or** a Coinbase-Verified wallet (EAS attestation on Base mainnet,
+  checked server-side — `src/lib/onchain/verifications.ts`). Verified wallets get synthetic daily
+  keys `2^160 | uint160(address)` — **always bigint, never a JS number** — in the same on-chain
+  `dailyUsed` mapping (the contract never interprets the key; the namespace offset is what keeps
+  synthetic keys from spending real FIDs' slots). Packs of 5 for everyone. ETH accepted via
+  auto-swap → all accounting in $WORD.
 - Rolls: **45% base, +10pp pity, cap 85%**, reset on success. Pity per `(owner, letterId)`.
   Failure never burns/downgrades the asset.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
