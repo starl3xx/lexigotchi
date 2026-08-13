@@ -1,7 +1,8 @@
 "use client";
 /**
  * Your $WORD — balance + buy + wallet connect. Models the Let's Have A Word! integration:
- * "Buy $WORD" opens the Farcaster native swap (sdk.actions.viewToken) and falls back to the
+ * "Buy $WORD" opens the Farcaster native swap MODAL (sdk.actions.swapToken, USDC→WORD
+ * pre-populated) and falls back to the
  * clanker.world token page on the web — Clanker's own swap UI for this exact token (it routes
  * the v4 hooked pool with no unlisted-token import warning; DexScreener was a chart, not a
  * swap). When the sheet was opened from a price-blocked action (`need`), a shortfall banner
@@ -20,7 +21,12 @@ const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Bas
 // funnel: it points a wallet at the real $WORD token and Clanker's swap page, both of which exist
 // only on mainnet. On a testnet build it would otherwise offer to add an asset that isn't there.
 const CAIP_WORD = `eip155:8453/erc20:${WORD_TOKEN}`;
-const BUY_URL = `https://www.clanker.world/clanker/${WORD_TOKEN}`; // Clanker's swap page for $WORD
+/** USDC on Base — the default sell side of the pre-populated swap. */
+const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+const CAIP_USDC = `eip155:8453/erc20:${USDC}`;
+// Matcha's swap page, USDC→WORD pre-populated — it routes the v4 hooked pool and aggregates
+// anything else that lists, which Clanker's single-pool page (the old target) can't.
+const BUY_URL = `https://matcha.xyz/tokens/base/${WORD_TOKEN}?buyAddress=${WORD_TOKEN}&buyChain=8453&sellAddress=${USDC}&sellChain=8453`;
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const openBuy = () => window.open(BUY_URL, "_blank", "noopener,noreferrer");
 
@@ -84,9 +90,16 @@ export function BalanceSheet() {
     }
     try {
       const sdk = (await import("@farcaster/miniapp-sdk")).default;
-      await sdk.actions.viewToken({ token: CAIP_WORD }); // Farcaster native swap UI
+      // The actual swap MODAL, USDC→WORD pre-populated — viewToken (the old call) lands on the
+      // token page and makes the player find the swap themselves.
+      await sdk.actions.swapToken({ sellToken: CAIP_USDC, buyToken: CAIP_WORD });
     } catch {
-      openBuy();
+      try {
+        const sdk = (await import("@farcaster/miniapp-sdk")).default;
+        await sdk.actions.viewToken({ token: CAIP_WORD }); // older hosts: at least the token page
+      } catch {
+        openBuy();
+      }
     }
   };
 
