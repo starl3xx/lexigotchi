@@ -30,6 +30,13 @@ export interface Viewer {
   displayName: string | null;
   isAuthed: boolean;
   environment: Environment;
+  /**
+   * The wallets Farcaster links to this account (custody + verified, lowercase) — null until the
+   * profile resolves, and always null inside a Farcaster host (the connected wallet there IS a
+   * linked one). Lets the web UI warn when letters are about to mint into an unlinked wallet and
+   * fork the player's bag across contexts.
+   */
+  linkedWallets: string[] | null;
   /** Start Sign In With Farcaster (web only; a no-op inside a Farcaster client). */
   signIn: () => void;
   signOut: () => void;
@@ -87,6 +94,7 @@ export function useViewer(): Viewer {
       displayName: ctxUser.displayName ?? ctxUser.username ?? null,
       isAuthed: true,
       environment: "farcaster",
+      linkedWallets: null, // in-host the connected wallet is a linked one by construction
       signIn,
       signOut,
     };
@@ -102,6 +110,7 @@ export function useViewer(): Viewer {
       displayName: profile?.displayName ?? profile?.username ?? `fid ${session.fid}`,
       isAuthed: true,
       environment: "web",
+      linkedWallets: profile?.linkedWallets ?? null,
       signIn,
       signOut,
     };
@@ -114,6 +123,7 @@ export function useViewer(): Viewer {
     displayName: null,
     isAuthed: false,
     environment: mini.isSDKLoaded ? "web" : "loading",
+    linkedWallets: null,
     signIn,
     signOut,
   };

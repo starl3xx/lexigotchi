@@ -62,6 +62,13 @@ export interface FarcasterProfile {
   username: string | null;
   displayName: string | null;
   pfpUrl: string | null;
+  /**
+   * Every wallet Farcaster links to this account (custody + verified), lowercased. The single-bag
+   * signal: letters mint to whatever wallet is CONNECTED, and inside a Farcaster host that is
+   * always one of these — so a web player connecting an unlinked wallet is quietly forking their
+   * collection across contexts, and the UI should say so.
+   */
+  linkedWallets: string[];
 }
 
 /**
@@ -90,6 +97,10 @@ export async function lookupProfile(fid: number): Promise<FarcasterProfile | nul
       username: u.username ?? null,
       displayName: u.display_name ?? u.username ?? null,
       pfpUrl: u.pfp_url ?? null,
+      linkedWallets: [
+        ...(u.custody_address ? [String(u.custody_address)] : []),
+        ...(u.verified_addresses?.eth_addresses ?? []).map(String),
+      ].map((a) => a.toLowerCase()),
     };
   } catch (err) {
     console.error("[neynar] profile lookup failed:", err);
