@@ -21,7 +21,7 @@ import { ALPHABET, LETTER_ODDS, wordTier, type Tier } from "@/lib/economy";
 import { WORDS } from "@/lib/dictionary";
 import {
   DEFAULT_PARAMS,
-  WORD_USD_PRICE,
+  currentWordUsd,
   priceWord,
   rollSuccessProbability,
   prestigeSuccessProbability,
@@ -181,7 +181,10 @@ export const COST = {
   snack: Math.round(priceWord(P.snack)),
   prestige: Math.round(priceWord(DEFAULT_PARAMS.prestige.commitFeeUsd)),
 };
-export const usdOf = (word: number) => word * WORD_USD_PRICE;
+// Call-time read of the live peg cell: every USD the game shows follows the oracle once
+// useWordPrice (mounted in GameApp) has fetched. COST above stays on the import-time fallback by
+// design — it's the MOCK store's price table; the chain-backed game prices from chain.params.
+export const usdOf = (word: number) => word * currentWordUsd();
 
 /** Compact $WORD formatter: 4_240_000 → "4.24M". */
 export function fmtWord(n: number): string {

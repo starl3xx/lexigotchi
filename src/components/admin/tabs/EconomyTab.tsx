@@ -5,7 +5,7 @@
  * sink-durability read. Everything derived from the economy sim + params (the tunable surface).
  */
 import type { EconomyPayload } from "@/lib/admin/metrics";
-import { fmtBps, fmtNum, fmtPct, fmtUsd, fmtWordCompact, WORD_USD_PRICE } from "@/lib/admin/format";
+import { fmtBps, fmtNum, fmtPct, fmtUsd, fmtWordCompact } from "@/lib/admin/format";
 import { AdminCard, Banner, ErrorState, KeyVal, RefreshButton, Scorecard, SectionLabel, Spinner, useFetch } from "../ui";
 import { Info } from "../icons";
 
@@ -52,8 +52,11 @@ export function EconomyTab() {
             </tbody>
           </table>
           <p className="mt-2 text-[11px] text-ink/45">
-            Peg: 1 $WORD ≈ ${WORD_USD_PRICE.toExponential(2)}. Re-set the on-chain $WORD amounts in the Parameters
-            tab as the price moves.
+            Peg: 1 $WORD ≈ ${data.pegInfo.wordUsd.toExponential(2)}
+            {data.pegInfo.source === "geckoterminal"
+              ? " (live · GeckoTerminal)"
+              : " (FALLBACK — GeckoTerminal unreachable, June snapshot)"}
+            . Re-set the on-chain $WORD amounts in the Parameters tab as the price moves.
           </p>
         </AdminCard>
 

@@ -110,7 +110,13 @@ export interface EconomyPayload {
   };
   tiers: { name: string; count: number }[];
   notes: string[];
-  pegInfo: { wordUsd: number; wordPerUsd: number };
+  pegInfo: {
+    wordUsd: number;
+    wordPerUsd: number;
+    /** Absent in the memoized payload; the API route overwrites with the oracle's answer. */
+    source?: "geckoterminal" | "fallback";
+    fetchedAt?: number | null;
+  };
 }
 
 export function pulsePayload(): PulsePayload {

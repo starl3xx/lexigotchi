@@ -6,21 +6,28 @@
  * at the current peg so the parameter / launch / funding forms can show both and emit correct
  * transaction values. $WORD is an 18-decimal ERC-20.
  */
-import { WORD_USD_PRICE, WORD_PER_USD, priceWord } from "@/lib/params";
+import { WORD_USD_PRICE, WORD_PER_USD, priceWord, currentWordUsd } from "@/lib/params";
 import { NETWORK, explorerAddress } from "@/lib/onchain/network";
 
-export { WORD_USD_PRICE, WORD_PER_USD, priceWord };
+export { WORD_USD_PRICE, WORD_PER_USD, priceWord, currentWordUsd };
 
 export const WORD_DECIMALS = 18n;
 export const WEI = 10n ** WORD_DECIMALS;
 
-/** USD → human $WORD amount at the given peg (e.g. $1 ≈ 4.24M $WORD). */
-export function usdToWord(usd: number, wordUsd = WORD_USD_PRICE): number {
+/**
+ * USD → human $WORD amount (e.g. $1 ≈ 4.24M $WORD).
+ *
+ * The default peg is read AT CALL TIME from the live cell (params.ts), so every form and tx
+ * builder in the admin prices off the oracle once `useWordPrice` has fetched — the June snapshot
+ * only answers before that or when GeckoTerminal is down. This matters most where the output goes
+ * on-chain: TxPlan's USD fields, the Treasury funding form, LaunchTab's constructor pegs.
+ */
+export function usdToWord(usd: number, wordUsd = currentWordUsd()): number {
   return priceWord(usd, wordUsd);
 }
 
 /** USD → on-chain $WORD amount in wei (integer string), at the given peg. */
-export function usdToWordWei(usd: number, wordUsd = WORD_USD_PRICE): string {
+export function usdToWordWei(usd: number, wordUsd = currentWordUsd()): string {
   // Round to whole $WORD before scaling so the wei value is exact and human-legible.
   const whole = BigInt(Math.round(priceWord(usd, wordUsd)));
   return (whole * WEI).toString();

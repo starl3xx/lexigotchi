@@ -29,6 +29,7 @@ import { KeeperTab } from "./tabs/KeeperTab";
 import { AccessTab } from "./tabs/AccessTab";
 import { DeploymentsTab } from "./tabs/DeploymentsTab";
 import { BroadcastTab } from "./tabs/BroadcastTab";
+import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 type TabId =
   | "pulse"
@@ -67,6 +68,9 @@ const SECTIONS = ["Analytics", "Operations", "Settings"] as const;
 
 export function AdminConsole({ operator }: { operator: { label: string; kind: "fid" | "wallet" | "dev" } }) {
   const [active, setActive] = useState<TabId>("pulse");
+  // Live $WORD peg — every USD→wei the console builds (TxPlan, Treasury, Launch ctor args) reads
+  // the peg cell at call time, so this top-level mount is what prices them off the market.
+  useWordPrice();
 
   // Keyboard shortcuts 1–9,0 → tab order (skip when typing in a field).
   useEffect(() => {
