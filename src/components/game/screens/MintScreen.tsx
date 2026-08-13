@@ -6,6 +6,7 @@ import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
 import { COST, fmtUsd, fmtWord, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
+import { PendingReveal } from "../PendingReveal";
 
 export function MintScreen() {
   const g = useGame();
@@ -22,6 +23,9 @@ export function MintScreen() {
           Every pull is <strong>lowercase</strong>. Capitals are <em>raised</em> in the Roll, never pulled.
         </p>
       </div>
+
+      {/* a paid pull whose reveal never landed — recover it before offering anything new */}
+      <PendingReveal />
 
       {/* daily single */}
       <Card className="bg-paper">

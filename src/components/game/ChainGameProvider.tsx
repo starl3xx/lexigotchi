@@ -43,6 +43,7 @@ import {
   readOwnedWords,
   readPity,
   readPendingCommits,
+  readDayState,
   waitForNewCommit,
   readOpenRollCommits,
   waitForNewRollCommit,
@@ -50,6 +51,8 @@ import {
   waitForNewPrestigeCommit,
   type ChainWord,
 } from "@/lib/onchain/reads";
+import { verifiedDailyKey } from "@/lib/onchain/verifications";
+import { useViewer } from "./useViewer";
 import {
   commitFreePackCalls,
   commitFreeDailyCalls,
@@ -118,6 +121,30 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     staleTime: 30_000,
   });
 
+  // The identity today's daily would be issued under — mirrors the server's JWT-wins ordering
+  // (free-daily route): the Farcaster fid when signed in, else the wallet's synthetic 2^160 key.
+  // Getting this wrong shows "Pull" to a player the contract will refuse, and the refusal reads
+  // as a bug (it did, on the first live test).
+  const viewer = useViewer();
+  const dailyKey = viewer.fid ? BigInt(viewer.fid) : address ? verifiedDailyKey(address) : null;
+
+  const dayQ = useQuery({
+    queryKey: ["dayState", NETWORK.id, dailyKey?.toString()],
+    queryFn: () => readDayState(dailyKey!),
+    enabled: dailyKey !== null && chain.deployed,
+    staleTime: 30_000,
+    refetchInterval: 60_000, // the UTC rollover must flip the card without a reload
+  });
+
+  // Paid-but-unrevealed letter commits. Nonzero means a pull is stranded — the first live daily
+  // stranded exactly here (commit mined, reveal never sent) and the UI had no way to finish it.
+  const pendingQ = useQuery({
+    queryKey: ["pendingCommits", NETWORK.id, address],
+    queryFn: () => readPendingCommits(address as `0x${string}`),
+    enabled: !!address && chain.deployed,
+    staleTime: 15_000,
+  });
+
   const toast = useCallback(
     (text: string, tone: Toast["tone"] = "info") => dispatch({ t: "toast", text, tone }),
     [],
@@ -148,7 +175,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
       streak: 0,
       day: 0,
-      dailyMinted: false,
+      // Real, read from dailyUsed[dailyKey] — hardcoding false here showed "Pull" to a player the
+      // contract was guaranteed to refuse, and the 409 toast read as a bug on the first live test.
+      dailyMinted: dayQ.data?.dailyUsed ?? false,
       mintCount: 0,
       freeSnackUsed: false,
       jackpotWord: "",
@@ -156,7 +185,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotRevealed: false,
       bountyTheme: 0,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, wordsQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, wordsQ.data, dayQ.data],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -164,7 +193,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     async (label: string, build: () => Parameters<typeof chain.send>[0]) => {
       try {
         await chain.send(build());
-        await Promise.all([wordsQ.refetch(), pityQ.refetch()]);
+        await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), pendingQ.refetch()]);
         toast(`${label} sent`, "good");
         return true;
       } catch (err) {
@@ -175,7 +204,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    [chain, toast, wordsQ, pityQ],
+    [chain, toast, wordsQ, pityQ, dayQ, pendingQ],
   );
 
 
@@ -288,23 +317,39 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * retrying later yields the identical letters — which is why it is honest to tell the player it
    * is waiting for them rather than that it failed.
    */
+  /**
+   * Reveal a KNOWN commit: fetch the deterministic draw, send the reveal, show the letters.
+   * Shared by the normal flow and the stranded-commit recovery — the only difference between them
+   * is how the commitId was learned.
+   */
+  const revealCommit = useCallback(
+    async (commitId: bigint): Promise<boolean> => {
+      // openPostJson, not postJson: the verified-wallet daily reaches here with no Farcaster
+      // session, and the reveal route accepts anonymous callers (buyer-bound + idempotent).
+      const draw = await openPostJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commitId) });
+      if (!draw?.ok) {
+        toast(authError(draw?.error, "Draw"), "bad");
+        return false;
+      }
+      const ok = await run("Reveal", () =>
+        revealCalls(commitId, draw.reveal.letterIndexes, draw.reveal.signature),
+      );
+      if (!ok) return false;
+      dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
+      return true;
+    },
+    [openPostJson, run, toast, authError],
+  );
+
   const finishLetterCommit = useCallback(
     async (before: readonly bigint[], strandedMsg: string) => {
       if (!address) return;
       toast("Opening…", "info");
       const commit = await waitForNewCommit(address, before);
       if (!commit) return void toast("Committed but slow to appear — it'll be waiting for you", "info");
-      // openPostJson, not postJson: the verified-wallet daily reaches here with no Farcaster
-      // session, and the reveal route accepts anonymous callers (buyer-bound + idempotent).
-      const draw = await openPostJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
-      if (!draw?.ok) return void toast(authError(draw?.error, "Draw"), "bad");
-      const ok = await run("Reveal", () =>
-        revealCalls(commit.commitId, draw.reveal.letterIndexes, draw.reveal.signature),
-      );
-      if (!ok) return void toast(strandedMsg, "info");
-      dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
+      if (!(await revealCommit(commit.commitId))) return void toast(strandedMsg, "info");
     },
-    [address, openPostJson, run, toast, authError],
+    [address, toast, revealCommit],
   );
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
@@ -538,8 +583,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       spendable: (w: OwnedWord) =>
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
+
+      // Stranded-commit recovery. The first live daily mined its commit and then lost its reveal
+      // (page state died between the two wallet prompts) — the letter sat unopened with no way to
+      // claim it. The reveal is deterministic and free, so finishing is always safe.
+      pendingReveals: (pendingQ.data ?? []).length,
+      openPending: () => {
+        const oldest = (pendingQ.data ?? [])[0];
+        if (!oldest) return;
+        void (async () => {
+          toast("Opening your unrevealed pull…", "info");
+          if (await revealCommit(oldest.commitId)) void pendingQ.refetch();
+        })();
+      },
     }),
-    [state, chain, address, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, guarded],
+    [state, chain, address, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, revealCommit, guarded, pendingQ],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

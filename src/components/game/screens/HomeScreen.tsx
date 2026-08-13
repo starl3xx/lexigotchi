@@ -19,6 +19,7 @@ import {
 } from "../ui/icons";
 import { COST, THEMES, fmtWord, hunger, jackpotEligible, useGame, type View } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
+import { PendingReveal } from "../PendingReveal";
 
 export function HomeScreen() {
   const g = useGame();
@@ -84,14 +85,22 @@ export function HomeScreen() {
         </Card>
       )}
 
+      {/* a paid pull whose reveal never landed — recover it before offering anything new */}
+      <PendingReveal />
+
       {/* daily letter */}
       <Card>
         <SectionTitle>Daily letter</SectionTitle>
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm">
             <span className="inline-flex items-center gap-1 text-ink/70">
-              Claimed today <Check weight="bold" size={13} className="text-teal" /> · streak{" "}
-              <Fire weight="fill" size={13} className="text-candy" /> {state.streak}
+              Claimed today <Check weight="bold" size={13} className="text-teal" />
+              {/* streak is a mock-only stat — on chain it would always read 0, which looks broken */}
+              {!state.chainBacked && (
+                <>
+                  {" "}· streak <Fire weight="fill" size={13} className="text-candy" /> {state.streak}
+                </>
+              )}
             </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
           </div>
