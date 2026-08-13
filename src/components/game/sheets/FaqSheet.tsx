@@ -23,7 +23,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
       a: (
         <>
           A tamagotchi-style collection game on Base. You mint <strong>rubber-hose letter
-          characters</strong>, gamble them from lowercase to <strong>UPPERCASE</strong>, spell words
+          characters</strong>, roll them from lowercase to <strong>UPPERCASE</strong>, spell words
           from a {WORD_COUNT.toLocaleString()}-word dictionary to claim them as NFTs, then stake and
           feed them to earn <strong>$WORD</strong> and chase a daily jackpot. It&apos;s a sibling game
           to <em>Let&apos;s Have A Word!</em> in the same $WORD ecosystem.

@@ -5,7 +5,7 @@ prices and balances in the app are illustrative until the contracts deploy.
 
 ## What is Lexigotchi?
 
-A tamagotchi-style collection game on **Base**. You mint rubber-hose **letter characters**, gamble
+A tamagotchi-style collection game on **Base**. You mint rubber-hose **letter characters**, roll
 them from lowercase to **UPPERCASE**, spell words from a 4,438-word dictionary to claim them as NFTs,
 then stake and feed them to earn **$WORD** and chase a daily jackpot. It's a sibling game to
 *Let's Have A Word!* in the same $WORD ecosystem.
