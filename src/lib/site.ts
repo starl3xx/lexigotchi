@@ -45,11 +45,27 @@ export const frameEmbed = {
   button: { title: "Play Lexigotchi", action: launchAction("launch_frame") },
 };
 
+/**
+ * Neynar's hosted mini-app webhook. Pointing `webhookUrl` here hands Neynar the whole notification
+ * token lifecycle — JFS verification, the per-(client, app, FID) token store, Warpcast/Base App
+ * fan-out, and invalidation on remove/disable — so we never store a token ourselves and send by FID
+ * instead (`src/lib/notify/send.ts`).
+ *
+ * DERIVED, NOT PASTED. The UUID in this URL *is* the Neynar app's client ID — the same one SIWN
+ * already uses. Building it from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` means the manifest cannot drift
+ * from the app it authenticates against, and there is no second copy to update. The fallback is
+ * Lexigotchi's own client ID (public by design — it ships in the browser bundle).
+ */
+export const NEYNAR_CLIENT_ID =
+  process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID ?? "9c8a6797-250e-4b54-ad22-039930877e8c";
+export const NOTIFICATION_WEBHOOK_URL = `https://api.neynar.com/f/app/${NEYNAR_CLIENT_ID}/event`;
+
 const miniappConfig = {
   version: "1",
   name: "Lexigotchi",
   iconUrl: `${SITE_URL}/icon-image`,
   homeUrl: `${SITE_URL}/play`,
+  webhookUrl: NOTIFICATION_WEBHOOK_URL,
   imageUrl: `${SITE_URL}/embed-image`,
   buttonTitle: "Play Lexigotchi",
   splashImageUrl: `${SITE_URL}/icon-image`,
