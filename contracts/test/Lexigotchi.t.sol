@@ -1255,4 +1255,21 @@ contract LexigotchiTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
         return abi.encodePacked(r, s, v);
     }
+    /// ERC-4906: marketplaces re-render a word when its look changes — raise and ascend both emit.
+    function test_Words_metadataUpdateEvents() public {
+        uint256 tokenId = _claimLower(alice, 0); // CRANE, all lowercase
+
+        // raise position 0 via the Rolls path (words.applyUpgrade is rolls-only)
+        vm.prank(address(rolls));
+        vm.expectEmit(true, false, false, true, address(words));
+        emit Words.MetadataUpdate(tokenId);
+        words.applyUpgrade(tokenId, 0);
+
+        vm.prank(address(prestige));
+        vm.expectEmit(true, false, false, true, address(words));
+        emit Words.MetadataUpdate(tokenId);
+        words.bumpPrestige(tokenId);
+
+        assertTrue(words.supportsInterface(bytes4(0x49064906)), "advertises ERC-4906");
+    }
 }
