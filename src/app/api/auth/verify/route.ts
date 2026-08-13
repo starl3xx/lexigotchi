@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { allow } from "@/lib/ratelimit";
-import { quickAuthClient, QUICK_AUTH_DOMAIN } from "@/lib/auth/quickAuth";
+import { quickAuthClient, quickAuthDomain } from "@/lib/auth/quickAuth";
 import { clientIp } from "@/lib/auth/clientIp";
 
 export const dynamic = "force-dynamic";
@@ -38,10 +38,13 @@ export async function POST(req: Request) {
   }
 
   try {
+    // The domain is ours, never the caller's — but "ours" is request-relative: a loopback dev
+    // host verifies as itself (the SIWF message names it), everything else pins to the manifest
+    // domain. See quickAuthDomain for why the allowance is loopback-only.
     const { token } = await quickAuthClient.verifySiwf({
       message,
       signature,
-      domain: QUICK_AUTH_DOMAIN,
+      domain: quickAuthDomain(req),
     });
     return NextResponse.json({ ok: true, token });
   } catch (err) {

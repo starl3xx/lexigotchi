@@ -20,12 +20,27 @@ const client = createClient();
  * one configuration rather than two that can drift.
  */
 export const quickAuthClient = client;
-// Quick Auth's `domain` / JWT `aud` is the host only (no scheme/port). Must match the mini-app
+// Quick Auth's `domain` / JWT `aud` is the host only (no scheme). Must match the mini-app
 // manifest domain — i.e. NEXT_PUBLIC_URL's host in production (e.g. "lexigotchi.fun").
 const DOMAIN = new URL(SITE_URL).hostname;
 
-/** The JWT audience. Exported so /api/auth/verify mints tokens `getAuthedFid` will accept. */
-export const QUICK_AUTH_DOMAIN = DOMAIN;
+/** Loopback dev hosts, port included — the SIWF message carries the port ("localhost:3000"). */
+const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+
+/**
+ * The Quick Auth domain for THIS request.
+ *
+ * SIWF signs the page's own host into the message, and Quick Auth rejects any mismatch — so a dev
+ * box at localhost:3000 can never verify against the manifest domain, which is how local sign-in
+ * broke while prod worked. The allowance is deliberately narrow: a LOOPBACK Host verifies as
+ * itself; anything else uses the manifest domain, hard — deriving from an arbitrary Host header
+ * would let a spoofed Host mint tokens for an audience of the spoofer's choosing. A loopback Host
+ * can only be presented to a server the caller is already running.
+ */
+export function quickAuthDomain(req: Request): string {
+  const host = req.headers.get("host")?.trim() ?? "";
+  return LOOPBACK.test(host) ? host.toLowerCase() : DOMAIN;
+}
 
 /** Verify the request's `Authorization: Bearer` Quick Auth token → FID, or null if missing/invalid. */
 export async function getAuthedFid(req: Request): Promise<number | null> {
@@ -34,7 +49,7 @@ export async function getAuthedFid(req: Request): Promise<number | null> {
   const token = header.slice(7).trim();
   if (!token) return null;
   try {
-    const payload = await client.verifyJwt({ token, domain: DOMAIN });
+    const payload = await client.verifyJwt({ token, domain: quickAuthDomain(req) });
     return typeof payload.sub === "number" ? payload.sub : null;
   } catch (err) {
     if (err instanceof Errors.InvalidTokenError) return null; // bad/expired/wrong-audience token
