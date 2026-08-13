@@ -9,6 +9,7 @@
  * `@neynar/react`'s `useMiniApp()` hook the rest of the app uses.
  */
 import sdk from "@farcaster/miniapp-sdk";
+import { webAuthToken, hasWebSession } from "@/lib/auth/siwfWeb";
 
 /**
  * Whether we're actually running inside a Farcaster host.
@@ -27,13 +28,35 @@ function isFarcasterHost(): Promise<boolean> {
   return inMiniApp;
 }
 
+/**
+ * Authenticated fetch, from either provenance.
+ *
+ * Inside a Farcaster host the SDK attaches the token. On the web we attach a Quick Auth JWT obtained
+ * through SIWF (lib/auth/siwfWeb) — the server cannot tell the two apart, and does not need to: both
+ * are the same asymmetrically-signed token with the same audience.
+ *
+ * The isInMiniApp() check stays FIRST and stays mandatory. Outside a host, sdk.quickAuth rejects a
+ * promise internally that nothing awaits, which escaped as an unhandled pageerror on every web
+ * visit. Never reorder these.
+ */
 async function authedFetch(path: string, init?: RequestInit): Promise<Response | null> {
-  // On the web this is a genuine no-op, which is what the callers already assume.
-  if (!(await isFarcasterHost())) return null;
+  if (await isFarcasterHost()) {
+    try {
+      return await sdk.quickAuth.fetch(path, init);
+    } catch (err) {
+      console.error("[campaign] request failed:", path, err);
+      return null;
+    }
+  }
+
+  const token = webAuthToken();
+  if (!token) return null; // not signed in on the web — callers treat this as a no-op
   try {
-    return await sdk.quickAuth.fetch(path, init);
+    const headers = new Headers(init?.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+    return await fetch(path, { ...init, headers });
   } catch (err) {
-    console.error("[campaign] request failed:", path, err);
+    console.error("[campaign] web request failed:", path, err);
     return null;
   }
 }
@@ -45,8 +68,8 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response |
  * voucher first, so they fail for free; a roll or an ascension pays first and only then needs a
  * signature, which on the web would strand the commit with the money already gone.
  */
-export function canSign(): Promise<boolean> {
-  return isFarcasterHost();
+export async function canSign(): Promise<boolean> {
+  return (await isFarcasterHost()) || hasWebSession();
 }
 
 /**
@@ -56,14 +79,16 @@ export function canSign(): Promise<boolean> {
  * `fetch` can never reach them — not even inside a Farcaster client. The token is attached by
  * `sdk.quickAuth.fetch`, which is the ONLY way these get called.
  *
- * Returns `{ ok: false, error: "no_farcaster_host" }` on the web rather than throwing, so callers
- * can tell "you need to open this in Farcaster" apart from a genuine server refusal.
+ * Returns `{ ok: false, error: "not_signed_in" }` when neither provenance is available, rather than
+ * throwing, so callers can tell "you need to sign in" apart from a genuine server refusal.
  */
 export async function authedPostJson<T = Record<string, never>>(
   path: string,
   body: unknown,
 ): Promise<({ ok: true; error?: undefined } & T) | { ok: false; error: string }> {
-  if (!(await isFarcasterHost())) return { ok: false, error: "no_farcaster_host" };
+  // Either provenance will do. authedFetch picks the right token; this only guards against calling
+  // a signing route with no credential at all, which would 401.
+  if (!(await canSign())) return { ok: false, error: "not_signed_in" };
   const res = await authedFetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },

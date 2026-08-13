@@ -113,21 +113,38 @@ export function Bar({ value, max, className = "bg-gold" }: { value: number; max:
 }
 
 // ---------------------------------------------------------------------------
-// Countdown to next local midnight (client-only → no hydration mismatch)
+// Countdown to the next UTC midnight (client-only → no hydration mismatch)
 // ---------------------------------------------------------------------------
+
+/**
+ * Time until the chain's day rolls over.
+ *
+ * UTC, not local. Both things this counts down to — the daily letter and the jackpot draw — reset on
+ * `uint32(block.timestamp / 1 days)`, which is UTC days since epoch. `setHours(24,0,0,0)` counted to
+ * LOCAL midnight, so for every player outside UTC it was wrong by their offset: someone in UTC-5
+ * would be told the daily unlocks five hours after it already had, and someone in UTC+9 would be
+ * invited to claim one the contract would reject with DailyAlreadyUsed.
+ */
+/** Milliseconds from `now` until the next UTC midnight. Exported for test. */
+export function msUntilUtcMidnight(now: Date): number {
+  const mid = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0);
+  return mid - now.getTime();
+}
+
+/** `12h 34m 05s`. Exported for test. */
+export function formatCountdown(ms: number): string {
+  const clamped = Math.max(0, ms);
+  const h = Math.floor(clamped / 3.6e6);
+  const m = Math.floor((clamped % 3.6e6) / 6e4);
+  const sec = Math.floor((clamped % 6e4) / 1000);
+  return `${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`;
+}
 
 export function Countdown({ className = "" }: { className?: string }) {
   const [left, setLeft] = useState("");
   useEffect(() => {
     const tick = () => {
-      const now = new Date();
-      const mid = new Date(now);
-      mid.setHours(24, 0, 0, 0);
-      const ms = mid.getTime() - now.getTime();
-      const h = Math.floor(ms / 3.6e6);
-      const m = Math.floor((ms % 3.6e6) / 6e4);
-      const sec = Math.floor((ms % 6e4) / 1000);
-      setLeft(`${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`);
+      setLeft(formatCountdown(msUntilUtcMidnight(new Date())));
     };
     tick();
     const id = setInterval(tick, 1000);

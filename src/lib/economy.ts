@@ -206,7 +206,7 @@ export function stakeWeight(tier: Tier, caseState: CaseState): number {
 
 export const Q_WORDS: readonly string[] = Object.freeze(WORDS.filter((w) => w.includes("Q")));
 
-/** Words combining two distinct ultra-rares with a double letter — the grails. */
+/** Words combining two distinct ultra-rares with a double letter — the crowns. */
 export const DOUBLED_ULTRA_RARES: readonly string[] = Object.freeze(
   ["JAZZY", "FUZZY", "FIZZY", "DIZZY", "MEZZO", "PIZZA", "RAQQA", "XEROX"].filter((w) =>
     WORDS.includes(w),

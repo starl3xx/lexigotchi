@@ -46,7 +46,7 @@ Mint odds = a letter's share of the 22,190 slots. Supply cap = floor(slots × 2.
 | Q | 45 | 0.20% | 112 |
 
 **Q is the system's Charizard:** 45 slots across the whole dictionary
-(44 Q-words; RAQQA needs two). The doubled-ultra-rare grails:
+(44 Q-words; RAQQA needs two). The doubled-ultra-rare crowns:
 JAZZY, FUZZY, FIZZY, DIZZY, MEZZO, PIZZA, RAQQA, XEROX.
 
 ## Appendix B — Rarity tiers

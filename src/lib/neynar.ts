@@ -56,3 +56,43 @@ export async function verifyShareCast(fid: number): Promise<{ castHash: string; 
   }
   return null;
 }
+
+export interface FarcasterProfile {
+  fid: number;
+  username: string | null;
+  displayName: string | null;
+  pfpUrl: string | null;
+}
+
+/**
+ * Look up a profile by FID.
+ *
+ * A SIWF credential proves WHICH account signed in, but carries no username or avatar — inside a
+ * Farcaster host those arrive free in the SDK context, and on the web they have to be fetched. This
+ * is an API-key read, so it is unaffected by the Sign In With Neynar retirement (that was the
+ * user-auth product; key-based reads are a separate thing). Never throws.
+ */
+export async function lookupProfile(fid: number): Promise<FarcasterProfile | null> {
+  const key = process.env.NEYNAR_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/user/bulk?fids=${fid}`, {
+      headers: { "x-api-key": key, accept: "application/json" },
+      // Profiles change rarely; a short cache keeps a page refresh from re-billing the lookup.
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const u = data?.users?.[0];
+    if (!u?.fid) return null;
+    return {
+      fid: Number(u.fid),
+      username: u.username ?? null,
+      displayName: u.display_name ?? u.username ?? null,
+      pfpUrl: u.pfp_url ?? null,
+    };
+  } catch (err) {
+    console.error("[neynar] profile lookup failed:", err);
+    return null;
+  }
+}

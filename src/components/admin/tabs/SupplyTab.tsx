@@ -74,9 +74,9 @@ export function SupplyTab() {
           </p>
         </AdminCard>
 
-        <AdminCard title="Grails">
+        <AdminCard title="Crowns">
           <p className="text-sm text-ink/75">
-            <strong>JAZZY</strong> is the apex grail — the only word combining two distinct ultra-rares with a double
+            <strong>JAZZY</strong> is the apex crown — the only word combining two distinct ultra-rares with a double
             letter. {Q_WORDS.length} words contain a Q.
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">

@@ -20,7 +20,7 @@
  * multicall). See docs/web3-runtime-plan.md and CLAUDE.md's builder-code rule.
  */
 import { createConfig, http, type Config } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { injected, coinbaseWallet } from "wagmi/connectors";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { NETWORK } from "./network";
 import { ACTIVE_CHAIN, base, baseSepolia } from "./chain";
@@ -41,6 +41,9 @@ export function getWagmiConfig(): Config {
     connectors: [
       farcasterMiniApp(),
       injected({ shimDisconnect: true }),
+      // "Sign in with Base" — Base Account / Coinbase Wallet. Previously omitted because it broke
+      // the build via @coinbase/cdp-sdk → @x402/*; those are aliased to false in next.config now.
+      coinbaseWallet({ appName: "Lexigotchi", preference: "all" }),
     ],
     // Both ids are declared to satisfy wagmi's Record<chainId, Transport> (ACTIVE_CHAIN widens to
     // the union); only the configured chain's is ever used. The RPC override applies solely to the

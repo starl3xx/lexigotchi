@@ -13,6 +13,7 @@
  */
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useGame } from "./state";
+import { ConnectPanel } from "./ConnectPanel";
 
 export type ChainStatus = "no-wallet" | "loading" | "ready" | "error";
 
@@ -89,7 +90,7 @@ export function ChainSkeleton() {
  * a full bag must never see an empty one because a read is in flight — they'll conclude they were
  * robbed, and every support message after that starts from the wrong premise.
  */
-export function ChainGate({ children, connect }: { children: ReactNode; connect?: () => void }) {
+export function ChainGate({ children }: { children: ReactNode }) {
   const { state } = useGame();
   const status = state.status;
 
@@ -97,21 +98,9 @@ export function ChainGate({ children, connect }: { children: ReactNode; connect?
 
   if (status === "loading") return <ChainSkeleton />;
 
-  if (status === "no-wallet") {
-    return (
-      <Shell
-        title="Connect to play"
-        body="Your letters and words live on-chain, so we need to know which wallet is yours."
-        action={
-          connect && (
-            <button onClick={connect} className="cel rounded-xl bg-candy px-4 py-2 text-sm font-extrabold text-paper">
-              Connect wallet
-            </button>
-          )
-        }
-      />
-    );
-  }
+  // Both credentials are requested HERE, together, rather than the wallet gating the screen and the
+  // Farcaster prompt appearing later inside HomeScreen — which read as two unexplained connects.
+  if (status === "no-wallet") return <ConnectPanel />;
 
   return (
     <Shell
