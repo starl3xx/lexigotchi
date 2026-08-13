@@ -20,6 +20,7 @@ import {
 import { COST, THEMES, fmtWord, hunger, jackpotEligible, useGame, type View } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { PendingReveal } from "../PendingReveal";
+import { WalletMismatch } from "../WalletMismatch";
 
 export function HomeScreen() {
   const g = useGame();
@@ -84,6 +85,9 @@ export function HomeScreen() {
           <Smiley weight="fill" size={26} className="text-teal" />
         </Card>
       )}
+
+      {/* connected wallet isn't one of the FID's linked wallets — the bag is about to fork */}
+      <WalletMismatch />
 
       {/* a paid pull whose reveal never landed — recover it before offering anything new */}
       <PendingReveal />
