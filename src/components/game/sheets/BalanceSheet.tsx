@@ -10,6 +10,7 @@
  * is imported dynamically so the statically-prerendered /play route never touches it during SSR.
  */
 import { useEffect, useState } from "react";
+import { useConnect } from "wagmi";
 import { Button, Card, Sheet } from "../primitives";
 import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
@@ -30,6 +31,11 @@ export function BalanceSheet() {
   const g = useGame();
   const { state } = g;
   const viewer = useViewer();
+  const { connect, connectors } = useConnect();
+  const connectBase = () => {
+    const target = connectors.find((c) => /coinbase|base/i.test(c.id) || /coinbase/i.test(c.name));
+    if (target) connect({ connector: target });
+  };
   const [env, setEnv] = useState<"loading" | "farcaster" | "web">("loading");
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -165,17 +171,29 @@ export function BalanceSheet() {
               <span className="ml-auto text-xs font-normal text-ink/55">buy · hold · play</span>
             </div>
           )}
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">
-              Want the <strong>free daily letter</strong>? Sign in — or use a Coinbase-verified wallet.
-            </span>
+          <div className="text-sm text-ink/70">
+            Want the <strong>free daily letter</strong>? Sign in with Farcaster — or switch to a
+            Coinbase-verified wallet.
+          </div>
+          <div className="mt-2 flex gap-2">
             <button
               onClick={viewer.signIn}
-              className="cel flex shrink-0 items-center gap-1.5 rounded-xl bg-[#855DCD] px-3 py-2 text-sm font-extrabold text-white"
+              className="cel flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#855DCD] px-3 py-2 text-sm font-extrabold text-white"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/fc-arch-icon.png" alt="" className="h-3 w-auto" />
-              Sign in
+              Farcaster
+            </button>
+            {/* The card's "Coinbase-verified wallet" clause finally gets its affordance: switch the
+                connected wallet to a Base Account. Not an identity credential by itself (SIWE
+                proves an address, and addresses are free) — but if THAT wallet carries the
+                attestation, the daily unlocks the moment it connects. */}
+            <button
+              onClick={connectBase}
+              className="cel flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-3 py-2 text-sm font-extrabold text-white"
+            >
+              <span aria-hidden className="h-3 w-3 rounded-[2px] bg-white" />
+              Base
             </button>
           </div>
         </Card>
