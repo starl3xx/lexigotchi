@@ -5,7 +5,7 @@ import { wordTier } from "@/lib/economy";
 import { Button, Card, EmptyState, SectionTitle, TierBadge } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Crown, Lock, Sparkle } from "../ui/icons";
-import { COST, anagramsOf, fmtWord, idxToChar, spellableNow, useGame } from "../state";
+import { COST, anagramsOf, fmtWord, idxToChar, mineLower, mineUpper, spellableNow, useGame } from "../state";
 
 export function ClaimScreen() {
   const g = useGame();
@@ -13,7 +13,9 @@ export function ClaimScreen() {
   const [useUpper, setUseUpper] = useState(false);
   const [rack, setRack] = useState<number[]>([]);
 
-  const inv = useUpper ? state.upper : state.lower;
+  // MINE, not the union: Words.claim consumes letters from msg.sender — spelling with a linked
+  // wallet's letters would build a transaction the contract is guaranteed to revert.
+  const inv = useUpper ? mineUpper(state) : mineLower(state);
   const owned = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
 
   const rackCount = (i: number) => rack.filter((x) => x === i).length;
@@ -42,7 +44,7 @@ export function ClaimScreen() {
       return [...prev, i];
     });
 
-  const upperCount = state.upper.reduce((a, b) => a + b, 0);
+  const upperCount = mineUpper(state).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-3">

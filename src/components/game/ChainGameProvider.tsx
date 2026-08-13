@@ -41,6 +41,7 @@ import { rollSuccessProbability } from "@/lib/params";
 import { useOnchain } from "./useOnchain";
 import {
   readOwnedWords,
+  readLetterCounts,
   readPity,
   readPendingCommits,
   readDayState,
@@ -49,9 +50,9 @@ import {
   waitForNewRollCommit,
   readOpenPrestigeCommits,
   waitForNewPrestigeCommit,
-  type ChainWord,
 } from "@/lib/onchain/reads";
 import { verifiedDailyKey } from "@/lib/onchain/verifications";
+import { bagWalletsOf, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { useViewer } from "./useViewer";
 import {
   commitFreePackCalls,
@@ -88,7 +89,7 @@ interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 
 /** Chain words → the shape screens already destructure. */
-function toOwnedWord(w: ChainWord): OwnedWord {
+function toOwnedWord(w: BagWord): OwnedWord {
   return {
     word: w.word,
     tier: wordTier(w.word),
@@ -99,6 +100,10 @@ function toOwnedWord(w: ChainWord): OwnedWord {
     // Prestige pity is a per-token mapping with no batch getter; not surfaced yet, so the UI shows
     // base odds rather than an invented streak.
     prestigePity: 0,
+    // Union-bag attribution: only the connected wallet's words take actions; the rest display
+    // with a "held by" note (the contracts act on msg.sender's assets, full stop).
+    mine: w.mine,
+    holder: w.mine ? undefined : w.holder,
   };
 }
 
@@ -109,11 +114,40 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const chain = useOnchain();
   const { address } = useAccount();
 
+  // ── THE UNION BAG ──────────────────────────────────────────────────────────────────────────
+  // One collection per human: the connected wallet plus every wallet Farcaster links to the
+  // account. Words and letter counts union for display; spending stays with the connected wallet
+  // (the contracts act on msg.sender, full stop) — `mine` on each word carries the difference.
+  const viewer = useViewer();
+  const bagWallets = useMemo(
+    () => bagWalletsOf(address, viewer.linkedWallets),
+    [address, viewer.linkedWallets],
+  );
+  const bagKey = bagWallets.join(",");
+
   const wordsQ = useQuery({
-    queryKey: ["ownedWords", NETWORK.id, address],
-    queryFn: () => readOwnedWords(address as `0x${string}`),
+    queryKey: ["ownedWords", NETWORK.id, bagKey],
+    queryFn: async () => {
+      const perWallet = await Promise.all(
+        bagWallets.map(async (wallet) => ({ wallet, words: await readOwnedWords(wallet) })),
+      );
+      return unionWords(perWallet, address);
+    },
     enabled: !!address && chain.deployed,
     staleTime: 10_000,
+  });
+
+  // Linked wallets' letter counts (the connected wallet's ride in via chain.player). Display-only:
+  // claim/roll spend gates on the connected counts, so a failed read here degrades the union
+  // display to "just yours" rather than blocking anything.
+  const othersLettersQ = useQuery({
+    queryKey: ["linkedLetters", NETWORK.id, bagKey],
+    queryFn: async () => {
+      const others = bagWallets.filter((w) => w !== address?.toLowerCase());
+      return sumLetterCounts(await Promise.all(others.map(readLetterCounts)));
+    },
+    enabled: !!address && chain.deployed && bagWallets.length > 1,
+    staleTime: 30_000,
   });
 
   const pityQ = useQuery({
@@ -127,7 +161,6 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // (free-daily route): the Farcaster fid when signed in, else the wallet's synthetic 2^160 key.
   // Getting this wrong shows "Pull" to a player the contract will refuse, and the refusal reads
   // as a bug (it did, on the first live test).
-  const viewer = useViewer();
   const dailyKey = viewer.fid ? BigInt(viewer.fid) : address ? verifiedDailyKey(address) : null;
 
   const dayQ = useQuery({
@@ -141,8 +174,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // Paid-but-unrevealed letter commits. Nonzero means a pull is stranded — the first live daily
   // stranded exactly here (commit mined, reveal never sent) and the UI had no way to finish it.
   const pendingQ = useQuery({
-    queryKey: ["pendingCommits", NETWORK.id, address],
-    queryFn: () => readPendingCommits(address as `0x${string}`),
+    queryKey: ["pendingCommits", NETWORK.id, bagKey],
+    // Union across the bag: reveal() is relayable (no caller check; letters mint to the BUYER),
+    // so the connected wallet can rescue a linked wallet's stranded pull.
+    queryFn: async () =>
+      (await Promise.all(bagWallets.map(readPendingCommits))).flat(),
     enabled: !!address && chain.deployed,
     staleTime: 15_000,
   });
@@ -169,8 +205,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       chainBacked: true,
       error: chain.error,
       balance: chain.player?.balance ?? 0,
-      lower: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
-      upper: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
+      // DISPLAY = the union bag (connected + linked wallets); SPEND = the connected wallet only.
+      lower: chain.player
+        ? sumLetterCounts([chain.player.letters, othersLettersQ.data ?? []]).slice(0, 26)
+        : EMPTY_26,
+      upper: chain.player
+        ? sumLetterCounts([chain.player.letters, othersLettersQ.data ?? []]).slice(26, 52)
+        : EMPTY_26,
+      lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
+      upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: pityQ.data ?? EMPTY_26,
       words: (wordsQ.data ?? []).map(toOwnedWord),
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
@@ -588,7 +631,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         if (!chain.params || !chain.player) return;
         // Only words that are actually hungry — feed() has no on-chain guard, so feeding a fed word
         // burns a snack for nothing and there is no revert to catch.
-        const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0).map((w) => tokenIdOf(w.word));
+        // mine only: feed() is staker-only on-chain, so a linked wallet's word would revert the batch.
+        const hungry = state.words.filter((w) => w.mine && w.staked && w.daysUnfed > 0).map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody's hungry", "info");
         void run("Feed all", () =>
           feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),

@@ -32,9 +32,8 @@ export interface Viewer {
   environment: Environment;
   /**
    * The wallets Farcaster links to this account (custody + verified, lowercase) — null until the
-   * profile resolves, and always null inside a Farcaster host (the connected wallet there IS a
-   * linked one). Lets the web UI warn when letters are about to mint into an unlinked wallet and
-   * fork the player's bag across contexts.
+   * profile resolves. Feeds the union bag on every surface, and lets the web UI warn when letters
+   * are about to mint into an unlinked wallet and fork the player's collection across contexts.
    */
   linkedWallets: string[] | null;
   /** Start Sign In With Farcaster (web only; a no-op inside a Farcaster client). */
@@ -54,9 +53,12 @@ export function useViewer(): Viewer {
     return () => window.removeEventListener(SESSION_EVENT, sync);
   }, []);
 
-  // A SIWF credential proves the FID but carries no username or avatar — fetch them once.
+  // A SIWF credential proves the FID but carries no username or avatar — fetch them once. Inside
+  // a host the SDK supplies those two, but NOT the account's linked wallets, and the union bag
+  // needs them everywhere — so the profile fetch runs for either provenance.
+  const hostFid = mini.isSDKLoaded ? mini.context?.user?.fid : undefined;
   useEffect(() => {
-    const fid = session?.fid;
+    const fid = session?.fid ?? hostFid;
     if (!fid) {
       setProfile(null);
       return;
@@ -73,7 +75,7 @@ export function useViewer(): Viewer {
     return () => {
       cancelled = true;
     };
-  }, [session?.fid]);
+  }, [session?.fid, hostFid]);
 
   const signIn = useCallback(() => {
     window.dispatchEvent(new Event(SIGN_IN_EVENT));
@@ -94,7 +96,7 @@ export function useViewer(): Viewer {
       displayName: ctxUser.displayName ?? ctxUser.username ?? null,
       isAuthed: true,
       environment: "farcaster",
-      linkedWallets: null, // in-host the connected wallet is a linked one by construction
+      linkedWallets: profile?.linkedWallets ?? null, // the union bag wants them in-host too
       signIn,
       signOut,
     };
