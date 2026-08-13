@@ -14,7 +14,6 @@ import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
-import { useConnect } from "wagmi";
 import { ChainGameProvider } from "./ChainGameProvider";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
@@ -108,18 +107,6 @@ function OnboardingHost() {
 
 function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinishOnboarding: () => void }) {
   const { state } = useGame();
-  // wagmi is mounted by <Providers> for both stores, so this is safe on the mock path too (where
-  // status is always "ready" and ChainGate never renders the connect prompt).
-  const { connect, connectors } = useConnect();
-  const connectWallet = useCallback(() => {
-    // connectors[0] is the Farcaster mini-app connector, which AUTO-connects inside a Farcaster
-    // host — so if this button is visible we are on the web, and picking [0] leaves an extension
-    // user unable to connect at all. Prefer the injected connector here and fall back only if it
-    // is absent.
-    const injected =
-      connectors.find((c) => c.type === "injected" || c.id === "injected") ?? connectors[0];
-    if (injected) connect({ connector: injected });
-  }, [connect, connectors]);
   // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
   // Farcaster splash screen — no manual call needed here.
   return (
@@ -136,7 +123,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
             {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
                 one bad screen holds its error state across every later navigation. */}
             <ScreenErrorBoundary key={state.view}>
-              <ChainGate connect={connectWallet}>
+              <ChainGate>
                 <Screen view={state.view} />
               </ChainGate>
             </ScreenErrorBoundary>

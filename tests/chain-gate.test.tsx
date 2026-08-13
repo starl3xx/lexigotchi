@@ -13,6 +13,12 @@ vi.mock("@/components/game/state", () => ({
   useGame: () => ({ state: mockState }),
 }));
 
+// ChainGate delegates the no-wallet prompt to ConnectPanel, which needs the wagmi provider tree.
+// Stubbed because these tests are about WHICH state renders, not what the panel looks like.
+vi.mock("@/components/game/ConnectPanel", () => ({
+  ConnectPanel: () => <div>connect-panel</div>,
+}));
+
 describe("ScreenErrorBoundary actually catches", () => {
   function Boom(): React.ReactNode {
     throw new Error("kaboom from a screen");
@@ -80,14 +86,12 @@ describe("ChainGate never shows unknown state as zero", () => {
     expect(screen.getByText(/reading the chain/i)).toBeTruthy();
   });
 
-  it("asks for a wallet instead of showing an empty bag", () => {
+  it("asks for credentials instead of showing an empty bag", () => {
     mockState = { status: "no-wallet" };
-    const connect = vi.fn();
-    render(<ChainGate connect={connect}>{<div>your 12 letters</div>}</ChainGate>);
+    render(<ChainGate>{<div>your 12 letters</div>}</ChainGate>);
+    // The property that matters: a player with a full bag must never see an empty one.
     expect(screen.queryByText("your 12 letters")).toBeNull();
-    expect(screen.getByText(/connect to play/i)).toBeTruthy();
-    fireEvent.click(screen.getByText(/connect wallet/i));
-    expect(connect).toHaveBeenCalled();
+    expect(screen.getByText("connect-panel")).toBeTruthy();
   });
 
   it("says a read failed, and says it is not a change to what you own", () => {
