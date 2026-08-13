@@ -13,9 +13,19 @@ import { createClient, Errors } from "@farcaster/quick-auth";
 import { SITE_URL } from "@/lib/site";
 
 const client = createClient();
+
+/**
+ * Shared Quick Auth client. Exported so the web sign-in routes can reuse it for `generateNonce` and
+ * `verifySiwf` — the SAME client that verifies host-minted JWTs, so both provenances are handled by
+ * one configuration rather than two that can drift.
+ */
+export const quickAuthClient = client;
 // Quick Auth's `domain` / JWT `aud` is the host only (no scheme/port). Must match the mini-app
 // manifest domain — i.e. NEXT_PUBLIC_URL's host in production (e.g. "lexigotchi.fun").
 const DOMAIN = new URL(SITE_URL).hostname;
+
+/** The JWT audience. Exported so /api/auth/verify mints tokens `getAuthedFid` will accept. */
+export const QUICK_AUTH_DOMAIN = DOMAIN;
 
 /** Verify the request's `Authorization: Bearer` Quick Auth token → FID, or null if missing/invalid. */
 export async function getAuthedFid(req: Request): Promise<number | null> {

@@ -8,6 +8,8 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { NETWORK } from "@/lib/onchain/network";
 import { isAddress } from "viem";
+import { getCampaignStatus } from "@/lib/db/queries";
+import { isCampaignConfigured } from "@/lib/db/client";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // node:crypto + quick-auth
@@ -45,10 +47,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
   }
 
+  // CAMPAIGN ELIGIBILITY. The free pack is the reward for adding the mini app AND sharing a
+  // verified cast — without this check any authenticated FID can claim one, which is not a sybil
+  // hole (freePackClaimed is one-per-FID on-chain) but does hand out the campaign reward to people
+  // who never ran the campaign.
+  //
+  // Skipped only when the campaign backend isn't configured at all: on a testnet rehearsal there is
+  // no Neon database, and failing closed there would make the pack unclaimable rather than
+  // protected. Gated on the DB's presence, never on NODE_ENV, so a production deploy that loses its
+  // DATABASE_URL fails CLOSED.
+  if (isCampaignConfigured()) {
+    try {
+      const status = await getCampaignStatus(fid);
+      if (!status.eligible) {
+        return NextResponse.json(
+          { ok: false, error: status.added ? "share_required" : "add_required" },
+          { status: 403 },
+        );
+      }
+    } catch (err) {
+      // A campaign DB that is configured but unreachable must NOT open the gate.
+      console.error("[free-pack] eligibility check failed:", err);
+      return NextResponse.json({ ok: false, error: "eligibility_unavailable" }, { status: 503 });
+    }
+  }
+
   const letters = addressOf("letters");
   const client = getPublicClient();
 
-  // On-chain refusals first — these are the authoritative guards, and checking them here turns a
+  // On-chain refusals next — these are the authoritative guards, and checking them here turns a
   // confusing revert into a clean error the UI can explain.
   const [open, claimed] = await client.multicall({
     allowFailure: false,

@@ -42,6 +42,7 @@ export {
   Wallet,
   CurrencyDollar,
   CircleNotch,
+  Warning,
   CaretRight,
   Check,
   Plus,

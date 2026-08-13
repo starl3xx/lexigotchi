@@ -5,7 +5,6 @@
  * No contracts are wired; every action mutates local state so the full loop is explorable.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NeynarAuthButton } from "@neynar/react";
 import { PRELAUNCH } from "@/lib/site";
 import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
 import { useViewer } from "./useViewer";
@@ -14,6 +13,7 @@ import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
 import { Toaster } from "./primitives";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
+import { WebSignInHost } from "./WebSignInHost";
 import { useConnect } from "wagmi";
 import { ChainGameProvider } from "./ChainGameProvider";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
@@ -145,11 +145,9 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
           <Toaster />
           <SheetHost />
           <AddAppHost />
-          {/* Always-mounted, visually-hidden Sign In With Neynar trigger for web players;
-              useViewer().signIn() clicks it. Visible CTAs live in the screens/sheets. */}
-          <div data-lexi-siwn className="sr-only">
-            <NeynarAuthButton />
-          </div>
+          {/* Sign In With Farcaster for web players. Listens for the event useViewer().signIn()
+              fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
+          <WebSignInHost />
           {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
         </div>
       </div>

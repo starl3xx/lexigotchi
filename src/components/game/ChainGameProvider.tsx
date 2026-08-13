@@ -216,8 +216,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const feedSizingFree = false;
 
   const authError = useCallback((code: string | undefined, what: string) => {
-    if (code === "no_farcaster_host" || code === "unauthorized") {
-      return `${what} needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App`;
+    if (code === "not_signed_in" || code === "no_farcaster_host" || code === "unauthorized") {
+      // Reachable on the web now that SIWF exists, so this asks for a sign-in rather than telling
+      // the player to go somewhere else. The older code is still matched: an in-flight response can
+      // predate a deploy.
+      return `${what} needs a Farcaster sign-in — tap Connect to sign in`;
     }
     return `${what} unavailable: ${code ?? "unknown"}`;
   }, []);
@@ -365,7 +368,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // their voucher first so they fail free; a paid commit sent before this check leaves the
           // fee spent and the commit stranded with no way to finish it.
           if (!(await canSign())) {
-            toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            toast("Rolling needs a Farcaster sign-in — tap Connect to sign in", "bad");
             return { status: "not-started" as const };
           }
           const before = await readOpenRollCommits(address);
@@ -381,7 +384,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // their voucher first so they fail free; a paid commit sent before this check leaves the
           // fee spent and the commit stranded with no way to finish it.
           if (!(await canSign())) {
-            toast("Rolling needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            toast("Rolling needs a Farcaster sign-in — tap Connect to sign in", "bad");
             return { status: "not-started" as const };
           }
           const before = await readOpenRollCommits(address);
@@ -394,7 +397,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           if (!(await canSign())) {
-            toast("Ascension needs a Farcaster sign-in — open Lexigotchi in Farcaster or Base App", "bad");
+            toast("Ascension needs a Farcaster sign-in — tap Connect to sign in", "bad");
             return { status: "not-started" as const };
           }
           const before = await readOpenPrestigeCommits(address);

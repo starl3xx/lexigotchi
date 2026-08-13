@@ -2,15 +2,26 @@
 /**
  * The current player's Farcaster identity, unified across the two ways they can arrive:
  *   - inside a Farcaster client → the Mini App SDK context (auto-authenticated, no prompt)
- *   - on the open web → Sign In With Neynar (the `signIn` action opens the SIWN flow)
+ *   - on the open web → Sign In With Farcaster, exchanged for a Quick Auth JWT (lib/auth/siwfWeb)
  *
- * Screens use this to greet the player, gate the FID-only daily mint, and decide whether to show
- * a "connect Farcaster" affordance. `environment` is "loading" until the SDK resolves.
+ * The web path replaced Sign In With Neynar, which retires 2026-08-14. It is not merely a
+ * like-for-like swap: SIWN gave a display identity and nothing else, whereas the SIWF exchange
+ * yields a token the API routes already accept — so a web player can actually mint.
+ *
+ * Screens use this to greet the player, gate the FID-only daily mint, and decide whether to show a
+ * "connect Farcaster" affordance. `environment` is "loading" until the SDK resolves.
  */
-import { useCallback } from "react";
-import { useMiniApp, useNeynarContext } from "@neynar/react";
+import { useCallback, useEffect, useState } from "react";
+import { useMiniApp } from "@neynar/react";
+import { clearWebSession, webSession } from "@/lib/auth/siwfWeb";
+import type { FarcasterProfile } from "@/lib/neynar";
 
 export type Environment = "loading" | "farcaster" | "web";
+
+/** Fired by `signIn()`; WebSignInHost listens and renders the approval UI. */
+export const SIGN_IN_EVENT = "lexi:signin";
+/** Fired when a web session is established or cleared, so every useViewer re-reads. */
+export const SESSION_EVENT = "lexi:session";
 
 export interface Viewer {
   fid: number | null;
@@ -19,23 +30,52 @@ export interface Viewer {
   displayName: string | null;
   isAuthed: boolean;
   environment: Environment;
-  /** Open Sign In With Neynar (web only; a no-op inside a Farcaster client). */
+  /** Start Sign In With Farcaster (web only; a no-op inside a Farcaster client). */
   signIn: () => void;
   signOut: () => void;
 }
 
 export function useViewer(): Viewer {
   const mini = useMiniApp();
-  const neynar = useNeynarContext();
+  const [session, setSession] = useState(() => webSession());
+  const [profile, setProfile] = useState<FarcasterProfile | null>(null);
+
+  // Re-read on session changes so a completed sign-in updates every consumer at once.
+  useEffect(() => {
+    const sync = () => setSession(webSession());
+    window.addEventListener(SESSION_EVENT, sync);
+    return () => window.removeEventListener(SESSION_EVENT, sync);
+  }, []);
+
+  // A SIWF credential proves the FID but carries no username or avatar — fetch them once.
+  useEffect(() => {
+    const fid = session?.fid;
+    if (!fid) {
+      setProfile(null);
+      return;
+    }
+    let cancelled = false;
+    void fetch(`/api/auth/profile?fid=${fid}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d?.ok) setProfile(d.profile as FarcasterProfile);
+      })
+      .catch(() => {
+        /* cosmetic — the FID alone is enough to play */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.fid]);
 
   const signIn = useCallback(() => {
-    // NeynarAuthButton drives the actual popup; expose a programmatic entry where useful.
-    const el = document.querySelector<HTMLElement>(
-      "[data-lexi-siwn] button, [data-lexi-siwn] [role='button'], [data-lexi-siwn] a",
-    );
-    el?.click();
+    window.dispatchEvent(new Event(SIGN_IN_EVENT));
   }, []);
-  const signOut = useCallback(() => neynar.logoutUser?.(), [neynar]);
+
+  const signOut = useCallback(() => {
+    clearWebSession();
+    window.dispatchEvent(new Event(SESSION_EVENT));
+  }, []);
 
   // In a Farcaster client: the SDK context is the source of truth.
   const ctxUser = mini.context?.user;
@@ -52,14 +92,14 @@ export function useViewer(): Viewer {
     };
   }
 
-  // On the web: a Sign In With Neynar session, if present.
-  if (neynar.isAuthenticated && neynar.user) {
-    const u = neynar.user;
+  // On the web: a SIWF session, if present. The profile fills in a moment later; the FID is what
+  // actually gates play, so an unresolved profile never blocks anything.
+  if (session) {
     return {
-      fid: u.fid,
-      username: u.username,
-      pfpUrl: u.pfp_url ?? null,
-      displayName: u.display_name ?? u.username,
+      fid: session.fid,
+      username: profile?.username ?? null,
+      pfpUrl: profile?.pfpUrl ?? null,
+      displayName: profile?.displayName ?? profile?.username ?? `fid ${session.fid}`,
       isAuthed: true,
       environment: "web",
       signIn,

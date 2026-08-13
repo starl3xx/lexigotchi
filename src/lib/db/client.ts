@@ -25,3 +25,15 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
 }
 
 export { schema };
+
+/**
+ * Is the campaign backend configured at all?
+ *
+ * Lets a route distinguish "no campaign database exists here" (a testnet rehearsal, where gating on
+ * it would make the reward unclaimable) from "the database is configured but failed" (which must
+ * fail CLOSED). Deliberately keyed on DATABASE_URL rather than NODE_ENV, so a production deploy that
+ * loses its database does not silently start handing out campaign rewards.
+ */
+export function isCampaignConfigured(): boolean {
+  return !!process.env.DATABASE_URL;
+}
