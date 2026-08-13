@@ -53,3 +53,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# keeper epoch trees (operational state; deterministic, regenerable with --dry)
+keeper-output/

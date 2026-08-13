@@ -13,6 +13,7 @@
     "start": "next start",
     "derive": "tsx scripts/derive-economy.ts",
     "sim": "tsx scripts/run-sim.ts",
+    "keeper": "tsx scripts/keeper.ts",
     "sweep": "tsx scripts/price-sweep.ts",
     "market": "tsx scripts/market.ts",
     "trade-exp": "tsx scripts/trading-experiment.ts",
