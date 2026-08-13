@@ -49,11 +49,29 @@ export function ConnectPanel() {
       </p>
 
       <div className="mt-5 flex flex-col gap-3">
-        {/* 1 — Base */}
+        {/* 1 — Farcaster identity. First because it answers the panel's headline promise (the free
+            daily), and styled to Farcaster's brand — the purple + arch mark players already know
+            from every other mini app (same treatment as LHAW's share button). */}
+        <Option
+          done={viewer.isAuthed}
+          doneLabel={viewer.username ? `@${viewer.username}` : viewer.fid ? `fid ${viewer.fid}` : ""}
+          caption="Unlocks the free daily letter — one per account."
+        >
+          <button
+            onClick={viewer.signIn}
+            className="cel flex w-full items-center justify-center gap-2 rounded-xl bg-[#855DCD] px-4 py-2.5 text-sm font-extrabold text-white"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/fc-arch-icon.png" alt="" className="h-3.5 w-auto" />
+            Sign in with Farcaster
+          </button>
+        </Option>
+
+        {/* 2 — Base */}
         <Option
           done={isConnected}
           doneLabel={shortAddr(address)}
-          caption="Holds your letters and words."
+          caption="A smart wallet for your letters — Coinbase-verified? It unlocks the daily too."
         >
           {hasBase && (
             // Base's own button, wired to the wagmi connector rather than @base-org/account's
@@ -69,7 +87,7 @@ export function ConnectPanel() {
           )}
         </Option>
 
-        {/* 2 — any browser wallet */}
+        {/* 3 — any browser wallet */}
         {!isConnected && hasInjected && (
           <Option done={false} caption="Any browser extension wallet.">
             <button
@@ -80,20 +98,6 @@ export function ConnectPanel() {
             </button>
           </Option>
         )}
-
-        {/* 3 — Farcaster identity */}
-        <Option
-          done={viewer.isAuthed}
-          doneLabel={viewer.username ? `@${viewer.username}` : viewer.fid ? `fid ${viewer.fid}` : ""}
-          caption="Unlocks the free daily — one per account. No Farcaster? A Coinbase-verified wallet works too."
-        >
-          <button
-            onClick={viewer.signIn}
-            className="cel w-full rounded-xl bg-teal px-4 py-2.5 text-sm font-extrabold text-paper"
-          >
-            Sign in with Farcaster
-          </button>
-        </Option>
       </div>
     </div>
   );
