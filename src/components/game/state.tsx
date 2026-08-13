@@ -145,6 +145,8 @@ export interface GameState {
   freeSnackUsed: boolean;
   jackpotWord: string;
   jackpotPot: number;
+  /** The bounty bucket, whole $WORD — real on chain, seeded in the mock. */
+  bountyPool: number;
   jackpotRevealed: boolean;
   bountyTheme: number; // index into THEMES
   view: View;
@@ -180,14 +182,9 @@ export function jackpotEligible(w: OwnedWord): boolean {
 export const mineLower = (s: GameState): number[] => s.lowerMine ?? s.lower;
 export const mineUpper = (s: GameState): number[] => s.upperMine ?? s.upper;
 
-/** Bounty theme catalogue — mirrors src/lib/sim/simulate.ts THEMES. */
-export const THEMES: { name: string; short: string; test: (w: string) => boolean }[] = [
-  { name: "Contains a rare letter (Q / Z / X / J)", short: "rare letters", test: (w) => /[QZXJ]/.test(w) },
-  { name: "Has a repeated letter", short: "double letters", test: (w) => new Set(w).size < w.length },
-  { name: "Ends in -ING", short: "-ING", test: (w) => w.endsWith("ING") },
-  { name: "Starts with a vowel", short: "vowel-start", test: (w) => "AEIOU".includes(w[0]) },
-  { name: "Ends in Y", short: "-Y", test: (w) => w.endsWith("Y") },
-];
+/** Bounty themes — re-exported from the canonical module the keeper also reads (lib/themes). */
+import { THEMES } from "@/lib/themes";
+export { THEMES };
 
 // ---------------------------------------------------------------------------
 // Pricing helpers (USD-pegged → $WORD)
@@ -259,6 +256,7 @@ export function seedState(): GameState {
     freeSnackUsed: false,
     jackpotWord: "TEASE", // the player holds it, staked & fed → a winnable reveal
     jackpotPot: 18_500_000,
+    bountyPool: 9_400_000,
     jackpotRevealed: false,
     bountyTheme: 1, // "has a repeated letter"
     view: "home",
@@ -545,6 +543,13 @@ export interface GameApi {
   pendingReveals: number;
   /** Finish the oldest unrevealed commit: fetch the deterministic draw, send the reveal, open the sheet. */
   openPending: () => void;
+  /**
+   * Unclaimed reward leaves across the union bag — the keeper's published epochs minus what the
+   * chain says is claimed. Whole-$WORD amounts for display; the provider holds the raw proofs.
+   */
+  claimables: { stream: "yield" | "bounty"; tokenId: string; amount: number }[];
+  /** Claim every leaf in one send. Leaves pay their baked-in accounts, so this is union-safe. */
+  claimEarnings: () => void;
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
@@ -691,6 +696,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // The mock reveals in the same tick it commits, so nothing can strand.
       pendingReveals: 0,
       openPending: () => {},
+      // The mock has no keeper and no epochs — earnings arrive via its own staking tick instead.
+      claimables: [],
+      claimEarnings: () => {},
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),

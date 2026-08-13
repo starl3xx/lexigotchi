@@ -27,7 +27,7 @@ import { scanAllWords } from "../src/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "../src/lib/keeper/shares";
 import { buildEpochFile, verifyEntry } from "../src/lib/keeper/tree";
 import { DEFAULT_PARAMS } from "../src/lib/params";
-import { THEMES } from "../src/lib/sim/simulate";
+import { THEMES, themeForPeriod } from "../src/lib/themes";
 
 const args = new Set(process.argv.slice(2));
 const DRY = args.has("--dry");
@@ -116,7 +116,7 @@ async function openStream(kind: "yield" | "bounty") {
     const pot = (bucket * BigInt(Math.round(DEFAULT_PARAMS.staking.dailyDistributionRate * 1e6))) / 1_000_000n;
     leaves = yieldLeaves(words, pot);
   } else {
-    const themeIdx = Number(epochId) % THEMES.length;
+    const themeIdx = themeForPeriod(Number(epochId));
     meta = BigInt(themeIdx);
     leaves = bountyLeaves(words, bucket, THEMES[themeIdx].test);
     console.log(`bounty: period ${epochId}, theme "${THEMES[themeIdx].name}"`);

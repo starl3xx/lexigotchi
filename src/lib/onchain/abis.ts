@@ -40,3 +40,16 @@ export const ABIS = {
   yieldDistributor: yieldDistributorAbi,
   bounty: bountyAbi,
 } as const;
+
+/** The claim surface of MerkleEpochs (YieldDistributor + Bounty share it). */
+export const merkleEpochsAbi = [
+  { type: "function", name: "claim", stateMutability: "nonpayable",
+    inputs: [
+      { name: "epochId", type: "uint256" }, { name: "tokenId", type: "uint256" },
+      { name: "account", type: "address" }, { name: "amount", type: "uint256" },
+      { name: "proof", type: "bytes32[]" },
+    ], outputs: [] },
+  { type: "function", name: "hasClaimed", stateMutability: "view",
+    inputs: [{ name: "epochId", type: "uint256" }, { name: "tokenId", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }] },
+] as const;

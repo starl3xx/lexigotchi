@@ -17,7 +17,7 @@ import { createPublicClient, formatUnits, type PublicClient } from "viem";
 import { rpcTransport } from "./transport";
 import { ACTIVE_CHAIN } from "./chain";
 import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
-import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, erc1155ApprovalAbi } from "./abis";
+import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, feeRouterAbi, erc20Abi, erc1155ApprovalAbi } from "./abis";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || undefined;
@@ -647,6 +647,21 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
       prestigeLevel,
     };
   });
+}
+
+/** The FeeRouter's three player-facing buckets, in whole $WORD — the real pots the screens show. */
+export async function readFeeBuckets(): Promise<{ pool: number; jackpot: number; bounty: number }> {
+  const feeRouter = addressOf("feeRouter");
+  const r = await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: (["poolBalance", "jackpotBalance", "bountyBalance"] as const).map((fn) => ({
+      address: feeRouter,
+      abi: feeRouterAbi,
+      functionName: fn,
+    })),
+  });
+  const [pool, jackpot, bounty] = r as unknown as [bigint, bigint, bigint];
+  return { pool: toWholeWord(pool), jackpot: toWholeWord(jackpot), bounty: toWholeWord(bounty) };
 }
 
 /** The chain's current block timestamp — the only correct source for the UTC day boundary. */

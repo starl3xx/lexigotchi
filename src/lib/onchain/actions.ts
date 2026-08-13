@@ -14,7 +14,7 @@
 import { encodeFunctionData, maxUint256 } from "viem";
 import type { Call } from "./sendCalls";
 import { addressOf, wordTokenAddress } from "./addresses";
-import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi } from "./abis";
+import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, merkleEpochsAbi } from "./abis";
 import { erc20ApprovalCalls, operatorApprovalCalls, prestigeTotalNeeded, feedManyNeeded } from "./allowances";
 import { NETWORK } from "./network";
 import type { GameParams, PlayerState } from "./reads";
@@ -295,3 +295,26 @@ export function revokeAllCalls(): Call[] {
 }
 
 export { maxUint256 };
+
+export interface RewardClaim {
+  stream: "yield" | "bounty";
+  epochId: bigint;
+  tokenId: bigint;
+  /** The leaf's baked-in payee — claim() pays THIS address no matter who sends, which is what lets
+   *  the connected wallet collect for every wallet in the union bag. */
+  account: `0x${string}`;
+  amount: bigint;
+  proof: `0x${string}`[];
+}
+
+/** One call per claimable leaf; both streams batch into a single send. */
+export function claimRewardCalls(claims: readonly RewardClaim[]): Call[] {
+  return claims.map((c) => ({
+    to: addressOf(c.stream === "yield" ? "yieldDistributor" : "bounty"),
+    data: encodeFunctionData({
+      abi: merkleEpochsAbi,
+      functionName: "claim",
+      args: [c.epochId, c.tokenId, c.account, c.amount, c.proof],
+    }),
+  }));
+}
