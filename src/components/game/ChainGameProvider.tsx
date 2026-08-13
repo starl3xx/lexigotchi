@@ -82,6 +82,8 @@ const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 // The two vouchers differ: the free pack is nonce-scoped, the daily is UTC-day-scoped.
 interface PackVoucher { fid: string; nonce: string; deadline: string; signature: `0x${string}` }
 interface DailyVoucher { fid: string; today: number; deadline: string; signature: `0x${string}` }
+/** Pre-signed reveal for the predicted commitId — lets commit+reveal ride one send. */
+interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; revealSignature: `0x${string}` }
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 
@@ -389,20 +391,56 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       canAfford: (amount: number) => (chain.player ? chain.player.balance >= amount : false),
 
       /**
-       * The free daily: voucher → commit → discover → draw → reveal. Two identities can earn the
-       * voucher — a Farcaster FID, or a Coinbase-verified wallet — so this goes through
-       * openPostJson: token when present, plain when the attestation is the identity.
+       * The free daily. Two identities can earn the voucher — a Farcaster FID, or a Coinbase-
+       * verified wallet — so this goes through openPostJson: token when present, plain when the
+       * attestation is the identity.
+       *
+       * With a bundle (the normal case) commit + reveal go out as ONE send: a single prompt on
+       * 5792 wallets, two back-to-back prompts on the fallback — no polling gap between them,
+       * because the gap is where the first live daily lost its reveal. Without a bundle it falls
+       * back to the original two-phase discover-then-reveal.
        */
       dailyMint: () =>
         guarded(async (markPaid) => {
           if (!address) { toast("Connect a wallet first", "bad"); return { status: "not-started" as const }; }
-          const res = await openPostJson<{ voucher: DailyVoucher }>("/api/mint/free-daily", { wallet: address });
+          const res = await openPostJson<{ voucher: DailyVoucher; bundle: DailyBundle | null }>(
+            "/api/mint/free-daily",
+            { wallet: address },
+          );
           if (!res?.ok) { toast(dailyError(res?.error), "bad"); return { status: "not-started" as const }; }
           const v = res.voucher;
+          const commitCalls = () =>
+            commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature });
+
+          if (res.bundle) {
+            const b = res.bundle;
+            const sent = await run("Daily", () => [
+              ...commitCalls(),
+              ...revealCalls(BigInt(b.predictedCommitId), b.letterIndexes, b.revealSignature),
+            ]);
+            if (sent) {
+              markPaid();
+              // The letters are safe to show before mining confirms: the draw is (identity, day)-
+              // deterministic, so whatever finishes this commit — this send or the recovery card
+              // after a commitId race — mints exactly these.
+              dispatch({ t: "sheet", sheet: { kind: "pack", letters: b.letterIndexes } });
+              return { status: "resolved" as const, success: true };
+            }
+            // The send failed somewhere. On the two-prompt fallback that can mean "commit went
+            // out, reveal was declined" — check the chain rather than guess, so a mere cancel at
+            // the first prompt isn't reported as money moved.
+            const day = await dayQ.refetch();
+            void pendingQ.refetch();
+            if (day.data?.dailyUsed) {
+              markPaid();
+              return { status: "stranded" as const, note: "Your letter is committed — tap Open to reveal it" };
+            }
+            return { status: "not-started" as const };
+          }
+
+          // No bundle — the original two-phase flow.
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
-          if (!(await run("Daily", () =>
-            commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature }),
-          ))) return { status: "not-started" as const };
+          if (!(await run("Daily", commitCalls))) return { status: "not-started" as const };
           markPaid();
           await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it");
           // Letters arrive via the pack sheet; the caller only needs "don't call this again".

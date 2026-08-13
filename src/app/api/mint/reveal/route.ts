@@ -2,11 +2,41 @@ import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
-import { addressOf } from "@/lib/onchain/addresses";
+import { addressOf, deployBlock } from "@/lib/onchain/addresses";
 import { lettersRevealDigest } from "@/lib/onchain/digests";
-import { signDigest, drawLetters } from "@/lib/onchain/signer";
+import { signDigest, drawLetters, dailySeed } from "@/lib/onchain/signer";
 import { getPublicClient, readLetterSupply } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
+
+/**
+ * The (identity, day) a daily commit was minted under, from its FreeDailyMinted event — commitId
+ * is indexed there, so this is one log lookup. Null for non-daily count-1 commits (the paid daily,
+ * which has no issuance route yet and keeps the commitId-keyed draw).
+ */
+async function readDailyIdentity(
+  commitId: bigint,
+  letters: `0x${string}`,
+): Promise<{ key: bigint; day: number } | null> {
+  const logs = await getPublicClient().getLogs({
+    address: letters,
+    event: {
+      type: "event",
+      name: "FreeDailyMinted",
+      inputs: [
+        { name: "fid", type: "uint256", indexed: true },
+        { name: "buyer", type: "address", indexed: true },
+        { name: "commitId", type: "uint256", indexed: true },
+        { name: "day", type: "uint32", indexed: false },
+      ],
+    },
+    args: { commitId },
+    fromBlock: deployBlock(),
+    toBlock: "latest",
+  });
+  const log = logs[0];
+  if (!log) return null;
+  return { key: log.args.fid as bigint, day: Number(log.args.day) };
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -77,7 +107,14 @@ export async function POST(req: Request) {
   const { available } = await readLetterSupply();
   let letterIndexes: number[];
   try {
-    letterIndexes = drawLetters(commitId, commit.count, available);
+    // DAILY commits (count 1) draw from the (identity, day) seed, not the commitId — the SAME
+    // derivation the free-daily bundle pre-signs. If this route drew commitId-keyed instead, a
+    // player could commit, decline the bundled reveal, and come back here for a second, different
+    // draw — two letters to choose from. One identity-day, one draw, everywhere.
+    const daily = commit.count === 1 ? await readDailyIdentity(commitId, letters) : null;
+    letterIndexes = daily
+      ? drawLetters(dailySeed(daily.key, daily.day), 1, available, "daily")
+      : drawLetters(commitId, commit.count, available);
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: "no_supply", detail: (err as Error).message },

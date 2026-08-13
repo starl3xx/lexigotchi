@@ -101,3 +101,55 @@ describe("drawSuccess", () => {
     expect(rate(0.85)).toBeGreaterThan(rate(0.45));
   });
 });
+
+/**
+ * The daily's (identity, day) seed — the property that makes the single-prompt daily safe. The
+ * reveal is pre-signed BEFORE the commit mines, so the API response shows the letter early; only
+ * a draw that cannot change on re-request makes that preview worthless to a shopper.
+ */
+describe("dailySeed and the day-keyed daily draw", () => {
+  it("is deterministic per (identity, day) — asking twice is the same letter", async () => {
+    const { drawLetters, dailySeed } = await load();
+    const key = (1n << 160n) | 0x58a5n;
+    const first = drawLetters(dailySeed(key, 20678), 1, FULL, "daily");
+    for (let i = 0; i < 10; i++) expect(drawLetters(dailySeed(key, 20678), 1, FULL, "daily")).toEqual(first);
+  });
+
+  it("distinct identities and distinct days get their own seeds", async () => {
+    const { dailySeed } = await load();
+    const seeds = new Set<bigint>();
+    for (const key of [1n, 2n, (1n << 160n) | 7n, (1n << 160n) | 8n]) {
+      for (const day of [20678, 20679, 20680]) seeds.add(dailySeed(key, day));
+    }
+    expect(seeds.size).toBe(12);
+  });
+
+  it("day feeds the draw — one identity does not get the same letter forever", async () => {
+    const { drawLetters, dailySeed } = await load();
+    const key = 6500n;
+    const letters = new Set(
+      Array.from({ length: 60 }, (_, d) => drawLetters(dailySeed(key, 20678 + d), 1, FULL, "daily")[0]),
+    );
+    // 60 days of one identity's dailies span multiple letters — the day is genuinely in the seed.
+    expect(letters.size).toBeGreaterThan(3);
+  });
+
+  it("the daily namespace is separated from the commitId-keyed letters draws", async () => {
+    const { drawLetters } = await load();
+    // The same numeric seed through the two namespaces diverges somewhere across 40 trials —
+    // deterministic HMACs, so this is a fixed fact, not a flaky sample.
+    const diverges = Array.from({ length: 40 }, (_, i) => {
+      const s = BigInt(i) + (1n << 40n);
+      return drawLetters(s, 1, FULL, "daily")[0] !== drawLetters(s, 1, FULL, "letters")[0];
+    });
+    expect(diverges.some(Boolean)).toBe(true);
+  });
+
+  it("keeps synthetic verified-wallet keys exact through the shift", async () => {
+    const { dailySeed } = await load();
+    const key = (1n << 160n) | BigInt("0x58a585909cccd4f84ebc3868db6da8d9882fee9c");
+    const seed = dailySeed(key, 20678);
+    expect(seed >> 32n).toBe(key); // reversible — nothing truncated
+    expect(seed & 0xffffffffn).toBe(20678n);
+  });
+});

@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { allow } from "@/lib/ratelimit";
 import { addressOf } from "@/lib/onchain/addresses";
-import { freeDailyDigest, chainDay } from "@/lib/onchain/digests";
-import { signDigest } from "@/lib/onchain/signer";
-import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
+import { freeDailyDigest, lettersRevealDigest, chainDay } from "@/lib/onchain/digests";
+import { signDigest, drawLetters, dailySeed } from "@/lib/onchain/signer";
+import { getPublicClient, readChainTime, readLetterSupply } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { isCoinbaseVerified, verifiedDailyKey } from "@/lib/onchain/verifications";
 import { isAddress } from "viem";
@@ -105,6 +105,39 @@ export async function POST(req: Request) {
     freeDailyDigest({ letters, buyer: wallet as `0x${string}`, fid: key, today, deadline }),
   );
 
+  // THE BUNDLE — commit + reveal pre-signed together, so the wallet can do the whole daily in one
+  // prompt (5792 batch) or two back-to-back prompts with no polling gap (the gap is where the
+  // first live daily lost its reveal and stranded).
+  //
+  // The reveal signature binds the PREDICTED commitId (= commits.length — _newCommit assigns
+  // array-index ids). If another commit lands first, the bundled reveal reverts and the stranded-
+  // commit recovery finishes the pull with IDENTICAL letters — because the draw is seeded by
+  // (identity, day), not commitId. That seeding is also what makes pre-signing safe at all: the
+  // response reveals the letter before anything is sent, and a commitId-keyed draw would let a
+  // player re-request as traffic shifts the counter until they liked the answer. Per (identity,
+  // day) there is nothing to shop — asking twice is the same letter, which is exactly the one-
+  // draw-per-identity-day the two-phase flow produced anyway.
+  let bundle: { predictedCommitId: string; letterIndexes: number[]; revealSignature: string } | null = null;
+  try {
+    const [commitCount, { available }] = await Promise.all([
+      getPublicClient().readContract({
+        address: letters,
+        abi: lettersAbi,
+        functionName: "commitCount",
+      }) as Promise<bigint>,
+      readLetterSupply(),
+    ]);
+    const letterIndexes = drawLetters(dailySeed(key, today), 1, available, "daily");
+    const revealSignature = await signDigest(
+      lettersRevealDigest({ letters, commitId: commitCount, buyer: wallet as `0x${string}`, letterIndexes }),
+    );
+    bundle = { predictedCommitId: String(commitCount), letterIndexes, revealSignature };
+  } catch (err) {
+    // The bundle is an optimization, never a gate — without it the client falls back to the
+    // two-phase flow, which still works.
+    console.error("[free-daily] bundle unavailable, two-phase fallback:", err);
+  }
+
   return NextResponse.json({
     ok: true,
     voucher: {
@@ -117,5 +150,6 @@ export async function POST(req: Request) {
       // So the UI can show an honest "resets in", driven by chain time rather than local midnight.
       secondsUntilReset: nextMidnight - now,
     },
+    bundle,
   });
 }

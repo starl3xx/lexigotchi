@@ -85,7 +85,12 @@ function unitFloat(namespace: string, commitId: bigint, step: number): number {
  *
  * @param available - per-letter remaining supply, indexed 0..25 (cap - mintedEver)
  */
-export function drawLetters(commitId: bigint, count: number, available: readonly number[]): number[] {
+export function drawLetters(
+  commitId: bigint,
+  count: number,
+  available: readonly number[],
+  ns: "letters" | "daily" = "letters",
+): number[] {
   const total = ALPHABET.reduce((a, ch, i) => a + ((available[i] ?? 0) > 0 ? (LETTER_ODDS[ch] ?? 0) : 0), 0);
   if (total <= 0) throw new Error("No uncapped letters remain — cannot draw.");
 
@@ -96,7 +101,7 @@ export function drawLetters(commitId: bigint, count: number, available: readonly
     const live = ALPHABET.map((ch, i) => ((remaining[i] ?? 0) > 0 ? (LETTER_ODDS[ch] ?? 0) : 0));
     const sum = live.reduce((a, b) => a + b, 0);
     if (sum <= 0) throw new Error("Ran out of uncapped letters mid-draw.");
-    let r = unitFloat("letters", commitId, k) * sum;
+    let r = unitFloat(ns, commitId, k) * sum;
     let idx = 0;
     for (let i = 0; i < live.length; i++) {
       r -= live[i];
@@ -110,6 +115,23 @@ export function drawLetters(commitId: bigint, count: number, available: readonly
     remaining[idx] = (remaining[idx] ?? 0) - 1;
   }
   return out;
+}
+
+/**
+ * The DAILY's draw seed — deterministic per (identity, day), NOT per commitId.
+ *
+ * This is the property that makes the single-prompt daily safe. The reveal signature is issued
+ * BEFORE the commit mines (for a predicted commitId), so a player can see their letter in the API
+ * response and decide not to send. Keyed by commitId that would be a re-roll machine: let traffic
+ * shift the commit counter, ask again, new letter. Keyed by (identity, day) there is nothing to
+ * shop — the same identity gets the same letter all day no matter how many times it asks, which is
+ * exactly the "one draw per identity-day" the two-phase flow produced anyway.
+ *
+ * The seed folds day into the identity key (key << 32 | day). Uniqueness per (key, day) is what
+ * matters; the "daily" namespace already separates it from every commitId-keyed draw.
+ */
+export function dailySeed(key: bigint, day: number): bigint {
+  return (key << 32n) | BigInt(day >>> 0);
 }
 
 /**
