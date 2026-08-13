@@ -86,6 +86,7 @@ export interface OwnedWord {
 
 export type View =
   | "home"
+  | "more"
   | "bag"
   | "mint"
   | "claim"

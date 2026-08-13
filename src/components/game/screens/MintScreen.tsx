@@ -6,12 +6,26 @@ import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
 import { COST, fmtUsd, fmtWord, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
+import { useEffect, useState } from "react";
+import { fetchCampaignStatus } from "../campaignClient";
+import { useViewer } from "../useViewer";
 import { PendingReveal } from "../PendingReveal";
 
 export function MintScreen() {
   const g = useGame();
   const { state } = g;
   const daily = useDailyEligibility();
+  const viewer = useViewer();
+  // The chain store's pack is the CAMPAIGN pack — gated server-side on add+share. Ask up front so
+  // an ineligible player sees why instead of a button that bounces off a 403 ("rip a pack does
+  // nothing" was the live report). null = unknown (not signed in / DB absent) → keep the button.
+  const [packEligible, setPackEligible] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!state.chainBacked || !viewer.isAuthed) return void setPackEligible(null);
+    let dead = false;
+    void fetchCampaignStatus().then((cs) => { if (!dead) setPackEligible(cs ? cs.eligible : null); });
+    return () => { dead = true; };
+  }, [state.chainBacked, viewer.isAuthed]);
   const common = LETTERS_BY_FREQUENCY.slice(0, 5);
   const rare = LETTERS_BY_FREQUENCY.slice(-5);
 
@@ -64,6 +78,12 @@ export function MintScreen() {
           </div>
           <Package weight="fill" size={40} className="text-candy" />
         </div>
+        {state.chainBacked && packEligible === false ? (
+          <div className="mt-3 rounded-xl border-2 border-dashed border-ink/30 p-3 text-center text-sm text-ink/60">
+            The free pack is the campaign reward — <strong>add Lexigotchi in the Farcaster app and
+            share a cast</strong> to earn it.
+          </div>
+        ) : (
         <Button
           full
           size="lg"
@@ -85,6 +105,7 @@ export function MintScreen() {
           <Package weight="fill" />
           {g.state.chainBacked || g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
+        )}
       </Card>
 
       {/* odds preview */}

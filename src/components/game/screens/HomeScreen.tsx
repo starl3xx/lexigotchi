@@ -19,6 +19,7 @@ import {
 } from "../ui/icons";
 import { COST, THEMES, fmtWord, hunger, jackpotEligible, useGame, type View } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
+import { QuickGrid } from "../QuickGrid";
 import { PendingReveal } from "../PendingReveal";
 import { WalletMismatch } from "../WalletMismatch";
 
@@ -150,28 +151,8 @@ export function HomeScreen() {
 
       {/* quick actions */}
       <SectionTitle>Do something</SectionTitle>
-      <div className="grid grid-cols-2 gap-3">
-        <Quick Icon={Sparkle} label="Mint letters" sub="packs & daily" to="mint" />
-        <Quick Icon={TextAa} label="Spell a word" sub="claim it forever" to="claim" />
-        <Quick Icon={BookOpen} label="Lexidex" sub="4,438 words" to="lexidex" />
-        <Quick Icon={MaskHappy} label="Showcase" sub="flex & cast" to="showcase" />
-        <Quick Icon={ArrowsLeftRight} label="Swap" sub="trade letters" to="swap" />
-        <Quick Icon={Backpack} label="My bag" sub="letters & words" to="bag" />
-      </div>
+      <QuickGrid />
     </div>
   );
 }
 
-function Quick({ Icon, label, sub, to }: { Icon: typeof Sparkle; label: string; sub: string; to: View }) {
-  const { nav } = useGame();
-  return (
-    <button
-      onClick={() => nav(to)}
-      className="cel flex flex-col gap-1 rounded-2xl bg-paper p-3 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-    >
-      <Icon size={26} weight="bold" className="text-candy" />
-      <span className="font-display text-sm font-extrabold leading-tight">{label}</span>
-      <span className="text-[11px] text-ink/55">{sub}</span>
-    </button>
-  );
-}

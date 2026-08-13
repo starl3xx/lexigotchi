@@ -31,6 +31,7 @@ function isChainBacked(): boolean {
   return isSuiteDeployed() && NETWORK.isTestnet;
 }
 import { HomeScreen } from "./screens/HomeScreen";
+import { MoreScreen } from "./screens/MoreScreen";
 import { BagScreen } from "./screens/BagScreen";
 import { MintScreen } from "./screens/MintScreen";
 import { ClaimScreen } from "./screens/ClaimScreen";
@@ -152,6 +153,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
 function Screen({ view }: { view: View }) {
   switch (view) {
     case "home": return <HomeScreen />;
+    case "more": return <MoreScreen />;
     case "bag": return <BagScreen />;
     case "mint": return <MintScreen />;
     case "claim": return <ClaimScreen />;
@@ -271,7 +273,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["claim", "bounty", "lexidex", "showcase", "swap"];
+const MORE: View[] = ["more", "claim", "bounty", "lexidex", "showcase", "swap"];
 
 function BottomNav() {
   const { state, nav } = useGame();
@@ -281,7 +283,7 @@ function BottomNav() {
       {TABS.map((t) => (
         <NavBtn key={t.view} active={state.view === t.view} Icon={t.Icon} label={t.label} onClick={() => nav(t.view)} />
       ))}
-      <NavBtn active={onMore} Icon={DotsThree} label="More" onClick={() => nav("claim")} />
+      <NavBtn active={onMore} Icon={DotsThree} label="More" onClick={() => nav("more")} />
     </nav>
   );
 }
