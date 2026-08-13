@@ -40,6 +40,7 @@ import {
 import { rollSuccessProbability } from "@/lib/params";
 import { useOnchain } from "./useOnchain";
 import {
+  readFeeBuckets,
   readOwnedWords,
   readLetterCounts,
   readPity,
@@ -53,6 +54,7 @@ import {
 } from "@/lib/onchain/reads";
 import { verifiedDailyKey } from "@/lib/onchain/verifications";
 import { bagWalletsOf, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
+import { THEMES, themeForPeriod } from "@/lib/themes";
 import { useViewer } from "./useViewer";
 import {
   commitFreePackCalls,
@@ -70,6 +72,8 @@ import {
   feedCalls,
   feedManyCalls,
   faucetCalls,
+  claimRewardCalls,
+  type RewardClaim,
 } from "@/lib/onchain/actions";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
@@ -183,6 +187,30 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     staleTime: 15_000,
   });
 
+  // The real pots. Cheap multicall; the jackpot number on Home stops being a hardcoded zero.
+  const bucketsQ = useQuery({
+    queryKey: ["feeBuckets", NETWORK.id],
+    queryFn: readFeeBuckets,
+    enabled: chain.deployed,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  // Unclaimed reward leaves for the whole bag, from the keeper's published epochs.
+  const claimablesQ = useQuery({
+    queryKey: ["claimables", NETWORK.id, bagKey],
+    queryFn: async () => {
+      const res = await fetch(`/api/rewards/claimable?wallets=${bagWallets.join(",")}`);
+      const data = await res.json();
+      return data?.ok ? (data.claimables as {
+        stream: "yield" | "bounty"; epochId: string; tokenId: string;
+        account: `0x${string}`; amount: string; proof: `0x${string}`[];
+      }[]) : [];
+    },
+    enabled: !!address && chain.deployed,
+    staleTime: 30_000,
+  });
+
   const toast = useCallback(
     (text: string, tone: Toast["tone"] = "info") => dispatch({ t: "toast", text, tone }),
     [],
@@ -223,14 +251,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Real, read from dailyUsed[dailyKey] — hardcoding false here showed "Pull" to a player the
       // contract was guaranteed to refuse, and the 409 toast read as a bug on the first live test.
       dailyMinted: dayQ.data?.dailyUsed ?? false,
+      // Real pots + the keeper's actual theme rotation for the current weekly period.
+      jackpotPot: bucketsQ.data?.jackpot ?? 0,
+      bountyPool: bucketsQ.data?.bounty ?? 0,
+      bountyTheme: dayQ.data ? themeForPeriod(Math.floor(dayQ.data.chainDay / 7)) : 0,
       mintCount: 0,
       freeSnackUsed: false,
       jackpotWord: "",
-      jackpotPot: 0,
       jackpotRevealed: false,
-      bountyTheme: 0,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, wordsQ.data, dayQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, wordsQ.data, dayQ.data, bucketsQ.data],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -662,6 +692,27 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         void run("Faucet", () => faucetCalls(address, 50_000_000));
       },
 
+      claimables: (claimablesQ.data ?? []).map((c) => ({
+        stream: c.stream,
+        tokenId: c.tokenId,
+        amount: Number(BigInt(c.amount) / 10n ** 12n) / 1e6, // wei → whole $WORD for display
+      })),
+      claimEarnings: () => {
+        const raw = claimablesQ.data ?? [];
+        if (raw.length === 0) return;
+        const claims: RewardClaim[] = raw.map((c) => ({
+          stream: c.stream,
+          epochId: BigInt(c.epochId),
+          tokenId: BigInt(c.tokenId),
+          account: c.account,
+          amount: BigInt(c.amount),
+          proof: c.proof,
+        }));
+        void (async () => {
+          if (await run("Claim", () => claimRewardCalls(claims))) void claimablesQ.refetch();
+        })();
+      },
+
       spendable: (w: OwnedWord) =>
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
@@ -679,7 +730,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         })();
       },
     }),
-    [state, chain, address, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, revealCommit, guarded, pendingQ],
+    [state, chain, address, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, revealCommit, guarded, pendingQ, claimablesQ],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
