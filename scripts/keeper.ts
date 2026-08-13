@@ -25,6 +25,9 @@ import { jackpotAbi } from "../src/lib/onchain/abis";
 import { getPublicClient, readChainTime } from "../src/lib/onchain/reads";
 import { scanAllWords } from "../src/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "../src/lib/keeper/shares";
+import { computeAchievements, type AchievementLeaf } from "../src/lib/keeper/achievements";
+import { readLetterCounts } from "../src/lib/onchain/reads";
+import { encodeAbiParameters } from "viem";
 import { buildEpochFile, verifyEntry } from "../src/lib/keeper/tree";
 import { DEFAULT_PARAMS } from "../src/lib/params";
 import { THEMES, themeForPeriod } from "../src/lib/themes";
@@ -148,12 +151,118 @@ async function openStream(kind: "yield" | "bounty") {
   console.log(`${kind}: openEpoch ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
 }
 
+const EAS = "0x4200000000000000000000000000000000000021" as const;
+const LETTERS_TRANSFER_SINGLE = {
+  type: "event", name: "TransferSingle",
+  inputs: [
+    { name: "operator", type: "address", indexed: true },
+    { name: "from", type: "address", indexed: true },
+    { name: "to", type: "address", indexed: true },
+    { name: "id", type: "uint256", indexed: false },
+    { name: "value", type: "uint256", indexed: false },
+  ],
+} as const;
+const easAbi = [
+  { type: "function", name: "attest", stateMutability: "payable",
+    inputs: [{ name: "request", type: "tuple", components: [
+      { name: "schema", type: "bytes32" },
+      { name: "data", type: "tuple", components: [
+        { name: "recipient", type: "address" },
+        { name: "expirationTime", type: "uint64" },
+        { name: "revocable", type: "bool" },
+        { name: "refUID", type: "bytes32" },
+        { name: "data", type: "bytes" },
+        { name: "value", type: "uint256" },
+      ]}]}],
+    outputs: [{ type: "bytes32" }] },
+] as const;
+
+function schemaUid(): `0x${string}` {
+  // Lives in the deployment registry beside the contract addresses (per-network).
+  const cfg = JSON.parse(readFileSync("config/deployments.base-sepolia.json", "utf8"));
+  if (!cfg.easAchievementsSchema) throw new Error("easAchievementsSchema missing from registry");
+  return cfg.easAchievementsSchema;
+}
+
+/** Attestations we've already issued, from the EAS indexer — the dedupe set. */
+async function alreadyAttested(attester: string): Promise<Set<string>> {
+  const res = await fetch("https://base-sepolia.easscan.org/graphql", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      query: `query($schema:String!,$attester:String!){ attestations(where:{schemaId:{equals:$schema},attester:{equals:$attester},revoked:{equals:false}},take:1000){ recipient decodedDataJson }}`,
+      variables: { schema: schemaUid(), attester },
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const data = await res.json();
+  const seen = new Set<string>();
+  for (const a of data?.data?.attestations ?? []) {
+    try {
+      const fields = JSON.parse(a.decodedDataJson);
+      const ach = Number(fields.find((f: { name: string }) => f.name === "achievement")?.value?.value ?? 0);
+      const val = Number(fields.find((f: { name: string }) => f.name === "value")?.value?.value ?? 0);
+      seen.add(`${a.recipient.toLowerCase()}:${ach}:${val}`);
+    } catch { /* unparseable row — treat as absent; the worst case is a duplicate attestation */ }
+  }
+  return seen;
+}
+
+async function attestAchievements() {
+  const client = getPublicClient();
+  const words = await scanAllWords();
+
+  // Letter holders: everyone TransferSingle ever delivered to, then live balances. The Words
+  // contract itself accumulates escrowed letters — exclude it, it is not a player.
+  const logs = await client.getLogs({
+    address: addressOf("letters"), event: LETTERS_TRANSFER_SINGLE, fromBlock: 0n, toBlock: "latest",
+  });
+  const holders = new Set<string>();
+  for (const l of logs) {
+    const to = String(l.args.to).toLowerCase();
+    if (to !== "0x0000000000000000000000000000000000000000") holders.add(to);
+  }
+  holders.delete(addressOf("words").toLowerCase());
+  const letterCounts = new Map<string, number[]>();
+  for (const h of holders) letterCounts.set(h, await readLetterCounts(h as `0x${string}`));
+
+  const proposed = computeAchievements(words, letterCounts);
+  const w = wallet();
+  const seen = await alreadyAttested(w.account.address);
+  const fresh = proposed.filter(
+    (a) => !seen.has(`${a.recipient.toLowerCase()}:${a.achievement}:${a.value}`),
+  );
+  console.log(`achievements: ${proposed.length} earned, ${fresh.length} new`);
+  if (DRY || fresh.length === 0) return;
+
+  for (const a of fresh) {
+    const hash = await w.writeContract({
+      address: EAS, abi: easAbi, functionName: "attest",
+      args: [{
+        schema: schemaUid(),
+        data: {
+          recipient: a.recipient, expirationTime: 0n, revocable: false,
+          refUID: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          data: encodeAbiParameters(
+            [{ type: "uint8" }, { type: "uint32" }],
+            [a.achievement, a.value],
+          ),
+          value: 0n,
+        },
+      }],
+    });
+    await w.waitForTransactionReceipt({ hash });
+    console.log(`  attested ${a.achievement}/${a.value} → ${a.recipient.slice(0, 10)} (${hash.slice(0, 14)})`);
+  }
+}
+
 const jobs: Promise<void>[] = [];
 if (args.has("--resolve")) jobs.push(resolveJackpot());
 if (args.has("--yield")) jobs.push(openStream("yield"));
 if (args.has("--bounty")) jobs.push(openStream("bounty"));
+if (args.has("--achievements")) jobs.push(attestAchievements());
 if (jobs.length === 0) {
-  console.log("usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--dry]");
+  console.log("usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--dry]");
   process.exit(1);
 }
 // Sequential, not parallel — same key, and nonce races on the public RPC cost us a deploy once.
