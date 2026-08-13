@@ -59,6 +59,16 @@ export function WebSignInHost() {
       // A FRESH nonce per attempt — Quick Auth nonces are single-use, so a retry that reuses one
       // fails at the very last step with `invalid_nonce`.
       const handle = await beginWebSignIn();
+      // Adopt the channel watch BEFORE any liveness check — the watch runs whether or not anyone is
+      // looking. The session is stored by beginWebSignIn regardless, so announce an approval even if
+      // this attempt was abandoned — the player did approve, and a live credential should not be
+      // thrown away. The no-op catch keeps an abandoned attempt's five-minute watch from settling as
+      // an unhandled rejection; the live path re-awaits `completed` below and handles errors there.
+      const completed = handle.completed.then((s) => {
+        window.dispatchEvent(new Event(SESSION_EVENT));
+        return s;
+      });
+      completed.catch(() => {});
       if (!live()) return;
       setUrl(handle.url);
       const dataUrl = await QRCode.toDataURL(handle.url, { margin: 1, width: 220 }).catch(() => "");
@@ -66,10 +76,7 @@ export function WebSignInHost() {
       setQr(dataUrl);
       setPhase("waiting");
 
-      await handle.completed;
-      // The session is stored by beginWebSignIn regardless, so announce it even if this attempt was
-      // abandoned — the player did approve, and a live credential should not be thrown away.
-      window.dispatchEvent(new Event(SESSION_EVENT));
+      await completed;
       if (!live()) return;
       setPhase("done");
       setTimeout(close, 1200);
