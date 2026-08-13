@@ -515,6 +515,14 @@ export interface GameApi {
   skipDay: () => void;
   /** prototype-only: top up the mock $WORD balance for testing. */
   addDemoBalance: () => void;
+  /**
+   * Unrevealed letter commits for this wallet (chain only; the mock has none). A nonzero count is
+   * a PAID pull whose reveal never landed — recoverable forever, identical letters whenever it is
+   * finished, and the UI must offer to finish it or the player's letter silently rots on-chain.
+   */
+  pendingReveals: number;
+  /** Finish the oldest unrevealed commit: fetch the deterministic draw, send the reveal, open the sheet. */
+  openPending: () => void;
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
@@ -657,6 +665,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "addDemoBalance" });
         toast("Added demo $WORD", "good");
       },
+
+      // The mock reveals in the same tick it commits, so nothing can strand.
+      pendingReveals: 0,
+      openPending: () => {},
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),
