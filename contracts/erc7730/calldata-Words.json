@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LedgerHQ/clear-signing-erc7730-registry/master/specs/erc7730-v1.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 8453,
+          "address": "0xMAINNET_WORDS_TBD"
+        }
+      ],
+      "abiPath": "../out/Words.sol/Words.json"
+    }
+  },
+  "metadata": {
+    "owner": "Lexigotchi",
+    "info": {
+      "url": "https://lexigotchi.fun",
+      "legalName": "Lexigotchi"
+    }
+  },
+  "display": {
+    "formats": {
+      "claim(string,bool,bytes32[])": {
+        "intent": "Spell a word \u2014 claim it as your NFT",
+        "fields": [
+          {
+            "path": "word_",
+            "label": "Word",
+            "format": "raw"
+          }
+        ],
+        "excluded": [
+          "uppercase",
+          "proof"
+        ]
+      },
+      "dissolve(uint256,string)": {
+        "intent": "Dissolve a word back into its 5 letters",
+        "fields": [
+          {
+            "path": "word_",
+            "label": "Word",
+            "format": "raw"
+          }
+        ],
+        "excluded": [
+          "tokenId"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LedgerHQ/clear-signing-erc7730-registry/master/specs/erc7730-v1.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 8453,
+          "address": "0xMAINNET_YIELDDISTRIBUTOR_TBD"
+        }
+      ],
+      "abiPath": "../out/YieldDistributor.sol/YieldDistributor.json"
+    }
+  },
+  "metadata": {
+    "owner": "Lexigotchi",
+    "info": {
+      "url": "https://lexigotchi.fun",
+      "legalName": "Lexigotchi"
+    }
+  },
+  "display": {
+    "formats": {
+      "claim(uint256,uint256,address,uint256,bytes32[])": {
+        "intent": "Claim your staking yield",
+        "fields": [
+          {
+            "path": "amount",
+            "label": "Reward",
+            "format": "tokenAmount",
+            "params": {
+              "token": "$WORD"
+            }
+          }
+        ],
+        "excluded": [
+          "epochId",
+          "tokenId",
+          "account",
+          "proof"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LedgerHQ/clear-signing-erc7730-registry/master/specs/erc7730-v1.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 8453,
+          "address": "0xMAINNET_ROLLS_TBD"
+        }
+      ],
+      "abiPath": "../out/Rolls.sol/Rolls.json"
+    }
+  },
+  "metadata": {
+    "owner": "Lexigotchi",
+    "info": {
+      "url": "https://lexigotchi.fun",
+      "legalName": "Lexigotchi"
+    }
+  },
+  "display": {
+    "formats": {
+      "commitLooseRoll(uint8)": {
+        "intent": "Roll a letter \u2014 try to raise it to UPPERCASE",
+        "fields": [],
+        "excluded": [
+          "letterIndex"
+        ]
+      },
+      "commitWordRoll(uint256,uint8)": {
+        "intent": "Roll a letter inside your word \u2014 try to raise it",
+        "fields": [],
+        "excluded": [
+          "tokenId",
+          "pos"
+        ]
+      },
+      "reveal(uint256,bool,bytes)": {
+        "intent": "Reveal your roll's result",
+        "fields": [],
+        "excluded": [
+          "commitId",
+          "success",
+          "sig"
+        ]
+      }
+    }
+  }
+}
