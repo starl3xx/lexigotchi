@@ -5,8 +5,9 @@ import { ALPHABET } from "@/lib/economy";
 import { Button, Card, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { ArrowsDownUp, ShareNetwork } from "../ui/icons";
-import { charToIdx, fmtWord, idxToChar, useGame } from "../state";
+import { charToIdx, fmtWord, idxToChar, mineLower, mineUpper, useGame } from "../state";
 import { useShare } from "../useShare";
+import { useAccount } from "wagmi";
 
 const QUICK_WORD = [0, 500_000, 1_000_000, 2_500_000];
 
@@ -14,6 +15,8 @@ export function SwapScreen() {
   const g = useGame();
   const { state } = g;
   const share = useShare();
+  // The REAL swap (chain): a Seaport bulletin — sign an offer for free, fills settle on-chain.
+  if (state.chainBacked) return <ChainSwap />;
   const [give, setGive] = useState<number[]>([]);
   const [want, setWant] = useState<number[]>([]);
   const [ask, setAsk] = useState(0);
@@ -131,6 +134,105 @@ export function SwapScreen() {
       <Button full size="lg" variant="primary" disabled={give.length === 0 && ask === 0} onClick={() => setCreated(true)}>
         Create swap link →
       </Button>
+    </div>
+  );
+}
+
+
+/** Chain-backed swap: 1 letter ⇄ 1 letter through Seaport. The mock's escrow toy stays mock. */
+function ChainSwap() {
+  const g = useGame();
+  const { state } = g;
+  const { address } = useAccount();
+  const [give, setGive] = useState<number | null>(null);
+  const [want, setWant] = useState<number | null>(null);
+
+  const my = mineLower(state).map((c, i) => ({ i, c })).filter((x) => x.c > 0);
+  const myUpper = mineUpper(state).map((c, i) => ({ i: i + 26, c })).filter((x) => x.c > 0);
+  const mine = [...my, ...myUpper];
+  const tile = (id: number) => idxToChar(id % 26);
+  const isUpper = (id: number) => id >= 26;
+  const board = g.swapBoard.filter((o) => o.maker !== address?.toLowerCase());
+  const own = g.swapBoard.filter((o) => o.maker === address?.toLowerCase());
+  const canFill = (wantId: number) =>
+    (wantId >= 26 ? mineUpper(state)[wantId - 26] : mineLower(state)[wantId]) > 0;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h1 className="font-display text-2xl font-extrabold">Swap</h1>
+        <p className="text-sm text-ink/60">
+          One letter for one letter, settled by Seaport. Listing is a free signature; the trade
+          happens the moment someone fills it.
+        </p>
+      </div>
+
+      {/* create */}
+      <Card>
+        <SectionTitle>Make an offer</SectionTitle>
+        <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink/50">you give</div>
+        <div className="flex flex-wrap gap-1.5">
+          {mine.length === 0 && <span className="text-sm text-ink/50">No spare letters in this wallet.</span>}
+          {mine.map(({ i }) => (
+            <LetterTile key={i} char={tile(i)} upper={isUpper(i)} size={38} onClick={() => setGive(i)} selected={give === i} />
+          ))}
+        </div>
+        <div className="mb-1 mt-3 text-xs font-bold uppercase tracking-wide text-ink/50">you want</div>
+        <div className="flex flex-wrap gap-1.5">
+          {ALPHABET.map((ch, i) => (
+            <LetterTile key={i} char={ch.toLowerCase()} size={30} onClick={() => setWant(i)} selected={want === i} />
+          ))}
+        </div>
+        <Button full variant="primary" className="mt-3" disabled={give === null || want === null}
+          onClick={() => { if (give !== null && want !== null) { g.createSwapOffer(give, want); setGive(null); setWant(null); } }}>
+          <ArrowsDownUp weight="bold" /> List the offer — free to sign
+        </Button>
+      </Card>
+
+      {/* board */}
+      <Card>
+        <SectionTitle action={<span className="text-xs text-ink/55">{board.length} open</span>}>The board</SectionTitle>
+        {board.length === 0 ? (
+          <p className="py-3 text-center text-sm text-ink/50">No open offers — list one above.</p>
+        ) : (
+          <div className="space-y-2">
+            {board.map((o) => (
+              <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink bg-paper-dark/30 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm">
+                  <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
+                  <span className="text-ink/50">for your</span>
+                  <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
+                </span>
+                <Button variant="teal" disabled={!canFill(o.wantId)}
+                  title={canFill(o.wantId) ? "" : "You don't hold the letter they want"}
+                  onClick={() => g.fillSwapOffer(o.orderHash)}>
+                  Trade
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {own.length > 0 && (
+        <Card>
+          <SectionTitle>Your open offers</SectionTitle>
+          <div className="space-y-2">
+            {own.map((o) => (
+              <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink px-3 py-2">
+                <span className="flex items-center gap-2 text-sm">
+                  <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
+                  <span className="text-ink/50">→</span>
+                  <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
+                </span>
+                <button onClick={() => g.cancelSwapOffer(o.orderHash)} className="text-xs font-bold text-ink/45 underline">
+                  cancel
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

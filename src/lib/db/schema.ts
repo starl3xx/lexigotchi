@@ -62,3 +62,28 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type CampaignCastProof = typeof campaignCastProofs.$inferSelect;
 export type PackGrant = typeof packGrants.$inferSelect;
+
+/**
+ * The letter-swap orderbook — signed Seaport 1.6 orders, letter-for-letter (decisions.md "swap
+ * primitive, light"). The DB stores and serves orders; it is NEVER the truth about validity —
+ * Seaport is: fills and cancels happen on-chain, and the read path drops anything
+ * getOrderStatus says is spent. Losing this table loses open listings, not assets.
+ */
+export const swapOrders = pgTable(
+  "swap_orders",
+  {
+    id: serial("id").primaryKey(),
+    /** Lowercase maker address. */
+    maker: text("maker").notNull(),
+    /** 0–51 letter ids (26 lower + 26 upper). */
+    giveId: integer("give_id").notNull(),
+    wantId: integer("want_id").notNull(),
+    /** The full Seaport OrderComponents, JSON, exactly as signed. */
+    orderJson: text("order_json").notNull(),
+    signature: text("signature").notNull(),
+    /** keccak order hash — the on-chain status key; unique = one row per order. */
+    orderHash: text("order_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("swap_orders_hash_idx").on(t.orderHash)],
+);

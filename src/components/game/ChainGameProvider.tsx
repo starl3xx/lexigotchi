@@ -54,6 +54,11 @@ import {
 } from "@/lib/onchain/reads";
 import { verifiedDailyKey } from "@/lib/onchain/verifications";
 import { bagWalletsOf, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
+import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
+import { operatorApprovalCalls } from "@/lib/onchain/allowances";
+import { erc1155ApprovalAbi } from "@/lib/onchain/abis";
+import { getPublicClient } from "@/lib/onchain/reads";
+import { addressOf } from "@/lib/onchain/addresses";
 import { THEMES, themeForPeriod } from "@/lib/themes";
 import { useViewer } from "./useViewer";
 import {
@@ -116,7 +121,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // below by chain reads, so its money actions are simply never dispatched here.
   const [ui, dispatch] = useReducer(reducer, undefined, seedState);
   const chain = useOnchain();
-  const { address } = useAccount();
+  const { address, connector } = useAccount();
 
   // ── THE UNION BAG ──────────────────────────────────────────────────────────────────────────
   // One collection per human: the connected wallet plus every wallet Farcaster links to the
@@ -209,6 +214,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     },
     enabled: !!address && chain.deployed,
     staleTime: 30_000,
+  });
+
+  // The letter-swap board (Seaport bulletin). Rows are pre-filtered by the API against
+  // getOrderStatus, so everything here is fillable as of the last read.
+  const boardQ = useQuery({
+    queryKey: ["swapBoard", NETWORK.id],
+    queryFn: async () => {
+      const res = await fetch("/api/swap/orders");
+      const data = await res.json();
+      return data?.ok
+        ? (data.orders as { maker: string; giveId: number; wantId: number; order: LetterSwapOrder; signature: `0x${string}`; orderHash: string }[])
+        : [];
+    },
+    enabled: chain.deployed,
+    staleTime: 15_000,
   });
 
   const toast = useCallback(
@@ -717,6 +737,87 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
 
+      swapBoard: (boardQ.data ?? []).map(({ maker, giveId, wantId, orderHash }) => ({ maker, giveId, wantId, orderHash })),
+
+      /**
+       * List an offer: one-time Seaport approval if missing (a real tx), then a FREE EIP-712
+       * signature, then the bulletin POST. The signature is the order; the DB is just where it
+       * waits. Fixed 1⇄1 letter shape — the server rejects anything else.
+       */
+      createSwapOffer: (giveId: number, wantId: number) => {
+        void (async () => {
+          if (!address) return void toast("Connect a wallet first", "bad");
+          const letters = addressOf("letters");
+          const client = getPublicClient();
+          try {
+            const approved = (await client.readContract({
+              address: letters, abi: erc1155ApprovalAbi, functionName: "isApprovedForAll",
+              args: [address, SEAPORT],
+            })) as boolean;
+            if (!approved) {
+              if (!(await run("Approve swap", () => operatorApprovalCalls({ collection: letters, operator: SEAPORT, approved: false })))) return;
+            }
+            const counter = (await client.readContract({
+              address: SEAPORT, abi: seaportAbi, functionName: "getCounter", args: [address],
+            })) as bigint;
+            const saltBytes = new Uint8Array(16);
+            crypto.getRandomValues(saltBytes);
+            const salt = BigInt("0x" + [...saltBytes].map((b) => b.toString(16).padStart(2, "0")).join(""));
+            const order = buildLetterSwapOrder({
+              maker: address, giveId, wantId, counter,
+              nowSeconds: Math.floor(Date.now() / 1000) - 60, salt,
+            });
+            // A SIGNATURE, not a transaction — free, instant, and Seaport judges it at fill time.
+            const provider = (await connector?.getProvider()) as { request: (a: { method: string; params: unknown[] }) => Promise<unknown> } | undefined;
+            if (!provider) return void toast("This wallet can't sign offers", "bad");
+            const signature = (await provider.request({
+              method: "eth_signTypedData_v4",
+              params: [address, JSON.stringify(orderTypedData(order))],
+            })) as `0x${string}`;
+            const res = await fetch("/api/swap/orders", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ order, signature }),
+            }).then((r) => r.json());
+            if (res?.ok) {
+              toast("Offer listed — it fills the moment someone takes it", "good");
+              void boardQ.refetch();
+            } else {
+              toast(`Offer rejected: ${res?.error ?? "unknown"}`, "bad");
+            }
+          } catch (err) {
+            const msg = String((err as Error).message ?? "");
+            if (/reject|denied|4001/i.test(msg)) toast("Cancelled", "info");
+            else toast(`Offer failed: ${msg.slice(0, 70)}`, "bad");
+          }
+        })();
+      },
+
+      fillSwapOffer: (orderHash: string) => {
+        void (async () => {
+          const row = (boardQ.data ?? []).find((r) => r.orderHash === orderHash);
+          if (!row || !address) return;
+          const letters = addressOf("letters");
+          const approved = (await getPublicClient().readContract({
+            address: letters, abi: erc1155ApprovalAbi, functionName: "isApprovedForAll",
+            args: [address, SEAPORT],
+          })) as boolean;
+          const ok = await run("Swap", () => [
+            ...operatorApprovalCalls({ collection: letters, operator: SEAPORT, approved }),
+            ...fulfillOrderCalls(row.order, row.signature),
+          ]);
+          if (ok) void boardQ.refetch();
+        })();
+      },
+
+      cancelSwapOffer: (orderHash: string) => {
+        void (async () => {
+          const row = (boardQ.data ?? []).find((r) => r.orderHash === orderHash);
+          if (!row) return;
+          if (await run("Cancel offer", () => cancelOrderCalls(row.order))) void boardQ.refetch();
+        })();
+      },
+
       // Stranded-commit recovery. The first live daily mined its commit and then lost its reveal
       // (page state died between the two wallet prompts) — the letter sat unopened with no way to
       // claim it. The reveal is deterministic and free, so finishing is always safe.
@@ -730,7 +831,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         })();
       },
     }),
-    [state, chain, address, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, revealCommit, guarded, pendingQ, claimablesQ],
+    [state, chain, address, connector, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, revealCommit, guarded, pendingQ, claimablesQ, boardQ],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
