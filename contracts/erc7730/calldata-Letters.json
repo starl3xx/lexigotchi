@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LedgerHQ/clear-signing-erc7730-registry/master/specs/erc7730-v1.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [{ "chainId": 8453, "address": "0xMAINNET_LETTERS_TBD" }],
+      "abiPath": "../out/Letters.sol/Letters.json"
+    }
+  },
+  "metadata": {
+    "owner": "Lexigotchi",
+    "info": { "url": "https://lexigotchi.fun", "legalName": "Lexigotchi" }
+  },
+  "display": {
+    "formats": {
+      "commitPack()": {
+        "intent": "Purchase a 5-pack of letters",
+        "fields": []
+      },
+      "commitPackETH(uint256,uint256)": {
+        "intent": "Purchase a 5-pack of letters with ETH",
+        "fields": [
+          { "path": "minWordOut", "label": "Minimum $WORD from swap", "format": "tokenAmount", "params": { "token": "$WORD" } },
+          { "path": "deadline", "label": "Swap deadline", "format": "date", "params": { "encoding": "timestamp" } }
+        ]
+      },
+      "commitDaily(uint256,uint256,bytes)": {
+        "intent": "Claim your daily letter",
+        "fields": [
+          { "path": "deadline", "label": "Voucher expires", "format": "date", "params": { "encoding": "timestamp" } }
+        ],
+        "excluded": ["fid", "sig"]
+      },
+      "commitDailyFree(uint256,uint256,bytes)": {
+        "intent": "Claim your free daily letter",
+        "fields": [
+          { "path": "deadline", "label": "Voucher expires", "format": "date", "params": { "encoding": "timestamp" } }
+        ],
+        "excluded": ["fid", "sig"]
+      },
+      "commitPackFree(uint256,uint256,uint256,bytes)": {
+        "intent": "Claim your free 5-pack",
+        "fields": [
+          { "path": "deadline", "label": "Voucher expires", "format": "date", "params": { "encoding": "timestamp" } }
+        ],
+        "excluded": ["fid", "nonce", "sig"]
+      },
+      "reveal(uint256,uint8[],bytes)": {
+        "intent": "Reveal your letters",
+        "fields": [],
+        "excluded": ["commitId", "letterIndexes", "sig"]
+      }
+    }
+  }
+}

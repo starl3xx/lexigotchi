@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LedgerHQ/clear-signing-erc7730-registry/master/specs/erc7730-v1.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 8453,
+          "address": "0xMAINNET_PRESTIGE_TBD"
+        }
+      ],
+      "abiPath": "../out/Prestige.sol/Prestige.json"
+    }
+  },
+  "metadata": {
+    "owner": "Lexigotchi",
+    "info": {
+      "url": "https://lexigotchi.fun",
+      "legalName": "Lexigotchi"
+    }
+  },
+  "display": {
+    "formats": {
+      "commitPrestige(uint256)": {
+        "intent": "Ascend a word \u2014 attempt the next gilded level",
+        "fields": [],
+        "excluded": [
+          "tokenId"
+        ]
+      },
+      "reveal(uint256,bool,bytes)": {
+        "intent": "Reveal your ascension's result",
+        "fields": [],
+        "excluded": [
+          "commitId",
+          "success",
+          "sig"
+        ]
+      }
+    }
+  }
+}

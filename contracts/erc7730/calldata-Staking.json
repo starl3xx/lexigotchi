@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LedgerHQ/clear-signing-erc7730-registry/master/specs/erc7730-v1.schema.json",
+  "context": {
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 8453,
+          "address": "0xMAINNET_STAKING_TBD"
+        }
+      ],
+      "abiPath": "../out/Staking.sol/Staking.json"
+    }
+  },
+  "metadata": {
+    "owner": "Lexigotchi",
+    "info": {
+      "url": "https://lexigotchi.fun",
+      "legalName": "Lexigotchi"
+    }
+  },
+  "display": {
+    "formats": {
+      "stake(uint256)": {
+        "intent": "Stake a word to earn yield",
+        "fields": [],
+        "excluded": [
+          "tokenId"
+        ]
+      },
+      "unstake(uint256)": {
+        "intent": "Unstake a word",
+        "fields": [],
+        "excluded": [
+          "tokenId"
+        ]
+      },
+      "feed(uint256)": {
+        "intent": "Feed a word a snack",
+        "fields": [],
+        "excluded": [
+          "tokenId"
+        ]
+      },
+      "feedMany(uint256[])": {
+        "intent": "Feed your hungry words",
+        "fields": [],
+        "excluded": [
+          "tokenIds"
+        ]
+      }
+    }
+  }
+}
