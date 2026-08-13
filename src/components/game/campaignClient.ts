@@ -102,6 +102,33 @@ export async function authedPostJson<T = Record<string, never>>(
   }
 }
 
+/**
+ * JSON POST that attaches a Quick Auth token when one exists and goes in plain when none does.
+ *
+ * ONLY for routes that genuinely accept anonymous callers — today `/api/mint/free-daily` (which
+ * falls back to the Coinbase-attestation identity) and `/api/mint/reveal` (buyer-bound and
+ * idempotent, so auth was only ever a rate-limit key). Everything else keeps `authedPostJson`,
+ * whose `not_signed_in` pre-flight is what stops a paid roll from committing before discovering
+ * the reveal would 401.
+ */
+export async function maybeAuthedPostJson<T = Record<string, never>>(
+  path: string,
+  body: unknown,
+): Promise<({ ok: true; error?: undefined } & T) | { ok: false; error: string }> {
+  if (await canSign()) return authedPostJson<T>(path, body);
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return await res.json();
+  } catch (err) {
+    console.error("[campaign] open request failed:", path, err);
+    return { ok: false, error: "request_failed" };
+  }
+}
+
 /** Persist that the player added the mini app (+ the notification token from `addMiniApp()`). */
 export async function recordAdd(notif?: { token?: string; url?: string }): Promise<void> {
   await authedFetch("/api/campaign/record-add", {

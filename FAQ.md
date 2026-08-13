@@ -18,7 +18,8 @@ staked, fed word is the day's secret answer.
 
 ## How do I mint letters?
 
-Two ways: a free **daily single** (1 per Farcaster FID per day — the habit loop) and full-price
+Two ways: a free **daily single** (1 per identity per day — a Farcaster account, or a
+[Coinbase-verified](https://www.coinbase.com/onchain-verify) wallet — the habit loop) and full-price
 **packs of 5**, anytime. Every mint is **100% lowercase**; a letter's pull rate equals its share of
 the 22,190 dictionary slots, so common letters come up often and Q/Z/X/J are the grails. Mints are
 **$WORD-only** at launch — tap the balance pill to buy $WORD first if you only hold ETH.

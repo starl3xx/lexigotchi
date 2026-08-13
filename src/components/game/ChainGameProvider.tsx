@@ -71,7 +71,7 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
 import { guardedAction } from "@/lib/onchain/guardedAction";
-import { authedPostJson, canSign } from "./campaignClient";
+import { authedPostJson, maybeAuthedPostJson, canSign } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 
@@ -190,6 +190,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  /**
+   * For the two routes that also serve the verified-wallet identity (daily voucher, letter
+   * reveal): token attached when present, plain fetch when not. Everything else stays on
+   * `postJson` — its `not_signed_in` pre-flight is load-bearing for the paid flows.
+   */
+  const openPostJson = useCallback(
+    <T,>(url: string, body: unknown) => maybeAuthedPostJson<T>(url, body),
+    [],
+  );
+
   /** Server error codes → something a player can act on. */
   /**
    * Does this player still have today's free snack?
@@ -253,10 +263,20 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
   const dailyError = useCallback(
-    (code?: string) =>
-      code === "already_claimed_today"
-        ? "You've already taken today's letter — it resets at UTC midnight"
-        : authError(code, "The daily"),
+    (code?: string) => {
+      switch (code) {
+        case "already_claimed_today":
+          return "You've already taken today's letter — it resets at UTC midnight";
+        case "verification_required":
+          // A wallet with no attestation and no Farcaster session. The screens surface the verify
+          // CTA; this copy is the fallback for a claim raced past a stale status.
+          return "The daily needs Farcaster or a Coinbase-verified wallet";
+        case "verification_unavailable":
+          return "Can't check your verification right now — try again in a minute";
+        default:
+          return authError(code, "The daily");
+      }
+    },
     [authError],
   );
 
@@ -274,7 +294,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       toast("Opening…", "info");
       const commit = await waitForNewCommit(address, before);
       if (!commit) return void toast("Committed but slow to appear — it'll be waiting for you", "info");
-      const draw = await postJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
+      // openPostJson, not postJson: the verified-wallet daily reaches here with no Farcaster
+      // session, and the reveal route accepts anonymous callers (buyer-bound + idempotent).
+      const draw = await openPostJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
       if (!draw?.ok) return void toast(authError(draw?.error, "Draw"), "bad");
       const ok = await run("Reveal", () =>
         revealCalls(commit.commitId, draw.reveal.letterIndexes, draw.reveal.signature),
@@ -282,7 +304,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (!ok) return void toast(strandedMsg, "info");
       dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
     },
-    [address, postJson, run, toast, authError],
+    [address, openPostJson, run, toast, authError],
   );
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
@@ -321,11 +343,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // ChainGate keeps those screens off-screen entirely so nobody sees a false "you're broke".
       canAfford: (amount: number) => (chain.player ? chain.player.balance >= amount : false),
 
-      /** The FID-gated free daily: voucher → commit → discover → draw → reveal. */
+      /**
+       * The free daily: voucher → commit → discover → draw → reveal. Two identities can earn the
+       * voucher — a Farcaster FID, or a Coinbase-verified wallet — so this goes through
+       * openPostJson: token when present, plain when the attestation is the identity.
+       */
       dailyMint: () =>
         guarded(async (markPaid) => {
           if (!address) { toast("Connect a wallet first", "bad"); return { status: "not-started" as const }; }
-          const res = await postJson<{ voucher: DailyVoucher }>("/api/mint/free-daily", { wallet: address });
+          const res = await openPostJson<{ voucher: DailyVoucher }>("/api/mint/free-daily", { wallet: address });
           if (!res?.ok) { toast(dailyError(res?.error), "bad"); return { status: "not-started" as const }; }
           const v = res.voucher;
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
@@ -513,7 +539,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
     }),
-    [state, chain, address, run, toast, postJson, authError, dailyError, packError, finishLetterCommit, finishRoll, guarded],
+    [state, chain, address, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, guarded],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
