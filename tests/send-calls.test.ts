@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { sendCallsAttributed, CHAIN_ID_HEX, WrongChainError, type Eip1193Provider } from "@/lib/onchain/sendCalls";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
@@ -131,5 +132,35 @@ describe("sendCallsAttributed — the chain guard", () => {
     expect(cfg.rpcUrls).toEqual([NETWORK.publicRpc]);
     expect(String((cfg.rpcUrls as string[])[0])).not.toMatch(/alchemy|apikey|v2\//i);
     expect(sends()).toHaveLength(1);
+  });
+});
+
+/**
+ * Gas sponsorship: the paymasterService capability appears only when configured, always optional,
+ * and always alongside (never instead of) the builder attribution.
+ */
+describe("paymasterCapability", () => {
+  it("is empty when the toggle is off — missing CDP setup degrades to user-paid gas", async () => {
+    delete process.env.NEXT_PUBLIC_PAYMASTER_ENABLED;
+    const { paymasterCapability } = await import("@/lib/onchain/sendCalls");
+    expect(paymasterCapability()).toEqual({});
+  });
+
+  it("advertises OUR proxy with optional:true when enabled", async () => {
+    process.env.NEXT_PUBLIC_PAYMASTER_ENABLED = "1";
+    const { paymasterCapability } = await import("@/lib/onchain/sendCalls");
+    const cap = paymasterCapability() as { paymasterService?: { url: string; optional: boolean } };
+    expect(cap.paymasterService?.url).toMatch(/\/api\/paymaster$/);
+    // optional is LOAD-BEARING: a non-7677 wallet must ignore this, never reject the send.
+    expect(cap.paymasterService?.optional).toBe(true);
+    delete process.env.NEXT_PUBLIC_PAYMASTER_ENABLED;
+  });
+
+  it("rides WITH the builder suffix, never replacing it", async () => {
+    process.env.NEXT_PUBLIC_PAYMASTER_ENABLED = "1";
+    const { paymasterCapability } = await import("@/lib/onchain/sendCalls");
+    const merged = BUILDER_DATA_SUFFIX && { ...paymasterCapability(), dataSuffix: { value: BUILDER_DATA_SUFFIX, optional: true } };
+    expect(merged && "paymasterService" in merged && "dataSuffix" in merged).toBe(true);
+    delete process.env.NEXT_PUBLIC_PAYMASTER_ENABLED;
   });
 });
