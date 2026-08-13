@@ -681,6 +681,10 @@ contract LexigotchiTest is Test {
     // ---------------------------------------------------------------------------------------------
 
     function test_Jackpot_paysStakedFedHolder_elseRollsOver() public {
+        // A real date from the start: resolve is once per UTC day and foundry's default timestamp
+        // is day 0, which the guard treats as spent — and staking's lastFed must be set in the
+        // same era or the warp would make the word ancient-hungry.
+        vm.warp(1755000000);
         // fund the pot
         _approveAll(bob);
         vm.prank(bob);
@@ -765,9 +769,32 @@ contract LexigotchiTest is Test {
 
     function test_AnswerChain_badRevealReverts() public {
         // resolve advances the chain; a wrong word fails the hash-chain check and reverts
+        vm.warp(1755000000); // past the once-per-day guard; the chain check is what must fire
         vm.prank(keeper);
         vm.expectRevert(AnswerChain.BadReveal.selector);
         jackpot.resolve("MOTEL", keccak256("salt1"), bytes32(0));
+    }
+
+    function test_Jackpot_oncePerUtcDay() public {
+        // The cadence the game promises is the cadence the contract enforces: a second resolve in
+        // the same UTC day reverts BEFORE touching the chain, and the guard stores the REAL UTC
+        // day (block.timestamp / 1 days), not the chain's reveal ordinal.
+        vm.warp(1755000000);
+        vm.prank(keeper);
+        jackpot.resolve("CRANE", keccak256("salt1"), bytes32(0));
+        assertEq(jackpot.lastResolvedDay(), uint32(uint256(1755000000) / 1 days), "stores the real UTC day");
+
+        // Same day again: the DAY guard fires first — before the chain is even consulted.
+        vm.prank(keeper);
+        vm.expectRevert(Jackpot.AlreadyResolvedToday.selector);
+        jackpot.resolve("MOTEL", keccak256("salt2"), bytes32(0));
+
+        // Next day the gate opens: the failure moves to the CHAIN check (this test chain is one
+        // word deep, so the reveal itself rejects) — proving the day guard released.
+        vm.warp(1755000000 + 1 days);
+        vm.prank(keeper);
+        vm.expectRevert(AnswerChain.BadReveal.selector);
+        jackpot.resolve("MOTEL", keccak256("salt2"), bytes32(0));
     }
 
     function test_AnswerChain_setHeadLockedMidStream() public {

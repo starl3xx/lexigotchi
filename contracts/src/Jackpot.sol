@@ -36,6 +36,7 @@ contract Jackpot is Ownable2Step, ReentrancyGuard {
 
     error NotKeeper();
     error ZeroAddress();
+    error AlreadyResolvedToday();
 
     constructor(
         IFeeRouter _feeRouter,
@@ -54,11 +55,19 @@ contract Jackpot is Ownable2Step, ReentrancyGuard {
 
     /// @notice Reveal the next day's word on the AnswerChain and resolve its jackpot in one atomic
     ///         step. Advancing the chain (which reverts on a bad reveal) and judging the word cannot
-    ///         desync, so no day is ever skipped. Jackpot must be the AnswerChain's keeper.
+    ///         desync, so no chain entry is ever skipped. Jackpot must be the AnswerChain's keeper.
+    ///
+    ///         `day` is the UTC epoch-day (block.timestamp / 1 days) — the same day the rest of the
+    ///         suite speaks (Letters' dailyUsed, the UI countdown) — and AT MOST ONE resolve may
+    ///         happen per day. Previously this stored AnswerChain.revealedDay, which is a REVEAL
+    ///         COUNTER (1, 2, 3…), not a day: events lied to indexers, and nothing stopped a keeper
+    ///         from resolving several "days" in one afternoon, paying or rolling the pot each time.
+    ///         The cadence the game promises is now the cadence the contract enforces.
     function resolve(string calldata word, bytes32 salt, bytes32 next) external nonReentrant returns (bool won) {
         if (msg.sender != keeper) revert NotKeeper();
-        answerChain.reveal(word, salt, next); // advances exactly one day; reverts on a bad reveal
-        uint32 day = answerChain.revealedDay();
+        uint32 day = uint32(block.timestamp / 1 days);
+        if (day <= lastResolvedDay) revert AlreadyResolvedToday();
+        answerChain.reveal(word, salt, next); // advances exactly one chain entry; reverts on a bad reveal
         lastResolvedDay = day;
 
         uint256 tokenId = uint256(keccak256(bytes(word)));
