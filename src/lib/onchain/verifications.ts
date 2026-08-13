@@ -1,5 +1,6 @@
-import { createPublicClient, http, isAddress } from "viem";
+import { createPublicClient, isAddress } from "viem";
 import { base } from "viem/chains";
+import { rpcTransport } from "./transport";
 
 /**
  * Coinbase Verified Account — the Sybil gate for the wallet daily.
@@ -135,7 +136,9 @@ export function attestationProves(
 function makeMainnetClient() {
   return createPublicClient({
     chain: base,
-    transport: http(process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org"),
+    // rpcTransport stamps the server Origin — this client only ever runs server-side, and an
+    // allowlisted Alchemy key rejects originless requests (see transport.ts).
+    transport: rpcTransport(process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org"),
   });
 }
 let mainnet: ReturnType<typeof makeMainnetClient> | undefined;
