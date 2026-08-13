@@ -5,7 +5,7 @@
   "description": "Raise your letters. Spell your words. Own the dictionary. — a tamagotchi-style collection game for the $WORD / Let's Have A Word! ecosystem on Base.",
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev",
