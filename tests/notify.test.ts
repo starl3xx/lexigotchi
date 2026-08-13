@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { LIMITS, clamp, buildPayload, notificationsAreActive, sendNotification } from "@/lib/notify/send";
 import {
   ALL_TITLE_POOLS,
@@ -133,7 +133,7 @@ describe("length limits", () => {
         jackpotRollover(hugeAmount, day),
         claimReady(hugeAmount, day),
         pityCapped("q", day),
-        listingFilled("w", day),
+        listingFilled("w", "0xabc0000000000000000000000000000000000000000000000000000000000001", day),
       ];
       for (const n of built) {
         const payload = buildPayload({ ...n });
@@ -166,6 +166,39 @@ describe("template rotation", () => {
   it("keys idempotency per day so a retried cron cannot double-push", () => {
     expect(dailyReady(100).notificationId).toBe("daily-100");
     expect(dailyReady(101).notificationId).not.toBe(dailyReady(100).notificationId);
+  });
+});
+
+// The client drops a repeated (id, FID) pair for 24h. That makes retries safe and makes coarse ids
+// dangerous — a receipt keyed by day is a real notification the player silently never receives.
+describe("idempotency keys match what the message describes", () => {
+  it("NUDGES repeat their key within a day, so a retried pass can't double-push", () => {
+    expect(hungerWarning(3, 6, 500).notificationId).toBe(hungerWarning(9, 2, 500).notificationId);
+    expect(claimReady("1 $WORD", 500).notificationId).toBe(claimReady("9 $WORD", 500).notificationId);
+    expect(pityCapped("q", 500).notificationId).toBe(pityCapped("q", 500).notificationId);
+  });
+
+  it("nudges still separate across days and across letters", () => {
+    expect(hungerWarning(3, 6, 500).notificationId).not.toBe(hungerWarning(3, 6, 501).notificationId);
+    expect(pityCapped("q", 500).notificationId).not.toBe(pityCapped("z", 500).notificationId);
+  });
+
+  // The bug Bugbot caught: two fills of the same letter on the same day are two distinct trades.
+  it("RECEIPTS key on the event, so a second sale of the same letter same day still notifies", () => {
+    const a = listingFilled("q", "0xaaaa000000000000000000000000000000000000000000000000000000000001");
+    const b = listingFilled("q", "0xbbbb000000000000000000000000000000000000000000000000000000000002");
+    expect(a.notificationId).not.toBe(b.notificationId);
+    expect(a.notificationId).not.toContain("500"); // not day-keyed at all
+  });
+
+  it("the same fill re-observed by a re-run of the keeper stays deduped", () => {
+    const hash = "0xdeadbeef00000000000000000000000000000000000000000000000000000001";
+    expect(listingFilled("q", hash, 500).notificationId).toBe(listingFilled("q", hash, 501).notificationId);
+  });
+
+  it("every id fits the 128-char budget, including a full 32-byte order hash", () => {
+    const long = `0x${"f".repeat(64)}`;
+    expect(listingFilled("q", long).notificationId!.length).toBeLessThanOrEqual(LIMITS.notificationId);
   });
 
   it("epochDay agrees with the UTC epoch-day the contracts use", () => {

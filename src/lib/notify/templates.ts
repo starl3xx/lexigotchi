@@ -15,6 +15,20 @@
  *
  * Every string is clamped again at send time (`clamp` in ./send) — these rules make the clamp a
  * backstop rather than the thing standing between us and a truncated push.
+ *
+ * A THIRD RULE, on `notificationId`. The client drops a repeated (id, FID) pair for 24h, which
+ * makes a retried cron safe — but the same mechanism silently eats real notifications if the id is
+ * coarser than the thing it describes. So the id has to match what the message IS:
+ *
+ *   NUDGES describe a STATE ("your words are hungry", "you have unclaimed rewards"). The state is
+ *   still true an hour later, so one per day is the intent — day-keyed ids are the feature.
+ *
+ *   RECEIPTS describe an EVENT ("your Q listing filled"). Two fills are two different facts, and a
+ *   dropped receipt means a player never learns a trade happened. These MUST key on something
+ *   unique to the event — an order hash, a tx hash — never on the day.
+ *
+ * Getting this backwards is invisible in testing (the first one always arrives) and only shows up
+ * as players quietly not being told things.
  */
 
 import { LIMITS } from "./send";
@@ -76,6 +90,11 @@ export function dailyReady(day = epochDay()): Notification {
 // ── Jackpot ───────────────────────────────────────────────────────────────────────────
 const WON_TITLES = ["You won the jackpot", "The pot is yours", "Your word came up"] as const;
 
+/**
+ * RECEIPT, but safely day-keyed: `Jackpot.resolve` reverts with `AlreadyResolvedToday` unless the
+ * UTC epoch-day has advanced, so there is exactly one win per day by contract. The day IS the
+ * event id here — that's a guarantee, not a coincidence, and it breaks if that guard ever goes.
+ */
 export function jackpotWon(word: string, amount: string, day = epochDay()): Notification {
   return {
     title: rotate(WON_TITLES, day),
@@ -109,6 +128,7 @@ export function claimReady(amount: string, day = epochDay()): Notification {
 // ── Rolls ─────────────────────────────────────────────────────────────────────────────
 const PITY_TITLES = ["Your next roll is 85%", "Best odds you'll get", "Your luck is capped"] as const;
 
+/** NUDGE. One prod per letter per day is deliberate: the 85% cap persists until you roll it. */
 export function pityCapped(letter: string, day = epochDay()): Notification {
   return {
     title: rotate(PITY_TITLES, day),
@@ -120,11 +140,18 @@ export function pityCapped(letter: string, day = epochDay()): Notification {
 // ── Market ────────────────────────────────────────────────────────────────────────────
 const SOLD_TITLES = ["Your letter sold", "Someone took your offer", "Swap filled"] as const;
 
-export function listingFilled(letter: string, day = epochDay()): Notification {
+/**
+ * RECEIPT — keyed on the Seaport order hash, which is the canonical identity of a fill. Day-keying
+ * this (the obvious-looking `filled-${letter}-${day}`) silently swallows the second sale of the
+ * same letter on the same day, which is an ordinary thing for an active trader to do: the trade
+ * settles on-chain, the $WORD arrives, and we simply never mention it.
+ */
+export function listingFilled(letter: string, orderHash: string, day = epochDay()): Notification {
   return {
     title: rotate(SOLD_TITLES, day),
     body: `Your ${letter.toUpperCase()} listing just filled. The trade settled on-chain — check your bag.`,
-    notificationId: `filled-${letter.toLowerCase()}-${day}`,
+    // Trimmed to fit the 128-char id budget; a 32-byte hash prefix is still collision-free here.
+    notificationId: `filled-${orderHash.toLowerCase().replace(/^0x/, "").slice(0, 32)}`,
   };
 }
 
