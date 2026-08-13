@@ -25,8 +25,11 @@ export function PackReveal({ letters }: { letters: number[] }) {
           <>
             Ooh — a rare one in there <Sparkle weight="fill" size={13} className="text-gold-deep" />
           </>
+        ) : letters.length === 1 ? (
+          // The sheet is shared by the 5-pack AND the daily single — the copy has to count.
+          "One fresh lowercase kid for the bag."
         ) : (
-          "Five fresh lowercase kids for the bag."
+          `${["", "One", "Two", "Three", "Four", "Five"][letters.length] ?? letters.length} fresh lowercase kids for the bag.`
         )}
       </p>
       <div className="mt-4 flex gap-2">
