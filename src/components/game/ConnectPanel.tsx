@@ -20,7 +20,6 @@
  */
 import { useCallback } from "react";
 import { useAccount, useConnect } from "wagmi";
-import { SignInWithBaseButton } from "@base-org/account-ui/react";
 import { useViewer } from "./useViewer";
 import { shortAddr } from "@/lib/admin/format";
 import { Check } from "./ui/icons";
@@ -74,16 +73,23 @@ export function ConnectPanel() {
           caption="A smart wallet for your letters — Coinbase-verified? It unlocks the daily too."
         >
           {hasBase && (
-            // Base's own button, wired to the wagmi connector rather than @base-org/account's
-            // provider. Base Account auth is SIWE — it proves an ADDRESS and stops there, while the
-            // game needs a live wallet to send transactions. The connector gives both, connects the
-            // same Base Account, and keeps wallet state in one place instead of forking it.
-            <SignInWithBaseButton
-              align="center"
-              variant="solid"
-              colorScheme="light"
+            // Hand-rolled in Base's brand (black + the white Square mark) rather than
+            // @base-org/account-ui's premade button: its props are exactly {align, variant,
+            // colorScheme, onClick} — no className, no style passthrough — so it can never wear
+            // the cel frame the other two options do, and three sign-in buttons in two visual
+            // languages read as a mistake. Same treatment as the Farcaster button above.
+            //
+            // Still the wagmi connector, not @base-org/account's provider. Base Account auth is
+            // SIWE — it proves an ADDRESS and stops there, while the game needs a live wallet to
+            // send transactions. The connector gives both, connects the same Base Account, and
+            // keeps wallet state in one place instead of forking it.
+            <button
               onClick={() => connectWith((id) => /coinbase|base/.test(id))}
-            />
+              className="cel flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-extrabold text-white"
+            >
+              <span aria-hidden className="h-3.5 w-3.5 rounded-[2px] bg-white" />
+              Sign in with Base
+            </button>
           )}
         </Option>
 
