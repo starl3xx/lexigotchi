@@ -26,7 +26,7 @@ import { Check } from "./ui/icons";
 
 export function ConnectPanel() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { connect, connectors, error, isPending } = useConnect();
   const viewer = useViewer();
 
   const connectWith = useCallback(
@@ -36,6 +36,15 @@ export function ConnectPanel() {
     },
     [connect, connectors],
   );
+
+  // Surfaced, never swallowed. The live failure this answers: Rabby queues a connection request
+  // inside the extension, every further click queues silently behind it, and the player reports
+  // "nothing happens" — the truth ("check your wallet") was known the whole time, just not shown.
+  const connectHint = isPending
+    ? "Check your wallet — a connection request is waiting for you."
+    : error
+      ? `Your wallet said: ${((error as { shortMessage?: string }).shortMessage ?? error.message).slice(0, 90)}`
+      : null;
 
   const hasBase = connectors.some((c) => /coinbase|base/i.test(c.id) || /coinbase/i.test(c.name));
   const hasInjected = connectors.some((c) => c.type === "injected" || c.id === "injected");
@@ -100,11 +109,17 @@ export function ConnectPanel() {
               onClick={() => connectWith((id, t) => t === "injected" || id === "injected")}
               className="cel w-full rounded-xl bg-paper-dark px-4 py-2.5 text-sm font-extrabold"
             >
-              Connect wallet
+              {isPending ? "Check your wallet…" : "Connect wallet"}
             </button>
           </Option>
         )}
       </div>
+
+      {connectHint && (
+        <p className="mt-3 text-center text-xs font-bold text-candy" role="status">
+          {connectHint}
+        </p>
+      )}
     </div>
   );
 }
