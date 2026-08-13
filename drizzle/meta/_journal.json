@@ -15,6 +15,13 @@
       "when": 1781888721613,
       "tag": "0001_left_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786649755477,
+      "tag": "0002_tan_natasha_romanoff",
+      "breakpoints": true
     }
   ]
 }

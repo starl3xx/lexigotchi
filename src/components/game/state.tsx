@@ -551,6 +551,12 @@ export interface GameApi {
   claimables: { stream: "yield" | "bounty"; tokenId: string; amount: number }[];
   /** Claim every leaf in one send. Leaves pay their baked-in accounts, so this is union-safe. */
   claimEarnings: () => void;
+  /** The letter-swap board (Seaport orders; chain only — the mock's swap is a share-toy). */
+  swapBoard: { maker: string; giveId: number; wantId: number; orderHash: string }[];
+  /** Sign + list a 1⇄1 letter offer (approval batched in when missing). */
+  createSwapOffer: (giveId: number, wantId: number) => void;
+  fillSwapOffer: (orderHash: string) => void;
+  cancelSwapOffer: (orderHash: string) => void;
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
@@ -700,6 +706,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // The mock has no keeper and no epochs — earnings arrive via its own staking tick instead.
       claimables: [],
       claimEarnings: () => {},
+      // The mock's swap is the share-toy above; the real board is chain-only.
+      swapBoard: [],
+      createSwapOffer: () => {},
+      fillSwapOffer: () => {},
+      cancelSwapOffer: () => {},
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),
