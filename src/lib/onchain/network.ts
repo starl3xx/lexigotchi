@@ -22,6 +22,12 @@ export interface NetworkDef {
   name: string;
   /** Block explorer origin, no trailing slash. */
   explorer: string;
+  /**
+   * The chain's CANONICAL public RPC — what `wallet_addEthereumChain` hands the wallet. Never our
+   * keyed endpoint: the wallet would store it as the chain's RPC forever, and our key doesn't
+   * belong in someone's wallet config.
+   */
+  publicRpc: string;
   isTestnet: boolean;
 }
 
@@ -31,6 +37,7 @@ export const BASE: NetworkDef = {
   key: "base",
   name: "Base",
   explorer: "https://basescan.org",
+  publicRpc: "https://mainnet.base.org",
   isTestnet: false,
 };
 
@@ -40,6 +47,7 @@ export const BASE_SEPOLIA: NetworkDef = {
   key: "base-sepolia",
   name: "Base Sepolia",
   explorer: "https://sepolia.basescan.org",
+  publicRpc: "https://sepolia.base.org",
   isTestnet: true,
 };
 

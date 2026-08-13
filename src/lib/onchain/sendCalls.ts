@@ -32,16 +32,73 @@ export type SendResult =
   | { via: "sendCalls"; id: string }
   | { via: "sendTransaction"; hashes: string[] };
 
+/** Thrown when the wallet is not on the game's chain and could not be moved there. */
+export class WrongChainError extends Error {
+  constructor() {
+    super(`Your wallet is on the wrong network — switch it to ${NETWORK.name} and try again`);
+    this.name = "WrongChainError";
+  }
+}
+
+/**
+ * Make the wallet be on the game's chain, or refuse to proceed.
+ *
+ * This exists because of a real transaction: reads come from OUR RPC, so the UI looks right no
+ * matter what chain the wallet sits on — and the `eth_sendTransaction` fallback carries no chain
+ * id at all, so a wallet parked on Ethereum mainnet happily sent a Sepolia daily commit to chain 1
+ * (real gas, calldata into an address with no code, nothing minted). The 5792 path names a chainId
+ * but honoring it is the wallet's choice. So: check, ask to switch (adding the chain if the wallet
+ * doesn't know it), then RE-CHECK — a wallet can silently no-op a switch request, and the re-check
+ * is the only part the wallet can't fake by resolving the promise.
+ */
+async function ensureChain(provider: Eip1193Provider): Promise<void> {
+  const read = async () => parseInt(String(await provider.request({ method: "eth_chainId" })), 16);
+  if ((await read()) === CHAIN_ID) return;
+
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: CHAIN_ID_HEX }],
+    });
+  } catch (err) {
+    // 4902: the wallet has never heard of this chain — teach it, then switch again.
+    if ((err as { code?: number })?.code !== 4902) throw err;
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: CHAIN_ID_HEX,
+          chainName: NETWORK.name,
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [NETWORK.publicRpc],
+          blockExplorerUrls: [NETWORK.explorer],
+        },
+      ],
+    });
+    // Some wallets switch as part of adding; others need to be asked again. The re-check below is
+    // the arbiter either way.
+    await provider
+      .request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] })
+      .catch(() => {});
+  }
+
+  if ((await read()) !== CHAIN_ID) throw new WrongChainError();
+}
+
 /**
  * Send one or more calls from `from` on Base, always carrying the builder-code attribution. Returns
  * the ERC-5792 batch id (preferred path) or the individual tx hashes (fallback). Non-"unsupported"
  * provider errors (e.g. a user rejection, code 4001) propagate unchanged.
+ *
+ * The chain guard runs FIRST, for both paths — no call leaves this function unless the wallet is
+ * verifiably on the game's chain.
  */
 export async function sendCallsAttributed(
   provider: Eip1193Provider,
   from: `0x${string}`,
   calls: Call[],
 ): Promise<SendResult> {
+  await ensureChain(provider);
   try {
     const id = await provider.request({
       method: "wallet_sendCalls",
