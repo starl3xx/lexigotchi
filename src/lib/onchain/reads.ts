@@ -13,7 +13,8 @@
  * Amounts cross into the app as WHOLE $WORD (numbers), converted once, here. The UI thinks in whole
  * $WORD; only calldata thinks in wei.
  */
-import { createPublicClient, http, formatUnits, type PublicClient } from "viem";
+import { createPublicClient, formatUnits, type PublicClient } from "viem";
+import { rpcTransport } from "./transport";
 import { ACTIVE_CHAIN } from "./chain";
 import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
 import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, erc1155ApprovalAbi } from "./abis";
@@ -26,7 +27,7 @@ let client: PublicClient | undefined;
 /** Shared read client for the active chain. Safe on server and client. */
 export function getPublicClient(): PublicClient {
   if (!client) {
-    client = createPublicClient({ chain: ACTIVE_CHAIN, transport: http(RPC_URL) }) as PublicClient;
+    client = createPublicClient({ chain: ACTIVE_CHAIN, transport: rpcTransport(RPC_URL) }) as PublicClient;
   }
   return client;
 }
