@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
 import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
+import { promptAccountSwitch } from "../walletSwitch";
 import {
   COST,
   PRESTIGE_LEVELS,
@@ -81,8 +82,18 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           says where it lives instead of offering buttons that would build guaranteed reverts. */}
       {!word.mine && (
         <Card className="mb-3 border-gold bg-gold/10 text-sm">
-          <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
-          It&apos;s part of your bag — connect that wallet to stake, feed, or raise it.
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
+              It&apos;s part of your bag — switch to that wallet to stake, feed, or raise it.
+            </div>
+            {/* Opens the wallet's own account picker — the app can't choose the account, but it
+                can put the choice one tap away. wagmi follows accountsChanged, and `mine`
+                re-attributes across the whole bag the moment the switch lands. */}
+            <Button variant="teal" onClick={() => void promptAccountSwitch()}>
+              Switch
+            </Button>
+          </div>
         </Card>
       )}
 
