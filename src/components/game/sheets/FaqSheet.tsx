@@ -209,9 +209,9 @@ function useFaq(): { q: string; a: ReactNode }[] {
       a: (
         <>
           You can play in any Farcaster client (you&apos;re auto-connected) or on the open web by{" "}
-          <strong>signing in with Neynar</strong> or connecting a Base wallet. The discounted{" "}
-          <strong>daily single is FID-gated</strong>, so the daily needs a Farcaster account — packs
-          and everything else work without one.
+          <strong>signing in with Farcaster</strong> or connecting a Base wallet. The free{" "}
+          <strong>daily single needs an identity</strong> — a Farcaster account, or a{" "}
+          <strong>Coinbase-verified wallet</strong> — packs and everything else work without one.
         </>
       ),
     },

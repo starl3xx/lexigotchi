@@ -133,13 +133,25 @@ export function BalanceSheet() {
               <Smiley weight="fill" size={20} />
             </span>
           )}
-          <div className="leading-tight">
+          <div className="flex-1 leading-tight">
             <div className="font-display font-extrabold">@{viewer.username ?? viewer.fid}</div>
             <div className="text-xs text-ink/55">
-              {viewer.environment === "farcaster" ? "Connected via Farcaster" : "Signed in with Neynar"}
+              {viewer.environment === "farcaster" ? "Connected via Farcaster" : "Signed in with Farcaster"}
               {viewer.fid ? ` · FID ${viewer.fid}` : ""}
             </div>
           </div>
+          {/* Sign-out exists only on the web: inside a Farcaster host the identity IS the host's,
+              and there is nothing of ours to clear. Also the only way to test the non-Farcaster
+              (Coinbase-verified) daily without hunting for a fresh tab — the session lives in
+              sessionStorage, so a new tab is the accidental version of this button. */}
+          {viewer.environment === "web" && (
+            <button
+              onClick={viewer.signOut}
+              className="shrink-0 text-xs font-bold text-ink/45 underline"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       ) : viewer.environment === "web" ? (
         <Card className="mb-3 flex items-center justify-between bg-paper-dark/30">
