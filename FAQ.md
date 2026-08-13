@@ -114,8 +114,19 @@ from the data.
 ## Do I need a Farcaster account?
 
 You can play in any Farcaster client (you're auto-connected) or on the open web by **signing in with
-Neynar** or connecting a Base wallet. The free **daily single is FID-gated**, so the daily needs
-a Farcaster account — packs and everything else work without one.
+Farcaster** or connecting a Base wallet. The free **daily single needs an identity** — a Farcaster
+account, or a [Coinbase-verified](https://www.coinbase.com/onchain-verify) wallet — packs and
+everything else work without one.
+
+## I play on web AND in the Farcaster app — is my bag shared?
+
+Yes — your bag is **one collection per person**: everything held by your connected wallet plus every
+wallet your **Farcaster account has verified**, shown together wherever you play. Two details:
+letters always **mint to the wallet that's connected**, and actions (spelling, rolling, staking,
+feeding) need the wallet that holds the piece. If you play on the web with a wallet your account
+hasn't verified, those letters won't appear in the Farcaster app — the fix is to **verify that
+wallet** (Warpcast → Settings → Verified addresses) and your whole bag folds together, instantly
+and retroactively.
 
 ## How many words and letters are there?
 

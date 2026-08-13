@@ -33,7 +33,9 @@ export function WalletMismatch() {
           <span className="font-display text-sm font-extrabold">This wallet isn&apos;t linked to your Farcaster account.</span>
           <p className="mt-0.5">
             Letters mint to the connected wallet — this one&apos;s won&apos;t follow you into the Farcaster
-            app. For one bag everywhere, connect a wallet your account has verified.
+            app. Two fixes, either works: <strong>verify this wallet on Farcaster</strong>{" "}
+            (Warpcast → Settings → Verified addresses — your whole bag folds together, instantly),
+            or connect a wallet your account has already verified.
           </p>
           <button onClick={() => setDismissed(true)} className="mt-1.5 font-bold text-ink/45 underline">
             I know what I&apos;m doing
