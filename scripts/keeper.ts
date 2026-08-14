@@ -362,12 +362,16 @@ async function announce(title: string, body: string) {
 
   // Explicit FIDs, never an empty list: an empty targetFids would mean "everyone with notifications
   // on" to Neynar, which is a broader and less inspectable audience than the one just counted.
-  const res = await sendNotification({
-    title,
-    body,
-    targetFids: fids,
-    notificationId: `announce-${Math.floor(Date.now() / 86_400_000)}-${title.slice(0, 24)}`,
-  });
+  // UNIQUE PER INVOCATION — an announcement is a receipt, not a nudge. Keying it on the day plus a
+  // title prefix (the obvious-looking choice) means a second announcement the same day with the
+  // same opening 24 characters is dropped by the client for 24h while the keeper still reports
+  // success: an invisible failure, which is the worst kind. A timestamp makes every deliberate send
+  // land. The trade-off is that re-running the command genuinely sends twice — but the operator is
+  // at a terminal and can see that, which beats a silent drop reported as delivered. The id is
+  // logged so a double-send is identifiable after the fact.
+  const notificationId = `announce-${Date.now()}`;
+  const res = await sendNotification({ title, body, targetFids: fids, notificationId });
+  console.log(`announce: id ${notificationId}`);
   console.log("announce:", res.ok ? `sent to ${res.delivered ?? "?"}` : `not sent (${res.skipped ?? res.error})`);
 }
 

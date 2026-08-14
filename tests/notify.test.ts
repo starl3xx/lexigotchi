@@ -227,3 +227,35 @@ describe("manifest wiring", () => {
     expect(m.frame.webhookUrl).toBe(NOTIFICATION_WEBHOOK_URL);
   });
 });
+
+// Bugbot #87: send.ts throws at import when armed without a key — correct fail-fast, but the admin
+// status route and the Notifications tab exist to REPORT that exact state. If they reach the limits
+// through send.ts, the one blocker they most need to surface is the one that makes them unreachable.
+describe("limits are importable without the fail-fast throw", () => {
+  it("exposes limits and clamp from a module with no import-time side effects", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NOTIFICATIONS_ENABLED", "true");
+    vi.stubEnv("NEYNAR_API_KEY", ""); // the state that arms the throw in send.ts
+    vi.resetModules();
+    const mod = await import("@/lib/notify/limits");
+    expect(mod.LIMITS.title).toBe(32);
+    expect(mod.clamp("Feeding time", 32)).toBe("Feeding time");
+  });
+
+  it("is the module the status route and the tab import from", async () => {
+    const [route, tab] = await Promise.all([
+      import("node:fs").then((fs) =>
+        fs.readFileSync("src/app/api/admin/notify-status/route.ts", "utf8"),
+      ),
+      import("node:fs").then((fs) =>
+        fs.readFileSync("src/components/admin/tabs/NotificationsTab.tsx", "utf8"),
+      ),
+    ]);
+    for (const [name, src] of [["status route", route], ["tab", tab]] as const) {
+      expect(src, `${name} must not import from notify/send`).not.toMatch(
+        /from ["']@\/lib\/notify\/send["']/,
+      );
+      expect(src, `${name} should import limits`).toMatch(/from ["']@\/lib\/notify\/limits["']/);
+    }
+  });
+});

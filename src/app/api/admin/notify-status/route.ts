@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { notifiableFids } from "@/lib/db/queries";
-import { LIMITS } from "@/lib/notify/send";
+import { LIMITS } from "@/lib/notify/limits"; // NOT ./send — that module throws when armed without a key
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

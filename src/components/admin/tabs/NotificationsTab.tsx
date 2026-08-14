@@ -24,7 +24,7 @@ import {
   listingFilled,
   type Notification,
 } from "@/lib/notify/templates";
-import { clamp, LIMITS } from "@/lib/notify/send";
+import { clamp, LIMITS } from "@/lib/notify/limits"; // NOT ./send — see limits.ts
 import { AdminCard, Banner, KeyVal, SectionLabel, StatusBadge, useFetch, Spinner } from "../ui";
 import { Info, Megaphone, ShieldCheck, Warning } from "../icons";
 
@@ -86,7 +86,7 @@ function Preview({ note }: { note: Notification }) {
 }
 
 export function NotificationsTab() {
-  const { data, loading } = useFetch<StatusPayload>("/api/admin/notify-status");
+  const { data, loading, error } = useFetch<StatusPayload>("/api/admin/notify-status");
   // Rotate the preview through the same day-indexed variants production uses, so the operator can
   // page through the copy a player would actually see on consecutive days.
   const [day, setDay] = useState(() => Math.floor(Date.now() / 86_400_000));
@@ -100,7 +100,17 @@ export function NotificationsTab() {
 
       {loading && !data ? (
         <Spinner />
-      ) : data?.armed ? (
+      ) : error || !data ? (
+        // NEVER render a failed fetch as "inert". Absence of an answer is not the answer "off" —
+        // reporting disarmed while push may well be armed is exactly backwards for the one screen
+        // whose job is telling you whether sends can happen.
+        <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
+          <span className="text-xs">
+            <b>Status unavailable</b> — {error ?? "no response"}. This says nothing about whether push
+            is armed; check the deploy&apos;s env directly before assuming it is off.
+          </span>
+        </Banner>
+      ) : data.armed ? (
         <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
           <span className="text-xs">
             <b>Push is ARMED.</b> Keeper and cron runs will reach real phones. A sent notification
@@ -116,16 +126,17 @@ export function NotificationsTab() {
       )}
 
       <AdminCard title="Status">
-        <KeyVal k="Production deployment" v={data?.checks.isProd ? "yes" : "no"} />
-        <KeyVal k="NOTIFICATIONS_ENABLED" v={data?.checks.flagOn ? '"true"' : "not set"} mono />
-        <KeyVal k="NEYNAR_API_KEY" v={data?.checks.hasKey ? "present" : "missing"} />
+        {!data && <SectionLabel>unknown — the status endpoint did not answer</SectionLabel>}
+        <KeyVal k="Production deployment" v={!data ? "—" : data.checks.isProd ? "yes" : "no"} />
+        <KeyVal k="NOTIFICATIONS_ENABLED" v={!data ? "—" : data.checks.flagOn ? '"true"' : "not set"} mono />
+        <KeyVal k="NEYNAR_API_KEY" v={!data ? "—" : data.checks.hasKey ? "present" : "missing"} />
         <KeyVal
           k="Audience (added the mini app)"
           v={data?.audienceError ? `unavailable — ${data.audienceError}` : `${data?.audience ?? "—"} players`}
         />
         <div className="mt-3">
-          <StatusBadge tone={data?.armed ? "warning" : "ok"}>
-            {data?.armed ? "armed" : "inert"}
+          <StatusBadge tone={!data ? "error" : data.armed ? "warning" : "ok"}>
+            {!data ? "unknown" : data.armed ? "armed" : "inert"}
           </StatusBadge>
         </div>
       </AdminCard>
