@@ -4,6 +4,7 @@ import {
   dailyTargets,
   fidLookupFrom,
   jackpotWinnerFid,
+  HUNGER_WARN_HOURS,
   type DailyState,
 } from "@/lib/notify/triggers";
 import type { KeeperWord } from "@/lib/keeper/shares";
@@ -70,6 +71,24 @@ describe("hungerTargets", () => {
 
   it("stays quiet until the deadline is actually near", () => {
     expect(hungerTargets([w({ secondsUnfed: HUNGRY_AT - 48 * HOUR })], lookup)).toEqual([]);
+  });
+
+  // The window must be WIDER than the keeper's cadence. At exactly 24h with a once-daily keeper,
+  // a pass landing a minute late leaves a word that was just outside the window on Monday already
+  // hungry on Tuesday — and already-hungry words are skipped, so it is never warned at all. The
+  // feature would fail silently for exactly the words it exists to protect.
+  it("warns wider than the daily keeper period, so consecutive passes overlap", () => {
+    expect(HUNGER_WARN_HOURS).toBeGreaterThan(24);
+  });
+
+  it("still catches a word that a late keeper pass would otherwise skip past", () => {
+    // Monday's pass: 25h out — outside a 24h window, inside ours.
+    const mondayOut = hungerTargets([w({ secondsUnfed: HUNGRY_AT - 25 * HOUR })], lookup, 24);
+    expect(mondayOut).toEqual([]); // what the old window did
+    const mondayIn = hungerTargets([w({ secondsUnfed: HUNGRY_AT - 25 * HOUR })], lookup);
+    expect(mondayIn).toHaveLength(1); // warned in time
+    // Tuesday, 24h+ later: already hungry, so a 24h window would never have warned it at all.
+    expect(hungerTargets([w({ secondsUnfed: HUNGRY_AT + HOUR })], lookup)).toEqual([]);
   });
 
   it("ignores unstaked words — their hunger costs the owner nothing", () => {

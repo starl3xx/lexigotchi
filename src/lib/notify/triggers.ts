@@ -29,6 +29,23 @@ export function fidLookupFrom(
   return (address: string) => map.get(address.toLowerCase());
 }
 
+/**
+ * How far ahead of the hunger line to warn — and why it is NOT 24h.
+ *
+ * THE INVARIANT: this window must be strictly WIDER than the longest gap between keeper passes.
+ * The keeper runs once a day, and warnings are only issued on the approach (an already-hungry word
+ * is deliberately skipped — see hungerTargets). So with a 24h window and a 24h cadence, any pass
+ * that lands even a minute late leaves a gap: a word sitting just outside the window on Monday's
+ * pass is already hungry by Tuesday's, and is therefore never warned at all. The feature would fail
+ * silently for precisely the words it exists to protect, and nothing would look wrong.
+ *
+ * 30h gives six hours of slack against cron jitter, a slow scan, or one skipped run. Widen it
+ * further if the keeper ever moves to a less reliable schedule; never narrow it below the cadence.
+ * A word inside the window across two passes simply gets two warnings on different days, which is
+ * a feature — the second one is more urgent than the first.
+ */
+export const HUNGER_WARN_HOURS = 30;
+
 export interface HungerTarget {
   fid: number;
   /** How many of their staked words are inside the warning window. */
@@ -56,7 +73,7 @@ export interface HungerTarget {
 export function hungerTargets(
   words: readonly KeeperWord[],
   fidOf: FidLookup,
-  warnWithinHours = 24,
+  warnWithinHours = HUNGER_WARN_HOURS,
   p: Params = DEFAULT_PARAMS,
 ): HungerTarget[] {
   const hungryAt = p.care.hungryAfterDays * DAY;

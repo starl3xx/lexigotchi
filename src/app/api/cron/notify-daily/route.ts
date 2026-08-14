@@ -3,7 +3,7 @@ import { notifiableFids } from "@/lib/db/queries";
 import { dailyTargets, type DailyState } from "@/lib/notify/triggers";
 import { dailyReady } from "@/lib/notify/templates";
 import { sendNotification } from "@/lib/notify/send";
-import { getPublicClient } from "@/lib/onchain/reads";
+import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { addressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
 
@@ -53,7 +53,13 @@ export async function GET(req: Request) {
       })),
     });
 
-    const day = Math.floor(Date.now() / 86_400_000);
+    // CHAIN time, not wall clock. `dailyUsed` stores `block.timestamp / 1 days + 1`, and the mint
+    // compares against that same clock — so deriving the day from Date.now() lets the two disagree
+    // whenever the chain's notion of the day has rolled and ours hasn't (or vice versa). The result
+    // would be telling players their daily is ready when the contract would still revert, or
+    // skipping players who genuinely can pull. Every other day-comparison in the codebase
+    // (readDayState, the mint routes) reads chain time for exactly this reason.
+    const day = Math.floor((await readChainTime()) / 86_400);
     const states: DailyState[] = fids.map((fid, i) => ({
       fid,
       lastDailyDayPlusOne: Number(used[i]),
