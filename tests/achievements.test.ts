@@ -5,10 +5,14 @@ import { WORD_COUNT } from "@/lib/dictionary";
 import type { KeeperWord } from "@/lib/keeper/shares";
 
 const A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as const;
-const word = (n: number, over: Partial<KeeperWord> = {}): KeeperWord => ({
-  tokenId: BigInt(n), word: "ABOUT", owner: A, staked: false, daysUnfed: 0,
-  prestigeLevel: 0, upperAll: false, ...over,
-});
+const word = (n: number, over: Partial<KeeperWord> = {}): KeeperWord => {
+  const base = {
+    tokenId: BigInt(n), word: "ABOUT", owner: A, staked: false, daysUnfed: 0,
+    prestigeLevel: 0, upperAll: false, ...over,
+  };
+  // Keep seconds consistent with days, as scanAllWords does (it derives days FROM seconds).
+  return { ...base, secondsUnfed: over.secondsUnfed ?? base.daysUnfed * 86_400 };
+};
 const counts = (idx: number[], upper = false) => {
   const a = Array.from({ length: 52 }, () => 0);
   for (const i of idx) a[i + (upper ? 26 : 0)] = 1;

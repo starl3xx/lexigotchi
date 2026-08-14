@@ -20,6 +20,10 @@ The game is the front door: `/` redirects to **`/play`**.
 - `npm test` — economy + solvency invariants (84 vitest tests)
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (54 forge tests)
+- `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
+  daily operator pass. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
+  defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning and
+  rides the same world scan as `--yield`/`--bounty`.
 - `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
@@ -44,6 +48,15 @@ The game is the front door: `/` redirects to **`/play`**.
   `src/components/game/campaignClient.ts` (`sdk.quickAuth.fetch`), wired into `useAddMiniApp` (add),
   `PreLaunchScreen` (status + share), and onboarding. The verified-share path needs `NEXT_PUBLIC_URL`'s
   host to match the manifest domain (the Quick Auth `aud`).
+- `src/lib/notify/` → **Farcaster/Base push notifications**, Neynar-managed. `send.ts` (transport +
+  the three guards: non-production hard-stops, `NOTIFICATIONS_ENABLED` must be `"true"`, missing key
+  throws at import; an empty `targetFids` is `no-recipients`, NEVER a broadcast), `templates.ts`
+  (copy — titles never interpolate so the 32-char cap is provable; variants rotate by epoch-day;
+  ids are day-keyed for NUDGES and event-keyed for RECEIPTS), `triggers.ts` (pure targeting).
+  `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
+  Neynar owns the whole token lifecycle, we store no tokens and send by FID. Wallet-only players
+  are unreachable by push (no Farcaster client to deliver one). Nothing sends until
+  `NOTIFICATIONS_ENABLED=true` in production.
 - `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
   keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
   Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.

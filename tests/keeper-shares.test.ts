@@ -7,16 +7,21 @@ import { TIER_WEIGHT, wordTier } from "@/lib/economy";
 const A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as const;
 const B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as const;
 
-const mk = (over: Partial<KeeperWord>): KeeperWord => ({
-  tokenId: 1n,
-  word: "ABOUT",
-  owner: A,
-  staked: true,
-  daysUnfed: 0,
-  prestigeLevel: 0,
-  upperAll: true,
-  ...over,
-});
+// secondsUnfed defaults to whatever daysUnfed says, so a fixture can set either one and the two
+// stay consistent — the same invariant scanAllWords maintains by deriving days from seconds.
+const mk = (over: Partial<KeeperWord>): KeeperWord => {
+  const base = {
+    tokenId: 1n,
+    word: "ABOUT",
+    owner: A,
+    staked: true,
+    daysUnfed: 0,
+    prestigeLevel: 0,
+    upperAll: true,
+    ...over,
+  };
+  return { ...base, secondsUnfed: over.secondsUnfed ?? base.daysUnfed * 86_400 };
+};
 
 const POT = 10n ** 18n; // 1 $WORD
 

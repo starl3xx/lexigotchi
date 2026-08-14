@@ -4,7 +4,12 @@
  *   npm run keeper -- --resolve          reveal today's word + resolve the jackpot
  *   npm run keeper -- --yield            open today's yield epoch (epochId = UTC day)
  *   npm run keeper -- --bounty           open this week's bounty period if unopened
+ *   npm run keeper -- --achievements     attest newly-earned EAS badges
+ *   npm run keeper -- --notify           warn players whose staked words are about to go hungry
  *   npm run keeper -- --dry [...]        compute + verify everything, send nothing
+ *
+ * `.env.local` loads automatically (--env-file-if-exists in the npm script). Without it the chain
+ * defaults to mainnet and the run dies on a missing deployment rather than doing something wrong.
  *
  * Env: KEEPER_PRIVATE_KEY (the contracts' keeper role — Sepolia: the throwaway deployer),
  * NEXT_PUBLIC_CHAIN_ID / NEXT_PUBLIC_RPC_URL as usual. The AnswerChain schedule is read from
@@ -27,10 +32,15 @@ import { scanAllWords } from "../src/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "../src/lib/keeper/shares";
 import { computeAchievements, type AchievementLeaf } from "../src/lib/keeper/achievements";
 import { readLetterCounts } from "../src/lib/onchain/reads";
-import { encodeAbiParameters } from "viem";
+import { encodeAbiParameters, parseEventLogs } from "viem";
 import { buildEpochFile, verifyEntry } from "../src/lib/keeper/tree";
 import { DEFAULT_PARAMS } from "../src/lib/params";
 import { THEMES, themeForPeriod } from "../src/lib/themes";
+import { notifiableFids } from "../src/lib/db/queries";
+import { lookupProfiles } from "../src/lib/neynar";
+import { hungerTargets, fidLookupFrom, jackpotWinnerFid } from "../src/lib/notify/triggers";
+import { hungerWarning, jackpotWon } from "../src/lib/notify/templates";
+import { sendNotification } from "../src/lib/notify/send";
 
 const args = new Set(process.argv.slice(2));
 const DRY = args.has("--dry");
@@ -82,6 +92,10 @@ async function resolveJackpot() {
     });
     const rcpt = await w.waitForTransactionReceipt({ hash });
     console.log(`resolve: ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+    // Telling the winner is safe ONLY here, on the success path: the word is public the moment the
+    // reveal lands. On the failure path above it is still tomorrow's secret, which is why that
+    // branch redacts it.
+    if (rcpt.status === "success") await notifyJackpotWinner(rcpt.logs, entry.word);
   } catch (err) {
     // NEVER rethrow raw: viem embeds the call args in its error dump, and on a FAILED resolve the
     // word is still tomorrow's secret. Redact, classify the one expected case, die on the rest.
@@ -92,6 +106,31 @@ async function resolveJackpot() {
     }
     const redacted = msg.replaceAll(entry.word, "[WORD]").replaceAll(entry.salt, "[SALT]").slice(0, 400);
     throw new Error(`resolve failed (args redacted): ${redacted}`);
+  }
+}
+
+/**
+ * Tell the jackpot winner they won. Best-effort by construction: a notification failure must never
+ * turn a SUCCESSFUL on-chain resolve into a keeper crash, because the retry would then hit
+ * AlreadyResolvedToday and look like a broken day. The payout already happened; this is a courtesy.
+ */
+async function notifyJackpotWinner(logs: readonly unknown[], word: string) {
+  try {
+    const won = parseEventLogs({ abi: jackpotAbi, eventName: "JackpotWon", logs: logs as never })[0];
+    if (!won) return; // rolled over — nobody to tell
+    const { winner, amount } = won.args as unknown as { winner: string; amount: bigint };
+
+    const profiles = await lookupProfiles(await notifiableFids());
+    const fid = jackpotWinnerFid(winner, fidLookupFrom(profiles));
+    if (fid === undefined) {
+      return void console.log(`resolve: winner ${winner.slice(0, 10)} isn't a notifiable player`);
+    }
+    const display = `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`;
+    if (DRY) return void console.log(`  [dry] would tell fid ${fid}: won ${display}`);
+    const res = await sendNotification({ ...jackpotWon(word, display), targetFids: [fid] });
+    console.log(`resolve: winner fid ${fid} ${res.ok ? "notified" : `not notified (${res.skipped ?? res.error})`}`);
+  } catch (err) {
+    console.error("resolve: winner notification failed (payout unaffected):", err);
   }
 }
 
@@ -256,13 +295,57 @@ async function attestAchievements() {
   }
 }
 
+/**
+ * The hunger warning — the one notification the game genuinely owes its players.
+ *
+ * Rides the world scan that --yield and --bounty already perform, so it costs one extra Neynar
+ * lookup and nothing on-chain. A hungry word earns zero yield AND loses jackpot eligibility;
+ * without a warning that is a tax on people who were asleep, and with one, hunger becomes a
+ * mechanic you can play around.
+ *
+ * Sends nothing unless notifications are armed (NODE_ENV=production + NOTIFICATIONS_ENABLED=true),
+ * so --dry and every local run report the audience and stay silent.
+ */
+async function notifyHunger() {
+  const [words, fids] = await Promise.all([scanAllWords(), notifiableFids()]);
+  if (fids.length === 0) return console.log("notify: nobody has added the mini app — nothing to do");
+
+  const profiles = await lookupProfiles(fids);
+  const targets = hungerTargets(words, fidLookupFrom(profiles));
+  console.log(`notify: ${words.length} words, ${fids.length} notifiable, ${targets.length} to warn`);
+  if (targets.length === 0) return;
+
+  // Grouped by (words, hoursLeft) so players sharing a deadline share one send — the copy is
+  // identical, and it keeps a large audience inside a handful of requests.
+  const groups = new Map<string, { words: number; hoursLeft: number; fids: number[] }>();
+  for (const t of targets) {
+    const key = `${t.words}:${t.hoursLeft}`;
+    const g = groups.get(key) ?? { words: t.words, hoursLeft: t.hoursLeft, fids: [] };
+    g.fids.push(t.fid);
+    groups.set(key, g);
+  }
+
+  for (const g of groups.values()) {
+    const note = hungerWarning(g.words, g.hoursLeft);
+    if (DRY) {
+      console.log(`  [dry] ${g.fids.length} fid(s): "${note.title}" / "${note.body}"`);
+      continue;
+    }
+    const res = await sendNotification({ ...note, targetFids: g.fids });
+    console.log(`  ${g.fids.length} fid(s) ${res.ok ? "sent" : `skipped (${res.skipped ?? res.error})`}`);
+  }
+}
+
 const jobs: Promise<void>[] = [];
 if (args.has("--resolve")) jobs.push(resolveJackpot());
 if (args.has("--yield")) jobs.push(openStream("yield"));
 if (args.has("--bounty")) jobs.push(openStream("bounty"));
 if (args.has("--achievements")) jobs.push(attestAchievements());
+if (args.has("--notify")) jobs.push(notifyHunger());
 if (jobs.length === 0) {
-  console.log("usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--dry]");
+  console.log(
+    "usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]",
+  );
   process.exit(1);
 }
 // Sequential, not parallel — same key, and nonce races on the public RPC cost us a deploy once.
