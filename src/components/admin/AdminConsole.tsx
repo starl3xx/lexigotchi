@@ -13,6 +13,7 @@ import {
   GearSix,
   ListChecks,
   Megaphone,
+  BellRinging,
   RocketLaunch,
   ShieldCheck,
   Stack,
@@ -29,6 +30,7 @@ import { KeeperTab } from "./tabs/KeeperTab";
 import { AccessTab } from "./tabs/AccessTab";
 import { DeploymentsTab } from "./tabs/DeploymentsTab";
 import { BroadcastTab } from "./tabs/BroadcastTab";
+import { NotificationsTab } from "./tabs/NotificationsTab";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 type TabId =
@@ -41,7 +43,8 @@ type TabId =
   | "keeper"
   | "access"
   | "deployments"
-  | "broadcast";
+  | "broadcast"
+  | "notifications";
 
 interface TabDef {
   id: TabId;
@@ -62,6 +65,7 @@ const TABS: TabDef[] = [
   { id: "access", label: "Access & Safety", section: "Operations", icon: <ShieldCheck weight="bold" size={15} />, render: () => <AccessTab /> },
   { id: "deployments", label: "Deployments", section: "Settings", icon: <ListChecks weight="bold" size={15} />, render: () => <DeploymentsTab /> },
   { id: "broadcast", label: "Broadcast", section: "Settings", icon: <Megaphone weight="bold" size={15} />, render: () => <BroadcastTab /> },
+  { id: "notifications", label: "Notifications", section: "Settings", icon: <BellRinging weight="bold" size={15} />, render: () => <NotificationsTab /> },
 ];
 
 const SECTIONS = ["Analytics", "Operations", "Settings"] as const;

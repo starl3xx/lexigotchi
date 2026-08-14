@@ -28,6 +28,7 @@ export {
   GearSix,
   ListChecks,
   Megaphone,
+  BellRinging,
   // metrics / domain
   Coins,
   CurrencyDollar,
