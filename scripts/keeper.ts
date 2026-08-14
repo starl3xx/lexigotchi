@@ -6,6 +6,7 @@
  *   npm run keeper -- --bounty           open this week's bounty period if unopened
  *   npm run keeper -- --achievements     attest newly-earned EAS badges
  *   npm run keeper -- --notify           warn players whose staked words are about to go hungry
+ *   npm run keeper -- --announce "t" "b" one-off push to everyone who added the mini app
  *   npm run keeper -- --dry [...]        compute + verify everything, send nothing
  *
  * `.env.local` loads automatically (--env-file-if-exists in the npm script). Without it the chain
@@ -40,7 +41,7 @@ import { notifiableFids } from "../src/lib/db/queries";
 import { lookupProfiles } from "../src/lib/neynar";
 import { hungerTargets, fidLookupFrom, jackpotWinnerFid } from "../src/lib/notify/triggers";
 import { hungerWarning, jackpotWon } from "../src/lib/notify/templates";
-import { sendNotification } from "../src/lib/notify/send";
+import { sendNotification, LIMITS } from "../src/lib/notify/send";
 
 const args = new Set(process.argv.slice(2));
 const DRY = args.has("--dry");
@@ -336,15 +337,64 @@ async function notifyHunger() {
   }
 }
 
+/**
+ * A one-off operator announcement to everyone who added the mini app.
+ *
+ * This lives in the CLI rather than the admin console deliberately. The console's other actions are
+ * transaction builders gated by the owner wallet's signature; a push has no signature, so a web
+ * endpoint that could send one would be the entire authority for an irreversible, everyone-reaching
+ * action. Shell access plus the deploy's env is a real gate. The Notifications tab previews copy;
+ * this sends it.
+ *
+ * Broadcasts to the full audience — pass copy you would be happy to receive at 3am.
+ */
+async function announce(title: string, body: string) {
+  const over: string[] = [];
+  if (title.length > LIMITS.title) over.push(`title ${title.length}/${LIMITS.title}`);
+  if (body.length > LIMITS.body) over.push(`body ${body.length}/${LIMITS.body}`);
+  if (over.length) throw new Error(`announce: over the limit (${over.join(", ")}) — shorten it`);
+
+  const fids = await notifiableFids();
+  console.log(`announce: "${title}" / "${body}"`);
+  console.log(`announce: ${fids.length} player(s) have added the mini app`);
+  if (fids.length === 0) return;
+  if (DRY) return void console.log("announce: [dry] nothing sent");
+
+  // Explicit FIDs, never an empty list: an empty targetFids would mean "everyone with notifications
+  // on" to Neynar, which is a broader and less inspectable audience than the one just counted.
+  // UNIQUE PER INVOCATION — an announcement is a receipt, not a nudge. Keying it on the day plus a
+  // title prefix (the obvious-looking choice) means a second announcement the same day with the
+  // same opening 24 characters is dropped by the client for 24h while the keeper still reports
+  // success: an invisible failure, which is the worst kind. A timestamp makes every deliberate send
+  // land. The trade-off is that re-running the command genuinely sends twice — but the operator is
+  // at a terminal and can see that, which beats a silent drop reported as delivered. The id is
+  // logged so a double-send is identifiable after the fact.
+  const notificationId = `announce-${Date.now()}`;
+  const res = await sendNotification({ title, body, targetFids: fids, notificationId });
+  console.log(`announce: id ${notificationId}`);
+  console.log("announce:", res.ok ? `sent to ${res.delivered ?? "?"}` : `not sent (${res.skipped ?? res.error})`);
+}
+
 const jobs: Promise<void>[] = [];
 if (args.has("--resolve")) jobs.push(resolveJackpot());
 if (args.has("--yield")) jobs.push(openStream("yield"));
 if (args.has("--bounty")) jobs.push(openStream("bounty"));
 if (args.has("--achievements")) jobs.push(attestAchievements());
 if (args.has("--notify")) jobs.push(notifyHunger());
+// --announce "<title>" "<body>" — positional, so the copy is visible in shell history.
+const annIdx = process.argv.indexOf("--announce");
+if (annIdx !== -1) {
+  const [title, body] = [process.argv[annIdx + 1], process.argv[annIdx + 2]];
+  if (!title || !body || title.startsWith("--") || body.startsWith("--")) {
+    console.log('usage: npm run keeper -- --announce "<title>" "<body>" [--dry]');
+    process.exit(1);
+  }
+  jobs.push(announce(title, body));
+}
 if (jobs.length === 0) {
   console.log(
-    "usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]",
+    'usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] ' +
+      '[--announce "<title>" "<body>"] [--dry]',
   );
   process.exit(1);
 }

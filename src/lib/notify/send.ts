@@ -22,16 +22,11 @@
  */
 
 import { SITE_URL } from "@/lib/site";
+import { LIMITS, clamp } from "./limits";
 
-/** Farcaster's published limits. Exceeding one is a rejected or silently truncated send. */
-export const LIMITS = {
-  title: 32,
-  body: 128,
-  targetUrl: 1024,
-  notificationId: 128,
-  /** Max FIDs per request; larger audiences are chunked. */
-  fidsPerRequest: 100,
-} as const;
+// Re-exported so existing importers keep working; the definitions live in the side-effect-free
+// module so importing them cannot trip the fail-fast throw below.
+export { LIMITS, clamp };
 
 const NEYNAR_NOTIFY_URL = "https://api.neynar.com/v2/farcaster/frame/notifications";
 
@@ -79,30 +74,6 @@ export function notificationsAreActive(): boolean {
   if (process.env.NODE_ENV !== "production") return false;
   if (process.env.NOTIFICATIONS_ENABLED !== "true") return false;
   return Boolean(process.env.NEYNAR_API_KEY);
-}
-
-/**
- * Truncate to `max` characters without splitting an emoji.
- *
- * Measured in UTF-16 code units (`String.length`) because that is what a JS validator on the
- * receiving end measures, and it is the STRICTER reading — "🔵" is one glyph but two units. Cutting
- * happens on code-point boundaries so a truncated string can never end in half a surrogate pair,
- * which renders as a replacement character.
- *
- * This guard is the one thing our sender has that LHAW's does not, and it is not hypothetical:
- * LHAW's `🔵 ${jackpot} up for grabs` title measures exactly 32 units at today's jackpot size and
- * overflows the moment the pot gains a digit.
- */
-export function clamp(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const points = [...text];
-  let out = "";
-  // Reserve one unit for the ellipsis so the result still fits after we append it.
-  for (const ch of points) {
-    if (out.length + ch.length > max - 1) break;
-    out += ch;
-  }
-  return `${out}…`;
 }
 
 /** Split into ≤100-FID chunks. A broadcast (empty list) stays a single unchunked request. */

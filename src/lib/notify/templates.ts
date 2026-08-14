@@ -31,7 +31,7 @@
  * as players quietly not being told things.
  */
 
-import { LIMITS } from "./send";
+import { LIMITS } from "./limits";
 
 export interface Notification {
   title: string;

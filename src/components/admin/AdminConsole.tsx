@@ -13,6 +13,7 @@ import {
   GearSix,
   ListChecks,
   Megaphone,
+  BellRinging,
   RocketLaunch,
   ShieldCheck,
   Stack,
@@ -29,6 +30,7 @@ import { KeeperTab } from "./tabs/KeeperTab";
 import { AccessTab } from "./tabs/AccessTab";
 import { DeploymentsTab } from "./tabs/DeploymentsTab";
 import { BroadcastTab } from "./tabs/BroadcastTab";
+import { NotificationsTab } from "./tabs/NotificationsTab";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 type TabId =
@@ -41,7 +43,8 @@ type TabId =
   | "keeper"
   | "access"
   | "deployments"
-  | "broadcast";
+  | "broadcast"
+  | "notifications";
 
 interface TabDef {
   id: TabId;
@@ -62,7 +65,11 @@ const TABS: TabDef[] = [
   { id: "access", label: "Access & Safety", section: "Operations", icon: <ShieldCheck weight="bold" size={15} />, render: () => <AccessTab /> },
   { id: "deployments", label: "Deployments", section: "Settings", icon: <ListChecks weight="bold" size={15} />, render: () => <DeploymentsTab /> },
   { id: "broadcast", label: "Broadcast", section: "Settings", icon: <Megaphone weight="bold" size={15} />, render: () => <BroadcastTab /> },
+  { id: "notifications", label: "Notifications", section: "Settings", icon: <BellRinging weight="bold" size={15} />, render: () => <NotificationsTab /> },
 ];
+
+/** Digits 1–9 and 0 map onto the first ten tabs; anything past that is mouse-only. */
+const SHORTCUT_MAX = 10;
 
 const SECTIONS = ["Analytics", "Operations", "Settings"] as const;
 
@@ -78,8 +85,11 @@ export function AdminConsole({ operator }: { operator: { label: string; kind: "f
       if (e.metaKey || e.ctrlKey || e.altKey) return; // don't hijack Cmd/Ctrl/Alt+number
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      // Only ten digits exist, so only the first ten tabs get a shortcut. Guarding on SHORTCUT_MAX
+      // rather than TABS.length keeps key "0" bound to the tenth tab as more tabs are added — the
+      // eleventh would otherwise be labelled with the tenth's shortcut and be unreachable anyway.
       const n = e.key === "0" ? 10 : Number(e.key);
-      if (n >= 1 && n <= TABS.length) setActive(TABS[n - 1].id);
+      if (n >= 1 && n <= Math.min(SHORTCUT_MAX, TABS.length)) setActive(TABS[n - 1].id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -123,7 +133,7 @@ export function AdminConsole({ operator }: { operator: { label: string; kind: "f
                       className={`inline-flex items-center gap-1.5 rounded-xl border-[3px] border-ink px-3 py-1.5 text-sm font-extrabold shadow-[2px_2px_0_#1b1714] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                         on ? "bg-candy text-paper" : "bg-paper text-ink"
                       }`}
-                      title={`${t.label} (${idx <= 9 ? idx : 0})`}
+                      title={idx <= SHORTCUT_MAX ? `${t.label} (${idx === 10 ? 0 : idx})` : t.label}
                     >
                       {t.icon}
                       {t.label}
