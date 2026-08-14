@@ -109,3 +109,23 @@ export async function getCampaignStatus(fid: number): Promise<CampaignStatus> {
   const shared = !!proof;
   return { added, shared, onboarded: !!u?.onboardedAt, eligible: added && shared };
 }
+
+/**
+ * Every FID that added the mini app — the notification audience.
+ *
+ * Adding is the prerequisite for receiving anything: Neynar only holds tokens for players who
+ * added and left notifications on. Players who since removed the app or disabled notifications
+ * stay in this list and are silently dropped by Neynar at send time, which is the correct division
+ * of labour — that lifecycle is exactly what we handed them.
+ *
+ * Wallet-only players never appear here and never can: mini-app push is a Farcaster-client feature,
+ * so a Coinbase-Verified web player has no client to deliver one.
+ */
+export async function notifiableFids(): Promise<number[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ fid: users.fid })
+    .from(users)
+    .where(isNotNull(users.addedMiniAppAt));
+  return rows.map((r) => r.fid).sort((a, b) => a - b);
+}

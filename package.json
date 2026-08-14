@@ -2,7 +2,7 @@
   "name": "lexigotchi",
   "version": "0.1.0",
   "private": true,
-  "description": "Raise your letters. Spell your words. Own the dictionary. — a tamagotchi-style collection game for the $WORD / Let's Have A Word! ecosystem on Base.",
+  "description": "Raise your letters. Spell your words. Own the dictionary. \u2014 a tamagotchi-style collection game for the $WORD / Let's Have A Word! ecosystem on Base.",
   "type": "module",
   "engines": {
     "node": "24.x"
@@ -13,7 +13,7 @@
     "start": "next start",
     "derive": "tsx scripts/derive-economy.ts",
     "sim": "tsx scripts/run-sim.ts",
-    "keeper": "tsx scripts/keeper.ts",
+    "keeper": "tsx --env-file-if-exists=.env.local scripts/keeper.ts",
     "sweep": "tsx scripts/price-sweep.ts",
     "market": "tsx scripts/market.ts",
     "trade-exp": "tsx scripts/trading-experiment.ts",

@@ -82,12 +82,17 @@ export async function scanAllWords(): Promise<KeeperWord[]> {
       const r = detail[base + 2 + pos] as unknown as readonly [number, boolean];
       return Boolean(r[1]);
     });
+    // One quantity, two resolutions: days for the share math (what the contracts count), seconds
+    // for the hunger warning (which needs the remainder flooring discards). Derived from the same
+    // number so they cannot drift.
+    const secondsUnfed = lastFed === 0 ? 0 : Math.max(0, now - lastFed);
     return {
       tokenId: id,
       word: wordById.get(String(id)) ?? "?????",
       owner,
       staked,
-      daysUnfed: lastFed === 0 ? 0 : Math.max(0, Math.floor((now - lastFed) / 86_400)),
+      secondsUnfed,
+      daysUnfed: Math.floor(secondsUnfed / 86_400),
       prestigeLevel: Number(detail[base]),
       upperAll: upper.every(Boolean),
     };

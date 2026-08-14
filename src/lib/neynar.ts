@@ -107,3 +107,52 @@ export async function lookupProfile(fid: number): Promise<FarcasterProfile | nul
     return null;
   }
 }
+
+/** Neynar's `user/bulk` cap per request. */
+const BULK_FIDS = 100;
+
+/**
+ * Look up many profiles at once — the notification audience's address resolution.
+ *
+ * The keeper speaks ADDRESSES (that's what the contracts store) and Neynar notifies FIDS, so
+ * something has to bridge them. This goes FID → addresses rather than the reverse, because the
+ * notifiable population is already bounded by who added the mini app: reverse-resolving every
+ * on-chain owner would burn lookups on people who cannot receive a notification at all.
+ *
+ * Partial failure is tolerated — a chunk that fails drops those FIDs from this pass rather than
+ * killing it. A missed hunger warning is recoverable; a keeper that dies mid-run is not.
+ */
+export async function lookupProfiles(fids: readonly number[]): Promise<FarcasterProfile[]> {
+  const key = process.env.NEYNAR_API_KEY;
+  if (!key || fids.length === 0) return [];
+  const out: FarcasterProfile[] = [];
+  for (let i = 0; i < fids.length; i += BULK_FIDS) {
+    const chunk = fids.slice(i, i + BULK_FIDS);
+    try {
+      const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/user/bulk?fids=${chunk.join(",")}`, {
+        headers: { "x-api-key": key, accept: "application/json" },
+      });
+      if (!res.ok) {
+        console.error("[neynar] bulk profile lookup failed:", res.status, `(${chunk.length} fids)`);
+        continue;
+      }
+      const data = await res.json();
+      for (const u of data?.users ?? []) {
+        if (!u?.fid) continue;
+        out.push({
+          fid: Number(u.fid),
+          username: u.username ?? null,
+          displayName: u.display_name ?? u.username ?? null,
+          pfpUrl: u.pfp_url ?? null,
+          linkedWallets: [
+            ...(u.custody_address ? [String(u.custody_address)] : []),
+            ...(u.verified_addresses?.eth_addresses ?? []).map(String),
+          ].map((a) => a.toLowerCase()),
+        });
+      }
+    } catch (err) {
+      console.error("[neynar] bulk profile lookup error:", err);
+    }
+  }
+  return out;
+}

@@ -24,6 +24,15 @@ export interface KeeperWord {
   owner: `0x${string}`;
   staked: boolean;
   daysUnfed: number;
+  /**
+   * Seconds since the last feed — the SAME quantity as `daysUnfed`, unfloored.
+   *
+   * The share math deliberately uses whole days, because that is what the contracts and the sim
+   * count. Notifications can't: "your words go hungry in 6h" needs the remainder that flooring
+   * throws away, and rounding it back up to a day would make us either cry wolf or warn too late.
+   * Derived from the same read, so the two can never disagree.
+   */
+  secondsUnfed: number;
   prestigeLevel: number;
   /** All five escrowed letters uppercase. */
   upperAll: boolean;
