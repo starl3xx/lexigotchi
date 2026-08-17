@@ -141,6 +141,16 @@ The game is the front door: `/` redirects to **`/play`**.
   Don't draw casual-retention conclusions with the lever left off.
 - Match the surrounding style; keep the economy derivation pure + tested. If you touch
   `economy.ts`, run `npm test` — the spec assertions are the guardrail.
+- **Before adding code, ask whether it needs to exist.** In order: does the codebase already do
+  this? the stdlib? the platform? a dependency we already ship? Prefer deleting over adding, and
+  boring over clever. Jake gates builds on evidence, not enthusiasm — see `docs/decisions.md` on
+  the swap primitive, which started as "build a marketplace" and ended as a swap escrow.
+  **Two things this does NOT license cutting**, because both looked like surplus structure right
+  up until they weren't: (1) guards, validation, and the tests that prove them — the empty-audience
+  check in `src/lib/notify/send.ts` is three lines standing between us and pushing "your words are
+  hungry" to every player; (2) the explanatory comments. In `contracts/` the NatSpec is an audit
+  deliverable someone pays to read, and elsewhere the comment carrying the *why* is usually the
+  part that stops the next person reintroducing the bug.
 - **Builder-code attribution is mandatory**: every on-chain action routes through
   `src/lib/onchain/builderCode.ts` (ERC-8021 suffix) or we silently forfeit Base builder rewards —
   the tx still sends, it's just uncredited. `tests/builder-code.test.ts` is the round-trip guardrail.
