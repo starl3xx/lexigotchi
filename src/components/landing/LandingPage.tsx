@@ -39,7 +39,7 @@ const LINKS = {
 
 const RAREST_WORD = LEGENDARIES[0];
 const days = (n: number) => (n === 1 ? "a day" : `${n} days`);
-const fraction = (x: number) => (x === 0.5 ? "half" : `${pct(x)} of its yield`);
+const fraction = (x: number) => (x === 0.5 ? "half its yield" : `${pct(x)} of its yield`);
 /** The four rarest letters to pull, rarest first (pull odds = share of dictionary slots). */
 const GRAILS = LETTERS_BY_FREQUENCY.slice(-4).reverse();
 
