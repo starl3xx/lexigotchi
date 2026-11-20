@@ -39,9 +39,21 @@ import { DEFAULT_PARAMS } from "../src/lib/params";
 import { THEMES, themeForPeriod } from "../src/lib/themes";
 import { notifiableFids } from "../src/lib/db/queries";
 import { lookupProfiles } from "../src/lib/neynar";
-import { hungerTargets, fidLookupFrom, jackpotWinnerFid } from "../src/lib/notify/triggers";
+import {
+  hungerTargets,
+  hungerTargetsByAddress,
+  fidLookupFrom,
+  jackpotWinnerFid,
+  webPushHungerTargets,
+  webPushWinnerSubs,
+  type FidLookup,
+} from "../src/lib/notify/triggers";
 import { hungerWarning, jackpotWon } from "../src/lib/notify/templates";
 import { sendNotification, LIMITS } from "../src/lib/notify/send";
+import { sendWebPush } from "../src/lib/notify/webPush";
+import { allWebPushSubscriptions } from "../src/lib/db/webPush";
+import type { WebPushSubscription } from "../src/lib/db/schema";
+import type { KeeperWord } from "../src/lib/keeper/shares";
 
 const args = new Set(process.argv.slice(2));
 const DRY = args.has("--dry");
@@ -122,11 +134,19 @@ async function notifyJackpotWinner(logs: readonly unknown[], word: string) {
     const { winner, amount } = won.args as unknown as { winner: string; amount: bigint };
 
     const profiles = await lookupProfiles(await notifiableFids());
-    const fid = jackpotWinnerFid(winner, fidLookupFrom(profiles));
-    if (fid === undefined) {
-      return void console.log(`resolve: winner ${winner.slice(0, 10)} isn't a notifiable player`);
-    }
+    const fidOf = fidLookupFrom(profiles);
+    const fid = jackpotWinnerFid(winner, fidOf);
     const display = `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`;
+    if (fid === undefined) {
+      // Not reachable on Farcaster: try the winner's browsers instead.
+      const subs = webPushWinnerSubs(winner, await webPushSubscriptions(), fidOf);
+      if (subs.length === 0) {
+        return void console.log(`resolve: winner ${winner.slice(0, 10)} isn't a notifiable player`);
+      }
+      if (DRY) return void console.log(`  [dry] would tell ${subs.length} browser(s): won ${display}`);
+      const res = await sendWebPush(subs, jackpotWon(word, display));
+      return void console.log(`resolve: winner's browsers ${res.ok ? "notified" : `not notified (${res.skipped ?? `${res.failed} failed`})`}`);
+    }
     if (DRY) return void console.log(`  [dry] would tell fid ${fid}: won ${display}`);
     const res = await sendNotification({ ...jackpotWon(word, display), targetFids: [fid] });
     console.log(`resolve: winner fid ${fid} ${res.ok ? "notified" : `not notified (${res.skipped ?? res.error})`}`);
@@ -308,11 +328,15 @@ async function attestAchievements() {
  * so --dry and every local run report the audience and stay silent.
  */
 async function notifyHunger() {
-  const [words, fids] = await Promise.all([scanAllWords(), notifiableFids()]);
-  if (fids.length === 0) return console.log("notify: nobody has added the mini app — nothing to do");
+  const [words, fids, subs] = await Promise.all([scanAllWords(), notifiableFids(), webPushSubscriptions()]);
+  const fidOf = fidLookupFrom(fids.length > 0 ? await lookupProfiles(fids) : []);
+  await notifyHungerFarcaster(words, fids, fidOf);
+  await notifyHungerBrowsers(words, subs, fidOf);
+}
 
-  const profiles = await lookupProfiles(fids);
-  const targets = hungerTargets(words, fidLookupFrom(profiles));
+async function notifyHungerFarcaster(words: readonly KeeperWord[], fids: readonly number[], fidOf: FidLookup) {
+  if (fids.length === 0) return console.log("notify: nobody has added the mini app — Farcaster pass skipped");
+  const targets = hungerTargets(words, fidOf);
   console.log(`notify: ${words.length} words, ${fids.length} notifiable, ${targets.length} to warn`);
   if (targets.length === 0) return;
 
@@ -334,6 +358,53 @@ async function notifyHunger() {
     }
     const res = await sendNotification({ ...note, targetFids: g.fids });
     console.log(`  ${g.fids.length} fid(s) ${res.ok ? "sent" : `skipped (${res.skipped ?? res.error})`}`);
+  }
+}
+
+/**
+ * The same warning for players who turned on browser reminders, by WALLET. Anyone the Farcaster
+ * pass already warned is skipped (webPushHungerTargets), and players sharing a deadline share one
+ * message, exactly like the FID path. Silent unless WEB_PUSH_ENABLED=true in production.
+ */
+async function notifyHungerBrowsers(words: readonly KeeperWord[], subs: readonly WebPushSubscription[], fidOf: FidLookup) {
+  if (subs.length === 0) return console.log("notify (browser): no subscriptions — nothing to do");
+  const targets = webPushHungerTargets(hungerTargetsByAddress(words), subs, fidOf);
+  console.log(`notify (browser): ${subs.length} subscription(s), ${targets.length} wallet(s) to warn`);
+  if (targets.length === 0) return;
+
+  const groups = new Map<string, { words: number; hoursLeft: number; addresses: Set<string> }>();
+  for (const t of targets) {
+    const key = `${t.words}:${t.hoursLeft}`;
+    const g = groups.get(key) ?? { words: t.words, hoursLeft: t.hoursLeft, addresses: new Set<string>() };
+    g.addresses.add(t.address);
+    groups.set(key, g);
+  }
+  for (const g of groups.values()) {
+    const note = hungerWarning(g.words, g.hoursLeft);
+    const recipients = subs.filter((s) => g.addresses.has(s.address));
+    if (DRY) {
+      console.log(`  [dry] ${recipients.length} browser(s): "${note.title}" / "${note.body}"`);
+      continue;
+    }
+    const res = await sendWebPush(recipients, note);
+    console.log(
+      `  ${recipients.length} browser(s) ${res.ok ? "sent" : `skipped (${res.skipped ?? `${res.failed} failed`})`}` +
+        (res.gone ? `, ${res.gone} gone and removed` : ""),
+    );
+  }
+}
+
+/**
+ * Browser subscriptions, or none. Never throws: before the web_push_subscriptions migration runs
+ * (or with no database at all) the Farcaster passes must carry on exactly as they did.
+ */
+async function webPushSubscriptions(): Promise<WebPushSubscription[]> {
+  if (!process.env.DATABASE_URL) return [];
+  try {
+    return await allWebPushSubscriptions();
+  } catch (err) {
+    console.error("notify (browser): couldn't read subscriptions, skipping browsers:", err instanceof Error ? err.message : err);
+    return [];
   }
 }
 

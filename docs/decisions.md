@@ -127,9 +127,12 @@ showed; only the *decisions* changed.
    Base Account as the player's wallet: no server session, because no route needs proof of wallet
    ownership, and no wallet-to-wallet merge. It does not unlock the free daily by itself (a Base
    Account is not a Coinbase-verified wallet).
+   Reminders for wallet-only players (starl3xx, 2026-11-20, verbatim): "browser push... no email
+   (unless we get it somehow?)". So browser push (Web Push, VAPID), keyed by wallet, ships dark
+   behind `WEB_PUSH_ENABLED`; nobody already reached on Farcaster gets the same message twice. No
+   email: nothing in the game collects one.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
-   session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`), and how a wallet-only player gets
-   hunger reminders (push reaches Farcaster players only).
+   session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
 11. **Prestige + bounty OFF at launch** (enable post-cohort); the secondary-letter swap is P1.
 

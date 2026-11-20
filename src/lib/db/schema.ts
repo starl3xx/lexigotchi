@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -87,3 +87,37 @@ export const swapOrders = pgTable(
   },
   (t) => [uniqueIndex("swap_orders_hash_idx").on(t.orderHash)],
 );
+
+/**
+ * Browser push subscriptions — how a player with no Farcaster account hears that a staked word is
+ * getting hungry. Keyed by WALLET, because the wallet is the account (decisions.md #9).
+ *
+ * One row per browser (`endpoint` is unique, and it is the push service's capability URL for that
+ * browser). A browser follows ONE wallet: subscribing again from the same browser with another
+ * wallet moves the row. `fid` is set only when the browser subscribed while signed in with
+ * Farcaster (a verified Quick Auth JWT, never a client claim); it lets the daily reminder read the
+ * FID's daily slot and lets the senders skip anyone Farcaster already notifies.
+ *
+ * Nothing here is secret beyond the endpoint itself, and the messages only ever describe onchain
+ * state that is public anyway. Losing the table loses reminders, not assets.
+ */
+export const webPushSubscriptions = pgTable(
+  "web_push_subscriptions",
+  {
+    id: serial("id").primaryKey(),
+    /** Lowercase wallet address. */
+    address: text("address").notNull(),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    fid: integer("fid"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("web_push_endpoint_idx").on(t.endpoint),
+    index("web_push_address_idx").on(t.address),
+  ],
+);
+
+export type WebPushSubscription = typeof webPushSubscriptions.$inferSelect;

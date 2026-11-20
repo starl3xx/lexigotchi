@@ -129,6 +129,13 @@ hasn't verified, those letters won't appear in the Farcaster app — the fix is 
 wallet** (Warpcast → Settings → Verified addresses) and your whole bag folds together, instantly
 and retroactively.
 
+## How do I know when a word is getting hungry?
+
+Turn on reminders. Inside Farcaster or the Base App, add Lexigotchi and allow notifications. On the
+web, open **More** and tap **Turn on reminders**: your browser will tell you before a staked word goes
+hungry, when your free daily letter is ready, and if you win the jackpot. On iPhone and iPad, add
+Lexigotchi to your Home Screen first (Share, then Add to Home Screen) and turn them on from there.
+
 ## How many words and letters are there?
 
 4,438 claimable words and a global supply cap of 55,467 letters across the 26 ids. 45 of the words are
