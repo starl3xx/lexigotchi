@@ -120,9 +120,18 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
     const newLink = viewer.fid != null && String(viewer.fid) !== syncedFid;
     if (!walletChanged && !newLink) return;
     void currentSubscription()
-      .then((sub) => (sub ? syncToServer(sub, address) : setBase("off")))
-      .catch(() => {
-        /* best effort; the next visit tries again */
+      .then(async (sub) => {
+        if (!sub) return setBase("off");
+        await syncToServer(sub, address);
+        setError(null);
+      })
+      .catch((err) => {
+        // A full wallet refuses this browser (409): the server keeps it on the PREVIOUS wallet, so
+        // the toggle's "on" is still true, but for that wallet. Say so; silence here would show
+        // "on" for a wallet that gets nothing. Anything else is transient: the next visit retries.
+        if ((err as { status?: number }).status === 409) {
+          setError("Reminders stay with your previous wallet: this one already gets them in five browsers.");
+        }
       });
   }, [eligible, base, address, viewer.fid]);
 
