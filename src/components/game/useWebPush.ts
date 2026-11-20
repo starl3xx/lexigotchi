@@ -148,6 +148,7 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   const enable = useCallback(() => {
     if (!address) return;
     setError(null);
+    setSyncWarning(null); // a fresh turn-on stores THIS wallet; any old switch warning is moot
     // FIRST, inside the tap: Safari drops a permission request that follows an await.
     const asked = Notification.requestPermission();
     setWorking(true);
@@ -189,6 +190,7 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
 
   const disable = useCallback(() => {
     setError(null);
+    setSyncWarning(null);
     setWorking(true);
     void (async () => {
       try {
