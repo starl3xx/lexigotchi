@@ -86,6 +86,8 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   const [base, setBase] = useState<"detecting" | "unsupported" | "needs-home-screen" | "denied" | "off" | "on">("detecting");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The resync's own warning, kept apart from `error` so a wallet switch can clear just this one. */
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
   // Only where reminders can fire: the practice (mock) game has no onchain words to warn about.
   const eligible = Boolean(VAPID_PUBLIC_KEY) && viewer.environment === "web" && isChainBacked();
@@ -118,21 +120,29 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
     const [syncedAddress, syncedFid] = (synced ?? "").split(":");
     const walletChanged = syncedAddress !== address.toLowerCase();
     const newLink = viewer.fid != null && String(viewer.fid) !== syncedFid;
-    if (!walletChanged && !newLink) return;
+    if (!walletChanged && !newLink) {
+      // Back on the wallet the server has (e.g. after a refused switch): nothing to warn about.
+      setSyncWarning(null);
+      return;
+    }
+    let alive = true; // a late answer for a wallet the player already left must not land
     void currentSubscription()
       .then(async (sub) => {
-        if (!sub) return setBase("off");
+        if (!sub) return alive && setBase("off");
         await syncToServer(sub, address);
-        setError(null);
+        if (alive) setSyncWarning(null);
       })
       .catch((err) => {
         // A full wallet refuses this browser (409): the server keeps it on the PREVIOUS wallet, so
         // the toggle's "on" is still true, but for that wallet. Say so; silence here would show
         // "on" for a wallet that gets nothing. Anything else is transient: the next visit retries.
-        if ((err as { status?: number }).status === 409) {
-          setError("Reminders stay with your previous wallet: this one already gets them in five browsers.");
+        if (alive && (err as { status?: number }).status === 409) {
+          setSyncWarning("Reminders stay with your previous wallet: this one already gets them in five browsers.");
         }
       });
+    return () => {
+      alive = false;
+    };
   }, [eligible, base, address, viewer.fid]);
 
   const enable = useCallback(() => {
@@ -212,5 +222,5 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   else if (!address && base !== "on") state = "no-wallet";
   else state = base;
 
-  return { state, error, enable, disable };
+  return { state, error: error ?? (state === "on" ? syncWarning : null), enable, disable };
 }
