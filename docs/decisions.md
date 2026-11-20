@@ -113,7 +113,7 @@ showed; only the *decisions* changed.
    swap-adapter build.
 9. **Mini-app AND general web wallet** play (two connector paths); the free daily stays FID-gated
    (web users sign in with Neynar for it).
-   **AMENDED 2026-11-20 — standalone onchain game** (Jake's ruling, verbatim): "what I want is for
+   **AMENDED 2026-11-20 — standalone onchain game** (starl3xx's ruling, verbatim): "what I want is for
    people to be able to play without having an account on Farcaster or Base BUT be able to link them
    if they want... it should be a standalone onchain game". The
    WALLET is the account: any wallet connects through the RainbowKit modal (`src/lib/onchain/wagmi.ts`),
