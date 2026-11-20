@@ -121,6 +121,12 @@ showed; only the *decisions* changed.
    2026-08-14). Linking Farcaster or using a Coinbase-verified wallet still unlocks the free daily,
    because a wallet alone proves nothing about personhood — decision 1's "never an *unverified*
    wallet daily" stands. A wallet-only player plays on packs, so they need $WORD first (decision 8).
+   "Link Base" (starl3xx, 2026-11-20, verbatim): "link Base should be the connect to Base button
+   provided by Base (I think Let’s Have A Word! uses it?)". So the start screen carries Base's
+   official `SignInWithBaseButton` beside the RainbowKit modal (`SignInWithBase.tsx`). It CONNECTS a
+   Base Account as the player's wallet: no server session, because no route needs proof of wallet
+   ownership, and no wallet-to-wallet merge. It does not unlock the free daily by itself (a Base
+   Account is not a Coinbase-verified wallet).
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`), and how a wallet-only player gets
    hunger reminders (push reaches Farcaster players only).

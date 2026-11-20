@@ -78,7 +78,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (Neynar MiniAppProvider + wagmi + RainbowKit; the
   connect modal is themed in `walletTheme.ts`), `ConnectPanel.tsx` (the web front door: wallet required,
-  Farcaster an optional link — decisions.md #9), `useViewer.ts` (FID/identity),
+  via the RainbowKit modal or Base's official button in `SignInWithBase.tsx`; Farcaster an optional
+  link — decisions.md #9), `useViewer.ts` (FID/identity),
   `useShare.ts` (composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`).
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
