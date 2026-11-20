@@ -10,11 +10,11 @@ plays on the web, and the same app runs as a Farcaster mini app. This repo de-ri
 solvency, ships the playable game, and now carries the full **Foundry contract suite** (code-complete + tested, not yet deployed/audited — `contracts/`).
 Stack: Next.js App Router + TS + Tailwind + recharts; `@neynar/react` + `@farcaster/miniapp-sdk`
 for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `tsx`/`vitest`).
-The game is the front door: `/` redirects to **`/play`**.
+`/` is the landing page (`src/components/landing/LandingPage.tsx`, a server page with no wallet code); the game is **`/play`**, which is also the mini app's `homeUrl`. The four how-it-works steps live in `src/lib/howItWorks.ts`, shared by the landing page and the in-game onboarding.
 
 ## Commands
 
-- `npm run dev` — the app; `/` → `/play` (the mini app).
+- `npm run dev` — the app; `/` is the landing page, `/play` is the game (and the mini app).
 - `npm run sim -- --days 365 --population 1500 --seed 7` — economy/solvency report
 - `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
 - `npm test` — economy + solvency invariants (84 vitest tests)

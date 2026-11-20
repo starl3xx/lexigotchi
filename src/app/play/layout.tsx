@@ -4,7 +4,7 @@ import { miniAppEmbed, frameEmbed, BASE_APP_ID } from "@/lib/site";
 /** The mini-app entry. Carries the `fc:miniapp` (+ legacy `fc:frame`) embed so a shared /play link
  *  renders a launchable Lexigotchi card in Farcaster clients. Renders full-bleed (no header/footer chrome). */
 export const metadata: Metadata = {
-  title: "Lexigotchi — play",
+  title: "Play Lexigotchi",
   description: "Raise your letters, claim words, and chase the daily $WORD jackpot.",
   other: {
     "fc:miniapp": JSON.stringify(miniAppEmbed),

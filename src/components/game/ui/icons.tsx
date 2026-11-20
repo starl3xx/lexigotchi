@@ -49,4 +49,5 @@ export {
   Lock,
   Question,
   SealCheck,
+  ArrowRight,
 } from "@phosphor-icons/react";
