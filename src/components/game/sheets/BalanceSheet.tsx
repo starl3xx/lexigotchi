@@ -144,11 +144,19 @@ export function BalanceSheet() {
               <span className="ml-auto text-xs font-normal text-ink/55">buy · hold · play</span>
             </div>
           )}
+          {/* Three states, never two. useVerifiedWallet's `null` is UNKNOWN (still checking, or the
+              check failed) — rendering it as "not verified" told a verified player to verify again
+              during every fetch and every /api/verify/status outage. */}
           <div className="text-sm text-ink/70">
             {verified === true ? (
               <>
                 This wallet is <strong>Coinbase-verified</strong>, so the free daily letter is yours.
                 Link Farcaster too if you like.
+              </>
+            ) : address && verified === null ? (
+              <>
+                The <strong>free daily letter</strong> needs Farcaster or a Coinbase-verified wallet.
+                Checking this wallet…
               </>
             ) : (
               <>
@@ -184,6 +192,13 @@ export function BalanceSheet() {
               </a>
             )}
           </div>
+          {/* Verification usually outlasts the 4-second auto re-check, and a "no" gets cached — so
+              the player who finishes on coinbase.com needs a way to ask again, as DailyUnlock has. */}
+          {verified === false && (
+            <button onClick={recheck} className="mt-2 text-xs font-bold text-ink/45 underline">
+              I’ve verified. Check again
+            </button>
+          )}
         </Card>
       ) : null}
 

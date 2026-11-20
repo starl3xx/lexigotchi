@@ -12,7 +12,7 @@
  * locked an operator out of a normal browser the moment it did.
  */
 import { useAccount } from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { useViewer } from "@/components/game/useViewer";
 import { ADMIN_OPEN, ADMIN_UNCONFIGURED, isAdmin, isAdminWallet } from "@/lib/admin/auth";
 import { AdminConsole } from "./AdminConsole";
@@ -65,6 +65,11 @@ function GateScreen({
   // may sit in any wallet (a hardware wallet behind Rabby, a phone over WalletConnect), not just
   // whichever extension happens to own `window.ethereum`.
   const { openConnectModal } = useConnectModal();
+  // A connected wallet that isn't allowlisted must still have a way OUT. A Base Account popup
+  // session or a WalletConnect phone session has no extension to switch accounts in, so without
+  // the account modal (copy + disconnect) the console would stay stuck on the wrong wallet until
+  // the player cleared site data.
+  const { openAccountModal } = useAccountModal();
 
   if (ADMIN_UNCONFIGURED) {
     return (
@@ -83,8 +88,8 @@ function GateScreen({
       {address ? (
         <p className="mt-2 text-sm text-ink/65">
           Connected as <strong>{shortAddr(address)}</strong>, but this wallet isn&apos;t on the operator
-          allowlist. Add it to <code className="text-xs">NEXT_PUBLIC_ADMIN_WALLETS</code>, or switch accounts in
-          your wallet.
+          allowlist. Add it to <code className="text-xs">NEXT_PUBLIC_ADMIN_WALLETS</code>, or disconnect and
+          connect the owner wallet.
         </p>
       ) : viewer.isAuthed ? (
         <p className="mt-2 text-sm text-ink/65">
@@ -97,8 +102,16 @@ function GateScreen({
           This console is for the game&apos;s owner / operator. Connect the wallet that owns the contracts.
         </p>
       )}
-      {!address && (
-        <div className="mt-4 flex justify-center">
+      <div className="mt-4 flex justify-center">
+        {address ? (
+          <button
+            onClick={openAccountModal}
+            disabled={!openAccountModal}
+            className="cel rounded-xl bg-paper-dark px-4 py-2 text-sm font-extrabold disabled:opacity-50"
+          >
+            Switch wallet
+          </button>
+        ) : (
           <button
             onClick={openConnectModal}
             disabled={!openConnectModal}
@@ -106,8 +119,8 @@ function GateScreen({
           >
             Connect wallet
           </button>
-        </div>
-      )}
+        )}
+      </div>
       <p className="mt-4 text-xs text-ink/40">
         <a href="/play" className="underline">
           ← Back to the game
