@@ -83,6 +83,22 @@ describe("sendCallsAttributed — the write chokepoint", () => {
     }) as Eip1193Provider["request"];
     await expect(sendCallsAttributed(provider, FROM, [{ to: TO }])).rejects.toMatchObject({ code: 4001 });
   });
+
+  it("never falls back after a rejection, even when its message names wallet_sendCalls", async () => {
+    // WalletConnect-relayed wallets word their errors freely. The message alone matches the
+    // "unsupported" regex; the 4001 code is what says the player refused.
+    const { provider, sends } = mockProvider({});
+    const inner = provider.request;
+    provider.request = (async (a: { method: string; params?: unknown[] }) => {
+      if (a.method === "wallet_sendCalls") {
+        await inner(a); // record it, then refuse
+        throw { code: 4001, message: "User rejected wallet_sendCalls" };
+      }
+      return inner(a);
+    }) as Eip1193Provider["request"];
+    await expect(sendCallsAttributed(provider, FROM, [{ to: TO, data: DATA }])).rejects.toMatchObject({ code: 4001 });
+    expect(sends().map((c) => c.method)).toEqual(["wallet_sendCalls"]); // no eth_sendTransaction
+  });
 });
 
 /**

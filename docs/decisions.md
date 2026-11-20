@@ -113,6 +113,17 @@ showed; only the *decisions* changed.
    swap-adapter build.
 9. **Mini-app AND general web wallet** play (two connector paths); the free daily stays FID-gated
    (web users sign in with Neynar for it).
+   **AMENDED 2026-11-20 — standalone onchain game** (starl3xx's ruling, verbatim): "what I want is for
+   people to be able to play without having an account on Farcaster or Base BUT be able to link them
+   if they want... it should be a standalone onchain game". The
+   WALLET is the account: any wallet connects through the RainbowKit modal (`src/lib/onchain/wagmi.ts`),
+   and Farcaster is an optional link (Sign In With Farcaster on the web — Neynar's SIWN retired
+   2026-08-14). Linking Farcaster or using a Coinbase-verified wallet still unlocks the free daily,
+   because a wallet alone proves nothing about personhood — decision 1's "never an *unverified*
+   wallet daily" stands. A wallet-only player plays on packs, so they need $WORD first (decision 8).
+   Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
+   session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`), and how a wallet-only player gets
+   hunger reminders (push reaches Farcaster players only).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
 11. **Prestige + bounty OFF at launch** (enable post-cohort); the secondary-letter swap is P1.
 

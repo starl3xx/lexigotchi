@@ -113,10 +113,11 @@ from the data.
 
 ## Do I need a Farcaster account?
 
-You can play in any Farcaster client (you're auto-connected) or on the open web by **signing in with
-Farcaster** or connecting a Base wallet. The free **daily single needs an identity** — a Farcaster
-account, or a [Coinbase-verified](https://www.coinbase.com/onchain-verify) wallet — packs and
-everything else work without one.
+No. **Your wallet is your account.** On the web, connect any wallet (MetaMask, Rabby, Phantom, Base,
+and more) and play. Inside a Farcaster client you’re connected automatically. Linking Farcaster is
+optional. The free **daily single needs proof you’re one person**: a linked Farcaster account, or a
+[Coinbase-verified](https://www.coinbase.com/onchain-verify) wallet. Packs and everything else work
+without either.
 
 ## I play on web AND in the Farcaster app — is my bag shared?
 

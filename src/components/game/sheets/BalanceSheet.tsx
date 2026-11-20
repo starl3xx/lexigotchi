@@ -7,15 +7,21 @@
  * the v4 hooked pool with no unlisted-token import warning; DexScreener was a chart, not a
  * swap). When the sheet was opened from a price-blocked action (`need`), a shortfall banner
  * shows exactly how much more $WORD that action takes. Farcaster players are auto-connected
- * via the mini-app wallet; web players get a Connect-wallet flow (injected provider). The SDK
- * is imported dynamically so the statically-prerendered /play route never touches it during SSR.
+ * via the mini-app wallet; web players connect through the shared RainbowKit modal. The address
+ * comes from wagmi in BOTH contexts — an earlier version read `window.ethereum` directly, so a web
+ * player connected over WalletConnect or Base Account saw "Connect wallet" here while the rest of
+ * the game was already playing on their wallet. The SDK is imported dynamically so the
+ * statically-prerendered /play route never touches it during SSR.
  */
 import { useEffect, useState } from "react";
-import { useConnect } from "wagmi";
+import { useAccount } from "wagmi";
+import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet } from "../primitives";
-import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, Smiley, Wallet } from "../ui/icons";
+import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
+import { useVerifiedWallet } from "../useVerifiedWallet";
+import { VERIFY_URL } from "@/lib/onchain/verifications";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
 // Deliberately pinned to Base MAINNET, not the active network (lib/onchain/network). This is the buy
@@ -31,22 +37,17 @@ const BUY_URL = `https://matcha.xyz/tokens/base/${WORD_TOKEN}?buyAddress=${WORD_
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const openBuy = () => window.open(BUY_URL, "_blank", "noopener,noreferrer");
 
-type Eip1193 = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
-
 export function BalanceSheet() {
   const g = useGame();
   const { state } = g;
   const viewer = useViewer();
-  const { connect, connectors } = useConnect();
-  const connectBase = () => {
-    const target = connectors.find((c) => /coinbase|base/i.test(c.id) || /coinbase/i.test(c.name));
-    if (target) connect({ connector: target });
-  };
+  const { address } = useAccount();
+  const { openConnectModal, connectModalOpen } = useConnectModal();
+  const { openAccountModal } = useAccountModal();
+  const { verified, recheck } = useVerifiedWallet();
   const [env, setEnv] = useState<"loading" | "farcaster" | "web">("loading");
-  const [address, setAddress] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(false);
 
-  // detect environment + reflect any already-authorized wallet (no prompt) on open
+  // Detect the environment — it decides where "Buy $WORD" goes. The wallet itself comes from wagmi.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -55,28 +56,7 @@ export function BalanceSheet() {
         // isInMiniApp resolves a definitive boolean (it has its own internal timeout); awaiting it
         // directly avoids a race that could discard a slow-but-real "yes" and mislabel FC as web.
         const inMini = await sdk.isInMiniApp();
-        if (!alive) return;
-        if (inMini) {
-          setEnv("farcaster");
-          try {
-            const provider = await sdk.wallet.getEthereumProvider();
-            const accts = (await provider?.request({ method: "eth_accounts" })) as string[] | undefined;
-            if (alive && accts?.[0]) setAddress(accts[0]);
-          } catch {
-            /* wallet not ready — fine */
-          }
-        } else {
-          setEnv("web");
-          const eth = (window as unknown as { ethereum?: Eip1193 }).ethereum;
-          if (eth) {
-            try {
-              const accts = (await eth.request({ method: "eth_accounts" })) as string[];
-              if (alive && accts?.[0]) setAddress(accts[0]);
-            } catch {
-              /* not authorized yet — fine */
-            }
-          }
-        }
+        if (alive) setEnv(inMini ? "farcaster" : "web");
       } catch {
         if (alive) setEnv("web");
       }
@@ -106,26 +86,6 @@ export function BalanceSheet() {
       } catch {
         openBuy();
       }
-    }
-  };
-
-  const connectWeb = async () => {
-    const eth = (window as unknown as { ethereum?: Eip1193 }).ethereum;
-    if (!eth) {
-      g.toast("No wallet found — open in Farcaster or install a wallet", "bad");
-      return;
-    }
-    setConnecting(true);
-    try {
-      const accts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
-      if (accts?.[0]) {
-        setAddress(accts[0]);
-        g.toast("Wallet connected", "good");
-      }
-    } catch {
-      g.toast("Connection cancelled", "info");
-    } finally {
-      setConnecting(false);
     }
   };
 
@@ -184,9 +144,27 @@ export function BalanceSheet() {
               <span className="ml-auto text-xs font-normal text-ink/55">buy · hold · play</span>
             </div>
           )}
+          {/* Three states, never two. useVerifiedWallet's `null` is UNKNOWN (still checking, or the
+              check failed) — rendering it as "not verified" told a verified player to verify again
+              during every fetch and every /api/verify/status outage. */}
           <div className="text-sm text-ink/70">
-            Want the <strong>free daily letter</strong>? Sign in with Farcaster — or switch to a
-            Coinbase-verified wallet.
+            {verified === true ? (
+              <>
+                This wallet is <strong>Coinbase-verified</strong>, so the free daily letter is yours.
+                Link Farcaster too if you like.
+              </>
+            ) : address && verified === null ? (
+              <>
+                The <strong>free daily letter</strong> needs Farcaster or a Coinbase-verified wallet.
+                Checking this wallet…
+              </>
+            ) : (
+              <>
+                Want the <strong>free daily letter</strong>? Link Farcaster, or{" "}
+                {address ? "verify this wallet with Coinbase" : "connect a Coinbase-verified wallet"}.
+                Either one proves you’re one person.
+              </>
+            )}
           </div>
           <div className="mt-2 flex gap-2">
             <button
@@ -197,18 +175,30 @@ export function BalanceSheet() {
               <img src="/fc-arch-icon.png" alt="" className="h-3 w-auto" />
               Farcaster
             </button>
-            {/* The card's "Coinbase-verified wallet" clause finally gets its affordance: switch the
-                connected wallet to a Base Account. Not an identity credential by itself (SIWE
-                proves an address, and addresses are free) — but if THAT wallet carries the
-                attestation, the daily unlocks the moment it connects. */}
-            <button
-              onClick={connectBase}
-              className="cel flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-3 py-2 text-sm font-extrabold text-white"
-            >
-              <span aria-hidden className="h-3 w-3 rounded-[2px] bg-white" />
-              Base
-            </button>
+            {/* The second door to the daily, the same one DailyUnlock offers. This used to switch
+                the connected wallet to a Base Account, which only helped a player whose Base
+                Account happened to be attested; verifying works on the wallet they already use.
+                Coming back attested changes nothing until we re-ask the chain, so the tap that
+                sends them out also schedules the re-check. */}
+            {verified !== true && (
+              <a
+                href={VERIFY_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setTimeout(recheck, 4000)}
+                className="cel flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-paper-dark px-3 py-2 text-sm font-extrabold"
+              >
+                <SealCheck weight="fill" size={15} /> Coinbase
+              </a>
+            )}
           </div>
+          {/* Verification usually outlasts the 4-second auto re-check, and a "no" gets cached — so
+              the player who finishes on coinbase.com needs a way to ask again, as DailyUnlock has. */}
+          {verified === false && (
+            <button onClick={recheck} className="mt-2 text-xs font-bold text-ink/45 underline">
+              I’ve verified. Check again
+            </button>
+          )}
         </Card>
       ) : null}
 
@@ -248,14 +238,25 @@ export function BalanceSheet() {
             <span className="flex items-center gap-1.5 font-bold text-teal">
               <Check weight="bold" /> Connected
             </span>
-            <span className="font-mono text-xs text-ink/60">{short(address)}</span>
+            {/* The only way OUT of a wallet on the web. An extension wallet can be disconnected from
+                the extension, but a Base Account popup session or a WalletConnect phone session has
+                nothing in the browser to click — without this, a player who connected the wrong
+                wallet is stuck with it. RainbowKit's account modal carries copy + disconnect. */}
+            <button
+              onClick={openAccountModal}
+              disabled={!openAccountModal}
+              className="flex items-center gap-1.5 text-xs text-ink/60"
+            >
+              <span className="font-mono">{short(address)}</span>
+              <span className="font-bold text-ink/45 underline">Switch</span>
+            </button>
           </div>
         ) : (
           <>
-            <Button full variant="teal" disabled={connecting} onClick={connectWeb}>
-              {connecting ? (
+            <Button full variant="teal" disabled={!openConnectModal || connectModalOpen} onClick={openConnectModal}>
+              {connectModalOpen ? (
                 <>
-                  <CircleNotch className="animate-spin" /> Connecting…
+                  <CircleNotch className="animate-spin" /> Pick a wallet…
                 </>
               ) : (
                 <>
@@ -263,7 +264,7 @@ export function BalanceSheet() {
                 </>
               )}
             </Button>
-            <p className="mt-1.5 text-xs text-ink/55">Not on Farcaster? Connect a Base wallet to buy &amp; hold $WORD.</p>
+            <p className="mt-1.5 text-xs text-ink/55">Any wallet works. $WORD lives on Base.</p>
           </>
         )}
       </Card>

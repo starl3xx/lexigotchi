@@ -29,11 +29,13 @@ foundation already shipped plus the sequenced plan for the rest.
 
 Legend: 🟢 unblocked · 🟠 blocked on the deployed contracts (addresses/ABIs) · 🔴 blocked on a live keeper wallet.
 
-1. 🟢 **Connectors / wagmi config** (`src/lib/onchain/wagmi.ts`) — wagmi v2 + viem, Base (8453).
-   Connectors: `@farcaster/miniapp-wagmi-connector` (mini app) + `injected` / `coinbaseWallet` /
-   `walletConnect` (web). Mount `WagmiProvider` + `QueryClientProvider` in
-   `src/components/game/Providers.tsx` beside the existing Neynar provider. *Additive — mount only when
-   writes go live, so the still-mock game isn't disrupted.*
+1. ✅ **Connectors / wagmi config** (`src/lib/onchain/wagmi.ts`) — wagmi v2 + viem, Base (8453).
+   Connectors: `@farcaster/miniapp-wagmi-connector` (mini app, index 0, auto-connects in a host) +
+   RainbowKit's `connectorsForWallets` for the web modal (Base Account, Rabby, Phantom, any injected
+   wallet; MetaMask, Rainbow and the WalletConnect QR when `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is
+   set). `WagmiProvider` + `QueryClientProvider` + `RainbowKitProvider` mount in
+   `src/components/game/Providers.tsx` beside the Neynar provider. *Modal shipped 2026-11-20 with the
+   standalone-web ruling (decisions.md #9).*
 2. 🟢 **Wallet binding** — resolve the identity-vs-wallet split: `useViewer` gives the FID; the
    connected wallet is the on-chain identity. Bind + persist the active address; reads/writes key on
    the **wallet**, not the FID. The free daily still gates on a Neynar-proven FID.
