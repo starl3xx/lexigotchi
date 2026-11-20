@@ -33,6 +33,16 @@ export function isPushServiceHost(hostname: string): boolean {
 /** A browser can follow one wallet; one wallet can be followed from a few browsers, not hundreds. */
 export const MAX_SUBSCRIPTIONS_PER_ADDRESS = 5;
 
+/**
+ * May this endpoint be stored for `address`? A browser already following this wallet may always
+ * refresh its row. Anything that ADDS a browser to the wallet (a new endpoint, or one moving over from
+ * another wallet) needs a free slot. A full wallet refuses; it never evicts (see saveWebPushSubscription).
+ */
+export function mayAddBrowser(currentAddressOfEndpoint: string | undefined, address: string, browsersForAddress: number): boolean {
+  if (currentAddressOfEndpoint === address) return true;
+  return browsersForAddress < MAX_SUBSCRIPTIONS_PER_ADDRESS;
+}
+
 const MAX_ENDPOINT_LENGTH = 1024;
 
 /** Decoded byte length of a base64url string, or -1 when it isn't one. */
@@ -42,6 +52,27 @@ function base64UrlBytes(s: unknown): number {
   const body = s.replace(/=+$/, "");
   if (body.length % 4 === 1) return -1;
   return Math.floor((body.length * 3) / 4);
+}
+
+/**
+ * The FID to store with a subscribe call. A call without a verified Farcaster token keeps the stored
+ * FID while the wallet is unchanged: the web session is tab-scoped, so "no token" only means this
+ * tab hasn't signed in. A different wallet starts over, since the FID was proven beside the old one.
+ */
+export function fidToStore(
+  existing: { address: string; fid: number | null } | undefined,
+  address: string,
+  verifiedFid: number | null,
+): number | null {
+  if (verifiedFid !== null) return verifiedFid;
+  return existing?.address === address ? existing.fid : null;
+}
+
+/** iPhone, iPod, or iPad Safari in a browser tab, where iOS offers no push until Add to Home Screen. */
+export function iosNeedsHomeScreen(userAgent: string, maxTouchPoints: number, standalone: boolean): boolean {
+  // iPadOS Safari reports a Mac user agent; a "Mac" with a touch screen is an iPad.
+  const iPadOS = /Macintosh/.test(userAgent) && maxTouchPoints > 1;
+  return (/iPhone|iPad|iPod/.test(userAgent) || iPadOS) && !standalone;
 }
 
 export interface ParsedSubscription {

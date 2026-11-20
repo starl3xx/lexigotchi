@@ -83,10 +83,16 @@ export async function sendWebPush(
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return { ok: false, skipped: "unconfigured" };
   if (targets.length === 0) return { ok: false, skipped: "no-recipients" };
+  // web-push throws on any other subject, which would fail every send one by one; say it once.
+  const subject = process.env.VAPID_SUBJECT || SITE_URL;
+  if (!/^(https:|mailto:)/.test(subject)) {
+    console.error(`[web-push] VAPID subject must be https: or mailto: (got "${subject}"); set VAPID_SUBJECT`);
+    return { ok: false, skipped: "unconfigured" };
+  }
 
   const send = deps.send ?? webpush.sendNotification;
   const options: webpush.RequestOptions = {
-    vapidDetails: { subject: process.env.VAPID_SUBJECT || SITE_URL, publicKey, privateKey },
+    vapidDetails: { subject, publicKey, privateKey },
     TTL: TTL_SECONDS,
     urgency: "normal",
   };

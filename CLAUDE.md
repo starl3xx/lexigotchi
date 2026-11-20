@@ -61,11 +61,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `WEB_PUSH_ENABLED`, same three guards; prunes 404/410 endpoints), `webPushSubscription.ts`
   (validation: the endpoint must be a known push-service host, or the route is an SSRF hole),
   `src/lib/db/webPush.ts` + table `web_push_subscriptions` (one row per browser, keyed by wallet,
-  ≤5 per wallet), `/api/push/{subscribe,unsubscribe}`, `public/sw.js` (push + click only, no
+  ≤5 per wallet; a full wallet REFUSES a new browser, never evicts, since subscribing is unsigned), `/api/push/{subscribe,unsubscribe}`, `public/sw.js` (push + click only, no
   `fetch` handler), `useWebPush.ts` + `ReminderToggle.tsx` (More, and Home's hunger card). The
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
   Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
-  without it) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
+  without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
 - `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
   keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
   Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.

@@ -13,12 +13,15 @@
  *     `enable()`, not on page load; until then the hook only looks for an existing registration.
  *
  * Dark until configured: with no NEXT_PUBLIC_VAPID_PUBLIC_KEY the state is "unavailable" and the
- * toggle renders nothing.
+ * toggle renders nothing. Also "unavailable" in the practice (mock) game, which has no onchain state
+ * a reminder could describe.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { useViewer } from "./useViewer";
 import { webSession } from "@/lib/auth/siwfWeb";
+import { isChainBacked } from "@/lib/onchain/gameMode";
+import { iosNeedsHomeScreen } from "@/lib/notify/webPushSubscription";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 /** What the server last stored for this browser: `${address}:${fid}`. Re-sent when it changes. */
@@ -40,9 +43,8 @@ function pushSupported(): boolean {
 
 function isIosBrowserTab(): boolean {
   if (typeof navigator === "undefined") return false;
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone = (navigator as { standalone?: boolean }).standalone === true;
-  return ios && !standalone;
+  return iosNeedsHomeScreen(navigator.userAgent, navigator.maxTouchPoints ?? 0, standalone);
 }
 
 /** VAPID keys travel as base64url; PushManager wants the raw bytes. */
@@ -70,7 +72,7 @@ async function syncToServer(sub: PushSubscription, address: string): Promise<voi
     },
     body: JSON.stringify({ address, subscription: sub.toJSON() }),
   });
-  if (!res.ok) throw new Error(`subscribe failed: ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(`subscribe failed: ${res.status}`), { status: res.status });
   try {
     localStorage.setItem(SYNCED_KEY, `${address.toLowerCase()}:${session?.fid ?? ""}`);
   } catch {
@@ -85,7 +87,8 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const eligible = Boolean(VAPID_PUBLIC_KEY) && viewer.environment === "web";
+  // Only where reminders can fire: the practice (mock) game has no onchain words to warn about.
+  const eligible = Boolean(VAPID_PUBLIC_KEY) && viewer.environment === "web" && isChainBacked();
 
   // Detect what this browser can do, and whether it is already subscribed.
   useEffect(() => {
@@ -102,16 +105,20 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   }, [eligible]);
 
   // Keep the server's copy on the connected wallet (and its Farcaster link, once there is one).
+  // A tab that simply hasn't signed in to Farcaster is NOT a reason to re-sync: the web session is
+  // tab-scoped, so its absence says nothing about the link (the server keeps the stored FID too).
   useEffect(() => {
     if (!eligible || base !== "on" || !address) return;
-    const want = `${address.toLowerCase()}:${viewer.fid ?? ""}`;
     let synced: string | null = null;
     try {
       synced = localStorage.getItem(SYNCED_KEY);
     } catch {
       /* treat as unsynced */
     }
-    if (synced === want) return;
+    const [syncedAddress, syncedFid] = (synced ?? "").split(":");
+    const walletChanged = syncedAddress !== address.toLowerCase();
+    const newLink = viewer.fid != null && String(viewer.fid) !== syncedFid;
+    if (!walletChanged && !newLink) return;
     void currentSubscription()
       .then((sub) => (sub ? syncToServer(sub, address) : setBase("off")))
       .catch(() => {
@@ -150,7 +157,11 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
         setBase("on");
       } catch (err) {
         console.error("[push] enable failed:", err);
-        setError("Couldn’t turn on reminders. Try again in a moment.");
+        setError(
+          (err as { status?: number }).status === 409
+            ? "This wallet already gets reminders in five browsers. Turn them off in one of those first."
+            : "Couldn’t turn on reminders. Try again in a moment.",
+        );
       } finally {
         setWorking(false);
       }

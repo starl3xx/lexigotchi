@@ -7,7 +7,7 @@ import { sendWebPush, type WebPushResult } from "@/lib/notify/webPush";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { verifiedDailyKey } from "@/lib/onchain/verifications";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
-import { addressOf } from "@/lib/onchain/addresses";
+import { maybeAddressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +41,21 @@ export async function GET(req: Request) {
   }
 
   try {
-    const fids = await notifiableFids();
+    // Who could be reminded at all, BEFORE touching the chain: with nobody to remind, return without
+    // reading a contract (production runs the mock today, and its network has no deployment).
+    // A missing browser table (migration not run) reads as no subscriptions, never as a failure.
+    const [fids, subs] = await Promise.all([
+      notifiableFids(),
+      allWebPushSubscriptions().catch((err) => {
+        console.error("[cron/notify-daily] couldn't read browser subscriptions:", err instanceof Error ? err.message : err);
+        return [];
+      }),
+    ]);
+    if (fids.length === 0 && subs.length === 0) return NextResponse.json({ ok: true, audience: 0, sent: 0 });
+    const letters = maybeAddressOf("letters");
+    if (!letters) return NextResponse.json({ ok: true, skipped: "no_deployment", audience: fids.length });
+
     const client = getPublicClient();
-    const letters = addressOf("letters");
     const readDailyUsed = async (keys: readonly bigint[]) =>
       keys.length === 0
         ? []
@@ -79,14 +91,9 @@ export async function GET(req: Request) {
 
     // ── Browsers ─────────────────────────────────────────────────────────────────────────────
     // Each subscription reads its own daily slot (the FID's, or the Coinbase-verified wallet's);
-    // FIDs the Farcaster channel already reminds are skipped. Never allowed to fail the
-    // Farcaster half above: no table yet (migration not run) reads as no subscriptions.
+    // FIDs the Farcaster channel already reminds are skipped.
     let browserTargets = 0;
     let browserResult: WebPushResult | undefined;
-    const subs = await allWebPushSubscriptions().catch((err) => {
-      console.error("[cron/notify-daily] couldn't read browser subscriptions:", err instanceof Error ? err.message : err);
-      return [];
-    });
     const farcasterFids = new Set(fids);
     const keyed = subs
       .map((sub) => ({ sub, key: webPushDailyKey(sub, farcasterFids, verifiedDailyKey) }))
