@@ -19,7 +19,8 @@ export type RateKind =
   | "auth-nonce"
   | "auth-verify"
   | "verify-status"
-  | "oracle";
+  | "oracle"
+  | "push";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -45,6 +46,10 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     case "verify-status":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "5 m"), prefix: "rl:verify:status" });
     // Price reads are CDN-cached upstream of this; the limit only matters to a cache-busting abuser.
+    // Browser push subscribe/unsubscribe, keyed by IP (no account to key on). A real browser makes
+    // one call per wallet switch or toggle; this only bounds someone filling the table.
+    case "push":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "10 m"), prefix: "rl:push" });
     case "oracle":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:oracle" });
   }

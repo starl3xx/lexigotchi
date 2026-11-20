@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { notifiableFids } from "@/lib/db/queries";
-import { dailyTargets, type DailyState } from "@/lib/notify/triggers";
+import { dailyTargets, isDailyDue, webPushDailyKey, type DailyState } from "@/lib/notify/triggers";
 import { dailyReady } from "@/lib/notify/templates";
 import { sendNotification } from "@/lib/notify/send";
+import { sendWebPush, type WebPushResult } from "@/lib/notify/webPush";
+import { allWebPushSubscriptions } from "@/lib/db/webPush";
+import { verifiedDailyKey } from "@/lib/onchain/verifications";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { addressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
@@ -39,19 +42,20 @@ export async function GET(req: Request) {
 
   try {
     const fids = await notifiableFids();
-    if (fids.length === 0) return NextResponse.json({ ok: true, audience: 0, sent: 0 });
-
     const client = getPublicClient();
     const letters = addressOf("letters");
-    const used = await client.multicall({
-      allowFailure: false,
-      contracts: fids.map((fid) => ({
-        address: letters,
-        abi: lettersAbi,
-        functionName: "dailyUsed" as const,
-        args: [BigInt(fid)],
-      })),
-    });
+    const readDailyUsed = async (keys: readonly bigint[]) =>
+      keys.length === 0
+        ? []
+        : client.multicall({
+            allowFailure: false,
+            contracts: keys.map((key) => ({
+              address: letters,
+              abi: lettersAbi,
+              functionName: "dailyUsed" as const,
+              args: [key],
+            })),
+          });
 
     // CHAIN time, not wall clock. `dailyUsed` stores `block.timestamp / 1 days + 1`, and the mint
     // compares against that same clock — so deriving the day from Date.now() lets the two disagree
@@ -60,21 +64,51 @@ export async function GET(req: Request) {
     // skipping players who genuinely can pull. Every other day-comparison in the codebase
     // (readDayState, the mint routes) reads chain time for exactly this reason.
     const day = Math.floor((await readChainTime()) / 86_400);
-    const states: DailyState[] = fids.map((fid, i) => ({
-      fid,
-      lastDailyDayPlusOne: Number(used[i]),
-    }));
-    const targets = dailyTargets(states, day);
 
-    // An empty target list is a legitimate outcome (everyone already played), NOT a reason to
-    // broadcast. sendNotification refuses an empty audience, but returning early says so plainly.
-    if (targets.length === 0) {
-      return NextResponse.json({ ok: true, audience: fids.length, targets: 0, sent: 0 });
+    // ── Farcaster ────────────────────────────────────────────────────────────────────────────
+    let targets: number[] = [];
+    let result: Awaited<ReturnType<typeof sendNotification>> | undefined;
+    if (fids.length > 0) {
+      const used = await readDailyUsed(fids.map((fid) => BigInt(fid)));
+      const states: DailyState[] = fids.map((fid, i) => ({ fid, lastDailyDayPlusOne: Number(used[i]) }));
+      targets = dailyTargets(states, day);
+      // An empty target list is a legitimate outcome (everyone already played), NOT a reason to
+      // broadcast. sendNotification refuses an empty audience; skipping the call says so plainly.
+      if (targets.length > 0) result = await sendNotification({ ...dailyReady(day), targetFids: targets });
     }
 
-    const result = await sendNotification({ ...dailyReady(day), targetFids: targets });
-    console.log("[cron/notify-daily]", { audience: fids.length, targets: targets.length, result });
-    return NextResponse.json({ ok: true, audience: fids.length, targets: targets.length, result });
+    // ── Browsers ─────────────────────────────────────────────────────────────────────────────
+    // Each subscription reads its own daily slot (the FID's, or the Coinbase-verified wallet's);
+    // FIDs the Farcaster channel already reminds are skipped. Never allowed to fail the
+    // Farcaster half above: no table yet (migration not run) reads as no subscriptions.
+    let browserTargets = 0;
+    let browserResult: WebPushResult | undefined;
+    const subs = await allWebPushSubscriptions().catch((err) => {
+      console.error("[cron/notify-daily] couldn't read browser subscriptions:", err instanceof Error ? err.message : err);
+      return [];
+    });
+    const farcasterFids = new Set(fids);
+    const keyed = subs
+      .map((sub) => ({ sub, key: webPushDailyKey(sub, farcasterFids, verifiedDailyKey) }))
+      .filter((k): k is { sub: (typeof subs)[number]; key: bigint } => k.key !== null);
+    if (keyed.length > 0) {
+      const uniqueKeys = [...new Set(keyed.map((k) => k.key))];
+      const used = await readDailyUsed(uniqueKeys);
+      const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
+      const due = keyed.filter((k) => isDailyDue(usedByKey.get(k.key) ?? 0, day)).map((k) => k.sub);
+      browserTargets = due.length;
+      if (due.length > 0) browserResult = await sendWebPush(due, dailyReady(day));
+    }
+
+    const summary = {
+      ok: true,
+      audience: fids.length,
+      targets: targets.length,
+      result,
+      browsers: { subscriptions: subs.length, targets: browserTargets, result: browserResult },
+    };
+    console.log("[cron/notify-daily]", summary);
+    return NextResponse.json(summary);
   } catch (err) {
     console.error("[cron/notify-daily] error:", err);
     return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });

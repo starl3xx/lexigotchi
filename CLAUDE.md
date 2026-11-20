@@ -22,8 +22,9 @@ The game is the front door: `/` redirects to **`/play`**.
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (54 forge tests)
 - `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
   daily operator pass. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
-  defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning and
-  rides the same world scan as `--yield`/`--bounty`.
+  defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning (Farcaster,
+  then browser push for wallets Farcaster can't reach) and rides the same world scan as
+  `--yield`/`--bounty`.
 - `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
@@ -54,9 +55,17 @@ The game is the front door: `/` redirects to **`/play`**.
   (copy — titles never interpolate so the 32-char cap is provable; variants rotate by epoch-day;
   ids are day-keyed for NUDGES and event-keyed for RECEIPTS), `triggers.ts` (pure targeting).
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
-  Neynar owns the whole token lifecycle, we store no tokens and send by FID. Wallet-only players
-  are unreachable by push (no Farcaster client to deliver one). Nothing sends until
+  Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends until
   `NOTIFICATIONS_ENABLED=true` in production.
+  **Browser push** reaches wallet-only web players: `webPush.ts` (VAPID sender, its OWN switch
+  `WEB_PUSH_ENABLED`, same three guards; prunes 404/410 endpoints), `webPushSubscription.ts`
+  (validation: the endpoint must be a known push-service host, or the route is an SSRF hole),
+  `src/lib/db/webPush.ts` + table `web_push_subscriptions` (one row per browser, keyed by wallet,
+  ≤5 per wallet), `/api/push/{subscribe,unsubscribe}`, `public/sw.js` (push + click only, no
+  `fetch` handler), `useWebPush.ts` + `ReminderToggle.tsx` (More, and Home's hunger card). The
+  `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
+  Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
+  without it) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
 - `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
   keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
   Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.

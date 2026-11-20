@@ -232,6 +232,18 @@ function useFaq(): { q: string; a: ReactNode }[] {
       ),
     },
     {
+      q: "How do I know when a word is getting hungry?",
+      a: (
+        <>
+          Turn on reminders. Inside Farcaster or the Base App, add Lexigotchi and allow notifications. On
+          the web, open <strong>More</strong> and tap <strong>Turn on reminders</strong>: your browser will
+          tell you before a staked word goes hungry, when your free daily letter is ready, and if you win
+          the jackpot. On iPhone and iPad, add Lexigotchi to your Home Screen first (Share, then Add to
+          Home Screen) and turn them on from there.
+        </>
+      ),
+    },
+    {
       q: "How many words and letters are there?",
       a: (
         <>

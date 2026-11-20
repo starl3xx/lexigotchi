@@ -49,4 +49,6 @@ export {
   Lock,
   Question,
   SealCheck,
+  Bell,
+  BellSlash,
 } from "@phosphor-icons/react";

@@ -76,34 +76,64 @@ export function hungerTargets(
   warnWithinHours = HUNGER_WARN_HOURS,
   p: Params = DEFAULT_PARAMS,
 ): HungerTarget[] {
+  return [...groupHunger(words, fidOf, warnWithinHours, p).entries()]
+    .map(([fid, v]) => ({ fid, ...v }))
+    .sort((a, b) => a.fid - b.fid); // stable order — makes the pass reproducible in logs and tests
+}
+
+/**
+ * The same rules as `hungerTargets`, keyed by the OWNER WALLET instead of an FID: the browser push
+ * channel reaches wallets, because a web player may have no FID at all. Addresses are lowercase.
+ */
+export interface AddressHungerTarget {
+  address: string;
+  words: number;
+  hoursLeft: number;
+}
+
+export function hungerTargetsByAddress(
+  words: readonly KeeperWord[],
+  warnWithinHours = HUNGER_WARN_HOURS,
+  p: Params = DEFAULT_PARAMS,
+): AddressHungerTarget[] {
+  return [...groupHunger(words, (owner) => owner.toLowerCase(), warnWithinHours, p).entries()]
+    .map(([address, v]) => ({ address, ...v }))
+    .sort((a, b) => (a.address < b.address ? -1 : a.address > b.address ? 1 : 0));
+}
+
+/** The shared core: staked words inside the warning window, grouped by whoever `keyOf` names. */
+function groupHunger<K>(
+  words: readonly KeeperWord[],
+  keyOf: (owner: string) => K | undefined,
+  warnWithinHours: number,
+  p: Params,
+): Map<K, { words: number; hoursLeft: number }> {
   const hungryAt = p.care.hungryAfterDays * DAY;
-  const byFid = new Map<number, { words: number; soonest: number }>();
+  const byKey = new Map<K, { words: number; soonest: number }>();
 
   for (const w of words) {
     if (!w.staked) continue;
     const secondsLeft = hungryAt - w.secondsUnfed;
     // <= 0 is already hungry (no warning to give); beyond the window is not yet urgent.
     if (secondsLeft <= 0 || secondsLeft > warnWithinHours * HOUR) continue;
-    const fid = fidOf(w.owner);
-    if (fid === undefined) continue; // owner isn't a notifiable player — nothing to send
-    const prev = byFid.get(fid);
+    const key = keyOf(w.owner);
+    if (key === undefined) continue; // owner isn't reachable on this channel — nothing to send
+    const prev = byKey.get(key);
     if (prev) {
       prev.words += 1;
       prev.soonest = Math.min(prev.soonest, secondsLeft);
     } else {
-      byFid.set(fid, { words: 1, soonest: secondsLeft });
+      byKey.set(key, { words: 1, soonest: secondsLeft });
     }
   }
 
-  return [...byFid.entries()]
-    .map(([fid, v]) => ({
-      fid,
-      words: v.words,
-      // Round DOWN so we never promise more time than the player has. Floor to 1h so the copy
-      // never reads "in 0h", which sounds like it already happened.
-      hoursLeft: Math.max(1, Math.floor(v.soonest / HOUR)),
-    }))
-    .sort((a, b) => a.fid - b.fid); // stable order — makes the pass reproducible in logs and tests
+  const out = new Map<K, { words: number; hoursLeft: number }>();
+  for (const [key, v] of byKey) {
+    // Round DOWN so we never promise more time than the player has. Floor to 1h so the copy
+    // never reads "in 0h", which sounds like it already happened.
+    out.set(key, { words: v.words, hoursLeft: Math.max(1, Math.floor(v.soonest / HOUR)) });
+  }
+  return out;
 }
 
 export interface DailyState {
@@ -133,18 +163,69 @@ export function dailyTargets(
   day: number,
   activeWithinDays = 7,
 ): number[] {
-  const out: number[] = [];
-  for (const s of states) {
-    if (s.lastDailyDayPlusOne === 0) continue; // never pulled
-    const lastDay = s.lastDailyDayPlusOne - 1;
-    if (lastDay === day) continue; // already pulled today
-    if (day - lastDay > activeWithinDays) continue; // drifted away
-    out.push(s.fid);
-  }
-  return out.sort((a, b) => a - b);
+  return states
+    .filter((s) => isDailyDue(s.lastDailyDayPlusOne, day, activeWithinDays))
+    .map((s) => s.fid)
+    .sort((a, b) => a - b);
+}
+
+/** The per-slot rule behind `dailyTargets`, shared with the browser push channel. */
+export function isDailyDue(lastDailyDayPlusOne: number, day: number, activeWithinDays = 7): boolean {
+  if (lastDailyDayPlusOne === 0) return false; // never pulled
+  const lastDay = lastDailyDayPlusOne - 1;
+  if (lastDay === day) return false; // already pulled today
+  return day - lastDay <= activeWithinDays; // else drifted away
 }
 
 /** The jackpot winner's FID, when the winner is someone we can actually reach. */
 export function jackpotWinnerFid(winner: string | undefined, fidOf: FidLookup): number | undefined {
   return winner ? fidOf(winner) : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Browser push audiences. One rule throughout: a player Farcaster already reaches for a message
+// does not get it twice. Everything else about WHO qualifies is the same rule as the FID path.
+// ---------------------------------------------------------------------------
+
+/** The stored subscription fields the audience rules read. */
+export interface PushSub {
+  address: string; // lowercase
+  fid: number | null;
+}
+
+/**
+ * Hunger warnings for browser subscribers. An address the Farcaster pass already warns (its owner
+ * is a notifiable FID's linked wallet, i.e. `fidOf` resolves it) is skipped.
+ */
+export function webPushHungerTargets(
+  byAddress: readonly AddressHungerTarget[],
+  subs: readonly PushSub[],
+  fidOf: FidLookup,
+): AddressHungerTarget[] {
+  const subscribed = new Set(subs.map((s) => s.address.toLowerCase()));
+  return byAddress.filter((t) => subscribed.has(t.address) && fidOf(t.address) === undefined);
+}
+
+/**
+ * Whose daily slot a subscription's reminder reads. A browser that subscribed while signed in with
+ * Farcaster pulls its daily on the FID; otherwise the only daily a wallet can have is the
+ * Coinbase-verified one, keyed `2^160 | address` (`verifiedDailyKey`). A wallet that is neither has
+ * a slot that reads 0 forever, and `dailyTargets` already drops never-pulled slots.
+ *
+ * Returns null when Farcaster's daily reminder already covers the FID.
+ */
+export function webPushDailyKey(
+  sub: PushSub,
+  farcasterFids: ReadonlySet<number>,
+  verifiedKey: (address: string) => bigint,
+): bigint | null {
+  if (sub.fid !== null) return farcasterFids.has(sub.fid) ? null : BigInt(sub.fid);
+  return verifiedKey(sub.address);
+}
+
+/** The jackpot winner's browsers, when Farcaster can't reach the winner. */
+export function webPushWinnerSubs<T extends PushSub>(winner: string | undefined, subs: readonly T[], fidOf: FidLookup): T[] {
+  if (!winner || fidOf(winner) !== undefined) return [];
+  const w = winner.toLowerCase();
+  return subs.filter((s) => s.address.toLowerCase() === w);
 }

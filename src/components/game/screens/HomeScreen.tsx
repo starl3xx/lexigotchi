@@ -1,6 +1,7 @@
 "use client";
 /** Today — the daily hub: care alert, daily letter, jackpot teaser, bounty, quick actions. */
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
+import { ReminderToggle } from "../ReminderToggle";
 import {
   ArrowsLeftRight,
   Backpack,
@@ -74,6 +75,7 @@ export function HomeScreen() {
               <div className="text-xs text-ink/60">
                 Peckish words earn half; hungry ones (3+ days) earn nothing and can&apos;t win the jackpot.
               </div>
+              <ReminderToggle compact />
             </div>
             <Button variant="teal" onClick={g.feedAll}>
               <Cookie weight="fill" /> Feed all

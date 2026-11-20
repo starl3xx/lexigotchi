@@ -121,9 +121,12 @@ showed; only the *decisions* changed.
    2026-08-14). Linking Farcaster or using a Coinbase-verified wallet still unlocks the free daily,
    because a wallet alone proves nothing about personhood — decision 1's "never an *unverified*
    wallet daily" stands. A wallet-only player plays on packs, so they need $WORD first (decision 8).
+   Reminders for wallet-only players (starl3xx, 2026-11-20, verbatim): "browser push... no email
+   (unless we get it somehow?)". So browser push (Web Push, VAPID), keyed by wallet, ships dark
+   behind `WEB_PUSH_ENABLED`; nobody already reached on Farcaster gets the same message twice. No
+   email: nothing in the game collects one.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
-   session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`), and how a wallet-only player gets
-   hunger reminders (push reaches Farcaster players only).
+   session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
 11. **Prestige + bounty OFF at launch** (enable post-cohort); the secondary-letter swap is P1.
 
