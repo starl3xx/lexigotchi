@@ -149,6 +149,11 @@ export async function sendCallsAttributed(
  *  (-32601), or a message match — the signals a wallet gives when it can't do `wallet_sendCalls`. */
 function isMethodUnsupported(err: unknown): boolean {
   const code = (err as { code?: number })?.code;
+  // A rejection is the player's answer, never a capability signal — and it must be checked BEFORE
+  // the message match below. Wallets behind WalletConnect relay errors with free-form messages, and
+  // one that names the method ("User rejected wallet_sendCalls") would otherwise match the regex
+  // and fall through to eth_sendTransaction: a second prompt for the thing the player just refused.
+  if (code === 4001) return false;
   if (code === 4200 || code === 4100 || code === -32601) return true;
   const msg = String((err as { message?: string })?.message ?? "");
   return /unsupported method|not support|method not found|wallet_sendcalls/i.test(msg);

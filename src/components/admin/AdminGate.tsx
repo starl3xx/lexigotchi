@@ -11,8 +11,8 @@
  * Sign In With Neynar is deliberately gone. It retires 2026-08-14, and a FID-only gate would have
  * locked an operator out of a normal browser the moment it did.
  */
-import { useAccount, useConnect } from "wagmi";
-import { useCallback } from "react";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useViewer } from "@/components/game/useViewer";
 import { ADMIN_OPEN, ADMIN_UNCONFIGURED, isAdmin, isAdminWallet } from "@/lib/admin/auth";
 import { AdminConsole } from "./AdminConsole";
@@ -60,13 +60,11 @@ function GateScreen({
   viewer: ReturnType<typeof useViewer>;
   address?: `0x${string}`;
 }) {
-  const { connect, connectors } = useConnect();
-  const connectWallet = useCallback(() => {
-    // Same reasoning as the game shell: connectors[0] is the mini-app connector, which auto-connects
-    // inside a Farcaster host — so if this button is visible we're on the web and want `injected`.
-    const target = connectors.find((c) => c.type === "injected" || c.id === "injected") ?? connectors[0];
-    if (target) connect({ connector: target });
-  }, [connect, connectors]);
+  // The game's wallet modal: inside a Farcaster host the mini-app connector has already
+  // auto-connected and this button never shows, so it is only ever the web path — and the owner key
+  // may sit in any wallet (a hardware wallet behind Rabby, a phone over WalletConnect), not just
+  // whichever extension happens to own `window.ethereum`.
+  const { openConnectModal } = useConnectModal();
 
   if (ADMIN_UNCONFIGURED) {
     return (
@@ -102,8 +100,9 @@ function GateScreen({
       {!address && (
         <div className="mt-4 flex justify-center">
           <button
-            onClick={connectWallet}
-            className="cel rounded-xl bg-candy px-4 py-2 text-sm font-extrabold text-paper"
+            onClick={openConnectModal}
+            disabled={!openConnectModal}
+            className="cel rounded-xl bg-candy px-4 py-2 text-sm font-extrabold text-paper disabled:opacity-50"
           >
             Connect wallet
           </button>
