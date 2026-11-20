@@ -113,8 +113,9 @@ showed; only the *decisions* changed.
    swap-adapter build.
 9. **Mini-app AND general web wallet** play (two connector paths); the free daily stays FID-gated
    (web users sign in with Neynar for it).
-   **AMENDED 2026-11-20 — standalone onchain game** (Jake's ruling): "people should be able to play
-   without having an account on Farcaster or Base, but be able to link them if they want." The
+   **AMENDED 2026-11-20 — standalone onchain game** (Jake's ruling, verbatim): "what I want is for
+   people to be able to play without having an account on Farcaster or Base BUT be able to link them
+   if they want... it should be a standalone onchain game". The
    WALLET is the account: any wallet connects through the RainbowKit modal (`src/lib/onchain/wagmi.ts`),
    and Farcaster is an optional link (Sign In With Farcaster on the web — Neynar's SIWN retired
    2026-08-14). Linking Farcaster or using a Coinbase-verified wallet still unlocks the free daily,

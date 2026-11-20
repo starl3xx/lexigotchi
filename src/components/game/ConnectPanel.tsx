@@ -44,9 +44,6 @@ export function ConnectPanel() {
         <Wallet weight="bold" size={18} />
         {connectModalOpen ? "Pick a wallet…" : "Connect wallet"}
       </button>
-      <p className="mt-2 text-center text-xs text-ink/50">
-        New to wallets? The list can make one for you with a passkey. Nothing to install.
-      </p>
 
       {/* ── OPTIONAL · LINK ──────────────────────────────────────────────────────────────── */}
       <div className="mt-5 border-t-2 border-dashed border-ink/15 pt-4">

@@ -15,7 +15,7 @@
  */
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet } from "../primitives";
 import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
@@ -43,6 +43,7 @@ export function BalanceSheet() {
   const viewer = useViewer();
   const { address } = useAccount();
   const { openConnectModal, connectModalOpen } = useConnectModal();
+  const { openAccountModal } = useAccountModal();
   const { verified, recheck } = useVerifiedWallet();
   const [env, setEnv] = useState<"loading" | "farcaster" | "web">("loading");
 
@@ -151,8 +152,9 @@ export function BalanceSheet() {
               </>
             ) : (
               <>
-                Want the <strong>free daily letter</strong>? Link Farcaster, or verify this wallet with
-                Coinbase. Either one proves you’re one person.
+                Want the <strong>free daily letter</strong>? Link Farcaster, or{" "}
+                {address ? "verify this wallet with Coinbase" : "connect a Coinbase-verified wallet"}.
+                Either one proves you’re one person.
               </>
             )}
           </div>
@@ -221,7 +223,18 @@ export function BalanceSheet() {
             <span className="flex items-center gap-1.5 font-bold text-teal">
               <Check weight="bold" /> Connected
             </span>
-            <span className="font-mono text-xs text-ink/60">{short(address)}</span>
+            {/* The only way OUT of a wallet on the web. An extension wallet can be disconnected from
+                the extension, but a Base Account popup session or a WalletConnect phone session has
+                nothing in the browser to click — without this, a player who connected the wrong
+                wallet is stuck with it. RainbowKit's account modal carries copy + disconnect. */}
+            <button
+              onClick={openAccountModal}
+              disabled={!openAccountModal}
+              className="flex items-center gap-1.5 text-xs text-ink/60"
+            >
+              <span className="font-mono">{short(address)}</span>
+              <span className="font-bold text-ink/45 underline">Switch</span>
+            </button>
           </div>
         ) : (
           <>

@@ -26,10 +26,12 @@
  *
  * ── One Base connector ────────────────────────────────────────────────────────────────────────
  * Base Account (wagmi's `baseAccount`, via RainbowKit's wrapper) replaces the old hand-added
- * `coinbaseWallet` connector. It is one choice among many — no player needs a Base account — but it
- * is the only listed wallet that makes a passkey wallet in the browser with nothing installed, and
- * the only one that honours our ERC-7677 paymaster capability, so it stays in the popular group.
- * Its @coinbase/cdp-sdk → @x402/* imports are aliased to false in next.config.
+ * `coinbaseWallet` connector. It is one choice among many — no player needs a Base account. It is
+ * listed because it needs no extension (it runs in a popup) and because Base documents support for
+ * both capabilities sendCallsAttributed asks for (ERC-8021 `dataSuffix`, ERC-7677 paymaster).
+ * Whether the other wallets honour those optional capabilities is UNVERIFIED — see the PR that
+ * added this file's modal. Its @coinbase/cdp-sdk → @x402/* imports are aliased to false in
+ * next.config.
  *
  * WRITES DO NOT GO THROUGH WAGMI'S `useWriteContract`. Every write must carry the ERC-8021 builder
  * code, which means routing through `sendCallsAttributed` (./sendCalls) with the connector's raw
@@ -38,7 +40,7 @@
  */
 import { createConfig, http, type Config } from "wagmi";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
-import { connectorsForWallets, type WalletList } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets, type Wallet, type WalletList } from "@rainbow-me/rainbowkit";
 import {
   baseAccount,
   injectedWallet,
@@ -63,20 +65,34 @@ const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_I
 export const APP_NAME = "Lexigotchi";
 
 /**
+ * RainbowKit's generic "Browser Wallet", shown only when the browser actually HAS one. RainbowKit
+ * always lists it, so a phone browser with no wallet offered a button that could only fail. The
+ * rule runs once, in the browser, when the config is built — extensions inject `window.ethereum`
+ * before page scripts run, and in-app wallet browsers (MetaMask, Coinbase Wallet) have it from the
+ * start. On the server it is always hidden, which is harmless: no modal renders there.
+ */
+const browserWallet = (): Wallet => ({
+  ...injectedWallet(),
+  hidden: () => typeof window === "undefined" || !(window as { ethereum?: unknown }).ethereum,
+});
+
+/**
  * The modal's wallet list. MetaMask and Rainbow fall back to WalletConnect when their extension is
  * missing, so they only appear when a project id exists; Rabby, Phantom, Base Account and the
- * generic injected wallet never touch WalletConnect and are always offered.
+ * generic browser wallet never touch WalletConnect and are always offered (RainbowKit itself hides
+ * the desktop-extension wallets on phones). Without a project id a phone browser with no wallet
+ * gets Base Account and nothing else, so production needs the id.
  */
 export function walletList(projectId: string = WALLETCONNECT_PROJECT_ID): WalletList {
   if (projectId) {
     return [
       { groupName: "Popular", wallets: [metaMaskWallet, rainbowWallet, baseAccount, walletConnectWallet] },
-      { groupName: "More", wallets: [rabbyWallet, phantomWallet, injectedWallet] },
+      { groupName: "More", wallets: [rabbyWallet, phantomWallet, browserWallet] },
     ];
   }
   return [
     { groupName: "Popular", wallets: [baseAccount, rabbyWallet] },
-    { groupName: "More", wallets: [phantomWallet, injectedWallet] },
+    { groupName: "More", wallets: [phantomWallet, browserWallet] },
   ];
 }
 
