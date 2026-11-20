@@ -154,3 +154,5 @@ The game is the front door: `/` redirects to **`/play`**.
 - **Builder-code attribution is mandatory**: every on-chain action routes through
   `src/lib/onchain/builderCode.ts` (ERC-8021 suffix) or we silently forfeit Base builder rewards —
   the tx still sends, it's just uncredited. `tests/builder-code.test.ts` is the round-trip guardrail.
+
+This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
