@@ -20,6 +20,7 @@ import { Button, Card, Sheet } from "../primitives";
 import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
+import { OrDivider, SignInWithBase } from "../SignInWithBase";
 import { useVerifiedWallet } from "../useVerifiedWallet";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 
@@ -264,7 +265,9 @@ export function BalanceSheet() {
                 </>
               )}
             </Button>
-            <p className="mt-1.5 text-xs text-ink/55">Any wallet works. $WORD lives on Base.</p>
+            <OrDivider />
+            <SignInWithBase />
+            <p className="mt-2 text-xs text-ink/55">Any wallet works. $WORD lives on Base.</p>
           </>
         )}
       </Card>

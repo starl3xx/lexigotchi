@@ -5,9 +5,9 @@ const SITE_URL = process.env.NEXT_PUBLIC_URL ?? "https://lexigotchi.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Lexigotchi — raise your letters, spell your words, own the dictionary",
+  title: "Lexigotchi: raise your letters, spell your words, own the dictionary",
   description:
-    "A tamagotchi-style $WORD collection game for the Let's Have A Word! ecosystem on Base. Mint letter characters, raise them to UPPERCASE, claim words from the dictionary, stake for $WORD, and chase the daily jackpot.",
+    "A tamagotchi-style $WORD collection game for the Let’s Have A Word! ecosystem on Base. Mint letter characters, raise them to UPPERCASE, claim words from the dictionary, stake for $WORD, and chase the daily jackpot.",
   // Tab icon + Home Screen icon. There was no favicon at all (every page load 404'd /favicon.ico).
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
   // iPhone/iPad: a Home Screen launch opens full-screen, which is where iOS allows browser push.
@@ -17,12 +17,15 @@ export const metadata: Metadata = {
     description: "Raise your letters. Spell your words. Own the dictionary.",
     url: SITE_URL,
     siteName: "Lexigotchi",
+    // The branded 1200×800 PNG card the mini-app embed already uses (og:image must be PNG/JPG).
+    images: [{ url: "/embed-image", width: 1200, height: 800, alt: "Lexigotchi" }],
   },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="motion-safe:scroll-smooth">
       <body className="font-body min-h-screen">{children}</body>
     </html>
   );

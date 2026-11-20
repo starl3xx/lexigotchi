@@ -13,16 +13,16 @@ lowercase to **UPPERCASE**, spell words from a 4,438-word dictionary to claim th
 
 ## Play it
 
-The game is a portrait Farcaster Mini App. The repo serves it at **`/play`** (the bare domain
-redirects there).
+The game is a portrait app that runs in any browser and as a Farcaster Mini App. The repo serves it
+at **`/play`**; the bare domain is the landing page.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000  → redirects to /play
+npm run dev          # http://localhost:3000 (landing page) · /play (the game)
 ```
 
-Players in a Farcaster client are auto-connected; on the open web they sign in with Neynar or connect
-a Base wallet. Every button is wired to the (mock) game state, so the full loop is explorable end to
+Players in a Farcaster client are auto-connected; on the open web they connect any wallet (the wallet
+is the account) and can link Farcaster to unlock the free daily letter. Every button is wired to the (mock) game state, so the full loop is explorable end to
 end. See **[FAQ.md](./FAQ.md)** for how the game works, and **[GAME_DOCUMENTATION.md](./GAME_DOCUMENTATION.md)**
 for the complete mechanics, odds, and economy reference.
 

@@ -15,21 +15,7 @@ import { Toaster } from "./primitives";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
 import { ChainGameProvider } from "./ChainGameProvider";
-import { isSuiteDeployed } from "@/lib/onchain/addresses";
-import { NETWORK } from "@/lib/onchain/network";
-
-/**
- * Which store backs the game.
- *
- * Chain-backed only when the suite actually has addresses on this network AND we're on a testnet —
- * mainnet stays on the mock until the remaining signer routes exist, because a half-wired real
- * economy is worse than an honest simulation. NEXT_PUBLIC_CHAIN_GAME=0 forces the mock back on for
- * side-by-side comparison.
- */
-function isChainBacked(): boolean {
-  if (process.env.NEXT_PUBLIC_CHAIN_GAME === "0") return false;
-  return isSuiteDeployed() && NETWORK.isTestnet;
-}
+import { isChainBacked } from "@/lib/onchain/gameMode";
 import { HomeScreen } from "./screens/HomeScreen";
 import { MoreScreen } from "./screens/MoreScreen";
 import { BagScreen } from "./screens/BagScreen";

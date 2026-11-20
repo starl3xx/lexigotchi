@@ -11,6 +11,11 @@
  * version showed three peer buttons, which read as "pick one" — the first live tester signed in with
  * Farcaster, the gate stayed shut, and nothing explained that the wallet was the required half.
  *
+ * Two ways in, separated by "or": the RainbowKit modal for any wallet, and Base's official
+ * "Sign in with Base" button (SignInWithBase), which connects a Base Account directly. Both end in
+ * the same place, a connected wallet; Base's button is the branded door for players who already
+ * have a Base Account.
+ *
  * The wallet button opens the RainbowKit modal (lib/onchain/wagmi lists the wallets). The modal
  * carries its own "confirm in your wallet" state and a retry, which covers the live failure the old
  * hand-rolled hint answered: Rabby queues a connection request inside the extension, and every
@@ -22,6 +27,7 @@
  */
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useViewer } from "./useViewer";
+import { OrDivider, SignInWithBase } from "./SignInWithBase";
 import { Check, Wallet } from "./ui/icons";
 
 export function ConnectPanel() {
@@ -44,6 +50,9 @@ export function ConnectPanel() {
         <Wallet weight="bold" size={18} />
         {connectModalOpen ? "Pick a wallet…" : "Connect wallet"}
       </button>
+
+      <OrDivider />
+      <SignInWithBase />
 
       {/* ── OPTIONAL · LINK ──────────────────────────────────────────────────────────────── */}
       <div className="mt-5 border-t-2 border-dashed border-ink/15 pt-4">
