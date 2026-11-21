@@ -51,6 +51,12 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     address public signer; // backend outcome signer (the "superHen")
 
     mapping(bytes32 pityKey => uint32 streak) public pity; // keccak(owner, letterIndex)
+    /// @notice One unrevealed roll per (owner, letter). Pity is snapshotted at commit and reset only by
+    ///         a success REVEAL, which the committer controls; with several commits open at once, a
+    ///         player could reveal the failures, hold the signed successes back, and keep every later
+    ///         roll at the 85% cap. Forcing each roll to resolve before the next one snapshots pity
+    ///         keeps the curve honest. The reveal is permissionless, so a stuck roll is never a trap.
+    mapping(bytes32 pityKey => bool) public rollOpen;
     RollCommit[] public commits;
 
     event RollCommitted(uint256 indexed commitId, address indexed owner, uint8 letterIndex, uint8 kind, uint32 pity);
@@ -67,6 +73,7 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     error AlreadyRevealed();
     error BadSignature();
     error ZeroAddress();
+    error RollOpen();
 
     constructor(
         IERC20 _word,
@@ -105,7 +112,10 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         internal
         returns (uint256 commitId)
     {
-        uint32 p = pity[_pityKey(owner, letterIndex)];
+        bytes32 key = _pityKey(owner, letterIndex);
+        if (rollOpen[key]) revert RollOpen(); // finish (reveal) the open roll on this letter first
+        rollOpen[key] = true;
+        uint32 p = pity[key];
         commitId = commits.length;
         commits.push(
             RollCommit({
@@ -138,6 +148,7 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
 
         c.revealed = true;
         bytes32 key = _pityKey(c.owner, c.letterIndex);
+        rollOpen[key] = false; // every outcome below resolves the open roll
         // Re-validate at reveal so a stale signed success (the loose letter was spent, the escrow
         // position was already raised, or the word was dissolved since commit) becomes a no-op rather
         // than a revert that would strand the paid fee.
@@ -180,6 +191,11 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
             return staking.beneficialOwner(tokenId);
         }
         return o;
+    }
+
+    /// @notice True while `owner` has an unrevealed roll on `letterIndex` (a new one would revert).
+    function hasOpenRoll(address owner, uint8 letterIndex) external view returns (bool) {
+        return rollOpen[_pityKey(owner, letterIndex)];
     }
 
     function pityOf(address owner, uint8 letterIndex) external view returns (uint32) {

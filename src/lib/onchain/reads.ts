@@ -67,6 +67,11 @@ export interface GameParams {
   hungryAfterSeconds: number;
   freeDailySnack: boolean;
   freePackOpen: boolean;
+  /**
+   * Letters.unreservedSupply: lowercase letters still for sale after every pending commit's share.
+   * A commit asking for more reverts SoldOut. Null on a deployment that predates the reservation.
+   */
+  unreservedSupply: number | null;
 }
 
 /**
@@ -122,7 +127,18 @@ export async function readGameParams(): Promise<GameParams> {
     hungryAfterSeconds: Number(hungry),
     freeDailySnack: freeSnack,
     freePackOpen: freePack,
+    unreservedSupply: await readUnreservedSupply(letters),
   };
+}
+
+/** Separate from the batch above so an older deployment (no such view) degrades to null. */
+async function readUnreservedSupply(letters: `0x${string}`): Promise<number | null> {
+  try {
+    const n = await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "unreservedSupply" });
+    return Number(n);
+  } catch {
+    return null;
+  }
 }
 
 export interface PlayerState {
@@ -425,6 +441,38 @@ export async function waitForNewRollCommit(owner: `0x${string}`, knownIds: reado
     },
     knownIds,
   );
+}
+
+/**
+ * The unrevealed roll on (owner, letter), if any. Rolls allows only one at a time per pity key
+ * (Rolls.rollOpen), so a new roll on that letter would revert until this one is revealed. Found
+ * from the commit events, not `hasOpenRoll`, so it also works against a deployment that predates
+ * that view (where it simply finds the stranded roll worth finishing anyway).
+ */
+export async function readOpenRollFor(owner: `0x${string}`, letterIndex: number): Promise<bigint | null> {
+  const rolls = addressOf("rolls");
+  const client = getPublicClient();
+  const logs = await client.getLogs({ address: rolls, event: ROLL_COMMITTED, args: { owner }, fromBlock: deployBlock(), toBlock: "latest" });
+  for (const l of logs) {
+    if (Number(l.args.letterIndex) !== letterIndex) continue;
+    const id = l.args.commitId as bigint;
+    const c = (await client.readContract({ address: rolls, abi: rollsAbi, functionName: "commits", args: [id] })) as unknown as readonly [string, number, number, number, boolean, number, bigint];
+    if (!c[4]) return id;
+  }
+  return null;
+}
+
+/** The unrevealed ascension on a Word, by anyone (Prestige.attemptOpen is per token). */
+export async function readOpenPrestigeFor(tokenId: bigint): Promise<bigint | null> {
+  const prestige = addressOf("prestige");
+  const client = getPublicClient();
+  const logs = await client.getLogs({ address: prestige, event: PRESTIGE_COMMITTED, args: { tokenId }, fromBlock: deployBlock(), toBlock: "latest" });
+  for (const l of logs) {
+    const id = l.args.commitId as bigint;
+    const c = (await client.readContract({ address: prestige, abi: prestigeAbi, functionName: "commits", args: [id] })) as unknown as readonly [bigint, string, boolean, number];
+    if (!c[2]) return id;
+  }
+  return null;
 }
 
 /** Open (unrevealed) prestige commit ids for a player. */

@@ -135,6 +135,10 @@ showed; only the *decisions* changed.
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
 11. **Prestige + bounty OFF at launch** (enable post-cohort); the secondary-letter swap is P1.
+12. **No external audit and no legal review** (starl3xx, 2026-11-21, verbatim): "there won't be a
+    security audit (you can find skills to look at this) or lawyer convo". The internal audit with
+    the `solidity-auditor` skill replaces the external one (`contracts/AUDIT.md`, second pass); its
+    four confirmed findings were fixed before any mainnet deploy.
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

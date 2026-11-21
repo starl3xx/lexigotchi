@@ -52,6 +52,12 @@ contract Letters is ILetters, ERC1155, ERC2981, Ownable2Step, ReentrancyGuard, F
     // Letter economy (set at deploy from the canonical dictionary; tunable by the multisig).
     uint32[26] public cap; // per-letter supply cap = floor(slots × demandMultiple)
     uint32[26] public mintedEver; // cumulative primary lowercase mints (rolls don't change this)
+    /// @notice Lowercase letters that can still be sold: Σ(cap − mintedEver) minus the letters already
+    ///         promised to unrevealed commits. Every commit path reserves its count here, so a fee is
+    ///         never taken for a commit that could not be revealed (a sell-out with commits pending
+    ///         would otherwise strand the last buyers' paid commits forever: there is no expiry and no
+    ///         refund). Reveal needs no change: minting consumes exactly what the commit reserved.
+    uint256 public unreservedSupply;
 
     uint256 public packPrice; // $WORD, full price (volume loop)
     uint256 public dailyPrice; // $WORD, discounted single (habit loop)
@@ -93,6 +99,7 @@ contract Letters is ILetters, ERC1155, ERC2981, Ownable2Step, ReentrancyGuard, F
     error DailyAlreadyUsed();
     error InsufficientSwapOutput();
     error ZeroAddress();
+    error SoldOut();
     error FreePackAlreadyClaimed();
     error FreePackClosed();
 
@@ -107,6 +114,9 @@ contract Letters is ILetters, ERC1155, ERC2981, Ownable2Step, ReentrancyGuard, F
         address initialOwner
     ) ERC1155(_uri) Ownable(initialOwner) FeeCollector(_word, _feeRouter) {
         cap = _cap;
+        for (uint256 i = 0; i < 26; i++) {
+            unreservedSupply += _cap[i];
+        }
         packPrice = _packPrice;
         dailyPrice = _dailyPrice;
         signer = _signer;
@@ -288,6 +298,8 @@ contract Letters is ILetters, ERC1155, ERC2981, Ownable2Step, ReentrancyGuard, F
     }
 
     function _newCommit(address buyer, uint8 count) internal returns (uint256 commitId) {
+        if (unreservedSupply < count) revert SoldOut(); // reverts the whole tx, fee included
+        unreservedSupply -= count;
         commitId = commits.length;
         commits.push(Commit({buyer: buyer, count: count, revealed: false}));
         emit Committed(commitId, buyer, count);

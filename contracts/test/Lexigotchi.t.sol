@@ -867,15 +867,18 @@ contract LexigotchiTest is Test {
         }
         assertEq(words.prestigeLevel(tokenId), 3, "at level 3");
 
-        // two commits while still level 3 (both pass the commit-time cap check)
+        // a second attempt can't open while the first is unrevealed (the audit fix: no banking
+        // signed successes at the capped odds), so parallel commits can't race past maxLevel either
         vm.prank(alice);
         uint256 a1 = prestige.commitPrestige(tokenId);
         vm.prank(alice);
-        uint256 a2 = prestige.commitPrestige(tokenId);
+        vm.expectRevert(Prestige.AttemptOpen.selector);
+        prestige.commitPrestige(tokenId);
         prestige.reveal(a1, true, _signPrestige(a1, tokenId, alice, true));
         assertEq(words.prestigeLevel(tokenId), 4, "reached max");
-        prestige.reveal(a2, true, _signPrestige(a2, tokenId, alice, true)); // re-check at reveal caps it
-        assertEq(words.prestigeLevel(tokenId), 4, "cannot exceed maxLevel via parallel commits");
+        vm.prank(alice);
+        vm.expectRevert(Prestige.MaxLevel.selector);
+        prestige.commitPrestige(tokenId);
     }
 
     function test_Prestige_unstakedRevealIsNoop() public {
@@ -1271,5 +1274,164 @@ contract LexigotchiTest is Test {
         words.bumpPrestige(tokenId);
 
         assertTrue(words.supportsInterface(bytes4(0x49064906)), "advertises ERC-4906");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Audit fixes (2026-11-21 internal audit): each test is the exploit, now refused
+    // ---------------------------------------------------------------------------------------------
+
+    function _stake(address who, uint256 tokenId) internal {
+        vm.startPrank(who);
+        words.approve(address(staking), tokenId);
+        staking.stake(tokenId);
+        vm.stopPrank();
+    }
+
+    /// Unstake + restake used to set lastFed = now: a hungry Word was "fed" for gas, no snack burned.
+    function test_Staking_restakeDoesNotFeed() public {
+        vm.warp(1755000000);
+        uint256 t = _claimLower(alice, 0);
+        _stake(alice, t);
+        assertEq(staking.hungerLevel(t), 0, "a first-ever stake starts fed");
+
+        vm.warp(block.timestamp + 4 days);
+        assertTrue(staking.isHungry(t), "hungry after 4 unfed days");
+
+        vm.startPrank(alice);
+        staking.unstake(t);
+        words.approve(address(staking), t);
+        staking.stake(t);
+        vm.stopPrank();
+        assertTrue(staking.isHungry(t), "restaking is not a meal");
+
+        uint256 supply0 = word.totalSupply();
+        vm.prank(alice);
+        staking.feed(t); // the free daily snack
+        vm.prank(alice);
+        staking.feed(t); // a second feed today: paid and burned, as before
+        assertEq(supply0 - word.totalSupply(), SNACK, "feeding is still the only way back");
+        assertEq(staking.hungerLevel(t), 0, "fed");
+    }
+
+    /// The clock pauses while a Word is out of staking, and resumes where it stopped.
+    function test_Staking_hungerClockPausesWhileUnstaked() public {
+        vm.warp(1755000000);
+        uint256 t = _claimLower(alice, 0);
+        _stake(alice, t);
+        vm.warp(block.timestamp + 1 days + 1 hours); // peckish
+        assertEq(staking.hungerLevel(t), 1, "peckish");
+
+        vm.prank(alice);
+        staking.unstake(t);
+        assertEq(staking.unfedCarry(t), 1 days + 1 hours, "carries its unfed time out");
+        vm.warp(block.timestamp + 30 days); // a month outside staking costs nothing
+
+        _stake(alice, t);
+        assertEq(staking.hungerLevel(t), 1, "still exactly peckish, not hungry");
+        assertEq(staking.unfedCarry(t), 0, "carry consumed");
+        vm.warp(block.timestamp + 2 days); // 1d1h + 2d = past the 3-day hungry line
+        assertTrue(staking.isHungry(t), "and the clock runs again once staked");
+    }
+
+    /// With several rolls open on one letter, a player could reveal only the failures and bank the
+    /// signed successes, keeping every later roll at the 85% cap.
+    function test_Rolls_oneOpenRollPerLetter() public {
+        _fundLower(alice, "AAAAA");
+        _fundLower(alice, "B");
+        _approveAll(alice);
+
+        vm.prank(alice);
+        uint256 id0 = rolls.commitLooseRoll(0);
+        assertTrue(rolls.hasOpenRoll(alice, 0), "open");
+
+        vm.prank(alice);
+        vm.expectRevert(Rolls.RollOpen.selector);
+        rolls.commitLooseRoll(0); // the same letter must resolve first
+
+        vm.prank(alice);
+        uint256 idB = rolls.commitLooseRoll(1); // another letter is independent
+        rolls.reveal(idB, false, _signRoll(idB, alice, 1, false));
+
+        // anyone can reveal (permissionless), which also frees the letter
+        vm.prank(bob);
+        rolls.reveal(id0, true, _signRoll(id0, alice, 0, true));
+        assertFalse(rolls.hasOpenRoll(alice, 0), "resolved");
+        assertEq(rolls.pityOf(alice, 0), 0, "a success resets pity before the next snapshot");
+
+        vm.prank(alice);
+        uint256 id1 = rolls.commitLooseRoll(0); // free again
+        rolls.reveal(id1, false, _signRoll(id1, alice, 0, false));
+        assertEq(rolls.pityOf(alice, 0), 1, "pity follows the curve");
+    }
+
+    /// A stale signed success (the letter is gone by reveal) is a no-op, and it still frees the letter.
+    function test_Rolls_noopRevealStillClearsTheOpenRoll() public {
+        _fundLower(alice, "A");
+        _approveAll(alice);
+        vm.prank(alice);
+        uint256 id = rolls.commitLooseRoll(0);
+        vm.prank(alice);
+        letters.safeTransferFrom(alice, bob, 0, 1, ""); // spend the letter before the reveal
+        rolls.reveal(id, true, _signRoll(id, alice, 0, true));
+        assertFalse(rolls.hasOpenRoll(alice, 0), "cleared on the no-op path too");
+    }
+
+    function test_Prestige_noopRevealStillClearsTheOpenAttempt() public {
+        uint256 tokenId = _claimUpper(alice, 1);
+        _approveAll(alice);
+        _stake(alice, tokenId);
+        vm.startPrank(alice);
+        uint256 id = prestige.commitPrestige(tokenId);
+        staking.unstake(tokenId);
+        vm.stopPrank();
+        prestige.reveal(id, true, _signPrestige(id, tokenId, alice, true)); // no-op: unstaked
+        assertFalse(prestige.attemptOpen(tokenId), "cleared on the no-op path too");
+    }
+
+    function _signPackFor(address l, uint256 id, address buyer, uint8[] memory idx) internal view returns (bytes memory) {
+        bytes32 digest =
+            MessageHashUtils.toEthSignedMessageHash(keccak256(abi.encode(l, block.chainid, id, buyer, idx)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// Commits used to take the fee without reserving supply: at sell-out, the last buyers' paid
+    /// commits could never be revealed (no expiry, no refund). Now the commit itself refuses.
+    function test_Letters_soldOutRefusesBeforeTakingTheFee() public {
+        uint32[26] memory tiny;
+        for (uint8 i = 0; i < 26; i++) {
+            tiny[i] = 1; // 26 letters in the whole game
+        }
+        LettersHarness l = new LettersHarness(word, feeRouter, tiny, PACK, DAILY, signer, "", address(this));
+        feeRouter.setCollector(address(l), true);
+        assertEq(l.unreservedSupply(), 26);
+
+        vm.startPrank(alice);
+        word.approve(address(l), type(uint256).max);
+        uint256[] memory ids = new uint256[](5);
+        for (uint256 k = 0; k < 5; k++) {
+            ids[k] = l.commitPack(); // 25 letters promised
+        }
+        uint256 balBefore = word.balanceOf(alice);
+        vm.expectRevert(Letters.SoldOut.selector);
+        l.commitPack(); // only 1 letter left: refused, so no fee is taken
+        vm.stopPrank();
+        assertEq(word.balanceOf(alice), balBefore, "no fee for an unrevealable commit");
+        assertEq(l.unreservedSupply(), 1);
+
+        // every accepted commit is still revealable: 25 distinct uncapped letters exist
+        for (uint256 k = 0; k < 5; k++) {
+            uint8[] memory draw = new uint8[](5);
+            for (uint8 j = 0; j < 5; j++) {
+                draw[j] = uint8(k * 5 + j);
+            }
+            l.reveal(ids[k], draw, _signPackFor(address(l), ids[k], alice, draw));
+        }
+        assertEq(l.unreservedSupply(), 1, "reveals consume only what the commits reserved");
+        uint256 minted;
+        for (uint8 i = 0; i < 26; i++) {
+            minted += l.mintedEver(i);
+        }
+        assertEq(minted, 25, "the books agree: cap 26 = 25 minted + 1 unreserved");
     }
 }
