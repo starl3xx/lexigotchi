@@ -8,7 +8,7 @@ keys, money, a deploy, or a production database. Everything else is code and lan
 - **The game already runs on real contracts** on Base Sepolia (play-money $WORD). Production runs the
   practice game, and flips by itself when the mainnet addresses are committed (`gameMode.ts`).
 - **Contracts:** code-complete. No external audit and no legal review (decisions.md #12). The
-  second internal audit (`contracts/AUDIT.md`) found four issues, and all are fixed (PRs #96 and #101). 63
+  second internal audit (`contracts/AUDIT.md`) found four issues, and all are fixed (PRs #96 and #101). 65
   forge tests.
 - **App, done:**
 

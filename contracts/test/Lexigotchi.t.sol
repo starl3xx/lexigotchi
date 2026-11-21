@@ -1352,6 +1352,39 @@ contract LexigotchiTest is Test {
         assertEq(staking.hungerLevel(t), 0, "a snack is the way back");
     }
 
+    /// Ids are the word's hash, so a dissolved word claimed again keeps its id. That new claim is a
+    /// new Word and starts fed; it must not inherit the previous owner's hunger (Bugbot, #101).
+    function test_Staking_reclaimedWordStartsFed() public {
+        vm.warp(1755000000);
+        uint256 t = _claimLower(alice, 0); // CRANE
+        _stake(alice, t);
+        vm.startPrank(alice);
+        staking.unstake(t);
+        vm.stopPrank();
+        vm.warp(block.timestamp + 5 days); // long past hungry
+        vm.prank(alice);
+        words.dissolve(t, "CRANE");
+
+        uint256 t2 = _claimLower(bob, 0); // the same word, claimed again by someone else
+        assertEq(t2, t, "same id");
+        _stake(bob, t2);
+        assertEq(staking.hungerLevel(t2), 0, "a new claim starts fed");
+    }
+
+    /// Passing a word to another wallet is NOT a new claim: the clock keeps running.
+    function test_Staking_transferKeepsTheClock() public {
+        vm.warp(1755000000);
+        uint256 t = _claimLower(alice, 0);
+        _stake(alice, t);
+        vm.prank(alice);
+        staking.unstake(t);
+        vm.warp(block.timestamp + 4 days);
+        vm.prank(alice);
+        words.transferFrom(alice, bob, t);
+        _stake(bob, t);
+        assertTrue(staking.isHungry(t), "a second wallet is no way around a snack");
+    }
+
     /// With several rolls open on one letter, a player could reveal only the failures and bank the
     /// signed successes, keeping every later roll at the 85% cap.
     function test_Rolls_oneOpenRollPerLetter() public {

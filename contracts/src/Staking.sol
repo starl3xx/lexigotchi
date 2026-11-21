@@ -71,7 +71,11 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
         // time since the last meal. Pausing the clock instead (the first audit fix) still let a
         // player stake for a few minutes around the daily snapshot (jackpot resolve + yield scan,
         // 00:05 UTC, public in vercel.json) and never feed: almost no staked time ever accrued.
-        if (lastFed[tokenId] == 0) lastFed[tokenId] = uint64(block.timestamp);
+        // "First stake" means first since THIS claim: ids are the word's hash, so a word dissolved
+        // and claimed again (by anyone) keeps its id, and must not inherit the old clock. Claiming
+        // costs the claim fee, far more than a snack, so this is no way around feeding; passing a
+        // word between wallets keeps its clock, because the claim doesn't change.
+        if (lastFed[tokenId] < words.claimedAt(tokenId)) lastFed[tokenId] = uint64(block.timestamp);
         emit Staked(tokenId, msg.sender);
     }
 

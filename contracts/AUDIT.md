@@ -70,7 +70,9 @@ between them) plus one adversarial reviewer that also read the signer routes, ea
 checked by hand against the code. Four confirmed, all fixed with a test that is the exploit:
 - **High** — unstake + restake set `lastFed = now`, so a hungry Word was "fed" for gas: no snack
   burned, yield and jackpot eligibility kept. All five reviewers found it. Fixed: `lastFed` survives
-  unstake and is set only on a Word's first stake, so the clock keeps running while unstaked. (The
+  unstake and is set only on a Word's first stake since its claim (`Words.claimedAt`, so a word
+  dissolved and claimed again starts fresh, while a transfer keeps the clock), so the clock keeps
+  running while unstaked. (The
   first fix PAUSED the clock instead; the follow-up review showed that staking for three minutes
   around the public 00:05 UTC snapshot then never accrued hunger. `test_Staking_snapshotDodgeStillGoesHungry`.)
 - **Medium** — roll pity is snapshotted at commit and reset only by a success reveal the committer
@@ -104,7 +106,7 @@ accounting + the `route()` surplus/delivered check; Words escrow + case-state; t
 
 ## Status
 
-`forge build` clean; **63 forge tests** (incl. the invariant campaign and a cross-language
+`forge build` clean; **65 forge tests** (incl. the invariant campaign and a cross-language
 AnswerChain vector — the schedule generator `scripts/generate-answer-chain.ts` and
 `AnswerChain.reveal` share a verified fixture) + **84 vitest** (economy/solvency) green. Known gaps
 for the audit/launch (see `README.md` checklist): the production swap-router adapter (deferred —
