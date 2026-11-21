@@ -52,7 +52,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const last = step === STEPS.length - 1;
 
   return (
-    <div className="absolute inset-0 z-[60] flex flex-col bg-paper">
+    // Full screen below md; from md a centered card over the dimmed game, not a page-wide wall.
+    <div className="absolute inset-0 z-[60] flex md:items-center md:justify-center md:bg-ink/60 md:p-6">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-paper md:h-[min(780px,90vh)] md:max-w-[520px] md:rounded-[2rem] md:border-[3px] md:border-ink md:shadow-[0_10px_0_#1b1714]">
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{ backgroundImage: "radial-gradient(#e7d7b0 0.5px, transparent 0.5px)", backgroundSize: "14px 14px" }}
@@ -100,6 +102,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

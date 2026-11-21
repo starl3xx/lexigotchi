@@ -1,8 +1,15 @@
 "use client";
 /**
- * Lexigotchi — the playable prototype. A portrait Farcaster-mini-app shell (phone frame on
- * desktop, full-bleed on mobile) wrapping every game screen, driven by the mock state store.
- * No contracts are wired; every action mutates local state so the full loop is explorable.
+ * Lexigotchi — the game shell around every screen, on whichever store backs it (practice or chain).
+ *
+ * Responsive by WIDTH only, never by environment (useViewer reads "loading" first, which would flash
+ * the wrong layout and can mismatch at hydration):
+ *   - below md (768px): the portrait app — top bar, one column, bottom tab bar. Phones, and every
+ *     mini-app host (Farcaster's web client renders mini apps at ~424px), always land here.
+ *   - md and up: a desktop page — a side rail with every destination, a header with the page title,
+ *     and screens that widen into grids (lg: two columns). No phone frame.
+ * Overlays (sheets, onboarding, toasts) hang off the OUTER container so on desktop they cover the
+ * whole window, not just the content column.
  */
 import { useCallback, useEffect, useState } from "react";
 import { PRELAUNCH } from "@/lib/site";
@@ -33,7 +40,10 @@ import { BalanceSheet } from "./sheets/BalanceSheet";
 import { FaqSheet } from "./sheets/FaqSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { AddAppHost } from "./AddAppHost";
-import { Backpack, DotsThree, Fire, House, IconContext, Question, SkipForward, Smiley, Sparkle, Trophy } from "./ui/icons";
+import {
+  ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Question,
+  SkipForward, Smiley, Sparkle, TextAa, Trophy,
+} from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
@@ -102,41 +112,39 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
   // Farcaster splash screen — no manual call needed here.
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
-      <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
-        {/* Two-layer clip. The sheet's backdrop-blur header and scroll body are composited GPU
-            layers, and Chromium lets those escape a rounded overflow clip — so a clip-path is
-            required. But clip-path on the BORDERED element clips at the border box (radius
-            2.4rem), letting content paint over the 6px border ring at the corners — the second
-            corner artifact. So: the outer div owns border/radius/shadow, and an INNER wrapper
-            carries the clip at the padding-box radius (2.4rem − 6px ≈ 2.025rem), which composited
-            children cannot escape and which never touches the border. */}
-        <div className="relative h-full w-full max-w-[430px] bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000]">
-        <div className="relative flex h-full w-full flex-col overflow-hidden sm:rounded-[2.025rem] sm:[clip-path:inset(0_round_2.025rem)]">
+      {/* The outer box is the overlay host: fixed to the viewport, so the sheets, onboarding and
+          toasts below (absolute inset-0) cover the whole window on desktop, rail included. */}
+      <div className="fixed inset-0 z-50 flex bg-paper">
+        <SideRail />
+        <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
           {/* faint aged-paper grain */}
           <div
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{ backgroundImage: "radial-gradient(#e7d7b0 0.5px, transparent 0.5px)", backgroundSize: "14px 14px" }}
           />
           <TopBar />
-          <main className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3">
-            {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
-                one bad screen holds its error state across every later navigation. */}
-            <ScreenErrorBoundary key={state.view}>
-              <ChainGate>
-                <Screen view={state.view} />
-              </ChainGate>
-            </ScreenErrorBoundary>
+          <main className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3 md:px-8 md:pb-12 md:pt-6">
+            {/* Phones: the full width (as before). Desktop: a readable column the screens fill
+                with their own grids. Tablets in portrait get a centered phone-width column. */}
+            <div className="mx-auto w-full max-w-[560px] md:max-w-5xl">
+              {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
+                  one bad screen holds its error state across every later navigation. */}
+              <ScreenErrorBoundary key={state.view}>
+                <ChainGate>
+                  <Screen view={state.view} />
+                </ChainGate>
+              </ScreenErrorBoundary>
+            </div>
           </main>
           <BottomNav />
-          <Toaster />
-          <SheetHost />
-          <AddAppHost />
-          {/* Sign In With Farcaster for web players. Listens for the event useViewer().signIn()
-              fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
-          <WebSignInHost />
-          {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
         </div>
-        </div>
+        <Toaster />
+        <SheetHost />
+        <AddAppHost />
+        {/* Sign In With Farcaster for web players. Listens for the event useViewer().signIn()
+            fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
+        <WebSignInHost />
+        {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
       </div>
     </IconContext.Provider>
   );
@@ -186,10 +194,12 @@ function TopBar() {
     </button>
   );
   return (
-    <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5">
+    <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5 md:px-8 md:py-3">
       <div className="flex items-center gap-1.5">
         <ViewerChip />
-        <span className="font-display text-base font-extrabold tracking-tight">LEXIGOTCHI</span>
+        <span className="font-display text-base font-extrabold tracking-tight md:hidden">LEXIGOTCHI</span>
+        {/* Desktop: the rail shows the brand, so the header names the page instead. */}
+        <h1 className="hidden font-display text-xl font-extrabold tracking-tight md:block">{VIEW_TITLE[state.view]}</h1>
         {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
             flame chip reads as a real streak the player just lost. Absent beats wrong. */}
         {!state.chainBacked && (
@@ -258,7 +268,97 @@ function ViewerChip() {
 }
 
 // ---------------------------------------------------------------------------
-// Bottom nav
+// Side rail (md and up) — every destination at once, where the phone needs a "More" page
+// ---------------------------------------------------------------------------
+
+/** The page title the desktop header shows. */
+const VIEW_TITLE: Record<View, string> = {
+  home: "Today",
+  bag: "Your bag",
+  mint: "Mint letters",
+  claim: "Spell a word",
+  jackpot: "Daily jackpot",
+  bounty: "Weekly bounty",
+  lexidex: "Lexidex",
+  showcase: "Showcase",
+  swap: "Swap letters",
+  more: "More",
+};
+
+const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof House }[] }[] = [
+  {
+    heading: "Play",
+    items: [
+      { view: "home", label: "Today", Icon: House },
+      { view: "bag", label: "Bag", Icon: Backpack },
+      { view: "mint", label: "Mint", Icon: Sparkle },
+      { view: "claim", label: "Spell", Icon: TextAa },
+    ],
+  },
+  {
+    heading: "Win",
+    items: [
+      { view: "jackpot", label: "Jackpot", Icon: Trophy },
+      { view: "bounty", label: "Bounty", Icon: Medal },
+    ],
+  },
+  {
+    heading: "Collect",
+    items: [
+      { view: "lexidex", label: "Lexidex", Icon: BookOpen },
+      { view: "showcase", label: "Showcase", Icon: MaskHappy },
+      { view: "swap", label: "Swap", Icon: ArrowsLeftRight },
+    ],
+  },
+];
+
+function SideRail() {
+  const { state, nav, openSheet } = useGame();
+  const item = (view: View, label: string, Icon: typeof House) => {
+    const active = state.view === view;
+    return (
+      <button
+        key={view}
+        onClick={() => nav(view)}
+        aria-current={active ? "page" : undefined}
+        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
+          active ? "bg-candy text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
+        }`}
+      >
+        <Icon size={20} weight={active ? "fill" : "regular"} />
+        {label}
+      </button>
+    );
+  };
+  return (
+    <aside className="relative z-10 hidden h-full w-56 shrink-0 flex-col border-r-[3px] border-ink bg-paper-dark/70 md:flex lg:w-60">
+      {/* the brand goes home to the landing page */}
+      <a href="/" className="flex items-center gap-2 px-5 pb-4 pt-4 font-display text-lg font-extrabold tracking-tight">
+        LEXIGOTCHI
+      </a>
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Game">
+        {RAIL.map((group) => (
+          <div key={group.heading}>
+            <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink/45">{group.heading}</div>
+            <div className="space-y-1">{group.items.map((i) => item(i.view, i.label, i.Icon))}</div>
+          </div>
+        ))}
+      </nav>
+      <div className="space-y-1 border-t-2 border-ink/15 px-3 py-3">
+        {item("more", "More", DotsThree)}
+        <button
+          onClick={() => openSheet({ kind: "faq" })}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+        >
+          <Question size={20} weight="regular" /> How it works
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bottom nav (below md)
 // ---------------------------------------------------------------------------
 
 const TABS: { view: View; label: string; Icon: typeof House }[] = [
@@ -274,7 +374,7 @@ function BottomNav() {
   const { state, nav } = useGame();
   const onMore = MORE.includes(state.view);
   return (
-    <nav className="absolute inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t-[3px] border-ink bg-paper-dark/95 px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur">
+    <nav className="absolute inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t-[3px] border-ink bg-paper-dark/95 px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur md:hidden">
       {TABS.map((t) => (
         <NavBtn key={t.view} active={state.view === t.view} Icon={t.Icon} label={t.label} onClick={() => nav(t.view)} />
       ))}

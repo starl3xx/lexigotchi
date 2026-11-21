@@ -15,7 +15,7 @@ export function JackpotScreen() {
   const won = state.jackpotRevealed && !!ownedAnswer && jackpotEligible(ownedAnswer);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       {/* the draw */}
       <Card className="overflow-hidden bg-gradient-to-b from-gold/20 to-paper text-center">
         <div className="text-xs font-bold uppercase tracking-wide text-ink/60">Daily jackpot</div>

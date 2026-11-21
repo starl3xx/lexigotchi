@@ -35,16 +35,18 @@ export function MintScreen() {
   const rare = LETTERS_BY_FREQUENCY.slice(-5);
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h1 className="font-display text-2xl font-extrabold">Mint letters</h1>
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      <div className="lg:col-span-2">
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Mint letters</h1>
         <p className="text-sm text-ink/60">
           Every pull is <strong>lowercase</strong>. Capitals are <em>raised</em> in the Roll, never pulled.
         </p>
       </div>
 
       {/* a paid pull whose reveal never landed — recover it before offering anything new */}
-      <PendingReveal />
+      <div className="empty:hidden lg:col-span-2">
+        <PendingReveal />
+      </div>
 
       {/* daily single */}
       <Card className="bg-paper">

@@ -49,12 +49,12 @@ export function ClaimScreen() {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="font-display text-2xl font-extrabold">Spell a word</h1>
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Spell a word</h1>
         <p className="text-sm text-ink/60">Five letters, one case. A valid dictionary word becomes a permanent NFT.</p>
       </div>
 
       {/* case toggle */}
-      <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold">
+      <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold md:max-w-sm">
         <button onClick={() => swapCase(false)} className={`flex-1 rounded-lg py-1.5 ${!useUpper ? "bg-candy text-paper" : "text-ink/70"}`}>
           lowercase
         </button>
@@ -125,7 +125,7 @@ export function ClaimScreen() {
         {trayLetters.length === 0 ? (
           <EmptyState Icon={Basket} title={useUpper ? "No raised letters yet" : "No letters"} sub="Mint a pack to fill your bag." />
         ) : (
-          <div className="grid grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
             {trayLetters.map(({ i, c }) => {
               const avail = c - rackCount(i);
               return (
@@ -148,7 +148,7 @@ export function ClaimScreen() {
       {quick.length > 0 && (
         <div>
           <SectionTitle>You can spell now</SectionTitle>
-          <div className="space-y-2">
+          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
             {quick.map((w) => (
               <div key={w} className="cel flex items-center gap-3 rounded-2xl bg-paper p-2.5">
                 <WordTiles word={w} upper={Array(5).fill(useUpper)} size={26} />

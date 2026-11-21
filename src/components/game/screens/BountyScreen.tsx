@@ -29,7 +29,7 @@ export function BountyScreen() {
   const claimTotal = g.claimables.reduce((a, c) => a + c.amount, 0);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       <Card className="bg-gradient-to-b from-teal/15 to-paper">
         <div className="flex items-start justify-between">
           <div>

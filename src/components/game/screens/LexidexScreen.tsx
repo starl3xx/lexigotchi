@@ -31,8 +31,8 @@ export function LexidexScreen() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-baseline justify-between">
-        <h1 className="font-display text-2xl font-extrabold">Lexidex</h1>
+      <div className="flex items-baseline justify-between md:justify-end">
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Lexidex</h1>
         <span className="text-xs text-ink/55">
           {ownedSet.size}/{WORD_COUNT.toLocaleString()} owned
         </span>
@@ -56,7 +56,7 @@ export function LexidexScreen() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
         {results.map((w) => {
           const owned = ownedSet.has(w);
           return (

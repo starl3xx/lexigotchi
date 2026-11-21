@@ -33,7 +33,8 @@ export function HomeScreen() {
   const theme = THEMES[state.bountyTheme];
 
   return (
-    <div className="space-y-3">
+    // Desktop (lg): a two-column dashboard; banners and the quick grid span both columns.
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       {/* hero — daily jackpot */}
       <Card className="bg-gradient-to-b from-paper to-gold/15">
         <div className="flex items-start justify-between">
@@ -77,7 +78,7 @@ export function HomeScreen() {
               </div>
               <ReminderToggle compact />
             </div>
-            <Button variant="teal" onClick={g.feedAll}>
+            <Button variant="teal" className="shrink-0 whitespace-nowrap" onClick={g.feedAll}>
               <Cookie weight="fill" /> Feed all
             </Button>
           </div>
@@ -90,10 +91,14 @@ export function HomeScreen() {
       )}
 
       {/* connected wallet isn't one of the FID's linked wallets — the bag is about to fork */}
-      <WalletMismatch />
+      <div className="empty:hidden lg:col-span-2">
+        <WalletMismatch />
+      </div>
 
       {/* a paid pull whose reveal never landed — recover it before offering anything new */}
-      <PendingReveal />
+      <div className="empty:hidden lg:col-span-2">
+        <PendingReveal />
+      </div>
 
       {/* daily letter */}
       <Card>
@@ -152,8 +157,10 @@ export function HomeScreen() {
       </button>
 
       {/* quick actions */}
-      <SectionTitle>Do something</SectionTitle>
-      <QuickGrid />
+      <div className="lg:col-span-2">
+        <SectionTitle>Do something</SectionTitle>
+        <QuickGrid />
+      </div>
     </div>
   );
 }

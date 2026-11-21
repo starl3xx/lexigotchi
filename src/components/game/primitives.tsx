@@ -197,9 +197,11 @@ export function Sheet({
 }) {
   if (!open) return null;
   return (
-    <div className="absolute inset-0 z-40 flex flex-col justify-end" role="dialog" aria-modal="true">
+    // Below md a bottom sheet (the phone idiom); from md a centered dialog, so a sheet never
+    // stretches across a desktop window.
+    <div className="absolute inset-0 z-40 flex flex-col justify-end md:items-center md:justify-center md:p-6" role="dialog" aria-modal="true">
       <button aria-label="Close" className="absolute inset-0 bg-ink/50" onClick={onClose} />
-      <div className="relative max-h-[88%] overflow-y-auto rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper pb-6 shadow-[0_-6px_0_#1b1714]">
+      <div className="relative max-h-[88%] overflow-y-auto rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper pb-6 shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:max-w-[560px] md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b-2 border-ink/15 bg-paper/95 px-4 py-3 backdrop-blur">
           <div className="font-display text-lg font-extrabold">{title}</div>
           <button
