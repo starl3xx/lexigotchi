@@ -215,6 +215,8 @@ function TopBar() {
           </div>
         </button>
         {helpBtn}
+        {/* Practice game only: onchain, time moves on its own (and the chain store's skipDay is a no-op). */}
+        {!state.chainBacked && (
         <button
           onClick={skipDay}
           title="Skip a day (prototype) — advances hunger + draws a new daily word"
@@ -223,6 +225,7 @@ function TopBar() {
         >
           <SkipForward weight="fill" size={14} />
         </button>
+        )}
       </div>
     </header>
   );

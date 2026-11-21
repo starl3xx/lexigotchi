@@ -1,76 +1,96 @@
-# Web3 runtime — foundation & build plan
+# Launch runbook: from the Sepolia rehearsal to mainnet
 
-How the mock game becomes a real on-chain app. The game today runs on a mock store
-(`src/components/game/state.tsx`) — every action mutates local state, nothing touches the chain
-(`package.json` has no web3 deps; the only wallet touch is a read in `BalanceSheet.tsx`). This is the
-foundation already shipped plus the sequenced plan for the rest.
+How Lexigotchi goes from today's state to real play on Base. Steps marked **(owner)** need starl3xx:
+keys, money, a deploy, or a production database. Everything else is code and lands by PR.
 
-## Decisions that shape it
-(from `docs/decisions.md` → "Launch decisions — LOCKED")
+## Where things stand (2026-11-21)
 
-- **Mini-app AND general web wallet** — two connector paths (the Farcaster/Base mini-app wallet + web wallets).
-- **$WORD-only at launch** — no in-app ETH→$WORD swap UI; ETH-only players use the Buy-$WORD redirect.
-- **Reads** via a custom **Neon/Drizzle indexer + viem `multicall`** (no subgraph).
-- **No multisig** — owner is a single hardware-wallet EOA; recurring work runs from hot keys
-  (`signer`, `keeper`, and the distinct `priceKeeper`).
-- **Builder code** — every on-chain action carries the ERC-8021 attribution (`bc_bu1cyzms`).
+- **The game already runs on real contracts** on Base Sepolia (play-money $WORD). Production runs the
+  practice game, and flips by itself when the mainnet addresses are committed (`gameMode.ts`).
+- **Contracts:** code-complete. No external audit and no legal review (decisions.md #12). The
+  second internal audit (`contracts/AUDIT.md`) found four issues, and all are fixed (PR #96). 62
+  forge tests.
+- **App, done:**
 
-## Shipped foundation (stack-agnostic, done + tested)
+  | PR | What |
+  |---|---|
+  | #94 | Any wallet plays the whole loop: paid packs, and rolls and ascension without Farcaster. |
+  | #95 | Reward claims read the database. |
+  | #97 | Letter draws are sticky: one valid draw per commit. |
+  | #98 | The jackpot schedule comes from one 64-hex seed. |
+  | #99 | The keeper runs itself (a daily cron), and the price keeper keeps prices on their USD peg. |
+  | Cutover PR | Prototype buttons gone in the chain game; ascension hides while it is off. |
 
-- **`src/lib/onchain/builderCode.ts`** — the attribution primitive: `bc_bu1cyzms` → the ERC-8021
-  `dataSuffix` (via `ox`). Round-trip tested.
-- **`src/lib/onchain/sendCalls.ts`** — **the write chokepoint**, `sendCallsAttributed(provider, from, calls)`.
-  Prefers ERC-5792 `wallet_sendCalls` (atomic batch + the `dataSuffix` capability); falls back to
-  per-call `eth_sendTransaction` with the suffix appended. Provider-level, so it works with the
-  mini-app wallet and web connectors alike. **Every contract write routes through this** — attribution
-  can't be skipped. Mock-provider tested (`tests/send-calls.test.ts`).
+- **Decisions that shape launch:** $WORD only (no ETH swap). Prestige and bounty are off at launch
+  (#11). The owner is one hardware-wallet EOA, with three separate hot keys and no multisig.
 
-## To build (sequenced)
+## 1. Rehearse on Sepolia (owner approves each deploy)
 
-Legend: 🟢 unblocked · 🟠 blocked on the deployed contracts (addresses/ABIs) · 🔴 blocked on a live keeper wallet.
+The Sepolia suite is from 2026-08-12. It predates the audit fixes (#96) and the Words ERC-4906
+change (#80), so a rehearsal needs a fresh deploy:
 
-1. ✅ **Connectors / wagmi config** (`src/lib/onchain/wagmi.ts`) — wagmi v2 + viem, Base (8453).
-   Connectors: `@farcaster/miniapp-wagmi-connector` (mini app, index 0, auto-connects in a host) +
-   RainbowKit's `connectorsForWallets` for the web modal (Base Account, Rabby, Phantom, any injected
-   wallet; MetaMask, Rainbow and the WalletConnect QR when `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is
-   set). `WagmiProvider` + `QueryClientProvider` + `RainbowKitProvider` mount in
-   `src/components/game/Providers.tsx` beside the Neynar provider. *Modal shipped 2026-11-20 with the
-   standalone-web ruling (decisions.md #9).*
-2. 🟢 **Wallet binding** — resolve the identity-vs-wallet split: `useViewer` gives the FID; the
-   connected wallet is the on-chain identity. Bind + persist the active address; reads/writes key on
-   the **wallet**, not the FID. The free daily still gates on a Neynar-proven FID.
-3. 🟠 **ABIs + addresses** — generate typed ABIs from the Foundry artifacts; populate
-   `config/deployments.json` (today all addresses + roles are null) after deploy.
-4. 🟠 **Action helpers** — one per game action (daily/pack mint + reveal, roll commit+reveal, claim,
-   stake/unstake/feed, prestige, the free-daily + free-pack vouchers). Each builds calldata
-   (`encodeFunctionData`) and sends via `sendCallsAttributed`. Two-tx **commit→reveal UX**: pending
-   states that survive a real signed tx + the reveal round-trip, plus rejection/revert/resume handling
-   (today Roll/Mint fake outcomes with `setTimeout`).
-5. 🟠 **Reveal-signer service** — the off-chain backend key (the contracts' `signer` role) that signs:
-   the commit→reveal draw outcomes (Letters/Rolls/Prestige), the FID-gated daily allowance, **and the
-   free-daily + free-pack vouchers** (KIND-tagged digests — see `contracts/src/Letters.sol`). Needs the
-   deployed `signer` address + the exact digest layouts (which the contracts pin).
-6. 🔴 **Keeper service** — the always-on hot-key runtime: daily `Jackpot.resolve` (word reveal),
-   `YieldDistributor`/`Bounty` epoch opens + Merkle roots, and the **`priceKeeper` repeg** (reads the
-   $WORD price — same token LHAW already prices — and submits clamped `repeg*` calls within the
-   `maxMoveBps` band). Vercel crons + a keeper wallet on a Base RPC. See `docs/decisions.md` (the peg
-   reuses LHAW's price-fetch, not its one-value model).
-7. 🟠 **Read layer** — a custom indexer on the existing Neon/Drizzle DB watching contract events
-   (mints, claims, rolls, stakes, prestige, jackpot) → the collection/leaderboard views; viem
-   `multicall` for hot per-wallet reads (balances, hunger, pity, prestige level). Replaces the mock
-   store's reads. Enumerating 1-of-1 word NFTs (`keccak256(word)`) + per-`(owner,letter)` pity is the
-   reason an index beats raw reads.
-8. 🟢 **Strip prototype affordances** — remove the "Skip a day" + "add demo balance" buttons + the
-   seeded starter inventory before the real economy goes live (they'd mint free $WORD / advance time).
-   Do at cutover.
-9. 🟠 **Airdrop fulfillment** — claim-on-first-open: an eligible FID connects → the signer issues a
-   free-pack voucher bound to their wallet → `commitPackFree` + reveal → write `tx_hash` back to the
-   `pack_grants` ledger (the on-chain `freePackClaimed` is the authoritative backstop).
+1. Redeploy from current `main` with the throwaway Sepolia keys (`contracts/*.secret.json`, gitignored),
+   then commit the new `config/deployments.base-sepolia.json`.
+2. Run a Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key and draw secret, the
+   keeper key, and a database with migrations 0003–0005.
+3. Play the loop with a wallet and no Farcaster account: buy test $WORD from the faucet, open a
+   pack, roll a letter, claim and stake a word, feed it, and unstake and restake it (hunger must
+   carry over). Then run the keeper and claim a reward.
 
-## Why the foundation stops here
+## 2. Keys and secrets (owner)
 
-The write chokepoint + attribution are the stack-agnostic core and are done + tested. The connector
-mount, action helpers, signer/keeper services, and indexer all need either the deployed contract
-addresses/ABIs or a live keeper wallet — so they're specified above and built once the audited suite
-is deployed. Mounting wagmi into the live provider tree now would add weight + risk to the still-mock
-game for zero functional gain.
+| What | Where it lives | Notes |
+|---|---|---|
+| Owner and treasury | A hardware wallet | Used rarely: ownership, `setPriceKeeper`, parameter ceilings |
+| Signer key | Vercel `SIGNER_PRIVATE_KEY` | The mint authority: it can sign free packs. Never reuse Sepolia's. |
+| Draw secret | Vercel `SIGNER_DRAW_SECRET` | Random and permanent. Changing it re-rolls every unrevealed commit. |
+| Keeper key | Vercel `KEEPER_PRIVATE_KEY` | Fund it with a little ETH for gas |
+| Price-keeper key | Vercel `PRICE_KEEPER_PRIVATE_KEY` | A third key. Fund it with a little ETH. |
+| Answer seed | Vercel `ANSWER_CHAIN_SEED`, `ANSWER_CHAIN_DAYS` | From `npm run answerchain:generate -- --new-seed`. Back up the file offline and the seed on paper. |
+
+The seed is never printed. It is the `seed` field of the generated file. Whoever holds it wins
+every future jackpot, and losing it ends the jackpot (`setHead` reverts once the chain is live).
+
+## 3. Database (owner, from a terminal with production access)
+
+Apply migrations `0003` (browser push), `0004` (reward claims), and `0005` (sticky draws) with
+`npm run db:migrate`. All three only add tables. Until 0004 exists, the keeper refuses to open a
+yield epoch, so the bucket rolls over and nothing is lost.
+
+## 4. Deploy (owner approves: about 17.2M gas over 38 transactions)
+
+1. `npm run derive:contracts`. Then fill the deploy environment from the admin console's **Launch**
+   tab, which converts the USD price ladder to $WORD at the live price. Set `TREASURY`, `SIGNER`,
+   `KEEPER`, `PRICE_KEEPER`, `ANSWERCHAIN_HEAD`, and `PRESTIGE_MAX_LEVEL=0` (ascension off at
+   launch; the game hides it). Leave `BOUNTY_CARVE_BPS` at its default of 0, which keeps the bounty
+   off: nothing flows into its bucket.
+2. `cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify`.
+3. Move ownership of all ten contracts to the hardware wallet: `transferOwnership` from the deployer,
+   then `acceptOwnership` from the hardware wallet. Rolls and Prestige included: like every
+   contract, they start owned by the deployer.
+4. Optional: register the EAS achievements schema on mainnet and add it to the registry. The
+   `achievements` keeper job is opt-in.
+
+## 5. Vercel settings (owner)
+
+The keys above, plus:
+- `NEXT_PUBLIC_RPC_URL`: a dedicated Base RPC. Public ones disagree about nonces under load.
+- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`: Reown, for mobile wallets.
+- Optional: the paymaster (gas sponsorship) and the VAPID pair (browser push).
+
+`CRON_SECRET` is already used by the other crons. The keeper cron runs at 00:05 UTC.
+
+## 6. Cutover (by PR)
+
+Commit `config/deployments.json` with the addresses and the deploy block. The merge deploys, and
+production becomes the real game: the landing page's practice note disappears, and the keeper cron
+starts working. Then smoke-test with a small wallet.
+
+## Known follow-ups (not blockers)
+
+- **Stale-commit sweep.** A paid commit nobody reveals keeps its letters reserved forever. A keeper
+  job that reveals commits older than a day would release them. It only matters near sell-out.
+- **The chain game shows no streak, and no jackpot word on Home yet** (those fields are zeroed in
+  `ChainGameProvider`).
+- **The word scan reads every claim since deploy, on each keeper run.** This is fine for months.
+  Later it needs the event indexer (decisions.md #10).
