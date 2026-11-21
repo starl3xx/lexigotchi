@@ -1,5 +1,5 @@
 "use client";
-/** Lexidex — browse the 4,438 claimable words; see tiers and what you already own. */
+/** Lexidex — browse every claimable word (WORD_COUNT); see tiers and what you already own. */
 import { useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";

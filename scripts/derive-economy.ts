@@ -35,9 +35,9 @@ source of truth. These figures are asserted against spec Appendices A & B in
 - **Eligible words:** ${WORD_COUNT.toLocaleString()}
 - **Total letter slots:** ${TOTAL_SLOTS.toLocaleString()} (= ${WORD_COUNT} × 5)
 - **Total minted-letter supply cap:** ${TOTAL_SUPPLY_CAP.toLocaleString()} (Σ floor(slots × 2.5))
-  - Note: the spec prose headlines **55,475** = the idealized 2.5 × 22,190 *before* per-letter
-    flooring. The deployable per-ID caps sum to **${TOTAL_SUPPLY_CAP.toLocaleString()}**, matching the spec's own
-    Appendix A per-letter column.
+  - Note: the idealized headline is **${Math.round(TOTAL_SLOTS * 2.5).toLocaleString()}** = 2.5 × ${TOTAL_SLOTS.toLocaleString()} *before* per-letter
+    flooring. The deployable per-ID caps sum to **${TOTAL_SUPPLY_CAP.toLocaleString()}**. (The original spec's
+    figures were for the 4,438-word dictionary: 55,475 and 55,467.)
 
 ## Appendix A — Letter economy
 

@@ -6,7 +6,9 @@
 import { describe, it, expect } from "vitest";
 import { buildAnswerChain, parseSeed, seededSchedule, verifyAnswerChain } from "@/lib/answerChain";
 import { linkToReveal, loadAnswerSchedule } from "@/lib/keeper/answerSchedule";
-import { WORDS, isWord } from "@/lib/dictionary";
+import { isWord } from "@/lib/dictionary";
+import { ANSWER_POOL_V1, ANSWER_POOL_V1_SHA256 } from "@/lib/answerPool";
+import { createHash } from "node:crypto";
 
 // Public test seeds only. A real seed never appears in code, logs, or chat.
 const SEED_A = `0x${"11".repeat(32)}`;
@@ -14,10 +16,27 @@ const SEED_B = "22".repeat(32);
 
 describe("seededSchedule", () => {
   it("is pinned: scheme v1 never silently reinterprets an existing seed", () => {
+    // (Re-pinned 2026-11-21 when the pool was frozen at 4,584 words, before any production seed
+    // existed. From here on the pool never changes, so neither may these values.)
     const built = buildAnswerChain(seededSchedule(SEED_A, 3));
-    expect(built.links.map((l) => l.word)).toEqual(["DOOZY", "WOULD", "MANGA"]);
+    expect(built.links.map((l) => l.word)).toEqual(["YACHT", "SNAPS", "WREAK"]);
     expect(built.links[0].salt).toBe("0x8cfa90b07df0ab49ce7a4522e0468808a61d000e0fa1f602068023737349f6a3");
-    expect(built.head).toBe("0x962447f93cd4eb497a1564a355fe50ca3eafe23a7de6df496be079af2b52604f");
+    expect(built.head).toBe("0x9db0e7881eff9ebf43590147b1d918f96bbb6d72516802325cdcc2c0bfe7c1e1");
+  });
+
+  it("shuffles the FROZEN pool, so a dictionary re-vendor can't move a future answer", () => {
+    expect(createHash("sha256").update(ANSWER_POOL_V1.join("\n")).digest("hex")).toBe(ANSWER_POOL_V1_SHA256);
+    expect(ANSWER_POOL_V1_SHA256).toBe("f830f138be8fa4b781f1b10b3c0ec2fc5b1e4f5e97ad6d758970b7ef15188cfb");
+    expect(ANSWER_POOL_V1).toHaveLength(4584);
+    expect([...ANSWER_POOL_V1]).toEqual([...new Set(ANSWER_POOL_V1)].sort());
+    // Every answer must stay claimable: the live dictionary may grow, but must keep the whole pool.
+    expect(ANSWER_POOL_V1.every((w) => isWord(w))).toBe(true);
+    const words = (pool?: readonly string[]) => seededSchedule(SEED_A, 50, pool).map((e) => e.word);
+    // The default IS the frozen pool…
+    expect(words()).toEqual(words(ANSWER_POOL_V1));
+    // …and that matters: a grown, re-sorted dictionary would have moved the answers.
+    const grown = [...ANSWER_POOL_V1, "AAAAB", "MMMMN", "ZZZZY"].sort();
+    expect(words(grown)).not.toEqual(words());
   });
 
   it("rebuilds the identical chain from the seed, every time", () => {
@@ -33,18 +52,18 @@ describe("seededSchedule", () => {
   });
 
   it("draws distinct, claimable dictionary words, up to the whole dictionary", () => {
-    const all = seededSchedule(SEED_A, WORDS.length);
-    expect(new Set(all.map((e) => e.word)).size).toBe(WORDS.length);
+    const all = seededSchedule(SEED_A, ANSWER_POOL_V1.length);
+    expect(new Set(all.map((e) => e.word)).size).toBe(ANSWER_POOL_V1.length);
     expect(all.every((e) => isWord(e.word))).toBe(true);
-    expect(new Set(all.map((e) => e.salt)).size).toBe(WORDS.length);
-    expect(() => seededSchedule(SEED_A, WORDS.length + 1)).toThrow();
+    expect(new Set(all.map((e) => e.salt)).size).toBe(ANSWER_POOL_V1.length);
+    expect(() => seededSchedule(SEED_A, ANSWER_POOL_V1.length + 1)).toThrow();
     expect(() => seededSchedule(SEED_A, 0)).toThrow();
   });
 
   it("spreads day one across the dictionary (no obvious bias)", () => {
     const firsts = new Set<string>();
     for (let i = 0; i < 300; i++) firsts.add(seededSchedule(i.toString(16).padStart(64, "0"), 1)[0].word);
-    expect(firsts.size).toBeGreaterThan(250); // 300 draws from 4,438 words rarely collide
+    expect(firsts.size).toBeGreaterThan(250); // 300 draws from 4,584 words rarely collide
   });
 
   it("refuses a seed that isn't 32 bytes of hex", () => {
@@ -60,7 +79,7 @@ describe("loadAnswerSchedule", () => {
       throw new Error("must not read a file when a seed is set");
     });
     expect(s.source).toBe("seed");
-    expect(s.links[0].commit).toBe("0x962447f93cd4eb497a1564a355fe50ca3eafe23a7de6df496be079af2b52604f");
+    expect(s.links[0].commit).toBe("0x9db0e7881eff9ebf43590147b1d918f96bbb6d72516802325cdcc2c0bfe7c1e1");
   });
 
   it("treats an empty ANSWER_CHAIN_DAYS as unset (the 730-day default)", () => {

@@ -733,7 +733,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         void (async () => {
           if (!chain.params || !chain.player) return void toast("Still loading", "info");
           const proof = await fetch(`/api/dictionary/proof?word=${encodeURIComponent(word)}`).then((r) => r.json());
-          if (!proof.ok) return void toast(`${word} isn't claimable`, "bad");
+          if (!proof.ok) {
+            // The word list was updated and the contract hasn't caught up (setDictionaryRoot).
+            if (proof.error === "dictionary_mismatch") {
+              return void toast("The word list was just updated. Claims reopen shortly.", "info");
+            }
+            return void toast(`${word} isn't claimable`, "bad");
+          }
           await run(`Claim ${word}`, () =>
             claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
           );

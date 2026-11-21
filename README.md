@@ -4,7 +4,7 @@
 
 A tamagotchi-style **$WORD** collection game on **Base** — a Farcaster Mini App and web app in the
 _Let's Have A Word!_ ecosystem. Mint animated rubber-hose **letter characters**, gamble them from
-lowercase to **UPPERCASE**, spell words from a 4,438-word dictionary to claim them as NFTs, then
+lowercase to **UPPERCASE**, spell words from a 4,584-word dictionary to claim them as NFTs, then
 **stake and feed** them to earn $WORD and chase a daily jackpot.
 
 <p align="center"><em>Mint → Raise → Claim → Stake &amp; Snack → Win</em></p>
@@ -47,7 +47,7 @@ served at `/.well-known/farcaster.json`.
 | **Playable app** | `src/app/play`, `src/components/game/` | The portrait mini-app UI on a faithful mock store, wired to real Farcaster identity, wallet, buy, and cast flows. |
 | **Operator console** | `src/app/admin`, `src/components/admin/` | The owner/operator dashboard at `/admin` — sim-backed metrics, economy health, a contract-launch walkthrough, reward-pool funding, parameter/keeper transaction builders, and ownership handoff. |
 | **Smart contracts** | `contracts/` | The full Solidity suite (Foundry) — letters, words, rolls, staking, jackpot, bounty, prestige — code-complete and unit-tested. |
-| **Economy core** | `src/lib/economy.ts`, `params.ts`, `dictionary.ts` | The 4,438-word set, demand-mirrored letter odds, rarity tiers, and every tunable parameter — derived in code, asserted against the spec. |
+| **Economy core** | `src/lib/economy.ts`, `params.ts`, `dictionary.ts` | The 4,584-word set, demand-mirrored letter odds, rarity tiers, and every tunable parameter — derived in code, asserted against the spec. |
 | **Solvency sim** | `src/lib/sim/` | A deterministic agent-based simulation + the four-bucket ledger that proves solvency before mainnet. |
 | **Characters** | `src/components/game/TileCharacter.tsx` | The vaudeville tile rig driving all 52 letter characters — both cases, every state and gild stage. |
 | **Specs & decisions** | `docs/` | Product specs (v0.1 + v0.2), the decisions log, the pricing/Phase-0 reviews, and the EGGS commit/reveal reference. |

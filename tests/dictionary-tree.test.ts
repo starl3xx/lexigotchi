@@ -28,7 +28,7 @@ describe("rebuilt dictionary tree", () => {
   it("returns a stable proof for a known word", () => {
     const p = proofFor("CRANE")!;
     expect(p.proof).toHaveLength(12);
-    expect(p.proof[0]).toBe("0x42d44c493d4fd7d63fddcc7a777379f861156a1271a30341a31b628cd8bb692f");
+    expect(p.proof[0]).toBe("0x42efaf16460bf30b8efb6d8146c64fe1d96cba7ba67a27dea0b300a6ca818114"); // 4,584-word tree
   });
 
   it("returns null for a non-dictionary word rather than an unverifiable proof", () => {
@@ -37,7 +37,7 @@ describe("rebuilt dictionary tree", () => {
   });
 
   it("covers the full vendored dictionary", () => {
-    // Spot-check across the alphabet rather than all 4,438 — the root assertion already covers
+    // Spot-check across the alphabet rather than all 4,584 — the root assertion already covers
     // completeness, this catches an indexing bug that a single lookup would miss.
     for (const w of ["ABACK", "CRANE", "MOTOR", "SLATE", "ZONAL"]) {
       const p = proofFor(w);

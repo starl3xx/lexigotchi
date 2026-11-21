@@ -5,13 +5,14 @@
  * Reproduces spec Appendix A (letter economy) and Appendix B (rarity tiers) exactly.
  * The derivation formulas were reverse-engineered and confirmed against the spec:
  *
- *   - Eligible set: the DEDUPED dictionary (4,438 words / 22,190 letter slots).
- *   - Mint odds:    a letter's share of the 22,190 slots.
- *   - Supply cap:   floor(slots × DEMAND_MULTIPLE), DEMAND_MULTIPLE = 2.5  → 55,475 total.
+ *   - Eligible set: the DEDUPED dictionary (4,584 words / 22,920 letter slots).
+ *   - Mint odds:    a letter's share of the 22,920 slots.
+ *   - Supply cap:   floor(slots × DEMAND_MULTIPLE), DEMAND_MULTIPLE = 2.5  → 57,294 total.
  *   - Rarity score: −Σ log₁₀(letterFrequency) over a word's 5 letters (higher = rarer).
  *   - Tiers:        rank words by score asc; cut at floor(N×p) for p = .50/.80/.95/.99.
  *                   Ties broken alphabetically (stable, deterministic). This reproduces
- *                   Common=2219, Epic=177, Legendary=45 and the exact 45-Legendary list;
+ *                   Common=2292, Epic=184, Legendary=46 and the exact 46-Legendary list
+ *                   (re-derived for 4,584 words; the spec's 4,438-word figures were 2219/177/45);
  *                   a single word straddles the Uncommon/Rare score-tie boundary, so we
  *                   treat that combined bucket (1,997 words) as the asserted invariant.
  */
@@ -39,7 +40,7 @@ function computeSlots(): Record<string, number> {
 /** Letter → number of slots it occupies across the whole dictionary. */
 export const LETTER_SLOTS: Readonly<Record<string, number>> = Object.freeze(computeSlots());
 
-/** Total letter slots across the dictionary (= 5 × word count = 22,190). */
+/** Total letter slots across the dictionary (= 5 × word count = 22,920). */
 export const TOTAL_SLOTS = Object.values(LETTER_SLOTS).reduce((a, b) => a + b, 0);
 
 /** Letter → mint probability (share of total slots). Publishable, provable, sums to 1. */
@@ -57,7 +58,7 @@ export const LETTER_SUPPLY_CAP: Readonly<Record<string, number>> = Object.freeze
   Object.fromEntries(ALPHABET.map((L) => [L, supplyCap(L)])),
 );
 
-/** Total minted-letter supply cap across all 26 ids (= 55,475 at 2.5×). */
+/** Total minted-letter supply cap across all 26 ids (Σ floor(slots × 2.5) = 57,294). */
 export const TOTAL_SUPPLY_CAP = Object.values(LETTER_SUPPLY_CAP).reduce((a, b) => a + b, 0);
 
 /** Letters ordered most-common → rarest (S, E, A, … J, Q). */
@@ -180,7 +181,7 @@ export const TIER_COUNTS: Readonly<Record<Tier, number>> = Object.freeze(
 /** The full ranking (rarest last), exposed for the Lexidex + tests. */
 export const RANKED_WORDS: readonly Ranked[] = Object.freeze(RANKING);
 
-/** The 45 Legendaries, rarest first (spec Appendix B). */
+/** The Legendaries (46 for 4,584 words), rarest first (spec Appendix B's derivation). */
 export const LEGENDARIES: readonly string[] = Object.freeze(wordsByTier("Legendary"));
 
 // ---------------------------------------------------------------------------
@@ -206,9 +207,11 @@ export function stakeWeight(tier: Tier, caseState: CaseState): number {
 
 export const Q_WORDS: readonly string[] = Object.freeze(WORDS.filter((w) => w.includes("Q")));
 
-/** Words combining two distinct ultra-rares with a double letter — the crowns. */
+/**
+ * Words that hold a grail letter (the four scarcest: Z, X, J, Q) TWICE — the doubled crowns.
+ * Derived, never listed by hand: the 4,438-word dictionary gave exactly the eight the spec named
+ * (DIZZY FIZZY FUZZY JAZZY MEZZO PIZZA RAQQA XEROX); the 2026-11-21 re-vendor added ABUZZ.
+ */
 export const DOUBLED_ULTRA_RARES: readonly string[] = Object.freeze(
-  ["JAZZY", "FUZZY", "FIZZY", "DIZZY", "MEZZO", "PIZZA", "RAQQA", "XEROX"].filter((w) =>
-    WORDS.includes(w),
-  ),
+  WORDS.filter((w) => LETTERS_BY_FREQUENCY.slice(-4).some((g) => [...w].filter((c) => c === g).length >= 2)),
 );

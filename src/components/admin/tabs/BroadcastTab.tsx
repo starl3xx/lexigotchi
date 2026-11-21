@@ -7,6 +7,7 @@
 import { useState } from "react";
 import type { PulsePayload } from "@/lib/admin/metrics";
 import { SITE_URL } from "@/lib/site";
+import { WORD_COUNT } from "@/lib/dictionary";
 import { fmtPct, fmtUsd } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, SectionLabel, useFetch } from "../ui";
 import { Info, Megaphone, ShareNetwork } from "../icons";
@@ -32,7 +33,7 @@ export function BroadcastTab() {
     {
       label: "Collection milestone",
       build: () =>
-        `📖 ${h ? fmtPct(h.dictionaryPct) : "—"} of the 4,438-word Lexigotchi dictionary is now claimed${h ? ` (${h.totalClaims.toLocaleString()} words)` : ""}.\n\nEvery word is a one-of-one. The rare ones are going fast — claim yours. ↓`,
+        `📖 ${h ? fmtPct(h.dictionaryPct) : "—"} of the ${WORD_COUNT.toLocaleString("en-US")}-word Lexigotchi dictionary is now claimed${h ? ` (${h.totalClaims.toLocaleString()} words)` : ""}.\n\nEvery word is a one-of-one. The rare ones are going fast — claim yours. ↓`,
     },
     {
       label: "General",

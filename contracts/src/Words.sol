@@ -38,7 +38,7 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     }
 
     ILetters public immutable letters;
-    bytes32 public dictionaryRoot; // Merkle root of keccak256(bytes(word)) over the 4,438 words
+    bytes32 public dictionaryRoot; // Merkle root over the canonical dictionary (config/economy.json); owner-updatable via setDictionaryRoot
     uint256 public claimPrice; // $WORD
     string internal baseTokenURI; // tokenURI = baseTokenURI + decimal tokenId (metadata is dynamic: case lives in escrow)
 

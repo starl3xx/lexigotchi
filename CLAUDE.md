@@ -54,7 +54,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 
 - `data/guess_words_clean.ts` — vendored dictionary (source of truth). Do not edit; if it
   updates upstream, re-vendor and re-run tests.
-- `src/lib/dictionary.ts` → canonical **4,438** deduped words.
+- `src/lib/dictionary.ts` → canonical **4,584** deduped words (Let's Have A Word's list, re-vendored
+  2026-11-21). A re-vendor moves the derived economy (`npm test` pins every number), the Merkle root
+  (`npm run derive:contracts`), and, after a deploy, needs the owner's `Words.setDictionaryRoot`.
+  The jackpot schedule does NOT move: it shuffles the frozen `src/lib/answerPool.ts`.
 - `src/lib/economy.ts` → letter slots/odds/caps + rarity tiers. **Derived, never hardcoded.**
   Formulas: caps = `floor(slots × 2.5)`; tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.

@@ -5,49 +5,49 @@ Derived from the canonical dictionary (`data/guess_words_clean.ts`, deduped) —
 source of truth. These figures are asserted against spec Appendices A & B in
 `tests/economy.test.ts`.
 
-- **Eligible words:** 4,438
-- **Total letter slots:** 22,190 (= 4438 × 5)
-- **Total minted-letter supply cap:** 55,467 (Σ floor(slots × 2.5))
-  - Note: the spec prose headlines **55,475** = the idealized 2.5 × 22,190 *before* per-letter
-    flooring. The deployable per-ID caps sum to **55,467**, matching the spec's own
-    Appendix A per-letter column.
+- **Eligible words:** 4,584
+- **Total letter slots:** 22,920 (= 4584 × 5)
+- **Total minted-letter supply cap:** 57,294 (Σ floor(slots × 2.5))
+  - Note: the idealized headline is **57,300** = 2.5 × 22,920 *before* per-letter
+    flooring. The deployable per-ID caps sum to **57,294**. (The original spec's
+    figures were for the 4,438-word dictionary: 55,475 and 55,467.)
 
 ## Appendix A — Letter economy
 
-Mint odds = a letter's share of the 22,190 slots. Supply cap = floor(slots × 2.5).
+Mint odds = a letter's share of the 22,920 slots. Supply cap = floor(slots × 2.5).
 
 | Letter | Slots | Mint odds | Supply cap (2.5×) |
 |---|---:|---:|---:|
-| S | 2,343 | 10.56% | 5,857 |
-| E | 2,299 | 10.36% | 5,747 |
-| A | 1,899 | 8.56% | 4,747 |
-| R | 1,512 | 6.81% | 3,780 |
-| O | 1,472 | 6.63% | 3,680 |
-| T | 1,280 | 5.77% | 3,200 |
-| I | 1,257 | 5.66% | 3,142 |
-| L | 1,217 | 5.48% | 3,042 |
-| N | 1,060 | 4.78% | 2,650 |
-| D | 915 | 4.12% | 2,287 |
-| U | 795 | 3.58% | 1,987 |
-| C | 776 | 3.50% | 1,940 |
-| P | 711 | 3.20% | 1,777 |
-| M | 645 | 2.91% | 1,612 |
-| H | 629 | 2.83% | 1,572 |
-| Y | 580 | 2.61% | 1,450 |
-| B | 513 | 2.31% | 1,282 |
-| G | 513 | 2.31% | 1,282 |
-| K | 465 | 2.10% | 1,162 |
-| F | 404 | 1.82% | 1,010 |
-| W | 339 | 1.53% | 847 |
-| V | 274 | 1.23% | 685 |
-| Z | 95 | 0.43% | 237 |
-| X | 86 | 0.39% | 215 |
-| J | 66 | 0.30% | 165 |
-| Q | 45 | 0.20% | 112 |
+| E | 2,387 | 10.41% | 5,967 |
+| S | 2,378 | 10.38% | 5,945 |
+| A | 1,950 | 8.51% | 4,875 |
+| R | 1,554 | 6.78% | 3,885 |
+| O | 1,532 | 6.68% | 3,830 |
+| T | 1,327 | 5.79% | 3,317 |
+| I | 1,311 | 5.72% | 3,277 |
+| L | 1,269 | 5.54% | 3,172 |
+| N | 1,091 | 4.76% | 2,727 |
+| D | 946 | 4.13% | 2,365 |
+| U | 820 | 3.58% | 2,050 |
+| C | 798 | 3.48% | 1,995 |
+| P | 731 | 3.19% | 1,827 |
+| M | 662 | 2.89% | 1,655 |
+| H | 644 | 2.81% | 1,610 |
+| Y | 614 | 2.68% | 1,535 |
+| B | 536 | 2.34% | 1,340 |
+| G | 531 | 2.32% | 1,327 |
+| K | 473 | 2.06% | 1,182 |
+| F | 417 | 1.82% | 1,042 |
+| W | 355 | 1.55% | 887 |
+| V | 287 | 1.25% | 717 |
+| Z | 100 | 0.44% | 250 |
+| X | 91 | 0.40% | 227 |
+| J | 70 | 0.31% | 175 |
+| Q | 46 | 0.20% | 115 |
 
-**Q is the system's Charizard:** 45 slots across the whole dictionary
-(44 Q-words; RAQQA needs two). The doubled-ultra-rare crowns:
-JAZZY, FUZZY, FIZZY, DIZZY, MEZZO, PIZZA, RAQQA, XEROX.
+**Q is the system's Charizard:** 46 slots across the whole dictionary
+(45 Q-words; RAQQA needs two). The doubled-ultra-rare grails:
+ABUZZ, DIZZY, FIZZY, FUZZY, JAZZY, MEZZO, PIZZA, RAQQA, XEROX.
 
 ## Appendix B — Rarity tiers
 
@@ -56,24 +56,24 @@ Word rarity score = −Σ log₁₀(letter frequency) over its 5 letters; tiers 
 
 | Tier | Words | Share | Stake weight |
 |---|---:|---:|---:|
-| Common | 2,219 | 50.00% | 1 |
-| Uncommon | 1,331 | 29.99% | 2 |
-| Rare | 666 | 15.01% | 3 |
-| Epic | 177 | 3.99% | 5 |
-| Legendary | 45 | 1.01% | 8 |
+| Common | 2,292 | 50.00% | 1 |
+| Uncommon | 1,375 | 30.00% | 2 |
+| Rare | 687 | 14.99% | 3 |
+| Epic | 184 | 4.01% | 5 |
+| Legendary | 46 | 1.00% | 8 |
 
 > Note: a single word sits on the Uncommon/Rare score-tie boundary, so the computed split is
-> 1331/666 vs the spec's 1330/667 — the combined 1,997 is invariant; the anchor
-> counts (Common 2219, Epic 177, Legendary 45) match exactly.
+> 1375/687 vs the spec's 1330/667 — the combined 1,997 is invariant; the anchor
+> counts (Common 2292, Epic 184, Legendary 46) match exactly.
 
-### The 45 Legendaries (rarest first)
+### The 46 Legendaries (rarest first)
 
-JAZZY, FUZZY, FIZZY, DIZZY, JIFFY, RAQQA, JUMPY, PIZZA, QUICK, MEZZO, QUACK, JUMBO, JUICY, QUIRK, AFFIX, ZIPPY, JANKY, XEROX, DJING, WHIFF, ZUMBA, QUARK, JIVED, ZHONG, QUINN, HIJAB, JUKED, BURQA, PUFFY, FJORD, KLUTZ, JUMPS, JUDGE, ZYNGA, GIZMO, NIQAB, JUNKS, QUINT, BOOZY, JERKY, BUGGY, FLUFF, FUZED, QUILL, QUILT.
+JAZZY, FUZZY, FIZZY, DIZZY, ABUZZ, JIFFY, RAQQA, JUMPY, QUICK, PIZZA, MEZZO, QUACK, JUMBO, QUIRK, JUICY, AFFIX, OXBOW, ZIPPY, JANKY, XEROX, DJING, WOOZY, WHIFF, QUARK, ZUMBA, ZHONG, QUINN, JIVED, BURQA, JUKED, HIJAB, QUALM, PUFFY, KLUTZ, FJORD, JUMPS, UNBOX, NIQAB, JUDGE, ZYNGA, JUNKS, GIZMO, QUINT, JERKY, FLUFF, BUGGY.
 
-### All 44 Q-words
+### All 45 Q-words
 
-BURQA, EQUAL, EQUIP, ESQUE, NIQAB, PIQUE, QUACK, QUADS, QUAIL, QUAKE, QUANT, QUARK, QUART, QUASH, QUASI, QUAYS, QUEEN, QUEER, QUELL, QUERY, QUESO, QUEST, QUEUE, QUICK, QUIET, QUILL, QUILT, QUINN, QUINT, QUIPS, QUIRK, QUITE, QUITO, QUITS, QUORA, QUOTA, QUOTE, QURAN, RAQQA, ROQUE, SQUAD, SQUAT, SQUID, TUQUE.
+BURQA, EQUAL, EQUIP, ESQUE, NIQAB, PIQUE, QUACK, QUADS, QUAIL, QUAKE, QUALM, QUANT, QUARK, QUART, QUASH, QUASI, QUAYS, QUEEN, QUEER, QUELL, QUERY, QUESO, QUEST, QUEUE, QUICK, QUIET, QUILL, QUILT, QUINN, QUINT, QUIPS, QUIRK, QUITE, QUITO, QUITS, QUORA, QUOTA, QUOTE, QURAN, RAQQA, ROQUE, SQUAD, SQUAT, SQUID, TUQUE.
 
 ### Cheapest starter words (most common letters)
 
-ASSES, EASES, SEARS, SAREE, ERASE, ELSES, SENSE, SEATS, ASSET, TEASE, AREAS, SEALS … (Common tier, 2,219 words)
+EASES, ASSES, SAREE, ERASE, SEARS, ELSES, OASES, SENSE, TEASE, SEATS, ASSET, AREAS … (Common tier, 2,292 words)

@@ -4,6 +4,8 @@
  *   npm run sim -- --days 365 --population 1500 --seed 7
  */
 import { runSim, DEFAULT_SIM_CONFIG, type SimConfig } from "../src/lib/sim/simulate";
+import { WORD_COUNT } from "../src/lib/dictionary";
+import { TOTAL_SUPPLY_CAP } from "../src/lib/economy";
 import {
   DEFAULT_PARAMS,
   expectedRollsToSuccess,
@@ -81,10 +83,10 @@ console.log(`Jackpot pot:      $${fmt(f.jackpot)}`);
 console.log(`Burned (total):   $${fmt(f.burnedTotal)}  (${wm(f.burnedTotal)})`);
 console.log(`Treasury (total): $${fmt(f.treasuryTotal)}`);
 console.log(`$WORD demand:     $${fmt(f.externalInflowTotal)}  (${wm(f.externalInflowTotal)}) bought to play — vs ~$23.6K current mcap`);
-console.log(`Claims:           ${fmt(f.totalClaims)} / 4438  (${pct(f.totalClaims / 4438)} of dictionary)`);
+console.log(`Claims:           ${fmt(f.totalClaims)} / ${fmt(WORD_COUNT)}  (${pct(f.totalClaims / WORD_COUNT)} of dictionary)`);
 console.log(`Unique claimers:  ${fmt(f.uniqueClaimers)}`);
 console.log(`Staked words:     ${fmt(f.stakedWords)}  (UPPERCASE: ${fmt(f.uppercaseWords)}, yield-eligible: ${fmt(f.yieldEligibleWords)})`);
-console.log(`Letters minted:   ${fmt(f.lettersMintedTotal)} / 55,467 cap`);
+console.log(`Letters minted:   ${fmt(f.lettersMintedTotal)} / ${fmt(TOTAL_SUPPLY_CAP)} cap`);
 
 console.log(`\n--- per-archetype ROI (earned − spent, USD) ---`);
 for (const r of res.playerRoi.sort((a, b) => b.net - a.net)) {

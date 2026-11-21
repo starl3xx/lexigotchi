@@ -10,7 +10,7 @@
  * scripts/derive-contracts-config.ts does. Same input, same construction, same root — and
  * `assertMatchesRoot` lets a caller prove that against the chain rather than assume it.
  *
- * Build cost is a few milliseconds for 4,438 leaves, paid once per server cold start.
+ * Build cost is a few milliseconds for 4,584 leaves, paid once per server cold start.
  */
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import { WORDS } from "@/lib/dictionary";

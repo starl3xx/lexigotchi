@@ -1,6 +1,6 @@
 "use client";
 /** Mint — pull lowercase letters. Daily single (FID-gated) + packs of 5. Odds mirror the dictionary. */
-import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
+import { LETTERS_BY_FREQUENCY, TOTAL_SLOTS } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
@@ -150,7 +150,7 @@ export function MintScreen() {
           </div>
         </div>
         <p className="mt-3 text-xs text-ink/55">
-          A letter&apos;s pull rate = its share of the 22,190 dictionary slots. Q is the Charizard.
+          A letter&apos;s pull rate = its share of the {TOTAL_SLOTS.toLocaleString("en-US")} dictionary slots. Q is the Charizard.
         </p>
       </Card>
     </div>
