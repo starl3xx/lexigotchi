@@ -18,7 +18,13 @@ const ROOT = resolve(__dirname, "..");
 const SRC = resolve(ROOT, "src");
 
 /** Only the chokepoint itself may talk to the wallet's write methods. */
-const ALLOWED = new Set(["src/lib/onchain/sendCalls.ts"]);
+const ALLOWED = new Set([
+  "src/lib/onchain/sendCalls.ts",
+  // The keeper signs with its own server key (viem writeContract), not a player's wallet, so it
+  // can't route through the wallet chokepoint. Each of its writes passes `dataSuffix:
+  // BUILDER_DATA_SUFFIX` instead; the test below holds it to that.
+  "src/lib/keeper/jobs.ts",
+]);
 
 /** APIs that send a transaction without our attribution suffix. */
 const FORBIDDEN = [
@@ -75,5 +81,13 @@ describe("no on-chain write bypasses the attributed chokepoint", () => {
     const chokepoint = readFileSync(resolve(ROOT, "src/lib/onchain/sendCalls.ts"), "utf8");
     expect(chokepoint).toMatch(/builderCapabilities/);
     expect(chokepoint).toMatch(/appendBuilderSuffix/);
+  });
+
+  it("the keeper's server-key writes still carry the builder code", () => {
+    const src = readFileSync(resolve(SRC, "lib/keeper/jobs.ts"), "utf8");
+    const writes = src.match(/writeContract\(\{/g)?.length ?? 0;
+    const suffixed = src.match(/writeContract\(\{\s*dataSuffix: BUILDER_DATA_SUFFIX/g)?.length ?? 0;
+    expect(writes).toBeGreaterThan(0);
+    expect(suffixed).toBe(writes);
   });
 });

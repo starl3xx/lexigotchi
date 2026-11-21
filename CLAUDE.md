@@ -21,7 +21,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (62 forge tests)
 - `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
-  daily operator pass. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
+  daily operator pass, by hand. **Scheduled** by `/api/cron/keeper` (vercel.json, 00:05 UTC): same
+  jobs (`src/lib/keeper/jobs.ts`, `createKeeper({ dry })`), the ones listed in `KEEPER_JOBS` (default
+  `resolve,yield,notify`; bounty and achievements opt-in), strictly one at a time (one key, one
+  nonce), and a failed job doesn't skip the rest. It needs `KEEPER_PRIVATE_KEY` and
+  `ANSWER_CHAIN_SEED`/`ANSWER_CHAIN_DAYS` in Vercel; without a deployment or a key it does nothing. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
   defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning (Farcaster,
   then browser push for wallets Farcaster can't reach) and rides the same world scan as
   `--yield`/`--bounty`.
