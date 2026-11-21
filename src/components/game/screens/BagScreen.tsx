@@ -25,7 +25,7 @@ export function BagScreen() {
 
   return (
     <div className="space-y-3">
-      <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold">
+      <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold md:max-w-sm">
         <Tab on={tab === "letters"} onClick={() => setTab("letters")}>
           Letters · {lowerCount + upperCount}
         </Tab>
@@ -49,7 +49,7 @@ export function BagScreen() {
             {lowerOwned.length === 0 ? (
               <EmptyState Icon={Basket} title="No loose letters" sub="Mint a pack to fill your bag." />
             ) : (
-              <div className="grid grid-cols-6 gap-2.5">
+              <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
                 {lowerOwned.map(({ i, c }) => (
                   <LetterTile
                     key={i}
@@ -66,7 +66,7 @@ export function BagScreen() {
           {upperCount > 0 && (
             <div>
               <SectionTitle>UPPERCASE · {upperCount}</SectionTitle>
-              <div className="grid grid-cols-6 gap-2.5">
+              <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
                 {upperOwned.map(({ i, c }) => (
                   <LetterTile key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />
                 ))}
@@ -80,12 +80,17 @@ export function BagScreen() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          <SectionTitle action={<Button size="sm" variant="primary" onClick={() => g.nav("claim")}>+ Spell</Button>}>
-            Claimed words
-          </SectionTitle>
+        <div className="space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+          {/* the heading and the empty state span both columns; only the cards pair up (Bugbot) */}
+          <div className="lg:col-span-2">
+            <SectionTitle action={<Button size="sm" variant="primary" onClick={() => g.nav("claim")}>+ Spell</Button>}>
+              Claimed words
+            </SectionTitle>
+          </div>
           {state.words.length === 0 ? (
-            <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+            <div className="lg:col-span-2">
+              <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+            </div>
           ) : (
             state.words.map((w) => <WordCard key={w.word} word={w} />)
           )}

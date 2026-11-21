@@ -58,7 +58,7 @@ export function ShowcaseScreen() {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="font-display text-2xl font-extrabold">Showcase</h1>
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Showcase</h1>
         <p className="text-sm text-ink/60">Any letters, any order — no dictionary check. The flex that grows the game.</p>
       </div>
 
@@ -114,7 +114,7 @@ export function ShowcaseScreen() {
         {tray(false).length === 0 ? (
           <EmptyState Icon={Basket} title="No lowercase letters" />
         ) : (
-          <div className="grid grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
             {tray(false).map(({ i, c }) => {
               const avail = c - used(i, false);
               return (
@@ -128,7 +128,7 @@ export function ShowcaseScreen() {
       {tray(true).length > 0 && (
         <div>
           <SectionTitle>UPPERCASE</SectionTitle>
-          <div className="grid grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
             {tray(true).map(({ i, c }) => {
               const avail = c - used(i, true);
               return (

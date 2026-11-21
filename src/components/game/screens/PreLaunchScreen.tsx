@@ -128,8 +128,8 @@ export function PreLaunchScreen() {
     : "Lexigotchi opens soon. Add the app and share a cast now, and a free 5-letter pack will be waiting the moment we launch.";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center bg-ink/95 sm:items-center sm:p-4">
-      <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-paper sm:h-[880px] sm:max-h-full sm:rounded-[2.4rem] sm:border-[6px] sm:border-ink sm:shadow-[0_12px_0_#000]">
+    <div className="fixed inset-0 z-50 flex justify-center bg-paper">
+      <div className="relative flex h-full w-full max-w-[560px] flex-col overflow-hidden bg-paper">
         {/* faint aged-paper grain */}
         <div
           className="pointer-events-none absolute inset-0 opacity-60"

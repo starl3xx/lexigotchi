@@ -23,7 +23,7 @@ export function QuickGrid({ extended = false }: { extended?: boolean }) {
   const { nav } = useGame();
   const tiles = extended ? [...TILES, ...MORE_TILES] : TILES;
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className={`grid grid-cols-2 gap-3 md:grid-cols-3 ${extended ? "lg:grid-cols-4" : "xl:grid-cols-6"}`}>
       {tiles.map((t) => (
         <button
           key={t.label}

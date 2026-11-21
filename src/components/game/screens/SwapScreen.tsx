@@ -84,8 +84,8 @@ export function SwapScreen() {
   }
 
   return (
-    <div className="space-y-3">
-      <div>
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      <div className="lg:col-span-2">
         <h1 className="font-display text-2xl font-extrabold">Propose a swap</h1>
         <p className="text-sm text-ink/60">Trade exact letters with a friend. Shareable as a cast.</p>
       </div>
@@ -98,7 +98,7 @@ export function SwapScreen() {
         {myLetters.length === 0 ? (
           <p className="text-sm text-ink/55">No loose letters to offer.</p>
         ) : (
-          <div className="grid grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
             {myLetters.map(({ i, c }) => {
               const avail = c - giveUsed(i);
               return <LetterTile key={i} char={idxToChar(i)} count={avail} dim={avail <= 0} onClick={avail > 0 ? () => addGive(i) : undefined} />;
@@ -124,14 +124,16 @@ export function SwapScreen() {
         <SectionTitle action={want.length > 0 ? <button onClick={() => setWant([])} className="text-xs font-bold text-ink/45 underline">clear</button> : undefined}>
           You want: {fmtSet(want)}
         </SectionTitle>
-        <div className="grid grid-cols-7 gap-1.5">
+        {/* Fixed 38px tracks from md: they wrap to whatever the card is (a full-width card at md,
+            a half-width one at lg). A fixed 13 columns overflowed the half-width card (Bugbot). */}
+        <div className="grid grid-cols-7 gap-1.5 md:grid-cols-[repeat(auto-fill,38px)]">
           {ALPHABET.map((L) => (
             <LetterTile key={L} char={L} size={38} selected={want.includes(charToIdx(L))} onClick={() => setWant((prev) => [...prev, charToIdx(L)])} />
           ))}
         </div>
       </Card>
 
-      <Button full size="lg" variant="primary" disabled={give.length === 0 && ask === 0} onClick={() => setCreated(true)}>
+      <Button full size="lg" variant="primary" className="lg:col-span-2" disabled={give.length === 0 && ask === 0} onClick={() => setCreated(true)}>
         Create swap link →
       </Button>
     </div>
@@ -158,9 +160,9 @@ function ChainSwap() {
     (wantId >= 26 ? mineUpper(state)[wantId - 26] : mineLower(state)[wantId]) > 0;
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h1 className="font-display text-2xl font-extrabold">Swap</h1>
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      <div className="lg:col-span-2">
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Swap</h1>
         <p className="text-sm text-ink/60">
           One letter for one letter, settled by Seaport. Listing is a free signature; the trade
           happens the moment someone fills it.
