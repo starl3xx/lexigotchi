@@ -25,6 +25,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning (Farcaster,
   then browser push for wallets Farcaster can't reach) and rides the same world scan as
   `--yield`/`--bounty`.
+  `--yield`/`--bounty` store each epoch's claim proofs in the `reward_leaves` table (so they need
+  `DATABASE_URL`, and never open an epoch without them) BEFORE `openEpoch`; `/api/rewards/claimable`
+  serves a stored leaf only while the chain says its epoch is open with that same root. Rows are
+  never deleted: a rerun's rebuilt tree is stored BESIDE the first (the root is in the key), because
+  an openEpoch sent but unconfirmed may still land. The rows can't be rebuilt later (the scan reads
+  the latest state), so back them up like operational data.
 - `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.

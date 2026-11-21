@@ -17,9 +17,11 @@
  * ANSWER_CHAIN_FILE (default: the Sepolia rehearsal file). NEVER commit or log schedule contents —
  * whoever holds future words wins every jackpot.
  *
- * Epoch trees are written to keeper-output/<stream>-<epoch>.json (gitignored), each entry carrying
- * its proof — the file IS the claim server's data. Losing one is recoverable (the math is
- * deterministic; re-run with --dry to regenerate), but treat the directory as operational state.
+ * Epoch trees are stored in the `reward_leaves` table (DATABASE_URL) before each openEpoch, each
+ * entry carrying its proof — that table IS the claim route's data, so a run without a database
+ * refuses to open an epoch. A copy also lands in keeper-output/<stream>-<epoch>-<root>.json (gitignored)
+ * when the file system allows. Treat both as operational state: a tree can NOT be rebuilt later,
+ * because the scan reads the latest chain state, not the state the epoch was opened at.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createWalletClient, publicActions } from "viem";
@@ -52,6 +54,8 @@ import { hungerWarning, jackpotWon } from "../src/lib/notify/templates";
 import { sendNotification, LIMITS } from "../src/lib/notify/send";
 import { sendWebPush } from "../src/lib/notify/webPush";
 import { allWebPushSubscriptions } from "../src/lib/db/webPush";
+import { storeEpochLeaves } from "../src/lib/db/rewards";
+import { NETWORK } from "../src/lib/onchain/network";
 import type { WebPushSubscription } from "../src/lib/db/schema";
 import type { KeeperWord } from "../src/lib/keeper/shares";
 
@@ -196,12 +200,22 @@ async function openStream(kind: "yield" | "bounty") {
   const total = leavesTotal(leaves);
   if (total > bucket) throw new Error(`${kind}: tree total ${total} exceeds bucket ${bucket}`);
 
-  mkdirSync(OUT, { recursive: true });
-  const path = `${OUT}/${kind}-${epochId}.json`;
-  writeFileSync(path, JSON.stringify(epoch, null, 1));
-  console.log(`${kind}: epoch ${epochId} — ${leaves.length} leaves, total ${total} wei → ${path}`);
+  console.log(`${kind}: epoch ${epochId} — ${leaves.length} leaves, total ${total} wei`);
+  // A local copy, for inspection and as a backup. Best-effort: a scheduler's file system may be
+  // read-only, and the database below is the copy the claim screen reads.
+  try {
+    mkdirSync(OUT, { recursive: true });
+    // The root is in the name: a rerun for the same epoch must not overwrite a tree that may open.
+    writeFileSync(`${OUT}/${kind}-${epochId}-${epoch.root.slice(2, 10)}.json`, JSON.stringify(epoch, null, 1));
+  } catch (err) {
+    console.log(`${kind}: local copy not written (${(err as Error).message}) — the database copy is what counts`);
+  }
 
   if (DRY) return;
+  // Store the proofs BEFORE opening the epoch, and never open without them: an open epoch whose
+  // proofs nobody serves is funded rewards that no player can claim.
+  await storeEpochLeaves(NETWORK.id, kind, epochId, epoch);
+  console.log(`${kind}: stored ${epoch.entries.length} claim proofs`);
   const w = wallet();
   const hash = await w.writeContract({
     address: streamAddr, abi: merkleEpochsAbi, functionName: "openEpoch",
