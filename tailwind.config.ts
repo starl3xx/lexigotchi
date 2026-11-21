@@ -127,7 +127,8 @@ const config: Config = {
         tcConfetti: {
           "0%": { opacity: "0", transform: "translateY(-16px) rotate(0)" },
           "12%": { opacity: "1" },
-          "100%": { opacity: "0", transform: "translateY(82px) rotate(360deg)" },
+          // --tc-fall: each piece's drop, set from the tile's visible height (TileCharacter Confetti)
+          "100%": { opacity: "0", transform: "translateY(var(--tc-fall, 82px)) rotate(360deg)" },
         },
         tcRay: { to: { transform: "rotate(360deg)" } },
         tcTwinkle: {

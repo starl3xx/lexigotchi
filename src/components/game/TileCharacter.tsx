@@ -411,27 +411,57 @@ function BurstRays({ reduced }: { reduced: boolean }) {
   );
 }
 
-function Confetti({ reduced }: { reduced: boolean }) {
+/**
+ * Confetti for the celebrate state: 16 pieces that fall and tumble INSIDE the tile's own visible
+ * box (the LOD crop, which is always centered on the tile), so a word row celebrates tile by tile
+ * instead of spraying across its neighbors and the text above.
+ *
+ * Each piece spins around ITS OWN center (`transform-box: fill-box`). Without that, a CSS rotate on
+ * an SVG element turns around the viewport origin, the top-left corner, so every piece swung in a
+ * wide circle instead of tumbling: the "travels in circles" bug.
+ */
+function Confetti({
+  reduced,
+  view,
+  seed,
+}: {
+  reduced: boolean;
+  view: { x: number; y: number; w: number; h: number };
+  /** Varies the pattern per letter, so a word's tiles don't celebrate in lockstep. */
+  seed: number;
+}) {
+  const inset = 10;
+  const span = Math.max(1, Math.round(view.w - 2 * inset - 6)); // 6 = piece width: the right edge stays inside
+  const fall = Math.round(view.h * 0.72); // most of the visible height, at any LOD
   return (
     <g>
       {Array.from({ length: 16 }, (_, i) => {
-        // spread across the full width — 137 is coprime with the range, so no clustering
-        const x = 12 + ((i * 137) % (VB.w - 24));
-        const c = CONFETTI[i % CONFETTI.length];
-        const delay = (i % 8) * 0.18;
-        const startY = TOP - 18;
+        // spread across the visible width — 137 is coprime with typical spans, so no clustering
+        const x = view.x + inset + ((i * 137 + seed * 53) % span);
+        const c = CONFETTI[(i + seed) % CONFETTI.length];
+        const delay = ((i + seed) % 8) * 0.18;
+        const startY = view.y + 6 + ((i * 29 + seed * 7) % 22); // a ragged start, not a single row
         return (
           <rect
             key={i}
             x={x}
-            y={reduced ? startY + ((i * 53) % 120) : startY}
+            y={reduced ? startY + ((i * 53) % Math.max(1, Math.round(view.h * 0.45))) : startY}
             width={6}
             height={9}
             rx={1.5}
             fill={c}
             opacity={reduced ? 1 : undefined}
             className={reduced ? "" : "animate-tc-confetti"}
-            style={reduced ? undefined : { animationDelay: `${delay}s` }}
+            style={
+              reduced
+                ? undefined
+                : ({
+                    animationDelay: `${delay}s`,
+                    transformBox: "fill-box",
+                    transformOrigin: "center",
+                    "--tc-fall": `${fall}px`,
+                  } as CSSProperties)
+            }
           />
         );
       })}
@@ -718,7 +748,7 @@ export function TileCharacter({
       {showFace && state === "hungry" && <Zzz reduced={reduced} />}
       {showFace && state === "rolling" && <Huh reduced={reduced} />}
       {showFace && state === "eating" && <Snack />}
-      {state === "celebrate" && <Confetti reduced={reduced} />}
+      {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
     </svg>
   );
 
