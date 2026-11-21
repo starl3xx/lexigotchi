@@ -97,9 +97,10 @@ generator's encoding matches `AnswerChain.reveal` exactly.
 
 ## Pre-mainnet checklist
 
-- [ ] Independent security audit (commit/reveal, escrow, FeeRouter accounting, Merkle distributors).
-- [ ] Lottery/compliance review of the jackpot (no-purchase free entry, geo/age gating, official
-      rules) — `seed.jackpot = 0`, operator never funds the prize (see `docs/pricing-review.md`).
+- [x] Security audit — **no external audit** (starl3xx's ruling, 2026-11-21); the second internal
+      audit in `AUDIT.md` stands in for it, and its four findings are fixed.
+- [ ] ~~Lottery/compliance review of the jackpot~~ — **no legal review** (same ruling). The design
+      choices stay: `seed.jackpot = 0`, the operator never funds the prize (`docs/pricing-review.md`).
 - [ ] `owner`/`treasury` = a single hardware-wallet EOA (no multisig); separate hot keys for `signer`,
       `keeper`, and `priceKeeper`.
 - [ ] Production `SwapRouter` adapter over a real Uniswap v3 / aggregator route (slippage-bounded).

@@ -29,7 +29,8 @@ the 22,190 dictionary slots, so common letters come up often and Q/Z/X/J are the
 You **raise** them with rolls — capitals are never pulled directly. A roll succeeds at **45% base**,
 climbing **+10pp per consecutive miss** on that letter (a pity streak), capped at **85%** and reset on
 success (expected ~1.9 rolls per success). A failed roll **never burns or downgrades** your letter —
-it only bumps the pity. Only UPPERCASE words earn daily yield.
+it only bumps the pity. One roll per letter at a time: a roll has to finish before the next one on
+that letter starts. Only UPPERCASE words earn daily yield.
 
 ## How does claiming a word work?
 
@@ -57,6 +58,7 @@ never drains.
 Yes. A staked word gets **peckish** after a day unfed (half yield) and **hungry** after three (zero
 yield *and* no jackpot ticket). Feed it a **snack** to reset the clock. Snacks are **100% burned**,
 and you get one free snack a day. Neglect is a real faucet gate — a hungry word can't win.
+Unstaking pauses the clock and restaking picks it up where it stopped, so only a snack resets it.
 
 ## How does the daily jackpot work?
 

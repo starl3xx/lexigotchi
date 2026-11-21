@@ -40,6 +40,10 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     }
 
     mapping(uint256 tokenId => uint32) public prestigePity;
+    /// @notice One unrevealed ascension per Word, for the same reason as `Rolls.rollOpen`: pity is
+    ///         snapshotted at commit and reset only by a success reveal the owner controls, so open
+    ///         attempts in parallel would let an owner bank signed successes at the capped odds.
+    mapping(uint256 tokenId => bool) public attemptOpen;
     PrestigeCommit[] public commits;
 
     event PrestigeCommitted(uint256 indexed commitId, uint256 indexed tokenId, address indexed owner, uint32 pity);
@@ -55,6 +59,7 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     error AlreadyRevealed();
     error BadSignature();
     error ZeroAddress();
+    error AttemptOpen();
 
     constructor(
         IERC20 _word,
@@ -79,6 +84,8 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         if (staking.beneficialOwner(tokenId) != msg.sender) revert NotBeneficialOwner();
         if (words.caseOf(tokenId) != CaseState.Uppercase) revert NotFullyRaised();
         if (words.prestigeLevel(tokenId) >= maxLevel) revert MaxLevel();
+        if (attemptOpen[tokenId]) revert AttemptOpen(); // finish (reveal) the open attempt first
+        attemptOpen[tokenId] = true;
 
         _collect(msg.sender, prestigeFee, FeeSource.PRESTIGE);
         _collect(msg.sender, snackCost, FeeSource.SNACK); // the burned snack
@@ -101,6 +108,7 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         if (ECDSA.recover(digest, sig) != signer) revert BadSignature();
 
         c.revealed = true;
+        attemptOpen[c.tokenId] = false; // every outcome below resolves the open attempt
         // Re-validate eligibility AT REVEAL, not just at commit: a parallel commit may have already
         // reached maxLevel, or the word may have been unstaked/transferred since commit. Only ascend
         // if still eligible — otherwise consume the commit as a no-op (never push past maxLevel and

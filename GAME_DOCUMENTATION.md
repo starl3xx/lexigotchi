@@ -62,7 +62,10 @@ Most common → rarest letter order: **S E A … J Q**.
 - **Randomness:** the EGGS commit→server-signed reveal (same model as rolls). The buyer commits +
   pays, then the backend signer reveals a fair demand-mirrored draw; per-letter caps are enforced
   on-chain. There is no expiry window, so a paid commit is always revealable — a fee is never
-  forfeited and the buyer can't grind the draw by aborting an unfavourable one.
+  forfeited and the buyer can't grind the draw by aborting an unfavorable one.
+- **Supply is reserved at commit** (`Letters.unreservedSupply` = Σ(cap − minted) − letters owed to
+  open commits). A commit that asks for more than is left reverts `SoldOut` before any fee moves, so
+  a sell-out never strands a paid commit (internal audit, 2026-11-21).
 
 ---
 
@@ -80,6 +83,10 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
 - **On-chain:** EGGS-style commit→**server-signed** reveal (the trusted "superHen" signer decides the
   fair outcome on the live pity-adjusted odds). Pity is keyed on the **beneficial owner**, resolved
   through staking custody — so a letter escrowed inside a staked Word can't share or pump a counter.
+- **One open roll per `(owner, letter)`** (`Rolls.rollOpen`). Pity is snapshotted at commit and reset
+  only by a success reveal, so several open rolls would let a player reveal the misses, hold the
+  signed successes, and keep every later roll at the 85% cap. A new roll on that letter reverts
+  `RollOpen` until the open one is revealed (by anyone: the reveal is permissionless).
 
 ---
 
@@ -143,6 +150,9 @@ A staked word's care state is a function of days since last fed:
 
 - **Feed** a snack to reset the clock. **Snacks are 100% burned**. One **free snack per day** (a
   retention hook). Snack price: **$0.02** (~84K $WORD).
+- **Unstaking pauses the clock; restaking resumes it** (`Staking.unfedCarry`). A first-ever stake
+  starts fed. A restake never does, so unstake + stake can't stand in for a snack (internal audit,
+  2026-11-21).
 - Hunger is a first-order faucet gate: a held-but-hungry word is jackpot-ineligible, which keeps the
   pot escalating even at saturation.
 
@@ -186,7 +196,8 @@ A staked word's care state is a function of days since last fed:
   word's **yield and bounty weight by 1.10** (gentle, to cap whale concentration).
 - Each attempt pays the roll fee (**$0.25**) + burns a snack, and succeeds on the same pity ramp as
   rolls. **Success** bumps the level (monotonic, never decremented); **failure is a no-op** — level,
-  case, and letters untouched.
+  case, and letters untouched. One open attempt per word (`Prestige.attemptOpen`), for the same
+  reason as rolls.
 - It's solvency-neutral: a prestiged word takes a bigger slice of the **same** fixed yield pot, never
   enlarging it. A finite depth sink (4 levels × your maxed words) for the UPPERCASE cohort.
 
