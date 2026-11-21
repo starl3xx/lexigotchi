@@ -52,4 +52,13 @@ export const merkleEpochsAbi = [
   { type: "function", name: "hasClaimed", stateMutability: "view",
     inputs: [{ name: "epochId", type: "uint256" }, { name: "tokenId", type: "uint256" }],
     outputs: [{ name: "", type: "bool" }] },
+  // MerkleEpochs.Epoch, in struct order. The claim route checks `open` + `root` so it never serves
+  // a stored leaf for an epoch that failed to open, or one re-opened with a different tree.
+  { type: "function", name: "epochs", stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [
+      { name: "root", type: "bytes32" }, { name: "funded", type: "uint256" },
+      { name: "claimed", type: "uint256" }, { name: "meta", type: "uint256" },
+      { name: "open", type: "bool" }, { name: "recoverableAt", type: "uint64" },
+    ] },
 ] as const;

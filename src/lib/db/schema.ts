@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -121,3 +121,45 @@ export const webPushSubscriptions = pgTable(
 );
 
 export type WebPushSubscription = typeof webPushSubscriptions.$inferSelect;
+
+/**
+ * Reward claim data: one row per leaf of a yield or bounty epoch's Merkle tree, proof included.
+ *
+ * The keeper writes an epoch's rows BEFORE it calls openEpoch, and refuses to open the epoch if the
+ * write fails, so an open epoch always has its proofs here. The claim route (/api/rewards/claimable)
+ * serves a row only while the chain says that epoch is open with this exact `root`: rows for an
+ * epoch that never opened, or for a tree that was rebuilt, are inert.
+ *
+ * Proofs are public by design (a leaf pays its baked-in account, whoever submits it), so nothing
+ * here is secret, but the rows are NOT rebuildable later: the keeper's scan reads the latest chain
+ * state, so a re-run builds a different tree. Back the table up like any operational record (the
+ * keeper also leaves a keeper-output/ copy where it can). `chainId` keeps a testnet and mainnet
+ * sharing one database apart.
+ */
+export const rewardLeaves = pgTable(
+  "reward_leaves",
+  {
+    id: serial("id").primaryKey(),
+    chainId: integer("chain_id").notNull(),
+    /** "yield" (YieldDistributor, epoch = UTC day) or "bounty" (Bounty, epoch = UTC week). */
+    stream: text("stream").notNull(),
+    /** uint256 epoch id, as a decimal string. */
+    epochId: text("epoch_id").notNull(),
+    /** The tree root the keeper opened (or will open) the epoch with. */
+    root: text("root").notNull(),
+    /** uint256 word token id, as a decimal string. One leaf per (epoch, word). */
+    tokenId: text("token_id").notNull(),
+    /** Lowercase payee address. */
+    account: text("account").notNull(),
+    /** $WORD wei, as a decimal string. */
+    amount: text("amount").notNull(),
+    proof: jsonb("proof").$type<`0x${string}`[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("reward_leaves_leaf_idx").on(t.chainId, t.stream, t.epochId, t.tokenId),
+    index("reward_leaves_account_idx").on(t.chainId, t.account),
+  ],
+);
+
+export type RewardLeafRow = typeof rewardLeaves.$inferSelect;
