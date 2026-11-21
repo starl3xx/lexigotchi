@@ -24,20 +24,30 @@ keys, money, a deploy, or a production database. Everything else is code and lan
 - **Decisions that shape launch:** $WORD only (no ETH swap). Prestige and bounty are off at launch
   (#11). The owner is one hardware-wallet EOA, with three separate hot keys and no multisig.
 
-## 1. Rehearse on Sepolia (owner approves each deploy)
+## 1. Rehearse on Sepolia
 
-The Sepolia suite is from 2026-08-12. It predates the audit fixes (#96, #101) and the Words ERC-4906
-change (#80), so a rehearsal needs a fresh deploy:
+**Done 2026-11-21** (the second rehearsal, with the owner's go-ahead). The suite was redeployed from
+`main` with the throwaway Sepolia keys: 41 transactions from block 61,798,778, carrying the audit fixes
+and the 4,584-word dictionary (`config/deployments.base-sepolia.json`). Then a scripted wallet-only
+player, with no Farcaster session, ran the loop against it, sending real transactions and calling the
+real API routes:
 
-1. Redeploy from current `main` with the throwaway Sepolia keys (`contracts/*.secret.json`, gitignored),
-   then commit the new `config/deployments.base-sepolia.json`.
-2. Run a Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key and draw secret, the
-   keeper key, and a database with migrations 0003–0005.
-3. Play the loop with a wallet and no Farcaster account: buy test $WORD from the faucet, open a
-   pack, roll a letter, claim and stake a word, feed it, and unstake and restake it (the hunger
-   clock must keep running). Then run the keeper and claim a reward.
-4. Time one full keeper run on Vercel. Nobody has measured it against the 300-second limit; the
-   word scan grows with every claim.
+| Step | Result |
+|---|---|
+| Paid pack | revealed; asking twice gave the same letters (sticky draws) |
+| Roll | revealed; a second roll on the same letter was refused (`RollOpen`) |
+| Claim a word | ENROL claimed; the proof route's root check passed |
+| Unstake and restake | the hunger clock didn't move; then a feed |
+| Keeper | revealed jackpot day 1, correctly opened no yield epoch (no UPPERCASE word staked), and the price keeper moved all seven prices about 10% toward their USD targets |
+
+The whole keeper run took 7 seconds, and its writes carry the builder code.
+
+Still to do on Sepolia:
+1. A Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key and draw secret, the keeper
+   key, and a database with migrations 0003–0005. This makes the testnet game playable in a browser
+   wallet: the rehearsal above used server-side keys, not a browser wallet's `wallet_sendCalls`.
+2. Claim a reward: it needs an UPPERCASE staked word when the keeper opens a yield epoch.
+3. Time a keeper run once many words exist. The word scan grows with every claim.
 
 ## 2. Keys and secrets (owner)
 

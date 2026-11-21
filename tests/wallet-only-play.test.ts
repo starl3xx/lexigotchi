@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { decodeFunctionData, maxUint256, recoverMessageAddress, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import sepolia from "../config/deployments.base-sepolia.json";
 
 // Real addresses exist only on the Sepolia registry; mainnet is all-null and addressOf() throws.
 vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532");
@@ -21,8 +22,8 @@ const allow = vi.fn(async (..._args: unknown[]) => true);
 vi.mock("@/lib/ratelimit", () => ({ allow: (...a: unknown[]) => allow(...a) }));
 
 const PLAYER = "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3" as const;
-const LETTERS = "0xdf7bB55D701d16d772Fad43f53eE4560De2De263".toLowerCase();
-const TOKEN = "0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea".toLowerCase();
+const LETTERS = sepolia.contracts.letters.toLowerCase(); // from the registry: survives a redeploy
+const TOKEN = sepolia.wordToken.toLowerCase();
 
 let commitTuple: readonly unknown[] = [];
 vi.mock("@/lib/onchain/reads", async (orig) => ({

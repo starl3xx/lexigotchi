@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { decodeFunctionData, maxUint256 } from "viem";
+import sepolia from "../config/deployments.base-sepolia.json";
 
 // The action builders resolve real addresses, which only exist on the Sepolia registry — mainnet is
 // still all-null and addressOf() throws by design. Stub before importing; vitest isolates the module
@@ -13,10 +14,11 @@ beforeAll(async () => {
   abis = await import("@/lib/onchain/abis");
 });
 
-const LETTERS = "0xdf7bB55D701d16d772Fad43f53eE4560De2De263".toLowerCase();
-const WORDS = "0xD820ffEf97f223C5a1BFe6d1FD4096ab78cfc441".toLowerCase();
-const STAKING = "0x5Ad5B9cCBe7860CfbBA1a59ed690C35C7C45Af7c".toLowerCase();
-const TOKEN = "0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea".toLowerCase();
+// From the registry itself, so a redeploy (a new rehearsal) never breaks these assertions.
+const LETTERS = sepolia.contracts.letters.toLowerCase();
+const WORDS = sepolia.contracts.words.toLowerCase();
+const STAKING = sepolia.contracts.staking.toLowerCase();
+const TOKEN = sepolia.wordToken.toLowerCase();
 const PLAYER = "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3" as const;
 // A merkle proof element is bytes32 — a short hex value is an encoding error, not a valid stub.
 const PROOF = "0x42d44c493d4fd7d63fddcc7a777379f861156a1271a30341a31b628cd8bb692f" as const;
