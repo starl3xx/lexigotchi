@@ -6,7 +6,6 @@ import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../L
 import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
 import {
-  COST,
   PRESTIGE_LEVELS,
   fmtWord,
   hunger,
@@ -104,7 +103,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </Button>
         <Button
           variant="teal"
-          disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(COST.snack))}
+          disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(g.price("snack")))}
           onClick={() => g.feed(word.word)}
         >
           <Cookie weight="fill" /> Feed {word.daysUnfed === 0 && <Check weight="bold" size={14} />}
@@ -138,7 +137,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
             )}
           </div>
         )}
-        {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/55">tap a lowercase letter to roll it · {fmtWord(COST.roll)} $WORD</p>}
+        {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/55">tap a lowercase letter to roll it · {fmtWord(g.price("roll"))} $WORD</p>}
       </Card>
 
       {/* prestige */}
@@ -156,7 +155,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
             </div>
             <Button
               variant="gold"
-              disabled={ascending || !canPrestige || !g.canAfford(COST.prestige + COST.snack)}
+              disabled={ascending || !canPrestige || !g.canAfford(g.price("prestige") + g.price("prestigeSnack"))}
               onClick={() => {
                 const res = g.prestige(word.word);
                 // A promise means it resolves later; announcing success now would celebrate a
@@ -181,7 +180,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                 g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
-              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(COST.prestige)}`}
+              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(g.price("prestige"))}`}
             </Button>
           </div>
           {strandedNote && <p className="mt-2 text-xs text-gold-deep">{strandedNote}</p>}

@@ -33,6 +33,9 @@ import {
   type View,
   type ChainStatus,
   type ActionOutcome,
+  type PriceItem,
+  MOCK_PRICE,
+  chainPrice,
   GameCtx,
   reducer,
   seedState,
@@ -484,6 +487,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Affordability is answered from the live balance; while it's unknown the answer is NO, and
       // ChainGate keeps those screens off-screen entirely so nobody sees a false "you're broke".
       canAfford: (amount: number) => (chain.player ? chain.player.balance >= amount : false),
+      // The contract's own prices (chain.params, re-read after every repeg). Until they load, the
+      // mock table stands in as a label only: canAfford is false without chain.player, and every
+      // send builds its calldata from chain.params, never from this number.
+      price: (item: PriceItem) => (chain.params ? chainPrice(chain.params.word, item) : MOCK_PRICE[item]),
 
       /**
        * The free daily. Two identities can earn the voucher — a Farcaster FID, or a Coinbase-

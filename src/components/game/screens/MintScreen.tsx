@@ -4,7 +4,7 @@ import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
-import { COST, fmtUsd, fmtWord, useGame } from "../state";
+import { fmtUsd, fmtWord, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { useEffect, useState } from "react";
 import { fetchCampaignStatus } from "../campaignClient";
@@ -28,6 +28,7 @@ export function MintScreen() {
     void fetchCampaignStatus().then((cs) => { if (!dead) setPackEligible(cs ? cs.eligible : null); });
     return () => { dead = true; };
   }, [state.chainBacked, viewer.isAuthed]);
+  const packPrice = g.price("pack");
   const common = LETTERS_BY_FREQUENCY.slice(0, 5);
   const rare = LETTERS_BY_FREQUENCY.slice(-5);
 
@@ -85,7 +86,7 @@ export function MintScreen() {
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
-            <div className="text-xs text-ink/60">{`${fmtWord(COST.pack)} $WORD · ${fmtUsd(COST.pack)}`}</div>
+            <div className="text-xs text-ink/60">{`${fmtWord(packPrice)} $WORD · ${fmtUsd(packPrice)}`}</div>
           </div>
           <Package weight="fill" size={40} className="text-candy" />
         </div>
@@ -97,8 +98,8 @@ export function MintScreen() {
           disabled={buying}
           onClick={() => {
             // broke ≠ blocked: route the intent to the Buy sheet with the exact shortfall.
-            if (!g.canAfford(COST.pack)) {
-              g.openSheet({ kind: "balance", need: { amount: COST.pack, action: "a pack" } });
+            if (!g.canAfford(packPrice)) {
+              g.openSheet({ kind: "balance", need: { amount: packPrice, action: "a pack" } });
               return;
             }
             const result = g.buyPack();
@@ -118,7 +119,7 @@ export function MintScreen() {
           }}
         >
           <Package weight="fill" />
-          {buying ? "Opening…" : g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
+          {buying ? "Opening…" : g.canAfford(packPrice) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
         {state.chainBacked && packEligible === false && (
           <p className="mt-2 text-center text-xs text-ink/55">

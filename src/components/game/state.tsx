@@ -200,6 +200,25 @@ export const COST = {
   snack: Math.round(priceWord(P.snack)),
   prestige: Math.round(priceWord(DEFAULT_PARAMS.prestige.commitFeeUsd)),
 };
+/** Every priced action. `prestigeSnack` is the snack an ascension burns on top of its fee. */
+export type PriceItem = "daily" | "pack" | "roll" | "claim" | "snack" | "prestige" | "prestigeSnack";
+export const MOCK_PRICE: Record<PriceItem, number> = { ...COST, prestigeSnack: COST.snack };
+
+/**
+ * The contract's price for each item (GameParams.word, whole $WORD). Note the ascension snack is
+ * Prestige's own `snackCost`, not Staking's snack price: the two are set, and repegged, separately.
+ */
+export function chainPrice(word: GameParams["word"], item: PriceItem): number {
+  switch (item) {
+    case "prestige":
+      return word.prestigeFee;
+    case "prestigeSnack":
+      return word.prestigeSnackCost;
+    default:
+      return word[item];
+  }
+}
+
 // Call-time read of the live peg cell: every USD the game shows follows the oracle once
 // useWordPrice (mounted in GameApp) has fetched. COST above stays on the import-time fallback by
 // design — it's the MOCK store's price table; the chain-backed game prices from chain.params.
@@ -501,6 +520,7 @@ export function reducer(s: GameState, a: Action): GameState {
 // where it is unit-tested. Imported for use below and re-exported so screens can keep importing it
 // from the game store.
 import type { ActionOutcome } from "@/lib/onchain/guardedAction";
+import type { GameParams } from "@/lib/onchain/reads";
 export type { ActionOutcome };
 
 export interface GameApi {
@@ -512,6 +532,13 @@ export interface GameApi {
   dismissToast: (id: number) => void;
   // economy actions (return the outcome where the caller needs to animate it)
   canAfford: (amount: number) => boolean;
+  /**
+   * What an action costs, in whole $WORD, from the store that will actually charge it: the mock's
+   * import-time COST table, or the contract's live price on the chain store (it moves with every
+   * repeg). Screens must price through this, never COST directly, or the chain game shows a price
+   * the contract doesn't charge and gates affordability on it.
+   */
+  price: (item: PriceItem) => number;
   dailyMint: () => number | null | Promise<ActionOutcome>;
   /**
    * The FREE campaign pack (chain store: the signer-issued voucher for players who added the mini
@@ -607,6 +634,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       toast,
       dismissToast,
       canAfford: (amount) => state.balance >= amount,
+      price: (item) => MOCK_PRICE[item],
 
       dailyMint: () => {
         if (state.dailyMinted || state.balance < COST.daily) return null;

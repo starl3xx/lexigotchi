@@ -54,17 +54,38 @@ describe("a paid pack", () => {
   it("approves $WORD to Letters, then commits", () => {
     const calls = A.commitPackCalls(params(), player(0n));
     expect(calls.map((c) => c.to.toLowerCase())).toEqual([TOKEN, LETTERS]);
-    const approve = decodeFunctionData({ abi: abis.erc20Abi, data: calls[0].data });
+    const approve = decodeFunctionData({ abi: abis.erc20Abi, data: calls[0].data! });
     expect(approve.functionName).toBe("approve");
     // The collector is Letters, never the FeeRouter: approving the router would revert the commit.
     expect((approve.args![0] as string).toLowerCase()).toBe(LETTERS);
-    expect(decodeFunctionData({ abi: abis.lettersAbi, data: calls[1].data }).functionName).toBe("commitPack");
+    expect(decodeFunctionData({ abi: abis.lettersAbi, data: calls[1].data! }).functionName).toBe("commitPack");
   });
 
   it("skips the approval when the allowance already covers it", () => {
     const calls = A.commitPackCalls(params(), player(maxUint256));
     expect(calls).toHaveLength(1);
-    expect(decodeFunctionData({ abi: abis.lettersAbi, data: calls[0].data }).functionName).toBe("commitPack");
+    expect(decodeFunctionData({ abi: abis.lettersAbi, data: calls[0].data! }).functionName).toBe("commitPack");
+  });
+});
+
+describe("prices come from the store that charges them", () => {
+  const word = { pack: 4_000_000, daily: 0, roll: 1_000_000, claim: 2_000_000, snack: 80_000, prestigeFee: 1_100_000, prestigeSnackCost: 90_000 };
+
+  it("the chain store reads the contract's price for every item", async () => {
+    const { chainPrice } = await import("@/components/game/state");
+    expect(chainPrice(word, "pack")).toBe(4_000_000);
+    expect(chainPrice(word, "roll")).toBe(1_000_000);
+    expect(chainPrice(word, "claim")).toBe(2_000_000);
+    expect(chainPrice(word, "snack")).toBe(80_000);
+    expect(chainPrice(word, "prestige")).toBe(1_100_000);
+    // Ascension burns Prestige's own snack cost, not Staking's snack price.
+    expect(chainPrice(word, "prestigeSnack")).toBe(90_000);
+  });
+
+  it("the mock store keeps its own table", async () => {
+    const { MOCK_PRICE, COST } = await import("@/components/game/state");
+    expect(MOCK_PRICE.pack).toBe(COST.pack);
+    expect(MOCK_PRICE.prestigeSnack).toBe(COST.snack);
   });
 });
 
