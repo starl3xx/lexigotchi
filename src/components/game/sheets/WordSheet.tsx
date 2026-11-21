@@ -6,7 +6,6 @@ import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../L
 import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
 import {
-  PRESTIGE_LEVELS,
   fmtWord,
   hunger,
   idxToChar,
@@ -36,7 +35,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const h = hunger(word);
   const fullyRaised = c === "UPPERCASE";
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
-  const canPrestige = fullyRaised && word.staked && word.prestigeLevel < PRESTIGE_LEVELS;
+  const maxLevel = g.maxPrestigeLevel;
+  const canPrestige = fullyRaised && word.staked && word.prestigeLevel < maxLevel;
 
   return (
     <Sheet
@@ -140,8 +140,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/55">tap a lowercase letter to roll it · {fmtWord(g.price("roll"))} $WORD</p>}
       </Card>
 
-      {/* prestige */}
-      {fullyRaised && (
+      {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0) */}
+      {fullyRaised && maxLevel > 0 && (
         <Card className={`mb-3 bg-gradient-to-b from-paper to-gold/10 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -150,7 +150,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
               </div>
               <div className="text-xs text-ink/55">
                 Gilded L{word.prestigeLevel}
-                {word.prestigeLevel < PRESTIGE_LEVELS ? ` → L${word.prestigeLevel + 1} · +yield & bounty weight` : " · maxed"}
+                {word.prestigeLevel < maxLevel ? ` → L${word.prestigeLevel + 1} · +yield & bounty weight` : " · maxed"}
               </div>
             </div>
             <Button
@@ -180,7 +180,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                 g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
               }}
             >
-              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= PRESTIGE_LEVELS ? "Maxed" : `Ascend · ${fmtWord(g.price("prestige"))}`}
+              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= maxLevel ? "Maxed" : `Ascend · ${fmtWord(g.price("prestige"))}`}
             </Button>
           </div>
           {strandedNote && <p className="mt-2 text-xs text-gold-deep">{strandedNote}</p>}

@@ -23,6 +23,8 @@ import { useViewer } from "../useViewer";
 import { OrDivider, SignInWithBase } from "../SignInWithBase";
 import { useVerifiedWallet } from "../useVerifiedWallet";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
+// Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
+import { NETWORK } from "@/lib/onchain/network";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
 // Deliberately pinned to Base MAINNET, not the active network (lib/onchain/network). This is the buy
@@ -272,12 +274,16 @@ export function BalanceSheet() {
         )}
       </Card>
 
-      <button
-        onClick={g.addDemoBalance}
-        className="mx-auto mt-3 flex items-center gap-1 text-xs font-bold text-ink/45 underline"
-      >
-        <Plus /> add demo balance (prototype)
-      </button>
+      {/* Practice game: a demo top-up. Testnet: the test-token faucet. Mainnet: nothing — real
+          $WORD comes from the Buy button above, never from a button that mints it. */}
+      {(!g.state.chainBacked || NETWORK.isTestnet) && (
+        <button
+          onClick={g.addDemoBalance}
+          className="mx-auto mt-3 flex items-center gap-1 text-xs font-bold text-ink/45 underline"
+        >
+          <Plus /> {g.state.chainBacked ? "get test $WORD (testnet faucet)" : "add demo balance (practice)"}
+        </button>
+      )}
     </Sheet>
   );
 }

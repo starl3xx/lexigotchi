@@ -529,6 +529,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // mock table stands in as a label only: canAfford is false without chain.player, and every
       // send builds its calldata from chain.params, never from this number.
       lettersLeft: chain.params?.unreservedSupply ?? null,
+      // Until params load, assume OFF: better a hidden button for a moment than one that reverts.
+      maxPrestigeLevel: chain.params?.maxPrestigeLevel ?? 0,
       price: (item: PriceItem) => (chain.params ? chainPrice(chain.params.word, item) : MOCK_PRICE[item]),
 
       /**
