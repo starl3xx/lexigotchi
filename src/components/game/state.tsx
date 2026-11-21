@@ -513,7 +513,17 @@ export interface GameApi {
   // economy actions (return the outcome where the caller needs to animate it)
   canAfford: (amount: number) => boolean;
   dailyMint: () => number | null | Promise<ActionOutcome>;
+  /**
+   * The FREE campaign pack (chain store: the signer-issued voucher for players who added the mini
+   * app and shared a cast). The mock has no campaign, so there it behaves like `buyPack`.
+   */
   openPack: () => number[];
+  /**
+   * A PAID pack of five. The mock returns the letters at once; the chain store returns a PROMISE of
+   * the outcome (approve + commit, then the signed reveal opens the pack sheet itself), so the
+   * caller can hold its button until money has either moved or clearly not moved.
+   */
+  buyPack: () => number[] | Promise<ActionOutcome>;
   /**
    * null = the roll didn't happen (no letter / unaffordable); true = hit, false = miss.
    *
@@ -579,6 +589,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Every insufficient-balance dead end routes here: open the Buy sheet with what was blocked.
     const needWord = (amount: number, action: string) =>
       dispatch({ t: "sheet", sheet: { kind: "balance", need: { amount, action } } });
+    const buyMockPack = () => {
+      if (state.balance < COST.pack) {
+        needWord(COST.pack, "a pack");
+        return [];
+      }
+      const idxs = Array.from({ length: 5 }, drawLetter);
+      dispatch({ t: "pack", idxs });
+      return idxs;
+    };
 
     return {
       state,
@@ -596,15 +615,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         toast(`Daily letter: ${idxToChar(idx)} · streak ${state.streak + 1}`, "good");
         return idx;
       },
-      openPack: () => {
-        if (state.balance < COST.pack) {
-          needWord(COST.pack, "a pack");
-          return [];
-        }
-        const idxs = Array.from({ length: 5 }, drawLetter);
-        dispatch({ t: "pack", idxs });
-        return idxs;
-      },
+      openPack: () => buyMockPack(),
+      buyPack: () => buyMockPack(),
       rollLoose: (idx) => {
         if (state.lower[idx] <= 0) return null; // no such loose letter to raise
         if (state.balance < COST.roll) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { allow } from "@/lib/ratelimit";
+import { clientIp } from "@/lib/auth/clientIp";
 import { addressOf } from "@/lib/onchain/addresses";
 import { prestigeRevealDigest } from "@/lib/onchain/digests";
 import { signDigest, drawSuccess } from "@/lib/onchain/signer";
@@ -24,11 +25,16 @@ const ZERO = "0x0000000000000000000000000000000000000000";
  * Prestige pity is keyed per TOKEN (Prestige.sol:42), unlike roll pity which is keyed per
  * (owner, letterIndex) — but both come from the commit snapshot, so neither can move between commit
  * and reveal.
+ *
+ * AUTH IS OPTIONAL, as on /api/mint/reveal. The signature binds the owner STORED in the commit (a
+ * reveal pays nobody new, whoever relays it) and the outcome is fixed per commitId, so a caller
+ * learns nothing it can spend or reroll. Requiring a Farcaster session would shut wallet-only
+ * players out of a mechanic they paid for (decisions.md #9). The FID, when present, is only the
+ * rate-limit key; anonymous callers are bucketed by IP.
  */
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
-  if (!fid) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  if (!(await allow("record-add", fid)))
+  if (!(await allow("record-add", fid ?? clientIp(req))))
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let raw: string | undefined;

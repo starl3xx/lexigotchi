@@ -77,6 +77,7 @@ import {
   feedCalls,
   feedManyCalls,
   faucetCalls,
+  commitPackCalls,
   claimRewardCalls,
   type RewardClaim,
 } from "@/lib/onchain/actions";
@@ -84,7 +85,7 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
 import { guardedAction } from "@/lib/onchain/guardedAction";
-import { authedPostJson, maybeAuthedPostJson, canSign } from "./campaignClient";
+import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 
@@ -457,7 +458,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (id === null) {
         return { status: "stranded", note: "Roll committed but slow to appear — reopen to finish it" };
       }
-      const draw = await postJson<{ reveal: OutcomeReveal }>("/api/roll/reveal", { commitId: String(id) });
+      // openPostJson: the reveal is owner-bound and idempotent, so it needs no Farcaster session.
+      const draw = await openPostJson<{ reveal: OutcomeReveal }>("/api/roll/reveal", { commitId: String(id) });
       if (!draw?.ok) {
         toast(authError(draw?.error, "Roll"), "bad");
         return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
@@ -466,7 +468,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (!ok) return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
       return { status: "resolved", success: draw.reveal.success };
     },
-    [address, postJson, run, toast, authError],
+    [address, openPostJson, run, toast, authError],
   );
 
 
@@ -590,16 +592,37 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         return [];
       },
 
+      /**
+       * A PAID pack: approve + commitPack, then the signed reveal. Any wallet can buy one; the
+       * reveal route needs no sign-in. Same money rule as the rolls: once the commit is sent, every
+       * later failure is "stranded" (paid, and recoverable from PendingReveal), never "try again".
+       */
+      buyPack: () =>
+        guarded(async (markPaid) => {
+          if (!chain.params || !chain.player || !address) {
+            toast("Connect a wallet first", "bad");
+            return { status: "not-started" as const };
+          }
+          const before = (await readPendingCommits(address)).map((c) => c.commitId);
+          if (!(await run("Pack", () => commitPackCalls(chain.params!, chain.player!)))) {
+            return { status: "not-started" as const };
+          }
+          markPaid(); // the pack price is spent from here on
+          toast("Opening…", "info");
+          const commit = await waitForNewCommit(address, before);
+          if (!commit) return { status: "stranded" as const, note: "Your pack is paid for. It’ll be waiting for you." };
+          // revealCommit opens the pack sheet itself once the letters exist.
+          if (!(await revealCommit(commit.commitId))) {
+            return { status: "stranded" as const, note: "Your pack is paid for. Reopen it to finish." };
+          }
+          return { status: "resolved" as const, success: true };
+        }),
+
       rollLoose: (idx: number) =>
         guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
-          // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
-          // their voucher first so they fail free; a paid commit sent before this check leaves the
-          // fee spent and the commit stranded with no way to finish it.
-          if (!(await canSign())) {
-            toast("Rolling needs a Farcaster sign-in — tap Connect to sign in", "bad");
-            return { status: "not-started" as const };
-          }
+          // No sign-in pre-check: the roll reveal serves any wallet (see /api/roll/reveal), so a
+          // wallet-only player can always finish a roll they paid for.
           const before = await readOpenRollCommits(address);
           if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
@@ -609,13 +632,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       rollWord: (word: string, pos: number) =>
         guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
-          // Check we can get a reveal signature BEFORE taking the fee. The daily and the pack fetch
-          // their voucher first so they fail free; a paid commit sent before this check leaves the
-          // fee spent and the commit stranded with no way to finish it.
-          if (!(await canSign())) {
-            toast("Rolling needs a Farcaster sign-in — tap Connect to sign in", "bad");
-            return { status: "not-started" as const };
-          }
+          // No sign-in pre-check: the roll reveal serves any wallet (see /api/roll/reveal), so a
+          // wallet-only player can always finish a roll they paid for.
           const before = await readOpenRollCommits(address);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
@@ -625,10 +643,6 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       prestige: (word: string) =>
         guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
-          if (!(await canSign())) {
-            toast("Ascension needs a Farcaster sign-in — tap Connect to sign in", "bad");
-            return { status: "not-started" as const };
-          }
           const before = await readOpenPrestigeCommits(address);
           if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // fee + burned snack are gone from here on
@@ -637,7 +651,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (id === null) {
             return { status: "stranded", note: "Ascension committed but slow to appear — reopen to finish it" };
           }
-          const draw = await postJson<{ reveal: OutcomeReveal }>("/api/prestige/reveal", { commitId: String(id) });
+          const draw = await openPostJson<{ reveal: OutcomeReveal }>("/api/prestige/reveal", { commitId: String(id) });
           if (!draw?.ok) {
             toast(authError(draw?.error, "Ascension"), "bad");
             return { status: "stranded", note: "Ascension is paid for — reopen to finish it" };

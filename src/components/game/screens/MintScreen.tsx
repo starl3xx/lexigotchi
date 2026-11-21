@@ -16,10 +16,12 @@ export function MintScreen() {
   const { state } = g;
   const daily = useDailyEligibility();
   const viewer = useViewer();
-  // The chain store's pack is the CAMPAIGN pack — gated server-side on add+share. Ask up front so
-  // an ineligible player sees why instead of a button that bounces off a 403 ("rip a pack does
-  // nothing" was the live report). null = unknown (not signed in / DB absent) → keep the button.
+  // The FREE campaign pack is gated server-side on add+share. Ask up front so only an eligible
+  // player sees its button, instead of one that bounces off a 403 ("rip a pack does nothing" was
+  // the live report). null = unknown (not signed in / DB absent) → no free-pack card.
   const [packEligible, setPackEligible] = useState<boolean | null>(null);
+  /** A paid chain pack is in flight (commit sent or about to be): hold the button. */
+  const [buying, setBuying] = useState(false);
   useEffect(() => {
     if (!state.chainBacked || !viewer.isAuthed) return void setPackEligible(null);
     let dead = false;
@@ -65,46 +67,63 @@ export function MintScreen() {
         )}
       </Card>
 
-      {/* pack of 5 */}
+      {/* the free campaign pack: only for players who earned it (add the mini app + share a cast) */}
+      {state.chainBacked && packEligible === true && (
+        <Card className="bg-paper">
+          <SectionTitle action={<span className="text-xs font-bold text-teal">Free · once</span>}>Your free pack</SectionTitle>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-ink/70">Five letters, on the house, for sharing Lexigotchi.</span>
+            <Button onClick={() => g.openPack()}>
+              <Ticket weight="fill" /> Open free
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* pack of 5: paid, for every wallet */}
       <Card className="bg-gradient-to-b from-paper to-candy/10">
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
-            {/* On the chain store, openPack is the FREE campaign pack — pricing it would send the
-                exact audience it's for (empty balance) to the Buy sheet instead of the voucher. */}
-            <div className="text-xs text-ink/60">
-              {g.state.chainBacked ? "Free — campaign pack" : `${fmtWord(COST.pack)} $WORD · ${fmtUsd(COST.pack)}`}
-            </div>
+            <div className="text-xs text-ink/60">{`${fmtWord(COST.pack)} $WORD · ${fmtUsd(COST.pack)}`}</div>
           </div>
           <Package weight="fill" size={40} className="text-candy" />
         </div>
-        {state.chainBacked && packEligible === false ? (
-          <div className="mt-3 rounded-xl border-2 border-dashed border-ink/30 p-3 text-center text-sm text-ink/60">
-            The free pack is the campaign reward — <strong>add Lexigotchi in the Farcaster app and
-            share a cast</strong> to earn it.
-          </div>
-        ) : (
         <Button
           full
           size="lg"
           variant="primary"
           className="mt-3"
+          disabled={buying}
           onClick={() => {
             // broke ≠ blocked: route the intent to the Buy sheet with the exact shortfall.
-            // Skipped entirely on the chain store, where this pack costs nothing.
-            if (!g.state.chainBacked && !g.canAfford(COST.pack)) {
+            if (!g.canAfford(COST.pack)) {
               g.openSheet({ kind: "balance", need: { amount: COST.pack, action: "a pack" } });
               return;
             }
-            // Chain-backed: openPack drives the real two-tx flow and opens the sheet itself when
-            // the letters exist, so an empty return here is expected, not a failure.
-            const idxs = g.openPack();
-            if (idxs.length) g.openSheet({ kind: "pack", letters: idxs });
+            const result = g.buyPack();
+            if (Array.isArray(result)) {
+              if (result.length) g.openSheet({ kind: "pack", letters: result });
+              return;
+            }
+            // Chain store: two wallet prompts, then the reveal opens the pack sheet itself. Hold the
+            // button the whole time so a second tap can't buy a second pack by accident; a pack that
+            // ends "stranded" is paid for and waits in PendingReveal above.
+            setBuying(true);
+            void result
+              .then((outcome) => {
+                if (outcome.status === "stranded") g.toast(outcome.note, "info");
+              })
+              .finally(() => setBuying(false));
           }}
         >
           <Package weight="fill" />
-          {g.state.chainBacked || g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
+          {buying ? "Opening…" : g.canAfford(COST.pack) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
+        {state.chainBacked && packEligible === false && (
+          <p className="mt-2 text-center text-xs text-ink/55">
+            Earn a free pack: add Lexigotchi in the Farcaster app and share a cast.
+          </p>
         )}
       </Card>
 
