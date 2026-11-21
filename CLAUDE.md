@@ -133,7 +133,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `builderCapabilities()` on `wallet_sendCalls` (wagmi `useSendCalls` or the mini-app EIP-1193
   provider), raw `eth_sendTransaction` via `appendBuilderSuffix(data)`. The single write chokepoint that
   injects it is `src/lib/onchain/sendCalls.ts` (`sendCallsAttributed`) — every contract write routes
-  through it. The game's writes are still mock; **`docs/web3-runtime-plan.md`** is the runtime build plan.
+  through it. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
+  empty until the deploy, so production flips to the real game in the same deploy that commits the
+  mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the
+  chain game the prototype buttons are gone (no skip-a-day; the faucet only on testnet), and
+  ascension hides while `Prestige.maxLevel` is 0. **`docs/web3-runtime-plan.md`** is the launch runbook.
 
 ## v0.2 mechanics (the ones easy to get wrong)
 

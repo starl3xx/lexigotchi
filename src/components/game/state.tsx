@@ -545,6 +545,12 @@ export interface GameApi {
    * sold out; at 0, so is the daily.
    */
   lettersLeft: number | null;
+  /**
+   * How many Gilded levels a word can ascend (chain store: Prestige.maxLevel). 0 = ascension is OFF
+   * (decisions.md #11 keeps it off at launch, set by deploying with PRESTIGE_MAX_LEVEL=0), and the
+   * word sheet hides it rather than offer a button the contract would refuse.
+   */
+  maxPrestigeLevel: number;
   dailyMint: () => number | null | Promise<ActionOutcome>;
   /**
    * The FREE campaign pack (chain store: the signer-issued voucher for players who added the mini
@@ -642,6 +648,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       canAfford: (amount) => state.balance >= amount,
       price: (item) => MOCK_PRICE[item],
       lettersLeft: null,
+      maxPrestigeLevel: PRESTIGE_LEVELS,
 
       dailyMint: () => {
         if (state.dailyMinted || state.balance < COST.daily) return null;
