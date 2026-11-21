@@ -21,6 +21,7 @@ contract LettersHarness is Letters {
 
     function mintLower(address to, uint8 letterIndex, uint256 amount) external {
         mintedEver[letterIndex] += uint32(amount);
+        unreservedSupply -= amount; // keep Σ(cap − mintedEver) − pending exact for the real paths
         _mint(to, letterIndex, amount, "");
     }
 

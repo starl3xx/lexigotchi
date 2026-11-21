@@ -29,6 +29,8 @@ export function MintScreen() {
     return () => { dead = true; };
   }, [state.chainBacked, viewer.isAuthed]);
   const packPrice = g.price("pack");
+  // Every letter in the game is minted or promised to an open pack: the contract would refuse.
+  const soldOut = g.lettersLeft !== null && g.lettersLeft < 5;
   const common = LETTERS_BY_FREQUENCY.slice(0, 5);
   const rare = LETTERS_BY_FREQUENCY.slice(-5);
 
@@ -95,7 +97,7 @@ export function MintScreen() {
           size="lg"
           variant="primary"
           className="mt-3"
-          disabled={buying}
+          disabled={buying || soldOut}
           onClick={() => {
             // broke ≠ blocked: route the intent to the Buy sheet with the exact shortfall.
             if (!g.canAfford(packPrice)) {
@@ -119,7 +121,7 @@ export function MintScreen() {
           }}
         >
           <Package weight="fill" />
-          {buying ? "Opening…" : g.canAfford(packPrice) ? "Rip a pack open" : "Get $WORD to rip a pack"}
+          {soldOut ? "Sold out" : buying ? "Opening…" : g.canAfford(packPrice) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
         {state.chainBacked && packEligible === false && (
           <p className="mt-2 text-center text-xs text-ink/55">

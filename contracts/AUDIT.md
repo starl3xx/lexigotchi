@@ -61,6 +61,33 @@ non-exploitable. Confirmed + remediated:
   binding the day into the digest (PR #42).
 Plus: the burn share is now a real `$WORD.burn()` (PR #44), not a soft transfer to a dead address.
 
+### Second internal audit (2026-11-21), the pre-mainnet pass
+
+There will be no external audit and no legal review (starl3xx, 2026-11-21, verbatim: "there won't be
+a security audit (you can find skills to look at this) or lawyer convo"). This pass is the
+replacement: the `solidity-auditor` skill in DEEP mode, four vector scanners (170 attack vectors
+between them) plus one adversarial reviewer that also read the signer routes, each finding then
+checked by hand against the code. Four confirmed, all fixed with a test that is the exploit:
+- **High** — unstake + restake set `lastFed = now`, so a hungry Word was "fed" for gas: no snack
+  burned, yield and jackpot eligibility kept. All five reviewers found it. Fixed: the hunger clock
+  pauses while unstaked and resumes on restake (`Staking.unfedCarry`).
+- **Medium** — roll pity is snapshotted at commit and reset only by a success reveal the committer
+  controls, so a player could open many rolls, reveal the misses, bank the signed successes, and keep
+  every later roll at the 85% cap (~35% fewer roll fees over 50 letters). Fixed: one open roll per
+  `(owner, letter)` (`Rolls.rollOpen`, reverts `RollOpen`).
+- **Medium** — the same pattern on ascension (`Prestige.attemptOpen`, reverts `AttemptOpen`).
+- **Medium** — commits took the fee without reserving supply; at sell-out (expected around day 56)
+  the last buyers' paid commits could never be revealed (no expiry, no refund). Fixed: supply is
+  reserved at commit (`Letters.unreservedSupply`, reverts `SoldOut` before any fee moves).
+
+Checked and dropped: the AnswerChain terminal (it is `bytes32(0)`, so rotation works); reentrancy
+(every hook-bearing path writes state first under `nonReentrant`); digest cross-replay across the six
+signer layouts (none collide). Noted, not a code bug: `Rolls` and `Prestige` take `msg.sender` as
+owner, like every contract the deploy script creates, so ownership must move to the hardware wallet
+after deploy (`transferOwnership` → `acceptOwnership`). Backend follow-up (not in these contracts): a
+pack's draw depends on the live supply, so one unrevealed commit can get a second valid draw when a
+letter caps out; the reveal routes should keep the first draw while it stays valid.
+
 ## Suggested external focus
 
 Commit-reveal + voucher signature surface (digest layouts, replay, the KIND tags); FeeRouter
@@ -70,7 +97,7 @@ accounting + the `route()` surplus/delivered check; Words escrow + case-state; t
 
 ## Status
 
-`forge build` clean; **54 forge tests** (incl. the invariant campaign and a cross-language
+`forge build` clean; **62 forge tests** (incl. the invariant campaign and a cross-language
 AnswerChain vector — the schedule generator `scripts/generate-answer-chain.ts` and
 `AnswerChain.reveal` share a verified fixture) + **84 vitest** (economy/solvency) green. Known gaps
 for the audit/launch (see `README.md` checklist): the production swap-router adapter (deferred —

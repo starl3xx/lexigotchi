@@ -539,6 +539,12 @@ export interface GameApi {
    * the contract doesn't charge and gates affordability on it.
    */
   price: (item: PriceItem) => number;
+  /**
+   * Lowercase letters still for sale (chain store: Letters.unreservedSupply). Null = no limit to
+   * show: the mock, or a deployment that predates the reservation. Below a pack's 5, packs are
+   * sold out; at 0, so is the daily.
+   */
+  lettersLeft: number | null;
   dailyMint: () => number | null | Promise<ActionOutcome>;
   /**
    * The FREE campaign pack (chain store: the signer-issued voucher for players who added the mini
@@ -635,6 +641,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dismissToast,
       canAfford: (amount) => state.balance >= amount,
       price: (item) => MOCK_PRICE[item],
+      lettersLeft: null,
 
       dailyMint: () => {
         if (state.dailyMinted || state.balance < COST.daily) return null;

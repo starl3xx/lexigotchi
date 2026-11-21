@@ -84,6 +84,15 @@ parts.push(
   "",
 );
 
+// The claim surface of MerkleEpochs. YieldDistributor and Bounty both inherit it unchanged, so one
+// generated ABI serves both (claim, hasClaimed, epochs). Emitted HERE, never appended by hand: this
+// file is regenerated after every contract change, and a hand-added export silently disappears.
+parts.push(
+  "/** The claim surface of MerkleEpochs (YieldDistributor + Bounty share it). */",
+  "export const merkleEpochsAbi = yieldDistributorAbi;",
+  "",
+);
+
 const out = resolve(ROOT, "src/lib/onchain/abis.ts");
 writeFileSync(out, parts.join("\n"));
 
