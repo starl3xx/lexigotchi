@@ -13,6 +13,7 @@
  * - COMMON_NAMES: Common first names (primarily used as names)
  * - MORPHOLOGICAL: Words with inflectional suffixes (-ED, -ER, -EST, etc.)
  * - SLANG_ALLOWLIST: Acceptable slang/informal words
+ * - ROUND_36_ADDITIONS: Ordinary vocabulary added from round 36
  * - BANNED_GUESSES: Words that should never be valid (blacklist)
  * 
  * Secret word selection: Uses WORDS only
@@ -23,7 +24,7 @@
 
 /**
  * Core common English vocabulary - everyday words suitable for gameplay
- * Total: 3934 words
+ * Total: 3847 words
  */
 export const CORE_COMMON: string[] = [
   "ABACK",
@@ -3942,7 +3943,7 @@ export const COMMON_NAMES: string[] = [
 
 /**
  * Words with inflectional suffixes (-ED forms)
- * Total: 402 words
+ * Total: 505 words
  */
 export const MORPHOLOGICAL: string[] = [
   "ACHED",
@@ -4454,7 +4455,7 @@ export const MORPHOLOGICAL: string[] = [
 
 /**
  * Acceptable slang and informal words
- * Total: 30 words
+ * Total: 38 words
  */
 export const SLANG_ALLOWLIST: string[] = [
   "AIGHT",
@@ -4502,7 +4503,7 @@ export const SLANG_ALLOWLIST: string[] = [
  * These are offensive slurs, highly inappropriate terms, and words
  * that should never appear in the game.
  * All entries must be exactly 5 letters, uppercase.
- * Total: 14 words
+ * Total: 16 words
  */
 export const BANNED_GUESSES: string[] = [
   // Racial/ethnic slurs
@@ -4527,15 +4528,175 @@ export const BANNED_GUESSES: string[] = [
 ];
 
 /**
+ * Words added for round 36 and onward.
+ *
+ * Ordinary English vocabulary, the same bar as CORE_COMMON. Kept as its own
+ * array rather than merged into the category lists so that what was added,
+ * and from which round it counts, stays readable a year from now.
+ *
+ * Total: 146 words
+ */
+export const ROUND_36_ADDITIONS: string[] = [
+  "ABBOT",
+  "ABUZZ",
+  "AGLOW",
+  "ANNUL",
+  "ANTIC",
+  "APHID",
+  "ARDOR",
+  "ASHEN",
+  "BALER",
+  "BALSA",
+  "BASTE",
+  "BEADY",
+  "BEFIT",
+  "BEGET",
+  "BELAY",
+  "BELIE",
+  "BIPED",
+  "BLEAT",
+  "BOCCE",
+  "BOGGY",
+  "BRINY",
+  "BROIL",
+  "BYWAY",
+  "CAGEY",
+  "CARET",
+  "CAROL",
+  "CHAFE",
+  "CHIDE",
+  "CHIVE",
+  "CIVIC",
+  "COPSE",
+  "COYLY",
+  "CRIER",
+  "CROON",
+  "CURIO",
+  "DALLY",
+  "DEIGN",
+  "DIRGE",
+  "DIVOT",
+  "DOILY",
+  "DOWEL",
+  "DRAWL",
+  "EDIFY",
+  "ELATE",
+  "ELFIN",
+  "EMOTE",
+  "ENDOW",
+  "ENNUI",
+  "EXTOL",
+  "FETID",
+  "FILER",
+  "FILMY",
+  "FLOUT",
+  "FOAMY",
+  "FOIST",
+  "FRILL",
+  "FROND",
+  "GAZER",
+  "GEODE",
+  "GONER",
+  "GRIFT",
+  "GRUBS",
+  "GUPPY",
+  "HEEDS",
+  "HIDER",
+  "HONES",
+  "HOVEL",
+  "HOWDY",
+  "HUMUS",
+  "IDLER",
+  "IMBUE",
+  "IMPEL",
+  "INGOT",
+  "JOIST",
+  "JOULE",
+  "JOUST",
+  "JULEP",
+  "KAZOO",
+  "KILTS",
+  "LEACH",
+  "LICIT",
+  "LITHE",
+  "LIVID",
+  "LOTTO",
+  "LUTES",
+  "MANGY",
+  "MASON",
+  "MENDS",
+  "MIMIC",
+  "MISTY",
+  "MOREL",
+  "MOSEY",
+  "NEIGH",
+  "OAKEN",
+  "OASES",
+  "OCTET",
+  "OPINE",
+  "ORATE",
+  "OVOID",
+  "OWLET",
+  "OXBOW",
+  "PAEAN",
+  "PAVER",
+  "PAYEE",
+  "PETTY",
+  "POLYP",
+  "POUTY",
+  "PREEN",
+  "QUALM",
+  "RATER",
+  "RAVER",
+  "ROWDY",
+  "SANDY",
+  "SATYR",
+  "SCALD",
+  "SERVO",
+  "SHUCK",
+  "SIDLE",
+  "SINGE",
+  "SITAR",
+  "SKEIN",
+  "SOWER",
+  "SPLAY",
+  "STARK",
+  "STILT",
+  "STRUM",
+  "SWILL",
+  "TARRY",
+  "TENET",
+  "TILDE",
+  "TRIKE",
+  "UMBRA",
+  "UNBOX",
+  "UNLIT",
+  "UPEND",
+  "UVULA",
+  "VALET",
+  "VOGUE",
+  "VOXEL",
+  "WARTY",
+  "WAXEN",
+  "WEEPY",
+  "WISPY",
+  "WOOZY",
+  "YODEL",
+  "YOKEL",
+];
+
+/**
  * MASTER WORD LIST
- * 
+ *
  * This is the SINGLE source of truth for the game.
  * - Secret words are selected from this list
  * - Guesses are validated against this list
  * - No other word list is used at runtime
- * 
+ *
+ * Rounds 1-35 played without ROUND_36_ADDITIONS (4438 words).
+ *
  * Derived from category arrays, filtered by BANNED_GUESSES.
- * Total: 4437 words
+ * Total: 4584 words
  */
 export const WORDS: string[] = [
   ...CORE_COMMON,
@@ -4543,4 +4704,5 @@ export const WORDS: string[] = [
   ...COMMON_NAMES,
   ...MORPHOLOGICAL,
   ...SLANG_ALLOWLIST,
+  ...ROUND_36_ADDITIONS,
 ].filter(w => !BANNED_GUESSES.includes(w)).sort();

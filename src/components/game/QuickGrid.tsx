@@ -2,11 +2,12 @@
 /** The "Do something" tile grid — shared by Home and the More page so the two can't drift. */
 import { ArrowsLeftRight, Backpack, BookOpen, MaskHappy, Medal, Sparkle, TextAa, Trophy } from "./ui/icons";
 import { useGame, type View } from "./state";
+import { WORD_COUNT } from "@/lib/dictionary";
 
 const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = [
   { Icon: Sparkle, label: "Mint letters", sub: "packs & daily", to: "mint" },
   { Icon: TextAa, label: "Spell a word", sub: "claim it forever", to: "claim" },
-  { Icon: BookOpen, label: "Lexidex", sub: "4,438 words", to: "lexidex" },
+  { Icon: BookOpen, label: "Lexidex", sub: `${WORD_COUNT.toLocaleString("en-US")} words`, to: "lexidex" },
   { Icon: MaskHappy, label: "Showcase", sub: "flex & cast", to: "showcase" },
   { Icon: ArrowsLeftRight, label: "Swap", sub: "trade letters", to: "swap" },
   { Icon: Backpack, label: "My bag", sub: "letters & words", to: "bag" },

@@ -14,27 +14,32 @@ import {
   stakeWeight,
 } from "@/lib/economy";
 
-// ---- Spec Appendix A: letter economy (the published, provable table) ----
+// The spec's Appendix A and B tables were published for the 4,438-word dictionary. Let's Have A Word
+// added 146 words in round 36 (LHAW #326, #327; no removals), and the re-vendor on 2026-11-21 moved
+// the canon to 4,584. These are the same derivations, re-run on that list: a CHANGE to any value
+// here means the dictionary or the formulas moved, which is exactly what this file exists to catch.
+
+// ---- Appendix A: letter economy (re-derived for 4,584 words) ----
 const SPEC_SLOTS: Record<string, number> = {
-  S: 2343, E: 2299, A: 1899, R: 1512, O: 1472, T: 1280, I: 1257, L: 1217,
-  N: 1060, D: 915, U: 795, C: 776, P: 711, M: 645, H: 629, Y: 580, B: 513,
-  G: 513, K: 465, F: 404, W: 339, V: 274, Z: 95, X: 86, J: 66, Q: 45,
+  E: 2387, S: 2378, A: 1950, R: 1554, O: 1532, T: 1327, I: 1311, L: 1269,
+  N: 1091, D: 946, U: 820, C: 798, P: 731, M: 662, H: 644, Y: 614, B: 536,
+  G: 531, K: 473, F: 417, W: 355, V: 287, Z: 100, X: 91, J: 70, Q: 46,
 };
 const SPEC_CAPS: Record<string, number> = {
-  S: 5857, E: 5747, A: 4747, R: 3780, O: 3680, T: 3200, I: 3142, L: 3042,
-  N: 2650, D: 2287, U: 1987, C: 1940, P: 1777, M: 1612, H: 1572, Y: 1450,
-  B: 1282, G: 1282, K: 1162, F: 1010, W: 847, V: 685, Z: 237, X: 215, J: 165, Q: 112,
+  E: 5967, S: 5945, A: 4875, R: 3885, O: 3830, T: 3317, I: 3277, L: 3172,
+  N: 2727, D: 2365, U: 2050, C: 1995, P: 1827, M: 1655, H: 1610, Y: 1535,
+  B: 1340, G: 1327, K: 1182, F: 1042, W: 887, V: 717, Z: 250, X: 227, J: 175, Q: 115,
 };
 
-// ---- Spec Appendix B: the 45 Legendaries (rarest first) ----
-const SPEC_LEGENDARIES = "JAZZY FUZZY FIZZY DIZZY JIFFY RAQQA JUMPY PIZZA QUICK MEZZO QUACK JUMBO JUICY QUIRK AFFIX ZIPPY JANKY XEROX DJING WHIFF ZUMBA QUARK JIVED ZHONG QUINN HIJAB JUKED BURQA PUFFY FJORD KLUTZ JUMPS JUDGE ZYNGA GIZMO NIQAB JUNKS QUINT BOOZY JERKY BUGGY FLUFF FUZED QUILL QUILT".split(" ");
+// ---- Appendix B: the 46 Legendaries (rarest first; JAZZY is still the apex) ----
+const SPEC_LEGENDARIES = "JAZZY FUZZY FIZZY DIZZY ABUZZ JIFFY RAQQA JUMPY QUICK PIZZA MEZZO QUACK JUMBO QUIRK JUICY AFFIX OXBOW ZIPPY JANKY XEROX DJING WOOZY WHIFF QUARK ZUMBA ZHONG QUINN JIVED BURQA JUKED HIJAB QUALM PUFFY KLUTZ FJORD JUMPS UNBOX NIQAB JUDGE ZYNGA JUNKS GIZMO QUINT JERKY FLUFF BUGGY".split(" ");
 
-const SPEC_Q_WORDS = "BURQA EQUAL EQUIP ESQUE NIQAB PIQUE QUACK QUADS QUAIL QUAKE QUANT QUARK QUART QUASH QUASI QUAYS QUEEN QUEER QUELL QUERY QUESO QUEST QUEUE QUICK QUIET QUILL QUILT QUINN QUINT QUIPS QUIRK QUITE QUITO QUITS QUORA QUOTA QUOTE QURAN RAQQA ROQUE SQUAD SQUAT SQUID TUQUE".split(" ");
+const SPEC_Q_WORDS = "BURQA EQUAL EQUIP ESQUE NIQAB PIQUE QUACK QUADS QUAIL QUAKE QUALM QUANT QUARK QUART QUASH QUASI QUAYS QUEEN QUEER QUELL QUERY QUESO QUEST QUEUE QUICK QUIET QUILL QUILT QUINN QUINT QUIPS QUIRK QUITE QUITO QUITS QUORA QUOTA QUOTE QURAN RAQQA ROQUE SQUAD SQUAT SQUID TUQUE".split(" ");
 
 describe("canonical dictionary", () => {
-  it("resolves to exactly 4,438 eligible words (vendored export is already unique)", () => {
-    expect(WORD_COUNT).toBe(4438);
-    expect(RAW_WORD_LIST.length).toBe(4438); // file's filter+sort already yields a unique list
+  it("resolves to exactly 4,584 eligible words (vendored export is already unique)", () => {
+    expect(WORD_COUNT).toBe(4584);
+    expect(RAW_WORD_LIST.length).toBe(4584); // file's filter+sort already yields a unique list
     expect(RAW_WORD_LIST.length - WORD_COUNT).toBe(0); // our Set() is a defensive no-op here
   });
 
@@ -51,8 +56,8 @@ describe("canonical dictionary", () => {
 });
 
 describe("letter economy (Appendix A)", () => {
-  it("totals 22,190 letter slots", () => {
-    expect(TOTAL_SLOTS).toBe(22190);
+  it("totals 22,920 letter slots", () => {
+    expect(TOTAL_SLOTS).toBe(22920);
     expect(TOTAL_SLOTS).toBe(WORD_COUNT * 5);
   });
 
@@ -65,43 +70,42 @@ describe("letter economy (Appendix A)", () => {
     expect(sum).toBeCloseTo(1, 12);
   });
 
-  it("matches the spec supply cap (floor of 2.5×) for every letter, totalling 55,467", () => {
+  it("matches the supply cap (floor of 2.5×) for every letter, totalling 57,294", () => {
     for (const L of ALPHABET) expect(LETTER_SUPPLY_CAP[L]).toBe(SPEC_CAPS[L]);
-    // SPEC NOTE: the spec prose headlines "55,475 total letters" (= 2.5 × 22,190, the
-    // pre-floor figure). The deployable per-ID caps are floor(slots × 2.5), which sum to
-    // 55,467 — and that is exactly what the spec's own Appendix A per-letter column sums to.
-    expect(TOTAL_SUPPLY_CAP).toBe(55467);
-    expect(Math.round(TOTAL_SLOTS * 2.5)).toBe(55475); // the idealized pre-floor headline
+    // The idealized headline is 2.5 × slots (57,300); the deployable per-ID caps are
+    // floor(slots × 2.5), which sum to 57,294. (For 4,438 words: 55,475 and 55,467.)
+    expect(TOTAL_SUPPLY_CAP).toBe(57294);
+    expect(Math.round(TOTAL_SLOTS * 2.5)).toBe(57300); // the idealized pre-floor headline
   });
 
-  it("Q is the scarcest letter: 45 slots, 44 Q-words (RAQQA's double explains the gap)", () => {
-    expect(LETTER_SLOTS.Q).toBe(45);
-    expect(Q_WORDS.length).toBe(44);
+  it("Q is the scarcest letter: 46 slots, 45 Q-words (RAQQA's double explains the gap)", () => {
+    expect(LETTER_SLOTS.Q).toBe(46);
+    expect(Q_WORDS.length).toBe(45);
     expect([...Q_WORDS].sort()).toEqual([...SPEC_Q_WORDS].sort());
   });
 });
 
 describe("rarity tiers (Appendix B)", () => {
-  it("tiers sum to the full dictionary with spec-matching anchor counts", () => {
-    expect(TIER_COUNTS.Common).toBe(2219);
-    expect(TIER_COUNTS.Epic).toBe(177);
-    expect(TIER_COUNTS.Legendary).toBe(45);
-    // One word straddles the Uncommon/Rare score-tie boundary, so we assert the
-    // combined bucket (spec 1330 + 667 = 1997) rather than each side.
-    expect(TIER_COUNTS.Uncommon + TIER_COUNTS.Rare).toBe(1997);
+  it("tiers sum to the full dictionary at the floor(N × p) cuts", () => {
+    // cuts at floor(4584 × .50/.80/.95/.99) = 2292 / 3667 / 4354 / 4538
+    expect(TIER_COUNTS.Common).toBe(2292);
+    expect(TIER_COUNTS.Uncommon).toBe(1375);
+    expect(TIER_COUNTS.Rare).toBe(687);
+    expect(TIER_COUNTS.Epic).toBe(184);
+    expect(TIER_COUNTS.Legendary).toBe(46);
     const total = Object.values(TIER_COUNTS).reduce((a, b) => a + b, 0);
-    expect(total).toBe(4438);
+    expect(total).toBe(4584);
   });
 
-  it("reproduces the exact 45-Legendary set, rarest-first order intact for the top of the list", () => {
+  it("reproduces the exact 46-Legendary set, rarest-first order intact for the top of the list", () => {
     expect([...LEGENDARIES].sort()).toEqual([...SPEC_LEGENDARIES].sort());
     // ordering check: JAZZY is the apex, the published top-10 order holds
     expect(LEGENDARIES.slice(0, 10)).toEqual(SPEC_LEGENDARIES.slice(0, 10));
   });
 
-  it("identifies all 8 doubled-ultra-rare crowns", () => {
+  it("identifies all 9 doubled-grail crowns (a grail letter twice; ABUZZ is new)", () => {
     expect([...DOUBLED_ULTRA_RARES].sort()).toEqual(
-      ["DIZZY", "FIZZY", "FUZZY", "JAZZY", "MEZZO", "PIZZA", "RAQQA", "XEROX"],
+      ["ABUZZ", "DIZZY", "FIZZY", "FUZZY", "JAZZY", "MEZZO", "PIZZA", "RAQQA", "XEROX"],
     );
   });
 });

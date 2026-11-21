@@ -6,7 +6,7 @@
  */
 import { useState, type ReactNode } from "react";
 import { WORD_COUNT } from "@/lib/dictionary";
-import { TOTAL_SUPPLY_CAP, TIER_COUNTS, LEGENDARIES } from "@/lib/economy";
+import { TOTAL_SUPPLY_CAP, TOTAL_SLOTS, TIER_COUNTS, LEGENDARIES } from "@/lib/economy";
 import { Sheet } from "../primitives";
 import { CaretRight } from "../ui/icons";
 import { useGame } from "../state";
@@ -45,11 +45,11 @@ function useFaq(): { q: string; a: ReactNode }[] {
       q: "How do I mint letters?",
       a: (
         <>
-          Two ways: a discounted <strong>daily single</strong> (1 per Farcaster FID per day — the
-          habit loop) and full-price <strong>packs of 5</strong>, anytime. Every mint is{" "}
-          <strong>100% lowercase</strong>; a letter&apos;s pull rate equals its share of the 22,190
-          dictionary slots, so common letters come up often and Q/Z/X/J are the grails. You can pay in
-          $WORD or ETH (auto-swapped to $WORD).
+          Two ways: a free <strong>daily single</strong> (one a day once you link Farcaster or use a
+          Coinbase-verified wallet — the habit loop) and <strong>packs of 5</strong> for $WORD,
+          anytime. Every mint is <strong>100% lowercase</strong>; a letter&apos;s pull rate equals its
+          share of the {TOTAL_SLOTS.toLocaleString("en-US")} dictionary slots, so common letters come
+          up often and Q/Z/X/J are the grails.
         </>
       ),
     },

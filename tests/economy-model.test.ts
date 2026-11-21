@@ -1,3 +1,5 @@
+import { WORD_COUNT } from "@/lib/dictionary";
+import { TOTAL_SUPPLY_CAP } from "@/lib/economy";
 import { describe, it, expect } from "vitest";
 import {
   DEFAULT_PARAMS,
@@ -51,9 +53,9 @@ describe("solvency by construction", () => {
     }
   });
 
-  it("never claims more than the 4,438-word dictionary, never mints past the supply cap", () => {
-    expect(res.final.totalClaims).toBeLessThanOrEqual(4438);
-    expect(res.final.lettersMintedTotal).toBeLessThanOrEqual(55467);
+  it("never claims more than the dictionary, never mints past the supply cap", () => {
+    expect(res.final.totalClaims).toBeLessThanOrEqual(WORD_COUNT);
+    expect(res.final.lettersMintedTotal).toBeLessThanOrEqual(TOTAL_SUPPLY_CAP);
     expect(Object.values(res.final.capConsumption).every((c) => c <= 1 + 1e-9)).toBe(true);
   });
 

@@ -4,16 +4,18 @@
  * Source of truth: `data/guess_words_clean.ts` (LHAW master word list v7.1.0).
  *
  * The vendored file assembles `WORDS` as
- *   [...CORE_COMMON, ...BIG_PLACES, ...COMMON_NAMES, ...MORPHOLOGICAL, ...SLANG_ALLOWLIST]
+ *   [...CORE_COMMON, ...BIG_PLACES, ...COMMON_NAMES, ...MORPHOLOGICAL, ...SLANG_ALLOWLIST,
+ *    ...ROUND_36_ADDITIONS]
  *     .filter(w => !BANNED_GUESSES.includes(w))
  *     .sort()
- * which evaluates to exactly 4,438 unique entries — the categories do not actually
- * overlap, so the `.filter().sort()` already yields a duplicate-free list matching the
- * Lexigotchi spec (Appendix A): 4,438 eligible words / 22,190 letter slots.
+ * which evaluates to exactly 4,584 unique entries — the categories do not actually
+ * overlap, so the `.filter().sort()` already yields a duplicate-free list: 4,584 eligible
+ * words / 22,920 letter slots. (The original spec was written for 4,438 words; Let's Have A Word
+ * added 146 in round 36, and this copy was re-vendored on 2026-11-21. Additions only.)
  *
  * We still pass the list through a `Set` defensively (so a future category edit that
  * introduces an overlap can never silently inflate the claimable set), then assert the
- * 4,438 invariant in tests.
+ * word count in tests.
  */
 import {
   WORDS as RAW_WORDS,
@@ -23,6 +25,7 @@ import {
   COMMON_NAMES,
   MORPHOLOGICAL,
   SLANG_ALLOWLIST,
+  ROUND_36_ADDITIONS,
 } from "../../data/guess_words_clean";
 
 /** The raw assembled list straight from the vendored file (filtered, sorted, NOT deduped). */
@@ -55,4 +58,5 @@ export const CATEGORIES = Object.freeze({
   COMMON_NAMES,
   MORPHOLOGICAL,
   SLANG_ALLOWLIST,
+  ROUND_36_ADDITIONS,
 });

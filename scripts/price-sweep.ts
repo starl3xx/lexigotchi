@@ -9,6 +9,7 @@
  *   npm run sweep
  */
 import { runSim, DEFAULT_SIM_CONFIG } from "../src/lib/sim/simulate";
+import { WORD_COUNT } from "../src/lib/dictionary";
 import { DEFAULT_PARAMS, WORD_USD_PRICE, WORD_PER_USD, priceWord, type Params } from "../src/lib/params";
 import type { SimResult } from "../src/lib/sim/types";
 
@@ -63,7 +64,7 @@ function metrics(res: SimResult): M {
   const casual = res.playerRoi.find((r) => r.archetype === "casual");
   return {
     mintOut: firstAll((d) => Object.values(d.capConsumption).every((c) => c >= 0.999)),
-    complete: firstAll((d) => d.totalClaims >= 4438),
+    complete: firstAll((d) => d.totalClaims >= WORD_COUNT),
     poolEq: res.poolEquilibrium,
     dailyBurn,
     demand: last.externalInflowTotal,

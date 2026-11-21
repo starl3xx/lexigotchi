@@ -6,7 +6,7 @@ prices and balances in the app are illustrative until the contracts deploy.
 ## What is Lexigotchi?
 
 A tamagotchi-style collection game on **Base**. You mint rubber-hose **letter characters**, roll
-them from lowercase to **UPPERCASE**, spell words from a 4,438-word dictionary to claim them as NFTs,
+them from lowercase to **UPPERCASE**, spell words from a 4,584-word dictionary to claim them as NFTs,
 then stake and feed them to earn **$WORD** and chase a daily jackpot. It's a sibling game to
 *Let's Have A Word!* in the same $WORD ecosystem.
 
@@ -21,7 +21,7 @@ staked, fed word is the day's secret answer.
 Two ways: a free **daily single** (1 per identity per day — a Farcaster account, or a
 [Coinbase-verified](https://www.coinbase.com/onchain-verify) wallet — the habit loop) and full-price
 **packs of 5**, anytime. Every mint is **100% lowercase**; a letter's pull rate equals its share of
-the 22,190 dictionary slots, so common letters come up often and Q/Z/X/J are the grails. Mints are
+the 22,920 dictionary slots, so common letters come up often and Q/Z/X/J are the grails. Mints are
 **$WORD-only** at launch — tap the balance pill to buy $WORD first if you only hold ETH.
 
 ## How do I get UPPERCASE letters?
@@ -41,8 +41,8 @@ lifetime (`tokenId = keccak256(word)`), so two people can never both own CRANE. 
 
 ## What are rarity tiers?
 
-Every word is scored by how rare its letters are and bucketed into 5 tiers: **Common** (2,219),
-Uncommon, Rare, Epic, and **Legendary** (45). Rarer tiers carry more stake weight (Common 1 →
+Every word is scored by how rare its letters are and bucketed into 5 tiers: **Common** (2,292),
+Uncommon, Rare, Epic, and **Legendary** (46). Rarer tiers carry more stake weight (Common 1 →
 Legendary 8). **JAZZY** is the apex crown — the only word combining two distinct ultra-rares with a
 double letter.
 
@@ -140,8 +140,8 @@ Lexigotchi to your Home Screen first (Share, then Add to Home Screen) and turn t
 
 ## How many words and letters are there?
 
-4,438 claimable words and a global supply cap of 55,467 letters across the 26 ids. 45 of the words are
-Legendary.
+4,584 claimable words and a global supply cap of 57,294 letters across the 26 ids. 46 of the words are
+Legendary. The dictionary is Let’s Have A Word’s, and it grows when theirs does.
 
 ## Are the contracts live?
 

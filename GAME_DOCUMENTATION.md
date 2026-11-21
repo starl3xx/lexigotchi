@@ -36,10 +36,10 @@ Two renewable late-game loops sit on top: a **weekly theme bounty** (broad, casu
   appear via a successful roll, which **burns the lowercase and mints the uppercase**, conserving
   total per-letter supply.
 - **Mint odds are demand-mirrored** (spec Appendix A): a letter's probability of being pulled equals
-  its share of all letter slots in the dictionary. The dictionary has **22,190 slots** (= 5 × 4,438
+  its share of all letter slots in the dictionary. The dictionary has **22,920 slots** (= 5 × 4,584
   words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails.
 - **Per-letter supply caps** = `floor(slots × 2.5)` (the demand multiple). They sum to a global cap
-  of **55,467 letters**. The sim shows all letters mint out around day 69 at scale; after that the
+  of **57,294 letters**. The sim shows all letters mint out around day 57 at scale; after that the
   durable economy runs on rolls + snacks, not minting.
 
 Most common → rarest letter order: **S E A … J Q**.
@@ -103,7 +103,8 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
 - **Dissolution:** burn the Word, recover its 5 escrowed letters (in their current case), and free the
   name for re-claim. Trophy history persists by word. The only liquidity escape hatch for a claim you
   regret — so people claim boldly.
-- The canonical claimable set is **4,438 words** (deduped).
+- The canonical claimable set is **4,584 words** (deduped): Let’s Have A Word’s list, re-vendored
+  2026-11-21 after its round-36 additions (146 words, none removed).
 
 ---
 
@@ -266,7 +267,7 @@ roll:     baseSuccess 0.45 · pityStep +0.10 · pityCap 0.85
 staking:  dailyDistributionRate 0.01 · yieldRequiresUppercase true
 care:     peckishAfterDays 1 · hungryAfterDays 3 · peckishYieldFactor 0.5 · freeDailySnack true
 jackpot:  eligibilityRequiresNotHungry true
-supply:   demandMultiple 2.5  (→ 55,467 total cap)
+supply:   demandMultiple 2.5  (→ 57,294 total cap)
 prestige: levels 4 · commitFee $0.25 · base 0.45 / +0.10 / cap 0.85 · 1.10× yield & bounty per level  (default OFF)
 bounty:   periodDays 7 · carveFraction 0.15 · chaseProbability 0.5 · rarityWeight 1.0  (default OFF)
 ```

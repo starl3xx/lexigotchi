@@ -16,13 +16,16 @@
  *     The custody object is 64 hex characters, small enough for a hosting secret and for paper,
  *     so a scheduled keeper can rebuild the chain in memory each run. Same security as random, as
  *     long as the seed stays secret: HMAC-SHA256 under an unknown 256-bit key is a PRF.
- * A seeded schedule depends on the dictionary too (it shuffles WORDS). The keeper therefore checks
- * every derived link against the onchain `currentCommit` before revealing, so a re-vendored
- * dictionary or a wrong seed stops the run instead of submitting a reveal that can't verify.
+ * A seeded schedule is a shuffle of a word pool, so it shuffles a FROZEN one (`ANSWER_POOL_V1`,
+ * src/lib/answerPool.ts), never the live dictionary: re-vendoring the dictionary later must not move
+ * a single future answer. The keeper still checks every derived link against the onchain
+ * `currentCommit` before revealing, so a wrong seed or day count stops the run instead of
+ * submitting a reveal that can't verify.
  */
 import { createHmac } from "node:crypto";
 import { AbiParameters, Hash } from "ox";
-import { WORDS, isWord } from "./dictionary";
+import { isWord } from "./dictionary";
+import { ANSWER_POOL_V1 } from "./answerPool";
 
 export type Hex32 = `0x${string}`;
 
@@ -119,7 +122,7 @@ function uniformInt(seed: Buffer, label: string, n: number): number {
  * the seed) and a salt per day, all re-derivable from the seed alone. Labels are versioned so a
  * future change of scheme can never silently reinterpret an existing seed.
  */
-export function seededSchedule(seed: string, days: number, words: readonly string[] = WORDS): ChainEntry[] {
+export function seededSchedule(seed: string, days: number, words: readonly string[] = ANSWER_POOL_V1): ChainEntry[] {
   if (!Number.isInteger(days) || days < 1 || days > words.length) {
     throw new Error(`days must be 1..${words.length} (distinct dictionary words, no repeats)`);
   }
