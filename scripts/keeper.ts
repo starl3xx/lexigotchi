@@ -13,8 +13,9 @@
  * defaults to mainnet and the run dies on a missing deployment rather than doing something wrong.
  *
  * Env: KEEPER_PRIVATE_KEY (the contracts' keeper role — Sepolia: the throwaway deployer),
- * NEXT_PUBLIC_CHAIN_ID / NEXT_PUBLIC_RPC_URL as usual. The AnswerChain schedule is read from
- * ANSWER_CHAIN_FILE (default: the Sepolia rehearsal file). NEVER commit or log schedule contents —
+ * NEXT_PUBLIC_CHAIN_ID / NEXT_PUBLIC_RPC_URL as usual. The AnswerChain schedule comes from
+ * ANSWER_CHAIN_SEED (+ ANSWER_CHAIN_DAYS) when set, else ANSWER_CHAIN_FILE (default: the Sepolia
+ * rehearsal file); see src/lib/keeper/answerSchedule.ts. NEVER commit or log schedule contents —
  * whoever holds future words wins every jackpot.
  *
  * Epoch trees are stored in the `reward_leaves` table (DATABASE_URL) before each openEpoch, each
@@ -56,6 +57,7 @@ import { sendWebPush } from "../src/lib/notify/webPush";
 import { allWebPushSubscriptions } from "../src/lib/db/webPush";
 import { storeEpochLeaves } from "../src/lib/db/rewards";
 import { NETWORK } from "../src/lib/onchain/network";
+import { loadAnswerSchedule, linkToReveal } from "../src/lib/keeper/answerSchedule";
 import type { WebPushSubscription } from "../src/lib/db/schema";
 import type { KeeperWord } from "../src/lib/keeper/shares";
 
@@ -77,6 +79,7 @@ const feeRouterAbi = [
 ] as const;
 const answerChainAbi = [
   { type: "function", name: "revealedDay", stateMutability: "view", inputs: [], outputs: [{ type: "uint32" }] },
+  { type: "function", name: "currentCommit", stateMutability: "view", inputs: [], outputs: [{ type: "bytes32" }] },
 ] as const;
 
 function wallet() {
@@ -92,14 +95,16 @@ function wallet() {
 }
 
 async function resolveJackpot() {
-  const file = process.env.ANSWER_CHAIN_FILE ?? "contracts/answer-chain.sepolia-rehearsal.secret.json";
-  const schedule = JSON.parse(readFileSync(file, "utf8")) as { schedule: { word: string; salt: string; next: string }[] };
-  const revealed = Number(
-    await getPublicClient().readContract({ address: addressOf("answerChain"), abi: answerChainAbi, functionName: "revealedDay" }),
-  );
-  const entry = schedule.schedule[revealed]; // revealedDay counts reveals; the next entry is at that index
-  if (!entry) throw new Error(`Schedule exhausted at reveal #${revealed} — rotate the chain.`);
-  console.log(`resolve: reveal #${revealed + 1} (word withheld from logs)`);
+  const { links, source } = loadAnswerSchedule();
+  const chain = addressOf("answerChain");
+  const [revealedRaw, currentCommit] = await Promise.all([
+    getPublicClient().readContract({ address: chain, abi: answerChainAbi, functionName: "revealedDay" }),
+    getPublicClient().readContract({ address: chain, abi: answerChainAbi, functionName: "currentCommit" }),
+  ]);
+  const revealed = Number(revealedRaw);
+  // Checked against the onchain commit before anything is sent (wrong seed, days, file, or dictionary).
+  const entry = linkToReveal(links, revealed, currentCommit as string);
+  console.log(`resolve: reveal #${revealed + 1} from the ${source} schedule (word withheld from logs)`);
   if (DRY) return;
   const w = wallet();
   try {
