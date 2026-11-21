@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
-import { addressOf } from "@/lib/onchain/addresses";
+import { addressOf, isSuiteDeployed } from "@/lib/onchain/addresses";
 import { merkleEpochsAbi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { NETWORK } from "@/lib/onchain/network";
@@ -37,7 +37,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "bad_wallets" }, { status: 400 });
   }
 
-  if (!isCampaignConfigured()) return NextResponse.json({ ok: true, claimables: [] });
+  // No contracts on this network (mainnet today) or no database: nothing can be stored or claimed.
+  if (!isSuiteDeployed() || !isCampaignConfigured()) return NextResponse.json({ ok: true, claimables: [] });
 
   let rows: Awaited<ReturnType<typeof rewardLeavesFor>>;
   try {

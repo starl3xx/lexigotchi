@@ -7,6 +7,8 @@ import { lettersRevealDigest } from "@/lib/onchain/digests";
 import { signDigest, drawLetters, dailySeed } from "@/lib/onchain/signer";
 import { getPublicClient, readLetterSupply } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
+import { stickyDraw } from "@/lib/onchain/stickyDraw";
+import { NETWORK } from "@/lib/onchain/network";
 
 /**
  * The (identity, day) a daily commit was minted under, from its FreeDailyMinted event — commitId
@@ -112,9 +114,19 @@ export async function POST(req: Request) {
     // player could commit, decline the bundled reveal, and come back here for a second, different
     // draw — two letters to choose from. One identity-day, one draw, everywhere.
     const daily = commit.count === 1 ? await readDailyIdentity(commitId, letters) : null;
-    letterIndexes = daily
-      ? drawLetters(dailySeed(daily.key, daily.day), 1, available, "daily")
-      : drawLetters(commitId, commit.count, available);
+    // Sticky: the first draw served for this pack (or this identity-day) is served again while it
+    // can still be minted, so a cap-out can't hand one commit a second valid draw (stickyDraw.ts).
+    // The daily key matches the one /api/mint/free-daily uses when it pre-signs the bundle.
+    letterIndexes = await stickyDraw({
+      chainId: NETWORK.id,
+      key: daily ? `d:${daily.key}:${daily.day}` : `c:${commitId}`,
+      count: commit.count,
+      available,
+      draw: () =>
+        daily
+          ? drawLetters(dailySeed(daily.key, daily.day), 1, available, "daily")
+          : drawLetters(commitId, commit.count, available),
+    });
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: "no_supply", detail: (err as Error).message },

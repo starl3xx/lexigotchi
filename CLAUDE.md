@@ -72,6 +72,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
   Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
   without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
+- **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
+  served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
+  while it can still be minted. A draw depends on which letters are uncapped, so without this a
+  cap-out could hand one unrevealed commit two valid signed draws. `/api/mint/reveal` and the
+  free-daily bundle share the daily key. Fails open (plain draw) on a DB outage, so paid commits
+  stay revealable.
 - `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
   keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
   Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.
