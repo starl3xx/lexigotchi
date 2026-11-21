@@ -36,9 +36,9 @@ beforeEach(() => {
 });
 
 describe("jobsFrom", () => {
-  it("defaults to resolve, yield, notify, and always runs in canonical order", async () => {
+  it("defaults to resolve, yield, repeg, notify, and always runs in canonical order", async () => {
     const { jobsFrom } = await import("@/lib/keeper/jobs");
-    expect(jobsFrom(undefined)).toEqual(["resolve", "yield", "notify"]);
+    expect(jobsFrom(undefined)).toEqual(["resolve", "yield", "repeg", "notify"]);
     expect(jobsFrom("notify, bounty,resolve")).toEqual(["resolve", "bounty", "notify"]);
     expect(() => jobsFrom("resolve,payday")).toThrow(/payday/);
   });
@@ -64,7 +64,10 @@ describe("GET /api/cron/keeper", () => {
     const { GET } = await import("@/app/api/cron/keeper/route");
     const res = await GET(call("Bearer s3cret"));
     expect(res.status).toBe(200);
-    expect(events).toEqual(["start:resolve", "end:resolve", "start:yield", "end:yield", "start:notify", "end:notify"]);
+    expect(events).toEqual([
+      "start:resolve", "end:resolve", "start:yield", "end:yield",
+      "start:repeg", "end:repeg", "start:notify", "end:notify",
+    ]);
   });
 
   it("keeps going after a failed job and reports it", async () => {
@@ -76,6 +79,7 @@ describe("GET /api/cron/keeper", () => {
     expect(body.results).toEqual([
       { job: "resolve", ok: true },
       { job: "yield", ok: false, error: "yield broke" },
+      { job: "repeg", ok: true },
       { job: "notify", ok: true },
     ]);
     expect(events.at(-1)).toBe("end:notify");

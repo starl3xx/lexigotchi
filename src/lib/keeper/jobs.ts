@@ -13,7 +13,10 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ACTIVE_CHAIN } from "@/lib/onchain/chain";
 import { addressOf, achievementsSchema, deployBlock } from "@/lib/onchain/addresses";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
-import { jackpotAbi } from "@/lib/onchain/abis";
+import { jackpotAbi, lettersAbi, rollsAbi, wordsAbi, stakingAbi, prestigeAbi } from "@/lib/onchain/abis";
+import { readGameParams } from "@/lib/onchain/reads";
+import { fetchWordPrice } from "@/lib/oracle/wordPrice";
+import { planRepeg, type PricePoint } from "@/lib/keeper/repeg";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { scanAllWords } from "@/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "@/lib/keeper/shares";
@@ -59,14 +62,14 @@ export function redactSecrets(text: string, word: string, salt: string): string 
   return out;
 }
 
-export type KeeperJob = "resolve" | "yield" | "bounty" | "achievements" | "notify";
+export type KeeperJob = "resolve" | "yield" | "bounty" | "achievements" | "repeg" | "notify";
 
 /**
  * The scheduled run's jobs, from KEEPER_JOBS. Default "resolve,yield,notify": bounty is OFF at launch
  * (decisions.md #11) and achievements need the network's EAS schema, so both are opt-in.
  */
-export const DEFAULT_JOBS: KeeperJob[] = ["resolve", "yield", "notify"];
-export const KNOWN_JOBS: readonly KeeperJob[] = ["resolve", "yield", "bounty", "achievements", "notify"];
+export const DEFAULT_JOBS: KeeperJob[] = ["resolve", "yield", "repeg", "notify"];
+export const KNOWN_JOBS: readonly KeeperJob[] = ["resolve", "yield", "bounty", "achievements", "repeg", "notify"];
 
 export function jobsFrom(raw: string | undefined): KeeperJob[] {
   if (!raw?.trim()) return DEFAULT_JOBS;
@@ -490,12 +493,82 @@ export function createKeeper(opts: { dry: boolean }) {
   }
 
 
+  /**
+   * The price keeper: keep each onchain price near its USD target as $WORD moves
+   * (src/lib/keeper/repeg.ts holds the rules). A DISTINCT hot key (PRICE_KEEPER_PRIVATE_KEY) from
+   * the resolution keeper, and a no-op until the owner wires it as each contract's `priceKeeper`.
+   */
+  async function repegPrices() {
+    const key = process.env.PRICE_KEEPER_PRIVATE_KEY;
+    if (!key) return void console.log("repeg: PRICE_KEEPER_PRIVATE_KEY not set — skipped");
+    const account = privateKeyToAccount(key as `0x${string}`);
+    const client = getPublicClient();
+    const [params, live] = await Promise.all([readGameParams(), fetchWordPrice()]);
+    const P = DEFAULT_PARAMS.prices;
+    const snackUsd = P.snack * DEFAULT_PARAMS.prestige.snacksPerAttempt;
+
+    // One call per contract, each carrying ALL of that contract's prices (an unchanged one is
+    // passed through as-is, which the contract treats as "no change").
+    const targets = [
+      { key: "letters" as const, abi: lettersAbi, fn: "repegPrices" as const,
+        points: [{ item: "pack", currentWei: params.wei.pack, targetUsd: P.pack }, { item: "daily", currentWei: params.wei.daily, targetUsd: P.dailyMint }] },
+      { key: "rolls" as const, abi: rollsAbi, fn: "repegRollPrice" as const,
+        points: [{ item: "roll", currentWei: params.wei.roll, targetUsd: P.roll }] },
+      { key: "words" as const, abi: wordsAbi, fn: "repegClaimPrice" as const,
+        points: [{ item: "claim", currentWei: params.wei.claim, targetUsd: P.claim }] },
+      { key: "staking" as const, abi: stakingAbi, fn: "repegSnackPrice" as const,
+        points: [{ item: "snack", currentWei: params.wei.snack, targetUsd: P.snack }] },
+      { key: "prestige" as const, abi: prestigeAbi, fn: "repegFees" as const,
+        points: [
+          { item: "prestige", currentWei: params.wei.prestigeFee, targetUsd: DEFAULT_PARAMS.prestige.commitFeeUsd },
+          { item: "prestigeSnack", currentWei: params.wei.prestigeSnackCost, targetUsd: snackUsd },
+        ] },
+    ] satisfies { key: string; abi: unknown; fn: string; points: PricePoint[] }[];
+
+    const w = createWalletClient({
+      account,
+      chain: ACTIVE_CHAIN,
+      transport: rpcTransport(process.env.NEXT_PUBLIC_RPC_URL || undefined),
+    }).extend(publicActions);
+
+    for (const t of targets) {
+      const address = addressOf(t.key);
+      const [wired, maxMoveBps] = await Promise.all([
+        client.readContract({ address, abi: t.abi as typeof lettersAbi, functionName: "priceKeeper" }) as Promise<string>,
+        client.readContract({ address, abi: t.abi as typeof lettersAbi, functionName: "maxMoveBps" }) as Promise<number>,
+      ]);
+      if (wired.toLowerCase() !== account.address.toLowerCase()) {
+        console.log(`repeg: ${t.key} — this key is not its priceKeeper (${wired}); skipped`);
+        continue;
+      }
+      const plan = planRepeg(live, t.points, Number(maxMoveBps));
+      if (!plan.ok) return void console.log(`repeg: no moves — ${plan.reason}`); // same reason for every contract
+      if (plan.moves.length === 0) {
+        console.log(`repeg: ${t.key} — within the drift threshold`);
+        continue;
+      }
+      const next = t.points.map((p) => plan.moves.find((m) => m.item === p.item)?.toWei ?? p.currentWei);
+      for (const m of plan.moves) {
+        console.log(`repeg: ${t.key}.${m.item} ${m.fromWei / 10n ** 18n} → ${m.toWei / 10n ** 18n} $WORD${m.clamped ? " (clamped; continues next run)" : ""}`);
+      }
+      if (DRY) continue;
+      const hash = await w.writeContract({
+        dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the keeper's writes are app writes too
+        address, abi: t.abi as typeof lettersAbi, functionName: t.fn as "repegPrices",
+        args: next as [bigint, bigint],
+      });
+      const rcpt = await w.waitForTransactionReceipt({ hash });
+      console.log(`repeg: ${t.key} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+    }
+  }
+
   return {
     resolveJackpot,
     openStream,
     attestAchievements,
     notifyHunger,
     announce,
+    repegPrices,
     /** One named job, for the schedulers. */
     run(job: KeeperJob): Promise<void> {
       switch (job) {
@@ -507,6 +580,8 @@ export function createKeeper(opts: { dry: boolean }) {
           return openStream("bounty");
         case "achievements":
           return attestAchievements();
+        case "repeg":
+          return repegPrices();
         case "notify":
           return notifyHunger();
       }
