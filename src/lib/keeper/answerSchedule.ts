@@ -25,7 +25,9 @@ export function loadAnswerSchedule(
 ): AnswerSchedule {
   const seed = env.ANSWER_CHAIN_SEED?.trim();
   if (seed) {
-    const days = Number(env.ANSWER_CHAIN_DAYS ?? "730");
+    // Empty counts as unset: a copied .env.example has `ANSWER_CHAIN_DAYS=` with nothing after it.
+    const daysRaw = env.ANSWER_CHAIN_DAYS?.trim();
+    const days = daysRaw ? Number(daysRaw) : 730;
     return { links: buildAnswerChain(seededSchedule(seed, days)).links, source: "seed" };
   }
   const file = env.ANSWER_CHAIN_FILE ?? REHEARSAL_FILE;
