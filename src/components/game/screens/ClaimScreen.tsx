@@ -5,7 +5,7 @@ import { wordTier } from "@/lib/economy";
 import { Button, Card, EmptyState, SectionTitle, TierBadge } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Crown, Lock, Sparkle } from "../ui/icons";
-import { COST, anagramsOf, fmtWord, idxToChar, mineLower, mineUpper, spellableNow, useGame } from "../state";
+import { anagramsOf, fmtWord, idxToChar, mineLower, mineUpper, spellableNow, useGame } from "../state";
 
 export function ClaimScreen() {
   const g = useGame();
@@ -98,7 +98,7 @@ export function ClaimScreen() {
                 <button
                   key={w}
                   onClick={() => claim(w)}
-                  disabled={!g.canAfford(COST.claim)}
+                  disabled={!g.canAfford(g.price("claim"))}
                   className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-paper shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
                 >
                   {w} <Sparkle weight="fill" size={13} />
@@ -110,7 +110,7 @@ export function ClaimScreen() {
           )}
         </div>
         {rack.length === 5 && spelled.length > 0 && (
-          <div className="mt-1 text-center text-xs text-ink/55">claim fee {fmtWord(COST.claim)} $WORD</div>
+          <div className="mt-1 text-center text-xs text-ink/55">claim fee {fmtWord(g.price("claim"))} $WORD</div>
         )}
         {rack.length > 0 && (
           <button onClick={() => setRack([])} className="mx-auto mt-2 block text-xs font-bold text-ink/50 underline">
@@ -156,7 +156,7 @@ export function ClaimScreen() {
                   <div className="font-display text-sm font-extrabold">{w}</div>
                   <TierBadge tier={wordTier(w)} />
                 </div>
-                <Button size="sm" variant="teal" disabled={!g.canAfford(COST.claim)} onClick={() => claim(w)}>
+                <Button size="sm" variant="teal" disabled={!g.canAfford(g.price("claim"))} onClick={() => claim(w)}>
                   Claim
                 </Button>
               </div>

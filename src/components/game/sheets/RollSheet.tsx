@@ -4,7 +4,7 @@ import { useState } from "react";
 import { TileCharacter } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
-import { COST, charToIdx, fmtWord, idxToChar, mineLower, useGame, type RollTarget } from "../state";
+import { charToIdx, fmtWord, idxToChar, mineLower, useGame, type RollTarget } from "../state";
 
 type Phase = "ready" | "rolling" | "win" | "miss" | "stranded";
 
@@ -111,8 +111,8 @@ export function RollSheet({ target }: { target: RollTarget }) {
 
       <div className="mt-3">
         {phase === "ready" && (
-          <Button full size="lg" variant="gold" disabled={!g.canAfford(COST.roll)} onClick={reveal}>
-            Roll · {fmtWord(COST.roll)} $WORD
+          <Button full size="lg" variant="gold" disabled={!g.canAfford(g.price("roll"))} onClick={reveal}>
+            Roll · {fmtWord(g.price("roll"))} $WORD
           </Button>
         )}
         {phase === "rolling" && (
