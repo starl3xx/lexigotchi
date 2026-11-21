@@ -124,7 +124,9 @@ export function SwapScreen() {
         <SectionTitle action={want.length > 0 ? <button onClick={() => setWant([])} className="text-xs font-bold text-ink/45 underline">clear</button> : undefined}>
           You want: {fmtSet(want)}
         </SectionTitle>
-        <div className="grid grid-cols-7 gap-1.5 md:grid-cols-[repeat(13,minmax(0,1fr))]">
+        {/* Fixed 38px tracks from md: they wrap to whatever the card is (a full-width card at md,
+            a half-width one at lg). A fixed 13 columns overflowed the half-width card (Bugbot). */}
+        <div className="grid grid-cols-7 gap-1.5 md:grid-cols-[repeat(auto-fill,38px)]">
           {ALPHABET.map((L) => (
             <LetterTile key={L} char={L} size={38} selected={want.includes(charToIdx(L))} onClick={() => setWant((prev) => [...prev, charToIdx(L)])} />
           ))}
