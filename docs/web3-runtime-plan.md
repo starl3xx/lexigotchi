@@ -8,7 +8,7 @@ keys, money, a deploy, or a production database. Everything else is code and lan
 - **The game already runs on real contracts** on Base Sepolia (play-money $WORD). Production runs the
   practice game, and flips by itself when the mainnet addresses are committed (`gameMode.ts`).
 - **Contracts:** code-complete. No external audit and no legal review (decisions.md #12). The
-  second internal audit (`contracts/AUDIT.md`) found four issues, and all are fixed (PR #96). 62
+  second internal audit (`contracts/AUDIT.md`) found four issues, and all are fixed (PRs #96 and #101). 63
   forge tests.
 - **App, done:**
 
@@ -26,7 +26,7 @@ keys, money, a deploy, or a production database. Everything else is code and lan
 
 ## 1. Rehearse on Sepolia (owner approves each deploy)
 
-The Sepolia suite is from 2026-08-12. It predates the audit fixes (#96) and the Words ERC-4906
+The Sepolia suite is from 2026-08-12. It predates the audit fixes (#96, #101) and the Words ERC-4906
 change (#80), so a rehearsal needs a fresh deploy:
 
 1. Redeploy from current `main` with the throwaway Sepolia keys (`contracts/*.secret.json`, gitignored),
@@ -34,8 +34,10 @@ change (#80), so a rehearsal needs a fresh deploy:
 2. Run a Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key and draw secret, the
    keeper key, and a database with migrations 0003–0005.
 3. Play the loop with a wallet and no Farcaster account: buy test $WORD from the faucet, open a
-   pack, roll a letter, claim and stake a word, feed it, and unstake and restake it (hunger must
-   carry over). Then run the keeper and claim a reward.
+   pack, roll a letter, claim and stake a word, feed it, and unstake and restake it (the hunger
+   clock must keep running). Then run the keeper and claim a reward.
+4. Time one full keeper run on Vercel. Nobody has measured it against the 300-second limit; the
+   word scan grows with every claim.
 
 ## 2. Keys and secrets (owner)
 
@@ -80,6 +82,11 @@ The keys above, plus:
 
 `CRON_SECRET` is already used by the other crons. The keeper cron runs at 00:05 UTC.
 
+**The price keeper follows `params.ts`.** Each day it moves every onchain price back toward the USD
+ladder in `src/lib/params.ts`. To change a price for good, change `params.ts` in a PR. A manual
+`setPrices` from the owner wallet gets pulled back by the next run, unless `repeg` is left out of
+`KEEPER_JOBS` while the owner's price stands.
+
 ## 6. Cutover (by PR)
 
 Commit `config/deployments.json` with the addresses and the deploy block. The merge deploys, and
@@ -92,5 +99,8 @@ starts working. Then smoke-test with a small wallet.
   job that reveals commits older than a day would release them. It only matters near sell-out.
 - **The chain game shows no streak, and no jackpot word on Home yet** (those fields are zeroed in
   `ChainGameProvider`).
+- **Yield is not time-weighted.** A word staked for minutes around the 00:05 snapshot earns a full
+  day's share. The hunger clock already stops this from being free (#101), and the keeper's scan
+  could weight shares by staked time. No contract change is needed.
 - **The word scan reads every claim since deploy, on each keeper run.** This is fine for months.
   Later it needs the event indexer (decisions.md #10).
