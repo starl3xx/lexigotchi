@@ -150,9 +150,10 @@ A staked word's care state is a function of days since last fed:
 
 - **Feed** a snack to reset the clock. **Snacks are 100% burned**. One **free snack per day** (a
   retention hook). Snack price: **$0.02** (~84K $WORD).
-- **Unstaking pauses the clock; restaking resumes it** (`Staking.unfedCarry`). A first-ever stake
-  starts fed. A restake never does, so unstake + stake can't stand in for a snack (internal audit,
-  2026-11-21).
+- **The clock keeps running while a word is unstaked.** Only a word's first-ever stake starts fed;
+  after that only `feed` resets the clock, so unstake + stake can't stand in for a snack (internal
+  audit, 2026-11-21). A paused clock was tried first and failed: staking for a few minutes around
+  the daily snapshot never accrued any hunger.
 - Hunger is a first-order faucet gate: a held-but-hungry word is jackpot-ineligible, which keeps the
   pot escalating even at saturation.
 

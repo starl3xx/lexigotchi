@@ -1313,24 +1313,43 @@ contract LexigotchiTest is Test {
         assertEq(staking.hungerLevel(t), 0, "fed");
     }
 
-    /// The clock pauses while a Word is out of staking, and resumes where it stopped.
-    function test_Staking_hungerClockPausesWhileUnstaked() public {
+    /// The advisor's attack on the pause rule: the jackpot and the yield snapshot read hunger at one
+    /// public moment (00:05 UTC), so a player stakes just before it and unstakes just after, daily.
+    /// The word must still go hungry without a snack.
+    function test_Staking_snapshotDodgeStillGoesHungry() public {
+        uint256 day0 = (1755000000 / 1 days) * 1 days; // a UTC midnight
+        vm.warp(day0 + 4 minutes);
+        uint256 t = _claimLower(alice, 0);
+        bool sawHungry;
+        for (uint256 d = 0; d < 10; d++) {
+            vm.warp(day0 + d * 1 days + 4 minutes); // 00:04: stake
+            vm.startPrank(alice);
+            words.approve(address(staking), t);
+            staking.stake(t);
+            vm.stopPrank();
+            vm.warp(day0 + d * 1 days + 5 minutes); // 00:05: the snapshot
+            if (staking.isHungry(t)) sawHungry = true;
+            vm.warp(day0 + d * 1 days + 7 minutes); // 00:07: unstake
+            vm.prank(alice);
+            staking.unstake(t);
+        }
+        assertTrue(sawHungry, "never fed for 10 days, yet never hungry at the snapshot");
+    }
+
+    /// The clock keeps running while a Word is out of staking: a restake is never a meal.
+    function test_Staking_hungerClockRunsWhileUnstaked() public {
         vm.warp(1755000000);
         uint256 t = _claimLower(alice, 0);
         _stake(alice, t);
-        vm.warp(block.timestamp + 1 days + 1 hours); // peckish
-        assertEq(staking.hungerLevel(t), 1, "peckish");
-
         vm.prank(alice);
         staking.unstake(t);
-        assertEq(staking.unfedCarry(t), 1 days + 1 hours, "carries its unfed time out");
-        vm.warp(block.timestamp + 30 days); // a month outside staking costs nothing
+        vm.warp(block.timestamp + 4 days); // four days out of staking, never fed
 
         _stake(alice, t);
-        assertEq(staking.hungerLevel(t), 1, "still exactly peckish, not hungry");
-        assertEq(staking.unfedCarry(t), 0, "carry consumed");
-        vm.warp(block.timestamp + 2 days); // 1d1h + 2d = past the 3-day hungry line
-        assertTrue(staking.isHungry(t), "and the clock runs again once staked");
+        assertTrue(staking.isHungry(t), "back in hungry: the time since the last meal is real");
+        vm.prank(alice);
+        staking.feed(t);
+        assertEq(staking.hungerLevel(t), 0, "a snack is the way back");
     }
 
     /// With several rolls open on one letter, a player could reveal only the failures and bank the

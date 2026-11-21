@@ -19,7 +19,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `npm run derive` — regenerate `docs/economy.md`; `npm run derive:contracts` — `contracts/config/economy.json`
 - `npm test` — economy + solvency invariants (84 vitest tests)
 - `npm run build` / `npm run typecheck`
-- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (62 forge tests)
+- `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (63 forge tests)
 - `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
   daily operator pass, by hand. **Scheduled** by `/api/cron/keeper` (vercel.json, 00:05 UTC): same
   jobs (`src/lib/keeper/jobs.ts`, `createKeeper({ dry })`), the ones listed in `KEEPER_JOBS` (default

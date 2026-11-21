@@ -58,7 +58,7 @@ never drains.
 Yes. A staked word gets **peckish** after a day unfed (half yield) and **hungry** after three (zero
 yield *and* no jackpot ticket). Feed it a **snack** to reset the clock. Snacks are **100% burned**,
 and you get one free snack a day. Neglect is a real faucet gate — a hungry word can't win.
-Unstaking pauses the clock and restaking picks it up where it stopped, so only a snack resets it.
+The clock keeps running while a word is unstaked, so restaking never resets it; only a snack does.
 
 ## How does the daily jackpot work?
 
