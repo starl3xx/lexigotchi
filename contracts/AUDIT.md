@@ -84,9 +84,10 @@ Checked and dropped: the AnswerChain terminal (it is `bytes32(0)`, so rotation w
 (every hook-bearing path writes state first under `nonReentrant`); digest cross-replay across the six
 signer layouts (none collide). Noted, not a code bug: `Rolls` and `Prestige` take `msg.sender` as
 owner, like every contract the deploy script creates, so ownership must move to the hardware wallet
-after deploy (`transferOwnership` → `acceptOwnership`). Backend follow-up (not in these contracts): a
-pack's draw depends on the live supply, so one unrevealed commit can get a second valid draw when a
-letter caps out; the reveal routes should keep the first draw while it stays valid.
+after deploy (`transferOwnership` → `acceptOwnership`). Backend finding (outside these contracts),
+fixed in PR #97: a pack's draw depends on the live supply, so one unrevealed commit could get a
+second valid draw when a letter capped out. The reveal routes now keep the first draw while it
+stays valid (`src/lib/onchain/stickyDraw.ts`).
 
 ## Suggested external focus
 
