@@ -34,6 +34,7 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         uint8[5] letters; // alphabet indices (0..25)
         uint8 upperMask; // bit k set ⇒ position k is uppercase
         bool exists;
+        uint64 claimedAt; // when THIS claim happened; a re-claim after dissolve is a new Word (Staking)
     }
 
     ILetters public immutable letters;
@@ -116,9 +117,15 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         letters.safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
         _collect(msg.sender, claimPrice, FeeSource.CLAIM);
 
-        escrows[tokenId] = Escrow({letters: idx, upperMask: uppercase ? FULL_MASK : 0, exists: true});
+        escrows[tokenId] =
+            Escrow({letters: idx, upperMask: uppercase ? FULL_MASK : 0, exists: true, claimedAt: uint64(block.timestamp)});
         _safeMint(msg.sender, tokenId);
         emit Claimed(tokenId, msg.sender, word_, uppercase);
+    }
+
+    /// @inheritdoc IWords
+    function claimedAt(uint256 tokenId) external view returns (uint64) {
+        return escrows[tokenId].claimedAt;
     }
 
     /// @notice Burn a Word you own (must be unstaked), recover its five letters, free the name.

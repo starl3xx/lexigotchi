@@ -19,6 +19,9 @@ interface IWords is IERC721 {
     function exists(uint256 tokenId) external view returns (bool);
     function caseOf(uint256 tokenId) external view returns (CaseState);
     function prestigeLevel(uint256 tokenId) external view returns (uint8);
+    /// @notice When the current claim of `tokenId` happened (0 if unclaimed). Ids are the word's
+    ///         hash, so a word dissolved and claimed again keeps its id; this tells the claims apart.
+    function claimedAt(uint256 tokenId) external view returns (uint64);
 
     /// @return letterIndex alphabet position (0..25) of the escrowed letter at `pos`
     /// @return isUpper whether that escrowed letter has been raised to uppercase

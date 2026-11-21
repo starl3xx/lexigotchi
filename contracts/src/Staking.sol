@@ -34,11 +34,6 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
 
     mapping(uint256 tokenId => address) public stakerOf;
     mapping(uint256 tokenId => uint64) public lastFed;
-    /// @notice Unfed seconds a Word carried OUT of staking. A restake resumes the clock from here
-    ///         instead of starting fed, so `unstake` + `stake` can never stand in for a (burned)
-    ///         snack. The clock pauses while a Word is unstaked: hunger is a staking mechanic, and an
-    ///         unstaked Word earns nothing and can't win, so time outside staking costs nothing.
-    mapping(uint256 tokenId => uint64) public unfedCarry;
     // (UTC day + 1) on which a player last used their free snack; default 0 means "never".
     mapping(address player => uint32 dayPlusOne) public freeSnackDayPlusOne;
 
@@ -71,17 +66,22 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
     function stake(uint256 tokenId) external nonReentrant {
         words.safeTransferFrom(msg.sender, address(this), tokenId);
         stakerOf[tokenId] = msg.sender;
-        // A first-ever stake starts fed (carry 0); a restake resumes exactly where unstake left it.
-        lastFed[tokenId] = uint64(block.timestamp) - unfedCarry[tokenId];
-        delete unfedCarry[tokenId];
+        // Only a Word's FIRST stake starts fed. After that the hunger clock never resets except by
+        // feed(): it keeps running while the Word is unstaked, and a restake picks up the real
+        // time since the last meal. Pausing the clock instead (the first audit fix) still let a
+        // player stake for a few minutes around the daily snapshot (jackpot resolve + yield scan,
+        // 00:05 UTC, public in vercel.json) and never feed: almost no staked time ever accrued.
+        // "First stake" means first since THIS claim: ids are the word's hash, so a word dissolved
+        // and claimed again (by anyone) keeps its id, and must not inherit the old clock. Claiming
+        // costs the claim fee, far more than a snack, so this is no way around feeding; passing a
+        // word between wallets keeps its clock, because the claim doesn't change.
+        if (lastFed[tokenId] < words.claimedAt(tokenId)) lastFed[tokenId] = uint64(block.timestamp);
         emit Staked(tokenId, msg.sender);
     }
 
     function unstake(uint256 tokenId) external nonReentrant {
         if (stakerOf[tokenId] != msg.sender) revert NotStaker();
-        unfedCarry[tokenId] = uint64(block.timestamp) - lastFed[tokenId];
-        delete stakerOf[tokenId];
-        delete lastFed[tokenId];
+        delete stakerOf[tokenId]; // lastFed stays: unstake + stake is never a meal
         words.safeTransferFrom(address(this), msg.sender, tokenId);
         emit Unstaked(tokenId, msg.sender);
     }

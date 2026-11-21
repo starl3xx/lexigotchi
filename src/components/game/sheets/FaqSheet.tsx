@@ -110,8 +110,8 @@ function useFaq(): { q: string; a: ReactNode }[] {
           <strong>hungry</strong> after three (zero yield <em>and</em> no jackpot ticket). Feed it a{" "}
           <strong>snack</strong> to reset the clock. Snacks are <strong>100% burned</strong>, and you
           get one free snack a day. Neglect is a real faucet gate — a hungry word can&apos;t win.
-          Unstaking pauses the clock and restaking picks it up where it stopped, so only a snack
-          resets it.
+          The clock keeps running while a word is unstaked, so restaking never resets it; only a
+          snack does.
         </>
       ),
     },
