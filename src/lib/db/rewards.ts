@@ -13,11 +13,14 @@ export type RewardStream = "yield" | "bounty";
 const INSERT_CHUNK = 1_000;
 
 /**
- * Store an epoch's whole tree, replacing any earlier tree for the same epoch.
+ * Store an epoch's whole tree, BESIDE any earlier tree for the same epoch. Never replace one.
  *
- * Replace, not merge: a keeper run that built a tree but failed to open the epoch leaves rows
- * behind, and the next run builds a NEW tree (the world moved). Mixing proofs from two trees would
- * serve proofs that verify against neither root. One transaction, so a reader never sees half.
+ * A keeper run can send openEpoch and lose track of it (an RPC timeout). The next run sees the
+ * epoch still closed, builds a NEW tree (the world moved), and stores it, while the first run's
+ * transaction may still land. Deleting the first tree here would leave an open epoch with no proofs
+ * anywhere: funded rewards nobody can claim. Keeping both costs some rows; the claim route serves
+ * only the tree whose root the chain actually opened. Storing the same tree twice is a no-op.
+ * One transaction, so a reader never sees half a tree.
  */
 export async function storeEpochLeaves(
   chainId: number,
@@ -37,11 +40,8 @@ export async function storeEpochLeaves(
     proof: e.proof,
   }));
   await getDb().transaction(async (tx) => {
-    await tx
-      .delete(rewardLeaves)
-      .where(and(eq(rewardLeaves.chainId, chainId), eq(rewardLeaves.stream, stream), eq(rewardLeaves.epochId, id)));
     for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
-      await tx.insert(rewardLeaves).values(rows.slice(i, i + INSERT_CHUNK));
+      await tx.insert(rewardLeaves).values(rows.slice(i, i + INSERT_CHUNK)).onConflictDoNothing();
     }
   });
 }

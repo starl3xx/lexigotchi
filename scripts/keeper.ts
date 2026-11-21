@@ -19,7 +19,7 @@
  *
  * Epoch trees are stored in the `reward_leaves` table (DATABASE_URL) before each openEpoch, each
  * entry carrying its proof — that table IS the claim route's data, so a run without a database
- * refuses to open an epoch. A copy also lands in keeper-output/<stream>-<epoch>.json (gitignored)
+ * refuses to open an epoch. A copy also lands in keeper-output/<stream>-<epoch>-<root>.json (gitignored)
  * when the file system allows. Treat both as operational state: a tree can NOT be rebuilt later,
  * because the scan reads the latest chain state, not the state the epoch was opened at.
  */
@@ -205,7 +205,8 @@ async function openStream(kind: "yield" | "bounty") {
   // read-only, and the database below is the copy the claim screen reads.
   try {
     mkdirSync(OUT, { recursive: true });
-    writeFileSync(`${OUT}/${kind}-${epochId}.json`, JSON.stringify(epoch, null, 1));
+    // The root is in the name: a rerun for the same epoch must not overwrite a tree that may open.
+    writeFileSync(`${OUT}/${kind}-${epochId}-${epoch.root.slice(2, 10)}.json`, JSON.stringify(epoch, null, 1));
   } catch (err) {
     console.log(`${kind}: local copy not written (${(err as Error).message}) — the database copy is what counts`);
   }

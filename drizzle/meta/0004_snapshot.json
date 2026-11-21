@@ -1,5 +1,5 @@
 {
-  "id": "c7932495-e7e0-4531-8350-4b6df4559c28",
+  "id": "30c277f6-b345-4317-af7e-fb894b5125e4",
   "prevId": "272cad1a-96d4-4330-b042-d87ccdd5ff26",
   "version": "7",
   "dialect": "postgresql",
@@ -192,6 +192,12 @@
             },
             {
               "expression": "epoch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "root",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

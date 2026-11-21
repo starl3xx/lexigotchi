@@ -11,5 +11,5 @@ CREATE TABLE "reward_leaves" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX "reward_leaves_leaf_idx" ON "reward_leaves" USING btree ("chain_id","stream","epoch_id","token_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "reward_leaves_leaf_idx" ON "reward_leaves" USING btree ("chain_id","stream","epoch_id","root","token_id");--> statement-breakpoint
 CREATE INDEX "reward_leaves_account_idx" ON "reward_leaves" USING btree ("chain_id","account");

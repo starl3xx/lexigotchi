@@ -126,9 +126,11 @@ export type WebPushSubscription = typeof webPushSubscriptions.$inferSelect;
  * Reward claim data: one row per leaf of a yield or bounty epoch's Merkle tree, proof included.
  *
  * The keeper writes an epoch's rows BEFORE it calls openEpoch, and refuses to open the epoch if the
- * write fails, so an open epoch always has its proofs here. The claim route (/api/rewards/claimable)
- * serves a row only while the chain says that epoch is open with this exact `root`: rows for an
- * epoch that never opened, or for a tree that was rebuilt, are inert.
+ * write fails, so an open epoch always has its proofs here. Rows are NEVER deleted or replaced: a
+ * run whose openEpoch was sent but not confirmed may still land, so a rerun's rebuilt tree is
+ * stored BESIDE the first (the root is part of the key). The claim route (/api/rewards/claimable)
+ * serves a row only while the chain says that epoch is open with this exact `root`, so the trees
+ * that never opened are inert.
  *
  * Proofs are public by design (a leaf pays its baked-in account, whoever submits it), so nothing
  * here is secret, but the rows are NOT rebuildable later: the keeper's scan reads the latest chain
@@ -145,9 +147,9 @@ export const rewardLeaves = pgTable(
     stream: text("stream").notNull(),
     /** uint256 epoch id, as a decimal string. */
     epochId: text("epoch_id").notNull(),
-    /** The tree root the keeper opened (or will open) the epoch with. */
+    /** The tree root this leaf belongs to. One epoch may hold several trees; the chain picks one. */
     root: text("root").notNull(),
-    /** uint256 word token id, as a decimal string. One leaf per (epoch, word). */
+    /** uint256 word token id, as a decimal string. One leaf per (epoch, tree, word). */
     tokenId: text("token_id").notNull(),
     /** Lowercase payee address. */
     account: text("account").notNull(),
@@ -157,7 +159,7 @@ export const rewardLeaves = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("reward_leaves_leaf_idx").on(t.chainId, t.stream, t.epochId, t.tokenId),
+    uniqueIndex("reward_leaves_leaf_idx").on(t.chainId, t.stream, t.epochId, t.root, t.tokenId),
     index("reward_leaves_account_idx").on(t.chainId, t.account),
   ],
 );
