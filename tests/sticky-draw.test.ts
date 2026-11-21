@@ -23,7 +23,11 @@ function memoryStore(): DrawStore & { rows: Map<string, number[]> } {
       if (!rows.has(`${c}:${k}`)) rows.set(`${c}:${k}`, l);
       return rows.get(`${c}:${k}`)!;
     },
-    replace: async (c, k, l) => void rows.set(`${c}:${k}`, l),
+    replaceIf: async (c, k, expected, next) => {
+      if (JSON.stringify(rows.get(`${c}:${k}`)) !== JSON.stringify(expected)) return false;
+      rows.set(`${c}:${k}`, next);
+      return true;
+    },
   };
 }
 
@@ -90,6 +94,31 @@ describe("stickyDraw", () => {
     expect(got).toEqual([3]);
   });
 
+  it("two requests replacing the same stale draw: the loser serves the winner's draw", async () => {
+    // Both saw a stale stored draw S. A (fresher supply) replaces it first; B (older supply) loses
+    // the compare-and-set and must serve A's draw, never sign its own.
+    const store = memoryStore();
+    await store.claim(84532, "c:9", [0, 0, 0, 0, 0]); // S: five a's
+    const noA = FULL.map((n, i) => (i === 0 ? 0 : n)); // 'a' capped: S is dead
+    const a = await stickyDraw({ chainId: 84532, key: "c:9", count: 5, available: noA, draw: () => [1, 2, 3, 4, 5] }, store);
+    const staleRead: DrawStore = { ...store, read: (() => { let first = true; return async (c: number, k: string) => { if (first) { first = false; return [0, 0, 0, 0, 0]; } return store.read(c, k); }; })() };
+    const b = await stickyDraw({ chainId: 84532, key: "c:9", count: 5, available: noA, draw: () => [6, 7, 8, 9, 10] }, staleRead);
+    expect(a).toEqual([1, 2, 3, 4, 5]);
+    expect(b).toEqual(a); // one draw signed, not two
+  });
+
+  it("a claim race whose winner is already unmintable is replaced, not signed beside it", async () => {
+    const store = memoryStore();
+    const deadForUs = FULL.map((n, i) => (i === 3 ? 0 : n)); // 'd' capped in our (fresher) view
+    await store.claim(84532, "c:11", [3, 3, 3, 3, 3]); // a racing request stored all-d a moment ago
+    const got = await stickyDraw(
+      { chainId: 84532, key: "c:11", count: 5, available: deadForUs, draw: () => [1, 1, 1, 1, 1] },
+      { ...store, read: async () => null }, // we read before that write landed
+    );
+    expect(got).toEqual([1, 1, 1, 1, 1]);
+    expect(store.rows.get("84532:c:11")).toEqual(got); // what we sign is what the row holds
+  });
+
   it("keeps chains apart and ignores a stored draw of the wrong size", async () => {
     const store = memoryStore();
     await store.claim(8453, "c:1", [1, 2, 3, 4, 5]);
@@ -103,7 +132,7 @@ describe("stickyDraw", () => {
     const broken: DrawStore = {
       read: async () => { throw new Error("db down"); },
       claim: async () => { throw new Error("db down"); },
-      replace: async () => { throw new Error("db down"); },
+      replaceIf: async () => { throw new Error("db down"); },
     };
     expect(await stickyDraw({ chainId: 84532, key: "c:3", count: 1, available: FULL, draw: () => [4] }, broken)).toEqual([4]);
     spy.mockRestore();

@@ -20,40 +20,49 @@ export function drawFits(draw: readonly number[], available: readonly number[]):
 
 export interface DrawStore {
   read: (chainId: number, key: string) => Promise<number[] | null>;
-  /** First write wins; returns the draw the store holds afterwards. */
+  /** First write wins; returns the draw the row holds afterwards (ours, or a racing request's). */
   claim: (chainId: number, key: string, letterIndexes: number[]) => Promise<number[]>;
-  /** Overwrite a stored draw that no longer fits the supply. */
-  replace: (chainId: number, key: string, letterIndexes: number[]) => Promise<void>;
+  /** Compare-and-set: replace only if the row still holds `expected`. False = someone beat us. */
+  replaceIf: (chainId: number, key: string, expected: number[], next: number[]) => Promise<boolean>;
 }
 
+/** How many times to re-read after losing a race before giving up and drawing unstored. */
+const MAX_ATTEMPTS = 5;
+
+/**
+ * The draw to sign for `key`. Every path returns what the ROW holds, never a private draw: a stored
+ * draw that still fits is served; a missing one is claimed (first write wins); a stale one is
+ * replaced only by compare-and-set, and a request that loses that race re-reads and serves the
+ * winner. Supply only ever shrinks, so a winner computed from fresher supply also fits an older
+ * view, and one that doesn't fit a fresher view is already unmintable onchain.
+ */
 export async function stickyDraw(
   args: { chainId: number; key: string; count: number; available: readonly number[]; draw: () => number[] },
   store: DrawStore | null = defaultStore(),
 ): Promise<number[]> {
   if (!store) return args.draw();
-  let stored: number[] | null = null;
+  const fits = (d: number[] | null): d is number[] => !!d && d.length === args.count && drawFits(d, args.available);
   try {
-    stored = await store.read(args.chainId, args.key);
+    let current = await store.read(args.chainId, args.key);
+    if (fits(current)) return current;
+    const fresh = args.draw();
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (current === null) {
+        current = await store.claim(args.chainId, args.key, fresh);
+        if (fits(current)) return current;
+        continue; // a racing request stored a draw that is already unmintable: replace it
+      }
+      if (fits(current)) return current;
+      if (await store.replaceIf(args.chainId, args.key, current, fresh)) return fresh;
+      current = await store.read(args.chainId, args.key); // lost the race: serve the winner if it fits
+    }
+    console.error(`[draws] ${args.key}: could not settle the stored draw in ${MAX_ATTEMPTS} attempts`);
+    return fresh;
   } catch (err) {
     // A paid commit must stay revealable through a database outage; the cost is that, for the
     // length of the outage, a draw can again differ after a cap-out. Say so loudly.
-    console.error("[draws] reading the stored draw failed, drawing without it:", err);
+    console.error("[draws] the stored draw is unavailable, drawing without it:", err);
     return args.draw();
-  }
-  if (stored && stored.length === args.count && drawFits(stored, args.available)) return stored;
-
-  const fresh = args.draw();
-  try {
-    if (stored) {
-      await store.replace(args.chainId, args.key, fresh);
-      return fresh;
-    }
-    // First draw for this key. If a racing request stored one a moment ago, serve that one.
-    const winner = await store.claim(args.chainId, args.key, fresh);
-    return winner.length === args.count && drawFits(winner, args.available) ? winner : fresh;
-  } catch (err) {
-    console.error("[draws] storing the draw failed:", err);
-    return fresh;
   }
 }
 
@@ -62,6 +71,7 @@ function defaultStore(): DrawStore | null {
   return {
     read: async (chainId, key) => (await import("@/lib/db/draws")).readDraw(chainId, key),
     claim: async (chainId, key, letterIndexes) => (await import("@/lib/db/draws")).claimDraw(chainId, key, letterIndexes),
-    replace: async (chainId, key, letterIndexes) => (await import("@/lib/db/draws")).writeDraw(chainId, key, letterIndexes),
+    replaceIf: async (chainId, key, expected, next) =>
+      (await import("@/lib/db/draws")).replaceDrawIf(chainId, key, expected, next),
   };
 }
