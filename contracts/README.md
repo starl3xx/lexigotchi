@@ -86,8 +86,11 @@ ownership of each contract to the owner wallet — a hardware-wallet EOA, no mul
 
 ### The AnswerChain schedule (custody!)
 
-`npm run answerchain:generate` (repo root) writes the full daily answer schedule to a gitignored
-`*.secret.json` and prints `ANSWERCHAIN_HEAD`. Publish the head; the schedule file is **secret**
+`npm run answerchain:generate -- --new-seed` (repo root) writes the full daily answer schedule to a
+gitignored `*.secret.json` and prints `ANSWERCHAIN_HEAD`. Seeded mode derives every word and salt
+from one 32-byte secret (the file's `seed` field), so the keeper host stores 64 hex characters as
+`ANSWER_CHAIN_SEED` instead of the file, and the paper backup is one line. The file stays the full
+offline backup. Publish the head; the schedule file is **secret**
 (leaking it makes every future jackpot front-runnable) and **irreplaceable** (once the chain is
 live, `setHead` reverts `ChainLive` — losing the file bricks jackpot resolution with no on-chain
 recovery). Back it up offline before deploying, and give the keeper service runtime access to it.

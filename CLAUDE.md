@@ -33,6 +33,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the latest state), so back them up like operational data.
 - `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
+  **Mainnet uses `--new-seed`**: the whole schedule re-derives from one 64-hex secret
+  (`src/lib/answerChain.ts`), which the hosted keeper holds as `ANSWER_CHAIN_SEED` (+
+  `ANSWER_CHAIN_DAYS`). The keeper checks each derived link against the onchain `currentCommit`
+  before revealing (`src/lib/keeper/answerSchedule.ts`), so a wrong seed or a re-vendored dictionary
+  stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
