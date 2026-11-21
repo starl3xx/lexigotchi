@@ -13,6 +13,7 @@ import * as schema from "./schema";
 const globalForPg = globalThis as unknown as { __lexiPg?: ReturnType<typeof postgres> };
 
 let _db: PostgresJsDatabase<typeof schema> | null = null;
+let _client: ReturnType<typeof postgres> | null = null;
 
 export function getDb(): PostgresJsDatabase<typeof schema> {
   if (_db) return _db;
@@ -20,11 +21,24 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
   if (!url) throw new Error("DATABASE_URL is not set — add it to .env.local (see .env.example).");
   const client = globalForPg.__lexiPg ?? postgres(url, { prepare: false });
   if (process.env.NODE_ENV !== "production") globalForPg.__lexiPg = client;
+  _client = client;
   _db = drizzle(client, { schema });
   return _db;
 }
 
 export { schema };
+
+/**
+ * Close the pooled connection, if one was opened. Only for one-shot processes (the keeper CLI):
+ * an open pool keeps Node's event loop alive after the last query, so the command never exits.
+ */
+export async function closeDb(): Promise<void> {
+  const client = _client;
+  _client = null;
+  _db = null;
+  globalForPg.__lexiPg = undefined;
+  if (client) await client.end({ timeout: 5 });
+}
 
 /**
  * Is the campaign backend configured at all?

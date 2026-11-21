@@ -165,3 +165,30 @@ export const rewardLeaves = pgTable(
 );
 
 export type RewardLeafRow = typeof rewardLeaves.$inferSelect;
+
+/**
+ * The first letter draw served for a pack commit or for one identity's daily, kept so every later
+ * request gets the SAME letters (src/lib/onchain/stickyDraw.ts).
+ *
+ * Why: a draw is computed from the live supply (never a capped letter, or the reveal would revert).
+ * Without this row, the same commit drawn again after some letter capped out could come back with
+ * DIFFERENT letters, and the first signature would still be valid onchain: two signed draws to pick
+ * from. With it, a new draw is made only when the stored one can no longer be minted, and then the
+ * old signature can't be used either, so at most one valid draw exists at any time.
+ *
+ * `drawKey` is `c:<commitId>` for a pack, `d:<identityKey>:<day>` for a daily (the daily is drawn
+ * BEFORE its commit exists, so it can't key on the commit). Not secret: a draw is shown to the
+ * player as soon as it is signed.
+ */
+export const letterDraws = pgTable(
+  "letter_draws",
+  {
+    id: serial("id").primaryKey(),
+    chainId: integer("chain_id").notNull(),
+    drawKey: text("draw_key").notNull(),
+    letterIndexes: jsonb("letter_indexes").$type<number[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("letter_draws_key_idx").on(t.chainId, t.drawKey)],
+);

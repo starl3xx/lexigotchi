@@ -21,7 +21,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (62 forge tests)
 - `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
-  daily operator pass. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
+  daily operator pass, by hand. **Scheduled** by `/api/cron/keeper` (vercel.json, 00:05 UTC): same
+  jobs (`src/lib/keeper/jobs.ts`, `createKeeper({ dry })`), the ones listed in `KEEPER_JOBS` (default
+  `resolve,yield,repeg,notify`; bounty and achievements opt-in), strictly one at a time (one key, one
+  nonce), and a failed job doesn't skip the rest. It needs `KEEPER_PRIVATE_KEY` and
+  `ANSWER_CHAIN_SEED`/`ANSWER_CHAIN_DAYS` in Vercel; without a deployment or a key it does nothing.
+  **`repeg`** is the price keeper (`src/lib/keeper/repeg.ts`, its own key `PRICE_KEEPER_PRIVATE_KEY`):
+  moves each onchain price toward its USD target at the live GeckoTerminal price when it drifts
+  ≥5%, clamped one bps inside the contract's `maxMoveBps` (and a 25%/run cap); never on the
+  fallback price, never below a $5K pool, never a zero price. A no-op until the owner wires the
+  key with `setPriceKeeper` on all five contracts. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
   defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning (Farcaster,
   then browser push for wallets Farcaster can't reach) and rides the same world scan as
   `--yield`/`--bounty`.
@@ -77,6 +86,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
   Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
   without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
+- **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
+  served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
+  while it can still be minted. A draw depends on which letters are uncapped, so without this a
+  cap-out could hand one unrevealed commit two valid signed draws. `/api/mint/reveal` and the
+  free-daily bundle share the daily key. Fails open (plain draw) on a DB outage, so paid commits
+  stay revealable.
 - `src/lib/{redis,ratelimit}.ts` → Upstash Redis sliding-window rate limits on the campaign routes,
   keyed by the verified FID (applied after auth). **Fails open** if Upstash is unset/unreachable.
   Creds resolve from `KV_REST_API_*` / `UPSTASH_REDIS_REST_*` / Vercel's prefixed `lexigotchi_KV_*`.

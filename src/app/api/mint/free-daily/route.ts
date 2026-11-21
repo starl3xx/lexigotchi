@@ -6,6 +6,8 @@ import { freeDailyDigest, lettersRevealDigest, chainDay } from "@/lib/onchain/di
 import { signDigest, drawLetters, dailySeed } from "@/lib/onchain/signer";
 import { getPublicClient, readChainTime, readLetterSupply } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
+import { stickyDraw } from "@/lib/onchain/stickyDraw";
+import { NETWORK } from "@/lib/onchain/network";
 import { isCoinbaseVerified, verifiedDailyKey } from "@/lib/onchain/verifications";
 import { isAddress } from "viem";
 
@@ -127,7 +129,15 @@ export async function POST(req: Request) {
       }) as Promise<bigint>,
       readLetterSupply(),
     ]);
-    const letterIndexes = drawLetters(dailySeed(key, today), 1, available, "daily");
+    // Same stored draw as /api/mint/reveal's daily path (key `d:<identity>:<day>`), so the bundle
+    // and a later two-phase reveal can never hold two different valid letters.
+    const letterIndexes = await stickyDraw({
+      chainId: NETWORK.id,
+      key: `d:${key}:${today}`,
+      count: 1,
+      available,
+      draw: () => drawLetters(dailySeed(key, today), 1, available, "daily"),
+    });
     const revealSignature = await signDigest(
       lettersRevealDigest({ letters, commitId: commitCount, buyer: wallet as `0x${string}`, letterIndexes }),
     );
