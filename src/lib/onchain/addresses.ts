@@ -34,6 +34,8 @@ type Registry = {
   wordToken: string;
   roles: Record<string, string | null>;
   contracts: Record<ContractKey, string | null>;
+  /** The EAS schema the keeper attests achievements under, registered per network. */
+  easAchievementsSchema?: string | null;
 };
 
 const REGISTRY: Registry =
@@ -80,6 +82,11 @@ export function wordTokenAddress(): `0x${string}` {
  */
 export function deployBlock(): bigint {
   return BigInt(REGISTRY.deployBlock ?? 0);
+}
+
+/** This network's EAS achievements schema, or null when none is registered yet. */
+export function achievementsSchema(): `0x${string}` | null {
+  return (REGISTRY.easAchievementsSchema as `0x${string}` | null | undefined) ?? null;
 }
 
 /** The backend signer role — the key that must sign every commit→reveal voucher. */
