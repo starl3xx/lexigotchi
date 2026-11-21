@@ -63,6 +63,13 @@ describe("loadAnswerSchedule", () => {
     expect(s.links[0].commit).toBe("0x962447f93cd4eb497a1564a355fe50ca3eafe23a7de6df496be079af2b52604f");
   });
 
+  it("treats an empty ANSWER_CHAIN_DAYS as unset (the 730-day default)", () => {
+    const fromEmpty = loadAnswerSchedule({ ANSWER_CHAIN_SEED: SEED_A, ANSWER_CHAIN_DAYS: "" });
+    const fromDefault = loadAnswerSchedule({ ANSWER_CHAIN_SEED: SEED_A });
+    expect(fromEmpty.links).toHaveLength(730);
+    expect(fromEmpty.links[0].commit).toBe(fromDefault.links[0].commit);
+  });
+
   it("falls back to the schedule file", () => {
     const built = buildAnswerChain(seededSchedule(SEED_B, 2));
     const s = loadAnswerSchedule({ ANSWER_CHAIN_FILE: "x.secret.json" }, () => JSON.stringify({ schedule: built.links }));
