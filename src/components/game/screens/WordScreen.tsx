@@ -36,13 +36,23 @@ export function WordScreen() {
   const { address } = useAccount();
   const { buy, env } = useBuyWord();
   const openUrl = useOpenUrl();
+  // The public numbers and the wallet's balance are separate queries: keying the public summary on
+  // the address made every connect or reconnect a new query, and every card flashed empty while the
+  // same public numbers came back (Bugbot on #131).
   const q = useQuery({
-    queryKey: ["word", address ?? null],
-    queryFn: async (): Promise<WordSummary> => (await fetch(`/api/word${address ? `?address=${address}` : ""}`)).json(),
+    queryKey: ["word"],
+    queryFn: async (): Promise<WordSummary> => (await fetch("/api/word")).json(),
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
+  const holderQ = useQuery({
+    queryKey: ["wordHolder", address ?? null],
+    queryFn: async () => ((await (await fetch(`/api/word?address=${address}`)).json()) as WordSummary).holder ?? null,
+    enabled: !!address,
+    staleTime: 30_000,
+  });
   const d = q.data;
+  const holder = address ? holderQ.data : null;
   const s = d?.supply;
   const change = d?.pool?.priceChange24hPct ?? null;
 
@@ -88,10 +98,10 @@ export function WordScreen() {
             )}
           </Stat>
         </div>
-        {d?.holder && (
+        {holder && (
           <p className="mt-3 text-sm">
-            You hold <strong className="tabular-nums">{fmtWord(d.holder.balance)} $WORD</strong>
-            {d.price.usd > 0 && <span className="text-ink/60"> (about {fmtUsd0(d.holder.balance * d.price.usd)})</span>}.
+            You hold <strong className="tabular-nums">{fmtWord(holder.balance)} $WORD</strong>
+            {d && d.price.usd > 0 && <span className="text-ink/60"> (about {fmtUsd0(holder.balance * d.price.usd)})</span>}.
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
