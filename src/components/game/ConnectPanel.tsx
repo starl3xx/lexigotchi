@@ -45,7 +45,7 @@ export function ConnectPanel() {
         onClick={openConnectModal}
         // Undefined until RainbowKit has mounted — never a dead button that looks alive.
         disabled={!openConnectModal}
-        className="cel mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-candy-deep px-4 py-3 font-display text-base font-extrabold text-paper transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        className="cel mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-candy-deep px-4 py-3 font-display text-base font-extrabold text-paper press disabled:opacity-50"
       >
         <Wallet weight="bold" size={18} />
         {connectModalOpen ? "Pick a wallet…" : "Connect wallet"}
@@ -72,7 +72,7 @@ export function ConnectPanel() {
             </p>
             <button
               onClick={viewer.signIn}
-              className="cel mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#855DCD] px-4 py-2.5 text-sm font-extrabold text-white"
+              className="cel press mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#855DCD] px-4 py-2.5 text-sm font-extrabold text-white"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/fc-arch-icon.png" alt="" className="h-3.5 w-auto" />

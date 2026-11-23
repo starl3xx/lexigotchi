@@ -38,13 +38,58 @@ export function Button({
   return (
     <button
       className={`relative inline-flex select-none items-center justify-center gap-2 rounded-xl border-[3px] border-ink font-display font-extrabold
-        shadow-[3px_3px_0_#1b1714] transition-[transform,box-shadow] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
-        disabled:cursor-not-allowed disabled:border-ink/25 disabled:bg-paper-dark disabled:text-ink/45 disabled:shadow-none disabled:active:translate-x-0 disabled:active:translate-y-0
+        press shadow-[3px_3px_0_#1b1714] [--sh:3px]
+        disabled:cursor-not-allowed disabled:border-ink/25 disabled:bg-paper-dark disabled:text-ink/45 disabled:shadow-none
         ${VAR[variant]} ${pad} ${full ? "w-full" : ""} ${className}`}
       {...rest}
     >
       {children}
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Segmented — a two- or three-way switch. One ink thumb slides between the options ("you are
+// here" is ink, CLAUDE.md), so the change reads as one thing moving, not two buttons repainting.
+// ---------------------------------------------------------------------------
+
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  className = "",
+}: {
+  value: T;
+  options: { value: T; label: ReactNode; disabled?: boolean }[];
+  onChange: (v: T) => void;
+  className?: string;
+}) {
+  const at = Math.max(0, options.findIndex((o) => o.value === value));
+  return (
+    <div className={`relative flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold ${className}`}>
+      <span
+        aria-hidden
+        className="seg-thumb absolute inset-y-1 left-1 rounded-lg bg-ink"
+        style={{ width: `calc((100% - 0.5rem) / ${options.length})`, transform: `translateX(${at * 100}%)` }}
+      />
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            disabled={o.disabled}
+            onClick={() => onChange(o.value)}
+            className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 transition-colors duration-200 disabled:opacity-40 ${
+              on ? "text-paper" : "text-ink/70 hover:text-ink"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -215,7 +260,7 @@ export function Sheet({
           <div className="font-display text-lg font-extrabold">{title}</div>
           <button
             onClick={onClose}
-            className="hit-44 flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink font-bold"
+            className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink font-bold"
             aria-label="Close"
           >
             <X weight="bold" size={16} />

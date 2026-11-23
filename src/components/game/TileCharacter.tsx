@@ -762,7 +762,7 @@ export function TileCharacter({
       aria-label={label}
       className={`relative inline-flex items-center justify-center transition-transform ${
         selected ? "-translate-y-1" : ""
-      } ${dim ? "opacity-35" : ""} ${onClick ? "active:translate-y-0.5" : ""} ${className}`}
+      } ${dim ? "opacity-35" : ""} ${onClick ? "tile-press" : ""} ${className}`}
       style={{ width: size, ...style }}
     >
       {svg}

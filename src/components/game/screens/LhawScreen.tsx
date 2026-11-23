@@ -37,7 +37,7 @@ export function LhawScreen() {
           href={LHAW_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="cel mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-candy-deep px-5 py-2.5 font-display text-base font-extrabold text-paper transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="cel mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-candy-deep px-5 py-2.5 font-display text-base font-extrabold text-paper press"
         >
           Play Let’s Have A Word! ↗
         </a>

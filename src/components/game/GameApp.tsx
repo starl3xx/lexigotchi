@@ -203,7 +203,7 @@ function TopBar() {
       onClick={() => openSheet({ kind: "cheatsheet" })}
       title="Cheat sheet: how to play"
       aria-label="Open the cheat sheet"
-      className="hit-44 flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
+      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper"
     >
       <Question weight="bold" size={15} />
     </button>
@@ -229,7 +229,7 @@ function TopBar() {
           onClick={() => openSheet({ kind: "balance" })}
           title="Your $WORD: view your balance and buy more"
           aria-label="Your $WORD balance: open your wallet"
-          className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right tabular-nums leading-none transition-transform active:translate-y-[1px]"
+          className="round-btn rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right tabular-nums leading-none"
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
@@ -246,7 +246,7 @@ function TopBar() {
         <button
           onClick={skipDay}
           title="Skip a day (prototype): advances hunger and draws a new daily word"
-          className="hit-44 flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
+          className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper"
           aria-label="Skip a day"
         >
           <SkipForward weight="fill" size={14} />
@@ -271,7 +271,7 @@ function ViewerChip() {
       onClick={() => openSheet({ kind: "balance" })}
       title={v.isAuthed ? `@${v.username}` : "Sign in"}
       aria-label={v.isAuthed ? `Signed in as ${v.username}` : "Sign in & wallet"}
-      className="hit-44 shrink-0 transition-transform active:translate-y-[1px]"
+      className="hit-44 round-btn shrink-0 rounded-full"
     >
       {v.pfpUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -355,11 +355,11 @@ function SideRail() {
         key={view}
         onClick={() => nav(view)}
         aria-current={active ? "page" : undefined}
-        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
+        className={`group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold ${
           active ? "bg-ink text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         }`}
       >
-        <Icon size={20} weight={active ? "fill" : "regular"} />
+        <Icon size={20} weight={active ? "fill" : "regular"} className="transition-transform duration-200 group-hover:translate-x-0.5" />
         {label}
       </button>
     );
@@ -382,9 +382,9 @@ function SideRail() {
         {item("more", "More", DotsThree)}
         <button
           onClick={() => openSheet({ kind: "cheatsheet" })}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         >
-          <Question size={20} weight="regular" /> Cheat sheet
+          <Question size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Cheat sheet
         </button>
       </div>
     </aside>

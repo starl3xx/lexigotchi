@@ -91,7 +91,7 @@ export function JackpotScreen() {
               <button
                 key={w.word}
                 onClick={() => g.openSheet({ kind: "word", word: w.word })}
-                className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-paper px-2 py-1 text-sm font-bold"
+                className="cel-sm press inline-flex items-center gap-1 rounded-lg bg-paper px-2 py-1 text-sm font-bold"
               >
                 {w.word}
                 {hunger(w) === "peckish" && <SmileyMeh weight="fill" size={13} className="text-gold-ink" />}

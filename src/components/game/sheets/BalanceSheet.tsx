@@ -172,7 +172,7 @@ export function BalanceSheet() {
           <div className="mt-2 flex gap-2">
             <button
               onClick={viewer.signIn}
-              className="cel flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#855DCD] px-3 py-2 text-sm font-extrabold text-white"
+              className="cel press flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#855DCD] px-3 py-2 text-sm font-extrabold text-white"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/fc-arch-icon.png" alt="" className="h-3 w-auto" />
@@ -189,7 +189,7 @@ export function BalanceSheet() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => setTimeout(recheck, 4000)}
-                className="cel flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-paper-dark px-3 py-2 text-sm font-extrabold"
+                className="cel press flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-paper-dark px-3 py-2 text-sm font-extrabold"
               >
                 <SealCheck weight="fill" size={15} /> Coinbase
               </a>

@@ -53,7 +53,7 @@ export function SignInWithCoinbaseWallet() {
       onClick={() => connect({ connector: wallet })}
       disabled={waiting}
       style={{ backgroundColor: COINBASE_BLUE }}
-      className="cel flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-display text-base font-extrabold text-white transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-80"
+      className="cel flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-display text-base font-extrabold text-white press disabled:opacity-80"
     >
       {waiting ? (
         <>

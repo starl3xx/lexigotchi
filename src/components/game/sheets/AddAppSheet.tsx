@@ -60,7 +60,7 @@ export function AddAppSheet() {
               </>
             )}
           </Button>
-          <button onClick={closeSheet} className="py-1 text-sm font-bold text-ink/45 active:translate-y-[1px]">
+          <button onClick={closeSheet} className="round-btn rounded-lg px-2 py-1 text-sm font-bold text-ink/45 hover:text-ink">
             Maybe later
           </button>
         </div>

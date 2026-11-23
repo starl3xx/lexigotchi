@@ -132,7 +132,7 @@ export function WebSignInHost() {
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="cel mt-4 inline-block rounded-xl bg-candy-deep px-4 py-2 text-sm font-extrabold text-paper"
+              className="cel press mt-4 inline-block rounded-xl bg-candy-deep px-4 py-2 text-sm font-extrabold text-paper"
             >
               Open Farcaster
             </a>
@@ -155,7 +155,7 @@ export function WebSignInHost() {
             </div>
             <button
               onClick={() => void start()}
-              className="cel mt-4 rounded-xl bg-candy-deep px-4 py-2 text-sm font-extrabold text-paper"
+              className="cel press mt-4 rounded-xl bg-candy-deep px-4 py-2 text-sm font-extrabold text-paper"
             >
               Try again
             </button>

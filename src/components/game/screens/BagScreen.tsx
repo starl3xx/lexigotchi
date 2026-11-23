@@ -1,7 +1,7 @@
 "use client";
 /** Bag — your loose letters (tap a lowercase one to raise it) and your claimed words. */
 import { useState } from "react";
-import { Button, EmptyState, SectionTitle } from "../primitives";
+import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
@@ -25,14 +25,15 @@ export function BagScreen() {
 
   return (
     <div className="space-y-3">
-      <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold md:max-w-sm">
-        <Tab on={tab === "letters"} onClick={() => setTab("letters")}>
-          Letters · {lowerCount + upperCount}
-        </Tab>
-        <Tab on={tab === "words"} onClick={() => setTab("words")}>
-          Words · {state.words.length}
-        </Tab>
-      </div>
+      <Segmented
+        className="md:max-w-sm"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "letters", label: <>Letters · {lowerCount + upperCount}</> },
+          { value: "words", label: <>Words · {state.words.length}</> },
+        ]}
+      />
 
       {tab === "letters" ? (
         <div className="space-y-4">
@@ -100,16 +101,6 @@ export function BagScreen() {
   );
 }
 
-function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 rounded-lg py-1.5 transition-colors ${on ? "bg-ink text-paper" : "text-ink/70"}`}
-    >
-      {children}
-    </button>
-  );
-}
 
 /** Phones: six flat tiles a row. Desktop: the letters as characters (the rig's bust art), sized to
  *  fill the wider column instead of a thin row of small squares across an empty page. */

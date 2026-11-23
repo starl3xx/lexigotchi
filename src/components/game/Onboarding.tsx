@@ -63,7 +63,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <div className="relative flex items-center justify-between px-4 pt-5">
         <span className="font-display text-lg font-extrabold tracking-tight">LEXIGOTCHI</span>
         {!last && (
-          <button onClick={onDone} className="text-sm font-bold text-ink/45 active:translate-y-[1px]">
+          <button onClick={onDone} className="round-btn rounded-lg px-2 py-1 text-sm font-bold text-ink/45 hover:text-ink">
             Skip
           </button>
         )}

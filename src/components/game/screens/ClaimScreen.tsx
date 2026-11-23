@@ -9,7 +9,7 @@
  */
 import { useMemo, useState } from "react";
 import { wordTier } from "@/lib/economy";
-import { Button, Card, EmptyState, SectionTitle, TierBadge } from "../primitives";
+import { Button, Card, EmptyState, SectionTitle, TierBadge, Segmented } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Crown, Lock, Sparkle } from "../ui/icons";
 import { anagramsOf, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, spellableNow, useGame } from "../state";
@@ -69,18 +69,23 @@ export function ClaimScreen() {
       </div>
 
       {/* case toggle */}
-      <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold md:max-w-sm">
-        <button onClick={() => swapCase(false)} className={`flex-1 rounded-lg py-1.5 ${!useUpper ? "bg-ink text-paper" : "text-ink/70"}`}>
-          lowercase
-        </button>
-        <button
-          onClick={() => swapCase(true)}
-          disabled={upperCount < 5}
-          className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 disabled:opacity-40 ${useUpper ? "bg-ink text-paper" : "text-ink/70"}`}
-        >
-          UPPERCASE {upperCount < 5 ? <Lock weight="fill" size={13} /> : <Crown weight="fill" size={13} />}
-        </button>
-      </div>
+      <Segmented
+        className="md:max-w-sm"
+        value={useUpper ? "upper" : "lower"}
+        onChange={(v) => swapCase(v === "upper")}
+        options={[
+          { value: "lower", label: "lowercase" },
+          {
+            value: "upper",
+            disabled: upperCount < 5,
+            label: (
+              <>
+                UPPERCASE {upperCount < 5 ? <Lock weight="fill" size={13} /> : <Crown weight="fill" size={13} />}
+              </>
+            ),
+          },
+        ]}
+      />
 
       {/* rack */}
       <Card>

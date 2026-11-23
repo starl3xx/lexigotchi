@@ -102,7 +102,7 @@ export function TodayStage() {
               className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink bg-paper"
             />
           </p>
-          <button onClick={open} aria-label={`Open ${W}`} className="pt-1">
+          <button onClick={open} aria-label={`Open ${W}`} className="tile-press rounded-2xl pt-1">
             <TileWord word={W} upper={w.upper} state={eating ? "eating" : pick.mood === "unstaked" ? "idle" : careState(w)} gild={gild} size={size} detail="full" />
           </button>
         </div>
@@ -155,7 +155,7 @@ export function TodayStage() {
             <button
               key={o.word}
               onClick={() => g.openSheet({ kind: "word", word: o.word })}
-              className="flex min-w-0 flex-col items-start gap-1 rounded-xl border-2 border-ink bg-paper px-2.5 py-2 text-left"
+              className="cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-paper px-2.5 py-2 text-left"
             >
               <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" />
               <span className="flex w-full min-w-0 items-center gap-1.5">
