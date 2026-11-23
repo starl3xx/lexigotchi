@@ -84,7 +84,8 @@ const ENV: EnvField[] = [
   // --- care --------------------------------------------------------------------------------------
   { key: "PECKISH_AFTER", label: "Peckish after", group: G.care, type: "uint", default: "86400", help: "seconds unfed → ½ yield" },
   { key: "HUNGRY_AFTER", label: "Hungry after", group: G.care, type: "uint", default: "259200", help: "seconds → 0 yield, no jackpot" },
-  { key: "PRESTIGE_MAX_LEVEL", label: "Prestige max level", group: G.care, type: "uint", default: "4" },
+  // 0 = ascension OFF at launch (decisions.md #11); the game hides it while maxLevel is 0.
+  { key: "PRESTIGE_MAX_LEVEL", label: "Prestige max level", group: G.care, type: "uint", default: "0", help: "0 = ascension off (launch); 4 = the designed ladder" },
 
   // --- repeg -------------------------------------------------------------------------------------
   { key: "PRICE_KEEPER", label: "Price keeper", group: G.repeg, type: "address", help: "blank = auto-repeg disabled (freeze default)" },
@@ -94,7 +95,8 @@ const ENV: EnvField[] = [
   { key: "WORDS_URI", label: "Words base URI", group: G.meta, type: "text", help: "e.g. https://lexigotchi.fun/api/word/" },
   { key: "LETTERS_URI", label: "Letters metadata URI", group: G.meta, type: "text", help: "ERC-1155 URI" },
   { key: "ROYALTY_BPS", label: "Royalty signal (bps)", group: G.meta, type: "uint", default: "250", help: "EIP-2981 signal; 0 = skip" },
-  { key: "BOUNTY_CARVE_BPS", label: "Bounty carve (bps)", group: G.meta, type: "uint", default: "0", help: "0 = bounty off" },
+  // ON at launch (decisions.md #11, amended 2026-11-23): params' carveFraction, in bps.
+  { key: "BOUNTY_CARVE_BPS", label: "Bounty carve (bps)", group: G.meta, type: "uint", default: String(Math.round(DEFAULT_PARAMS.bounty.carveFraction * 10_000)), help: "share of the pool's cut that funds the weekly bounty; 0 = off" },
 ];
 
 const GROUP_ORDER = [G.keys, G.roles, G.prices, G.care, G.repeg, G.meta];

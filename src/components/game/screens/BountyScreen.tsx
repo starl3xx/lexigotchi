@@ -5,6 +5,21 @@ import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { WordCard } from "../WordCard";
 import { MagnifyingGlass, Medal } from "../ui/icons";
 import { THEMES, fmtWord, hunger, useGame } from "../state";
+import { DEFAULT_PARAMS } from "@/lib/params";
+
+/**
+ * When the current week's bounty pays: the keeper settles a week on the first day of the next, from
+ * the words as the week closed (lib/keeper/jobs `bountyPeriodToSettle`). Periods are UTC days
+ * grouped by `periodDays`, the same grouping the theme rotates on.
+ */
+function paysIn(nowMs: number, periodDays = DEFAULT_PARAMS.bounty.periodDays): string {
+  const day = Math.floor(nowMs / 86_400_000);
+  const endMs = (day + periodDays - (day % periodDays)) * 86_400_000;
+  const hours = (endMs - nowMs) / 3_600_000;
+  if (hours < 24) return `in ${Math.max(1, Math.ceil(hours))} hour${Math.ceil(hours) <= 1 ? "" : "s"}`;
+  const days = Math.round(hours / 24);
+  return `in ${days} day${days === 1 ? "" : "s"}`;
+}
 
 // Mock-flavor leaderboard — hidden on chain, where no such feed exists yet (absent beats fake).
 const LEADERBOARD = [
@@ -77,7 +92,9 @@ export function BountyScreen() {
           Your matching words
         </SectionTitle>
         <p className="mb-2 text-xs text-ink/60">
-          Must be <strong>staked &amp; not hungry</strong>. Rarer matches earn a bigger slice (tier-weighted).
+          Pays when the week ends, {paysIn(Date.now())}, to every matching word that is{" "}
+          <strong>staked and not hungry</strong> at that moment. Rarer matches earn a bigger slice
+          (tier-weighted).
         </p>
         {matching.length === 0 ? (
           <EmptyState Icon={MagnifyingGlass} title="No matches yet" sub="Claim or raise words that fit the theme to get in." />
