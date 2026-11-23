@@ -36,6 +36,8 @@ export interface KeeperWord {
   prestigeLevel: number;
   /** All five escrowed letters uppercase. */
   upperAll: boolean;
+  /** UPPERCASE letters in the word, 0..5 (the world read's "raised" board). Absent in old fixtures. */
+  raised?: number;
 }
 
 export interface RewardLeaf {

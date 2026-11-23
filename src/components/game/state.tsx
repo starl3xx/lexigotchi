@@ -95,6 +95,7 @@ export type View =
   | "jackpot"
   | "bounty"
   | "dictionary"
+  | "leaderboard"
   | "showcase"
   | "swap";
 

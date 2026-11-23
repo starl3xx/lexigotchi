@@ -31,6 +31,7 @@ import { ClaimScreen } from "./screens/ClaimScreen";
 import { JackpotScreen } from "./screens/JackpotScreen";
 import { BountyScreen } from "./screens/BountyScreen";
 import { DictionaryScreen } from "./screens/DictionaryScreen";
+import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { ShowcaseScreen } from "./screens/ShowcaseScreen";
 import { SwapScreen } from "./screens/SwapScreen";
 import { WordSheet } from "./sheets/WordSheet";
@@ -42,7 +43,7 @@ import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
-  ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Question,
+  ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
@@ -164,6 +165,7 @@ function Screen({ view }: { view: View }) {
     case "jackpot": return <JackpotScreen />;
     case "bounty": return <BountyScreen />;
     case "dictionary": return <DictionaryScreen />;
+    case "leaderboard": return <LeaderboardScreen />;
     case "showcase": return <ShowcaseScreen />;
     case "swap": return <SwapScreen />;
     default: return <HomeScreen />;
@@ -286,6 +288,7 @@ const VIEW_TITLE: Record<View, string> = {
   jackpot: "Daily jackpot",
   bounty: "Weekly bounty",
   dictionary: "Dictionary",
+  leaderboard: "Leaderboard",
   showcase: "Showcase",
   swap: "Swap letters",
   more: "More",
@@ -306,6 +309,7 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
     items: [
       { view: "jackpot", label: "Jackpot", Icon: Trophy },
       { view: "bounty", label: "Bounty", Icon: Medal },
+      { view: "leaderboard", label: "Leaderboard", Icon: Ranking },
     ],
   },
   {
@@ -374,7 +378,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "bounty", "dictionary", "showcase", "swap"];
+const MORE: View[] = ["more", "claim", "bounty", "dictionary", "leaderboard", "showcase", "swap"];
 
 function BottomNav() {
   const { state, nav } = useGame();
