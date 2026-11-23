@@ -106,7 +106,19 @@ interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; reve
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 /** A roll's signed outcome, plus what the UI needs to show the new pity before the chain does. */
-interface RollReveal extends OutcomeReveal { pityAtCommit: number; letterIndex: number; owner: string }
+interface RollReveal extends OutcomeReveal {
+  pityAtCommit: number;
+  letterIndex: number;
+  owner: string;
+  /**
+   * Set when we asked the server to finish the roll (decisions.md #14). "mined": done, with the
+   * outcome and exact `pity` from the reveal's event. "pending"/"reverted": broadcast, the chain
+   * finishes it. "already": revealed before. Absent: nothing was sent, so `signature` is here and
+   * the player's wallet sends it, as before relaying existed.
+   */
+  relayed?: "mined" | "pending" | "reverted" | "already";
+  pity?: number;
+}
 
 /**
  * Send one batch inside an action (see `track`): its label, and a builder for the calls. Each
@@ -500,14 +512,41 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     [address, toast, revealCommit],
   );
 
-  /** Reveal a KNOWN, already-paid roll commit: fetch the signed outcome and send it. */
+  /** Lay a pity value the client KNOWS over the lagging chain read, for that roll's owner. */
+  const notePity = useCallback((owner: string, letterIndex: number, value: number) => {
+    const key = owner.toLowerCase();
+    setPityNotes((all) => ({ ...all, [key]: { ...all[key], [letterIndex]: { value, at: Date.now() } } }));
+  }, []);
+
+  /**
+   * Reveal a KNOWN, already-paid roll commit. The server finishes it (sends the reveal from its
+   * relayer key, decisions.md #14), so the wallet never previews the result; when the server can't
+   * send, it returns the signature and the player's wallet sends it, as before.
+   */
   const revealRoll = useCallback(
     async (id: bigint, run: RunFn): Promise<ActionOutcome> => {
       // openPostJson: the reveal is owner-bound and idempotent, so it needs no Farcaster session.
-      const draw = await openPostJson<{ reveal: RollReveal }>("/api/roll/reveal", { commitId: String(id) });
+      const draw = await openPostJson<{ reveal: RollReveal }>("/api/roll/reveal", { commitId: String(id), relay: true });
       if (!draw?.ok) {
         toast(authError(draw?.error, "Roll"), "bad");
         return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
+      }
+      const r = draw.reveal;
+      if (r.relayed) {
+        // No send of ours to refresh after, so re-read everything a reveal changes, on a stagger.
+        const reread = () => {
+          void chain.refresh();
+          void Promise.all([pityQ.refetch(), wordsQ.refetch(), pendingQ.refetch()]);
+        };
+        reread();
+        for (const delay of [2_000, 6_000, 15_000]) setTimeout(reread, delay);
+        if (r.relayed === "mined") {
+          if (Number.isInteger(r.pity) && Number.isInteger(r.letterIndex)) notePity(r.owner, r.letterIndex, r.pity!);
+          return { status: "resolved", success: r.success };
+        }
+        if (r.relayed === "already") return { status: "resolved", success: r.success };
+        // Broadcast but not yet mined: the chain finishes it; a second reveal would only revert.
+        return { status: "stranded", note: "Your roll is finishing onchain. It’ll show in a moment." };
       }
       const ok = await run("Reveal", () => rollRevealCalls(id, draw.reveal.success, draw.reveal.signature));
       if (!ok) return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
@@ -515,14 +554,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // on a stagger so the real value replaces it as soon as a node has it.
       const { letterIndex, pityAtCommit, success, owner } = draw.reveal;
       const known = Number.isInteger(pityAtCommit) ? knownPityAfter(success, pityAtCommit) : null;
-      if (known !== null && Number.isInteger(letterIndex) && typeof owner === "string") {
-        const key = owner.toLowerCase();
-        setPityNotes((all) => ({ ...all, [key]: { ...all[key], [letterIndex]: { value: known, at: Date.now() } } }));
-      }
+      if (known !== null && Number.isInteger(letterIndex) && typeof owner === "string") notePity(owner, letterIndex, known);
       for (const delay of [2_000, 6_000, 15_000]) setTimeout(() => void pityQ.refetch(), delay);
       return { status: "resolved", success };
     },
-    [openPostJson, toast, authError, pityQ],
+    [openPostJson, toast, authError, pityQ, wordsQ, pendingQ, chain, notePity],
   );
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
