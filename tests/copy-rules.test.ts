@@ -47,6 +47,25 @@ function renderedStrings(): { where: string; text: string }[] {
   return out;
 }
 
+/** The player docs (docs-site/, served at lexigotchi.fun/docs by Mintlify): every page's prose, with
+ *  fenced and inline code taken out. */
+function docsProse(): { where: string; text: string }[] {
+  return readdirSync("docs-site")
+    .filter((f) => f.endsWith(".mdx"))
+    .map((f) => ({
+      where: `docs-site/${f}`,
+      text: readFileSync(join("docs-site", f), "utf8").replace(/```[\s\S]*?```/g, "").replace(/`[^`]*`/g, ""),
+    }));
+}
+
+describe("player docs", () => {
+  const pages = docsProse();
+  it("finds the pages", () => expect(pages.length).toBeGreaterThan(5));
+  it("have no em dashes", () => expect(pages.filter((p) => /—|&mdash;|&#8212;/.test(p.text)).map((p) => p.where)).toEqual([]));
+  it("use curly apostrophes", () => expect(pages.filter((p) => /[A-Za-z]'[A-Za-z]/.test(p.text)).map((p) => p.where)).toEqual([]));
+  it("spell onchain as one word", () => expect(pages.filter((p) => /\bon-chain\b/i.test(p.text)).map((p) => p.where)).toEqual([]));
+});
+
 describe("player-facing copy", () => {
   const strings = renderedStrings();
 

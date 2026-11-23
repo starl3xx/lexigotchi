@@ -1,0 +1,47 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Lexigotchi",
+  "description": "Raise your letters. Spell your words. Own the dictionary. A letter-collecting game on Base.",
+  "colors": {
+    "primary": "#bd3d35",
+    "light": "#ec6a61",
+    "dark": "#9a2f29"
+  },
+  "background": {
+    "color": {
+      "light": "#f4ead2",
+      "dark": "#14212b"
+    }
+  },
+  "favicon": "/favicon.png",
+  "navbar": {
+    "links": [
+      { "label": "$WORD", "href": "https://basescan.org/token/0x304e649e69979298bd1aee63e175adf07885fb4b" },
+      { "label": "Let’s Have A Word!", "href": "https://letshaveaword.fun" }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Play",
+      "href": "https://lexigotchi.fun/play"
+    }
+  },
+  "navigation": {
+    "groups": [
+      { "group": "Get started", "pages": ["index", "quickstart"] },
+      { "group": "Play", "pages": ["letters", "rolls", "words", "care", "jackpot", "bounty", "earning", "showcase-and-swap"] },
+      { "group": "$WORD", "pages": ["word", "fees"] },
+      { "group": "More", "pages": ["fairness", "lets-have-a-word", "faq"] }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/starl3xx/lexigotchi"
+    }
+  },
+  "seo": {
+    "metatags": {
+      "og:site_name": "Lexigotchi"
+    }
+  }
+}
