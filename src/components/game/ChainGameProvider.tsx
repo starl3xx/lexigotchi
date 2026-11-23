@@ -21,7 +21,7 @@
  * NOT atomic: an approval can land while the action reverts, and the returned batch id says nothing
  * about which calls succeeded.
  */
-import { useCallback, useMemo, useReducer, type ReactNode } from "react";
+import { useCallback, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
@@ -89,7 +89,8 @@ import {
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
-import { guardedAction } from "@/lib/onchain/guardedAction";
+import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
+import { createActionGate, type Busy } from "@/lib/onchain/actionGate";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
@@ -128,6 +129,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const [ui, dispatch] = useReducer(reducer, undefined, seedState);
   const chain = useOnchain();
   const { address, connector } = useAccount();
+
+  // What the player is waiting on (the BusyPill), from the tap to the last read. One action at a
+  // time: see lib/onchain/actionGate for why a tap must never look ignored.
+  const [busy, setBusy] = useState<Busy | null>(null);
+  const gate = useRef(createActionGate(setBusy)).current;
 
   // ── THE UNION BAG ──────────────────────────────────────────────────────────────────────────
   // One collection per human: the connected wallet plus every wallet Farcaster links to the
@@ -293,7 +299,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const run = useCallback(
     async (label: string, build: () => Parameters<typeof chain.send>[0]) => {
       try {
+        gate.phase("wallet");
         await chain.send(build());
+        gate.phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), pendingQ.refetch()]);
         toast(`${label} sent`, "good");
         return true;
@@ -305,7 +313,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    [chain, toast, wordsQ, pityQ, dayQ, pendingQ],
+    [chain, toast, wordsQ, pityQ, dayQ, pendingQ, gate],
+  );
+
+  /** Run a player action under the status pill; a tap while another is in flight only says so. */
+  const track = useCallback(
+    <T,>(label: string, flow: () => Promise<T>, refused: T) =>
+      gate.run(label, flow, refused, (inFlight) => toast(`Still working on: ${inFlight}`, "info")),
+    [gate, toast],
   );
 
 
@@ -544,7 +559,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
        * back to the original two-phase discover-then-reveal.
        */
       dailyMint: () =>
-        guarded(async (markPaid) => {
+        track("Minting your daily letter", () => guarded(async (markPaid) => {
           if (!address) { toast("Connect a wallet first", "bad"); return { status: "not-started" as const }; }
           if (soldOutFor(1)) return { status: "not-started" as const };
           const res = await openPostJson<{ voucher: DailyVoucher; bundle: DailyBundle | null }>(
@@ -589,7 +604,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it");
           // Letters arrive via the pack sheet; the caller only needs "don't call this again".
           return { status: "resolved", success: true };
-        }),
+        }), NOT_STARTED),
 
       /**
        * The full two-transaction pack: voucher → commit → discover the commitId from the log →
@@ -597,7 +612,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
        * opens when they do.
        */
       openPack: () => {
-        void (async () => {
+        void track("Opening your free pack", async () => {
           if (!address) return void toast("Connect a wallet first", "bad");
           if (soldOutFor(5)) return;
 
@@ -638,7 +653,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast("Your pack is paid for — reopen to finish it", "info");
           }
           dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
-        })();
+        }, undefined);
         return [];
       },
 
@@ -648,7 +663,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
        * later failure is "stranded" (paid, and recoverable from PendingReveal), never "try again".
        */
       buyPack: () =>
-        guarded(async (markPaid) => {
+        track("Buying a pack", () => guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) {
             toast("Connect a wallet first", "bad");
             return { status: "not-started" as const };
@@ -667,10 +682,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return { status: "stranded" as const, note: "Your pack is paid for. Reopen it to finish." };
           }
           return { status: "resolved" as const, success: true };
-        }),
+        }), NOT_STARTED),
 
       rollLoose: (idx: number) =>
-        guarded(async (markPaid) => {
+        track(`Rolling your ${String.fromCharCode(97 + idx)}`, () => guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // No sign-in pre-check: the roll reveal serves any wallet (see /api/roll/reveal), so a
           // wallet-only player can always finish a roll they paid for.
@@ -680,10 +695,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!(await run("Roll", () => commitLooseRollCalls(idx, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
           return finishRoll(before);
-        }),
+        }), NOT_STARTED),
 
       rollWord: (word: string, pos: number) =>
-        guarded(async (markPaid) => {
+        track(`Rolling a letter in ${word}`, () => guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // No sign-in pre-check: the roll reveal serves any wallet (see /api/roll/reveal), so a
           // wallet-only player can always finish a roll they paid for.
@@ -694,10 +709,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
           return finishRoll(before);
-        }),
+        }), NOT_STARTED),
 
       prestige: (word: string) =>
-        guarded(async (markPaid) => {
+        track(`Ascending ${word}`, () => guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay twice.
           let id = await readOpenPrestigeFor(tokenIdOf(word));
@@ -727,10 +742,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           toast(draw.reveal.success ? `${word} ascended — a gilded glow-up` : `${word} held its ground`,
                 draw.reveal.success ? "good" : "info");
           return { status: "resolved", success: draw.reveal.success };
-        }),
+        }), NOT_STARTED),
 
       claim: (word: string, useUpper: boolean) => {
-        void (async () => {
+        void track(`Claiming ${word}`, async () => {
           if (!chain.params || !chain.player) return void toast("Still loading", "info");
           const proof = await fetch(`/api/dictionary/proof?word=${encodeURIComponent(word)}`).then((r) => r.json());
           if (!proof.ok) {
@@ -743,22 +758,24 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           await run(`Claim ${word}`, () =>
             claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
           );
-        })();
+        }, undefined);
       },
 
       toggleStake: (word: string) => {
         const w = state.words.find((x) => x.word === word);
         if (!w || !chain.player) return;
-        void run(w.staked ? `Unstake ${word}` : `Stake ${word}`, () =>
-          w.staked ? unstakeCalls(tokenIdOf(word)) : stakeCalls(tokenIdOf(word), chain.player!),
-        );
+        void track(w.staked ? `Unstaking ${word}` : `Staking ${word}`, () =>
+          run(w.staked ? `Unstake ${word}` : `Stake ${word}`, () =>
+            w.staked ? unstakeCalls(tokenIdOf(word)) : stakeCalls(tokenIdOf(word), chain.player!),
+          ), false);
       },
 
       feed: (word: string) => {
         if (!chain.params || !chain.player) return;
-        void run(`Feed ${word}`, () =>
-          feedCalls(tokenIdOf(word), chain.params!, chain.player!, feedSizingFree),
-        );
+        void track(`Feeding ${word}`, () =>
+          run(`Feed ${word}`, () =>
+            feedCalls(tokenIdOf(word), chain.params!, chain.player!, feedSizingFree),
+          ), false);
       },
 
       feedAll: () => {
@@ -768,13 +785,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         // mine only: feed() is staker-only on-chain, so a linked wallet's word would revert the batch.
         const hungry = state.words.filter((w) => w.mine && w.staked && w.daysUnfed > 0).map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody's hungry", "info");
-        void run("Feed all", () =>
-          feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),
-        );
+        void track("Feeding your words", () =>
+          run("Feed all", () =>
+            feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),
+          ), false);
       },
 
       dissolve: (word: string) => {
-        void (async () => {
+        void track(`Dissolving ${word}`, async () => {
           const w = state.words.find((x) => x.word === word);
           if (!w) return;
           const id = tokenIdOf(word);
@@ -785,7 +803,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           );
           if (!ok) return;
           dispatch({ t: "sheet", sheet: null });
-        })();
+        }, undefined);
       },
       revealJackpot: () => null,
       skipDay: () => toast("Time moves on its own here", "info"),
@@ -793,7 +811,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet.
       addDemoBalance: () => {
         if (!NETWORK.isTestnet || !address) return void toast("No faucet on mainnet", "bad");
-        void run("Faucet", () => faucetCalls(address, 50_000_000));
+        void track("Getting test $WORD", () => run("Faucet", () => faucetCalls(address, 50_000_000)), false);
       },
 
       claimables: (claimablesQ.data ?? []).map((c) => ({
@@ -812,9 +830,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           amount: BigInt(c.amount),
           proof: c.proof,
         }));
-        void (async () => {
+        void track("Claiming your rewards", async () => {
           if (await run("Claim", () => claimRewardCalls(claims))) void claimablesQ.refetch();
-        })();
+        }, undefined);
       },
 
       spendable: (w: OwnedWord) =>
@@ -829,7 +847,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
        * waits. Fixed 1⇄1 letter shape — the server rejects anything else.
        */
       createSwapOffer: (giveId: number, wantId: number) => {
-        void (async () => {
+        void track("Listing your offer", async () => {
           if (!address) return void toast("Connect a wallet first", "bad");
           const letters = addressOf("letters");
           const client = getPublicClient();
@@ -854,10 +872,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             // A SIGNATURE, not a transaction — free, instant, and Seaport judges it at fill time.
             const provider = (await connector?.getProvider()) as { request: (a: { method: string; params: unknown[] }) => Promise<unknown> } | undefined;
             if (!provider) return void toast("This wallet can't sign offers", "bad");
+            gate.phase("wallet");
             const signature = (await provider.request({
               method: "eth_signTypedData_v4",
               params: [address, JSON.stringify(orderTypedData(order))],
             })) as `0x${string}`;
+            gate.phase("working");
             const res = await fetch("/api/swap/orders", {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -874,11 +894,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             if (/reject|denied|4001/i.test(msg)) toast("Cancelled", "info");
             else toast(`Offer failed: ${msg.slice(0, 70)}`, "bad");
           }
-        })();
+        }, undefined);
       },
 
       fillSwapOffer: (orderHash: string) => {
-        void (async () => {
+        void track("Swapping letters", async () => {
           const row = (boardQ.data ?? []).find((r) => r.orderHash === orderHash);
           if (!row || !address) return;
           const letters = addressOf("letters");
@@ -891,31 +911,32 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             ...fulfillOrderCalls(row.order, row.signature),
           ]);
           if (ok) void boardQ.refetch();
-        })();
+        }, undefined);
       },
 
       cancelSwapOffer: (orderHash: string) => {
-        void (async () => {
+        void track("Cancelling your offer", async () => {
           const row = (boardQ.data ?? []).find((r) => r.orderHash === orderHash);
           if (!row) return;
           if (await run("Cancel offer", () => cancelOrderCalls(row.order))) void boardQ.refetch();
-        })();
+        }, undefined);
       },
 
       // Stranded-commit recovery. The first live daily mined its commit and then lost its reveal
       // (page state died between the two wallet prompts) — the letter sat unopened with no way to
       // claim it. The reveal is deterministic and free, so finishing is always safe.
+      busy,
+      dismissBusy: gate.dismiss,
       pendingReveals: (pendingQ.data ?? []).length,
       openPending: () => {
         const oldest = (pendingQ.data ?? [])[0];
         if (!oldest) return;
-        void (async () => {
-          toast("Opening your unrevealed pull…", "info");
+        void track("Opening your letters", async () => {
           if (await revealCommit(oldest.commitId)) void pendingQ.refetch();
-        })();
+        }, undefined);
       },
     }),
-    [state, chain, address, connector, run, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ],
+    [state, chain, address, connector, run, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

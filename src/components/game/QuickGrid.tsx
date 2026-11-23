@@ -7,7 +7,7 @@ import { WORD_COUNT } from "@/lib/dictionary";
 const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = [
   { Icon: Sparkle, label: "Mint letters", sub: "packs & daily", to: "mint" },
   { Icon: TextAa, label: "Spell a word", sub: "claim it forever", to: "claim" },
-  { Icon: BookOpen, label: "Lexidex", sub: `${WORD_COUNT.toLocaleString("en-US")} words`, to: "lexidex" },
+  { Icon: BookOpen, label: "Dictionary", sub: `${WORD_COUNT.toLocaleString("en-US")} words`, to: "dictionary" },
   { Icon: MaskHappy, label: "Showcase", sub: "flex & cast", to: "showcase" },
   { Icon: ArrowsLeftRight, label: "Swap", sub: "trade letters", to: "swap" },
   { Icon: Backpack, label: "My bag", sub: "letters & words", to: "bag" },

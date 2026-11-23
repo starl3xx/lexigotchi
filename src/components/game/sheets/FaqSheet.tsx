@@ -154,7 +154,8 @@ function useFaq(): { q: string; a: ReactNode }[] {
       a: (
         <>
           A <strong>showcase</strong> arranges any letters you own into any string (no dictionary
-          check) and casts it — pure vanity, no NFT, every cast an ad. A <strong>swap</strong> is a
+          check) and shares it: on X first, or as a Farcaster cast. The link shows your letters as a
+          picture card. Pure vanity, no NFT, and every share is an ad. A <strong>swap</strong> is a
           direct two-sided letter escrow (&quot;my Q for your two Z&apos;s, + some $WORD&quot;) you
           share as a cast. It&apos;s not a marketplace — open price discovery still lives on any
           standard NFT venue.

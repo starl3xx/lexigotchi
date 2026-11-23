@@ -45,6 +45,14 @@ export const frameEmbed = {
   button: { title: "Play Lexigotchi", action: launchAction("launch_frame") },
 };
 
+/** The same launch card with another picture: a Showcase share's letters (lib/showcase). */
+export function embedsWithImage(imageUrl: string) {
+  return {
+    miniapp: { ...miniAppEmbed, imageUrl },
+    frame: { ...frameEmbed, imageUrl },
+  };
+}
+
 /**
  * Neynar's hosted mini-app webhook. Pointing `webhookUrl` here hands Neynar the whole notification
  * token lifecycle — JFS verification, the per-(client, app, FID) token store, Warpcast/Base App

@@ -2,8 +2,9 @@
 /** Shared rubber-hose UI primitives for the play prototype — cel borders, hard shadows, wood tiles. */
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Tier } from "@/lib/economy";
-import { Basket, Smiley, SmileyMeh, SmileyXEyes, X } from "./ui/icons";
+import { Basket, CircleNotch, Smiley, SmileyMeh, SmileyXEyes, X } from "./ui/icons";
 import { useGame, type Hunger, type Toast } from "./state";
+import type { Busy } from "@/lib/onchain/actionGate";
 
 // ---------------------------------------------------------------------------
 // Button — tactile cel button (the shadow "presses" on tap)
@@ -229,12 +230,55 @@ const TOAST_TONE = {
 };
 
 export function Toaster() {
-  const { state, dismissToast } = useGame();
+  const { state, dismissToast, busy, dismissBusy } = useGame();
   return (
     <div className="pointer-events-none absolute inset-x-0 top-2 z-50 flex flex-col items-center gap-2 px-4">
+      {busy && <BusyPill busy={busy} onDismiss={dismissBusy} />}
       {state.toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onDone={dismissToast} />
       ))}
+    </div>
+  );
+}
+
+const BUSY_PHASE: Record<Busy["phase"], string> = {
+  preparing: "Getting it ready…",
+  wallet: "Confirm in your wallet",
+  working: "Waiting for the chain…",
+};
+
+/** A wallet left unanswered this long gets a way out: the gate would otherwise block every tap. */
+const BUSY_DISMISS_AFTER_MS = 15_000;
+
+/**
+ * The status of the action in flight (lib/onchain/actionGate), from the tap until the last read.
+ * It sits above the toasts and stays until the action settles. In the wallet phase it offers
+ * "Hide" after a while, for a request that never comes back, such as a phone wallet left unopened.
+ */
+function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
+  const [stale, setStale] = useState(false);
+  useEffect(() => {
+    setStale(false);
+    if (busy.phase !== "wallet") return;
+    const id = window.setTimeout(() => setStale(true), BUSY_DISMISS_AFTER_MS);
+    return () => window.clearTimeout(id);
+  }, [busy.phase, busy.label]);
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="animate-pop pointer-events-auto flex max-w-full items-center gap-2.5 rounded-xl border-[3px] border-ink bg-paper px-3 py-2 text-sm shadow-[3px_3px_0_#1b1714]"
+    >
+      <CircleNotch weight="bold" size={18} className="shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate font-bold">{busy.label}</span>
+        <span className="block text-xs font-medium text-ink/60">{BUSY_PHASE[busy.phase]}</span>
+      </span>
+      {stale && (
+        <button onClick={onDismiss} className="shrink-0 text-xs font-bold text-ink/50 underline">
+          Hide
+        </button>
+      )}
     </div>
   );
 }

@@ -51,7 +51,7 @@ export function isWord(word: string): boolean {
 /** The 16 banned guesses removed from the canonical set (slurs / inappropriate). */
 export const BANNED: readonly string[] = Object.freeze([...BANNED_GUESSES]);
 
-/** Category provenance, exposed for diagnostics / the Lexidex "where did this word come from" UI. */
+/** Category provenance, exposed for diagnostics / the Dictionary screen's "where did this word come from" UI. */
 export const CATEGORIES = Object.freeze({
   CORE_COMMON,
   BIG_PLACES,

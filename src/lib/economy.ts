@@ -178,7 +178,7 @@ export const TIER_COUNTS: Readonly<Record<Tier, number>> = Object.freeze(
   ),
 );
 
-/** The full ranking (rarest last), exposed for the Lexidex + tests. */
+/** The full ranking (rarest last), exposed for the Dictionary screen + tests. */
 export const RANKED_WORDS: readonly Ranked[] = Object.freeze(RANKING);
 
 /** The Legendaries (46 for 4,584 words), rarest first (spec Appendix B's derivation). */
@@ -202,7 +202,7 @@ export function stakeWeight(tier: Tier, caseState: CaseState): number {
 }
 
 // ---------------------------------------------------------------------------
-// Notable subsets (flavor for the Lexidex)
+// Notable subsets (flavor for the Dictionary screen)
 // ---------------------------------------------------------------------------
 
 export const Q_WORDS: readonly string[] = Object.freeze(WORDS.filter((w) => w.includes("Q")));

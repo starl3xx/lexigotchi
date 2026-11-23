@@ -139,6 +139,14 @@ showed; only the *decisions* changed.
     security audit (you can find skills to look at this) or lawyer convo". The internal audit with
     the `solidity-auditor` skill replaces the external one (`contracts/AUDIT.md`, second pass); its
     four confirmed findings were fixed before any mainnet deploy.
+13. **Copy and sharing, from the first browser-wallet test** (starl3xx, 2026-11-23). The word
+    browser is the **Dictionary**, never "Lexidex", in every surface: "“Lexidex” should just be
+    “Dictionary”". **Showcase is built for X first, Farcaster second**: "Showcase should be built
+    for Twitter first, Farcaster 2nd". So "Post on X" is the primary button, and each share links
+    to `/s/<letters>`, a page whose card draws the letters (X shows a picture only for a link that
+    carries its own `og:image`). And a tap must never look ignored: "there should be a loading
+    indicator or something to indicate to the user that their action has been recorded/submitted
+    and is processing" (`src/lib/onchain/actionGate.ts`, the BusyPill).
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,
@@ -217,7 +225,7 @@ Surfaced while walking the game loop; recorded so they don't drift into the cont
   "integrate, don't build"). **Build** a small two-sided swap-escrow contract ("my Q for your two
   Z's, or for N $WORD"), shareable as a Farcaster/X link/cast — it solves exact-match discovery
   and doubles as the P1 mutuals-gifting loop. **Integrate** standard 1155/721 marketplaces
-  (OpenSea et al.) for open price discovery, deep-linked from the Lexidex. The swap is in-house;
+  (OpenSea et al.) for open price discovery, deep-linked from the Dictionary. The swap is in-house;
   open price discovery is not.
 
 ## Royalty & marketplace architecture (June 11, 2026)

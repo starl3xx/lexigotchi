@@ -118,7 +118,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   connect modal is themed in `walletTheme.ts`), `ConnectPanel.tsx` (the web front door: wallet required,
   via the RainbowKit modal or Base's official button in `SignInWithBase.tsx`; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
-  `useShare.ts` (composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`).
+  `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`).
+- `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
+  share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
+  `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
@@ -151,7 +154,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `builderCapabilities()` on `wallet_sendCalls` (wagmi `useSendCalls` or the mini-app EIP-1193
   provider), raw `eth_sendTransaction` via `appendBuilderSuffix(data)`. The single write chokepoint that
   injects it is `src/lib/onchain/sendCalls.ts` (`sendCallsAttributed`) — every contract write routes
-  through it. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  through it. **Every player action also runs through the action gate**
+  (`src/lib/onchain/actionGate.ts`, `track()` in `ChainGameProvider`): the BusyPill shows it from the
+  tap (preparing → confirm in your wallet → waiting for the chain), and a second tap while one is in
+  flight sends nothing. Wrap any new action in `track`, or its tap looks ignored during the
+  proof/voucher/read work before the wallet opens. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
   network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
   empty until the deploy, so production flips to the real game in the same deploy that commits the
   mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the
