@@ -93,7 +93,7 @@ export function JackpotScreen() {
               <button
                 key={w.word}
                 onClick={() => g.openSheet({ kind: "word", word: w.word })}
-                className="cel-sm press inline-flex items-center gap-1 rounded-lg bg-paper px-2 py-1 text-sm font-bold"
+                className="cel-sm press inline-flex items-center gap-1 rounded-lg bg-card px-2 py-1 text-sm font-bold"
               >
                 {w.word}
                 {hunger(w) === "peckish" && <SmileyMeh weight="fill" size={13} className="text-gold-ink" />}
@@ -128,7 +128,7 @@ export function JackpotScreen() {
           {PAST.map((w) => (
             <span
               key={w}
-              className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-paper px-2 py-1 font-display text-sm font-bold text-gold-ink"
+              className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-card px-2 py-1 font-display text-sm font-bold text-gold-ink"
             >
               <Star weight="fill" size={12} /> {w}
             </span>

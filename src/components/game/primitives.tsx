@@ -19,8 +19,8 @@ const VAR: Record<Variant, string> = {
   primary: "bg-candy-deep text-paper",
   gold: "bg-gold text-ink",
   teal: "bg-teal text-ink",
-  ghost: "bg-paper text-ink",
-  danger: "bg-paper text-candy-ink",
+  ghost: "bg-card text-ink",
+  danger: "bg-card text-candy-ink",
 };
 
 export function Button({
@@ -67,7 +67,7 @@ export function Segmented<T extends string>({
 }) {
   const at = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div className={`relative flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold ${className}`}>
+    <div className={`relative flex rounded-xl border-[3px] border-ink bg-card p-1 text-sm font-bold ${className}`}>
       <span
         aria-hidden
         className="seg-thumb absolute inset-y-1 left-1 rounded-lg bg-ink"
@@ -223,7 +223,7 @@ export function Countdown({ className = "" }: { className?: string }) {
 // ---------------------------------------------------------------------------
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`cel rounded-2xl bg-paper p-4 ${className}`}>{children}</div>;
+  return <div className={`cel rounded-2xl bg-card p-4 ${className}`}>{children}</div>;
 }
 
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
@@ -373,7 +373,7 @@ function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
     <div
       role="status"
       aria-live="polite"
-      className="animate-pop pointer-events-auto flex max-w-full items-center gap-2.5 rounded-xl border-[3px] border-ink bg-paper px-3 py-2 text-sm shadow-[3px_3px_0_#1b1714]"
+      className="animate-pop pointer-events-auto flex max-w-full items-center gap-2.5 rounded-xl border-[3px] border-ink bg-card px-3 py-2 text-sm shadow-[3px_3px_0_#1b1714]"
     >
       <CircleNotch weight="bold" size={18} className="shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />
       <span className="min-w-0 leading-tight">

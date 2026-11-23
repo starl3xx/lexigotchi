@@ -49,7 +49,7 @@ export function MintScreen() {
       </div>
 
       {/* daily single */}
-      <Card className="bg-paper">
+      <Card className="bg-card">
         <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · 1 / day</span>}>Daily single</SectionTitle>
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm text-ink/70">
@@ -74,7 +74,7 @@ export function MintScreen() {
 
       {/* the free campaign pack: only for players who earned it (add the mini app + share a cast) */}
       {state.chainBacked && packEligible === true && (
-        <Card className="bg-paper">
+        <Card className="bg-card">
           <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · once</span>}>Your free pack</SectionTitle>
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-ink/70">Five letters, on the house, for sharing Lexigotchi.</span>
@@ -86,7 +86,7 @@ export function MintScreen() {
       )}
 
       {/* pack of 5: paid, for every wallet */}
-      <Card className="bg-gradient-to-b from-paper to-candy/10">
+      <Card className="bg-gradient-to-b from-card to-candy/10">
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>

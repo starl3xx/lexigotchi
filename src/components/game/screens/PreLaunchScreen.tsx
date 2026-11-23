@@ -155,7 +155,7 @@ export function PreLaunchScreen() {
           </div>
 
           {/* reward — the free 5-pack */}
-          <div className="cel mt-6 rounded-2xl bg-gradient-to-b from-paper to-gold/20 p-4">
+          <div className="cel mt-6 rounded-2xl bg-gradient-to-b from-card to-gold/20 p-4">
             <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-extrabold text-gold-ink">
               <Gift weight="fill" size={14} /> Your launch-day reward
             </div>
@@ -175,7 +175,7 @@ export function PreLaunchScreen() {
           )}
 
           {/* the two steps */}
-          <div className="cel mt-5 rounded-2xl bg-paper p-4">
+          <div className="cel mt-5 rounded-2xl bg-card p-4">
             <h2 className="font-display text-lg font-extrabold">Two steps to claim it</h2>
             <p className="mb-3 text-xs text-ink/60">Do both before we launch to lock in your pack.</p>
 
@@ -231,12 +231,12 @@ function StepRow({
   return (
     <div
       className={`flex items-center gap-3 rounded-xl border-2 p-3 transition-colors ${
-        done ? "border-teal/40 bg-teal/10" : "border-ink/15 bg-paper"
+        done ? "border-teal/40 bg-teal/10" : "border-ink/15 bg-card"
       }`}
     >
       <span
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink font-display text-sm font-extrabold ${
-          done ? "bg-teal text-ink" : "bg-paper text-ink"
+          done ? "bg-teal text-ink" : "bg-card text-ink"
         }`}
       >
         {done ? <Check weight="bold" size={16} /> : n}

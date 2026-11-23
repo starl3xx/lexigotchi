@@ -102,7 +102,7 @@ export function WebSignInHost() {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/70 px-4" onClick={close}>
       <div
-        className="cel w-full max-w-sm rounded-2xl bg-paper p-5 text-center"
+        className="cel w-full max-w-sm rounded-2xl bg-card p-5 text-center"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-display text-xl font-extrabold">Sign in with Farcaster</h2>

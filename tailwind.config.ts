@@ -19,6 +19,9 @@ const config: Config = {
           ink: "#1b1714", // near-black warm ink for outlines
         },
         ink: "#1b1714",
+        // Raised surfaces (cards, list tiles, ghost buttons, chips, inputs) sit a shade lighter than
+        // the paper page, so a card reads as an object on the page rather than an outline on it.
+        card: "#fbf4e3",
         // Each hue has a FILL (the base) and an INK shade for text. The base hues are too light for
         // small text: cream on teal measured 2.78:1 and teal text on paper 2.78:1, where small text
         // needs 4.5:1. The ink shades clear 4.5:1 on paper AND on the hue's own 20–30% tints (the

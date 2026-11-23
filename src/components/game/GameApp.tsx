@@ -244,7 +244,7 @@ function TopBar() {
       onClick={() => openSheet({ kind: "cheatsheet" })}
       title="Cheat sheet: how to play"
       aria-label="Open the cheat sheet"
-      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper"
+      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
     >
       <Question weight="bold" size={15} />
     </button>
@@ -270,7 +270,7 @@ function TopBar() {
           onClick={() => openSheet({ kind: "balance" })}
           title="Your $WORD: view your balance and buy more"
           aria-label="Your $WORD balance: open your wallet"
-          className="round-btn rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right tabular-nums leading-none"
+          className="round-btn rounded-full border-2 border-ink bg-card px-2.5 py-1 text-right tabular-nums leading-none"
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
@@ -287,7 +287,7 @@ function TopBar() {
         <button
           onClick={skipDay}
           title="Skip a day (prototype): advances hunger and draws a new daily word"
-          className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper"
+          className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
           aria-label="Skip a day"
         >
           <SkipForward weight="fill" size={14} />
@@ -318,7 +318,7 @@ function ViewerChip() {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={v.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
       ) : (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink/60">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
           <Smiley weight="fill" size={15} />
         </span>
       )}

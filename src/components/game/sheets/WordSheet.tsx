@@ -155,7 +155,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
 
       {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0) */}
       {fullyRaised && maxLevel > 0 && (
-        <Card className={`mb-3 bg-gradient-to-b from-paper to-gold/10 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
+        <Card className={`mb-3 bg-gradient-to-b from-card to-gold/10 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1 font-display font-extrabold">

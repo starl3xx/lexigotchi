@@ -110,7 +110,7 @@ export function SwapScreen() {
           <div className="flex flex-wrap gap-1.5">
             {QUICK_WORD.map((amt) => (
               <button key={amt} onClick={() => setAsk(amt)}>
-                <span className={`inline-block rounded-full border-2 border-ink px-2.5 py-1 text-xs font-bold ${ask === amt ? "bg-teal text-ink" : "bg-paper"}`}>
+                <span className={`inline-block rounded-full border-2 border-ink px-2.5 py-1 text-xs font-bold ${ask === amt ? "bg-teal text-ink" : "bg-card"}`}>
                   {amt === 0 ? "none" : `+${fmtWord(amt)}`}
                 </span>
               </button>

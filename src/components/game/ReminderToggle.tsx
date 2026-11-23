@@ -29,7 +29,7 @@ export function ReminderToggle({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="cel rounded-2xl bg-paper p-4">
+    <div className="cel rounded-2xl bg-card p-4">
       <div className="flex items-center gap-2 font-display font-extrabold">
         {state === "on" ? <Bell weight="fill" className="text-teal-ink" /> : <BellSlash weight="bold" className="text-ink/50" />}
         Reminders {state === "on" ? "are on" : ""}

@@ -48,7 +48,7 @@ export function HomeScreen() {
       </div>
 
       {/* hero — daily jackpot */}
-      <Card className="bg-gradient-to-b from-paper to-gold/15">
+      <Card className="bg-gradient-to-b from-card to-gold/15">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm font-bold text-ink/60">Today’s jackpot</div>

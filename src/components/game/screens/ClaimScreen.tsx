@@ -172,7 +172,7 @@ export function ClaimScreen() {
           <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} each />
           <div className="mt-2 space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
             {quick.map((w) => (
-              <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-paper p-2.5">
+              <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-card p-2.5">
                 <WordTiles word={w} upper={Array(5).fill(useUpper)} size={26} />
                 <div className="flex-1">
                   <div className="font-display text-sm font-extrabold">{w}</div>

@@ -95,11 +95,11 @@ export function TodayStage() {
       <div className="cel overflow-hidden rounded-2xl bg-night">
         <div className="h-5" style={{ background: CURTAIN }} aria-hidden />
         <div ref={box} className="flex flex-col items-center gap-3 px-2 pt-2">
-          <p className="relative rounded-xl border-2 border-ink bg-paper px-3 py-1.5 text-center text-sm font-bold shadow-[2px_2px_0_#1b1714]">
+          <p className="relative rounded-xl border-2 border-ink bg-card px-3 py-1.5 text-center text-sm font-bold shadow-[2px_2px_0_#1b1714]">
             {eating ? `${W} is full again. Thank you!` : stageLine(pick)}
             <span
               aria-hidden
-              className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink bg-paper"
+              className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink bg-card"
             />
           </p>
           <button onClick={open} aria-label={`Open ${W}`} className="tile-press rounded-2xl pt-1">
@@ -155,7 +155,7 @@ export function TodayStage() {
             <button
               key={o.word}
               onClick={() => g.openSheet({ kind: "word", word: o.word })}
-              className="cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-paper px-2.5 py-2 text-left"
+              className="cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-card px-2.5 py-2 text-left"
             >
               <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" />
               <span className="flex w-full min-w-0 items-center gap-1.5">

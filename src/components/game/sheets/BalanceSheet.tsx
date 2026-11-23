@@ -205,7 +205,7 @@ export function BalanceSheet() {
         </Card>
       ) : null}
 
-      <Card className="bg-gradient-to-b from-paper to-gold/15 text-center">
+      <Card className="bg-gradient-to-b from-card to-gold/15 text-center">
         <div className="flex items-center justify-center gap-1.5 text-ink/60">
           <Coins weight="fill" />
           <span className="text-sm font-bold">Balance</span>

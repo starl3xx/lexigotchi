@@ -27,7 +27,7 @@ export function LhawScreen() {
 
   return (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
-      <Card className="bg-gradient-to-b from-paper to-gold/15 lg:col-span-2">
+      <Card className="bg-gradient-to-b from-card to-gold/15 lg:col-span-2">
         <h1 className="font-display text-2xl font-extrabold">Let’s Have A Word!</h1>
         <p className="mt-1 text-sm text-ink/70">
           Lexigotchi’s sibling in the $WORD universe: a word hunt where everyone in the world chases the same
