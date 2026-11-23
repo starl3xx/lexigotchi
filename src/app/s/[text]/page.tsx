@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TileWord } from "@/components/game/TileCharacter";
+import { WordStripLive } from "@/components/WordStrip";
 import { parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
 import { BASE_APP_ID, embedsWithImage } from "@/lib/site";
 
@@ -70,6 +71,7 @@ export default async function ShowcasePage({ params }: Props) {
           How it works
         </Link>
       </div>
+      <WordStripLive className="mt-6" />
     </main>
   );
 }
