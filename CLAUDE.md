@@ -192,6 +192,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 
 ## Gotchas / conventions
 
+- **`package.json` `overrides: { cuer: "0.0.4" }` is load-bearing.** RainbowKit 2.2.11 pins `cuer`
+  0.0.3, which asks the `qr` library for `border: 0`. `qr` ≥ 0.6 (cuer allows `~0`) throws on that,
+  so tapping WalletConnect crashed the page (`RangeError: invalid border=0`). cuer 0.0.4 asks for
+  `border: 1` and trims it. Drop the override only once RainbowKit ships cuer ≥ 0.0.4.
+
 - The sim's **absolute** numbers depend on placeholder budgets — trust the **relative**
   dynamics (see `docs/decisions.md` findings). Key insight: the mint sink is finite; the
   durable economy runs on rolls + snacks.
