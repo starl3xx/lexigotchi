@@ -9,6 +9,10 @@
  *
  * Pure (no React) so the rules are tested directly (tests/action-gate.test.ts). The provider owns
  * one gate and mirrors its state into React with `onChange`.
+ *
+ * Phases are scoped to their action: `run` hands the flow its OWN `phase` setter, and there is no
+ * global one. After a Hide, an abandoned flow can wake up (a wallet answers late) and keep going,
+ * and a global setter would then drive the status of whatever newer action is in flight.
  */
 
 /** Where the action is: our own work, the wallet's prompt, or the chain after the wallet said yes. */
@@ -20,16 +24,22 @@ export interface Busy {
   phase: BusyPhase;
 }
 
+/** Moves one action's status. A no-op once that action has settled or been dismissed. */
+export type SetPhase = (phase: BusyPhase) => void;
+
 export interface ActionGate {
   current(): Busy | null;
   /**
-   * Run one action under a status. While another is in flight, `flow` does not run: `onRefused`
-   * hears the label of the one in flight and `refused` comes back, so a second tap can never send
-   * a second transaction.
+   * Run one action under a status. `flow` gets this action's own phase setter. While another
+   * action is in flight, `flow` does not run: `onRefused` hears the label of the one in flight and
+   * `refused` comes back, so a second tap can never send a second transaction.
    */
-  run<T>(label: string, flow: () => Promise<T>, refused: T, onRefused?: (inFlight: string) => void): Promise<T>;
-  /** Move the action in flight to a new phase. A no-op when nothing is in flight. */
-  phase(phase: BusyPhase): void;
+  run<T>(
+    label: string,
+    flow: (phase: SetPhase) => Promise<T>,
+    refused: T,
+    onRefused?: (inFlight: string) => void,
+  ): Promise<T>;
   /**
    * Hide the status and release the gate, for a request that never answers (a phone wallet left
    * unopened, a hung fetch). The flow itself keeps going; when it settles it no longer touches the status,
@@ -59,16 +69,16 @@ export function createActionGate(onChange: (busy: Busy | null) => void): ActionG
       }
       const id = ++seq;
       set({ id, busy: { label, phase: "preparing" } });
+      const phase: SetPhase = (p) => {
+        const now = live();
+        if (now?.id !== id || now.busy.phase === p) return; // settled, dismissed, or unchanged
+        set({ id, busy: { ...now.busy, phase: p } });
+      };
       try {
-        return await flow();
+        return await flow(phase);
       } finally {
         if (live()?.id === id) set(null);
       }
-    },
-
-    phase(phase) {
-      if (!cur || cur.busy.phase === phase) return;
-      set({ id: cur.id, busy: { ...cur.busy, phase } });
     },
 
     dismiss() {

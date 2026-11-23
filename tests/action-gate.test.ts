@@ -3,7 +3,7 @@
  * ignored, and a second tap during the wait must never send a second transaction.
  */
 import { describe, it, expect } from "vitest";
-import { createActionGate, type Busy } from "@/lib/onchain/actionGate";
+import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 
 function setup() {
   const seen: (Busy | null)[] = [];
@@ -23,11 +23,12 @@ describe("createActionGate", () => {
   it("shows the action from the tap, follows its phases, and clears when it settles", async () => {
     const { gate, seen } = setup();
     const d = deferred<string>();
-    const out = gate.run("Claiming HELLO", () => d.promise, "refused");
+    let phase!: SetPhase;
+    const out = gate.run("Claiming HELLO", (p) => { phase = p; return d.promise; }, "refused");
     expect(gate.current()).toEqual({ label: "Claiming HELLO", phase: "preparing" });
-    gate.phase("wallet");
-    gate.phase("wallet"); // no repeat render for the same phase
-    gate.phase("working");
+    phase("wallet");
+    phase("wallet"); // no repeat render for the same phase
+    phase("working");
     d.resolve("done");
     expect(await out).toBe("done");
     expect(gate.current()).toBeNull();
@@ -70,9 +71,32 @@ describe("createActionGate", () => {
     next.resolve();
   });
 
-  it("ignores a phase change with nothing in flight", () => {
+  it("an abandoned action that wakes up can't move a newer action's status (Bugbot on #106)", async () => {
+    const { gate } = setup();
+    const stuck = deferred<void>();
+    let oldPhase!: SetPhase;
+    void gate.run("Buying a pack", (p) => { oldPhase = p; p("wallet"); return stuck.promise; }, undefined);
+    gate.dismiss(); // Hide: the wallet never answered
+
+    const next = deferred<void>();
+    let newPhase!: SetPhase;
+    void gate.run("Staking HELLO", (p) => { newPhase = p; return next.promise; }, undefined);
+    oldPhase("working"); // the old wallet answers late; its flow moves on
+    oldPhase("wallet"); // and asks for its reveal
+    expect(gate.current()).toEqual({ label: "Staking HELLO", phase: "preparing" });
+    newPhase("wallet");
+    expect(gate.current()).toEqual({ label: "Staking HELLO", phase: "wallet" });
+    next.resolve();
+    stuck.resolve();
+  });
+
+  it("a phase change after the action settled does nothing", async () => {
     const { gate, seen } = setup();
-    gate.phase("wallet");
-    expect(seen).toEqual([]);
+    let phase!: SetPhase;
+    await gate.run("Feeding PIXEL", async (p) => { phase = p; }, undefined);
+    const renders = seen.length;
+    phase("working");
+    expect(seen).toHaveLength(renders);
+    expect(gate.current()).toBeNull();
   });
 });

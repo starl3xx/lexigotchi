@@ -158,7 +158,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`src/lib/onchain/actionGate.ts`, `track()` in `ChainGameProvider`): the BusyPill shows it from the
   tap (preparing → confirm in your wallet → waiting for the chain), and a second tap while one is in
   flight sends nothing. Wrap any new action in `track`, or its tap looks ignored during the
-  proof/voucher/read work before the wallet opens. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  proof/voucher/read work before the wallet opens, and send with the `run` it hands the flow (each
+  action's own, so an action abandoned with Hide can't drive a newer one's status). **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
   network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
   empty until the deploy, so production flips to the real game in the same deploy that commits the
   mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the
