@@ -101,19 +101,23 @@ export function JackpotScreen() {
         )}
       </Card>
 
-      {/* LHAW bonus teaser */}
-      <Card className="bg-teal/10">
-        <div className="flex items-start gap-2">
-          <Gift weight="fill" size={22} className="shrink-0 text-teal-ink" />
-          <div>
-            <div className="font-display font-extrabold">Bonus: Let’s Have A Word!</div>
-            <p className="text-xs text-ink/60">
-              When an LHAW round’s secret word is one you simply <em>own</em>, you take a separate bonus pool. No
-              staking required.
-            </p>
+      {/* LHAW bonus teaser: the practice game only. The bonus pool is a planned Phase-1 addition
+          (decisions.md, "Jackpot architecture"); no contract pays it, so the real game must not
+          promise it. The LHAW page already says each game pays its own pot. */}
+      {!state.chainBacked && (
+        <Card className="bg-teal/10">
+          <div className="flex items-start gap-2">
+            <Gift weight="fill" size={22} className="shrink-0 text-teal-ink" />
+            <div>
+              <div className="font-display font-extrabold">Bonus: Let’s Have A Word!</div>
+              <p className="text-xs text-ink/60">
+                When an LHAW round’s secret word is one you simply <em>own</em>, you take a separate bonus pool. No
+                staking required.
+              </p>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* past winners */}
       <div>
