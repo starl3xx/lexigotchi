@@ -51,7 +51,7 @@ export function HomeScreen() {
       <Card className="bg-gradient-to-b from-paper to-gold/15">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-ink/60">Today’s jackpot</div>
+            <div className="text-sm font-bold text-ink/60">Today’s jackpot</div>
             <div className="font-display text-3xl font-extrabold text-gold-deep">{fmtWord(state.jackpotPot)}</div>
             <div className="text-xs text-ink/60">$WORD · draws in <Countdown /></div>
           </div>
@@ -134,7 +134,7 @@ export function HomeScreen() {
         <Card className="bg-teal/10 transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wide text-teal-ink">This week’s bounty</div>
+              <div className="text-sm font-bold text-teal-ink">This week’s bounty</div>
               <div className="font-display font-extrabold">{theme.name}</div>
               <div className="text-xs text-ink/60">Hold matching words, staked &amp; fed, to share the pool.</div>
             </div>

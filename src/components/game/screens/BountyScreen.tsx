@@ -48,7 +48,7 @@ export function BountyScreen() {
       <Card className="bg-gradient-to-b from-teal/15 to-paper">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-teal-ink">This week’s bounty</div>
+            <div className="text-sm font-bold text-teal-ink">This week’s bounty</div>
             <div className="font-display text-xl font-extrabold">{theme.name}</div>
           </div>
           <Medal weight="fill" size={40} className="text-teal-ink" />
@@ -117,7 +117,7 @@ export function BountyScreen() {
             .map((r, i) => (
               <div
                 key={r.who}
-                className={`flex items-center justify-between rounded-lg border-2 border-ink px-3 py-1.5 text-sm ${r.who === "you" ? "bg-candy/15 font-extrabold" : "bg-paper"}`}
+                className={`flex items-center justify-between rounded-lg border-2 border-ink px-3 py-1.5 text-sm ${r.who === "you" ? "bg-ink/10 font-extrabold" : "bg-paper"}`}
               >
                 <span className="flex items-center gap-2">
                   <span className="font-display text-ink/50">#{i + 1}</span>

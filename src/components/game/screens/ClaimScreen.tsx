@@ -70,13 +70,13 @@ export function ClaimScreen() {
 
       {/* case toggle */}
       <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold md:max-w-sm">
-        <button onClick={() => swapCase(false)} className={`flex-1 rounded-lg py-1.5 ${!useUpper ? "bg-candy-deep text-paper" : "text-ink/70"}`}>
+        <button onClick={() => swapCase(false)} className={`flex-1 rounded-lg py-1.5 ${!useUpper ? "bg-ink text-paper" : "text-ink/70"}`}>
           lowercase
         </button>
         <button
           onClick={() => swapCase(true)}
           disabled={upperCount < 5}
-          className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 disabled:opacity-40 ${useUpper ? "bg-gold text-ink" : "text-ink/70"}`}
+          className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 disabled:opacity-40 ${useUpper ? "bg-ink text-paper" : "text-ink/70"}`}
         >
           UPPERCASE {upperCount < 5 ? <Lock weight="fill" size={13} /> : <Crown weight="fill" size={13} />}
         </button>
@@ -167,7 +167,7 @@ export function ClaimScreen() {
           <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} each />
           <div className="mt-2 space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
             {quick.map((w) => (
-              <div key={w} className="cel flex items-center gap-3 rounded-2xl bg-paper p-2.5">
+              <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-paper p-2.5">
                 <WordTiles word={w} upper={Array(5).fill(useUpper)} size={26} />
                 <div className="flex-1">
                   <div className="font-display text-sm font-extrabold">{w}</div>

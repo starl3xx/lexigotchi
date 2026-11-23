@@ -96,14 +96,14 @@ export function DictionaryScreen() {
                             "info",
                           )
               }
-              className={`cel flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+              className={`${owned ? "cel" : "cel-sm"} flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-paper"
               }`}
             >
               <div className="min-w-0">
                 <div className="font-display text-sm font-extrabold">{w}</div>
                 {theirs ? (
-                  <div className="mt-0.5 text-[11px] text-ink/70">
+                  <div className="mt-0.5 text-xs text-ink/70">
                     <PlayerChip address={owner} profile={profiles[owner]} size={16} />
                   </div>
                 ) : (
@@ -111,7 +111,7 @@ export function DictionaryScreen() {
                 )}
               </div>
               {owned ? (
-                <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-ink">yours</span>
+                <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold text-ink">yours</span>
               ) : theirs ? (
                 <TierBadge tier={wordTier(w)} />
               ) : ownersKnown ? null : (

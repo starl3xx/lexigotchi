@@ -28,7 +28,7 @@ export function PlayerChip({
         />
       )}
       <span className={`truncate ${profile ? "font-bold" : "font-mono text-[0.92em]"}`}>{label}</span>
-      {you && <span className="shrink-0 rounded-full bg-teal px-1.5 text-[10px] font-extrabold uppercase text-ink">you</span>}
+      {you && <span className="shrink-0 rounded-full bg-teal px-1.5 text-[10px] font-extrabold text-ink">you</span>}
     </span>
   );
 }

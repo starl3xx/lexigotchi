@@ -74,7 +74,7 @@ export function LeaderboardScreen() {
                     <span className="font-display font-extrabold">{r.value.toLocaleString("en-US")}</span>{" "}
                     <span className="text-xs text-ink/55">{meta.unit(r.value)}</span>
                     {board === "wins" && r.amount ? (
-                      <span className="block text-[11px] text-ink/55">{fmtWord(r.amount)} $WORD</span>
+                      <span className="block text-xs text-ink/60">{fmtWord(r.amount)} $WORD</span>
                     ) : null}
                   </span>
                 </li>

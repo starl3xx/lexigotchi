@@ -46,7 +46,7 @@ export function SwapScreen() {
       <div className="space-y-3">
         <h1 className="font-display text-2xl font-extrabold">Swap created</h1>
         <Card className="bg-gradient-to-b from-candy/10 to-paper">
-          <div className="text-center text-xs font-bold uppercase tracking-wide text-ink/55">a Lexigotchi swap</div>
+          <div className="text-center text-xs font-bold text-ink/60">A Lexigotchi swap</div>
           <div className="my-3 space-y-3">
             <div className="text-center">
               <div className="text-xs text-ink/55">they give you</div>
@@ -172,14 +172,14 @@ function ChainSwap() {
       {/* create */}
       <Card>
         <SectionTitle>Make an offer</SectionTitle>
-        <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink/50">you give</div>
+        <div className="mb-1 text-xs font-bold text-ink/60">You give</div>
         <div className="flex flex-wrap gap-1.5">
           {mine.length === 0 && <span className="text-sm text-ink/50">No spare letters in this wallet.</span>}
           {mine.map(({ i }) => (
             <LetterTile key={i} char={tile(i)} upper={isUpper(i)} size={38} onClick={() => setGive(i)} selected={give === i} />
           ))}
         </div>
-        <div className="mb-1 mt-3 text-xs font-bold uppercase tracking-wide text-ink/50">you want</div>
+        <div className="mb-1 mt-3 text-xs font-bold text-ink/60">You want</div>
         <div className="flex flex-wrap gap-1.5">
           {ALPHABET.map((ch, i) => (
             <LetterTile key={i} char={ch.toLowerCase()} size={30} onClick={() => setWant(i)} selected={want === i} />

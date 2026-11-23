@@ -208,7 +208,7 @@ export function BalanceSheet() {
       <Card className="bg-gradient-to-b from-paper to-gold/15 text-center">
         <div className="flex items-center justify-center gap-1.5 text-ink/60">
           <Coins weight="fill" />
-          <span className="text-xs font-bold uppercase tracking-wide">balance</span>
+          <span className="text-sm font-bold">Balance</span>
         </div>
         <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">{fmtWord(state.balance)}</div>
         <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>

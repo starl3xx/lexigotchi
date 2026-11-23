@@ -136,7 +136,7 @@ export function LhawScreen() {
 function Stat({ label, big = false, children }: { label: string; big?: boolean; children: ReactNode }) {
   return (
     <div>
-      <div className="text-xs font-bold uppercase tracking-wide text-ink/55">{label}</div>
+      <div className="text-xs font-bold text-ink/60">{label}</div>
       <div className={big ? "font-display text-2xl font-extrabold text-gold-deep" : "text-sm font-bold"}>{children}</div>
     </div>
   );
