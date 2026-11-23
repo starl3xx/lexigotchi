@@ -153,6 +153,17 @@ showed; only the *decisions* changed.
     (`SignInWithCoinbaseWallet.tsx`, same `baseAccount` connector, text only), and the connect
     modal's row is relabeled (`coinbaseWalletAccount` in `lib/onchain/wagmi.ts`). This supersedes the
     2026-11-20 choice of Base's official button.
+14. **The server finishes rolls; approvals stay standard** (starl3xx, 2026-11-23). A roll was two
+    wallet confirmations, and the second (the reveal) spoiled the result: "the transaction itself
+    *spoils* the outcome, by showing an NFT or nothing". Chosen: "Game finishes it". The player
+    confirms only the paid commit; `/api/roll/reveal` (`{ relay: true }`) sends `Rolls.reveal` from a
+    fourth hot key, `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`, builder code on every
+    write), and answers with the outcome read from the mined reveal's event. `Rolls.reveal` is
+    permissionless, so no contract change. Without the key, or when nothing was broadcast, the
+    player's wallet sends the reveal as before. Packs, the daily letter, and ascension still reveal
+    from the wallet and spoil the same way; the same relay can cover them later. Also ruled: the
+    unlimited $WORD approval and the one-time letter and word "approve all" stay ("I think
+    unlimited spending permission is fine"; "Keep as is").
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

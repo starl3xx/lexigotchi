@@ -8,9 +8,12 @@ import { signDigest, drawSuccess } from "@/lib/onchain/signer";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { rollsAbi } from "@/lib/onchain/abis";
 import { rollSuccessProbability } from "@/lib/params";
+import { relayRollReveal, relayerConfigured, RELAY_WAIT_MS } from "@/lib/onchain/relayer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// A relayed reveal waits up to RELAY_WAIT_MS for its block; leave room around it.
+export const maxDuration = 30;
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -32,6 +35,13 @@ const ZERO = "0x0000000000000000000000000000000000000000";
  * learns nothing it can spend or reroll. Requiring a Farcaster session would shut wallet-only
  * players out of a mechanic they paid for (decisions.md #9). The FID, when present, is only the
  * rate-limit key; anonymous callers are bucketed by IP.
+ *
+ * RELAY (`{ relay: true }`, decisions.md #14): the server sends the reveal itself
+ * (lib/onchain/relayer), so the player confirms one transaction per roll and the wallet never
+ * previews the result. The answer then carries the outcome read from the mined reveal, not a
+ * signature. Without a relayer key, or when the send is refused before broadcast, the answer is the
+ * signature as before and the player's wallet sends it. An already-revealed commit answers with
+ * its outcome under relay (a lost response is a normal case there), and 409 otherwise.
  */
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
@@ -39,8 +49,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let raw: string | undefined;
+  let wantRelay = false;
   try {
-    raw = (await req.json())?.commitId;
+    const body = await req.json();
+    raw = body?.commitId;
+    wantRelay = body?.relay === true;
   } catch {
     /* handled below */
   }
@@ -67,11 +80,24 @@ export async function POST(req: Request) {
   if (!owner || owner === ZERO) {
     return NextResponse.json({ ok: false, error: "unknown_commit" }, { status: 404 });
   }
-  if (revealed) return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
 
   // 45% base, +10pp per prior failure, capped at 85% — from the SNAPSHOT, not live pity.
   const probability = rollSuccessProbability(Number(pityAtCommit));
   const success = drawSuccess("roll", commitId, probability);
+  const facts = {
+    commitId: String(commitId),
+    pityAtCommit: Number(pityAtCommit),
+    letterIndex: Number(letterIndex),
+    owner,
+    probability,
+  };
+
+  if (revealed) {
+    if (!wantRelay) return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
+    // The outcome is fixed per commit, so this is the answer the first request got. (A signed
+    // success that no longer applied was a no-op on chain; the pity read will say so.)
+    return NextResponse.json({ ok: true, reveal: { ...facts, success, relayed: "already" } });
+  }
 
   const signature = await signDigest(
     rollsRevealDigest({
@@ -82,6 +108,23 @@ export async function POST(req: Request) {
       success,
     }),
   );
+
+  if (wantRelay && relayerConfigured()) {
+    const r = await relayRollReveal(commitId, success, signature);
+    if (r.kind === "mined") {
+      return NextResponse.json({
+        ok: true,
+        // The outcome as the chain applied it (the reveal's own event), and the exact new pity.
+        reveal: { ...facts, success: r.success, pity: r.pity, relayed: "mined", txHash: r.txHash },
+      });
+    }
+    if (r.kind === "pending" || r.kind === "reverted") {
+      // Broadcast: the player's wallet must NOT send a second reveal. The chain finishes it.
+      return NextResponse.json({ ok: true, reveal: { ...facts, success, relayed: r.kind, txHash: r.txHash } });
+    }
+    console.warn(`[roll/reveal] relay unavailable (${r.reason}); the player's wallet sends commit ${commitId}`);
+    // Nothing was broadcast: fall through to the signature, and the wallet sends it.
+  }
 
   return NextResponse.json({
     ok: true,

@@ -24,6 +24,9 @@ const ALLOWED = new Set([
   // can't route through the wallet chokepoint. Each of its writes passes `dataSuffix:
   // BUILDER_DATA_SUFFIX` instead; the test below holds it to that.
   "src/lib/keeper/jobs.ts",
+  // The roll relayer (decisions.md #14) sends Rolls.reveal from its own server key, for the same
+  // reason; the test below holds its writes to the builder suffix too.
+  "src/lib/onchain/relayer.ts",
 ]);
 
 /** APIs that send a transaction without our attribution suffix. */
@@ -83,8 +86,8 @@ describe("no on-chain write bypasses the attributed chokepoint", () => {
     expect(chokepoint).toMatch(/appendBuilderSuffix/);
   });
 
-  it("the keeper's server-key writes still carry the builder code", () => {
-    const src = readFileSync(resolve(SRC, "lib/keeper/jobs.ts"), "utf8");
+  it.each(["lib/keeper/jobs.ts", "lib/onchain/relayer.ts"])("server-key writes in %s still carry the builder code", (file) => {
+    const src = readFileSync(resolve(SRC, file), "utf8");
     const writes = src.match(/writeContract\(\{/g)?.length ?? 0;
     const suffixed = src.match(/writeContract\(\{\s*dataSuffix: BUILDER_DATA_SUFFIX/g)?.length ?? 0;
     expect(writes).toBeGreaterThan(0);

@@ -44,7 +44,9 @@ The whole keeper run took 7 seconds, and its writes carry the builder code.
 
 Still to do on Sepolia:
 1. A Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key and draw secret, the keeper
-   key, and a database with migrations 0003–0005. This makes the testnet game playable in a browser
+   key, the roll relayer key, and a database with migrations 0003–0005. It is also where gas
+   sponsorship can be tested: a wallet can't reach a `localhost` paymaster URL, and Coinbase Wallet
+   then fails the whole send ("Something went wrong") instead of paying its own gas. This makes the testnet game playable in a browser
    wallet: the rehearsal above used server-side keys, not a browser wallet's `wallet_sendCalls`.
 2. Claim a reward: it needs an UPPERCASE staked word when the keeper opens a yield epoch.
 3. Time a keeper run once many words exist. The word scan grows with every claim.
@@ -58,6 +60,7 @@ Still to do on Sepolia:
 | Draw secret | Vercel `SIGNER_DRAW_SECRET` | Random and permanent. Changing it re-rolls every unrevealed commit. |
 | Keeper key | Vercel `KEEPER_PRIVATE_KEY` | Fund it with a little ETH for gas |
 | Price-keeper key | Vercel `PRICE_KEEPER_PRIVATE_KEY` | A third key. Fund it with a little ETH. |
+| Roll relayer key | Vercel `RELAYER_PRIVATE_KEY` | A fourth key. It sends each roll's result, so players confirm once per roll and the wallet never previews the outcome (decisions.md #14). Fund it with a little ETH; each roll costs it under a cent. Never the keeper's key. |
 | Answer seed | Vercel `ANSWER_CHAIN_SEED`, `ANSWER_CHAIN_DAYS` | From `npm run answerchain:generate -- --new-seed`. Back up the file offline and the seed on paper. |
 
 The seed is never printed. It is the `seed` field of the generated file. Whoever holds it wins
