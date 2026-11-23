@@ -13,32 +13,21 @@
  * the game was already playing on their wallet. The SDK is imported dynamically so the
  * statically-prerendered /play route never touches it during SSR.
  */
-import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet, TweenNumber } from "../primitives";
 import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
+import { useBuyWord } from "../useBuyWord";
 import { OrDivider, SignInWithCoinbaseWallet } from "../SignInWithCoinbaseWallet";
 import { useVerifiedWallet } from "../useVerifiedWallet";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
 import { NETWORK } from "@/lib/onchain/network";
 
-const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
-// Deliberately pinned to Base MAINNET, not the active network (lib/onchain/network). This is the buy
-// funnel: it points a wallet at the real $WORD token and Clanker's swap page, both of which exist
-// only on mainnet. On a testnet build it would otherwise offer to add an asset that isn't there.
-const CAIP_WORD = `eip155:8453/erc20:${WORD_TOKEN}`;
-/** USDC on Base — the default sell side of the pre-populated swap. */
-const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-const CAIP_USDC = `eip155:8453/erc20:${USDC}`;
-// Matcha's swap page, USDC→WORD pre-populated — it routes the v4 hooked pool and aggregates
-// anything else that lists, which Clanker's single-pool page (the old target) can't.
-const BUY_URL = `https://matcha.xyz/tokens/base/${WORD_TOKEN}?buyAddress=${WORD_TOKEN}&buyChain=8453&sellAddress=${USDC}&sellChain=8453`;
+// "Buy $WORD" (pinned to Base mainnet, Farcaster's swap or Matcha) lives in useBuyWord.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const openBuy = () => window.open(BUY_URL, "_blank", "noopener,noreferrer");
 
 export function BalanceSheet() {
   const g = useGame();
@@ -48,49 +37,7 @@ export function BalanceSheet() {
   const { openConnectModal, connectModalOpen } = useConnectModal();
   const { openAccountModal } = useAccountModal();
   const { verified, recheck } = useVerifiedWallet();
-  const [env, setEnv] = useState<"loading" | "farcaster" | "web">("loading");
-
-  // Detect the environment — it decides where "Buy $WORD" goes. The wallet itself comes from wagmi.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const sdk = (await import("@farcaster/miniapp-sdk")).default;
-        // isInMiniApp resolves a definitive boolean (it has its own internal timeout); awaiting it
-        // directly avoids a race that could discard a slow-but-real "yes" and mislabel FC as web.
-        const inMini = await sdk.isInMiniApp();
-        if (alive) setEnv(inMini ? "farcaster" : "web");
-      } catch {
-        if (alive) setEnv("web");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const buy = async () => {
-    // Only use the Farcaster native swap when we've DEFINITELY detected a mini-app context;
-    // web (and the not-yet-resolved case) goes to the clanker.world swap. The Buy button is
-    // also disabled while env === "loading", so this branch is the belt to that suspenders.
-    if (env !== "farcaster") {
-      openBuy();
-      return;
-    }
-    try {
-      const sdk = (await import("@farcaster/miniapp-sdk")).default;
-      // The actual swap MODAL, USDC→WORD pre-populated — viewToken (the old call) lands on the
-      // token page and makes the player find the swap themselves.
-      await sdk.actions.swapToken({ sellToken: CAIP_USDC, buyToken: CAIP_WORD });
-    } catch {
-      try {
-        const sdk = (await import("@farcaster/miniapp-sdk")).default;
-        await sdk.actions.viewToken({ token: CAIP_WORD }); // older hosts: at least the token page
-      } catch {
-        openBuy();
-      }
-    }
-  };
+  const { buy, env } = useBuyWord();
 
   const need = state.sheet?.kind === "balance" ? state.sheet.need : undefined;
   const shortfall = need ? Math.max(0, need.amount - state.balance) : 0;

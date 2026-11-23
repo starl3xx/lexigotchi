@@ -120,6 +120,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
   `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `BalanceSheet.tsx` and `CheatSheet.tsx`: the core loop on one screen, behind the header's "?" and the rail's "Cheat sheet"; the docs and the intro replay are one tap inside it). The old in-game FAQ is gone: the player docs at lexigotchi.fun/docs (`docs-site/`) replace it, opened with `useOpenUrl` (`useShare.ts`; `DOCS_URL` in `site.ts`) so a mini-app host keeps the game.
+- `/api/word` + `WordScreen` → the in-game **$WORD** page (rail: "$WORD universe", above LHAW): the
+  real token on Base mainnet whatever NETWORK is (`lib/onchain/mainnet.ts`). Price and market cap from
+  the app's oracle (one price source per page), supply and both kinds of burn (`lib/wordStats.ts`:
+  destroyed = 100B minted − totalSupply; the dead address holds LHAW's old V2 "burns"), the deepest
+  pool from GeckoTerminal (its token-level `total_reserve_in_usd` is only the $WORD side; the pool's
+  `reserve_in_usd` is both), and LHAW's staked total and burn counter. `useBuyWord` is the shared Buy.
 - `/api/lhaw` + `LhawScreen` → the in-game **Let's Have A Word!** page (rail: "$WORD universe"): LHAW's
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).

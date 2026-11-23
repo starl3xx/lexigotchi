@@ -56,6 +56,7 @@ export {
   Bell,
   BellSlash,
   CheckCircle,
+  Copy,
   BookBookmark,
   WarningCircle,
   Info,

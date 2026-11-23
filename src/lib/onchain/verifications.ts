@@ -1,6 +1,5 @@
-import { createPublicClient, isAddress } from "viem";
-import { base } from "viem/chains";
-import { rpcTransport } from "./transport";
+import { isAddress } from "viem";
+import { getMainnetClient } from "./mainnet";
 
 /**
  * Coinbase Verified Account — the Sybil gate for the wallet daily.
@@ -130,21 +129,7 @@ export function attestationProves(
   return true;
 }
 
-// Base MAINNET, always — see "Chain pinning" above. Cached; serverless instances are reused.
-// Inferred type, not `PublicClient` — annotating erases the chain parameter and the two viem
-// client types stop unifying.
-function makeMainnetClient() {
-  return createPublicClient({
-    chain: base,
-    // rpcTransport stamps the server Origin — this client only ever runs server-side, and an
-    // allowlisted Alchemy key rejects originless requests (see transport.ts).
-    transport: rpcTransport(process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org"),
-  });
-}
-let mainnet: ReturnType<typeof makeMainnetClient> | undefined;
-function getMainnetClient() {
-  return (mainnet ??= makeMainnetClient());
-}
+// Base MAINNET, always — see "Chain pinning" above (./mainnet).
 
 /**
  * Whether `wallet` holds a live Coinbase Verified Account attestation on Base mainnet.

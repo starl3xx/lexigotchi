@@ -9,7 +9,9 @@
  */
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
-export const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b";
+// The address lives in lib/wordStats (server-safe); re-exported here for the screens that import it.
+import { WORD_TOKEN } from "@/lib/wordStats";
+export { WORD_TOKEN };
 const SHORT = `${WORD_TOKEN.slice(0, 6)}…${WORD_TOKEN.slice(-4)}`;
 const BASESCAN = `https://basescan.org/token/${WORD_TOKEN}`;
 const CHART = `https://www.geckoterminal.com/base/tokens/${WORD_TOKEN}`;
