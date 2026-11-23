@@ -144,24 +144,36 @@ body {
   .round-btn:hover {
     background-color: theme(colors.paper.dark);
   }
-  /* Text links and link-like buttons: ink on hover, a heavier underline. */
-  :where(a, button).underline {
-    transition: color 150ms ease, text-decoration-color 150ms ease;
-  }
-  :where(a, button).underline:hover {
-    color: theme(colors.ink);
-    text-decoration-thickness: 2px;
+}
+/* Text links and link-like buttons: ink on hover, a heavier underline. In the components layer,
+   so a link's own hover color (the landing page's hover:text-candy) still wins (Bugbot on #127). */
+@layer components {
+  @media (hover: hover) and (pointer: fine) {
+    :where(a, button).underline {
+      transition: color 150ms ease, text-decoration-color 150ms ease;
+    }
+    :where(a, button).underline:hover {
+      color: theme(colors.ink);
+      text-decoration-thickness: 2px;
+    }
   }
 }
+
+/* Reduced motion: no hover or press movement, and things that slide just move. Only the hover and
+   press poses are cancelled, never an element's resting transform: the Segmented thumb is placed
+   by an inline translateX, and cancelling that left it stuck under the first option (Bugbot on
+   #127). */
 @media (prefers-reduced-motion: reduce) {
-  .press,
+  .press:hover,
   .press:active,
-  .press-icon,
-  .tile-press,
+  .press:hover .press-icon,
+  .tile-press:hover,
   .tile-press:active,
-  .round-btn:active,
-  .seg-thumb {
+  .round-btn:active {
     transform: none !important;
+  }
+  .seg-thumb {
+    transition: none;
   }
 }
 
