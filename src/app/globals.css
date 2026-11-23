@@ -122,6 +122,114 @@ body {
 .seg-thumb {
   transition: transform 220ms var(--ease-in-out);
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Motion. Sheets, toasts, screens, and numbers move; each says where a thing came from or went.
+   Exits are quicker and smaller than entrances. Under prefers-reduced-motion only opacity moves.
+   --------------------------------------------------------------------------------------------- */
+
+/* Sheets: a phone sheet slides up from the bottom edge; a desktop dialog settles in from just
+   below. Closing is faster (SHEET_EXIT_MS in primitives.tsx keeps it mounted for this long). */
+.sheet-backdrop {
+  transition: opacity 260ms var(--ease-out);
+}
+.sheet-panel {
+  transition:
+    transform 340ms var(--ease-drawer),
+    opacity 220ms var(--ease-out);
+}
+[data-sheet="enter"] .sheet-backdrop,
+[data-sheet="closing"] .sheet-backdrop {
+  opacity: 0;
+}
+[data-sheet="enter"] .sheet-panel {
+  transform: translateY(100%);
+}
+[data-sheet="closing"] {
+  pointer-events: none;
+}
+[data-sheet="closing"] .sheet-panel {
+  transform: translateY(100%);
+  transition-duration: 220ms;
+}
+[data-sheet="closing"] .sheet-backdrop {
+  transition-duration: 200ms;
+}
+@media (min-width: 768px) {
+  [data-sheet="enter"] .sheet-panel {
+    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+  }
+  [data-sheet="closing"] .sheet-panel {
+    transform: scale(0.98);
+    opacity: 0;
+    transition-duration: 160ms;
+  }
+}
+
+/* Toasts drop in from the top, where they live, and leave upward with a little blur. */
+.toast {
+  transition:
+    transform 280ms var(--ease-out),
+    opacity 220ms var(--ease-out),
+    filter 180ms ease;
+}
+[data-toast="enter"] {
+  opacity: 0;
+  transform: translateY(-14px) scale(0.96);
+}
+[data-toast="exit"] {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  filter: blur(2px);
+  transition-duration: 180ms;
+}
+
+/* A screen arrives in a small cascade: its first few blocks rise 6 px and fade in, 40 ms apart.
+   `backwards` fill, never `both`: a kept final frame would pin transform and kill .press hovers. */
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.view-in > * > * {
+  animation: view-in 280ms var(--ease-out) backwards;
+}
+.view-in > * > *:nth-child(2) { animation-delay: 40ms; }
+.view-in > * > *:nth-child(3) { animation-delay: 80ms; }
+.view-in > * > *:nth-child(4) { animation-delay: 120ms; }
+.view-in > * > *:nth-child(5) { animation-delay: 160ms; }
+.view-in > * > *:nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Rows revealed by "Show more" join the same way. */
+.row-in {
+  animation: view-in 260ms var(--ease-out) backwards;
+}
+
+/* A balance or pot that just changed tints for a moment: teal up, candy down (useTween). */
+.tween {
+  transition: color 300ms ease;
+}
+.tween[data-delta="up"] {
+  color: theme(colors.teal.ink);
+}
+.tween[data-delta="down"] {
+  color: theme(colors.candy.ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sheet] .sheet-panel,
+  [data-toast] {
+    transform: none !important;
+    filter: none !important;
+  }
+  @keyframes view-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
 @media (hover: hover) and (pointer: fine) {
   .press:hover:not(:disabled):not(:active) {
     box-shadow: calc(var(--sh, 3px) + 2px) calc(var(--sh, 3px) + 2px) 0 theme(colors.ink);

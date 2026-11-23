@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
-import { Button, Card, Sheet } from "../primitives";
+import { Button, Card, Sheet, TweenNumber } from "../primitives";
 import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
@@ -205,12 +205,14 @@ export function BalanceSheet() {
         </Card>
       ) : null}
 
-      <Card className="bg-gradient-to-b from-paper to-gold/15 text-center">
+      <Card className="bg-gradient-to-b from-card to-gold/15 text-center">
         <div className="flex items-center justify-center gap-1.5 text-ink/60">
           <Coins weight="fill" />
           <span className="text-sm font-bold">Balance</span>
         </div>
-        <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">{fmtWord(state.balance)}</div>
+        <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">
+          <TweenNumber value={state.balance} format={fmtWord} />
+        </div>
         <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
       </Card>
 

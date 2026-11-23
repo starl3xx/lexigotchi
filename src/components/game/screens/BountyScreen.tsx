@@ -117,7 +117,7 @@ export function BountyScreen() {
             .map((r, i) => (
               <div
                 key={r.who}
-                className={`flex items-center justify-between rounded-lg border-2 border-ink px-3 py-1.5 text-sm ${r.who === "you" ? "bg-ink/10 font-extrabold" : "bg-paper"}`}
+                className={`flex items-center justify-between rounded-lg border-2 border-ink px-3 py-1.5 text-sm ${r.who === "you" ? "bg-ink/10 font-extrabold" : "bg-card"}`}
               >
                 <span className="flex items-center gap-2">
                   <span className="font-display text-ink/50">#{i + 1}</span>

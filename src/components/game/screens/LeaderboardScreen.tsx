@@ -45,7 +45,7 @@ export function LeaderboardScreen() {
       <div className="flex flex-wrap gap-1.5">
         {BOARDS.map((b) => (
           <button key={b.key} onClick={() => setBoard(b.key)} className="group round-btn rounded-full">
-            <Pill className={board === b.key ? "bg-ink text-paper" : "bg-paper transition-colors group-hover:bg-paper-dark"}>{b.label}</Pill>
+            <Pill className={board === b.key ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>{b.label}</Pill>
           </button>
         ))}
       </div>

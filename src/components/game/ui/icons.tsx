@@ -55,4 +55,7 @@ export {
   ArrowRight,
   Bell,
   BellSlash,
+  CheckCircle,
+  WarningCircle,
+  Info,
 } from "@phosphor-icons/react";

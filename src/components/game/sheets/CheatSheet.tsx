@@ -95,7 +95,7 @@ export function CheatSheet() {
 
 function Step({ n, icon, title, children }: { n: number; icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <section className="cel-sm rounded-2xl bg-paper p-3.5">
+    <section className="cel-sm rounded-2xl bg-card p-3.5">
       <h3 className="mb-2 flex items-center gap-2 font-display text-base font-extrabold">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-gold text-sm">
           {n}

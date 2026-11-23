@@ -11,14 +11,14 @@
  * Overlays (sheets, onboarding, toasts) hang off the OUTER container so on desktop they cover the
  * whole window, not just the content column.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PRELAUNCH } from "@/lib/site";
-import { GameProvider, useGame, fmtWord, fmtUsd, type View } from "./state";
+import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
-import { Toaster } from "./primitives";
+import { SHEET_EXIT_MS, SheetClosing, Toaster, TweenNumber } from "./primitives";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
 import { ChainGameProvider } from "./ChainGameProvider";
@@ -115,6 +115,20 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
   const { state } = useGame();
   // The Neynar MiniAppProvider calls sdk.actions.ready() once the SDK loads, dismissing the
   // Farcaster splash screen — no manual call needed here.
+  // Decided once per screen, as it mounts: animate every screen but the first one shown.
+  const lastView = useRef<View | null>(null);
+  const viewAnim = useRef<{ view: View; animate: boolean } | null>(null);
+  if (viewAnim.current?.view !== state.view) {
+    viewAnim.current = { view: state.view, animate: lastView.current !== null };
+  }
+  lastView.current = state.view;
+  const viewIn = viewAnim.current.animate;
+  // A new screen starts at its top, not at the old screen's scroll position.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [state.view]);
+
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
       {/* The outer box is the overlay host: fixed to the viewport, so the sheets, onboarding and
@@ -128,20 +142,24 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
             style={{ backgroundImage: "radial-gradient(#e7d7b0 0.5px, transparent 0.5px)", backgroundSize: "14px 14px" }}
           />
           <TopBar />
-          <main className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3 md:px-8 md:pb-12 md:pt-6">
+          <main ref={mainRef} className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3 md:px-8 md:pb-12 md:pt-6">
             {/* Phones: the full width (as before). Desktop: a readable column the screens fill
                 with their own grids. Tablets in portrait get a centered phone-width column. */}
             <div className="mx-auto w-full max-w-[560px] md:max-w-5xl">
               {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
                   one bad screen holds its error state across every later navigation. */}
               <ScreenErrorBoundary key={state.view}>
-                {PUBLIC_VIEWS.has(state.view) && state.status === "no-wallet" ? (
-                  <Screen view={state.view} />
-                ) : (
-                  <ChainGate>
+                {/* A screen you navigate to arrives in a short cascade (globals.css, .view-in);
+                    the first screen on page load just appears. */}
+                <div className={viewIn ? "view-in" : undefined}>
+                  {PUBLIC_VIEWS.has(state.view) && state.status === "no-wallet" ? (
                     <Screen view={state.view} />
-                  </ChainGate>
-                )}
+                  ) : (
+                    <ChainGate>
+                      <Screen view={state.view} />
+                    </ChainGate>
+                  )}
+                </div>
               </ScreenErrorBoundary>
               {/* The $WORD line at the foot of every screen: contract, link, market cap. */}
               <WordStripLive className="mt-10" />
@@ -179,8 +197,31 @@ function Screen({ view }: { view: View }) {
   }
 }
 
+/**
+ * The open sheet, and for SHEET_EXIT_MS after it closes, the sheet that just closed (marked
+ * closing) so it can animate out instead of vanishing. Opening another sheet shows it at once.
+ */
 function SheetHost() {
   const { state } = useGame();
+  const [last, setLast] = useState<Sheet>(state.sheet);
+  const closing = !state.sheet && !!last;
+  useEffect(() => {
+    if (state.sheet) {
+      setLast(state.sheet);
+      return;
+    }
+    const id = window.setTimeout(() => setLast(null), SHEET_EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [state.sheet]);
+  return (
+    <SheetClosing.Provider value={closing}>
+      <SheetFor sheet={state.sheet ?? last} />
+    </SheetClosing.Provider>
+  );
+}
+
+function SheetFor({ sheet }: { sheet: Sheet }) {
+  const state = { sheet };
   if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
@@ -203,7 +244,7 @@ function TopBar() {
       onClick={() => openSheet({ kind: "cheatsheet" })}
       title="Cheat sheet: how to play"
       aria-label="Open the cheat sheet"
-      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper"
+      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
     >
       <Question weight="bold" size={15} />
     </button>
@@ -229,12 +270,12 @@ function TopBar() {
           onClick={() => openSheet({ kind: "balance" })}
           title="Your $WORD: view your balance and buy more"
           aria-label="Your $WORD balance: open your wallet"
-          className="round-btn rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right tabular-nums leading-none"
+          className="round-btn rounded-full border-2 border-ink bg-card px-2.5 py-1 text-right tabular-nums leading-none"
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
           <div className="font-display text-sm font-extrabold">
-            {state.status === "ready" ? fmtWord(state.balance) : "–"}
+            {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
           <div className="whitespace-nowrap text-[9px] text-ink/60">
             {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
@@ -246,7 +287,7 @@ function TopBar() {
         <button
           onClick={skipDay}
           title="Skip a day (prototype): advances hunger and draws a new daily word"
-          className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper"
+          className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
           aria-label="Skip a day"
         >
           <SkipForward weight="fill" size={14} />
@@ -277,7 +318,7 @@ function ViewerChip() {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={v.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
       ) : (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink/60">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
           <Smiley weight="fill" size={15} />
         </span>
       )}

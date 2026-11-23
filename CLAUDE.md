@@ -237,6 +237,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   main card on a screen and for the player's own item in a list; repeated list items use `.cel-sm`.
   No decorative all-caps labels: capitals mean a raised letter in this game. Text floor is 12 px
   (`text-xs`), except compact chips and the header's balance line.
+  Raised surfaces (cards, list tiles, ghost buttons, chips, inputs) use `bg-card`, a shade lighter
+  than the paper page; the page, sheets, and full-screen overlays stay `bg-paper`.
+- **Interaction and motion (globals.css).** Anything clickable answers the pointer: `.press` (a cel
+  that lifts on hover and pushes into its shadow on press; `--sh` is its shadow size),
+  `.press-icon`, `.tile-press` (letter characters hop), `.round-btn`, and `<Segmented>` (a sliding
+  ink thumb). Sheets animate in and out (`SheetHost` keeps a closed sheet mounted for
+  `SHEET_EXIT_MS`; Escape closes), screens cascade in (`.view-in`, not on first load), toasts have
+  icons, hold on hover, and dismiss on click, and balances and pots count (`TweenNumber`). Hover
+  styles are gated to real pointers (`hoverOnlyWhenSupported`), and all movement sits behind
+  `prefers-reduced-motion: no-preference`: never cancel a transform under `reduce`, because that
+  also clears resting transforms (the Segmented thumb's position, a selected tile's lift).
 - **Builder-code attribution is mandatory**: every on-chain action routes through
   `src/lib/onchain/builderCode.ts` (ERC-8021 suffix) or we silently forfeit Base builder rewards —
   the tx still sends, it's just uncredited. `tests/builder-code.test.ts` is the round-trip guardrail.

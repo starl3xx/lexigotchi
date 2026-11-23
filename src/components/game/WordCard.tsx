@@ -15,7 +15,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
   return (
     <button
       onClick={() => openSheet({ kind: "word", word: word.word })}
-      className={`cel w-full rounded-2xl bg-paper p-3 text-left press
+      className={`cel w-full rounded-2xl bg-card p-3 text-left press
         ${answerReady ? "ring-2 ring-candy ring-offset-2 ring-offset-paper" : ""}`}
     >
       {/* One wrapping row of badges under the name. A right-hand badge column overlapped the tier
@@ -34,7 +34,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <TierBadge tier={word.tier} />
-            {word.staked ? <HungerBadge state={h} /> : <Pill className="bg-paper text-ink/60">unstaked</Pill>}
+            {word.staked ? <HungerBadge state={h} /> : <Pill className="bg-card text-ink/60">unstaked</Pill>}
             <CaseBadge word={word} />
             {answerReady && (
               <Pill className="bg-candy/15 text-candy-ink">

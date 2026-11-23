@@ -1,9 +1,10 @@
 "use client";
 /** Shared rubber-hose UI primitives for the play prototype — cel borders, hard shadows, wood tiles. */
-import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Tier } from "@/lib/economy";
-import { Basket, CircleNotch, Smiley, SmileyMeh, SmileyXEyes, X } from "./ui/icons";
+import { Basket, CheckCircle, CircleNotch, Info, Smiley, SmileyMeh, SmileyXEyes, WarningCircle, X } from "./ui/icons";
 import { useGame, type Hunger, type Toast } from "./state";
+import { useTween } from "./useTween";
 import type { Busy } from "@/lib/onchain/actionGate";
 
 // ---------------------------------------------------------------------------
@@ -18,8 +19,8 @@ const VAR: Record<Variant, string> = {
   primary: "bg-candy-deep text-paper",
   gold: "bg-gold text-ink",
   teal: "bg-teal text-ink",
-  ghost: "bg-paper text-ink",
-  danger: "bg-paper text-candy-ink",
+  ghost: "bg-card text-ink",
+  danger: "bg-card text-candy-ink",
 };
 
 export function Button({
@@ -66,7 +67,7 @@ export function Segmented<T extends string>({
 }) {
   const at = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div className={`relative flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold ${className}`}>
+    <div className={`relative flex rounded-xl border-[3px] border-ink bg-card p-1 text-sm font-bold ${className}`}>
       <span
         aria-hidden
         className="seg-thumb absolute inset-y-1 left-1 rounded-lg bg-ink"
@@ -90,6 +91,19 @@ export function Segmented<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TweenNumber — a balance or pot that counts to its new value and tints for a moment (useTween).
+// ---------------------------------------------------------------------------
+
+export function TweenNumber({ value, format, className = "" }: { value: number; format: (n: number) => string; className?: string }) {
+  const { value: shown, delta } = useTween(value);
+  return (
+    <span data-delta={delta ?? undefined} className={`tween tabular-nums ${className}`}>
+      {format(shown)}
+    </span>
   );
 }
 
@@ -209,7 +223,7 @@ export function Countdown({ className = "" }: { className?: string }) {
 // ---------------------------------------------------------------------------
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`cel rounded-2xl bg-paper p-4 ${className}`}>{children}</div>;
+  return <div className={`cel rounded-2xl bg-card p-4 ${className}`}>{children}</div>;
 }
 
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
@@ -235,6 +249,11 @@ export function EmptyState({ Icon, title, sub }: { Icon: typeof Basket; title: s
 // Bottom sheet (modal)
 // ---------------------------------------------------------------------------
 
+/** True while the sheet host plays a closed sheet's exit (GameApp's SheetHost). */
+export const SheetClosing = createContext(false);
+/** How long SheetHost keeps a closed sheet mounted for its exit (globals.css, data-sheet). */
+export const SHEET_EXIT_MS = 220;
+
 export function Sheet({
   open,
   onClose,
@@ -246,16 +265,40 @@ export function Sheet({
   title?: ReactNode;
   children: ReactNode;
 }) {
+  const closing = useContext(SheetClosing);
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    // Two frames: paint the entering pose first, then transition from it (globals.css, data-sheet).
+    let b = 0;
+    const a = requestAnimationFrame(() => (b = requestAnimationFrame(() => setEntered(true))));
+    return () => {
+      cancelAnimationFrame(a);
+      cancelAnimationFrame(b);
+    };
+  }, []);
+  // Escape closes, as any desktop dialog does.
+  useEffect(() => {
+    if (!open || closing) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, closing, onClose]);
   if (!open) return null;
   return (
     // Below md a bottom sheet (the phone idiom); from md a centered dialog, so a sheet never
-    // stretches across a desktop window.
-    <div className="absolute inset-0 z-40 flex flex-col justify-end md:items-center md:justify-center md:p-6" role="dialog" aria-modal="true">
-      <button aria-label="Close" className="absolute inset-0 bg-ink/50" onClick={onClose} />
+    // stretches across a desktop window. It slides up (phone) or settles in (desktop), and on close
+    // leaves faster than it came, while SheetHost keeps it mounted for the exit.
+    <div
+      data-sheet={closing ? "closing" : entered ? "open" : "enter"}
+      className="absolute inset-0 z-40 flex flex-col justify-end md:items-center md:justify-center md:p-6"
+      role="dialog"
+      aria-modal="true"
+    >
+      <button aria-label="Close" className="sheet-backdrop absolute inset-0 bg-ink/50" onClick={onClose} />
       {/* The bordered, rounded box never scrolls itself: only the body below the title bar does.
           When the box was the scroller, a browser that always shows scrollbars (Brave, or any
           macOS setup with a mouse) drew its track over the right border and the rounded corner. */}
-      <div className="relative flex max-h-[88%] flex-col overflow-hidden rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:max-w-[560px] md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714]">
+      <div className="sheet-panel relative flex max-h-[88%] flex-col overflow-hidden rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:max-w-[560px] md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714]">
         <div className="flex shrink-0 items-center justify-between border-b-2 border-ink/15 bg-paper px-4 py-3">
           <div className="font-display text-lg font-extrabold">{title}</div>
           <button
@@ -280,15 +323,23 @@ export function Sheet({
 // ---------------------------------------------------------------------------
 
 const TOAST_TONE = {
-  good: "bg-teal text-ink",
-  bad: "bg-candy-deep text-paper",
-  info: "bg-ink text-paper",
+  good: { cls: "bg-teal text-ink", Icon: CheckCircle },
+  bad: { cls: "bg-candy-deep text-paper", Icon: WarningCircle },
+  info: { cls: "bg-ink text-paper", Icon: Info },
 };
+
+/** Long enough to read: a short "Cancelled" goes quickly, "ABATE is staked. It’s in the daily
+ *  jackpot." stays a little longer. */
+export function toastMs(text: string): number {
+  return Math.min(6000, Math.max(2800, 1400 + text.length * 45));
+}
+/** The exit runs this long before the toast is removed (globals.css, [data-toast="exit"]). */
+const TOAST_EXIT_MS = 180;
 
 export function Toaster() {
   const { state, dismissToast, busy, dismissBusy } = useGame();
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-2 z-50 flex flex-col items-center gap-2 px-4">
+    <div aria-live="polite" className="pointer-events-none absolute inset-x-0 top-2 z-50 flex flex-col items-center gap-2 px-4">
       {busy && <BusyPill busy={busy} onDismiss={dismissBusy} />}
       {state.toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onDone={dismissToast} />
@@ -322,7 +373,7 @@ function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
     <div
       role="status"
       aria-live="polite"
-      className="animate-pop pointer-events-auto flex max-w-full items-center gap-2.5 rounded-xl border-[3px] border-ink bg-paper px-3 py-2 text-sm shadow-[3px_3px_0_#1b1714]"
+      className="animate-pop pointer-events-auto flex max-w-full items-center gap-2.5 rounded-xl border-[3px] border-ink bg-card px-3 py-2 text-sm shadow-[3px_3px_0_#1b1714]"
     >
       <CircleNotch weight="bold" size={18} className="shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />
       <span className="min-w-0 leading-tight">
@@ -338,17 +389,65 @@ function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
   );
 }
 
-/** Each toast owns an independent mount-timer, so adding/removing toasts never resets the others. */
+/**
+ * One toast. It slides in, waits long enough to read (toastMs), and slides out; pointing at it
+ * holds it, a click dismisses it, and a hidden tab doesn't run its clock. Each toast owns its
+ * timer, so adding or removing one never resets the others.
+ */
 function ToastItem({ toast, onDone }: { toast: Toast; onDone: (id: number) => void }) {
+  const [phase, setPhase] = useState<"enter" | "open" | "exit">("enter");
+  const [held, setHeld] = useState(false);
+  const left = useRef(toastMs(toast.text));
   useEffect(() => {
-    const id = window.setTimeout(() => onDone(toast.id), 2600);
-    return () => window.clearTimeout(id);
-  }, [toast.id, onDone]);
+    // Two frames: the first paints the entering pose, the second starts the transition from it.
+    let b = 0;
+    const a = requestAnimationFrame(() => (b = requestAnimationFrame(() => setPhase("open"))));
+    return () => {
+      cancelAnimationFrame(a);
+      cancelAnimationFrame(b);
+    };
+  }, []);
+  useEffect(() => {
+    if (phase === "exit") {
+      const id = window.setTimeout(() => onDone(toast.id), TOAST_EXIT_MS);
+      return () => window.clearTimeout(id);
+    }
+    if (held) return;
+    const started = Date.now();
+    const id = window.setTimeout(() => setPhase("exit"), left.current);
+    // Hiding the tab only marks the toast held; this effect's cleanup (which runs because `held`
+    // changed) clears the timer and banks the time already shown, once. Banking it here as well
+    // counted the same span twice (Bugbot on #128).
+    const onVis = () => {
+      if (document.hidden) setHeld(true);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearTimeout(id);
+      left.current = Math.max(800, left.current - (Date.now() - started));
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [phase, held, toast.id, onDone]);
+  // A hidden tab holds the toast; coming back lets it run again.
+  useEffect(() => {
+    if (!held) return;
+    const onVis = () => !document.hidden && setHeld(false);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [held]);
+  const tone = TOAST_TONE[toast.tone];
   return (
-    <div
-      className={`animate-pop pointer-events-auto max-w-full rounded-xl border-[3px] border-ink px-3 py-2 text-center text-sm font-bold shadow-[3px_3px_0_#1b1714] ${TOAST_TONE[toast.tone]}`}
+    <button
+      type="button"
+      data-toast={phase}
+      onClick={() => setPhase("exit")}
+      onMouseEnter={() => setHeld(true)}
+      onMouseLeave={() => setHeld(false)}
+      title="Dismiss"
+      className={`toast pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border-[3px] border-ink px-3 py-2 text-left text-sm font-bold shadow-[3px_3px_0_#1b1714] ${tone.cls}`}
     >
-      {toast.text}
-    </div>
+      <tone.Icon weight="fill" size={18} className="shrink-0" aria-hidden />
+      <span>{toast.text}</span>
+    </button>
   );
 }

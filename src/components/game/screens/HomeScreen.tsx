@@ -1,6 +1,6 @@
 "use client";
 /** Today — the daily hub: care alert, daily letter, jackpot teaser, bounty, quick actions. */
-import { Button, Card, Countdown, SectionTitle } from "../primitives";
+import { Button, Card, Countdown, SectionTitle, TweenNumber } from "../primitives";
 import { ReminderToggle } from "../ReminderToggle";
 import {
   ArrowsLeftRight,
@@ -48,11 +48,13 @@ export function HomeScreen() {
       </div>
 
       {/* hero — daily jackpot */}
-      <Card className="bg-gradient-to-b from-paper to-gold/15">
+      <Card className="bg-gradient-to-b from-card to-gold/15">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm font-bold text-ink/60">Today’s jackpot</div>
-            <div className="font-display text-3xl font-extrabold text-gold-deep">{fmtWord(state.jackpotPot)}</div>
+            <div className="font-display text-3xl font-extrabold text-gold-deep">
+              <TweenNumber value={state.jackpotPot} format={fmtWord} />
+            </div>
             <div className="text-xs text-ink/60">$WORD · draws in <Countdown /></div>
           </div>
           <Trophy weight="fill" size={40} className="text-gold-ink" />

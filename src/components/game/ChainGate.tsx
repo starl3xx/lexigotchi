@@ -41,7 +41,7 @@ export class ScreenErrorBoundary extends Component<
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-paper p-5 text-center">
+      <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5 text-center">
         <div className="font-display text-lg font-extrabold">That screen fell over.</div>
         <p className="mt-1 text-sm text-ink/60">
           The rest of the game still works. This is a bug on our side, not something you did.
@@ -63,7 +63,7 @@ export class ScreenErrorBoundary extends Component<
 
 function Shell({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-paper p-5 text-center">
+    <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5 text-center">
       <div className="font-display text-lg font-extrabold">{title}</div>
       <p className="mt-1 text-sm text-ink/60">{body}</p>
       {action && <div className="mt-4">{action}</div>}

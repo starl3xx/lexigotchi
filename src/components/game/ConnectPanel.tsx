@@ -35,7 +35,7 @@ export function ConnectPanel() {
   const viewer = useViewer();
 
   return (
-    <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-paper p-5">
+    <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5">
       <div className="text-center font-display text-lg font-extrabold">Start playing</div>
       <p className="mt-1 text-center text-sm text-ink/60">
         Your wallet is your Lexigotchi account. Your letters and words live in it.

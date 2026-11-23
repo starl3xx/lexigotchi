@@ -37,7 +37,7 @@ const VISUALS: ReactNode[] = [
   <div key="win" className="relative flex items-center justify-center">
     <Confetti weight="fill" size={150} className="absolute text-candy/30" />
     <Trophy weight="fill" size={104} className="relative text-gold-ink" />
-    <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy-ink shadow-[2px_2px_0_#1b1714]">
+    <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-card text-candy-ink shadow-[2px_2px_0_#1b1714]">
       <Cookie weight="fill" size={22} />
     </span>
     <Sparkle weight="fill" size={24} className="absolute -right-1 -top-1 text-gold" />

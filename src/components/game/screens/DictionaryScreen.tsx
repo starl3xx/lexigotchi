@@ -58,13 +58,13 @@ export function DictionaryScreen() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="search the dictionary…"
-        className="w-full rounded-xl border-[3px] border-ink bg-paper px-3 py-2.5 font-display text-sm font-bold placeholder:font-body placeholder:font-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
+        className="w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 font-display text-sm font-bold placeholder:font-body placeholder:font-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
       />
 
       <div className="flex flex-wrap gap-1.5">
         {TIERS.map((t) => (
           <button key={t} onClick={() => setTier(t)} className="group round-btn rounded-full">
-            <Pill className={tier === t ? "bg-ink text-paper" : "bg-paper transition-colors group-hover:bg-paper-dark"}>
+            <Pill className={tier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
               {t}
               {t !== "All" && <span className="text-ink/40">·{TIER_COUNTS[t as Tier]}</span>}
             </Pill>
@@ -97,7 +97,7 @@ export function DictionaryScreen() {
                           )
               }
               className={`${owned ? "cel" : "cel-sm"} flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left press ${
-                owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-paper"
+                owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-card"
               }`}
             >
               <div className="min-w-0">

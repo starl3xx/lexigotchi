@@ -767,7 +767,7 @@ export function TileCharacter({
     >
       {svg}
       {count !== undefined && count > 1 && (
-        <span className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-paper px-1 text-[11px] font-bold">
+        <span className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-card px-1 text-[11px] font-bold">
           {count}
         </span>
       )}

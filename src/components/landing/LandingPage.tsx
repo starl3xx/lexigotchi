@@ -50,8 +50,8 @@ const GRAILS = LETTERS_BY_FREQUENCY.slice(-4).reverse();
 
 const BTN =
   "inline-flex select-none items-center justify-center gap-2 rounded-xl border-[3px] border-ink font-display font-extrabold " +
-  "shadow-[3px_3px_0_#1b1714] transition-all hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_#1b1714] " +
-  "active:translate-x-[3px] active:translate-y-[3px] active:shadow-none " +
+  // The game's shared hover-lift and press (globals.css, .press), so the site and the game click alike.
+  "press shadow-[3px_3px_0_#1b1714] [--sh:3px] " +
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-candy";
 
 function PlayButton({ size = "md", tone = "candy" }: { size?: "md" | "lg"; tone?: "candy" | "gold" }) {
@@ -195,11 +195,11 @@ function Door({
 function Qa({ q, children }: { q: string; children: ReactNode }) {
   return (
     <details className="group cel rounded-2xl bg-paper px-6 py-5 [&_summary::-webkit-details-marker]:hidden">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-display text-lg font-extrabold">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-display text-lg font-extrabold transition-colors hover:text-candy-ink">
         {q}
         <span
           aria-hidden
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink text-xl leading-none transition-transform group-open:rotate-45"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink text-xl leading-none transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-open:rotate-45"
         >
           +
         </span>
