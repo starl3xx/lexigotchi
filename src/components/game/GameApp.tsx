@@ -32,6 +32,7 @@ import { JackpotScreen } from "./screens/JackpotScreen";
 import { BountyScreen } from "./screens/BountyScreen";
 import { DictionaryScreen } from "./screens/DictionaryScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
+import { LhawScreen } from "./screens/LhawScreen";
 import { ShowcaseScreen } from "./screens/ShowcaseScreen";
 import { SwapScreen } from "./screens/SwapScreen";
 import { WordSheet } from "./sheets/WordSheet";
@@ -43,7 +44,7 @@ import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
-  ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Question, Ranking,
+  ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
@@ -133,9 +134,13 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
               {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
                   one bad screen holds its error state across every later navigation. */}
               <ScreenErrorBoundary key={state.view}>
-                <ChainGate>
+                {PUBLIC_VIEWS.has(state.view) && state.status === "no-wallet" ? (
                   <Screen view={state.view} />
-                </ChainGate>
+                ) : (
+                  <ChainGate>
+                    <Screen view={state.view} />
+                  </ChainGate>
+                )}
               </ScreenErrorBoundary>
               {/* The $WORD line at the foot of every screen: contract, link, market cap. */}
               <WordStripLive className="mt-10" />
@@ -166,6 +171,7 @@ function Screen({ view }: { view: View }) {
     case "bounty": return <BountyScreen />;
     case "dictionary": return <DictionaryScreen />;
     case "leaderboard": return <LeaderboardScreen />;
+    case "lhaw": return <LhawScreen />;
     case "showcase": return <ShowcaseScreen />;
     case "swap": return <SwapScreen />;
     default: return <HomeScreen />;
@@ -279,6 +285,15 @@ function ViewerChip() {
 // Side rail (md and up) — every destination at once, where the phone needs a "More" page
 // ---------------------------------------------------------------------------
 
+/**
+ * Screens that show public information and need no wallet, plus More, the directory that reaches
+ * them on a phone. With NO wallet, ChainGate would cover them with the connect panel, and a visitor
+ * deciding whether to play should be able to read them. Only that case skips the gate: while a
+ * connected wallet's bag is loading, or the chain read failed, the gate still shows its skeleton or
+ * error, so the Dictionary never says "you own 0" before the bag arrives (Bugbot on #121).
+ */
+const PUBLIC_VIEWS: ReadonlySet<View> = new Set<View>(["dictionary", "leaderboard", "lhaw", "more"]);
+
 /** The page title the desktop header shows. */
 const VIEW_TITLE: Record<View, string> = {
   home: "Today",
@@ -289,6 +304,7 @@ const VIEW_TITLE: Record<View, string> = {
   bounty: "Weekly bounty",
   dictionary: "Dictionary",
   leaderboard: "Leaderboard",
+  lhaw: "Let’s Have A Word!",
   showcase: "Showcase",
   swap: "Swap letters",
   more: "More",
@@ -319,6 +335,10 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
       { view: "showcase", label: "Showcase", Icon: MaskHappy },
       { view: "swap", label: "Swap", Icon: ArrowsLeftRight },
     ],
+  },
+  {
+    heading: "$WORD universe",
+    items: [{ view: "lhaw", label: "Let’s Have A Word!", Icon: Planet }],
   },
 ];
 
@@ -378,7 +398,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "bounty", "dictionary", "leaderboard", "showcase", "swap"];
+const MORE: View[] = ["more", "claim", "bounty", "dictionary", "leaderboard", "lhaw", "showcase", "swap"];
 
 function BottomNav() {
   const { state, nav } = useGame();

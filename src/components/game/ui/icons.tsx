@@ -32,6 +32,7 @@ export {
   Star,
   Crown,
   Ranking,
+  Planet,
   Confetti,
   DiceFive,
   Gift,

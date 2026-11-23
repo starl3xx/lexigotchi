@@ -96,6 +96,8 @@ export type View =
   | "bounty"
   | "dictionary"
   | "leaderboard"
+  /** Let's Have A Word!, Lexigotchi's sibling in the $WORD universe. */
+  | "lhaw"
   | "showcase"
   | "swap";
 
