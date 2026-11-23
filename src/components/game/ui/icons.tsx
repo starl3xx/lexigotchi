@@ -36,6 +36,7 @@ export {
   Gift,
   MagnifyingGlass,
   ShareNetwork,
+  XLogo,
   X,
   Basket,
   Sun,

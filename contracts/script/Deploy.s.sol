@@ -25,7 +25,7 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  * @notice Deploys and fully wires the Lexigotchi contract suite. The letter caps/weights and the
  *         dictionary Merkle root are read from `config/economy.json` (regenerate with
  *         `npm run derive:contracts`) so the on-chain economy can never drift from the published
- *         Lexidex. Addresses, prices, and care thresholds come from environment variables.
+ *         dictionary. Addresses, prices, and care thresholds come from environment variables.
  *
  *         Fee splits are seeded from the v0.2 table (params.ts). The bounty carve and prestige tuning
  *         default OFF/gentle, matching the sim. Ownership stays with the deployer; hand it to the

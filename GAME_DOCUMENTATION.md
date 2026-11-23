@@ -208,8 +208,10 @@ A staked word's care state is a function of days since last fed:
 
 ## 12. Showcase, Swap, Dissolution
 
-- **Showcase:** arrange any letters you own into any string (2–8 chars, no dictionary check) and cast
-  it. Off-chain, read-only vanity — no NFT, no fee. The primary organic growth loop (every showcase is
+- **Showcase:** arrange any letters you own into any string (2–8 chars, no dictionary check) and share
+  it, on X first or as a Farcaster cast. Each share links to `/s/<letters>`, whose card draws the
+  letters (1200×630 for X's large card, 3:2 for the Farcaster embed). Offchain, read-only vanity — no
+  NFT, no fee. The primary organic growth loop (every showcase is
   an ad) and a source of letter demand *outside* the dictionary.
 - **Swap:** a direct two-sided letter escrow ("my Q for your two Z's, + N $WORD"), shareable as a
   Farcaster/X cast. It solves exact-match discovery and doubles as a gifting loop. **Not a
@@ -331,4 +333,4 @@ Run `npm run sim` (and `npm test` for the spec assertions + solvency invariants)
 - **Carve** — the zero-sum slice of pool inflow diverted to the bounty bucket.
 - **superHen / signer** — the trusted backend key that signs fair roll/prestige outcomes (EGGS term).
 - **Keeper** — the operator role that reveals the daily word and posts yield/bounty Merkle roots.
-- **Lexidex** — the in-app dictionary browser (every claimable word + its tier + ownership).
+- **Dictionary** — the in-app word browser (every claimable word + its tier + ownership).

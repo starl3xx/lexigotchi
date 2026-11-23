@@ -30,7 +30,7 @@ import { MintScreen } from "./screens/MintScreen";
 import { ClaimScreen } from "./screens/ClaimScreen";
 import { JackpotScreen } from "./screens/JackpotScreen";
 import { BountyScreen } from "./screens/BountyScreen";
-import { LexidexScreen } from "./screens/LexidexScreen";
+import { DictionaryScreen } from "./screens/DictionaryScreen";
 import { ShowcaseScreen } from "./screens/ShowcaseScreen";
 import { SwapScreen } from "./screens/SwapScreen";
 import { WordSheet } from "./sheets/WordSheet";
@@ -159,7 +159,7 @@ function Screen({ view }: { view: View }) {
     case "claim": return <ClaimScreen />;
     case "jackpot": return <JackpotScreen />;
     case "bounty": return <BountyScreen />;
-    case "lexidex": return <LexidexScreen />;
+    case "dictionary": return <DictionaryScreen />;
     case "showcase": return <ShowcaseScreen />;
     case "swap": return <SwapScreen />;
     default: return <HomeScreen />;
@@ -279,7 +279,7 @@ const VIEW_TITLE: Record<View, string> = {
   claim: "Spell a word",
   jackpot: "Daily jackpot",
   bounty: "Weekly bounty",
-  lexidex: "Lexidex",
+  dictionary: "Dictionary",
   showcase: "Showcase",
   swap: "Swap letters",
   more: "More",
@@ -305,7 +305,7 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
   {
     heading: "Collect",
     items: [
-      { view: "lexidex", label: "Lexidex", Icon: BookOpen },
+      { view: "dictionary", label: "Dictionary", Icon: BookOpen },
       { view: "showcase", label: "Showcase", Icon: MaskHappy },
       { view: "swap", label: "Swap", Icon: ArrowsLeftRight },
     ],
@@ -368,7 +368,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "bounty", "lexidex", "showcase", "swap"];
+const MORE: View[] = ["more", "claim", "bounty", "dictionary", "showcase", "swap"];
 
 function BottomNav() {
   const { state, nav } = useGame();

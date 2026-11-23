@@ -1,12 +1,17 @@
 "use client";
-/** Showcase — arrange any letters you own into any string and cast it. Off-chain, pure vanity. */
+/**
+ * Showcase: arrange any letters you own into any string and share it. Offchain, pure vanity.
+ * X first, Farcaster second (lib/showcase): each share links to /s/<letters>, whose card draws
+ * the arrangement, so the post shows the letters instead of the generic logo.
+ */
 import { useState } from "react";
 import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { TileCharacter } from "../TileCharacter";
-import { Basket, ShareNetwork } from "../ui/icons";
+import { Basket, ShareNetwork, XLogo } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
-import { useShare } from "../useShare";
+import { usePostToX, useShare } from "../useShare";
+import { showcasePostText, showcaseUrl } from "@/lib/showcase";
 import { useEffect, useState as useState2 } from "react";
 import { useAccount } from "wagmi";
 import { useViewer } from "../useViewer";
@@ -22,6 +27,7 @@ export function ShowcaseScreen() {
   const g = useGame();
   const { state } = g;
   const share = useShare();
+  const postToX = usePostToX();
   const { address } = useAccount();
   const viewer = useViewer();
   // On-chain badges (EAS attestations for the whole bag). Empty is a fine answer; the section
@@ -59,7 +65,7 @@ export function ShowcaseScreen() {
     <div className="space-y-3">
       <div>
         <h1 className="font-display text-2xl font-extrabold md:hidden">Showcase</h1>
-        <p className="text-sm text-ink/60">Any letters, any order — no dictionary check. The flex that grows the game.</p>
+        <p className="text-sm text-ink/60">Any letters, any order, no dictionary check. Arrange them, then show them off.</p>
       </div>
 
       {badges.length > 0 && (
@@ -98,15 +104,25 @@ export function ShowcaseScreen() {
         </div>
       </Card>
 
-      <Button
-        full
-        size="lg"
-        variant="primary"
-        disabled={rack.length < 2}
-        onClick={() => share({ text: `${showcaseText} — my Lexigotchi showcase ✨` })}
-      >
-        <ShareNetwork weight="fill" /> Cast to Farcaster
-      </Button>
+      <div className="space-y-2">
+        <Button
+          full
+          size="lg"
+          variant="primary"
+          disabled={rack.length < 2}
+          onClick={() => postToX({ text: showcasePostText(showcaseText), url: showcaseUrl(showcaseText) })}
+        >
+          <XLogo weight="bold" /> Post on X
+        </Button>
+        <Button
+          full
+          variant="ghost"
+          disabled={rack.length < 2}
+          onClick={() => share({ text: showcasePostText(showcaseText), embed: showcaseUrl(showcaseText) })}
+        >
+          <ShareNetwork weight="fill" /> Cast on Farcaster
+        </Button>
+      </div>
 
       {/* trays */}
       <div>

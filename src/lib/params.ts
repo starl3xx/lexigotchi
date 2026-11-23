@@ -144,7 +144,7 @@ export interface Params {
   /**
    * Global per-letter supply cap multiple (v0.1 §5.2; revisit if mint-out < 6mo, v0.2 §5.5).
    * Sourced from `economy.DEMAND_MULTIPLE` so the sim's caps always match the published
-   * Lexidex / LETTER_SUPPLY_CAP tables — change the multiple THERE, not here.
+   * Dictionary / LETTER_SUPPLY_CAP tables — change the multiple THERE, not here.
    */
   supply: {
     demandMultiple: number;

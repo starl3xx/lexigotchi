@@ -92,7 +92,7 @@ export type View =
   | "claim"
   | "jackpot"
   | "bounty"
-  | "lexidex"
+  | "dictionary"
   | "showcase"
   | "swap";
 
@@ -520,6 +520,7 @@ export function reducer(s: GameState, a: Action): GameState {
 // where it is unit-tested. Imported for use below and re-exported so screens can keep importing it
 // from the game store.
 import type { ActionOutcome } from "@/lib/onchain/guardedAction";
+import type { Busy } from "@/lib/onchain/actionGate";
 import type { GameParams } from "@/lib/onchain/reads";
 export type { ActionOutcome };
 
@@ -591,6 +592,13 @@ export interface GameApi {
    * finished, and the UI must offer to finish it or the player's letter silently rots on-chain.
    */
   pendingReveals: number;
+  /**
+   * The action in flight and where it is (preparing, the wallet prompt, the chain), for the status
+   * pill. The chain store only: the mock's actions are instant, so it is always null there.
+   */
+  busy: Busy | null;
+  /** Hide the status and release the one-at-a-time gate (a request that never answers). */
+  dismissBusy: () => void;
   /** Finish the oldest unrevealed commit: fetch the deterministic draw, send the reveal, open the sheet. */
   openPending: () => void;
   /**
@@ -756,6 +764,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       // The mock reveals in the same tick it commits, so nothing can strand.
       pendingReveals: 0,
+      busy: null,
+      dismissBusy: () => {},
       openPending: () => {},
       // The mock has no keeper and no epochs — earnings arrive via its own staking tick instead.
       claimables: [],

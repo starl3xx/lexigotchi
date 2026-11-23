@@ -1,5 +1,5 @@
 "use client";
-/** Lexidex — browse every claimable word (WORD_COUNT); see tiers and what you already own. */
+/** Dictionary — browse every claimable word (WORD_COUNT); see tiers and what you already own. */
 import { useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
@@ -9,7 +9,7 @@ import { useGame } from "../state";
 
 const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
-export function LexidexScreen() {
+export function DictionaryScreen() {
   const g = useGame();
   const { state } = g;
   const [q, setQ] = useState("");
@@ -32,7 +32,7 @@ export function LexidexScreen() {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between md:justify-end">
-        <h1 className="font-display text-2xl font-extrabold md:hidden">Lexidex</h1>
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Dictionary</h1>
         <span className="text-xs text-ink/55">
           {ownedSet.size}/{WORD_COUNT.toLocaleString()} owned
         </span>
