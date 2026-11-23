@@ -130,6 +130,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`JackpotWon`), and Farcaster names and pictures by address (`profilesByAddress`). Cached for a
   minute in memory and at the edge; it reads every event since deploy, so it moves to the indexer
   later (decisions.md #10). Client: `useWorld()` / `useMyWallets()` / `PlayerChip`.
+- `docs-site/` → **the player docs** (Mintlify project `lexigotchi`, synced from this folder), served
+  at **lexigotchi.fun/docs** by the Mintlify rewrites in `vercel.json` (proxy target
+  `lexigotchi.mintlify.site`; `/_mintlify/*`, `/api/request`, and `/mintlify-assets/*` must stay at the
+  root). They replace the old in-game FAQ and `FAQ.md`. Keep every number in step with `params.ts`
+  and `economy.ts` (prices, odds, hunger days, splits, tier counts); the copy-rules test covers
+  the pages. Separate from `docs/`, which is internal.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
   share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
   `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).

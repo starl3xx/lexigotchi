@@ -151,3 +151,11 @@ theirs grows:
   could weight shares by staked time. No contract change is needed.
 - **The word scan reads every claim since deploy, on each keeper run.** This is fine for months.
   Later it needs the event indexer (decisions.md #10).
+
+## Player docs at launch
+
+The player docs live in `docs-site/` (Mintlify, served at lexigotchi.fun/docs through the
+`vercel.json` rewrites). Two pages say the game is in practice mode: the note on
+`docs-site/index.mdx` and "Is the game live?" in `docs-site/faq.mdx`. In the same PR that commits
+the mainnet addresses, remove both, and consider adding the contract addresses to
+`docs-site/fairness.mdx`.
