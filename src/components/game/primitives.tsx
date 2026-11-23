@@ -71,7 +71,9 @@ export function TierBadge({ tier }: { tier: Tier }) {
 }
 
 const HUNGER_STYLE: Record<Hunger, { bg: string; Icon: typeof Smiley; label: string }> = {
-  fed: { bg: "bg-teal/20 text-teal", Icon: Smiley, label: "fed" },
+  // "full", not "fed": a freshly claimed or staked word starts full with nobody feeding it, and a
+  // tester read "fed" as a claim that they had (decisions.md #13).
+  fed: { bg: "bg-teal/20 text-teal", Icon: Smiley, label: "full" },
   peckish: { bg: "bg-gold/25 text-gold-deep", Icon: SmileyMeh, label: "peckish" },
   hungry: { bg: "bg-candy/20 text-candy", Icon: SmileyXEyes, label: "hungry" },
 };

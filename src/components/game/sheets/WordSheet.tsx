@@ -13,6 +13,7 @@ import {
   useGame,
   wordCase,
 } from "../state";
+import { careNote } from "../careNote";
 
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
@@ -37,6 +38,12 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const maxLevel = g.maxPrestigeLevel;
   const canPrestige = fullyRaised && word.staked && word.prestigeLevel < maxLevel;
+  const snack = g.price("snack");
+  const snackShort =
+    word.staked && word.daysUnfed > 0 && state.freeSnackUsed && !g.canAfford(snack)
+      ? ` A snack costs ${fmtWord(snack)} $WORD, and you don’t have enough.`
+      : null;
+  const { note, feedOff } = careNote(word, h, { snackShort, nowSec: Math.floor(Date.now() / 1000) });
 
   return (
     <Sheet
@@ -96,25 +103,28 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </Card>
       )}
 
-      {/* care */}
-      <div className={`mb-3 grid grid-cols-2 gap-2 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
+      {/* care: the label says what staking buys THIS word, and the note says why Feed is off */}
+      <div className={`grid grid-cols-2 gap-2 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
         <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.word)}>
-          {word.staked ? "Unstake" : "Stake to earn"}
+          {word.staked ? "Unstake" : fullyRaised ? "Stake to earn" : "Stake for jackpot"}
         </Button>
         <Button
           variant="teal"
-          disabled={!word.staked || word.daysUnfed === 0 || (state.freeSnackUsed && !g.canAfford(g.price("snack")))}
+          disabled={feedOff !== null}
+          title={feedOff ?? undefined}
           onClick={() => g.feed(word.word)}
         >
-          <Cookie weight="fill" /> Feed {word.daysUnfed === 0 && <Check weight="bold" size={14} />}
+          <Cookie weight="fill" /> Feed {word.staked && h === "fed" && <Check weight="bold" size={14} />}
         </Button>
       </div>
+      {word.mine && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}
+      {!word.mine && <div className="mb-3" />}
 
       {/* raise letters */}
       <Card className={`mb-3 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display font-extrabold">Raise to UPPERCASE</span>
-          <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · yield unlocks at 5/5</span>
+          <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · earns $WORD at 5/5</span>
         </div>
         {fullyRaised ? (
           <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-deep">

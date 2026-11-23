@@ -11,6 +11,7 @@ const word = (w: string, tokenId: bigint): ChainWord => ({
   upper: [false, false, false, false, false],
   staked: false,
   daysUnfed: 0,
+  lastFedAt: 0,
   prestigeLevel: 0,
 });
 

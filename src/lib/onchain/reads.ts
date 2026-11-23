@@ -563,6 +563,8 @@ export interface ChainWord {
   upper: boolean[];
   staked: boolean;
   daysUnfed: number;
+  /** Staking.lastFed, unix seconds (0 = never). Lets the word sheet say WHEN it gets peckish. */
+  lastFedAt: number;
   prestigeLevel: number;
 }
 
@@ -692,6 +694,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
       staked: stakedFlag.get(String(id)) ?? false,
       // lastFed 0 means never fed; treat it as freshly claimed rather than infinitely starving.
       daysUnfed: lastFed === 0 ? 0 : Math.max(0, Math.floor((now - lastFed) / 86_400)),
+      lastFedAt: lastFed,
       prestigeLevel,
     };
   });

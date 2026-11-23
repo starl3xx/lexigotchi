@@ -146,7 +146,11 @@ showed; only the *decisions* changed.
     to `/s/<letters>`, a page whose card draws the letters (X shows a picture only for a link that
     carries its own `og:image`). And a tap must never look ignored: "there should be a loading
     indicator or something to indicate to the user that their action has been recorded/submitted
-    and is processing" (`src/lib/onchain/actionGate.ts`, the BusyPill). Coinbase renamed Base
+    and is processing" (`src/lib/onchain/actionGate.ts`, the BusyPill). Staking copy says what it
+    buys: "stake makes you eligible for the jackpot, but only uppercase, fed words can earn WORD";
+    so a word that isn't fully UPPERCASE offers "Stake for jackpot", and the word sheet says why
+    Feed is off (`careNote.ts`). A word nobody has fed is "full", not "fed": "this says “fed” but
+    there's no feeding necessary/enabled yet. that's misleading". Coinbase renamed Base
     Account to **Coinbase Wallet** ("looks like sign in with Base is now Coinbase Wallet BTW"), and
     every surface says so: "shouldn't this be “Coinbase Wallet”?" Coinbase still ships only the
     sealed "Sign in with Base" button, so it is replaced by our own **Sign in with Coinbase Wallet**

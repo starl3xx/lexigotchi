@@ -74,7 +74,7 @@ export function HomeScreen() {
                 {needFood.length} {needFood.length === 1 ? "word needs" : "words need"} feeding
               </div>
               <div className="text-xs text-ink/60">
-                Peckish words earn half; hungry ones (3+ days) earn nothing and can&apos;t win the jackpot.
+                Peckish UPPERCASE words earn half. Hungry words (3+ days) earn nothing and can&apos;t win the jackpot.
               </div>
               <ReminderToggle compact />
             </div>
