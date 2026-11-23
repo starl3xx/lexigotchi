@@ -95,8 +95,8 @@ body {
    - .press-icon: an icon inside a .press that wiggles on hover.
    - .tile-press: a tappable letter character. It hops on hover and squashes on press.
    - .round-btn: the header's round icon buttons and pills.
-   Hover only where a mouse hovers (a tap on a phone isn't a hover), and no movement at all under
-   prefers-reduced-motion: the colors still change, the cards don't travel.
+   Hover only where a mouse hovers (a tap on a phone isn't a hover). The movement lives in a
+   prefers-reduced-motion: no-preference block below; under reduce, shadows and colors still answer.
    --------------------------------------------------------------------------------------------- */
 .press {
   transition:
@@ -105,7 +105,6 @@ body {
     background-color 150ms ease;
 }
 .press:active:not(:disabled) {
-  transform: translate(var(--sh, 3px), var(--sh, 3px));
   box-shadow: 0 0 0 theme(colors.ink);
   transition-duration: 70ms;
 }
@@ -115,63 +114,62 @@ body {
 .tile-press {
   transition: transform 220ms var(--ease-hop);
 }
-.tile-press:active {
-  transform: translateY(1px) scale(0.94);
-  transition-duration: 70ms;
-}
 .round-btn {
   transition:
     transform 140ms var(--ease-out),
     background-color 150ms ease;
-}
-.round-btn:active {
-  transform: scale(0.92);
 }
 .seg-thumb {
   transition: transform 220ms var(--ease-in-out);
 }
 @media (hover: hover) and (pointer: fine) {
   .press:hover:not(:disabled):not(:active) {
-    transform: translate(-2px, -2px);
     box-shadow: calc(var(--sh, 3px) + 2px) calc(var(--sh, 3px) + 2px) 0 theme(colors.ink);
-  }
-  .press:hover .press-icon {
-    transform: rotate(-9deg) scale(1.12);
-  }
-  .tile-press:hover:not(:active) {
-    transform: translateY(-4px) rotate(-3deg);
   }
   .round-btn:hover {
     background-color: theme(colors.paper.dark);
   }
-}
-/* Text links and link-like buttons: ink on hover, a heavier underline. In the components layer,
-   so a link's own hover color (the landing page's hover:text-candy) still wins (Bugbot on #127). */
-@layer components {
-  @media (hover: hover) and (pointer: fine) {
-    :where(a, button).underline {
-      transition: color 150ms ease, text-decoration-color 150ms ease;
-    }
-    :where(a, button).underline:hover {
-      color: theme(colors.ink);
-      text-decoration-thickness: 2px;
-    }
+  /* Text links and link-like buttons: a heavier underline, and ink unless the link sets its own
+     hover color (the landing page's hover:text-candy keeps its candy; Bugbot on #127). */
+  :where(a, button).underline {
+    transition: color 150ms ease, text-decoration-color 150ms ease;
+  }
+  :where(a, button).underline:hover {
+    text-decoration-thickness: 2px;
+  }
+  :where(a, button).underline:not([class*="hover:text-"]):hover {
+    color: theme(colors.ink);
   }
 }
 
-/* Reduced motion: no hover or press movement, and things that slide just move. Only the hover and
-   press poses are cancelled, never an element's resting transform: the Segmented thumb is placed
-   by an inline translateX, and cancelling that left it stuck under the first option (Bugbot on
-   #127). */
-@media (prefers-reduced-motion: reduce) {
-  .press:hover,
-  .press:active,
-  .press:hover .press-icon,
-  .tile-press:hover,
-  .tile-press:active,
-  .round-btn:active {
-    transform: none !important;
+/* The movement itself (lift, push, hop, wiggle, squash) only where motion is welcome. Under
+   prefers-reduced-motion these rules simply don't exist, so nothing has to be cancelled and an
+   element's resting transform (a selected tile's lift, the Segmented thumb's position) is never
+   touched (Bugbot on #127). The shadow and color changes above still give feedback. */
+@media (prefers-reduced-motion: no-preference) {
+  .press:active:not(:disabled) {
+    transform: translate(var(--sh, 3px), var(--sh, 3px));
   }
+  .tile-press:active {
+    transform: translateY(1px) scale(0.94);
+    transition-duration: 70ms;
+  }
+  .round-btn:active {
+    transform: scale(0.92);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .press:hover:not(:disabled):not(:active) {
+      transform: translate(-2px, -2px);
+    }
+    .press:hover .press-icon {
+      transform: rotate(-9deg) scale(1.12);
+    }
+    .tile-press:hover:not(:active) {
+      transform: translateY(-4px) rotate(-3deg);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
   .seg-thumb {
     transition: none;
   }
