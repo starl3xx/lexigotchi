@@ -122,6 +122,11 @@ export function ShowcaseScreen() {
         >
           <ShareNetwork weight="fill" /> Cast on Farcaster
         </Button>
+        {rack.length < 2 && (
+          <p className="text-center text-xs text-ink/60">
+            {rack.length === 0 ? "Pick some letters first." : "Pick one more letter to share."}
+          </p>
+        )}
       </div>
 
       {/* trays */}

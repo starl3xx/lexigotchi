@@ -48,14 +48,14 @@ export function BountyScreen() {
       <Card className="bg-gradient-to-b from-teal/15 to-paper">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-teal">This week&apos;s bounty</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-teal-ink">This week&apos;s bounty</div>
             <div className="font-display text-xl font-extrabold">{theme.name}</div>
           </div>
-          <Medal weight="fill" size={40} className="text-teal" />
+          <Medal weight="fill" size={40} className="text-teal-ink" />
         </div>
         <div className="mt-2 flex items-end justify-between">
           <div>
-            <div className="font-display text-2xl font-extrabold text-teal">{fmtWord(POOL)}</div>
+            <div className="font-display text-2xl font-extrabold text-teal-ink">{fmtWord(POOL)}</div>
             <div className="text-xs text-ink/60">pool · fresh theme each week</div>
           </div>
           {!state.chainBacked && (

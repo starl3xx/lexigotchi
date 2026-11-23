@@ -52,7 +52,7 @@ export class ScreenErrorBoundary extends Component<
             this.setState({ error: null });
             this.props.onReset?.();
           }}
-          className="cel mt-4 rounded-xl bg-teal px-4 py-2 text-sm font-extrabold text-paper"
+          className="cel mt-4 rounded-xl bg-teal px-4 py-2 text-sm font-extrabold text-ink"
         >
           Try again
         </button>

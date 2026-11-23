@@ -54,6 +54,18 @@ body {
   background-clip: padding-box;
 }
 
+/* A 44 × 44 px tap area centered on a smaller round control, so the 28–32 px header circles keep
+   their look and still meet the touch-target size. Neighbors need >= 12 px between them so the
+   areas never overlap. */
+.hit-44 { position: relative; }
+.hit-44::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+
+/* Keyboard focus: one visible ring for every control in the game (there was none). */
+:where(button, a, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid theme(colors.candy.deep);
+  outline-offset: 2px;
+}
+
 .cel {
   border: 3px solid theme(colors.ink);
   box-shadow: 4px 4px 0 theme(colors.ink);

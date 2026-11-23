@@ -42,7 +42,7 @@ export function AddAppSheet() {
           </p>
         </div>
 
-        {err && <p className="text-xs font-bold text-candy">{err}</p>}
+        {err && <p className="text-xs font-bold text-candy-ink">{err}</p>}
 
         <div className="flex w-full flex-col items-center gap-2">
           <Button full size="lg" variant="primary" onClick={onAdd} disabled={adding || done || !inFarcaster}>

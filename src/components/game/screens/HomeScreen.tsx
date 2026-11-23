@@ -49,7 +49,7 @@ export function HomeScreen() {
             <div className="font-display text-3xl font-extrabold text-gold-deep">{fmtWord(state.jackpotPot)}</div>
             <div className="text-xs text-ink/60">$WORD · draws in <Countdown /></div>
           </div>
-          <Trophy weight="fill" size={40} className="text-gold-deep" />
+          <Trophy weight="fill" size={40} className="text-gold-ink" />
         </div>
         <div className="mt-3 rounded-xl border-2 border-dashed border-ink/30 p-2 text-center text-sm">
           {state.jackpotRevealed ? (
@@ -57,11 +57,11 @@ export function HomeScreen() {
               Today&apos;s word was <strong className="font-display">{state.jackpotWord}</strong>
             </span>
           ) : ownsAnswer && jackpotEligible(ownsAnswer) ? (
-            <span className="inline-flex items-center gap-1 font-bold text-candy">
+            <span className="inline-flex items-center gap-1 font-bold text-candy-ink">
               You may be holding today&apos;s secret word <Eye weight="fill" size={14} />
             </span>
           ) : ownsAnswer ? (
-            <span className="font-bold text-candy">You hold today&apos;s word — stake &amp; feed it to be in the draw!</span>
+            <span className="font-bold text-candy-ink">You hold today&apos;s word — stake &amp; feed it to be in the draw!</span>
           ) : (
             <span className="text-ink/60">The secret word is hidden until the draw.</span>
           )}
@@ -92,7 +92,7 @@ export function HomeScreen() {
       ) : (
         <Card className="flex items-center justify-between bg-teal/10">
           <div className="font-display font-bold">Your collection is fed</div>
-          <Smiley weight="fill" size={26} className="text-teal" />
+          <Smiley weight="fill" size={26} className="text-teal-ink" />
         </Card>
       )}
 
@@ -112,11 +112,11 @@ export function HomeScreen() {
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm">
             <span className="inline-flex items-center gap-1 text-ink/70">
-              Claimed today <Check weight="bold" size={13} className="text-teal" />
+              Claimed today <Check weight="bold" size={13} className="text-teal-ink" />
               {/* streak is a mock-only stat — on chain it would always read 0, which looks broken */}
               {!state.chainBacked && (
                 <>
-                  {" "}· streak <Fire weight="fill" size={13} className="text-candy" /> {state.streak}
+                  {" "}· streak <Fire weight="fill" size={13} className="text-candy-ink" /> {state.streak}
                 </>
               )}
             </span>
@@ -150,14 +150,14 @@ export function HomeScreen() {
 
       {/* bounty teaser */}
       <button onClick={() => g.nav("bounty")} className="w-full text-left">
-        <Card className="bg-teal/10 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
+        <Card className="bg-teal/10 transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wide text-teal">This week&apos;s bounty</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-teal-ink">This week&apos;s bounty</div>
               <div className="font-display font-extrabold">{theme.name}</div>
               <div className="text-xs text-ink/60">Hold matching words, staked &amp; fed, to share the pool.</div>
             </div>
-            <Medal weight="fill" size={30} className="shrink-0 text-teal" />
+            <Medal weight="fill" size={30} className="shrink-0 text-teal-ink" />
           </div>
         </Card>
       </button>

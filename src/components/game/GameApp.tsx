@@ -201,7 +201,7 @@ function TopBar() {
       onClick={() => openSheet({ kind: "cheatsheet" })}
       title="Cheat sheet: how to play"
       aria-label="Open the cheat sheet"
-      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
+      className="hit-44 flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
     >
       <Question weight="bold" size={15} />
     </button>
@@ -215,24 +215,26 @@ function TopBar() {
         {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
             flame chip reads as a real streak the player just lost. Absent beats wrong. */}
         {!state.chainBacked && (
-          <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy px-1.5 py-0.5 text-[10px] font-bold text-paper">
+          <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy-deep px-1.5 py-0.5 text-[10px] font-bold text-paper">
             <Fire weight="fill" size={12} /> {state.streak}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      {/* gap-3.5 keeps the 44 px tap areas (hit-44) from overlapping; under 380 px the practice
+          game's six header items need the old gap to fit, and the areas overlap by a few px. */}
+      <div className="flex items-center gap-2 min-[380px]:gap-3.5">
         <button
           onClick={() => openSheet({ kind: "balance" })}
           title="Your $WORD — view balance & buy more"
           aria-label="Your $WORD balance — open wallet"
-          className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right leading-none transition-all active:translate-y-[1px]"
+          className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right tabular-nums leading-none transition-transform active:translate-y-[1px]"
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
           <div className="font-display text-sm font-extrabold">
             {state.status === "ready" ? fmtWord(state.balance) : "—"}
           </div>
-          <div className="text-[9px] text-ink/60">
+          <div className="whitespace-nowrap text-[9px] text-ink/60">
             {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
           </div>
         </button>
@@ -242,7 +244,7 @@ function TopBar() {
         <button
           onClick={skipDay}
           title="Skip a day (prototype) — advances hunger + draws a new daily word"
-          className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
+          className="hit-44 flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
           aria-label="Skip a day"
         >
           <SkipForward weight="fill" size={14} />
@@ -267,7 +269,7 @@ function ViewerChip() {
       onClick={() => openSheet({ kind: "balance" })}
       title={v.isAuthed ? `@${v.username}` : "Sign in"}
       aria-label={v.isAuthed ? `Signed in as ${v.username}` : "Sign in & wallet"}
-      className="shrink-0 transition-transform active:translate-y-[1px]"
+      className="hit-44 shrink-0 transition-transform active:translate-y-[1px]"
     >
       {v.pfpUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -352,7 +354,7 @@ function SideRail() {
         onClick={() => nav(view)}
         aria-current={active ? "page" : undefined}
         className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
-          active ? "bg-candy text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
+          active ? "bg-candy-deep text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         }`}
       >
         <Icon size={20} weight={active ? "fill" : "regular"} />
@@ -428,7 +430,7 @@ function NavBtn({
     <button
       onClick={onClick}
       className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-bold transition-colors ${
-        active ? "bg-candy text-paper" : "text-ink/70"
+        active ? "bg-candy-deep text-paper" : "text-ink/70"
       }`}
     >
       <Icon size={22} weight={active ? "fill" : "regular"} />

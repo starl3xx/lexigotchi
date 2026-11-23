@@ -16,11 +16,24 @@ const config: Config = {
           ink: "#1b1714", // near-black warm ink for outlines
         },
         ink: "#1b1714",
-        candy: "#d8463f", // rubber-hose candy red
-        teal: "#2a9d8f",
+        // Each hue has a FILL (the base) and an INK shade for text. The base hues are too light for
+        // small text: cream on teal measured 2.78:1 and teal text on paper 2.78:1, where small text
+        // needs 4.5:1. The ink shades clear 4.5:1 on paper AND on the hue's own 20–30% tints (the
+        // badges), so `text-<hue>-ink` is the one rule for colored text. `candy.deep` is the fill
+        // for cream-labeled buttons (4.52:1); teal and gold buttons take ink labels instead.
+        candy: {
+          DEFAULT: "#d8463f", // rubber-hose candy red
+          deep: "#bd3d35", // fill behind cream text (buttons, toasts)
+          ink: "#9a2f29", // candy-colored text
+        },
+        teal: {
+          DEFAULT: "#2a9d8f",
+          ink: "#1a5e56", // teal-colored text
+        },
         gold: {
           DEFAULT: "#e0a93b", // trophy / UPPERCASE glow-up
-          deep: "#b07d20",
+          deep: "#b07d20", // display numbers only (large text, 3:1); small gold text uses gold.ink
+          ink: "#6f4e10", // gold-colored small text
           bright: "#f0a617", // spec gold — gild pips / crown / sparkles
         },
         tile: "#e8c98a", // Scrabble-tile wood (legacy flat tile)

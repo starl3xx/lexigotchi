@@ -141,7 +141,7 @@ export function BalanceSheet() {
         // DONE (buy, hold, play), and identity is the optional upgrade that unlocks the daily.
         <Card className="mb-3 bg-paper-dark/30">
           {address && (
-            <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-teal">
+            <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-teal-ink">
               <Check weight="bold" size={15} /> Wallet connected
               <span className="font-mono text-xs font-normal text-ink/55">{short(address)}</span>
               <span className="ml-auto text-xs font-normal text-ink/55">buy · hold · play</span>
@@ -231,14 +231,14 @@ export function BalanceSheet() {
           </div>
         ) : env === "farcaster" ? (
           <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-1.5 font-bold text-teal">
+            <span className="flex items-center gap-1.5 font-bold text-teal-ink">
               <Check weight="bold" /> Connected via Farcaster
             </span>
             {address && <span className="font-mono text-xs text-ink/60">{short(address)}</span>}
           </div>
         ) : address ? (
           <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-1.5 font-bold text-teal">
+            <span className="flex items-center gap-1.5 font-bold text-teal-ink">
               <Check weight="bold" /> Connected
             </span>
             {/* The only way OUT of a wallet on the web. An extension wallet can be disconnected from

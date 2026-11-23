@@ -72,3 +72,26 @@ export function careNote(
     feedOff: "Not hungry yet",
   };
 }
+
+/**
+ * The case badge on a word card and the word sheet. A fully UPPERCASE word earns only while it is
+ * staked and not hungry (half while peckish), so the badge says what it earns NOW. It used to say
+ * "UPPERCASE · earns yield" on a hungry or unstaked word, which earns nothing. The gold badge and
+ * the raised tiles already say UPPERCASE, so the text is only the earning state: short enough to
+ * fit the narrow Bounty card on one line.
+ */
+export function caseBadgeText(
+  word: Pick<OwnedWord, "upper" | "staked">,
+  h: Hunger,
+  p: typeof DEFAULT_PARAMS = DEFAULT_PARAMS,
+): string {
+  const raised = word.upper.filter(Boolean).length;
+  if (raised === 0) return "lowercase";
+  if (raised < word.upper.length) return `${raised}/${word.upper.length} raised`;
+  if (!word.staked) return "stake to earn";
+  if (h === "hungry") return "feed to earn";
+  if (h === "peckish") {
+    return p.care.peckishYieldFactor === 0.5 ? "earns half" : `earns ${pct(p.care.peckishYieldFactor)}`;
+  }
+  return "earning $WORD";
+}

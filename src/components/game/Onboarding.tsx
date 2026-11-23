@@ -31,13 +31,13 @@ const VISUALS: ReactNode[] = [
   <TileWord key="create" word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
   <div key="roll" className="flex items-center justify-center gap-3">
     <TileCharacter char="R" detail="full" state="idle" size={68} />
-    <DiceFive weight="fill" size={34} className="shrink-0 text-candy" />
+    <DiceFive weight="fill" size={34} className="shrink-0 text-candy-ink" />
     <TileCharacter char="R" upper detail="full" state="upgrade" size={94} />
   </div>,
   <div key="win" className="relative flex items-center justify-center">
     <Confetti weight="fill" size={150} className="absolute text-candy/30" />
-    <Trophy weight="fill" size={104} className="relative text-gold-deep" />
-    <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy shadow-[2px_2px_0_#1b1714]">
+    <Trophy weight="fill" size={104} className="relative text-gold-ink" />
+    <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy-ink shadow-[2px_2px_0_#1b1714]">
       <Cookie weight="fill" size={22} />
     </span>
     <Sparkle weight="fill" size={24} className="absolute -right-1 -top-1 text-gold" />
@@ -73,7 +73,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div className="flex min-h-[180px] items-center justify-center">{s.visual}</div>
         <div>
           <div className="mb-2 inline-flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-candy text-sm font-extrabold text-paper">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-candy-deep text-sm font-extrabold text-paper">
               {s.n}
             </span>
             <h2 className="font-display text-2xl font-extrabold">{s.title}</h2>
@@ -87,7 +87,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {STEPS.map((_, i) => (
             <span
               key={i}
-              className={`h-2 rounded-full transition-all ${i === step ? "w-5 bg-candy" : "w-2 bg-ink/20"}`}
+              className={`h-2 rounded-full transition-[width] ${i === step ? "w-5 bg-candy" : "w-2 bg-ink/20"}`}
             />
           ))}
         </div>

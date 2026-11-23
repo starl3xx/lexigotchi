@@ -56,7 +56,7 @@ export function SwapScreen() {
             <div className="text-center">
               <div className="text-xs text-ink/55">you give</div>
               <div className="font-display text-lg font-extrabold">
-                {fmtSet(give)} {ask > 0 && <span className="text-teal">+ {fmtWord(ask)} $WORD</span>}
+                {fmtSet(give)} {ask > 0 && <span className="text-teal-ink">+ {fmtWord(ask)} $WORD</span>}
               </div>
             </div>
           </div>
@@ -110,7 +110,7 @@ export function SwapScreen() {
           <div className="flex flex-wrap gap-1.5">
             {QUICK_WORD.map((amt) => (
               <button key={amt} onClick={() => setAsk(amt)}>
-                <span className={`inline-block rounded-full border-2 border-ink px-2.5 py-1 text-xs font-bold ${ask === amt ? "bg-teal text-paper" : "bg-paper"}`}>
+                <span className={`inline-block rounded-full border-2 border-ink px-2.5 py-1 text-xs font-bold ${ask === amt ? "bg-teal text-ink" : "bg-paper"}`}>
                   {amt === 0 ? "none" : `+${fmtWord(amt)}`}
                 </span>
               </button>

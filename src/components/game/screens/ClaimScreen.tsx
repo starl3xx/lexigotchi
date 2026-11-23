@@ -70,7 +70,7 @@ export function ClaimScreen() {
 
       {/* case toggle */}
       <div className="flex rounded-xl border-[3px] border-ink bg-paper p-1 text-sm font-bold md:max-w-sm">
-        <button onClick={() => swapCase(false)} className={`flex-1 rounded-lg py-1.5 ${!useUpper ? "bg-candy text-paper" : "text-ink/70"}`}>
+        <button onClick={() => swapCase(false)} className={`flex-1 rounded-lg py-1.5 ${!useUpper ? "bg-candy-deep text-paper" : "text-ink/70"}`}>
           lowercase
         </button>
         <button
@@ -114,14 +114,14 @@ export function ClaimScreen() {
                   key={w}
                   onClick={() => claim(w)}
                   disabled={!canClaim}
-                  className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-paper shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
+                  className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-ink shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
                 >
                   Claim {w} <Sparkle weight="fill" size={13} />
                 </button>
               ))}
             </div>
           ) : (
-            <span className="text-sm font-bold text-candy">not a dictionary word</span>
+            <span className="text-sm font-bold text-candy-ink">not a dictionary word</span>
           )}
         </div>
         {rack.length === 5 && spelled.length > 0 && <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} />}
@@ -193,7 +193,7 @@ function FeeLine({ feeText, canClaim, onGetWord, each = false }: { feeText: stri
       {!canClaim && (
         <>
           {" "}You don’t have enough.{" "}
-          <button onClick={onGetWord} className="font-bold text-candy underline">
+          <button onClick={onGetWord} className="font-bold text-candy-ink underline">
             Get $WORD
           </button>
         </>
