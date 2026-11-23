@@ -3,15 +3,18 @@
  * (src/lib/onchain/pityOverlay.ts). A miss that shows the old odds reads as "nothing happened".
  */
 import { describe, it, expect } from "vitest";
-import { HOLD_MS, overlayPity, pityAfter, pruneNotes } from "@/lib/onchain/pityOverlay";
+import { HOLD_MS, knownPityAfter, overlayPity, pruneNotes } from "@/lib/onchain/pityOverlay";
 
 const chain = (pity: Record<number, number>) => Array.from({ length: 26 }, (_, i) => pity[i] ?? 0);
 
-describe("pityAfter", () => {
-  it("matches what Rolls.reveal writes: 0 on a hit, one more on a miss", () => {
-    expect(pityAfter(true, 3)).toBe(0);
-    expect(pityAfter(false, 0)).toBe(1);
-    expect(pityAfter(false, 3)).toBe(4);
+describe("knownPityAfter", () => {
+  it("knows a miss exactly: Rolls.reveal writes one more than the commit's pity", () => {
+    expect(knownPityAfter(false, 0)).toBe(1);
+    expect(knownPityAfter(false, 3)).toBe(4);
+  });
+
+  it("doesn't guess a hit: a stale signed success leaves pity unchanged on chain (Bugbot on #110)", () => {
+    expect(knownPityAfter(true, 3)).toBeNull();
   });
 });
 

@@ -93,6 +93,7 @@ export async function POST(req: Request) {
       // (lib/onchain/pityOverlay) before the chain read catches up.
       pityAtCommit: Number(pityAtCommit),
       letterIndex: Number(letterIndex),
+      owner,
       probability,
     },
   });

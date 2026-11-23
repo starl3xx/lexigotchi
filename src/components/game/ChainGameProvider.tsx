@@ -92,7 +92,7 @@ import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call } from "@/lib/onchain/sendCalls";
-import { overlayPity, pityAfter, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
+import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
@@ -106,7 +106,7 @@ interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; reve
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 /** A roll's signed outcome, plus what the UI needs to show the new pity before the chain does. */
-interface RollReveal extends OutcomeReveal { pityAtCommit: number; letterIndex: number }
+interface RollReveal extends OutcomeReveal { pityAtCommit: number; letterIndex: number; owner: string }
 
 /**
  * Send one batch inside an action (see `track`): its label, and a builder for the calls. Each
@@ -190,10 +190,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   });
   // The pity a resolved roll just set, shown until the (lagging) chain read agrees. See
   // lib/onchain/pityOverlay: a miss that kept showing the old odds read as "nothing happened".
-  const [pityNotes, setPityNotes] = useState<Readonly<Record<number, PityNote>>>({});
+  // Filed per wallet (the roll's owner, as the server reports it), so a wallet switch can't lay
+  // one wallet's note over another's pity.
+  const [pityNotes, setPityNotes] = useState<Readonly<Record<string, Readonly<Record<number, PityNote>>>>>({});
+  const walletKey = address?.toLowerCase() ?? "";
+  const myPityNotes = pityNotes[walletKey];
   useEffect(() => {
-    if (pityQ.data) setPityNotes((n) => pruneNotes(pityQ.data!, n, Date.now()));
-  }, [pityQ.data]);
+    if (!pityQ.data || !myPityNotes) return;
+    const pruned = pruneNotes(pityQ.data, myPityNotes, Date.now());
+    if (pruned !== myPityNotes) setPityNotes((all) => ({ ...all, [walletKey]: pruned }));
+  }, [pityQ.data, myPityNotes, walletKey]);
 
   // The identity today's daily would be issued under — mirrors the server's JWT-wins ordering
   // (free-daily route): the Farcaster fid when signed in, else the wallet's synthetic 2^160 key.
@@ -291,7 +297,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         : EMPTY_26,
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
-      pity: overlayPity(pityQ.data ?? EMPTY_26, pityNotes, Date.now()),
+      pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
       words: (wordsQ.data ?? []).map(toOwnedWord),
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
@@ -309,7 +315,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, pityNotes, wordsQ.data, dayQ.data, bucketsQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, bucketsQ.data],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -507,9 +513,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (!ok) return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
       // Show the new pity now (the reveal is sent, so this is what the chain will say), and re-read
       // on a stagger so the real value replaces it as soon as a node has it.
-      const { letterIndex, pityAtCommit, success } = draw.reveal;
-      if (Number.isInteger(letterIndex) && Number.isInteger(pityAtCommit)) {
-        setPityNotes((n) => ({ ...n, [letterIndex]: { value: pityAfter(success, pityAtCommit), at: Date.now() } }));
+      const { letterIndex, pityAtCommit, success, owner } = draw.reveal;
+      const known = Number.isInteger(pityAtCommit) ? knownPityAfter(success, pityAtCommit) : null;
+      if (known !== null && Number.isInteger(letterIndex) && typeof owner === "string") {
+        const key = owner.toLowerCase();
+        setPityNotes((all) => ({ ...all, [key]: { ...all[key], [letterIndex]: { value: known, at: Date.now() } } }));
       }
       for (const delay of [2_000, 6_000, 15_000]) setTimeout(() => void pityQ.refetch(), delay);
       return { status: "resolved", success };

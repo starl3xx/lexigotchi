@@ -1,12 +1,18 @@
 /**
  * The pity the player just earned, shown before the chain read catches up.
  *
- * A roll's outcome is known the moment the server signs it, and the reveal sets pity on chain:
- * 0 after a hit, `pityAtCommit + 1` after a miss. But the pity READ that follows comes from a public
- * RPC, which routinely answers with the pre-reveal state. A tester missed a roll, approved both
- * transactions, saw the same odds as before, and concluded nothing had happened. So the provider
- * notes the value it knows, and this overlay shows it until the chain agrees, or for at most
- * `HOLD_MS` (after that the chain is trusted, even if it still disagrees).
+ * A roll's outcome is known the moment the server signs it, but the pity READ that follows comes
+ * from a public RPC, which routinely answers with the pre-reveal state. A tester missed a roll,
+ * approved both transactions, saw the same odds as before, and concluded nothing had happened. So
+ * the provider notes the value it knows, and this overlay shows it until the chain agrees, or for
+ * at most `HOLD_MS` (after that the chain is trusted, even if it still disagrees).
+ *
+ * Only a MISS is known: it sets pity to exactly `pityAtCommit + 1` (Rolls allows one open roll per
+ * letter, so nothing moves it between commit and reveal). A hit usually resets it to 0, but a
+ * signed success that no longer applies at reveal (the letter was spent, the slot raised) leaves it
+ * unchanged, and the client can't tell which. So a hit waits for the read (Bugbot on #110). Notes
+ * are filed per wallet by the caller, so a wallet switch never shows one wallet's note over
+ * another's pity.
  *
  * Pure, so the rules are tested directly (tests/pity-overlay.test.ts).
  */
@@ -21,9 +27,12 @@ export interface PityNote {
   at: number;
 }
 
-/** What a resolved roll leaves behind on chain for its letter. */
-export function pityAfter(success: boolean, pityAtCommit: number): number {
-  return success ? 0 : pityAtCommit + 1;
+/**
+ * The pity a resolved roll is KNOWN to leave on chain for its letter, or null when only the chain
+ * can say (a hit: see the header).
+ */
+export function knownPityAfter(success: boolean, pityAtCommit: number): number | null {
+  return success ? null : pityAtCommit + 1;
 }
 
 /** The chain's pity per letter, with each fresh note laid over it. Never mutates the input. */
