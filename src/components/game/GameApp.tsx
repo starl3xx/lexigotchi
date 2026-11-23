@@ -134,7 +134,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
               {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
                   one bad screen holds its error state across every later navigation. */}
               <ScreenErrorBoundary key={state.view}>
-                {PUBLIC_VIEWS.has(state.view) ? (
+                {PUBLIC_VIEWS.has(state.view) && state.status === "no-wallet" ? (
                   <Screen view={state.view} />
                 ) : (
                   <ChainGate>
@@ -287,8 +287,10 @@ function ViewerChip() {
 
 /**
  * Screens that show public information and need no wallet, plus More, the directory that reaches
- * them on a phone. ChainGate would cover them with the connect panel, and a visitor deciding whether
- * to play should be able to read them.
+ * them on a phone. With NO wallet, ChainGate would cover them with the connect panel, and a visitor
+ * deciding whether to play should be able to read them. Only that case skips the gate: while a
+ * connected wallet's bag is loading, or the chain read failed, the gate still shows its skeleton or
+ * error, so the Dictionary never says "you own 0" before the bag arrives (Bugbot on #121).
  */
 const PUBLIC_VIEWS: ReadonlySet<View> = new Set<View>(["dictionary", "leaderboard", "lhaw", "more"]);
 

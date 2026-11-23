@@ -72,10 +72,27 @@ async function build(): Promise<LhawSummary> {
   return body;
 }
 
+/**
+ * A part LHAW didn't answer this time is filled from the last good copy, so one slow endpoint never
+ * blanks a card that was showing (Bugbot on #121). Only a COMPLETE fresh read is cached for the full
+ * minute, in memory and at the edge; a partial one is served briefly and retried on the next call.
+ */
 export async function GET() {
-  const headers = { "cache-control": "public, s-maxage=60, stale-while-revalidate=300" };
-  if (cached && Date.now() - cached.at < TTL_MS) return NextResponse.json(cached.body, { headers });
-  const body = await build();
-  if (body.live || body.last) cached = { at: Date.now(), body };
-  return NextResponse.json(body.live || body.last ? body : cached?.body ?? body, { headers });
+  if (cached && Date.now() - cached.at < TTL_MS) {
+    return NextResponse.json(cached.body, { headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=300" } });
+  }
+  const fresh = await build();
+  const prev = cached?.body;
+  const body: LhawSummary = {
+    ok: true,
+    live: fresh.live ?? prev?.live,
+    last: fresh.last ?? prev?.last,
+    roundsPlayed: fresh.roundsPlayed ?? prev?.roundsPlayed,
+    token: fresh.token ?? prev?.token,
+  };
+  const complete = !!(fresh.live && fresh.last && fresh.roundsPlayed != null && fresh.token);
+  // A partial read keeps the merged copy but expires at once, so the next call tries LHAW again.
+  cached = { at: complete ? Date.now() : 0, body };
+  const cacheControl = complete ? "public, s-maxage=60, stale-while-revalidate=300" : "public, s-maxage=10";
+  return NextResponse.json(body, { headers: { "cache-control": cacheControl } });
 }
