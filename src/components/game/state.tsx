@@ -108,6 +108,8 @@ export type Sheet =
   // banner so every "not enough $WORD" moment lands on the Buy path instead of a dead toast.
   | { kind: "balance"; need?: { amount: number; action: string } }
   | { kind: "faq" }
+  /** The core loop on one screen (sheets/CheatSheet), behind the header's "?". */
+  | { kind: "cheatsheet" }
   | { kind: "addapp" }
   | null;
 

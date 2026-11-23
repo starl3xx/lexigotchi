@@ -38,6 +38,7 @@ import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
 import { FaqSheet } from "./sheets/FaqSheet";
+import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
@@ -173,6 +174,7 @@ function SheetHost() {
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
   if (state.sheet?.kind === "faq") return <FaqSheet />;
+  if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   return null;
 }
@@ -185,9 +187,9 @@ function TopBar() {
   const { state, skipDay, openSheet } = useGame();
   const helpBtn = (
     <button
-      onClick={() => openSheet({ kind: "faq" })}
-      title="How Lexigotchi works — FAQ"
-      aria-label="Open the FAQ"
+      onClick={() => openSheet({ kind: "cheatsheet" })}
+      title="Cheat sheet: how to play"
+      aria-label="Open the cheat sheet"
       className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
     >
       <Question weight="bold" size={15} />
@@ -347,10 +349,10 @@ function SideRail() {
       <div className="space-y-1 border-t-2 border-ink/15 px-3 py-3">
         {item("more", "More", DotsThree)}
         <button
-          onClick={() => openSheet({ kind: "faq" })}
+          onClick={() => openSheet({ kind: "cheatsheet" })}
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-colors hover:bg-ink/[0.06] hover:text-ink"
         >
-          <Question size={20} weight="regular" /> How it works
+          <Question size={20} weight="regular" /> Cheat sheet
         </button>
       </div>
     </aside>
