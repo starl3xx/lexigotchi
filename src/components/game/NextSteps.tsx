@@ -3,17 +3,25 @@
  * "Your next steps" on the Today tab: each row says what the player can do and does it from here
  * (the rules live in todaySteps.ts). Hidden when there is nothing to do.
  */
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Card, SectionTitle } from "./primitives";
 import { Coins, Crown, Sparkle, Ticket, TextAa } from "./ui/icons";
-import { fmtWord, mineLower, mineUpper, useGame } from "./state";
+import { fmtWord, hunger, mineLower, mineUpper, useGame } from "./state";
+import { pickStage } from "./stagePick";
 import { nextSteps, type NextStep } from "./todaySteps";
+
+/** Rows shown before "Show more": a list of five read as a to-do list, not a nudge. */
+const SHOWN = 3;
 
 export function NextSteps() {
   const g = useGame();
   const { state } = g;
+  const [all, setAll] = useState(false);
   if (state.status !== "ready") return null;
 
+  // The Today stage already asks for an unstaked star to be staked; don't ask twice.
+  const staged = pickStage(state.words, (w) => hunger(w));
+  const stagedStake = staged?.mood === "unstaked" ? staged.word.word : null;
   const steps = nextSteps({
     words: state.words,
     claimables: g.claimables,
@@ -21,8 +29,10 @@ export function NextSteps() {
     upper: mineUpper(state),
     pity: state.pity,
     rollProb: g.rollProb,
-  });
+  }).filter((s) => !(s.kind === "stake" && s.word === stagedStake));
   if (steps.length === 0) return null;
+  const visible = all ? steps : steps.slice(0, SHOWN);
+  const hidden = steps.length - visible.length;
 
   const claim = g.price("claim");
   const roll = g.price("roll");
@@ -32,7 +42,7 @@ export function NextSteps() {
     <Card>
       <SectionTitle>Your next steps</SectionTitle>
       <ul className="divide-y-2 divide-ink/10">
-        {steps.map((s) => (
+        {visible.map((s) => (
           <Row key={keyOf(s)} step={s}>
             {s.kind === "rewards" && (
               <Button size="sm" variant="gold" onClick={g.claimEarnings}>
@@ -72,6 +82,14 @@ export function NextSteps() {
           </Row>
         ))}
       </ul>
+      {hidden > 0 && (
+        <button onClick={() => setAll(true)} className="mt-2 w-full border-t-2 border-ink/10 pt-2 text-left text-xs font-bold text-ink/60 underline">
+          Show {hidden} more {hidden === 1 ? "step" : "steps"}
+        </button>
+      )}
+      {visible.some((s) => s.kind === "roll") && (
+        <p className="mt-2 text-xs text-ink/60">A word earns $WORD once all 5 of its letters are UPPERCASE.</p>
+      )}
     </Card>
   );
 }
@@ -132,7 +150,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
         text: (
           <>
             Roll the <strong className="font-display">{s.letter}</strong> in <strong className="font-display">{s.word}</strong> to
-            raise it: {Math.round(s.odds * 100)}% odds. A word earns $WORD once all 5 letters are UPPERCASE.
+            raise it: {Math.round(s.odds * 100)}% odds.
           </>
         ),
       };

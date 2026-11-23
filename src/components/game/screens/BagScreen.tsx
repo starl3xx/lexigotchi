@@ -49,9 +49,9 @@ export function BagScreen() {
             {lowerOwned.length === 0 ? (
               <EmptyState Icon={Basket} title="No loose letters" sub="Mint a pack to fill your bag." />
             ) : (
-              <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
+              <div className={LETTER_GRID}>
                 {lowerOwned.map(({ i, c }) => (
-                  <LetterTile
+                  <BagLetter
                     key={i}
                     char={idxToChar(i)}
                     count={c}
@@ -66,9 +66,9 @@ export function BagScreen() {
           {upperCount > 0 && (
             <div>
               <SectionTitle>UPPERCASE · {upperCount}</SectionTitle>
-              <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
+              <div className={LETTER_GRID}>
                 {upperOwned.map(({ i, c }) => (
-                  <LetterTile key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />
+                  <BagLetter key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />
                 ))}
               </div>
               <p className="mt-2 text-xs text-ink/55">Raised letters spell all-UPPERCASE words. Claim them in Spell.</p>
@@ -108,5 +108,22 @@ function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; chil
     >
       {children}
     </button>
+  );
+}
+
+/** Phones: six flat tiles a row. Desktop: the letters as characters (the rig's bust art), sized to
+ *  fill the wider column instead of a thin row of small squares across an empty page. */
+const LETTER_GRID = "grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,76px)] md:gap-3";
+
+function BagLetter(props: { char: string; upper?: boolean; count: number; title: string; onClick?: () => void }) {
+  return (
+    <>
+      <div className="md:hidden">
+        <LetterTile {...props} />
+      </div>
+      <div className="hidden md:block">
+        <LetterTile {...props} size={68} />
+      </div>
+    </>
   );
 }

@@ -42,6 +42,7 @@ import { BalanceSheet } from "./sheets/BalanceSheet";
 import { FaqSheet } from "./sheets/FaqSheet";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
+import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
   ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
@@ -187,6 +188,7 @@ function SheetHost() {
   if (state.sheet?.kind === "faq") return <FaqSheet />;
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
+  if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
   return null;
 }
 

@@ -14,6 +14,7 @@ import {
   wordCase,
 } from "../state";
 import { careNote } from "../careNote";
+import { useEatingFlash } from "../useEatingFlash";
 
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
@@ -23,6 +24,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   // Guards against a second tap during the async chain flow — each tap is a PAID commit.
   const [ascending, setAscending] = useState(false);
   const [strandedNote, setStrandedNote] = useState("");
+  // The tiles chew for a moment when a feed lands (useEatingFlash).
+  const eating = useEatingFlash(wordKey, word ? hunger(word) : "fed");
 
   if (!word) {
     return (
@@ -57,7 +60,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
     >
       {/* hero — the word as a row of tiles wearing the word's current care state */}
       <div className={`mb-3 flex justify-center rounded-2xl border-[3px] border-ink py-5 ${fullyRaised ? "bg-gold/15" : "bg-paper-dark/40"}`}>
-        <WordTiles word={word.word} upper={word.upper} size={54} state={careState(word)} gild={word.prestigeLevel} detail="bust" />
+        <WordTiles word={word.word} upper={word.upper} size={54} state={eating ? "eating" : careState(word)} gild={word.prestigeLevel} detail="bust" />
       </div>
 
       {/* status */}
