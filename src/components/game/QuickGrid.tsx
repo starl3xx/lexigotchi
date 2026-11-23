@@ -1,6 +1,6 @@
 "use client";
 /** The "Do something" tile grid — shared by Home and the More page so the two can't drift. */
-import { ArrowsLeftRight, Backpack, BookOpen, MaskHappy, Medal, Ranking, Sparkle, TextAa, Trophy } from "./ui/icons";
+import { ArrowsLeftRight, Backpack, BookOpen, MaskHappy, Medal, Planet, Ranking, Sparkle, TextAa, Trophy } from "./ui/icons";
 import { useGame, type View } from "./state";
 import { WORD_COUNT } from "@/lib/dictionary";
 
@@ -18,6 +18,7 @@ const MORE_TILES: typeof TILES = [
   { Icon: Trophy, label: "Jackpot", sub: "today's draw", to: "jackpot" },
   { Icon: Medal, label: "Bounty", sub: "this week's theme", to: "bounty" },
   { Icon: Ranking, label: "Leaderboard", sub: "top players", to: "leaderboard" },
+  { Icon: Planet, label: "Let’s Have A Word!", sub: "the $WORD word hunt", to: "lhaw" },
 ];
 
 export function QuickGrid({ extended = false }: { extended?: boolean }) {

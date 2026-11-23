@@ -120,6 +120,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
   `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`, and `CheatSheet.tsx`: the core loop on one screen, behind the header's "?" and the rail's "Cheat sheet"; the FAQ and the intro replay are one tap inside it).
+- `/api/lhaw` + `LhawScreen` → the in-game **Let's Have A Word!** page (rail: "$WORD universe"): LHAW's
+  live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
+  (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).
+  It, the Leaderboard, the Dictionary, and More are `PUBLIC_VIEWS` in GameApp: no wallet needed.
 - `src/lib/world.ts` + `/api/world` → **the shared world** for the Leaderboard and the Dictionary's
   owners: every claimed word's beneficial owner (the keeper's scan), each wallet's loose letters
   rebuilt from the Letters transfer events (the game's own contracts excluded), jackpot wins
