@@ -4,7 +4,7 @@
  * had fed.
  */
 import { describe, it, expect } from "vitest";
-import { careNote } from "@/components/game/careNote";
+import { careNote, caseBadgeText } from "@/components/game/careNote";
 
 const NOW = 1_800_000_000;
 const lower = [false, true, false, false, false];
@@ -71,5 +71,19 @@ describe("careNote", () => {
         expect(careNote({ upper: lower, staked, daysUnfed: 1, lastFedAt: NOW }, h, base).note).not.toMatch(/—/);
       }
     }
+  });
+});
+
+describe("caseBadgeText", () => {
+  const up = (n: number) => [0, 1, 2, 3, 4].map((i) => i < n);
+  it("names the case of a word that isn't fully raised", () => {
+    expect(caseBadgeText({ upper: up(0), staked: true }, "fed")).toBe("lowercase");
+    expect(caseBadgeText({ upper: up(3), staked: true }, "fed")).toBe("3/5 raised");
+  });
+  it("says an UPPERCASE word earns only while staked and not hungry (it said 'earns yield' regardless)", () => {
+    expect(caseBadgeText({ upper: up(5), staked: true }, "fed")).toBe("earning $WORD");
+    expect(caseBadgeText({ upper: up(5), staked: true }, "peckish")).toBe("earns half");
+    expect(caseBadgeText({ upper: up(5), staked: true }, "hungry")).toBe("feed to earn");
+    expect(caseBadgeText({ upper: up(5), staked: false }, "fed")).toBe("stake to earn");
   });
 });

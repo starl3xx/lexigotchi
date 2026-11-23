@@ -156,7 +156,7 @@ export function PreLaunchScreen() {
 
           {/* reward — the free 5-pack */}
           <div className="cel mt-6 rounded-2xl bg-gradient-to-b from-paper to-gold/20 p-4">
-            <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gold-deep">
+            <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gold-ink">
               <Gift weight="fill" size={14} /> Your launch-day reward
             </div>
             <div className="flex items-end justify-center py-1">
@@ -202,7 +202,7 @@ export function PreLaunchScreen() {
               </StepRow>
             </div>
 
-            {note && <p className="mt-3 text-center text-xs font-bold text-candy">{note}</p>}
+            {note && <p className="mt-3 text-center text-xs font-bold text-candy-ink">{note}</p>}
           </div>
 
           <p className="mx-auto mt-5 max-w-[24rem] text-center text-[11px] leading-relaxed text-ink/55">
@@ -236,7 +236,7 @@ function StepRow({
     >
       <span
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink font-display text-sm font-extrabold ${
-          done ? "bg-teal text-paper" : "bg-paper text-ink"
+          done ? "bg-teal text-ink" : "bg-paper text-ink"
         }`}
       >
         {done ? <Check weight="bold" size={16} /> : n}
@@ -252,7 +252,7 @@ function StepRow({
 
 function DoneTag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-extrabold text-teal">
+    <span className="inline-flex items-center gap-1 text-xs font-extrabold text-teal-ink">
       <Check weight="bold" size={13} /> {children}
     </span>
   );

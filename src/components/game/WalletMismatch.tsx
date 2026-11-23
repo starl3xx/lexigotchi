@@ -28,7 +28,7 @@ export function WalletMismatch() {
   return (
     <Card className="border-gold bg-gold/10">
       <div className="flex items-start gap-2.5">
-        <Warning weight="fill" size={20} className="mt-0.5 shrink-0 text-gold-deep" />
+        <Warning weight="fill" size={20} className="mt-0.5 shrink-0 text-gold-ink" />
         <div className="text-xs text-ink/75">
           <span className="font-display text-sm font-extrabold">This wallet isn&apos;t linked to your Farcaster account.</span>
           <p className="mt-0.5">

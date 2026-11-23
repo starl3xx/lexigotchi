@@ -93,7 +93,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
             happened" to the first tester who missed. */}
         {phase === "miss" && (
           <div className="w-full max-w-[16rem] text-center">
-            <div className="font-display text-2xl font-extrabold text-candy">No luck</div>
+            <div className="font-display text-2xl font-extrabold text-candy-ink">No luck</div>
             <p className="text-sm text-ink/60">
               Your letter is untouched, never burned. Your next roll on {char.toUpperCase()} is{" "}
               <strong className="font-bold text-ink">{Math.round(g.rollProb(pity) * 100)}%</strong>.

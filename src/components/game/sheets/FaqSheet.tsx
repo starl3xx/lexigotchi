@@ -181,7 +181,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
         <>
           $WORD is the game&apos;s ERC-20 on Base (<code>{WORD_TOKEN.slice(0, 10)}…</code>). It pays for
           mints, rolls, claims, and snacks, and funds yield + the jackpot.{" "}
-          <button onClick={buy} className="font-bold text-candy underline">
+          <button onClick={buy} className="font-bold text-candy-ink underline">
             Open your wallet to buy $WORD →
           </button>{" "}
           (native swap in Farcaster, or the $WORD swap page on the web).
@@ -307,7 +307,7 @@ export function FaqSheet() {
             g.closeSheet();
             replay();
           }}
-          className="mx-auto mt-1 block text-xs font-bold text-candy underline"
+          className="mx-auto mt-1 block text-xs font-bold text-candy-ink underline"
         >
           Replay the intro
         </button>

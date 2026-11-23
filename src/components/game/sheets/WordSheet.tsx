@@ -66,8 +66,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         <CaseBadge word={word} />
         {word.staked ? <HungerBadge state={h} /> : null}
         {word.staked && jackpotEligible(word) && (
-          <span className="inline-flex items-center gap-0.5 text-xs text-teal">
-            <Ticket weight="fill" size={12} /> jackpot-ready
+          <span className="inline-flex items-center gap-0.5 text-xs text-teal-ink">
+            <Ticket weight="fill" size={12} /> in the jackpot
           </span>
         )}
       </div>
@@ -76,7 +76,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         <Card className="mb-3 bg-candy/10">
           <div className="text-sm">
             <strong className="font-display">You may hold today&apos;s secret word</strong> — staked & fed.
-            <button onClick={() => g.nav("jackpot")} className="ml-1 font-bold text-candy underline">
+            <button onClick={() => g.nav("jackpot")} className="ml-1 font-bold text-candy-ink underline">
               Open the jackpot →
             </button>
           </div>
@@ -127,7 +127,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · earns $WORD at 5/5</span>
         </div>
         {fullyRaised ? (
-          <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-deep">
+          <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-ink">
             Fully raised <Crown weight="fill" />
           </div>
         ) : (
@@ -156,7 +156,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1 font-display font-extrabold">
-                Ascend <Star weight="fill" size={14} className="text-gold-deep" />
+                Ascend <Star weight="fill" size={14} className="text-gold-ink" />
               </div>
               <div className="text-xs text-ink/55">
                 Gilded L{word.prestigeLevel}
@@ -193,8 +193,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
               {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= maxLevel ? "Maxed" : `Ascend · ${fmtWord(g.price("prestige"))}`}
             </Button>
           </div>
-          {strandedNote && <p className="mt-2 text-xs text-gold-deep">{strandedNote}</p>}
-          {!word.staked && <p className="mt-2 text-xs text-candy">Stake it first to ascend.</p>}
+          {strandedNote && <p className="mt-2 text-xs text-gold-ink">{strandedNote}</p>}
+          {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
         </Card>
       )}
 

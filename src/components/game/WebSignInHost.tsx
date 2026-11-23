@@ -132,7 +132,7 @@ export function WebSignInHost() {
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="cel mt-4 inline-block rounded-xl bg-candy px-4 py-2 text-sm font-extrabold text-paper"
+              className="cel mt-4 inline-block rounded-xl bg-candy-deep px-4 py-2 text-sm font-extrabold text-paper"
             >
               Open Farcaster
             </a>
@@ -141,7 +141,7 @@ export function WebSignInHost() {
         )}
 
         {phase === "done" && (
-          <div className="mt-6 flex flex-col items-center gap-2 text-teal">
+          <div className="mt-6 flex flex-col items-center gap-2 text-teal-ink">
             <Check weight="bold" size={28} />
             <span className="font-display text-sm font-extrabold">Signed in</span>
           </div>
@@ -149,13 +149,13 @@ export function WebSignInHost() {
 
         {phase === "error" && (
           <>
-            <div className="mt-4 flex flex-col items-center gap-2 text-candy">
+            <div className="mt-4 flex flex-col items-center gap-2 text-candy-ink">
               <Warning weight="bold" size={24} />
               <span className="text-sm">{error}</span>
             </div>
             <button
               onClick={() => void start()}
-              className="cel mt-4 rounded-xl bg-candy px-4 py-2 text-sm font-extrabold text-paper"
+              className="cel mt-4 rounded-xl bg-candy-deep px-4 py-2 text-sm font-extrabold text-paper"
             >
               Try again
             </button>

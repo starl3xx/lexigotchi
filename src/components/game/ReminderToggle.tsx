@@ -31,7 +31,7 @@ export function ReminderToggle({ compact = false }: { compact?: boolean }) {
   return (
     <div className="cel rounded-2xl bg-paper p-4">
       <div className="flex items-center gap-2 font-display font-extrabold">
-        {state === "on" ? <Bell weight="fill" className="text-teal" /> : <BellSlash weight="bold" className="text-ink/50" />}
+        {state === "on" ? <Bell weight="fill" className="text-teal-ink" /> : <BellSlash weight="bold" className="text-ink/50" />}
         Reminders {state === "on" ? "are on" : ""}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-ink/60">
@@ -67,7 +67,7 @@ export function ReminderToggle({ compact = false }: { compact?: boolean }) {
           Turn off
         </button>
       )}
-      {error && <p className="mt-2 text-xs font-bold text-candy">{error}</p>}
+      {error && <p className="mt-2 text-xs font-bold text-candy-ink">{error}</p>}
     </div>
   );
 }

@@ -45,7 +45,7 @@ export function ConnectPanel() {
         onClick={openConnectModal}
         // Undefined until RainbowKit has mounted — never a dead button that looks alive.
         disabled={!openConnectModal}
-        className="cel mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-candy px-4 py-3 font-display text-base font-extrabold text-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        className="cel mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-candy-deep px-4 py-3 font-display text-base font-extrabold text-paper transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
       >
         <Wallet weight="bold" size={18} />
         {connectModalOpen ? "Pick a wallet…" : "Connect wallet"}
@@ -61,7 +61,7 @@ export function ConnectPanel() {
           <span className="text-[10px] font-bold uppercase tracking-wide text-ink/45">optional</span>
         </div>
         {viewer.isAuthed ? (
-          <div className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border-2 border-teal/40 bg-teal/10 px-4 py-2 text-xs font-bold text-teal">
+          <div className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border-2 border-teal/40 bg-teal/10 px-4 py-2 text-xs font-bold text-teal-ink">
             <Check weight="bold" size={13} /> {viewer.username ? `@${viewer.username}` : `fid ${viewer.fid}`}
           </div>
         ) : (

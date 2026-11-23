@@ -64,7 +64,7 @@ export function LeaderboardScreen() {
               const you = mine.has(r.address);
               return (
                 <li key={r.address} className={`flex items-center gap-3 px-3 py-2.5 text-sm ${you ? "bg-teal/10" : ""}`}>
-                  <span className={`w-6 shrink-0 text-center font-display font-extrabold ${i < 3 ? "text-gold-deep" : "text-ink/45"}`}>
+                  <span className={`w-6 shrink-0 text-center font-display font-extrabold ${i < 3 ? "text-gold-ink" : "text-ink/45"}`}>
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">

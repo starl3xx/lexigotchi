@@ -52,7 +52,7 @@ export function JackpotScreen() {
           </>
         ) : won ? (
           <div className="py-2">
-            <Confetti weight="fill" size={48} className="mx-auto animate-pop text-gold-deep" />
+            <Confetti weight="fill" size={48} className="mx-auto animate-pop text-gold-ink" />
             <div className="font-display text-3xl font-extrabold text-gold-deep">JACKPOT!</div>
             <p className="text-sm text-ink/70">
               You held <strong>{state.jackpotWord}</strong>, staked &amp; fed. The pot is yours.
@@ -84,7 +84,7 @@ export function JackpotScreen() {
         <SectionTitle action={<span className="text-xs text-ink/55">{tickets.length} in play</span>}>Your tickets</SectionTitle>
         <p className="mb-2 text-xs text-ink/60">Any staked, not-hungry word is a ticket. If it&apos;s today&apos;s secret word, you win.</p>
         {tickets.length === 0 ? (
-          <p className="text-sm text-candy">No eligible words — stake &amp; feed to get in the draw.</p>
+          <p className="text-sm text-candy-ink">No eligible words — stake &amp; feed to get in the draw.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {tickets.map((w) => (
@@ -94,7 +94,7 @@ export function JackpotScreen() {
                 className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-paper px-2 py-1 text-sm font-bold"
               >
                 {w.word}
-                {hunger(w) === "peckish" && <SmileyMeh weight="fill" size={13} className="text-gold-deep" />}
+                {hunger(w) === "peckish" && <SmileyMeh weight="fill" size={13} className="text-gold-ink" />}
               </button>
             ))}
           </div>
@@ -104,7 +104,7 @@ export function JackpotScreen() {
       {/* LHAW bonus teaser */}
       <Card className="bg-teal/10">
         <div className="flex items-start gap-2">
-          <Gift weight="fill" size={22} className="shrink-0 text-teal" />
+          <Gift weight="fill" size={22} className="shrink-0 text-teal-ink" />
           <div>
             <div className="font-display font-extrabold">Bonus: Let&apos;s Have A Word!</div>
             <p className="text-xs text-ink/60">
@@ -122,7 +122,7 @@ export function JackpotScreen() {
           {PAST.map((w) => (
             <span
               key={w}
-              className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-paper px-2 py-1 font-display text-sm font-bold text-gold-deep"
+              className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-paper px-2 py-1 font-display text-sm font-bold text-gold-ink"
             >
               <Star weight="fill" size={12} /> {w}
             </span>

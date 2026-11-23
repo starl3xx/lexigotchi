@@ -30,9 +30,9 @@ export function QuickGrid({ extended = false }: { extended?: boolean }) {
         <button
           key={t.label}
           onClick={() => nav(t.to)}
-          className="cel flex flex-col gap-1 rounded-2xl bg-paper p-3 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="cel flex flex-col gap-1 rounded-2xl bg-paper p-3 text-left transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
         >
-          <t.Icon size={26} weight="bold" className="text-candy" />
+          <t.Icon size={26} weight="bold" className="text-candy-ink" />
           <span className="font-display text-sm font-extrabold leading-tight">{t.label}</span>
           <span className="text-[11px] text-ink/55">{t.sub}</span>
         </button>

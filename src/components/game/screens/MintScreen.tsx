@@ -50,11 +50,11 @@ export function MintScreen() {
 
       {/* daily single */}
       <Card className="bg-paper">
-        <SectionTitle action={<span className="text-xs font-bold text-teal">Free · 1 / day</span>}>Daily single</SectionTitle>
+        <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · 1 / day</span>}>Daily single</SectionTitle>
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm text-ink/70">
             <span className="inline-flex items-center gap-1">
-              Pulled today <Check weight="bold" size={13} className="text-teal" />
+              Pulled today <Check weight="bold" size={13} className="text-teal-ink" />
             </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
           </div>
@@ -75,7 +75,7 @@ export function MintScreen() {
       {/* the free campaign pack: only for players who earned it (add the mini app + share a cast) */}
       {state.chainBacked && packEligible === true && (
         <Card className="bg-paper">
-          <SectionTitle action={<span className="text-xs font-bold text-teal">Free · once</span>}>Your free pack</SectionTitle>
+          <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · once</span>}>Your free pack</SectionTitle>
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-ink/70">Five letters, on the house, for sharing Lexigotchi.</span>
             <Button onClick={() => g.openPack()}>
@@ -92,7 +92,7 @@ export function MintScreen() {
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
             <div className="text-xs text-ink/60">{`${fmtWord(packPrice)} $WORD · ${fmtUsd(packPrice)}`}</div>
           </div>
-          <Package weight="fill" size={40} className="text-candy" />
+          <Package weight="fill" size={40} className="text-candy-ink" />
         </div>
         <Button
           full
@@ -144,7 +144,7 @@ export function MintScreen() {
           </div>
           <div>
             <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-ink/50">
-              grails <Diamond weight="fill" size={11} className="text-gold-deep" />
+              grails <Diamond weight="fill" size={11} className="text-gold-ink" />
             </div>
             <div className="flex gap-2">
               {rare.map((L) => <LetterTile key={L} char={L} size={38} />)}

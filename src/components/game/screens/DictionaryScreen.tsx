@@ -96,7 +96,7 @@ export function DictionaryScreen() {
                             "info",
                           )
               }
-              className={`cel flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+              className={`cel flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-paper"
               }`}
             >
@@ -111,12 +111,10 @@ export function DictionaryScreen() {
                 )}
               </div>
               {owned ? (
-                <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-paper">yours</span>
+                <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-ink">yours</span>
               ) : theirs ? (
                 <TierBadge tier={wordTier(w)} />
-              ) : ownersKnown ? (
-                <span className="text-ink/30" title="unclaimed">·</span>
-              ) : (
+              ) : ownersKnown ? null : (
                 <span className="text-ink/20" title="checking the owner">…</span>
               )}
             </button>

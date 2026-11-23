@@ -9,6 +9,7 @@ import { TileCharacter, TileWord, type Gild, type TileDetail, type TilePose, typ
 import { Pill } from "./primitives";
 import { Star } from "./ui/icons";
 import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
+import { caseBadgeText } from "./careNote";
 
 /** Map a word's hunger to the idle / peckish / hungry display state of its tiles. Hunger only
  *  advances for staked words (and only staked words show a hunger badge), so an unstaked word
@@ -88,23 +89,17 @@ export function WordTiles({
 
 const CASE_STYLE: Record<CaseState, string> = {
   lowercase: "bg-ink/10 text-ink",
-  Mixed: "bg-gold/25 text-gold-deep",
+  Mixed: "bg-gold/25 text-gold-ink",
   UPPERCASE: "bg-gold text-ink",
 };
 export function CaseBadge({ word }: { word: OwnedWord }) {
-  const c = wordCase(word);
-  const upcount = word.upper.filter(Boolean).length;
-  return (
-    <Pill className={CASE_STYLE[c]}>
-      {c === "UPPERCASE" ? "UPPERCASE · earns yield" : c === "Mixed" ? `${upcount}/5 raised` : "lowercase"}
-    </Pill>
-  );
+  return <Pill className={CASE_STYLE[wordCase(word)]}>{caseBadgeText(word, hunger(word))}</Pill>;
 }
 
 export function PrestigeStars({ level }: { level: number }) {
   if (level <= 0) return null;
   return (
-    <span className="inline-flex text-gold-deep" title={`Gilded L${level}`} aria-label={`Gilded level ${level}`}>
+    <span className="inline-flex text-gold-ink" title={`Gilded L${level}`} aria-label={`Gilded level ${level}`}>
       {Array.from({ length: level }).map((_, i) => (
         <Star key={i} weight="fill" size={11} />
       ))}
