@@ -17,6 +17,7 @@ import { HOW_IT_WORKS, pct } from "@/lib/howItWorks";
 import { isRealEconomy } from "@/lib/onchain/gameMode";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { TileCharacter, TileWord } from "@/components/game/TileCharacter";
+import { WordStripLive } from "@/components/WordStrip";
 import {
   ArrowRight,
   Confetti,
@@ -424,6 +425,9 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t-[3px] border-ink">
+        <div className="border-b-2 border-ink/10 px-5 py-3">
+          <WordStripLive />
+        </div>
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 py-10 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex items-center gap-3">
             <Wordmark small />

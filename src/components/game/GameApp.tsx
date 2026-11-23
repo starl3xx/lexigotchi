@@ -46,6 +46,7 @@ import {
   SkipForward, Smiley, Sparkle, TextAa, Trophy,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
+import { WordStripLive } from "@/components/WordStrip";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
 // dismissed an older version see the new one once (v2 added the "Roll to upgrade" step).
@@ -135,6 +136,8 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
                   <Screen view={state.view} />
                 </ChainGate>
               </ScreenErrorBoundary>
+              {/* The $WORD line at the foot of every screen: contract, link, market cap. */}
+              <WordStripLive className="mt-10" />
             </div>
           </main>
           <BottomNav />
@@ -198,7 +201,6 @@ function TopBar() {
   return (
     <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5 md:px-8 md:py-3">
       <div className="flex items-center gap-1.5">
-        <ViewerChip />
         <span className="font-display text-base font-extrabold tracking-tight md:hidden">LEXIGOTCHI</span>
         {/* Desktop: the rail shows the brand, so the header names the page instead. */}
         <h1 className="hidden font-display text-xl font-extrabold tracking-tight md:block">{VIEW_TITLE[state.view]}</h1>
@@ -238,6 +240,8 @@ function TopBar() {
           <SkipForward weight="fill" size={14} />
         </button>
         )}
+        {/* The profile sits at the far right, where players look for their account. */}
+        <ViewerChip />
       </div>
     </header>
   );
