@@ -21,25 +21,35 @@ export function CelebrateSheet({ word }: { word: string }) {
           <TileWord word={w.word} upper={w.upper} state="celebrate" size={54} detail="full" />
         </div>
         <div className="font-display text-2xl font-extrabold">{w.word} is yours.</div>
+        {/* The practice store stakes a word as it is claimed, so ask only when it isn't staked:
+            toggleStake on a staked word would UNstake it (Bugbot on #125). */}
         <p className="max-w-[30ch] text-sm text-ink/70">
-          One of one: nobody else can own it while you do. Stake it to enter it in the daily jackpot
-          {allUpper ? " and start earning $WORD" : ""}.
+          One of one: nobody else can own it while you do.{" "}
+          {w.staked
+            ? `It’s staked and in the daily jackpot${allUpper ? ", earning $WORD" : ""}.`
+            : `Stake it to enter it in the daily jackpot${allUpper ? " and start earning $WORD" : ""}.`}
         </p>
-        <div className="flex w-full gap-2 pt-1">
-          <Button variant="ghost" className="flex-1" onClick={g.closeSheet}>
-            Later
+        {w.staked ? (
+          <Button variant="ghost" full onClick={g.closeSheet}>
+            Done
           </Button>
-          <Button
-            variant="teal"
-            className="flex-1"
-            onClick={() => {
-              g.closeSheet();
-              g.toggleStake(w.word);
-            }}
-          >
-            <Ticket weight="fill" /> Stake it
-          </Button>
-        </div>
+        ) : (
+          <div className="flex w-full gap-2 pt-1">
+            <Button variant="ghost" className="flex-1" onClick={g.closeSheet}>
+              Later
+            </Button>
+            <Button
+              variant="teal"
+              className="flex-1"
+              onClick={() => {
+                g.closeSheet();
+                g.toggleStake(w.word);
+              }}
+            >
+              <Ticket weight="fill" /> Stake it
+            </Button>
+          </div>
+        )}
       </div>
     </Sheet>
   );
