@@ -116,8 +116,9 @@ from the data.
 
 ## Do I need a Farcaster account?
 
-No. **Your wallet is your account.** On the web, connect any wallet (MetaMask, Rabby, Phantom, Base,
-and more), or use **Sign in with Base** if you have a Base Account, and play. Inside a Farcaster client you’re connected automatically. Linking Farcaster is
+No. **Your wallet is your account.** On the web, connect any wallet (MetaMask, Rabby, Phantom,
+Coinbase Wallet, and more), or use **Sign in with Base** if you have a Coinbase Wallet (formerly called a
+Base Account), and play. Inside a Farcaster client you’re connected automatically. Linking Farcaster is
 optional. The free **daily single needs proof you’re one person**: a linked Farcaster account, or a
 [Coinbase-verified](https://www.coinbase.com/onchain-verify) wallet. Packs and everything else work
 without either.

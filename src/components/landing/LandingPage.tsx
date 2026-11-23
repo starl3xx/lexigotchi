@@ -358,7 +358,7 @@ export function LandingPage() {
         </SectionHead>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           <Door icon={<Wallet weight="fill" size={24} aria-hidden />} name="Your wallet" tag="Needed">
-            MetaMask, Rabby, Phantom, a Base Account, or any browser wallet.
+            MetaMask, Rabby, Phantom, Coinbase Wallet, or any browser wallet.
           </Door>
           <Door
             icon={

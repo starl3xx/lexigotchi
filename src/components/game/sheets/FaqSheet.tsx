@@ -227,8 +227,8 @@ function useFaq(): { q: string; a: ReactNode }[] {
       a: (
         <>
           No. <strong>Your wallet is your account.</strong> On the web, connect any wallet (MetaMask,
-          Rabby, Phantom, Base, and more), or use <strong>Sign in with Base</strong> if you have a Base
-          Account, and play. Inside a Farcaster client you’re connected
+          Rabby, Phantom, Coinbase Wallet, and more), or use <strong>Sign in with Base</strong> if you
+          have a Coinbase Wallet (formerly called a Base Account), and play. Inside a Farcaster client you’re connected
           automatically. Linking Farcaster is optional. The free{" "}
           <strong>daily single needs proof you’re one person</strong>: a linked Farcaster account,
           or a <strong>Coinbase-verified wallet</strong>. Packs and everything else work without either.

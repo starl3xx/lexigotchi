@@ -2,6 +2,12 @@
 /**
  * Base's official "Sign in with Base" button, wired to the Base Account connector.
  *
+ * NAMES (2026-11): Coinbase renamed the consumer side of Base Account to **Coinbase Wallet**; the
+ * popup now says "Base Account is now Coinbase Wallet". The developer side did not move: the SDK is
+ * still `@base-org/account`, and Coinbase's own docs (now under Coinbase Wallet) still ship this
+ * button with the label "Sign in with Base", which their brand rules fix. So the button keeps its
+ * label, and every line of OUR copy names the wallet the way the popup does: Coinbase Wallet.
+ *
  * WHAT IT DOES HERE: connect. The wallet is the Lexigotchi account, and a Base Account is a wallet,
  * so signing in with Base makes the player's Base Account their game wallet: the same thing the
  * RainbowKit modal's "Base" row does, behind Base's own branded door. There is no server sign-in
@@ -56,7 +62,7 @@ export function SignInWithBase() {
     // Same 56px × 8px footprint as Base's button, so nothing moves under the finger that tapped it.
     return (
       <div className="flex h-14 w-full items-center justify-center gap-2 rounded-[8px] bg-ink/85 text-[17px] text-paper">
-        <CircleNotch className="animate-spin" /> Check your Base Account…
+        <CircleNotch className="animate-spin" /> Check your Coinbase Wallet…
       </div>
     );
   }
