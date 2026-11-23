@@ -23,11 +23,28 @@ export function careNote(
   const part = p.care.peckishYieldFactor === 0.5 ? "half" : `${pct(p.care.peckishYieldFactor)} of its share`;
 
   if (!word.staked) {
+    // The hunger clock keeps running while a word is unstaked (decisions.md, PR #101), so a
+    // neglected word comes back peckish or hungry. Promise only what a restake actually gives.
+    const feedOff = "Stake it first. Only a staked word can be fed.";
+    if (h === "hungry") {
+      return {
+        note: `It went hungry while unstaked, so staking alone won’t enter it in the jackpot. Stake it, then feed it.${earns}`,
+        feedOff,
+      };
+    }
+    if (h === "peckish") {
+      return {
+        note: full5
+          ? `Staking enters it in the daily jackpot, but it got peckish while unstaked: it earns ${part} until you feed it.`
+          : `Staking enters it in the daily jackpot, but it got peckish while unstaked. Feed it soon after staking.${earns}`,
+        feedOff,
+      };
+    }
     return {
       note: full5
         ? "Staking enters it in the daily jackpot and earns $WORD every day while it stays full. Feeding starts once it’s staked."
         : `Staking enters it in the daily jackpot.${earns} Feeding starts once it’s staked.`,
-      feedOff: "Stake it first. Only a staked word gets hungry.",
+      feedOff,
     };
   }
   if (h === "hungry") {

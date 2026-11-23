@@ -17,7 +17,15 @@ describe("careNote", () => {
     expect(note).toMatch(/daily jackpot/);
     expect(note).toMatch(/earns \$WORD only once all 5 letters are UPPERCASE \(1\/5 now\)/);
     expect(note).not.toMatch(/earns \$WORD every day/);
-    expect(feedOff).toMatch(/Stake it first/);
+    expect(feedOff).toBe("Stake it first. Only a staked word can be fed.");
+  });
+
+  it("unstaked but neglected: the clock kept running, so no jackpot promise until it's fed (Bugbot on #112)", () => {
+    const hungry = careNote({ upper, staked: false, daysUnfed: 4 }, "hungry", base);
+    expect(hungry.note).toMatch(/staking alone won’t enter it in the jackpot/);
+    expect(hungry.note).not.toMatch(/earns \$WORD every day/);
+    expect(hungry.feedOff).toBe("Stake it first. Only a staked word can be fed.");
+    expect(careNote({ upper, staked: false, daysUnfed: 1 }, "peckish", base).note).toMatch(/peckish while unstaked: it earns half/);
   });
 
   it("unstaked, fully UPPERCASE: staking earns $WORD every day", () => {

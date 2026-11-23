@@ -669,6 +669,9 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
     contracts: owned.flatMap((id) => [
       { address: words, abi: wordsAbi, functionName: "prestigeLevel" as const, args: [id] },
       { address: staking, abi: stakingAbi, functionName: "lastFed" as const, args: [id] },
+      // A re-claimed word (dissolved, then claimed again) keeps the old lastFed, but Staking.stake
+      // resets the clock when lastFed < claimedAt: such a word starts full, not starving.
+      { address: words, abi: wordsAbi, functionName: "claimedAt" as const, args: [id] },
       ...Array.from({ length: 5 }, (_, pos) => ({
         address: words,
         abi: wordsAbi,
@@ -678,13 +681,15 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
     ]),
   });
 
-  const PER = 7;
+  const PER = 8;
   return owned.map((id, i) => {
     const base = i * PER;
     const prestigeLevel = Number(detail[base]);
-    const lastFed = Number(detail[base + 1]);
+    const claimedAt = Number(detail[base + 2]);
+    // The clock that staking will honor: none (0) when the last feed predates the current claim.
+    const lastFed = Number(detail[base + 1]) < claimedAt ? 0 : Number(detail[base + 1]);
     const upper = Array.from({ length: 5 }, (_, pos) => {
-      const r = detail[base + 2 + pos] as unknown as readonly [number, boolean];
+      const r = detail[base + 3 + pos] as unknown as readonly [number, boolean];
       return Boolean(r[1]);
     });
     return {
