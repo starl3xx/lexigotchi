@@ -114,6 +114,8 @@ export type Sheet =
   /** The core loop on one screen (sheets/CheatSheet), behind the header's "?". */
   | { kind: "cheatsheet" }
   | { kind: "addapp" }
+  /** A claim just landed: the new word celebrates (sheets/CelebrateSheet). */
+  | { kind: "celebrate"; word: string }
   | null;
 
 export interface Toast {
@@ -707,7 +709,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           return;
         }
         dispatch({ t: "claim", word, useUpper });
-        toast(`${word} is yours. It’s in your Bag.`, "good");
+        dispatch({ t: "sheet", sheet: { kind: "celebrate", word } });
       },
       toggleStake: (word) => dispatch({ t: "stake", word }),
       feed: (word) => {

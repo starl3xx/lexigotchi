@@ -24,20 +24,26 @@ import { QuickGrid } from "../QuickGrid";
 import { PendingReveal } from "../PendingReveal";
 import { WalletMismatch } from "../WalletMismatch";
 import { NextSteps } from "../NextSteps";
+import { TodayStage } from "../TodayStage";
 
 export function HomeScreen() {
   const g = useGame();
   const { state } = g;
   const daily = useDailyEligibility();
-  const needFood = state.words.filter((w) => w.staked && hunger(w) !== "fed");
   const ownsAnswer = state.words.find((w) => w.word === state.jackpotWord);
   const theme = THEMES[state.bountyTheme];
 
   return (
     // Desktop (lg): a two-column dashboard; banners and the quick grid span both columns.
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      {/* The word that needs the player most, in its mood (stagePick.ts). Desktop: the right
+          column beside the next steps. */}
+      <div className="empty:hidden lg:col-start-2 lg:row-start-1">
+        <TodayStage />
+      </div>
+
       {/* What this player can do right now, each with its button (todaySteps.ts). */}
-      <div className="empty:hidden lg:col-span-2">
+      <div className="empty:hidden lg:col-start-1 lg:row-start-1">
         <NextSteps />
       </div>
 
@@ -70,31 +76,6 @@ export function HomeScreen() {
           Open the jackpot
         </Button>
       </Card>
-
-      {/* care alert */}
-      {needFood.length > 0 ? (
-        <Card className="bg-candy/10">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="font-display font-extrabold">
-                {needFood.length} {needFood.length === 1 ? "word needs" : "words need"} feeding
-              </div>
-              <div className="text-xs text-ink/60">
-                Peckish UPPERCASE words earn half. Hungry words (3+ days) earn nothing and can’t win the jackpot.
-              </div>
-              <ReminderToggle compact />
-            </div>
-            <Button variant="teal" className="shrink-0 whitespace-nowrap" onClick={g.feedAll}>
-              <Cookie weight="fill" /> Feed all
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <Card className="flex items-center justify-between bg-teal/10">
-          <div className="font-display font-bold">Your collection is fed</div>
-          <Smiley weight="fill" size={26} className="text-teal-ink" />
-        </Card>
-      )}
 
       {/* connected wallet isn't one of the FID's linked wallets — the bag is about to fork */}
       <div className="empty:hidden lg:col-span-2">

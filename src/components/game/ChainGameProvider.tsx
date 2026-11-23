@@ -873,7 +873,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast(`${word} isn’t claimable`, "bad");
           }
           const W = word.toUpperCase();
-          await sendAndSettle(
+          const landed = await sendAndSettle(
             run,
             `Claim ${word}`,
             () => claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
@@ -883,6 +883,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               pending: `Sent. ${W} will show in your Bag once the chain confirms it.`,
             },
           );
+          // The new word celebrates once it reads back (sheets/CelebrateSheet).
+          if (landed) dispatch({ t: "sheet", sheet: { kind: "celebrate", word: W } });
         }, undefined);
       },
 

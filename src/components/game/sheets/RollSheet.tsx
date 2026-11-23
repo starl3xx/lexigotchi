@@ -1,6 +1,6 @@
 "use client";
 /** Roll & Shine — commit→reveal an upgrade. Fail is a no-op (the asset is never harmed). */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TileCharacter } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
@@ -13,6 +13,15 @@ export function RollSheet({ target }: { target: RollTarget }) {
   const { state } = g;
   const [phase, setPhase] = useState<Phase>("ready");
   const [stranded, setStranded] = useState("");
+  // A miss gets a visible reaction: the letter droops (the rig's peckish pose) for a moment, then
+  // settles back to idle beside the new odds. It used to keep the same calm face as before the roll.
+  const [shrug, setShrug] = useState(false);
+  useEffect(() => {
+    if (phase !== "miss") return;
+    setShrug(true);
+    const id = window.setTimeout(() => setShrug(false), 1200);
+    return () => window.clearTimeout(id);
+  }, [phase]);
 
   const loose = target.kind === "loose";
   const word = !loose ? state.words.find((w) => w.word === target.word) : undefined;
@@ -71,7 +80,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
           {phase === "win" ? (
             <TileCharacter char={char} upper state="upgrade" size={150} />
           ) : (
-            <TileCharacter char={char} state={phase === "rolling" ? "rolling" : "idle"} size={140} />
+            <TileCharacter char={char} state={phase === "rolling" ? "rolling" : phase === "miss" && shrug ? "peckish" : "idle"} size={140} />
           )}
           {phase === "rolling" && (
             <div className="absolute inset-0 overflow-hidden">
