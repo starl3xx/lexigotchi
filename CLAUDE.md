@@ -116,7 +116,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (Neynar MiniAppProvider + wagmi + RainbowKit; the
   connect modal is themed in `walletTheme.ts`), `ConnectPanel.tsx` (the web front door: wallet required,
-  via the RainbowKit modal or Base's official button in `SignInWithBase.tsx`, whose label stays "Sign in with Base" while our own copy names the wallet Coinbase Wallet, decisions.md #13; Farcaster an optional
+  via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
   `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`).
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a

@@ -24,9 +24,11 @@
  * WalletConnect-backed wallets are left OUT of the list rather than shipped with a placeholder id —
  * a placeholder renders a QR code that no wallet can ever scan, which is worse than no button.
  *
- * ── One Base connector ────────────────────────────────────────────────────────────────────────
+ * ── One Coinbase Wallet connector ─────────────────────────────────────────────────────────────
  * Base Account (wagmi's `baseAccount`, via RainbowKit's wrapper) replaces the old hand-added
- * `coinbaseWallet` connector. It is one choice among many — no player needs a Base account. It is
+ * `coinbaseWallet` connector. Coinbase renamed Base Account to Coinbase Wallet (2026-11), so the
+ * modal lists it under that name (`coinbaseWalletAccount` below); the connector and SDK are the
+ * same. It is one choice among many — no player needs one. It is
  * listed because it needs no extension (it runs in a popup) and because Base documents support for
  * both capabilities sendCallsAttributed asks for (ERC-8021 `dataSuffix`, ERC-7677 paymaster).
  * Whether the other wallets honour those optional capabilities is UNVERIFIED — see the PR that
@@ -43,6 +45,7 @@ import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { connectorsForWallets, type Wallet, type WalletList } from "@rainbow-me/rainbowkit";
 import {
   baseAccount,
+  coinbaseWallet,
   injectedWallet,
   metaMaskWallet,
   phantomWallet,
@@ -77,21 +80,32 @@ const browserWallet = (): Wallet => ({
 });
 
 /**
+ * Base Account under its new name. Coinbase renamed it Coinbase Wallet, and its popup says so, but
+ * RainbowKit 2.2 still labels the row "Base". Only the label and icon change: the connector (id
+ * `baseAccount`, which SignInWithCoinbaseWallet looks up), the SDK, and the popup are Base
+ * Account's. The icon is RainbowKit's own Coinbase Wallet icon (the classic mark; a row needs one).
+ */
+export const coinbaseWalletAccount = (params: Parameters<typeof baseAccount>[0]): Wallet => {
+  const cb = coinbaseWallet(params);
+  return { ...baseAccount(params), name: "Coinbase Wallet", iconUrl: cb.iconUrl, iconBackground: cb.iconBackground };
+};
+
+/**
  * The modal's wallet list. MetaMask and Rainbow fall back to WalletConnect when their extension is
- * missing, so they only appear when a project id exists; Rabby, Phantom, Base Account and the
+ * missing, so they only appear when a project id exists; Rabby, Phantom, Coinbase Wallet and the
  * generic browser wallet never touch WalletConnect and are always offered (RainbowKit itself hides
  * the desktop-extension wallets on phones). Without a project id a phone browser with no wallet
- * gets Base Account and nothing else, so production needs the id.
+ * gets Coinbase Wallet and nothing else, so production needs the id.
  */
 export function walletList(projectId: string = WALLETCONNECT_PROJECT_ID): WalletList {
   if (projectId) {
     return [
-      { groupName: "Popular", wallets: [metaMaskWallet, rainbowWallet, baseAccount, walletConnectWallet] },
+      { groupName: "Popular", wallets: [metaMaskWallet, rainbowWallet, coinbaseWalletAccount, walletConnectWallet] },
       { groupName: "More", wallets: [rabbyWallet, phantomWallet, browserWallet] },
     ];
   }
   return [
-    { groupName: "Popular", wallets: [baseAccount, rabbyWallet] },
+    { groupName: "Popular", wallets: [coinbaseWalletAccount, rabbyWallet] },
     { groupName: "More", wallets: [phantomWallet, browserWallet] },
   ];
 }
