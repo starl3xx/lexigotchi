@@ -92,7 +92,9 @@ yield epoch, so the bucket rolls over and nothing is lost.
 
 The keys above, plus:
 - `NEXT_PUBLIC_RPC_URL`: a dedicated Base RPC. Public ones disagree about nonces under load.
-- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`: Reown, for mobile wallets.
+- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`: Reown, for mobile wallets. Lexigotchi shares the Griddle
+  Reown project, whose allowlist has `lexigotchi.fun` and `localhost`. Set it for Production only:
+  preview domains aren't allowlisted, so WalletConnect would answer 403 there.
 - Optional: the paymaster (gas sponsorship) and the VAPID pair (browser push).
 
 `CRON_SECRET` is already used by the other crons. The keeper cron runs at 00:05 UTC.
