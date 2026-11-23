@@ -26,6 +26,11 @@ export function DictionaryScreen() {
   const owners = world.data?.owners ?? {};
   const profiles = world.data?.profiles ?? {};
   const claimedCount = Object.keys(owners).length;
+  // Owners are KNOWN only once the world read succeeds (always, in the practice game, which has no
+  // other players). While it loads or after it fails, an absent owner means "unknown", never
+  // "unclaimed": telling a player to spell a word someone owns sends them into an AlreadyClaimed
+  // revert (Bugbot on #120).
+  const ownersKnown = !state.chainBacked || world.data?.live === true;
 
   const results = useMemo(() => {
     const needle = q.trim().toUpperCase();
@@ -84,7 +89,12 @@ export function DictionaryScreen() {
                     ? g.toast(`${w} belongs to ${ownerName}.`, "info")
                     : owned
                       ? g.toast(`${w} is yours, in a linked wallet.`, "info")
-                      : g.toast(`${w} is unclaimed. Spell it to own it.`, "info")
+                      : ownersKnown
+                        ? g.toast(`${w} is unclaimed. Spell it to own it.`, "info")
+                        : g.toast(
+                            world.isError ? `Couldn’t check who owns ${w}. Try again in a moment.` : `Checking who owns ${w}…`,
+                            "info",
+                          )
               }
               className={`cel flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-paper"
@@ -104,8 +114,10 @@ export function DictionaryScreen() {
                 <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-paper">yours</span>
               ) : theirs ? (
                 <TierBadge tier={wordTier(w)} />
+              ) : ownersKnown ? (
+                <span className="text-ink/30" title="unclaimed">·</span>
               ) : (
-                <span className="text-ink/30">·</span>
+                <span className="text-ink/20" title="checking the owner">…</span>
               )}
             </button>
           );
