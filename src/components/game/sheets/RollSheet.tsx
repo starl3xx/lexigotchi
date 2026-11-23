@@ -88,10 +88,19 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <p className="text-sm text-ink/60">Now UPPERCASE — the blue game tile. Spell it into an all-UPPERCASE word to earn $WORD.</p>
           </div>
         )}
+        {/* The new odds, shown at once: the provider lays the pity this miss set over the chain
+            read (lib/onchain/pityOverlay). "Pity climbs" with an unchanged meter read as "nothing
+            happened" to the first tester who missed. */}
         {phase === "miss" && (
-          <div className="text-center">
+          <div className="w-full max-w-[16rem] text-center">
             <div className="font-display text-2xl font-extrabold text-candy">No luck</div>
-            <p className="text-sm text-ink/60">Your letter is untouched — never burned. Pity climbs.</p>
+            <p className="text-sm text-ink/60">
+              Your letter is untouched, never burned. Your next roll on {char.toUpperCase()} is{" "}
+              <strong className="font-bold text-ink">{Math.round(g.rollProb(pity) * 100)}%</strong>.
+            </p>
+            <div className="mt-2 text-left">
+              <PityMeter pity={pity} />
+            </div>
           </div>
         )}
         {/* Paid, unresolved. Deliberately NOT offering another roll: the fee is spent and the commit

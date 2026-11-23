@@ -89,8 +89,10 @@ export async function POST(req: Request) {
       commitId: String(commitId),
       success,
       signature,
-      // Surfaced so the UI can show honest odds rather than the base rate.
+      // Surfaced so the UI can show honest odds rather than the base rate, and the new pity
+      // (lib/onchain/pityOverlay) before the chain read catches up.
       pityAtCommit: Number(pityAtCommit),
+      letterIndex: Number(letterIndex),
       probability,
     },
   });

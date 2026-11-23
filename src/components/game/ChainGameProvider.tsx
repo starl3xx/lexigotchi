@@ -21,7 +21,7 @@
  * NOT atomic: an approval can land while the action reverts, and the returned batch id says nothing
  * about which calls succeeded.
  */
-import { useCallback, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
@@ -92,6 +92,7 @@ import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call } from "@/lib/onchain/sendCalls";
+import { overlayPity, pityAfter, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
@@ -104,6 +105,8 @@ interface DailyVoucher { fid: string; today: number; deadline: string; signature
 interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; revealSignature: `0x${string}` }
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
+/** A roll's signed outcome, plus what the UI needs to show the new pity before the chain does. */
+interface RollReveal extends OutcomeReveal { pityAtCommit: number; letterIndex: number }
 
 /**
  * Send one batch inside an action (see `track`): its label, and a builder for the calls. Each
@@ -185,6 +188,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     enabled: !!address && chain.deployed,
     staleTime: 30_000,
   });
+  // The pity a resolved roll just set, shown until the (lagging) chain read agrees. See
+  // lib/onchain/pityOverlay: a miss that kept showing the old odds read as "nothing happened".
+  const [pityNotes, setPityNotes] = useState<Readonly<Record<number, PityNote>>>({});
+  useEffect(() => {
+    if (pityQ.data) setPityNotes((n) => pruneNotes(pityQ.data!, n, Date.now()));
+  }, [pityQ.data]);
 
   // The identity today's daily would be issued under — mirrors the server's JWT-wins ordering
   // (free-daily route): the Farcaster fid when signed in, else the wallet's synthetic 2^160 key.
@@ -282,7 +291,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         : EMPTY_26,
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
-      pity: pityQ.data ?? EMPTY_26,
+      pity: overlayPity(pityQ.data ?? EMPTY_26, pityNotes, Date.now()),
       words: (wordsQ.data ?? []).map(toOwnedWord),
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
@@ -300,7 +309,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, wordsQ.data, dayQ.data, bucketsQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, pityNotes, wordsQ.data, dayQ.data, bucketsQ.data],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -489,16 +498,23 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const revealRoll = useCallback(
     async (id: bigint, run: RunFn): Promise<ActionOutcome> => {
       // openPostJson: the reveal is owner-bound and idempotent, so it needs no Farcaster session.
-      const draw = await openPostJson<{ reveal: OutcomeReveal }>("/api/roll/reveal", { commitId: String(id) });
+      const draw = await openPostJson<{ reveal: RollReveal }>("/api/roll/reveal", { commitId: String(id) });
       if (!draw?.ok) {
         toast(authError(draw?.error, "Roll"), "bad");
         return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
       }
       const ok = await run("Reveal", () => rollRevealCalls(id, draw.reveal.success, draw.reveal.signature));
       if (!ok) return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
-      return { status: "resolved", success: draw.reveal.success };
+      // Show the new pity now (the reveal is sent, so this is what the chain will say), and re-read
+      // on a stagger so the real value replaces it as soon as a node has it.
+      const { letterIndex, pityAtCommit, success } = draw.reveal;
+      if (Number.isInteger(letterIndex) && Number.isInteger(pityAtCommit)) {
+        setPityNotes((n) => ({ ...n, [letterIndex]: { value: pityAfter(success, pityAtCommit), at: Date.now() } }));
+      }
+      for (const delay of [2_000, 6_000, 15_000]) setTimeout(() => void pityQ.refetch(), delay);
+      return { status: "resolved", success };
     },
-    [openPostJson, toast, authError],
+    [openPostJson, toast, authError, pityQ],
   );
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
