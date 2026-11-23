@@ -699,7 +699,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       claim: (word, useUpper) => {
         const inv = useUpper ? state.upper : state.lower;
         if (!WORD_SET.has(word) || state.words.some((w) => w.word === word) || !canSpell(word, inv)) {
-          toast("Can't claim that word", "bad");
+          toast("Can’t claim that word", "bad");
           return;
         }
         if (state.balance < COST.claim) {
@@ -720,7 +720,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       feedAll: () => {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0);
         if (hungry.length === 0) {
-          toast("Everyone's already fed", "info");
+          toast("Everyone’s already fed", "info");
           return;
         }
         const free = state.freeSnackUsed ? 0 : 1;
@@ -731,7 +731,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         dispatch({ t: "feedAll" });
         toast(
-          affordable >= hungry.length ? "Fed your collection" : `Fed ${affordable} of ${hungry.length} — out of $WORD`,
+          affordable >= hungry.length ? "Fed your collection" : `Fed ${affordable} of ${hungry.length}: out of $WORD`,
           affordable >= hungry.length ? "good" : "info",
         );
       },
@@ -749,7 +749,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dissolve: (word) => {
         const w = state.words.find((x) => x.word === word);
         dispatch({ t: "dissolve", word });
-        if (w) toast(`Dissolved ${w.word} — 5 letters recovered`, "info");
+        if (w) toast(`Dissolved ${w.word}. 5 letters recovered`, "info");
       },
       revealJackpot: () => {
         if (state.jackpotRevealed) return null; // already drawn (the reducer is the real race-guard)

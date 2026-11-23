@@ -117,7 +117,7 @@ export function WebSignInHost() {
         {phase === "waiting" && (
           <>
             <p className="mt-1 text-sm text-ink/60">
-              Scan with your phone, or tap through if you&apos;re already on it.
+              Scan with your phone, or tap through if you’re already on it.
             </p>
             {qr && (
               <img

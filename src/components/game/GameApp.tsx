@@ -225,14 +225,14 @@ function TopBar() {
       <div className="flex items-center gap-2 min-[380px]:gap-3.5">
         <button
           onClick={() => openSheet({ kind: "balance" })}
-          title="Your $WORD — view balance & buy more"
-          aria-label="Your $WORD balance — open wallet"
+          title="Your $WORD: view your balance and buy more"
+          aria-label="Your $WORD balance: open your wallet"
           className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-right tabular-nums leading-none transition-transform active:translate-y-[1px]"
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
           <div className="font-display text-sm font-extrabold">
-            {state.status === "ready" ? fmtWord(state.balance) : "—"}
+            {state.status === "ready" ? fmtWord(state.balance) : "–"}
           </div>
           <div className="whitespace-nowrap text-[9px] text-ink/60">
             {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
@@ -243,7 +243,7 @@ function TopBar() {
         {!state.chainBacked && (
         <button
           onClick={skipDay}
-          title="Skip a day (prototype) — advances hunger + draws a new daily word"
+          title="Skip a day (prototype): advances hunger and draws a new daily word"
           className="hit-44 flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-paper active:translate-y-[1px]"
           aria-label="Skip a day"
         >

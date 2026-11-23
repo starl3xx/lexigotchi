@@ -98,7 +98,7 @@ describe("ChainGate never shows unknown state as zero", () => {
     mockState = { status: "error", error: "RPC unreachable" };
     render(<ChainGate>{<div>your 12 letters</div>}</ChainGate>);
     expect(screen.queryByText("your 12 letters")).toBeNull();
-    expect(screen.getByText(/can't reach the chain/i)).toBeTruthy();
+    expect(screen.getByText(/can’t reach the chain/i)).toBeTruthy();
     expect(screen.getByText(/RPC unreachable/i)).toBeTruthy();
   });
 

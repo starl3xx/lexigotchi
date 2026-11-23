@@ -218,7 +218,7 @@ export function BalanceSheet() {
         <ArrowsLeftRight weight="bold" /> Buy $WORD
       </Button>
       <p className="mt-1.5 text-center text-xs text-ink/55">
-        Opens your wallet&apos;s swap in Farcaster, or the $WORD swap page on the web.
+        Opens your wallet’s swap in Farcaster, or the $WORD swap page on the web.
       </p>
 
       <Card className="mt-3">

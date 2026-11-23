@@ -75,7 +75,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       {isAnswer && jackpotEligible(word) && (
         <Card className="mb-3 bg-candy/10">
           <div className="text-sm">
-            <strong className="font-display">You may hold today&apos;s secret word</strong> — staked & fed.
+            <strong className="font-display">You may hold today’s secret word</strong>, staked and fed.
             <button onClick={() => g.nav("jackpot")} className="ml-1 font-bold text-candy-ink underline">
               Open the jackpot →
             </button>
@@ -91,7 +91,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
-              It&apos;s part of your bag — switch to that wallet to stake, feed, or raise it.
+              It’s part of your bag. Switch to that wallet to stake, feed, or raise it.
             </div>
             {/* Opens the wallet's own account picker — the app can't choose the account, but it
                 can put the choice one tap away. wagmi follows accountsChanged, and `mine`
@@ -183,11 +183,11 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                     // A rejection does not say whether the fee was taken, so it must not re-enable
                     // the button — that would sell a second ascension on top of an open commit.
                     // Unknown is treated as paid, which is the safe direction.
-                    .catch(() => setStrandedNote("We lost track of this ascension — reopen to check"));
+                    .catch(() => setStrandedNote("We lost track of this ascension. Reopen to check"));
                   return;
                 }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
-                g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed — no harm done", res ? "good" : "info");
+                g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed. No harm done", res ? "good" : "info");
               }}
             >
               {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= maxLevel ? "Maxed" : `Ascend · ${fmtWord(g.price("prestige"))}`}

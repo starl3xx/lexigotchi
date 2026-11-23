@@ -459,9 +459,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Reachable on the web now that SIWF exists, so this asks for a sign-in rather than telling
       // the player to go somewhere else. The older code is still matched: an in-flight response can
       // predate a deploy.
-      return `${what} needs a Farcaster sign-in — tap Connect to sign in`;
+      return `${what} needs a Farcaster sign-in. Tap Connect to sign in`;
     }
-    if (code === "rate_limited") return `Too many tries — give it a moment, then tap ${what} again`;
+    if (code === "rate_limited") return `Too many tries. Give it a moment, then tap ${what} again`;
     return `${what} unavailable: ${code ?? "unknown"}`;
   }, []);
 
@@ -474,14 +474,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     (code?: string) => {
       switch (code) {
         case "add_required":
-          return "Add Lexigotchi first — that's step one of earning the free pack";
+          return "Add Lexigotchi first: that’s step one of earning the free pack";
         case "share_required":
           return "Share your cast to unlock the free pack";
         case "eligibility_unavailable":
           // Configured-but-unreachable campaign DB. Nothing was spent and nothing was lost.
-          return "Can't check your free pack right now — try again in a minute";
+          return "Can’t check your free pack right now. Try again in a minute";
         case "already_claimed":
-          return "You've already opened your free pack";
+          return "You’ve already opened your free pack";
         case "campaign_closed":
           return "The free-pack campaign has ended";
         default:
@@ -495,13 +495,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     (code?: string) => {
       switch (code) {
         case "already_claimed_today":
-          return "You've already taken today's letter — it resets at UTC midnight";
+          return "You’ve already taken today’s letter. It resets at UTC midnight";
         case "verification_required":
           // A wallet with no attestation and no Farcaster session. The screens surface the verify
           // CTA; this copy is the fallback for a claim raced past a stale status.
           return "The daily needs Farcaster or a Coinbase-verified wallet";
         case "verification_unavailable":
-          return "Can't check your verification right now — try again in a minute";
+          return "Can’t check your verification right now. Try again in a minute";
         default:
           return authError(code, "The daily");
       }
@@ -546,7 +546,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (!address) return;
       toast("Opening…", "info");
       const commit = await waitForNewCommit(address, before);
-      if (!commit) return void toast("Committed but slow to appear — it'll be waiting for you", "info");
+      if (!commit) return void toast("Committed but slow to appear. It’ll be waiting for you", "info");
       if (!(await revealCommit(commit.commitId, run))) return void toast(strandedMsg, "info");
     },
     [address, toast, revealCommit],
@@ -569,7 +569,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       const draw = await openPostJson<{ reveal: RollReveal }>("/api/roll/reveal", { commitId: String(id), relay: true });
       if (!draw?.ok) {
         toast(authError(draw?.error, "Roll"), "bad");
-        return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
+        return { status: "stranded", note: "Your roll is paid for. Reopen to finish it" };
       }
       const r = draw.reveal;
       if (r.relayed) {
@@ -589,7 +589,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         return { status: "stranded", note: "Your roll is finishing onchain. It’ll show in a moment." };
       }
       const ok = await run("Reveal", () => rollRevealCalls(id, draw.reveal.success, draw.reveal.signature));
-      if (!ok) return { status: "stranded", note: "Your roll is paid for — reopen to finish it" };
+      if (!ok) return { status: "stranded", note: "Your roll is paid for. Reopen to finish it" };
       // Show the new pity now (the reveal is sent, so this is what the chain will say), and re-read
       // on a stagger so the real value replaces it as soon as a node has it.
       const { letterIndex, pityAtCommit, success, owner } = draw.reveal;
@@ -609,7 +609,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Everything past this point follows a PAID commit, so no failure here is "safe to retry".
       const id = await waitForNewRollCommit(address, before);
       if (id === null) {
-        return { status: "stranded", note: "Roll committed but slow to appear — reopen to finish it" };
+        return { status: "stranded", note: "Roll committed but slow to appear. Reopen to finish it" };
       }
       return revealRoll(id, run);
     },
@@ -709,7 +709,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             void pendingQ.refetch();
             if (day.data?.dailyUsed) {
               markPaid();
-              return { status: "stranded" as const, note: "Your letter is committed — tap Open to reveal it" };
+              return { status: "stranded" as const, note: "Your letter is committed. Tap Open to reveal it" };
             }
             return { status: "not-started" as const };
           }
@@ -718,7 +718,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
           if (!(await run("Daily", commitCalls))) return { status: "not-started" as const };
           markPaid();
-          await finishLetterCommit(before, "Your daily letter is paid for — reopen to finish it", run);
+          await finishLetterCommit(before, "Your daily letter is paid for. Reopen to finish it", run);
           // Letters arrive via the pack sheet; the caller only needs "don't call this again".
           return { status: "resolved", success: true };
         }), NOT_STARTED),
@@ -756,7 +756,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           toast("Opening…", "info");
           const commit = await waitForNewCommit(address, before);
           if (!commit) {
-            return void toast("Pack is committed but slow to appear — it'll be waiting for you", "info");
+            return void toast("Pack is committed but slow to appear. It’ll be waiting for you", "info");
           }
 
           const draw = await postJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
@@ -767,7 +767,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           );
           if (!revealed) {
             // The draw is deterministic, so retrying later yields the identical letters.
-            return void toast("Your pack is paid for — reopen to finish it", "info");
+            return void toast("Your pack is paid for. Reopen to finish it", "info");
           }
           dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
         }, undefined);
@@ -843,20 +843,20 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             toast("Ascending…", "info");
             id = await waitForNewPrestigeCommit(address, before);
             if (id === null) {
-              return { status: "stranded", note: "Ascension committed but slow to appear — reopen to finish it" };
+              return { status: "stranded", note: "Ascension committed but slow to appear. Reopen to finish it" };
             }
           }
           const commitId = id;
           const draw = await openPostJson<{ reveal: OutcomeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
           if (!draw?.ok) {
             toast(authError(draw?.error, "Ascension"), "bad");
-            return { status: "stranded", note: "Ascension is paid for — reopen to finish it" };
+            return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
           }
           if (!(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature)))) {
-            return { status: "stranded", note: "Ascension is paid for — reopen to finish it" };
+            return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
           }
           // Announce it here: WordSheet returns early on a promise, so nothing else reports this.
-          toast(draw.reveal.success ? `${word} ascended — a gilded glow-up` : `${word} held its ground`,
+          toast(draw.reveal.success ? `${word} ascended: a gilded glow-up` : `${word} held its ground`,
                 draw.reveal.success ? "good" : "info");
           return { status: "resolved", success: draw.reveal.success };
         }), NOT_STARTED),
@@ -870,7 +870,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             if (proof.error === "dictionary_mismatch") {
               return void toast("The word list was just updated. Claims reopen shortly.", "info");
             }
-            return void toast(`${word} isn't claimable`, "bad");
+            return void toast(`${word} isn’t claimable`, "bad");
           }
           const W = word.toUpperCase();
           await sendAndSettle(
@@ -1030,7 +1030,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             });
             // A SIGNATURE, not a transaction — free, instant, and Seaport judges it at fill time.
             const provider = (await connector?.getProvider()) as { request: (a: { method: string; params: unknown[] }) => Promise<unknown> } | undefined;
-            if (!provider) return void toast("This wallet can't sign offers", "bad");
+            if (!provider) return void toast("This wallet can’t sign offers", "bad");
             phase("wallet");
             const signature = (await provider.request({
               method: "eth_signTypedData_v4",
@@ -1043,7 +1043,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               body: JSON.stringify({ order, signature }),
             }).then((r) => r.json());
             if (res?.ok) {
-              toast("Offer listed — it fills the moment someone takes it", "good");
+              toast("Offer listed. It fills the moment someone takes it", "good");
               void boardQ.refetch();
             } else {
               toast(`Offer rejected: ${res?.error ?? "unknown"}`, "bad");

@@ -136,7 +136,7 @@ export function ClaimScreen() {
       <div>
         {/* Unused: letters already spelled into your words are locked inside them and never show
             here. "your letters" read as everything you own. */}
-        <SectionTitle>{useUpper ? "your unused UPPERCASE letters" : "your unused letters"}</SectionTitle>
+        <SectionTitle>{useUpper ? "Your unused UPPERCASE letters" : "Your unused letters"}</SectionTitle>
         <p className="-mt-1 mb-2 text-xs text-ink/50">Letters already in your words stay in them, so they aren’t listed.</p>
         {trayLetters.length === 0 ? (
           <EmptyState Icon={Basket} title={useUpper ? "No raised letters yet" : "No letters"} sub="Mint a pack to fill your bag." />

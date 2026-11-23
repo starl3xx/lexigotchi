@@ -32,10 +32,10 @@ export function useAddMiniApp() {
       return { ok: true };
     } catch (err) {
       const name = (err as { name?: string })?.name;
-      if (name === "AddMiniApp.RejectedByUser") return { ok: false, error: "No problem — you can add Lexigotchi any time." };
+      if (name === "AddMiniApp.RejectedByUser") return { ok: false, error: "No problem. You can add Lexigotchi any time." };
       if (name === "AddMiniApp.InvalidDomainManifest")
-        return { ok: false, error: "Can't add just yet — the app isn't fully published. Try again shortly." };
-      return { ok: false, error: "Couldn't add right now — give it another tap." };
+        return { ok: false, error: "Can’t add just yet: the app isn’t fully published. Try again shortly." };
+      return { ok: false, error: "Couldn’t add right now. Give it another tap." };
     } finally {
       setAdding(false);
     }

@@ -56,7 +56,7 @@ function rotate<T>(variants: readonly T[], day: number): T {
 const HUNGER_TITLES = [
   "Your words are getting hungry",
   "Feeding time",
-  "Someone's feeling peckish",
+  "Someone’s feeling peckish",
   "Your words need a snack",
 ] as const;
 
@@ -64,7 +64,7 @@ export function hungerWarning(wordCount: number, hoursLeft: number, day = epochD
   const s = wordCount === 1 ? "word" : "words";
   return {
     title: rotate(HUNGER_TITLES, day),
-    body: `${wordCount} staked ${s} go hungry in ${hoursLeft}h — no yield, no jackpot. A snack fixes it.`,
+    body: `${wordCount} staked ${s} go hungry in ${hoursLeft}h: no yield, no jackpot. A snack fixes it.`,
     notificationId: `hunger-${day}`,
   };
 }
@@ -75,14 +75,14 @@ export function hungerWarning(wordCount: number, hoursLeft: number, day = epochD
 const DAILY_TITLES = [
   "Your daily letter is ready",
   "A fresh letter awaits",
-  "Today's letter is waiting",
+  "Today’s letter is waiting",
   "Come collect your letter",
 ] as const;
 
 export function dailyReady(day = epochDay()): Notification {
   return {
     title: rotate(DAILY_TITLES, day),
-    body: "Your free daily pull just reset. One letter, on the house — go see what you drew.",
+    body: "Your free daily pull just reset. One letter, on the house. Go see what you drew.",
     notificationId: `daily-${day}`,
   };
 }
@@ -98,7 +98,7 @@ const WON_TITLES = ["You won the jackpot", "The pot is yours", "Your word came u
 export function jackpotWon(word: string, amount: string, day = epochDay()): Notification {
   return {
     title: rotate(WON_TITLES, day),
-    body: `${word.toUpperCase()} was today's answer. ${amount} just landed in your bag.`,
+    body: `${word.toUpperCase()} was today’s answer. ${amount} just landed in your bag.`,
     notificationId: `won-${day}`,
   };
 }
@@ -109,7 +109,7 @@ const ROLLOVER_TITLES = ["The pot keeps growing", "Nobody had it", "The jackpot 
 export function jackpotRollover(amount: string, day = epochDay()): Notification {
   return {
     title: rotate(ROLLOVER_TITLES, day),
-    body: `No one held today's word, so the pot rolled over. It's up to ${amount} now.`,
+    body: `No one held today’s word, so the pot rolled over. It’s up to ${amount} now.`,
     notificationId: `rollover-${day}`,
   };
 }
@@ -126,13 +126,13 @@ export function claimReady(amount: string, day = epochDay()): Notification {
 }
 
 // ── Rolls ─────────────────────────────────────────────────────────────────────────────
-const PITY_TITLES = ["Your next roll is 85%", "Best odds you'll get", "Your luck is capped"] as const;
+const PITY_TITLES = ["Your next roll is 85%", "Best odds you’ll get", "Your luck is capped"] as const;
 
 /** NUDGE. One prod per letter per day is deliberate: the 85% cap persists until you roll it. */
 export function pityCapped(letter: string, day = epochDay()): Notification {
   return {
     title: rotate(PITY_TITLES, day),
-    body: `Enough near-misses on ${letter.toUpperCase()} — your next roll sits at the 85% cap. Failure costs you nothing.`,
+    body: `Enough near-misses on ${letter.toUpperCase()}: your next roll sits at the 85% cap. Failure costs you nothing.`,
     notificationId: `pity-${letter.toLowerCase()}-${day}`,
   };
 }
@@ -149,7 +149,7 @@ const SOLD_TITLES = ["Your letter sold", "Someone took your offer", "Swap filled
 export function listingFilled(letter: string, orderHash: string, day = epochDay()): Notification {
   return {
     title: rotate(SOLD_TITLES, day),
-    body: `Your ${letter.toUpperCase()} listing just filled. The trade settled on-chain — check your bag.`,
+    body: `Your ${letter.toUpperCase()} listing just filled. The trade settled onchain. Check your bag.`,
     // Trimmed to fit the 128-char id budget; a 32-byte hash prefix is still collision-free here.
     notificationId: `filled-${orderHash.toLowerCase().replace(/^0x/, "").slice(0, 32)}`,
   };

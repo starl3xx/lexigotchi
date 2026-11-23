@@ -44,7 +44,7 @@ export class ScreenErrorBoundary extends Component<
       <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-paper p-5 text-center">
         <div className="font-display text-lg font-extrabold">That screen fell over.</div>
         <p className="mt-1 text-sm text-ink/60">
-          The rest of the game still works — this is a bug on our side, not something you did.
+          The rest of the game still works. This is a bug on our side, not something you did.
         </p>
         <p className="mt-2 break-words font-mono text-[10px] text-ink/40">{this.state.error.message}</p>
         <button
@@ -104,10 +104,10 @@ export function ChainGate({ children }: { children: ReactNode }) {
 
   return (
     <Shell
-      title="Can't reach the chain"
+      title="Can’t reach the chain"
       body={
         state.error ??
-        "We couldn't read your collection. This is a connection problem, not a change to what you own."
+        "We couldn’t read your collection. This is a connection problem, not a change to what you own."
       }
     />
   );
