@@ -43,13 +43,24 @@ real API routes:
 
 The whole keeper run took 7 seconds, and its writes carry the builder code.
 
+**Browser-wallet test, 2026-11-23.** starl3xx played against this suite from a local server, with
+a Coinbase Wallet (formerly Base Account) and a plain wallet. The faucet, packs, claims, staking,
+feeding, and rolls all worked. The batched sends carry the builder code, and Coinbase Wallet paid
+Sepolia gas itself. The test drove PRs #106–#116: the status pill, Dictionary, the X-first
+Showcase, the Coinbase Wallet button, the claim fee shown up front, instant pity, server-finished
+rolls, honest stake and feed copy, the bounty on at launch, the cheat sheet, popup scrolling, and
+the WalletConnect QR fix. The same day, the Sepolia FeeRouter's bounty carve was set to 1500. The
+first week settles Thursday, 2026-11-26, at 00:05 UTC. Sepolia has no cron, so run
+`npm run keeper -- --bounty` by hand then.
+
 Still to do on Sepolia:
-1. A Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key and draw secret, the keeper
-   key, the roll relayer key, and a database with migrations 0003–0005. It is also where gas
-   sponsorship can be tested: a wallet can't reach a `localhost` paymaster URL, and Coinbase Wallet
-   then fails the whole send ("Something went wrong") instead of paying its own gas. This makes the testnet game playable in a browser
-   wallet: the rehearsal above used server-side keys, not a browser wallet's `wallet_sendCalls`.
-2. Claim a reward: it needs an UPPERCASE staked word when the keeper opens a yield epoch.
+1. A public test deployment: a Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key
+   and draw secret, the keeper key, the roll relayer key, and a database with migrations 0003–0005.
+   It is the only place gas sponsorship can be tested. A wallet can't reach a `localhost`
+   paymaster URL, and Coinbase Wallet then fails the whole send ("Something went wrong") instead of
+   paying its own gas. Until it's proven, keep `NEXT_PUBLIC_PAYMASTER_ENABLED` off in production.
+2. Claim a reward. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a fully
+   UPPERCASE staked word.
 3. Time a keeper run once many words exist. The word scan grows with every claim.
 
 ## 2. Keys and secrets (owner)
@@ -82,6 +93,9 @@ yield epoch, so the bucket rolls over and nothing is lost.
    pool's cut funds it). The Launch tab fills both by default. The keeper settles each week's bounty
    on the first day of the next week.
 2. `cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify`.
+   `$BASE_RPC` is Lexigotchi's own Alchemy app (`BASE_MAINNET_RPC_URL` in `.env.local`).
+   `--verify` uses the Etherscan key in LHAW's `contracts/.env` (`BASESCAN_API_KEY`). Etherscan's
+   free plan refuses raw RPC calls on Base, but its contract endpoints (verification) answer it.
 3. Move ownership of all ten contracts to the hardware wallet: `transferOwnership` from the deployer,
    then `acceptOwnership` from the hardware wallet. Rolls and Prestige included: like every
    contract, they start owned by the deployer.
@@ -90,7 +104,9 @@ yield epoch, so the bucket rolls over and nothing is lost.
 
 ## 5. Vercel settings (owner)
 
-The keys above, plus:
+Already set in Production (2026-11-23): `NEXT_PUBLIC_RPC_URL` (Lexigotchi's Alchemy app, Base
+mainnet) and `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`. Still to add: the keys above, plus the rest of
+this list.
 - `NEXT_PUBLIC_RPC_URL`: a dedicated Base RPC. Public ones disagree about nonces under load.
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`: Reown, for mobile wallets. Lexigotchi shares the Griddle
   Reown project, whose allowlist has `lexigotchi.fun` and `localhost`. Set it for Production only:
