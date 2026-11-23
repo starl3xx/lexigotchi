@@ -13,5 +13,27 @@
       "path": "/api/cron/keeper",
       "schedule": "5 0 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/_mintlify/:path*",
+      "destination": "https://lexigotchi.mintlify.site/_mintlify/:path*"
+    },
+    {
+      "source": "/api/request",
+      "destination": "https://lexigotchi.mintlify.site/_mintlify/api/request"
+    },
+    {
+      "source": "/docs",
+      "destination": "https://lexigotchi.mintlify.site/docs"
+    },
+    {
+      "source": "/docs/:match*",
+      "destination": "https://lexigotchi.mintlify.site/docs/:match*"
+    },
+    {
+      "source": "/mintlify-assets/:path+",
+      "destination": "https://lexigotchi.mintlify.site/mintlify-assets/:path+"
+    }
   ]
 }

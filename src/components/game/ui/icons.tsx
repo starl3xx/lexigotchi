@@ -56,6 +56,7 @@ export {
   Bell,
   BellSlash,
   CheckCircle,
+  BookBookmark,
   WarningCircle,
   Info,
 } from "@phosphor-icons/react";

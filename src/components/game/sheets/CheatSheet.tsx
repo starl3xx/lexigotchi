@@ -13,12 +13,15 @@ import { Button, Sheet } from "../primitives";
 import { Cookie, Sparkle, TextAa } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useOnboarding } from "../Onboarding";
+import { useOpenUrl } from "../useShare";
+import { DOCS_URL } from "@/lib/site";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
 const days = (n: number) => (n === 1 ? "a day" : `${n} days`);
 
 export function CheatSheet() {
   const g = useGame();
+  const openUrl = useOpenUrl();
   const { replay } = useOnboarding();
   const price = (item: Parameters<typeof g.price>[0]) => {
     const w = g.price(item);
@@ -85,8 +88,8 @@ export function CheatSheet() {
           Replay the intro
         </button>
         <span aria-hidden>·</span>
-        <button onClick={() => g.openSheet({ kind: "faq" })} className="underline">
-          All questions (FAQ)
+        <button onClick={() => void openUrl(`${DOCS_URL}/faq`)} className="underline">
+          All questions (docs) ↗
         </button>
       </div>
     </Sheet>

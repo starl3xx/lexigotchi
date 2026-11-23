@@ -119,7 +119,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   connect modal is themed in `walletTheme.ts`), `ConnectPanel.tsx` (the web front door: wallet required,
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
-  `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`, and `CheatSheet.tsx`: the core loop on one screen, behind the header's "?" and the rail's "Cheat sheet"; the FAQ and the intro replay are one tap inside it).
+  `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `BalanceSheet.tsx` and `CheatSheet.tsx`: the core loop on one screen, behind the header's "?" and the rail's "Cheat sheet"; the docs and the intro replay are one tap inside it). The old in-game FAQ is gone: the player docs at lexigotchi.fun/docs (`docs-site/`) replace it, opened with `useOpenUrl` (`useShare.ts`; `DOCS_URL` in `site.ts`) so a mini-app host keeps the game.
 - `/api/lhaw` + `LhawScreen` → the in-game **Let's Have A Word!** page (rail: "$WORD universe"): LHAW's
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).
@@ -138,7 +138,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
   `Letters`/`Words`/`Rolls`/`Staking`/`Prestige`/`Jackpot`/`AnswerChain`/`YieldDistributor`/`Bounty`.
   Deps are gitignored — run `npm run contracts:setup`. Trust seams (signer/keeper) documented in
-  `contracts/README.md`. Full mechanics reference: `GAME_DOCUMENTATION.md`; player FAQ: `FAQ.md`.
+  `contracts/README.md`. Full mechanics reference: `GAME_DOCUMENTATION.md`; player docs: `docs-site/`.
 - `src/app/admin/` + `src/components/admin/` → the **operator console** (`/admin`), modeled on the
   Griddle admin UI in Lexigotchi's design language. Shell: `AdminConsole.tsx` (sectioned tabs) gated by
   `AdminGate.tsx`. Lib in `src/lib/admin/`: `metrics.ts` (memoized `runSim` → Pulse/Economy API payloads,
