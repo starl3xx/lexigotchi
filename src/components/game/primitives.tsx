@@ -218,7 +218,10 @@ export function Sheet({
             <X weight="bold" size={16} />
           </button>
         </div>
-        <div className="ink-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">{children}</div>
+        {/* Default flex (0 1 auto), never flex-1: a 0% basis against the box's content-sized height
+            collapses to 0 px in WebKit builds that treat it literally (iOS WKWebView, Bugbot on #115).
+            Auto basis takes the content height and shrinks only when the box hits its max-height. */}
+        <div className="ink-scroll min-h-0 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">{children}</div>
       </div>
     </div>
   );
