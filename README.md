@@ -23,7 +23,7 @@ npm run dev          # http://localhost:3000 (landing page) · /play (the game)
 
 Players in a Farcaster client are auto-connected; on the open web they connect any wallet (the wallet
 is the account) and can link Farcaster to unlock the free daily letter. Every button is wired to the (mock) game state, so the full loop is explorable end to
-end. See **[FAQ.md](./FAQ.md)** for how the game works, and **[GAME_DOCUMENTATION.md](./GAME_DOCUMENTATION.md)**
+end. See the player docs at **[lexigotchi.fun/docs](https://lexigotchi.fun/docs)** (source: `docs-site/`) for how the game works, and **[GAME_DOCUMENTATION.md](./GAME_DOCUMENTATION.md)**
 for the complete mechanics, odds, and economy reference.
 
 ### Environment

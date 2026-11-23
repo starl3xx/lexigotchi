@@ -12,9 +12,10 @@
  * whole window, not just the content column.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PRELAUNCH } from "@/lib/site";
+import { PRELAUNCH, DOCS_URL } from "@/lib/site";
 import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
+import { useOpenUrl } from "./useShare";
 import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer } from "./campaignClient";
@@ -39,13 +40,12 @@ import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
-import { FaqSheet } from "./sheets/FaqSheet";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
-  ArrowsLeftRight, Backpack, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
+  ArrowsLeftRight, Backpack, BookBookmark, BookOpen, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
@@ -226,7 +226,6 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
-  if (state.sheet?.kind === "faq") return <FaqSheet />;
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
@@ -389,6 +388,7 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
 
 function SideRail() {
   const { state, nav, openSheet } = useGame();
+  const openUrl = useOpenUrl();
   const item = (view: View, label: string, Icon: typeof House) => {
     const active = state.view === view;
     return (
@@ -426,6 +426,12 @@ function SideRail() {
           className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         >
           <Question size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Cheat sheet
+        </button>
+        <button
+          onClick={() => void openUrl(DOCS_URL)}
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
+        >
+          <BookBookmark size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Docs ↗
         </button>
       </div>
     </aside>

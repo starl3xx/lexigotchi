@@ -33,7 +33,7 @@ const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Bas
 const LINKS = {
   word: `https://basescan.org/token/${WORD_TOKEN}`,
   lhaw: "https://letshaveaword.fun",
-  faq: "https://github.com/starl3xx/lexigotchi/blob/main/FAQ.md",
+  docs: "/docs", // the player docs (Mintlify, proxied by vercel.json)
   source: "https://github.com/starl3xx/lexigotchi",
   starl3xx: "https://starl3xx.fun",
 };
@@ -241,6 +241,9 @@ export function LandingPage() {
           <a href="#faq" className="hidden hover:text-candy md:inline">
             FAQ
           </a>
+          <a href={LINKS.docs} className="hidden hover:text-candy md:inline">
+            Docs
+          </a>
           <PlayButton />
         </nav>
       </header>
@@ -384,7 +387,7 @@ export function LandingPage() {
           <div>
             <SectionHead kicker="FAQ" title="Good questions." />
             <p className="mt-4 text-ink/70">
-              <A href={LINKS.faq}>Read the full FAQ</A>
+              <A href={`${LINKS.docs}/faq`}>Read every answer in the docs</A>
             </p>
           </div>
           <div className="space-y-4">

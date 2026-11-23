@@ -39,6 +39,31 @@ export function useShare() {
   );
 }
 
+/**
+ * Open a page outside the game (the docs, say) without losing the game: inside a Farcaster client
+ * through the host's openUrl (a mini app has no back button, so a same-tab link would strand the
+ * player), elsewhere in a new tab.
+ */
+export function useOpenUrl() {
+  const v = useViewer();
+  return useCallback(
+    async (url: string) => {
+      if (v.environment === "farcaster") {
+        try {
+          const sdk = (await import("@farcaster/miniapp-sdk")).default;
+          await sdk.actions.openUrl(url);
+          return;
+        } catch {
+          /* fall through to a new tab */
+        }
+      }
+      // No await before this on the web path: a popup opened outside the tap's own task is blocked.
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [v.environment],
+  );
+}
+
 /** Open X's composer with the words and a link. X draws the link's card, so pick a link with one. */
 export function usePostToX() {
   const v = useViewer();

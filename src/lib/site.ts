@@ -8,6 +8,9 @@
  */
 export const SITE_URL = (process.env.NEXT_PUBLIC_URL ?? "https://lexigotchi.vercel.app").replace(/\/$/, "");
 export const SPLASH_BG = "#f4ead2"; // game's aged-paper cream
+/** The player docs (docs-site/, Mintlify), proxied at /docs by the rewrites in vercel.json. Absolute,
+ *  because a mini-app host opens links with sdk.actions.openUrl, and `next dev` has no rewrites. */
+export const DOCS_URL = "https://lexigotchi.fun/docs";
 
 /**
  * Pre-launch campaign gate. When `NEXT_PUBLIC_PRELAUNCH === "1"`, `/play` shows the
