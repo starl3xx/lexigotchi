@@ -20,7 +20,7 @@ import { Button, Card, Sheet } from "../primitives";
 import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
-import { OrDivider, SignInWithBase } from "../SignInWithBase";
+import { OrDivider, SignInWithCoinbaseWallet } from "../SignInWithCoinbaseWallet";
 import { useVerifiedWallet } from "../useVerifiedWallet";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
@@ -268,7 +268,7 @@ export function BalanceSheet() {
               )}
             </Button>
             <OrDivider />
-            <SignInWithBase />
+            <SignInWithCoinbaseWallet />
             <p className="mt-2 text-xs text-ink/55">Any wallet works. $WORD lives on Base.</p>
           </>
         )}

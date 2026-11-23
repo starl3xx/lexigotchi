@@ -1,29 +1,21 @@
 // @vitest-environment jsdom
 /**
- * Base's "Sign in with Base" door. Two silent failures are pinned here.
+ * The "Sign in with Coinbase Wallet" door (Base Account, renamed). Two silent failures are pinned.
  *
  * The button finds its connector by id. If RainbowKit ever renamed the Base Account connector, the
  * button would quietly render nothing, and nobody would notice a door that isn't there. The first
- * test builds the REAL wallet list and asserts the id the button looks for is in it.
+ * test builds the REAL wallet list and asserts the id the button looks for is in it, and that the
+ * modal's row carries the new name.
  *
- * A tap must connect the Base Account and nothing else: the branded button opening MetaMask, or
- * the RainbowKit modal, is the bug Let's Have A Word! shipped and fixed.
+ * A tap must connect that wallet and nothing else: a branded button opening MetaMask, or the
+ * RainbowKit modal, is the bug Let's Have A Word! shipped and fixed.
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { createConfig, http } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
-import { baseAccount } from "@rainbow-me/rainbowkit/wallets";
-import { walletList } from "@/lib/onchain/wagmi";
-
-// The sealed Base component, stood in for by a plain button with the same onClick contract.
-vi.mock("next/dynamic", () => ({
-  default: () =>
-    function FakeBaseButton({ onClick }: { onClick: () => void }) {
-      return <button onClick={onClick}>Sign in with Base</button>;
-    },
-}));
+import { coinbaseWalletAccount, walletList } from "@/lib/onchain/wagmi";
 
 const connect = vi.fn();
 const getProvider = vi.fn(async () => ({}));
@@ -34,7 +26,7 @@ vi.mock("wagmi", async (orig) => ({
   useConnect: () => ({ connect, connectors, ...state }),
 }));
 
-const { SignInWithBase, BASE_ACCOUNT_CONNECTOR_ID } = await import("@/components/game/SignInWithBase");
+const { SignInWithCoinbaseWallet, BASE_ACCOUNT_CONNECTOR_ID } = await import("@/components/game/SignInWithCoinbaseWallet");
 
 beforeEach(() => {
   connect.mockClear();
@@ -48,8 +40,8 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe("Sign in with Base", () => {
-  it("looks for the id the real wallet list gives the Base Account connector", () => {
+describe("Sign in with Coinbase Wallet", () => {
+  it("looks for the id the real wallet list gives the Coinbase Wallet (Base Account) connector", () => {
     // Built for real with no WalletConnect project id: with one, building the config starts the
     // WalletConnect core, and a test must not reach the network.
     const config = createConfig({
@@ -58,34 +50,39 @@ describe("Sign in with Base", () => {
       connectors: connectorsForWallets(walletList(""), { appName: "Lexigotchi", projectId: "unset" }),
     });
     expect(config.connectors.map((c) => c.id)).toContain(BASE_ACCOUNT_CONNECTOR_ID);
-    // With a project id, the same RainbowKit `baseAccount` wallet is listed (unbuilt, see above).
-    expect(walletList("some-project-id").flatMap((g) => g.wallets)).toContain(baseAccount);
+    // With a project id, the same wallet is listed (unbuilt, see above).
+    expect(walletList("some-project-id").flatMap((g) => g.wallets)).toContain(coinbaseWalletAccount);
   });
 
-  it("connects the Base Account connector, and only that one", () => {
-    render(<SignInWithBase />);
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Base" }));
+  it("names the modal's row the way the popup names itself", () => {
+    const row = coinbaseWalletAccount({ appName: "Lexigotchi" } as Parameters<typeof coinbaseWalletAccount>[0]);
+    expect(row.name).toBe("Coinbase Wallet");
+  });
+
+  it("connects that connector, and only that one", () => {
+    render(<SignInWithCoinbaseWallet />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Coinbase Wallet" }));
     expect(connect).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledWith({ connector: connectors[2] });
   });
 
-  it("warms the Base SDK before any tap, so the popup opens with no await in front of it", () => {
-    render(<SignInWithBase />);
+  it("warms the SDK before any tap, so the popup opens with no await in front of it", () => {
+    render(<SignInWithCoinbaseWallet />);
     expect(getProvider).toHaveBeenCalled();
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it("holds the button's footprint while the Base Account is asked", () => {
+  it("says where to look while the wallet is asked, and can't be tapped twice", () => {
     state = { isPending: true, variables: { connector: connectors[2] } };
-    render(<SignInWithBase />);
-    // The popup it waits on now calls itself Coinbase Wallet, so the wait does too.
-    expect(screen.getByText("Check your Coinbase Wallet…")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Sign in with Base" })).toBeNull();
+    render(<SignInWithCoinbaseWallet />);
+    const button = screen.getByRole("button", { name: /Check your Coinbase Wallet/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "Sign in with Coinbase Wallet" })).toBeNull();
   });
 
-  it("renders nothing when there is no Base Account connector", () => {
+  it("renders nothing when there is no such connector", () => {
     connectors = connectors.filter((c) => c.id !== BASE_ACCOUNT_CONNECTOR_ID);
-    const { container } = render(<SignInWithBase />);
+    const { container } = render(<SignInWithCoinbaseWallet />);
     expect(container.innerHTML).toBe("");
   });
 });
