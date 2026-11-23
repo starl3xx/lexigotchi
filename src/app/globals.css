@@ -71,6 +71,14 @@ body {
   box-shadow: 4px 4px 0 theme(colors.ink);
 }
 
+/* The lighter cel, for repeated list items (Dictionary cards, spellable words, the More grid, FAQ
+   rows). The full cel is for the one main card on a screen and for a list item that is the
+   player's own; forty full cels in a grid read as stripes, not cards. */
+.cel-sm {
+  border: 2px solid theme(colors.ink);
+  box-shadow: 2px 2px 0 theme(colors.ink);
+}
+
 .tile {
   background: theme(colors.tile);
   border: 3px solid theme(colors.ink);

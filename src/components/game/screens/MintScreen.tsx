@@ -137,14 +137,14 @@ export function MintScreen() {
         <SectionTitle>The odds mirror the dictionary</SectionTitle>
         <div className="space-y-3">
           <div>
-            <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink/50">most common</div>
+            <div className="mb-1 text-xs font-bold text-ink/60">Most common</div>
             <div className="flex gap-2">
               {common.map((L) => <LetterTile key={L} char={L} size={38} />)}
             </div>
           </div>
           <div>
-            <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-ink/50">
-              grails <Diamond weight="fill" size={11} className="text-gold-ink" />
+            <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold text-ink/60">
+              Grails <Diamond weight="fill" size={11} className="text-gold-ink" />
             </div>
             <div className="flex gap-2">
               {rare.map((L) => <LetterTile key={L} char={L} size={38} />)}

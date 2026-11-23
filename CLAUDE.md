@@ -230,6 +230,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   notification templates: no em dashes (pick the mark the sentence needs: colon, comma, period, or
   brackets; a missing value shows an en dash "–"), curly apostrophes and quotes, and "onchain" as one
   word. Code comments are exempt.
+- **The game's visual system (UI proposal, Nov 2026).** One meaning per color: teal = grow and care
+  (claim, stake, feed), gold = chance (roll, jackpot), candy = spend (packs, Buy $WORD, connect),
+  ink = "you are here" (active tab, switches, filters). Colored text uses the `-ink` shades and
+  cream-labeled fills use `candy.deep` (tailwind.config.ts says why: contrast). `.cel` is for the one
+  main card on a screen and for the player's own item in a list; repeated list items use `.cel-sm`.
+  No decorative all-caps labels: capitals mean a raised letter in this game. Text floor is 12 px
+  (`text-xs`), except compact chips and the header's balance line.
 - **Builder-code attribution is mandatory**: every on-chain action routes through
   `src/lib/onchain/builderCode.ts` (ERC-8021 suffix) or we silently forfeit Base builder rewards —
   the tx still sends, it's just uncredited. `tests/builder-code.test.ts` is the round-trip guardrail.

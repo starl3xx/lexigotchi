@@ -87,7 +87,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {STEPS.map((_, i) => (
             <span
               key={i}
-              className={`h-2 rounded-full transition-[width] ${i === step ? "w-5 bg-candy" : "w-2 bg-ink/20"}`}
+              className={`h-2 rounded-full transition-[width] ${i === step ? "w-5 bg-ink" : "w-2 bg-ink/20"}`}
             />
           ))}
         </div>

@@ -139,7 +139,7 @@ export function PreLaunchScreen() {
         {/* header — brand + "coming soon" badge */}
         <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5">
           <span className="font-display text-base font-extrabold tracking-tight">LEXIGOTCHI</span>
-          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink">
+          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-xs font-extrabold text-ink">
             <Sparkle weight="fill" size={11} /> Coming soon
           </span>
         </header>
@@ -156,7 +156,7 @@ export function PreLaunchScreen() {
 
           {/* reward — the free 5-pack */}
           <div className="cel mt-6 rounded-2xl bg-gradient-to-b from-paper to-gold/20 p-4">
-            <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-gold-ink">
+            <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-extrabold text-gold-ink">
               <Gift weight="fill" size={14} /> Your launch-day reward
             </div>
             <div className="flex items-end justify-center py-1">
@@ -205,7 +205,7 @@ export function PreLaunchScreen() {
             {note && <p className="mt-3 text-center text-xs font-bold text-candy-ink">{note}</p>}
           </div>
 
-          <p className="mx-auto mt-5 max-w-[24rem] text-center text-[11px] leading-relaxed text-ink/55">
+          <p className="mx-auto mt-5 max-w-[24rem] text-center text-xs leading-relaxed text-ink/55">
             Your pack is tied to your Farcaster account and waiting at launch. No wallet needed yet.
           </p>
         </main>
@@ -243,7 +243,7 @@ function StepRow({
       </span>
       <div className="min-w-0 flex-1">
         <div className="font-display text-sm font-extrabold leading-tight">{title}</div>
-        <div className="text-[11px] leading-tight text-ink/60">{sub}</div>
+        <div className="text-xs leading-tight text-ink/60">{sub}</div>
       </div>
       <div className="shrink-0">{children}</div>
     </div>

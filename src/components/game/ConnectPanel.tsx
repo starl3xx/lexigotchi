@@ -58,7 +58,7 @@ export function ConnectPanel() {
       <div className="mt-5 border-t-2 border-dashed border-ink/15 pt-4">
         <div className="flex items-center gap-2">
           <span className="font-display text-sm font-extrabold">Link Farcaster</span>
-          <span className="text-[10px] font-bold uppercase tracking-wide text-ink/45">optional</span>
+          <span className="text-xs font-bold text-ink/50">Optional</span>
         </div>
         {viewer.isAuthed ? (
           <div className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border-2 border-teal/40 bg-teal/10 px-4 py-2 text-xs font-bold text-teal-ink">

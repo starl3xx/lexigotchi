@@ -105,7 +105,7 @@ export function PityMeter({ pity }: { pity: number }) {
       <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-paper-dark">
         <div className="h-full bg-teal transition-[width]" style={{ width: `${prob * 100}%` }} />
       </div>
-      {pity > 0 && <div className="text-[11px] text-ink/60">pity +{pity} · resets on a hit</div>}
+      {pity > 0 && <div className="text-xs text-ink/60">pity +{pity} · resets on a hit</div>}
     </div>
   );
 }

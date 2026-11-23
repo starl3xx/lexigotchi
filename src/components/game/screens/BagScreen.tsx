@@ -104,7 +104,7 @@ function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; chil
   return (
     <button
       onClick={onClick}
-      className={`flex-1 rounded-lg py-1.5 transition-colors ${on ? "bg-candy-deep text-paper" : "text-ink/70"}`}
+      className={`flex-1 rounded-lg py-1.5 transition-colors ${on ? "bg-ink text-paper" : "text-ink/70"}`}
     >
       {children}
     </button>

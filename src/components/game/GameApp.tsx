@@ -356,7 +356,7 @@ function SideRail() {
         onClick={() => nav(view)}
         aria-current={active ? "page" : undefined}
         className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
-          active ? "bg-candy-deep text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
+          active ? "bg-ink text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         }`}
       >
         <Icon size={20} weight={active ? "fill" : "regular"} />
@@ -373,7 +373,7 @@ function SideRail() {
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Game">
         {RAIL.map((group) => (
           <div key={group.heading}>
-            <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink/45">{group.heading}</div>
+            <div className="px-3 pb-1.5 text-xs font-bold text-ink/50">{group.heading}</div>
             <div className="space-y-1">{group.items.map((i) => item(i.view, i.label, i.Icon))}</div>
           </div>
         ))}
@@ -431,8 +431,8 @@ function NavBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-bold transition-colors ${
-        active ? "bg-candy-deep text-paper" : "text-ink/70"
+      className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-xs font-bold transition-colors ${
+        active ? "bg-ink text-paper" : "text-ink/70"
       }`}
     >
       <Icon size={22} weight={active ? "fill" : "regular"} />
