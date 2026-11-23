@@ -77,7 +77,8 @@ export function NextSteps() {
 }
 
 function keyOf(s: NextStep): string {
-  return s.kind === "stake" || s.kind === "spell" || s.kind === "roll" ? `${s.kind}:${s.word}` : s.kind;
+  if (s.kind === "spell") return `spell:${s.upper ? "U" : "l"}:${s.word}`;
+  return s.kind === "stake" || s.kind === "roll" ? `${s.kind}:${s.word}` : s.kind;
 }
 
 /** One step: an icon, what to do and why, and the button that does it. */

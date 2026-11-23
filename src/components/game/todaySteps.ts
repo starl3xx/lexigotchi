@@ -47,11 +47,17 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
     .sort((a, b) => Number(b.upper.every(Boolean)) - Number(a.upper.every(Boolean)));
   for (const w of unstaked.slice(0, MAX.stake)) steps.push({ kind: "stake", word: w.word, earns: w.upper.every(Boolean) });
 
-  // Words the loose letters spell right now. UPPERCASE first: such a word is born earning.
-  const owned = new Set(i.words.map((w) => w.word));
-  const upperSpells = spellableNow(i.upper, owned, 1);
-  for (const word of upperSpells) steps.push({ kind: "spell", word, upper: true });
-  for (const word of spellableNow(i.lower, owned, MAX.spell - upperSpells.length)) steps.push({ kind: "spell", word, upper: false });
+  // Words the loose letters spell right now. UPPERCASE first: such a word is born earning. A word
+  // offered in UPPERCASE isn't offered again in lowercase (Bugbot on #119): that would be the same
+  // word twice, the second at the worse case.
+  const offered = new Set(i.words.map((w) => w.word));
+  const upperSpells = spellableNow(i.upper, offered, MAX.spell);
+  for (const word of upperSpells) {
+    steps.push({ kind: "spell", word, upper: true });
+    offered.add(word);
+  }
+  const room = MAX.spell - upperSpells.length;
+  if (room > 0) for (const word of spellableNow(i.lower, offered, room)) steps.push({ kind: "spell", word, upper: false });
 
   // Letters to raise inside words: staked words first (they earn once fully UPPERCASE), then the
   // closest to done. In each word, the lowercase letter with the best odds (pity is per letter).

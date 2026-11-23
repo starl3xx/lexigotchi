@@ -68,6 +68,21 @@ describe("nextSteps", () => {
     expect(spells.every((s) => s.kind === "spell" && s.word !== "CRANE" && !s.upper)).toBe(true);
   });
 
+  it("a word spellable in both cases is offered once, in UPPERCASE (Bugbot on #119)", () => {
+    const steps = nextSteps({ ...base, words: [], lower: counts("CRANE"), upper: counts("CRANE") });
+    const spells = steps.filter((s) => s.kind === "spell");
+    const words = spells.map((s) => s.kind === "spell" && s.word);
+    expect(new Set(words).size).toBe(words.length);
+    expect(spells[0]).toMatchObject({ upper: true });
+  });
+
+  it("offers up to two UPPERCASE spells when the letters allow (Bugbot on #119)", () => {
+    const steps = nextSteps({ ...base, words: [], upper: counts("CRANEBLAST") });
+    const spells = steps.filter((s) => s.kind === "spell");
+    expect(spells).toHaveLength(2);
+    expect(spells.every((s) => s.kind === "spell" && s.upper)).toBe(true);
+  });
+
   it("rewards to collect come first", () => {
     const steps = nextSteps({ ...base, words: [word("AGLOW")], claimables: [{ amount: 100 }, { amount: 50 }] });
     expect(steps[0]).toEqual({ kind: "rewards", amount: 150 });
