@@ -31,8 +31,8 @@ export interface ActionGate {
   /** Move the action in flight to a new phase. A no-op when nothing is in flight. */
   phase(phase: BusyPhase): void;
   /**
-   * Hide the status and release the gate, for a wallet request that never answers (a phone wallet
-   * left unopened). The flow itself keeps going; when it settles it no longer touches the status,
+   * Hide the status and release the gate, for a request that never answers (a phone wallet left
+   * unopened, a hung fetch). The flow itself keeps going; when it settles it no longer touches the status,
    * so it can't clear a newer action's.
    */
   dismiss(): void;

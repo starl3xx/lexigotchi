@@ -247,19 +247,18 @@ const BUSY_PHASE: Record<Busy["phase"], string> = {
   working: "Waiting for the chain…",
 };
 
-/** A wallet left unanswered this long gets a way out: the gate would otherwise block every tap. */
+/** A phase stuck this long gets a way out: the gate would otherwise refuse every later tap. */
 const BUSY_DISMISS_AFTER_MS = 15_000;
 
 /**
  * The status of the action in flight (lib/onchain/actionGate), from the tap until the last read.
- * It sits above the toasts and stays until the action settles. In the wallet phase it offers
- * "Hide" after a while, for a request that never comes back, such as a phone wallet left unopened.
+ * It sits above the toasts and stays until the action settles. After a while in any one phase it
+ * offers "Hide", for a request that never comes back: a phone wallet left unopened, a hung fetch.
  */
 function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
   const [stale, setStale] = useState(false);
   useEffect(() => {
     setStale(false);
-    if (busy.phase !== "wallet") return;
     const id = window.setTimeout(() => setStale(true), BUSY_DISMISS_AFTER_MS);
     return () => window.clearTimeout(id);
   }, [busy.phase, busy.label]);

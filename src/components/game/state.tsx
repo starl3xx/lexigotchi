@@ -597,7 +597,7 @@ export interface GameApi {
    * pill. The chain store only: the mock's actions are instant, so it is always null there.
    */
   busy: Busy | null;
-  /** Hide the status and release the one-at-a-time gate (a wallet request that never answers). */
+  /** Hide the status and release the one-at-a-time gate (a request that never answers). */
   dismissBusy: () => void;
   /** Finish the oldest unrevealed commit: fetch the deterministic draw, send the reveal, open the sheet. */
   openPending: () => void;
