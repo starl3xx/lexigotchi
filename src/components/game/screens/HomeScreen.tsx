@@ -23,6 +23,7 @@ import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { QuickGrid } from "../QuickGrid";
 import { PendingReveal } from "../PendingReveal";
 import { WalletMismatch } from "../WalletMismatch";
+import { NextSteps } from "../NextSteps";
 
 export function HomeScreen() {
   const g = useGame();
@@ -35,6 +36,11 @@ export function HomeScreen() {
   return (
     // Desktop (lg): a two-column dashboard; banners and the quick grid span both columns.
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      {/* What this player can do right now, each with its button (todaySteps.ts). */}
+      <div className="empty:hidden lg:col-span-2">
+        <NextSteps />
+      </div>
+
       {/* hero — daily jackpot */}
       <Card className="bg-gradient-to-b from-paper to-gold/15">
         <div className="flex items-start justify-between">
