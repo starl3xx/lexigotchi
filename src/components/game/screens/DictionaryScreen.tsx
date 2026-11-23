@@ -1,11 +1,16 @@
 "use client";
-/** Dictionary — browse every claimable word (WORD_COUNT); see tiers and what you already own. */
+/**
+ * Dictionary: browse every claimable word (WORD_COUNT), its tier, and who owns it. Your own words
+ * are marked and open their sheet; a word someone else owns shows their Farcaster picture and name
+ * (or a short address), from the shared world read (/api/world).
+ */
 import { useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
 import { Pill, TierBadge } from "../primitives";
-import { Check } from "../ui/icons";
 import { useGame } from "../state";
+import { PlayerChip } from "../PlayerChip";
+import { useMyWallets, useWorld } from "../useWorld";
 
 const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
@@ -16,6 +21,16 @@ export function DictionaryScreen() {
   const [tier, setTier] = useState<Tier | "All">("All");
 
   const ownedSet = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
+  const world = useWorld();
+  const mine = useMyWallets();
+  const owners = world.data?.owners ?? {};
+  const profiles = world.data?.profiles ?? {};
+  const claimedCount = Object.keys(owners).length;
+  // Owners are KNOWN only once the world read succeeds (always, in the practice game, which has no
+  // other players). While it loads or after it fails, an absent owner means "unknown", never
+  // "unclaimed": telling a player to spell a word someone owns sends them into an AlreadyClaimed
+  // revert (Bugbot on #120).
+  const ownersKnown = !state.chainBacked || world.data?.live === true;
 
   const results = useMemo(() => {
     const needle = q.trim().toUpperCase();
@@ -34,7 +49,8 @@ export function DictionaryScreen() {
       <div className="flex items-baseline justify-between md:justify-end">
         <h1 className="font-display text-2xl font-extrabold md:hidden">Dictionary</h1>
         <span className="text-xs text-ink/55">
-          {ownedSet.size}/{WORD_COUNT.toLocaleString()} owned
+          you own {ownedSet.size}
+          {claimedCount > 0 && <> · {claimedCount.toLocaleString("en-US")} claimed</>} · {WORD_COUNT.toLocaleString("en-US")} words
         </span>
       </div>
 
@@ -58,18 +74,51 @@ export function DictionaryScreen() {
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
         {results.map((w) => {
-          const owned = ownedSet.has(w);
+          // Yours: in your bag (the union bag covers linked wallets) or owned by one of your wallets.
+          const owner = owners[w];
+          const owned = ownedSet.has(w) || (!!owner && mine.has(owner));
+          const theirs = !owned && !!owner;
+          const ownerName = owner ? (profiles[owner] ? `@${profiles[owner].username}` : `${owner.slice(0, 6)}…${owner.slice(-4)}`) : "";
           return (
             <button
               key={w}
-              onClick={() => (owned ? g.openSheet({ kind: "word", word: w }) : g.toast(`${w} — unclaimed. Spell it to own it.`, "info"))}
-              className={`cel flex items-center justify-between rounded-xl bg-paper px-2.5 py-2 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${owned ? "ring-2 ring-teal ring-offset-1 ring-offset-paper" : ""}`}
+              onClick={() =>
+                owned && ownedSet.has(w)
+                  ? g.openSheet({ kind: "word", word: w })
+                  : theirs
+                    ? g.toast(`${w} belongs to ${ownerName}.`, "info")
+                    : owned
+                      ? g.toast(`${w} is yours, in a linked wallet.`, "info")
+                      : ownersKnown
+                        ? g.toast(`${w} is unclaimed. Spell it to own it.`, "info")
+                        : g.toast(
+                            world.isError ? `Couldn’t check who owns ${w}. Try again in a moment.` : `Checking who owns ${w}…`,
+                            "info",
+                          )
+              }
+              className={`cel flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-paper"
+              }`}
             >
-              <div>
+              <div className="min-w-0">
                 <div className="font-display text-sm font-extrabold">{w}</div>
-                <TierBadge tier={wordTier(w)} />
+                {theirs ? (
+                  <div className="mt-0.5 text-[11px] text-ink/70">
+                    <PlayerChip address={owner} profile={profiles[owner]} size={16} />
+                  </div>
+                ) : (
+                  <TierBadge tier={wordTier(w)} />
+                )}
               </div>
-              {owned ? <Check weight="bold" size={15} className="text-teal" /> : <span className="text-ink/30">·</span>}
+              {owned ? (
+                <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-paper">yours</span>
+              ) : theirs ? (
+                <TierBadge tier={wordTier(w)} />
+              ) : ownersKnown ? (
+                <span className="text-ink/30" title="unclaimed">·</span>
+              ) : (
+                <span className="text-ink/20" title="checking the owner">…</span>
+              )}
             </button>
           );
         })}

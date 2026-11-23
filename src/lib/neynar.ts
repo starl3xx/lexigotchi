@@ -156,3 +156,47 @@ export async function lookupProfiles(fids: readonly number[]): Promise<Farcaster
   }
   return out;
 }
+
+/** A wallet's Farcaster face, for showing other players (the leaderboard, the Dictionary's owners). */
+export interface PublicProfile {
+  username: string;
+  pfpUrl: string | null;
+}
+
+/** Neynar's `user/bulk-by-address` cap per request. */
+const BULK_ADDRESSES = 350;
+
+/**
+ * Farcaster profiles for wallet addresses: the reverse of `lookupProfiles`. The contracts store
+ * addresses; players know each other by name and picture. A wallet linked to several accounts takes
+ * the first Neynar lists. A wallet with none is simply absent (the UI shows a short address).
+ * Partial failure drops that chunk, never the whole call.
+ */
+export async function profilesByAddress(addresses: readonly string[]): Promise<Record<string, PublicProfile>> {
+  const key = process.env.NEYNAR_API_KEY;
+  const out: Record<string, PublicProfile> = {};
+  const unique = [...new Set(addresses.map((a) => a.toLowerCase()))];
+  if (!key || unique.length === 0) return out;
+  for (let i = 0; i < unique.length; i += BULK_ADDRESSES) {
+    const chunk = unique.slice(i, i + BULK_ADDRESSES);
+    try {
+      const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/user/bulk-by-address?addresses=${chunk.join(",")}`, {
+        headers: { "x-api-key": key, accept: "application/json" },
+        next: { revalidate: 300 },
+      });
+      // 404 is Neynar's answer when none of the addresses has an account.
+      if (!res.ok) {
+        if (res.status !== 404) console.error("[neynar] bulk-by-address failed:", res.status, `(${chunk.length} addresses)`);
+        continue;
+      }
+      const data = (await res.json()) as Record<string, { username?: string; pfp_url?: string }[]>;
+      for (const [addr, users] of Object.entries(data ?? {})) {
+        const u = Array.isArray(users) ? users[0] : undefined;
+        if (u?.username) out[addr.toLowerCase()] = { username: u.username, pfpUrl: u.pfp_url ?? null };
+      }
+    } catch (err) {
+      console.error("[neynar] bulk-by-address error:", err);
+    }
+  }
+  return out;
+}

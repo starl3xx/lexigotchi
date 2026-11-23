@@ -95,6 +95,7 @@ export async function scanAllWords(): Promise<KeeperWord[]> {
       daysUnfed: Math.floor(secondsUnfed / 86_400),
       prestigeLevel: Number(detail[base]),
       upperAll: upper.every(Boolean),
+      raised: upper.filter(Boolean).length,
     };
   });
 }

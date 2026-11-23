@@ -120,6 +120,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
   `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `FaqSheet.tsx`, `BalanceSheet.tsx`, and `CheatSheet.tsx`: the core loop on one screen, behind the header's "?" and the rail's "Cheat sheet"; the FAQ and the intro replay are one tap inside it).
+- `src/lib/world.ts` + `/api/world` → **the shared world** for the Leaderboard and the Dictionary's
+  owners: every claimed word's beneficial owner (the keeper's scan), each wallet's loose letters
+  rebuilt from the Letters transfer events (the game's own contracts excluded), jackpot wins
+  (`JackpotWon`), and Farcaster names and pictures by address (`profilesByAddress`). Cached for a
+  minute in memory and at the edge; it reads every event since deploy, so it moves to the indexer
+  later (decisions.md #10). Client: `useWorld()` / `useMyWallets()` / `PlayerChip`.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
   share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
   `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
