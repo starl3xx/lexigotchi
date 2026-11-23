@@ -7,6 +7,8 @@
 import { useState, type ReactNode } from "react";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { TOTAL_SUPPLY_CAP, TOTAL_SLOTS, TIER_COUNTS, LEGENDARIES } from "@/lib/economy";
+import { DEFAULT_PARAMS } from "@/lib/params";
+import { usd } from "@/lib/howItWorks";
 import { Sheet } from "../primitives";
 import { CaretRight } from "../ui/icons";
 import { useGame } from "../state";
@@ -70,8 +72,9 @@ function useFaq(): { q: string; a: ReactNode }[] {
       q: "How does claiming a word work?",
       a: (
         <>
-          Spell any dictionary word with 5 letters of <strong>uniform case</strong> from your bag.
-          Claiming <strong>escrows</strong> those 5 letters and mints you one ERC-721 — the Word NFT.
+          Spell any dictionary word with 5 letters of <strong>uniform case</strong> from your bag. A
+          claim <strong>costs $WORD</strong>: about {usd(DEFAULT_PARAMS.prices.claim)} at today’s price
+          (the Spell tab shows the exact amount). Claiming <strong>escrows</strong> those 5 letters and mints you one ERC-721 — the Word NFT.
           There is exactly <strong>one NFT per word</strong> for its lifetime
           (<code>tokenId = keccak256(word)</code>), so two people can never both own CRANE. A word&apos;s
           case is <em>derived</em> from its escrowed letters (lowercase → Mixed → UPPERCASE), never

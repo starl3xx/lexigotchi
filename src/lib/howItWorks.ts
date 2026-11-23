@@ -10,6 +10,8 @@ import { WORD_COUNT } from "@/lib/dictionary";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
+/** A USD target from params, as the player reads it ($0.50). The live $WORD amount moves with the price. */
+export const usd = (x: number) => `$${x.toFixed(2)}`;
 
 export interface HowItWorksStep {
   n: number;
@@ -26,7 +28,7 @@ export const HOW_IT_WORKS: readonly HowItWorksStep[] = [
   {
     n: 2,
     title: "Create words",
-    body: `Use your letters to spell a 5-letter word from the ${WORD_COUNT.toLocaleString("en-US")}-word dictionary. Each word is a 1-of-1 and can only be held by one player at a time.`,
+    body: `Use your letters to spell a 5-letter word from the ${WORD_COUNT.toLocaleString("en-US")}-word dictionary. Each word is a 1-of-1 and can only be held by one player at a time. Claiming one costs about ${usd(DEFAULT_PARAMS.prices.claim)} in $WORD.`,
   },
   {
     n: 3,
