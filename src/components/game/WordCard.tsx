@@ -15,7 +15,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
   return (
     <button
       onClick={() => openSheet({ kind: "word", word: word.word })}
-      className={`cel w-full rounded-2xl bg-paper p-3 text-left transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none
+      className={`cel w-full rounded-2xl bg-paper p-3 text-left press
         ${answerReady ? "ring-2 ring-candy ring-offset-2 ring-offset-paper" : ""}`}
     >
       {/* One wrapping row of badges under the name. A right-hand badge column overlapped the tier

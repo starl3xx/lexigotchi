@@ -131,7 +131,7 @@ export function HomeScreen() {
 
       {/* bounty teaser */}
       <button onClick={() => g.nav("bounty")} className="w-full text-left">
-        <Card className="bg-teal/10 transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
+        <Card className="bg-teal/10 press">
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="text-sm font-bold text-teal-ink">This week’s bounty</div>

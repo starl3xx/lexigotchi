@@ -7,6 +7,9 @@ import type { Config } from "tailwindcss";
  */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
+  // `hover:` only where a real pointer hovers. On a phone a tap "hovers" too, and the style stuck
+  // on the last thing tapped.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       colors: {

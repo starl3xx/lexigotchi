@@ -49,7 +49,7 @@ export function DailyUnlock() {
           // Coming back attested changes nothing until we re-ask the chain, so the same tap that
           // sends them out also schedules the re-check they'd otherwise have to know to do.
           onClick={() => setTimeout(recheck, 4000)}
-          className="cel inline-flex items-center gap-1.5 rounded-xl bg-paper-dark px-3 py-2 text-sm font-extrabold"
+          className="cel press inline-flex items-center gap-1.5 rounded-xl bg-paper-dark px-3 py-2 text-sm font-extrabold"
         >
           <SealCheck weight="fill" size={15} /> Verify with Coinbase
         </a>

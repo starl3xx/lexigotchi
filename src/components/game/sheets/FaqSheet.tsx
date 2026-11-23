@@ -288,7 +288,7 @@ export function FaqSheet() {
             <div key={i} className="cel-sm overflow-hidden rounded-xl bg-paper">
               <button
                 onClick={() => setOpen(isOpen ? null : i)}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-paper-dark/60"
                 aria-expanded={isOpen}
               >
                 <span className="font-display text-sm font-extrabold">{item.q}</span>

@@ -63,8 +63,8 @@ export function DictionaryScreen() {
 
       <div className="flex flex-wrap gap-1.5">
         {TIERS.map((t) => (
-          <button key={t} onClick={() => setTier(t)}>
-            <Pill className={tier === t ? "bg-ink text-paper" : "bg-paper"}>
+          <button key={t} onClick={() => setTier(t)} className="group round-btn rounded-full">
+            <Pill className={tier === t ? "bg-ink text-paper" : "bg-paper transition-colors group-hover:bg-paper-dark"}>
               {t}
               {t !== "All" && <span className="text-ink/40">·{TIER_COUNTS[t as Tier]}</span>}
             </Pill>
@@ -96,7 +96,7 @@ export function DictionaryScreen() {
                             "info",
                           )
               }
-              className={`${owned ? "cel" : "cel-sm"} flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-[transform,box-shadow] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+              className={`${owned ? "cel" : "cel-sm"} flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left press ${
                 owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-paper"
               }`}
             >
