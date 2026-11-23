@@ -10,6 +10,10 @@ const nextConfig = {
   experimental: { optimizePackageImports: ["@phosphor-icons/react"] },
   // Pin the workspace root — a stray parent lockfile otherwise misleads Next's inference.
   outputFileTracingRoot: here,
+  // The Showcase card (src/app/s/[text]/card) is the one route that reads the Söhne TTFs at REQUEST
+  // time (/embed-image and /icon-image are static, so they read them at build). A serverless
+  // function only ships the files the build traced, so name them rather than trust the tracer.
+  outputFileTracingIncludes: { "/s/[text]/card": ["./public/fonts/soehne-*.ttf"] },
   // The vendored dictionary lives in /data and is imported by the economy lib.
   webpack: (config) => {
     // `wagmi/connectors` is a barrel: importing ANY connector pulls in `baseAccount`, which reaches
