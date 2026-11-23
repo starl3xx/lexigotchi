@@ -415,12 +415,11 @@ function ToastItem({ toast, onDone }: { toast: Toast; onDone: (id: number) => vo
     if (held) return;
     const started = Date.now();
     const id = window.setTimeout(() => setPhase("exit"), left.current);
+    // Hiding the tab only marks the toast held; this effect's cleanup (which runs because `held`
+    // changed) clears the timer and banks the time already shown, once. Banking it here as well
+    // counted the same span twice (Bugbot on #128).
     const onVis = () => {
-      if (document.hidden) {
-        window.clearTimeout(id);
-        left.current = Math.max(800, left.current - (Date.now() - started));
-        setHeld(true);
-      }
+      if (document.hidden) setHeld(true);
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
