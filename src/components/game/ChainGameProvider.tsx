@@ -36,12 +36,13 @@ import {
   type PriceItem,
   MOCK_PRICE,
   chainPrice,
+  jackpotEligible,
   GameCtx,
   reducer,
   seedState,
 } from "./state";
 import { rollSuccessProbability } from "@/lib/params";
-import { useOnchain } from "./useOnchain";
+import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
 import {
   readFeeBuckets,
   readOwnedWords,
@@ -92,6 +93,7 @@ import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call } from "@/lib/onchain/sendCalls";
+import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 
@@ -125,7 +127,12 @@ interface RollReveal extends OutcomeReveal {
  * action gets its own, bound to that action's status, so an abandoned action (dismissed with Hide,
  * then answered late by its wallet) can't drive a newer action's status.
  */
-type RunFn = (label: string, build: () => Call[]) => Promise<boolean>;
+/**
+ * `settles`: the caller re-reads until the change shows and says so itself (`sendAndSettle`), so
+ * the send skips its generic "sent" toast and its background re-reads of the words.
+ */
+type RunOpts = { settles?: boolean };
+type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
 
 /** Chain words → the shape screens already destructure. */
 function toOwnedWord(w: BagWord): OwnedWord {
@@ -333,12 +340,18 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
   const sendBatch = useCallback(
-    async (label: string, build: () => Call[], phase: SetPhase) => {
+    async (label: string, build: () => Call[], phase: SetPhase, opts?: RunOpts) => {
       try {
         phase("wallet");
         await chain.send(build());
         phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), pendingQ.refetch()]);
+        if (opts?.settles) return true;
+        // The words are a log scan, the read that lags a write the most, and one read right after
+        // the send usually misses it. Re-read on the same stagger as useOnchain's player state.
+        for (const delay of REFRESH_RETRIES) {
+          setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
+        }
         toast(`${label} sent`, "good");
         return true;
       } catch (err) {
@@ -361,11 +374,37 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     <T,>(label: string, flow: (run: RunFn, phase: SetPhase) => Promise<T>, refused: T) =>
       gate.run(
         label,
-        (phase) => flow((l, build) => sendBatch(l, build, phase), phase),
+        (phase) => flow((l, build, opts) => sendBatch(l, build, phase, opts), phase),
         refused,
         (inFlight) => toast(`Still working on: ${inFlight}`, "info"),
       ),
     [gate, sendBatch, toast],
+  );
+
+  /**
+   * Send, then keep re-reading the words until the change shows (lib/onchain/settle), and say what
+   * happened in the player's terms. The status pill stays on "Waiting for the chain…" meanwhile.
+   * Without this a claim, stake, or feed re-read the words once, right after the send, while the
+   * RPC still had the old bag: the action looked like it did nothing until a later refocus.
+   */
+  const sendAndSettle = useCallback(
+    async (
+      run: RunFn,
+      label: string,
+      build: () => Call[],
+      landed: (words: BagWord[]) => boolean,
+      says: { done: (words: BagWord[]) => string; pending: string },
+    ) => {
+      if (!(await run(label, build, { settles: true }))) return false;
+      let last: BagWord[] = [];
+      const seen = await readUntil(
+        async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data ?? []),
+        landed,
+      );
+      toast(seen ? says.done(last) : says.pending, seen ? "good" : "info");
+      return seen;
+    },
+    [wordsQ, toast],
   );
 
 
@@ -833,8 +872,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             }
             return void toast(`${word} isn't claimable`, "bad");
           }
-          await run(`Claim ${word}`, () =>
-            claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
+          const W = word.toUpperCase();
+          await sendAndSettle(
+            run,
+            `Claim ${word}`,
+            () => claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
+            (ws) => ws.some((x) => x.word === W),
+            {
+              done: () => `${W} is yours. It’s in your Bag.`,
+              pending: `Sent. ${W} will show in your Bag once the chain confirms it.`,
+            },
           );
         }, undefined);
       },
@@ -842,17 +889,42 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       toggleStake: (word: string) => {
         const w = state.words.find((x) => x.word === word);
         if (!w || !chain.player) return;
-        void track(w.staked ? `Unstaking ${word}` : `Staking ${word}`, (run) =>
-          run(w.staked ? `Unstake ${word}` : `Stake ${word}`, () =>
-            w.staked ? unstakeCalls(tokenIdOf(word)) : stakeCalls(tokenIdOf(word), chain.player!),
+        const staking = !w.staked;
+        void track(staking ? `Staking ${word}` : `Unstaking ${word}`, (run) =>
+          sendAndSettle(
+            run,
+            staking ? `Stake ${word}` : `Unstake ${word}`,
+            () => (staking ? stakeCalls(tokenIdOf(word), chain.player!) : unstakeCalls(tokenIdOf(word))),
+            (ws) => ws.some((x) => x.word === word && x.staked === staking),
+            {
+              done: (ws) => {
+                if (!staking) return `${word} is unstaked. It’s out of the daily jackpot.`;
+                // Hunger survives an unstake (the clock keeps running), so a restaked word can be
+                // staked and still too hungry to enter the jackpot.
+                const now = ws.find((x) => x.word === word);
+                return now && jackpotEligible(toOwnedWord(now))
+                  ? `${word} is staked. It’s in the daily jackpot.`
+                  : `${word} is staked. Feed it to enter the daily jackpot.`;
+              },
+              pending: `Sent. ${word} will show as ${staking ? "staked" : "unstaked"} once the chain confirms it.`,
+            },
           ), false);
       },
 
       feed: (word: string) => {
         if (!chain.params || !chain.player) return;
+        // A feed moves Staking.lastFed, which the word's card reads (via the words list) for its mood.
+        const before = state.words.find((x) => x.word === word)?.lastFedAt ?? 0;
         void track(`Feeding ${word}`, (run) =>
-          run(`Feed ${word}`, () =>
-            feedCalls(tokenIdOf(word), chain.params!, chain.player!, feedSizingFree),
+          sendAndSettle(
+            run,
+            `Feed ${word}`,
+            () => feedCalls(tokenIdOf(word), chain.params!, chain.player!, feedSizingFree),
+            (ws) => ws.some((x) => x.word === word && x.lastFedAt > before),
+            {
+              done: () => `${word} is fed.`,
+              pending: `Sent. ${word} will show as fed once the chain confirms it.`,
+            },
           ), false);
       },
 
@@ -861,11 +933,20 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         // Only words that are actually hungry — feed() has no on-chain guard, so feeding a fed word
         // burns a snack for nothing and there is no revert to catch.
         // mine only: feed() is staker-only on-chain, so a linked wallet's word would revert the batch.
-        const hungry = state.words.filter((w) => w.mine && w.staked && w.daysUnfed > 0).map((w) => tokenIdOf(w.word));
-        if (hungry.length === 0) return void toast("Nobody's hungry", "info");
+        const hungryWords = state.words.filter((w) => w.mine && w.staked && w.daysUnfed > 0);
+        const hungry = hungryWords.map((w) => tokenIdOf(w.word));
+        if (hungry.length === 0) return void toast("Nobody’s hungry", "info");
+        const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
         void track("Feeding your words", (run) =>
-          run("Feed all", () =>
-            feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),
+          sendAndSettle(
+            run,
+            "Feed all",
+            () => feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),
+            (ws) => [...before].every(([w, t]) => ws.some((x) => x.word === w && x.lastFedAt > t)),
+            {
+              done: () => (before.size === 1 ? `${[...before.keys()][0]} is fed.` : "Your words are fed."),
+              pending: "Sent. Your words will show as fed once the chain confirms it.",
+            },
           ), false);
       },
 
@@ -1014,7 +1095,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ],
+    [state, chain, address, connector, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
