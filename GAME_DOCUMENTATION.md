@@ -237,8 +237,9 @@ buckets can never pay out more than they hold; burn and treasury shares leave im
 | Royalty (in-house swap) | 0% | 0% | 0% | 100% |
 
 Roll / claim / prestige route only **10%** to the jackpot — operator-rake minimization for lottery
-compliance; the freed share goes to burn + pool. The **bounty carve** (default 15%, off until enabled)
-diverts a slice of the *pool* share into the bounty bucket. The economy is **strongly deflationary**:
+compliance; the freed share goes to burn + pool. The **bounty carve** (15%, on at launch)
+diverts a slice of the *pool* share into the bounty bucket. Each week's bounty pays when the week
+ends, to every staked, not-hungry word matching that week's theme. The economy is **strongly deflationary**:
 burn (snacks 100% + 20% of mints + 27.5% of rolls + 32.5% of claims) exceeds treasury accrual.
 
 ---
@@ -274,8 +275,8 @@ prestige: levels 4 · commitFee $0.25 · base 0.45 / +0.10 / cap 0.85 · 1.10× 
 bounty:   periodDays 7 · carveFraction 0.15 · chaseProbability 0.5 · rarityWeight 1.0  (default OFF)
 ```
 
-Prestige and bounty are default-off **sim levers** with experiments (`npm run loop-exp`); they're
-recommended to ship but gated behind their flags.
+Prestige and bounty are default-off **sim levers** with experiments (`npm run loop-exp`). At launch the
+bounty is on (`BOUNTY_CARVE_BPS=1500`) and prestige is off (`PRESTIGE_MAX_LEVEL=0`), per decisions.md #11.
 
 ---
 

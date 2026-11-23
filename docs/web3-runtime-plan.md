@@ -21,8 +21,9 @@ keys, money, a deploy, or a production database. Everything else is code and lan
   | #99 | The keeper runs itself (a daily cron), and the price keeper keeps prices on their USD peg. |
   | Cutover PR | Prototype buttons gone in the chain game; ascension hides while it is off. |
 
-- **Decisions that shape launch:** $WORD only (no ETH swap). Prestige and bounty are off at launch
-  (#11). The owner is one hardware-wallet EOA, with three separate hot keys and no multisig.
+- **Decisions that shape launch:** $WORD only (no ETH swap). Ascension (prestige) is off at launch;
+  the weekly bounty is on (#11). The owner is one hardware-wallet EOA, with four separate hot keys
+  (signer, keeper, price keeper, roll relayer) and no multisig.
 
 ## 1. Rehearse on Sepolia
 
@@ -77,8 +78,9 @@ yield epoch, so the bucket rolls over and nothing is lost.
 1. `npm run derive:contracts`. Then fill the deploy environment from the admin console's **Launch**
    tab, which converts the USD price ladder to $WORD at the live price. Set `TREASURY`, `SIGNER`,
    `KEEPER`, `PRICE_KEEPER`, `ANSWERCHAIN_HEAD`, and `PRESTIGE_MAX_LEVEL=0` (ascension off at
-   launch; the game hides it). Leave `BOUNTY_CARVE_BPS` at its default of 0, which keeps the bounty
-   off: nothing flows into its bucket.
+   launch; the game hides it), and `BOUNTY_CARVE_BPS=1500` (the bounty is on at launch: 15% of the
+   pool's cut funds it). The Launch tab fills both by default. The keeper settles each week's bounty
+   on the first day of the next week.
 2. `cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify`.
 3. Move ownership of all ten contracts to the hardware wallet: `transferOwnership` from the deployer,
    then `acceptOwnership` from the hardware wallet. Rolls and Prestige included: like every

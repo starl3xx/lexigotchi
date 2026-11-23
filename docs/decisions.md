@@ -134,7 +134,12 @@ showed; only the *decisions* changed.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
-11. **Prestige + bounty OFF at launch** (enable post-cohort); the secondary-letter swap is P1.
+11. **Prestige OFF at launch** (enable post-cohort); the secondary-letter swap is P1. **The weekly
+    bounty is ON at launch** (amended by starl3xx, 2026-11-23: "the bounty should be on at launch"):
+    deploy with `BOUNTY_CARVE_BPS=1500` (params `bounty.carveFraction` 0.15, zero-sum against
+    yield), and the keeper's `bounty` job is in the default run. A week pays when it ends: the run on
+    the first day of week P settles week P − 1 (`bountyPeriodToSettle`), so players can chase the
+    theme all week.
 12. **No external audit and no legal review** (starl3xx, 2026-11-21, verbatim): "there won't be a
     security audit (you can find skills to look at this) or lawyer convo". The internal audit with
     the `solidity-auditor` skill replaces the external one (`contracts/AUDIT.md`, second pass); its

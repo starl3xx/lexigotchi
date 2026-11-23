@@ -38,7 +38,8 @@ beforeEach(() => {
 describe("jobsFrom", () => {
   it("defaults to resolve, yield, repeg, notify, and always runs in canonical order", async () => {
     const { jobsFrom } = await import("@/lib/keeper/jobs");
-    expect(jobsFrom(undefined)).toEqual(["resolve", "yield", "repeg", "notify"]);
+    // The bounty is on at launch (decisions.md #11, amended); achievements stay opt-in.
+    expect(jobsFrom(undefined)).toEqual(["resolve", "yield", "bounty", "repeg", "notify"]);
     expect(jobsFrom("notify, bounty,resolve")).toEqual(["resolve", "bounty", "notify"]);
     expect(() => jobsFrom("resolve,payday")).toThrow(/payday/);
   });
@@ -65,7 +66,7 @@ describe("GET /api/cron/keeper", () => {
     const res = await GET(call("Bearer s3cret"));
     expect(res.status).toBe(200);
     expect(events).toEqual([
-      "start:resolve", "end:resolve", "start:yield", "end:yield",
+      "start:resolve", "end:resolve", "start:yield", "end:yield", "start:bounty", "end:bounty",
       "start:repeg", "end:repeg", "start:notify", "end:notify",
     ]);
   });
@@ -79,6 +80,7 @@ describe("GET /api/cron/keeper", () => {
     expect(body.results).toEqual([
       { job: "resolve", ok: true },
       { job: "yield", ok: false, error: "yield broke" },
+      { job: "bounty", ok: true },
       { job: "repeg", ok: true },
       { job: "notify", ok: true },
     ]);
@@ -98,5 +100,23 @@ describe("redactSecrets", () => {
     expect(out.toLowerCase()).not.toContain(salt.slice(2));
     expect(out).toContain("[WORD]");
     expect(out).toContain("[SALT]");
+  });
+});
+
+describe("bountyPeriodToSettle", () => {
+  it("settles the week that just ENDED, on the first day of the next, so the theme can be chased", async () => {
+    const { bountyPeriodToSettle } = await import("@/lib/keeper/jobs");
+    expect(bountyPeriodToSettle(7 * 2930)).toBe(2929); // first day of period 2930 → pay period 2929
+    expect(bountyPeriodToSettle(7)).toBe(0);
+  });
+
+  it("settles nothing on any other day (a later snapshot would count words staked after the week)", async () => {
+    const { bountyPeriodToSettle } = await import("@/lib/keeper/jobs");
+    for (let d = 1; d < 7; d++) expect(bountyPeriodToSettle(7 * 2930 + d)).toBeNull();
+  });
+
+  it("has nothing to settle before the first week ends", async () => {
+    const { bountyPeriodToSettle } = await import("@/lib/keeper/jobs");
+    expect(bountyPeriodToSettle(0)).toBeNull();
   });
 });

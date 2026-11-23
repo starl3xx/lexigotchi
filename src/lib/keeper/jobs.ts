@@ -65,10 +65,26 @@ export function redactSecrets(text: string, word: string, salt: string): string 
 export type KeeperJob = "resolve" | "yield" | "bounty" | "achievements" | "repeg" | "notify";
 
 /**
- * The scheduled run's jobs, from KEEPER_JOBS. Default "resolve,yield,notify": bounty is OFF at launch
- * (decisions.md #11) and achievements need the network's EAS schema, so both are opt-in.
+ * The scheduled run's jobs, from KEEPER_JOBS. Default "resolve,yield,bounty,repeg,notify": the bounty
+ * is ON at launch (decisions.md #11, amended 2026-11-23). Achievements need the network's EAS schema,
+ * so they stay opt-in.
  */
-export const DEFAULT_JOBS: KeeperJob[] = ["resolve", "yield", "repeg", "notify"];
+export const DEFAULT_JOBS: KeeperJob[] = ["resolve", "yield", "bounty", "repeg", "notify"];
+
+/**
+ * The bounty period the daily run settles today, or null. A period pays when it ENDS, so players
+ * can chase its theme all week: the Bounty screen shows the current week's theme, and the sim pays
+ * on a period's last day. So the run on the FIRST day of period P settles P - 1, from the state as
+ * that week closed. No other day settles anything: a later snapshot would count words staked after
+ * the week ended. A missed first day leaves that week's bucket to roll forward, as an unsatisfied
+ * week does. (The first version opened the CURRENT period on its first day, before anyone could
+ * chase its theme.)
+ */
+export function bountyPeriodToSettle(day: number, periodDays: number = DEFAULT_PARAMS.bounty.periodDays): number | null {
+  if (day < 0 || day % periodDays !== 0) return null;
+  const period = day / periodDays - 1;
+  return period >= 0 ? period : null;
+}
 export const KNOWN_JOBS: readonly KeeperJob[] = ["resolve", "yield", "bounty", "achievements", "repeg", "notify"];
 
 export function jobsFrom(raw: string | undefined): KeeperJob[] {
@@ -192,7 +208,17 @@ export function createKeeper(opts: { dry: boolean }) {
     const now = await readChainTime();
     const day = Math.floor(now / 86_400);
     const streamAddr = addressOf(kind === "yield" ? "yieldDistributor" : "bounty");
-    const epochId = kind === "yield" ? BigInt(day) : BigInt(Math.floor(day / 7));
+    let epochId: bigint;
+    if (kind === "yield") {
+      epochId = BigInt(day);
+    } else {
+      const period = bountyPeriodToSettle(day);
+      if (period === null) {
+        const left = DEFAULT_PARAMS.bounty.periodDays - (day % DEFAULT_PARAMS.bounty.periodDays);
+        return void console.log(`bounty: a week settles on the first day of the next; next in ${left} day(s)`);
+      }
+      epochId = BigInt(period);
+    }
 
     const existing = (await client.readContract({
       address: streamAddr, abi: merkleEpochsAbi, functionName: "epochs", args: [epochId],
