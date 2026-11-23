@@ -135,6 +135,7 @@ function toOwnedWord(w: BagWord): OwnedWord {
     upper: w.upper,
     staked: w.staked,
     daysUnfed: w.daysUnfed,
+    lastFedAt: w.lastFedAt,
     prestigeLevel: w.prestigeLevel,
     // Prestige pity is a per-token mapping with no batch getter; not surfaced yet, so the UI shows
     // base odds rather than an invented streak.

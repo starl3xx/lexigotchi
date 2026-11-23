@@ -72,6 +72,8 @@ export interface OwnedWord {
   upper: boolean[];
   staked: boolean;
   daysUnfed: number;
+  /** When it was last fed (unix seconds; chain store only, 0 = never). Undefined in the mock. */
+  lastFedAt?: number;
   prestigeLevel: number;
   /** Consecutive failed ascension attempts on this word (the prestige pity streak). */
   prestigePity: number;

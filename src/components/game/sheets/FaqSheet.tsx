@@ -38,7 +38,7 @@ function useFaq(): { q: string; a: ReactNode }[] {
         <>
           <strong>Mint</strong> lowercase letters → <strong>Raise</strong> them to UPPERCASE with
           rolls → <strong>Claim</strong> a dictionary word by escrowing 5 letters → <strong>Stake &
-          Snack</strong> to earn yield and a jackpot ticket → <strong>Win</strong> when your staked,
+          Snack</strong> for a daily jackpot ticket (and daily $WORD once a word is fully UPPERCASE) → <strong>Win</strong> when your staked,
           fed word is the day&apos;s secret answer.
         </>
       ),

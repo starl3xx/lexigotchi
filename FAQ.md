@@ -13,7 +13,7 @@ then stake and feed them to earn **$WORD** and chase a daily jackpot. It's a sib
 ## What's the core loop?
 
 **Mint** lowercase letters → **Raise** them to UPPERCASE with rolls → **Claim** a dictionary word by
-escrowing 5 letters → **Stake & Snack** to earn yield and a jackpot ticket → **Win** when your
+escrowing 5 letters → **Stake & Snack** for a daily jackpot ticket (and daily $WORD once a word is fully UPPERCASE) → **Win** when your
 staked, fed word is the day's secret answer.
 
 ## How do I mint letters?
