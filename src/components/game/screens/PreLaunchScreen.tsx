@@ -27,7 +27,7 @@ import { Check, CircleNotch, Gift, Plus, ShareNetwork, Sparkle } from "../ui/ico
 
 /** What the player posts. Embeds the /play link so the cast renders a launchable Lexigotchi card. */
 const SHARE_TEXT =
-  "Lexigotchi is coming to Farcaster — raise letters, own words, chase the daily $WORD jackpot. 🎩\n\n" +
+  "Lexigotchi is coming to Farcaster: raise letters, own words, and chase the daily $WORD jackpot. 🎩\n\n" +
   "Add the app + share before launch and a free 5-letter pack is waiting for you on day one.";
 
 type Step = "added" | "shared";
@@ -104,7 +104,7 @@ export function PreLaunchScreen() {
         // composeCast resolves with { cast: null } if the user closes the composer without posting.
         const result = await sdk.actions.composeCast({ text: SHARE_TEXT, embeds });
         if (!result?.cast) {
-          setNote("Cast not shared yet — tap Share to post it.");
+          setNote("Cast not shared yet. Tap Share to post it.");
           return;
         }
       } else {
@@ -118,13 +118,13 @@ export function PreLaunchScreen() {
       writeFlag("shared", fid);
       if (inFarcaster) void confirmShareCast(); // server-verify the cast (Neynar) → records the proof
     } catch {
-      setNote("Couldn't open the composer — give it another go.");
+      setNote("Couldn’t open the composer. Give it another go.");
     }
   }, [inFarcaster, fid]);
 
-  const heroTitle = done ? "You're on the list!" : "Get in before the doors open";
+  const heroTitle = done ? "You’re on the list!" : "Get in before the doors open";
   const heroSub = done
-    ? "Your free 5-letter pack is reserved. We'll raise the curtain soon — see you on opening day."
+    ? "Your free 5-letter pack is reserved. We’ll raise the curtain soon. See you on opening day."
     : "Lexigotchi opens soon. Add the app and share a cast now, and a free 5-letter pack will be waiting the moment we launch.";
 
   return (
@@ -163,14 +163,14 @@ export function PreLaunchScreen() {
               <TileWord word="early" upper={[false, false, false, false, false]} detail="bust" size={48} />
             </div>
             <p className="mt-2 text-center text-xs leading-relaxed text-ink/65">
-              A free <strong>5-letter pack</strong> — five fresh lowercase letters to start spelling and raising, dropped to you on day one.
+              A free <strong>5-letter pack</strong>: five fresh lowercase letters to start spelling and raising, dropped to you on day one.
             </p>
           </div>
 
           {/* web heads-up — adding requires a Farcaster client */}
           {!inFarcaster && !loading && (
             <div className="mt-4 rounded-xl border-2 border-gold/50 bg-gold/10 px-3 py-2 text-xs leading-relaxed text-ink/75">
-              You&apos;re on the web — open Lexigotchi inside Farcaster to add the app. You can still share from here.
+              You’re on the web. Open Lexigotchi inside Farcaster to add the app. You can still share from here.
             </div>
           )}
 
@@ -206,7 +206,7 @@ export function PreLaunchScreen() {
           </div>
 
           <p className="mx-auto mt-5 max-w-[24rem] text-center text-[11px] leading-relaxed text-ink/55">
-            Your pack is tied to your Farcaster account and waiting at launch — no wallet needed yet.
+            Your pack is tied to your Farcaster account and waiting at launch. No wallet needed yet.
           </p>
         </main>
       </div>

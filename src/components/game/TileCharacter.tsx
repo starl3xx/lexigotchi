@@ -752,7 +752,7 @@ export function TileCharacter({
     </svg>
   );
 
-  const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""} — ${state}${g ? ` · gilded ${g}` : ""}`;
+  const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""}, ${state}${g ? ` · gilded ${g}` : ""}`;
   const Tag = onClick ? "button" : "div";
   return (
     <Tag

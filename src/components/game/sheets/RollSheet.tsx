@@ -45,7 +45,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
         // unpaid — returning to ready would offer a second paid roll on top of an open commit.
         // Unknown resolves to stranded: the conservative direction is to withhold the retry.
         .catch(() => {
-          setStranded("We lost track of this roll — reopen to check before rolling again");
+          setStranded("We lost track of this roll. Reopen to check before rolling again");
           setPhase("stranded");
         });
       return;
@@ -85,7 +85,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
               RAISED! <Crown weight="fill" />
             </div>
-            <p className="text-sm text-ink/60">Now UPPERCASE — the blue game tile. Spell it into an all-UPPERCASE word to earn $WORD.</p>
+            <p className="text-sm text-ink/60">Now UPPERCASE: the blue game tile. Spell it into an all-UPPERCASE word to earn $WORD.</p>
           </div>
         )}
         {/* The new odds, shown at once: the provider lays the pity this miss set over the chain
@@ -131,7 +131,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
         )}
         {phase === "stranded" && (
           <Button full size="lg" variant="ghost" onClick={close}>
-            Close — we'll finish it
+            Close (we’ll finish it)
           </Button>
         )}
         {(phase === "win" || phase === "miss") && (

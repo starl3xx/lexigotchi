@@ -22,7 +22,7 @@ export function PendingReveal() {
           <span className="font-display font-extrabold">
             {g.pendingReveals === 1 ? "An unopened pull is waiting" : `${g.pendingReveals} unopened pulls are waiting`}
           </span>
-          <div className="text-xs text-ink/55">Paid for and safe on-chain — open it to get your letters.</div>
+          <div className="text-xs text-ink/55">Paid for and safe onchain. Open it to get your letters.</div>
         </div>
         <Button variant="primary" onClick={() => g.openPending()}>
           <Gift weight="fill" /> Open

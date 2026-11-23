@@ -14,7 +14,7 @@ import { WORD_COUNT } from "@/lib/dictionary";
 import type { LhawSummary } from "@/app/api/lhaw/route";
 
 const LHAW_URL = "https://letshaveaword.fun";
-const usd = (n: number | null | undefined) => (n == null ? "—" : `$${n.toFixed(2)}`);
+const usd = (n: number | null | undefined) => (n == null ? "–" : `$${n.toFixed(2)}`);
 
 export function LhawScreen() {
   const q = useQuery({

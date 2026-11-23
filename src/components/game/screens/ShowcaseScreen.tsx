@@ -74,7 +74,7 @@ export function ShowcaseScreen() {
             const meta = ACHIEVEMENT_META[b.achievement];
             if (!meta) return null;
             return (
-              <span key={b.achievement} className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold/15 px-2.5 py-1 text-xs font-bold" title="On-chain achievement (EAS attestation)">
+              <span key={b.achievement} className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold/15 px-2.5 py-1 text-xs font-bold" title="Onchain achievement (EAS attestation)">
                 {meta.emoji} {meta.name}
                 {b.achievement === 3 && b.value ? ` ${b.value}%` : ""}
               </span>

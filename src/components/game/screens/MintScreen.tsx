@@ -64,7 +64,7 @@ export function MintScreen() {
           <DailyUnlock />
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">One free letter, on the house — every day.</span>
+            <span className="text-sm text-ink/70">One free letter, on the house, every day.</span>
             <Button onClick={() => g.dailyMint()}>
               <Ticket weight="fill" /> Pull free
             </Button>
@@ -152,7 +152,7 @@ export function MintScreen() {
           </div>
         </div>
         <p className="mt-3 text-xs text-ink/55">
-          A letter&apos;s pull rate = its share of the {TOTAL_SLOTS.toLocaleString("en-US")} dictionary slots. Q is the Charizard.
+          A letter’s pull rate = its share of the {TOTAL_SLOTS.toLocaleString("en-US")} dictionary slots. Q is the Charizard.
         </p>
       </Card>
     </div>

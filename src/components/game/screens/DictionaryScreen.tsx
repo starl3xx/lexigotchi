@@ -121,7 +121,7 @@ export function DictionaryScreen() {
           );
         })}
       </div>
-      {results.length >= 80 && <p className="text-center text-xs text-ink/45">showing the first 80 — keep typing to narrow.</p>}
+      {results.length >= 80 && <p className="text-center text-xs text-ink/45">showing the first 80. Keep typing to narrow.</p>}
       {results.length === 0 && <p className="py-8 text-center text-sm text-ink/55">no words match.</p>}
     </div>
   );

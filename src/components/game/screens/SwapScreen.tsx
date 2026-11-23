@@ -32,7 +32,7 @@ export function SwapScreen() {
       return [...prev, i];
     });
   const fmtSet = (arr: number[]) =>
-    arr.length ? arr.map((i) => idxToChar(i)).join(" ") : "—";
+    arr.length ? arr.map((i) => idxToChar(i)).join(" ") : "–";
 
   const reset = () => {
     setGive([]);
@@ -67,7 +67,7 @@ export function SwapScreen() {
           variant="primary"
           onClick={() =>
             share({
-              text: `Lexigotchi swap — you give me ${fmtSet(want)}, I give you ${fmtSet(give)}${ask > 0 ? ` + ${fmtWord(ask)} $WORD` : ""}. Deal?`,
+              text: `Lexigotchi swap: you give me ${fmtSet(want)}, I give you ${fmtSet(give)}${ask > 0 ? ` + ${fmtWord(ask)} $WORD` : ""}. Deal?`,
             })
           }
         >
@@ -77,7 +77,7 @@ export function SwapScreen() {
           New swap
         </Button>
         <p className="text-center text-xs text-ink/50">
-          Direct two-sided escrow — not a marketplace. Open price discovery still lives on any 1155 venue.
+          A direct two-sided escrow, not a marketplace. Open price discovery still lives on any 1155 venue.
         </p>
       </div>
     );
@@ -187,7 +187,7 @@ function ChainSwap() {
         </div>
         <Button full variant="primary" className="mt-3" disabled={give === null || want === null}
           onClick={() => { if (give !== null && want !== null) { g.createSwapOffer(give, want); setGive(null); setWant(null); } }}>
-          <ArrowsDownUp weight="bold" /> List the offer — free to sign
+          <ArrowsDownUp weight="bold" /> List the offer (free to sign)
         </Button>
       </Card>
 
@@ -195,7 +195,7 @@ function ChainSwap() {
       <Card>
         <SectionTitle action={<span className="text-xs text-ink/55">{board.length} open</span>}>The board</SectionTitle>
         {board.length === 0 ? (
-          <p className="py-3 text-center text-sm text-ink/50">No open offers — list one above.</p>
+          <p className="py-3 text-center text-sm text-ink/50">No open offers. List one above.</p>
         ) : (
           <div className="space-y-2">
             {board.map((o) => (
@@ -206,7 +206,7 @@ function ChainSwap() {
                   <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
                 </span>
                 <Button variant="teal" disabled={!canFill(o.wantId)}
-                  title={canFill(o.wantId) ? "" : "You don't hold the letter they want"}
+                  title={canFill(o.wantId) ? "" : "You don’t hold the letter they want"}
                   onClick={() => g.fillSwapOffer(o.orderHash)}>
                   Trade
                 </Button>

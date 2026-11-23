@@ -38,8 +38,8 @@ export function BagScreen() {
         <div className="space-y-4">
           {elsewhere > 0 && (
             <p className="text-xs text-ink/55">
-              {elsewhere} of these live in your linked wallets — they count in your bag, but
-              spelling and rolling use the connected wallet&apos;s letters.
+              {elsewhere} of these live in your linked wallets. They count in your bag, but
+              spelling and rolling use the connected wallet’s letters.
             </p>
           )}
           <div>
@@ -71,7 +71,7 @@ export function BagScreen() {
                   <LetterTile key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />
                 ))}
               </div>
-              <p className="mt-2 text-xs text-ink/55">Raised letters spell all-UPPERCASE words — claim them in Spell.</p>
+              <p className="mt-2 text-xs text-ink/55">Raised letters spell all-UPPERCASE words. Claim them in Spell.</p>
             </div>
           )}
 

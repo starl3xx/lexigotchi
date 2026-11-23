@@ -42,12 +42,12 @@ export function JackpotScreen() {
                 if (res === "win") g.toast("JACKPOT! You held the word", "good");
                 else if (res === "lose")
                   g.toast(
-                    ownedAnswer ? "So close — you held it, but not staked & fed" : "Not your word today — it rolls over",
+                    ownedAnswer ? "So close: you held it, but it wasn’t staked and fed" : "Not your word today. It rolls over",
                     ownedAnswer ? "bad" : "info",
                   );
               }}
             >
-              <DiceFive weight="fill" /> Reveal today&apos;s word
+              <DiceFive weight="fill" /> Reveal today’s word
             </Button>
           </>
         ) : won ? (
@@ -63,14 +63,14 @@ export function JackpotScreen() {
           </div>
         ) : (
           <div className="py-2">
-            <p className="text-sm text-ink/60">Today&apos;s secret word was</p>
+            <p className="text-sm text-ink/60">Today’s secret word was</p>
             <div className="my-2 flex justify-center">
               <WordTiles word={state.jackpotWord} upper={Array(5).fill(false)} size={40} />
             </div>
             <p className="text-sm">
               {ownedAnswer
-                ? "You owned it — but it wasn't staked & fed. Feed your words!"
-                : "You didn't hold it. The pot rolls over."}
+                ? "You owned it, but it wasn’t staked and fed. Feed your words!"
+                : "You didn’t hold it. The pot rolls over."}
             </p>
             <Button full variant="ghost" className="mt-3" onClick={g.skipDay}>
               On to tomorrow →
@@ -82,9 +82,9 @@ export function JackpotScreen() {
       {/* your tickets */}
       <Card>
         <SectionTitle action={<span className="text-xs text-ink/55">{tickets.length} in play</span>}>Your tickets</SectionTitle>
-        <p className="mb-2 text-xs text-ink/60">Any staked, not-hungry word is a ticket. If it&apos;s today&apos;s secret word, you win.</p>
+        <p className="mb-2 text-xs text-ink/60">Any staked, not-hungry word is a ticket. If it’s today’s secret word, you win.</p>
         {tickets.length === 0 ? (
-          <p className="text-sm text-candy-ink">No eligible words — stake &amp; feed to get in the draw.</p>
+          <p className="text-sm text-candy-ink">No eligible words. Stake and feed one to get in the draw.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {tickets.map((w) => (
@@ -106,9 +106,9 @@ export function JackpotScreen() {
         <div className="flex items-start gap-2">
           <Gift weight="fill" size={22} className="shrink-0 text-teal-ink" />
           <div>
-            <div className="font-display font-extrabold">Bonus: Let&apos;s Have A Word!</div>
+            <div className="font-display font-extrabold">Bonus: Let’s Have A Word!</div>
             <p className="text-xs text-ink/60">
-              When an LHAW round&apos;s secret word is one you simply <em>own</em>, you take a separate bonus pool — no
+              When an LHAW round’s secret word is one you simply <em>own</em>, you take a separate bonus pool. No
               staking required.
             </p>
           </div>

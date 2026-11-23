@@ -33,9 +33,9 @@ export function DailyUnlock() {
   return (
     <div className="space-y-2">
       <div className="text-sm text-ink/70">
-        One free letter a day — with Farcaster, or a Coinbase-verified wallet.
+        One free letter a day, with Farcaster or a Coinbase-verified wallet.
         <div className="text-xs text-ink/50">
-          {checking ? "Checking your wallet…" : "Either one proves you're one person, once a day."}
+          {checking ? "Checking your wallet…" : "Either one proves you’re one person, once a day."}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -55,7 +55,7 @@ export function DailyUnlock() {
         </a>
         {verified === false && (
           <button onClick={recheck} className="text-xs font-bold text-ink/45 underline">
-            I verified — check again
+            I verified. Check again
           </button>
         )}
       </div>

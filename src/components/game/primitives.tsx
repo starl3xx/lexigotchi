@@ -156,7 +156,7 @@ export function Countdown({ className = "" }: { className?: string }) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-  return <span className={`tabular-nums ${className}`}>{left || "—"}</span>;
+  return <span className={`tabular-nums ${className}`}>{left || "–"}</span>;
 }
 
 // ---------------------------------------------------------------------------

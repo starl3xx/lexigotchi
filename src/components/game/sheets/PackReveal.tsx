@@ -23,7 +23,7 @@ export function PackReveal({ letters }: { letters: number[] }) {
       <p className="flex items-center justify-center gap-1 text-center text-sm text-ink/60">
         {gotRare ? (
           <>
-            Ooh — a rare one in there <Sparkle weight="fill" size={13} className="text-gold-ink" />
+            Ooh, a rare one in there <Sparkle weight="fill" size={13} className="text-gold-ink" />
           </>
         ) : letters.length === 1 ? (
           // The sheet is shared by the 5-pack AND the daily single — the copy has to count.

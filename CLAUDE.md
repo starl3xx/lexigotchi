@@ -225,6 +225,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hungry" to every player; (2) the explanatory comments. In `contracts/` the NatSpec is an audit
   deliverable someone pays to read, and elsewhere the comment carrying the *why* is usually the
   part that stops the next person reintroducing the bug.
+- **Player-facing copy follows the house rules, and `tests/copy-rules.test.ts` enforces them** on
+  every rendered string in `src/components/game`, `src/components/landing`, `howItWorks.ts`, and the
+  notification templates: no em dashes (pick the mark the sentence needs: colon, comma, period, or
+  brackets; a missing value shows an en dash "–"), curly apostrophes and quotes, and "onchain" as one
+  word. Code comments are exempt.
 - **Builder-code attribution is mandatory**: every on-chain action routes through
   `src/lib/onchain/builderCode.ts` (ERC-8021 suffix) or we silently forfeit Base builder rewards —
   the tx still sends, it's just uncredited. `tests/builder-code.test.ts` is the round-trip guardrail.

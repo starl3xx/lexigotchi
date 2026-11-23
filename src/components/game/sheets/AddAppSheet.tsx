@@ -23,7 +23,7 @@ export function AddAppSheet() {
     const { ok, error } = await add();
     if (ok) {
       setDone(true);
-      toast("Added — see you tomorrow! 🎩", "good");
+      toast("Added. See you tomorrow! 🎩", "good");
       window.setTimeout(closeSheet, 900);
     } else if (error) {
       setErr(error);
@@ -38,7 +38,7 @@ export function AddAppSheet() {
           <h3 className="font-display text-lg font-extrabold">Keep your letters close</h3>
           <p className="mx-auto mt-1 max-w-[22rem] text-sm leading-relaxed text-ink/70">
             Add Lexigotchi to your Farcaster apps so your free daily letter, the jackpot, and your hungry
-            words are one tap away — and get a nudge before you miss a day.
+            words are one tap away, and get a nudge before you miss a day.
           </p>
         </div>
 

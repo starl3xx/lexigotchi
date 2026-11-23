@@ -48,7 +48,7 @@ export function BountyScreen() {
       <Card className="bg-gradient-to-b from-teal/15 to-paper">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-teal-ink">This week&apos;s bounty</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-teal-ink">This week’s bounty</div>
             <div className="font-display text-xl font-extrabold">{theme.name}</div>
           </div>
           <Medal weight="fill" size={40} className="text-teal-ink" />
@@ -76,8 +76,8 @@ export function BountyScreen() {
                 {fmtWord(claimTotal)} $WORD to claim
               </div>
               <div className="text-xs text-ink/60">
-                {g.claimables.length} reward{g.claimables.length === 1 ? "" : "s"} across yield + bounty epochs —
-                each pays its own wallet, so one tap collects for your whole bag.
+                {g.claimables.length} reward{g.claimables.length === 1 ? "" : "s"} across yield and bounty epochs.
+                Each pays its own wallet, so one tap collects for your whole bag.
               </div>
             </div>
             <Button variant="gold" onClick={() => g.claimEarnings()}>

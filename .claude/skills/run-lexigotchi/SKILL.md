@@ -83,7 +83,7 @@ Verified output:
 
 ```
 # no wallet
-HEADER     : "LEXIGOTCHI\n—\n$WORD"        ← "—", never 0. See Gotchas.
+HEADER     : "LEXIGOTCHI\n–\n$WORD"        ← "–" (en dash), never 0. See Gotchas.
 "Connect to play"
 --- CONSOLE ERRORS: 0 ---
 
@@ -142,7 +142,7 @@ npm run build   # completes WITH WARNINGS — see Gotchas
   mainnet, where no contract is deployed. Chain reads then yield `undefined`, `fmtWord(undefined)`
   renders `"NaN"`, and `undefined >= n` is false, so the game disables itself and routes a solvent
   player to the Buy sheet. That's why the driver prints `NaN in DOM` — treat `true` as a failure.
-- **The header shows `—`, not `0`, when the balance is unknown.** If you ever see `0 $WORD` before a
+- **The header shows `–` (an en dash), not `0`, when the balance is unknown.** If you ever see `0 $WORD` before a
   wallet connects, `ChainGate` has been unmounted. That exact regression shipped once while nine
   passing tests covered the component in isolation.
 - **Onboarding covers the whole app** on a fresh browser profile. The driver clicks `Skip`; doing
