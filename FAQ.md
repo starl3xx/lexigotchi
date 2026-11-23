@@ -34,7 +34,8 @@ that letter starts. Only UPPERCASE words earn daily yield.
 
 ## How does claiming a word work?
 
-Spell any dictionary word with 5 letters of **uniform case** from your bag. Claiming **escrows** those
+Spell any dictionary word with 5 letters of **uniform case** from your bag. A claim **costs $WORD**:
+about $0.50 at today’s price (the Spell tab shows the exact amount). Claiming **escrows** those
 5 letters and mints you one ERC-721 — the Word NFT. There is exactly **one NFT per word** for its
 lifetime (`tokenId = keccak256(word)`), so two people can never both own CRANE. A word's case is
 *derived* from its escrowed letters (lowercase → Mixed → UPPERCASE), never stored separately.
