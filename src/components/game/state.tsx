@@ -707,7 +707,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           return;
         }
         dispatch({ t: "claim", word, useUpper });
-        toast(`Claimed ${word} — it's yours forever`, "good");
+        toast(`${word} is yours. It’s in your Bag.`, "good");
       },
       toggleStake: (word) => dispatch({ t: "stake", word }),
       feed: (word) => {

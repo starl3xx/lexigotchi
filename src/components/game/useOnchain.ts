@@ -23,7 +23,7 @@ const PARAMS_STALE_MS = 60_000;
 /** Player state changes with every action; keep it tight so buttons don't lie. */
 const PLAYER_STALE_MS = 5_000;
 /** Staggered re-reads after a write, to outlast RPC read-after-write lag (see send()). */
-const REFRESH_RETRIES = [2_000, 6_000];
+export const REFRESH_RETRIES = [2_000, 6_000];
 
 export interface OnchainState {
   address?: `0x${string}`;

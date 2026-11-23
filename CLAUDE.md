@@ -170,7 +170,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   tap (preparing → confirm in your wallet → waiting for the chain), and a second tap while one is in
   flight sends nothing. Wrap any new action in `track`, or its tap looks ignored during the
   proof/voucher/read work before the wallet opens, and send with the `run` it hands the flow (each
-  action's own, so an action abandoned with Hide can't drive a newer one's status). **Rolls are
+  action's own, so an action abandoned with Hide can't drive a newer one's status). Claim, stake, unstake, and feed then **re-read the words until the change shows** (`sendAndSettle`, `src/lib/onchain/settle.ts`: reads at 0, 2, 5, 10, and 20 s) and announce it with the word; one read right after a send misses it, because a send returns when the wallet accepts and the words are a log scan. **Rolls are
   finished by the server** (decisions.md #14): `revealRoll` posts `{ relay: true }` and
   `/api/roll/reveal` sends `Rolls.reveal` from `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`),
   so the wallet never previews the result; the answer's `relayed` field says what happened, and only
