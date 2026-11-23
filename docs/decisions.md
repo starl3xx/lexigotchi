@@ -146,7 +146,10 @@ showed; only the *decisions* changed.
     to `/s/<letters>`, a page whose card draws the letters (X shows a picture only for a link that
     carries its own `og:image`). And a tap must never look ignored: "there should be a loading
     indicator or something to indicate to the user that their action has been recorded/submitted
-    and is processing" (`src/lib/onchain/actionGate.ts`, the BusyPill).
+    and is processing" (`src/lib/onchain/actionGate.ts`, the BusyPill). Coinbase renamed Base
+    Account to **Coinbase Wallet** ("looks like sign in with Base is now Coinbase Wallet BTW"). The
+    official button keeps its "Sign in with Base" label, because Coinbase's docs still ship it with
+    that fixed label. Our own copy says Coinbase Wallet, as the popup does.
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

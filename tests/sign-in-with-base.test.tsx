@@ -78,7 +78,8 @@ describe("Sign in with Base", () => {
   it("holds the button's footprint while the Base Account is asked", () => {
     state = { isPending: true, variables: { connector: connectors[2] } };
     render(<SignInWithBase />);
-    expect(screen.getByText("Check your Base Account…")).toBeTruthy();
+    // The popup it waits on now calls itself Coinbase Wallet, so the wait does too.
+    expect(screen.getByText("Check your Coinbase Wallet…")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Sign in with Base" })).toBeNull();
   });
 
