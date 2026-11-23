@@ -126,6 +126,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   destroyed = 100B minted − totalSupply; the dead address holds LHAW's old V2 "burns"), the deepest
   pool from GeckoTerminal (its token-level `total_reserve_in_usd` is only the $WORD side; the pool's
   `reserve_in_usd` is both), and LHAW's staked total and burn counter. `useBuyWord` is the shared Buy.
+  **Swap** (`SwapCard`, web only; Farcaster uses the host's swapToken): KyberSwap quotes and calldata
+  via `/api/swap/{quote,build,balances}` with the rules in `lib/swap/kyber.ts` (ETH/USDC ⇄ $WORD
+  only, router pinned to `KYBER_ROUTER` and refused otherwise, recipient = sender, exact-amount
+  approvals, no paymaster). Sent through `sendCallsAttributed(..., { network: BASE, sponsored: false })`
+  so it carries the builder suffix and must be on Base mainnet even on a testnet build.
 - `/api/lhaw` + `LhawScreen` → the in-game **Let's Have A Word!** page (rail: "$WORD universe"): LHAW's
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).

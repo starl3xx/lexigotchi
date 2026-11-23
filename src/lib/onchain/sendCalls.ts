@@ -12,7 +12,7 @@
  * wallet, so attribution can never be skipped. See docs/web3-runtime-plan.md.
  */
 import { builderCapabilities, appendBuilderSuffix } from "./builderCode";
-import { NETWORK } from "./network";
+import { NETWORK, type NetworkDef } from "./network";
 
 /**
  * ERC-7677 gas sponsorship, advertised via the ERC-5792 `paymasterService` capability.
@@ -49,8 +49,8 @@ export type SendResult =
 
 /** Thrown when the wallet is not on the game's chain and could not be moved there. */
 export class WrongChainError extends Error {
-  constructor() {
-    super(`Your wallet is on the wrong network — switch it to ${NETWORK.name} and try again`);
+  constructor(net: NetworkDef = NETWORK) {
+    super(`Your wallet is on the wrong network — switch it to ${net.name} and try again`);
     this.name = "WrongChainError";
   }
 }
@@ -66,14 +66,15 @@ export class WrongChainError extends Error {
  * doesn't know it), then RE-CHECK — a wallet can silently no-op a switch request, and the re-check
  * is the only part the wallet can't fake by resolving the promise.
  */
-async function ensureChain(provider: Eip1193Provider): Promise<void> {
+async function ensureChain(provider: Eip1193Provider, net: NetworkDef = NETWORK): Promise<void> {
+  const idHex = `0x${net.id.toString(16)}`;
   const read = async () => parseInt(String(await provider.request({ method: "eth_chainId" })), 16);
-  if ((await read()) === CHAIN_ID) return;
+  if ((await read()) === net.id) return;
 
   try {
     await provider.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: CHAIN_ID_HEX }],
+      params: [{ chainId: idHex }],
     });
   } catch (err) {
     // 4902: the wallet has never heard of this chain — teach it, then switch again.
@@ -82,22 +83,22 @@ async function ensureChain(provider: Eip1193Provider): Promise<void> {
       method: "wallet_addEthereumChain",
       params: [
         {
-          chainId: CHAIN_ID_HEX,
-          chainName: NETWORK.name,
+          chainId: idHex,
+          chainName: net.name,
           nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-          rpcUrls: [NETWORK.publicRpc],
-          blockExplorerUrls: [NETWORK.explorer],
+          rpcUrls: [net.publicRpc],
+          blockExplorerUrls: [net.explorer],
         },
       ],
     });
     // Some wallets switch as part of adding; others need to be asked again. The re-check below is
     // the arbiter either way.
     await provider
-      .request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] })
+      .request({ method: "wallet_switchEthereumChain", params: [{ chainId: idHex }] })
       .catch(() => {});
   }
 
-  if ((await read()) !== CHAIN_ID) throw new WrongChainError();
+  if ((await read()) !== net.id) throw new WrongChainError(net);
 }
 
 /**
@@ -112,8 +113,16 @@ export async function sendCallsAttributed(
   provider: Eip1193Provider,
   from: `0x${string}`,
   calls: Call[],
+  /**
+   * `network`: the chain the calls must go to (default: the game's). The $WORD swap names Base
+   * mainnet explicitly, because the real token lives there even on a testnet build.
+   * `sponsored`: offer the paymaster (default true). The swap passes false: the sponsorship policy
+   * covers the game's contracts, not a third-party router.
+   */
+  opts: { network?: NetworkDef; sponsored?: boolean } = {},
 ): Promise<SendResult> {
-  await ensureChain(provider);
+  const net = opts.network ?? NETWORK;
+  await ensureChain(provider, net);
   try {
     const id = await provider.request({
       method: "wallet_sendCalls",
@@ -121,10 +130,10 @@ export async function sendCallsAttributed(
         {
           version: "2.0.0",
           from,
-          chainId: CHAIN_ID_HEX,
+          chainId: `0x${net.id.toString(16)}`,
           atomicRequired: false,
           calls: calls.map((c) => ({ to: c.to, data: c.data ?? "0x", value: c.value })),
-          capabilities: builderCapabilities(paymasterCapability()),
+          capabilities: builderCapabilities(opts.sponsored === false ? {} : paymasterCapability()),
         },
       ],
     });

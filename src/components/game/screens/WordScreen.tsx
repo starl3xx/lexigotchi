@@ -11,7 +11,8 @@ import { useAccount } from "wagmi";
 import { Button, Card, SectionTitle } from "../primitives";
 import { ArrowRight, Copy, Fire, Planet } from "../ui/icons";
 import { fmtWord, useGame } from "../state";
-import { useBuyWord } from "../useBuyWord";
+import { BUY_URL, useBuyWord } from "../useBuyWord";
+import { SwapCard } from "../SwapCard";
 import { useOpenUrl } from "../useShare";
 import { fmtMarketCap } from "@/components/WordStrip";
 import { DOCS_URL } from "@/lib/site";
@@ -105,9 +106,16 @@ export function WordScreen() {
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="primary" onClick={buy} disabled={env === "loading"}>
-            Buy $WORD
-          </Button>
+          {/* Inside Farcaster, the host's own swap; on the web, the swap card below does it here. */}
+          {env === "farcaster" ? (
+            <Button variant="primary" onClick={buy}>
+              Buy $WORD
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={() => void openUrl(BUY_URL)} disabled={env === "loading"}>
+              Other ways to buy ↗
+            </Button>
+          )}
           {d?.pool && (
             <Button variant="ghost" onClick={() => void openUrl(d.pool!.url)}>
               Chart ↗
@@ -115,6 +123,9 @@ export function WordScreen() {
           )}
         </div>
       </Card>
+
+      {/* swap, on the web (Farcaster uses the host's swap, above) */}
+      {env === "web" && <SwapCard />}
 
       {/* supply and burns */}
       <Card>
