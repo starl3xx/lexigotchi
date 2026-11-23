@@ -42,8 +42,8 @@ export function NextSteps() {
     <Card>
       <SectionTitle>Your next steps</SectionTitle>
       <ul className="divide-y-2 divide-ink/10">
-        {visible.map((s) => (
-          <Row key={keyOf(s)} step={s}>
+        {visible.map((s, i) => (
+          <Row key={keyOf(s)} step={s} reveal={i >= SHOWN ? i - SHOWN : undefined}>
             {s.kind === "rewards" && (
               <Button size="sm" variant="gold" onClick={g.claimEarnings}>
                 Claim
@@ -100,10 +100,14 @@ function keyOf(s: NextStep): string {
 }
 
 /** One step: an icon, what to do and why, and the button that does it. */
-function Row({ step, children }: { step: NextStep; children: ReactNode }) {
+function Row({ step, reveal, children }: { step: NextStep; reveal?: number; children: ReactNode }) {
   const { icon, text } = describe(step);
   return (
-    <li className="flex items-center gap-3 py-2.5 first:pt-1 last:pb-0">
+    // Rows revealed by "Show more" slide in one after another (globals.css, .row-in).
+    <li
+      className={`flex items-center gap-3 py-2.5 first:pt-1 last:pb-0 ${reveal !== undefined ? "row-in" : ""}`}
+      style={reveal !== undefined ? { animationDelay: `${reveal * 45}ms` } : undefined}
+    >
       <span className="shrink-0 text-ink/70" aria-hidden>
         {icon}
       </span>

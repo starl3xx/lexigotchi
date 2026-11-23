@@ -1,6 +1,6 @@
 "use client";
 /** Win — the daily jackpot. Lexigotchi picks a secret word; hold it staked & fed → take the pot. */
-import { Button, Card, Countdown, SectionTitle } from "../primitives";
+import { Button, Card, Countdown, SectionTitle, TweenNumber } from "../primitives";
 import { WordTiles } from "../LetterTile";
 import { Confetti, DiceFive, Gift, SmileyMeh, Star } from "../ui/icons";
 import { fmtWord, hunger, jackpotEligible, useGame } from "../state";
@@ -21,7 +21,9 @@ export function JackpotScreen() {
         <div className="text-sm font-bold text-ink/60">Daily jackpot</div>
         {!state.jackpotRevealed ? (
           <>
-            <div className="my-1 font-display text-4xl font-extrabold text-gold-deep">{fmtWord(state.jackpotPot)}</div>
+            <div className="my-1 font-display text-4xl font-extrabold text-gold-deep">
+              <TweenNumber value={state.jackpotPot} format={fmtWord} />
+            </div>
             <div className="text-xs text-ink/60">$WORD · draws in <Countdown /></div>
             <div className="my-4 flex justify-center gap-1.5">
               {Array.from({ length: 5 }).map((_, i) => (
