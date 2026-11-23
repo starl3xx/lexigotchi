@@ -204,8 +204,11 @@ export function Sheet({
     // stretches across a desktop window.
     <div className="absolute inset-0 z-40 flex flex-col justify-end md:items-center md:justify-center md:p-6" role="dialog" aria-modal="true">
       <button aria-label="Close" className="absolute inset-0 bg-ink/50" onClick={onClose} />
-      <div className="relative max-h-[88%] overflow-y-auto rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper pb-6 shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:max-w-[560px] md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714]">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b-2 border-ink/15 bg-paper/95 px-4 py-3 backdrop-blur">
+      {/* The bordered, rounded box never scrolls itself: only the body below the title bar does.
+          When the box was the scroller, a browser that always shows scrollbars (Brave, or any
+          macOS setup with a mouse) drew its track over the right border and the rounded corner. */}
+      <div className="relative flex max-h-[88%] flex-col overflow-hidden rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:max-w-[560px] md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714]">
+        <div className="flex shrink-0 items-center justify-between border-b-2 border-ink/15 bg-paper px-4 py-3">
           <div className="font-display text-lg font-extrabold">{title}</div>
           <button
             onClick={onClose}
@@ -215,7 +218,7 @@ export function Sheet({
             <X weight="bold" size={16} />
           </button>
         </div>
-        <div className="px-4 pt-4">{children}</div>
+        <div className="ink-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">{children}</div>
       </div>
     </div>
   );
