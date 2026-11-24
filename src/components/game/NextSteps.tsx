@@ -27,6 +27,7 @@ export function NextSteps() {
     claimables: g.claimables,
     lower: mineLower(state),
     upper: mineUpper(state),
+    bagLetters: state.lower.reduce((a, b) => a + b, 0) + state.upper.reduce((a, b) => a + b, 0),
     pity: state.pity,
     rollProb: g.rollProb,
   }).filter((s) => !(s.kind === "stake" && s.word === stagedStake));

@@ -25,6 +25,11 @@ export interface NextStepsInput {
   /** The connected wallet's own loose letters, 26 counts each (mineLower / mineUpper). */
   lower: number[];
   upper: number[];
+  /**
+   * Loose letters across the whole bag (every linked wallet). A player whose letters sit in another
+   * wallet doesn't have an empty bag: the game wallet notice tells them where things are.
+   */
+  bagLetters?: number;
   /** Per-letter roll pity (A..Z) and the odds it gives. */
   pity: readonly number[];
   rollProb: (pity: number) => number;
@@ -79,7 +84,7 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
 
   // An empty bag: nothing above applies, so point at the start.
   const letters = i.lower.reduce((a, b) => a + b, 0) + i.upper.reduce((a, b) => a + b, 0);
-  if (mine.length === 0 && letters === 0) steps.push({ kind: "start" });
+  if (i.words.length === 0 && letters === 0 && (i.bagLetters ?? 0) === 0) steps.push({ kind: "start" });
 
   return steps;
 }

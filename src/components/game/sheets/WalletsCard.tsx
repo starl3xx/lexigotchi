@@ -302,9 +302,11 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                         : "Linked"}
                   {h && <> · {holdingsText(h)}</>}
                 </div>
-                {!isHere && movable(h) > 0 && (
+                {/* Only a wallet whose things are in the wrong place gets the hint: never the game wallet. */}
+                {!isHere && movable(h) > 0 && w !== gameWallet && (
                   <div className="mt-0.5 text-[11px] text-ink/50">
-                    {inHost ? "Open Lexigotchi on the web with this wallet to move them." : "Switch to this wallet to move them."}
+                    {inHost ? "Open Lexigotchi on the web with this wallet" : "Switch to this wallet"} to move them
+                    {gameWallet ? " to your game wallet" : ""}.
                   </div>
                 )}
               </div>
