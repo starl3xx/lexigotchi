@@ -339,7 +339,11 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
         Before a word goes hungry, when your daily letter is ready, and if you win the jackpot. Your email is never shown to anyone.
       </p>
 
-      {saved ? (
+      {p.signedIn && !p.ownLoaded ? (
+        // Signed in, but the own view (the only one with the email) hasn't arrived: never offer
+        // "Add email" to a player who may already have one (Bugbot on #139).
+        <p className="mt-2 text-xs text-ink/55">{p.ownFailed ? "Couldn’t load your email settings. Close and reopen your profile to try again." : "Loading your email settings…"}</p>
+      ) : saved ? (
         <div className="mt-2 space-y-2">
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="min-w-0 truncate font-bold">{saved.address}</span>

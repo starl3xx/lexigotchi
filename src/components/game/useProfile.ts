@@ -282,6 +282,12 @@ export function useProfile() {
     // A stored session counts at once. Waiting for /me made the sheet ask a player to sign in
     // while their session was still loading (Bugbot on #136); a dead token is forgotten on its 401.
     signedIn: Boolean(token),
+    /**
+     * The own view (with email) has loaded. Until it does, `profile` is the public view, whose email
+     * is always null, so "no email" can't be told apart from "not loaded yet" without this.
+     */
+    ownLoaded: Boolean(me.data),
+    ownFailed: me.isError || (me.isFetched && !me.data && Boolean(token)),
     /** The own view (with email) when signed in, else the public view. */
     profile: me.data ?? (pub.data ? { ...pub.data, email: null } : null),
     loading: me.isLoading || pub.isLoading,
