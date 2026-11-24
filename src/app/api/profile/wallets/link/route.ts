@@ -39,6 +39,9 @@ export async function POST(req: Request) {
     if (!(await verifyWalletSignature(msg.address, body.message, body.signature, [getPublicClient(), getMainnetClient()]))) {
       return refuse("bad_signature", 401);
     }
+    // The code's account must still head its own account: if it has since joined another, this
+    // link would chain (B → A while A → C). The wallet signed for A, not C, so refuse (Bugbot on #158).
+    if ((await accountOf(live.account)) !== live.account.toLowerCase()) return refuse("stale_code", 410);
     const address = msg.address.toLowerCase();
     const [addressAccount, accountList] = await Promise.all([accountOf(address), walletsOfAccount(live.account)]);
     const refusal = linkRefusal({
