@@ -162,7 +162,7 @@ so he can test everything on the live site): the note on `docs-site/index.mdx` a
 live?" in `docs-site/faq.mdx`. The game header shows a "Testnet" badge and the landing page a
 "Testnet" note while `NETWORK.isTestnet`, so those follow the setting by themselves. In the same PR
 that commits the mainnet addresses (and sets `NEXT_PUBLIC_CHAIN_ID` back to 8453 or unsets it),
-remove both docs notes, and consider adding the contract addresses to `docs-site/fairness.mdx`.
+remove both docs notes, and replace the Base Sepolia table in `docs-site/contracts.mdx` with the mainnet addresses (and its "Right now the game runs on Base Sepolia" paragraph). The Words and Letters pages' token facts (ERC-721 "Lexigotchi Word"/`WORD-NFT`, ERC-1155 ids 0–51, the 2.5% ERC-2981 signal) come from the contracts: change them with the contracts.
 
 Two more notes come out when a switch flips, not with the launch PR:
 

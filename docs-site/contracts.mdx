@@ -1,0 +1,53 @@
+---
+title: "Contracts and standards"
+description: "The chain, the token standards, and the contracts behind the game."
+---
+
+Everything you own in Lexigotchi is a standard token in your own wallet, and every rule that moves value runs in a contract anyone can read.
+
+## The chain
+
+Lexigotchi runs on [Base](https://docs.base.org), an Ethereum layer 2.
+
+Right now the game runs on **Base Sepolia** (chain ID 84532), Base’s test network, so its \$WORD is test \$WORD with no value. At launch it moves to **Base mainnet** (chain ID 8453). [Connect to Base](https://docs.base.org/base-chain/quickstart/connecting-to-base) lists both networks’ settings, and [Get Funds](https://docs.base.org/base-chain/network-information/network-faucets) lists faucets for Base Sepolia ETH, which pays testnet gas.
+
+## Tokens
+
+| What | Standard | Details |
+| --- | --- | --- |
+| \$WORD | [ERC-20](https://eips.ethereum.org/EIPS/eip-20) | The real token is on Base mainnet at [`0x304e…fb4b`](https://basescan.org/token/0x304e649e69979298bd1aee63e175adf07885fb4b). The testnet game uses test \$WORD. See [\$WORD and prices](/word). |
+| Letters | [ERC-1155](https://eips.ethereum.org/EIPS/eip-1155) | 52 token IDs: 0 to 25 are lowercase, 26 to 51 are UPPERCASE. See [letter tokens](/letters#letter-tokens). |
+| Words | [ERC-721](https://eips.ethereum.org/EIPS/eip-721) | One token per word, whose ID is the word’s keccak256 hash. See [the Word NFT](/words#the-word-nft). |
+
+## Contracts on Base Sepolia
+
+| Contract | What it does | Address |
+| --- | --- | --- |
+| Letters | Mints letters (packs and the daily letter), caps each letter’s supply, and raises letters | [`0x433B…d0CC`](https://sepolia.basescan.org/address/0x433B08547d58aA315752340EC7813Fcc71b7d0CC) |
+| Words | Claims and dissolves words, and holds their letters | [`0x4229…924D`](https://sepolia.basescan.org/address/0x42292fF0BaAdBC90bD83a11e3C7Ca9E3474F924D) |
+| Rolls | Rolls letters to UPPERCASE | [`0x71b5…D7e5`](https://sepolia.basescan.org/address/0x71b504a88ebBffb95B9CE6F2f63702Df6d7FD7e5) |
+| Staking | Holds staked words and keeps the hunger clock | [`0x6262…F3A8`](https://sepolia.basescan.org/address/0x6262032BA960390D3016D0c83E1a772b6ea9F3A8) |
+| Prestige | Runs [ascension](/ascension) | [`0x753D…710E`](https://sepolia.basescan.org/address/0x753D08deFf53D35A5d94E6393A9d20e1187d710E) |
+| Jackpot | Runs the [daily jackpot](/jackpot) | [`0xB036…06aD`](https://sepolia.basescan.org/address/0xB036F25F8CBFDe037CD6472C7F93F6E4d81A06aD) |
+| AnswerChain | Holds the locked-in chain of daily secret words | [`0x4550…5888`](https://sepolia.basescan.org/address/0x4550B7EBbD7bdA737327306e585De6Cb15995888) |
+| YieldDistributor | Pays daily [earnings](/earning) | [`0xDfDF…6814`](https://sepolia.basescan.org/address/0xDfDF31DbcD1C0D0ea14DA449bEdeBF1C37516814) |
+| Bounty | Pays the [weekly bounty](/bounty) | [`0x372F…E847`](https://sepolia.basescan.org/address/0x372F0ad0541CdafcF949a5d2f9E7080CE7a8E847) |
+| FeeRouter | Splits every payment into the [pools](/fees) | [`0xCddb…5a20`](https://sepolia.basescan.org/address/0xCddb26398ed6012076B19Bf5278589Ad77535a20) |
+| Test \$WORD | The testnet stand-in for \$WORD | [`0x4abE…22Ea`](https://sepolia.basescan.org/address/0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea) |
+
+The Base mainnet addresses will be listed here at launch.
+
+## Signatures and approvals
+
+- **Swap offers** are free signatures, not transactions. Each offer is a [Seaport 1.6](https://github.com/ProjectOpenSea/seaport) order, signed with [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Seaport is the open-source exchange contract OpenSea uses, at [`0x0000…B395`](https://basescan.org/address/0x0000000000000068F116a894984e2DB1123eB395) on every chain. An offer lasts 30 days and carries no fees. Seaport settles the trade when someone fills it.
+- **Approvals.** The first time you list a swap, your wallet approves Seaport to move your letters. The first time you stake, it approves the Staking contract to hold your words. Each is a standard `setApprovalForAll` for that one collection.
+- **Signing in** for [your profile](/profile) is a [Sign-In with Ethereum](https://eips.ethereum.org/EIPS/eip-4361) message. It’s free and sends nothing onchain.
+- **Coinbase verification** is an attestation on Base mainnet, made with the [Ethereum Attestation Service](https://docs.attest.org/). The game only reads it.
+
+## How draws are decided
+
+Packs, the daily letter, and rolls all work the same way. Your payment locks in the draw first. Then the game draws the result and signs it, and the contract checks that signature before it mints or raises anything. Minting also refuses any letter whose supply is used up. See [fairness](/fairness) for the jackpot.
+
+## Open source
+
+The contracts and the game are open source on [GitHub](https://github.com/starl3xx/lexigotchi).
