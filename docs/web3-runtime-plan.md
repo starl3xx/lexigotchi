@@ -80,8 +80,9 @@ every future jackpot, and losing it ends the jackpot (`setHead` reverts once the
 
 ## 3. Database (owner, from a terminal with production access)
 
-Apply migrations `0003` (browser push), `0004` (reward claims), and `0005` (sticky draws) with
-`npm run db:migrate`. All three only add tables. Until 0004 exists, the keeper refuses to open a
+Apply migrations `0003` (browser push), `0004` (reward claims), `0005` (sticky draws), `0006`
+(profiles: the X link, name and picture choice, email codes), and `0007` (send-once markers for
+email reminders) with `npm run db:migrate`. All five only add tables or columns. Until 0004 exists, the keeper refuses to open a
 yield epoch, so the bucket rolls over and nothing is lost.
 
 ## 4. Deploy (owner approves: about 17.2M gas over 38 transactions)
@@ -159,3 +160,25 @@ The player docs live in `docs-site/` (Mintlify, served at lexigotchi.fun/docs th
 `docs-site/index.mdx` and "Is the game live?" in `docs-site/faq.mdx`. In the same PR that commits
 the mainnet addresses, remove both, and consider adding the contract addresses to
 `docs-site/fairness.mdx`.
+
+Two more notes come out when a switch flips, not with the launch PR:
+
+- **Reminders.** The note under "Reminders" in `docs-site/care.mdx` and the matching sentence in
+  the FAQ's hunger answer say email reminders are on and the Farcaster and browser ones aren't.
+  They come out once web push (`WEB_PUSH_ENABLED`, the VAPID keys) and Farcaster notifications
+  (`NOTIFICATIONS_ENABLED`) are on in production.
+- **Profiles, X linking, and email reminders: switched on 2026-11-24.** Migrations 0003–0007 ran in
+  production that day, and the docs PR added `docs-site/profile.mdx` and X and email to the letters,
+  FAQ, quickstart, and reminders pages. The landing page follows the switches on its own
+  (`xEnabled()`/`emailEnabled()` in `src/app/page.tsx`). If X or email is ever switched off again,
+  change those docs pages back in the same step. X's callback is
+  `https://lexigotchi.fun/api/x/callback`, and X bills each link from prepaid credits.
+- **Ascension.** The note at the top of `docs-site/ascension.mdx` and "It isn’t switched on yet" in
+  the FAQ. They come out when `PRESTIGE_MAX_LEVEL` is raised above 0. If the fee, odds, or
+  multipliers change from `params.ts` before then, update that page too.
+
+The docs' pictures (`docs-site/images/*.svg`) are drawn from the game's character rig and the fee
+splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either. The
+screenshots (`docs-site/images/screen-*.jpg`) come from `npm run docs:shots` against a practice-mode
+dev server (`scripts/docs-shots.mjs`); retake them after a visible change to Today, Bag, Showcase,
+Bounty, or the $WORD page, and at launch, when practice mode ends.

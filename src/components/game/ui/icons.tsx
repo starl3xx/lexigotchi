@@ -55,6 +55,7 @@ export {
   ArrowRight,
   Bell,
   BellSlash,
+  EnvelopeSimple,
   CheckCircle,
   Copy,
   BookBookmark,

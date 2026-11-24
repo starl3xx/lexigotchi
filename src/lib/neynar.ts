@@ -200,3 +200,60 @@ export async function profilesByAddress(addresses: readonly string[]): Promise<R
   }
   return out;
 }
+
+/**
+ * Every Farcaster account that has verified (or holds custody of) this wallet: their FIDs. For the
+ * daily's one-letter rule, which must see a FID the request didn't sign in with. [] on any failure
+ * (logged), so a Neynar outage never blocks a daily.
+ */
+export async function fidsByAddress(address: string): Promise<number[]> {
+  const key = process.env.NEYNAR_API_KEY;
+  if (!key) return [];
+  try {
+    const a = address.toLowerCase();
+    const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/user/bulk-by-address?addresses=${a}`, {
+      headers: { "x-api-key": key, accept: "application/json" },
+      next: { revalidate: 300 },
+    });
+    if (res.status === 404) return []; // Neynar's answer for "no account"
+    if (!res.ok) {
+      console.error("[neynar] fids-by-address failed:", res.status);
+      return [];
+    }
+    const data = (await res.json()) as Record<string, { fid?: number }[]>;
+    const users = Object.entries(data ?? {}).find(([k]) => k.toLowerCase() === a)?.[1] ?? [];
+    return [...new Set(users.map((u) => Number(u.fid)).filter((f) => Number.isInteger(f) && f > 0))];
+  } catch (err) {
+    console.error("[neynar] fids-by-address error:", err);
+    return [];
+  }
+}
+
+/** fidsByAddress for many wallets at once (350 per request): lowercase address → FIDs. Never throws. */
+export async function fidsByAddresses(addresses: readonly string[]): Promise<Map<string, number[]>> {
+  const key = process.env.NEYNAR_API_KEY;
+  const out = new Map<string, number[]>();
+  const unique = [...new Set(addresses.map((a) => a.toLowerCase()))];
+  if (!key || unique.length === 0) return out;
+  for (let i = 0; i < unique.length; i += BULK_ADDRESSES) {
+    const chunk = unique.slice(i, i + BULK_ADDRESSES);
+    try {
+      const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/user/bulk-by-address?addresses=${chunk.join(",")}`, {
+        headers: { "x-api-key": key, accept: "application/json" },
+        next: { revalidate: 300 },
+      });
+      if (!res.ok) {
+        if (res.status !== 404) console.error("[neynar] fids-by-addresses failed:", res.status, `(${chunk.length} addresses)`);
+        continue;
+      }
+      const data = (await res.json()) as Record<string, { fid?: number }[]>;
+      for (const [addr, users] of Object.entries(data ?? {})) {
+        const fids = (Array.isArray(users) ? users : []).map((u) => Number(u.fid)).filter((f) => Number.isInteger(f) && f > 0);
+        if (fids.length) out.set(addr.toLowerCase(), [...new Set(fids)]);
+      }
+    } catch (err) {
+      console.error("[neynar] fids-by-addresses error:", err);
+    }
+  }
+  return out;
+}

@@ -49,6 +49,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   before revealing (`src/lib/keeper/answerSchedule.ts`), so a wrong seed or a re-vendored dictionary
   stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
+  Pull main first: a stale checkout stops at its own last migration. Jake runs production migrations.
+- **Redeploying production after a Vercel setting changes:** merge a PR to main (every merge builds;
+  `vercel.json` skips nothing). The dashboard's Redeploy hasn't worked for the owner, and this Mac
+  has no Vercel CLI. Check the result at `/api/profile/config` and similar switch endpoints.
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
@@ -90,6 +94,31 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
   Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
   without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
+  **Profile** (`sheets/ProfileSheet.tsx`, opened by the header picture; the balance pill keeps
+  "Your $WORD"): linked accounts (Farcaster, Coinbase verification, X once switched on), the free
+  daily letter, and the name and picture, which come ONLY from a linked account (`useProfile`'s
+  `resolveIdentity`: the player's choice, else Farcaster, else X). Edits need a wallet session:
+  `lib/profile/session.ts` (a SIWE challenge with an HMAC nonce, checked for contract wallets too,
+  then a 30-day HMAC token in the `x-lexigotchi-session` header, never a cookie, because a host
+  frame drops third-party cookies), `/api/profile/{config,challenge,session,me}`, `lib/db/profiles.ts`
+  + tables `profiles`, `x_link_states`, `email_codes` (migration 0006). Dark until
+  `PROFILES_ENABLED=true` + `PROFILE_SESSION_SECRET` (32+ chars); a missing table answers
+  `not_configured`. The email is never public; no X token is kept.
+  **Link X** (`lib/profile/x.ts`): OAuth 2.0 + PKCE; `/api/x/start` (session → a single-use state row
+  with the verifier → X's consent URL), `/api/x/callback` (exchange within X's 30 s, read
+  /2/users/me once, drop the token; lands on `/play?x=…`, or a "go back to the game" page when a
+  Farcaster host opened X in another browser), `/api/x/unlink`. One X account names one wallet: a
+  new link moves it. `/api/world` merges each wallet's chosen face (`mergePublicFaces`). Dark until
+  `X_CLIENT_ID` + `X_CLIENT_SECRET`; callbacks must match the console exactly (127.0.0.1 locally).
+  **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
+  (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
+  (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
+  jackpot-win reminders go by email to opted-in wallets, each with RFC 8058 one-click unsubscribe
+  (`/api/email/unsubscribe`, an HMAC of the wallet; GET shows a button, POST unsubscribes). The
+  address is never public or logged. Dark until `EMAIL_ENABLED=true` + `RESEND_API_KEY` +
+  `EMAIL_FROM`. Switched on in production 2026-11-24 with profiles and X; the landing page reads
+  `xEnabled()`/`emailEnabled()` on the server, so its X door and "email optional" copy follow the
+  switches, while `docs-site/` describes them as on.
 - **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
   served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
   while it can still be minted. A draw depends on which letters are uncapped, so without this a
@@ -146,10 +175,23 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `lexigotchi.mintlify.site`; `/_mintlify/*`, `/api/request`, and `/mintlify-assets/*` must stay at the
   root). They replace the old in-game FAQ and `FAQ.md`. Keep every number in step with `params.ts`
   and `economy.ts` (prices, odds, hunger days, splits, tier counts); the copy-rules test covers
-  the pages. Separate from `docs/`, which is internal.
+  the pages, including the rule that a dollar sign in body text is written `\$` (Mintlify reads
+  `$…$` as math). Pictures in `docs-site/images/` come from `npm run docs:art`
+  (`scripts/docs-art.tsx`, the real character rig and `params.ts` splits): rerun it after changing
+  either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
+  server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
   share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
   `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
+- **The game's X account is [@lexigotchi](https://x.com/lexigotchi)** (`X_HANDLE`/`X_URL` in `site.ts`): the
+  landing footer, the docs footer, More, and `twitter:site` point at it. Posts go out through
+  **Typefully social set 372033**, never the X API, and only with starl3xx's go-ahead for each post.
+  **Every X share tags @lexigotchi and carries a card of what's shared** (starl3xx, 2026-11-24): the
+  text names `@lexigotchi` (`showcaseXText`; `xIntentUrl` appends it to any text that doesn't, and a
+  test holds it), and the shared `url` is a page whose og:image pictures the thing (a showcase's own
+  letter card at `/s/<letters>/card`), never just the generic game card. Cast text never says
+  "@lexigotchi" (on Farcaster that's someone else). A share with no card of its own (Swap) stays
+  Farcaster-only until it gets one.
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
@@ -201,11 +243,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 ## v0.2 mechanics (the ones easy to get wrong)
 
 - Mints are **100% lowercase**; uppercase exists **only** via rolls. Daily single is gated on
-  **either** a Farcaster FID **or** a Coinbase-Verified wallet (EAS attestation on Base mainnet,
-  checked server-side — `src/lib/onchain/verifications.ts`). Verified wallets get synthetic daily
-  keys `2^160 | uint160(address)` — **always bigint, never a JS number** — in the same on-chain
-  `dailyUsed` mapping (the contract never interprets the key; the namespace offset is what keeps
-  synthetic keys from spending real FIDs' slots). Packs of 5 for everyone. ETH accepted via
+  a Farcaster FID, a linked X account older than 90 days (while X is switched on), **or** a
+  Coinbase-Verified wallet (EAS attestation on Base mainnet), checked server-side in that order
+  (`src/lib/onchain/verifications.ts`, `/api/mint/free-daily`). Key ranges in the one on-chain
+  `dailyUsed` mapping (the contract never interprets the key; the offsets keep them apart): FIDs
+  < 2^32, verified wallets `2^160 | uint160(address)`, Base Verify reserved at 2^161, X
+  `2^162 | xUserId` — **always bigint, never a JS number**. **One letter a day per player**:
+  `dailyKeysFor` lists every key a request can see, and the server refuses (and the client shows
+  "claimed") if any was used today. An unclaimed day is lost: `dailyUsed` keeps only the last day.
+  The free pack signs for a Quick Auth FID only, so X keys never reach `freePackClaimed`. Packs of 5 for everyone. ETH accepted via
   auto-swap → all accounting in $WORD.
 - Rolls: **45% base, +10pp pity, cap 85%**, reset on success. Pity per `(owner, letterId)`.
   Failure never burns/downgrades the asset.
@@ -242,6 +288,20 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hungry" to every player; (2) the explanatory comments. In `contracts/` the NatSpec is an audit
   deliverable someone pays to read, and elsewhere the comment carrying the *why* is usually the
   part that stops the next person reintroducing the bug.
+- **A feature change updates every surface that describes it, in the same PR** (starl3xx,
+  2026-11-24: "update FAQ, cheat sheet, in-app UI, docs, etc on any feature changes"). #140 switched
+  X on and updated the docs and the landing page but missed the cheat sheet and the connect panel.
+  Search for the claim's words (e.g. `Coinbase`, `daily letter`, `no email`), not for files, across:
+  `docs-site/` (every page, and `faq.mdx`), `sheets/CheatSheet.tsx`, `src/lib/howItWorks.ts` and
+  `Onboarding.tsx`, the feature's own cards and sheets (`DailyUnlock`, `ProfileSheet`,
+  `BalanceSheet`, `ConnectPanel`, `MoreScreen`, `NextSteps`, locked and empty states),
+  `src/components/landing/LandingPage.tsx` (and its FAQ), `src/lib/notify/templates.ts` and
+  `src/lib/notify/email.ts`, share/OG copy (`src/lib/showcase.ts`, `src/lib/site.ts`), and
+  `CLAUDE.md`/`docs/web3-runtime-plan.md`. Copy about a switchable feature reads the switch
+  (`usePublicProfile().xEnabled`/`emailEnabled` in the app, `xEnabled()`/`emailEnabled()` on the
+  server) so it can't run ahead of production; `docs-site/` can't, so change it with the switch.
+  Say in the PR which surfaces you checked. Refresh the screenshots (`npm run docs:shots -- <names>`)
+  when a pictured screen changes.
 - **Player-facing copy follows the house rules, and `tests/copy-rules.test.ts` enforces them** on
   every rendered string in `src/components/game`, `src/components/landing`, `howItWorks.ts`, and the
   notification templates: no em dashes (pick the mark the sentence needs: colon, comma, period, or

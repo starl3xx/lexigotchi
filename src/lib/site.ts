@@ -8,6 +8,9 @@
  */
 export const SITE_URL = (process.env.NEXT_PUBLIC_URL ?? "https://lexigotchi.vercel.app").replace(/\/$/, "");
 export const SPLASH_BG = "#f4ead2"; // game's aged-paper cream
+/** The game's own X account. Posts go out through Typefully (social set 372033), not the X API. */
+export const X_HANDLE = "lexigotchi";
+export const X_URL = `https://x.com/${X_HANDLE}`;
 /** The player docs (docs-site/, Mintlify), proxied at /docs by the rewrites in vercel.json. Absolute,
  *  because a mini-app host opens links with sdk.actions.openUrl, and `next dev` has no rewrites. */
 export const DOCS_URL = "https://lexigotchi.fun/docs";

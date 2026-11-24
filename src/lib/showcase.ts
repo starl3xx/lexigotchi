@@ -10,7 +10,7 @@
  * Nothing here checks ownership. A showcase is vanity ("any letters, any order, no dictionary
  * check"), so the page claims only what a link can prove: these letters, arranged.
  */
-import { SITE_URL } from "./site";
+import { SITE_URL, X_HANDLE } from "./site";
 
 /** The rack holds at most 8 tiles, and sharing needs at least 2 (ShowcaseScreen). */
 export const SHOWCASE_MIN = 2;
@@ -47,15 +47,33 @@ export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x"): string {
   return `${SITE_URL}/s/${text}/card${ratio === "fc" ? "?ratio=3x2" : ""}`;
 }
 
-/** The post's words. The link goes separately (X's `url` parameter, a cast's embed). */
+/** The cast's words. The link goes separately as the cast's embed. */
 export function showcasePostText(text: string): string {
   return `${text} ✨ spelled with letters I raised in Lexigotchi`;
 }
 
-/** X's web composer, prefilled. On a phone with the X app, this link opens the app. */
+/**
+ * The X post's words: the same sentence, naming the game's X account. Only on X, because
+ * "@lexigotchi" in a cast would name someone else's Farcaster account. The link goes in X's `url`
+ * parameter, and its page's og:image is this showcase's own card (`showcaseCardUrl`).
+ */
+export function showcaseXText(text: string): string {
+  return `${text} ✨ spelled with letters I raised in @${X_HANDLE}`;
+}
+
+/**
+ * X's web composer, prefilled. On a phone with the X app, this link opens the app.
+ *
+ * Every X post the game opens tags @lexigotchi (starl3xx, 2026-11-24: "all X share posts need to tag
+ * @lexigotchi"). A text that doesn't name the account gets it appended here, so no future share can
+ * skip it. The tag goes in the text rather than X's `via` parameter, which some X clients drop and
+ * which would tag it twice next to an in-sentence mention. The `url` must be a page whose og:image
+ * shows what is being shared (for a showcase, its own letter card), never just the generic card.
+ */
 export function xIntentUrl(text: string, url: string): string {
+  const tag = `@${X_HANDLE}`;
   const u = new URL("https://x.com/intent/post");
-  u.searchParams.set("text", text);
+  u.searchParams.set("text", text.toLowerCase().includes(tag) ? text : `${text} ${tag}`);
   u.searchParams.set("url", url);
   return u.toString();
 }

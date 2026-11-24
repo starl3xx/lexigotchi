@@ -131,6 +131,13 @@ showed; only the *decisions* changed.
    (unless we get it somehow?)". So browser push (Web Push, VAPID), keyed by wallet, ships dark
    behind `WEB_PUSH_ENABLED`; nobody already reached on Farcaster gets the same message twice. No
    email: nothing in the game collects one.
+   **AMENDED 2026-11-24 — profiles, X, and email are on** (starl3xx, 2026-11-23: "link X, Farcaster,
+   or Coinbase for a free daily letter", "Reminders by email", "Public, with a clear notice"). The
+   profile (`sheets/ProfileSheet.tsx`) links X (OAuth 2.0; an X account older than 90 days also
+   unlocks the free daily, one letter a day per player across every linked account) and takes an
+   OPTIONAL email, confirmed with a 6-digit code, for hunger, daily-letter, and jackpot reminders,
+   each with one-click unsubscribe. The player copy now says "an email is optional" instead of "no
+   email". The name and picture come only from a linked X or Farcaster account.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

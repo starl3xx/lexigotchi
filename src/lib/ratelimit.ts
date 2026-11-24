@@ -20,7 +20,8 @@ export type RateKind =
   | "auth-verify"
   | "verify-status"
   | "oracle"
-  | "push";
+  | "push"
+  | "profile";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -50,6 +51,9 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     // one call per wallet switch or toggle; this only bounds someone filling the table.
     case "push":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "10 m"), prefix: "rl:push" });
+    // Profile challenges, sessions, and edits, keyed by IP: each is a wallet popup or a DB write.
+    case "profile":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "10 m"), prefix: "rl:profile" });
     case "oracle":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:oracle" });
   }

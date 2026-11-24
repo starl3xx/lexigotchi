@@ -12,7 +12,8 @@
  * whole window, not just the content column.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PRELAUNCH, DOCS_URL } from "@/lib/site";
+import { useQueryClient } from "@tanstack/react-query";
+import { PRELAUNCH, DOCS_URL, X_HANDLE, X_URL } from "@/lib/site";
 import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { useOpenUrl } from "./useShare";
@@ -41,13 +42,15 @@ import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
+import { ProfileSheet } from "./sheets/ProfileSheet";
+import { resolveIdentity, useProfile } from "./useProfile";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
   ArrowsLeftRight, Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
-  SkipForward, Smiley, Sparkle, TextAa, Trophy,
+  SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 import { WordStripLive } from "@/components/WordStrip";
@@ -174,10 +177,43 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
         {/* Sign In With Farcaster for web players. Listens for the event useViewer().signIn()
             fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
         <WebSignInHost />
+        <XReturnHost />
         {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
       </div>
     </IconContext.Provider>
   );
+}
+
+/**
+ * Back from X's consent page (/api/x/callback sends the web player to /play?x=linked|canceled|failed):
+ * say how it went, reopen the profile, and drop the parameter so a reload doesn't say it again.
+ */
+function XReturnHost() {
+  const { toast, openSheet } = useGame();
+  const qc = useQueryClient();
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const x = url.searchParams.get("x");
+    if (!x) return;
+    url.searchParams.delete("x");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    if (x === "linked") {
+      void qc.invalidateQueries({ queryKey: ["profileMe"] });
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+      void qc.invalidateQueries({ queryKey: ["world"] });
+      toast("X linked", "good");
+    } else if (x === "held") {
+      toast("Your current X account took today’s letter. You can change it tomorrow.", "info");
+    } else if (x === "busy") {
+      toast("That X account took today’s letter on another wallet. Link it here tomorrow.", "info");
+    } else if (x === "canceled") {
+      toast("X not linked: you canceled", "info");
+    } else {
+      toast("Couldn’t link X. Try again.", "bad");
+    }
+    openSheet({ kind: "profile" });
+  }, [openSheet, qc, toast]);
+  return null;
 }
 
 function Screen({ view }: { view: View }) {
@@ -228,6 +264,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
+  if (state.sheet?.kind === "profile") return <ProfileSheet />;
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
@@ -301,23 +338,28 @@ function TopBar() {
   );
 }
 
-/** The player's Farcaster avatar (or a sign-in prompt on web). Opens the wallet/profile sheet. */
+/**
+ * The player's picture (from the linked account they chose: useProfile's resolveIdentity), or a
+ * smiley. Opens the Profile sheet; the balance pill beside it opens "Your $WORD".
+ */
 function ViewerChip() {
   const v = useViewer();
+  const p = useProfile();
+  const me = resolveIdentity(v, p.profile);
   const { openSheet } = useGame();
   if (v.environment === "loading") {
     return <span className="h-7 w-7 animate-pulse rounded-full border-2 border-ink bg-paper-dark" />;
   }
   return (
     <button
-      onClick={() => openSheet({ kind: "balance" })}
-      title={v.isAuthed ? `@${v.username}` : "Sign in"}
-      aria-label={v.isAuthed ? `Signed in as ${v.username}` : "Sign in & wallet"}
+      onClick={() => openSheet({ kind: "profile" })}
+      title={me.name ? `${me.name}: your profile` : "Your profile"}
+      aria-label={me.name ? `Your profile, ${me.name}` : "Your profile and linked accounts"}
       className="hit-44 round-btn shrink-0 rounded-full"
     >
-      {v.pfpUrl ? (
+      {me.pfpUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={v.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
+        <img src={me.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
       ) : (
         <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
           <Smiley weight="fill" size={15} />
@@ -425,13 +467,20 @@ function SideRail() {
           </div>
         ))}
       </nav>
+      {/* No "More" here: the rail already lists every destination, so More (the phone's way to reach
+          them) only repeated it (starl3xx, 2026-11-24). The game's X account takes its place. */}
       <div className="space-y-1 border-t-2 border-ink/15 px-3 py-3">
-        {item("more", "More", DotsThree)}
         <button
           onClick={() => openSheet({ kind: "cheatsheet" })}
           className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         >
           <Question size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Cheat sheet
+        </button>
+        <button
+          onClick={() => void openUrl(X_URL)}
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
+        >
+          <XLogo size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> @{X_HANDLE} on X ↗
         </button>
         <button
           onClick={() => void openUrl(DOCS_URL)}

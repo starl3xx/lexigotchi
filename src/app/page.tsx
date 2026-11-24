@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { miniAppEmbed, frameEmbed, BASE_APP_ID } from "@/lib/site";
+import { xEnabled } from "@/lib/profile/x";
+import { emailEnabled } from "@/lib/notify/email";
 
 /**
  * The front door on the open web. The game itself stays at `/play`, which is also the mini app's
@@ -22,5 +24,6 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <LandingPage />;
+  // Read on the server, so the page offers X and email only while the game can use them.
+  return <LandingPage xOn={xEnabled()} emailOn={emailEnabled()} />;
 }

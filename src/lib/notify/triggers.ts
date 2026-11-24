@@ -207,20 +207,24 @@ export function webPushHungerTargets(
 }
 
 /**
- * Whose daily slot a subscription's reminder reads. A browser that subscribed while signed in with
- * Farcaster pulls its daily on the FID; otherwise the only daily a wallet can have is the
- * Coinbase-verified one, keyed `2^160 | address` (`verifiedDailyKey`). A wallet that is neither has
- * a slot that reads 0 forever, and `dailyTargets` already drops never-pulled slots.
+ * Which daily slots a subscription's reminder reads. A browser that subscribed while signed in with
+ * Farcaster pulls its daily on the FID. Otherwise a wallet's daily is the Coinbase-verified one,
+ * keyed `2^160 | address` (`verifiedDailyKey`), or its linked X account's (`2^162 | xUserId`): both
+ * are read, and the most recent pull of either decides (one letter a day per player, so a pull on
+ * either means today is done). A wallet with none has slots that read 0 forever, and `dailyTargets`
+ * already drops never-pulled slots.
  *
  * Returns null when Farcaster's daily reminder already covers the FID.
  */
-export function webPushDailyKey(
+export function webPushDailyKeys(
   sub: PushSub,
   farcasterFids: ReadonlySet<number>,
   verifiedKey: (address: string) => bigint,
-): bigint | null {
-  if (sub.fid !== null) return farcasterFids.has(sub.fid) ? null : BigInt(sub.fid);
-  return verifiedKey(sub.address);
+  xKeyOf: (address: string) => bigint | null = () => null,
+): bigint[] | null {
+  if (sub.fid !== null) return farcasterFids.has(sub.fid) ? null : [BigInt(sub.fid)];
+  const x = xKeyOf(sub.address);
+  return x === null ? [verifiedKey(sub.address)] : [verifiedKey(sub.address), x];
 }
 
 /** The jackpot winner's browsers, when Farcaster can't reach the winner. */

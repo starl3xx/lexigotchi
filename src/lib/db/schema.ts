@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -191,4 +191,80 @@ export const letterDraws = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("letter_draws_key_idx").on(t.chainId, t.drawKey)],
+);
+
+/**
+ * A wallet's profile: the X account it linked, which linked account names it (and gives its
+ * picture), and an optional email for reminders. Keyed by lowercase wallet, because the wallet is
+ * the account (decisions.md #9). Every write is made under a wallet session, which a signed
+ * Sign-In-With-Ethereum message opens (lib/profile/session.ts), so nobody can edit a profile for a
+ * wallet they don't control.
+ *
+ * PUBLIC by design (the player is told so when linking): the X username, name, and picture show
+ * next to the wallet in the game. The email is NEVER public: only its own wallet session reads it.
+ * No X tokens are kept: the link reads the X profile once and throws the token away.
+ *
+ * `xCreatedAt` is the X account's own creation date. The free daily letter needs an account older
+ * than 90 days, checked at claim time, so a young account unlocks itself when it comes of age.
+ */
+export const profiles = pgTable(
+  "profiles",
+  {
+    /** Lowercase wallet address. */
+    address: text("address").primaryKey(),
+    /** X's numeric user id (a string: it is 64-bit). One X account links to one wallet. */
+    xUserId: text("x_user_id"),
+    xUsername: text("x_username"),
+    xName: text("x_name"),
+    xPfpUrl: text("x_pfp_url"),
+    xCreatedAt: timestamp("x_created_at", { withTimezone: true }),
+    xLinkedAt: timestamp("x_linked_at", { withTimezone: true }),
+    /** Which linked account names this wallet and gives its picture: "x", "farcaster", or null (automatic). */
+    nameSource: text("name_source"),
+    /** Lowercase. Set only after the player confirms it with a code. */
+    email: text("email"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    emailReminders: boolean("email_reminders").notNull().default(false),
+    /** Send-once markers (UTC day numbers): a retried cron or keeper run never emails the same reminder twice. */
+    emailDailyDay: integer("email_daily_day"),
+    emailHungerDay: integer("email_hunger_day"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("profiles_x_user_idx").on(t.xUserId), uniqueIndex("profiles_email_idx").on(t.email)],
+);
+
+export type Profile = typeof profiles.$inferSelect;
+
+/**
+ * One "Link X" attempt: the OAuth `state`, the wallet that started it, and the PKCE verifier. Kept
+ * on the server, not in a cookie, because inside a Farcaster host the X page opens in another
+ * browser that has no cookie of ours. Single use and short-lived (`usedAt`, `expiresAt`).
+ */
+export const xLinkStates = pgTable("x_link_states", {
+  state: text("state").primaryKey(),
+  address: text("address").notNull(),
+  codeVerifier: text("code_verifier").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});
+
+/**
+ * A 6-digit code sent to confirm an email address. Only the code's hash is stored. A code works
+ * once, for a few minutes, with a capped number of tries.
+ */
+export const emailCodes = pgTable(
+  "email_codes",
+  {
+    id: serial("id").primaryKey(),
+    address: text("address").notNull(),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => [index("email_codes_address_idx").on(t.address)],
 );

@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     alternates: { canonical: showcaseUrl(text) },
     openGraph: { title, description, url: showcaseUrl(text), images: [card] },
-    twitter: { card: "summary_large_image", title, description, images: [card] },
+    twitter: { card: "summary_large_image", site: "@lexigotchi", title, description, images: [card] },
     other: {
       "fc:miniapp": JSON.stringify(embeds.miniapp),
       "fc:frame": JSON.stringify(embeds.frame),

@@ -27,12 +27,14 @@
  */
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useViewer } from "./useViewer";
+import { usePublicProfile } from "./useProfile";
 import { OrDivider, SignInWithCoinbaseWallet } from "./SignInWithCoinbaseWallet";
 import { Check, Wallet } from "./ui/icons";
 
 export function ConnectPanel() {
   const { openConnectModal, connectModalOpen } = useConnectModal();
   const viewer = useViewer();
+  const { xEnabled } = usePublicProfile();
 
   return (
     <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5">
@@ -67,8 +69,10 @@ export function ConnectPanel() {
         ) : (
           <>
             <p className="mt-1 text-xs text-ink/55">
-              Proves you’re one person, which unlocks one free letter a day. A Coinbase-verified
-              wallet does the same, so you can skip this and verify later.
+              Proves you’re one person, which unlocks one free letter a day.{" "}
+              {xEnabled
+                ? "A linked X account or a Coinbase-verified wallet does the same, so you can skip this and link one later in your profile."
+                : "A Coinbase-verified wallet does the same, so you can skip this and verify later."}
             </p>
             <button
               onClick={viewer.signIn}
