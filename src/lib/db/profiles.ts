@@ -149,8 +149,17 @@ export async function codesSentSince(address: string, since: Date): Promise<numb
   return rows[0]?.n ?? 0;
 }
 
-export async function createEmailCode(address: string, email: string, codeHash: string, ttlMs: number): Promise<void> {
-  await getDb().insert(emailCodes).values({ address: address.toLowerCase(), email, codeHash, expiresAt: new Date(Date.now() + ttlMs) });
+export async function createEmailCode(address: string, email: string, codeHash: string, ttlMs: number): Promise<number> {
+  const [row] = await getDb()
+    .insert(emailCodes)
+    .values({ address: address.toLowerCase(), email, codeHash, expiresAt: new Date(Date.now() + ttlMs) })
+    .returning({ id: emailCodes.id });
+  return row.id;
+}
+
+/** Forget a code that never went out, so a failed send doesn't count toward the hourly cap. */
+export async function deleteEmailCode(id: number): Promise<void> {
+  await getDb().delete(emailCodes).where(eq(emailCodes.id, id));
 }
 
 /**

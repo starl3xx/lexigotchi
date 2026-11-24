@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
-import { clearEmail, codesSentSince, createEmailCode, getProfile, isMissingTable, toView } from "@/lib/db/profiles";
+import { clearEmail, codesSentSince, createEmailCode, deleteEmailCode, getProfile, isMissingTable, toView } from "@/lib/db/profiles";
 import { CODES_PER_HOUR, CODE_TTL_MS, codeEmail, emailEnabled, hashCode, newCode, normalizeEmail, sendEmail } from "@/lib/notify/email";
 import { profileSecret, sessionAddress } from "@/lib/profile/session";
 
@@ -26,9 +26,13 @@ export async function POST(req: Request) {
   try {
     if ((await codesSentSince(address, new Date(Date.now() - 3_600_000))) >= CODES_PER_HOUR) return json({ ok: false, error: "too_many_codes" }, 429);
     const code = newCode();
-    await createEmailCode(address, email, hashCode(secret, address, email, code), CODE_TTL_MS);
+    const id = await createEmailCode(address, email, hashCode(secret, address, email, code), CODE_TTL_MS);
     const sent = await sendEmail(codeEmail(email, code));
-    if (!sent.ok) return json({ ok: false, error: "send_failed" }, 502);
+    if (!sent.ok) {
+      // A code that never went out mustn't use up the hourly cap (Bugbot on #139).
+      await deleteEmailCode(id).catch(() => {});
+      return json({ ok: false, error: "send_failed" }, 502);
+    }
     return json({ ok: true });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
