@@ -16,6 +16,8 @@ import { verifiedDailyKey, xDailyKey } from "./verifications";
 import { addressOf, isSuiteDeployed } from "./addresses";
 import { lettersAbi } from "./abis";
 import { getPublicClient, readChainTime } from "./reads";
+import { NETWORK } from "./network";
+import { readDraw } from "@/lib/db/draws";
 
 /** Pure: the keys for a set of FIDs, wallets, and X ids. Exported for tests. */
 export function keysFrom(fids: Iterable<number>, wallets: Iterable<string>, xIds: Iterable<string>): bigint[] {
@@ -36,15 +38,22 @@ export async function relatedDailyKeys(opts: { fid: number | null; wallet: strin
 }
 
 /**
- * Did this X account's key take today's daily? Unlinking or moving such an account waits for
- * tomorrow: once unlinked, its key drops out of the wallet's one-letter check, and the same wallet
- * could pull again today on Farcaster or Coinbase (Bugbot on #138). Throws if the chain can't say.
+ * Did this X account's key take today's daily, or get a voucher for it? Unlinking, moving, or
+ * replacing such an account waits for tomorrow: once it leaves the wallet, its key drops out of the
+ * wallet's one-letter check, and the same wallet could pull again today on Farcaster or Coinbase
+ * (Bugbot on #138). A voucher counts too: it's valid for ten minutes before the chain spends the
+ * slot, and the daily route stores its draw (`d:<key>:<day>`, letter_draws) as it signs. Throws if
+ * the chain can't say.
  */
 export async function xKeyUsedToday(xUserId: string): Promise<boolean> {
   if (!isSuiteDeployed()) return false;
+  const key = xDailyKey(xUserId);
   const [now, used] = await Promise.all([
     readChainTime(),
-    getPublicClient().readContract({ address: addressOf("letters"), abi: lettersAbi, functionName: "dailyUsed", args: [xDailyKey(xUserId)] }),
+    getPublicClient().readContract({ address: addressOf("letters"), abi: lettersAbi, functionName: "dailyUsed", args: [key] }),
   ]);
-  return Number(used) === Math.floor(now / 86_400) + 1;
+  const today = Math.floor(now / 86_400);
+  if (Number(used) === today + 1) return true;
+  const issued = await readDraw(NETWORK.id, `d:${key}:${today}`).catch(() => null);
+  return issued !== null;
 }

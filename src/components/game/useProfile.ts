@@ -191,8 +191,11 @@ export function useProfile() {
           body: JSON.stringify({ return: ret }),
         });
         if (r.status === 401) forget();
-        const d = (await r.json()) as { ok: boolean; url?: string };
-        if (!d.ok || !d.url) throw new Error("Couldn’t reach X. Try again.");
+        const d = (await r.json()) as { ok: boolean; url?: string; error?: string };
+        if (!d.ok || !d.url)
+          throw new Error(
+            d.error === "x_used_today" ? "Your X account took today’s letter. You can change it tomorrow." : "Couldn’t reach X. Try again.",
+          );
         return d.url;
       } catch (err) {
         setError(String((err as Error)?.message ?? "Couldn’t reach X."));
