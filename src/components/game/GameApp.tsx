@@ -25,6 +25,7 @@ import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
 import { ChainGameProvider } from "./ChainGameProvider";
 import { isChainBacked } from "@/lib/onchain/gameMode";
+import { NETWORK } from "@/lib/onchain/network";
 import { HomeScreen } from "./screens/HomeScreen";
 import { MoreScreen } from "./screens/MoreScreen";
 import { BagScreen } from "./screens/BagScreen";
@@ -298,6 +299,15 @@ function TopBar() {
         {!state.chainBacked && (
           <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy-deep px-1.5 py-0.5 text-[10px] font-bold text-paper">
             <Fire weight="fill" size={12} /> {state.streak}
+          </span>
+        )}
+        {/* The chain game on Base Sepolia: say so, so nobody takes test $WORD for the real token. */}
+        {state.chainBacked && NETWORK.isTestnet && (
+          <span
+            className="whitespace-nowrap rounded-full border-2 border-ink bg-card px-1.5 py-0.5 text-[10px] font-bold text-ink/70"
+            title="This game runs on Base Sepolia, a test network, with test $WORD."
+          >
+            Testnet
           </span>
         )}
       </div>
