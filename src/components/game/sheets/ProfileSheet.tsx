@@ -9,6 +9,7 @@
  * it's tied to X or FC"). With both linked, the player picks which one. Saving that choice needs a
  * wallet session (useProfile): one free signature that proves the wallet is theirs.
  */
+import { useState } from "react";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet } from "../primitives";
@@ -260,6 +261,10 @@ export function ProfileSheet() {
         {p.error && <p className="mt-2 text-xs font-bold text-candy-ink">{p.error}</p>}
       </Card>
 
+      {/* Keyed by wallet: switching wallets starts the card fresh, so one wallet's typed address,
+          code, or error never carries into another's session (Bugbot on #139). */}
+      {p.emailEnabled && <EmailCard key={p.address ?? "none"} p={p} />}
+
       <button
         onClick={() => g.openSheet({ kind: "balance" })}
         className="mx-auto flex items-center gap-1.5 text-sm font-bold text-ink/60 underline"
@@ -303,6 +308,150 @@ function Linked() {
     <span className="flex items-center gap-1 text-xs font-bold text-teal-ink">
       <CheckCircle weight="fill" /> Linked
     </span>
+  );
+}
+
+const EMAIL_ERRORS: Record<string, string> = {
+  bad_email: "That doesn’t look like an email address.",
+  too_many_codes: "Too many codes this hour. Try again later.",
+  send_failed: "Couldn’t send the code. Try again.",
+  code_expired: "That code expired. Send a new one.",
+  email_taken: "Another wallet already uses that email.",
+  bad_code: "Enter the 6-digit code from the email.",
+  no_session: "Sign in with your wallet to change your email.",
+};
+
+/**
+ * Email reminders: add an address, confirm it with a 6-digit code, then turn reminders on or off.
+ * The address is never shown to anyone but this wallet's own session.
+ */
+function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [stage, setStage] = useState<"start" | "enter" | "code">("start");
+  const [note, setNote] = useState<string | null>(null);
+  const saved = p.profile?.email ?? null;
+  const say = (r: { error: string | null; triesLeft?: number }) =>
+    setNote(r.error === "wrong_code" ? `That code didn’t match. ${r.triesLeft ?? 0} ${r.triesLeft === 1 ? "try" : "tries"} left.` : r.error ? (EMAIL_ERRORS[r.error] ?? "Something went wrong. Try again.") : null);
+
+  return (
+    <Card className="mb-3">
+      <div className="font-display font-extrabold">Email reminders</div>
+      <p className="mt-0.5 text-xs text-ink/60">
+        Before a word goes hungry, when your daily letter is ready, and if you win the jackpot. Your email is never shown to anyone.
+      </p>
+
+      {p.signedIn && !p.ownLoaded ? (
+        // Signed in, but the own view (the only one with the email) hasn't arrived: never offer
+        // "Add email" to a player who may already have one (Bugbot on #139).
+        <p className="mt-2 text-xs text-ink/55">{p.ownFailed ? "Couldn’t load your email settings. Close and reopen your profile to try again." : "Loading your email settings…"}</p>
+      ) : saved ? (
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate font-bold">{saved.address}</span>
+            <button onClick={async () => say(await p.removeEmail())} disabled={p.busy} className="shrink-0 text-xs font-bold text-ink/45 underline">
+              Remove
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={saved.reminders}
+              disabled={p.busy}
+              onChange={async (e) => say(await p.setEmailReminders(e.target.checked))}
+              className="h-4 w-4 accent-[#2a9d8f]"
+            />
+            Email me reminders
+          </label>
+        </div>
+      ) : stage === "start" ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-2"
+          disabled={p.busy || !p.address}
+          onClick={async () => {
+            if (await p.ensureToken()) setStage("enter");
+          }}
+        >
+          {p.busy ? <CircleNotch className="animate-spin" /> : "Add email"}
+        </Button>
+      ) : stage === "enter" ? (
+        <form
+          className="mt-2 space-y-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const r = await p.sendEmailCode(email);
+            say(r);
+            if (!r.error) setStage("code");
+          }}
+        >
+          <label className="block text-xs font-bold text-ink/60" htmlFor="profile-email">
+            Email address
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="profile-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              aria-invalid={note ? true : undefined}
+              className="min-w-0 flex-1 rounded-xl border-2 border-ink bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-candy"
+            />
+            <Button size="sm" variant="teal" type="submit" disabled={p.busy}>
+              {p.busy ? <CircleNotch className="animate-spin" /> : "Send code"}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <form
+          className="mt-2 space-y-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const r = await p.confirmEmail(email, code);
+            say(r);
+            if (!r.error) {
+              setStage("start");
+              setCode("");
+            }
+          }}
+        >
+          <label className="block text-xs text-ink/70" htmlFor="profile-email-code">
+            We sent a 6-digit code to <strong>{email}</strong>.
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="profile-email-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="123456"
+              aria-invalid={note ? true : undefined}
+              className="w-28 rounded-xl border-2 border-ink bg-card px-3 py-2 text-center font-mono text-sm tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-candy"
+            />
+            <Button size="sm" variant="teal" type="submit" disabled={p.busy || code.length !== 6}>
+              {p.busy ? <CircleNotch className="animate-spin" /> : "Confirm"}
+            </Button>
+          </div>
+          <button type="button" onClick={() => setStage("enter")} className="text-xs font-bold text-ink/45 underline">
+            Use a different email
+          </button>
+        </form>
+      )}
+      {note && (
+        <p role="status" className="mt-2 text-xs font-bold text-candy-ink">
+          {note}
+        </p>
+      )}
+    </Card>
   );
 }
 

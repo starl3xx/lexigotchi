@@ -241,6 +241,46 @@ export function useProfile() {
     }
   }, [addr, forget, qc, signIn, token]);
 
+  /** A live session token, signing in first if there isn't one. */
+  const ensureToken = useCallback(async (): Promise<string | null> => {
+    if (!addr) return null;
+    if (token) return token;
+    if (!(await signIn())) return null;
+    return (qc.getQueryData(["profileToken", addr]) as string | null) ?? null;
+  }, [addr, qc, signIn, token]);
+
+  /**
+   * One authenticated email call. Returns the server's error code (null on success), and keeps
+   * the profile cache in step with whatever profile the server sends back.
+   */
+  const emailCall = useCallback(
+    async (path: string, method: "POST" | "DELETE" | "PATCH", body?: unknown): Promise<{ error: string | null; triesLeft?: number }> => {
+      const t = await ensureToken();
+      if (!t || !addr) return { error: "no_session" };
+      setBusy(true);
+      setError(null);
+      try {
+        const r = await fetch(path, {
+          method,
+          headers: { "content-type": "application/json", [HEADER]: t },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        if (r.status === 401) forget();
+        const d = (await r.json().catch(() => ({}))) as { ok?: boolean; profile?: ProfileView; error?: string; triesLeft?: number };
+        if (d.profile) {
+          await qc.cancelQueries({ queryKey: ["profileMe", addr, t] });
+          qc.setQueryData(["profileMe", addr, t], d.profile);
+        }
+        return { error: d.ok ? null : (d.error ?? "failed"), triesLeft: d.triesLeft };
+      } catch {
+        return { error: "failed" };
+      } finally {
+        setBusy(false);
+      }
+    },
+    [addr, ensureToken, forget, qc],
+  );
+
   return {
     /** The server has profiles switched on (flag, secret, database). */
     enabled,
@@ -250,6 +290,12 @@ export function useProfile() {
     // A stored session counts at once. Waiting for /me made the sheet ask a player to sign in
     // while their session was still loading (Bugbot on #136); a dead token is forgotten on its 401.
     signedIn: Boolean(token),
+    /**
+     * The own view (with email) has loaded. Until it does, `profile` is the public view, whose email
+     * is always null, so "no email" can't be told apart from "not loaded yet" without this.
+     */
+    ownLoaded: Boolean(me.data),
+    ownFailed: me.isError || (me.isFetched && !me.data && Boolean(token)),
     /** The own view (with email) when signed in, else the public view. */
     profile: me.data ?? (pub.data ? { ...pub.data, email: null } : null),
     loading: me.isLoading || pub.isLoading,
@@ -260,6 +306,11 @@ export function useProfile() {
     setNameSource,
     startXLink,
     unlinkX,
+    ensureToken,
+    sendEmailCode: (email: string) => emailCall("/api/profile/email", "POST", { email }),
+    confirmEmail: (email: string, code: string) => emailCall("/api/profile/email/verify", "POST", { email, code }),
+    removeEmail: () => emailCall("/api/profile/email", "DELETE"),
+    setEmailReminders: (on: boolean) => emailCall("/api/profile/me", "PATCH", { emailReminders: on }),
   };
 }
 

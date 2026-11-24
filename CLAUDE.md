@@ -106,6 +106,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Farcaster host opened X in another browser), `/api/x/unlink`. One X account names one wallet: a
   new link moves it. `/api/world` merges each wallet's chosen face (`mergePublicFaces`). Dark until
   `X_CLIENT_ID` + `X_CLIENT_SECRET`; callbacks must match the console exactly (127.0.0.1 locally).
+  **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
+  (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
+  (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
+  jackpot-win reminders go by email to opted-in wallets, each with RFC 8058 one-click unsubscribe
+  (`/api/email/unsubscribe`, an HMAC of the wallet; GET shows a button, POST unsubscribes). The
+  address is never public or logged. Dark until `EMAIL_ENABLED=true` + `RESEND_API_KEY` +
+  `EMAIL_FROM`; until then the player copy still says "no email" (switch-on changes it).
 - **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
   served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
   while it can still be minted. A draw depends on which letters are uncapped, so without this a

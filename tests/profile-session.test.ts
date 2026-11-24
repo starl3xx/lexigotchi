@@ -92,7 +92,7 @@ describe("the public profile", () => {
     const { toPublicView, toView } = await import("@/lib/db/profiles");
     const row = {
       address: "0xabc", xUserId: "1", xUsername: "example_player", xName: null, xPfpUrl: null, xCreatedAt: null, xLinkedAt: null,
-      nameSource: "x", email: "player@example.com", emailVerifiedAt: new Date(), emailReminders: true, createdAt: new Date(), updatedAt: new Date(),
+      nameSource: "x", email: "player@example.com", emailVerifiedAt: new Date(), emailReminders: true, emailDailyDay: null, emailHungerDay: null, createdAt: new Date(), updatedAt: new Date(),
     };
     expect(toView("0xABC", row).email).toEqual({ address: "player@example.com", reminders: true });
     const pub = toPublicView("0xABC", row);
