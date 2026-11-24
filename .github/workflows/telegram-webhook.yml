@@ -1,0 +1,34 @@
+# Points @lexigotchi_bot's webhook at the game (src/app/api/telegram/webhook/route.ts), with the secret
+# Telegram echoes back in every call. Run it by hand (Actions → Telegram webhook → Run workflow) after
+# the token or the secret changes. Only "message" updates: in the beta group, with privacy mode on,
+# that is joins and other service messages, commands, and replies to the bot.
+name: Telegram webhook
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set the webhook
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+        run: |
+          test -n "$TOKEN" && test -n "$SECRET" || { echo "::error::TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_SECRET is not set"; exit 1; }
+          curl -sS "https://api.telegram.org/bot${TOKEN}/setWebhook" \
+            --data-urlencode "url=https://lexigotchi.fun/api/telegram/webhook" \
+            --data-urlencode "secret_token=${SECRET}" \
+            --data-urlencode 'allowed_updates=["message"]' \
+            --data-urlencode "drop_pending_updates=true" | tee /tmp/set.json
+          grep -q '"ok":true' /tmp/set.json
+      - name: Show the webhook's state
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -sS "https://api.telegram.org/bot${TOKEN}/getWebhookInfo" \
+            | python3 -c 'import json,sys; r=json.load(sys.stdin)["result"]; print("url:", r.get("url")); print("pending:", r.get("pending_update_count")); print("last error:", r.get("last_error_message", "none"))'

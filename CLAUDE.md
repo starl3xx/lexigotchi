@@ -198,6 +198,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   posts it as @lexigotchi_bot when Vercel's Production deploy of that commit succeeds, then labels the
   PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
   `TELEGRAM_CHAT_ID`; "Run workflow" on it only checks the bot can reach the group.
+  **New members get a welcome**: Telegram calls `/api/telegram/webhook` (`src/lib/telegram.ts`), which
+  greets anyone who joins with the HEYOO card (`/s/HEYOO/card`, uploaded by the route) and a caption
+  pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
+  `TELEGRAM_WEBHOOK_SECRET` (dark without them; the secret header is checked in constant time); the
+  "Telegram webhook" workflow registers the URL and secret with Telegram. Rerun it after the token or
+  secret changes. A basic group upgraded to a supergroup gets a new id; the route logs it.
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
