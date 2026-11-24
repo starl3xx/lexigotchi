@@ -125,7 +125,8 @@ showed; only the *decisions* changed.
    provided by Base (I think Let’s Have A Word! uses it?)". So the start screen carries Base's
    official `SignInWithBaseButton` beside the RainbowKit modal (`SignInWithBase.tsx`). It CONNECTS a
    Base Account as the player's wallet: no server session, because no route needs proof of wallet
-   ownership, and no wallet-to-wallet merge. It does not unlock the free daily by itself (a Base
+   ownership, and no wallet-to-wallet merge (see the 2026-11-24 amendment below: Link another wallet
+   now joins wallets into one account, by signature). It does not unlock the free daily by itself (a Base
    Account is not a Coinbase-verified wallet).
    Reminders for wallet-only players (starl3xx, 2026-11-20, verbatim): "browser push... no email
    (unless we get it somehow?)". So browser push (Web Push, VAPID), keyed by wallet, ships dark
@@ -138,6 +139,13 @@ showed; only the *decisions* changed.
    OPTIONAL email, confirmed with a 6-digit code, for hunger, daily-letter, and jackpot reminders,
    each with one-click unsubscribe. The player copy now says "an email is optional" instead of "no
    email". The name and picture come only from a linked X or Farcaster account.
+   **AMENDED 2026-11-24 — linked wallets** (starl3xx: "i should be able to share a single account
+   across multiple wallets (self-custody, farcaster, etc)"). Link another wallet (profile) joins up
+   to five wallets into one account, named by its first wallet: one bag, one profile, one free daily
+   letter. Each joining wallet signs a link message naming the account (a single-use server code as
+   the nonce), so it works across devices and from a Farcaster host. Letters and words stay in the
+   wallet that holds them (the contracts act on msg.sender); linking never creates a daily key; links
+   are public, like X. Unlinking waits for tomorrow on a day the account took its letter.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

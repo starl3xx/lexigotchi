@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import type { WorldResponse } from "@/app/api/world/route";
 import { useViewer } from "./useViewer";
+import { usePublicProfile } from "./useProfile";
 
 export function useWorld() {
   return useQuery({
@@ -21,11 +22,12 @@ export function useWorld() {
   });
 }
 
-/** The wallets that count as "you": the connected one plus every wallet Farcaster links to you. */
+/** The wallets that count as "you": the connected one, every wallet Farcaster links to you, and every wallet in your account. */
 export function useMyWallets(): Set<string> {
   const { address } = useAccount();
   const viewer = useViewer();
-  const mine = new Set<string>((viewer.linkedWallets ?? []).map((a) => a.toLowerCase()));
+  const accountWalletList = usePublicProfile().profile?.wallets ?? [];
+  const mine = new Set<string>([...(viewer.linkedWallets ?? []), ...accountWalletList].map((a) => a.toLowerCase()));
   if (address) mine.add(address.toLowerCase());
   return mine;
 }

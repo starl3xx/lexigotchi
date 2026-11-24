@@ -39,6 +39,7 @@ export {
   MagnifyingGlass,
   ShareNetwork,
   XLogo,
+  LinkSimple,
   X,
   Basket,
   Sun,

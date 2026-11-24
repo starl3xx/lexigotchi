@@ -15,6 +15,54 @@ import { xOldEnough, type NameSource, type ProfileConfig, type ProfileView, type
 import type { Viewer } from "./useViewer";
 
 const HEADER = "x-lexigotchi-session";
+
+// ── a link code waiting for its second wallet ─────────────────────────────────────────────────
+/**
+ * "Link another wallet" makes a code under the account's session; the wallet joining signs it. The
+ * code waits here across a wallet switch in the same browser, or arrives from a `?link=` URL opened
+ * on another device or in a Farcaster host. One at a time; it expires with the server's code.
+ */
+export interface PendingLink {
+  code: string;
+  /** Known when this browser made the code; unknown when it came in a link. */
+  account?: string;
+  expiresAt?: string;
+}
+const PENDING_KEY = "lexigotchi:link-code";
+export function readPendingLink(): PendingLink | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "null") as PendingLink | null;
+    if (!v || !/^[0-9a-f]{24}$/.test(v.code)) return null;
+    if (v.expiresAt && Date.parse(v.expiresAt) < Date.now()) {
+      localStorage.removeItem(PENDING_KEY);
+      return null;
+    }
+    return v;
+  } catch {
+    return null;
+  }
+}
+export function writePendingLink(v: PendingLink | null) {
+  try {
+    if (v) localStorage.setItem(PENDING_KEY, JSON.stringify(v));
+    else localStorage.removeItem(PENDING_KEY);
+    window.dispatchEvent(new Event(PENDING_KEY));
+  } catch {
+    /* storage blocked: the code lasts this page only */
+  }
+}
+export const PENDING_LINK_EVENT = PENDING_KEY;
+
+/**
+ * The public view is cached (the route's s-maxage and stale-while-revalidate, at the edge and in the
+ * browser), so after a change the next read must skip the caches, or a freshly linked wallet keeps
+ * showing the old account for minutes. A change bumps this; the URL carries it.
+ */
+let publicBust = 0;
+export function bustPublicProfile() {
+  publicBust = Date.now();
+}
+const publicProfileUrl = (addr: string | null) => `/api/profile/public?address=${addr}${publicBust ? `&t=${publicBust}` : ""}`;
 const storageKey = (a: string) => `lexigotchi:profileSession:${a.toLowerCase()}`;
 
 function readToken(address: string): string | null {
@@ -98,7 +146,7 @@ export function useProfile() {
     enabled: enabled && !!addr,
     staleTime: 30_000,
     queryFn: async (): Promise<PublicProfileView | null> => {
-      const r = await fetch(`/api/profile/public?address=${addr}`);
+      const r = await fetch(publicProfileUrl(addr));
       if (!r.ok) return null;
       const d = (await r.json()) as { ok: boolean; profile?: PublicProfileView };
       return d.ok && d.profile ? d.profile : null;
@@ -281,6 +329,68 @@ export function useProfile() {
     [addr, ensureToken, forget, qc],
   );
 
+  /** A single-use code for another wallet to join this account (the account's session). */
+  const makeLinkCode = useCallback(async (): Promise<{ code: string; account: string; expiresAt: string } | { error: string }> => {
+    const t = await ensureToken();
+    if (!t || !addr) return { error: "no_session" };
+    setBusy(true);
+    try {
+      const r = await fetch("/api/profile/wallets/code", { method: "POST", headers: { [HEADER]: t } });
+      if (r.status === 401) forget();
+      const d = (await r.json().catch(() => ({}))) as { ok?: boolean; code?: string; account?: string; expiresAt?: string; error?: string };
+      return d.ok && d.code && d.account && d.expiresAt ? { code: d.code, account: d.account, expiresAt: d.expiresAt } : { error: d.error ?? "failed" };
+    } catch {
+      return { error: "failed" };
+    } finally {
+      setBusy(false);
+    }
+  }, [addr, ensureToken, forget]);
+
+  /** Sign the link message for `code` with the CONNECTED wallet, joining the account the code names. */
+  const joinWithCode = useCallback(async (code: string): Promise<{ account: string } | { error: string }> => {
+    if (!address) return { error: "no_wallet" };
+    setBusy(true);
+    setError(null);
+    try {
+      const m = (await (await fetch("/api/profile/wallets/message", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code, address }),
+      })).json()) as { ok?: boolean; message?: string; account?: string; error?: string };
+      if (!m.ok || !m.message) return { error: m.error ?? "failed" };
+      const signature = await signMessageAsync({ message: m.message });
+      const l = (await (await fetch("/api/profile/wallets/link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: m.message, signature }),
+      })).json()) as { ok?: boolean; account?: string; error?: string };
+      if (!l.ok || !l.account) return { error: l.error ?? "failed" };
+      // Every wallet's public view, the bag, and the world now see the account.
+      bustPublicProfile();
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+      void qc.invalidateQueries({ queryKey: ["profileMe"] });
+      void qc.invalidateQueries({ queryKey: ["world"] });
+      return { account: l.account };
+    } catch (err) {
+      const msg = String((err as Error)?.message ?? "");
+      const c = (err as { code?: number })?.code;
+      return { error: c === 4001 || /reject|denied/i.test(msg) ? "rejected" : "failed" };
+    } finally {
+      setBusy(false);
+    }
+  }, [address, qc, signMessageAsync]);
+
+  /** Take a wallet out of the account (any wallet's session in the account). */
+  const unlinkWallet = useCallback(async (wallet: string) => {
+    const r = await emailCall("/api/profile/wallets", "DELETE", { address: wallet });
+    if (!r.error) {
+      bustPublicProfile();
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+      void qc.invalidateQueries({ queryKey: ["world"] });
+    }
+    return r;
+  }, [emailCall, qc]);
+
   return {
     /** The server has profiles switched on (flag, secret, database). */
     enabled,
@@ -307,6 +417,9 @@ export function useProfile() {
     startXLink,
     unlinkX,
     ensureToken,
+    makeLinkCode,
+    joinWithCode,
+    unlinkWallet,
     sendEmailCode: (email: string) => emailCall("/api/profile/email", "POST", { email }),
     confirmEmail: (email: string, code: string) => emailCall("/api/profile/email/verify", "POST", { email, code }),
     removeEmail: () => emailCall("/api/profile/email", "DELETE"),
@@ -341,7 +454,7 @@ export function usePublicProfile(): {
     enabled: enabled && !!addr,
     staleTime: 30_000,
     queryFn: async (): Promise<PublicProfileView | null> => {
-      const r = await fetch(`/api/profile/public?address=${addr}`);
+      const r = await fetch(publicProfileUrl(addr));
       if (!r.ok) return null;
       const d = (await r.json()) as { ok: boolean; profile?: PublicProfileView };
       return d.ok && d.profile ? d.profile : null;

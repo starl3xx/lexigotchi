@@ -203,9 +203,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // account. Words and letter counts union for display; spending stays with the connected wallet
   // (the contracts act on msg.sender, full stop) — `mine` on each word carries the difference.
   const viewer = useViewer();
+  // …plus every wallet linked into the player's account (Link another wallet; public like X).
+  const accountWalletList = usePublicProfile().profile?.wallets;
   const bagWallets = useMemo(
-    () => bagWalletsOf(address, viewer.linkedWallets),
-    [address, viewer.linkedWallets],
+    () => bagWalletsOf(address, [...(viewer.linkedWallets ?? []), ...(accountWalletList ?? [])]),
+    [address, viewer.linkedWallets, accountWalletList],
   );
   const bagKey = bagWallets.join(",");
 
