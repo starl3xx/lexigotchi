@@ -30,7 +30,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **`repeg`** is the price keeper (`src/lib/keeper/repeg.ts`, its own key `PRICE_KEEPER_PRIVATE_KEY`):
   moves each onchain price toward its USD target at the live GeckoTerminal price when it drifts
   ≥5%, clamped one bps inside the contract's `maxMoveBps` (and a 25%/run cap); never on the
-  fallback price, never below a $5K pool, never a zero price. A no-op until the owner wires the
+  fallback price, never below $5K of $WORD in the pool (the oracle's `reserveUsd` is the $WORD side, about half the pool: so a ~$10K pool), never a zero price. A no-op until the owner wires the
   key with `setPriceKeeper` on all five contracts. Loads `.env.local` itself (`--env-file-if-exists`); without it the chain
   defaults to mainnet and dies on a missing deployment. `--notify` sends the hunger warning (Farcaster,
   then browser push for wallets Farcaster can't reach) and rides the same world scan as
