@@ -13,6 +13,9 @@ import { fidsByAddress, lookupProfiles } from "@/lib/neynar";
 import { xUserIdsFor } from "@/lib/db/profiles";
 import { profilesEnabled } from "@/lib/profile/session";
 import { verifiedDailyKey, xDailyKey } from "./verifications";
+import { addressOf, isSuiteDeployed } from "./addresses";
+import { lettersAbi } from "./abis";
+import { getPublicClient, readChainTime } from "./reads";
 
 /** Pure: the keys for a set of FIDs, wallets, and X ids. Exported for tests. */
 export function keysFrom(fids: Iterable<number>, wallets: Iterable<string>, xIds: Iterable<string>): bigint[] {
@@ -30,4 +33,18 @@ export async function relatedDailyKeys(opts: { fid: number | null; wallet: strin
   if (fids.size > 0) for (const p of await lookupProfiles([...fids]).catch(() => [])) for (const w of p.linkedWallets) wallets.add(w);
   const xIds = profilesEnabled() ? await xUserIdsFor([...wallets]).catch(() => new Map<string, string>()) : new Map<string, string>();
   return keysFrom(fids, wallets, xIds.values());
+}
+
+/**
+ * Did this X account's key take today's daily? Unlinking or moving such an account waits for
+ * tomorrow: once unlinked, its key drops out of the wallet's one-letter check, and the same wallet
+ * could pull again today on Farcaster or Coinbase (Bugbot on #138). Throws if the chain can't say.
+ */
+export async function xKeyUsedToday(xUserId: string): Promise<boolean> {
+  if (!isSuiteDeployed()) return false;
+  const [now, used] = await Promise.all([
+    readChainTime(),
+    getPublicClient().readContract({ address: addressOf("letters"), abi: lettersAbi, functionName: "dailyUsed", args: [xDailyKey(xUserId)] }),
+  ]);
+  return Number(used) === Math.floor(now / 86_400) + 1;
 }

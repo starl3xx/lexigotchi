@@ -102,6 +102,12 @@ export async function linkX(
 
 const X_CLEARED = { xUserId: null, xUsername: null, xName: null, xPfpUrl: null, xCreatedAt: null, xLinkedAt: null } as const;
 
+/** The wallet an X account is linked to now, if any. */
+export async function walletForX(xUserId: string): Promise<string | null> {
+  const rows = await getDb().select({ address: profiles.address }).from(profiles).where(eq(profiles.xUserId, xUserId)).limit(1);
+  return rows[0]?.address ?? null;
+}
+
 /** Unlink X. A name source of "x" falls back to automatic. */
 export async function unlinkX(address: string): Promise<void> {
   const a = address.toLowerCase();
