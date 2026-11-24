@@ -238,7 +238,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const dayQ = useQuery({
     queryKey: ["dayState", NETWORK.id, dailyKeys.map(String).join(",")],
     queryFn: () => readDayState(dailyKeys),
-    enabled: dailyKey !== null && chain.deployed,
+    // Wait for the public profile: read before it lands, the keys miss the X one, and a player who
+    // pulled on X would be offered Pull and then refused (Bugbot on #138).
+    enabled: dailyKey !== null && chain.deployed && !pubProfile.loading,
     staleTime: 30_000,
     refetchInterval: 60_000, // the UTC rollover must flip the card without a reload
   });
