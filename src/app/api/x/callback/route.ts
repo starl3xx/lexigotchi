@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { quickAuthDomain } from "@/lib/auth/quickAuth";
-import { consumeLinkState, linkX, walletForX } from "@/lib/db/profiles";
+import { consumeLinkState, getProfile, linkX, walletForX } from "@/lib/db/profiles";
 import { xKeyUsedToday } from "@/lib/onchain/dailyIdentity";
 import { fetchXUser, redirectUri, stateReturn, xEnabled } from "@/lib/profile/x";
 
@@ -36,6 +36,10 @@ export async function GET(req: Request) {
     // wallet could pull again today on Farcaster or Coinbase (dailyIdentity.ts).
     const linkedTo = await walletForX(user.id);
     if (linkedTo && linkedTo !== attempt.address && (await xKeyUsedToday(user.id).catch(() => true))) return done("busy", user.username);
+    // Replacing this wallet's own X with another would push out an account that took today's letter
+    // the same way an unlink would (Bugbot on #138).
+    const current = (await getProfile(attempt.address))?.xUserId;
+    if (current && current !== user.id && (await xKeyUsedToday(current).catch(() => true))) return done("busy", user.username);
     await linkX(attempt.address, user);
     return done("linked", user.username);
   } catch (err) {
