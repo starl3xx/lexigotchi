@@ -18,7 +18,8 @@ import {
   Ticket,
   Trophy,
 } from "../ui/icons";
-import { COST, THEMES, fmtWord, hunger, jackpotEligible, useGame, type View } from "../state";
+import { COST, THEMES, fmtWord, hunger, idxToChar, jackpotEligible, useGame, type View } from "../state";
+import { LetterTile } from "../LetterTile";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { QuickGrid } from "../QuickGrid";
 import { PendingReveal } from "../PendingReveal";
@@ -95,6 +96,12 @@ export function HomeScreen() {
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm">
             <span className="inline-flex items-center gap-1 text-ink/70">
+              {/* the letter today's daily gave, when this browser saw it */}
+              {state.dailyLetter != null && (
+                <span className="mr-1.5">
+                  <LetterTile char={idxToChar(state.dailyLetter)} size={30} title={`Today’s letter: ${idxToChar(state.dailyLetter).toLowerCase()}`} />
+                </span>
+              )}
               Claimed today <Check weight="bold" size={13} className="text-teal-ink" />
               {/* streak is a mock-only stat — on chain it would always read 0, which looks broken */}
               {!state.chainBacked && (

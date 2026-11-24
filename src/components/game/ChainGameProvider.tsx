@@ -155,6 +155,37 @@ function toOwnedWord(w: BagWord): OwnedWord {
   };
 }
 
+/** Today's daily as this browser saw it go out (see `dailySeen` in the provider). */
+interface DailySeen {
+  /** The chain day it was claimed on. */
+  day: number;
+  /** The lowercase letter (0–25) it gave, when known before the reveal mined. */
+  idx: number | null;
+  /** When the claim went out (ms), for the trust window. */
+  at: number;
+}
+/** How long the note alone counts as "claimed" before the chain's own read decides again. */
+const DAILY_SEEN_TRUST_MS = 10 * 60_000;
+
+function readDailySeen(key: string | null): DailySeen | null {
+  if (!key) return null;
+  try {
+    const v = JSON.parse(localStorage.getItem(key) ?? "null") as DailySeen | null;
+    return v && typeof v.day === "number" && typeof v.at === "number" ? { day: v.day, idx: typeof v.idx === "number" ? v.idx : null, at: v.at } : null;
+  } catch {
+    return null; // private mode, or a bad value: the chain read still works
+  }
+}
+
+function writeDailySeen(key: string | null, v: DailySeen) {
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(v));
+  } catch {
+    /* storage blocked: the note lasts this page only */
+  }
+}
+
 export function ChainGameProvider({ children }: { children: ReactNode }) {
   // The same reducer still owns nav/sheet/toast; the economy fields it computes are overridden
   // below by chain reads, so its money actions are simply never dispatched here.
@@ -245,6 +276,43 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     refetchInterval: 60_000, // the UTC rollover must flip the card without a reload
   });
 
+  // Today's daily as THIS browser saw it go out, so every screen shows it claimed at once (starl3xx,
+  // 2026-11-24: a pull on Today still showed Pull free on Mint). The chain read that follows a send
+  // can lag, the public Sepolia RPC especially. The note also keeps the letter, for the tile beside
+  // "Claimed today". It counts on its own only for DAILY_SEEN_TRUST_MS: if the chain still says
+  // unused after that, the send never landed, and the chain is the truth again. Kept per wallet and
+  // network in localStorage with the chain day, so a reload keeps it and tomorrow drops it.
+  const dailySeenKey = address ? `lexigotchi:daily:${NETWORK.id}:${address.toLowerCase()}` : null;
+  const [dailySeen, setDailySeen] = useState<DailySeen | null>(null);
+  useEffect(() => {
+    setDailySeen(readDailySeen(dailySeenKey));
+  }, [dailySeenKey]);
+  const chainDayNow = dayQ.data?.chainDay ?? Math.floor(Date.now() / 86_400_000);
+  const noteDaily = useCallback(
+    (idx: number | null) => {
+      const seen: DailySeen = { day: chainDayNow, idx, at: Date.now() };
+      setDailySeen(seen);
+      writeDailySeen(dailySeenKey, seen);
+      // Re-read on the usual stagger, so the chain catches up and takes over from the note.
+      for (const delay of REFRESH_RETRIES) setTimeout(() => void dayQ.refetch({ cancelRefetch: false }), delay);
+    },
+    [chainDayNow, dailySeenKey, dayQ],
+  );
+  // The actions below are memoized without noteDaily in their deps; the ref always holds the
+  // latest one, so a claim made right after the wallet connects still knows the wallet.
+  const noteDailyRef = useRef(noteDaily);
+  noteDailyRef.current = noteDaily;
+  const seenToday = dailySeen && dailySeen.day === chainDayNow ? dailySeen : null;
+  // Re-render when the note's trust window closes, so a send that never landed offers Pull again.
+  const [, expireTick] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!seenToday) return;
+    const left = seenToday.at + DAILY_SEEN_TRUST_MS - Date.now();
+    if (left <= 0) return;
+    const t = setTimeout(expireTick, left + 50);
+    return () => clearTimeout(t);
+  }, [seenToday]);
+
   // The server's wider view: a pull today under a key this client can't see (another Farcaster
   // account that verified this wallet, or one of its other wallets) also counts, as it does when
   // the daily route refuses. Without it the web shows Pull after a mini-app pull (Bugbot on #138).
@@ -326,6 +394,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ? "loading"
           : "ready";
 
+  const chainSaysClaimed = (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data ?? false);
+  const dailyClaimed = chainSaysClaimed || (seenToday !== null && Date.now() - seenToday.at < DAILY_SEEN_TRUST_MS);
   const state: GameState = useMemo(
     () => ({
       ...ui,
@@ -350,7 +420,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       day: 0,
       // Real, read from dailyUsed[dailyKey] — hardcoding false here showed "Pull" to a player the
       // contract was guaranteed to refuse, and the 409 toast read as a bug on the first live test.
-      dailyMinted: (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data ?? false),
+      dailyMinted: dailyClaimed,
+      dailyLetter: dailyClaimed && seenToday ? seenToday.idx : null,
       // Real pots + the keeper's actual theme rotation for the current weekly period.
       jackpotPot: bucketsQ.data?.jackpot ?? 0,
       bountyPool: bucketsQ.data?.bounty ?? 0,
@@ -360,7 +431,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, relatedDayQ.data, bucketsQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -723,6 +794,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             ]);
             if (sent) {
               markPaid();
+              noteDailyRef.current(b.letterIndexes[0] ?? null);
               // The letters are safe to show before mining confirms: the draw is (identity, day)-
               // deterministic, so whatever finishes this commit — this send or the recovery card
               // after a commitId race — mints exactly these.
@@ -736,6 +808,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             void pendingQ.refetch();
             if (day.data?.dailyUsed) {
               markPaid();
+              noteDailyRef.current(null);
               return { status: "stranded" as const, note: "Your letter is committed. Tap Open to reveal it" };
             }
             return { status: "not-started" as const };
@@ -745,6 +818,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
           if (!(await run("Daily", commitCalls))) return { status: "not-started" as const };
           markPaid();
+          noteDailyRef.current(null); // claimed; the letter shows in the pack sheet once revealed
           await finishLetterCommit(before, "Your daily letter is paid for. Reopen to finish it", run);
           // Letters arrive via the pack sheet; the caller only needs "don't call this again".
           return { status: "resolved", success: true };
