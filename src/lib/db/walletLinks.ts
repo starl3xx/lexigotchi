@@ -197,7 +197,11 @@ export function linkRefusal(opts: {
 
 /** Add the wallet to the account. The primary key keeps a wallet in one account. Throws. */
 export async function linkWallet(account: string, address: string): Promise<void> {
-  await getDb().insert(walletLinks).values({ address: lower(address), account: lower(account) }).onConflictDoNothing();
+  // Raw on purpose: Drizzle names every column (`via`, `fid` with DEFAULT), which fails on a
+  // database without migration 0009. Naming only these two works before and after it.
+  await getDb().execute(
+    sql`insert into wallet_links (address, account) values (${lower(address)}, ${lower(account)}) on conflict do nothing`,
+  );
 }
 
 /** Take the wallet out of the account (it becomes its own account again). Throws. */
