@@ -11,7 +11,7 @@ import { sendWebPush, buildWebPushPayload, webPushIsActive } from "@/lib/notify/
 import {
   hungerTargetsByAddress,
   webPushHungerTargets,
-  webPushDailyKey,
+  webPushDailyKeys,
   webPushWinnerSubs,
   isDailyDue,
   dailyTargets,
@@ -218,9 +218,12 @@ describe("browser push audiences", () => {
 
   it("reads the FID's daily slot when linked, the verified wallet's otherwise, and skips Farcaster's", () => {
     const farcaster = new Set([7]);
-    expect(webPushDailyKey({ address: A.toLowerCase(), fid: 7 }, farcaster, verifiedDailyKey)).toBeNull();
-    expect(webPushDailyKey({ address: A.toLowerCase(), fid: 8 }, farcaster, verifiedDailyKey)).toBe(8n);
-    expect(webPushDailyKey({ address: A.toLowerCase(), fid: null }, farcaster, verifiedDailyKey)).toBe(verifiedDailyKey(A));
+    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: 7 }, farcaster, verifiedDailyKey)).toBeNull();
+    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: 8 }, farcaster, verifiedDailyKey)).toEqual([8n]);
+    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: null }, farcaster, verifiedDailyKey)).toEqual([verifiedDailyKey(A)]);
+    // A wallet with a linked X reads both slots; the most recent pull of either decides.
+    const xKey = (1n << 162n) | 42n;
+    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: null }, farcaster, verifiedDailyKey, () => xKey)).toEqual([verifiedDailyKey(A), xKey]);
   });
 
   it("uses exactly the Farcaster daily rule", () => {

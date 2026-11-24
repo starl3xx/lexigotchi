@@ -115,3 +115,14 @@ export async function publicProfileRows(addresses: readonly string[]): Promise<P
     .from(profiles)
     .where(inArray(profiles.address, list));
 }
+
+/** Linked X user ids for these wallets (lowercase address → id), for the daily reminder. */
+export async function xUserIdsFor(addresses: readonly string[]): Promise<Map<string, string>> {
+  const list = [...new Set(addresses.map((x) => x.toLowerCase()))];
+  if (list.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ address: profiles.address, xUserId: profiles.xUserId })
+    .from(profiles)
+    .where(inArray(profiles.address, list));
+  return new Map(rows.filter((r) => r.xUserId).map((r) => [r.address, r.xUserId!]));
+}

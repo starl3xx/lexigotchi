@@ -8,40 +8,51 @@
  * identity 2026-04-09), so for them the verify path isn't the fallback, it's the door.
  */
 import { Button } from "./primitives";
-import { Ticket, SealCheck } from "./ui/icons";
+import { Ticket, SealCheck, XLogo } from "./ui/icons";
+import { useGame } from "./state";
 import { useViewer } from "./useViewer";
 import { useVerifiedWallet } from "./useVerifiedWallet";
+import { usePublicProfile } from "./useProfile";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 
 /** One answer for "may this player pull the daily?" — both screens branch on this. */
 export function useDailyEligibility(): { eligible: boolean; checking: boolean } {
   const viewer = useViewer();
   const { verified } = useVerifiedWallet();
+  const x = usePublicProfile();
   return {
-    eligible: viewer.isAuthed || verified === true,
-    // Farcaster context still resolving, or the attestation check still in flight — during either,
-    // the locked row would be a lie about a player who is about to be eligible.
-    checking: viewer.environment === "loading" || (!viewer.isAuthed && verified === null),
+    eligible: viewer.isAuthed || x.xCounts || verified === true,
+    // Farcaster context still resolving, the profile still loading, or the attestation check still
+    // in flight — during any, the locked row would be a lie about a player about to be eligible.
+    checking: viewer.environment === "loading" || (!viewer.isAuthed && !x.xCounts && (verified === null || x.loading)),
   };
 }
 
 export function DailyUnlock() {
   const viewer = useViewer();
   const { verified, recheck } = useVerifiedWallet();
+  const { xEnabled } = usePublicProfile();
+  const { openSheet } = useGame();
   const checking = viewer.environment === "loading" || verified === null;
 
   return (
     <div className="space-y-2">
       <div className="text-sm text-ink/70">
-        One free letter a day, with Farcaster or a Coinbase-verified wallet.
+        One free letter a day, with Farcaster{xEnabled ? ", X," : ""} or a Coinbase-verified wallet.
         <div className="text-xs text-ink/50">
-          {checking ? "Checking your wallet…" : "Either one proves you’re one person, once a day."}
+          {checking ? "Checking your wallet…" : `${xEnabled ? "Any one" : "Either one"} proves you’re one person, once a day.`}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="teal" disabled={viewer.environment === "loading"} onClick={viewer.signIn}>
           <Ticket weight="fill" /> Connect Farcaster
         </Button>
+        {/* Linking X needs a wallet signature and a trip to X, which the Profile sheet runs. */}
+        {xEnabled && (
+          <Button variant="ghost" onClick={() => openSheet({ kind: "profile" })}>
+            <XLogo weight="bold" /> Link X
+          </Button>
+        )}
         <a
           href={VERIFY_URL}
           target="_blank"

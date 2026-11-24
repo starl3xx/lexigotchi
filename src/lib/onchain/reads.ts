@@ -520,23 +520,31 @@ export interface DayState {
  * countdown driven by a local-midnight calculation is wrong for every player outside UTC, and wrong
  * in the direction that tells them the daily is available when the contract will reject it.
  */
-export async function readDayState(fid: bigint): Promise<DayState> {
+/**
+ * Today's daily state for a player, across EVERY key they could claim under (dailyKeysFor): the
+ * server refuses a daily when any one was used today, so "claimed" must mean the same here.
+ */
+export async function readDayState(keys: bigint | readonly bigint[]): Promise<DayState> {
   const letters = addressOf("letters");
-  const [now, usedDayPlusOne] = await Promise.all([
+  const list = typeof keys === "bigint" ? [keys] : [...keys];
+  const [now, ...used] = await Promise.all([
     readChainTime(),
-    getPublicClient().readContract({
-      address: letters,
-      abi: lettersAbi,
-      functionName: "dailyUsed",
-      args: [fid],
-    }) as Promise<number | bigint>,
+    ...list.map(
+      (k) =>
+        getPublicClient().readContract({
+          address: letters,
+          abi: lettersAbi,
+          functionName: "dailyUsed",
+          args: [k],
+        }) as Promise<number | bigint>,
+    ),
   ]);
-  const day = Math.floor(now / 86_400);
+  const day = Math.floor((now as number) / 86_400);
   return {
     chainDay: day,
-    secondsUntilReset: (day + 1) * 86_400 - now,
+    secondsUntilReset: (day + 1) * 86_400 - (now as number),
     // The contract stores day+1 so that 0 means "never" — comparing against the raw day is off by one.
-    dailyUsed: Number(usedDayPlusOne) === day + 1,
+    dailyUsed: used.some((u) => Number(u) === day + 1),
   };
 }
 

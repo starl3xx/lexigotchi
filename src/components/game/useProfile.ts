@@ -11,7 +11,7 @@
 import { useCallback, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { NameSource, ProfileConfig, ProfileView, PublicProfileView } from "@/lib/profile/rules";
+import { xOldEnough, type NameSource, type ProfileConfig, type ProfileView, type PublicProfileView } from "@/lib/profile/rules";
 import type { Viewer } from "./useViewer";
 
 const HEADER = "x-lexigotchi-session";
@@ -246,6 +246,44 @@ export function useProfile() {
     setNameSource,
     startXLink,
     unlinkX,
+  };
+}
+
+/**
+ * The wallet's public profile and whether its linked X unlocks the daily, with no session needed.
+ * Shares useProfile's cache entries, so it costs nothing extra where both are used.
+ */
+export function usePublicProfile(): { profile: PublicProfileView | null; xCounts: boolean; loading: boolean; xEnabled: boolean } {
+  const { address } = useAccount();
+  const addr = address?.toLowerCase() ?? null;
+  const config = useQuery({
+    queryKey: ["profileConfig"],
+    queryFn: async (): Promise<ProfileConfig | null> => {
+      const r = await fetch("/api/profile/config");
+      return r.ok ? ((await r.json()) as ProfileConfig) : null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const enabled = Boolean(config.data?.profiles);
+  const pub = useQuery({
+    queryKey: ["profilePublic", addr],
+    enabled: enabled && !!addr,
+    staleTime: 30_000,
+    queryFn: async (): Promise<PublicProfileView | null> => {
+      const r = await fetch(`/api/profile/public?address=${addr}`);
+      if (!r.ok) return null;
+      const d = (await r.json()) as { ok: boolean; profile?: PublicProfileView };
+      return d.ok && d.profile ? d.profile : null;
+    },
+  });
+  const xEnabled = Boolean(config.data?.x);
+  const profile = pub.data ?? null;
+  return {
+    profile,
+    xEnabled,
+    // Mirrors the server (free-daily): X switched on, linked, and older than 90 days.
+    xCounts: xEnabled && Boolean(profile?.x) && xOldEnough(profile?.x?.createdAt),
+    loading: config.isLoading || (enabled && !!addr && pub.isLoading),
   };
 }
 

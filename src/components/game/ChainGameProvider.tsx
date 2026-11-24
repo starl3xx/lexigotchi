@@ -58,7 +58,8 @@ import {
   readOpenRollFor,
   readOpenPrestigeFor,
 } from "@/lib/onchain/reads";
-import { verifiedDailyKey } from "@/lib/onchain/verifications";
+import { dailyKeysFor } from "@/lib/onchain/verifications";
+import { usePublicProfile } from "./useProfile";
 import { bagWalletsOf, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
@@ -221,15 +222,22 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     if (pruned !== myPityNotes) setPityNotes((all) => ({ ...all, [walletKey]: pruned }));
   }, [pityQ.data, myPityNotes, walletKey]);
 
-  // The identity today's daily would be issued under — mirrors the server's JWT-wins ordering
-  // (free-daily route): the Farcaster fid when signed in, else the wallet's synthetic 2^160 key.
-  // Getting this wrong shows "Pull" to a player the contract will refuse, and the refusal reads
-  // as a bug (it did, on the first live test).
-  const dailyKey = viewer.fid ? BigInt(viewer.fid) : address ? verifiedDailyKey(address) : null;
+  // The identity today's daily would be issued under, and every other key the player could claim
+  // under — mirrors the server (free-daily route): the Farcaster fid, then an X account old enough
+  // to count, then the wallet's synthetic 2^160 key, and "claimed" if ANY was used today. Getting
+  // this wrong shows "Pull" to a player the contract or the server will refuse, and the refusal
+  // reads as a bug (it did, on the first live test).
+  const pubProfile = usePublicProfile();
+  const { primary: dailyKey, all: dailyKeys } = dailyKeysFor({
+    fid: viewer.fid,
+    xUserId: pubProfile.profile?.x?.id ?? null,
+    xCounts: pubProfile.xCounts,
+    wallet: address ?? null,
+  });
 
   const dayQ = useQuery({
-    queryKey: ["dayState", NETWORK.id, dailyKey?.toString()],
-    queryFn: () => readDayState(dailyKey!),
+    queryKey: ["dayState", NETWORK.id, dailyKeys.map(String).join(",")],
+    queryFn: () => readDayState(dailyKeys),
     enabled: dailyKey !== null && chain.deployed,
     staleTime: 30_000,
     refetchInterval: 60_000, // the UTC rollover must flip the card without a reload
@@ -499,7 +507,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         case "verification_required":
           // A wallet with no attestation and no Farcaster session. The screens surface the verify
           // CTA; this copy is the fallback for a claim raced past a stale status.
-          return "The daily needs Farcaster or a Coinbase-verified wallet";
+          return "The daily needs a linked account or a Coinbase-verified wallet. Open your profile";
+        case "x_too_young":
+          return "Your X account unlocks the daily once it’s 90 days old";
         case "verification_unavailable":
           return "Can’t check your verification right now. Try again in a minute";
         default:
