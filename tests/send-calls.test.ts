@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { sendCallsAttributed, CHAIN_ID_HEX, WrongChainError, type Eip1193Provider } from "@/lib/onchain/sendCalls";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
 import { NETWORK } from "@/lib/onchain/network";
@@ -155,6 +155,24 @@ describe("sendCallsAttributed — the chain guard", () => {
  * Gas sponsorship: the paymasterService capability appears only when configured, always optional,
  * and always alongside (never instead of) the builder attribution.
  */
+describe("sponsorship is asked per call", () => {
+  it("only a call that asks (Move here) offers the paymaster, even with sponsorship on", async () => {
+    process.env.NEXT_PUBLIC_PAYMASTER_ENABLED = "1";
+    vi.stubGlobal("window", { location: { origin: "https://lexigotchi.example" } });
+    const capsOf = async (sponsored?: boolean) => {
+      const { provider, calls } = mockProvider({});
+      await sendCallsAttributed(provider, FROM, [{ to: TO, data: DATA }], sponsored === undefined ? {} : { sponsored });
+      const p = (calls.find((c) => c.method === "wallet_sendCalls")!.params as Record<string, unknown>[])[0];
+      return p.capabilities as Record<string, unknown>;
+    };
+    expect("paymasterService" in (await capsOf())).toBe(false); // every other action: the wallet pays
+    expect("paymasterService" in (await capsOf(false))).toBe(false);
+    expect("paymasterService" in (await capsOf(true))).toBe(true);
+    vi.unstubAllGlobals();
+    delete process.env.NEXT_PUBLIC_PAYMASTER_ENABLED;
+  });
+});
+
 describe("paymasterCapability", () => {
   it("is empty when the toggle is off — missing CDP setup degrades to user-paid gas", async () => {
     delete process.env.NEXT_PUBLIC_PAYMASTER_ENABLED;

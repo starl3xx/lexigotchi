@@ -59,6 +59,10 @@ Still to do on Sepolia:
    It is the only place gas sponsorship can be tested. A wallet can't reach a `localhost`
    paymaster URL, and Coinbase Wallet then fails the whole send ("Something went wrong") instead of
    paying its own gas. Until it's proven, keep `NEXT_PUBLIC_PAYMASTER_ENABLED` off in production.
+   Sponsorship is asked PER CALL (`sendCallsAttributed(…, { sponsored: true })`, default off), so
+   turning the flag on sponsors only calls that ask: today, Move here (Letters `safeBatchTransferFrom`,
+   Words `safeTransferFrom`, $WORD `transfer`). The CDP policy must allow those before the flag goes
+   on; add an action to the policy before it asks.
 2. Claim a reward. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a fully
    UPPERCASE staked word.
 3. Time a keeper run once many words exist. The word scan grows with every claim.

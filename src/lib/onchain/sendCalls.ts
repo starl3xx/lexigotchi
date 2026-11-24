@@ -116,8 +116,10 @@ export async function sendCallsAttributed(
   /**
    * `network`: the chain the calls must go to (default: the game's). The $WORD swap names Base
    * mainnet explicitly, because the real token lives there even on a testnet build.
-   * `sponsored`: offer the paymaster (default true). The swap passes false: the sponsorship policy
-   * covers the game's contracts, not a third-party router.
+   * `sponsored`: offer the paymaster (default FALSE). Only calls the CDP sponsorship policy is known
+   * to allow ask for it: when the policy refuses, Coinbase Wallet fails the whole send instead of
+   * paying its own gas (web3-runtime-plan.md). Move here asks (starl3xx: "moves should be free");
+   * the rest join as the policy grows to cover them. The swap never does (a third-party router).
    */
   opts: { network?: NetworkDef; sponsored?: boolean } = {},
 ): Promise<SendResult> {
@@ -133,7 +135,7 @@ export async function sendCallsAttributed(
           chainId: `0x${net.id.toString(16)}`,
           atomicRequired: false,
           calls: calls.map((c) => ({ to: c.to, data: c.data ?? "0x", value: c.value })),
-          capabilities: builderCapabilities(opts.sponsored === false ? {} : paymasterCapability()),
+          capabilities: builderCapabilities(opts.sponsored === true ? paymasterCapability() : {}),
         },
       ],
     });

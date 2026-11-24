@@ -380,8 +380,10 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             </label>
           )}
           <p className="mt-1.5 text-xs text-ink/60">
-            This wallet sends the move, so it needs a little ETH on {NETWORK.name} for the network fee. Open swap offers from
-            this wallet stop working. The game can’t undo a move.
+            {process.env.NEXT_PUBLIC_PAYMASTER_ENABLED === "1"
+              ? `With Coinbase Wallet the move is free: the game pays the network fee. Other wallets need a little ETH on ${NETWORK.name}.`
+              : `This wallet sends the move, so it needs a little ETH on ${NETWORK.name} for the network fee.`}{" "}
+            Open swap offers from this wallet stop working. The game can’t undo a move.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button
