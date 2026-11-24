@@ -259,7 +259,10 @@ export function useProfile() {
         });
         if (r.status === 401) forget();
         const d = (await r.json().catch(() => ({}))) as { ok?: boolean; profile?: ProfileView; error?: string; triesLeft?: number };
-        if (d.profile) qc.setQueryData(["profileMe", addr, t], d.profile);
+        if (d.profile) {
+          await qc.cancelQueries({ queryKey: ["profileMe", addr, t] });
+          qc.setQueryData(["profileMe", addr, t], d.profile);
+        }
         return { error: d.ok ? null : (d.error ?? "failed"), triesLeft: d.triesLeft };
       } catch {
         return { error: "failed" };
