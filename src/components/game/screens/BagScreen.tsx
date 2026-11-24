@@ -6,6 +6,7 @@ import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
 import { idxToChar, useGame, mineLower, mineUpper } from "../state";
+import { GameWalletNotice } from "../GameWalletNotice";
 
 export function BagScreen() {
   const g = useGame();
@@ -25,6 +26,7 @@ export function BagScreen() {
 
   return (
     <div className="space-y-3">
+      <GameWalletNotice />
       <Segmented
         className="md:max-w-sm"
         value={tab}

@@ -82,8 +82,8 @@ every future jackpot, and losing it ends the jackpot (`setHead` reverts once the
 
 Apply migrations `0003` (browser push), `0004` (reward claims), `0005` (sticky draws), `0006`
 (profiles: the X link, name and picture choice, email codes), `0007` (send-once markers for
-email reminders), `0008` (linked wallets), `0009` (how a linked wallet joined), and `0010` (wallet
-sightings, for the console's Players tab) with `npm run db:migrate`. All of them only add tables or columns. Until 0004 exists, the keeper refuses to open a
+email reminders), `0008` (linked wallets), `0009` (how a linked wallet joined), `0010` (the game
+wallet), and `0011` (wallet sightings, for the console's Players tab) with `npm run db:migrate`. All of them only add tables or columns. Until 0004 exists, the keeper refuses to open a
 yield epoch, so the bucket rolls over and nothing is lost. The console's System tab lists which
 migrations production has applied.
 

@@ -75,8 +75,15 @@
     {
       "idx": 10,
       "version": "7",
+      "when": 1795726176169,
+      "tag": "0010_game_wallets",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
       "when": 1795812576169,
-      "tag": "0010_wallet_sightings",
+      "tag": "0011_wallet_sightings",
       "breakpoints": true
     }
   ]

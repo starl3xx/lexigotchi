@@ -156,6 +156,12 @@ showed; only the *decisions* changed.
    Farcaster account verified join the profile on their own (via "farcaster", migration 0009) when
    that FID also verified a wallet the profile already had by signature or as its first wallet. They
    leave when Farcaster stops verifying them; Unlink refuses them.
+   Then (same day, starl3xx: "this wallet/profile issue is critically important for the success of
+   the game"; yes to both): a GAME WALLET the player chooses (table game_wallets, migration 0010),
+   with notices that speak only when it matters (gameWalletAdvice: choose / move to it / switch to it
+   / gather), $WORD in Move (opt-in), and a warning before staking off it. Not the profile's first
+   wallet by default: that one is sometimes picked by rule. A contract change so any of a player's
+   wallets can play and feed is being DESIGNED before mainnet (no contract edits yet).
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

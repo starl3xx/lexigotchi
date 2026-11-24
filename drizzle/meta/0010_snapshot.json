@@ -1,5 +1,5 @@
 {
-  "id": "c250e584-b430-48e5-ae9a-cd35d009acec",
+  "id": "0f3db25a-4ad9-4526-ab7f-d1e296bdbc91",
   "prevId": "13b8da66-f1a9-4585-9a12-a16c0f16ade9",
   "version": "7",
   "dialect": "postgresql",
@@ -778,86 +778,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.wallet_sightings": {
-      "name": "wallet_sightings",
-      "schema": "",
-      "columns": {
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "first_seen_at": {
-          "name": "first_seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "days_seen": {
-          "name": "days_seen",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "last_day": {
-          "name": "last_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "first_via": {
-          "name": "first_via",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_via": {
-          "name": "last_via",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fid": {
-          "name": "fid",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "wallet_sightings_first_seen_idx": {
-          "name": "wallet_sightings_first_seen_idx",
-          "columns": [
-            {
-              "expression": "first_seen_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.web_push_subscriptions": {
       "name": "web_push_subscriptions",
       "schema": "",
@@ -992,6 +912,38 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.game_wallets": {
+      "name": "game_wallets",
+      "schema": "",
+      "columns": {
+        "account": {
+          "name": "account",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "wallet": {
+          "name": "wallet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chosen_at": {
+          "name": "chosen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},

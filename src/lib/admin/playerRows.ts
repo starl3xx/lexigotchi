@@ -120,7 +120,7 @@ export interface PlayerRow {
 export interface Funnel {
   /** Wallets with any trace at all (a sighting, an onchain action, a profile, a reminder). */
   any: number;
-  /** Wallets the game saw connected (the unverified count; needs migration 0010). */
+  /** Wallets the game saw connected (the unverified count; needs migration 0011). */
   seen: number;
   faucet: number;
   letters: number;

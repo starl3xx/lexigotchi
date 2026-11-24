@@ -7,7 +7,7 @@
  * Fire-and-forget: it never blocks, retries, or shows anything. It waits for the viewer to resolve
  * so the "web" / "farcaster" label is right, and attaches a Quick Auth token when one exists, so the
  * server can store a VERIFIED FID beside the wallet. The day is marked only when the server stored
- * it, so a server without the table yet (migration 0010) hears again on the next visit.
+ * it, so a server without the table yet (migration 0011) hears again on the next visit.
  */
 import { useEffect } from "react";
 import { useAccount } from "wagmi";

@@ -313,6 +313,19 @@ export const walletLinks = pgTable(
 );
 
 /**
+ * The player's game wallet (migration 0010): the one wallet they choose to keep their letters,
+ * words, and $WORD in, because every onchain action uses the connected wallet's own holdings. One
+ * row per account (its first wallet). A wallet that has left the account reads as no choice.
+ * Its own table, not a `profiles` column: profile reads select every column, so a new one there
+ * would break them on a database that hasn't migrated yet.
+ */
+export const gameWallets = pgTable("game_wallets", {
+  account: text("account").primaryKey(),
+  wallet: text("wallet").notNull(),
+  chosenAt: timestamp("chosen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * One "Link another wallet" attempt: a code made under the account's session, then signed (inside a
  * Sign-In with Ethereum message that names the account) by the wallet joining. Kept on the server so
  * the second wallet can sign anywhere: the same browser after a wallet switch, another device, or a

@@ -393,6 +393,16 @@ export function useProfile() {
     }
   }, [address, qc, signMessageAsync, afterAccountChange]);
 
+  /** Choose the account's game wallet (any wallet's session in the account). */
+  const setGameWallet = useCallback(async (wallet: string) => {
+    const r = await emailCall("/api/profile/game-wallet", "POST", { wallet });
+    if (!r.error) {
+      bustPublicProfile();
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+    }
+    return r;
+  }, [emailCall, qc]);
+
   /** Take a wallet out of the account (any wallet's session in the account). */
   const unlinkWallet = useCallback(async (wallet: string) => {
     const r = await emailCall("/api/profile/wallets", "DELETE", { address: wallet });
@@ -431,6 +441,7 @@ export function useProfile() {
     makeLinkCode,
     joinWithCode,
     unlinkWallet,
+    setGameWallet,
     sendEmailCode: (email: string) => emailCall("/api/profile/email", "POST", { email }),
     confirmEmail: (email: string, code: string) => emailCall("/api/profile/email/verify", "POST", { email, code }),
     removeEmail: () => emailCall("/api/profile/email", "DELETE"),
