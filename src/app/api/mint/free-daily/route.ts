@@ -10,6 +10,7 @@ import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
 import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
 import { getProfile } from "@/lib/db/profiles";
+import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { profilesEnabled } from "@/lib/profile/session";
 import { xEnabled } from "@/lib/profile/x";
 import { xOldEnough } from "@/lib/profile/rules";
@@ -111,12 +112,14 @@ export async function POST(req: Request) {
 
   // dailyUsed stores day+1 so that 0 can mean "never" — comparing against the raw day is off by one.
   // Every key this player could claim under, not just today's: one letter a day, however many
-  // accounts are linked.
+  // accounts are linked. That includes a FID this request didn't sign in with, and the other
+  // wallets of the player's Farcaster accounts (relatedDailyKeys).
   const { all } = dailyKeysFor({ fid, xUserId, xCounts, wallet });
-  const keys = [...new Set([key, ...all])];
-  const used = (await Promise.all(
-    keys.map((k) => getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })),
-  )) as unknown as (number | bigint)[];
+  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet }))])];
+  const used = (await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),
+  })) as unknown as (number | bigint)[];
   if (used.some((u) => Number(u) === today + 1)) {
     return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
   }

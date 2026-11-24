@@ -136,7 +136,9 @@ export function ProfileSheet() {
           {/* X: shown once the server has it switched on. Linking makes the account public next to
               the wallet (Jake, 2026-11-23: "public, with a clear notice"), so the notice sits right
               under the button that does it. */}
-          {p.xEnabled && (
+          {/* Also shown while an X account is still linked with X switched off: the link stays
+              public, so its Unlink must stay reachable (Bugbot on #137). Link needs X on. */}
+          {(p.xEnabled || x) && (
             <div className="py-2">
               <Row
                 icon={<XLogo weight="bold" size={13} className="text-paper" />}
@@ -157,7 +159,7 @@ export function ProfileSheet() {
                   <button onClick={() => void p.unlinkX()} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
                     Unlink
                   </button>
-                ) : address ? (
+                ) : address && p.xEnabled ? (
                   <Button size="sm" variant="ghost" disabled={p.busy} onClick={() => void linkX()}>
                     {p.busy ? <CircleNotch className="animate-spin" /> : "Link"}
                   </Button>
