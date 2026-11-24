@@ -172,7 +172,9 @@ export function SwapCard() {
           break;
         }
       }
-      void qc.invalidateQueries({ queryKey: ["word"] });
+      // Everything that shows a $WORD balance: the page's numbers, the "You hold" line, and the
+      // game's own balance in the header, which decides what you can afford (Bugbot on #133).
+      for (const queryKey of [["word"], ["wordHolder"], ["playerState"]]) void qc.invalidateQueries({ queryKey });
       setAmount("");
       g.toast(
         landed
