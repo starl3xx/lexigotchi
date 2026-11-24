@@ -37,6 +37,20 @@ import { usePublicProfile } from "./useProfile";
 import { OrDivider, SignInWithCoinbaseWallet } from "./SignInWithCoinbaseWallet";
 import { Check, Wallet } from "./ui/icons";
 
+/**
+ * Did the wallet refuse the chain as unknown (EIP-1193 4902)? viem/wagmi wrap the wallet's error and
+ * put a generic short message on top, so look at `code` all the way down the cause chain, as
+ * sendCalls does (Bugbot on #156).
+ */
+function isUnrecognizedChain(err: unknown): boolean {
+  let e = err as { code?: number; cause?: unknown; message?: string } | undefined;
+  for (let depth = 0; e && depth < 8; depth++) {
+    if (e.code === 4902 || /unrecognized chain/i.test(e.message ?? "")) return true;
+    e = e.cause as typeof e;
+  }
+  return false;
+}
+
 export function ConnectPanel() {
   const { openConnectModal, connectModalOpen } = useConnectModal();
   const viewer = useViewer();
@@ -50,6 +64,8 @@ export function ConnectPanel() {
   // Farcaster button (Bugbot on #156; SignInWithCoinbaseWallet scopes it the same way).
   const hostPending = isPending && (variables?.connector as { id?: string } | undefined)?.id === "farcaster";
   const [hostError, setHostError] = useState<string | null>(null);
+  // The wallet answered EIP-1193 4902 ("unrecognized chain") somewhere down the error's cause chain.
+  const [hostChainUnknown, setHostChainUnknown] = useState(false);
   // The CAIP-2 chains the host's wallet supports: undefined while asking, null if the host couldn't say.
   const [hostChains, setHostChains] = useState<string[] | null | undefined>(undefined);
   useEffect(() => {
@@ -68,11 +84,20 @@ export function ConnectPanel() {
   // (Bugbot on #156).
   const chainRefused = Array.isArray(hostChains)
     ? !hostChains.includes(`eip155:${NETWORK.id}`)
-    : hostChains === null && hostError !== null && /4902|unrecognized chain/i.test(hostError);
+    : hostChains === null && hostChainUnknown;
   const connectHostWallet = () => {
     if (!farcasterWallet) return;
     setHostError(null);
-    connect({ connector: farcasterWallet }, { onError: (e) => setHostError((e as { shortMessage?: string }).shortMessage ?? e.message) });
+    setHostChainUnknown(false);
+    connect(
+      { connector: farcasterWallet },
+      {
+        onError: (e) => {
+          setHostError((e as { shortMessage?: string }).shortMessage ?? e.message);
+          setHostChainUnknown(isUnrecognizedChain(e));
+        },
+      },
+    );
   };
   const asked = useRef(false);
   useEffect(() => {
