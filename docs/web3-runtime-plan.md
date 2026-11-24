@@ -156,10 +156,13 @@ theirs grows:
 ## Player docs at launch
 
 The player docs live in `docs-site/` (Mintlify, served at lexigotchi.fun/docs through the
-`vercel.json` rewrites). Two pages say the game is in practice mode: the note on
-`docs-site/index.mdx` and "Is the game live?" in `docs-site/faq.mdx`. In the same PR that commits
-the mainnet addresses, remove both, and consider adding the contract addresses to
-`docs-site/fairness.mdx`.
+`vercel.json` rewrites). Two pages say the game runs on Base Sepolia with test $WORD (production
+has run the testnet game since 2026-11-24, `NEXT_PUBLIC_CHAIN_ID=84532`, at starl3xx's request,
+so he can test everything on the live site): the note on `docs-site/index.mdx` and "Is the game
+live?" in `docs-site/faq.mdx`. The game header shows a "Testnet" badge and the landing page a
+"Testnet" note while `NETWORK.isTestnet`, so those follow the setting by themselves. In the same PR
+that commits the mainnet addresses (and sets `NEXT_PUBLIC_CHAIN_ID` back to 8453 or unsets it),
+remove both docs notes, and consider adding the contract addresses to `docs-site/fairness.mdx`.
 
 Two more notes come out when a switch flips, not with the launch PR:
 

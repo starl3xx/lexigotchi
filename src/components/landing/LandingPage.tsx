@@ -14,7 +14,8 @@ import { WORD_COUNT } from "@/lib/dictionary";
 import { LEGENDARIES, LETTERS_BY_FREQUENCY } from "@/lib/economy";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { HOW_IT_WORKS, pct } from "@/lib/howItWorks";
-import { isRealEconomy } from "@/lib/onchain/gameMode";
+import { isChainBacked, isRealEconomy } from "@/lib/onchain/gameMode";
+import { NETWORK } from "@/lib/onchain/network";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { TileCharacter, TileWord } from "@/components/game/TileCharacter";
 import { WordStripLive } from "@/components/WordStrip";
@@ -228,6 +229,8 @@ const A = ({ href, children }: { href: string; children: ReactNode }) => (
  */
 export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; emailOn?: boolean }) {
   const practice = !isRealEconomy();
+  // The chain game on a test network (Base Sepolia), as opposed to the in-browser practice game.
+  const testnet = isChainBacked() && NETWORK.isTestnet;
   const { baseSuccess, pityCap } = DEFAULT_PARAMS.roll;
   const care = DEFAULT_PARAMS.care;
 
@@ -282,9 +285,11 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
           {practice && (
             <p className="mt-2 text-sm text-ink/60">
               <span className="mr-1.5 rounded border-2 border-ink/70 px-1.5 py-px text-[11px] font-extrabold uppercase tracking-wider text-ink/70">
-                Preview
+                {testnet ? "Testnet" : "Preview"}
               </span>
-              Balances are for practice until the contracts launch on Base.
+              {testnet
+                ? "The game runs on Base Sepolia with test $WORD until the contracts launch on Base."
+                : "Balances are for practice until the contracts launch on Base."}
             </p>
           )}
         </div>
