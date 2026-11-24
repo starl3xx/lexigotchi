@@ -64,6 +64,19 @@ describe("player docs", () => {
   it("have no em dashes", () => expect(pages.filter((p) => /—|&mdash;|&#8212;/.test(p.text)).map((p) => p.where)).toEqual([]));
   it("use curly apostrophes", () => expect(pages.filter((p) => /[A-Za-z]'[A-Za-z]/.test(p.text)).map((p) => p.where)).toEqual([]));
   it("spell onchain as one word", () => expect(pages.filter((p) => /\bon-chain\b/i.test(p.text)).map((p) => p.where)).toEqual([]));
+  // Mintlify reads text between two dollar signs as LaTeX math: "paid in $WORD. As the price of $WORD"
+  // rendered as an italic equation on 7 live pages. A backslash keeps a dollar sign literal in body
+  // text; in frontmatter and tag attributes it would show as a backslash, so those stay bare.
+  const FRONTMATTER = /^---\n[\s\S]*?\n---\n/;
+  const TAG = /<\/?[A-Za-z][^>]*>/g;
+  it("escape every dollar sign in body text, so Mintlify never sets it as math", () => {
+    const bare = pages.filter((p) => /(?<!\\)\$/.test(p.text.replace(FRONTMATTER, "").replace(TAG, "")));
+    expect(bare.map((p) => p.where)).toEqual([]);
+  });
+  it("leave dollar signs bare in frontmatter and tag attributes", () => {
+    const escaped = pages.filter((p) => /\\\$/.test((p.text.match(FRONTMATTER)?.[0] ?? "") + (p.text.match(TAG) ?? []).join(" ")));
+    expect(escaped.map((p) => p.where)).toEqual([]);
+  });
 });
 
 describe("player-facing copy", () => {
