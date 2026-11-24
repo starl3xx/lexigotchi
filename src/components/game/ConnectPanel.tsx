@@ -21,20 +21,93 @@
  * hand-rolled hint answered: Rabby queues a connection request inside the extension, and every
  * further click queued silently behind it.
  *
- * Inside a Farcaster host none of this renders: the mini-app connector auto-connects the host
- * wallet and the SDK supplies the FID — this panel is only ever the open-web experience. After the
- * wallet connects, DailyUnlock (Home + Mint) keeps offering the optional link where the daily lives.
+ * Inside a Farcaster host the host's own wallet is the way in. wagmi's silent reconnect only picks it
+ * up when the host already reports an account, which not every host does (the panel showed up inside
+ * Farcaster on 2026-11-24 with no wallet), so the panel asks for it explicitly, once, and says why
+ * when it can't: on a test network the host wallet may not support the chain at all (Base's list of
+ * mini-app chains leaves out Base Sepolia), and then another wallet is the only way. After the wallet
+ * connects, DailyUnlock (Home + Mint) keeps offering the optional link where the daily lives.
  */
+import { useEffect, useRef, useState } from "react";
+import { useConnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { NETWORK } from "@/lib/onchain/network";
 import { useViewer } from "./useViewer";
 import { usePublicProfile } from "./useProfile";
 import { OrDivider, SignInWithCoinbaseWallet } from "./SignInWithCoinbaseWallet";
 import { Check, Wallet } from "./ui/icons";
 
+/**
+ * Did the wallet refuse the chain as unknown (EIP-1193 4902)? viem/wagmi wrap the wallet's error and
+ * put a generic short message on top, so look at `code` all the way down the cause chain, as
+ * sendCalls does (Bugbot on #156).
+ */
+function isUnrecognizedChain(err: unknown): boolean {
+  let e = err as { code?: number; cause?: unknown; message?: string } | undefined;
+  for (let depth = 0; e && depth < 8; depth++) {
+    if (e.code === 4902 || /unrecognized chain/i.test(e.message ?? "")) return true;
+    e = e.cause as typeof e;
+  }
+  return false;
+}
+
 export function ConnectPanel() {
   const { openConnectModal, connectModalOpen } = useConnectModal();
   const viewer = useViewer();
   const { xEnabled } = usePublicProfile();
+
+  // ── Inside a Farcaster host: the host's wallet ───────────────────────────────────────────────
+  const inHost = viewer.environment === "farcaster";
+  const { connect, connectors, isPending, variables } = useConnect();
+  const farcasterWallet = connectors.find((c) => c.id === "farcaster");
+  // Pending for THIS connector only: "Sign in with Coinbase Wallet" connecting must not grey out the
+  // Farcaster button (Bugbot on #156; SignInWithCoinbaseWallet scopes it the same way).
+  const hostPending = isPending && (variables?.connector as { id?: string } | undefined)?.id === "farcaster";
+  const [hostError, setHostError] = useState<string | null>(null);
+  // The wallet answered EIP-1193 4902 ("unrecognized chain") somewhere down the error's cause chain.
+  const [hostChainUnknown, setHostChainUnknown] = useState(false);
+  // The CAIP-2 chains the host's wallet supports: undefined while asking, null if the host couldn't say.
+  const [hostChains, setHostChains] = useState<string[] | null | undefined>(undefined);
+  useEffect(() => {
+    if (!inHost) return;
+    let alive = true;
+    void import("@farcaster/miniapp-sdk")
+      .then(({ default: sdk }) => sdk.getChains())
+      .then((chains) => alive && setHostChains(chains))
+      .catch(() => alive && setHostChains(null));
+    return () => {
+      alive = false;
+    };
+  }, [inHost]);
+  // The host's own list decides. Only when it couldn't give one does the wallet's error speak, and
+  // then only the specific "unrecognized chain" (EIP-1193 4902), never a generic switch failure
+  // (Bugbot on #156).
+  const chainRefused = Array.isArray(hostChains)
+    ? !hostChains.includes(`eip155:${NETWORK.id}`)
+    : hostChains === null && hostChainUnknown;
+  const connectHostWallet = () => {
+    if (!farcasterWallet) return;
+    setHostError(null);
+    setHostChainUnknown(false);
+    connect(
+      { connector: farcasterWallet },
+      {
+        onError: (e) => {
+          setHostError((e as { shortMessage?: string }).shortMessage ?? e.message);
+          setHostChainUnknown(isUnrecognizedChain(e));
+        },
+      },
+    );
+  };
+  const asked = useRef(false);
+  useEffect(() => {
+    // Wait for the host's chain list first, so a wallet without the chain gets the explanation, not
+    // a refused switch (Bugbot on #156).
+    if (!inHost || !farcasterWallet || asked.current || hostChains === undefined || chainRefused) return;
+    asked.current = true;
+    connectHostWallet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount, when the host is known
+  }, [inHost, farcasterWallet, hostChains, chainRefused]);
 
   return (
     <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5">
@@ -46,6 +119,35 @@ export function ConnectPanel() {
           ? `${viewer.username ? `@${viewer.username}` : "Your Farcaster account"} is linked. Now connect a wallet: your letters and words live in it, and it’s your Lexigotchi account.`
           : "Your wallet is your Lexigotchi account. Your letters and words live in it."}
       </p>
+
+      {inHost && (
+        <div className="mt-4">
+          {chainRefused ? (
+            <p className="rounded-xl border-2 border-ink/20 bg-paper-dark/40 p-3 text-sm text-ink/75">
+              Your Farcaster wallet doesn’t support {NETWORK.name}, the test network this beta runs on. Connect another wallet
+              below. When the game launches on Base, your Farcaster wallet connects on its own.
+            </p>
+          ) : (
+            <>
+              <button
+                onClick={connectHostWallet}
+                disabled={!farcasterWallet || hostPending || hostChains === undefined}
+                className="cel flex w-full items-center justify-center gap-2 rounded-xl bg-[#855DCD] px-4 py-3 font-display text-base font-extrabold text-white press disabled:opacity-50"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/fc-arch-icon.png" alt="" className="h-3.5 w-auto" />
+                {hostPending ? "Check your Farcaster wallet…" : hostError ? "Try my Farcaster wallet again" : "Use my Farcaster wallet"}
+              </button>
+              {hostError && (
+                <p role="status" className="mt-2 text-xs text-ink/60">
+                  Your Farcaster wallet didn’t connect ({hostError.slice(0, 90)}). Try again, or connect another wallet below.
+                </p>
+              )}
+            </>
+          )}
+          <OrDivider />
+        </div>
+      )}
 
       <button
         onClick={openConnectModal}
