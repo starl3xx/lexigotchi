@@ -47,10 +47,14 @@ export function ProfileSheet() {
     else window.location.assign(url);
   };
 
-  const fcLinked = viewer.isAuthed && !!viewer.username;
+  // Signed in IS linked, even before the username arrives (web sign-in proves the FID first, and
+  // /api/auth/profile fills the name in later, or fails): Bugbot on #136.
+  const fcLinked = viewer.isAuthed;
+  const fcLabel = viewer.username ? `@${viewer.username}` : viewer.fid ? `FID ${viewer.fid}` : "Farcaster";
   const xLinked = !!p.profile?.x;
   const sources: { id: NameSource; label: string; pfpUrl: string | null }[] = [
-    ...(fcLinked ? [{ id: "farcaster" as const, label: `@${viewer.username}`, pfpUrl: viewer.pfpUrl }] : []),
+    // A name source needs a name: Farcaster counts once its username is known.
+    ...(fcLinked && viewer.username ? [{ id: "farcaster" as const, label: `@${viewer.username}`, pfpUrl: viewer.pfpUrl }] : []),
     ...(xLinked ? [{ id: "x" as const, label: `@${p.profile!.x!.username}`, pfpUrl: p.profile!.x!.pfpUrl }] : []),
   ];
   const unlockWith = p.xEnabled ? "X or Farcaster" : "Farcaster";
@@ -110,7 +114,7 @@ export function ProfileSheet() {
             }
             iconBg="bg-[#855DCD]"
             name="Farcaster"
-            detail={fcLinked ? `@${viewer.username}${viewer.fid ? ` · FID ${viewer.fid}` : ""}` : "Daily letter, name, and picture"}
+            detail={fcLinked ? (viewer.username && viewer.fid ? `${fcLabel} · FID ${viewer.fid}` : fcLabel) : "Daily letter, name, and picture"}
           >
             {fcLinked ? (
               // Sign-out exists only on the web: inside a Farcaster host the identity IS the host's.

@@ -199,6 +199,7 @@ function XReturnHost() {
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
     if (x === "linked") {
       void qc.invalidateQueries({ queryKey: ["profileMe"] });
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
       void qc.invalidateQueries({ queryKey: ["world"] });
       toast("X linked", "good");
     } else if (x === "canceled") {
