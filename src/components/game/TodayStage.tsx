@@ -19,6 +19,7 @@ import { Backpack, CaretLeft, CaretRight, Cookie, Palette, Sparkle, TextAa, Tick
 import { hunger, useGame } from "./state";
 import { stageLine, stageLineup, upNext } from "./stagePick";
 import { useEmptyStageCase } from "./useTodayPlan";
+import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
 import { useWordScene } from "../scenes/useWordScene";
 
@@ -240,7 +241,7 @@ function EmptyStage() {
   const shape = useEmptyStageCase();
   const say: Record<typeof shape, string | null> = {
     loading: null,
-    error: "We couldn’t bring out your words. That’s a connection problem, not a change to what you own.",
+    error: WORDS_READ_FAILED,
     elsewhere: "Your words live in your other wallet. Connect it to look after them here.",
     spell: "Your letters can spell a word now. Spell it, and it moves in here.",
     more: "Your words will live here. A few more letters, and you can spell your first.",

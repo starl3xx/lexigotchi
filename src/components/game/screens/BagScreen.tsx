@@ -7,6 +7,7 @@ import { WordCard } from "../WordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
 import { idxToChar, useGame, mineLower, mineUpper } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
+import { WordsPending, wordsUnknown } from "../WordsPending";
 
 export function BagScreen() {
   const g = useGame();
@@ -92,11 +93,9 @@ export function BagScreen() {
           </div>
           {state.words.length === 0 ? (
             <div className="lg:col-span-2">
-              {/* the words' first read may still be on its way: "no words" would be wrong then */}
-              {state.wordsLoading ? (
-                <p aria-busy className="py-6 text-center text-sm text-ink/60">
-                  Bringing out your words…
-                </p>
+              {/* the words' read may be on its way, or have failed: "no words" would be wrong then */}
+              {wordsUnknown(state) ? (
+                <WordsPending />
               ) : (
                 <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
               )}

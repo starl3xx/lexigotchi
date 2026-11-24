@@ -21,6 +21,7 @@ import { useWordScene } from "../../scenes/useWordScene";
 import { showcasePostText, showcaseUrl, showcaseWordText, showcaseXText } from "@/lib/showcase";
 import { ACHIEVEMENT_META } from "@/lib/keeper/achievements";
 import { usePlayerWallets } from "../usePlayerWallets";
+import { WordsPending, wordsUnknown } from "../WordsPending";
 
 export function ShowcaseScreen() {
   const g = useGame();
@@ -61,14 +62,13 @@ export function ShowcaseScreen() {
   );
 
   if (!w) {
-    // While the words are still on their way, say so: "no words" would be wrong for a returning player.
+    // While the words are on their way, or their read failed, say so: "no words" would be wrong for
+    // a returning player.
     return (
       <div className="space-y-3">
         {intro}
-        {state.wordsLoading ? (
-          <p aria-busy className="py-6 text-center text-sm text-ink/60">
-            Bringing out your words…
-          </p>
+        {wordsUnknown(state) ? (
+          <WordsPending />
         ) : (
           <>
             <EmptyState Icon={TextAa} title="No words to show yet" sub="Claim a word and it can star in your showcase." />

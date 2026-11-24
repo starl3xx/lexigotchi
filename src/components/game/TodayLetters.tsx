@@ -15,6 +15,7 @@ import { DailyUnlock, useDailyEligibility } from "./DailyUnlock";
 import { Check, Fire, Sparkle, TextAa, Ticket } from "./ui/icons";
 import { idxToChar, useGame } from "./state";
 import { useCanSpell, useEmptyStageCase } from "./useTodayPlan";
+import { wordsUnknown } from "./WordsPending";
 
 /** Letter tiles before the "+N" tile: two rows of six on a phone. */
 const SHOWN = 12;
@@ -100,7 +101,7 @@ export function TodayLetters() {
       {loose.length === 0 ? (
         <p className="py-2 text-center text-sm text-ink/60">
           {/* "yet" is for a newcomer; while the words still load, the player may well have some */}
-          No loose letters{state.words.length > 0 || state.wordsLoading ? " right now" : " yet"}. Mint a pack of 5
+          No loose letters{state.words.length > 0 || wordsUnknown(state) ? " right now" : " yet"}. Mint a pack of 5
           {state.dailyMinted ? "" : ", or take your free letter"}.
         </p>
       ) : (
