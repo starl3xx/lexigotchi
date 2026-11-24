@@ -219,7 +219,12 @@ export function useProfile() {
       const r = await fetch("/api/x/unlink", { method: "POST", headers: { [HEADER]: t } });
       if (r.status === 401) forget();
       const d = (await r.json()) as { ok: boolean; profile?: ProfileView };
-      if (!d.ok || !d.profile) throw new Error("Couldn’t unlink X. Try again.");
+      if (!d.ok || !d.profile)
+        throw new Error(
+          (d as { error?: string }).error === "x_used_today"
+            ? "You took today’s letter with this X account. You can unlink it tomorrow."
+            : "Couldn’t unlink X. Try again.",
+        );
       await qc.cancelQueries({ queryKey: ["profileMe", addr, t] });
       qc.setQueryData(["profileMe", addr, t], d.profile);
       void qc.invalidateQueries({ queryKey: ["profilePublic", addr] });
