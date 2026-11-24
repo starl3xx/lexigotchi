@@ -360,7 +360,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, bucketsQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, relatedDayQ.data, bucketsQ.data],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
