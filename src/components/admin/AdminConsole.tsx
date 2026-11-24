@@ -17,6 +17,7 @@ import {
   RocketLaunch,
   ShieldCheck,
   Stack,
+  UserList,
   Wallet,
   Wrench,
 } from "./icons";
@@ -31,10 +32,14 @@ import { AccessTab } from "./tabs/AccessTab";
 import { DeploymentsTab } from "./tabs/DeploymentsTab";
 import { BroadcastTab } from "./tabs/BroadcastTab";
 import { NotificationsTab } from "./tabs/NotificationsTab";
+import { PlayersTab } from "./tabs/PlayersTab";
+import { SystemTab } from "./tabs/SystemTab";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 type TabId =
   | "pulse"
+  | "players"
+  | "system"
   | "economy"
   | "supply"
   | "launch"
@@ -56,8 +61,10 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: "pulse", label: "Pulse", section: "Analytics", icon: <Gauge weight="bold" size={15} />, render: () => <PulseTab /> },
+  { id: "players", label: "Players", section: "Analytics", icon: <UserList weight="bold" size={15} />, render: () => <PlayersTab /> },
   { id: "economy", label: "Economy", section: "Analytics", icon: <ChartLineUp weight="bold" size={15} />, render: () => <EconomyTab /> },
   { id: "supply", label: "Supply", section: "Analytics", icon: <Stack weight="bold" size={15} />, render: () => <SupplyTab /> },
+  { id: "system", label: "System", section: "Operations", icon: <GearSix weight="bold" size={15} />, render: () => <SystemTab /> },
   { id: "launch", label: "Launch", section: "Operations", icon: <RocketLaunch weight="bold" size={15} />, render: () => <LaunchTab /> },
   { id: "treasury", label: "Treasury & Pools", section: "Operations", icon: <Wallet weight="bold" size={15} />, render: () => <TreasuryTab /> },
   { id: "parameters", label: "Parameters", section: "Operations", icon: <Faders weight="bold" size={15} />, render: () => <ParametersTab /> },

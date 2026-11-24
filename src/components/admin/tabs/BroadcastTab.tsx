@@ -1,39 +1,44 @@
 "use client";
 /**
- * Broadcast — operator announcement composer. Pulls live headline numbers, fills a cast from a
- * template, and opens the Warpcast composer (with the /play embed, so every announcement is a
- * launchable card). A growth/ops tool, self-contained (no game context).
+ * Broadcast — operator announcement composer. Pulls the LIVE game's numbers (/api/admin/live, never
+ * the sim: an announcement must not quote a projected pot as a real one) and this week's bounty
+ * theme (lib/themes.ts, the rotation the keeper pays on), fills a cast from a template, and opens
+ * the Farcaster composer with the /play embed, so every announcement is a launchable card.
  */
 import { useState } from "react";
-import type { PulsePayload } from "@/lib/admin/metrics";
+import type { LivePayload } from "@/app/api/admin/live/route";
 import { SITE_URL } from "@/lib/site";
-import { WORD_COUNT } from "@/lib/dictionary";
-import { fmtPct, fmtUsd } from "@/lib/admin/format";
+import { THEMES, themeForPeriod } from "@/lib/themes";
+import { DEFAULT_PARAMS } from "@/lib/params";
+import { utcDay } from "@/lib/sightings";
+import { fmtPct, fmtWordCompact } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, SectionLabel, useFetch } from "../ui";
 import { Info, Megaphone, ShareNetwork } from "../icons";
 
 const LIMIT = 320; // Farcaster cast character limit
 
 export function BroadcastTab() {
-  const { data } = useFetch<PulsePayload>("/api/admin/pulse");
-  const h = data?.headline;
+  const { data } = useFetch<LivePayload>("/api/admin/live");
+  const live = data?.live ? data : null;
+  const coin = live?.network?.isTestnet ? "test $WORD" : "$WORD";
+  const theme = THEMES[themeForPeriod(Math.floor(utcDay() / DEFAULT_PARAMS.bounty.periodDays))];
   const [text, setText] = useState("");
 
   const templates: { label: string; build: () => string }[] = [
     {
       label: "Daily jackpot",
       build: () =>
-        `🏆 Today's Lexigotchi jackpot: ${h ? fmtUsd(h.jackpot) : "—"} in $WORD.\n\nStake a fed word that matches the day's secret answer to win the whole pot. Raise your letters, claim your word, check in daily. ↓`,
+        `🏆 Today's Lexigotchi jackpot: ${live?.buckets ? `${fmtWordCompact(live.buckets.jackpot)} ${coin}` : "–"}.\n\nStake a fed word that matches the day's secret answer to win the whole pot. Raise your letters, claim your word, check in daily. ↓`,
     },
     {
       label: "New bounty theme",
       build: () =>
-        `🎯 This week's Lexigotchi bounty: words that contain a Q, Z or X.\n\nHold a staked, well-fed match and you share the bounty pool when the period ends. Go claim one. ↓`,
+        `🎯 This week's Lexigotchi bounty theme: ${theme.name}.\n\nHold a staked, well-fed match and you share the bounty pool when the period ends. Go claim one. ↓`,
     },
     {
       label: "Collection milestone",
       build: () =>
-        `📖 ${h ? fmtPct(h.dictionaryPct) : "—"} of the ${WORD_COUNT.toLocaleString("en-US")}-word Lexigotchi dictionary is now claimed${h ? ` (${h.totalClaims.toLocaleString()} words)` : ""}.\n\nEvery word is a one-of-one. The rare ones are going fast — claim yours. ↓`,
+        `📖 ${live?.words ? fmtPct(live.words.claimed / live.words.dictionary) : "–"} of the ${live?.words ? `${live.words.dictionary.toLocaleString("en-US")}-word ` : ""}Lexigotchi dictionary is now claimed${live?.words ? ` (${live.words.claimed.toLocaleString("en-US")} words)` : ""}.\n\nEvery word is a one-of-one. The rare ones are going fast — claim yours. ↓`,
     },
     {
       label: "General",
@@ -43,8 +48,9 @@ export function BroadcastTab() {
   ];
 
   const over = text.length > LIMIT;
-  const warpcast = () => {
-    const u = new URL("https://warpcast.com/~/compose");
+  const compose = () => {
+    // The same composer the game's own shares use (useShare.ts).
+    const u = new URL("https://farcaster.xyz/~/compose");
     u.searchParams.set("text", text);
     u.searchParams.append("embeds[]", `${SITE_URL}/play`);
     window.open(u.toString(), "_blank", "noopener,noreferrer");
@@ -59,7 +65,8 @@ export function BroadcastTab() {
 
       <Banner tone="ok" icon={<Info weight="bold" size={14} />}>
         <span className="text-xs">
-          Compose an operator announcement. Templates pull live numbers; the cast embeds <code>/play</code>, so it
+          Compose an operator announcement. Templates pull the live game&apos;s numbers
+          {live?.network ? ` on ${live.network.name}` : ""} and this week&apos;s bounty theme; the cast embeds <code>/play</code>, so it
           renders as a launchable Lexigotchi card.
         </span>
       </Banner>
@@ -94,11 +101,11 @@ export function BroadcastTab() {
           <div className="flex items-center gap-2">
             <CopyButton text={text} small label="Copy" />
             <button
-              onClick={warpcast}
+              onClick={compose}
               disabled={!text.trim() || over}
               className="inline-flex items-center gap-1.5 rounded-xl border-[3px] border-ink bg-candy px-3 py-1.5 text-sm font-extrabold text-paper shadow-[3px_3px_0_#1b1714] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40"
             >
-              <ShareNetwork weight="bold" size={14} /> Open in Warpcast
+              <ShareNetwork weight="bold" size={14} /> Open in Farcaster
             </button>
           </div>
         </div>

@@ -94,6 +94,13 @@ export function signerAddress(): `0x${string}` | null {
   return (REGISTRY.roles.signer as `0x${string}` | null) ?? null;
 }
 
+/** The registry's role addresses (owner, treasury, keeper, signer, priceKeeper), lowercase, set ones only. */
+export function roleAddresses(): Record<string, `0x${string}`> {
+  const out: Record<string, `0x${string}`> = {};
+  for (const [role, addr] of Object.entries(REGISTRY.roles)) if (addr) out[role] = addr.toLowerCase() as `0x${string}`;
+  return out;
+}
+
 /** True when the whole suite resolves — the gate for showing real on-chain UI at all. */
 export function isSuiteDeployed(): boolean {
   return (Object.keys(REGISTRY.contracts) as ContractKey[]).every((k) => !!REGISTRY.contracts[k]);

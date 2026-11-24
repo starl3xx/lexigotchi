@@ -253,6 +253,30 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   baseline `config/deployments.json` + localStorage overrides), `auth.ts` (allowlist via
   `NEXT_PUBLIC_ADMIN_*`, dev-open when unset), `format.ts` (USD↔$WORD-wei peg). Tabs in
   `src/components/admin/tabs/`.
+  **Live tabs.** Pulse and Treasury read the live game first (`/api/admin/live`: the FeeRouter's pots,
+  the treasury, letters minted, words claimed, holders; public chain data, open and edge-cached) and
+  label the sim below as "Projection"; Broadcast's templates quote the same live numbers and this
+  week's bounty theme (`lib/themes.ts`), never the sim. **Players** (`/api/admin/players`, `lib/admin/playersData.ts`
+  → pure `playerRows.ts`): every wallet seen, from the contracts' events since deploy (faucet on
+  testnet only; packs and dailies from `Committed`'s count; reveals, claims, rolls, stakes, feeds),
+  `scanWorld` holdings, and the database (sightings, profile flags, push browsers, swap listings,
+  Farcaster users), plus the beta group's Telegram member count; a funnel and new-wallet counts that
+  leave out the TEAM's wallets (the allowlist, `TEAM_WALLETS`, registry roles, server keys, and any
+  wallet linked into a team account). **System** (`/api/admin/system`, `systemStatus.ts`): game mode,
+  every server key as its public address (`serverKeys.ts`, never the key) with gas and onchain wiring,
+  the keeper's last resolve, every feature switch with the setting NAMES it still needs
+  (`switches.ts`, shared with Notifications), and applied migrations (drizzle's own table against the
+  journal). Notifications shows all three reminder channels. **Players and System are GATED on the
+  server** (`lib/admin/serverAuth.ts`): a wallet session (the profile's SIWE token) for a wallet in
+  `NEXT_PUBLIC_ADMIN_WALLETS`, or a Quick Auth FID in `NEXT_PUBLIC_ADMIN_FIDS`; `NEXT_PUBLIC_ADMIN_OPEN`
+  does NOT open them in production, and they're `no-store`. The client sends the session through
+  `useAdminApi` and offers a sign-in on 401. Never import a server module (db, `systemStatus`) VALUE
+  into a tab: types only, or the Postgres driver lands in the browser bundle.
+- **Wallet sightings** (`lib/sightings.ts`, `lib/db/sightings.ts`, table `wallet_sightings`, migration
+  0010): the game posts `/api/players/seen` once per wallet per UTC day (`useWalletSighting`, mounted
+  in GameApp) so Players can count wallets that connect and do nothing onchain. Unsigned by design, so
+  the count is labelled unverified; rate-limited by IP; a FID only from a verified Quick Auth token.
+  Dark (503, no client retry storm: the day is marked only on success) until 0010 is applied.
 - **`FeeRouter.seed(uint8 bucket, uint256 amount)`** (owner-only) was added so the admin can fund the
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery

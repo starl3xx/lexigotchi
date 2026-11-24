@@ -2,12 +2,13 @@
 /**
  * Deployments — the address registry. Paste the addresses printed by `forge script Deploy` to light
  * up live operations across the dashboard. Saved in the browser for this session; export the JSON
- * and commit it to config/deployments.json to make it permanent.
+ * and commit it to the network's registry file (REGISTRY_FILE) to make it permanent.
  */
 import { useEffect, useRef, useState } from "react";
 import {
   CONTRACT_KEYS,
   ROLE_KEYS,
+  REGISTRY_FILE,
   loadDeployments,
   saveDeployments,
   clearDeployments,
@@ -63,7 +64,7 @@ export function DeploymentsTab() {
       <Banner tone="ok" icon={<Info weight="bold" size={14} />}>
         <span className="text-xs">
           Saved in this browser for the session. To make it permanent, copy the JSON below into{" "}
-          <code>config/deployments.json</code> and commit.
+          <code>{REGISTRY_FILE}</code> and commit.
         </span>
       </Banner>
 
@@ -99,7 +100,7 @@ export function DeploymentsTab() {
         </div>
       </AdminCard>
 
-      <AdminCard title="config/deployments.json" action={<CopyButton text={exportJson} label="Copy JSON" />}>
+      <AdminCard title={REGISTRY_FILE} action={<CopyButton text={exportJson} label="Copy JSON" />}>
         <SectionLabel>commit this to make the registry permanent</SectionLabel>
         <pre className="max-h-72 overflow-auto rounded-xl border-2 border-ink bg-ink/[0.04] p-3 font-mono text-[10px] leading-relaxed text-ink/75">
           {exportJson}
