@@ -36,6 +36,7 @@ const LINKS = {
   lhaw: "https://letshaveaword.fun",
   docs: "/docs", // the player docs (Mintlify, proxied by vercel.json)
   source: "https://github.com/starl3xx/lexigotchi",
+  x: "https://x.com/lexigotchi",
   starl3xx: "https://starl3xx.fun",
 };
 
@@ -463,6 +464,9 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             </a>
             <a href={LINKS.lhaw} target="_blank" rel="noopener noreferrer" className="hover:text-candy">
               Let’s Have A Word!
+            </a>
+            <a href={LINKS.x} target="_blank" rel="noopener noreferrer" className="hover:text-candy">
+              @lexigotchi on X
             </a>
             <a href={LINKS.source} target="_blank" rel="noopener noreferrer" className="hover:text-candy">
               Source

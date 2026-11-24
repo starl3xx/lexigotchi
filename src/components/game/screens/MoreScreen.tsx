@@ -5,7 +5,7 @@ import { EnvelopeSimple } from "../ui/icons";
 import { useGame } from "../state";
 import { usePublicProfile } from "../useProfile";
 import { useOpenUrl } from "../useShare";
-import { DOCS_URL } from "@/lib/site";
+import { DOCS_URL, X_HANDLE, X_URL } from "@/lib/site";
 import { QuickGrid } from "../QuickGrid";
 import { ReminderToggle } from "../ReminderToggle";
 
@@ -37,9 +37,14 @@ export function MoreScreen() {
       <p className="text-xs text-ink/55">
         Raise your letters. Spell your words. Own the dictionary. A $WORD collection game on Base.
       </p>
-      <button onClick={() => void openUrl(DOCS_URL)} className="mt-2 text-xs font-bold text-ink/60 underline">
-        How to play: read the docs ↗
-      </button>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        <button onClick={() => void openUrl(DOCS_URL)} className="text-xs font-bold text-ink/60 underline">
+          How to play: read the docs ↗
+        </button>
+        <button onClick={() => void openUrl(X_URL)} className="text-xs font-bold text-ink/60 underline">
+          Follow @{X_HANDLE} on X ↗
+        </button>
+      </div>
     </div>
   );
 }

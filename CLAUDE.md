@@ -178,6 +178,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
   share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
   `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
+- **The game's X account is [@lexigotchi](https://x.com/lexigotchi)** (`X_HANDLE`/`X_URL` in `site.ts`): the
+  landing footer, the docs footer, More, `twitter:site`, and every X share (`via=lexigotchi` in
+  `xIntentUrl`, X only) point at it. Posts go out through **Typefully social set 372033**, never the
+  X API, and only with starl3xx's go-ahead for each post.
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
