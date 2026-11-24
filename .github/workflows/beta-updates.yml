@@ -1,0 +1,122 @@
+# Posts a merged PR's "Tester note" to the beta testers' Telegram group, once production is live
+# with it. Vercel reports each production deploy to GitHub as a deployment status; this listens for
+# the successful ones, finds the PR behind the deployed commit, and posts its note as @lexigotchi_bot.
+#
+# A PR opts in with a section in its description:
+#
+#   ## Tester note
+#
+#   Spell now lists every word you can spell, rarest first.
+#
+# No section, no post. A posted PR gets the `beta-posted` label, so a redeploy of the same commit
+# never posts twice. Secrets: TELEGRAM_BOT_TOKEN (from @BotFather) and TELEGRAM_CHAT_ID (the group).
+# Run it by hand (Actions → Beta updates → Run workflow) to check the bot can reach the group; that
+# run never posts.
+name: Beta updates
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  post:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    # One posting run at a time: two overlapping runs could both read a note before either labels it,
+    # and post it twice (Bugbot on #152). On the JOB, so only runs that passed the Production-success
+    # check above queue here; a Preview or failed deploy event is skipped before it can take a queued
+    # run's place. A newer posting run replacing a waiting one loses nothing: every run posts all
+    # live, unposted notes.
+    concurrency:
+      group: beta-updates
+      cancel-in-progress: false
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        with:
+          script: |
+            const token = process.env.TELEGRAM_BOT_TOKEN;
+            const chatId = process.env.TELEGRAM_CHAT_ID;
+            if (!token || !chatId) {
+              core.notice("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set; nothing posted.");
+              return;
+            }
+
+            // Telegram Bot API. A basic group that Telegram upgrades to a supergroup gets a new id;
+            // the error says which, so the fix is one secret.
+            async function telegram(method, body) {
+              const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              });
+              const data = await res.json();
+              if (!data.ok) {
+                const moved = data.parameters?.migrate_to_chat_id;
+                throw new Error(
+                  `${method}: ${data.description}` +
+                    (moved ? ` (the group is now a supergroup: set TELEGRAM_CHAT_ID to ${moved})` : ""),
+                );
+              }
+              return data.result;
+            }
+
+            if (context.eventName === "workflow_dispatch") {
+              const me = await telegram("getMe", {});
+              const chat = await telegram("getChat", { chat_id: chatId });
+              core.notice(`@${me.username} can reach "${chat.title}". Nothing posted.`);
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const sha = context.payload.deployment.sha;
+            // Every recently merged PR with an unposted note whose merge commit is IN this deploy, not
+            // just the PR behind the deployed commit: Vercel can skip the builds between two quick
+            // merges and deploy only the newest, and the skipped PRs never get a deploy of their own
+            // (Bugbot on #152). The beta-posted label keeps a redeploy from posting twice.
+            const since = Date.now() - 14 * 86_400_000;
+            const { data: closed } = await github.rest.pulls.list({ owner, repo, state: "closed", base: "main", sort: "updated", direction: "desc", per_page: 50 });
+            const candidates = closed
+              .filter((p) => p.merged_at && Date.parse(p.merged_at) >= since)
+              .filter((p) => !p.labels.some((l) => l.name === "beta-posted"))
+              .map((p) => ({ pr: p, note: testerNote(p.body) }))
+              .filter((c) => c.note);
+            const live = [];
+            for (const c of candidates) {
+              // "identical" or "behind": the merge commit is the deployed commit or one of its ancestors.
+              const { data: cmp } = await github.rest.repos.compareCommitsWithBasehead({ owner, repo, basehead: `${sha}...${c.pr.merge_commit_sha}` });
+              if (cmp.status === "identical" || cmp.status === "behind") live.push(c);
+            }
+            if (live.length === 0) return core.info(`Nothing new to post for ${sha.slice(0, 7)}.`);
+            live.sort((a, b) => Date.parse(a.pr.merged_at) - Date.parse(b.pr.merged_at));
+
+            const body = live.length === 1 ? live[0].note : live.map((c) => `• ${c.note.replace(/\n+/g, " ")}`).join("\n\n");
+            await telegram("sendMessage", {
+              chat_id: chatId,
+              text: `${body}\n\nLive now at lexigotchi.fun/play`,
+              disable_web_page_preview: true,
+            });
+            await github.rest.issues.createLabel({ owner, repo, name: "beta-posted", color: "2a9d8f", description: "Posted to the beta testers' Telegram group" }).catch(() => {});
+            for (const c of live) await github.rest.issues.addLabels({ owner, repo, issue_number: c.pr.number, labels: ["beta-posted"] });
+            core.notice(`Posted ${live.map((c) => `#${c.pr.number}`).join(", ")}.`);
+
+            // The "## Tester note" section: everything under that heading, up to the next heading, a
+            // horizontal rule, or the "🤖 Generated with …" line that ends our PR descriptions.
+            function testerNote(text) {
+              const lines = (text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/);
+              const start = lines.findIndex((l) => /^#{2,3}\s*tester note\s*$/i.test(l.trim()));
+              if (start < 0) return null;
+              const rest = lines.slice(start + 1);
+              const end = rest.findIndex((l) => /^(#{1,6}\s|-{3,}$|\*{3,}$|🤖)/u.test(l.trim()));
+              const note = (end < 0 ? rest : rest.slice(0, end)).join("\n").trim();
+              return !note || /^(none|n\/a|-)$/i.test(note) ? null : note;
+            }
