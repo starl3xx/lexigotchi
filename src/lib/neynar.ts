@@ -228,3 +228,32 @@ export async function fidsByAddress(address: string): Promise<number[]> {
     return [];
   }
 }
+
+/** fidsByAddress for many wallets at once (350 per request): lowercase address → FIDs. Never throws. */
+export async function fidsByAddresses(addresses: readonly string[]): Promise<Map<string, number[]>> {
+  const key = process.env.NEYNAR_API_KEY;
+  const out = new Map<string, number[]>();
+  const unique = [...new Set(addresses.map((a) => a.toLowerCase()))];
+  if (!key || unique.length === 0) return out;
+  for (let i = 0; i < unique.length; i += BULK_ADDRESSES) {
+    const chunk = unique.slice(i, i + BULK_ADDRESSES);
+    try {
+      const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/user/bulk-by-address?addresses=${chunk.join(",")}`, {
+        headers: { "x-api-key": key, accept: "application/json" },
+        next: { revalidate: 300 },
+      });
+      if (!res.ok) {
+        if (res.status !== 404) console.error("[neynar] fids-by-addresses failed:", res.status, `(${chunk.length} addresses)`);
+        continue;
+      }
+      const data = (await res.json()) as Record<string, { fid?: number }[]>;
+      for (const [addr, users] of Object.entries(data ?? {})) {
+        const fids = (Array.isArray(users) ? users : []).map((u) => Number(u.fid)).filter((f) => Number.isInteger(f) && f > 0);
+        if (fids.length) out.set(addr.toLowerCase(), [...new Set(fids)]);
+      }
+    } catch (err) {
+      console.error("[neynar] fids-by-addresses error:", err);
+    }
+  }
+  return out;
+}

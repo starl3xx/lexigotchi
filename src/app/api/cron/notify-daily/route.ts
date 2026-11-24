@@ -8,6 +8,7 @@ import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
 import { emailRecipients, xUserIdsFor } from "@/lib/db/profiles";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
+import { fidsByAddresses } from "@/lib/neynar";
 import { profilesEnabled } from "@/lib/profile/session";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { maybeAddressOf } from "@/lib/onchain/addresses";
@@ -54,7 +55,9 @@ export async function GET(req: Request) {
         return [];
       }),
     ]);
-    if (fids.length === 0 && subs.length === 0) return NextResponse.json({ ok: true, audience: 0, sent: 0 });
+    // Email has its own audience (wallets that opted in), so it doesn't wait on the other two
+    // (Bugbot on #139: wallet-only email players were skipped whenever nobody else was).
+    if (fids.length === 0 && subs.length === 0 && !emailEnabled()) return NextResponse.json({ ok: true, audience: 0, sent: 0 });
     const letters = maybeAddressOf("letters");
     if (!letters) return NextResponse.json({ ok: true, skipped: "no_deployment", audience: fids.length });
 
@@ -129,10 +132,16 @@ export async function GET(req: Request) {
     if (emailEnabled()) {
       try {
         const recips = await emailRecipients();
-        const xMap = recips.length ? await xUserIdsFor(recips.map((r) => r.address)) : new Map<string, string>();
+        const addrs = recips.map((r) => r.address);
+        // Every slot the player could pull on: the FIDs that verified the wallet, its Coinbase key,
+        // and its X key (Bugbot on #139: without the FID, a Farcaster-only player never got the email,
+        // and one who pulled on the FID could be told a letter was waiting).
+        const [xMap, fidMap] = recips.length
+          ? await Promise.all([xUserIdsFor(addrs), fidsByAddresses(addrs)])
+          : [new Map<string, string>(), new Map<string, number[]>()];
         const keysOf = (a: string) => {
           const x = xMap.get(a);
-          return x ? [verifiedDailyKey(a), xDailyKey(x)] : [verifiedDailyKey(a)];
+          return [...(fidMap.get(a) ?? []).map((f) => BigInt(f)), verifiedDailyKey(a), ...(x ? [xDailyKey(x)] : [])];
         };
         const uniqueKeys = [...new Set(recips.flatMap((r) => keysOf(r.address)))];
         const used = await readDailyUsed(uniqueKeys);
