@@ -167,6 +167,11 @@ Two more notes come out when a switch flips, not with the launch PR:
   aren’t switched on yet" in the FAQ's hunger answer. They come out once web push
   (`WEB_PUSH_ENABLED`, the VAPID keys, migration 0003) and Farcaster notifications
   (`NOTIFICATIONS_ENABLED`) are on in production.
+- **X linking.** Turning it on needs an X Developer Console app (OAuth 2.0, Web App), the
+  callback `https://lexigotchi.fun/api/x/callback` registered exactly, prepaid API credits, and
+  `X_CLIENT_ID` + `X_CLIENT_SECRET` in Vercel (profiles on first). Then the player docs gain X:
+  `docs-site/letters.mdx` (the daily's unlock list, with the 90-day rule), `docs-site/faq.mdx`
+  ("Do I need a Farcaster account?"), and the quickstart.
 - **Ascension.** The note at the top of `docs-site/ascension.mdx` and "It isn’t switched on yet" in
   the FAQ. They come out when `PRESTIGE_MAX_LEVEL` is raised above 0. If the fee, odds, or
   multipliers change from `params.ts` before then, update that page too.

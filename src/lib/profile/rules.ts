@@ -35,3 +35,39 @@ export interface ProfileConfig {
   x: boolean;
   email: boolean;
 }
+
+/** One wallet's public profile row (no email): what /api/world merges with Farcaster. */
+export interface PublicProfileRow {
+  address: string;
+  xUsername: string | null;
+  xPfpUrl: string | null;
+  nameSource: string | null;
+}
+
+/** The public name and picture of a wallet, as other players see it. */
+export interface PublicFace {
+  username: string;
+  pfpUrl: string | null;
+  source?: NameSource;
+}
+
+/**
+ * Merge Farcaster faces (Neynar, by address) with profile rows: the same rule the player sees for
+ * themselves (useProfile's resolveIdentity). The wallet's choice wins while that account is still
+ * linked; otherwise Farcaster, then X. A wallet with neither stays absent (a short address).
+ */
+export function mergePublicFaces(
+  farcaster: Record<string, { username: string; pfpUrl: string | null }>,
+  rows: readonly PublicProfileRow[],
+): Record<string, PublicFace> {
+  const out: Record<string, PublicFace> = {};
+  for (const [a, f] of Object.entries(farcaster)) out[a.toLowerCase()] = { ...f, source: "farcaster" };
+  for (const r of rows) {
+    const a = r.address.toLowerCase();
+    const x = r.xUsername ? { username: r.xUsername, pfpUrl: r.xPfpUrl, source: "x" as const } : null;
+    if (!x) continue;
+    const fc = out[a];
+    if (r.nameSource === "x" || !fc) out[a] = x;
+  }
+  return out;
+}

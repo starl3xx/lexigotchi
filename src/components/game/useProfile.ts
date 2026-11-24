@@ -150,6 +150,61 @@ export function useProfile() {
     [addr, forget, qc, token],
   );
 
+  /**
+   * Start linking X: signs in first if needed, then asks the server for X's consent URL. Returns
+   * the URL; the caller navigates (same tab on the web, the host's openUrl inside Farcaster).
+   */
+  const startXLink = useCallback(
+    async (ret: "redirect" | "page"): Promise<string | null> => {
+      if (!addr) return null;
+      let t = token;
+      if (!t) {
+        if (!(await signIn())) return null;
+        t = (qc.getQueryData(["profileToken", addr]) as string | null) ?? null;
+        if (!t) return null;
+      }
+      setBusy(true);
+      setError(null);
+      try {
+        const r = await fetch("/api/x/start", {
+          method: "POST",
+          headers: { "content-type": "application/json", [HEADER]: t },
+          body: JSON.stringify({ return: ret }),
+        });
+        if (r.status === 401) forget();
+        const d = (await r.json()) as { ok: boolean; url?: string };
+        if (!d.ok || !d.url) throw new Error("Couldn’t reach X. Try again.");
+        return d.url;
+      } catch (err) {
+        setError(String((err as Error)?.message ?? "Couldn’t reach X."));
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [addr, forget, qc, signIn, token],
+  );
+
+  const unlinkX = useCallback(async (): Promise<boolean> => {
+    if (!token || !addr) return false;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/x/unlink", { method: "POST", headers: { [HEADER]: token } });
+      if (r.status === 401) forget();
+      const d = (await r.json()) as { ok: boolean; profile?: ProfileView };
+      if (!d.ok || !d.profile) throw new Error("Couldn’t unlink X. Try again.");
+      qc.setQueryData(["profileMe", addr, token], d.profile);
+      void qc.invalidateQueries({ queryKey: ["world"] });
+      return true;
+    } catch (err) {
+      setError(String((err as Error)?.message ?? "Couldn’t unlink X."));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [addr, forget, qc, token]);
+
   return {
     /** The server has profiles switched on (flag, secret, database). */
     enabled,
@@ -164,6 +219,8 @@ export function useProfile() {
     signIn,
     signOut: forget,
     setNameSource,
+    startXLink,
+    unlinkX,
   };
 }
 

@@ -2,10 +2,10 @@
  * Profile reads and writes (schema.ts `profiles`). Server-only. Every write here is made for a
  * wallet the caller has proven with a session (lib/profile/session.ts); these helpers don't check.
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "./client";
-import { profiles, type Profile } from "./schema";
-import type { NameSource, ProfileView } from "@/lib/profile/rules";
+import { profiles, xLinkStates, type Profile } from "./schema";
+import type { NameSource, ProfileView, PublicProfileRow } from "@/lib/profile/rules";
 
 /**
  * Postgres "relation does not exist": the owner hasn't applied migration 0006 yet. Drizzle wraps
@@ -44,4 +44,67 @@ export function toView(address: string, p: Profile | null): ProfileView {
       : null,
     email: p?.email && p.emailVerifiedAt ? { address: p.email, reminders: p.emailReminders } : null,
   };
+}
+
+// ── X ────────────────────────────────────────────────────────────────────────────────────────────
+
+export async function createLinkState(state: string, address: string, codeVerifier: string, ttlMs: number): Promise<void> {
+  await getDb().insert(xLinkStates).values({ state, address: address.toLowerCase(), codeVerifier, expiresAt: new Date(Date.now() + ttlMs) });
+}
+
+/**
+ * Take a link attempt's row, once: it is marked used in the same statement that reads it, so a
+ * replayed callback finds nothing. Null if unknown, used, or expired.
+ */
+export async function consumeLinkState(state: string): Promise<{ address: string; codeVerifier: string } | null> {
+  const rows = await getDb()
+    .update(xLinkStates)
+    .set({ usedAt: sql`now()` })
+    .where(and(eq(xLinkStates.state, state), isNull(xLinkStates.usedAt), gt(xLinkStates.expiresAt, sql`now()`)))
+    .returning({ address: xLinkStates.address, codeVerifier: xLinkStates.codeVerifier });
+  return rows[0] ?? null;
+}
+
+/**
+ * Link an X account to a wallet. One X account names one wallet: if it was linked elsewhere, it
+ * moves here (whoever can sign in to the X account decides), and the old wallet stops showing it.
+ * Returns the wallet it moved from, if any.
+ */
+export async function linkX(
+  address: string,
+  x: { id: string; username: string; name: string | null; pfpUrl: string | null; createdAt: Date | null },
+): Promise<{ movedFrom: string | null }> {
+  const a = address.toLowerCase();
+  return getDb().transaction(async (tx) => {
+    const prev = await tx.select({ address: profiles.address }).from(profiles).where(eq(profiles.xUserId, x.id)).limit(1);
+    const movedFrom = prev[0] && prev[0].address !== a ? prev[0].address : null;
+    if (movedFrom) await tx.update(profiles).set({ ...X_CLEARED, updatedAt: sql`now()` }).where(eq(profiles.address, movedFrom));
+    const values = { xUserId: x.id, xUsername: x.username, xName: x.name, xPfpUrl: x.pfpUrl, xCreatedAt: x.createdAt, xLinkedAt: new Date() };
+    await tx
+      .insert(profiles)
+      .values({ address: a, ...values })
+      .onConflictDoUpdate({ target: profiles.address, set: { ...values, updatedAt: sql`now()` } });
+    return { movedFrom };
+  });
+}
+
+const X_CLEARED = { xUserId: null, xUsername: null, xName: null, xPfpUrl: null, xCreatedAt: null, xLinkedAt: null } as const;
+
+/** Unlink X. A name source of "x" falls back to automatic. */
+export async function unlinkX(address: string): Promise<void> {
+  const a = address.toLowerCase();
+  await getDb()
+    .update(profiles)
+    .set({ ...X_CLEARED, nameSource: sql`case when ${profiles.nameSource} = 'x' then null else ${profiles.nameSource} end`, updatedAt: sql`now()` })
+    .where(eq(profiles.address, a));
+}
+
+/** The public parts of these wallets' profiles (never the email), for /api/world. */
+export async function publicProfileRows(addresses: readonly string[]): Promise<PublicProfileRow[]> {
+  const list = [...new Set(addresses.map((x) => x.toLowerCase()))];
+  if (list.length === 0) return [];
+  return getDb()
+    .select({ address: profiles.address, xUsername: profiles.xUsername, xPfpUrl: profiles.xPfpUrl, nameSource: profiles.nameSource })
+    .from(profiles)
+    .where(inArray(profiles.address, list));
 }

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { buildLeaderboards, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
-import { profilesByAddress, type PublicProfile } from "@/lib/neynar";
+import { profilesByAddress } from "@/lib/neynar";
+import { publicProfileRows } from "@/lib/db/profiles";
+import { mergePublicFaces, type PublicFace } from "@/lib/profile/rules";
+import { profilesEnabled } from "@/lib/profile/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +27,7 @@ export interface WorldResponse {
   /** UPPERCASE word → its beneficial owner (lowercase address). */
   owners?: Record<string, string>;
   boards?: Record<BoardKey, BoardRow[]>;
-  profiles?: Record<string, PublicProfile>;
+  profiles?: Record<string, PublicFace>;
 }
 
 const TTL_MS = 60_000;
@@ -38,7 +41,11 @@ async function build(): Promise<WorldResponse> {
   for (const w of snap.words) owners[w.word] = w.owner;
   const shown = new Set<string>(Object.values(owners));
   for (const rows of Object.values(boards)) for (const r of rows) shown.add(r.address);
-  const profiles = await profilesByAddress([...shown]);
+  const farcaster = await profilesByAddress([...shown]);
+  // A wallet's chosen face (X or Farcaster) from its profile, when profiles are on and migrated.
+  // Any failure here falls back to Farcaster alone: the world must never fail on a profile read.
+  const rows = profilesEnabled() ? await publicProfileRows([...shown]).catch(() => []) : [];
+  const profiles = mergePublicFaces(farcaster, rows);
   return { ok: true, live: true, at: Date.now(), owners, boards, profiles };
 }
 

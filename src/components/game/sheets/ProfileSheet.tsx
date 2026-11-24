@@ -12,14 +12,15 @@
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet } from "../primitives";
-import { Check, CheckCircle, CircleNotch, Gift, Lock, SealCheck, Smiley, Wallet } from "../ui/icons";
+import { Check, CheckCircle, CircleNotch, Gift, Lock, SealCheck, Smiley, Wallet, XLogo } from "../ui/icons";
 import { useGame } from "../state";
 import { useViewer } from "../useViewer";
 import { useVerifiedWallet } from "../useVerifiedWallet";
 import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
+import { useOpenUrl } from "../useShare";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
-import type { NameSource } from "@/lib/profile/rules";
+import { xEligibleOn, xOldEnough, type NameSource } from "@/lib/profile/rules";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -33,7 +34,18 @@ export function ProfileSheet() {
   const checking = daily.checking && (Boolean(address) || viewer.environment === "loading");
   const { openConnectModal } = useConnectModal();
   const p = useProfile();
+  const openUrl = useOpenUrl();
   const me = resolveIdentity(viewer, p.profile);
+  const x = p.profile?.x ?? null;
+  const linkX = async () => {
+    // Inside a Farcaster host, X opens in another browser that can't return into the frame: the
+    // callback shows a "go back to the game" page, and the profile refetches when the game regains focus.
+    const inHost = viewer.environment === "farcaster";
+    const url = await p.startXLink(inHost ? "page" : "redirect");
+    if (!url) return;
+    if (inHost) void openUrl(url);
+    else window.location.assign(url);
+  };
 
   const fcLinked = viewer.isAuthed && !!viewer.username;
   const xLinked = !!p.profile?.x;
@@ -115,6 +127,44 @@ export function ProfileSheet() {
               </Button>
             ) : null}
           </Row>
+
+          {/* X: shown once the server has it switched on. Linking makes the account public next to
+              the wallet (Jake, 2026-11-23: "public, with a clear notice"), so the notice sits right
+              under the button that does it. */}
+          {p.xEnabled && (
+            <div className="py-2">
+              <Row
+                icon={<XLogo weight="bold" size={13} className="text-paper" />}
+                iconBg="bg-ink"
+                name="X"
+                detail={
+                  x
+                    ? xOldEnough(x.createdAt)
+                      ? `@${x.username}`
+                      : x.createdAt
+                        ? `@${x.username} · daily letter from ${xEligibleOn(x.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                        : `@${x.username}`
+                    : "Daily letter, name, and picture"
+                }
+                flush
+              >
+                {x ? (
+                  <button onClick={() => void p.unlinkX()} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
+                    Unlink
+                  </button>
+                ) : address ? (
+                  <Button size="sm" variant="ghost" disabled={p.busy} onClick={() => void linkX()}>
+                    {p.busy ? <CircleNotch className="animate-spin" /> : "Link"}
+                  </Button>
+                ) : null}
+              </Row>
+              {!x && address && (
+                <p className="mt-1 pl-[38px] text-[11px] leading-snug text-ink/55">
+                  Your X account will show publicly next to your wallet. The account must be older than 90 days for the daily letter. You can unlink anytime.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Coinbase verification: proves one person, so it unlocks the daily (no name or picture). */}
           <Row
@@ -214,9 +264,24 @@ export function ProfileSheet() {
   );
 }
 
-function Row({ icon, iconBg, name, detail, children }: { icon: React.ReactNode; iconBg: string; name: string; detail: string; children?: React.ReactNode }) {
+function Row({
+  icon,
+  iconBg,
+  name,
+  detail,
+  children,
+  flush = false,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  name: string;
+  detail: string;
+  children?: React.ReactNode;
+  /** No vertical padding, for a row inside a wrapper that pads. */
+  flush?: boolean;
+}) {
   return (
-    <div className="flex items-center gap-2.5 py-2">
+    <div className={`flex items-center gap-2.5 ${flush ? "" : "py-2"}`}>
       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink ${iconBg}`}>{icon}</span>
       <div className="min-w-0 flex-1 leading-tight">
         <div className="text-sm font-bold">{name}</div>

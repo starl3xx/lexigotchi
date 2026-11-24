@@ -100,6 +100,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   + tables `profiles`, `x_link_states`, `email_codes` (migration 0006). Dark until
   `PROFILES_ENABLED=true` + `PROFILE_SESSION_SECRET` (32+ chars); a missing table answers
   `not_configured`. The email is never public; no X token is kept.
+  **Link X** (`lib/profile/x.ts`): OAuth 2.0 + PKCE; `/api/x/start` (session → a single-use state row
+  with the verifier → X's consent URL), `/api/x/callback` (exchange within X's 30 s, read
+  /2/users/me once, drop the token; lands on `/play?x=…`, or a "go back to the game" page when a
+  Farcaster host opened X in another browser), `/api/x/unlink`. One X account names one wallet: a
+  new link moves it. `/api/world` merges each wallet's chosen face (`mergePublicFaces`). Dark until
+  `X_CLIENT_ID` + `X_CLIENT_SECRET`; callbacks must match the console exactly (127.0.0.1 locally).
 - **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
   served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
   while it can still be minted. A draw depends on which letters are uncapped, so without this a
