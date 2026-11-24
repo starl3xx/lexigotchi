@@ -216,11 +216,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 ## v0.2 mechanics (the ones easy to get wrong)
 
 - Mints are **100% lowercase**; uppercase exists **only** via rolls. Daily single is gated on
-  **either** a Farcaster FID **or** a Coinbase-Verified wallet (EAS attestation on Base mainnet,
-  checked server-side — `src/lib/onchain/verifications.ts`). Verified wallets get synthetic daily
-  keys `2^160 | uint160(address)` — **always bigint, never a JS number** — in the same on-chain
-  `dailyUsed` mapping (the contract never interprets the key; the namespace offset is what keeps
-  synthetic keys from spending real FIDs' slots). Packs of 5 for everyone. ETH accepted via
+  a Farcaster FID, a linked X account older than 90 days (while X is switched on), **or** a
+  Coinbase-Verified wallet (EAS attestation on Base mainnet), checked server-side in that order
+  (`src/lib/onchain/verifications.ts`, `/api/mint/free-daily`). Key ranges in the one on-chain
+  `dailyUsed` mapping (the contract never interprets the key; the offsets keep them apart): FIDs
+  < 2^32, verified wallets `2^160 | uint160(address)`, Base Verify reserved at 2^161, X
+  `2^162 | xUserId` — **always bigint, never a JS number**. **One letter a day per player**:
+  `dailyKeysFor` lists every key a request can see, and the server refuses (and the client shows
+  "claimed") if any was used today. An unclaimed day is lost: `dailyUsed` keeps only the last day.
+  The free pack signs for a Quick Auth FID only, so X keys never reach `freePackClaimed`. Packs of 5 for everyone. ETH accepted via
   auto-swap → all accounting in $WORD.
 - Rolls: **45% base, +10pp pity, cap 85%**, reset on success. Pity per `(owner, letterId)`.
   Failure never burns/downgrades the asset.

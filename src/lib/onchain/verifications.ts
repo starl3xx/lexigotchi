@@ -101,6 +101,55 @@ export function verifiedDailyKey(address: string): bigint {
   return VERIFIED_KEY_FLOOR | BigInt(address.toLowerCase());
 }
 
+/**
+ * Reserved, unused: Base Verify's per-consumer identityHash (one human = one claim), if we're ever
+ * granted access. Keys would live in [2^161, 2^162). Named here so nothing else takes the range.
+ */
+export const BASE_VERIFY_KEY_FLOOR = 1n << 161n;
+
+/** The 2^162 floor for X accounts. Exported so tests can pin it. */
+export const X_KEY_FLOOR = 1n << 162n;
+
+/**
+ * The daily key for a linked X account: `2^162 | xUserId`.
+ *
+ * X user ids are 64-bit, so a raw id could equal a real FID (< 2^32), and would sit inside that
+ * range of `dailyUsed`. Offset, every X key is in [2^162, 2^162 + 2^64): disjoint from FIDs, from
+ * verified wallets [2^160, 2^161), and from the reserved Base Verify range [2^161, 2^162). Bigint
+ * from birth; a string in JSON. `freePackClaimed` shares this keyspace, but the free-pack route only
+ * ever signs for a Quick Auth FID, so an X key can't reach a free pack.
+ */
+export function xDailyKey(xUserId: string): bigint {
+  if (!/^\d{1,20}$/.test(xUserId)) throw new Error(`xDailyKey: not an X user id: ${xUserId}`);
+  const id = BigInt(xUserId);
+  if (id >= 1n << 64n) throw new Error(`xDailyKey: X user id out of range: ${xUserId}`);
+  return X_KEY_FLOOR | id;
+}
+
+/**
+ * Every daily key one player could claim under, and the one today's daily is issued under.
+ *
+ * One free letter a day per player, whichever accounts they link (Jake: "link X, Farcaster, or
+ * Coinbase for a free daily letter"). So the server refuses a daily when ANY of these keys was
+ * used today, and the client reads all of them to say "claimed" honestly. The primary key follows
+ * the server's order: the Farcaster FID, then an X account old enough to count, then the wallet's
+ * Coinbase key.
+ */
+export function dailyKeysFor(opts: {
+  fid?: number | null;
+  xUserId?: string | null;
+  /** The linked X account may claim (old enough, and X switched on). */
+  xCounts?: boolean;
+  wallet?: string | null;
+}): { primary: bigint | null; all: bigint[] } {
+  const fidKey = opts.fid ? BigInt(opts.fid) : null;
+  const xKey = opts.xUserId ? xDailyKey(opts.xUserId) : null;
+  const walletKey = opts.wallet ? verifiedDailyKey(opts.wallet) : null;
+  const primary = fidKey ?? (opts.xCounts && xKey ? xKey : null) ?? walletKey;
+  const all = [fidKey, xKey, walletKey].filter((k): k is bigint => k !== null);
+  return { primary, all };
+}
+
 export interface AttestationLike {
   schema: string;
   recipient: string;

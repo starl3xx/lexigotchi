@@ -8,7 +8,13 @@ import { getPublicClient, readChainTime, readLetterSupply } from "@/lib/onchain/
 import { lettersAbi } from "@/lib/onchain/abis";
 import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
-import { isCoinbaseVerified, verifiedDailyKey } from "@/lib/onchain/verifications";
+import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
+import { getProfile } from "@/lib/db/profiles";
+import { claimDraw, readDraw } from "@/lib/db/draws";
+import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
+import { profilesEnabled } from "@/lib/profile/session";
+import { xEnabled } from "@/lib/profile/x";
+import { xOldEnough } from "@/lib/profile/rules";
 import { isAddress } from "viem";
 
 export const dynamic = "force-dynamic";
@@ -21,17 +27,21 @@ const VOUCHER_TTL_SECONDS = 600;
  * POST — issue the free daily voucher. Body: `{ wallet: "0x..." }`
  *
  * The whole Sybil gate is this signature: the contract never validates the daily key, it only
- * checks that the signer blessed the (contract, chain, kind, buyer, key, day, deadline) tuple. Two
- * identities can earn one, and they live in DISJOINT uint256 namespaces:
+ * checks that the signer blessed the (contract, chain, kind, buyer, key, day, deadline) tuple. Three
+ * identities can earn one, and they live in DISJOINT uint256 namespaces (verifications.ts):
  *
  *   FARCASTER — the fid from the verified Quick Auth JWT, and nowhere else. Small ints (< 2^32).
+ *   X — an X account linked to THIS wallet through the profile (a signed wallet session plus X's
+ *     own OAuth), older than 90 days at claim time, while X is switched on. Keyed `2^162 | xUserId`.
  *   VERIFIED WALLET — a wallet holding a live Coinbase Verified Account attestation on Base
  *     mainnet (KYC-backed). Keyed `2^160 | uint160(address)` — always ≥ 2^160, always bigint,
  *     because `dailyUsed` is one shared mapping and a synthetic key that came out small would
  *     consume a real FID's slot.
  *
- * The JWT wins when both are present, so a signed-in player's daily always lands on their FID —
- * their streak doesn't fork the day they verify a wallet.
+ * Order: the JWT, then X, then Coinbase, so a signed-in player's daily always lands on their FID —
+ * their streak doesn't fork the day they link something else. And ONE letter a day per player:
+ * before signing, every key this request can see (the FID, this wallet's X, this wallet's Coinbase
+ * key) is read, and any one used today refuses the daily. Linking more accounts never adds letters.
  *
  * No wallet-ownership proof is needed for issuance: the voucher binds `buyer`, so it is only
  * spendable BY that wallet. Requesting one for someone else's address hands them nothing but a
@@ -58,10 +68,19 @@ export async function POST(req: Request) {
   // silently corrupt one before BigInt() ever saw it.
   let key: bigint;
   const fid = await getAuthedFid(req);
+  // The X account linked to this wallet, if any. A profile read that fails (or a database without
+  // migration 0006) just means no X: the other two paths still work.
+  const xRow = profilesEnabled() ? await getProfile(wallet).catch(() => null) : null;
+  const xUserId = xRow?.xUserId ?? null;
+  const xCounts = Boolean(xUserId) && xEnabled() && xOldEnough(xRow?.xCreatedAt);
   if (fid) {
     if (!(await allow("record-add", fid)))
       return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
     key = BigInt(fid);
+  } else if (xCounts && xUserId) {
+    if (!(await allow("record-add", wallet.toLowerCase())))
+      return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
+    key = xDailyKey(xUserId);
   } else {
     // Rate limit BEFORE the attestation check — it costs two mainnet RPC reads and this is an
     // unauthenticated surface.
@@ -77,7 +96,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "verification_unavailable" }, { status: 502 });
     }
     if (!verified) {
-      return NextResponse.json({ ok: false, error: "verification_required" }, { status: 403 });
+      // A linked X that is too young is the likeliest reason here: say so, so the client can show
+      // the day it unlocks instead of asking the player to verify something else.
+      const error = xUserId && xEnabled() && !xCounts ? "x_too_young" : "verification_required";
+      return NextResponse.json({ ok: false, error }, { status: 403 });
     }
     key = verifiedDailyKey(wallet);
   }
@@ -90,18 +112,39 @@ export async function POST(req: Request) {
   const today = chainDay(now);
 
   // dailyUsed stores day+1 so that 0 can mean "never" — comparing against the raw day is off by one.
-  const usedDayPlusOne = (await getPublicClient().readContract({
-    address: letters,
-    abi: lettersAbi,
-    functionName: "dailyUsed",
-    args: [key],
-  })) as unknown as number | bigint;
-  if (Number(usedDayPlusOne) === today + 1) {
+  // Every key this player could claim under, not just today's: one letter a day, however many
+  // accounts are linked. That includes a FID this request didn't sign in with, and the other
+  // wallets of the player's Farcaster accounts (relatedDailyKeys).
+  const { all } = dailyKeysFor({ fid, xUserId, xCounts, wallet });
+  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet }))])];
+  const used = (await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),
+  })) as unknown as (number | bigint)[];
+  if (used.some((u) => Number(u) === today + 1)) {
     return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
   }
 
   const nextMidnight = (today + 1) * 86_400;
   const deadline = BigInt(Math.min(now + VOUCHER_TTL_SECONDS, nextMidnight - 1));
+
+  // An X-keyed voucher must leave a record BEFORE it's signed: the X account's unlink/move/replace
+  // guard (xKeyUsedToday) reads today's stored draw, and a voucher is spendable for ten minutes
+  // before the chain slot is. The bundle's sticky draw writes the same row, but it can be skipped or
+  // fail open, so for X it's written here and a failed write refuses (Bugbot on #138). Same seed,
+  // same letter, so the bundle and any later reveal agree with it.
+  if (xCounts && xUserId && !fid && key === xDailyKey(xUserId)) {
+    try {
+      const drawKey = `d:${key}:${today}`;
+      if (!(await readDraw(NETWORK.id, drawKey))) {
+        const { available } = await readLetterSupply();
+        await claimDraw(NETWORK.id, drawKey, drawLetters(dailySeed(key, today), 1, available, "daily"));
+      }
+    } catch (err) {
+      console.error("[free-daily] couldn't record the X daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+      return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
+    }
+  }
 
   const signature = await signDigest(
     freeDailyDigest({ letters, buyer: wallet as `0x${string}`, fid: key, today, deadline }),

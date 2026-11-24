@@ -102,6 +102,12 @@ export async function linkX(
 
 const X_CLEARED = { xUserId: null, xUsername: null, xName: null, xPfpUrl: null, xCreatedAt: null, xLinkedAt: null } as const;
 
+/** The wallet an X account is linked to now, if any. */
+export async function walletForX(xUserId: string): Promise<string | null> {
+  const rows = await getDb().select({ address: profiles.address }).from(profiles).where(eq(profiles.xUserId, xUserId)).limit(1);
+  return rows[0]?.address ?? null;
+}
+
 /** Unlink X. A name source of "x" falls back to automatic. */
 export async function unlinkX(address: string): Promise<void> {
   const a = address.toLowerCase();
@@ -119,4 +125,15 @@ export async function publicProfileRows(addresses: readonly string[]): Promise<P
     .select({ address: profiles.address, xUsername: profiles.xUsername, xPfpUrl: profiles.xPfpUrl, nameSource: profiles.nameSource })
     .from(profiles)
     .where(inArray(profiles.address, list));
+}
+
+/** Linked X user ids for these wallets (lowercase address → id), for the daily reminder. */
+export async function xUserIdsFor(addresses: readonly string[]): Promise<Map<string, string>> {
+  const list = [...new Set(addresses.map((x) => x.toLowerCase()))];
+  if (list.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ address: profiles.address, xUserId: profiles.xUserId })
+    .from(profiles)
+    .where(inArray(profiles.address, list));
+  return new Map(rows.filter((r) => r.xUserId).map((r) => [r.address, r.xUserId!]));
 }

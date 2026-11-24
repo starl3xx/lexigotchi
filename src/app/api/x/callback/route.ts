@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { quickAuthDomain } from "@/lib/auth/quickAuth";
-import { consumeLinkState, linkX } from "@/lib/db/profiles";
+import { consumeLinkState, getProfile, linkX, walletForX } from "@/lib/db/profiles";
+import { xKeyUsedToday } from "@/lib/onchain/dailyIdentity";
 import { fetchXUser, redirectUri, stateReturn, xEnabled } from "@/lib/profile/x";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
   const state = url.searchParams.get("state") ?? "";
   const code = url.searchParams.get("code");
   const ret = stateReturn(state);
-  const done = (result: "linked" | "canceled" | "failed", username?: string) => finish(req, ret, result, username);
+  const done = (result: "linked" | "canceled" | "failed" | "busy" | "held", username?: string) => finish(req, ret, result, username);
 
   if (!xEnabled()) return done("failed");
   if (!state || url.searchParams.get("error") || !code) {
@@ -31,6 +32,14 @@ export async function GET(req: Request) {
     const attempt = await consumeLinkState(state);
     if (!attempt) return done("failed");
     const user = await fetchXUser(code, attempt.codeVerifier, redirectUri(quickAuthDomain(req)));
+    // Moving an X account that took today's letter on another wallet waits for tomorrow, or the old
+    // wallet could pull again today on Farcaster or Coinbase (dailyIdentity.ts).
+    const linkedTo = await walletForX(user.id);
+    if (linkedTo && linkedTo !== attempt.address && (await xKeyUsedToday(user.id).catch(() => true))) return done("busy", user.username);
+    // Replacing this wallet's own X with another would push out an account that took today's letter
+    // the same way an unlink would (Bugbot on #138).
+    const current = (await getProfile(attempt.address))?.xUserId;
+    if (current && current !== user.id && (await xKeyUsedToday(current).catch(() => true))) return done("held", user.username);
     await linkX(attempt.address, user);
     return done("linked", user.username);
   } catch (err) {
@@ -43,6 +52,8 @@ const COPY = {
   linked: { title: "X is linked", body: "Your X account now shows next to your wallet in Lexigotchi." },
   canceled: { title: "Not linked", body: "You canceled on X. Nothing changed." },
   failed: { title: "Couldn’t link X", body: "Something went wrong. Go back to the game and try again." },
+  busy: { title: "Not linked yet", body: "That X account took today’s free letter on another wallet. Link it here tomorrow." },
+  held: { title: "Not changed yet", body: "Your current X account took today’s free letter. You can change it tomorrow." },
 } as const;
 
 function finish(req: Request, ret: "redirect" | "page", result: keyof typeof COPY, username?: string) {

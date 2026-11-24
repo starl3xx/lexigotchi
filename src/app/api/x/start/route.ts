@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { quickAuthDomain } from "@/lib/auth/quickAuth";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
-import { createLinkState, isMissingTable } from "@/lib/db/profiles";
+import { createLinkState, getProfile, isMissingTable } from "@/lib/db/profiles";
+import { xKeyUsedToday } from "@/lib/onchain/dailyIdentity";
 import { sessionAddress } from "@/lib/profile/session";
 import { X_STATE_TTL_MS, authorizeUrl, newState, pkcePair, redirectUri, xEnabled, type XReturn } from "@/lib/profile/x";
 
@@ -19,6 +20,12 @@ export async function POST(req: Request) {
   const address = sessionAddress(req);
   if (!address) return NextResponse.json({ ok: false, error: "no_session" }, { status: 401 });
   if (!(await allow("profile", clientIp(req)))) return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
+  // An X account that took today's letter can't be replaced until tomorrow (dailyIdentity.ts): say
+  // so before sending the player off to X.
+  const current = (await getProfile(address).catch(() => null))?.xUserId;
+  if (current && (await xKeyUsedToday(current).catch(() => true))) {
+    return NextResponse.json({ ok: false, error: "x_used_today" }, { status: 409 });
+  }
   const body = (await req.json().catch(() => ({}))) as { return?: XReturn };
   const state = newState(body.return === "page" ? "page" : "redirect");
   const { verifier, challenge } = pkcePair();

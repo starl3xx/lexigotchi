@@ -58,7 +58,8 @@ import {
   readOpenRollFor,
   readOpenPrestigeFor,
 } from "@/lib/onchain/reads";
-import { verifiedDailyKey } from "@/lib/onchain/verifications";
+import { dailyKeysFor } from "@/lib/onchain/verifications";
+import { usePublicProfile } from "./useProfile";
 import { bagWalletsOf, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
@@ -221,18 +222,42 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     if (pruned !== myPityNotes) setPityNotes((all) => ({ ...all, [walletKey]: pruned }));
   }, [pityQ.data, myPityNotes, walletKey]);
 
-  // The identity today's daily would be issued under — mirrors the server's JWT-wins ordering
-  // (free-daily route): the Farcaster fid when signed in, else the wallet's synthetic 2^160 key.
-  // Getting this wrong shows "Pull" to a player the contract will refuse, and the refusal reads
-  // as a bug (it did, on the first live test).
-  const dailyKey = viewer.fid ? BigInt(viewer.fid) : address ? verifiedDailyKey(address) : null;
+  // The identity today's daily would be issued under, and every other key the player could claim
+  // under — mirrors the server (free-daily route): the Farcaster fid, then an X account old enough
+  // to count, then the wallet's synthetic 2^160 key, and "claimed" if ANY was used today. Getting
+  // this wrong shows "Pull" to a player the contract or the server will refuse, and the refusal
+  // reads as a bug (it did, on the first live test).
+  const pubProfile = usePublicProfile();
+  const { primary: dailyKey, all: dailyKeys } = dailyKeysFor({
+    fid: viewer.fid,
+    xUserId: pubProfile.profile?.x?.id ?? null,
+    xCounts: pubProfile.xCounts,
+    wallet: address ?? null,
+  });
 
   const dayQ = useQuery({
-    queryKey: ["dayState", NETWORK.id, dailyKey?.toString()],
-    queryFn: () => readDayState(dailyKey!),
-    enabled: dailyKey !== null && chain.deployed,
+    queryKey: ["dayState", NETWORK.id, dailyKeys.map(String).join(",")],
+    queryFn: () => readDayState(dailyKeys),
+    // Wait for the public profile: read before it lands, the keys miss the X one, and a player who
+    // pulled on X would be offered Pull and then refused (Bugbot on #138).
+    enabled: dailyKey !== null && chain.deployed && !pubProfile.loading,
     staleTime: 30_000,
     refetchInterval: 60_000, // the UTC rollover must flip the card without a reload
+  });
+
+  // The server's wider view: a pull today under a key this client can't see (another Farcaster
+  // account that verified this wallet, or one of its other wallets) also counts, as it does when
+  // the daily route refuses. Without it the web shows Pull after a mini-app pull (Bugbot on #138).
+  const relatedDayQ = useQuery({
+    queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase(), viewer.fid ?? null],
+    queryFn: async () => {
+      const r = await fetch(`/api/mint/daily-status?wallet=${address}${viewer.fid ? `&fid=${viewer.fid}` : ""}`);
+      const d = (await r.json()) as { ok: boolean; claimed?: boolean };
+      return d.ok ? Boolean(d.claimed) : false;
+    },
+    enabled: Boolean(address) && chain.deployed,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   // Paid-but-unrevealed letter commits. Nonzero means a pull is stranded — the first live daily
@@ -325,7 +350,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       day: 0,
       // Real, read from dailyUsed[dailyKey] — hardcoding false here showed "Pull" to a player the
       // contract was guaranteed to refuse, and the 409 toast read as a bug on the first live test.
-      dailyMinted: dayQ.data?.dailyUsed ?? false,
+      dailyMinted: (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data ?? false),
       // Real pots + the keeper's actual theme rotation for the current weekly period.
       jackpotPot: bucketsQ.data?.jackpot ?? 0,
       bountyPool: bucketsQ.data?.bounty ?? 0,
@@ -335,7 +360,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, bucketsQ.data],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, relatedDayQ.data, bucketsQ.data],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -345,7 +370,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         phase("wallet");
         await chain.send(build());
         phase("working");
-        await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), pendingQ.refetch()]);
+        await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
         // The words are a log scan, the read that lags a write the most, and one read right after
         // the send usually misses it. Re-read on the same stagger as useOnchain's player state.
@@ -499,7 +524,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         case "verification_required":
           // A wallet with no attestation and no Farcaster session. The screens surface the verify
           // CTA; this copy is the fallback for a claim raced past a stale status.
-          return "The daily needs Farcaster or a Coinbase-verified wallet";
+          return "The daily needs a linked account or a Coinbase-verified wallet. Open your profile";
+        case "x_too_young":
+          return "Your X account unlocks the daily once it’s 90 days old";
         case "verification_unavailable":
           return "Can’t check your verification right now. Try again in a minute";
         default:
