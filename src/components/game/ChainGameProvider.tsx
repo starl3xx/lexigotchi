@@ -245,6 +245,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     refetchInterval: 60_000, // the UTC rollover must flip the card without a reload
   });
 
+  // The server's wider view: a pull today under a key this client can't see (another Farcaster
+  // account that verified this wallet, or one of its other wallets) also counts, as it does when
+  // the daily route refuses. Without it the web shows Pull after a mini-app pull (Bugbot on #138).
+  const relatedDayQ = useQuery({
+    queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase(), viewer.fid ?? null],
+    queryFn: async () => {
+      const r = await fetch(`/api/mint/daily-status?wallet=${address}${viewer.fid ? `&fid=${viewer.fid}` : ""}`);
+      const d = (await r.json()) as { ok: boolean; claimed?: boolean };
+      return d.ok ? Boolean(d.claimed) : false;
+    },
+    enabled: Boolean(address) && chain.deployed,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
   // Paid-but-unrevealed letter commits. Nonzero means a pull is stranded — the first live daily
   // stranded exactly here (commit mined, reveal never sent) and the UI had no way to finish it.
   const pendingQ = useQuery({
@@ -335,7 +350,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       day: 0,
       // Real, read from dailyUsed[dailyKey] — hardcoding false here showed "Pull" to a player the
       // contract was guaranteed to refuse, and the 409 toast read as a bug on the first live test.
-      dailyMinted: dayQ.data?.dailyUsed ?? false,
+      dailyMinted: (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data ?? false),
       // Real pots + the keeper's actual theme rotation for the current weekly period.
       jackpotPot: bucketsQ.data?.jackpot ?? 0,
       bountyPool: bucketsQ.data?.bounty ?? 0,
@@ -355,7 +370,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         phase("wallet");
         await chain.send(build());
         phase("working");
-        await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), pendingQ.refetch()]);
+        await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
         // The words are a log scan, the read that lags a write the most, and one read right after
         // the send usually misses it. Re-read on the same stagger as useOnchain's player state.
