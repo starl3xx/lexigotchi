@@ -16,7 +16,7 @@
  * toggle renders nothing. Also "unavailable" in the practice (mock) game, which has no onchain state
  * a reminder could describe.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { useViewer } from "./useViewer";
 import { webSession } from "@/lib/auth/siwfWeb";
@@ -101,9 +101,14 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   /** The resync's own warning, kept apart from `error` so a wallet switch can clear just this one. */
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
-  // Hear the other copies of the switch (see PUSH_CHANGED).
+  // Hear the other copies of the switch (see PUSH_CHANGED). `heardCount` lets a check that was
+  // already in flight see that an announcement overtook it, and drop its older answer (Bugbot on #145).
+  const heardCount = useRef(0);
   useEffect(() => {
-    const heard = (e: Event) => setBase((e as CustomEvent<Base>).detail);
+    const heard = (e: Event) => {
+      heardCount.current += 1;
+      setBase((e as CustomEvent<Base>).detail);
+    };
     window.addEventListener(PUSH_CHANGED, heard);
     return () => window.removeEventListener(PUSH_CHANGED, heard);
   }, []);
@@ -117,9 +122,11 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
     if (!pushSupported()) return setBase(isIosBrowserTab() ? "needs-home-screen" : "unsupported");
     if (Notification.permission === "denied") return setBase("denied");
     let alive = true;
+    const heardBefore = heardCount.current;
+    const fresh = () => alive && heardCount.current === heardBefore;
     currentSubscription()
-      .then((sub) => alive && setBase(sub ? "on" : "off"))
-      .catch(() => alive && setBase("off"));
+      .then((sub) => fresh() && setBase(sub ? "on" : "off"))
+      .catch(() => fresh() && setBase("off"));
     return () => {
       alive = false;
     };
@@ -145,9 +152,10 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
       return;
     }
     let alive = true; // a late answer for a wallet the player already left must not land
+    const heardBefore = heardCount.current;
     void currentSubscription()
       .then(async (sub) => {
-        if (!sub) return alive && setBase("off");
+        if (!sub) return alive && heardCount.current === heardBefore && setBase("off");
         await syncToServer(sub, address);
         if (alive) setSyncWarning(null);
       })
