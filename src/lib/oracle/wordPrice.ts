@@ -25,6 +25,11 @@ export interface WordPrice {
   /** $WORD per $1 — the peg the admin converts with. */
   wordPerUsd: number;
   fdvUsd: number | null;
+  /**
+   * The $WORD SIDE of its pools, in USD (GeckoTerminal's token-level `total_reserve_in_usd`): about
+   * half the pool's total depth. The pool's own `reserve_in_usd` (both sides) is what the $WORD page
+   * shows as liquidity (lib/wordStats). Treating this as the whole pool halved the depth once.
+   */
   reserveUsd: number | null;
   volume24hUsd: number | null;
   /** Unix ms of the successful fetch; null when the fallback answered. */

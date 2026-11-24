@@ -20,7 +20,8 @@ export interface RepegPolicy {
   driftBps: number;
   /** The off-chain cap per run, in bps (the onchain maxMoveBps also applies; the tighter wins). */
   policyCapBps: number;
-  /** Below this pool depth (USD), the price is too easy to push: move nothing. */
+  /** Below this much $WORD in the pool (USD, the $WORD side: about half the pool's depth), the price
+   *  is too easy to push: move nothing. $5K here is about a $10K pool. */
   minReserveUsd: number;
 }
 
