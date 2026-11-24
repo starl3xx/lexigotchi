@@ -26,6 +26,7 @@ import { PendingReveal } from "../PendingReveal";
 import { WalletMismatch } from "../WalletMismatch";
 import { NextSteps } from "../NextSteps";
 import { TodayStage } from "../TodayStage";
+import { GameWalletNotice } from "../GameWalletNotice";
 
 export function HomeScreen() {
   const g = useGame();
@@ -37,6 +38,9 @@ export function HomeScreen() {
   return (
     // Desktop (lg): a two-column dashboard; banners and the quick grid span both columns.
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      {/* Where the player's things are, when it matters (GameWalletNotice). */}
+      <GameWalletNotice />
+
       {/* The word that needs the player most, in its mood (stagePick.ts). Desktop: the right
           column beside the next steps. */}
       <div className="empty:hidden lg:col-start-2 lg:row-start-1">

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeFunctionData } from "viem";
+import { erc20Abi } from "viem";
 import { lettersAbi, wordsAbi } from "@/lib/onchain/abis";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
@@ -9,7 +10,8 @@ const FROM = "0x1111111111111111111111111111111111111111";
 const TO = "0x2222222222222222222222222222222222222222";
 const LETTERS = "0x3333333333333333333333333333333333333333";
 const WORDS = "0x4444444444444444444444444444444444444444";
-const contracts = { letters: LETTERS, words: WORDS } as const;
+const TOKEN = "0x5555555555555555555555555555555555555555";
+const contracts = { letters: LETTERS, words: WORDS, token: TOKEN } as const;
 
 const counts = (pairs: Record<number, number>) => Array.from({ length: 52 }, (_, i) => pairs[i] ?? 0);
 const word = (w: string, staked = false) => ({ word: w, tokenId: tokenIdOf(w), staked });
@@ -56,5 +58,21 @@ describe("moveCalls", () => {
 
   it("refuses to move a wallet to itself", () => {
     expect(() => moveCalls(FROM, FROM, movePlan(counts({ 0: 1 }), []), contracts)).toThrow();
+  });
+});
+
+describe("moving $WORD", () => {
+  it("sends it last, only when the player asked (a balance was passed)", () => {
+    const without = moveCalls(FROM, TO, movePlan(counts({ 0: 1 }), []), contracts);
+    expect(without.map((c) => c.to)).toEqual([LETTERS]);
+    const amount = 1234n * 10n ** 18n;
+    const withWord = moveCalls(FROM, TO, movePlan(counts({ 0: 1 }), [], amount), contracts);
+    expect(withWord.map((c) => c.to)).toEqual([LETTERS, TOKEN]);
+    const t = decodeFunctionData({ abi: erc20Abi, data: withWord[1].data! });
+    expect([t.functionName, ...(t.args as readonly unknown[])]).toEqual(["transfer", TO, amount]);
+  });
+
+  it("a plan with only $WORD isn't empty", () => {
+    expect(planIsEmpty(movePlan(counts({}), [], 5n))).toBe(false);
   });
 });

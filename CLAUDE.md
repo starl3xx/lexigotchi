@@ -138,7 +138,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   joins when one FID verified it AND a seed (the first wallet or a signature link); Farcaster rows
   never vouch (no chaining), never merge accounts, prune only on a positive Neynar answer and never
   on a claimed day; one advisory lock serializes writes. The core link reads never select `via`/`fid`,
-  so a database without 0009 still resolves accounts.
+  so a database without 0009 still resolves accounts. **Game wallet** (`lib/db/gameWallet.ts`, table
+  `game_wallets`, migration 0010; its own table because `getProfile` selects every profiles column):
+  the wallet the player keeps everything in; a stored wallet that left the account reads as none.
+  `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
+  `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
