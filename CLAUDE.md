@@ -192,6 +192,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   letter card at `/s/<letters>/card`), never just the generic game card. Cast text never says
   "@lexigotchi" (on Farcaster that's someone else). A share with no card of its own (Swap) stays
   Farcaster-only until it gets one.
+- **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
+  that changes something testers would notice adds a `## Tester note` section right after Summary,
+  one or two plain sentences in player language (house copy rules). `.github/workflows/beta-updates.yml`
+  posts it as @lexigotchi_bot when Vercel's Production deploy of that commit succeeds, then labels the
+  PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
+  `TELEGRAM_CHAT_ID`; "Run workflow" on it only checks the bot can reach the group.
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
