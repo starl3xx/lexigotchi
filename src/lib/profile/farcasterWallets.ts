@@ -120,19 +120,56 @@ export function chooseAccountForFid(
   return withProfile[0] ?? ws[0];
 }
 
+/**
+ * Pure: the account a sync builds on, the same whichever wallet signs in first. A wallet session
+ * keeps its account when that account is real (the wallet is linked, has links, or has its own X or
+ * email). A BARE session wallet (none of those) builds where a Farcaster sign-in would
+ * (chooseAccountForFid over every wallet its FIDs verified): otherwise signing in first with a bare
+ * wallet would make it the head and strand a verified wallet that already holds the player's X or
+ * email. Exported for tests.
+ */
+export function resolveSyncAccount(input: {
+  sessionWallet?: string;
+  /** The session wallet's account (accountOf), when there is a session. */
+  sessionAccount?: string;
+  /** Every wallet the relevant FIDs verified. */
+  verified: readonly string[];
+  rows: readonly LinkRowFull[];
+  hasOwnProfile: ReadonlySet<string>;
+}): string | null {
+  const w = input.sessionWallet ? lower(input.sessionWallet) : null;
+  if (w) {
+    const acct = lower(input.sessionAccount ?? w);
+    const bare = acct === w && !input.rows.some((r) => lower(r.account) === w) && !input.hasOwnProfile.has(w);
+    if (!bare) return acct;
+    return chooseAccountForFid([...input.verified, w], input.rows, input.hasOwnProfile) ?? w;
+  }
+  return chooseAccountForFid(input.verified, input.rows, input.hasOwnProfile);
+}
+
 // ── database ─────────────────────────────────────────────────────────────────────────────────────
 
 type Db = ReturnType<typeof getDb>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-/** Every link row touching these wallets (as the wallet or as the account). Throws before 0009. */
+/**
+ * Every link row touching these wallets (as the wallet or as the account). Before migration 0009 it
+ * reads every row as a signature link (there were no others); the writes still need 0009, so a sync
+ * there plans but can't write, and a dry run can preview production before the migration.
+ */
 async function rowsTouching(db: Db | Tx, wallets: readonly string[]): Promise<LinkRowFull[]> {
   const list = [...new Set(wallets.map(lower))];
   if (list.length === 0) return [];
-  return db
-    .select({ address: walletLinks.address, account: walletLinks.account, via: walletLinks.via, fid: walletLinks.fid })
-    .from(walletLinks)
-    .where(or(inArray(walletLinks.address, list), inArray(walletLinks.account, list)));
+  const where = or(inArray(walletLinks.address, list), inArray(walletLinks.account, list));
+  try {
+    return await db
+      .select({ address: walletLinks.address, account: walletLinks.account, via: walletLinks.via, fid: walletLinks.fid })
+      .from(walletLinks)
+      .where(where);
+  } catch {
+    const rows = await db.select({ address: walletLinks.address, account: walletLinks.account }).from(walletLinks).where(where);
+    return rows.map((r) => ({ ...r, via: "signature", fid: null }));
+  }
 }
 
 /** Wallets among these with their own X link or confirmed email (they never merge automatically). */
@@ -159,19 +196,24 @@ export interface SyncResult {
  * chooseAccountForFid). Returns null when there is nothing to work on (no links table columns yet,
  * Farcaster unreachable, or no verified wallets).
  */
-export async function syncFarcasterWallets(opts: { wallet?: string; fid?: number }): Promise<SyncResult | null> {
+export async function syncFarcasterWallets(opts: { wallet?: string; fid?: number; dryRun?: boolean }): Promise<SyncResult | null> {
   const db = getDb();
   try {
-    // 1. The account.
-    let account: string | null = null;
-    if (opts.wallet) account = await accountOf(opts.wallet);
-    else if (opts.fid) {
-      const [p] = await lookupProfiles([opts.fid]);
-      const verified = p?.verifiedWallets ?? [];
-      if (verified.length === 0) return null;
-      const touching = await rowsTouching(db, verified);
-      account = chooseAccountForFid(verified, touching, await withOwnProfile(db, verified));
+    // 1. The account, by one rule whichever wallet signs in first (resolveSyncAccount).
+    const startFids = new Set<number>(opts.fid ? [opts.fid] : []);
+    if (opts.wallet) {
+      for (const list of (await fidsByAddresses([opts.wallet]).catch(() => new Map<string, number[]>())).values()) for (const f of list) startFids.add(f);
     }
+    const startProfiles = startFids.size ? await lookupProfiles([...startFids]).catch(() => []) : [];
+    const verified = [...new Set(startProfiles.flatMap((p) => p.verifiedWallets ?? []))];
+    const near = [...verified, ...(opts.wallet ? [lower(opts.wallet)] : [])];
+    const account = resolveSyncAccount({
+      sessionWallet: opts.wallet,
+      sessionAccount: opts.wallet ? await accountOf(opts.wallet) : undefined,
+      verified,
+      rows: await rowsTouching(db, near),
+      hasOwnProfile: await withOwnProfile(db, near),
+    });
     if (!account) return null;
 
     // 2. The FIDs that could vouch (verifying a seed), plus those behind existing Farcaster links
@@ -186,19 +228,34 @@ export async function syncFarcasterWallets(opts: { wallet?: string; fid?: number
     const fidWallets = new Map(answered.map((p) => [p.fid, p.verifiedWallets ?? []]));
     const candidates = [...new Set([...fidWallets.values()].flat())];
 
-    // 3. The daily hold, read before the lock (it reads the chain): unknown counts as held.
-    let holdPrune = true;
-    try {
-      holdPrune = await accountClaimedToday(account);
-    } catch {
-      holdPrune = true;
+    // 3. The daily hold, read before the lock (it reads the chain): unknown counts as held. Only
+    // asked when there is a Farcaster link that could leave.
+    let holdPrune = false;
+    if (own.some((r) => r.account === account && r.via === "farcaster")) {
+      try {
+        holdPrune = await accountClaimedToday(account);
+      } catch {
+        holdPrune = true;
+      }
+    }
+
+    // A dry run plans against what's there now and writes nothing.
+    if (opts.dryRun) {
+      const plan = planFarcasterWallets({
+        account,
+        rows: await rowsTouching(db, [account, ...candidates]),
+        fidWallets,
+        hasOwnProfile: await withOwnProfile(db, candidates),
+        holdPrune,
+      });
+      return { account, adopted: plan.adopt.map((a) => a.address), pruned: plan.prune, skipped: plan.skipped };
     }
 
     // 4. Plan and write under one lock, re-reading the links inside it, so two devices syncing at
     // once can't insert A→B and B→A, or overfill an account.
     const acct = account;
     return await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('lexigotchi:wallet_links'))`);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('lexigotchi:wallet_links'))`); // the same lock as withLinkLock
       // The account must still head itself: if it joined another account meanwhile, stop.
       const joined = await tx.select({ account: walletLinks.account }).from(walletLinks).where(eq(walletLinks.address, acct)).limit(1);
       if (joined.length > 0) return { account: acct, adopted: [], pruned: [], skipped: [] };

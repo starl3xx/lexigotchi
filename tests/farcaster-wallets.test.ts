@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseAccountForFid, planFarcasterWallets, type LinkRowFull } from "@/lib/profile/farcasterWallets";
+import { chooseAccountForFid, planFarcasterWallets, resolveSyncAccount, type LinkRowFull } from "@/lib/profile/farcasterWallets";
 
 // Made-up wallets and FIDs: never anyone's real account.
 const A = "0xaaaa000000000000000000000000000000000001"; // the account's first wallet
@@ -85,5 +85,30 @@ describe("chooseAccountForFid (a Farcaster sign-in with no wallet signature)", (
     expect(chooseAccountForFid([X, W], [], new Set([X]))).toBe(X);
     expect(chooseAccountForFid([X, W], [], none)).toBe(W);
     expect(chooseAccountForFid([], [], none)).toBeNull();
+  });
+});
+
+describe("resolveSyncAccount: the same account whichever wallet signs in first", () => {
+  // FID verified P (holds the player's X or email), W, and R. All three are bare of links.
+  const P = "0xeeee000000000000000000000000000000000003";
+  const W = "0xeeee000000000000000000000000000000000001";
+  const R = "0xeeee000000000000000000000000000000000002";
+  const verified = [P, W, R];
+  const profile = new Set([P]);
+
+  it("a bare wallet session builds where a Farcaster sign-in would (on P), not on itself", () => {
+    const fromW = resolveSyncAccount({ sessionWallet: W, sessionAccount: W, verified, rows: [], hasOwnProfile: profile });
+    const fromP = resolveSyncAccount({ sessionWallet: P, sessionAccount: P, verified, rows: [], hasOwnProfile: profile });
+    const fromFid = resolveSyncAccount({ verified, rows: [], hasOwnProfile: profile });
+    expect([fromW, fromP, fromFid]).toEqual([P, P, P]);
+    // …and P's plan then takes in W and R.
+    const plan = planFarcasterWallets({ account: P, rows: [], fidWallets: new Map([[7, verified]]), hasOwnProfile: profile });
+    expect(plan.adopt.map((a) => a.address).sort()).toEqual([R, W].sort());
+  });
+
+  it("a wallet with a real account keeps it", () => {
+    const rows: LinkRowFull[] = [{ address: "0xffff000000000000000000000000000000000001", account: W, via: "signature", fid: null }];
+    expect(resolveSyncAccount({ sessionWallet: W, sessionAccount: W, verified, rows, hasOwnProfile: profile })).toBe(W);
+    expect(resolveSyncAccount({ sessionWallet: R, sessionAccount: P, verified, rows: [], hasOwnProfile: profile })).toBe(P);
   });
 });

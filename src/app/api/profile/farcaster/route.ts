@@ -5,6 +5,7 @@ import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { profilesEnabled, sessionAddress } from "@/lib/profile/session";
 import { syncFarcasterWallets } from "@/lib/profile/farcasterWallets";
 import { accountView } from "@/lib/db/profiles";
+import { accountOf } from "@/lib/db/walletLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,8 +39,9 @@ export async function POST(req: Request) {
       account: r.account,
       adopted: r.adopted.length,
       pruned: r.pruned.length,
-      // The signed-in wallet's own profile, when there is one to refresh.
-      ...(wallet && changed ? { profile: await accountView(r.account) } : {}),
+      // The signed-in wallet's OWN account as it stands now: the sync may have moved it into
+      // another account, or taken it out of this one, and it may only read the one it's in.
+      ...(wallet && changed ? { profile: await accountView(await accountOf(wallet)) } : {}),
     },
     { headers: { "Cache-Control": "no-store" } },
   );

@@ -111,6 +111,19 @@ export async function loadLinkMap(): Promise<LinkMap> {
   }
 }
 
+/**
+ * Run a link check-and-write while holding the one lock every link writer takes (Link another wallet
+ * here, the Farcaster sync in lib/profile/farcasterWallets.ts), so two writers can't insert A→B and
+ * B→A, or overfill an account. The lock lives for the transaction; `fn` may read and write through
+ * getDb() as usual: no other link writer can commit until it returns.
+ */
+export async function withLinkLock<T>(fn: () => Promise<T>): Promise<T> {
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('lexigotchi:wallet_links'))`);
+    return fn();
+  });
+}
+
 // ── how a wallet joined (migration 0009) ─────────────────────────────────────────────────────
 
 /** The Farcaster links in an account (for the Wallets card). Never throws: before 0009, none. */
