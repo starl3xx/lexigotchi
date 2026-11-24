@@ -4,7 +4,7 @@
  * ones shown with what opens them (lib/scenes: own SCENE_UNLOCK_WORDS words). Used by the scene
  * sheet (from the Today stage) and the Showcase.
  */
-import { SCENES, canUseScene } from "@/lib/scenes";
+import { DEFAULT_SCENE, SCENES } from "@/lib/scenes";
 import { Lock } from "../game/ui/icons";
 import { SceneThumb } from "./SceneFrame";
 import { useSceneUnlock, useWordScene } from "./useWordScene";
@@ -24,7 +24,7 @@ export function ScenePicker({ word }: { word: string }) {
       )}
       <div role="radiogroup" aria-label={`${word}’s scene`} className="grid grid-cols-3 gap-2 md:grid-cols-4">
         {SCENES.map((s) => {
-          const open = canUseScene(s.id, count);
+          const open = s.id === DEFAULT_SCENE || unlocked;
           const on = scene === s.id;
           return (
             <button

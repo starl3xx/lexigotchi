@@ -9,9 +9,10 @@
  * same transfer scan as the bag, readWordsHeld), linked wallets' words included, because a linked
  * wallet is the same player (union bag, decisions.md). A dissolved or sold word still counts.
  *
- * A scene is cosmetic and offchain. Each word's choice is saved in the browser (`useWordScene`),
- * so it does not follow a player from the web to a mini-app host. The share link carries the
- * scene, so a share shows the scene the player chose wherever it is opened.
+ * A scene is cosmetic and offchain. Each word's choice is saved in the browser at once, and to the
+ * player's profile (table word_scenes, /api/scenes) under a profile session they already have, so
+ * it follows them to every device and host; useWordScene says how the two agree. The share link
+ * carries the scene, so a share shows the scene the player chose wherever it is opened.
  *
  * Pure (no React), so the server's share card and the client read the same list.
  */

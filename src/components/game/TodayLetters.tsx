@@ -13,7 +13,8 @@ import { Button, Card, Countdown, SectionTitle } from "./primitives";
 import { LetterTile } from "./LetterTile";
 import { DailyUnlock, useDailyEligibility } from "./DailyUnlock";
 import { Check, Fire, Sparkle, TextAa, Ticket } from "./ui/icons";
-import { idxToChar, mineLower, mineUpper, spellableNow, useGame } from "./state";
+import { idxToChar, useGame } from "./state";
+import { useCanSpell, useEmptyStageCase } from "./useTodayPlan";
 
 /** Letter tiles before the "+N" tile: two rows of six on a phone. */
 const SHOWN = 12;
@@ -22,6 +23,9 @@ export function TodayLetters() {
   const g = useGame();
   const { state } = g;
   const daily = useDailyEligibility();
+  // Spelling uses the connected wallet's own letters, and only a word nobody owns (useTodayPlan).
+  const canSpell = useCanSpell();
+  const stage = useEmptyStageCase();
   if (state.status !== "ready") return null;
 
   const loose = [
@@ -31,10 +35,13 @@ export function TodayLetters() {
   const total = loose.reduce((s, l) => s + l.c, 0);
   const over = loose.length > SHOWN;
   const shown = over ? loose.slice(0, SHOWN - 1) : loose;
-  const hidden = loose.length - shown.length;
-  // Spelling uses the connected wallet's own letters (linked wallets' letters only show).
-  const owned = new Set(state.words.map((w) => w.word));
-  const canSpell = spellableNow(mineUpper(state), owned, 1).length > 0 || spellableNow(mineLower(state), owned, 1).length > 0;
+  // The "+N" counts letters, not kinds of letter: an e×3 that didn't fit is three more.
+  const hidden = loose.slice(shown.length).reduce((s, l) => s + l.c, 0);
+  // One loud "get letters" button on Today at a time. With no word of the player's own on stage, the
+  // empty stage asks for letters when they have none or too few ("start", "more"); otherwise (their
+  // words on stage, or all in a linked wallet) this card asks, unless they can spell already.
+  const stageAsks = !state.words.some((w) => w.mine) && (stage === "start" || stage === "more");
+  const mintLoud = !canSpell && !stageAsks;
 
   return (
     <Card>
@@ -92,7 +99,9 @@ export function TodayLetters() {
       {/* the loose letters, UPPERCASE first */}
       {loose.length === 0 ? (
         <p className="py-2 text-center text-sm text-ink/60">
-          No loose letters{state.words.length > 0 ? " right now" : " yet"}. Mint a pack of 5{state.dailyMinted ? "" : ", or take your free letter"}.
+          {/* "yet" is for a newcomer; while the words still load, the player may well have some */}
+          No loose letters{state.words.length > 0 || state.wordsLoading ? " right now" : " yet"}. Mint a pack of 5
+          {state.dailyMinted ? "" : ", or take your free letter"}.
         </p>
       ) : (
         <div className="flex flex-wrap gap-2 md:gap-2.5">
@@ -134,9 +143,7 @@ export function TodayLetters() {
             <TextAa weight="bold" /> Spell a word
           </Button>
         )}
-        {/* The loud button only when nothing else on Today asks for letters: with no words of the
-            player's own, the empty stage above already does (TodayStage's EmptyStage). */}
-        <Button variant={canSpell || !state.words.some((w) => w.mine) ? "ghost" : "primary"} className="flex-1" onClick={() => g.nav("mint")}>
+        <Button variant={mintLoud ? "primary" : "ghost"} className="flex-1" onClick={() => g.nav("mint")}>
           <Sparkle weight="fill" /> {total > 0 ? "Mint more" : "Mint letters"}
         </Button>
       </div>

@@ -16,8 +16,9 @@ import { WordTiles, careState } from "./LetterTile";
 import { Button, HungerBadge, Pill } from "./primitives";
 import { ReminderToggle } from "./ReminderToggle";
 import { Backpack, CaretLeft, CaretRight, Cookie, Palette, Sparkle, TextAa, Ticket } from "./ui/icons";
-import { hunger, mineLower, mineUpper, spellableNow, useGame } from "./state";
-import { emptyStageCase, stageLine, stageLineup, upNext } from "./stagePick";
+import { hunger, useGame } from "./state";
+import { stageLine, stageLineup, upNext } from "./stagePick";
+import { useEmptyStageCase } from "./useTodayPlan";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
 import { useWordScene } from "../scenes/useWordScene";
 
@@ -236,19 +237,10 @@ export function TodayStage() {
  */
 function EmptyStage() {
   const g = useGame();
-  const { state } = g;
-  const owned = new Set(state.words.map((w) => w.word));
-  const lower = mineLower(state);
-  const upper = mineUpper(state);
-  const shape = emptyStageCase({
-    loading: Boolean(state.wordsLoading),
-    words: state.words.length,
-    mineWords: state.words.filter((w) => w.mine).length,
-    letters: [...lower, ...upper].reduce((a, b) => a + b, 0),
-    canSpell: spellableNow(upper, owned, 1).length > 0 || spellableNow(lower, owned, 1).length > 0,
-  });
+  const shape = useEmptyStageCase();
   const say: Record<typeof shape, string | null> = {
     loading: null,
+    error: "We couldn’t bring out your words. That’s a connection problem, not a change to what you own.",
     elsewhere: "Your words live in your other wallet. Connect it to look after them here.",
     spell: "Your letters can spell a word now. Spell it, and it moves in here.",
     more: "Your words will live here. A few more letters, and you can spell your first.",
@@ -274,6 +266,11 @@ function EmptyStage() {
         {shape === "loading" && (
           <Button variant="ghost" full disabled>
             Bringing out your words…
+          </Button>
+        )}
+        {shape === "error" && (
+          <Button variant="ghost" full onClick={() => g.reloadWords?.()}>
+            Try again
           </Button>
         )}
         {shape === "elsewhere" && (

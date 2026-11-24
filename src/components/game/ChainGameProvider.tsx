@@ -427,6 +427,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       words: (wordsQ.data?.words ?? []).map(toOwnedWord),
       wordsEverHeld: wordsQ.data?.everHeld ?? 0,
       wordsLoading: wordsQ.isLoading,
+      wordsError: wordsQ.isError && !wordsQ.data,
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
       streak: 0,
@@ -444,7 +445,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -1065,6 +1066,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             },
           ), false);
       },
+
+      reloadWords: () => void wordsQ.refetch(),
 
       moveToWallet: (to: string) =>
         track<MoveOutcome>(`Moving to ${to.slice(0, 6)}…${to.slice(-4)}`, async (run) => {

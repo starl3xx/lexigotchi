@@ -87,16 +87,18 @@ export function upNext<T>(items: readonly T[], index: number, max: number): T[] 
  * What the Today stage says when no word of the connected wallet can stand on it, by player:
  * - "loading": the words are still on their way (a returning player must not see the newcomer's
  *   invitation for a second).
+ * - "error": the words couldn't be read; it is a connection problem, not an empty bag.
  * - "elsewhere": the player has words, all in a linked wallet (only the connected wallet's words
  *   take the stage: they can't be fed or staked from here).
- * - "spell": no words yet, and their letters spell one now.
+ * - "spell": no words yet, and their letters spell one nobody owns.
  * - "more": no words yet, some letters, not enough to spell one.
  * - "start": brand new, no letters and no words.
  */
-export type EmptyStageCase = "loading" | "elsewhere" | "spell" | "more" | "start";
+export type EmptyStageCase = "loading" | "error" | "elsewhere" | "spell" | "more" | "start";
 
-export function emptyStageCase(i: { loading: boolean; words: number; mineWords: number; letters: number; canSpell: boolean }): EmptyStageCase {
+export function emptyStageCase(i: { loading: boolean; error?: boolean; words: number; mineWords: number; letters: number; canSpell: boolean }): EmptyStageCase {
   if (i.loading) return "loading";
+  if (i.error) return "error";
   if (i.words > 0 && i.mineWords === 0) return "elsewhere";
   if (i.canSpell) return "spell";
   return i.letters > 0 ? "more" : "start";

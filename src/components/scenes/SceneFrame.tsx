@@ -13,7 +13,7 @@
  * scene in full color, clear. The characters keep their color: their faces already show the mood.
  */
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { TileWord, type Gild, type TileState } from "../game/TileCharacter";
+import { TileCharacter, type Gild, type TileState } from "../game/TileCharacter";
 import type { SceneId } from "@/lib/scenes";
 import { SCENE_W, SceneBack, SceneFront } from "./SceneArt";
 import { sceneLayout } from "./layout";
@@ -59,7 +59,10 @@ export function SceneFrame({
   upper: boolean[];
   state?: TileState;
   gild?: Gild;
-  /** How the word is doing: the scene greys as it gets hungry. */
+  /**
+   * How the word is doing: the scene greys and fogs as it gets hungry (pass toneOf(state)). Left
+   * "fed" on purpose where the player is choosing a scene (the scene sheet): they need to see it.
+   */
   tone?: SceneTone;
   animated?: boolean;
   /** When the word changes, the new one slides in from this side (the Today stage's arrows). */
@@ -73,17 +76,18 @@ export function SceneFrame({
   className?: string;
 }) {
   const uid = svgId(useId());
-  const box = useRef<HTMLDivElement>(null);
-  const [W, setW] = useState(0);
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setW(Math.round(e.contentRect.width)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const layout = W > 0 ? sceneLayout(word.length, W, W / SCENE_ASPECT) : null;
+  // The word's row in percentages of the box (scenes/layout.ts at one pixel per scene unit), so it
+  // draws on the first paint and on the server (the share page), with nothing measured first.
+  const L = sceneLayout(word.length, SCENE_W, SCENE_H);
+  const pct = (v: number, of: number) => `${((v / of) * 100).toFixed(4)}%`;
   const toneClass = `scene-tone ${TONE_CLASS[tone]}`;
+
+  // The side a new word slides in from, as it was when the word changed: `enter` can change later
+  // without the word changing (a meal ends and the same word stays on stage), and that must not
+  // replay the slide on the word already shown.
+  const [entered, setEntered] = useState<{ word: string; enter: typeof enter }>({ word, enter: null });
+  if (entered.word !== word) setEntered({ word, enter });
+  const slide = entered.word === word ? entered.enter : enter;
 
   // A new scene fades in over the old one (a pick in the scene sheet, or the next word's home).
   const [wasState, setWas] = useState<SceneId | null>(null);
@@ -123,8 +127,15 @@ export function SceneFrame({
       }
     : {};
 
-  const tiles = layout && (
-    <TileWord word={word} upper={upper} state={state} gild={gild} size={layout.tileW} detail="full" />
+  // The characters hold hands (each overlaps the last, as in TileWord), sized in percent of the row.
+  const tiles = (
+    <div className="flex items-end">
+      {[...word].map((ch, i) => (
+        <div key={i} style={{ width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0 }}>
+          <TileCharacter char={ch} upper={upper[i] ?? false} state={state} gild={gild} pose="link" size={L.tileW} detail="full" fluid />
+        </div>
+      ))}
+    </div>
   );
   const layers = (id: SceneId, front: boolean, fade: string) => (
     <div key={`${front ? "front" : "back"}-${id}`} className={`absolute inset-0 ${toneClass} ${front ? "pointer-events-none" : ""} ${fade}`}>
@@ -137,14 +148,14 @@ export function SceneFrame({
   );
 
   return (
-    <div ref={box} className={`relative aspect-[16/9] w-full overflow-hidden ${className}`} {...swipe}>
+    <div className={`relative aspect-[16/9] w-full overflow-hidden ${className}`} {...swipe}>
       {was && layers(was, false, "")}
       {layers(scene, false, was ? "scene-fade-in" : "")}
-      {layout && (
+      {word && (
         <div
           key={word}
-          className={`absolute inset-x-0 flex justify-center ${enter ? `scene-in-${enter}` : ""}`}
-          style={{ bottom: layout.rowBottom }}
+          className={`absolute ${slide ? `scene-in-${slide}` : ""}`}
+          style={{ left: pct(L.rowLeft, SCENE_W), width: pct(L.rowW, SCENE_W), bottom: pct(L.rowBottom, SCENE_H) }}
         >
           {onWord ? (
             // No tilt here (the word stands on a floor now): the spotlight finds it and the
@@ -155,7 +166,7 @@ export function SceneFrame({
                 onWord();
               }}
               aria-label={wordLabel}
-              className="scene-word rounded-2xl"
+              className="scene-word block w-full rounded-2xl"
             >
               {tiles}
             </button>

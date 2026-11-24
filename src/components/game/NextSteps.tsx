@@ -9,6 +9,7 @@ import { Coins, Crown, Sparkle, Ticket, TextAa } from "./ui/icons";
 import { fmtWord, hunger, mineLower, mineUpper, useGame } from "./state";
 import { pickStage } from "./stagePick";
 import { nextSteps, type NextStep } from "./todaySteps";
+import { useTakenWords } from "./useTodayPlan";
 
 /** Rows shown before "Show more": a list of five read as a to-do list, not a nudge. */
 const SHOWN = 3;
@@ -17,6 +18,7 @@ export function NextSteps() {
   const g = useGame();
   const { state } = g;
   const [all, setAll] = useState(false);
+  const taken = useTakenWords();
   if (state.status !== "ready") return null;
 
   // Don't ask twice: the Today stage already asks for an unstaked star to be staked, and for a
@@ -30,6 +32,7 @@ export function NextSteps() {
     upper: mineUpper(state),
     pity: state.pity,
     rollProb: g.rollProb,
+    taken,
   }).filter((s) => !(s.kind === "stake" && s.word === stagedStake) && s.kind !== "start");
   if (steps.length === 0) return null;
   const visible = all ? steps : steps.slice(0, SHOWN);

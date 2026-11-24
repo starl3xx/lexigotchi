@@ -347,20 +347,21 @@ body {
   65% { transform: translateY(1.5%); }
 }
 
-/* The Today stage's ← and →: the next word slides in a little way from the side it comes from,
-   and a new scene fades in over the old one. Under reduced motion the word only fades. */
-.scene-in-next { animation: scene-in-next 340ms var(--ease-out) both; }
-.scene-in-prev { animation: scene-in-prev 340ms var(--ease-out) both; }
+/* The Today stage's ← and →: the next word fades in, and where motion is welcome it slides a little
+   way from the side it comes from; a new scene fades in over the old one. Fades are opacity only,
+   so they hold under reduced motion; the slide exists only under no-preference (the house rule). */
+.scene-in-next,
+.scene-in-prev { animation: scene-fade-in 340ms var(--ease-out) both; }
 .scene-fade-in { animation: scene-fade-in 450ms var(--ease-out) both; }
 .scene-fade-out { animation: scene-fade-out 450ms var(--ease-out) both; }
+@media (prefers-reduced-motion: no-preference) {
+  .scene-in-next { animation-name: scene-in-next; }
+  .scene-in-prev { animation-name: scene-in-prev; }
+}
 @keyframes scene-in-next { from { opacity: 0; transform: translateX(32px); } }
 @keyframes scene-in-prev { from { opacity: 0; transform: translateX(-32px); } }
 @keyframes scene-fade-in { from { opacity: 0; } }
 @keyframes scene-fade-out { to { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .scene-in-next,
-  .scene-in-prev { animation-name: scene-fade-in; }
-}
 
 /* A scene drains toward grey as its word gets hungry (SceneFrame's tone). A color change, not
    motion, so it eases in under reduced motion too. */

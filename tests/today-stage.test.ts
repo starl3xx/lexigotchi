@@ -90,6 +90,11 @@ describe("emptyStageCase (the stage with no word of the player's to show)", () =
     expect(emptyStageCase({ ...base, loading: true, letters: 7, canSpell: true })).toBe("loading");
   });
 
+  it("says a failed read is a connection problem, not an empty bag", () => {
+    expect(emptyStageCase({ ...base, error: true, letters: 7, canSpell: true })).toBe("error");
+    expect(emptyStageCase({ ...base, loading: true, error: true })).toBe("loading");
+  });
+
   it("knows the words are in a linked wallet, not missing", () => {
     expect(emptyStageCase({ ...base, words: 3, mineWords: 0, letters: 9, canSpell: true })).toBe("elsewhere");
   });

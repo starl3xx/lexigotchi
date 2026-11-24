@@ -162,6 +162,8 @@ export interface GameState {
    * "ready" before they land, and an empty `words` then would read as "no words yet".
    */
   wordsLoading?: boolean;
+  /** The words read failed and has nothing to show (a connection problem, not an empty bag). */
+  wordsError?: boolean;
   streak: number;
   day: number;
   dailyMinted: boolean;
@@ -621,6 +623,8 @@ export interface GameApi {
    * account (lib/onchain/move.ts). The destination is re-checked against the account, fresh.
    */
   moveToWallet: (to: string) => Promise<MoveOutcome>;
+  /** Read the words again after a failed read (the chain store; the practice store has none to fail). */
+  reloadWords?: () => void;
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;
   skipDay: () => void;

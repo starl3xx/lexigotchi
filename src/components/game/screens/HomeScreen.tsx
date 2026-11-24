@@ -8,8 +8,11 @@
  *
  * then the week's bounty and the quick actions. Desktop (lg): two columns that flow on their own,
  * words and jackpot on the left, letters, next steps, and bounty on the right, so a tall stage
- * never leaves a gap under the letters. A phone stacks them in the numbered order: the two
- * columns' wrappers are `display: contents` there, and `order` interleaves their cards.
+ * never leaves a gap under the letters. A phone stacks them in the numbered order.
+ *
+ * The two are separate layouts, picked by width (useWide), not one layout reordered with CSS
+ * `order`: that showed the phone one order and gave the keyboard and screen readers another (the
+ * code review on #164). Each layout's DOM order is its reading order.
  *
  * The rare warnings (a wallet that isn't the player's, a paid pull that never revealed) come first,
  * across both columns, when there is one.
@@ -23,10 +26,12 @@ import { WalletMismatch } from "../WalletMismatch";
 import { NextSteps } from "../NextSteps";
 import { TodayStage } from "../TodayStage";
 import { TodayLetters } from "../TodayLetters";
+import { useWide } from "../useWide";
 
 export function HomeScreen() {
-  return (
-    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
+  const wide = useWide();
+  const alerts = (
+    <>
       {/* connected wallet isn't one of the FID's linked wallets: the bag is about to fork */}
       <div className="empty:hidden lg:col-span-2">
         <WalletMismatch />
@@ -35,34 +40,43 @@ export function HomeScreen() {
       <div className="empty:hidden lg:col-span-2">
         <PendingReveal />
       </div>
+    </>
+  );
+  const quick = (
+    <div className="lg:col-span-2">
+      <SectionTitle>Do something</SectionTitle>
+      <QuickGrid />
+    </div>
+  );
 
+  if (!wide) {
+    return (
+      <div className="flex flex-col gap-3">
+        {alerts}
+        <TodayStage />
+        <TodayLetters />
+        <JackpotCard />
+        <NextSteps />
+        <BountyTeaser />
+        {quick}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 items-start gap-4">
+      {alerts}
       {/* the left column: the words, then the jackpot */}
-      <div className="contents lg:flex lg:flex-col lg:gap-4">
-        <div className="order-1 empty:hidden">
-          <TodayStage />
-        </div>
-        <div className="order-3">
-          <JackpotCard />
-        </div>
+      <div className="flex flex-col gap-4">
+        <TodayStage />
+        <JackpotCard />
       </div>
-
       {/* the right column: the letters, then next steps, then the bounty */}
-      <div className="contents lg:flex lg:flex-col lg:gap-4">
-        <div className="order-2 empty:hidden">
-          <TodayLetters />
-        </div>
-        <div className="order-4 empty:hidden">
-          <NextSteps />
-        </div>
-        <div className="order-5">
-          <BountyTeaser />
-        </div>
+      <div className="flex flex-col gap-4">
+        <TodayLetters />
+        <NextSteps />
+        <BountyTeaser />
       </div>
-
-      <div className="order-6 lg:col-span-2">
-        <SectionTitle>Do something</SectionTitle>
-        <QuickGrid />
-      </div>
+      {quick}
     </div>
   );
 }
@@ -97,6 +111,9 @@ function JackpotCard() {
           </span>
         ) : ownsAnswer ? (
           <span className="font-bold text-candy-ink">You hold today’s word. Stake and feed it to be in the draw!</span>
+        ) : state.wordsLoading || state.wordsError ? (
+          // Not known yet: a returning player must never read the newcomer's line while loading.
+          <span className="text-ink/60">The secret word is hidden until the draw.</span>
         ) : state.words.length === 0 ? (
           // A player with nothing in the draw hears how to get in, not just that the word is secret.
           <span className="text-ink/60">Spell a word and stake it to be in the draw.</span>
