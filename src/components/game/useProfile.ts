@@ -318,7 +318,13 @@ export function useProfile() {
  * The wallet's public profile and whether its linked X unlocks the daily, with no session needed.
  * Shares useProfile's cache entries, so it costs nothing extra where both are used.
  */
-export function usePublicProfile(): { profile: PublicProfileView | null; xCounts: boolean; loading: boolean; xEnabled: boolean } {
+export function usePublicProfile(): {
+  profile: PublicProfileView | null;
+  xCounts: boolean;
+  loading: boolean;
+  xEnabled: boolean;
+  emailEnabled: boolean;
+} {
   const { address } = useAccount();
   const addr = address?.toLowerCase() ?? null;
   const config = useQuery({
@@ -346,6 +352,7 @@ export function usePublicProfile(): { profile: PublicProfileView | null; xCounts
   return {
     profile,
     xEnabled,
+    emailEnabled: Boolean(config.data?.email),
     // Mirrors the server (free-daily): X switched on, linked, and older than 90 days.
     xCounts: xEnabled && Boolean(profile?.x) && xOldEnough(profile?.x?.createdAt),
     loading: config.isLoading || (enabled && !!addr && pub.isLoading),
