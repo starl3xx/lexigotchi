@@ -42,6 +42,9 @@ export function ClaimScreen() {
   // a word may belong to someone, so its Claim waits: a claim of an owned word reverts and can
   // still cost gas (Bugbot on #146; the Dictionary does the same).
   const ownersKnown = !state.chainBacked || world.data?.live === true;
+  // A failed read is not a check in progress: say so, as the Dictionary does. The read retries on
+  // its own (useWorld refetches), so the Claims come back when it lands (Bugbot on #146).
+  const ownerWait = world.isError || (world.data && !world.data.live) ? "Can’t check owner yet" : "Checking owner…";
   const spellable = useMemo(
     () => spellableNow(inv, owned, Infinity).filter((w) => !owners?.[w]),
     [inv, owned, owners],
@@ -163,7 +166,7 @@ export function ClaimScreen() {
                         Claim {w} <Sparkle weight="fill" size={13} />
                       </>
                     ) : (
-                      `Checking ${w}…`
+                      `${w}: ${ownerWait.toLowerCase()}`
                     )}
                   </button>
                 ),
@@ -173,7 +176,8 @@ export function ClaimScreen() {
             <span className="text-sm font-bold text-candy-ink">not a dictionary word</span>
           )}
         </div>
-        {rack.length === 5 && spelled.length > 0 && <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} />}
+        {/* The fee only when the rack spells a word you could claim, not one someone else owns. */}
+        {rack.length === 5 && spelled.some((w) => !owners?.[w]) && <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} />}
         {rack.length > 0 && (
           <button onClick={() => setRack([])} className="mx-auto mt-2 block text-xs font-bold text-ink/50 underline">
             clear rack
@@ -246,7 +250,7 @@ export function ClaimScreen() {
                   <TierBadge tier={wordTier(w)} />
                 </div>
                 <Button size="sm" variant="teal" disabled={!canClaim || !ownersKnown} onClick={() => claim(w)}>
-                  {ownersKnown ? `Claim · ${fmtWord(fee)}` : "Checking owner…"}
+                  {ownersKnown ? `Claim · ${fmtWord(fee)}` : ownerWait}
                 </Button>
               </div>
             ))}
