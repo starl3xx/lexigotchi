@@ -202,6 +202,8 @@ function XReturnHost() {
       void qc.invalidateQueries({ queryKey: ["profilePublic"] });
       void qc.invalidateQueries({ queryKey: ["world"] });
       toast("X linked", "good");
+    } else if (x === "held") {
+      toast("Your current X account took today’s letter. You can change it tomorrow.", "info");
     } else if (x === "busy") {
       toast("That X account took today’s letter on another wallet. Link it here tomorrow.", "info");
     } else if (x === "canceled") {

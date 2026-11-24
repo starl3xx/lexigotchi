@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   const state = url.searchParams.get("state") ?? "";
   const code = url.searchParams.get("code");
   const ret = stateReturn(state);
-  const done = (result: "linked" | "canceled" | "failed" | "busy", username?: string) => finish(req, ret, result, username);
+  const done = (result: "linked" | "canceled" | "failed" | "busy" | "held", username?: string) => finish(req, ret, result, username);
 
   if (!xEnabled()) return done("failed");
   if (!state || url.searchParams.get("error") || !code) {
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     // Replacing this wallet's own X with another would push out an account that took today's letter
     // the same way an unlink would (Bugbot on #138).
     const current = (await getProfile(attempt.address))?.xUserId;
-    if (current && current !== user.id && (await xKeyUsedToday(current).catch(() => true))) return done("busy", user.username);
+    if (current && current !== user.id && (await xKeyUsedToday(current).catch(() => true))) return done("held", user.username);
     await linkX(attempt.address, user);
     return done("linked", user.username);
   } catch (err) {
@@ -53,6 +53,7 @@ const COPY = {
   canceled: { title: "Not linked", body: "You canceled on X. Nothing changed." },
   failed: { title: "Couldn’t link X", body: "Something went wrong. Go back to the game and try again." },
   busy: { title: "Not linked yet", body: "That X account took today’s free letter on another wallet. Link it here tomorrow." },
+  held: { title: "Not changed yet", body: "Your current X account took today’s free letter. You can change it tomorrow." },
 } as const;
 
 function finish(req: Request, ret: "redirect" | "page", result: keyof typeof COPY, username?: string) {
