@@ -38,9 +38,13 @@ export function ConnectPanel() {
 
   return (
     <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5">
-      <div className="text-center font-display text-lg font-extrabold">Start playing</div>
+      {/* Farcaster linked but no wallet yet: a tester read the green "@name" as being done and
+          asked whether they still needed a wallet (2026-11-24). Say it's the one step left. */}
+      <div className="text-center font-display text-lg font-extrabold">{viewer.isAuthed ? "One more step" : "Start playing"}</div>
       <p className="mt-1 text-center text-sm text-ink/60">
-        Your wallet is your Lexigotchi account. Your letters and words live in it.
+        {viewer.isAuthed
+          ? `${viewer.username ? `@${viewer.username}` : "Your Farcaster account"} is linked. Now connect a wallet: your letters and words live in it, and it’s your Lexigotchi account.`
+          : "Your wallet is your Lexigotchi account. Your letters and words live in it."}
       </p>
 
       <button
