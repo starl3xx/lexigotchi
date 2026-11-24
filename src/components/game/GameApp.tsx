@@ -41,6 +41,8 @@ import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
+import { ProfileSheet } from "./sheets/ProfileSheet";
+import { resolveIdentity, useProfile } from "./useProfile";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
@@ -228,6 +230,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
+  if (state.sheet?.kind === "profile") return <ProfileSheet />;
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
@@ -301,23 +304,28 @@ function TopBar() {
   );
 }
 
-/** The player's Farcaster avatar (or a sign-in prompt on web). Opens the wallet/profile sheet. */
+/**
+ * The player's picture (from the linked account they chose: useProfile's resolveIdentity), or a
+ * smiley. Opens the Profile sheet; the balance pill beside it opens "Your $WORD".
+ */
 function ViewerChip() {
   const v = useViewer();
+  const p = useProfile();
+  const me = resolveIdentity(v, p.profile);
   const { openSheet } = useGame();
   if (v.environment === "loading") {
     return <span className="h-7 w-7 animate-pulse rounded-full border-2 border-ink bg-paper-dark" />;
   }
   return (
     <button
-      onClick={() => openSheet({ kind: "balance" })}
-      title={v.isAuthed ? `@${v.username}` : "Sign in"}
-      aria-label={v.isAuthed ? `Signed in as ${v.username}` : "Sign in & wallet"}
+      onClick={() => openSheet({ kind: "profile" })}
+      title={me.name ? `${me.name}: your profile` : "Your profile"}
+      aria-label={me.name ? `Your profile, ${me.name}` : "Your profile and linked accounts"}
       className="hit-44 round-btn shrink-0 rounded-full"
     >
-      {v.pfpUrl ? (
+      {me.pfpUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={v.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
+        <img src={me.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
       ) : (
         <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
           <Smiley weight="fill" size={15} />

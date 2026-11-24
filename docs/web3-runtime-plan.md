@@ -80,8 +80,9 @@ every future jackpot, and losing it ends the jackpot (`setHead` reverts once the
 
 ## 3. Database (owner, from a terminal with production access)
 
-Apply migrations `0003` (browser push), `0004` (reward claims), and `0005` (sticky draws) with
-`npm run db:migrate`. All three only add tables. Until 0004 exists, the keeper refuses to open a
+Apply migrations `0003` (browser push), `0004` (reward claims), `0005` (sticky draws), and `0006`
+(profiles: the X link, name and picture choice, email codes) with `npm run db:migrate`. All four
+only add tables. Until 0004 exists, the keeper refuses to open a
 yield epoch, so the bucket rolls over and nothing is lost.
 
 ## 4. Deploy (owner approves: about 17.2M gas over 38 transactions)

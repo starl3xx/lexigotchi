@@ -16,13 +16,13 @@
 import { useAccount } from "wagmi";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet, TweenNumber } from "../primitives";
-import { ArrowsLeftRight, Check, CircleNotch, Coins, Plus, SealCheck, Smiley, Wallet } from "../ui/icons";
+import { ArrowsLeftRight, CaretRight, Check, CircleNotch, Coins, Plus, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useViewer } from "../useViewer";
 import { useBuyWord } from "../useBuyWord";
 import { OrDivider, SignInWithCoinbaseWallet } from "../SignInWithCoinbaseWallet";
-import { useVerifiedWallet } from "../useVerifiedWallet";
-import { VERIFY_URL } from "@/lib/onchain/verifications";
+import { useDailyEligibility } from "../DailyUnlock";
+import { resolveIdentity, useProfile } from "../useProfile";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
 import { NETWORK } from "@/lib/onchain/network";
 
@@ -36,7 +36,9 @@ export function BalanceSheet() {
   const { address } = useAccount();
   const { openConnectModal, connectModalOpen } = useConnectModal();
   const { openAccountModal } = useAccountModal();
-  const { verified, recheck } = useVerifiedWallet();
+  const profile = useProfile();
+  const me = resolveIdentity(viewer, profile.profile);
+  const daily = useDailyEligibility();
   const { buy, env } = useBuyWord();
 
   const need = state.sheet?.kind === "balance" ? state.sheet.need : undefined;
@@ -51,106 +53,32 @@ export function BalanceSheet() {
         </Card>
       )}
 
-      {/* Farcaster identity */}
-      {viewer.isAuthed ? (
-        <div className="mb-3 flex items-center gap-2.5">
-          {viewer.pfpUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={viewer.pfpUrl} alt="" className="h-10 w-10 rounded-full border-2 border-ink object-cover" />
-          ) : (
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-paper-dark text-ink/60">
-              <Smiley weight="fill" size={20} />
-            </span>
-          )}
-          <div className="flex-1 leading-tight">
-            <div className="font-display font-extrabold">@{viewer.username ?? viewer.fid}</div>
-            <div className="text-xs text-ink/55">
-              {viewer.environment === "farcaster" ? "Connected via Farcaster" : "Signed in with Farcaster"}
-              {viewer.fid ? ` · FID ${viewer.fid}` : ""}
-            </div>
-          </div>
-          {/* Sign-out exists only on the web: inside a Farcaster host the identity IS the host's,
-              and there is nothing of ours to clear. Also the only way to test the non-Farcaster
-              (Coinbase-verified) daily without hunting for a fresh tab — the session lives in
-              sessionStorage, so a new tab is the accidental version of this button. */}
-          {viewer.environment === "web" && (
-            <button
-              onClick={viewer.signOut}
-              className="shrink-0 text-xs font-bold text-ink/45 underline"
-            >
-              Sign out
-            </button>
-          )}
-        </div>
-      ) : viewer.environment === "web" ? (
-        // Signed out on the web. The old card just said "Not on Farcaster?" — with a wallet already
-        // connected that read as "something is missing", when the truth is two-part: the wallet is
-        // DONE (buy, hold, play), and identity is the optional upgrade that unlocks the daily.
-        <Card className="mb-3 bg-paper-dark/30">
-          {address && (
-            <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-teal-ink">
-              <Check weight="bold" size={15} /> Wallet connected
-              <span className="font-mono text-xs font-normal text-ink/55">{short(address)}</span>
-              <span className="ml-auto text-xs font-normal text-ink/55">buy · hold · play</span>
-            </div>
-          )}
-          {/* Three states, never two. useVerifiedWallet's `null` is UNKNOWN (still checking, or the
-              check failed) — rendering it as "not verified" told a verified player to verify again
-              during every fetch and every /api/verify/status outage. */}
-          <div className="text-sm text-ink/70">
-            {verified === true ? (
-              <>
-                This wallet is <strong>Coinbase-verified</strong>, so the free daily letter is yours.
-                Link Farcaster too if you like.
-              </>
-            ) : address && verified === null ? (
-              <>
-                The <strong>free daily letter</strong> needs Farcaster or a Coinbase-verified wallet.
-                Checking this wallet…
-              </>
-            ) : (
-              <>
-                Want the <strong>free daily letter</strong>? Link Farcaster, or{" "}
-                {address ? "verify this wallet with Coinbase" : "connect a Coinbase-verified wallet"}.
-                Either one proves you’re one person.
-              </>
-            )}
-          </div>
-          <div className="mt-2 flex gap-2">
-            <button
-              onClick={viewer.signIn}
-              className="cel press flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#855DCD] px-3 py-2 text-sm font-extrabold text-white"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/fc-arch-icon.png" alt="" className="h-3 w-auto" />
-              Farcaster
-            </button>
-            {/* The second door to the daily, the same one DailyUnlock offers. This used to switch
-                the connected wallet to a Base Account, which only helped a player whose Base
-                Account happened to be attested; verifying works on the wallet they already use.
-                Coming back attested changes nothing until we re-ask the chain, so the tap that
-                sends them out also schedules the re-check. */}
-            {verified !== true && (
-              <a
-                href={VERIFY_URL}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setTimeout(recheck, 4000)}
-                className="cel press flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-paper-dark px-3 py-2 text-sm font-extrabold"
-              >
-                <SealCheck weight="fill" size={15} /> Coinbase
-              </a>
-            )}
-          </div>
-          {/* Verification usually outlasts the 4-second auto re-check, and a "no" gets cached — so
-              the player who finishes on coinbase.com needs a way to ask again, as DailyUnlock has. */}
-          {verified === false && (
-            <button onClick={recheck} className="mt-2 text-xs font-bold text-ink/45 underline">
-              I’ve verified. Check again
-            </button>
-          )}
-        </Card>
-      ) : null}
+      {/* Who you are, your linked accounts, and the free daily letter live on the Profile sheet (the
+          PFP in the header). One row here points there, so a player who came to buy still sees it. */}
+      <button
+        onClick={() => g.openSheet({ kind: "profile" })}
+        className="cel-sm press mb-3 flex w-full items-center gap-2.5 rounded-xl bg-card px-3 py-2 text-left"
+      >
+        {me.pfpUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={me.pfpUrl} alt="" className="h-9 w-9 rounded-full border-2 border-ink object-cover" />
+        ) : (
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-paper-dark text-ink/60">
+            <Smiley weight="fill" size={18} />
+          </span>
+        )}
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate font-display font-extrabold">{me.name ?? "Your profile"}</span>
+          <span className="block text-xs text-ink/60">
+            {daily.eligible
+              ? "Free daily letter: on"
+              : daily.checking && (address || viewer.environment === "loading")
+                ? "Checking your accounts…"
+                : "Link an account for a free daily letter"}
+          </span>
+        </span>
+        <CaretRight weight="bold" className="text-ink/45" />
+      </button>
 
       <Card className="bg-gradient-to-b from-card to-gold/15 text-center">
         <div className="flex items-center justify-center gap-1.5 text-ink/60">
