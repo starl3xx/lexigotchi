@@ -7,9 +7,10 @@
  * the fee is said up front: in the intro, on every Claim button, and, when the balance is short,
  * with a way to get more.
  */
-import { useMemo, useState } from "react";
-import { wordTier } from "@/lib/economy";
-import { Button, Card, EmptyState, SectionTitle, TierBadge, Segmented } from "../primitives";
+import { useEffect, useMemo, useState } from "react";
+import { wordScore, wordTier, type Tier } from "@/lib/economy";
+import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
+import { useWorld } from "../useWorld";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Crown, Lock, Sparkle } from "../ui/icons";
 import { anagramsOf, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, spellableNow, useGame } from "../state";
@@ -32,7 +33,30 @@ export function ClaimScreen() {
     () => (rack.length === 5 ? anagramsOf(rack.map(idxToChar)).filter((w) => !owned.has(w)) : []),
     [rack, owned],
   );
-  const quick = useMemo(() => spellableNow(inv, owned, 8), [inv, owned]);
+  // EVERY word these letters spell (it used to stop at the first 8, all early in A), minus words
+  // another player already owns: a claim of one reverts (AlreadyClaimed). Until the owners are
+  // known, a word stays listed, as the Dictionary does.
+  const world = useWorld();
+  const owners = world.data?.owners;
+  const spellable = useMemo(
+    () => spellableNow(inv, owned, Infinity).filter((w) => !owners?.[w]),
+    [inv, owned, owners],
+  );
+  const [order, setOrder] = useState<"rarest" | "az">("rarest");
+  const [tier, setTier] = useState<Tier | "All">("All");
+  const tierCounts = useMemo(() => {
+    const c: Partial<Record<Tier, number>> = {};
+    for (const w of spellable) c[wordTier(w)] = (c[wordTier(w)] ?? 0) + 1;
+    return c;
+  }, [spellable]);
+  const quick = useMemo(() => {
+    const list = tier === "All" ? spellable : spellable.filter((w) => wordTier(w) === tier);
+    // The dictionary is alphabetical already; rarest first ranks by the same score that sets tiers.
+    return order === "rarest" ? [...list].sort((a, b) => wordScore(b) - wordScore(a) || a.localeCompare(b)) : list;
+  }, [spellable, tier, order]);
+  // A full bag spells hundreds of words; render them a page at a time so a phone stays smooth.
+  const [shown, setShown] = useState(SPELL_PAGE);
+  useEffect(() => setShown(SPELL_PAGE), [tier, order, useUpper]);
 
   const swapCase = (upper: boolean) => {
     setUseUpper(upper);
@@ -165,13 +189,36 @@ export function ClaimScreen() {
         )}
       </div>
 
-      {/* quick spell-now */}
-      {quick.length > 0 && (
+      {/* every word you can spell now */}
+      {spellable.length > 0 && (
         <div>
-          <SectionTitle>You can spell now</SectionTitle>
+          <SectionTitle>
+            You can spell {spellable.length === 1 ? "1 word" : `${spellable.length.toLocaleString("en-US")} words`} now
+          </SectionTitle>
           <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} each />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Segmented
+              className="w-full sm:w-64"
+              value={order}
+              onChange={setOrder}
+              options={[
+                { value: "rarest", label: "Rarest first" },
+                { value: "az", label: "A–Z" },
+              ]}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {SPELL_TIERS.filter((t) => t === "All" || tierCounts[t]).map((t) => (
+                <button key={t} onClick={() => setTier(t)} className="group round-btn rounded-full">
+                  <Pill className={tier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
+                    {t}
+                    <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{t === "All" ? spellable.length : tierCounts[t]}</span>
+                  </Pill>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mt-2 space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
-            {quick.map((w) => (
+            {quick.slice(0, shown).map((w) => (
               <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-card p-2.5">
                 <WordTiles word={w} upper={Array(5).fill(useUpper)} size={26} />
                 <div className="flex-1">
@@ -184,11 +231,19 @@ export function ClaimScreen() {
               </div>
             ))}
           </div>
+          {quick.length > shown && (
+            <Button full variant="ghost" className="mt-3" onClick={() => setShown((n) => n + SPELL_PAGE)}>
+              Show {Math.min(SPELL_PAGE, quick.length - shown)} more · {(quick.length - shown).toLocaleString("en-US")} left
+            </Button>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+const SPELL_TIERS: (Tier | "All")[] = ["All", "Legendary", "Epic", "Rare", "Uncommon", "Common"];
+const SPELL_PAGE = 60;
 
 /** The claim fee, said plainly; when the balance can't cover it, the way to get more. */
 function FeeLine({ feeText, canClaim, onGetWord, each = false }: { feeText: string; canClaim: boolean; onGetWord: () => void; each?: boolean }) {

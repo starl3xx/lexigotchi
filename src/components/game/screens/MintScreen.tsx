@@ -4,7 +4,7 @@ import { LETTERS_BY_FREQUENCY, TOTAL_SLOTS } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
-import { fmtUsd, fmtWord, useGame } from "../state";
+import { fmtUsd, fmtWord, idxToChar, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { useEffect, useState } from "react";
 import { fetchCampaignStatus } from "../campaignClient";
@@ -54,6 +54,11 @@ export function MintScreen() {
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm text-ink/70">
             <span className="inline-flex items-center gap-1">
+              {state.dailyLetter != null && (
+                <span className="mr-1.5">
+                  <LetterTile char={idxToChar(state.dailyLetter)} size={30} title={`Today’s letter: ${idxToChar(state.dailyLetter).toLowerCase()}`} />
+                </span>
+              )}
               Pulled today <Check weight="bold" size={13} className="text-teal-ink" />
             </span>
             <span className="text-xs text-ink/50">resets in <Countdown /></span>

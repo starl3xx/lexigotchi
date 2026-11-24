@@ -153,6 +153,8 @@ export interface GameState {
   streak: number;
   day: number;
   dailyMinted: boolean;
+  /** The lowercase letter (0–25) today's daily gave, when this browser saw it; null otherwise. */
+  dailyLetter?: number | null;
   /** Daily/pack mints made this session — drives the one-time "add the mini app" nudge. */
   mintCount: number;
   freeSnackUsed: boolean;
@@ -284,6 +286,7 @@ export function seedState(): GameState {
     streak: 6,
     day: 0,
     dailyMinted: false,
+    dailyLetter: null,
     mintCount: 0,
     freeSnackUsed: false,
     jackpotWord: "TEASE", // the player holds it, staked & fed → a winnable reveal
@@ -350,6 +353,7 @@ export function reducer(s: GameState, a: Action): GameState {
         ...s,
         lower,
         dailyMinted: true,
+        dailyLetter: a.idx,
         streak: s.streak + 1,
         mintCount: s.mintCount + 1,
       };
@@ -511,6 +515,7 @@ export function reducer(s: GameState, a: Action): GameState {
         ...s,
         day: s.day + 1,
         dailyMinted: false,
+        dailyLetter: null,
         freeSnackUsed: false,
         jackpotWord: a.jackpotWord,
         jackpotRevealed: false,
@@ -674,7 +679,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (state.dailyMinted || state.balance < COST.daily) return null;
         const idx = drawLetter();
         dispatch({ t: "dailyMint", idx });
-        toast(`Daily letter: ${idxToChar(idx)} · streak ${state.streak + 1}`, "good");
+        toast(`Daily letter: ${idxToChar(idx).toLowerCase()} · streak ${state.streak + 1}`, "good"); // lowercase: capitals mean raised
         return idx;
       },
       openPack: () => buyMockPack(),
