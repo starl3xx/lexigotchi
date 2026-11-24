@@ -9,10 +9,15 @@
  *   the link where that wallet lives), until it joins or the code expires.
  * - Otherwise: the account's wallets, with Unlink, and "Link another wallet".
  *
- * Linked wallets are public (each shows the account's name and picture), and letters stay
- * in the wallet that holds them; the card says both by the button, as Link X does.
+ * Linked wallets are public (one player on the leaderboard, with the account's name and picture),
+ * and letters stay in the wallet that holds them; the card says both by the button, as Link X does.
+ *
+ * Move here (lib/onchain/move.ts): each wallet shows what it holds, and the CONNECTED wallet can send
+ * its letters and held words to another wallet in the account. Only the holder can send, so another
+ * wallet's row just says to switch to it.
  */
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card } from "../primitives";
 import { Check, CircleNotch, LinkSimple as LinkIcon, Wallet } from "../ui/icons";
@@ -20,6 +25,8 @@ import { useGame } from "../state";
 import { useViewer } from "../useViewer";
 import { PENDING_LINK_EVENT, readPendingLink, writePendingLink, type PendingLink, type useProfile } from "../useProfile";
 import { SITE_URL } from "@/lib/site";
+import { readLetterCounts } from "@/lib/onchain/reads";
+import { NETWORK } from "@/lib/onchain/network";
 
 const MAX_WALLETS = 5;
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -40,8 +47,22 @@ const LINK_ERRORS: Record<string, string> = {
 };
 const errorText = (code: string) => LINK_ERRORS[code] ?? "Something went wrong. Try again.";
 
+/** What one wallet holds, for its row and the move panel. */
+interface Holdings {
+  lower: number;
+  upper: number;
+  held: number;
+  staked: number;
+}
+const movable = (h?: Holdings) => (h ? h.lower + h.upper + h.held : 0);
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+function holdingsText(h: Holdings): string {
+  const parts = [plural(h.lower + h.upper, "letter", "letters"), plural(h.held + h.staked, "word", "words")];
+  return parts.join(", ");
+}
+
 export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
-  const { toast } = useGame();
+  const { toast, state, moveToWallet, busy } = useGame();
   const viewer = useViewer();
   const { openAccountModal } = useAccountModal();
   const { openConnectModal } = useConnectModal();
@@ -105,6 +126,28 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
     if (showOffer) offerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [showOffer]);
 
+  // ── what each wallet holds (Move here) ──────────────────────────────────────────────────────
+  // Letters: one balanceOfBatch per wallet. Words: the bag already reads every bag wallet's words
+  // and tags each with its holder (undefined = the connected wallet), so no second log scan.
+  const holdingsQ = useQuery({
+    queryKey: ["walletHoldings", NETWORK.id, wallets.join(",")],
+    queryFn: async () => {
+      const out: Record<string, { lower: number; upper: number }> = {};
+      await Promise.all(
+        wallets.map(async (w) => {
+          const c = await readLetterCounts(w as `0x${string}`);
+          out[w] = { lower: c.slice(0, 26).reduce((a, b) => a + b, 0), upper: c.slice(26).reduce((a, b) => a + b, 0) };
+        }),
+      );
+      return out;
+    },
+    enabled: state.chainBacked && wallets.length > 1,
+    staleTime: 15_000,
+  });
+  const [moving, setMoving] = useState(false);
+  const [moveTo, setMoveTo] = useState<string | null>(null);
+  const [movedOnce, setMovedOnce] = useState(false);
+
   if (!address) {
     // A link arrived before a wallet: say what to do; the offer appears once one connects.
     return pending && !pending.madeBy ? (
@@ -141,6 +184,31 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
     toast(`Unlinked ${short(w)}`, "info");
   };
   const linkUrl = pending ? `${SITE_URL}/play?link=${pending.code}` : "";
+
+  const holdingsOf = (w: string): Holdings | undefined => {
+    const l = holdingsQ.data?.[w];
+    if (!l) return undefined;
+    const mineWords = state.words.filter((x) => (x.holder ?? address).toLowerCase() === w);
+    return { ...l, held: mineWords.filter((x) => !x.staked).length, staked: mineWords.filter((x) => x.staked).length };
+  };
+  const here = address.toLowerCase();
+  const others = wallets.filter((w) => w !== here);
+  const hereHoldings = holdingsOf(here);
+  const dest = moveTo && others.includes(moveTo) ? moveTo : others.length === 1 ? others[0] : null;
+  const startMove = () => {
+    setNote(null);
+    setMoving(true);
+    void holdingsQ.refetch(); // the panel's counts, fresh
+  };
+  const doMove = async () => {
+    if (!dest) return;
+    const r = await moveToWallet(dest);
+    if (r !== "sent") return;
+    setMoving(false);
+    setMovedOnce(true);
+    // The chain read lags a fresh transfer: re-read a few times so the rows settle.
+    for (const ms of [4_000, 10_000, 20_000]) setTimeout(() => void holdingsQ.refetch(), ms);
+  };
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(linkUrl);
@@ -191,7 +259,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
       <div className="mb-1 font-display font-extrabold">Wallets</div>
       <div className="divide-y-2 divide-ink/10">
         {wallets.map((w) => {
-          const here = w === address.toLowerCase();
+          const isHere = w === here;
+          const h = holdingsOf(w);
           return (
             <div key={w} className="flex items-center gap-2.5 py-2">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-card">
@@ -199,7 +268,15 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
               </span>
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="font-mono text-sm">{short(w)}</div>
-                <div className="text-xs text-ink/55">{here ? "Connected now" : w === account && wallets.length > 1 ? "First wallet" : "Linked"}</div>
+                <div className="text-xs text-ink/55">
+                  {isHere ? "Connected now" : w === account && wallets.length > 1 ? "First wallet" : "Linked"}
+                  {h && <> · {holdingsText(h)}</>}
+                </div>
+                {!isHere && movable(h) > 0 && (
+                  <div className="mt-0.5 text-[11px] text-ink/50">
+                    {inHost ? "Open Lexigotchi with this wallet to move them here." : "Switch to this wallet to move them here."}
+                  </div>
+                )}
               </div>
               {wallets.length > 1 && w !== account && (
                 <button onClick={() => void unlink(w)} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
@@ -210,6 +287,57 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
           );
         })}
       </div>
+
+      {state.chainBacked && others.length > 0 && movable(hereHoldings) > 0 && !moving && (
+        <div className="mt-2">
+          <Button size="sm" variant="ghost" onClick={startMove}>
+            {movedOnce ? "Move the rest" : "Move this wallet’s letters"}
+          </Button>
+        </div>
+      )}
+      {moving && hereHoldings && (
+        <div className="mt-2 rounded-xl border-2 border-ink/25 p-3 text-sm text-ink/75">
+          <div className="font-bold text-ink">Move to another wallet</div>
+          {others.length > 1 ? (
+            <div role="radiogroup" aria-label="Destination wallet" className="mt-1.5 space-y-1">
+              {others.map((w) => (
+                <label key={w} className="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="move-to" checked={dest === w} onChange={() => setMoveTo(w)} />
+                  <span className="break-all font-mono text-xs">{w}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            dest && <div className="mt-1 break-all font-mono text-xs text-ink">To {dest}</div>
+          )}
+          <p className="mt-2">
+            Moves{" "}
+            {[
+              hereHoldings.lower + hereHoldings.upper > 0 &&
+                `${plural(hereHoldings.lower + hereHoldings.upper, "letter", "letters")}${hereHoldings.upper > 0 ? ` (${hereHoldings.upper.toLocaleString("en-US")} UPPERCASE)` : ""}`,
+              hereHoldings.held > 0 && plural(hereHoldings.held, "word", "words"),
+            ]
+              .filter(Boolean)
+              .join(" and ")}
+            .
+            {hereHoldings.staked > 0 && (
+              <> {plural(hereHoldings.staked, "staked word stays", "staked words stay")} here: unstake to move {hereHoldings.staked === 1 ? "it" : "them"}.</>
+            )}
+          </p>
+          <p className="mt-1.5 text-xs text-ink/60">
+            This wallet sends the move, so it needs a little ETH on {NETWORK.name} for the network fee. Open swap offers from
+            this wallet stop working. The game can’t undo a move.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="teal" disabled={!dest || busy !== null} onClick={() => void doMove()}>
+              {dest ? `Move to ${short(dest)}` : "Pick a wallet"}
+            </Button>
+            <button onClick={() => setMoving(false)} className="text-xs font-bold text-ink/45 underline">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {madeHere && pending ? (
         <div className="mt-2 rounded-xl border-2 border-dashed border-ink/25 p-3 text-sm text-ink/75">
@@ -246,7 +374,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             </Button>
             <p className="mt-1.5 text-[11px] leading-snug text-ink/55">
               Linked wallets share one bag, one profile, and one free daily letter, and the links are public. Letters and
-              words stay in the wallet that holds them, so you play with the connected one.
+              words stay in the wallet that holds them: you play with the connected one, or move them into it.
             </p>
           </div>
         )

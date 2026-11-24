@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { notifiableFids } from "@/lib/db/queries";
-import { dailyTargets, isDailyDue, webPushDailyKeys, type DailyState } from "@/lib/notify/triggers";
+import { dailyTargets, isDailyDue, type DailyState } from "@/lib/notify/triggers";
 import { dailyReady } from "@/lib/notify/templates";
 import { sendNotification } from "@/lib/notify/send";
 import { sendWebPush, type WebPushResult } from "@/lib/notify/webPush";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
-import { verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
-import { emailRecipients, markEmailSent, xUserIdsFor } from "@/lib/db/profiles";
+import { emailRecipients, markEmailSent } from "@/lib/db/profiles";
+import { loadLinkMap } from "@/lib/db/walletLinks";
+import { relatedDailyKeysMany } from "@/lib/onchain/dailyIdentity";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
-import { fidsByAddresses } from "@/lib/neynar";
-import { profilesEnabled } from "@/lib/profile/session";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { maybeAddressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
@@ -95,23 +94,22 @@ export async function GET(req: Request) {
       if (targets.length > 0) result = await sendNotification({ ...dailyReady(day), targetFids: targets });
     }
 
+    // Linked wallets: a reminder reads every key the player's ACCOUNT could pull under, the same
+    // walk the daily route refuses on (relatedDailyKeysMany), so a pull under another linked
+    // wallet's Coinbase key, FID, or X counts as today's. loadLinkMap never throws.
+    const links = await loadLinkMap();
+
     // ── Browsers ─────────────────────────────────────────────────────────────────────────────
-    // Each subscription reads its own daily slot (the FID's, or the Coinbase-verified wallet's);
-    // FIDs the Farcaster channel already reminds are skipped.
+    // Each subscription reads its player's daily slots; FIDs the Farcaster channel already reminds
+    // are skipped. A failed lookup adds fewer keys: at worst one extra reminder, never a missed one.
     let browserTargets = 0;
     let browserResult: WebPushResult | undefined;
     const farcasterFids = new Set(fids);
-    // Linked X accounts, for the wallets with no FID on file. A failed read means no X keys, so
-    // a player who pulled on X might get one extra reminder, never a missed one.
-    const xIds =
-      profilesEnabled() ? await xUserIdsFor(subs.filter((s) => s.fid === null).map((s) => s.address)).catch(() => new Map<string, string>()) : new Map<string, string>();
-    const xKeyOf = (address: string) => {
-      const id = xIds.get(address.toLowerCase());
-      return id ? xDailyKey(id) : null;
-    };
-    const keyed = subs
-      .map((sub) => ({ sub, keys: webPushDailyKeys(sub, farcasterFids, verifiedDailyKey, xKeyOf) }))
-      .filter((k): k is { sub: (typeof subs)[number]; keys: bigint[] } => k.keys !== null);
+    const open = subs.filter((sub) => !(sub.fid !== null && farcasterFids.has(sub.fid)));
+    const subKeys = await relatedDailyKeysMany(
+      open.map((sub) => ({ fid: sub.fid, wallets: links.walletsOf(links.accountOf(sub.address)) })),
+    );
+    const keyed = open.map((sub, i) => ({ sub, keys: subKeys[i] })).filter((k) => k.keys.length > 0);
     if (keyed.length > 0) {
       const uniqueKeys = [...new Set(keyed.flatMap((k) => k.keys))];
       const used = await readDailyUsed(uniqueKeys);
@@ -132,22 +130,19 @@ export async function GET(req: Request) {
     if (emailEnabled()) {
       try {
         const recips = await emailRecipients();
-        const addrs = recips.map((r) => r.address);
-        // Every slot the player could pull on: the FIDs that verified the wallet, its Coinbase key,
-        // and its X key (Bugbot on #139: without the FID, a Farcaster-only player never got the email,
-        // and one who pulled on the FID could be told a letter was waiting).
-        const [xMap, fidMap] = recips.length
-          ? await Promise.all([xUserIdsFor(addrs), fidsByAddresses(addrs)])
-          : [new Map<string, string>(), new Map<string, number[]>()];
-        const keysOf = (a: string) => {
-          const x = xMap.get(a);
-          return [...(fidMap.get(a) ?? []).map((f) => BigInt(f)), verifiedDailyKey(a), ...(x ? [xDailyKey(x)] : [])];
-        };
-        const uniqueKeys = [...new Set(recips.flatMap((r) => keysOf(r.address)))];
+        // Every slot the player could pull on, across the account (an email row is keyed by the
+        // account): the FIDs that verified any of its wallets, those FIDs' wallets, every Coinbase
+        // key, and the X keys (Bugbot on #139: without the FID, a Farcaster-only player never got
+        // the email, and one who pulled on the FID could be told a letter was waiting).
+        const recipKeys = await relatedDailyKeysMany(recips.map((r) => ({ fid: null, wallets: links.walletsOf(r.address) })));
+        const keysOf = new Map(recips.map((r, i) => [r.address, recipKeys[i]]));
+        const uniqueKeys = [...new Set(recipKeys.flat())];
         const used = await readDailyUsed(uniqueKeys);
         const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
         // Skip anyone this day's reminder already reached: a retried cron must not email twice (Bugbot on #139).
-        const due = recips.filter((r) => r.emailDailyDay !== day && isDailyDue(Math.max(...keysOf(r.address).map((k) => usedByKey.get(k) ?? 0)), day));
+        const due = recips.filter(
+          (r) => r.emailDailyDay !== day && isDailyDue(Math.max(0, ...(keysOf.get(r.address) ?? []).map((k) => usedByKey.get(k) ?? 0)), day),
+        );
         emailTargets = due.length;
         const messages = due.flatMap((r) => reminderEmail(r.email, r.address, dailyReady(day)) ?? []);
         if (messages.length > 0)

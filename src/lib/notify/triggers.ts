@@ -30,6 +30,27 @@ export function fidLookupFrom(
 }
 
 /**
+ * The same lookup across linked wallets (lib/db/walletLinks.ts): a wallet with no notifiable FID of
+ * its own reaches the first FID any wallet in its account has. So a browser wallet linked to a
+ * Farcaster player's account is warned through that FID, and the browser pass's "Farcaster already
+ * reached them" skip agrees with what the Farcaster pass actually sends.
+ */
+export function accountFidLookup(
+  fidOf: FidLookup,
+  links: { accountOf(address: string): string; walletsOf(account: string): string[] },
+): FidLookup {
+  return (address: string) => {
+    const own = fidOf(address);
+    if (own !== undefined) return own;
+    for (const w of links.walletsOf(links.accountOf(address))) {
+      const f = fidOf(w);
+      if (f !== undefined) return f;
+    }
+    return undefined;
+  };
+}
+
+/**
  * How far ahead of the hunger line to warn — and why it is NOT 24h.
  *
  * THE INVARIANT: this window must be strictly WIDER than the longest gap between keeper passes.
@@ -84,6 +105,8 @@ export function hungerTargets(
 /**
  * The same rules as `hungerTargets`, keyed by the OWNER WALLET instead of an FID: the browser push
  * channel reaches wallets, because a web player may have no FID at all. Addresses are lowercase.
+ * With `accountOf`, words group by the owner's ACCOUNT instead (linked wallets): one warning per
+ * player, its `address` the account (its first wallet), which is also the key of its email row.
  */
 export interface AddressHungerTarget {
   address: string;
@@ -95,8 +118,9 @@ export function hungerTargetsByAddress(
   words: readonly KeeperWord[],
   warnWithinHours = HUNGER_WARN_HOURS,
   p: Params = DEFAULT_PARAMS,
+  accountOf: (address: string) => string = (a) => a.toLowerCase(),
 ): AddressHungerTarget[] {
-  return [...groupHunger(words, (owner) => owner.toLowerCase(), warnWithinHours, p).entries()]
+  return [...groupHunger(words, (owner) => accountOf(owner).toLowerCase(), warnWithinHours, p).entries()]
     .map(([address, v]) => ({ address, ...v }))
     .sort((a, b) => (a.address < b.address ? -1 : a.address > b.address ? 1 : 0));
 }
@@ -201,35 +225,22 @@ export function webPushHungerTargets(
   byAddress: readonly AddressHungerTarget[],
   subs: readonly PushSub[],
   fidOf: FidLookup,
+  accountOf: (address: string) => string = (a) => a.toLowerCase(),
 ): AddressHungerTarget[] {
-  const subscribed = new Set(subs.map((s) => s.address.toLowerCase()));
+  // A browser subscribed on any wallet of the account receives the account's warning.
+  const subscribed = new Set(subs.map((s) => accountOf(s.address).toLowerCase()));
   return byAddress.filter((t) => subscribed.has(t.address) && fidOf(t.address) === undefined);
 }
 
-/**
- * Which daily slots a subscription's reminder reads. A browser that subscribed while signed in with
- * Farcaster pulls its daily on the FID. Otherwise a wallet's daily is the Coinbase-verified one,
- * keyed `2^160 | address` (`verifiedDailyKey`), or its linked X account's (`2^162 | xUserId`): both
- * are read, and the most recent pull of either decides (one letter a day per player, so a pull on
- * either means today is done). A wallet with none has slots that read 0 forever, and `dailyTargets`
- * already drops never-pulled slots.
- *
- * Returns null when Farcaster's daily reminder already covers the FID.
- */
-export function webPushDailyKeys(
-  sub: PushSub,
-  farcasterFids: ReadonlySet<number>,
-  verifiedKey: (address: string) => bigint,
-  xKeyOf: (address: string) => bigint | null = () => null,
-): bigint[] | null {
-  if (sub.fid !== null) return farcasterFids.has(sub.fid) ? null : [BigInt(sub.fid)];
-  const x = xKeyOf(sub.address);
-  return x === null ? [verifiedKey(sub.address)] : [verifiedKey(sub.address), x];
-}
-
 /** The jackpot winner's browsers, when Farcaster can't reach the winner. */
-export function webPushWinnerSubs<T extends PushSub>(winner: string | undefined, subs: readonly T[], fidOf: FidLookup): T[] {
+export function webPushWinnerSubs<T extends PushSub>(
+  winner: string | undefined,
+  subs: readonly T[],
+  fidOf: FidLookup,
+  accountOf: (address: string) => string = (a) => a.toLowerCase(),
+): T[] {
   if (!winner || fidOf(winner) !== undefined) return [];
-  const w = winner.toLowerCase();
-  return subs.filter((s) => s.address.toLowerCase() === w);
+  // Every browser of the winner's account: they may have subscribed on another linked wallet.
+  const w = accountOf(winner).toLowerCase();
+  return subs.filter((s) => accountOf(s.address).toLowerCase() === w);
 }

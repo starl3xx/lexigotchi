@@ -32,6 +32,7 @@ import {
   hungerTargets,
   hungerTargetsByAddress,
   fidLookupFrom,
+  accountFidLookup,
   jackpotWinnerFid,
   webPushHungerTargets,
   webPushWinnerSubs,
@@ -48,6 +49,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import { loadAnswerSchedule, linkToReveal } from "@/lib/keeper/answerSchedule";
 import type { WebPushSubscription } from "@/lib/db/schema";
 import type { KeeperWord } from "@/lib/keeper/shares";
+import { loadLinkMap } from "@/lib/db/walletLinks";
 
 
 /** Strip a jackpot word and salt from text in every encoding viem may print them in. */
@@ -182,16 +184,19 @@ export function createKeeper(opts: { dry: boolean }) {
       const won = parseEventLogs({ abi: jackpotAbi, eventName: "JackpotWon", logs: logs as never })[0];
       if (!won) return; // rolled over — nobody to tell
       const { winner, amount } = won.args as unknown as { winner: string; amount: bigint };
+      // The winner's account (linked wallets): its email row, its Farcaster, and every browser it
+      // subscribed on. loadLinkMap never throws; with no links the account is the winner itself.
+      const links = await loadLinkMap();
       // Email first and independently: a player who opted in hears about a win however else we reach them.
-      await notifyWinnerEmail(winner, jackpotWon(word, `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`));
+      await notifyWinnerEmail(links.accountOf(winner), jackpotWon(word, `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`));
 
       const profiles = await lookupProfiles(await notifiableFids());
-      const fidOf = fidLookupFrom(profiles);
+      const fidOf = accountFidLookup(fidLookupFrom(profiles), links);
       const fid = jackpotWinnerFid(winner, fidOf);
       const display = `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`;
       if (fid === undefined) {
         // Not reachable on Farcaster: try the winner's browsers instead.
-        const subs = webPushWinnerSubs(winner, await webPushSubscriptions(), fidOf);
+        const subs = webPushWinnerSubs(winner, await webPushSubscriptions(), fidOf, links.accountOf);
         if (subs.length === 0) {
           return void console.log(`resolve: winner ${winner.slice(0, 10)} isn't a notifiable player`);
         }
@@ -404,11 +409,13 @@ export function createKeeper(opts: { dry: boolean }) {
    * so --dry and every local run report the audience and stay silent.
    */
   async function notifyHunger() {
-    const [words, fids, subs] = await Promise.all([scanAllWords(), notifiableFids(), webPushSubscriptions()]);
-    const fidOf = fidLookupFrom(fids.length > 0 ? await lookupProfiles(fids) : []);
+    const [words, fids, subs, links] = await Promise.all([scanAllWords(), notifiableFids(), webPushSubscriptions(), loadLinkMap()]);
+    // One warning per PLAYER: a linked wallet's words reach its account's Farcaster, browsers, and email.
+    const fidOf = accountFidLookup(fidLookupFrom(fids.length > 0 ? await lookupProfiles(fids) : []), links);
+    console.log(`notify: ${links.size} linked wallet(s)`);
     await notifyHungerFarcaster(words, fids, fidOf);
-    await notifyHungerBrowsers(words, subs, fidOf);
-    await notifyHungerEmail(words);
+    await notifyHungerBrowsers(words, subs, fidOf, links.accountOf);
+    await notifyHungerEmail(words, links.accountOf);
   }
 
   /**
@@ -425,9 +432,9 @@ export function createKeeper(opts: { dry: boolean }) {
     }
   }
 
-  /** The hunger warning by email, one message per wallet, for players who opted in. */
-  async function notifyHungerEmail(words: readonly KeeperWord[]) {
-    const targets = hungerTargetsByAddress(words);
+  /** The hunger warning by email, one message per account (its email row's key), for players who opted in. */
+  async function notifyHungerEmail(words: readonly KeeperWord[], accountOf: (address: string) => string) {
+    const targets = hungerTargetsByAddress(words, undefined, undefined, accountOf);
     // One hunger email per wallet per UTC day: the keeper runs more often than that, and a retried
     // run must not email twice (Bugbot on #139).
     const today = Math.floor(Date.now() / 86_400_000);
@@ -492,9 +499,14 @@ export function createKeeper(opts: { dry: boolean }) {
    * pass already warned is skipped (webPushHungerTargets), and players sharing a deadline share one
    * message, exactly like the FID path. Silent unless WEB_PUSH_ENABLED=true in production.
    */
-  async function notifyHungerBrowsers(words: readonly KeeperWord[], subs: readonly WebPushSubscription[], fidOf: FidLookup) {
+  async function notifyHungerBrowsers(
+    words: readonly KeeperWord[],
+    subs: readonly WebPushSubscription[],
+    fidOf: FidLookup,
+    accountOf: (address: string) => string,
+  ) {
     if (subs.length === 0) return console.log("notify (browser): no subscriptions — nothing to do");
-    const targets = webPushHungerTargets(hungerTargetsByAddress(words), subs, fidOf);
+    const targets = webPushHungerTargets(hungerTargetsByAddress(words, undefined, undefined, accountOf), subs, fidOf, accountOf);
     console.log(`notify (browser): ${subs.length} subscription(s), ${targets.length} wallet(s) to warn`);
     if (targets.length === 0) return;
 
@@ -507,7 +519,7 @@ export function createKeeper(opts: { dry: boolean }) {
     }
     for (const g of groups.values()) {
       const note = hungerWarning(g.words, g.hoursLeft);
-      const recipients = subs.filter((s) => g.addresses.has(s.address));
+      const recipients = subs.filter((s) => g.addresses.has(accountOf(s.address).toLowerCase()));
       if (DRY) {
         console.log(`  [dry] ${recipients.length} browser(s): "${note.title}" / "${note.body}"`);
         continue;

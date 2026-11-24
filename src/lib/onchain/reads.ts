@@ -181,6 +181,21 @@ export async function readLetterCounts(player: `0x${string}`): Promise<number[]>
 }
 
 /**
+ * The lowercase letters among `letterIndexes` with an unrevealed roll for `owner`. A loose roll
+ * re-checks at reveal that its owner still holds the letter, so moving it away first would turn a
+ * signed success into a no-op (the fee spent, no upgrade): Move waits for these.
+ */
+export async function readOpenRolls(owner: `0x${string}`, letterIndexes: readonly number[]): Promise<number[]> {
+  if (letterIndexes.length === 0) return [];
+  const rolls = addressOf("rolls");
+  const open = (await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: letterIndexes.map((i) => ({ address: rolls, abi: rollsAbi, functionName: "hasOpenRoll" as const, args: [owner, i] })),
+  })) as boolean[];
+  return letterIndexes.filter((_, k) => open[k]);
+}
+
+/**
  * Everything about one player, from one block.
  *
  * Letter balances come from a single `balanceOfBatch`, which also happens to be the only correct

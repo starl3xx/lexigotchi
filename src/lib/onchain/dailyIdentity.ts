@@ -35,13 +35,63 @@ export function keysFrom(fids: Iterable<number>, wallets: Iterable<string>, xIds
 }
 
 export async function relatedDailyKeys(opts: { fid: number | null; wallet: string }): Promise<bigint[]> {
-  const { wallets: account } = await accountWallets(opts.wallet);
-  const fids = new Set<number>(opts.fid ? [opts.fid] : []);
-  for (const list of (await fidsByAddresses(account).catch(() => new Map<string, number[]>())).values()) for (const f of list) fids.add(f);
-  const wallets = new Set<string>(account);
-  if (fids.size > 0) for (const p of await lookupProfiles([...fids]).catch(() => [])) for (const w of p.linkedWallets) wallets.add(w);
-  const xIds = profilesEnabled() ? await xUserIdsFor([...wallets]).catch(() => new Map<string, string>()) : new Map<string, string>();
-  return keysFrom(fids, wallets, xIds.values());
+  const { wallets } = await accountWallets(opts.wallet);
+  return (await relatedDailyKeysMany([{ fid: opts.fid, wallets }]))[0];
+}
+
+/** Where a key walk starts: a FID the player signed in with (or none), and their account's wallets. */
+export interface KeyStart {
+  fid: number | null;
+  wallets: readonly string[];
+}
+
+/**
+ * Pure: the walk, given its lookups. One hop each way from each start: the FIDs that verified any of
+ * its wallets, every wallet those FIDs verified, and each wallet's Coinbase key and X key. Exported
+ * for tests; `relatedDailyKeysMany` feeds it.
+ */
+export function relatedKeysFrom(
+  starts: readonly KeyStart[],
+  fidsOfWallet: ReadonlyMap<string, readonly number[]>,
+  walletsOfFid: ReadonlyMap<number, readonly string[]>,
+  xIdOfWallet: ReadonlyMap<string, string>,
+): bigint[][] {
+  return starts.map((s) => {
+    const fids = new Set<number>(s.fid ? [s.fid] : []);
+    for (const w of s.wallets) for (const f of fidsOfWallet.get(w.toLowerCase()) ?? []) fids.add(f);
+    const wallets = new Set<string>(s.wallets.map((w) => w.toLowerCase()));
+    for (const f of fids) for (const w of walletsOfFid.get(f) ?? []) wallets.add(w.toLowerCase());
+    const xIds = [...wallets].flatMap((w) => {
+      const x = xIdOfWallet.get(w);
+      return x ? [x] : [];
+    });
+    return keysFrom(fids, wallets, xIds);
+  });
+}
+
+/**
+ * The same walk for many players at once (the reminder cron): one batched lookup per hop instead of
+ * one per player. A lookup that fails adds fewer keys, as in the daily route; for a reminder that
+ * means at worst one extra nudge, never a missed one.
+ */
+export async function relatedDailyKeysMany(starts: readonly KeyStart[]): Promise<bigint[][]> {
+  const lower = (a: string) => a.toLowerCase();
+  const startWallets = [...new Set(starts.flatMap((s) => s.wallets.map(lower)))];
+  const fidsRaw = startWallets.length ? await fidsByAddresses(startWallets).catch(() => new Map<string, number[]>()) : new Map<string, number[]>();
+  const fidsOfWallet = new Map([...fidsRaw.entries()].map(([w, f]) => [lower(w), f]));
+  const allFids = new Set<number>();
+  for (const s of starts) {
+    if (s.fid) allFids.add(s.fid);
+    for (const w of s.wallets) for (const f of fidsOfWallet.get(lower(w)) ?? []) allFids.add(f);
+  }
+  const profiles = allFids.size ? await lookupProfiles([...allFids]).catch(() => []) : [];
+  const walletsOfFid = new Map(profiles.map((p) => [p.fid, p.linkedWallets.map(lower)]));
+  const everyWallet = new Set(startWallets);
+  for (const list of walletsOfFid.values()) for (const w of list) everyWallet.add(w);
+  const xIdOfWallet = profilesEnabled() && everyWallet.size
+    ? await xUserIdsFor([...everyWallet]).catch(() => new Map<string, string>())
+    : new Map<string, string>();
+  return relatedKeysFrom(starts, fidsOfWallet, walletsOfFid, xIdOfWallet);
 }
 
 /**

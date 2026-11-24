@@ -67,6 +67,50 @@ export async function accountWallets(address: string): Promise<{ account: string
   return { account, wallets: await walletsOfAccount(account) };
 }
 
+// ── every link at once (the world, the keeper, the reminder cron) ──────────────────────────────
+
+/** Every link, resolved both ways. A wallet with no link is its own one-wallet account. */
+export interface LinkMap {
+  /** The wallet's account (its first wallet), lowercase. */
+  accountOf(address: string): string;
+  /** The account's wallets, the first wallet first, then by link time. */
+  walletsOf(account: string): string[];
+  /** How many links there are (0 before migration 0008). */
+  size: number;
+}
+
+/** Pure: a LinkMap from link rows (in link order). Exported for tests. */
+export function linkMapFrom(rows: readonly { address: string; account: string }[]): LinkMap {
+  const accountByWallet = new Map<string, string>();
+  const walletsByAccount = new Map<string, string[]>();
+  for (const r of rows) {
+    const a = lower(r.address);
+    const acct = lower(r.account);
+    accountByWallet.set(a, acct);
+    const list = walletsByAccount.get(acct) ?? [acct];
+    if (!list.includes(a)) list.push(a);
+    walletsByAccount.set(acct, list.slice(0, MAX_ACCOUNT_WALLETS));
+  }
+  return {
+    accountOf: (address) => accountByWallet.get(lower(address)) ?? lower(address),
+    walletsOf: (account) => walletsByAccount.get(lower(account)) ?? [lower(account)],
+    size: accountByWallet.size,
+  };
+}
+
+/** The whole link table, read once. Small: only linked wallets have a row. Never throws. */
+export async function loadLinkMap(): Promise<LinkMap> {
+  try {
+    const rows = await getDb()
+      .select({ address: walletLinks.address, account: walletLinks.account })
+      .from(walletLinks)
+      .orderBy(walletLinks.linkedAt);
+    return linkMapFrom(rows);
+  } catch {
+    return linkMapFrom([]);
+  }
+}
+
 // ── link codes ───────────────────────────────────────────────────────────────────────────────────
 
 /** A fresh code for this account. Alphanumeric, so it can be a Sign-In with Ethereum nonce. Throws. */

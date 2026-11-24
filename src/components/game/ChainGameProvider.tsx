@@ -22,7 +22,7 @@
  * about which calls succeeded.
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
   type GameApi,
@@ -40,6 +40,7 @@ import {
   GameCtx,
   reducer,
   seedState,
+  type MoveOutcome,
 } from "./state";
 import { rollSuccessProbability } from "@/lib/params";
 import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
@@ -47,6 +48,7 @@ import {
   readFeeBuckets,
   readOwnedWords,
   readLetterCounts,
+  readOpenRolls,
   readPity,
   readPendingCommits,
   readDayState,
@@ -89,6 +91,7 @@ import {
   type RewardClaim,
 } from "@/lib/onchain/actions";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
+import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
@@ -192,6 +195,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const [ui, dispatch] = useReducer(reducer, undefined, seedState);
   const chain = useOnchain();
   const { address, connector } = useAccount();
+  const qc = useQueryClient();
 
   // What the player is waiting on (the BusyPill), from the tap to the last read. One action at a
   // time: see lib/onchain/actionGate for why a tap must never look ignored.
@@ -1058,6 +1062,46 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ), false);
       },
 
+      moveToWallet: (to: string) =>
+        track<MoveOutcome>(`Moving to ${to.slice(0, 6)}…${to.slice(-4)}`, async (run) => {
+          if (!address) return "no_wallet";
+          const from = address.toLowerCase() as `0x${string}`;
+          const dest = to.toLowerCase() as `0x${string}`;
+          // The destination must be in THIS wallet's account right now: read the account fresh
+          // (past every cache), never trusting a list the page held. A move can't be undone.
+          try {
+            const r = await fetch(`/api/profile/public?address=${from}&t=${Date.now()}`, { cache: "no-store" });
+            const d = (await r.json()) as { profile?: { wallets?: string[] } };
+            const wallets = (d.profile?.wallets ?? []).map((w) => w.toLowerCase());
+            if (dest === from || !wallets.includes(dest)) {
+              toast("That wallet isn’t in your account anymore", "bad");
+              return "not_linked";
+            }
+          } catch {
+            toast("Couldn’t check your wallets. Try again.", "bad");
+            return "failed";
+          }
+          // What this wallet holds now, from the chain (the bag on screen may be a minute old).
+          const [counts, held] = await Promise.all([readLetterCounts(from), readOwnedWords(from)]);
+          const plan = movePlan(counts, held);
+          if (planIsEmpty(plan)) {
+            toast(plan.staked ? "Only staked words here, and they stay staked" : "Nothing here to move", "info");
+            return "empty";
+          }
+          if ((await readOpenRolls(from, lowercaseIndexesOf(plan))).length > 0) {
+            toast("A roll is still open on this wallet. Move after it finishes.", "info");
+            return "open_roll";
+          }
+          const ok = await run(`Move to ${dest.slice(0, 6)}…${dest.slice(-4)}`, () => moveCalls(from, dest, plan));
+          if (ok) {
+            // Both wallets' bags, the world, and every per-wallet holdings line change.
+            void qc.invalidateQueries({ queryKey: ["linkedLetters"] });
+            void qc.invalidateQueries({ queryKey: ["walletHoldings"] });
+            void qc.invalidateQueries({ queryKey: ["world"] });
+          }
+          return ok ? "sent" : "failed";
+        }, "busy"),
+
       dissolve: (word: string) => {
         void track(`Dissolving ${word}`, async (run) => {
           const w = state.words.find((x) => x.word === word);
@@ -1204,7 +1248,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

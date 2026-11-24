@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { accountsOf } from "@/lib/db/walletLinks";
+import { accountsOf, loadLinkMap } from "@/lib/db/walletLinks";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { buildLeaderboards, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
 import { profilesByAddress } from "@/lib/neynar";
@@ -36,8 +36,9 @@ let cached: { at: number; body: WorldResponse } | null = null;
 let inflight: Promise<WorldResponse> | null = null;
 
 async function build(): Promise<WorldResponse> {
-  const snap = await scanWorld();
-  const boards = buildLeaderboards(snap);
+  const [snap, links] = await Promise.all([scanWorld(), loadLinkMap()]);
+  // One row per player: linked wallets count toward their account (loadLinkMap never throws).
+  const boards = buildLeaderboards(snap, 25, links.accountOf);
   const owners: Record<string, string> = {};
   for (const w of snap.words) owners[w.word] = w.owner;
   const shown = new Set<string>(Object.values(owners));
