@@ -14,8 +14,8 @@
  * `order`: that showed the phone one order and gave the keyboard and screen readers another (the
  * code review on #164). Each layout's DOM order is its reading order.
  *
- * The rare warnings (a wallet that isn't the player's, a paid pull that never revealed) come first,
- * across both columns, when there is one.
+ * The rare notices (where the player's things are, a wallet that isn't the player's, a paid pull
+ * that never revealed) come first, across both columns, when there is one.
  */
 import { Button, Card, Countdown, SectionTitle, TweenNumber } from "../primitives";
 import { Eye, Medal, Trophy } from "../ui/icons";
@@ -26,12 +26,17 @@ import { WalletMismatch } from "../WalletMismatch";
 import { NextSteps } from "../NextSteps";
 import { TodayStage } from "../TodayStage";
 import { TodayLetters } from "../TodayLetters";
+import { GameWalletNotice } from "../GameWalletNotice";
 import { useWide } from "../useWide";
 
 export function HomeScreen() {
   const wide = useWide();
   const alerts = (
     <>
+      {/* Where the player's things are, when it matters (GameWalletNotice). */}
+      <div className="empty:hidden lg:col-span-2">
+        <GameWalletNotice />
+      </div>
       {/* connected wallet isn't one of the FID's linked wallets: the bag is about to fork */}
       <div className="empty:hidden lg:col-span-2">
         <WalletMismatch />

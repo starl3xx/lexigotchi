@@ -1,5 +1,5 @@
 /**
- * Saved scenes (schema `wordScenes`, migration 0009): each word's scene, keyed by the wallet that
+ * Saved scenes (schema `wordScenes`, migration 0011): each word's scene, keyed by the wallet that
  * holds it. Read by anyone (`/api/scenes?wallets=`), written only under that wallet's profile
  * session. lib/scenes.ts has the rules; this file only stores.
  */

@@ -160,7 +160,7 @@ describe("/api/scenes", () => {
     expect(saved).toEqual([]);
   });
 
-  it("refuses a bad save, a full wallet, and says so plainly before migration 0009", async () => {
+  it("refuses a bad save, a full wallet, and says so plainly before migration 0011", async () => {
     const { GET, PUT } = await import("@/app/api/scenes/route");
     expect((await PUT(put({ picks: [{ word: "XQZPW", scene: "fall" }] }))).status).toBe(400);
     full = true;

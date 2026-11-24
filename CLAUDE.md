@@ -50,6 +50,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
   Pull main first: a stale checkout stops at its own last migration. Jake runs production migrations.
+  **A new migration must be dated after the last one** (its `when` in `drizzle/meta/_journal.json`):
+  `migrate` skips an older-dated one and still says "applied successfully". Main's dates run ahead of
+  the clock, so when `generate` stamps an earlier time, set `when` by hand just past the last entry.
+  `tests/migrations.test.ts` fails on it. After a merge that renumbers one, check the table exists.
 - **Redeploying production after a Vercel setting changes:** merge a PR to main (every merge builds;
   `vercel.json` skips nothing). The dashboard's Redeploy hasn't worked for the owner, and this Mac
   has no Vercel CLI. Check the result at `/api/profile/config` and similar switch endpoints.
@@ -132,7 +136,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player, everywhere** (starl3xx, 2026-11-24: "everything should be profile-based"): read
   `usePlayerWallets()` (connected + Farcaster-verified + profile wallets) for any "yours", total, or
   list; name a single wallet only for a verb only that wallet can do (sign, cancel, fill, move).
-  Server lists of players resolve faces with `playerFaces` (lib/profile/faces.ts).
+  Server lists of players resolve faces with `playerFaces` (lib/profile/faces.ts). **Farcaster
+  wallets join on their own** (`lib/profile/farcasterWallets.ts`, migration 0009 `via`/`fid`;
+  `POST /api/profile/farcaster` once per page load with a wallet session or Quick Auth): a wallet
+  joins when one FID verified it AND a seed (the first wallet or a signature link); Farcaster rows
+  never vouch (no chaining), never merge accounts, prune only on a positive Neynar answer and never
+  on a claimed day; one advisory lock serializes writes. The core link reads never select `via`/`fid`,
+  so a database without 0009 still resolves accounts. **Game wallet** (`lib/db/gameWallet.ts`, table
+  `game_wallets`, migration 0010; its own table because `getProfile` selects every profiles column):
+  the wallet the player keeps everything in; a stored wallet that left the account reads as none.
+  `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
+  `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
@@ -225,10 +239,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   every scene and size (`layout.ts`, shared with the card). Motion is the `scn-` classes in
   globals.css, behind prefers-reduced-motion, only when `animated` (never on the card or
   thumbnails). **A pick is saved** in the browser always, and in table `word_scenes` (migration
-  0009, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
+  0011, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
-  the newer pick wins. Dark with profiles; until migration 0009 runs, everything stays in the browser.
+  the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
@@ -249,13 +263,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Farcaster-only until it gets one.
 - **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
   that changes something testers would notice adds a `## Tester note` section right after Summary,
-  one or two plain sentences in player language (house copy rules). `.github/workflows/beta-updates.yml`
+  one or two plain sentences in player language (house copy rules). It may use **bold**, `code`, and
+  [links](https://…), which show as formatting in Telegram (`.github/scripts/tester-note.mjs` turns
+  them into Telegram's HTML; anything else shows as typed, and a note Telegram can't read goes out as
+  typed; notes too long for one message go out one by one). `.github/workflows/beta-updates.yml`
   posts it as @lexigotchi_bot when Vercel's Production deploy of that commit succeeds, then labels the
   PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
-  `TELEGRAM_CHAT_ID`; "Run workflow" on it only checks the bot can reach the group.
+  `TELEGRAM_CHAT_ID`; "Run workflow" on it checks the bot can reach the group and the formatter
+  loads, and never posts.
   **New members get a welcome**: Telegram calls `/api/telegram/webhook` (`src/lib/telegram.ts`), which
-  greets anyone who joins with the HEYOO card (`/s/HEYOO/card`, uploaded by the route) and a caption
-  pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
+  greets anyone who joins by their @username (else their first name, as a mention of their account,
+  so both notify) with the HEYOO card
+  (`/s/HEYOO/card`, uploaded by the route) and a caption pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
   `TELEGRAM_WEBHOOK_SECRET` (dark without them; the secret header is checked in constant time); the
   "Telegram webhook" workflow registers the URL and secret with Telegram. Rerun it after the token or
   secret changes. A basic group upgraded to a supergroup gets a new id; the route logs it.

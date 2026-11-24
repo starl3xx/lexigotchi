@@ -31,6 +31,10 @@ export interface PublicProfileView {
   account?: string;
   /** Every wallet in the account, the first first: public, like the X link (lib/db/walletLinks.ts). */
   wallets?: string[];
+  /** Those of `wallets` that joined through Farcaster (they leave when Farcaster drops them, not by Unlink). */
+  viaFarcaster?: string[];
+  /** The wallet the player chose to keep their letters, words, and $WORD in (null: not chosen yet). */
+  gameWallet?: string | null;
   nameSource: NameSource | null;
   x: { id: string; username: string; name: string | null; pfpUrl: string | null; createdAt: string | null; linkedAt: string | null } | null;
 }

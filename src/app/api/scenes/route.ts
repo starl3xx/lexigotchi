@@ -19,7 +19,7 @@ import { parsePicks, parseWallets } from "@/lib/sceneSaves";
  * sign-in covers a whole unified profile; a newer pick already saved is never overwritten.
  *
  * Dark with profiles (PROFILES_ENABLED, the secret, a database), and "not_configured" until
- * migration 0009 runs. The client then keeps every pick in the browser, as before.
+ * migration 0011 runs. The client then keeps every pick in the browser, as before.
  */
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

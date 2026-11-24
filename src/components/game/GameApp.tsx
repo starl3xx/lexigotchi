@@ -19,7 +19,8 @@ import { useViewer } from "./useViewer";
 import { useOpenUrl } from "./useShare";
 import { Onboarding, OnboardingContext } from "./Onboarding";
 import { PreLaunchScreen } from "./screens/PreLaunchScreen";
-import { markOnboardedServer } from "./campaignClient";
+import { markOnboardedServer, postFarcasterWalletsSync } from "./campaignClient";
+import { forgetVerifiedWallets } from "./useVerifiedWallet";
 import { SHEET_EXIT_MS, SheetClosing, Toaster, TweenNumber } from "./primitives";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
@@ -187,6 +188,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
         <WebSignInHost />
         <XReturnHost />
         <LinkCodeHost />
+        <FarcasterWalletsHost />
         {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
       </div>
     </IconContext.Provider>
@@ -213,6 +215,32 @@ function LinkCodeHost() {
     writePendingLink({ code });
     openSheet({ kind: "profile" });
   }, [openSheet]);
+  return null;
+}
+
+/**
+ * Farcaster wallets join the profile (lib/profile/farcasterWallets.ts): once per page load for each
+ * wallet and sign-in, ask the server to bring them in (or drop ones Farcaster no longer verifies),
+ * and refresh every view of the account when it changed.
+ */
+function FarcasterWalletsHost() {
+  const viewer = useViewer();
+  const p = useProfile();
+  const qc = useQueryClient();
+  const asked = useRef(new Set<string>());
+  const key = `${p.address ?? ""}|${viewer.fid ?? ""}|${p.sessionToken ? "s" : ""}`;
+  useEffect(() => {
+    if (!p.enabled || (!viewer.fid && !p.sessionToken) || asked.current.has(key)) return;
+    asked.current.add(key);
+    void postFarcasterWalletsSync(p.sessionToken).then((d) => {
+      if (!d?.changed) return;
+      bustPublicProfile();
+      forgetVerifiedWallets();
+      for (const k of ["profilePublic", "profileMe", "world", "dailyStatus", "ownedWords", "linkedLetters", "walletHoldings"]) {
+        void qc.invalidateQueries({ queryKey: [k] });
+      }
+    });
+  }, [key, p.enabled, p.sessionToken, viewer.fid, qc]);
   return null;
 }
 

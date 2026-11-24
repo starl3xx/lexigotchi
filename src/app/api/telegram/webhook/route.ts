@@ -35,7 +35,17 @@ export async function POST(req: Request) {
     // Telegram's servers fetching our site.
     const card = await fetch(showcaseCardUrl("HEYOO"));
     if (!card.ok) throw new Error(`HEYOO card: ${card.status}`);
-    await sendPhoto(chatId, await card.blob(), welcome.caption);
+    const png = await card.blob();
+    try {
+      await sendPhoto(chatId, png, welcome.caption, welcome.mentions);
+    } catch (err) {
+      // If Telegram won't make a mention of someone, greet them by name anyway rather than not at
+      // all. Only on a clear refusal ("Bad Request"): after a timeout or a server error the photo
+      // may already be in the group, and a second one would greet twice.
+      if (welcome.mentions.length === 0 || !(err instanceof Error && /Bad Request/i.test(err.message))) throw err;
+      console.warn("[telegram] welcome with mentions refused, sending without:", err instanceof Error ? err.message : err);
+      await sendPhoto(chatId, png, welcome.caption);
+    }
   } catch (err) {
     console.error("[telegram] welcome failed:", err instanceof Error ? err.message : err);
   }

@@ -265,9 +265,31 @@ export const walletLinks = pgTable(
     /** The account's first wallet, lowercase. */
     account: text("account").notNull(),
     linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * How it joined (migration 0009): "signature" (Link another wallet: the wallet signed) or
+     * "farcaster" (a Farcaster account verified both it and a wallet the account already had by
+     * signature; it leaves when that verification goes). The core link reads never select this, so a
+     * database without 0009 keeps working.
+     */
+    via: text("via").notNull().default("signature"),
+    /** For a "farcaster" link: the FID whose verification vouches for it. */
+    fid: integer("fid"),
   },
   (t) => [index("wallet_links_account_idx").on(t.account)],
 );
+
+/**
+ * The player's game wallet (migration 0010): the one wallet they choose to keep their letters,
+ * words, and $WORD in, because every onchain action uses the connected wallet's own holdings. One
+ * row per account (its first wallet). A wallet that has left the account reads as no choice.
+ * Its own table, not a `profiles` column: profile reads select every column, so a new one there
+ * would break them on a database that hasn't migrated yet.
+ */
+export const gameWallets = pgTable("game_wallets", {
+  account: text("account").primaryKey(),
+  wallet: text("wallet").notNull(),
+  chosenAt: timestamp("chosen_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * One "Link another wallet" attempt: a code made under the account's session, then signed (inside a

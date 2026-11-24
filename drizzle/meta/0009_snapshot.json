@@ -1,5 +1,5 @@
 {
-  "id": "c7627a1f-f7eb-4683-a5c8-9256618c4021",
+  "id": "13b8da66-f1a9-4585-9a12-a16c0f16ade9",
   "prevId": "110521fd-30fd-45b0-9dcb-6ea0f760a289",
   "version": "7",
   "dialect": "postgresql",
@@ -739,6 +739,19 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "via": {
+          "name": "via",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'signature'"
+        },
+        "fid": {
+          "name": "fid",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -854,52 +867,6 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.word_scenes": {
-      "name": "word_scenes",
-      "schema": "",
-      "columns": {
-        "wallet": {
-          "name": "wallet",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "word": {
-          "name": "word",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scene": {
-          "name": "scene",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "word_scenes_wallet_word_pk": {
-          "name": "word_scenes_wallet_word_pk",
-          "columns": [
-            "wallet",
-            "word"
-          ]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

@@ -150,6 +150,18 @@ showed; only the *decisions* changed.
    account as one player; hunger, winner, and daily-ready reminders resolve by account; and Move
    here lets the holding wallet send its loose letters and held words to another wallet in its
    account (staked words stay; the destination is read fresh from the account; it can't be undone).
+   Then (same day, starl3xx: "everything should be profile-based... no matter how they first sign
+   in, their profile is built from that"; chose "Yes, automatically" for Farcaster wallets): "you"
+   is the player on every screen (usePlayerWallets), the swap board shows players, and wallets a
+   Farcaster account verified join the profile on their own (via "farcaster", migration 0009) when
+   that FID also verified a wallet the profile already had by signature or as its first wallet. They
+   leave when Farcaster stops verifying them; Unlink refuses them.
+   Then (same day, starl3xx: "this wallet/profile issue is critically important for the success of
+   the game"; yes to both): a GAME WALLET the player chooses (table game_wallets, migration 0010),
+   with notices that speak only when it matters (gameWalletAdvice: choose / move to it / switch to it
+   / gather), $WORD in Move (opt-in), and a warning before staking off it. Not the profile's first
+   wallet by default: that one is sometimes picked by rule. A contract change so any of a player's
+   wallets can play and feed is being DESIGNED before mainnet (no contract edits yet).
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
@@ -213,7 +225,7 @@ showed; only the *decisions* changed.
     no film grain: "not a fan of the grain"). The share link carries the scene (`?scene=`).
     **Where a pick lives** ("make sure you're thinking through how scenes are stored/preserved/tied
     to a user and their profile"): in the browser always, at once (offline, before sign-in, practice
-    mode), and in table `word_scenes` (migration 0009, `/api/scenes`) when profiles are on and the
+    mode), and in table `word_scenes` (migration 0011, `/api/scenes`) when profiles are on and the
     player already has a profile session, so it follows them to every device and host. A row is
     keyed by the wallet HOLDING the word, not the profile account: the bag knows every word's holder,
     and linking or unlinking wallets moves nothing. A session may save for every wallet in its

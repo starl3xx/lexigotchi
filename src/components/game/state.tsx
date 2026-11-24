@@ -113,7 +113,8 @@ export type Sheet =
   // banner so every "not enough $WORD" moment lands on the Buy path instead of a dead toast.
   | { kind: "balance"; need?: { amount: number; action: string } }
   /** Linked accounts, the free daily letter, and your name and picture (sheets/ProfileSheet). */
-  | { kind: "profile" }
+  /** `focus: "move"` opens the Wallets card's Move panel (a game wallet notice sends players there). */
+  | { kind: "profile"; focus?: "move" }
   /** The core loop on one screen (sheets/CheatSheet), behind the header's "?". */
   | { kind: "cheatsheet" }
   | { kind: "addapp" }
@@ -622,7 +623,7 @@ export interface GameApi {
    * Move here: send the CONNECTED wallet's letters and held words to `to`, another wallet in its
    * account (lib/onchain/move.ts). The destination is re-checked against the account, fresh.
    */
-  moveToWallet: (to: string) => Promise<MoveOutcome>;
+  moveToWallet: (to: string, opts?: { includeWord?: boolean }) => Promise<MoveOutcome>;
   /** Read the words again after a failed read (the chain store; the practice store has none to fail). */
   reloadWords?: () => void;
   /** null = no draw happened (already revealed); else the outcome. */

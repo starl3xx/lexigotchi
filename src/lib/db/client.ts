@@ -28,6 +28,11 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
 
 export { schema };
 
+/** The database, or a transaction on it: functions that may run under a lock take one. */
+export type DbOrTx =
+  | PostgresJsDatabase<typeof schema>
+  | Parameters<Parameters<PostgresJsDatabase<typeof schema>["transaction"]>[0]>[0];
+
 /**
  * Close the pooled connection, if one was opened. Only for one-shot processes (the keeper CLI):
  * an open pool keeps Node's event loop alive after the last query, so the command never exits.

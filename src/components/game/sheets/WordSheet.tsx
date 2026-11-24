@@ -5,6 +5,8 @@ import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
 import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
+import { useAccount } from "wagmi";
+import { usePublicProfile } from "../useProfile";
 import {
   fmtWord,
   hunger,
@@ -19,6 +21,11 @@ import { useEatingFlash } from "../useEatingFlash";
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
   const { state } = g;
+  // Staking ties a word to this wallet: only the staker can feed it. Say so before a player stakes
+  // from a wallet that isn't their game wallet (lib/db/gameWallet.ts).
+  const { address } = useAccount();
+  const gameWallet = usePublicProfile().profile?.gameWallet ?? null;
+  const offGameWallet = Boolean(gameWallet && address && gameWallet !== address.toLowerCase());
   const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
   // Guards against a second tap during the async chain flow — each tap is a PAID commit.
@@ -120,6 +127,11 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           <Cookie weight="fill" /> Feed {word.staked && h === "fed" && <Check weight="bold" size={14} />}
         </Button>
       </div>
+      {word.mine && !word.staked && offGameWallet && (
+        <p className="mt-2 text-xs font-bold text-candy-ink">
+          This isn’t your game wallet. Once staked here, only this wallet can feed {word.word}.
+        </p>
+      )}
       {word.mine && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}
       {!word.mine && <div className="mb-3" />}
 

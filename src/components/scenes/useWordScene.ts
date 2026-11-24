@@ -136,7 +136,7 @@ function useSaved() {
     staleTime: 60_000,
     queryFn: async (): Promise<SavedMap | null> => {
       const r = await fetch(`/api/scenes?wallets=${wallets.join(",")}`);
-      if (!r.ok) return null; // switched off, or migration 0009 not run yet: the browser's picks only
+      if (!r.ok) return null; // switched off, or migration 0011 not run yet: the browser's picks only
       const d = (await r.json()) as { ok: boolean; scenes?: { wallet: string; word: string; scene: string; at: number }[] };
       const out: SavedMap = new Map();
       for (const s of d.scenes ?? []) if (isSceneId(s.scene)) out.set(savedKey(s.wallet, s.word), { scene: s.scene, at: s.at });

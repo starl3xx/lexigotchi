@@ -393,6 +393,16 @@ export function useProfile() {
     }
   }, [address, qc, signMessageAsync, afterAccountChange]);
 
+  /** Choose the account's game wallet (any wallet's session in the account). */
+  const setGameWallet = useCallback(async (wallet: string) => {
+    const r = await emailCall("/api/profile/game-wallet", "POST", { wallet });
+    if (!r.error) {
+      bustPublicProfile();
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+    }
+    return r;
+  }, [emailCall, qc]);
+
   /** Take a wallet out of the account (any wallet's session in the account). */
   const unlinkWallet = useCallback(async (wallet: string) => {
     const r = await emailCall("/api/profile/wallets", "DELETE", { address: wallet });
@@ -409,6 +419,8 @@ export function useProfile() {
     // A stored session counts at once. Waiting for /me made the sheet ask a player to sign in
     // while their session was still loading (Bugbot on #136); a dead token is forgotten on its 401.
     signedIn: Boolean(token),
+    /** The stored wallet session, for calls outside this hook (the Farcaster wallets sync). */
+    sessionToken: token ?? null,
     /**
      * The own view (with email) has loaded. Until it does, `profile` is the public view, whose email
      * is always null, so "no email" can't be told apart from "not loaded yet" without this.
@@ -429,6 +441,7 @@ export function useProfile() {
     makeLinkCode,
     joinWithCode,
     unlinkWallet,
+    setGameWallet,
     sendEmailCode: (email: string) => emailCall("/api/profile/email", "POST", { email }),
     confirmEmail: (email: string, code: string) => emailCall("/api/profile/email/verify", "POST", { email, code }),
     removeEmail: () => emailCall("/api/profile/email", "DELETE"),
