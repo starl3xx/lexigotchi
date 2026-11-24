@@ -38,6 +38,7 @@ describe("share links", () => {
     expect(u.origin + u.pathname).toBe("https://x.com/intent/post");
     expect(u.searchParams.get("text")).toBe("HeLLo ✨ spelled with letters I raised in Lexigotchi");
     expect(u.searchParams.get("url")).toBe(showcaseUrl("HeLLo"));
+    expect(u.searchParams.get("via")).toBe("lexigotchi"); // "via @lexigotchi", X only
   });
 
   it("post copy has no em dash", () => {

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     // The branded 1200×800 PNG card the mini-app embed already uses (og:image must be PNG/JPG).
     images: [{ url: "/embed-image", width: 1200, height: 800, alt: "Lexigotchi" }],
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", site: "@lexigotchi" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

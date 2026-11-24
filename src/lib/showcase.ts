@@ -10,7 +10,7 @@
  * Nothing here checks ownership. A showcase is vanity ("any letters, any order, no dictionary
  * check"), so the page claims only what a link can prove: these letters, arranged.
  */
-import { SITE_URL } from "./site";
+import { SITE_URL, X_HANDLE } from "./site";
 
 /** The rack holds at most 8 tiles, and sharing needs at least 2 (ShowcaseScreen). */
 export const SHOWCASE_MIN = 2;
@@ -52,10 +52,15 @@ export function showcasePostText(text: string): string {
   return `${text} ✨ spelled with letters I raised in Lexigotchi`;
 }
 
-/** X's web composer, prefilled. On a phone with the X app, this link opens the app. */
+/**
+ * X's web composer, prefilled. On a phone with the X app, this link opens the app. `via` makes X add
+ * "via @lexigotchi", so every shared post points back at the game's account. X only: a cast's
+ * text never carries it, because "@lexigotchi" on Farcaster would name someone else's account.
+ */
 export function xIntentUrl(text: string, url: string): string {
   const u = new URL("https://x.com/intent/post");
   u.searchParams.set("text", text);
   u.searchParams.set("url", url);
+  u.searchParams.set("via", X_HANDLE);
   return u.toString();
 }
