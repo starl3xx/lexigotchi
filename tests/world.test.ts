@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { buildLeaderboards, letterTotals, type WorldSnapshot } from "@/lib/world";
+import { linkMapFrom } from "@/lib/db/walletLinks";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 const WORDS_CONTRACT = "0x00000000000000000000000000000000000000aa";
@@ -73,5 +74,38 @@ describe("buildLeaderboards", () => {
 
   it("caps each board", () => {
     expect(buildLeaderboards(snap, 1).words).toHaveLength(1);
+  });
+});
+
+describe("buildLeaderboards with linked wallets", () => {
+  // Made-up wallets: A heads an account that B joined; C plays alone.
+  const A = "0x1111111111111111111111111111111111111111";
+  const B = "0x2222222222222222222222222222222222222222";
+  const C = "0x3333333333333333333333333333333333333333";
+  const links = linkMapFrom([{ address: B, account: A }]);
+  const snap: WorldSnapshot = {
+    words: [
+      { word: "CRANE", owner: A, staked: true, raised: 1 },
+      { word: "SLATE", owner: B, staked: false, raised: 0 },
+      { word: "TRACE", owner: C, staked: true, raised: 5 },
+    ],
+    letters: { [B]: { lower: 3, upper: 2 }, [C]: { lower: 1, upper: 0 } },
+    wins: { [B]: { count: 1, amount: 100 }, [A]: { count: 1, amount: 50 } },
+  };
+
+  it("sums every wallet in an account into one row, named by the account", () => {
+    const boards = buildLeaderboards(snap, 25, links.accountOf);
+    expect(boards.words).toEqual([{ address: A, value: 2, wallets: 2 }, { address: C, value: 1 }]);
+    expect(boards.letters[0]).toEqual({ address: A, value: 15, wallets: 2 });
+    expect(boards.raised).toEqual([{ address: C, value: 5 }, { address: A, value: 3, wallets: 2 }]);
+    expect(boards.wins).toEqual([{ address: A, value: 2, amount: 150, wallets: 2 }]);
+  });
+
+  it("sums before the cut, so two wallets that each miss it can make it together", () => {
+    expect(buildLeaderboards(snap, 1, links.accountOf).words).toEqual([{ address: A, value: 2, wallets: 2 }]);
+  });
+
+  it("with no links, every wallet is its own row (as before)", () => {
+    expect(buildLeaderboards(snap).words.map((r) => r.address).sort()).toEqual([A, B, C].sort());
   });
 });

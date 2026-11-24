@@ -11,13 +11,13 @@ import { sendWebPush, buildWebPushPayload, webPushIsActive } from "@/lib/notify/
 import {
   hungerTargetsByAddress,
   webPushHungerTargets,
-  webPushDailyKeys,
+  accountFidLookup,
   webPushWinnerSubs,
   isDailyDue,
   dailyTargets,
   fidLookupFrom,
 } from "@/lib/notify/triggers";
-import { verifiedDailyKey } from "@/lib/onchain/verifications";
+import { linkMapFrom } from "@/lib/db/walletLinks";
 import { hungerWarning } from "@/lib/notify/templates";
 import type { KeeperWord } from "@/lib/keeper/shares";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -32,6 +32,7 @@ const KEY65 = Buffer.alloc(65, 4).toString("base64url"); // 87 chars, an uncompr
 const KEY16 = Buffer.alloc(16, 7).toString("base64url"); // 22 chars
 const A = "0xAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaa";
 const B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const C = "0xcccccccccccccccccccccccccccccccccccccccc";
 const body = (endpoint: string, over: Record<string, unknown> = {}) => ({
   address: A,
   subscription: { endpoint, keys: { p256dh: KEY65, auth: KEY16 } },
@@ -216,14 +217,32 @@ describe("browser push audiences", () => {
     expect(webPushHungerTargets(byAddress, subs, fidOf).map((t) => t.address)).toEqual([A.toLowerCase()]);
   });
 
-  it("reads the FID's daily slot when linked, the verified wallet's otherwise, and skips Farcaster's", () => {
-    const farcaster = new Set([7]);
-    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: 7 }, farcaster, verifiedDailyKey)).toBeNull();
-    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: 8 }, farcaster, verifiedDailyKey)).toEqual([8n]);
-    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: null }, farcaster, verifiedDailyKey)).toEqual([verifiedDailyKey(A)]);
-    // A wallet with a linked X reads both slots; the most recent pull of either decides.
-    const xKey = (1n << 162n) | 42n;
-    expect(webPushDailyKeys({ address: A.toLowerCase(), fid: null }, farcaster, verifiedDailyKey, () => xKey)).toEqual([verifiedDailyKey(A), xKey]);
+  it("linked wallets: one warning per account, to a browser on any of its wallets", () => {
+    // B joined A's account. Both have words close to hungry; C (alone) subscribed too.
+    const links = linkMapFrom([{ address: B, account: A }]);
+    const byAccount = hungerTargetsByAddress([word(A, 3600), word(B, 3600), word(C, 3600)], undefined, undefined, links.accountOf);
+    expect(byAccount.map((t) => [t.address, t.words])).toEqual(
+      [[A.toLowerCase(), 2], [C.toLowerCase(), 1]].sort((x, y) => (String(x[0]) < String(y[0]) ? -1 : 1)),
+    );
+    // A browser subscribed on B gets the account's warning; nobody subscribed on A.
+    const subs = [{ address: B.toLowerCase(), fid: null }];
+    const none = fidLookupFrom([]);
+    expect(webPushHungerTargets(byAccount, subs, none, links.accountOf).map((t) => t.address)).toEqual([A.toLowerCase()]);
+  });
+
+  it("linked wallets: a wallet reaches its account's Farcaster, so the browser pass skips it", () => {
+    const links = linkMapFrom([{ address: B, account: A }]);
+    const fidOf = accountFidLookup(fidLookupFrom([{ fid: 9, linkedWallets: [A] }]), links);
+    expect(fidOf(B)).toBe(9); // B has no FID of its own
+    expect(fidOf(C)).toBeUndefined();
+    const byAccount = hungerTargetsByAddress([word(B, 3600)], undefined, undefined, links.accountOf);
+    expect(webPushHungerTargets(byAccount, [{ address: B.toLowerCase(), fid: null }], fidOf, links.accountOf)).toEqual([]);
+  });
+
+  it("linked wallets: the jackpot winner's browsers include those on its other wallets", () => {
+    const links = linkMapFrom([{ address: B, account: A }]);
+    const subs = [{ address: A.toLowerCase(), fid: null }, { address: C.toLowerCase(), fid: null }];
+    expect(webPushWinnerSubs(B, subs, fidLookupFrom([]), links.accountOf)).toEqual([subs[0]]);
   });
 
   it("uses exactly the Farcaster daily rule", () => {

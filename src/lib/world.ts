@@ -121,42 +121,75 @@ export async function scanWorld(): Promise<WorldSnapshot> {
 
 export type BoardKey = "words" | "letters" | "raised" | "wins";
 export interface BoardRow {
+  /** The player: their account (its first wallet), which is the wallet itself when nothing is linked. */
   address: string;
   value: number;
   /** Wins only: the $WORD those wins paid. */
   amount?: number;
+  /** How many of the account's wallets count toward this row, when more than one. */
+  wallets?: number;
 }
 
 /**
- * The leaderboards, most first, at most `top` rows each.
+ * The leaderboards, most first, at most `top` rows each, one row per PLAYER: every wallet in an
+ * account (Link another wallet, lib/db/walletLinks.ts) counts toward the account's row, summed
+ * before the cut, so two wallets that each miss the top 25 can make it together.
  * - words: words owned (staked or held).
  * - letters: every letter a wallet has, loose or spelled into its words (5 per word).
  * - raised: UPPERCASE letters, loose or in words.
  * - wins: jackpot wins; ties broken by the $WORD won.
  */
-export function buildLeaderboards(s: WorldSnapshot, top = 25): Record<BoardKey, BoardRow[]> {
+export function buildLeaderboards(
+  s: WorldSnapshot,
+  top = 25,
+  accountOf: (address: string) => string = (a) => a.toLowerCase(),
+): Record<BoardKey, BoardRow[]> {
   const words = new Map<string, number>();
   const letters = new Map<string, number>();
   const raised = new Map<string, number>();
-  const add = (m: Map<string, number>, a: string, n: number) => m.set(a, (m.get(a) ?? 0) + n);
+  const contributors = new Map<string, Set<string>>(); // board:account → wallets with a nonzero part
+  const add = (board: string, m: Map<string, number>, wallet: string, n: number) => {
+    if (n <= 0) return;
+    const a = accountOf(wallet);
+    m.set(a, (m.get(a) ?? 0) + n);
+    const key = `${board}:${a}`;
+    const set = contributors.get(key) ?? new Set<string>();
+    set.add(wallet.toLowerCase());
+    contributors.set(key, set);
+  };
   for (const w of s.words) {
-    add(words, w.owner, 1);
-    add(letters, w.owner, 5);
-    add(raised, w.owner, w.raised);
+    add("words", words, w.owner, 1);
+    add("letters", letters, w.owner, 5);
+    add("raised", raised, w.owner, w.raised);
   }
   for (const [a, l] of Object.entries(s.letters)) {
-    add(letters, a, l.lower + l.upper);
-    add(raised, a, l.upper);
+    add("letters", letters, a, l.lower + l.upper);
+    add("raised", raised, a, l.upper);
   }
-  const rank = (m: Map<string, number>) =>
+  const winsBy = new Map<string, { count: number; amount: number }>();
+  for (const [a, w] of Object.entries(s.wins)) {
+    if (w.count <= 0) continue;
+    const acct = accountOf(a);
+    const cur = winsBy.get(acct) ?? { count: 0, amount: 0 };
+    winsBy.set(acct, { count: cur.count + w.count, amount: cur.amount + w.amount });
+    const key = `wins:${acct}`;
+    const set = contributors.get(key) ?? new Set<string>();
+    set.add(a.toLowerCase());
+    contributors.set(key, set);
+  }
+  const many = (board: string, address: string) => {
+    const n = contributors.get(`${board}:${address}`)?.size ?? 1;
+    return n > 1 ? { wallets: n } : {};
+  };
+  const rank = (board: string, m: Map<string, number>) =>
     [...m.entries()]
       .filter(([, v]) => v > 0)
       .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))
       .slice(0, top)
-      .map(([address, value]) => ({ address, value }));
-  const wins = Object.entries(s.wins)
+      .map(([address, value]) => ({ address, value, ...many(board, address) }));
+  const wins = [...winsBy.entries()]
     .sort((x, y) => y[1].count - x[1].count || y[1].amount - x[1].amount || x[0].localeCompare(y[0]))
     .slice(0, top)
-    .map(([address, w]) => ({ address, value: w.count, amount: w.amount }));
-  return { words: rank(words), letters: rank(letters), raised: rank(raised), wins };
+    .map(([address, w]) => ({ address, value: w.count, amount: w.amount, ...many("wins", address) }));
+  return { words: rank("words", words), letters: rank("letters", letters), raised: rank("raised", raised), wins };
 }

@@ -31,7 +31,7 @@ export function LeaderboardScreen() {
       <EmptyState
         Icon={Ranking}
         title="The leaderboard opens with the onchain game"
-        sub="It ranks real wallets by words, letters, UPPERCASE letters, and jackpot wins."
+        sub="It ranks players by words, letters, UPPERCASE letters, and jackpot wins. Linked wallets count as one player."
       />
     );
   }
@@ -69,6 +69,7 @@ export function LeaderboardScreen() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <PlayerChip address={r.address} profile={profiles[r.address]} you={you} />
+                    {r.wallets ? <span className="mt-0.5 block text-[11px] text-ink/50">{r.wallets} linked wallets</span> : null}
                   </span>
                   <span className="shrink-0 text-right tabular-nums">
                     <span className="font-display font-extrabold">{r.value.toLocaleString("en-US")}</span>{" "}

@@ -146,6 +146,10 @@ showed; only the *decisions* changed.
    the nonce), so it works across devices and from a Farcaster host. Letters and words stay in the
    wallet that holds them (the contracts act on msg.sender); linking never creates a daily key; links
    are public, like X. Unlinking waits for tomorrow on a day the account took its letter.
+   Then (same day, starl3xx: "fix all of those, including move here"): the leaderboard counts an
+   account as one player; hunger, winner, and daily-ready reminders resolve by account; and Move
+   here lets the holding wallet send its loose letters and held words to another wallet in its
+   account (staked words stay; the destination is read fresh from the account; it can't be undone).
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

@@ -541,6 +541,9 @@ import type { Busy } from "@/lib/onchain/actionGate";
 import type { GameParams } from "@/lib/onchain/reads";
 export type { ActionOutcome };
 
+/** What a move did: sent, or why it didn't send. */
+export type MoveOutcome = "sent" | "failed" | "empty" | "open_roll" | "not_linked" | "busy" | "unavailable" | "no_wallet";
+
 export interface GameApi {
   state: GameState;
   nav: (view: View) => void;
@@ -598,6 +601,11 @@ export interface GameApi {
   /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
   prestige: (word: string) => boolean | null | Promise<ActionOutcome>;
   dissolve: (word: string) => void;
+  /**
+   * Move here: send the CONNECTED wallet's letters and held words to `to`, another wallet in its
+   * account (lib/onchain/move.ts). The destination is re-checked against the account, fresh.
+   */
+  moveToWallet: (to: string) => Promise<MoveOutcome>;
   /** null = no draw happened (already revealed); else the outcome. */
   revealJackpot: () => "win" | "lose" | null;
   skipDay: () => void;
@@ -755,6 +763,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const success = r.chance(prestigeSuccessProbability(w.prestigePity));
         dispatch({ t: "prestige", word, success });
         return success;
+      },
+      moveToWallet: async () => {
+        toast("Moving letters works in the onchain game", "info");
+        return "unavailable" as const;
       },
       dissolve: (word) => {
         const w = state.words.find((x) => x.word === word);

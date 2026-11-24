@@ -121,7 +121,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   account, a wallet with its own X or email (nothing is merged). Unlink (`DELETE /api/profile/wallets`)
   waits for tomorrow on a day the account took its letter (`accountClaimedToday`, fails closed).
   Links are public (the public view carries `wallets`), like X. Every read treats a missing table as
-  "no links". Letters stay in the wallet that holds them: only the connected wallet acts.
+  "no links". Letters stay in the wallet that holds them: only the connected wallet acts. **Move
+  here** (`lib/onchain/move.ts`, `moveToWallet` in the game API): the HOLDING wallet sends its loose
+  letters (one `safeBatchTransferFrom`, all 52 ids) and held words (`safeTransferFrom` each) to a
+  wallet in its account, the account read fresh at click time (never from a link or stored value);
+  staked words stay; it waits while a loose roll on a moved letter is open (`readOpenRolls`). Account
+  wide: the leaderboard sums an account into one row (`buildLeaderboards(…, accountOf)`), and
+  reminders resolve by account (`loadLinkMap` reads every link once; `accountFidLookup`; the daily
+  cron uses `relatedDailyKeysMany`, the same walk the daily route refuses on).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
