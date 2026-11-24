@@ -44,25 +44,31 @@ export function ConnectPanel() {
 
   // ── Inside a Farcaster host: the host's wallet ───────────────────────────────────────────────
   const inHost = viewer.environment === "farcaster";
-  const { connect, connectors, isPending } = useConnect();
+  const { connect, connectors, isPending, variables } = useConnect();
   const farcasterWallet = connectors.find((c) => c.id === "farcaster");
+  // Pending for THIS connector only: "Sign in with Coinbase Wallet" connecting must not grey out the
+  // Farcaster button (Bugbot on #156; SignInWithCoinbaseWallet scopes it the same way).
+  const hostPending = isPending && (variables?.connector as { id?: string } | undefined)?.id === "farcaster";
   const [hostError, setHostError] = useState<string | null>(null);
-  // The CAIP-2 chains the host's wallet supports; null until the host answers (or if it can't).
-  const [hostChains, setHostChains] = useState<string[] | null>(null);
+  // The CAIP-2 chains the host's wallet supports: undefined while asking, null if the host couldn't say.
+  const [hostChains, setHostChains] = useState<string[] | null | undefined>(undefined);
   useEffect(() => {
     if (!inHost) return;
     let alive = true;
     void import("@farcaster/miniapp-sdk")
       .then(({ default: sdk }) => sdk.getChains())
       .then((chains) => alive && setHostChains(chains))
-      .catch(() => {});
+      .catch(() => alive && setHostChains(null));
     return () => {
       alive = false;
     };
   }, [inHost]);
-  const chainRefused =
-    (hostChains !== null && !hostChains.includes(`eip155:${NETWORK.id}`)) ||
-    (hostError !== null && /4902|unrecognized chain|chain.*not (supported|configured)|switch(ing)? ?chain/i.test(hostError));
+  // The host's own list decides. Only when it couldn't give one does the wallet's error speak, and
+  // then only the specific "unrecognized chain" (EIP-1193 4902), never a generic switch failure
+  // (Bugbot on #156).
+  const chainRefused = Array.isArray(hostChains)
+    ? !hostChains.includes(`eip155:${NETWORK.id}`)
+    : hostChains === null && hostError !== null && /4902|unrecognized chain/i.test(hostError);
   const connectHostWallet = () => {
     if (!farcasterWallet) return;
     setHostError(null);
@@ -70,11 +76,13 @@ export function ConnectPanel() {
   };
   const asked = useRef(false);
   useEffect(() => {
-    if (!inHost || !farcasterWallet || asked.current || chainRefused) return;
+    // Wait for the host's chain list first, so a wallet without the chain gets the explanation, not
+    // a refused switch (Bugbot on #156).
+    if (!inHost || !farcasterWallet || asked.current || hostChains === undefined || chainRefused) return;
     asked.current = true;
     connectHostWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount, when the host is known
-  }, [inHost, farcasterWallet, chainRefused]);
+  }, [inHost, farcasterWallet, hostChains, chainRefused]);
 
   return (
     <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5">
@@ -98,12 +106,12 @@ export function ConnectPanel() {
             <>
               <button
                 onClick={connectHostWallet}
-                disabled={!farcasterWallet || isPending}
+                disabled={!farcasterWallet || hostPending || hostChains === undefined}
                 className="cel flex w-full items-center justify-center gap-2 rounded-xl bg-[#855DCD] px-4 py-3 font-display text-base font-extrabold text-white press disabled:opacity-50"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/fc-arch-icon.png" alt="" className="h-3.5 w-auto" />
-                {isPending ? "Check your Farcaster wallet…" : hostError ? "Try my Farcaster wallet again" : "Use my Farcaster wallet"}
+                {hostPending ? "Check your Farcaster wallet…" : hostError ? "Try my Farcaster wallet again" : "Use my Farcaster wallet"}
               </button>
               {hostError && (
                 <p role="status" className="mt-2 text-xs text-ink/60">
