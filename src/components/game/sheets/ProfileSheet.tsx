@@ -159,15 +159,17 @@ export function ProfileSheet() {
                   <button onClick={() => void p.unlinkX()} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
                     Unlink
                   </button>
-                ) : address && p.xEnabled ? (
-                  <Button size="sm" variant="ghost" disabled={p.busy} onClick={() => void linkX()}>
+                ) : p.xEnabled && (address || openConnectModal) ? (
+                  // An X link belongs to a wallet, so with none connected the same tap opens the wallet
+                  // picker first. A hidden button read as broken ("why doesn't X show Link?").
+                  <Button size="sm" variant="ghost" disabled={p.busy} onClick={() => (address ? void linkX() : openConnectModal?.())}>
                     {p.busy ? <CircleNotch className="animate-spin" /> : "Link"}
                   </Button>
                 ) : null}
               </Row>
-              {!x && address && (
+              {!x && p.xEnabled && (
                 <p className="mt-1 pl-[38px] text-[11px] leading-snug text-ink/55">
-                  Your X account will show publicly next to your wallet. The account must be older than 90 days for the daily letter. You can unlink anytime.
+                  {!address && "Connect a wallet first: X links to it. "}Your X account will show publicly next to your wallet. The account must be older than 90 days for the daily letter. You can unlink anytime.
                 </p>
               )}
             </div>
@@ -208,6 +210,10 @@ export function ProfileSheet() {
                   </button>
                 )}
               </div>
+            ) : openConnectModal ? (
+              <Button size="sm" variant="ghost" onClick={openConnectModal}>
+                Connect
+              </Button>
             ) : null}
           </Row>
         </div>
@@ -326,6 +332,7 @@ const EMAIL_ERRORS: Record<string, string> = {
  * The address is never shown to anyone but this wallet's own session.
  */
 function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
+  const { openConnectModal } = useConnectModal();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"start" | "enter" | "code">("start");
@@ -369,8 +376,10 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
           size="sm"
           variant="ghost"
           className="mt-2"
-          disabled={p.busy || !p.address}
+          disabled={p.busy || (!p.address && !openConnectModal)}
           onClick={async () => {
+            // The email belongs to a wallet: with none connected, the tap opens the wallet picker first.
+            if (!p.address) return openConnectModal?.();
             if (await p.ensureToken()) setStage("enter");
           }}
         >

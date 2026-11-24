@@ -274,6 +274,20 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hungry" to every player; (2) the explanatory comments. In `contracts/` the NatSpec is an audit
   deliverable someone pays to read, and elsewhere the comment carrying the *why* is usually the
   part that stops the next person reintroducing the bug.
+- **A feature change updates every surface that describes it, in the same PR** (starl3xx,
+  2026-11-24: "update FAQ, cheat sheet, in-app UI, docs, etc on any feature changes"). #140 switched
+  X on and updated the docs and the landing page but missed the cheat sheet and the connect panel.
+  Search for the claim's words (e.g. `Coinbase`, `daily letter`, `no email`), not for files, across:
+  `docs-site/` (every page, and `faq.mdx`), `sheets/CheatSheet.tsx`, `src/lib/howItWorks.ts` and
+  `Onboarding.tsx`, the feature's own cards and sheets (`DailyUnlock`, `ProfileSheet`,
+  `BalanceSheet`, `ConnectPanel`, `MoreScreen`, `NextSteps`, locked and empty states),
+  `src/components/landing/LandingPage.tsx` (and its FAQ), `src/lib/notify/templates.ts` and
+  `src/lib/notify/email.ts`, share/OG copy (`src/lib/showcase.ts`, `src/lib/site.ts`), and
+  `CLAUDE.md`/`docs/web3-runtime-plan.md`. Copy about a switchable feature reads the switch
+  (`usePublicProfile().xEnabled`/`emailEnabled` in the app, `xEnabled()`/`emailEnabled()` on the
+  server) so it can't run ahead of production; `docs-site/` can't, so change it with the switch.
+  Say in the PR which surfaces you checked. Refresh the screenshots (`npm run docs:shots -- <names>`)
+  when a pictured screen changes.
 - **Player-facing copy follows the house rules, and `tests/copy-rules.test.ts` enforces them** on
   every rendered string in `src/components/game`, `src/components/landing`, `howItWorks.ts`, and the
   notification templates: no em dashes (pick the mark the sentence needs: colon, comma, period, or

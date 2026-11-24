@@ -59,8 +59,9 @@ export function MintScreen() {
             <span className="text-xs text-ink/50">resets in <Countdown /></span>
           </div>
         ) : !daily.eligible ? (
-          // Locked. Two identities open it — Farcaster, or a Coinbase-verified wallet — and the
-          // shared DailyUnlock is the one place that offers both, so Home and Mint can't drift.
+          // Locked. Farcaster, an old-enough X account (while X is on), or a Coinbase-verified wallet
+          // opens it, and the shared DailyUnlock is the one place that offers them, so Home and Mint
+          // can't drift.
           <DailyUnlock />
         ) : (
           <div className="flex items-center justify-between gap-3">

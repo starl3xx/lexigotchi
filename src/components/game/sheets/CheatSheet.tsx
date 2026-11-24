@@ -14,6 +14,7 @@ import { Cookie, Sparkle, TextAa } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
 import { useOnboarding } from "../Onboarding";
 import { useOpenUrl } from "../useShare";
+import { usePublicProfile } from "../useProfile";
 import { DOCS_URL } from "@/lib/site";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
@@ -23,6 +24,8 @@ export function CheatSheet() {
   const g = useGame();
   const openUrl = useOpenUrl();
   const { replay } = useOnboarding();
+  // Each way into the daily (and email reminders) shows only while the server has it switched on.
+  const { xEnabled, emailEnabled } = usePublicProfile();
   const price = (item: Parameters<typeof g.price>[0]) => {
     const w = g.price(item);
     return `${fmtWord(w)} $WORD (${fmtUsd(w)})`;
@@ -36,8 +39,9 @@ export function CheatSheet() {
       <div className="space-y-3">
         <Step n={1} icon={<Sparkle weight="fill" size={18} />} title="Collect letters">
           <li>
-            <strong>One free letter every day.</strong> To unlock it, link Farcaster or verify your wallet
-            with Coinbase.
+            <strong>One free letter every day.</strong> To unlock it, tap your picture and link Farcaster
+            {xEnabled ? " or X," : ""} or verify your wallet with Coinbase. Claim it each day: a day you skip
+            doesn’t carry over.
           </li>
           <li>
             <strong>Or buy a pack of 5</strong> anytime: {price("pack")}.
@@ -71,6 +75,12 @@ export function CheatSheet() {
             half. After {days(hungryAfterDays)} it’s hungry: no jackpot and no $WORD until you feed it.
           </li>
           <li>Each week, staked words that match the week’s theme also share the bounty.</li>
+          {emailEnabled && (
+            <li>
+              <strong>Want a nudge?</strong> Add your email in your profile, and the game tells you before a
+              word goes hungry.
+            </li>
+          )}
         </Step>
       </div>
 
