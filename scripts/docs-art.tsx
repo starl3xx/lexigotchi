@@ -205,8 +205,8 @@ const word = (w: string, o: Omit<Ch, "ch"> | ((i: number) => Omit<Ch, "ch">) = {
 const mult = (lvl: number) => `×${(DEFAULT_PARAMS.prestige.yieldMultPerLevel ** lvl).toFixed(2)} share`;
 
 const FIGURES: Record<string, string> = {
-  "hero-hello.svg": figure([[{ chars: word("hello", { upper: true, state: "celebrate" }), size: 104 }]], {
-    title: "Five letter characters spelling HELLO, celebrating",
+  "hero-heyoo.svg": figure([[{ chars: word("heyoo", { upper: true, state: "celebrate" }), size: 104 }]], {
+    title: "Five letter characters spelling HEYOO, celebrating",
   }),
   "letters-cases.svg": figure(
     [[
