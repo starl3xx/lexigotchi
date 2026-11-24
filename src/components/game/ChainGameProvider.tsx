@@ -1093,11 +1093,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return "open_roll";
           }
           const ok = await run(`Move to ${dest.slice(0, 6)}…${dest.slice(-4)}`, () => moveCalls(from, dest, plan));
-          if (ok) {
-            // Both wallets' bags, the world, and every per-wallet holdings line change.
-            void qc.invalidateQueries({ queryKey: ["linkedLetters"] });
-            void qc.invalidateQueries({ queryKey: ["walletHoldings"] });
-            void qc.invalidateQueries({ queryKey: ["world"] });
+          // Refresh after ANY attempt that reached the wallet, not just a full success: without a
+          // wallet that batches, the calls go one by one, so the letters can land while a word
+          // transfer is declined, and the rows would keep showing the old counts. Both wallets'
+          // bags, the world, and every per-wallet holdings line read again.
+          for (const key of ["playerState", "ownedWords", "linkedLetters", "walletHoldings", "world"]) {
+            void qc.invalidateQueries({ queryKey: [key] });
           }
           return ok ? "sent" : "failed";
         }, "busy"),

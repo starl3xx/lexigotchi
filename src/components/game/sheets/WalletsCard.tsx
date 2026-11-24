@@ -203,11 +203,13 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
   const doMove = async () => {
     if (!dest) return;
     const r = await moveToWallet(dest);
+    if (r !== "sent" && r !== "failed") return; // refused before anything reached the wallet
+    // The chain read lags a fresh transfer: re-read a few times so the rows settle. A failed send
+    // may still have moved part (the letters, say, before a word was declined), so it re-reads too.
+    for (const ms of [4_000, 10_000, 20_000]) setTimeout(() => void holdingsQ.refetch(), ms);
     if (r !== "sent") return;
     setMoving(false);
     setMovedOnce(true);
-    // The chain read lags a fresh transfer: re-read a few times so the rows settle.
-    for (const ms of [4_000, 10_000, 20_000]) setTimeout(() => void holdingsQ.refetch(), ms);
   };
   const copyLink = async () => {
     try {
