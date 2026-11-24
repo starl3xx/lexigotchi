@@ -96,6 +96,8 @@ export type View =
   | "bounty"
   | "dictionary"
   | "leaderboard"
+  /** The real $WORD token: price, supply, burns, the pool (screens/WordScreen). */
+  | "word"
   /** Let's Have A Word!, Lexigotchi's sibling in the $WORD universe. */
   | "lhaw"
   | "showcase"
