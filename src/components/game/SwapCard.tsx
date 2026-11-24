@@ -218,6 +218,10 @@ export function SwapCard() {
     <Card>
       <SectionTitle>Swap</SectionTitle>
       <div className="space-y-3">
+        {/* Locked while a swap is in flight: the card must keep showing the pair, amount, and minimum
+            that went to the wallet, not a new edit (Bugbot on #133). A disabled fieldset disables
+            every control inside it. */}
+        <fieldset disabled={phase !== "idle"} className="m-0 min-w-0 space-y-3 border-0 p-0">
         <Segmented
           value={side}
           onChange={(v) => {
@@ -300,6 +304,7 @@ export function SwapCard() {
             </button>
           ))}
         </div>
+        </fieldset>
 
         <Button
           full
