@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { PRELAUNCH, DOCS_URL } from "@/lib/site";
+import { PRELAUNCH, DOCS_URL, X_HANDLE, X_URL } from "@/lib/site";
 import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { useOpenUrl } from "./useShare";
@@ -50,7 +50,7 @@ import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
   ArrowsLeftRight, Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
-  SkipForward, Smiley, Sparkle, TextAa, Trophy,
+  SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 import { WordStripLive } from "@/components/WordStrip";
@@ -467,13 +467,20 @@ function SideRail() {
           </div>
         ))}
       </nav>
+      {/* No "More" here: the rail already lists every destination, so More (the phone's way to reach
+          them) only repeated it (starl3xx, 2026-11-24). The game's X account takes its place. */}
       <div className="space-y-1 border-t-2 border-ink/15 px-3 py-3">
-        {item("more", "More", DotsThree)}
         <button
           onClick={() => openSheet({ kind: "cheatsheet" })}
           className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
         >
           <Question size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Cheat sheet
+        </button>
+        <button
+          onClick={() => void openUrl(X_URL)}
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
+        >
+          <XLogo size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> @{X_HANDLE} on X ↗
         </button>
         <button
           onClick={() => void openUrl(DOCS_URL)}

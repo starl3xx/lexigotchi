@@ -19,6 +19,7 @@ import { useViewer } from "../useViewer";
 import { useVerifiedWallet } from "../useVerifiedWallet";
 import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
+import { ReminderToggle } from "../ReminderToggle";
 import { useOpenUrl } from "../useShare";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { xEligibleOn, xOldEnough, type NameSource } from "@/lib/profile/rules";
@@ -270,6 +271,12 @@ export function ProfileSheet() {
       {/* Keyed by wallet: switching wallets starts the card fresh, so one wallet's typed address,
           code, or error never carries into another's session (Bugbot on #139). */}
       {p.emailEnabled && <EmailCard key={p.address ?? "none"} p={p} />}
+
+      {/* Browser reminders, here as well as in More: the desktop rail has no More, so the profile is
+          where a desktop player finds them. Renders nothing until web push is switched on. */}
+      <div className="mb-3 empty:hidden">
+        <ReminderToggle />
+      </div>
 
       <button
         onClick={() => g.openSheet({ kind: "balance" })}
