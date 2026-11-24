@@ -39,6 +39,25 @@ describe("parsePicks (a save)", () => {
     expect(parsePicks({ picks: [{ word: "CRANE", scene: "fall" }] }, A, NOW)?.[0].at.getTime()).toBe(NOW);
   });
 
+  it("collapses two picks for one wallet and word to the newer (Postgres can't upsert a row twice)", () => {
+    const picks = parsePicks(
+      {
+        picks: [
+          { word: "CRANE", scene: "fall", at: NOW - 5000 },
+          { word: "crane", scene: "winter", at: NOW - 1000 },
+          { word: "CRANE", scene: "spring", at: NOW - 3000, wallet: B },
+          { word: "CRANE", scene: "summer", at: NOW - 9000 },
+        ],
+      },
+      A,
+      NOW,
+    );
+    expect(picks?.map((p) => [p.wallet, p.word, p.scene])).toEqual([
+      [A, "CRANE", "winter"],
+      [B, "CRANE", "spring"],
+    ]);
+  });
+
   it("refuses free text, banned words, unknown scenes, bad wallets, and empty or oversized saves", () => {
     const one = (p: Record<string, unknown>) => parsePicks({ picks: [{ word: "CRANE", scene: "fall", at: NOW, ...p }] }, A, NOW);
     expect(one({ word: "XQZPW" })).toBeNull();

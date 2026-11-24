@@ -86,7 +86,7 @@ export function SceneFrame({
   const toneClass = `scene-tone ${TONE_CLASS[tone]}`;
 
   // A new scene fades in over the old one (a pick in the scene sheet, or the next word's home).
-  const [was, setWas] = useState<SceneId | null>(null);
+  const [wasState, setWas] = useState<SceneId | null>(null);
   const last = useRef(scene);
   useEffect(() => {
     if (last.current === scene) return;
@@ -95,6 +95,9 @@ export function SceneFrame({
     const id = window.setTimeout(() => setWas(null), SCENE_FADE_MS);
     return () => window.clearTimeout(id);
   }, [scene]);
+  // Flipping A → B → A inside the fade renders once with the old scene equal to the new one, before
+  // the effect catches up: never draw a scene twice (same key, same gradient ids; Bugbot on #164).
+  const was = wasState !== scene ? wasState : null;
 
   // Swipe: a mostly sideways drag of 48 px or more. The tap that ends a swipe doesn't open the word.
   const down = useRef<{ x: number; y: number } | null>(null);

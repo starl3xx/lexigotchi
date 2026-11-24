@@ -66,22 +66,28 @@ export function parseWallets(raw: string | null): string[] | null {
 /**
  * `{ picks: [{ word, scene, at, wallet? }] }` → picks, or null for a bad request. A pick's time is
  * kept within the last 30 days and never in the future (the player's clock may be off a little).
+ * Two picks for the same wallet and word collapse to the newer one: Postgres refuses an upsert that
+ * names one row twice ("cannot affect row a second time"), so a duplicate would fail the whole save
+ * (Bugbot on #164), and would count twice against the wallet's row cap.
  */
 export function parsePicks(body: unknown, sessionWallet: string, now = Date.now()): ScenePick[] | null {
   const picks = (body as { picks?: unknown } | null)?.picks;
   if (!Array.isArray(picks) || picks.length === 0 || picks.length > MAX_PICKS_PER_SAVE) return null;
-  const out: ScenePick[] = [];
+  const out = new Map<string, ScenePick>();
   for (const p of picks as { word?: unknown; scene?: unknown; at?: unknown; wallet?: unknown }[]) {
     if (typeof p?.word !== "string" || !isWord(p.word) || !isSceneId(p.scene)) return null;
     const wallet = p.wallet === undefined ? sessionWallet : p.wallet;
     if (typeof wallet !== "string" || !isAddress(wallet, { strict: false })) return null;
     const at = typeof p.at === "number" && Number.isFinite(p.at) ? p.at : now;
-    out.push({
+    const pick: ScenePick = {
       wallet: wallet.toLowerCase(),
       word: p.word.toUpperCase(),
       scene: p.scene,
       at: new Date(Math.min(now + MAX_SKEW_MS, Math.max(now - MAX_AGE_MS, at))),
-    });
+    };
+    const key = `${pick.wallet}:${pick.word}`;
+    const seen = out.get(key);
+    if (!seen || pick.at >= seen.at) out.set(key, pick);
   }
-  return out;
+  return [...out.values()];
 }
