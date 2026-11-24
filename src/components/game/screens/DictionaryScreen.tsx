@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
-import { Pill, TierBadge } from "../primitives";
+import { Pill, Segmented, TierBadge } from "../primitives";
 import { useGame } from "../state";
 import { PlayerChip } from "../PlayerChip";
 import { useMyWallets, useWorld } from "../useWorld";
@@ -19,6 +19,7 @@ export function DictionaryScreen() {
   const { state } = g;
   const [q, setQ] = useState("");
   const [tier, setTier] = useState<Tier | "All">("All");
+  const [claim, setClaim] = useState<"all" | "unclaimed" | "claimed">("all");
 
   const ownedSet = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
   const world = useWorld();
@@ -32,17 +33,24 @@ export function DictionaryScreen() {
   // revert (Bugbot on #120).
   const ownersKnown = !state.chainBacked || world.data?.live === true;
 
+  // Claimed = anyone's (yours included). Only filterable once the owners are known: before that an
+  // absent owner means "unknown", and "Unclaimed" would list words someone owns.
+  const claimFilter = ownersKnown ? claim : "all";
   const results = useMemo(() => {
     const needle = q.trim().toUpperCase();
     const out: string[] = [];
     for (const w of WORDS) {
       if (needle && !w.includes(needle)) continue;
       if (tier !== "All" && wordTier(w) !== tier) continue;
+      if (claimFilter !== "all") {
+        const claimed = ownedSet.has(w) || !!owners[w];
+        if ((claimFilter === "claimed") !== claimed) continue;
+      }
       out.push(w);
       if (out.length >= 80) break;
     }
     return out;
-  }, [q, tier]);
+  }, [q, tier, claimFilter, owners, ownedSet]);
 
   return (
     <div className="space-y-3">
@@ -59,6 +67,18 @@ export function DictionaryScreen() {
         onChange={(e) => setQ(e.target.value)}
         placeholder="search the dictionary…"
         className="w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 font-display text-sm font-bold placeholder:font-body placeholder:font-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
+      />
+
+      <Segmented
+        className="w-full sm:w-96"
+        value={claimFilter}
+        onChange={setClaim}
+        options={[
+          { value: "all", label: "All" },
+          // No counts here: they wrap on a phone, and the line above already counts the claimed.
+          { value: "unclaimed", label: "Unclaimed", disabled: !ownersKnown },
+          { value: "claimed", label: "Claimed", disabled: !ownersKnown },
+        ]}
       />
 
       <div className="flex flex-wrap gap-1.5">
