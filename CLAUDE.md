@@ -49,6 +49,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   before revealing (`src/lib/keeper/answerSchedule.ts`), so a wrong seed or a re-vendored dictionary
   stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
+  Pull main first: a stale checkout stops at its own last migration. Jake runs production migrations.
+- **Redeploying production after a Vercel setting changes:** merge a PR to main (every merge builds;
+  `vercel.json` skips nothing). The dashboard's Redeploy hasn't worked for the owner, and this Mac
+  has no Vercel CLI. Check the result at `/api/profile/config` and similar switch endpoints.
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
