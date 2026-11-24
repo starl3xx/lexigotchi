@@ -18,13 +18,6 @@ on:
   deployment_status:
   workflow_dispatch:
 
-# One run at a time: two overlapping runs could both read a note before either labels it, and post
-# it twice (Bugbot on #152). A newer run replacing a waiting one loses nothing, because every run
-# posts all live, unposted notes.
-concurrency:
-  group: beta-updates
-  cancel-in-progress: false
-
 permissions:
   contents: read
   pull-requests: write
@@ -36,6 +29,14 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
     runs-on: ubuntu-latest
+    # One posting run at a time: two overlapping runs could both read a note before either labels it,
+    # and post it twice (Bugbot on #152). On the JOB, so only runs that passed the Production-success
+    # check above queue here; a Preview or failed deploy event is skipped before it can take a queued
+    # run's place. A newer posting run replacing a waiting one loses nothing: every run posts all
+    # live, unposted notes.
+    concurrency:
+      group: beta-updates
+      cancel-in-progress: false
     steps:
       - uses: actions/github-script@v7
         env:
