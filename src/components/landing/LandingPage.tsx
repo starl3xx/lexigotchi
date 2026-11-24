@@ -54,7 +54,7 @@ const GRAILS = LETTERS_BY_FREQUENCY.slice(-4).reverse();
 const BTN =
   "inline-flex select-none items-center justify-center gap-2 rounded-xl border-[3px] border-ink font-display font-extrabold " +
   // The game's shared hover-lift and press (globals.css, .press), so the site and the game click alike.
-  "press shadow-[3px_3px_0_#1b1714] [--sh:3px] " +
+  "press [--sh:3px] [box-shadow:3px_3px_0_#1b1714] " +
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-candy";
 
 function PlayButton({ size = "md", tone = "candy" }: { size?: "md" | "lg"; tone?: "candy" | "gold" }) {

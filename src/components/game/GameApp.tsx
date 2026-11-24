@@ -283,7 +283,8 @@ function TopBar() {
       onClick={() => openSheet({ kind: "cheatsheet" })}
       title="Cheat sheet: how to play"
       aria-label="Open the cheat sheet"
-      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
+      // Phones only: on desktop the rail's "Cheat sheet" is the same thing (starl3xx, 2026-11-24).
+      className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card md:hidden"
     >
       <Question weight="bold" size={15} />
     </button>
@@ -318,14 +319,14 @@ function TopBar() {
           onClick={() => openSheet({ kind: "balance" })}
           title="Your $WORD: view your balance and buy more"
           aria-label="Your $WORD balance: open your wallet"
-          className="round-btn rounded-full border-2 border-ink bg-card px-2.5 py-1 text-right tabular-nums leading-none"
+          className="round-btn rounded-full border-2 border-ink bg-card px-3.5 py-1.5 text-right tabular-nums leading-none"
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
           <div className="font-display text-sm font-extrabold">
             {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
-          <div className="whitespace-nowrap text-[9px] text-ink/60">
+          <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/60">
             {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
           </div>
         </button>
@@ -358,7 +359,7 @@ function ViewerChip() {
   const me = resolveIdentity(v, p.profile);
   const { openSheet } = useGame();
   if (v.environment === "loading") {
-    return <span className="h-7 w-7 animate-pulse rounded-full border-2 border-ink bg-paper-dark" />;
+    return <span className="h-8 w-8 animate-pulse rounded-full border-2 border-ink bg-paper-dark" />;
   }
   return (
     <button
@@ -369,10 +370,10 @@ function ViewerChip() {
     >
       {me.pfpUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={me.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
+        <img src={me.pfpUrl} alt="" className="h-8 w-8 rounded-full border-2 border-ink object-cover" />
       ) : (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
-          <Smiley weight="fill" size={15} />
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
+          <Smiley weight="fill" size={17} />
         </span>
       )}
     </button>
