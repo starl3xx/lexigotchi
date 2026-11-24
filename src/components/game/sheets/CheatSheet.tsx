@@ -50,7 +50,8 @@ export function CheatSheet() {
           {profilesEnabled && (
             <li>
               <strong>Play with more than one wallet?</strong> Link them in your profile: one bag and one free
-              letter a day between them, and you can move letters from one to another.
+              letter a day between them. Your letters live onchain in each wallet, so choose one game wallet and
+              keep everything there.
             </li>
           )}
         </Step>

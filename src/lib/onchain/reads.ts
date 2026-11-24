@@ -181,6 +181,30 @@ export async function readLetterCounts(player: `0x${string}`): Promise<number[]>
 }
 
 /**
+ * Each wallet's loose letters (52 counts) and $WORD (raw, 18 decimals), in one multicall: the game
+ * wallet's view of where a player's things are (Move here, the game wallet notices).
+ */
+export async function readWalletBalances(
+  wallets: readonly `0x${string}`[],
+): Promise<Record<string, { letters: number[]; word: bigint }>> {
+  if (wallets.length === 0) return {};
+  const letters = addressOf("letters");
+  const token = wordTokenAddress();
+  const r = (await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: wallets.flatMap((w) => [
+      { address: letters, abi: lettersAbi, functionName: "balanceOfBatch" as const, args: [LETTER_IDS.map(() => w), LETTER_IDS] },
+      { address: token, abi: erc20Abi, functionName: "balanceOf" as const, args: [w] },
+    ]),
+  })) as unknown[];
+  const out: Record<string, { letters: number[]; word: bigint }> = {};
+  wallets.forEach((w, i) => {
+    out[w.toLowerCase()] = { letters: (r[2 * i] as bigint[]).map(Number), word: r[2 * i + 1] as bigint };
+  });
+  return out;
+}
+
+/**
  * The lowercase letters among `letterIndexes` with an unrevealed roll for `owner`. A loose roll
  * re-checks at reveal that its owner still holds the letter, so moving it away first would turn a
  * signed success into a no-op (the fee spent, no upgrade): Move waits for these.

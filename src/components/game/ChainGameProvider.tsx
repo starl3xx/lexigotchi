@@ -49,6 +49,7 @@ import {
   readOwnedWords,
   readLetterCounts,
   readOpenRolls,
+  readWalletBalances,
   readPity,
   readPendingCommits,
   readDayState,
@@ -1063,7 +1064,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ), false);
       },
 
-      moveToWallet: (to: string) =>
+      moveToWallet: (to: string, opts?: { includeWord?: boolean }) =>
         track<MoveOutcome>(`Moving to ${to.slice(0, 6)}…${to.slice(-4)}`, async (run) => {
           if (!address) return "no_wallet";
           const from = address.toLowerCase() as `0x${string}`;
@@ -1083,8 +1084,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return "failed";
           }
           // What this wallet holds now, from the chain (the bag on screen may be a minute old).
-          const [counts, held] = await Promise.all([readLetterCounts(from), readOwnedWords(from)]);
-          const plan = movePlan(counts, held);
+          const [counts, held, balances] = await Promise.all([
+            readLetterCounts(from),
+            readOwnedWords(from),
+            opts?.includeWord ? readWalletBalances([from]) : Promise.resolve(null),
+          ]);
+          // $WORD only when the player ticked it: all of it, read now (it pays for everything).
+          const plan = movePlan(counts, held, balances?.[from]?.word ?? 0n);
           if (planIsEmpty(plan)) {
             toast(plan.staked ? "Only staked words here, and they stay staked" : "Nothing here to move", "info");
             return "empty";

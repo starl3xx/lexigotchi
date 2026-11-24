@@ -71,6 +71,13 @@
       "when": 1795639776169,
       "tag": "0009_wallet_link_source",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795726176169,
+      "tag": "0010_game_wallets",
+      "breakpoints": true
     }
   ]
 }
