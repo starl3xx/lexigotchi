@@ -7,6 +7,32 @@ import { getDb } from "@/lib/db/client";
 import { swapOrders } from "@/lib/db/schema";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { SEAPORT, seaportAbi, orderComponentsArg, type LetterSwapOrder } from "@/lib/onchain/seaport";
+import { addressOf } from "@/lib/onchain/addresses";
+import { erc1155ApprovalAbi, lettersAbi } from "@/lib/onchain/abis";
+import { playerFaces } from "@/lib/profile/faces";
+import type { PublicFace } from "@/lib/profile/rules";
+
+/** Makers' faces, kept a few minutes: the board polls every 15 s while it's on screen. */
+const FACE_TTL_MS = 5 * 60_000;
+const faceCache = new Map<string, { at: number; face: PublicFace | null }>();
+async function makerFaces(makers: readonly string[]): Promise<Record<string, PublicFace>> {
+  const now = Date.now();
+  const missing = makers.filter((m) => (faceCache.get(m)?.at ?? 0) < now - FACE_TTL_MS);
+  if (missing.length > 0) {
+    try {
+      const { profiles } = await playerFaces(missing);
+      for (const m of missing) faceCache.set(m, { at: now, face: profiles[m] ?? null });
+    } catch {
+      /* faceless rows still trade */
+    }
+  }
+  const out: Record<string, PublicFace> = {};
+  for (const m of makers) {
+    const f = faceCache.get(m)?.face;
+    if (f) out[m] = f;
+  }
+  return out;
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +46,11 @@ export const runtime = "nodejs";
  * never the truth about validity.
  *
  * GET — open orders. Every row is checked against Seaport.getOrderStatus in one multicall and
- * anything filled/cancelled/expired is dropped (and pruned) — the chain arbitrates, we serve.
+ * anything filled/cancelled/expired is dropped (and pruned) — the chain arbitrates, we serve. An
+ * order the maker can't currently honor is HIDDEN, not pruned: the maker no longer holds the letter
+ * (they moved it to another wallet, spelled it, or traded it), revoked Seaport's approval, or bumped
+ * their Seaport counter. The first two can come back, so the row stays. Each maker comes with the
+ * face of their profile (lib/profile/faces.ts), so the board shows players, not addresses.
  */
 export async function POST(req: Request) {
   if (!(await allow("record-add", clientIp(req)))) {
@@ -77,15 +107,42 @@ export async function GET(req: Request) {
   try {
     const db = getDb();
     const rows = await db.select().from(swapOrders).limit(200);
-    if (rows.length === 0) return NextResponse.json({ ok: true, orders: [] });
+    if (rows.length === 0) return NextResponse.json({ ok: true, orders: [], profiles: {} });
 
-    const status = (await getPublicClient().multicall({
-      allowFailure: false,
-      contracts: rows.map((r) => ({
-        address: SEAPORT, abi: seaportAbi, functionName: "getOrderStatus" as const,
-        args: [r.orderHash as `0x${string}`],
-      })),
-    })) as unknown as readonly [boolean, boolean, bigint, bigint][];
+    const letters = addressOf("letters");
+    const makers = [...new Set(rows.map((r) => r.maker))];
+    const client = getPublicClient();
+    const [status, held, approved, counters] = await Promise.all([
+      client.multicall({
+        allowFailure: false,
+        contracts: rows.map((r) => ({
+          address: SEAPORT, abi: seaportAbi, functionName: "getOrderStatus" as const,
+          args: [r.orderHash as `0x${string}`],
+        })),
+      }) as unknown as Promise<readonly [boolean, boolean, bigint, bigint][]>,
+      client.multicall({
+        allowFailure: false,
+        contracts: rows.map((r) => ({
+          address: letters, abi: lettersAbi, functionName: "balanceOf" as const,
+          args: [r.maker as `0x${string}`, BigInt(r.giveId)],
+        })),
+      }) as unknown as Promise<readonly bigint[]>,
+      client.multicall({
+        allowFailure: false,
+        contracts: makers.map((m) => ({
+          address: letters, abi: erc1155ApprovalAbi, functionName: "isApprovedForAll" as const,
+          args: [m as `0x${string}`, SEAPORT],
+        })),
+      }) as unknown as Promise<readonly boolean[]>,
+      client.multicall({
+        allowFailure: false,
+        contracts: makers.map((m) => ({
+          address: SEAPORT, abi: seaportAbi, functionName: "getCounter" as const, args: [m as `0x${string}`],
+        })),
+      }) as unknown as Promise<readonly bigint[]>,
+    ]);
+    const approvedBy = new Map(makers.map((m, i) => [m, approved[i]]));
+    const counterOf = new Map(makers.map((m, i) => [m, counters[i]]));
 
     const now = Math.floor(Date.now() / 1000);
     const open: typeof rows = [];
@@ -93,15 +150,19 @@ export async function GET(req: Request) {
       const [, cancelled, filled] = status[i];
       const o = JSON.parse(rows[i].orderJson) as LetterSwapOrder;
       const expired = Number(o.endTime) <= now;
-      if (cancelled || filled > 0n || expired) {
+      // A counter bump cancels every order the maker signed before it, for good.
+      const superseded = counterOf.get(rows[i].maker) !== BigInt(o.counter);
+      if (cancelled || filled > 0n || expired || superseded) {
         // spent — prune so the board stays small (the chain remains the record)
         await db.delete(swapOrders).where(eq(swapOrders.id, rows[i].id));
-      } else {
+      } else if (held[i] > 0n && approvedBy.get(rows[i].maker)) {
         open.push(rows[i]);
       }
+      // else: can't fill right now (letter gone, approval revoked): hidden, kept
     }
     return NextResponse.json({
       ok: true,
+      profiles: await makerFaces([...new Set(open.map((r) => r.maker))]),
       orders: open.map((r) => ({
         maker: r.maker, giveId: r.giveId, wantId: r.wantId,
         order: JSON.parse(r.orderJson), signature: r.signature, orderHash: r.orderHash,

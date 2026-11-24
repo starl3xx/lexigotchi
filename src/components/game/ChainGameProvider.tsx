@@ -62,7 +62,7 @@ import {
 } from "@/lib/onchain/reads";
 import { dailyKeysFor } from "@/lib/onchain/verifications";
 import { usePublicProfile } from "./useProfile";
-import { bagWalletsOf, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
+import { unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
 import { erc1155ApprovalAbi } from "@/lib/onchain/abis";
@@ -100,6 +100,8 @@ import type { Call } from "@/lib/onchain/sendCalls";
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
+import type { PublicFace } from "@/lib/profile/rules";
+import { usePlayerWallets } from "./usePlayerWallets";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 
@@ -207,12 +209,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // account. Words and letter counts union for display; spending stays with the connected wallet
   // (the contracts act on msg.sender, full stop) — `mine` on each word carries the difference.
   const viewer = useViewer();
-  // …plus every wallet linked into the player's account (Link another wallet; public like X).
-  const accountWalletList = usePublicProfile().profile?.wallets;
-  const bagWallets = useMemo(
-    () => bagWalletsOf(address, [...(viewer.linkedWallets ?? []), ...(accountWalletList ?? [])]),
-    [address, viewer.linkedWallets, accountWalletList],
-  );
+  // …plus every wallet linked into the player's profile (usePlayerWallets: one list app-wide).
+  const bagWallets = usePlayerWallets();
   const bagKey = bagWallets.join(",");
 
   const wordsQ = useQuery({
@@ -377,9 +375,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       const res = await fetch("/api/swap/orders");
       const data = await res.json();
-      return data?.ok
-        ? (data.orders as { maker: string; giveId: number; wantId: number; order: LetterSwapOrder; signature: `0x${string}`; orderHash: string }[])
-        : [];
+      if (!data?.ok) return [];
+      // Each maker's profile face rides along (the route resolves it), so the board shows players.
+      const faces = (data.profiles ?? {}) as Record<string, PublicFace>;
+      return (data.orders as { maker: string; giveId: number; wantId: number; order: LetterSwapOrder; signature: `0x${string}`; orderHash: string }[]).map(
+        (o) => ({ ...o, face: faces[o.maker] }),
+      );
     },
     enabled: chain.deployed,
     staleTime: 15_000,
@@ -1152,7 +1153,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
 
-      swapBoard: (boardQ.data ?? []).map(({ maker, giveId, wantId, orderHash }) => ({ maker, giveId, wantId, orderHash })),
+      swapBoard: (boardQ.data ?? []).map(({ maker, giveId, wantId, orderHash, face }) => ({ maker, giveId, wantId, orderHash, face })),
 
       /**
        * List an offer: one-time Seaport approval if missing (a real tx), then a FREE EIP-712

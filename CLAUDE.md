@@ -128,7 +128,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   staked words stay; it waits while a loose roll on a moved letter is open (`readOpenRolls`). Account
   wide: the leaderboard sums an account into one row (`buildLeaderboards(…, accountOf)`), and
   reminders resolve by account (`loadLinkMap` reads every link once; `accountFidLookup`; the daily
-  cron uses `relatedDailyKeysMany`, the same walk the daily route refuses on).
+  cron uses `relatedDailyKeysMany`, the same walk the daily route refuses on). **"You" is the
+  player, everywhere** (starl3xx, 2026-11-24: "everything should be profile-based"): read
+  `usePlayerWallets()` (connected + Farcaster-verified + profile wallets) for any "yours", total, or
+  list; name a single wallet only for a verb only that wallet can do (sign, cancel, fill, move).
+  Server lists of players resolve faces with `playerFaces` (lib/profile/faces.ts).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

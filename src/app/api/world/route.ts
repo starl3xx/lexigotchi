@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { accountsOf, loadLinkMap } from "@/lib/db/walletLinks";
+import { loadLinkMap } from "@/lib/db/walletLinks";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { buildLeaderboards, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
-import { profilesByAddress } from "@/lib/neynar";
-import { publicProfileRows } from "@/lib/db/profiles";
-import { mergePublicFaces, type PublicFace } from "@/lib/profile/rules";
-import { profilesEnabled } from "@/lib/profile/session";
+import { type PublicFace } from "@/lib/profile/rules";
+import { playerFaces } from "@/lib/profile/faces";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,26 +41,9 @@ async function build(): Promise<WorldResponse> {
   for (const w of snap.words) owners[w.word] = w.owner;
   const shown = new Set<string>(Object.values(owners));
   for (const rows of Object.values(boards)) for (const r of rows) shown.add(r.address);
-  // Linked wallets (lib/db/walletLinks.ts) wear their account's face: its profile (X, chosen name),
-  // and its first wallet's Farcaster face when the wallet has none of its own. accountsOf never
-  // throws: without migration 0008 every wallet is its own account.
-  const accountFor = await accountsOf([...shown]);
-  const accounts = [...new Set(accountFor.values())];
-  const fcAll = await profilesByAddress([...new Set([...shown, ...accounts])]);
-  const farcaster: typeof fcAll = {};
-  for (const w of shown) {
-    const face = fcAll[w] ?? fcAll[accountFor.get(w) ?? w];
-    if (face) farcaster[w] = face;
-  }
-  // A wallet's chosen face (X or Farcaster) from its account's profile, when profiles are on and
-  // migrated. Any failure here falls back to Farcaster alone: the world must never fail on a profile read.
-  const accountRows = profilesEnabled() ? await publicProfileRows(accounts).catch(() => []) : [];
-  const rowByAccount = new Map(accountRows.map((r) => [r.address, r]));
-  const rows = [...shown].flatMap((w) => {
-    const r = rowByAccount.get(accountFor.get(w) ?? w);
-    return r ? [{ ...r, address: w }] : [];
-  });
-  const profiles = mergePublicFaces(farcaster, rows);
+  // Every wallet wears its account's face (lib/profile/faces.ts): the profile's X or chosen name,
+  // and the first wallet's Farcaster face when the wallet has none of its own.
+  const { profiles } = await playerFaces(shown);
   return { ok: true, live: true, at: Date.now(), owners, boards, profiles };
 }
 
