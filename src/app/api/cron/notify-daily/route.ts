@@ -6,7 +6,8 @@ import { sendNotification } from "@/lib/notify/send";
 import { sendWebPush, type WebPushResult } from "@/lib/notify/webPush";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
-import { xUserIdsFor } from "@/lib/db/profiles";
+import { emailRecipients, xUserIdsFor } from "@/lib/db/profiles";
+import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { profilesEnabled } from "@/lib/profile/session";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { maybeAddressOf } from "@/lib/onchain/addresses";
@@ -119,12 +120,39 @@ export async function GET(req: Request) {
       if (due.length > 0) browserResult = await sendWebPush(due, dailyReady(day));
     }
 
+    // ── Email ────────────────────────────────────────────────────────────────────────────────
+    // Players who confirmed an email and kept reminders on. Each reads its wallet's Coinbase and X
+    // slots, the latest pull deciding (one letter a day). Opted in, so Farcaster or a browser
+    // reaching the same player doesn't skip it. Any failure here leaves the other channels alone.
+    let emailTargets = 0;
+    let emailResult: { sent: number; failed: number } | undefined;
+    if (emailEnabled()) {
+      try {
+        const recips = await emailRecipients();
+        const xMap = recips.length ? await xUserIdsFor(recips.map((r) => r.address)) : new Map<string, string>();
+        const keysOf = (a: string) => {
+          const x = xMap.get(a);
+          return x ? [verifiedDailyKey(a), xDailyKey(x)] : [verifiedDailyKey(a)];
+        };
+        const uniqueKeys = [...new Set(recips.flatMap((r) => keysOf(r.address)))];
+        const used = await readDailyUsed(uniqueKeys);
+        const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
+        const due = recips.filter((r) => isDailyDue(Math.max(...keysOf(r.address).map((k) => usedByKey.get(k) ?? 0)), day));
+        emailTargets = due.length;
+        const messages = due.flatMap((r) => reminderEmail(r.email, r.address, dailyReady(day)) ?? []);
+        if (messages.length > 0) emailResult = await sendEmails(messages);
+      } catch (err) {
+        console.error("[cron/notify-daily] email pass failed:", String((err as Error)?.message ?? err).slice(0, 120));
+      }
+    }
+
     const summary = {
       ok: true,
       audience: fids.length,
       targets: targets.length,
       result,
       browsers: { subscriptions: subs.length, targets: browserTargets, result: browserResult },
+      email: { targets: emailTargets, result: emailResult },
     };
     console.log("[cron/notify-daily]", summary);
     return NextResponse.json(summary);

@@ -172,6 +172,12 @@ Two more notes come out when a switch flips, not with the launch PR:
   `X_CLIENT_ID` + `X_CLIENT_SECRET` in Vercel (profiles on first). Then the player docs gain X:
   `docs-site/letters.mdx` (the daily's unlock list, with the 90-day rule), `docs-site/faq.mdx`
   ("Do I need a Farcaster account?"), and the quickstart.
+- **Email reminders.** Turning it on needs a Resend account with a verified sending domain (DNS on
+  lexigotchi.fun or a subdomain), then `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_ENABLED=true` in
+  Vercel (profiles on first). The same PR changes the "no sign-up and no email" copy in
+  `src/components/LandingPage.tsx` and `docs-site/quickstart.mdx` to "email optional", amends
+  decisions.md #9, adds email to the reminders section of `docs-site/care.mdx`, and adds the email
+  to the privacy notes if there are any by then.
 - **Ascension.** The note at the top of `docs-site/ascension.mdx` and "It isn’t switched on yet" in
   the FAQ. They come out when `PRESTIGE_MAX_LEVEL` is raised above 0. If the fee, odds, or
   multipliers change from `params.ts` before then, update that page too.

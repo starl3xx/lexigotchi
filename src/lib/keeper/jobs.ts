@@ -40,6 +40,8 @@ import {
 import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
+import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
+import { emailRecipients } from "@/lib/db/profiles";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { storeEpochLeaves } from "@/lib/db/rewards";
 import { NETWORK } from "@/lib/onchain/network";
@@ -180,6 +182,8 @@ export function createKeeper(opts: { dry: boolean }) {
       const won = parseEventLogs({ abi: jackpotAbi, eventName: "JackpotWon", logs: logs as never })[0];
       if (!won) return; // rolled over — nobody to tell
       const { winner, amount } = won.args as unknown as { winner: string; amount: bigint };
+      // Email first and independently: a player who opted in hears about a win however else we reach them.
+      await notifyWinnerEmail(winner, jackpotWon(word, `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`));
 
       const profiles = await lookupProfiles(await notifiableFids());
       const fidOf = fidLookupFrom(profiles);
@@ -404,6 +408,50 @@ export function createKeeper(opts: { dry: boolean }) {
     const fidOf = fidLookupFrom(fids.length > 0 ? await lookupProfiles(fids) : []);
     await notifyHungerFarcaster(words, fids, fidOf);
     await notifyHungerBrowsers(words, subs, fidOf);
+    await notifyHungerEmail(words);
+  }
+
+  /**
+   * Email recipients among these wallets (confirmed address, reminders on), or none. Never throws:
+   * before migration 0006, or with email switched off, the other channels carry on as before.
+   */
+  async function emailRecipientsSafe(addresses: readonly string[]): Promise<{ address: string; email: string }[]> {
+    if (!process.env.DATABASE_URL || !emailEnabled() || addresses.length === 0) return [];
+    try {
+      return await emailRecipients(addresses);
+    } catch (err) {
+      console.error("notify (email): couldn't read recipients, skipping email:", err instanceof Error ? err.message : err);
+      return [];
+    }
+  }
+
+  /** The hunger warning by email, one message per wallet, for players who opted in. */
+  async function notifyHungerEmail(words: readonly KeeperWord[]) {
+    const targets = hungerTargetsByAddress(words);
+    const recips = await emailRecipientsSafe(targets.map((t) => t.address));
+    if (recips.length === 0) return;
+    const emailOf = new Map(recips.map((r) => [r.address, r.email]));
+    const messages = targets.flatMap((t) => {
+      const to = emailOf.get(t.address);
+      return (to && reminderEmail(to, t.address, hungerWarning(t.words, t.hoursLeft))) || [];
+    });
+    console.log(`notify (email): ${messages.length} wallet(s) to warn`);
+    if (DRY || messages.length === 0) return;
+    const res = await sendEmails(messages);
+    console.log(`  email: ${res.sent} sent, ${res.failed} failed`);
+  }
+
+  async function notifyWinnerEmail(winner: string, note: { title: string; body: string }) {
+    try {
+      const [r] = await emailRecipientsSafe([winner]);
+      const message = r && reminderEmail(r.email, r.address, note);
+      if (!message) return;
+      if (DRY) return void console.log("  [dry] would email the winner");
+      const res = await sendEmails([message]);
+      console.log(`resolve: winner ${res.sent ? "emailed" : "not emailed"}`);
+    } catch (err) {
+      console.error("resolve: winner email failed (payout unaffected):", err);
+    }
   }
 
   async function notifyHungerFarcaster(words: readonly KeeperWord[], fids: readonly number[], fidOf: FidLookup) {

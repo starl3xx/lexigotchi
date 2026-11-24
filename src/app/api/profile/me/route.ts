@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
 import { profilesByAddress } from "@/lib/neynar";
-import { getProfile, isMissingTable, setNameSource, toView } from "@/lib/db/profiles";
+import { getProfile, isMissingTable, setEmailReminders, setNameSource, toView } from "@/lib/db/profiles";
 import { isNameSource } from "@/lib/profile/rules";
 import { profilesEnabled, sessionAddress } from "@/lib/profile/session";
 
@@ -34,7 +34,20 @@ export async function PATCH(req: Request) {
   const address = sessionAddress(req);
   if (!address) return json({ ok: false, error: "no_session" }, 401);
   if (!(await allow("profile", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
-  const body = (await req.json().catch(() => null)) as { nameSource?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { nameSource?: unknown; emailReminders?: unknown } | null;
+  try {
+    // Email reminders on or off: only for a confirmed address.
+    if (body && "emailReminders" in body) {
+      if (typeof body.emailReminders !== "boolean") return json({ ok: false, error: "bad_request" }, 400);
+      const p = await getProfile(address);
+      if (!p?.emailVerifiedAt) return json({ ok: false, error: "no_email" }, 409);
+      await setEmailReminders(address, body.emailReminders);
+      return json({ ok: true, profile: toView(address, await getProfile(address)) });
+    }
+  } catch (err) {
+    if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
+    throw err;
+  }
   const source = body?.nameSource ?? null;
   if (source !== null && !isNameSource(source)) return json({ ok: false, error: "bad_source" }, 400);
   try {

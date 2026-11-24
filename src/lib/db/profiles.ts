@@ -2,9 +2,9 @@
  * Profile reads and writes (schema.ts `profiles`). Server-only. Every write here is made for a
  * wallet the caller has proven with a session (lib/profile/session.ts); these helpers don't check.
  */
-import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb } from "./client";
-import { profiles, xLinkStates, type Profile } from "./schema";
+import { emailCodes, profiles, xLinkStates, type Profile } from "./schema";
 import type { NameSource, ProfileView, PublicProfileRow, PublicProfileView } from "@/lib/profile/rules";
 
 /**
@@ -130,4 +130,74 @@ export async function xUserIdsFor(addresses: readonly string[]): Promise<Map<str
     .from(profiles)
     .where(inArray(profiles.address, list));
   return new Map(rows.filter((r) => r.xUserId).map((r) => [r.address, r.xUserId!]));
+}
+
+// ── email ────────────────────────────────────────────────────────────────────────────────────────
+
+/** Codes sent for this wallet since `since` (a cap on sends, with no rate-limit service needed). */
+export async function codesSentSince(address: string, since: Date): Promise<number> {
+  const rows = await getDb()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(emailCodes)
+    .where(and(eq(emailCodes.address, address.toLowerCase()), gt(emailCodes.createdAt, since)));
+  return rows[0]?.n ?? 0;
+}
+
+export async function createEmailCode(address: string, email: string, codeHash: string, ttlMs: number): Promise<void> {
+  await getDb().insert(emailCodes).values({ address: address.toLowerCase(), email, codeHash, expiresAt: new Date(Date.now() + ttlMs) });
+}
+
+/** The newest live code for this wallet and address, if any. */
+export async function liveEmailCode(address: string, email: string): Promise<{ id: number; codeHash: string; attempts: number } | null> {
+  const rows = await getDb()
+    .select({ id: emailCodes.id, codeHash: emailCodes.codeHash, attempts: emailCodes.attempts })
+    .from(emailCodes)
+    .where(and(eq(emailCodes.address, address.toLowerCase()), eq(emailCodes.email, email), isNull(emailCodes.usedAt), gt(emailCodes.expiresAt, sql`now()`)))
+    .orderBy(desc(emailCodes.id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function countCodeAttempt(id: number): Promise<void> {
+  await getDb().update(emailCodes).set({ attempts: sql`${emailCodes.attempts} + 1` }).where(eq(emailCodes.id, id));
+}
+
+/**
+ * Confirm the email for this wallet and turn reminders on (that is what it's for). Spends the code.
+ * One address per wallet and one wallet per address: "taken" if another wallet confirmed it.
+ */
+export async function confirmEmail(address: string, email: string, codeId: number): Promise<"ok" | "taken"> {
+  const a = address.toLowerCase();
+  try {
+    await getDb().transaction(async (tx) => {
+      await tx.update(emailCodes).set({ usedAt: sql`now()` }).where(eq(emailCodes.id, codeId));
+      const values = { email, emailVerifiedAt: new Date(), emailReminders: true };
+      await tx.insert(profiles).values({ address: a, ...values }).onConflictDoUpdate({ target: profiles.address, set: { ...values, updatedAt: sql`now()` } });
+    });
+    return "ok";
+  } catch (err) {
+    const e = err as { code?: string; cause?: { code?: string } };
+    if (e?.code === "23505" || e?.cause?.code === "23505") return "taken";
+    throw err;
+  }
+}
+
+export async function clearEmail(address: string): Promise<void> {
+  await getDb()
+    .update(profiles)
+    .set({ email: null, emailVerifiedAt: null, emailReminders: false, updatedAt: sql`now()` })
+    .where(eq(profiles.address, address.toLowerCase()));
+}
+
+export async function setEmailReminders(address: string, on: boolean): Promise<void> {
+  await getDb().update(profiles).set({ emailReminders: on, updatedAt: sql`now()` }).where(eq(profiles.address, address.toLowerCase()));
+}
+
+/** Wallets with a confirmed email and reminders on (all of them, or just these). Server-only. */
+export async function emailRecipients(addresses?: readonly string[]): Promise<{ address: string; email: string }[]> {
+  const base = and(eq(profiles.emailReminders, true), isNotNull(profiles.emailVerifiedAt), isNotNull(profiles.email));
+  const where = addresses ? and(base, inArray(profiles.address, [...new Set(addresses.map((x) => x.toLowerCase()))])) : base;
+  if (addresses && addresses.length === 0) return [];
+  const rows = await getDb().select({ address: profiles.address, email: profiles.email }).from(profiles).where(where);
+  return rows.filter((r): r is { address: string; email: string } => Boolean(r.email));
 }
