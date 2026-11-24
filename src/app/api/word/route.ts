@@ -24,7 +24,8 @@ export interface WordSummary {
   supply?: WordSupply;
   pool?: WordPool;
   lhaw?: { staked: number | null; burned: number | null };
-  holder?: { address: string; balance: number };
+  /** The player's $WORD: one wallet (`address`) or several summed (`addresses`); `wallets` counts those holding any. */
+  holder?: { address: string; balance: number; wallets?: number };
 }
 
 let cached: { at: number; body: WordSummary } | null = null;
@@ -76,21 +77,35 @@ export async function GET(req: Request) {
     };
   }
   const body: WordSummary = { ...cached.body };
-  const address = new URL(req.url).searchParams.get("address");
-  if (address && isAddress(address)) {
+  // One wallet (`address`), or every wallet of a player (`addresses`, comma-separated, at most 10):
+  // a player with linked wallets holds the sum.
+  const u = new URL(req.url).searchParams;
+  const address = u.get("address");
+  const list = [...new Set((u.get("addresses") ?? address ?? "").split(",").map((a) => a.trim().toLowerCase()))]
+    .filter((a) => isAddress(a, { strict: false }))
+    .slice(0, 10);
+  if (list.length > 0) {
     try {
-      const balance = await getMainnetClient().readContract({
-        address: WORD_TOKEN as `0x${string}`,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [getAddress(address)],
-      });
-      body.holder = { address: getAddress(address), balance: Number(balance / 10n ** 18n) };
+      const balances = (await getMainnetClient().multicall({
+        allowFailure: false,
+        contracts: list.map((a) => ({
+          address: WORD_TOKEN as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "balanceOf" as const,
+          args: [getAddress(a)],
+        })),
+      })) as bigint[];
+      const total = balances.reduce((a, b) => a + b, 0n);
+      body.holder = {
+        address: getAddress(list[0]),
+        balance: Number(total / 10n ** 18n),
+        wallets: balances.filter((b) => b > 0n).length,
+      };
     } catch {
       /* the page shows the rest */
     }
   }
   return NextResponse.json(body, {
-    headers: { "Cache-Control": address ? "private, no-store" : "public, s-maxage=60, stale-while-revalidate=120" },
+    headers: { "Cache-Control": list.length ? "private, no-store" : "public, s-maxage=60, stale-while-revalidate=120" },
   });
 }

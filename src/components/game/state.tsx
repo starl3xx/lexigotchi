@@ -539,6 +539,7 @@ export function reducer(s: GameState, a: Action): GameState {
 import type { ActionOutcome } from "@/lib/onchain/guardedAction";
 import type { Busy } from "@/lib/onchain/actionGate";
 import type { GameParams } from "@/lib/onchain/reads";
+import type { PublicFace } from "@/lib/profile/rules";
 export type { ActionOutcome };
 
 /** What a move did: sent, or why it didn't send. */
@@ -634,7 +635,8 @@ export interface GameApi {
   /** Claim every leaf in one send. Leaves pay their baked-in accounts, so this is union-safe. */
   claimEarnings: () => void;
   /** The letter-swap board (Seaport orders; chain only — the mock's swap is a share-toy). */
-  swapBoard: { maker: string; giveId: number; wantId: number; orderHash: string }[];
+  /** Open letter offers that can fill now; `face` is the maker's profile face, when it has one. */
+  swapBoard: { maker: string; giveId: number; wantId: number; orderHash: string; face?: PublicFace }[];
   /** Sign + list a 1⇄1 letter offer (approval batched in when missing). */
   createSwapOffer: (giveId: number, wantId: number) => void;
   fillSwapOffer: (orderHash: string) => void;

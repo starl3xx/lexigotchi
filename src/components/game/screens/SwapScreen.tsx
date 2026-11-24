@@ -8,6 +8,8 @@ import { ArrowsDownUp, ShareNetwork } from "../ui/icons";
 import { charToIdx, fmtWord, idxToChar, mineLower, mineUpper, useGame } from "../state";
 import { useShare } from "../useShare";
 import { useAccount } from "wagmi";
+import { PlayerChip } from "../PlayerChip";
+import { useMyWallets } from "../useWorld";
 
 const QUICK_WORD = [0, 500_000, 1_000_000, 2_500_000];
 
@@ -159,11 +161,20 @@ function ChainSwap() {
   // The board is every open offer, yours included (tagged, with cancel in place of Trade), so a
   // freshly listed offer shows where the player looks for it. It used to hide your own offers in a
   // separate card, and "0 open" read as the listing having failed (starl3xx, 2026-11-24).
+  //
+  // "Yours" is the PLAYER, not the wallet (starl3xx: "swap board should be profile-based"): an
+  // offer from any wallet in your profile is yours, never one to trade with. Only the wallet that
+  // signed an offer can cancel it, and only the connected wallet can fill one, so those two verbs
+  // still name the wallet when it isn't the connected one.
   const me = address?.toLowerCase();
-  const isMine = (o: { maker: string }) => o.maker === me;
+  const myWallets = useMyWallets();
+  const isMine = (o: { maker: string }) => myWallets.has(o.maker) || o.maker === me;
   const board = [...g.swapBoard].sort((a, b) => Number(isMine(b)) - Number(isMine(a)));
-  const canFill = (wantId: number) =>
-    (wantId >= 26 ? mineUpper(state)[wantId - 26] : mineLower(state)[wantId]) > 0;
+  const heldHere = (id: number) => (id >= 26 ? mineUpper(state)[id - 26] : mineLower(state)[id]) ?? 0;
+  const heldAnywhere = (id: number) => (id >= 26 ? state.upper[id - 26] : state.lower[id]) ?? 0;
+  const canFill = (wantId: number) => heldHere(wantId) > 0;
+  const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+  const elsewhere = (state.lower.reduce((a, b) => a + b, 0) + state.upper.reduce((a, b) => a + b, 0)) > mine.reduce((a, x) => a + x.c, 0);
 
   return (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
@@ -180,7 +191,13 @@ function ChainSwap() {
         <SectionTitle>Make an offer</SectionTitle>
         <div className="mb-1 text-xs font-bold text-ink/60">You give</div>
         <div className="flex flex-wrap gap-1.5">
-          {mine.length === 0 && <span className="text-sm text-ink/50">No spare letters in this wallet.</span>}
+          {mine.length === 0 && (
+            <span className="text-sm text-ink/50">
+              {elsewhere
+                ? "No letters in this wallet. Your other wallets hold some: switch to one, or move them here from your profile."
+                : "No spare letters in this wallet."}
+            </span>
+          )}
           {mine.map(({ i }) => (
             <LetterTile key={i} char={tile(i)} upper={isUpper(i)} size={38} onClick={() => setGive(i)} selected={give === i} />
           ))}
@@ -206,26 +223,44 @@ function ChainSwap() {
           <div className="space-y-2">
             {board.map((o) =>
               isMine(o) ? (
-                <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink bg-gold/10 px-3 py-2">
-                  <span className="flex items-center gap-2 text-sm">
+                <div key={o.orderHash} className="flex items-center justify-between gap-2 rounded-xl border-2 border-ink bg-gold/10 px-3 py-2">
+                  <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
                     <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
                     <span className="text-ink/50">for</span>
                     <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
                     <span className="rounded-full border-2 border-ink bg-card px-1.5 py-0.5 text-[10px] font-bold">Yours</span>
                   </span>
-                  <button onClick={() => g.cancelSwapOffer(o.orderHash)} className="text-xs font-bold text-ink/45 underline">
-                    Cancel
-                  </button>
+                  {o.maker === me ? (
+                    <button onClick={() => g.cancelSwapOffer(o.orderHash)} className="shrink-0 text-xs font-bold text-ink/45 underline">
+                      Cancel
+                    </button>
+                  ) : (
+                    <span className="shrink-0 text-right text-[11px] leading-tight text-ink/50">
+                      From {short(o.maker)}.
+                      <br />
+                      Switch to it to cancel.
+                    </span>
+                  )}
                 </div>
               ) : (
-                <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink bg-paper-dark/30 px-3 py-2">
-                  <span className="flex items-center gap-2 text-sm">
-                    <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
-                    <span className="text-ink/50">for your</span>
-                    <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
+                <div key={o.orderHash} className="flex items-center justify-between gap-2 rounded-xl border-2 border-ink bg-paper-dark/30 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 text-sm">
+                      <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
+                      <span className="text-ink/50">for your</span>
+                      <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
+                    </span>
+                    <span className="mt-1 block text-xs text-ink/60">
+                      <PlayerChip address={o.maker} profile={o.face} size={18} />
+                    </span>
+                    {!canFill(o.wantId) && heldAnywhere(o.wantId) > 0 && (
+                      <span className="mt-0.5 block text-[11px] text-ink/50">
+                        Another of your wallets holds it: switch to that wallet, or move it here.
+                      </span>
+                    )}
                   </span>
                   <Button variant="teal" disabled={!canFill(o.wantId)}
-                    title={canFill(o.wantId) ? "" : "You don’t hold the letter they want"}
+                    title={canFill(o.wantId) ? "" : heldAnywhere(o.wantId) > 0 ? "Another of your wallets holds it" : "You don’t hold the letter they want"}
                     onClick={() => g.fillSwapOffer(o.orderHash)}>
                     Trade
                   </Button>

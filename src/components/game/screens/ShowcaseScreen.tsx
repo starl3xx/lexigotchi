@@ -14,9 +14,8 @@ import { usePostToX, useShare } from "../useShare";
 import { showcasePostText, showcaseUrl, showcaseXText } from "@/lib/showcase";
 import { useEffect, useState as useState2 } from "react";
 import { useAccount } from "wagmi";
-import { useViewer } from "../useViewer";
 import { ACHIEVEMENT_META } from "@/lib/keeper/achievements";
-import { bagWalletsOf } from "@/lib/onchain/unionBag";
+import { usePlayerWallets } from "../usePlayerWallets";
 
 interface Slot {
   idx: number;
@@ -29,20 +28,20 @@ export function ShowcaseScreen() {
   const share = useShare();
   const postToX = usePostToX();
   const { address } = useAccount();
-  const viewer = useViewer();
   // On-chain badges (EAS attestations for the whole bag). Empty is a fine answer; the section
   // hides until something is earned.
   const [badges, setBadges] = useState2<{ achievement: number; value: number }[]>([]);
+  const playerWallets = usePlayerWallets();
   useEffect(() => {
     if (!state.chainBacked || !address) return;
-    const bag = bagWalletsOf(address, viewer.linkedWallets);
+    const bag = playerWallets; // every wallet of this player: Farcaster's and the profile's
     let dead = false;
     void fetch(`/api/achievements?wallets=${bag.join(",")}`)
       .then((r) => r.json())
       .then((d) => { if (!dead && d?.ok) setBadges(d.achievements); })
       .catch(() => {});
     return () => { dead = true; };
-  }, [state.chainBacked, address, viewer.linkedWallets]);
+  }, [state.chainBacked, address, playerWallets]);
   const [rack, setRack] = useState<Slot[]>([]); // start empty — the player arranges letters they own
 
   const showcaseText = rack.map((s) => (s.upper ? idxToChar(s.idx) : idxToChar(s.idx).toLowerCase())).join("");

@@ -19,6 +19,7 @@ import { DOCS_URL } from "@/lib/site";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { WORD_TOKEN } from "@/lib/wordStats";
 import type { WordSummary } from "@/app/api/word/route";
+import { usePlayerWallets } from "../usePlayerWallets";
 
 const BASESCAN = `https://basescan.org/token/${WORD_TOKEN}`;
 
@@ -46,10 +47,12 @@ export function WordScreen() {
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
+  // Every wallet of the player (usePlayerWallets), summed: linked wallets hold one player's $WORD.
+  const wallets = usePlayerWallets();
   const holderQ = useQuery({
-    queryKey: ["wordHolder", address ?? null],
-    queryFn: async () => ((await (await fetch(`/api/word?address=${address}`)).json()) as WordSummary).holder ?? null,
-    enabled: !!address,
+    queryKey: ["wordHolder", wallets.join(",")],
+    queryFn: async () => ((await (await fetch(`/api/word?addresses=${wallets.join(",")}`)).json()) as WordSummary).holder ?? null,
+    enabled: !!address && wallets.length > 0,
     staleTime: 30_000,
   });
   const d = q.data;
@@ -102,6 +105,7 @@ export function WordScreen() {
         {holder && (
           <p className="mt-3 text-sm">
             You hold <strong className="tabular-nums">{fmtWord(holder.balance)} $WORD</strong>
+            {(holder.wallets ?? 0) > 1 && <> across {holder.wallets} wallets</>}
             {d && d.price.usd > 0 && <span className="text-ink/60"> (about {fmtUsd0(holder.balance * d.price.usd)})</span>}.
           </p>
         )}
