@@ -12,6 +12,7 @@
  * whole window, not just the content column.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PRELAUNCH, DOCS_URL } from "@/lib/site";
 import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
@@ -176,10 +177,39 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
         {/* Sign In With Farcaster for web players. Listens for the event useViewer().signIn()
             fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
         <WebSignInHost />
+        <XReturnHost />
         {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
       </div>
     </IconContext.Provider>
   );
+}
+
+/**
+ * Back from X's consent page (/api/x/callback sends the web player to /play?x=linked|canceled|failed):
+ * say how it went, reopen the profile, and drop the parameter so a reload doesn't say it again.
+ */
+function XReturnHost() {
+  const { toast, openSheet } = useGame();
+  const qc = useQueryClient();
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const x = url.searchParams.get("x");
+    if (!x) return;
+    url.searchParams.delete("x");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    if (x === "linked") {
+      void qc.invalidateQueries({ queryKey: ["profileMe"] });
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+      void qc.invalidateQueries({ queryKey: ["world"] });
+      toast("X linked", "good");
+    } else if (x === "canceled") {
+      toast("X not linked: you canceled", "info");
+    } else {
+      toast("Couldn’t link X. Try again.", "bad");
+    }
+    openSheet({ kind: "profile" });
+  }, [openSheet, qc, toast]);
+  return null;
 }
 
 function Screen({ view }: { view: View }) {
