@@ -43,6 +43,13 @@
       "when": 1795277947613,
       "tag": "0005_letter_draws",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795488484673,
+      "tag": "0006_profiles",
+      "breakpoints": true
     }
   ]
 }

@@ -90,6 +90,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
   Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
   without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
+  **Profile** (`sheets/ProfileSheet.tsx`, opened by the header picture; the balance pill keeps
+  "Your $WORD"): linked accounts (Farcaster, Coinbase verification, X once switched on), the free
+  daily letter, and the name and picture, which come ONLY from a linked account (`useProfile`'s
+  `resolveIdentity`: the player's choice, else Farcaster, else X). Edits need a wallet session:
+  `lib/profile/session.ts` (a SIWE challenge with an HMAC nonce, checked for contract wallets too,
+  then a 30-day HMAC token in the `x-lexigotchi-session` header, never a cookie, because a host
+  frame drops third-party cookies), `/api/profile/{config,challenge,session,me}`, `lib/db/profiles.ts`
+  + tables `profiles`, `x_link_states`, `email_codes` (migration 0006). Dark until
+  `PROFILES_ENABLED=true` + `PROFILE_SESSION_SECRET` (32+ chars); a missing table answers
+  `not_configured`. The email is never public; no X token is kept.
 - **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
   served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
   while it can still be minted. A draw depends on which letters are uncapped, so without this a
