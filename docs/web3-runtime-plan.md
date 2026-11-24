@@ -163,7 +163,7 @@ the mainnet addresses, remove both, and consider adding the contract addresses t
 Two more notes come out when a switch flips, not with the launch PR:
 
 - **Reminders.** The note under "Reminders" in `docs-site/care.mdx` and the sentence "Reminders
-  switch on when the game launches" in the FAQ's hunger answer. They come out once web push
+  aren’t switched on yet" in the FAQ's hunger answer. They come out once web push
   (`WEB_PUSH_ENABLED`, the VAPID keys, migration 0003) and Farcaster notifications
   (`NOTIFICATIONS_ENABLED`) are on in production.
 - **Ascension.** The note at the top of `docs-site/ascension.mdx` and "It isn’t switched on yet" in
@@ -171,4 +171,7 @@ Two more notes come out when a switch flips, not with the launch PR:
   multipliers change from `params.ts` before then, update that page too.
 
 The docs' pictures (`docs-site/images/*.svg`) are drawn from the game's character rig and the fee
-splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either.
+splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either. The
+screenshots (`docs-site/images/screen-*.jpg`) come from `npm run docs:shots` against a practice-mode
+dev server (`scripts/docs-shots.mjs`); retake them after a visible change to Today, Bag, Showcase,
+Bounty, or the $WORD page, and at launch, when practice mode ends.

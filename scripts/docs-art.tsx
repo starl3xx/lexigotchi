@@ -69,12 +69,24 @@ interface Placed {
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** One character from the real rig, as a nested <svg> placed at (x, y). */
+let drawn = 0;
+
+/**
+ * One character from the real rig, as a nested <svg> placed at (x, y).
+ *
+ * Each character is rendered on its own, so React's useId gives every one the same ids (the eye
+ * clips). In one file, a url(#id) would then resolve to the FIRST character's clip, and a hungry
+ * word could borrow a full word's eyes. Every id gets a per-character prefix.
+ */
 function character(c: Ch, size: number): Placed {
   const html = renderToStaticMarkup(
     <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" />,
   );
-  const svg = html.match(/<svg[\s\S]*<\/svg>/)![0].replace(/ class="overflow-visible"/, ' overflow="visible"');
+  let svg = html.match(/<svg[\s\S]*<\/svg>/)![0].replace(/ class="overflow-visible"/, ' overflow="visible"');
+  const prefix = `c${drawn++}-`;
+  for (const id of new Set([...svg.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]))) {
+    svg = svg.split(`id="${id}"`).join(`id="${prefix}${id}"`).split(`#${id})`).join(`#${prefix}${id})`).split(`"#${id}"`).join(`"#${prefix}${id}"`);
+  }
   const w = Number(svg.match(/width="([\d.]+)"/)![1]);
   const h = Number(svg.match(/height="([\d.]+)"/)![1]);
   return { w, h, draw: (x, y) => svg.replace("<svg", `<svg x="${x.toFixed(1)}" y="${y.toFixed(1)}"`) };

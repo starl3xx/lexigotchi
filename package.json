@@ -30,7 +30,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "derive:abis": "tsx scripts/derive-abis.ts",
-    "docs:art": "tsx scripts/docs-art.tsx"
+    "docs:art": "tsx scripts/docs-art.tsx",
+    "docs:shots": "node scripts/docs-shots.mjs"
   },
   "dependencies": {
     "@base-org/account": "^2.5.10",
