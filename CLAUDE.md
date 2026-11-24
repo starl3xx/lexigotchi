@@ -112,7 +112,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   jackpot-win reminders go by email to opted-in wallets, each with RFC 8058 one-click unsubscribe
   (`/api/email/unsubscribe`, an HMAC of the wallet; GET shows a button, POST unsubscribes). The
   address is never public or logged. Dark until `EMAIL_ENABLED=true` + `RESEND_API_KEY` +
-  `EMAIL_FROM`; until then the player copy still says "no email" (switch-on changes it).
+  `EMAIL_FROM`. Switched on in production 2026-11-24 with profiles and X; the landing page reads
+  `xEnabled()`/`emailEnabled()` on the server, so its X door and "email optional" copy follow the
+  switches, while `docs-site/` describes them as on.
 - **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
   served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
   while it can still be minted. A draw depends on which letters are uncapped, so without this a
