@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { accountsOf } from "@/lib/db/walletLinks";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { buildLeaderboards, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
 import { profilesByAddress } from "@/lib/neynar";
@@ -41,10 +42,25 @@ async function build(): Promise<WorldResponse> {
   for (const w of snap.words) owners[w.word] = w.owner;
   const shown = new Set<string>(Object.values(owners));
   for (const rows of Object.values(boards)) for (const r of rows) shown.add(r.address);
-  const farcaster = await profilesByAddress([...shown]);
-  // A wallet's chosen face (X or Farcaster) from its profile, when profiles are on and migrated.
-  // Any failure here falls back to Farcaster alone: the world must never fail on a profile read.
-  const rows = profilesEnabled() ? await publicProfileRows([...shown]).catch(() => []) : [];
+  // Linked wallets (lib/db/walletLinks.ts) wear their account's face: its profile (X, chosen name),
+  // and its first wallet's Farcaster face when the wallet has none of its own. accountsOf never
+  // throws: without migration 0008 every wallet is its own account.
+  const accountFor = await accountsOf([...shown]);
+  const accounts = [...new Set(accountFor.values())];
+  const fcAll = await profilesByAddress([...new Set([...shown, ...accounts])]);
+  const farcaster: typeof fcAll = {};
+  for (const w of shown) {
+    const face = fcAll[w] ?? fcAll[accountFor.get(w) ?? w];
+    if (face) farcaster[w] = face;
+  }
+  // A wallet's chosen face (X or Farcaster) from its account's profile, when profiles are on and
+  // migrated. Any failure here falls back to Farcaster alone: the world must never fail on a profile read.
+  const accountRows = profilesEnabled() ? await publicProfileRows(accounts).catch(() => []) : [];
+  const rowByAccount = new Map(accountRows.map((r) => [r.address, r]));
+  const rows = [...shown].flatMap((w) => {
+    const r = rowByAccount.get(accountFor.get(w) ?? w);
+    return r ? [{ ...r, address: w }] : [];
+  });
   const profiles = mergePublicFaces(farcaster, rows);
   return { ok: true, live: true, at: Date.now(), owners, boards, profiles };
 }

@@ -111,6 +111,59 @@ export function checkChallenge(
   return { ok: true, address: getAddress(parsed.address) };
 }
 
+// ── the link message (Link another wallet) ─────────────────────────────────────────────────────
+/**
+ * What the joining wallet signs. Its own statement (never the sign-in one, so neither message passes
+ * for the other: a captured sign-in signature can't pull a wallet into someone's account), naming the
+ * account it joins, with the single-use link code as the nonce. ASCII only: some wallets reject
+ * anything else in a Sign-In with Ethereum statement.
+ */
+export function linkStatement(account: string): string {
+  return `Link this wallet to the Lexigotchi account ${getAddress(account)}: one bag, one profile, one free daily letter. It is free and sends no transaction.`;
+}
+
+export function linkMessage(opts: { address: string; account: string; code: string; domain: string; chainId: number; now?: number }): string {
+  const now = opts.now ?? Date.now();
+  return createSiweMessage({
+    address: getAddress(opts.address),
+    chainId: opts.chainId,
+    domain: opts.domain,
+    nonce: opts.code,
+    uri: `https://${opts.domain}`,
+    version: "1",
+    statement: linkStatement(opts.account),
+    issuedAt: new Date(now),
+    expirationTime: new Date(now + CHALLENGE_TTL_MS),
+  });
+}
+
+/**
+ * Is this a link message for our domain, fresh, and for `account`? Returns the joining wallet and the
+ * code. The code's account must be the statement's (the route looks it up), and the signature is
+ * checked separately (verifyWalletSignature).
+ */
+export function checkLinkMessage(
+  message: string,
+  domain: string,
+  now = Date.now(),
+): { ok: true; address: `0x${string}`; code: string; statement: string } | { ok: false; reason: string } {
+  let parsed: ReturnType<typeof parseSiweMessage>;
+  try {
+    parsed = parseSiweMessage(message);
+  } catch {
+    return { ok: false, reason: "bad_message" };
+  }
+  if (!parsed.address || !isAddress(parsed.address)) return { ok: false, reason: "bad_message" };
+  if (parsed.domain !== domain) return { ok: false, reason: "wrong_domain" };
+  if (!parsed.statement || parsed.statement === CHALLENGE_STATEMENT || !parsed.statement.startsWith("Link this wallet to the Lexigotchi account ")) {
+    return { ok: false, reason: "bad_message" };
+  }
+  if (!parsed.nonce || !/^[0-9a-f]{24}$/.test(parsed.nonce)) return { ok: false, reason: "bad_message" };
+  if (parsed.expirationTime && parsed.expirationTime.getTime() < now) return { ok: false, reason: "stale_or_forged" };
+  if (parsed.issuedAt && parsed.issuedAt.getTime() > now + CLOCK_SKEW_MS) return { ok: false, reason: "stale_or_forged" };
+  return { ok: true, address: getAddress(parsed.address), code: parsed.nonce, statement: parsed.statement };
+}
+
 /** Clients that can check a contract wallet's signature: the game's network, then Base mainnet. */
 export type SignatureClient = { verifyMessage: (a: { address: `0x${string}`; message: string; signature: Hex }) => Promise<boolean> };
 

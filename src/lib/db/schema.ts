@@ -251,6 +251,39 @@ export const xLinkStates = pgTable("x_link_states", {
 });
 
 /**
+ * Linked wallets: several wallets, one account (one bag, one profile, one free daily letter).
+ * The account is named by its first wallet (`account`), which has no row of its own; each other
+ * wallet has one row pointing at it. A wallet belongs to at most one account (the primary key).
+ * Letters and words stay in the wallet that holds them: only the connected wallet can act on its
+ * own (lib/onchain/unionBag.ts). Links are public, like a linked X account.
+ */
+export const walletLinks = pgTable(
+  "wallet_links",
+  {
+    /** The linked wallet, lowercase. */
+    address: text("address").primaryKey(),
+    /** The account's first wallet, lowercase. */
+    account: text("account").notNull(),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("wallet_links_account_idx").on(t.account)],
+);
+
+/**
+ * One "Link another wallet" attempt: a code made under the account's session, then signed (inside a
+ * Sign-In with Ethereum message that names the account) by the wallet joining. Kept on the server so
+ * the second wallet can sign anywhere: the same browser after a wallet switch, another device, or a
+ * Farcaster host. Single use and short-lived (`usedAt`, `expiresAt`).
+ */
+export const walletLinkCodes = pgTable("wallet_link_codes", {
+  code: text("code").primaryKey(),
+  account: text("account").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});
+
+/**
  * A 6-digit code sent to confirm an email address. Only the code's hash is stored. A code works
  * once, for a few minutes, with a capped number of tries.
  */

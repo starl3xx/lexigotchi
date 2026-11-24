@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { sessionAccountOf } from "@/lib/profile/account";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
-import { confirmEmail, countCodeAttempt, getProfile, isMissingTable, liveEmailCodes, toView } from "@/lib/db/profiles";
+import { confirmEmail, countCodeAttempt, getProfile, isMissingTable, liveEmailCodes, toView, accountView } from "@/lib/db/profiles";
 import { CODE_MAX_ATTEMPTS, codeMatches, emailEnabled, normalizeEmail } from "@/lib/notify/email";
-import { profileSecret, sessionAddress } from "@/lib/profile/session";
+import { profileSecret } from "@/lib/profile/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,7 +18,7 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 export async function POST(req: Request) {
   const secret = profileSecret();
   if (!emailEnabled() || !secret) return json({ ok: false, error: "disabled" }, 404);
-  const address = sessionAddress(req);
+  const address = await sessionAccountOf(req); // the profile is the account's (linked wallets)
   if (!address) return json({ ok: false, error: "no_session" }, 401);
   if (!(await allow("profile", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   const body = (await req.json().catch(() => null)) as { email?: unknown; code?: unknown } | null;
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "wrong_code", triesLeft }, 400);
     }
     if ((await confirmEmail(address, email, hit.id)) === "taken") return json({ ok: false, error: "email_taken" }, 409);
-    return json({ ok: true, profile: toView(address, await getProfile(address)) });
+    return json({ ok: true, profile: await accountView(address) });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
     throw err;

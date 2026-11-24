@@ -110,6 +110,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Farcaster host opened X in another browser), `/api/x/unlink`. One X account names one wallet: a
   new link moves it. `/api/world` merges each wallet's chosen face (`mergePublicFaces`). Dark until
   `X_CLIENT_ID` + `X_CLIENT_SECRET`; callbacks must match the console exactly (127.0.0.1 locally).
+  **Linked wallets** (`lib/db/walletLinks.ts`, tables `wallet_links` + `wallet_link_codes`, migration
+  0008): several wallets as one account, named by its first wallet (≤5). One bag, one profile (the
+  profile routes act on `sessionAccountOf`, the session wallet's account), one free daily letter
+  (`relatedDailyKeys` walks the account's wallets; the daily is always signed under a FID, X, or a
+  Coinbase-verified wallet's own key, so linking never adds a letter). Link: the account's session
+  makes a single-use code (`/api/profile/wallets/code`), the joining wallet signs a link message
+  naming the account with the code as its nonce (`…/message`, then `…/link`; a sign-in message never
+  passes for a link or the reverse). Refused: a wallet in another account or heading one, a full
+  account, a wallet with its own X or email (nothing is merged). Unlink (`DELETE /api/profile/wallets`)
+  waits for tomorrow on a day the account took its letter (`accountClaimedToday`, fails closed).
+  Links are public (the public view carries `wallets`), like X. Every read treats a missing table as
+  "no links". Letters stay in the wallet that holds them: only the connected wallet acts.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

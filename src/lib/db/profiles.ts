@@ -6,6 +6,7 @@ import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm"
 import { getDb } from "./client";
 import { emailCodes, profiles, xLinkStates, type Profile } from "./schema";
 import type { NameSource, ProfileView, PublicProfileRow, PublicProfileView } from "@/lib/profile/rules";
+import { accountWallets, walletsOfAccount } from "./walletLinks";
 
 /**
  * Postgres "relation does not exist": the owner hasn't applied migration 0006 yet. Drizzle wraps
@@ -27,6 +28,18 @@ export async function setNameSource(address: string, source: NameSource | null):
     .insert(profiles)
     .values({ address: a, nameSource: source })
     .onConflictDoUpdate({ target: profiles.address, set: { nameSource: source, updatedAt: sql`now()` } });
+}
+
+/** An account's own profile view (email included) with its wallets: what the profile routes return. */
+export async function accountView(account: string): Promise<ProfileView> {
+  const [p, wallets] = await Promise.all([getProfile(account), walletsOfAccount(account)]);
+  return { ...toView(account, p), account: account.toLowerCase(), wallets };
+}
+
+/** A wallet's public view, resolved to its account: the account's X and name, and its wallets. */
+export async function publicViewOf(address: string): Promise<PublicProfileView> {
+  const { account, wallets } = await accountWallets(address);
+  return { ...toPublicView(account, await getProfile(account)), address: address.toLowerCase(), account, wallets };
 }
 
 /** The public view: everything but the email. */
