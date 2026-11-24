@@ -10,6 +10,7 @@ import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
 import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
 import { getProfile } from "@/lib/db/profiles";
+import { claimDraw, readDraw } from "@/lib/db/draws";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { profilesEnabled } from "@/lib/profile/session";
 import { xEnabled } from "@/lib/profile/x";
@@ -126,6 +127,24 @@ export async function POST(req: Request) {
 
   const nextMidnight = (today + 1) * 86_400;
   const deadline = BigInt(Math.min(now + VOUCHER_TTL_SECONDS, nextMidnight - 1));
+
+  // An X-keyed voucher must leave a record BEFORE it's signed: the X account's unlink/move/replace
+  // guard (xKeyUsedToday) reads today's stored draw, and a voucher is spendable for ten minutes
+  // before the chain slot is. The bundle's sticky draw writes the same row, but it can be skipped or
+  // fail open, so for X it's written here and a failed write refuses (Bugbot on #138). Same seed,
+  // same letter, so the bundle and any later reveal agree with it.
+  if (xCounts && xUserId && !fid && key === xDailyKey(xUserId)) {
+    try {
+      const drawKey = `d:${key}:${today}`;
+      if (!(await readDraw(NETWORK.id, drawKey))) {
+        const { available } = await readLetterSupply();
+        await claimDraw(NETWORK.id, drawKey, drawLetters(dailySeed(key, today), 1, available, "daily"));
+      }
+    } catch (err) {
+      console.error("[free-daily] couldn't record the X daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+      return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
+    }
+  }
 
   const signature = await signDigest(
     freeDailyDigest({ letters, buyer: wallet as `0x${string}`, fid: key, today, deadline }),
