@@ -41,6 +41,7 @@ const LINK_ERRORS: Record<string, string> = {
   bad_signature: "The signature didn’t match this wallet. Try again.",
   claimed_today: "This account took today’s free letter, so its wallets stay together until tomorrow (UTC).",
   first_wallet: "The account’s first wallet can’t leave. Unlink the others instead.",
+  farcaster_wallet: "This wallet joined through your Farcaster account. Remove its verification in Farcaster to take it out.",
   no_session: "Sign in with your wallet first.",
   rejected: "Not linked: you declined in your wallet.",
   not_configured: "Linking wallets isn’t switched on yet.",
@@ -69,6 +70,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
   const address = p.address;
   const wallets = p.profile?.wallets?.length ? p.profile.wallets : address ? [address] : [];
   const account = p.profile?.account ?? address ?? null;
+  // Wallets your Farcaster account verified join on their own (lib/profile/farcasterWallets.ts).
+  const viaFarcaster = new Set(p.profile?.viaFarcaster ?? []);
   const [pending, setPending] = useState<PendingLink | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
@@ -271,7 +274,13 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="font-mono text-sm">{short(w)}</div>
                 <div className="text-xs text-ink/55">
-                  {isHere ? "Connected now" : w === account && wallets.length > 1 ? "First wallet" : "Linked"}
+                  {isHere
+                    ? "Connected now"
+                    : w === account && wallets.length > 1
+                      ? "First wallet"
+                      : viaFarcaster.has(w)
+                        ? "Via Farcaster"
+                        : "Linked"}
                   {h && <> · {holdingsText(h)}</>}
                 </div>
                 {!isHere && movable(h) > 0 && (
@@ -280,7 +289,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                   </div>
                 )}
               </div>
-              {wallets.length > 1 && w !== account && (
+              {wallets.length > 1 && w !== account && !viaFarcaster.has(w) && (
                 <button onClick={() => void unlink(w)} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
                   Unlink
                 </button>
@@ -380,6 +389,11 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             </p>
           </div>
         )
+      )}
+      {viaFarcaster.size > 0 && (
+        <p className="mt-2 text-[11px] leading-snug text-ink/55">
+          Wallets your Farcaster account verified join on their own. To take one out, remove its verification in Farcaster.
+        </p>
       )}
       {wallets.length > 1 && (
         <p className="mt-2 flex items-center gap-1 text-xs text-ink/55">

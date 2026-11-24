@@ -1,0 +1,231 @@
+/**
+ * Farcaster wallets join the profile (starl3xx, 2026-11-24: "no matter how they first sign in,
+ * their profile is built from that"). Server-only.
+ *
+ * A wallet joins an account automatically when ONE Farcaster account verified both it and a wallet
+ * the account already has as its first wallet or by signature (Link another wallet). Farcaster's
+ * verifications are the proof: each verified wallet signed "I am this FID". Two rules keep that
+ * proof honest:
+ * - No chaining: a wallet that joined through Farcaster never vouches for another. Only the first
+ *   wallet and signature links ("seeds") do.
+ * - No merging accounts: a wallet already in another account, heading one, or with its own X or
+ *   email stays where it is (the same refusals as Link another wallet).
+ * A Farcaster link leaves when its FID's verification of it (or of every seed) is gone, but only on
+ * a POSITIVE answer from Farcaster about that FID (an outage must never empty an account), and never
+ * on a day the account took its free letter (the same hold as Unlink).
+ *
+ * Adopted wallets are ordinary `wallet_links` rows (via "farcaster", with the vouching FID), so the
+ * bag, the leaderboard, reminders, Move here, and the swap board all count them with no new lookups.
+ */
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { getDb } from "@/lib/db/client";
+import { profiles, walletLinks } from "@/lib/db/schema";
+import { MAX_ACCOUNT_WALLETS, accountOf } from "@/lib/db/walletLinks";
+import { fidsByAddresses, lookupProfiles } from "@/lib/neynar";
+import { accountClaimedToday } from "@/lib/onchain/dailyIdentity";
+
+export interface LinkRowFull {
+  address: string;
+  account: string;
+  via: string;
+  fid: number | null;
+}
+
+export type SkipReason = "linked_elsewhere" | "has_wallets" | "has_profile" | "too_many";
+
+export interface FarcasterPlan {
+  adopt: { address: string; fid: number }[];
+  prune: string[];
+  skipped: { address: string; reason: SkipReason }[];
+}
+
+const lower = (a: string) => a.toLowerCase();
+
+/** Pure: what to adopt, prune, and skip for `account`. Exported for tests. */
+export function planFarcasterWallets(input: {
+  account: string;
+  /** Every link row whose address OR account is the account or a candidate. */
+  rows: readonly LinkRowFull[];
+  /** POSITIVE answers only: FID → the wallets it verified (lowercase). A FID missing here is unknown. */
+  fidWallets: ReadonlyMap<number, readonly string[]>;
+  /** Candidate wallets with their own X link or confirmed email. */
+  hasOwnProfile: ReadonlySet<string>;
+  /** Skip the prune pass (the account took today's letter, or that couldn't be checked). */
+  holdPrune?: boolean;
+  max?: number;
+}): FarcasterPlan {
+  const A = lower(input.account);
+  const max = input.max ?? MAX_ACCOUNT_WALLETS;
+  const mine = input.rows.filter((r) => lower(r.account) === A);
+  const members = new Set([A, ...mine.map((r) => lower(r.address))]);
+  const seeds = [A, ...mine.filter((r) => r.via !== "farcaster").map((r) => lower(r.address))];
+  const vouches = (fid: number) => (input.fidWallets.get(fid) ?? []).some((w) => seeds.includes(lower(w)));
+
+  // Prune: a Farcaster link whose FID answered, and no longer verifies it or any seed.
+  const prune: string[] = [];
+  if (!input.holdPrune) {
+    for (const r of mine) {
+      if (r.via !== "farcaster" || r.fid === null || !input.fidWallets.has(r.fid)) continue;
+      const verified = (input.fidWallets.get(r.fid) ?? []).map(lower);
+      if (!verified.includes(lower(r.address)) || !vouches(r.fid)) prune.push(lower(r.address));
+    }
+  }
+
+  // Adopt: every wallet a vouching FID verified, in a fixed order (FID, then Farcaster's order).
+  const adopt: FarcasterPlan["adopt"] = [];
+  const skipped: FarcasterPlan["skipped"] = [];
+  let size = members.size - prune.length;
+  const seen = new Set<string>();
+  const fids = [...input.fidWallets.keys()].filter(vouches).sort((a, b) => a - b);
+  for (const fid of fids) {
+    for (const raw of input.fidWallets.get(fid) ?? []) {
+      const w = lower(raw);
+      if (members.has(w) || seen.has(w)) continue;
+      seen.add(w);
+      const row = input.rows.find((r) => lower(r.address) === w);
+      if (row && lower(row.account) !== A) skipped.push({ address: w, reason: "linked_elsewhere" });
+      else if (input.rows.some((r) => lower(r.account) === w)) skipped.push({ address: w, reason: "has_wallets" });
+      else if (input.hasOwnProfile.has(w)) skipped.push({ address: w, reason: "has_profile" });
+      else if (size >= max) skipped.push({ address: w, reason: "too_many" });
+      else {
+        adopt.push({ address: w, fid });
+        size++;
+      }
+    }
+  }
+  return { adopt, prune, skipped };
+}
+
+/**
+ * Pure: which account a Farcaster sign-in (no wallet signature) builds on, by a rule that never
+ * depends on who asks, so two devices syncing at once agree: an account one of the FID's wallets is
+ * already in (the lowest, if several), else the one wallet with its own profile, else the lowest
+ * verified wallet. Exported for tests.
+ */
+export function chooseAccountForFid(
+  verified: readonly string[],
+  rows: readonly LinkRowFull[],
+  hasOwnProfile: ReadonlySet<string>,
+): string | null {
+  const ws = [...new Set(verified.map(lower))].sort();
+  if (ws.length === 0) return null;
+  const accounts = new Set<string>();
+  for (const w of ws) {
+    const row = rows.find((r) => lower(r.address) === w);
+    if (row) accounts.add(lower(row.account));
+    if (rows.some((r) => lower(r.account) === w)) accounts.add(w);
+  }
+  if (accounts.size > 0) return [...accounts].sort()[0];
+  const withProfile = ws.filter((w) => hasOwnProfile.has(w));
+  return withProfile[0] ?? ws[0];
+}
+
+// ── database ─────────────────────────────────────────────────────────────────────────────────────
+
+type Db = ReturnType<typeof getDb>;
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+/** Every link row touching these wallets (as the wallet or as the account). Throws before 0009. */
+async function rowsTouching(db: Db | Tx, wallets: readonly string[]): Promise<LinkRowFull[]> {
+  const list = [...new Set(wallets.map(lower))];
+  if (list.length === 0) return [];
+  return db
+    .select({ address: walletLinks.address, account: walletLinks.account, via: walletLinks.via, fid: walletLinks.fid })
+    .from(walletLinks)
+    .where(or(inArray(walletLinks.address, list), inArray(walletLinks.account, list)));
+}
+
+/** Wallets among these with their own X link or confirmed email (they never merge automatically). */
+async function withOwnProfile(db: Db | Tx, wallets: readonly string[]): Promise<Set<string>> {
+  const list = [...new Set(wallets.map(lower))];
+  if (list.length === 0) return new Set();
+  const rows = await db
+    .select({ address: profiles.address })
+    .from(profiles)
+    .where(and(inArray(profiles.address, list), or(isNotNull(profiles.xUserId), isNotNull(profiles.emailVerifiedAt))));
+  return new Set(rows.map((r) => r.address));
+}
+
+export interface SyncResult {
+  account: string;
+  adopted: string[];
+  pruned: string[];
+  skipped: FarcasterPlan["skipped"];
+}
+
+/**
+ * Bring an account's Farcaster wallets up to date. Start from a wallet the player signed in with
+ * (`wallet`: its account), or from a Farcaster sign-in (`fid`: the account chosen by
+ * chooseAccountForFid). Returns null when there is nothing to work on (no links table columns yet,
+ * Farcaster unreachable, or no verified wallets).
+ */
+export async function syncFarcasterWallets(opts: { wallet?: string; fid?: number }): Promise<SyncResult | null> {
+  const db = getDb();
+  try {
+    // 1. The account.
+    let account: string | null = null;
+    if (opts.wallet) account = await accountOf(opts.wallet);
+    else if (opts.fid) {
+      const [p] = await lookupProfiles([opts.fid]);
+      const verified = p?.verifiedWallets ?? [];
+      if (verified.length === 0) return null;
+      const touching = await rowsTouching(db, verified);
+      account = chooseAccountForFid(verified, touching, await withOwnProfile(db, verified));
+    }
+    if (!account) return null;
+
+    // 2. The FIDs that could vouch (verifying a seed), plus those behind existing Farcaster links
+    // (to prune), plus the signed-in FID. Then their verified wallets: positive answers only.
+    const own = await rowsTouching(db, [account]);
+    const seeds = [account, ...own.filter((r) => r.account === account && r.via !== "farcaster").map((r) => r.address)];
+    const fids = new Set<number>(opts.fid ? [opts.fid] : []);
+    for (const list of (await fidsByAddresses(seeds).catch(() => new Map<string, number[]>())).values()) for (const f of list) fids.add(f);
+    for (const r of own) if (r.via === "farcaster" && r.fid !== null) fids.add(r.fid);
+    if (fids.size === 0) return { account, adopted: [], pruned: [], skipped: [] };
+    const answered = await lookupProfiles([...fids]).catch(() => []);
+    const fidWallets = new Map(answered.map((p) => [p.fid, p.verifiedWallets ?? []]));
+    const candidates = [...new Set([...fidWallets.values()].flat())];
+
+    // 3. The daily hold, read before the lock (it reads the chain): unknown counts as held.
+    let holdPrune = true;
+    try {
+      holdPrune = await accountClaimedToday(account);
+    } catch {
+      holdPrune = true;
+    }
+
+    // 4. Plan and write under one lock, re-reading the links inside it, so two devices syncing at
+    // once can't insert A→B and B→A, or overfill an account.
+    const acct = account;
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('lexigotchi:wallet_links'))`);
+      // The account must still head itself: if it joined another account meanwhile, stop.
+      const joined = await tx.select({ account: walletLinks.account }).from(walletLinks).where(eq(walletLinks.address, acct)).limit(1);
+      if (joined.length > 0) return { account: acct, adopted: [], pruned: [], skipped: [] };
+      const rows = await rowsTouching(tx, [acct, ...candidates]);
+      const plan = planFarcasterWallets({
+        account: acct,
+        rows,
+        fidWallets,
+        hasOwnProfile: await withOwnProfile(tx, candidates),
+        holdPrune,
+      });
+      if (plan.prune.length > 0) {
+        await tx
+          .delete(walletLinks)
+          .where(and(eq(walletLinks.account, acct), eq(walletLinks.via, "farcaster"), inArray(walletLinks.address, plan.prune)));
+      }
+      if (plan.adopt.length > 0) {
+        await tx
+          .insert(walletLinks)
+          .values(plan.adopt.map((a) => ({ address: a.address, account: acct, via: "farcaster", fid: a.fid })))
+          .onConflictDoNothing();
+      }
+      return { account: acct, adopted: plan.adopt.map((a) => a.address), pruned: plan.prune, skipped: plan.skipped };
+    });
+  } catch (err) {
+    // Before migration 0009 (no via/fid columns), or the database is down: nothing changes.
+    console.error("[farcaster-wallets] sync skipped:", err instanceof Error ? err.message.slice(0, 160) : err);
+    return null;
+  }
+}

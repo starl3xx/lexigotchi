@@ -150,6 +150,12 @@ showed; only the *decisions* changed.
    account as one player; hunger, winner, and daily-ready reminders resolve by account; and Move
    here lets the holding wallet send its loose letters and held words to another wallet in its
    account (staked words stay; the destination is read fresh from the account; it can't be undone).
+   Then (same day, starl3xx: "everything should be profile-based... no matter how they first sign
+   in, their profile is built from that"; chose "Yes, automatically" for Farcaster wallets): "you"
+   is the player on every screen (usePlayerWallets), the swap board shows players, and wallets a
+   Farcaster account verified join the profile on their own (via "farcaster", migration 0009) when
+   that FID also verified a wallet the profile already had by signature or as its first wallet. They
+   leave when Farcaster stops verifying them; Unlink refuses them.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

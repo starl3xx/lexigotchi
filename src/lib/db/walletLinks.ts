@@ -111,6 +111,35 @@ export async function loadLinkMap(): Promise<LinkMap> {
   }
 }
 
+// ── how a wallet joined (migration 0009) ─────────────────────────────────────────────────────
+
+/** The Farcaster links in an account (for the Wallets card). Never throws: before 0009, none. */
+export async function farcasterWalletsOf(account: string): Promise<string[]> {
+  try {
+    const rows = await getDb()
+      .select({ address: walletLinks.address })
+      .from(walletLinks)
+      .where(and(eq(walletLinks.account, lower(account)), eq(walletLinks.via, "farcaster")));
+    return rows.map((r) => r.address);
+  } catch {
+    return [];
+  }
+}
+
+/** Is this wallet in its account through Farcaster? Never throws (false before 0009). */
+export async function isFarcasterLink(address: string): Promise<boolean> {
+  try {
+    const rows = await getDb()
+      .select({ via: walletLinks.via })
+      .from(walletLinks)
+      .where(eq(walletLinks.address, lower(address)))
+      .limit(1);
+    return rows[0]?.via === "farcaster";
+  } catch {
+    return false;
+  }
+}
+
 // ── link codes ───────────────────────────────────────────────────────────────────────────────────
 
 /** A fresh code for this account. Alphanumeric, so it can be a Sign-In with Ethereum nonce. Throws. */

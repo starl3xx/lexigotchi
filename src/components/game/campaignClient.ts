@@ -190,3 +190,26 @@ export async function confirmShareCast(): Promise<boolean> {
   }
   return false;
 }
+
+/**
+ * Bring the player's Farcaster wallets into their profile (POST /api/profile/farcaster). Sends the
+ * Farcaster sign-in when there is one (a host's Quick Auth, or SIWF on the web) and the wallet
+ * session when there is one; the server needs either. Never throws; null when it couldn't ask.
+ */
+export async function postFarcasterWalletsSync(
+  sessionToken: string | null,
+): Promise<{ changed?: boolean; adopted?: number; pruned?: number } | null> {
+  const init: RequestInit = { method: "POST", headers: sessionToken ? { "x-lexigotchi-session": sessionToken } : {} };
+  try {
+    const signedInWithFarcaster = (await isFarcasterHost()) || hasWebSession();
+    const res = signedInWithFarcaster
+      ? await authedFetch("/api/profile/farcaster", init)
+      : sessionToken
+        ? await fetch("/api/profile/farcaster", init)
+        : null;
+    if (!res?.ok) return null;
+    return (await res.json()) as { changed?: boolean; adopted?: number; pruned?: number };
+  } catch {
+    return null;
+  }
+}
