@@ -3,7 +3,7 @@ import { isAddress } from "viem";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
 import { sessionAccountOf } from "@/lib/profile/account";
-import { profilesEnabled } from "@/lib/profile/session";
+import { profilesEnabled, sessionAddress } from "@/lib/profile/session";
 import { accountView, isMissingTable } from "@/lib/db/profiles";
 import { unlinkWallet, walletsOfAccount } from "@/lib/db/walletLinks";
 import { accountClaimedToday } from "@/lib/onchain/dailyIdentity";
@@ -38,7 +38,11 @@ export async function DELETE(req: Request) {
     }
     if (claimed) return NextResponse.json({ ok: false, error: "claimed_today" }, { status: 409 });
     await unlinkWallet(account, target);
-    return NextResponse.json({ ok: true, profile: await accountView(account) }, { headers: { "Cache-Control": "no-store" } });
+    // The signed-in wallet's view after the change: when it unlinked itself, that's its own lone
+    // account now, not the one it left (the client stores this as its profile).
+    const self = sessionAddress(req)!.toLowerCase();
+    const view = await accountView(self === target ? self : account);
+    return NextResponse.json({ ok: true, profile: view }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     if (isMissingTable(err)) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503 });
     throw err;

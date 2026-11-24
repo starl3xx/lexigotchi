@@ -26,6 +26,17 @@ async function fetchStatus(wallet: string): Promise<boolean | null> {
   }
 }
 
+/**
+ * Forget every cached answer: after a wallet joins or leaves an account, the Coinbase check covers a
+ * different set of wallets (the status route checks the whole account).
+ */
+const forgetListeners = new Set<() => void>();
+export function forgetVerifiedWallets() {
+  cache.clear();
+  // Mounted hooks hold their last answer in state: tell each to ask again (Bugbot on #159).
+  forgetListeners.forEach((fn) => fn());
+}
+
 export function useVerifiedWallet(): { verified: boolean | null; recheck: () => void } {
   const { address } = useAccount();
   const [verified, setVerified] = useState<boolean | null>(null);
@@ -54,6 +65,14 @@ export function useVerifiedWallet(): { verified: boolean | null; recheck: () => 
       cancelled = true;
     };
   }, [address, generation]);
+
+  useEffect(() => {
+    const bump = () => setGeneration((g) => g + 1);
+    forgetListeners.add(bump);
+    return () => {
+      forgetListeners.delete(bump);
+    };
+  }, []);
 
   const recheck = useCallback(() => {
     if (address) cache.delete(address.toLowerCase());

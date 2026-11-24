@@ -3,6 +3,7 @@ import { isAddress } from "viem";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
 import { isCoinbaseVerified } from "@/lib/onchain/verifications";
+import { accountWallets } from "@/lib/db/walletLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,11 +28,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
   }
 
-  try {
-    const verified = await isCoinbaseVerified(wallet);
-    return NextResponse.json({ ok: true, verified });
-  } catch (err) {
-    console.error("[verify] attestation check failed:", err);
-    return NextResponse.json({ ok: false, error: "verification_unavailable" }, { status: 502 });
+  // The wallet first, then the other wallets in its account (Link another wallet): any one verified
+  // opens the daily, as /api/mint/free-daily decides. `via` names it when it isn't this wallet.
+  const { wallets } = await accountWallets(wallet);
+  const order = [wallet.toLowerCase(), ...wallets.filter((w) => w !== wallet.toLowerCase())];
+  let unchecked = false;
+  for (const w of order) {
+    try {
+      if (await isCoinbaseVerified(w as `0x${string}`)) {
+        return NextResponse.json({ ok: true, verified: true, ...(w !== order[0] ? { via: w } : {}) });
+      }
+    } catch (err) {
+      console.error("[verify] attestation check failed:", err);
+      unchecked = true;
+    }
   }
+  if (unchecked) return NextResponse.json({ ok: false, error: "verification_unavailable" }, { status: 502 });
+  return NextResponse.json({ ok: true, verified: false });
 }

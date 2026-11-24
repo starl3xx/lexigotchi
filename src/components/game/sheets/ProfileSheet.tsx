@@ -20,6 +20,7 @@ import { useVerifiedWallet } from "../useVerifiedWallet";
 import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 import { ReminderToggle } from "../ReminderToggle";
+import { WalletsCard } from "./WalletsCard";
 import { useOpenUrl } from "../useShare";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { xEligibleOn, xOldEnough, type NameSource } from "@/lib/profile/rules";
@@ -183,7 +184,9 @@ export function ProfileSheet() {
             name="Coinbase verified"
             detail={
               verified === true
-                ? "This wallet is verified"
+                ? (p.profile?.wallets?.length ?? 1) > 1
+                  ? "A wallet in your account is verified" // the check covers every linked wallet
+                  : "This wallet is verified"
                 : address && verified === null
                   ? "Checking this wallet…"
                   : address
@@ -219,6 +222,9 @@ export function ProfileSheet() {
           </Row>
         </div>
       </Card>
+
+      {/* the account's wallets: Link another wallet */}
+      <WalletsCard p={p} />
 
       {/* name and picture */}
       <Card className="mb-3">

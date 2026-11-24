@@ -44,7 +44,7 @@ import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
 import { ProfileSheet } from "./sheets/ProfileSheet";
-import { resolveIdentity, useProfile } from "./useProfile";
+import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writePendingLink } from "./useProfile";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
@@ -78,7 +78,7 @@ export function GameApp() {
 
 /** Owns the once-only onboarding flag (persisted in localStorage) and exposes a replay action. */
 function OnboardingHost() {
-  const { closeSheet } = useGame();
+  const { closeSheet, openSheet } = useGame();
   // Default true so SSR/first paint matches (no overlay → no hydration mismatch); the effect flips
   // it to false for first-run players right after mount.
   const [onboarded, setOnboarded] = useState(true);
@@ -98,7 +98,11 @@ function OnboardingHost() {
     closeSheet(); // never reveal a sheet that was left open under the overlay
     setOnboarded(true);
     void markOnboardedServer(); // persist "onboarded" server-side (no-op outside a Farcaster client)
-  }, [closeSheet]);
+    // …except the one a `?link=` URL came for: a first visit from "Link another wallet" lands on
+    // the profile, where the Wallets card asks this wallet to sign.
+    const link = readPendingLink();
+    if (link && !link.madeBy) openSheet({ kind: "profile" });
+  }, [closeSheet, openSheet]);
   const replay = useCallback(() => {
     try {
       localStorage.removeItem(ONBOARDED_KEY);
@@ -179,6 +183,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
             fires — no hidden button to synthetically click, which mobile popup blockers defeated. */}
         <WebSignInHost />
         <XReturnHost />
+        <LinkCodeHost />
         {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
       </div>
     </IconContext.Provider>
@@ -189,6 +194,25 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
  * Back from X's consent page (/api/x/callback sends the web player to /play?x=linked|canceled|failed):
  * say how it went, reopen the profile, and drop the parameter so a reload doesn't say it again.
  */
+/**
+ * `?link=<code>`: a "Link another wallet" link opened here (another device, or a Farcaster host). Keep
+ * the code for the profile's Wallets card, which asks the connected wallet to sign it.
+ */
+function LinkCodeHost() {
+  const { openSheet } = useGame();
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("link");
+    if (!code) return;
+    url.searchParams.delete("link");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    if (!/^[0-9a-f]{24}$/.test(code)) return;
+    writePendingLink({ code });
+    openSheet({ kind: "profile" });
+  }, [openSheet]);
+  return null;
+}
+
 function XReturnHost() {
   const { toast, openSheet } = useGame();
   const qc = useQueryClient();
@@ -199,6 +223,7 @@ function XReturnHost() {
     url.searchParams.delete("x");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
     if (x === "linked") {
+      bustPublicProfile(); // the cached public view would show no X for a while
       void qc.invalidateQueries({ queryKey: ["profileMe"] });
       void qc.invalidateQueries({ queryKey: ["profilePublic"] });
       void qc.invalidateQueries({ queryKey: ["world"] });
