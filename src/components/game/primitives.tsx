@@ -39,7 +39,7 @@ export function Button({
   return (
     <button
       className={`relative inline-flex select-none items-center justify-center gap-2 rounded-xl border-[3px] border-ink font-display font-extrabold
-        press shadow-[3px_3px_0_#1b1714] [--sh:3px]
+        press [--sh:3px] [box-shadow:3px_3px_0_#1b1714]
         disabled:cursor-not-allowed disabled:border-ink/25 disabled:bg-paper-dark disabled:text-ink/45 disabled:shadow-none
         ${VAR[variant]} ${pad} ${full ? "w-full" : ""} ${className}`}
       {...rest}

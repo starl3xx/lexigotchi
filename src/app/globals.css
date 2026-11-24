@@ -89,8 +89,8 @@ body {
 
 /* ---------------------------------------------------------------------------------------------
    Interaction. Everything you can click answers the pointer.
-   - .press: a clickable cel (buttons, cards). Hover lifts it off the page (the shadow grows by
-     two pixels); pressing pushes it down into its own shadow, the game's tactile "click". --sh is the
+   - .press: a clickable cel (buttons, cards). Hover lifts it straight up off the page (the shadow
+     grows two pixels downward); pressing pushes it down into its own shadow, the game's tactile "click". --sh is the
      element's shadow size, set by .cel / .cel-sm / the Button.
    - .press-icon: an icon inside a .press that wiggles on hover.
    - .tile-press: a tappable letter character. It hops on hover and squashes on press.
@@ -98,6 +98,11 @@ body {
    Hover only where a mouse hovers (a tap on a phone isn't a hover). The movement lives in a
    prefers-reduced-motion: no-preference block below; under reduce, shadows and colors still answer.
    --------------------------------------------------------------------------------------------- */
+/* The positioning context for the hover strip below. Zero specificity (:where), so a Tailwind
+   absolute / fixed / sticky on the same element always wins. */
+:where(.press, .tile-press) {
+  position: relative;
+}
 .press {
   transition:
     transform 160ms var(--ease-out),
@@ -231,8 +236,10 @@ body {
   }
 }
 @media (hover: hover) and (pointer: fine) {
+  /* The shadow deepens downward only: the lift is straight up (below), never sideways, which read as
+     the button being shoved left (starl3xx, 2026-11-24). */
   .press:hover:not(:disabled):not(:active) {
-    box-shadow: calc(var(--sh, 3px) + 2px) calc(var(--sh, 3px) + 2px) 0 theme(colors.ink);
+    box-shadow: var(--sh, 3px) calc(var(--sh, 3px) + 2px) 0 theme(colors.ink);
   }
   .round-btn:hover {
     background-color: theme(colors.paper.dark);
@@ -267,13 +274,29 @@ body {
   }
   @media (hover: hover) and (pointer: fine) {
     .press:hover:not(:disabled):not(:active) {
-      transform: translate(-2px, -2px);
+      transform: translateY(-2px);
     }
     .press:hover .press-icon {
       transform: rotate(-9deg) scale(1.12);
     }
     .tile-press:hover:not(:active) {
       transform: translateY(-4px) rotate(-3deg);
+    }
+    /* The lift moves the element off a pointer resting on its lower or right edge: hover ends, the
+       element drops back under the pointer, hover starts again, and it stutters (starl3xx,
+       2026-11-24). While hovered, an invisible strip covers the ground it left, so the pointer
+       stays on it. A pseudo-element is part of its element, so it hovers and clicks the same. Its
+       inset counts from INSIDE the border (an absolute box's containing block is the padding box),
+       so it reaches past a 3px border, plus the 2px lift, plus a little slack. */
+    .press:hover:not(:disabled)::before {
+      content: "";
+      position: absolute;
+      inset: -3px -3px -9px -3px;
+    }
+    .tile-press:hover::before {
+      content: "";
+      position: absolute;
+      inset: -3px -4px -10px -4px;
     }
   }
 }

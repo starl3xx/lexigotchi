@@ -1072,7 +1072,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
       // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet.
       addDemoBalance: () => {
-        if (!NETWORK.isTestnet || !address) return void toast("No faucet on mainnet", "bad");
+        if (!NETWORK.isTestnet) return void toast("No faucet on mainnet", "bad");
+        if (!address) return void toast("Connect a wallet first", "bad");
         void track("Getting test $WORD", (run) => run("Faucet", () => faucetCalls(address, 50_000_000)), false);
       },
 

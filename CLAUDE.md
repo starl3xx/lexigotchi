@@ -148,7 +148,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   connect modal is themed in `walletTheme.ts`), `ConnectPanel.tsx` (the web front door: wallet required,
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
-  `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `BalanceSheet.tsx` and `CheatSheet.tsx`: the core loop on one screen, behind the header's "?" and the rail's "Cheat sheet"; the docs and the intro replay are one tap inside it). The old in-game FAQ is gone: the player docs at lexigotchi.fun/docs (`docs-site/`) replace it, opened with `useOpenUrl` (`useShare.ts`; `DOCS_URL` in `site.ts`) so a mini-app host keeps the game.
+  `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `BalanceSheet.tsx` and `CheatSheet.tsx`: the core loop on one screen, behind the rail's "Cheat sheet" on desktop and the header's "?" on phones; the docs and the intro replay are one tap inside it). The old in-game FAQ is gone: the player docs at lexigotchi.fun/docs (`docs-site/`) replace it, opened with `useOpenUrl` (`useShare.ts`; `DOCS_URL` in `site.ts`) so a mini-app host keeps the game.
 - `/api/word` + `WordScreen` → the in-game **$WORD** page (rail: "$WORD universe", above LHAW): the
   real token on Base mainnet whatever NETWORK is (`lib/onchain/mainnet.ts`). Price and market cap from
   the app's oracle (one price source per page), supply and both kinds of burn (`lib/wordStats.ts`:
