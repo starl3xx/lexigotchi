@@ -34,36 +34,52 @@ const LINK = /\[([^\]\n]+)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)\)/g;
 // **bold**: not inside a word (so 2**3 stays maths), may wrap onto a second line, never across a
 // blank one.
 const BOLD = /(?<![\w*])\*\*(?=\S)((?:[^\n]|\n(?!\n))*?\S)\*\*(?![\w*])/g;
-// A finished piece of HTML set aside while the rest is formatted: private-use characters around its
-// number. They are removed from the note first, so a note can't fake one.
-const SLOT = /(\d+)/g;
+// A code span or a link set aside while the rest is formatted: its number between two private-use
+// characters, one pair for code and one for links. They are removed from the note first, so a note
+// can't fake one.
+const [CODE_IN, CODE_OUT, LINK_IN, LINK_OUT] = [0xe000, 0xe001, 0xe002, 0xe003].map((c) => String.fromCharCode(c));
+const MARKS = new RegExp(`[${CODE_IN}${CODE_OUT}${LINK_IN}${LINK_OUT}]`, "g");
+const CODE_SLOT = new RegExp(`${CODE_IN}([0-9]+)${CODE_OUT}`, "g");
+const LINK_SLOT = new RegExp(`${LINK_IN}([0-9]+)${LINK_OUT}`, "g");
 
 /**
  * A note's markdown as Telegram HTML. Three kinds only: `code`, [text](https://link), and **bold**.
  * Anything else (a lone **, single-star italics, snake_case, ``` fences) stays as typed.
  *
- * Code spans are set aside first, then links (whose label may hold code or bold), so the bold pass
- * never reaches into a code span or a link's address, and a bold phrase can still hold either.
+ * Code spans are set aside first, then links, so the bold pass never reaches into a code span or a
+ * link's address. Telegram lets bold and links hold each other, but nothing may hold code (it
+ * refuses such a message): so bold stops either side of a code span, and a code span inside a
+ * link's label shows as plain text.
  * @param {string} markdown
  */
 export function noteHtml(markdown) {
   /** @type {string[]} */
-  const slots = [];
-  /** @param {string} html */
-  const setAside = (html) => `${slots.push(html) - 1}`;
-  /** @param {string} s */
-  const restore = (s) => s.replace(SLOT, (_, i) => slots[Number(i)]);
-  /** @param {string} s */
-  const bold = (s) => s.replace(BOLD, "<b>$1</b>");
+  const codes = []; // each code span's text, escaped
+  /** @type {string[]} */
+  const links = []; // each link, as finished HTML
+  /**
+   * @param {string} s
+   * @param {(code: string) => string} as
+   */
+  const restoreCode = (s, as) => s.replace(CODE_SLOT, (_, i) => as(codes[Number(i)]));
+  /**
+   * @param {string} s
+   * @param {boolean} stopAtCode
+   */
+  const bold = (s, stopAtCode) =>
+    s.replace(BOLD, (_, inner) => `<b>${stopAtCode ? inner.replace(CODE_SLOT, (slot) => `</b>${slot}<b>`) : inner}</b>`.replace(/<b><\/b>/g, ""));
 
   const note = markdown
-    .replace(/[]/g, "")
-    .replace(/`([^`\n]+)`/g, (_, code) => setAside(`<code>${escapeHtml(code)}</code>`))
-    // An address with a code span in it isn't one: leave that link as typed.
-    .replace(LINK, (link, label, url) =>
-      url.includes("") ? link : setAside(`<a href="${escapeHtml(url).replace(/"/g, "&quot;")}">${restore(bold(escapeHtml(label)))}</a>`),
-    );
-  return restore(bold(escapeHtml(note)));
+    .replace(MARKS, "")
+    .replace(/`([^`\n]+)`/g, (_, code) => `${CODE_IN}${codes.push(escapeHtml(code)) - 1}${CODE_OUT}`)
+    .replace(LINK, (link, label, url) => {
+      // An address with a code span in it isn't one: leave that link as typed.
+      if (url.includes(CODE_IN)) return link;
+      const html = `<a href="${escapeHtml(url).replace(/"/g, "&quot;")}">${restoreCode(bold(escapeHtml(label), false), (code) => code)}</a>`;
+      return `${LINK_IN}${links.push(html) - 1}${LINK_OUT}`;
+    });
+  const formatted = bold(escapeHtml(note), true).replace(LINK_SLOT, (_, i) => links[Number(i)]);
+  return restoreCode(formatted, (code) => `<code>${code}</code>`);
 }
 
 const FOOTER = "Live now at lexigotchi.fun/play";

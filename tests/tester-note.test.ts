@@ -56,11 +56,46 @@ describe("a note's formatting for Telegram", () => {
     expect(noteHtml("**go** [x](https://a.com/**b**) **now**")).toBe('<b>go</b> <a href="https://a.com/**b**">x</a> <b>now</b>');
   });
 
-  it("lets bold hold code and links, and a link's label hold code and bold", () => {
-    expect(noteHtml("**Tap `Move` now**")).toBe("<b>Tap <code>Move</code> now</b>");
+  it("lets bold and links hold each other", () => {
     expect(noteHtml("**Read [the docs](https://a.com) first**")).toBe('<b>Read <a href="https://a.com">the docs</a> first</b>');
-    expect(noteHtml("[`code` label](https://a.com)")).toBe('<a href="https://a.com"><code>code</code> label</a>');
     expect(noteHtml("[**Bold link**](https://a.com)")).toBe('<a href="https://a.com"><b>Bold link</b></a>');
+  });
+
+  it("never puts code inside bold or a link, which Telegram refuses (Bugbot on #162)", () => {
+    // Bold stops either side of the code span.
+    expect(noteHtml("**Tap `Move` now**")).toBe("<b>Tap </b><code>Move</code><b> now</b>");
+    expect(noteHtml("**`Move` now**")).toBe("<code>Move</code><b> now</b>");
+    // In a link's label, code shows as plain text, and bold around it stays whole.
+    expect(noteHtml("[`code` label](https://a.com)")).toBe('<a href="https://a.com">code label</a>');
+    expect(noteHtml("[**a `b` c**](https://a.com)")).toBe('<a href="https://a.com"><b>a b c</b></a>');
+  });
+
+  it("only ever nests the way Telegram allows", () => {
+    // Telegram: bold and links may hold each other; nothing holds code; a link never holds a link.
+    const nestsOk = (html: string) => {
+      const open: string[] = [];
+      for (const [, close, tag] of html.matchAll(/<(\/?)(b|a|code)\b[^>]*>/g)) {
+        if (close) {
+          if (open.pop() !== tag) return false;
+        } else if (open.includes("code") || (tag === "code" && open.length > 0) || (tag === "a" && open.includes("a"))) {
+          return false;
+        } else {
+          open.push(tag);
+        }
+      }
+      return open.length === 0;
+    };
+    const notes = [
+      PR_160,
+      "**Tap `Move` now**",
+      "**`a` [x `y` z](https://a.com) `b`**",
+      "[**a `b` c**](https://a.com)",
+      "**see [x](https://a.com/`b`) now**",
+      "**a [**b**](https://a.com) c**",
+      "`**x**` and **`y`**",
+      "**a [b** c](https://a.com)",
+    ];
+    for (const note of notes) expect(nestsOk(noteHtml(note)), noteHtml(note)).toBe(true);
   });
 
   it("lets bold wrap onto a second line, but not across a blank one", () => {
@@ -76,7 +111,9 @@ describe("a note's formatting for Telegram", () => {
   });
 
   it("can't be fooled by the characters it uses to set code and links aside, nor leak them", () => {
-    expect(noteHtml("0 **x** `y`")).toBe("0 <b>x</b> <code>y</code>");
+    // The four marks: two around a code span's number, two around a link's.
+    const marks = [0xe000, 0xe001, 0xe002, 0xe003].map((c) => String.fromCharCode(c));
+    expect(noteHtml(`${marks[0]}0${marks[1]} ${marks[2]}0${marks[3]} **x** \`y\``)).toBe("0 0 <b>x</b> <code>y</code>");
     expect(noteHtml("[x](https://a.com/`b`) and [y](https://a.com/`c`)")).toBe("[x](https://a.com/<code>b</code>) and [y](https://a.com/<code>c</code>)");
   });
 });
