@@ -9,22 +9,33 @@ const join = (members: TgUser[], chatId = -5000000001): TgUpdate => ({
 describe("the beta group's welcome", () => {
   it("greets a person who joins by their @username, with the pinned-message pointer", () => {
     const w = welcomeFor(join([{ id: 1, first_name: "DOPAMINE ⌐◨-◨", username: "ann_plays" }]), CHAT);
-    expect(w?.caption).toBe(
-      "HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
-    );
+    expect(w).toEqual({
+      caption:
+        "HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
+      mentions: [],
+    });
   });
 
   it("greets several people in one message, with the Oxford comma", () => {
     expect(welcomeFor(join([{ id: 1, username: "ann" }, { id: 2, username: "bo" }]), CHAT)?.caption).toMatch(/^HEYOO, @ann and @bo!/);
-    expect(welcomeFor(join([{ id: 1, username: "ann" }, { id: 2, first_name: "Bo" }, { id: 3, username: "cy" }]), CHAT)?.caption).toMatch(
-      /^HEYOO, @ann, Bo, and @cy!/,
-    );
+    const three = welcomeFor(join([{ id: 1, username: "ann" }, { id: 2, first_name: "Bo" }, { id: 3, username: "cy" }]), CHAT)!;
+    expect(three.caption).toMatch(/^HEYOO, @ann, Bo, and @cy!/);
+    expect(three.mentions).toEqual([{ type: "text_mention", offset: "HEYOO, @ann, ".length, length: 2, user: { id: 2 } }]);
   });
 
-  it("falls back to the first name for someone with no username, then to “there”", () => {
-    expect(welcomeFor(join([{ id: 1, first_name: "Ann" }]), CHAT)?.caption).toMatch(/^HEYOO, Ann!/);
-    expect(welcomeFor(join([{ id: 1, first_name: "  " }]), CHAT)?.caption).toMatch(/^HEYOO, there!/);
-    expect(welcomeFor(join([{ id: 1 }]), CHAT)?.caption).toMatch(/^HEYOO, there!/);
+  it("names someone with no username by first name, as a mention of their account; else “there”", () => {
+    expect(welcomeFor(join([{ id: 7, first_name: "Ann" }]), CHAT)).toMatchObject({
+      caption: expect.stringMatching(/^HEYOO, Ann!/),
+      mentions: [{ type: "text_mention", offset: 7, length: 3, user: { id: 7 } }],
+    });
+    expect(welcomeFor(join([{ id: 1, first_name: "  " }]), CHAT)).toMatchObject({ caption: expect.stringMatching(/^HEYOO, there!/), mentions: [] });
+    expect(welcomeFor(join([{ id: 1 }]), CHAT)).toMatchObject({ caption: expect.stringMatching(/^HEYOO, there!/), mentions: [] });
+  });
+
+  it("cuts a long name at 40 characters without splitting an emoji, and the mention covers exactly the name", () => {
+    const w = welcomeFor(join([{ id: 5, first_name: "🐸".repeat(50) }]), CHAT)!;
+    expect(w.caption).toBe(`HEYOO, ${"🐸".repeat(40)}! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.`);
+    expect(w.caption.slice(w.mentions[0].offset, w.mentions[0].offset + w.mentions[0].length)).toBe("🐸".repeat(40));
   });
 
   it("never greets a bot (including itself being added), another chat, or an ordinary message", () => {
@@ -106,5 +117,54 @@ describe("the webhook route", () => {
       "card /s/HEYOO/card",
       "telegram sendPhoto HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
     ]);
+  });
+
+  it("sends a mention for someone with no username, and greets them without it if Telegram refuses the mention", async () => {
+    const { POST } = await import("@/app/api/telegram/webhook/route");
+    const sent: (string | null)[] = [];
+    const realFetch = globalThis.fetch;
+    const realWarn = console.warn;
+    console.warn = () => {};
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      if (!String(url).includes("api.telegram.org")) return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
+      const entities = (init?.body as FormData).get("caption_entities") as string | null;
+      sent.push(entities);
+      // Refuse the first try (with the mention), accept the second.
+      const ok = sent.length > 1;
+      return new Response(JSON.stringify(ok ? { ok } : { ok, description: "Bad Request: can't parse entities" }), { headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      await withEnv(env, async () => {
+        const joined = await POST(post({ message: { chat: { id: Number(CHAT) }, new_chat_members: [{ id: 7, first_name: "Ann" }] } }, "hook-secret"));
+        expect(joined.status).toBe(200);
+      });
+    } finally {
+      globalThis.fetch = realFetch;
+      console.warn = realWarn;
+    }
+    expect(sent).toEqual([JSON.stringify([{ type: "text_mention", offset: 7, length: 3, user: { id: 7 } }]), null]);
+  });
+
+  it("never sends the welcome twice after a failure that isn't a clear refusal (the first may have landed)", async () => {
+    const { POST } = await import("@/app/api/telegram/webhook/route");
+    let sends = 0;
+    const realFetch = globalThis.fetch;
+    const realError = console.error;
+    console.error = () => {};
+    globalThis.fetch = (async (url: string | URL) => {
+      if (!String(url).includes("api.telegram.org")) return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
+      sends += 1;
+      throw new TypeError("fetch failed");
+    }) as typeof fetch;
+    try {
+      await withEnv(env, async () => {
+        const joined = await POST(post({ message: { chat: { id: Number(CHAT) }, new_chat_members: [{ id: 7, first_name: "Ann" }] } }, "hook-secret"));
+        expect(joined.status).toBe(200);
+      });
+    } finally {
+      globalThis.fetch = realFetch;
+      console.error = realError;
+    }
+    expect(sends).toBe(1);
   });
 });

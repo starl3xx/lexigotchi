@@ -40,43 +40,68 @@ export function webhookSecretMatches(header: string | null, secret = process.env
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/**
- * A member's name for the greeting: their @username, which Telegram turns into a mention that
- * notifies them; else (not everyone sets one) their first name as typed; else nothing. Control
- * characters out. The caption is plain text, so a name can't break it.
- */
-function nameOf(u: TgUser): string | null {
-  const raw = (u.username ? `@${u.username}` : u.first_name?.trim() || "").replace(/[\u0000-\u001f\u007f]/g, "");
-  return raw ? raw.slice(0, 40) : null;
+/** A mention of a member with no @username: their name in the caption, linked to their account. */
+export interface TgMention {
+  type: "text_mention";
+  /** In UTF-16 code units, which is how Telegram counts and how a JS string indexes. */
+  offset: number;
+  length: number;
+  user: { id: number };
 }
 
-/** "Ann", "Ann and Bo", "Ann, Bo, and Cy" (Oxford comma, the house style). */
-function listOf(names: string[]): string {
-  if (names.length <= 2) return names.join(" and ");
-  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+/**
+ * A member's name for the greeting: their @username, which Telegram turns into a mention that
+ * notifies them; else (not everyone sets one) their first name, which the caption makes a mention
+ * of their account (`mention`), so it notifies them too and Telegram doesn't read a name like
+ * "free-eth.example" as a link; else nothing. Control characters out, at most 40 characters, never
+ * cutting an emoji in half.
+ */
+function nameOf(u: TgUser): { text: string; mention?: number } | null {
+  const raw = (u.username ? `@${u.username}` : u.first_name?.trim() || "").replace(/[\u0000-\u001f\u007f]/g, "");
+  if (!raw) return null;
+  const text = Array.from(raw).slice(0, 40).join("");
+  return u.username ? { text } : { text, mention: u.id };
 }
 
 /**
  * The welcome for an update, or null. Only people (never bots, including this one being added)
- * joining THE beta group get one; one greeting covers several people joining at once.
+ * joining THE beta group get one; one greeting covers several people joining at once: "Ann",
+ * "Ann and Bo", "Ann, Bo, and Cy" (Oxford comma, the house style).
  */
-export function welcomeFor(update: TgUpdate, chatId: string): { caption: string } | null {
+export function welcomeFor(update: TgUpdate, chatId: string): { caption: string; mentions: TgMention[] } | null {
   const m = update.message;
   if (!m || String(m.chat.id) !== chatId) return null;
   const people = (m.new_chat_members ?? []).filter((u) => !u.is_bot);
   if (people.length === 0) return null;
-  const names = people.map(nameOf).filter((n): n is string => n !== null);
-  const who = names.length > 0 ? listOf(names) : "there";
-  return {
-    caption: `HEYOO, ${who}! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.`,
-  };
+  const names = people.flatMap((u) => nameOf(u) ?? []);
+
+  let caption = "HEYOO, ";
+  const mentions: TgMention[] = [];
+  names.forEach((n, i) => {
+    if (i > 0) caption += names.length === 2 ? " and " : i === names.length - 1 ? ", and " : ", ";
+    if (n.mention !== undefined) mentions.push({ type: "text_mention", offset: caption.length, length: n.text.length, user: { id: n.mention } });
+    caption += n.text;
+  });
+  if (names.length === 0) caption += "there";
+  caption += "! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.";
+  return { caption, mentions };
 }
 
-/** Send `png` with `caption` to the chat as a photo. Throws with Telegram's own description on failure. */
-export async function sendPhoto(chatId: string, png: Blob, caption: string, token = process.env.TELEGRAM_BOT_TOKEN ?? ""): Promise<void> {
+/**
+ * Send `png` with `caption` to the chat as a photo, with `mentions` as the caption's entities.
+ * Throws with Telegram's own description on failure.
+ */
+export async function sendPhoto(
+  chatId: string,
+  png: Blob,
+  caption: string,
+  mentions: TgMention[] = [],
+  token = process.env.TELEGRAM_BOT_TOKEN ?? "",
+): Promise<void> {
   const form = new FormData();
   form.set("chat_id", chatId);
   form.set("caption", caption);
+  if (mentions.length > 0) form.set("caption_entities", JSON.stringify(mentions));
   form.set("photo", png, "heyoo.png");
   const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
   const data = (await res.json().catch(() => null)) as { ok?: boolean; description?: string } | null;

@@ -52,13 +52,13 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         with:
           script: |
-            const { betaPost, testerNote } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/tester-note.mjs`);
             const token = process.env.TELEGRAM_BOT_TOKEN;
             const chatId = process.env.TELEGRAM_CHAT_ID;
             if (!token || !chatId) {
               core.notice("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set; nothing posted.");
               return;
             }
+            const { betaPosts, testerNote } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/tester-note.mjs`);
 
             // Telegram Bot API. A basic group that Telegram upgrades to a supergroup gets a new id;
             // the error says which, so the fix is one secret.
@@ -83,7 +83,7 @@ jobs:
               const me = await telegram("getMe", {});
               const chat = await telegram("getChat", { chat_id: chatId });
               core.notice(`@${me.username} can reach "${chat.title}". Nothing posted.`);
-              core.info(`The formatter loads: ${betaPost(["**Bold** text"]).html}`);
+              core.notice(`The formatter loads: ${betaPosts(["**Bold** text"])[0].html.split("\n")[0]}`);
               return;
             }
 
@@ -109,17 +109,21 @@ jobs:
             if (live.length === 0) return core.info(`Nothing new to post for ${sha.slice(0, 7)}.`);
             live.sort((a, b) => Date.parse(a.pr.merged_at) - Date.parse(b.pr.merged_at));
 
-            // Formatted (HTML), and as typed if Telegram can't read the HTML (a ** pair that crosses a
-            // link, say). Without the fallback, one such note would block every later post: nothing
-            // gets labelled, so each run would collect it again.
-            const post = betaPost(live.map((c) => c.note));
-            try {
-              await telegram("sendMessage", { chat_id: chatId, text: post.html, parse_mode: "HTML", disable_web_page_preview: true });
-            } catch (err) {
-              if (!/can't parse entities/i.test(err.message)) throw err;
-              core.warning(`Telegram refused the formatting (${err.message}); posting the note as typed.`);
-              await telegram("sendMessage", { chat_id: chatId, text: post.text, disable_web_page_preview: true });
-            }
+            // Usually one post; one per note when together they'd pass Telegram's length limit. Each
+            // goes formatted (HTML), or as typed should Telegram ever refuse the HTML (the formatter
+            // means it shouldn't), and its PRs are labelled as soon as it is sent. A refused post
+            // would otherwise block every later one: nothing gets labelled, so each run collects it
+            // again.
             await github.rest.issues.createLabel({ owner, repo, name: "beta-posted", color: "2a9d8f", description: "Posted to the beta testers' Telegram group" }).catch(() => {});
-            for (const c of live) await github.rest.issues.addLabels({ owner, repo, issue_number: c.pr.number, labels: ["beta-posted"] });
-            core.notice(`Posted ${live.map((c) => `#${c.pr.number}`).join(", ")}.`);
+            for (const post of betaPosts(live.map((c) => c.note))) {
+              try {
+                await telegram("sendMessage", { chat_id: chatId, text: post.html, parse_mode: "HTML", disable_web_page_preview: true });
+              } catch (err) {
+                if (!/can't parse entities/i.test(err.message)) throw err;
+                core.warning(`Telegram refused the formatting (${err.message}); posting the note as typed.`);
+                await telegram("sendMessage", { chat_id: chatId, text: post.text, disable_web_page_preview: true });
+              }
+              const prs = post.notes.map((i) => live[i].pr.number);
+              for (const n of prs) await github.rest.issues.addLabels({ owner, repo, issue_number: n, labels: ["beta-posted"] });
+              core.notice(`Posted ${prs.map((n) => `#${n}`).join(", ")}.`);
+            }
