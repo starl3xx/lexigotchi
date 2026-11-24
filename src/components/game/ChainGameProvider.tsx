@@ -138,7 +138,8 @@ interface RollReveal extends OutcomeReveal {
  * `settles`: the caller re-reads until the change shows and says so itself (`sendAndSettle`), so
  * the send skips its generic "sent" toast and its background re-reads of the words.
  */
-type RunOpts = { settles?: boolean };
+/** `sponsored`: ask the paymaster to pay the gas (only calls the CDP policy allows: see sendCalls). */
+type RunOpts = { settles?: boolean; sponsored?: boolean };
 type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
 
 /** Chain words → the shape screens already destructure. */
@@ -450,7 +451,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     async (label: string, build: () => Call[], phase: SetPhase, opts?: RunOpts) => {
       try {
         phase("wallet");
-        await chain.send(build());
+        await chain.send(build(), { sponsored: opts?.sponsored });
         phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
@@ -1099,7 +1100,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             toast("A roll is still open on this wallet. Move after it finishes.", "info");
             return "open_roll";
           }
-          const ok = await run(`Move to ${dest.slice(0, 6)}…${dest.slice(-4)}`, () => moveCalls(from, dest, plan));
+          // Moves are free where the wallet and the paymaster can sponsor them (smart wallets).
+          const ok = await run(`Move to ${dest.slice(0, 6)}…${dest.slice(-4)}`, () => moveCalls(from, dest, plan), { sponsored: true });
           // Refresh after ANY attempt that reached the wallet, not just a full success: without a
           // wallet that batches, the calls go one by one, so the letters can land while a word
           // transfer is declined, and the rows would keep showing the old counts. Both wallets'
