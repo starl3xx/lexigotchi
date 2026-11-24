@@ -89,12 +89,20 @@ export function SwapCard() {
     refetchInterval: 30_000,
   });
 
-  const quote = quoteQ.data?.ok && quoteQ.data.amountIn === debounced ? quoteQ.data : null;
+  // A quote counts only for the amount in the box right now, not the debounced one: for the 400ms
+  // after an edit, the old figures would otherwise still show and the button would still send
+  // (Bugbot on #133).
+  const live = amountIn?.toString() ?? "";
+  const quote = quoteQ.data?.ok && quoteQ.data.amountIn === live ? quoteQ.data : null;
+  const requoting = !!live && !quote && (live !== debounced || quoteQ.isFetching);
   const out = quote ? BigInt(quote.amountOut) : null;
   const impact = quote?.priceImpactPct ?? null;
   const balance = balQ.data?.ok ? BigInt(balQ.data[from]) : null;
   const short = amountIn != null && balance != null && amountIn > balance;
   const tooBig = impact != null && impact > MAX_IMPACT_PCT;
+  // No USD figures from the router means no impact check, and the pool is small: refuse rather than
+  // send blind (Bugbot on #133).
+  const impactUnknown = quote != null && impact == null;
 
   const setMax = () => {
     if (balance == null) return;
@@ -109,8 +117,9 @@ export function SwapCard() {
     try {
       // A fresh quote and build at the moment of sending: the pool is small and moves.
       const fresh: Quote = await (await fetch(`/api/swap/quote?from=${from}&to=${to}&amount=${amountIn}`)).json();
-      if (!fresh.ok) throw new Error("No route right now. Try again in a moment.");
-      if ((fresh.priceImpactPct ?? 0) > MAX_IMPACT_PCT) throw new Error("That trade is too large for this pool.");
+      if (!fresh.ok || fresh.amountIn !== amountIn.toString()) throw new Error("No route right now. Try again in a moment.");
+      if (fresh.priceImpactPct == null) throw new Error("Can’t check the price impact right now. Try again in a moment.");
+      if (fresh.priceImpactPct > MAX_IMPACT_PCT) throw new Error("That trade is too large for this pool.");
       const built = await (
         await fetch("/api/swap/build", {
           method: "POST",
@@ -118,7 +127,16 @@ export function SwapCard() {
           body: JSON.stringify({ routeSummary: fresh.routeSummary, sender: address, slippageBps: slippage }),
         })
       ).json();
-      if (!built.ok || built.router !== KYBER_ROUTER) throw new Error("Couldn’t build that trade. Try again.");
+      // The server checks the build too; these bind it to what's in the box, so a changed amount or
+      // an ETH value on a token sale never reaches the wallet.
+      const value = BigInt(built.ok ? built.value : "0");
+      if (
+        !built.ok ||
+        built.router !== KYBER_ROUTER ||
+        built.amountIn !== amountIn.toString() ||
+        value !== (from === "ETH" ? amountIn : 0n)
+      )
+        throw new Error("Couldn’t build that trade. Try again.");
       const calls: Call[] = [];
       if (from !== "ETH") {
         // Exact amount, never unlimited: this is a third-party router, not the game's contracts.
@@ -127,7 +145,7 @@ export function SwapCard() {
           data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [KYBER_ROUTER, BigInt(built.amountIn)] }),
         });
       }
-      calls.push({ to: KYBER_ROUTER, data: built.data, value: BigInt(built.value) > 0n ? toHex(BigInt(built.value)) : undefined });
+      calls.push({ to: KYBER_ROUTER, data: built.data, value: value > 0n ? toHex(value) : undefined });
       const provider = (await connector.getProvider()) as Eip1193Provider;
       setPhase("wallet");
       await sendCallsAttributed(provider, address, calls, { network: BASE, sponsored: false });
@@ -174,6 +192,8 @@ export function SwapCard() {
               ? `Not enough ${from === "WORD" ? "$WORD" : from}`
               : tooBig
                 ? "Too large for this pool"
+                : impactUnknown
+                  ? "Can’t check the price impact"
                 : side === "buy"
                   ? "Buy $WORD"
                   : "Sell $WORD";
@@ -232,7 +252,7 @@ export function SwapCard() {
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-ink/60">You get about</span>
             <span className="font-display text-lg font-extrabold tabular-nums">
-              {out != null ? fmtAmount(to, out) : amountIn && quoteQ.isFetching ? "…" : "–"}
+              {out != null ? fmtAmount(to, out) : requoting ? "…" : "–"}
             </span>
           </div>
           {quote && out != null && (
@@ -268,7 +288,7 @@ export function SwapCard() {
         <Button
           full
           variant="primary"
-          disabled={phase !== "idle" || (!!address && (!amountIn || !quote || short || tooBig))}
+          disabled={phase !== "idle" || (!!address && (!amountIn || !quote || short || tooBig || impactUnknown))}
           onClick={() => (address ? void swap() : openConnectModal?.())}
         >
           {label}

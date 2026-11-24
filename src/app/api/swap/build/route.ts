@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     const body = (await res.json()) as { code?: number; data?: { routerAddress?: string; amountIn?: string; amountOut?: string; data?: string; transactionValue?: string } };
     const b = body.data;
     if (!res.ok || body.code !== 0 || !b) return NextResponse.json({ ok: false, error: "build_failed" }, { status: 502 });
-    const problem = checkBuild(b, { amountIn: String(rs.amountIn) });
+    const problem = checkBuild(b, { amountIn: String(rs.amountIn), tokenIn: String(rs.tokenIn) });
     if (problem) return NextResponse.json({ ok: false, error: problem }, { status: 502 });
     return NextResponse.json(
       {

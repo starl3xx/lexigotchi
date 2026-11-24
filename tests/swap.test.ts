@@ -3,7 +3,7 @@
  * minimum the player accepts.
  */
 import { describe, it, expect } from "vitest";
-import { KYBER_ROUTER, checkBuild, minOut, priceImpactPct, symbolOf, validPair } from "@/lib/swap/kyber";
+import { KYBER_ROUTER, NATIVE, SWAP_TOKENS, checkBuild, minOut, priceImpactPct, symbolOf, validPair } from "@/lib/swap/kyber";
 
 describe("validPair", () => {
   it("trades $WORD against ETH or USDC, either way", () => {
@@ -27,14 +27,23 @@ describe("symbolOf", () => {
 });
 
 describe("checkBuild", () => {
-  const ok = { routerAddress: KYBER_ROUTER.toLowerCase(), amountIn: "1000000", data: "0xe21fd0e9" };
+  const USDC = SWAP_TOKENS.USDC.address;
+  const ok = { routerAddress: KYBER_ROUTER.toLowerCase(), amountIn: "1000000", data: "0xe21fd0e9", transactionValue: "0" };
   it("passes a build for the pinned router and the quoted amount", () => {
-    expect(checkBuild(ok, { amountIn: "1000000" })).toBeNull();
+    expect(checkBuild(ok, { amountIn: "1000000", tokenIn: USDC })).toBeNull();
+    expect(checkBuild({ ...ok, transactionValue: undefined }, { amountIn: "1000000", tokenIn: USDC })).toBeNull();
   });
   it("refuses another router, a changed amount, or bad calldata", () => {
-    expect(checkBuild({ ...ok, routerAddress: "0x0000000000000000000000000000000000000bad" }, { amountIn: "1000000" })).toBe("unexpected_router");
-    expect(checkBuild(ok, { amountIn: "999" })).toBe("amount_changed");
-    expect(checkBuild({ ...ok, data: "not-hex" }, { amountIn: "1000000" })).toBe("bad_calldata");
+    expect(checkBuild({ ...ok, routerAddress: "0x0000000000000000000000000000000000000bad" }, { amountIn: "1000000", tokenIn: USDC })).toBe("unexpected_router");
+    expect(checkBuild(ok, { amountIn: "999", tokenIn: USDC })).toBe("amount_changed");
+    expect(checkBuild({ ...ok, data: "not-hex" }, { amountIn: "1000000", tokenIn: USDC })).toBe("bad_calldata");
+  });
+  it("binds the ETH value: exactly the amount for an ETH sale, nothing for a token sale", () => {
+    expect(checkBuild({ ...ok, transactionValue: "1000000" }, { amountIn: "1000000", tokenIn: NATIVE })).toBeNull();
+    expect(checkBuild({ ...ok, transactionValue: "0" }, { amountIn: "1000000", tokenIn: NATIVE })).toBe("unexpected_value");
+    expect(checkBuild({ ...ok, transactionValue: "2000000" }, { amountIn: "1000000", tokenIn: NATIVE })).toBe("unexpected_value");
+    expect(checkBuild({ ...ok, transactionValue: "1" }, { amountIn: "1000000", tokenIn: USDC })).toBe("unexpected_value");
+    expect(checkBuild({ ...ok, transactionValue: "0x10" }, { amountIn: "1000000", tokenIn: USDC })).toBe("bad_value");
   });
 });
 

@@ -55,13 +55,23 @@ export function priceImpactPct(inUsd: number, outUsd: number): number | null {
 /** Above this, the card refuses the trade: the pool is small, and the player would lose too much. */
 export const MAX_IMPACT_PCT = 15;
 
-/** Why a build answer can't be sent, or null if it can. Pure, so the guard is tested. */
+/**
+ * Why a build answer can't be sent, or null if it can. Pure, so the guard is tested.
+ *
+ * The ETH `value` is checked as well as the router and amount (Bugbot on #133): the card sends
+ * `transactionValue` as the call's value, so a bad build could otherwise attach ETH to any trade.
+ * An ETH sale attaches exactly the amount sold; a token sale attaches nothing.
+ */
 export function checkBuild(
-  built: { routerAddress?: string; amountIn?: string; data?: string },
-  expected: { amountIn: string },
+  built: { routerAddress?: string; amountIn?: string; data?: string; transactionValue?: string },
+  expected: { amountIn: string; tokenIn: string },
 ): string | null {
   if (!built.routerAddress || built.routerAddress.toLowerCase() !== KYBER_ROUTER.toLowerCase()) return "unexpected_router";
   if (built.amountIn !== expected.amountIn) return "amount_changed";
   if (!built.data || !/^0x[0-9a-fA-F]+$/.test(built.data)) return "bad_calldata";
+  const raw = built.transactionValue ?? "0";
+  if (!/^\d+$/.test(raw)) return "bad_value";
+  const want = expected.tokenIn.toLowerCase() === NATIVE.toLowerCase() ? BigInt(expected.amountIn) : 0n;
+  if (BigInt(raw) !== want) return "unexpected_value";
   return null;
 }
