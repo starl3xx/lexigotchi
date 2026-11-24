@@ -98,7 +98,11 @@ export function SwapCard() {
   const out = quote ? BigInt(quote.amountOut) : null;
   const impact = quote?.priceImpactPct ?? null;
   const balance = balQ.data?.ok ? BigInt(balQ.data[from]) : null;
-  const short = amountIn != null && balance != null && amountIn > balance;
+  // ETH pays for the trade AND its gas, so an ETH amount must leave the reserve Max leaves
+  // (Bugbot on #133: the full balance passed, then the wallet couldn't pay gas).
+  const spendable = balance == null ? null : from === "ETH" ? (balance > GAS_RESERVE ? balance - GAS_RESERVE : 0n) : balance;
+  const short = amountIn != null && spendable != null && amountIn > spendable;
+  const needsGas = short && from === "ETH" && balance != null && amountIn != null && amountIn <= balance;
   const tooBig = impact != null && impact > MAX_IMPACT_PCT;
   // No USD figures from the router means no impact check, and the pool is small: refuse rather than
   // send blind (Bugbot on #133).
@@ -106,12 +110,14 @@ export function SwapCard() {
 
   const setMax = () => {
     if (balance == null) return;
-    const max = from === "ETH" ? (balance > GAS_RESERVE ? balance - GAS_RESERVE : 0n) : balance;
-    setAmount(formatUnits(max, SWAP_TOKENS[from].decimals));
+    if (spendable == null) return;
+    setAmount(formatUnits(spendable, SWAP_TOKENS[from].decimals));
   };
 
   const swap = async () => {
-    if (!address || !connector || !amountIn) return;
+    // What the player agreed to: the figures on screen when they tapped.
+    const shown = quote;
+    if (!address || !connector || !amountIn || !shown) return;
     setPhase("preparing");
     const before = balQ.data?.ok ? balQ.data.WORD : null;
     try {
@@ -120,6 +126,12 @@ export function SwapCard() {
       if (!fresh.ok || fresh.amountIn !== amountIn.toString()) throw new Error("No route right now. Try again in a moment.");
       if (fresh.priceImpactPct == null) throw new Error("Can’t check the price impact right now. Try again in a moment.");
       if (fresh.priceImpactPct > MAX_IMPACT_PCT) throw new Error("That trade is too large for this pool.");
+      // Never send a worse trade than the one on screen (Bugbot on #133): if the fresh route's
+      // "at least" is below the shown one, show the new figures and let the player decide again.
+      if (minOut(BigInt(fresh.amountOut), slippage) < minOut(BigInt(shown.amountOut), slippage)) {
+        qc.setQueryData(["swapQuote", from, to, amountIn.toString()], fresh);
+        throw new Error("The price moved. Check the new figures and try again.");
+      }
       const built = await (
         await fetch("/api/swap/build", {
           method: "POST",
@@ -188,15 +200,17 @@ export function SwapCard() {
           ? "Waiting for Base…"
           : !address
             ? "Connect a wallet to swap"
-            : short
-              ? `Not enough ${from === "WORD" ? "$WORD" : from}`
-              : tooBig
-                ? "Too large for this pool"
-                : impactUnknown
-                  ? "Can’t check the price impact"
-                : side === "buy"
-                  ? "Buy $WORD"
-                  : "Sell $WORD";
+            : needsGas
+              ? "Leave some ETH for gas"
+              : short
+                ? `Not enough ${from === "WORD" ? "$WORD" : from}`
+                : tooBig
+                  ? "Too large for this pool"
+                  : impactUnknown
+                    ? "Can’t check the price impact"
+                    : side === "buy"
+                      ? "Buy $WORD"
+                      : "Sell $WORD";
 
   return (
     <Card>
