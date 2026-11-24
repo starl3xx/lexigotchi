@@ -7,6 +7,7 @@
  * CTAs, not a hierarchy: a Base App player has no Farcaster context at all (the host dropped FID
  * identity 2026-04-09), so for them the verify path isn't the fallback, it's the door.
  */
+import { useAccount } from "wagmi";
 import { Button } from "./primitives";
 import { Ticket, SealCheck, XLogo } from "./ui/icons";
 import { useGame } from "./state";
@@ -18,13 +19,16 @@ import { VERIFY_URL } from "@/lib/onchain/verifications";
 /** One answer for "may this player pull the daily?" — both screens branch on this. */
 export function useDailyEligibility(): { eligible: boolean; checking: boolean } {
   const viewer = useViewer();
+  const { address } = useAccount();
   const { verified } = useVerifiedWallet();
   const x = usePublicProfile();
   return {
     eligible: viewer.isAuthed || x.xCounts || verified === true,
     // Farcaster context still resolving, the profile still loading, or the attestation check still
     // in flight — during any, the locked row would be a lie about a player about to be eligible.
-    checking: viewer.environment === "loading" || (!viewer.isAuthed && !x.xCounts && (verified === null || x.loading)),
+    // With no wallet there is nothing to check: `verified` stays null for good, so it can't count.
+    checking:
+      viewer.environment === "loading" || (!viewer.isAuthed && !x.xCounts && ((Boolean(address) && verified === null) || x.loading)),
   };
 }
 
@@ -33,7 +37,9 @@ export function DailyUnlock() {
   const { verified, recheck } = useVerifiedWallet();
   const { xEnabled } = usePublicProfile();
   const { openSheet } = useGame();
-  const checking = viewer.environment === "loading" || verified === null;
+  const { address } = useAccount();
+  // No wallet, nothing to check: useVerifiedWallet keeps `null` until a wallet connects.
+  const checking = viewer.environment === "loading" || (Boolean(address) && verified === null);
 
   return (
     <div className="space-y-2">

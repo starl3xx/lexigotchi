@@ -163,21 +163,16 @@ the mainnet addresses, remove both, and consider adding the contract addresses t
 
 Two more notes come out when a switch flips, not with the launch PR:
 
-- **Reminders.** The note under "Reminders" in `docs-site/care.mdx` and the sentence "Reminders
-  aren’t switched on yet" in the FAQ's hunger answer. They come out once web push
-  (`WEB_PUSH_ENABLED`, the VAPID keys, migration 0003) and Farcaster notifications
+- **Reminders.** The note under "Reminders" in `docs-site/care.mdx` and the matching sentence in
+  the FAQ's hunger answer say email reminders are on and the Farcaster and browser ones aren't.
+  They come out once web push (`WEB_PUSH_ENABLED`, the VAPID keys) and Farcaster notifications
   (`NOTIFICATIONS_ENABLED`) are on in production.
-- **X linking.** Turning it on needs an X Developer Console app (OAuth 2.0, Web App), the
-  callback `https://lexigotchi.fun/api/x/callback` registered exactly, prepaid API credits, and
-  `X_CLIENT_ID` + `X_CLIENT_SECRET` in Vercel (profiles on first). Then the player docs gain X:
-  `docs-site/letters.mdx` (the daily's unlock list, with the 90-day rule), `docs-site/faq.mdx`
-  ("Do I need a Farcaster account?"), and the quickstart.
-- **Email reminders.** Turning it on needs a Resend account with a verified sending domain (DNS on
-  lexigotchi.fun or a subdomain), then `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_ENABLED=true` in
-  Vercel (profiles on first). The same PR changes the "no sign-up and no email" copy in
-  `src/components/LandingPage.tsx` and `docs-site/quickstart.mdx` to "email optional", amends
-  decisions.md #9, adds email to the reminders section of `docs-site/care.mdx`, and adds the email
-  to the privacy notes if there are any by then.
+- **Profiles, X linking, and email reminders: switched on 2026-11-24.** Migrations 0003–0007 ran in
+  production that day, and the docs PR added `docs-site/profile.mdx` and X and email to the letters,
+  FAQ, quickstart, and reminders pages. The landing page follows the switches on its own
+  (`xEnabled()`/`emailEnabled()` in `src/app/page.tsx`). If X or email is ever switched off again,
+  change those docs pages back in the same step. X's callback is
+  `https://lexigotchi.fun/api/x/callback`, and X bills each link from prepaid credits.
 - **Ascension.** The note at the top of `docs-site/ascension.mdx` and "It isn’t switched on yet" in
   the FAQ. They come out when `PRESTIGE_MAX_LEVEL` is raised above 0. If the fee, odds, or
   multipliers change from `params.ts` before then, update that page too.

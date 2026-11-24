@@ -27,6 +27,7 @@ import {
   Sparkle,
   Trophy,
   Wallet,
+  XLogo,
 } from "@/components/game/ui/icons";
 
 const WORD_TOKEN = "0x304e649e69979298bd1aee63e175adf07885fb4b"; // $WORD on Base (the LHAW token)
@@ -219,7 +220,12 @@ const A = ({ href, children }: { href: string; children: ReactNode }) => (
 // Page
 // ---------------------------------------------------------------------------
 
-export function LandingPage() {
+/**
+ * `xOn`: X linking is switched on (`xEnabled()`, read by the server page). It adds X as a door to the
+ * free daily letter, so the page never offers an account the game can't link yet. `emailOn`: email
+ * reminders are switched on (`emailEnabled()`), so "no email" becomes "email optional".
+ */
+export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; emailOn?: boolean }) {
   const practice = !isRealEconomy();
   const { baseSuccess, pityCap } = DEFAULT_PARAMS.roll;
   const care = DEFAULT_PARAMS.care;
@@ -358,9 +364,11 @@ export function LandingPage() {
       {/* Wallets */}
       <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <SectionHead kicker="Start playing" title="Bring any wallet.">
-          No sign-up and no email. Your wallet is your Lexigotchi account, and your letters and words live in it.
+          {emailOn
+            ? "No sign-up. Your wallet is your Lexigotchi account, and your letters and words live in it. An email is optional, for reminders."
+            : "No sign-up and no email. Your wallet is your Lexigotchi account, and your letters and words live in it."}
         </SectionHead>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className={`mt-12 grid gap-6 ${xOn ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"}`}>
           <Door icon={<Wallet weight="fill" size={24} aria-hidden />} name="Your wallet" tag="Needed">
             MetaMask, Rabby, Phantom, Coinbase Wallet, or any browser wallet.
           </Door>
@@ -375,8 +383,14 @@ export function LandingPage() {
           >
             Link it to unlock one free letter a day. Inside Farcaster, the game connects on its own.
           </Door>
+          {xOn && (
+            <Door icon={<XLogo weight="bold" size={22} className="text-paper" aria-hidden />} name="X" tag="Optional" iconBg="bg-ink">
+              Link an X account older than 90 days for the same free daily letter. It shows publicly next to your wallet.
+            </Door>
+          )}
           <Door icon={<SealCheck weight="fill" size={24} className="text-[#0052ff]" aria-hidden />} name="Coinbase verification" tag="Optional">
-            No Farcaster? A <A href={VERIFY_URL}>Coinbase-verified</A> wallet unlocks the same free daily letter.
+            {xOn ? "No Farcaster or X? " : "No Farcaster? "}A <A href={VERIFY_URL}>Coinbase-verified</A> wallet unlocks the same
+            free daily letter.
           </Door>
         </div>
       </section>
@@ -392,7 +406,9 @@ export function LandingPage() {
           </div>
           <div className="space-y-4">
             <Qa q="Do I need a Farcaster account?">
-              No. Your wallet is your account. Linking Farcaster is optional, and it unlocks the free daily letter.
+              {xOn
+                ? "No. Your wallet is your account. Linking Farcaster is optional. The free daily letter needs Farcaster, X, or a Coinbase-verified wallet."
+                : "No. Your wallet is your account. Linking Farcaster is optional, and it unlocks the free daily letter."}
             </Qa>
             <Qa q="What is $WORD?">
               <A href={LINKS.word}>$WORD</A> is the token on Base behind Lexigotchi and{" "}

@@ -28,7 +28,7 @@
   },
   "navigation": {
     "groups": [
-      { "group": "Get started", "pages": ["index", "quickstart"] },
+      { "group": "Get started", "pages": ["index", "quickstart", "profile"] },
       { "group": "Play", "pages": ["letters", "rolls", "words", "care", "jackpot", "bounty", "earning", "ascension", "showcase-and-swap"] },
       { "group": "$WORD", "pages": ["word", "fees"] },
       { "group": "More", "pages": ["fairness", "lets-have-a-word", "faq"] }
