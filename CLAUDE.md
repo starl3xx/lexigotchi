@@ -132,7 +132,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player, everywhere** (starl3xx, 2026-11-24: "everything should be profile-based"): read
   `usePlayerWallets()` (connected + Farcaster-verified + profile wallets) for any "yours", total, or
   list; name a single wallet only for a verb only that wallet can do (sign, cancel, fill, move).
-  Server lists of players resolve faces with `playerFaces` (lib/profile/faces.ts).
+  Server lists of players resolve faces with `playerFaces` (lib/profile/faces.ts). **Farcaster
+  wallets join on their own** (`lib/profile/farcasterWallets.ts`, migration 0009 `via`/`fid`;
+  `POST /api/profile/farcaster` once per page load with a wallet session or Quick Auth): a wallet
+  joins when one FID verified it AND a seed (the first wallet or a signature link); Farcaster rows
+  never vouch (no chaining), never merge accounts, prune only on a positive Neynar answer and never
+  on a claimed day; one advisory lock serializes writes. The core link reads never select `via`/`fid`,
+  so a database without 0009 still resolves accounts.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

@@ -409,6 +409,8 @@ export function useProfile() {
     // A stored session counts at once. Waiting for /me made the sheet ask a player to sign in
     // while their session was still loading (Bugbot on #136); a dead token is forgotten on its 401.
     signedIn: Boolean(token),
+    /** The stored wallet session, for calls outside this hook (the Farcaster wallets sync). */
+    sessionToken: token ?? null,
     /**
      * The own view (with email) has loaded. Until it does, `profile` is the public view, whose email
      * is always null, so "no email" can't be told apart from "not loaded yet" without this.

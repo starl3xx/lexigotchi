@@ -5,7 +5,7 @@ import { allow } from "@/lib/ratelimit";
 import { sessionAccountOf } from "@/lib/profile/account";
 import { profilesEnabled, sessionAddress } from "@/lib/profile/session";
 import { accountView, isMissingTable } from "@/lib/db/profiles";
-import { unlinkWallet, walletsOfAccount } from "@/lib/db/walletLinks";
+import { isFarcasterLink, unlinkWallet, walletsOfAccount } from "@/lib/db/walletLinks";
 import { accountClaimedToday } from "@/lib/onchain/dailyIdentity";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +29,9 @@ export async function DELETE(req: Request) {
     const wallets = await walletsOfAccount(account);
     if (!wallets.includes(target)) return NextResponse.json({ ok: false, error: "not_linked" }, { status: 409 });
     if (target === account) return NextResponse.json({ ok: false, error: "first_wallet" }, { status: 409 });
+    // A wallet that joined through Farcaster leaves when Farcaster drops it: Unlink would only see it
+    // rejoin at the next sign-in (lib/profile/farcasterWallets.ts).
+    if (await isFarcasterLink(target)) return NextResponse.json({ ok: false, error: "farcaster_wallet" }, { status: 409 });
     let claimed: boolean;
     try {
       claimed = await accountClaimedToday(account);

@@ -7,7 +7,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
-import { getDb } from "./client";
+import { getDb, type DbOrTx } from "./client";
 import { walletLinkCodes, walletLinks } from "./schema";
 
 /** An account's wallets, the first included. Bounds the daily's lookups and the bag's reads. */
@@ -18,10 +18,10 @@ export const LINK_CODE_TTL_MS = 15 * 60_000;
 const lower = (a: string) => a.toLowerCase();
 
 /** The account a wallet belongs to (its first wallet), or the wallet itself. Never throws. */
-export async function accountOf(address: string): Promise<string> {
+export async function accountOf(address: string, db: DbOrTx = getDb()): Promise<string> {
   const a = lower(address);
   try {
-    const rows = await getDb().select({ account: walletLinks.account }).from(walletLinks).where(eq(walletLinks.address, a)).limit(1);
+    const rows = await db.select({ account: walletLinks.account }).from(walletLinks).where(eq(walletLinks.address, a)).limit(1);
     return rows[0]?.account ?? a;
   } catch {
     return a;
@@ -46,10 +46,10 @@ export async function accountsOf(addresses: readonly string[]): Promise<Map<stri
 }
 
 /** An account's wallets, the account's own first, capped. Never throws. */
-export async function walletsOfAccount(account: string): Promise<string[]> {
+export async function walletsOfAccount(account: string, db: DbOrTx = getDb()): Promise<string[]> {
   const acct = lower(account);
   try {
-    const rows = await getDb()
+    const rows = await db
       .select({ address: walletLinks.address })
       .from(walletLinks)
       .where(eq(walletLinks.account, acct))
@@ -111,6 +111,51 @@ export async function loadLinkMap(): Promise<LinkMap> {
   }
 }
 
+/**
+ * Run a link check-and-write while holding the one lock every link writer takes (Link another wallet
+ * here, the Farcaster sync in lib/profile/farcasterWallets.ts), so two writers can't insert A→B and
+ * B→A, or overfill an account. The lock lives for the transaction; `fn` must read and write through
+ * the transaction it is given.
+ */
+export async function withLinkLock<T>(fn: (db: DbOrTx) => Promise<T>): Promise<T> {
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('lexigotchi:wallet_links'))`);
+    // Everything under the lock runs on THIS transaction's connection: work on other pool
+    // connections could deadlock once the pool fills with writers waiting on the lock, and a
+    // failure mid-way (the code consumed, the link not written) now rolls back as one (Bugbot on #163).
+    return fn(tx);
+  });
+}
+
+// ── how a wallet joined (migration 0009) ─────────────────────────────────────────────────────
+
+/** The Farcaster links in an account (for the Wallets card). Never throws: before 0009, none. */
+export async function farcasterWalletsOf(account: string): Promise<string[]> {
+  try {
+    const rows = await getDb()
+      .select({ address: walletLinks.address })
+      .from(walletLinks)
+      .where(and(eq(walletLinks.account, lower(account)), eq(walletLinks.via, "farcaster")));
+    return rows.map((r) => r.address);
+  } catch {
+    return [];
+  }
+}
+
+/** Is this wallet in its account through Farcaster? Never throws (false before 0009). */
+export async function isFarcasterLink(address: string): Promise<boolean> {
+  try {
+    const rows = await getDb()
+      .select({ via: walletLinks.via })
+      .from(walletLinks)
+      .where(eq(walletLinks.address, lower(address)))
+      .limit(1);
+    return rows[0]?.via === "farcaster";
+  } catch {
+    return false;
+  }
+}
+
 // ── link codes ───────────────────────────────────────────────────────────────────────────────────
 
 /** A fresh code for this account. Alphanumeric, so it can be a Sign-In with Ethereum nonce. Throws. */
@@ -132,8 +177,8 @@ export async function peekLinkCode(code: string): Promise<{ account: string; exp
 }
 
 /** Use a code up, once: the account it named, or null if it was already used or expired. Throws. */
-export async function consumeLinkCode(code: string): Promise<string | null> {
-  const rows = await getDb()
+export async function consumeLinkCode(code: string, db: DbOrTx = getDb()): Promise<string | null> {
+  const rows = await db
     .update(walletLinkCodes)
     .set({ usedAt: sql`now()` })
     .where(and(eq(walletLinkCodes.code, code), isNull(walletLinkCodes.usedAt), gt(walletLinkCodes.expiresAt, sql`now()`)))
@@ -167,8 +212,12 @@ export function linkRefusal(opts: {
 }
 
 /** Add the wallet to the account. The primary key keeps a wallet in one account. Throws. */
-export async function linkWallet(account: string, address: string): Promise<void> {
-  await getDb().insert(walletLinks).values({ address: lower(address), account: lower(account) }).onConflictDoNothing();
+export async function linkWallet(account: string, address: string, db: DbOrTx = getDb()): Promise<void> {
+  // Raw on purpose: Drizzle names every column (`via`, `fid` with DEFAULT), which fails on a
+  // database without migration 0009. Naming only these two works before and after it.
+  await db.execute(
+    sql`insert into wallet_links (address, account) values (${lower(address)}, ${lower(account)}) on conflict do nothing`,
+  );
 }
 
 /** Take the wallet out of the account (it becomes its own account again). Throws. */

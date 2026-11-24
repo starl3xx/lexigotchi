@@ -69,6 +69,8 @@ export interface FarcasterProfile {
    * collection across contexts, and the UI should say so.
    */
   linkedWallets: string[];
+  /** The wallets this account VERIFIED (no custody key), lowercased: what joins a profile automatically. */
+  verifiedWallets?: string[];
 }
 
 /**
@@ -148,6 +150,7 @@ export async function lookupProfiles(fids: readonly number[]): Promise<Farcaster
             ...(u.custody_address ? [String(u.custody_address)] : []),
             ...(u.verified_addresses?.eth_addresses ?? []).map(String),
           ].map((a) => a.toLowerCase()),
+          verifiedWallets: (u.verified_addresses?.eth_addresses ?? []).map((a: unknown) => String(a).toLowerCase()),
         });
       }
     } catch (err) {

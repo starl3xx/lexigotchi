@@ -7,7 +7,7 @@ import { getPublicClient } from "@/lib/onchain/reads";
 import { getMainnetClient } from "@/lib/onchain/mainnet";
 import { checkLinkMessage, linkStatement, profilesEnabled, verifyWalletSignature } from "@/lib/profile/session";
 import { getProfile, isMissingTable } from "@/lib/db/profiles";
-import { accountOf, consumeLinkCode, linkRefusal, linkWallet, peekLinkCode, walletsOfAccount } from "@/lib/db/walletLinks";
+import { accountOf, consumeLinkCode, linkRefusal, linkWallet, peekLinkCode, walletsOfAccount, withLinkLock } from "@/lib/db/walletLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,25 +39,31 @@ export async function POST(req: Request) {
     if (!(await verifyWalletSignature(msg.address, body.message, body.signature, [getPublicClient(), getMainnetClient()]))) {
       return refuse("bad_signature", 401);
     }
-    // The code's account must still head its own account: if it has since joined another, this
-    // link would chain (B → A while A → C). The wallet signed for A, not C, so refuse (Bugbot on #158).
-    if ((await accountOf(live.account)) !== live.account.toLowerCase()) return refuse("stale_code", 410);
-    const address = msg.address.toLowerCase();
-    const [addressAccount, accountList] = await Promise.all([accountOf(address), walletsOfAccount(live.account)]);
-    const refusal = linkRefusal({
-      account: live.account,
-      address,
-      addressAccount,
-      addressAccountSize: (await walletsOfAccount(addressAccount)).length,
-      accountSize: accountList.length,
+    // Check and write under the lock every link writer takes (withLinkLock), so this link and a
+    // Farcaster sync can't cross (A→B while B→A) or overfill the account.
+    const linked = await withLinkLock(async (db) => {
+      // The code's account must still head its own account: if it has since joined another, this
+      // link would chain (B → A while A → C). The wallet signed for A, not C, so refuse (Bugbot on #158).
+      if ((await accountOf(live.account, db)) !== live.account.toLowerCase()) return refuse("stale_code", 410);
+      const address = msg.address.toLowerCase();
+      const [addressAccount, accountList] = await Promise.all([accountOf(address, db), walletsOfAccount(live.account, db)]);
+      const refusal = linkRefusal({
+        account: live.account,
+        address,
+        addressAccount,
+        addressAccountSize: (await walletsOfAccount(addressAccount, db)).length,
+        accountSize: accountList.length,
+      });
+      if (refusal && refusal !== "already") return refuse(refusal);
+      if (refusal !== "already") {
+        const own = await getProfile(address, db);
+        if (own?.xUserId || own?.emailVerifiedAt) return refuse("has_profile");
+      }
+      if (!(await consumeLinkCode(msg.code, db))) return refuse("stale_code", 410);
+      if (refusal !== "already") await linkWallet(live.account, address, db);
+      return null;
     });
-    if (refusal && refusal !== "already") return refuse(refusal);
-    if (refusal !== "already") {
-      const own = await getProfile(address);
-      if (own?.xUserId || own?.emailVerifiedAt) return refuse("has_profile");
-    }
-    if (!(await consumeLinkCode(msg.code))) return refuse("stale_code", 410);
-    if (refusal !== "already") await linkWallet(live.account, address);
+    if (linked) return linked;
     return NextResponse.json(
       { ok: true, account: live.account, wallets: await walletsOfAccount(live.account) },
       { headers: { "Cache-Control": "no-store" } },

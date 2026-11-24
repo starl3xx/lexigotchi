@@ -265,6 +265,15 @@ export const walletLinks = pgTable(
     /** The account's first wallet, lowercase. */
     account: text("account").notNull(),
     linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * How it joined (migration 0009): "signature" (Link another wallet: the wallet signed) or
+     * "farcaster" (a Farcaster account verified both it and a wallet the account already had by
+     * signature; it leaves when that verification goes). The core link reads never select this, so a
+     * database without 0009 keeps working.
+     */
+    via: text("via").notNull().default("signature"),
+    /** For a "farcaster" link: the FID whose verification vouches for it. */
+    fid: integer("fid"),
   },
   (t) => [index("wallet_links_account_idx").on(t.account)],
 );

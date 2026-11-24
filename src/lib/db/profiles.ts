@@ -3,10 +3,10 @@
  * wallet the caller has proven with a session (lib/profile/session.ts); these helpers don't check.
  */
 import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { getDb } from "./client";
+import { getDb, type DbOrTx } from "./client";
 import { emailCodes, profiles, xLinkStates, type Profile } from "./schema";
 import type { NameSource, ProfileView, PublicProfileRow, PublicProfileView } from "@/lib/profile/rules";
-import { accountWallets, walletsOfAccount } from "./walletLinks";
+import { accountWallets, walletsOfAccount, farcasterWalletsOf } from "./walletLinks";
 
 /**
  * Postgres "relation does not exist": the owner hasn't applied migration 0006 yet. Drizzle wraps
@@ -17,8 +17,8 @@ export function isMissingTable(err: unknown): boolean {
   return e?.code === "42P01" || e?.cause?.code === "42P01";
 }
 
-export async function getProfile(address: string): Promise<Profile | null> {
-  const rows = await getDb().select().from(profiles).where(eq(profiles.address, address.toLowerCase())).limit(1);
+export async function getProfile(address: string, db: DbOrTx = getDb()): Promise<Profile | null> {
+  const rows = await db.select().from(profiles).where(eq(profiles.address, address.toLowerCase())).limit(1);
   return rows[0] ?? null;
 }
 
@@ -32,14 +32,15 @@ export async function setNameSource(address: string, source: NameSource | null):
 
 /** An account's own profile view (email included) with its wallets: what the profile routes return. */
 export async function accountView(account: string): Promise<ProfileView> {
-  const [p, wallets] = await Promise.all([getProfile(account), walletsOfAccount(account)]);
-  return { ...toView(account, p), account: account.toLowerCase(), wallets };
+  const [p, wallets, viaFarcaster] = await Promise.all([getProfile(account), walletsOfAccount(account), farcasterWalletsOf(account)]);
+  return { ...toView(account, p), account: account.toLowerCase(), wallets, viaFarcaster };
 }
 
 /** A wallet's public view, resolved to its account: the account's X and name, and its wallets. */
 export async function publicViewOf(address: string): Promise<PublicProfileView> {
   const { account, wallets } = await accountWallets(address);
-  return { ...toPublicView(account, await getProfile(account)), address: address.toLowerCase(), account, wallets };
+  const [p, viaFarcaster] = await Promise.all([getProfile(account), farcasterWalletsOf(account)]);
+  return { ...toPublicView(account, p), address: address.toLowerCase(), account, wallets, viaFarcaster };
 }
 
 /** The public view: everything but the email. */
