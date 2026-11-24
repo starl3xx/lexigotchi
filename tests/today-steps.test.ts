@@ -99,4 +99,11 @@ describe("nextSteps", () => {
     expect(steps.filter((s) => s.kind === "stake")).toHaveLength(3);
     expect(steps.filter((s) => s.kind === "roll")).toHaveLength(2);
   });
+
+  it("doesn't call a bag empty when the letters sit in another linked wallet", () => {
+    const empty26 = Array.from({ length: 26 }, () => 0);
+    const base = { words: [], claimables: [], lower: empty26, upper: empty26, pity: empty26, rollProb: () => 0.1 };
+    expect(nextSteps(base).map((s) => s.kind)).toEqual(["start"]);
+    expect(nextSteps({ ...base, bagLetters: 7 }).map((s) => s.kind)).toEqual([]);
+  });
 });
