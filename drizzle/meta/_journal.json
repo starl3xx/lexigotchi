@@ -57,6 +57,13 @@
       "when": 1795493388321,
       "tag": "0007_email_sends",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795553376169,
+      "tag": "0008_wallet_links",
+      "breakpoints": true
     }
   ]
 }

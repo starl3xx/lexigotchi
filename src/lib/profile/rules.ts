@@ -27,6 +27,10 @@ export const isNameSource = (v: unknown): v is NameSource => v === "x" || v === 
  */
 export interface PublicProfileView {
   address: string;
+  /** The account this wallet belongs to (its first wallet; itself if it isn't linked). */
+  account?: string;
+  /** Every wallet in the account, the first first: public, like the X link (lib/db/walletLinks.ts). */
+  wallets?: string[];
   nameSource: NameSource | null;
   x: { id: string; username: string; name: string | null; pfpUrl: string | null; createdAt: string | null; linkedAt: string | null } | null;
 }

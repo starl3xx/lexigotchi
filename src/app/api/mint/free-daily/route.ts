@@ -10,6 +10,7 @@ import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
 import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
 import { getProfile } from "@/lib/db/profiles";
+import { accountWallets } from "@/lib/db/walletLinks";
 import { claimDraw, readDraw } from "@/lib/db/draws";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { profilesEnabled } from "@/lib/profile/session";
@@ -68,9 +69,11 @@ export async function POST(req: Request) {
   // silently corrupt one before BigInt() ever saw it.
   let key: bigint;
   const fid = await getAuthedFid(req);
-  // The X account linked to this wallet, if any. A profile read that fails (or a database without
-  // migration 0006) just means no X: the other two paths still work.
-  const xRow = profilesEnabled() ? await getProfile(wallet).catch(() => null) : null;
+  // The wallet's account (its linked wallets, lib/db/walletLinks.ts; a lone wallet is its own). The
+  // profile, and so the X link, is the account's. A profile read that fails (or a database without
+  // migration 0006 or 0008) just means no X: the other two paths still work.
+  const { account, wallets: accountWalletList } = await accountWallets(wallet);
+  const xRow = profilesEnabled() ? await getProfile(account).catch(() => null) : null;
   const xUserId = xRow?.xUserId ?? null;
   const xCounts = Boolean(xUserId) && xEnabled() && xOldEnough(xRow?.xCreatedAt);
   if (fid) {
@@ -86,22 +89,31 @@ export async function POST(req: Request) {
     // unauthenticated surface.
     if (!(await allow("record-add", wallet.toLowerCase())))
       return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
-    let verified: boolean;
-    try {
-      verified = await isCoinbaseVerified(wallet);
-    } catch (err) {
-      // "Could not check" is not "not verified" — a 403 here would tell a verified player they
-      // aren't, every time the mainnet RPC hiccups.
-      console.error("[free-daily] attestation check failed:", err);
-      return NextResponse.json({ ok: false, error: "verification_unavailable" }, { status: 502 });
+    // The connected wallet first, then the account's other wallets. The key is always the PROVING
+    // wallet's (never one made up for this wallet), so linking never adds a letter.
+    let proving: string | null = null;
+    let unchecked = false;
+    for (const w of [wallet.toLowerCase(), ...accountWalletList.filter((a) => a !== wallet.toLowerCase())]) {
+      try {
+        if (await isCoinbaseVerified(w as `0x${string}`)) {
+          proving = w;
+          break;
+        }
+      } catch (err) {
+        // "Could not check" is not "not verified" — a 403 here would tell a verified player they
+        // aren't, every time the mainnet RPC hiccups.
+        console.error("[free-daily] attestation check failed:", err);
+        unchecked = true;
+      }
     }
-    if (!verified) {
+    if (!proving && unchecked) return NextResponse.json({ ok: false, error: "verification_unavailable" }, { status: 502 });
+    if (!proving) {
       // A linked X that is too young is the likeliest reason here: say so, so the client can show
       // the day it unlocks instead of asking the player to verify something else.
       const error = xUserId && xEnabled() && !xCounts ? "x_too_young" : "verification_required";
       return NextResponse.json({ ok: false, error }, { status: 403 });
     }
-    key = verifiedDailyKey(wallet);
+    key = verifiedDailyKey(proving);
   }
 
   const letters = addressOf("letters");

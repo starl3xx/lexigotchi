@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { sessionAccountOf } from "@/lib/profile/account";
+import { walletsOfAccount } from "@/lib/db/walletLinks";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
 import { profilesByAddress } from "@/lib/neynar";
-import { getProfile, isMissingTable, setEmailReminders, setNameSource, toView } from "@/lib/db/profiles";
+import { getProfile, isMissingTable, setEmailReminders, setNameSource, toView, accountView } from "@/lib/db/profiles";
 import { isNameSource } from "@/lib/profile/rules";
-import { profilesEnabled, sessionAddress } from "@/lib/profile/session";
+import { profilesEnabled } from "@/lib/profile/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,10 +16,10 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 /** GET — the session wallet's own profile, email included (only ever to its own session). */
 export async function GET(req: Request) {
   if (!profilesEnabled()) return json({ ok: false, error: "disabled" }, 404);
-  const address = sessionAddress(req);
+  const address = await sessionAccountOf(req); // the profile is the account's (linked wallets)
   if (!address) return json({ ok: false, error: "no_session" }, 401);
   try {
-    return json({ ok: true, profile: toView(address, await getProfile(address)) });
+    return json({ ok: true, profile: await accountView(address) });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
     throw err;
@@ -31,7 +33,7 @@ export async function GET(req: Request) {
  */
 export async function PATCH(req: Request) {
   if (!profilesEnabled()) return json({ ok: false, error: "disabled" }, 404);
-  const address = sessionAddress(req);
+  const address = await sessionAccountOf(req); // the profile is the account's (linked wallets)
   if (!address) return json({ ok: false, error: "no_session" }, 401);
   if (!(await allow("profile", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   const body = (await req.json().catch(() => null)) as { nameSource?: unknown; emailReminders?: unknown } | null;
@@ -42,7 +44,7 @@ export async function PATCH(req: Request) {
       const p = await getProfile(address);
       if (!p?.emailVerifiedAt) return json({ ok: false, error: "no_email" }, 409);
       await setEmailReminders(address, body.emailReminders);
-      return json({ ok: true, profile: toView(address, await getProfile(address)) });
+      return json({ ok: true, profile: await accountView(address) });
     }
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
@@ -57,11 +59,13 @@ export async function PATCH(req: Request) {
       // profilesByAddress answers {} both for "no account" and for a failed lookup, so a missing key
       // is the one failure that can be told apart; a Neynar outage reads as "not linked" (try again).
       if (!process.env.NEYNAR_API_KEY) return json({ ok: false, error: "cant_check_farcaster" }, 503);
-      const fc = await profilesByAddress([address]);
-      if (!fc[address]) return json({ ok: false, error: "farcaster_not_linked" }, 409);
+      // Any wallet in the account counts: Farcaster may have verified a linked wallet, not the first.
+      const wallets = await walletsOfAccount(address);
+      const fc = await profilesByAddress(wallets);
+      if (!wallets.some((w) => fc[w])) return json({ ok: false, error: "farcaster_not_linked" }, 409);
     }
     await setNameSource(address, source);
-    return json({ ok: true, profile: toView(address, await getProfile(address)) });
+    return json({ ok: true, profile: await accountView(address) });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
     throw err;

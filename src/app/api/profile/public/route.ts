@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { getProfile, isMissingTable, toPublicView } from "@/lib/db/profiles";
+import { isMissingTable, publicViewOf } from "@/lib/db/profiles";
 import { profilesEnabled } from "@/lib/profile/session";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,9 @@ export async function GET(req: Request) {
   const address = new URL(req.url).searchParams.get("address") ?? "";
   if (!isAddress(address)) return NextResponse.json({ ok: false, error: "bad_address" }, { status: 400 });
   try {
-    const profile = toPublicView(address, await getProfile(address));
+    // Resolved to the wallet's account: a linked wallet shows its account's X and name, and the
+    // account's wallets (public, like the X link; the player is told so when linking).
+    const profile = await publicViewOf(address);
     return NextResponse.json({ ok: true, profile }, { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120" } });
   } catch (err) {
     if (isMissingTable(err)) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503 });
