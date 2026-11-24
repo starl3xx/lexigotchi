@@ -6,12 +6,14 @@
 #
 #   ## Tester note
 #
-#   Spell now lists every word you can spell, rarest first.
+#   **New: Spell** lists every word you can spell, rarest first.
 #
+# A note may use **bold**, `code`, and [links](https://…); they show as formatting in Telegram
+# (.github/scripts/tester-note.mjs, which also finds the section). Anything else shows as typed.
 # No section, no post. A posted PR gets the `beta-posted` label, so a redeploy of the same commit
 # never posts twice. Secrets: TELEGRAM_BOT_TOKEN (from @BotFather) and TELEGRAM_CHAT_ID (the group).
-# Run it by hand (Actions → Beta updates → Run workflow) to check the bot can reach the group; that
-# run never posts.
+# Run it by hand (Actions → Beta updates → Run workflow) to check the bot can reach the group and
+# the formatter loads; that run never posts.
 name: Beta updates
 
 on:
@@ -38,6 +40,12 @@ jobs:
       group: beta-updates
       cancel-in-progress: false
     steps:
+      # Only the formatter, from the deployed commit (or the branch a manual run names).
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - uses: actions/github-script@v9
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -50,6 +58,7 @@ jobs:
               core.notice("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set; nothing posted.");
               return;
             }
+            const { betaPosts, testerNote } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/tester-note.mjs`);
 
             // Telegram Bot API. A basic group that Telegram upgrades to a supergroup gets a new id;
             // the error says which, so the fix is one secret.
@@ -74,6 +83,7 @@ jobs:
               const me = await telegram("getMe", {});
               const chat = await telegram("getChat", { chat_id: chatId });
               core.notice(`@${me.username} can reach "${chat.title}". Nothing posted.`);
+              core.notice(`The formatter loads: ${betaPosts(["**Bold** text"])[0].html.split("\n")[0]}`);
               return;
             }
 
@@ -99,24 +109,21 @@ jobs:
             if (live.length === 0) return core.info(`Nothing new to post for ${sha.slice(0, 7)}.`);
             live.sort((a, b) => Date.parse(a.pr.merged_at) - Date.parse(b.pr.merged_at));
 
-            const body = live.length === 1 ? live[0].note : live.map((c) => `• ${c.note.replace(/\n+/g, " ")}`).join("\n\n");
-            await telegram("sendMessage", {
-              chat_id: chatId,
-              text: `${body}\n\nLive now at lexigotchi.fun/play`,
-              disable_web_page_preview: true,
-            });
+            // Usually one post; one per note when together they'd pass Telegram's length limit. Each
+            // goes formatted (HTML), or as typed should Telegram ever refuse the HTML (the formatter
+            // means it shouldn't), and its PRs are labelled as soon as it is sent. A refused post
+            // would otherwise block every later one: nothing gets labelled, so each run collects it
+            // again.
             await github.rest.issues.createLabel({ owner, repo, name: "beta-posted", color: "2a9d8f", description: "Posted to the beta testers' Telegram group" }).catch(() => {});
-            for (const c of live) await github.rest.issues.addLabels({ owner, repo, issue_number: c.pr.number, labels: ["beta-posted"] });
-            core.notice(`Posted ${live.map((c) => `#${c.pr.number}`).join(", ")}.`);
-
-            // The "## Tester note" section: everything under that heading, up to the next heading, a
-            // horizontal rule, or the "🤖 Generated with …" line that ends our PR descriptions.
-            function testerNote(text) {
-              const lines = (text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/);
-              const start = lines.findIndex((l) => /^#{2,3}\s*tester note\s*$/i.test(l.trim()));
-              if (start < 0) return null;
-              const rest = lines.slice(start + 1);
-              const end = rest.findIndex((l) => /^(#{1,6}\s|-{3,}$|\*{3,}$|🤖)/u.test(l.trim()));
-              const note = (end < 0 ? rest : rest.slice(0, end)).join("\n").trim();
-              return !note || /^(none|n\/a|-)$/i.test(note) ? null : note;
+            for (const post of betaPosts(live.map((c) => c.note))) {
+              try {
+                await telegram("sendMessage", { chat_id: chatId, text: post.html, parse_mode: "HTML", disable_web_page_preview: true });
+              } catch (err) {
+                if (!/can't parse entities/i.test(err.message)) throw err;
+                core.warning(`Telegram refused the formatting (${err.message}); posting the note as typed.`);
+                await telegram("sendMessage", { chat_id: chatId, text: post.text, disable_web_page_preview: true });
+              }
+              const prs = post.notes.map((i) => live[i].pr.number);
+              for (const n of prs) await github.rest.issues.addLabels({ owner, repo, issue_number: n, labels: ["beta-posted"] });
+              core.notice(`Posted ${prs.map((n) => `#${n}`).join(", ")}.`);
             }
