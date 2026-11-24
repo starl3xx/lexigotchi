@@ -441,8 +441,8 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
       {/* Closing call */}
       <section className="border-t-[3px] border-ink bg-candy text-paper">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-5 py-20 text-center sm:px-8">
-          <TileWord word="HELLO" upper={[true, true, true, true, true]} state="celebrate" detail="full" size={64} className="sm:hidden" />
-          <TileWord word="HELLO" upper={[true, true, true, true, true]} state="celebrate" detail="full" size={96} className="hidden sm:flex" />
+          <TileWord word="HEYOO" upper={[true, true, true, true, true]} state="celebrate" detail="full" size={64} className="sm:hidden" />
+          <TileWord word="HEYOO" upper={[true, true, true, true, true]} state="celebrate" detail="full" size={96} className="hidden sm:flex" />
           <h2 className="font-display text-4xl font-black tracking-tight sm:text-5xl">Your letters are waiting.</h2>
           <PlayButton size="lg" tone="gold" />
         </div>
