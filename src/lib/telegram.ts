@@ -40,9 +40,13 @@ export function webhookSecretMatches(header: string | null, secret = process.env
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** A member's name for the greeting: first name, else @username, else nothing. Control characters out. */
+/**
+ * A member's name for the greeting: their @username, which Telegram turns into a mention that
+ * notifies them; else (not everyone sets one) their first name as typed; else nothing. Control
+ * characters out. The caption is plain text, so a name can't break it.
+ */
 function nameOf(u: TgUser): string | null {
-  const raw = (u.first_name?.trim() || (u.username ? `@${u.username}` : "")).replace(/[\u0000-\u001f\u007f]/g, "");
+  const raw = (u.username ? `@${u.username}` : u.first_name?.trim() || "").replace(/[\u0000-\u001f\u007f]/g, "");
   return raw ? raw.slice(0, 40) : null;
 }
 

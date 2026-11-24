@@ -7,22 +7,23 @@ const join = (members: TgUser[], chatId = -5000000001): TgUpdate => ({
 });
 
 describe("the beta group's welcome", () => {
-  it("greets a person who joins, by first name, with the pinned-message pointer", () => {
-    const w = welcomeFor(join([{ id: 1, first_name: "Ann" }]), CHAT);
+  it("greets a person who joins by their @username, with the pinned-message pointer", () => {
+    const w = welcomeFor(join([{ id: 1, first_name: "DOPAMINE ⌐◨-◨", username: "ann_plays" }]), CHAT);
     expect(w?.caption).toBe(
-      "HEYOO, Ann! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
+      "HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
     );
   });
 
   it("greets several people in one message, with the Oxford comma", () => {
-    expect(welcomeFor(join([{ id: 1, first_name: "Ann" }, { id: 2, first_name: "Bo" }]), CHAT)?.caption).toMatch(/^HEYOO, Ann and Bo!/);
-    expect(welcomeFor(join([{ id: 1, first_name: "Ann" }, { id: 2, first_name: "Bo" }, { id: 3, first_name: "Cy" }]), CHAT)?.caption).toMatch(
-      /^HEYOO, Ann, Bo, and Cy!/,
+    expect(welcomeFor(join([{ id: 1, username: "ann" }, { id: 2, username: "bo" }]), CHAT)?.caption).toMatch(/^HEYOO, @ann and @bo!/);
+    expect(welcomeFor(join([{ id: 1, username: "ann" }, { id: 2, first_name: "Bo" }, { id: 3, username: "cy" }]), CHAT)?.caption).toMatch(
+      /^HEYOO, @ann, Bo, and @cy!/,
     );
   });
 
-  it("falls back to the username, then to “there”", () => {
-    expect(welcomeFor(join([{ id: 1, username: "ann_plays" }]), CHAT)?.caption).toMatch(/^HEYOO, @ann_plays!/);
+  it("falls back to the first name for someone with no username, then to “there”", () => {
+    expect(welcomeFor(join([{ id: 1, first_name: "Ann" }]), CHAT)?.caption).toMatch(/^HEYOO, Ann!/);
+    expect(welcomeFor(join([{ id: 1, first_name: "  " }]), CHAT)?.caption).toMatch(/^HEYOO, there!/);
     expect(welcomeFor(join([{ id: 1 }]), CHAT)?.caption).toMatch(/^HEYOO, there!/);
   });
 
@@ -93,7 +94,7 @@ describe("the webhook route", () => {
     }) as typeof fetch;
     try {
       await withEnv(env, async () => {
-        const joined = await POST(post({ message: { chat: { id: Number(CHAT) }, new_chat_members: [{ id: 1, first_name: "Ann" }] } }, "hook-secret"));
+        const joined = await POST(post({ message: { chat: { id: Number(CHAT) }, new_chat_members: [{ id: 1, first_name: "Ann", username: "ann_plays" }] } }, "hook-secret"));
         expect(joined.status).toBe(200);
         const chatter = await POST(post({ message: { chat: { id: Number(CHAT) } } }, "hook-secret"));
         expect(chatter.status).toBe(200);
@@ -103,7 +104,7 @@ describe("the webhook route", () => {
     }
     expect(calls).toEqual([
       "card /s/HEYOO/card",
-      "telegram sendPhoto HEYOO, Ann! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
+      "telegram sendPhoto HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
     ]);
   });
 });

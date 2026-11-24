@@ -213,13 +213,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Farcaster-only until it gets one.
 - **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
   that changes something testers would notice adds a `## Tester note` section right after Summary,
-  one or two plain sentences in player language (house copy rules). `.github/workflows/beta-updates.yml`
+  one or two plain sentences in player language (house copy rules). It may use **bold**, `code`, and
+  [links](https://…), which show as formatting in Telegram (`.github/scripts/tester-note.mjs` turns
+  them into Telegram's HTML; anything else shows as typed, and a note Telegram can't read goes out as
+  typed). `.github/workflows/beta-updates.yml`
   posts it as @lexigotchi_bot when Vercel's Production deploy of that commit succeeds, then labels the
   PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
-  `TELEGRAM_CHAT_ID`; "Run workflow" on it only checks the bot can reach the group.
+  `TELEGRAM_CHAT_ID`; "Run workflow" on it checks the bot can reach the group and the formatter
+  loads, and never posts.
   **New members get a welcome**: Telegram calls `/api/telegram/webhook` (`src/lib/telegram.ts`), which
-  greets anyone who joins with the HEYOO card (`/s/HEYOO/card`, uploaded by the route) and a caption
-  pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
+  greets anyone who joins by their @username (else their first name) with the HEYOO card
+  (`/s/HEYOO/card`, uploaded by the route) and a caption pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
   `TELEGRAM_WEBHOOK_SECRET` (dark without them; the secret header is checked in constant time); the
   "Telegram webhook" workflow registers the URL and secret with Telegram. Rerun it after the token or
   secret changes. A basic group upgraded to a supergroup gets a new id; the route logs it.
