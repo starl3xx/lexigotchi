@@ -38,6 +38,10 @@ export function ClaimScreen() {
   // known, a word stays listed, as the Dictionary does.
   const world = useWorld();
   const owners = world.data?.owners;
+  // Owners are KNOWN only once the world read succeeds (always, in the practice game). Until then
+  // a word may belong to someone, so its Claim waits: a claim of an owned word reverts and can
+  // still cost gas (Bugbot on #146; the Dictionary does the same).
+  const ownersKnown = !state.chainBacked || world.data?.live === true;
   const spellable = useMemo(
     () => spellableNow(inv, owned, Infinity).filter((w) => !owners?.[w]),
     [inv, owned, owners],
@@ -49,14 +53,17 @@ export function ClaimScreen() {
     for (const w of spellable) c[wordTier(w)] = (c[wordTier(w)] ?? 0) + 1;
     return c;
   }, [spellable]);
+  // A chosen rarity with nothing left in it (its last word claimed, or the case switched) shows
+  // All rather than an empty list under a heading that counts words (Bugbot on #146).
+  const activeTier: Tier | "All" = tier !== "All" && !tierCounts[tier] ? "All" : tier;
   const quick = useMemo(() => {
-    const list = tier === "All" ? spellable : spellable.filter((w) => wordTier(w) === tier);
+    const list = activeTier === "All" ? spellable : spellable.filter((w) => wordTier(w) === activeTier);
     // The dictionary is alphabetical already; rarest first ranks by the same score that sets tiers.
     return order === "rarest" ? [...list].sort((a, b) => wordScore(b) - wordScore(a) || a.localeCompare(b)) : list;
-  }, [spellable, tier, order]);
+  }, [spellable, activeTier, order]);
   // A full bag spells hundreds of words; render them a page at a time so a phone stays smooth.
   const [shown, setShown] = useState(SPELL_PAGE);
-  useEffect(() => setShown(SPELL_PAGE), [tier, order, useUpper]);
+  useEffect(() => setShown(SPELL_PAGE), [activeTier, order, useUpper]);
 
   const swapCase = (upper: boolean) => {
     setUseUpper(upper);
@@ -138,16 +145,29 @@ export function ClaimScreen() {
           ) : spelled.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="text-xs text-ink/60">spells</span>
-              {spelled.map((w) => (
-                <button
-                  key={w}
-                  onClick={() => claim(w)}
-                  disabled={!canClaim}
-                  className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-ink shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
-                >
-                  Claim {w} <Sparkle weight="fill" size={13} />
-                </button>
-              ))}
+              {spelled.map((w) =>
+                // Someone else's word: say so, rather than offer a claim the contract reverts.
+                owners?.[w] ? (
+                  <span key={w} className="rounded-lg border-2 border-ink/30 px-2 py-1 text-sm font-bold text-ink/55">
+                    {w} is already owned
+                  </span>
+                ) : (
+                  <button
+                    key={w}
+                    onClick={() => claim(w)}
+                    disabled={!canClaim || !ownersKnown}
+                    className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-ink shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
+                  >
+                    {ownersKnown ? (
+                      <>
+                        Claim {w} <Sparkle weight="fill" size={13} />
+                      </>
+                    ) : (
+                      `Checking ${w}…`
+                    )}
+                  </button>
+                ),
+              )}
             </div>
           ) : (
             <span className="text-sm font-bold text-candy-ink">not a dictionary word</span>
@@ -209,9 +229,9 @@ export function ClaimScreen() {
             <div className="flex flex-wrap gap-1.5">
               {SPELL_TIERS.filter((t) => t === "All" || tierCounts[t]).map((t) => (
                 <button key={t} onClick={() => setTier(t)} className="group round-btn rounded-full">
-                  <Pill className={tier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
+                  <Pill className={activeTier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
                     {t}
-                    <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{t === "All" ? spellable.length : tierCounts[t]}</span>
+                    <span className={activeTier === t ? "text-paper/60" : "text-ink/40"}>·{t === "All" ? spellable.length : tierCounts[t]}</span>
                   </Pill>
                 </button>
               ))}
@@ -225,8 +245,8 @@ export function ClaimScreen() {
                   <div className="font-display text-sm font-extrabold">{w}</div>
                   <TierBadge tier={wordTier(w)} />
                 </div>
-                <Button size="sm" variant="teal" disabled={!canClaim} onClick={() => claim(w)}>
-                  Claim · {fmtWord(fee)}
+                <Button size="sm" variant="teal" disabled={!canClaim || !ownersKnown} onClick={() => claim(w)}>
+                  {ownersKnown ? `Claim · ${fmtWord(fee)}` : "Checking owner…"}
                 </Button>
               </div>
             ))}
