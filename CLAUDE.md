@@ -141,7 +141,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `lexigotchi.mintlify.site`; `/_mintlify/*`, `/api/request`, and `/mintlify-assets/*` must stay at the
   root). They replace the old in-game FAQ and `FAQ.md`. Keep every number in step with `params.ts`
   and `economy.ts` (prices, odds, hunger days, splits, tier counts); the copy-rules test covers
-  the pages. Separate from `docs/`, which is internal.
+  the pages, including the rule that a dollar sign in body text is written `\$` (Mintlify reads
+  `$…$` as math). Pictures in `docs-site/images/` come from `npm run docs:art`
+  (`scripts/docs-art.tsx`, the real character rig and `params.ts` splits): rerun it after changing
+  either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
+  server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
   share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
   `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
