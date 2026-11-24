@@ -9,10 +9,10 @@
  *   the link where that wallet lives), until it joins or the code expires.
  * - Otherwise: the account's wallets, with Unlink, and "Link another wallet".
  *
- * Linked wallets are public (one player on the Leaderboard and in the Dictionary), and letters stay
+ * Linked wallets are public (each shows the account's name and picture), and letters stay
  * in the wallet that holds them; the card says both by the button, as Link X does.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card } from "../primitives";
 import { Check, CircleNotch, LinkSimple as LinkIcon, Wallet } from "../ui/icons";
@@ -64,15 +64,64 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
   }, []);
   // A code made by THIS wallet's account is the "waiting for the other wallet" state; once the
   // other wallet shows up in the account, the wait is over.
-  const madeHere = Boolean(pending?.account && account && pending.account === account);
+  const lower = (a?: string | null) => a?.toLowerCase() ?? null;
+  const madeHere = Boolean(
+    pending && (lower(pending.madeBy) === lower(address) || (pending.account && lower(pending.account) === lower(account))),
+  );
 
-  if (!address) return null;
+  // A code from a link names no account: ask the server which one it joins before offering to sign,
+  // so the card shows it (anyone can send a link; the player should see where the wallet goes).
+  const needsAccount = Boolean(pending && !pending.account && address);
+  useEffect(() => {
+    if (!needsAccount || !pending || !address) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch("/api/profile/wallets/message", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ code: pending.code, address }),
+        });
+        const d = (await r.json()) as { ok?: boolean; account?: string; error?: string };
+        if (cancelled) return;
+        if (d.ok && d.account) writePendingLink({ ...pending, account: d.account.toLowerCase() });
+        else if (d.error === "stale_code" || r.status === 410) {
+          writePendingLink(null);
+          setNote(errorText("stale_code"));
+        }
+      } catch {
+        /* offline: the button stays disabled until the account is known */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsAccount, pending, address]);
+
+  // The offer sits below Linked accounts: on a phone, bring it into view when it appears.
+  const offerRef = useRef<HTMLDivElement>(null);
+  const showOffer = Boolean(address && pending && !madeHere);
+  useEffect(() => {
+    if (showOffer) offerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [showOffer]);
+
+  if (!address) {
+    // A link arrived before a wallet: say what to do; the offer appears once one connects.
+    return pending && !pending.madeBy ? (
+      <Card className="mb-3 bg-gold/10">
+        <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
+          <LinkIcon weight="bold" /> Link a wallet
+        </div>
+        <p className="text-sm text-ink/75">Connect the wallet you want to link. This card then asks it to sign.</p>
+      </Card>
+    ) : null;
+  }
 
   const startLink = async () => {
     setNote(null);
     const r = await p.makeLinkCode();
     if ("error" in r) return setNote(errorText(r.error));
-    writePendingLink({ code: r.code, account: r.account, expiresAt: r.expiresAt });
+    writePendingLink({ code: r.code, account: r.account, expiresAt: r.expiresAt, madeBy: address });
   };
   const join = async () => {
     if (!pending) return;
@@ -107,33 +156,33 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
   // names no account; joining one that already holds this wallet is a harmless no-op.)
   if (pending && !madeHere) {
     return (
-      <Card className="mb-3 bg-gold/10">
-        <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
-          <LinkIcon weight="bold" /> Link this wallet?
-        </div>
-        <p className="text-sm text-ink/75">
-          {pending.account ? (
-            <>
-              Your account <span className="font-mono text-xs">{short(pending.account)}</span> asked to link this wallet (
-              <span className="font-mono text-xs">{short(address)}</span>).
-            </>
-          ) : (
-            <>
-              Your other wallet asked to link this one (<span className="font-mono text-xs">{short(address)}</span>).
-            </>
-          )}{" "}
-          Sign to join one account: one bag, one profile, one free daily letter. It’s free and sends no transaction.
-        </p>
-        <div className="mt-2 flex gap-2">
-          <Button size="sm" variant="teal" disabled={p.busy} onClick={() => void join()}>
-            {p.busy ? <CircleNotch className="animate-spin" /> : "Link this wallet"}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={p.busy} onClick={() => writePendingLink(null)}>
-            Not now
-          </Button>
-        </div>
-        {note && <p role="status" className="mt-2 text-xs font-bold text-candy-ink">{note}</p>}
-      </Card>
+      <div ref={offerRef} className="scroll-mt-4">
+        <Card className="mb-3 bg-gold/10">
+          <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
+            <LinkIcon weight="bold" /> Link this wallet?
+          </div>
+          <p className="text-sm text-ink/75">
+            {pending.account ? (
+              <>
+                Sign to add this wallet (<span className="font-mono text-xs">{short(address)}</span>) to the account{" "}
+                <span className="font-mono text-xs">{short(pending.account)}</span>: one bag, one profile, and one free daily
+                letter. Only link a wallet you own. It’s free and sends no transaction.
+              </>
+            ) : (
+              <>Checking the link…</>
+            )}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" variant="teal" disabled={p.busy || !pending.account} onClick={() => void join()}>
+              {p.busy ? <CircleNotch className="animate-spin" /> : "Link this wallet"}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={p.busy} onClick={() => writePendingLink(null)}>
+              Not now
+            </Button>
+          </div>
+          {note && <p role="status" className="mt-2 text-xs font-bold text-candy-ink">{note}</p>}
+        </Card>
+      </div>
     );
   }
 
@@ -196,8 +245,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
               )}
             </Button>
             <p className="mt-1.5 text-[11px] leading-snug text-ink/55">
-              Linked wallets show publicly as one player, with one bag, one profile, and one free daily letter. Letters and
-              words stay in the wallet that holds them: you play with the connected one.
+              Linked wallets share one bag, one profile, and one free daily letter, and the links are public. Letters and
+              words stay in the wallet that holds them, so you play with the connected one.
             </p>
           </div>
         )

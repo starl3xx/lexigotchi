@@ -13,6 +13,7 @@ import { useAccount, useSignMessage } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { xOldEnough, type NameSource, type ProfileConfig, type ProfileView, type PublicProfileView } from "@/lib/profile/rules";
 import type { Viewer } from "./useViewer";
+import { forgetVerifiedWallets } from "./useVerifiedWallet";
 
 const HEADER = "x-lexigotchi-session";
 
@@ -24,8 +25,10 @@ const HEADER = "x-lexigotchi-session";
  */
 export interface PendingLink {
   code: string;
-  /** Known when this browser made the code; unknown when it came in a link. */
+  /** Known when this browser made the code; unknown when it came in a link, until /message names it. */
   account?: string;
+  /** The wallet that made the code here (it waits for another wallet; it is never offered the link). */
+  madeBy?: string;
   expiresAt?: string;
 }
 const PENDING_KEY = "lexigotchi:link-code";
@@ -329,6 +332,18 @@ export function useProfile() {
     [addr, ensureToken, forget, qc],
   );
 
+  /**
+   * After a wallet joins or leaves: every view that reads the account (public profile, bag, world,
+   * the daily's status, the Coinbase check) refetches, skipping caches that would show the old one.
+   */
+  const afterAccountChange = useCallback(() => {
+    bustPublicProfile();
+    forgetVerifiedWallets();
+    void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+    void qc.invalidateQueries({ queryKey: ["world"] });
+    void qc.invalidateQueries({ queryKey: ["dailyStatus"] });
+  }, [qc]);
+
   /** A single-use code for another wallet to join this account (the account's session). */
   const makeLinkCode = useCallback(async (): Promise<{ code: string; account: string; expiresAt: string } | { error: string }> => {
     const t = await ensureToken();
@@ -366,10 +381,8 @@ export function useProfile() {
       })).json()) as { ok?: boolean; account?: string; error?: string };
       if (!l.ok || !l.account) return { error: l.error ?? "failed" };
       // Every wallet's public view, the bag, and the world now see the account.
-      bustPublicProfile();
-      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+      afterAccountChange();
       void qc.invalidateQueries({ queryKey: ["profileMe"] });
-      void qc.invalidateQueries({ queryKey: ["world"] });
       return { account: l.account };
     } catch (err) {
       const msg = String((err as Error)?.message ?? "");
@@ -378,18 +391,14 @@ export function useProfile() {
     } finally {
       setBusy(false);
     }
-  }, [address, qc, signMessageAsync]);
+  }, [address, qc, signMessageAsync, afterAccountChange]);
 
   /** Take a wallet out of the account (any wallet's session in the account). */
   const unlinkWallet = useCallback(async (wallet: string) => {
     const r = await emailCall("/api/profile/wallets", "DELETE", { address: wallet });
-    if (!r.error) {
-      bustPublicProfile();
-      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
-      void qc.invalidateQueries({ queryKey: ["world"] });
-    }
+    if (!r.error) afterAccountChange();
     return r;
-  }, [emailCall, qc]);
+  }, [emailCall, afterAccountChange]);
 
   return {
     /** The server has profiles switched on (flag, secret, database). */

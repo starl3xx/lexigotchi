@@ -26,6 +26,14 @@ async function fetchStatus(wallet: string): Promise<boolean | null> {
   }
 }
 
+/**
+ * Forget every cached answer: after a wallet joins or leaves an account, the Coinbase check covers a
+ * different set of wallets (the status route checks the whole account).
+ */
+export function forgetVerifiedWallets() {
+  cache.clear();
+}
+
 export function useVerifiedWallet(): { verified: boolean | null; recheck: () => void } {
   const { address } = useAccount();
   const [verified, setVerified] = useState<boolean | null>(null);

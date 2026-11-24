@@ -44,7 +44,7 @@ import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
 import { ProfileSheet } from "./sheets/ProfileSheet";
-import { bustPublicProfile, resolveIdentity, useProfile, writePendingLink } from "./useProfile";
+import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writePendingLink } from "./useProfile";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
@@ -78,7 +78,7 @@ export function GameApp() {
 
 /** Owns the once-only onboarding flag (persisted in localStorage) and exposes a replay action. */
 function OnboardingHost() {
-  const { closeSheet } = useGame();
+  const { closeSheet, openSheet } = useGame();
   // Default true so SSR/first paint matches (no overlay → no hydration mismatch); the effect flips
   // it to false for first-run players right after mount.
   const [onboarded, setOnboarded] = useState(true);
@@ -98,7 +98,11 @@ function OnboardingHost() {
     closeSheet(); // never reveal a sheet that was left open under the overlay
     setOnboarded(true);
     void markOnboardedServer(); // persist "onboarded" server-side (no-op outside a Farcaster client)
-  }, [closeSheet]);
+    // …except the one a `?link=` URL came for: a first visit from "Link another wallet" lands on
+    // the profile, where the Wallets card asks this wallet to sign.
+    const link = readPendingLink();
+    if (link && !link.madeBy) openSheet({ kind: "profile" });
+  }, [closeSheet, openSheet]);
   const replay = useCallback(() => {
     try {
       localStorage.removeItem(ONBOARDED_KEY);
