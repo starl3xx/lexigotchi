@@ -261,7 +261,9 @@ export function ProfileSheet() {
         {p.error && <p className="mt-2 text-xs font-bold text-candy-ink">{p.error}</p>}
       </Card>
 
-      {p.emailEnabled && <EmailCard p={p} />}
+      {/* Keyed by wallet: switching wallets starts the card fresh, so one wallet's typed address,
+          code, or error never carries into another's session (Bugbot on #139). */}
+      {p.emailEnabled && <EmailCard key={p.address ?? "none"} p={p} />}
 
       <button
         onClick={() => g.openSheet({ kind: "balance" })}

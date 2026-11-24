@@ -153,19 +153,23 @@ export async function createEmailCode(address: string, email: string, codeHash: 
   await getDb().insert(emailCodes).values({ address: address.toLowerCase(), email, codeHash, expiresAt: new Date(Date.now() + ttlMs) });
 }
 
-/** The newest live code for this wallet and address, if any. */
-export async function liveEmailCode(address: string, email: string): Promise<{ id: number; codeHash: string; attempts: number } | null> {
-  const rows = await getDb()
+/**
+ * Every live code for this wallet and address, newest first. All of them count: a player who asked
+ * twice may type the first code to arrive, and it must work (Bugbot on #139).
+ */
+export async function liveEmailCodes(address: string, email: string): Promise<{ id: number; codeHash: string; attempts: number }[]> {
+  return getDb()
     .select({ id: emailCodes.id, codeHash: emailCodes.codeHash, attempts: emailCodes.attempts })
     .from(emailCodes)
     .where(and(eq(emailCodes.address, address.toLowerCase()), eq(emailCodes.email, email), isNull(emailCodes.usedAt), gt(emailCodes.expiresAt, sql`now()`)))
     .orderBy(desc(emailCodes.id))
-    .limit(1);
-  return rows[0] ?? null;
+    .limit(10);
 }
 
-export async function countCodeAttempt(id: number): Promise<void> {
-  await getDb().update(emailCodes).set({ attempts: sql`${emailCodes.attempts} + 1` }).where(eq(emailCodes.id, id));
+/** A wrong guess counts against every live code for the address, so sending more codes buys no tries. */
+export async function countCodeAttempt(ids: readonly number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await getDb().update(emailCodes).set({ attempts: sql`${emailCodes.attempts} + 1` }).where(inArray(emailCodes.id, [...ids]));
 }
 
 /**

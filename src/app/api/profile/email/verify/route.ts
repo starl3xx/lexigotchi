@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
-import { confirmEmail, countCodeAttempt, getProfile, isMissingTable, liveEmailCode, toView } from "@/lib/db/profiles";
+import { confirmEmail, countCodeAttempt, getProfile, isMissingTable, liveEmailCodes, toView } from "@/lib/db/profiles";
 import { CODE_MAX_ATTEMPTS, codeMatches, emailEnabled, normalizeEmail } from "@/lib/notify/email";
 import { profileSecret, sessionAddress } from "@/lib/profile/session";
 
@@ -25,13 +25,15 @@ export async function POST(req: Request) {
   const code = typeof body?.code === "string" ? body.code.trim() : "";
   if (!email || !/^\d{6}$/.test(code)) return json({ ok: false, error: "bad_code" }, 400);
   try {
-    const live = await liveEmailCode(address, email);
-    if (!live || live.attempts >= CODE_MAX_ATTEMPTS) return json({ ok: false, error: "code_expired" }, 410);
-    if (!codeMatches(secret, live.codeHash, address, email, code)) {
-      await countCodeAttempt(live.id);
-      return json({ ok: false, error: "wrong_code", triesLeft: Math.max(0, CODE_MAX_ATTEMPTS - live.attempts - 1) }, 400);
+    const live = (await liveEmailCodes(address, email)).filter((c) => c.attempts < CODE_MAX_ATTEMPTS);
+    if (live.length === 0) return json({ ok: false, error: "code_expired" }, 410);
+    const hit = live.find((c) => codeMatches(secret, c.codeHash, address, email, code));
+    if (!hit) {
+      await countCodeAttempt(live.map((c) => c.id));
+      const triesLeft = Math.max(0, CODE_MAX_ATTEMPTS - 1 - Math.min(...live.map((c) => c.attempts)));
+      return json({ ok: false, error: "wrong_code", triesLeft }, 400);
     }
-    if ((await confirmEmail(address, email, live.id)) === "taken") return json({ ok: false, error: "email_taken" }, 409);
+    if ((await confirmEmail(address, email, hit.id)) === "taken") return json({ ok: false, error: "email_taken" }, 409);
     return json({ ok: true, profile: toView(address, await getProfile(address)) });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
