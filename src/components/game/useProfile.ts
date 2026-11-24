@@ -437,6 +437,7 @@ export function usePublicProfile(): {
   loading: boolean;
   xEnabled: boolean;
   emailEnabled: boolean;
+  profilesEnabled: boolean;
 } {
   const { address } = useAccount();
   const addr = address?.toLowerCase() ?? null;
@@ -466,6 +467,8 @@ export function usePublicProfile(): {
     profile,
     xEnabled,
     emailEnabled: Boolean(config.data?.email),
+    /** Profiles are on, so wallets can be linked into one account. */
+    profilesEnabled: Boolean(config.data?.profiles),
     // Mirrors the server (free-daily): X switched on, linked, and older than 90 days.
     xCounts: xEnabled && Boolean(profile?.x) && xOldEnough(profile?.x?.createdAt),
     loading: config.isLoading || (enabled && !!addr && pub.isLoading),

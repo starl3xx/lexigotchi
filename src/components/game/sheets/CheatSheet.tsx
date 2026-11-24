@@ -25,7 +25,7 @@ export function CheatSheet() {
   const openUrl = useOpenUrl();
   const { replay } = useOnboarding();
   // Each way into the daily (and email reminders) shows only while the server has it switched on.
-  const { xEnabled, emailEnabled } = usePublicProfile();
+  const { xEnabled, emailEnabled, profilesEnabled } = usePublicProfile();
   const price = (item: Parameters<typeof g.price>[0]) => {
     const w = g.price(item);
     return `${fmtWord(w)} $WORD (${fmtUsd(w)})`;
@@ -47,6 +47,12 @@ export function CheatSheet() {
             <strong>Or buy a pack of 5</strong> anytime: {price("pack")}.
           </li>
           <li>Every letter arrives lowercase.</li>
+          {profilesEnabled && (
+            <li>
+              <strong>Play with more than one wallet?</strong> Link them in your profile: one bag and one free
+              letter a day between them.
+            </li>
+          )}
         </Step>
 
         <Step n={2} icon={<TextAa weight="bold" size={18} />} title="Make words and raise letters">
