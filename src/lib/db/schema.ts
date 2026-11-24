@@ -225,6 +225,9 @@ export const profiles = pgTable(
     email: text("email"),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     emailReminders: boolean("email_reminders").notNull().default(false),
+    /** Send-once markers (UTC day numbers): a retried cron or keeper run never emails the same reminder twice. */
+    emailDailyDay: integer("email_daily_day"),
+    emailHungerDay: integer("email_hunger_day"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

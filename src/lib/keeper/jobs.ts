@@ -41,7 +41,7 @@ import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
-import { emailRecipients } from "@/lib/db/profiles";
+import { emailRecipients, markEmailSent, type EmailRecipient } from "@/lib/db/profiles";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { storeEpochLeaves } from "@/lib/db/rewards";
 import { NETWORK } from "@/lib/onchain/network";
@@ -415,7 +415,7 @@ export function createKeeper(opts: { dry: boolean }) {
    * Email recipients among these wallets (confirmed address, reminders on), or none. Never throws:
    * before migration 0006, or with email switched off, the other channels carry on as before.
    */
-  async function emailRecipientsSafe(addresses: readonly string[]): Promise<{ address: string; email: string }[]> {
+  async function emailRecipientsSafe(addresses: readonly string[]): Promise<EmailRecipient[]> {
     if (!process.env.DATABASE_URL || !emailEnabled() || addresses.length === 0) return [];
     try {
       return await emailRecipients(addresses);
@@ -428,7 +428,10 @@ export function createKeeper(opts: { dry: boolean }) {
   /** The hunger warning by email, one message per wallet, for players who opted in. */
   async function notifyHungerEmail(words: readonly KeeperWord[]) {
     const targets = hungerTargetsByAddress(words);
-    const recips = await emailRecipientsSafe(targets.map((t) => t.address));
+    // One hunger email per wallet per UTC day: the keeper runs more often than that, and a retried
+    // run must not email twice (Bugbot on #139).
+    const today = Math.floor(Date.now() / 86_400_000);
+    const recips = (await emailRecipientsSafe(targets.map((t) => t.address))).filter((r) => r.emailHungerDay !== today);
     if (recips.length === 0) return;
     const emailOf = new Map(recips.map((r) => [r.address, r.email]));
     const messages = targets.flatMap((t) => {
@@ -437,7 +440,10 @@ export function createKeeper(opts: { dry: boolean }) {
     });
     console.log(`notify (email): ${messages.length} wallet(s) to warn`);
     if (DRY || messages.length === 0) return;
-    const res = await sendEmails(messages);
+    const res = await sendEmails(messages, {
+      idempotency: `hunger-${today}`,
+      onSent: (batch) => markEmailSent("hunger", batch.flatMap((m) => (m.address ? [m.address] : [])), today),
+    });
     console.log(`  email: ${res.sent} sent, ${res.failed} failed`);
   }
 

@@ -77,6 +77,8 @@ function layout(title: string, bodyHtml: string, footerHtml: string): string {
 }
 
 export interface EmailMessage {
+  /** The wallet it's for (never sent to Resend): lets a caller mark who was reached. */
+  address?: string;
   to: string;
   subject: string;
   html: string;
@@ -97,12 +99,14 @@ export function codeEmail(to: string, code: string): EmailMessage {
 
 /** A reminder, from the same { title, body } the Farcaster and browser channels send. */
 export function reminderEmail(to: string, address: string, note: { title: string; body: string }): EmailMessage | null {
+  const a = address.toLowerCase();
   const unsub = unsubscribeUrl(address);
   if (!unsub) return null; // never send a reminder without a working way out
   const play = `${SITE}/play`;
   const body = `<p style="margin:0 0 18px;color:#1b1714cc">${esc(note.body)}</p>
 <a href="${play}" style="display:inline-block;background:#bd3d35;color:#fbf4e3;font-weight:800;text-decoration:none;border:3px solid #1b1714;border-radius:14px;padding:10px 18px">Open Lexigotchi</a>`;
   return {
+    address: a,
     to,
     subject: note.title,
     html: layout(note.title, body, `You get these because you turned on email reminders in your Lexigotchi profile. <a href="${unsub}" style="color:#1b1714a6">Unsubscribe</a>.`),
@@ -132,15 +136,32 @@ export async function sendEmail(m: EmailMessage): Promise<{ ok: boolean; status?
   }
 }
 
-/** Many reminders, 100 per batch call, paced under the 10-a-second limit. Never throws. */
-export async function sendEmails(messages: readonly EmailMessage[]): Promise<{ sent: number; failed: number }> {
+/**
+ * Many reminders, 100 per batch call, paced under the 10-a-second limit. Never throws.
+ *
+ * Send-once, twice over: `idempotency` names the run (kind + day), and each batch carries an
+ * Idempotency-Key from it and the batch's recipients, so Resend drops a retried batch within 24 h;
+ * `onSent` lets the caller mark each sent batch's wallets in the database, so a retried run doesn't
+ * build that batch at all.
+ */
+export async function sendEmails(
+  messages: readonly EmailMessage[],
+  opts: { idempotency?: string; onSent?: (batch: readonly EmailMessage[]) => Promise<void> } = {},
+): Promise<{ sent: number; failed: number }> {
   if (!emailEnabled() || messages.length === 0) return { sent: 0, failed: 0 };
   let sent = 0, failed = 0;
-  for (let i = 0; i < messages.length; i += 100) {
-    const chunk = messages.slice(i, i + 100);
+  const ordered = [...messages].sort((a, b) => (a.to < b.to ? -1 : a.to > b.to ? 1 : 0));
+  for (let i = 0; i < ordered.length; i += 100) {
+    const chunk = ordered.slice(i, i + 100);
+    const idem: Record<string, string> = opts.idempotency
+      ? { "idempotency-key": `${opts.idempotency}-${createHmac("sha256", "batch").update(chunk.map((m) => m.to).join(",")).digest("hex").slice(0, 32)}` }
+      : {};
     try {
-      const r = await fetch(`${RESEND}/emails/batch`, { method: "POST", headers: headers(), body: JSON.stringify(chunk.map(payload)), signal: AbortSignal.timeout(15_000) });
-      if (r.ok) sent += chunk.length;
+      const r = await fetch(`${RESEND}/emails/batch`, { method: "POST", headers: { ...headers(), ...idem }, body: JSON.stringify(chunk.map(payload)), signal: AbortSignal.timeout(15_000) });
+      if (r.ok) {
+        sent += chunk.length;
+        await opts.onSent?.(chunk).catch((err) => console.error("[email] couldn't mark a sent batch:", String((err as Error)?.message ?? err).slice(0, 120)));
+      }
       else {
         failed += chunk.length;
         console.error("[email] batch failed:", r.status);

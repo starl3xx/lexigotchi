@@ -50,6 +50,13 @@
       "when": 1795488484673,
       "tag": "0006_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795493388321,
+      "tag": "0007_email_sends",
+      "breakpoints": true
     }
   ]
 }

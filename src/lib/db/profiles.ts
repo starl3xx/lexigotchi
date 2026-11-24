@@ -203,11 +203,29 @@ export async function setEmailReminders(address: string, on: boolean): Promise<v
   await getDb().update(profiles).set({ emailReminders: on, updatedAt: sql`now()` }).where(eq(profiles.address, address.toLowerCase()));
 }
 
+export interface EmailRecipient {
+  address: string;
+  email: string;
+  /** The UTC day each reminder kind last went out (send-once markers, migration 0007). */
+  emailDailyDay: number | null;
+  emailHungerDay: number | null;
+}
+
 /** Wallets with a confirmed email and reminders on (all of them, or just these). Server-only. */
-export async function emailRecipients(addresses?: readonly string[]): Promise<{ address: string; email: string }[]> {
+export async function emailRecipients(addresses?: readonly string[]): Promise<EmailRecipient[]> {
   const base = and(eq(profiles.emailReminders, true), isNotNull(profiles.emailVerifiedAt), isNotNull(profiles.email));
   const where = addresses ? and(base, inArray(profiles.address, [...new Set(addresses.map((x) => x.toLowerCase()))])) : base;
   if (addresses && addresses.length === 0) return [];
-  const rows = await getDb().select({ address: profiles.address, email: profiles.email }).from(profiles).where(where);
-  return rows.filter((r): r is { address: string; email: string } => Boolean(r.email));
+  const rows = await getDb()
+    .select({ address: profiles.address, email: profiles.email, emailDailyDay: profiles.emailDailyDay, emailHungerDay: profiles.emailHungerDay })
+    .from(profiles)
+    .where(where);
+  return rows.filter((r): r is EmailRecipient => Boolean(r.email));
+}
+
+/** Mark a reminder kind as sent today for these wallets, so a retried run skips them. */
+export async function markEmailSent(kind: "daily" | "hunger", addresses: readonly string[], day: number): Promise<void> {
+  if (addresses.length === 0) return;
+  const set = kind === "daily" ? { emailDailyDay: day } : { emailHungerDay: day };
+  await getDb().update(profiles).set(set).where(inArray(profiles.address, [...new Set(addresses.map((a) => a.toLowerCase()))]));
 }

@@ -6,7 +6,7 @@ import { sendNotification } from "@/lib/notify/send";
 import { sendWebPush, type WebPushResult } from "@/lib/notify/webPush";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
-import { emailRecipients, xUserIdsFor } from "@/lib/db/profiles";
+import { emailRecipients, markEmailSent, xUserIdsFor } from "@/lib/db/profiles";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { fidsByAddresses } from "@/lib/neynar";
 import { profilesEnabled } from "@/lib/profile/session";
@@ -146,10 +146,15 @@ export async function GET(req: Request) {
         const uniqueKeys = [...new Set(recips.flatMap((r) => keysOf(r.address)))];
         const used = await readDailyUsed(uniqueKeys);
         const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
-        const due = recips.filter((r) => isDailyDue(Math.max(...keysOf(r.address).map((k) => usedByKey.get(k) ?? 0)), day));
+        // Skip anyone this day's reminder already reached: a retried cron must not email twice (Bugbot on #139).
+        const due = recips.filter((r) => r.emailDailyDay !== day && isDailyDue(Math.max(...keysOf(r.address).map((k) => usedByKey.get(k) ?? 0)), day));
         emailTargets = due.length;
         const messages = due.flatMap((r) => reminderEmail(r.email, r.address, dailyReady(day)) ?? []);
-        if (messages.length > 0) emailResult = await sendEmails(messages);
+        if (messages.length > 0)
+          emailResult = await sendEmails(messages, {
+            idempotency: `daily-${day}`,
+            onSent: (batch) => markEmailSent("daily", batch.flatMap((m) => (m.address ? [m.address] : [])), day),
+          });
       } catch (err) {
         console.error("[cron/notify-daily] email pass failed:", String((err as Error)?.message ?? err).slice(0, 120));
       }
