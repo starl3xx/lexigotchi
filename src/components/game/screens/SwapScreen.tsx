@@ -71,7 +71,9 @@ export function SwapScreen() {
             })
           }
         >
-          <ShareNetwork weight="fill" /> Share to Farcaster / X
+          {/* Farcaster only: an X post must tag @lexigotchi and carry a card of what's shared, and a
+              swap has no card of its own yet (the link would show only the generic game card). */}
+          <ShareNetwork weight="fill" /> Share to Farcaster
         </Button>
         <Button full variant="ghost" onClick={reset}>
           New swap

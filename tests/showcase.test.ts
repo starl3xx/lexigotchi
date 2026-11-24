@@ -2,7 +2,7 @@
  * Showcase shares (src/lib/showcase.ts): the link a post carries, and what its page accepts.
  */
 import { describe, it, expect } from "vitest";
-import { parseShowcase, showcaseCardUrl, showcasePostText, showcaseText, showcaseUrl, xIntentUrl } from "@/lib/showcase";
+import { parseShowcase, showcaseCardUrl, showcasePostText, showcaseText, showcaseUrl, xIntentUrl, showcaseXText } from "@/lib/showcase";
 
 describe("parseShowcase", () => {
   it("reads each tile's case from the path", () => {
@@ -33,12 +33,21 @@ describe("share links", () => {
     expect(showcaseCardUrl("HeLLo", "fc")).toMatch(/\/s\/HeLLo\/card\?ratio=3x2$/);
   });
 
-  it("prefill X's composer with the words and the link", () => {
-    const u = new URL(xIntentUrl(showcasePostText("HeLLo"), showcaseUrl("HeLLo")));
+  it("prefill X's composer with the words and the link, tagging @lexigotchi once", () => {
+    const u = new URL(xIntentUrl(showcaseXText("HeLLo"), showcaseUrl("HeLLo")));
     expect(u.origin + u.pathname).toBe("https://x.com/intent/post");
-    expect(u.searchParams.get("text")).toBe("HeLLo ✨ spelled with letters I raised in Lexigotchi");
+    expect(u.searchParams.get("text")).toBe("HeLLo ✨ spelled with letters I raised in @lexigotchi");
     expect(u.searchParams.get("url")).toBe(showcaseUrl("HeLLo"));
-    expect(u.searchParams.get("via")).toBe("lexigotchi"); // "via @lexigotchi", X only
+    expect(u.searchParams.get("via")).toBeNull(); // the tag is in the text, never twice
+  });
+
+  it("tag @lexigotchi on any X post whose text doesn't name it", () => {
+    const u = new URL(xIntentUrl("look at my letters", showcaseUrl("HeLLo")));
+    expect(u.searchParams.get("text")).toBe("look at my letters @lexigotchi");
+  });
+
+  it("keep @lexigotchi out of the cast text (on Farcaster it would be someone else)", () => {
+    expect(showcasePostText("HeLLo")).not.toMatch(/@lexigotchi/i);
   });
 
   it("post copy has no em dash", () => {
