@@ -80,14 +80,33 @@ async function syncToServer(sub: PushSubscription, address: string): Promise<voi
   }
 }
 
+type Base = "detecting" | "unsupported" | "needs-home-screen" | "denied" | "off" | "on";
+
+/**
+ * One browser has one subscription, but the switch can be on screen twice at once (the profile
+ * sheet over Today's card, Bugbot on #145). Each copy keeps its own state, so a change made in one
+ * is announced to the others, or the one underneath keeps offering to turn on what just turned on.
+ */
+const PUSH_CHANGED = "lexigotchi:web-push-changed";
+function announce(next: Base) {
+  window.dispatchEvent(new CustomEvent<Base>(PUSH_CHANGED, { detail: next }));
+}
+
 export function useWebPush(): { state: PushState; error: string | null; enable: () => void; disable: () => void } {
   const viewer = useViewer();
   const { address } = useAccount();
-  const [base, setBase] = useState<"detecting" | "unsupported" | "needs-home-screen" | "denied" | "off" | "on">("detecting");
+  const [base, setBase] = useState<Base>("detecting");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** The resync's own warning, kept apart from `error` so a wallet switch can clear just this one. */
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
+
+  // Hear the other copies of the switch (see PUSH_CHANGED).
+  useEffect(() => {
+    const heard = (e: Event) => setBase((e as CustomEvent<Base>).detail);
+    window.addEventListener(PUSH_CHANGED, heard);
+    return () => window.removeEventListener(PUSH_CHANGED, heard);
+  }, []);
 
   // Only where reminders can fire: the practice (mock) game has no onchain words to warn about.
   const eligible = Boolean(VAPID_PUBLIC_KEY) && viewer.environment === "web" && isChainBacked();
@@ -156,7 +175,7 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
       try {
         const permission = await asked;
         if (permission !== "granted") {
-          setBase(permission === "denied" ? "denied" : "off");
+          announce(permission === "denied" ? "denied" : "off");
           return;
         }
         const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
@@ -174,7 +193,7 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
           await sub.unsubscribe().catch(() => {});
           throw err;
         }
-        setBase("on");
+        announce("on");
       } catch (err) {
         console.error("[push] enable failed:", err);
         setError(
@@ -208,7 +227,7 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
         } catch {
           /* nothing to clear */
         }
-        setBase("off");
+        announce("off");
       } catch (err) {
         console.error("[push] disable failed:", err);
         setError("Couldn’t turn off reminders. Try again in a moment.");
