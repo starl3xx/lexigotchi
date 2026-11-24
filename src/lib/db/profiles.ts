@@ -85,7 +85,12 @@ export async function linkX(
   return getDb().transaction(async (tx) => {
     const prev = await tx.select({ address: profiles.address }).from(profiles).where(eq(profiles.xUserId, x.id)).limit(1);
     const movedFrom = prev[0] && prev[0].address !== a ? prev[0].address : null;
-    if (movedFrom) await tx.update(profiles).set({ ...X_CLEARED, updatedAt: sql`now()` }).where(eq(profiles.address, movedFrom));
+    // The old wallet loses X entirely, its name choice included, as an unlink does (Bugbot on #137).
+    if (movedFrom)
+      await tx
+        .update(profiles)
+        .set({ ...X_CLEARED, nameSource: sql`case when ${profiles.nameSource} = 'x' then null else ${profiles.nameSource} end`, updatedAt: sql`now()` })
+        .where(eq(profiles.address, movedFrom));
     const values = { xUserId: x.id, xUsername: x.username, xName: x.name, xPfpUrl: x.pfpUrl, xCreatedAt: x.createdAt, xLinkedAt: new Date() };
     await tx
       .insert(profiles)
