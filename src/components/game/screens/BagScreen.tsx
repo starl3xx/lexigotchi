@@ -90,7 +90,14 @@ export function BagScreen() {
           </div>
           {state.words.length === 0 ? (
             <div className="lg:col-span-2">
-              <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+              {/* the words' first read may still be on its way: "no words" would be wrong then */}
+              {state.wordsLoading ? (
+                <p aria-busy className="py-6 text-center text-sm text-ink/60">
+                  Bringing out your words…
+                </p>
+              ) : (
+                <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+              )}
             </div>
           ) : (
             state.words.map((w) => <WordCard key={w.word} word={w} />)

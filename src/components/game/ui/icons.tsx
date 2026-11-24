@@ -48,6 +48,7 @@ export {
   CircleNotch,
   Warning,
   CaretRight,
+  CaretLeft,
   Check,
   Plus,
   Lock,
@@ -62,4 +63,5 @@ export {
   BookBookmark,
   WarningCircle,
   Info,
+  Palette,
 } from "@phosphor-icons/react";

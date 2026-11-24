@@ -637,6 +637,16 @@ const STAKED_EVENT = {
  *     which is why the map is built from all of them rather than only the player's.
  */
 export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]> {
+  return (await readWordsHeld(player)).words;
+}
+
+/**
+ * The player's words now (`words`, as readOwnedWords), and the id of every word they have ever held
+ * (`everHeld`): every Word transferred to them, a claim's mint included, and every one they staked.
+ * The same scans readOwnedWords needs, so it costs nothing extra. A dissolved or sold word stays in
+ * `everHeld`, which is what makes the scenes unlock stay open (lib/scenes: reach 3 words once).
+ */
+export async function readWordsHeld(player: `0x${string}`): Promise<{ words: ChainWord[]; everHeld: string[] }> {
   const words = addressOf("words");
   const staking = addressOf("staking");
   const client = getPublicClient();
@@ -655,7 +665,8 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
   const candidates = new Set<string>();
   for (const l of transfersIn) candidates.add(String(l.args.tokenId));
   for (const l of stakedByPlayer) candidates.add(String(l.args.tokenId));
-  if (candidates.size === 0) return [];
+  const everHeld = [...candidates];
+  if (candidates.size === 0) return { words: [], everHeld };
 
   const ids = [...candidates].map((s) => BigInt(s));
 
@@ -683,7 +694,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
       stakedFlag.set(String(id), isStaked);
     }
   });
-  if (owned.length === 0) return [];
+  if (owned.length === 0) return { words: [], everHeld };
 
   // Per-word detail. escrowLetter is 5 calls each because `escrows` is internal — there is no
   // whole-struct getter (Words.sol:44).
@@ -705,7 +716,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
   });
 
   const PER = 8;
-  return owned.map((id, i) => {
+  const held = owned.map((id, i) => {
     const base = i * PER;
     const prestigeLevel = Number(detail[base]);
     const claimedAt = Number(detail[base + 2]);
@@ -726,6 +737,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
       prestigeLevel,
     };
   });
+  return { words: held, everHeld };
 }
 
 /** The FeeRouter's three player-facing buckets, in whole $WORD — the real pots the screens show. */

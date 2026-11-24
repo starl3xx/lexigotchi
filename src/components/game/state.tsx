@@ -119,6 +119,8 @@ export type Sheet =
   | { kind: "addapp" }
   /** A claim just landed: the new word celebrates (sheets/CelebrateSheet). */
   | { kind: "celebrate"; word: string }
+  /** Pick a word's scene, from the Today stage (sheets/SceneSheet). */
+  | { kind: "scene"; word: string }
   | null;
 
 export interface Toast {
@@ -150,6 +152,16 @@ export interface GameState {
   upperMine?: number[];
   pity: number[]; // [26] loose-letter pity streak
   words: OwnedWord[];
+  /**
+   * How many distinct words the player has ever held, across the bag (a dissolved or sold word
+   * still counts). The scenes unlock reads it, so it stays open once reached (lib/scenes).
+   */
+  wordsEverHeld: number;
+  /**
+   * The words are still on their way (the chain store's first read; never in practice). `status` can be
+   * "ready" before they land, and an empty `words` then would read as "no words yet".
+   */
+  wordsLoading?: boolean;
   streak: number;
   day: number;
   dailyMinted: boolean;
@@ -283,6 +295,7 @@ export function seedState(): GameState {
     upper,
     pity: new Array(26).fill(0),
     words,
+    wordsEverHeld: words.length,
     streak: 6,
     day: 0,
     dailyMinted: false,
@@ -427,6 +440,7 @@ export function reducer(s: GameState, a: Action): GameState {
         ...s,
         [a.useUpper ? "upper" : "lower"]: src,
         words: [word, ...s.words],
+        wordsEverHeld: Math.max(s.wordsEverHeld || 0, s.words.length) + 1,
         balance: spend(s, COST.claim),
       } as GameState;
     }

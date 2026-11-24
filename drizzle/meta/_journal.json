@@ -64,6 +64,13 @@
       "when": 1795553376169,
       "tag": "0008_wallet_links",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795558829929,
+      "tag": "0009_word_scenes",
+      "breakpoints": true
     }
   ]
 }

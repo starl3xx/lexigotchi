@@ -312,3 +312,167 @@ body {
   box-shadow: 3px 3px 0 theme(colors.ink);
   border-radius: 8px;
 }
+
+/* The word in its scene (SceneFrame). It stands on a floor now, so it doesn't tilt like other
+   tiles: on hover the spotlight finds it (a warm glow, with or without motion) and its letters hop
+   in a wave, one after another; on press they squash into the floor. */
+.scene-word {
+  transition: filter 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .scene-word:hover {
+    filter: drop-shadow(0 0 10px rgb(255 238 196 / 0.75)) brightness(1.04);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) and (pointer: fine) {
+    .scene-word:hover > div > div { animation: scene-hop 560ms var(--ease-hop) both; }
+    .scene-word:hover > div > div:nth-child(2) { animation-delay: 70ms; }
+    .scene-word:hover > div > div:nth-child(3) { animation-delay: 140ms; }
+    .scene-word:hover > div > div:nth-child(4) { animation-delay: 210ms; }
+    .scene-word:hover > div > div:nth-child(5) { animation-delay: 280ms; }
+  }
+  .scene-word > div {
+    transform-origin: 50% 100%;
+    transition: transform 160ms var(--ease-out);
+  }
+  .scene-word:active > div {
+    transform: translateY(2px) scaleY(0.94);
+    transition-duration: 70ms;
+  }
+}
+@keyframes scene-hop {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(-12%); }
+  65% { transform: translateY(1.5%); }
+}
+
+/* The Today stage's ← and →: the next word slides in a little way from the side it comes from,
+   and a new scene fades in over the old one. Under reduced motion the word only fades. */
+.scene-in-next { animation: scene-in-next 340ms var(--ease-out) both; }
+.scene-in-prev { animation: scene-in-prev 340ms var(--ease-out) both; }
+.scene-fade-in { animation: scene-fade-in 450ms var(--ease-out) both; }
+.scene-fade-out { animation: scene-fade-out 450ms var(--ease-out) both; }
+@keyframes scene-in-next { from { opacity: 0; transform: translateX(32px); } }
+@keyframes scene-in-prev { from { opacity: 0; transform: translateX(-32px); } }
+@keyframes scene-fade-in { from { opacity: 0; } }
+@keyframes scene-fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .scene-in-next,
+  .scene-in-prev { animation-name: scene-fade-in; }
+}
+
+/* A scene drains toward grey as its word gets hungry (SceneFrame's tone). A color change, not
+   motion, so it eases in under reduced motion too. */
+.scene-tone { transition: filter 900ms var(--ease-out); }
+.scene-peckish { filter: grayscale(0.55) brightness(0.97); }
+.scene-hungry { filter: grayscale(0.92) brightness(0.86) contrast(0.95); }
+
+/* Fog rolls in as a word gets hungry (SceneFrame), over the whole scene and the word, under the
+   speech bubble and the arrows. Thin when peckish, thick when hungry, gone when fed.
+   How it's built (starl3xx asked for fog that is "much more foggy", 2026-11-24):
+   - Fog is mostly lost contrast, thicker toward the ground: a haze veil underneath, densest at
+     the floor.
+   - Over it, three banks of real cloud texture: fractal noise from SVG feTurbulence, stretched
+     sideways into drifting bands, turned white with its alpha taken from the noise, so the fog is
+     patchy, thick in places and thin in others. Each is an image, drawn once, never per frame.
+   - They drift at different speeds (back slow, front faster) for depth, and each breathes a
+     little, so the loops never line up into a pattern. Only transform and opacity move.
+   - Each strip is two tiles wide (background-size 50%) and slides by one tile, so it loops
+     without a seam; stitchTiles makes the noise itself tile. Each bank fades out at its top.
+   Under reduced motion the fog stands still: the same picture, no drift. */
+.scene-fog {
+  opacity: 0;
+  transition: opacity 1400ms var(--ease-out);
+}
+.scene-fog.is-peckish { opacity: 0.5; }
+.scene-fog.is-hungry { opacity: 1; }
+.scene-fog-haze {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(234 238 243 / 0.82), rgb(234 238 243 / 0.5) 40%, rgb(234 238 243 / 0.22) 80%, rgb(234 238 243 / 0.12));
+}
+.scene-fog-bank {
+  position: absolute;
+  left: 0;
+  width: 200%;
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
+  mask-image: linear-gradient(to top, #000 55%, transparent);
+}
+/* the back bank: broad and dense, rolling slowly along the floor */
+.scene-fog-1 {
+  bottom: -12%;
+  height: 100%;
+  opacity: 0.95;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0045 0.011' numOctaves='4' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.96 0 0 0 0 0.98 2.6 0 0 0 -0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+/* the middle bank: around the word */
+.scene-fog-2 {
+  bottom: -6%;
+  height: 72%;
+  opacity: 0.9;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.007 0.017' numOctaves='4' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.97 0 0 0 0 0.98 2.5 0 0 0 -0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+/* the front wisps: thinner, quicker, a little higher */
+.scene-fog-3 {
+  bottom: 14%;
+  height: 60%;
+  opacity: 0.75;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011 0.028' numOctaves='4' seed='17' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.97 0 0 0 0 0.98 0 0 0 0 0.99 2.3 0 0 0 -0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scene-fog-1 { animation: scene-fog 120s linear infinite, scene-fog-breathe 11s ease-in-out infinite alternate; }
+  .scene-fog-2 { animation: scene-fog 76s linear infinite -20s, scene-fog-breathe 8s ease-in-out infinite alternate -3s; }
+  .scene-fog-3 { animation: scene-fog 46s linear infinite -9s, scene-fog-breathe 6.5s ease-in-out infinite alternate -1s; }
+}
+@keyframes scene-fog { to { transform: translateX(-50%); } }
+@keyframes scene-fog-breathe { from { opacity: 0.6; } }
+
+/* Scenes (components/scenes/SceneArt.tsx): slow ambient motion in a word's home. These are the
+   one exception to "nothing runs longer than ~300 ms": they are scenery, not responses, and loop
+   for many seconds. Each element brings its own duration and delay inline, plus any distance its
+   keyframes read (--dx, --dy, --y0, --y1). Only where motion is welcome: under reduce, these
+   rules don't exist and a scene is a still picture, every particle where the card draws it.
+   On an SVG element, CSS px are the scene's own units, so the distances scale with the scene. */
+@media (prefers-reduced-motion: no-preference) {
+  .scn-sway { animation: scn-sway ease-in-out infinite alternate; }
+  .scn-breathe { animation: scn-breathe ease-in-out infinite alternate; }
+  .scn-flicker { animation: scn-flicker ease-in-out infinite alternate; }
+  .scn-mote { animation: scn-mote linear infinite; }
+  .scn-fall { animation: scn-fall linear infinite; }
+  .scn-swing { animation: scn-swing ease-in-out infinite alternate; }
+  .scn-spin { transform-box: fill-box; transform-origin: center; animation: scn-spin linear infinite; }
+  .scn-drift { animation: scn-drift ease-in-out infinite alternate; }
+  .scn-bob { animation: scn-bob ease-in-out infinite alternate; }
+  .scn-twinkle { transform-box: fill-box; transform-origin: center; animation: scn-twinkle ease-in-out infinite alternate; }
+  .scn-glint { animation: scn-glint ease-in-out infinite; }
+  .scn-sweep { transform-box: view-box; transform-origin: var(--ox) var(--oy); animation: scn-sweep ease-in-out infinite alternate; }
+  /* the same swing, pivoting on the bottom right of the element's own box (a waving arm's shoulder) */
+  .scn-wave { transform-box: fill-box; transform-origin: 100% 100%; animation: scn-sweep ease-in-out infinite alternate; }
+  .scn-flutter { transform-box: fill-box; transform-origin: center; animation: scn-flutter ease-in-out infinite alternate; }
+}
+/* a curtain or a branch, swinging from its top corner */
+@keyframes scn-sway { from { transform: rotate(-0.35deg); } to { transform: rotate(0.45deg); } }
+@keyframes scn-breathe { from { opacity: 0.78; } to { opacity: 1; } }
+@keyframes scn-flicker { from { opacity: 0.68; } to { opacity: 1; } }
+/* dust in a beam: drifts and fades */
+@keyframes scn-mote {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20%, 75% { opacity: 0.85; }
+  100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+}
+/* snow, petals, leaves: from above the scene to below it. The delay starts each one where the
+   still picture draws it. */
+@keyframes scn-fall { from { transform: translateY(var(--y0)); } to { transform: translateY(var(--y1)); } }
+@keyframes scn-swing { from { transform: translateX(calc(var(--dx) * -1)) rotate(-14deg); } to { transform: translateX(var(--dx)) rotate(14deg); } }
+@keyframes scn-spin { to { transform: rotate(360deg); } }
+@keyframes scn-drift { from { transform: translateX(calc(var(--dx) * -1)); } to { transform: translateX(var(--dx)); } }
+@keyframes scn-bob { from { transform: translateY(0); } to { transform: translateY(var(--dy)); } }
+@keyframes scn-twinkle { from { opacity: 0.35; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+/* a gleam crossing the glass, then a long rest */
+@keyframes scn-glint { 0% { transform: translateX(-700px); } 45%, 100% { transform: translateX(1900px); } }
+/* a fan of laser beams sweeping back and forth about its own center (--ox, --oy, by --deg) */
+@keyframes scn-sweep { from { transform: rotate(calc(var(--deg) * -1)); } to { transform: rotate(var(--deg)); } }
+@keyframes scn-flutter { from { transform: scaleX(1); } to { transform: scaleX(0.35); } }

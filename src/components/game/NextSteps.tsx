@@ -19,7 +19,8 @@ export function NextSteps() {
   const [all, setAll] = useState(false);
   if (state.status !== "ready") return null;
 
-  // The Today stage already asks for an unstaked star to be staked; don't ask twice.
+  // Don't ask twice: the Today stage already asks for an unstaked star to be staked, and for a
+  // brand-new player the stage and the letters card both point at getting letters ("start").
   const staged = pickStage(state.words, (w) => hunger(w));
   const stagedStake = staged?.mood === "unstaked" ? staged.word.word : null;
   const steps = nextSteps({
@@ -29,7 +30,7 @@ export function NextSteps() {
     upper: mineUpper(state),
     pity: state.pity,
     rollProb: g.rollProb,
-  }).filter((s) => !(s.kind === "stake" && s.word === stagedStake));
+  }).filter((s) => !(s.kind === "stake" && s.word === stagedStake) && s.kind !== "start");
   if (steps.length === 0) return null;
   const visible = all ? steps : steps.slice(0, SHOWN);
   const hidden = steps.length - visible.length;

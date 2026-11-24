@@ -51,7 +51,7 @@ export const frameEmbed = {
   button: { title: "Play Lexigotchi", action: launchAction("launch_frame") },
 };
 
-/** The same launch card with another picture: a Showcase share's letters (lib/showcase). */
+/** The same launch card with another picture: a Showcase share's word in its scene (lib/showcase). */
 export function embedsWithImage(imageUrl: string) {
   return {
     miniapp: { ...miniAppEmbed, imageUrl },

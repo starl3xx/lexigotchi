@@ -1,56 +1,101 @@
 /**
  * Showcase shares (src/lib/showcase.ts): the link a post carries, and what its page accepts.
+ *
+ * A showcase is one of the player's words (starl3xx, 2026-11-24: "Showcase should only be for
+ * words you own (people could tweet all sorts of crazy shit otherwise!)"), so the page and its
+ * card draw dictionary words only. These tests are that guard.
  */
 import { describe, it, expect } from "vitest";
-import { parseShowcase, showcaseCardUrl, showcasePostText, showcaseText, showcaseUrl, xIntentUrl, showcaseXText } from "@/lib/showcase";
+import {
+  HOUSE_CARDS,
+  parseShowcase,
+  showcaseCardUrl,
+  showcasePostText,
+  showcaseText,
+  showcaseUrl,
+  showcaseWordText,
+  xIntentUrl,
+  showcaseXText,
+} from "@/lib/showcase";
+import { BANNED, isWord } from "@/lib/dictionary";
 
 describe("parseShowcase", () => {
   it("reads each tile's case from the path", () => {
-    expect(parseShowcase("HeLLo")).toEqual([
-      { char: "H", upper: true },
+    expect(parseShowcase("CRAne")).toEqual([
+      { char: "C", upper: true },
+      { char: "R", upper: true },
+      { char: "A", upper: true },
+      { char: "N", upper: false },
       { char: "E", upper: false },
-      { char: "L", upper: true },
-      { char: "L", upper: true },
-      { char: "O", upper: false },
     ]);
   });
 
   it("round-trips to the same path text", () => {
-    for (const t of ["HeLLo", "zz", "ABCDEFGH", "jazzy"]) expect(showcaseText(parseShowcase(t)!)).toBe(t);
+    for (const t of ["CRAne", "crane", "CRANE", "vIvId"]) expect(showcaseText(parseShowcase(t)!)).toBe(t);
   });
 
-  it("takes 2 to 8 letters, A to Z only", () => {
-    expect(parseShowcase("a")).toBeNull();
-    expect(parseShowcase("abcdefghi")).toBeNull();
-    for (const bad of ["he llo", "héllo", "ab1", "<b>", "%3Cb%3E", "ab%2", ""]) expect(parseShowcase(bad)).toBeNull();
+  it("draws a dictionary word in any case", () => {
+    expect(isWord("CRANE")).toBe(true);
+    for (const t of ["CRANE", "crane", "cRaNe"]) expect(parseShowcase(t)).not.toBeNull();
+  });
+
+  it("refuses free text: anything that isn't a dictionary word", () => {
+    for (const bad of ["XQZPW", "zz", "ABCDEFGH", "jazzyy", "he llo", "héllo", "ab1", "<b>", "%3Cb%3E", "ab%2", ""]) {
+      expect(parseShowcase(bad)).toBeNull();
+    }
+  });
+
+  it("refuses every banned word, though it is five letters", () => {
+    expect(BANNED.length).toBeGreaterThan(0);
+    for (const w of BANNED) {
+      expect(parseShowcase(w)).toBeNull();
+      expect(parseShowcase(w.toLowerCase())).toBeNull();
+    }
+  });
+
+  it("draws the game's own house cards (the beta group's HEYOO welcome)", () => {
+    expect(HOUSE_CARDS).toContain("HEYOO");
+    expect(parseShowcase("HEYOO")).not.toBeNull();
   });
 });
 
 describe("share links", () => {
+  it("spell a word in its case", () => {
+    expect(showcaseWordText("CRANE", [true, true, true, false, false])).toBe("CRAne");
+    expect(showcaseWordText("CRANE", [false, false, false, false, false])).toBe("crane");
+  });
+
   it("point at the showcase page and its two card shapes", () => {
-    expect(showcaseUrl("HeLLo")).toMatch(/\/s\/HeLLo$/);
-    expect(showcaseCardUrl("HeLLo")).toMatch(/\/s\/HeLLo\/card$/);
-    expect(showcaseCardUrl("HeLLo", "fc")).toMatch(/\/s\/HeLLo\/card\?ratio=3x2$/);
+    expect(showcaseUrl("CRAne")).toMatch(/\/s\/CRAne$/);
+    expect(showcaseCardUrl("CRAne")).toMatch(/\/s\/CRAne\/card$/);
+    expect(showcaseCardUrl("CRAne", "fc")).toMatch(/\/s\/CRAne\/card\?ratio=3x2$/);
+  });
+
+  it("carry the scene, and leave it off for the Stage, so a link made before scenes is a Stage link", () => {
+    expect(showcaseUrl("CRAne", "winter")).toMatch(/\/s\/CRAne\?scene=winter$/);
+    expect(showcaseUrl("CRAne", "stage")).toMatch(/\/s\/CRAne$/);
+    expect(showcaseCardUrl("CRAne", "x", "fall")).toMatch(/\/s\/CRAne\/card\?scene=fall$/);
+    expect(showcaseCardUrl("CRAne", "fc", "fall")).toMatch(/\/s\/CRAne\/card\?ratio=3x2&scene=fall$/);
   });
 
   it("prefill X's composer with the words and the link, tagging @lexigotchi once", () => {
-    const u = new URL(xIntentUrl(showcaseXText("HeLLo"), showcaseUrl("HeLLo")));
+    const u = new URL(xIntentUrl(showcaseXText("CRAne"), showcaseUrl("CRAne")));
     expect(u.origin + u.pathname).toBe("https://x.com/intent/post");
-    expect(u.searchParams.get("text")).toBe("HeLLo ✨ spelled with letters I raised in @lexigotchi");
-    expect(u.searchParams.get("url")).toBe(showcaseUrl("HeLLo"));
+    expect(u.searchParams.get("text")).toBe("CRAne ✨ spelled with letters I raised in @lexigotchi");
+    expect(u.searchParams.get("url")).toBe(showcaseUrl("CRAne"));
     expect(u.searchParams.get("via")).toBeNull(); // the tag is in the text, never twice
   });
 
   it("tag @lexigotchi on any X post whose text doesn't name it", () => {
-    const u = new URL(xIntentUrl("look at my letters", showcaseUrl("HeLLo")));
+    const u = new URL(xIntentUrl("look at my letters", showcaseUrl("CRAne")));
     expect(u.searchParams.get("text")).toBe("look at my letters @lexigotchi");
   });
 
   it("keep @lexigotchi out of the cast text (on Farcaster it would be someone else)", () => {
-    expect(showcasePostText("HeLLo")).not.toMatch(/@lexigotchi/i);
+    expect(showcasePostText("CRAne")).not.toMatch(/@lexigotchi/i);
   });
 
   it("post copy has no em dash", () => {
-    expect(showcasePostText("HeLLo")).not.toMatch(/—/);
+    expect(showcasePostText("CRAne")).not.toMatch(/—/);
   });
 });

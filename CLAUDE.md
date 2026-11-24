@@ -204,8 +204,40 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
   server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
-  share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
-  `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
+  share links to `/s/<word>?scene=<id>` (the case in the path is each tile's case), whose `og:image`
+  is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
+  own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
+  `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
+  on the game's card.
+- **Scenes** (decisions.md #15; `src/lib/scenes.ts` = the list and the unlock, `SCENE_UNLOCK_WORDS`
+  = 3 words ever held, so it stays open after a dissolve: `state.wordsEverHeld`, from
+  `readWordsHeld`'s transfer scan; `src/components/scenes/`): each word's home on the Today stage
+  (`TodayStage` → `SceneFrame`, 16:9), in the Showcase, in the scene sheet (`sheets/SceneSheet`, the
+  palette button under the stage), and on the share card. The Today stage walks the player's words
+  with ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with
+  the next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry
+  (`toneOf`, `.scene-tone`/`.scene-fog` in globals.css: feTurbulence fog images drifting in three
+  layers, over the word, under the bubble and arrows). One drawing per scene (`art/*.tsx`) serves
+  the browser and Satori, so it keeps Satori's rules (`kit.tsx` says them; `tests/scenes.test.tsx`
+  holds them): plain SVG elements only, called as functions (a component or fragment inside the
+  `<svg>` crashes the card), no attribute left undefined (Satori writes "undefined", and a bad
+  `transform` drops the group), no `<text>`. The feet stand `SCENE_FLOOR` units above the bottom in
+  every scene and size (`layout.ts`, shared with the card). Motion is the `scn-` classes in
+  globals.css, behind prefers-reduced-motion, only when `animated` (never on the card or
+  thumbnails). **A pick is saved** in the browser always, and in table `word_scenes` (migration
+  0009, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
+  player already has: keyed by the wallet holding the word, writable by any wallet in the session's
+  profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
+  the newer pick wins. Dark with profiles; until migration 0009 runs, everything stays in the browser.
+- **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
+  stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
+  UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
+  the letters, then the bounty and quick actions. Two free-flowing columns on lg; a phone stacks them
+  in that order (`display: contents` column wrappers + `order`). Every card speaks to the player in
+  front of it: the empty stage per `emptyStageCase` (loading, words only in a linked wallet, can
+  spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
+  how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
+  newcomer's invitation while their words load (Today, Showcase, Bag).
 - **The game's X account is [@lexigotchi](https://x.com/lexigotchi)** (`X_HANDLE`/`X_URL` in `site.ts`): the
   landing footer, the docs footer, More, and `twitter:site` point at it. Posts go out through
   **Typefully social set 372033**, never the X API, and only with starl3xx's go-ahead for each post.

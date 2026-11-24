@@ -47,6 +47,7 @@ import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
 import {
   readFeeBuckets,
   readOwnedWords,
+  readWordsHeld,
   readLetterCounts,
   readOpenRolls,
   readPity,
@@ -62,7 +63,7 @@ import {
 } from "@/lib/onchain/reads";
 import { dailyKeysFor } from "@/lib/onchain/verifications";
 import { usePublicProfile } from "./useProfile";
-import { unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
+import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
 import { erc1155ApprovalAbi } from "@/lib/onchain/abis";
@@ -217,9 +218,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     queryKey: ["ownedWords", NETWORK.id, bagKey],
     queryFn: async () => {
       const perWallet = await Promise.all(
-        bagWallets.map(async (wallet) => ({ wallet, words: await readOwnedWords(wallet) })),
+        bagWallets.map(async (wallet) => ({ wallet, ...(await readWordsHeld(wallet)) })),
       );
-      return unionWords(perWallet, address);
+      return { words: unionWords(perWallet, address), everHeld: unionEverHeld(perWallet) };
     },
     enabled: !!address && chain.deployed,
     staleTime: 10_000,
@@ -423,7 +424,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
-      words: (wordsQ.data ?? []).map(toOwnedWord),
+      words: (wordsQ.data?.words ?? []).map(toOwnedWord),
+      wordsEverHeld: wordsQ.data?.everHeld ?? 0,
+      wordsLoading: wordsQ.isLoading,
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
       streak: 0,
@@ -441,7 +444,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -504,7 +507,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (!(await run(label, build, { settles: true }))) return false;
       let last: BagWord[] = [];
       const seen = await readUntil(
-        async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data ?? []),
+        async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data?.words ?? []),
         landed,
       );
       toast(seen ? says.done(last) : says.pending, seen ? "good" : "info");
