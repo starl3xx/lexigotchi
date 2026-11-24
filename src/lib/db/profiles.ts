@@ -3,7 +3,7 @@
  * wallet the caller has proven with a session (lib/profile/session.ts); these helpers don't check.
  */
 import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { getDb } from "./client";
+import { getDb, type DbOrTx } from "./client";
 import { emailCodes, profiles, xLinkStates, type Profile } from "./schema";
 import type { NameSource, ProfileView, PublicProfileRow, PublicProfileView } from "@/lib/profile/rules";
 import { accountWallets, walletsOfAccount, farcasterWalletsOf } from "./walletLinks";
@@ -17,8 +17,8 @@ export function isMissingTable(err: unknown): boolean {
   return e?.code === "42P01" || e?.cause?.code === "42P01";
 }
 
-export async function getProfile(address: string): Promise<Profile | null> {
-  const rows = await getDb().select().from(profiles).where(eq(profiles.address, address.toLowerCase())).limit(1);
+export async function getProfile(address: string, db: DbOrTx = getDb()): Promise<Profile | null> {
+  const rows = await db.select().from(profiles).where(eq(profiles.address, address.toLowerCase())).limit(1);
   return rows[0] ?? null;
 }
 

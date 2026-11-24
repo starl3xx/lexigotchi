@@ -17,10 +17,10 @@
  * Adopted wallets are ordinary `wallet_links` rows (via "farcaster", with the vouching FID), so the
  * bag, the leaderboard, reminders, Move here, and the swap board all count them with no new lookups.
  */
-import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
-import { getDb } from "@/lib/db/client";
+import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
+import { getDb, type DbOrTx } from "@/lib/db/client";
 import { profiles, walletLinks } from "@/lib/db/schema";
-import { MAX_ACCOUNT_WALLETS, accountOf } from "@/lib/db/walletLinks";
+import { MAX_ACCOUNT_WALLETS, accountOf, withLinkLock } from "@/lib/db/walletLinks";
 import { fidsByAddresses, lookupProfiles } from "@/lib/neynar";
 import { accountClaimedToday } from "@/lib/onchain/dailyIdentity";
 
@@ -142,15 +142,17 @@ export function resolveSyncAccount(input: {
     const acct = lower(input.sessionAccount ?? w);
     const bare = acct === w && !input.rows.some((r) => lower(r.account) === w) && !input.hasOwnProfile.has(w);
     if (!bare) return acct;
-    return chooseAccountForFid([...input.verified, w], input.rows, input.hasOwnProfile) ?? w;
+    // Only where Farcaster verified this wallet: a wallet no FID verified stays its own account.
+    const verified = input.verified.map(lower);
+    return verified.includes(w) ? chooseAccountForFid(verified, input.rows, input.hasOwnProfile) ?? w : w;
   }
   return chooseAccountForFid(input.verified, input.rows, input.hasOwnProfile);
 }
 
 // ── database ─────────────────────────────────────────────────────────────────────────────────────
 
-type Db = ReturnType<typeof getDb>;
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+type Db = DbOrTx;
+type Tx = DbOrTx;
 
 /**
  * Every link row touching these wallets (as the wallet or as the account). Before migration 0009 it
@@ -200,10 +202,12 @@ export async function syncFarcasterWallets(opts: { wallet?: string; fid?: number
   const db = getDb();
   try {
     // 1. The account, by one rule whichever wallet signs in first (resolveSyncAccount).
-    const startFids = new Set<number>(opts.fid ? [opts.fid] : []);
+    // With a wallet session, only the FIDs that verified THAT wallet place it: a Farcaster sign-in in
+    // the same browser is not proof the two are one player (Bugbot on #163). Without one, the FID.
+    const startFids = new Set<number>();
     if (opts.wallet) {
       for (const list of (await fidsByAddresses([opts.wallet]).catch(() => new Map<string, number[]>())).values()) for (const f of list) startFids.add(f);
-    }
+    } else if (opts.fid) startFids.add(opts.fid);
     const startProfiles = startFids.size ? await lookupProfiles([...startFids]).catch(() => []) : [];
     const verified = [...new Set(startProfiles.flatMap((p) => p.verifiedWallets ?? []))];
     const near = [...verified, ...(opts.wallet ? [lower(opts.wallet)] : [])];
@@ -254,8 +258,7 @@ export async function syncFarcasterWallets(opts: { wallet?: string; fid?: number
     // 4. Plan and write under one lock, re-reading the links inside it, so two devices syncing at
     // once can't insert A→B and B→A, or overfill an account.
     const acct = account;
-    return await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('lexigotchi:wallet_links'))`); // the same lock as withLinkLock
+    return await withLinkLock(async (tx) => {
       // The account must still head itself: if it joined another account meanwhile, stop.
       const joined = await tx.select({ account: walletLinks.account }).from(walletLinks).where(eq(walletLinks.address, acct)).limit(1);
       if (joined.length > 0) return { account: acct, adopted: [], pruned: [], skipped: [] };

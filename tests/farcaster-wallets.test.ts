@@ -106,6 +106,11 @@ describe("resolveSyncAccount: the same account whichever wallet signs in first",
     expect(plan.adopt.map((a) => a.address).sort()).toEqual([R, W].sort());
   });
 
+  it("a bare wallet no Farcaster account verified stays its own account", () => {
+    const L = "0x0000000000000000000000000000000000000001"; // lower than everyone, verified by nobody
+    expect(resolveSyncAccount({ sessionWallet: L, sessionAccount: L, verified: [], rows: [], hasOwnProfile: none })).toBe(L);
+  });
+
   it("a wallet with a real account keeps it", () => {
     const rows: LinkRowFull[] = [{ address: "0xffff000000000000000000000000000000000001", account: W, via: "signature", fid: null }];
     expect(resolveSyncAccount({ sessionWallet: W, sessionAccount: W, verified, rows, hasOwnProfile: profile })).toBe(W);
