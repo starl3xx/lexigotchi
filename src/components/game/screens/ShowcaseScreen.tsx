@@ -11,7 +11,7 @@ import { TileCharacter } from "../TileCharacter";
 import { Basket, ShareNetwork, XLogo } from "../ui/icons";
 import { idxToChar, useGame } from "../state";
 import { usePostToX, useShare } from "../useShare";
-import { showcasePostText, showcaseUrl } from "@/lib/showcase";
+import { showcasePostText, showcaseUrl, showcaseXText } from "@/lib/showcase";
 import { useEffect, useState as useState2 } from "react";
 import { useAccount } from "wagmi";
 import { useViewer } from "../useViewer";
@@ -110,7 +110,7 @@ export function ShowcaseScreen() {
           size="lg"
           variant="primary"
           disabled={rack.length < 2}
-          onClick={() => postToX({ text: showcasePostText(showcaseText), url: showcaseUrl(showcaseText) })}
+          onClick={() => postToX({ text: showcaseXText(showcaseText), url: showcaseUrl(showcaseText) })}
         >
           <XLogo weight="bold" /> Post on X
         </Button>
