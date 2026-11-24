@@ -426,8 +426,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
       words: (wordsQ.data?.words ?? []).map(toOwnedWord),
       wordsEverHeld: wordsQ.data?.everHeld ?? 0,
-      wordsLoading: wordsQ.isLoading,
-      wordsError: wordsQ.isError && !wordsQ.data,
+      // "No words yet, and a read in flight" is loading: the first read, and a retry after a failed one
+      // (TanStack's isLoading stays false when refetching from an error; Bugbot on #164).
+      wordsLoading: wordsQ.isLoading || (!wordsQ.data && wordsQ.isFetching),
+      wordsError: wordsQ.isError && !wordsQ.data && !wordsQ.isFetching,
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
       streak: 0,
@@ -445,7 +447,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
