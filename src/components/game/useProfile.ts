@@ -235,7 +235,9 @@ export function useProfile() {
     xEnabled: Boolean(config.data?.x),
     emailEnabled: Boolean(config.data?.email),
     address: addr,
-    signedIn: Boolean(token && me.data),
+    // A stored session counts at once. Waiting for /me made the sheet ask a player to sign in
+    // while their session was still loading (Bugbot on #136); a dead token is forgotten on its 401.
+    signedIn: Boolean(token),
     /** The own view (with email) when signed in, else the public view. */
     profile: me.data ?? (pub.data ? { ...pub.data, email: null } : null),
     loading: me.isLoading || pub.isLoading,
