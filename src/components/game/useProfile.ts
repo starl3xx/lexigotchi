@@ -11,7 +11,7 @@
 import { useCallback, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { NameSource, ProfileConfig, ProfileView } from "@/lib/profile/rules";
+import type { NameSource, ProfileConfig, ProfileView, PublicProfileView } from "@/lib/profile/rules";
 import type { Viewer } from "./useViewer";
 
 const HEADER = "x-lexigotchi-session";
@@ -90,6 +90,21 @@ export function useProfile() {
     },
   });
 
+  // The public view needs no session: a returning player's name, picture, and linked X show at once,
+  // and the sheet knows there is something to sign in FOR (Bugbot on #136: reading X only through
+  // the session made the sign-in prompt unreachable).
+  const pub = useQuery({
+    queryKey: ["profilePublic", addr],
+    enabled: enabled && !!addr,
+    staleTime: 30_000,
+    queryFn: async (): Promise<PublicProfileView | null> => {
+      const r = await fetch(`/api/profile/public?address=${addr}`);
+      if (!r.ok) return null;
+      const d = (await r.json()) as { ok: boolean; profile?: PublicProfileView };
+      return d.ok && d.profile ? d.profile : null;
+    },
+  });
+
   /** Sign the challenge with the connected wallet and open a 30-day session. */
   const signIn = useCallback(async (): Promise<boolean> => {
     if (!address || !addr) return false;
@@ -138,6 +153,7 @@ export function useProfile() {
         const d = (await r.json()) as { ok: boolean; profile?: ProfileView; error?: string };
         if (!d.ok || !d.profile) throw new Error(d.error === "farcaster_not_linked" ? "No Farcaster account has verified this wallet." : "Couldn’t save that. Try again.");
         qc.setQueryData(["profileMe", addr, token], d.profile);
+        void qc.invalidateQueries({ queryKey: ["profilePublic", addr] });
         void qc.invalidateQueries({ queryKey: ["world"] });
         return true;
       } catch (err) {
@@ -157,8 +173,9 @@ export function useProfile() {
     emailEnabled: Boolean(config.data?.email),
     address: addr,
     signedIn: Boolean(token && me.data),
-    profile: me.data ?? null,
-    loading: me.isLoading,
+    /** The own view (with email) when signed in, else the public view. */
+    profile: me.data ?? (pub.data ? { ...pub.data, email: null } : null),
+    loading: me.isLoading || pub.isLoading,
     busy,
     error,
     signIn,

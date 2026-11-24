@@ -5,7 +5,7 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { profiles, type Profile } from "./schema";
-import type { NameSource, ProfileView } from "@/lib/profile/rules";
+import type { NameSource, ProfileView, PublicProfileView } from "@/lib/profile/rules";
 
 /**
  * Postgres "relation does not exist": the owner hasn't applied migration 0006 yet. Drizzle wraps
@@ -29,12 +29,19 @@ export async function setNameSource(address: string, source: NameSource | null):
     .onConflictDoUpdate({ target: profiles.address, set: { nameSource: source, updatedAt: sql`now()` } });
 }
 
+/** The public view: everything but the email. */
+export function toPublicView(address: string, p: Profile | null): PublicProfileView {
+  const { email: _email, ...rest } = toView(address, p);
+  return rest;
+}
+
 export function toView(address: string, p: Profile | null): ProfileView {
   return {
     address: address.toLowerCase(),
     nameSource: p?.nameSource === "x" || p?.nameSource === "farcaster" ? p.nameSource : null,
     x: p?.xUserId && p.xUsername
       ? {
+          id: p.xUserId,
           username: p.xUsername,
           name: p.xName,
           pfpUrl: p.xPfpUrl,

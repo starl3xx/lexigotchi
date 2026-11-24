@@ -86,3 +86,17 @@ describe("the X age rule for the daily letter", () => {
     expect(xEligibleOn(new Date(NOW - 10 * day)).getTime()).toBe(NOW + 80 * day);
   });
 });
+
+describe("the public profile", () => {
+  it("never carries the email", async () => {
+    const { toPublicView, toView } = await import("@/lib/db/profiles");
+    const row = {
+      address: "0xabc", xUserId: "1", xUsername: "example_player", xName: null, xPfpUrl: null, xCreatedAt: null, xLinkedAt: null,
+      nameSource: "x", email: "player@example.com", emailVerifiedAt: new Date(), emailReminders: true, createdAt: new Date(), updatedAt: new Date(),
+    };
+    expect(toView("0xABC", row).email).toEqual({ address: "player@example.com", reminders: true });
+    const pub = toPublicView("0xABC", row);
+    expect(JSON.stringify(pub)).not.toContain("example.com");
+    expect(pub).toEqual({ address: "0xabc", nameSource: "x", x: { id: "1", username: "example_player", name: null, pfpUrl: null, createdAt: null, linkedAt: null } });
+  });
+});

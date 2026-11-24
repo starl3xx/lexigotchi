@@ -20,11 +20,19 @@ export function xEligibleOn(createdAt: string | Date): Date {
 export type NameSource = "x" | "farcaster";
 export const isNameSource = (v: unknown): v is NameSource => v === "x" || v === "farcaster";
 
-/** What the owner's own profile route returns. The email appears only here, never publicly. */
-export interface ProfileView {
+/**
+ * A wallet's profile as anyone may read it (/api/profile/public): the linked X account is public by
+ * design (the player is told so when linking), so the game can show a returning player's name and
+ * picture, and know their X unlocks the daily, without asking for a signature first.
+ */
+export interface PublicProfileView {
   address: string;
   nameSource: NameSource | null;
-  x: { username: string; name: string | null; pfpUrl: string | null; createdAt: string | null; linkedAt: string | null } | null;
+  x: { id: string; username: string; name: string | null; pfpUrl: string | null; createdAt: string | null; linkedAt: string | null } | null;
+}
+
+/** What the owner's own profile route returns: the public view plus the email, which only its own session reads. */
+export interface ProfileView extends PublicProfileView {
   email: { address: string; reminders: boolean } | null;
 }
 
