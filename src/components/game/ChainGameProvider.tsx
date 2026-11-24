@@ -377,6 +377,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     },
     enabled: chain.deployed,
     staleTime: 15_000,
+    // Other players' offers arrive while the board is on screen, without a reload; elsewhere it
+    // doesn't poll (the route checks every order against Seaport).
+    refetchInterval: ui.view === "swap" ? 15_000 : false,
   });
 
   const toast = useCallback(

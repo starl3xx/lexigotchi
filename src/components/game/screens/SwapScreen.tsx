@@ -156,8 +156,12 @@ function ChainSwap() {
   const mine = [...my, ...myUpper];
   const tile = (id: number) => idxToChar(id % 26);
   const isUpper = (id: number) => id >= 26;
-  const board = g.swapBoard.filter((o) => o.maker !== address?.toLowerCase());
-  const own = g.swapBoard.filter((o) => o.maker === address?.toLowerCase());
+  // The board is every open offer, yours included (tagged, with cancel in place of Trade), so a
+  // freshly listed offer shows where the player looks for it. It used to hide your own offers in a
+  // separate card, and "0 open" read as the listing having failed (starl3xx, 2026-11-24).
+  const me = address?.toLowerCase();
+  const isMine = (o: { maker: string }) => o.maker === me;
+  const board = [...g.swapBoard].sort((a, b) => Number(isMine(b)) - Number(isMine(a)));
   const canFill = (wantId: number) =>
     (wantId >= 26 ? mineUpper(state)[wantId - 26] : mineLower(state)[wantId]) > 0;
 
@@ -200,43 +204,37 @@ function ChainSwap() {
           <p className="py-3 text-center text-sm text-ink/50">No open offers. List one above.</p>
         ) : (
           <div className="space-y-2">
-            {board.map((o) => (
-              <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink bg-paper-dark/30 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm">
-                  <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
-                  <span className="text-ink/50">for your</span>
-                  <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
-                </span>
-                <Button variant="teal" disabled={!canFill(o.wantId)}
-                  title={canFill(o.wantId) ? "" : "You don’t hold the letter they want"}
-                  onClick={() => g.fillSwapOffer(o.orderHash)}>
-                  Trade
-                </Button>
-              </div>
-            ))}
+            {board.map((o) =>
+              isMine(o) ? (
+                <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink bg-gold/10 px-3 py-2">
+                  <span className="flex items-center gap-2 text-sm">
+                    <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
+                    <span className="text-ink/50">for</span>
+                    <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
+                    <span className="rounded-full border-2 border-ink bg-card px-1.5 py-0.5 text-[10px] font-bold">Yours</span>
+                  </span>
+                  <button onClick={() => g.cancelSwapOffer(o.orderHash)} className="text-xs font-bold text-ink/45 underline">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink bg-paper-dark/30 px-3 py-2">
+                  <span className="flex items-center gap-2 text-sm">
+                    <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
+                    <span className="text-ink/50">for your</span>
+                    <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
+                  </span>
+                  <Button variant="teal" disabled={!canFill(o.wantId)}
+                    title={canFill(o.wantId) ? "" : "You don’t hold the letter they want"}
+                    onClick={() => g.fillSwapOffer(o.orderHash)}>
+                    Trade
+                  </Button>
+                </div>
+              ),
+            )}
           </div>
         )}
       </Card>
-
-      {own.length > 0 && (
-        <Card>
-          <SectionTitle>Your open offers</SectionTitle>
-          <div className="space-y-2">
-            {own.map((o) => (
-              <div key={o.orderHash} className="flex items-center justify-between rounded-xl border-2 border-ink px-3 py-2">
-                <span className="flex items-center gap-2 text-sm">
-                  <LetterTile char={tile(o.giveId)} upper={isUpper(o.giveId)} size={30} />
-                  <span className="text-ink/50">→</span>
-                  <LetterTile char={tile(o.wantId)} upper={isUpper(o.wantId)} size={30} />
-                </span>
-                <button onClick={() => g.cancelSwapOffer(o.orderHash)} className="text-xs font-bold text-ink/45 underline">
-                  cancel
-                </button>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }
