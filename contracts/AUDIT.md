@@ -186,6 +186,9 @@ found no error, and the Base fork test runs the real route (`test/ShopFork.t.sol
   delay moot (an owner could set a near-zero floor, then sandwich). The peg now moves only with the
   route: `proposeRoute(adapter, pegSource, pegPackUsdc)` → `acceptRoute` after `ROUTE_DELAY` (2 days),
   in public (`test_pegChangeWaitsTheDelayToo`).
+- **Before a mainnet Shop: re-scan the fixes.** The route delay (`proposeRoute`/`acceptRoute`) and the
+  sweep cap were written after this pass's scan, from its findings; they are tested but have not been
+  scanned themselves. Run the skill again on `Shop.sol` before the mainnet deploy.
 - **Before a mainnet Shop: measure the sweep-sandwich claim on a fork.** That a $100 sweep is not worth
   sandwiching (the attacker's own pool fees outweigh the gap to the floor) is argued from the pool's
   depth (~$19K) and the hook's fees, not measured. Measure it on a Base fork against the live pool
