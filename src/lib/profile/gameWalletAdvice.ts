@@ -35,9 +35,14 @@ export type GameWalletAdvice =
   | { kind: "switch_to_game"; game: string; inHost: boolean; holdings: WalletHoldings }
   | { kind: "gather"; elsewhere: { wallet: string; holdings: WalletHoldings }[]; inHost: boolean };
 
-/** Things that can move (letters, held words, $WORD). */
+/** Things that can move (letters, held words, $WORD): what the Move panel offers. */
 export const movableCount = (h?: WalletHoldings) => (h ? h.letters + h.words + (h.word > 0 ? 1 : 0) : 0);
-const anything = (h?: WalletHoldings) => movableCount(h) > 0 || (h?.staked ?? 0) > 0;
+/**
+ * What makes a notice worth showing: letters and held words, which only their wallet can play. $WORD
+ * alone never does: each wallet pays its own fees, so a caretaker or a Farcaster wallet keeps its own
+ * $WORD on purpose (starl3xx: "is this top message still necessary?" over 50M $WORD and nothing else).
+ */
+const playable = (h?: WalletHoldings) => (h ? h.letters + h.words : 0);
 
 export function gameWalletAdvice(input: {
   connected: string | null;
@@ -48,6 +53,8 @@ export function gameWalletAdvice(input: {
   holdings: Readonly<Record<string, WalletHoldings>>;
   /** Inside a Farcaster host, where the wallet can't be switched. */
   inHost: boolean;
+  /** Stakers that named the CONNECTED wallet a caretaker: their staked words are cared for from here. */
+  caretakerOf?: ReadonlySet<string>;
 }): GameWalletAdvice {
   const connected = input.connected?.toLowerCase() ?? null;
   const wallets = [...new Set(input.wallets.map((w) => w.toLowerCase()))];
@@ -56,9 +63,12 @@ export function gameWalletAdvice(input: {
   if (wallets.some((w) => !input.holdings[w])) return { kind: "none" };
   const h = (w: string) => input.holdings[w];
   const game = input.gameWallet?.toLowerCase() ?? null;
+  // Staked words need their staker, unless the connected wallet is its caretaker (it feeds them here).
+  const needsCare = (w: string) => (h(w)?.staked ?? 0) > 0 && w !== connected && !input.caretakerOf?.has(w);
+  const anything = (w: string) => playable(h(w)) > 0 || needsCare(w);
 
   if (!game || !wallets.includes(game)) {
-    const holding = wallets.filter((w) => anything(h(w)));
+    const holding = wallets.filter((w) => anything(w) || (w === connected && (h(w)?.staked ?? 0) > 0));
     const spread = holding.length > 1;
     const onlyElsewhere = holding.length === 1 && holding[0] !== connected;
     return spread || onlyElsewhere ? { kind: "choose" } : { kind: "none" };
@@ -66,13 +76,15 @@ export function gameWalletAdvice(input: {
 
   if (connected === game) {
     const elsewhere = wallets
-      .filter((w) => w !== game && anything(h(w)))
+      .filter((w) => w !== game && anything(w))
       .map((w) => ({ wallet: w, holdings: h(w) }));
     return elsewhere.length > 0 ? { kind: "gather", elsewhere, inHost: input.inHost } : { kind: "none" };
   }
 
-  if (movableCount(h(connected)) > 0) return { kind: "move_to_game", from: connected, to: game, holdings: h(connected) };
-  if (anything(h(game))) return { kind: "switch_to_game", game, inHost: input.inHost, holdings: h(game) };
+  if (playable(h(connected)) > 0) return { kind: "move_to_game", from: connected, to: game, holdings: h(connected) };
+  if (playable(h(game)) > 0 || (h(game)?.staked ?? 0) > 0) {
+    return { kind: "switch_to_game", game, inHost: input.inHost, holdings: h(game) };
+  }
   return { kind: "none" };
 }
 

@@ -25,7 +25,9 @@ export function GameWalletNotice() {
   const { wallets, holdings, gameWallet } = useWalletHoldings();
   if (!state.chainBacked) return null;
   const inHost = viewer.environment === "farcaster";
-  const advice = gameWalletAdvice({ connected: address ?? null, gameWallet, wallets, holdings, inHost });
+  // Stakers that named this wallet a caretaker: their staked words are cared for from here.
+  const caretakerOf = new Set(state.words.filter((w) => w.care && w.holder).map((w) => w.holder!.toLowerCase()));
+  const advice = gameWalletAdvice({ connected: address ?? null, gameWallet, wallets, holdings, inHost, caretakerOf });
   if (advice.kind === "none") return null;
 
   const makeThisGame = async () => {
