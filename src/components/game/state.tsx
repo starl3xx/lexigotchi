@@ -631,6 +631,8 @@ export interface GameApi {
   moveToWallet: (to: string, opts?: { includeWord?: boolean }) => Promise<MoveOutcome>;
   /** Let `wallet` care for the words the connected wallet stakes (or stop it). Resolves true once sent. */
   setCaretaker: (wallet: string, allowed: boolean) => Promise<boolean>;
+  /** A wallet's pity with this browser's fresh reveal notes over the chain read (chain only). */
+  pityOf: (wallet: string, chainPity: readonly number[]) => number[];
   /** Read the words again after a failed read (the chain store; the practice store has none to fail). */
   reloadWords?: () => void;
   /** null = no draw happened (already revealed); else the outcome. */
@@ -792,6 +794,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "prestige", word, success });
         return success;
       },
+      pityOf: (_wallet, chainPity) => [...chainPity],
       setCaretaker: async () => {
         toast("Caretakers work in the onchain game", "info");
         return false;

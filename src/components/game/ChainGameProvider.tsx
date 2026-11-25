@@ -965,17 +965,22 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // A caretaker rolls in the staker's name: the open-roll slot and the commit are the staker's.
           const target = state.words.find((x) => x.word === word);
           const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
+          // A caretaker's roll moves the STAKER's pity: re-read it after any reveal (a resumed one
+          // too), since the chain lags a fresh reveal (Bugbot on #173).
+          const refreshOwnerPity = () => {
+            if (owner.toLowerCase() === address.toLowerCase()) return;
+            for (const ms of [0, 4_000, 10_000]) setTimeout(() => void qc.invalidateQueries({ queryKey: ["pity", NETWORK.id, owner.toLowerCase()] }), ms);
+          };
           const resumed = await resumeOpenRoll(word.toUpperCase().charCodeAt(pos) - 65, markPaid, run, owner);
-          if (resumed) return resumed;
+          if (resumed) {
+            refreshOwnerPity();
+            return resumed;
+          }
           const before = await readOpenRollCommits(owner);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
           const outcome = await finishRoll(before, run, owner);
-          // A caretaker's roll moves the STAKER's pity: re-read it (the chain lags a fresh reveal),
-          // so the roll sheet's meter and odds follow the staker's streak (Bugbot on #173).
-          if (owner.toLowerCase() !== address.toLowerCase()) {
-            for (const ms of [0, 4_000, 10_000]) setTimeout(() => void qc.invalidateQueries({ queryKey: ["pity", NETWORK.id, owner.toLowerCase()] }), ms);
-          }
+          refreshOwnerPity();
           return outcome;
         }), NOT_STARTED),
 
@@ -1108,6 +1113,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       },
 
       reloadWords: () => void wordsQ.refetch(),
+
+      // Any wallet's pity with this browser's fresh reveal notes laid over it (the chain read lags):
+      // the roll sheet reads the STAKER's this way for a word this wallet cares for.
+      pityOf: (wallet: string, chainPity: readonly number[]) =>
+        overlayPity(chainPity, pityNotes[wallet.toLowerCase()] ?? {}, Date.now()),
 
       setCaretaker: (wallet: string, allowed: boolean) =>
         track(allowed ? "Adding a caretaker" : "Removing a caretaker", async (run) => {
@@ -1312,7 +1322,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

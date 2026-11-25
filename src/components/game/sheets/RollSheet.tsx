@@ -38,7 +38,11 @@ export function RollSheet({ target }: { target: RollTarget }) {
     staleTime: 30_000,
   });
   // Until the staker's pity is read, show base odds rather than this wallet's (unrelated) streak.
-  const pitySource = word?.care ? stakerPity.data ?? Array.from({ length: 26 }, () => 0) : state.pity;
+  // With this browser's fresh reveal notes laid over it, as the provider does for this wallet.
+  const pitySource =
+    word?.care && word.holder
+      ? g.pityOf(word.holder, stakerPity.data ?? Array.from({ length: 26 }, () => 0))
+      : state.pity;
   const pity = loose ? state.pity[target.idx] : word ? pitySource[charToIdx(word.word[target.pos])] : 0;
 
   const close = () => {
