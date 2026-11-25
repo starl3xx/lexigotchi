@@ -149,7 +149,7 @@ export function SceneFrame({
   // The word's finish has its moments while the scene is animated and on screen, and the word isn't
   // hungry (a hungry word's shine is gone); pointing at the word plays one (TileCharacter's
   // useFinishMoment). One timer for the word, not one per tile.
-  const [moment, play] = useFinishMoment(tier, animated && !offscreen && !!word && state !== "hungry");
+  const [moment, play] = useFinishMoment(tier, animated && !offscreen && !!word && state !== "hungry", word);
 
   // The characters hold hands (each overlaps the last, as in TileWord), sized in percent of the row.
   const tiles = (

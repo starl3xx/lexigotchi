@@ -27,9 +27,10 @@ import type { CSSProperties } from "react";
 import type { Tier } from "@/lib/economy";
 import { finishFor, type Finish } from "@/lib/rarityFinish";
 
-/** "on": full motion · "dim": peckish, at half strength · "off": a still frame (reduced motion,
- *  small sizes) · "rest": hungry, the shine gone until it is fed. */
-export type FinishMotion = "on" | "dim" | "off" | "rest";
+/** "on": it has its moments · "off": a still frame (reduced motion, small sizes, a still scene) ·
+ *  "rest": hungry, the shine gone until it is fed. Separately, `dim` (peckish) halves the shine,
+ *  moving or still. */
+export type FinishMotion = "on" | "off" | "rest";
 
 // the rig's geometry (TileCharacter: tile 150×150 at 45,100)
 const T = { x: 45, y: 100, w: 150, h: 150, r: 20 };
@@ -196,7 +197,7 @@ export function FinishDefs({ tier, uid, bw }: { tier?: Tier; uid: string; bw: nu
 }
 
 /** A soft glow hugging the tile, behind it. */
-export function FinishAura({ tier, uid, motion }: { tier?: Tier; uid: string; motion: FinishMotion }) {
+export function FinishAura({ tier, uid, motion, dim }: { tier?: Tier; uid: string; motion: FinishMotion; dim: boolean }) {
   const fin = finishFor(tier);
   if (!fin || motion === "rest" || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
   const pad = fin.material === "amethyst" ? 26 : 22;
@@ -208,7 +209,7 @@ export function FinishAura({ tier, uid, motion }: { tier?: Tier; uid: string; mo
       height={T.h + 2 * pad}
       rx={T.r + pad}
       fill={`url(#${id(uid)("aura")})`}
-      opacity={motion === "dim" ? 0.4 : 0.75}
+      opacity={dim ? 0.4 : 0.75}
     />
   );
 }
@@ -328,13 +329,13 @@ const STREAK = `M ${T.x - 14} ${T.y - 40} L ${T.x + 8} ${T.y - 40} L ${T.x - 52}
 const PIVOT: CSSProperties = { transformBox: "view-box", transformOrigin: `${CX}px ${MID}px` };
 
 /** Light under the letter: the face brightening and the broad glow of the light passing. */
-export function FinishLight({ tier, uid, bw, motion, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; index: number }) {
+export function FinishLight({ tier, uid, bw, motion, dim, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; dim: boolean; index: number }) {
   const fin = finishFor(tier);
-  if (!fin || (motion !== "on" && motion !== "dim")) return null;
+  if (!fin || motion !== "on") return null;
   const f = id(uid);
   const rich = fin.material === "gold" || fin.material === "amethyst";
   return (
-    <g clipPath={`url(#${f("clip")})`} opacity={motion === "dim" ? 0.45 : 1}>
+    <g clipPath={`url(#${f("clip")})`} opacity={dim ? 0.45 : 1}>
       <rect {...inner(bw)} fill="#ffffff" fillOpacity={rich ? 0.22 : 0.16} className="rf-catch" style={timing(index)} opacity={0} />
       <path d={BAND} fill={`url(#${f("band")})`} className="rf-pass" style={{ ...PIVOT, ...timing(index) }} opacity={0} />
     </g>
@@ -342,15 +343,15 @@ export function FinishLight({ tier, uid, bw, motion, index }: { tier?: Tier; uid
 }
 
 /** Light over the letter. */
-export function FinishShine({ tier, uid, bw, motion, small, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; small: boolean; index: number }) {
+export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; dim: boolean; small: boolean; index: number }) {
   const fin = finishFor(tier);
   if (!fin || motion === "rest") return null;
   const f = id(uid);
-  const anim = motion === "on" || motion === "dim";
+  const anim = motion === "on";
   const fc = facets();
   const rich = fin.material === "gold" || fin.material === "amethyst";
   return (
-    <g opacity={motion === "dim" ? 0.45 : 1}>
+    <g opacity={dim ? 0.45 : 1}>
       <g clipPath={`url(#${f("clip")})`}>
         {/* the bright streak of the light passing: thin, so the letter stays readable */}
         {anim && <path d={STREAK} fill={`url(#${f("streak")})`} className="rf-pass" style={{ ...PIVOT, ...timing(index) }} opacity={0} />}
@@ -378,11 +379,11 @@ export function FinishShine({ tier, uid, bw, motion, small, index }: { tier?: Ti
       {/* (No light circling the rim: animating a stroke's dash re-strokes the outline every frame,
           and on a 4×-slowed CPU it alone took a Legendary word's moment from 62% to 97%.) */}
       {/* the edge catching the light as it leaves (Rare and up) */}
-      {fin.material !== "satin" && !small && anim && motion !== "dim" && (
+      {fin.material !== "satin" && !small && anim && !dim && (
         <Glint x={T.x + T.w - 16} y={T.y + 18} s={0.7} color={fin.glow} delay={0} anim cls="rf-edge" style={timing(index, 0)} waits />
       )}
       {/* soft glints that come and go: one a tile (two on Mythic), placed by the tile's place in the word */}
-      {rich && !small && motion !== "dim" && (
+      {rich && !small && !dim && (
         <>
           {index % 2 === 0 ? (
             <Glint x={T.x + 26} y={T.y + 40} s={0.9} color={fin.glow} delay={0.8 + index * STAGGER} anim={anim} />
@@ -402,9 +403,9 @@ export function FinishShine({ tier, uid, bw, motion, small, index }: { tier?: Ti
 }
 
 /** Glowing motes drifting up around the word: on every other tile only, a few each. */
-export function FinishMotes({ tier, uid, motion, seed, index }: { tier?: Tier; uid: string; motion: FinishMotion; seed: number; index: number }) {
+export function FinishMotes({ tier, uid, motion, dim, seed, index }: { tier?: Tier; uid: string; motion: FinishMotion; dim: boolean; seed: number; index: number }) {
   const fin = finishFor(tier);
-  if (!fin || motion !== "on" || index % 2 === 1 || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
+  if (!fin || motion !== "on" || dim || index % 2 === 1 || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
   const many = fin.material === "amethyst";
   const spots = [
     { x: T.x - 6, y: MID + 30, r: 4.5 },

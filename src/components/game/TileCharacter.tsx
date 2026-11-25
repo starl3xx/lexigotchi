@@ -209,24 +209,29 @@ const MOMENT_MS = Math.ceil(MOMENT_END_S * 1000) + 100;
  * pointer coming onto the word). One timer per word, never per tile; none at all while `active` is
  * false (off screen, a still scene, reduced motion, a slow device, no finish). Returns whether a
  * moment is playing, and `play`.
+ *
+ * `word` ties a moment to its word: when the host shows another word (the Today stage's arrows), a
+ * moment begun on the last one isn't the new word's, so the new tiles start without it and get a
+ * fresh first moment, rather than inheriting a class whose timer would end their pass mid-way.
  */
-export function useFinishMoment(tier: Tier | undefined, active: boolean): [boolean, () => void] {
+export function useFinishMoment(tier: Tier | undefined, active: boolean, word = ""): [boolean, () => void] {
   const reduced = usePrefersReducedMotion();
   const lowPower = useLowPower();
   const period = finishFor(tier)?.period;
   const on = active && !!period && !reduced && !lowPower;
-  const [playing, setPlaying] = useState(false);
+  // the word whose moment is playing, or null
+  const [playing, setPlaying] = useState<string | null>(null);
   const busy = useRef(false);
   const ends = useRef<number | undefined>(undefined);
   const play = useCallback(() => {
     if (!on || busy.current) return;
     busy.current = true;
-    setPlaying(true);
+    setPlaying(word);
     ends.current = window.setTimeout(() => {
       busy.current = false;
-      setPlaying(false);
+      setPlaying(null);
     }, MOMENT_MS);
-  }, [on]);
+  }, [on, word]);
   useEffect(() => {
     if (!on || !period) return;
     let next = window.setTimeout(function tick() {
@@ -237,10 +242,10 @@ export function useFinishMoment(tier: Tier | undefined, active: boolean): [boole
       window.clearTimeout(next);
       window.clearTimeout(ends.current);
       busy.current = false;
-      setPlaying(false);
+      setPlaying(null);
     };
   }, [on, period, play]);
-  return [playing && on, play];
+  return [playing === word && on, play];
 }
 
 // ---------------------------------------------------------------------------
@@ -733,7 +738,9 @@ export function TileCharacter({
   // only where the whole character is drawn; a hungry word loses its shine, a peckish one dims.
   const fin = finishFor(tier);
   const motion: FinishMotion =
-    state === "hungry" ? "rest" : reduced || lowPower || still || lod !== "full" ? "off" : state === "peckish" ? "dim" : "on";
+    state === "hungry" ? "rest" : reduced || lowPower || still || lod !== "full" ? "off" : "on";
+  // a peckish word's shine is dimmed, moving or still
+  const finDim = state === "peckish";
   const finSmall = lod === "tile";
   // eyelids match the tile (the top of a finished face, where the eyes sit: the tint over the face)
   const lidFill = fin ? mixHex(faceFill, fin.face[0], fin.alpha) : faceFill;
@@ -813,7 +820,7 @@ export function TileCharacter({
           )}
 
           {/* the rarity's aura, behind the tile */}
-          {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} />}
+          {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
 
           {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
           {upper && <Rings gild={g} holo={holo} />}
@@ -826,7 +833,7 @@ export function TileCharacter({
           {/* the rarity's material, a translucent tint over the face (facets, foil, glitter,
               frame), then the light passing under the letter */}
           <FinishSurface tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
-          <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} index={index} />
+          <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} index={index} />
           {/* the border again, over the material's edge */}
           {fin && <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={border} strokeWidth={borderW} />}
 
@@ -845,7 +852,7 @@ export function TileCharacter({
           </text>
 
           {/* the rarity's light over the letter (the streak, the glints, the fire) */}
-          <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} small={finSmall} index={index} />
+          <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} small={finSmall} index={index} />
 
           {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
               still reads via the rings + pips (one crown per letter would clutter / clip) */}
@@ -913,7 +920,7 @@ export function TileCharacter({
           <Twinkles gild={g} reduced={reduced || motion === "off" || motion === "rest"} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
 
           {/* the rarity's motes, drifting up */}
-          {lod === "full" && <FinishMotes tier={tier} uid={uid} motion={motion} seed={seed} index={index} />}
+          {lod === "full" && <FinishMotes tier={tier} uid={uid} motion={motion} dim={finDim} seed={seed} index={index} />}
         </g>
       </g>
 
@@ -987,7 +994,7 @@ export function TileWord({
   const row = useRef<HTMLDivElement>(null);
   const moving = full && !still && state !== "hungry" && !!finishFor(tier);
   const onScreen = useOnScreen(row, moving);
-  const [moment, play] = useFinishMoment(tier, moving && onScreen);
+  const [moment, play] = useFinishMoment(tier, moving && onScreen, word);
   return (
     <div
       ref={row}

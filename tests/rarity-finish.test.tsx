@@ -11,6 +11,7 @@ import { TIERS, type Tier } from "@/lib/economy";
 import { FINISH, finishFor, mixHex } from "@/lib/rarityFinish";
 import { OgTile } from "@/app/_og/tile";
 import { MOMENT_END_S } from "@/components/game/TileFinish";
+import { TileCharacter } from "@/components/game/TileCharacter";
 import { showcaseCardPath, showcaseCardUrl } from "@/lib/showcase";
 
 describe("the finishes", () => {
@@ -100,6 +101,21 @@ describe("the share card's still keeps Satori's rules", () => {
   it("draws a Common tile with no finish at all", () => {
     const html = renderToStaticMarkup(OgTile({ char: "Q", tier: "Common" }));
     expect(html).not.toMatch(/rf-/);
+  });
+});
+
+describe("a word's mood on its finish", () => {
+  const draw = (state: "idle" | "peckish" | "hungry") =>
+    renderToStaticMarkup(<TileCharacter char="a" tier="Legendary" state={state} still detail="full" size={120} />);
+  const auraOpacity = (html: string) => /<rect[^>]*fill="url\(#rf-aura-[^"]*\)"[^>]*opacity="([\d.]+)"/.exec(html)?.[1];
+
+  it("dims a peckish word's shine even when it's drawn still (a list, reduced motion)", () => {
+    expect(auraOpacity(draw("idle"))).toBe("0.75");
+    expect(auraOpacity(draw("peckish"))).toBe("0.4");
+  });
+
+  it("takes a hungry word's shine away", () => {
+    expect(auraOpacity(draw("hungry"))).toBeUndefined();
   });
 });
 
