@@ -52,11 +52,10 @@ for (const [name, file] of [["Today", "today"], ["Bag", "bag"], ["Showcase", "sh
   await item.first().click();
   await page.waitForTimeout(name === "$WORD" ? 4000 : 1500);
   if (file === "showcase") {
-    for (const ch of "great") {
-      await page.locator("main button").filter({ hasText: new RegExp(`^${ch}`) }).first().click();
-      await page.waitForTimeout(150);
-    }
-    await page.waitForTimeout(600);
+    // CRANE, three letters raised, standing in Spring: a word, its scene, and the picker in one picture.
+    await page.getByRole("radio", { name: "CRANE", exact: true }).click();
+    await page.getByRole("radio", { name: "Spring", exact: true }).click();
+    await page.waitForTimeout(800);
   }
   if (file === "word") {
     const supply = await page.getByText("Supply", { exact: true }).first().boundingBox();

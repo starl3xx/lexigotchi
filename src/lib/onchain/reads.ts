@@ -181,6 +181,50 @@ export async function readLetterCounts(player: `0x${string}`): Promise<number[]>
 }
 
 /**
+ * Caretakers (Staking.setCaretaker): pairs (staker, wallet) → did the staker name the wallet? One
+ * multicall. A staker's caretaker may feed, roll, and ascend its staked Words; it pays, and it can
+ * never unstake or receive a Word. False everywhere on a suite without caretakers (reads revert).
+ */
+export async function readCaretakers(pairs: readonly { staker: string; wallet: string }[]): Promise<boolean[]> {
+  if (pairs.length === 0) return [];
+  const staking = addressOf("staking");
+  const r = await getPublicClient().multicall({
+    allowFailure: true,
+    contracts: pairs.map((p) => ({
+      address: staking,
+      abi: stakingAbi,
+      functionName: "isCaretaker" as const,
+      args: [p.staker as `0x${string}`, p.wallet as `0x${string}`],
+    })),
+  });
+  return r.map((x) => x.status === "success" && x.result === true);
+}
+
+/**
+ * Each wallet's loose letters (52 counts) and $WORD (raw, 18 decimals), in one multicall: the game
+ * wallet's view of where a player's things are (Move here, the game wallet notices).
+ */
+export async function readWalletBalances(
+  wallets: readonly `0x${string}`[],
+): Promise<Record<string, { letters: number[]; word: bigint }>> {
+  if (wallets.length === 0) return {};
+  const letters = addressOf("letters");
+  const token = wordTokenAddress();
+  const r = (await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: wallets.flatMap((w) => [
+      { address: letters, abi: lettersAbi, functionName: "balanceOfBatch" as const, args: [LETTER_IDS.map(() => w), LETTER_IDS] },
+      { address: token, abi: erc20Abi, functionName: "balanceOf" as const, args: [w] },
+    ]),
+  })) as unknown[];
+  const out: Record<string, { letters: number[]; word: bigint }> = {};
+  wallets.forEach((w, i) => {
+    out[w.toLowerCase()] = { letters: (r[2 * i] as bigint[]).map(Number), word: r[2 * i + 1] as bigint };
+  });
+  return out;
+}
+
+/**
  * The lowercase letters among `letterIndexes` with an unrevealed roll for `owner`. A loose roll
  * re-checks at reveal that its owner still holds the letter, so moving it away first would turn a
  * signed success into a no-op (the fee spent, no upgrade): Move waits for these.
@@ -637,6 +681,16 @@ const STAKED_EVENT = {
  *     which is why the map is built from all of them rather than only the player's.
  */
 export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]> {
+  return (await readWordsHeld(player)).words;
+}
+
+/**
+ * The player's words now (`words`, as readOwnedWords), and the id of every word they have ever held
+ * (`everHeld`): every Word transferred to them, a claim's mint included, and every one they staked.
+ * The same scans readOwnedWords needs, so it costs nothing extra. A dissolved or sold word stays in
+ * `everHeld`, which is what makes the scenes unlock stay open (lib/scenes: reach 3 words once).
+ */
+export async function readWordsHeld(player: `0x${string}`): Promise<{ words: ChainWord[]; everHeld: string[] }> {
   const words = addressOf("words");
   const staking = addressOf("staking");
   const client = getPublicClient();
@@ -655,7 +709,8 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
   const candidates = new Set<string>();
   for (const l of transfersIn) candidates.add(String(l.args.tokenId));
   for (const l of stakedByPlayer) candidates.add(String(l.args.tokenId));
-  if (candidates.size === 0) return [];
+  const everHeld = [...candidates];
+  if (candidates.size === 0) return { words: [], everHeld };
 
   const ids = [...candidates].map((s) => BigInt(s));
 
@@ -683,7 +738,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
       stakedFlag.set(String(id), isStaked);
     }
   });
-  if (owned.length === 0) return [];
+  if (owned.length === 0) return { words: [], everHeld };
 
   // Per-word detail. escrowLetter is 5 calls each because `escrows` is internal — there is no
   // whole-struct getter (Words.sol:44).
@@ -705,7 +760,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
   });
 
   const PER = 8;
-  return owned.map((id, i) => {
+  const held = owned.map((id, i) => {
     const base = i * PER;
     const prestigeLevel = Number(detail[base]);
     const claimedAt = Number(detail[base + 2]);
@@ -726,6 +781,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
       prestigeLevel,
     };
   });
+  return { words: held, everHeld };
 }
 
 /** The FeeRouter's three player-facing buckets, in whole $WORD — the real pots the screens show. */

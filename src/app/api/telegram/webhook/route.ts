@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 
 /**
  * Telegram's webhook for @lexigotchi_bot (src/lib/telegram.ts). Today it does one thing: when
- * someone joins the beta testers' group, it greets them with the HEYOO card (the same picture a
- * Showcase of HEYOO shares, `/s/HEYOO/card`).
+ * someone joins the beta testers' group, it greets them with the HEYOO card (`/s/HEYOO/card`, the
+ * Showcase card drawing; HEYOO isn't a dictionary word, so it is one of lib/showcase's HOUSE_CARDS).
  *
  * Fails closed: without the token, the chat, and the secret it answers 404, and a request without
  * Telegram's secret header answers 401. After that it always answers 200, because Telegram retries
@@ -35,7 +35,17 @@ export async function POST(req: Request) {
     // Telegram's servers fetching our site.
     const card = await fetch(showcaseCardUrl("HEYOO"));
     if (!card.ok) throw new Error(`HEYOO card: ${card.status}`);
-    await sendPhoto(chatId, await card.blob(), welcome.caption);
+    const png = await card.blob();
+    try {
+      await sendPhoto(chatId, png, welcome.caption, welcome.mentions);
+    } catch (err) {
+      // If Telegram won't make a mention of someone, greet them by name anyway rather than not at
+      // all. Only on a clear refusal ("Bad Request"): after a timeout or a server error the photo
+      // may already be in the group, and a second one would greet twice.
+      if (welcome.mentions.length === 0 || !(err instanceof Error && /Bad Request/i.test(err.message))) throw err;
+      console.warn("[telegram] welcome with mentions refused, sending without:", err instanceof Error ? err.message : err);
+      await sendPhoto(chatId, png, welcome.caption);
+    }
   } catch (err) {
     console.error("[telegram] welcome failed:", err instanceof Error ? err.message : err);
   }

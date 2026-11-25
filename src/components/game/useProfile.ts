@@ -393,6 +393,16 @@ export function useProfile() {
     }
   }, [address, qc, signMessageAsync, afterAccountChange]);
 
+  /** Choose the account's game wallet (any wallet's session in the account). */
+  const setGameWallet = useCallback(async (wallet: string) => {
+    const r = await emailCall("/api/profile/game-wallet", "POST", { wallet });
+    if (!r.error) {
+      bustPublicProfile();
+      void qc.invalidateQueries({ queryKey: ["profilePublic"] });
+    }
+    return r;
+  }, [emailCall, qc]);
+
   /** Take a wallet out of the account (any wallet's session in the account). */
   const unlinkWallet = useCallback(async (wallet: string) => {
     const r = await emailCall("/api/profile/wallets", "DELETE", { address: wallet });
@@ -431,11 +441,44 @@ export function useProfile() {
     makeLinkCode,
     joinWithCode,
     unlinkWallet,
+    setGameWallet,
     sendEmailCode: (email: string) => emailCall("/api/profile/email", "POST", { email }),
     confirmEmail: (email: string, code: string) => emailCall("/api/profile/email/verify", "POST", { email, code }),
     removeEmail: () => emailCall("/api/profile/email", "DELETE"),
     setEmailReminders: (on: boolean) => emailCall("/api/profile/me", "PATCH", { emailReminders: on }),
   };
+}
+
+/**
+ * Just the profile session, for features that save under it without ever asking to sign in (the
+ * scenes sync, scenes/useWordScene): whether profiles are on, the connected wallet, its stored token
+ * (null when signed out), and a way to forget a token the server refused. Shares useProfile's cache
+ * entries, so a sign-in in the Profile sheet shows here at once.
+ */
+export function useProfileSession(): { enabled: boolean; address: string | null; token: string | null; forget: () => void } {
+  const { address } = useAccount();
+  const addr = address?.toLowerCase() ?? null;
+  const qc = useQueryClient();
+  const config = useQuery({
+    queryKey: ["profileConfig"],
+    queryFn: async (): Promise<ProfileConfig | null> => {
+      const r = await fetch("/api/profile/config");
+      return r.ok ? ((await r.json()) as ProfileConfig) : null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const tokenQ = useQuery({
+    queryKey: ["profileToken", addr],
+    queryFn: () => (addr ? readToken(addr) : null),
+    enabled: !!addr,
+    staleTime: Infinity,
+  });
+  const forget = useCallback(() => {
+    if (!addr) return;
+    writeToken(addr, null);
+    qc.setQueryData(["profileToken", addr], null);
+  }, [addr, qc]);
+  return { enabled: Boolean(config.data?.profiles), address: addr, token: tokenQ.data ?? null, forget };
 }
 
 /**

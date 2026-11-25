@@ -21,7 +21,10 @@ export type RateKind =
   | "verify-status"
   | "oracle"
   | "push"
-  | "profile";
+  | "profile"
+  | "seen"
+  | "scenes"
+  | "scenes-read";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -56,6 +59,16 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "10 m"), prefix: "rl:profile" });
     case "oracle":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:oracle" });
+    // Wallet sightings, keyed by IP. A real browser sends one per wallet per day; this only bounds
+    // someone padding the operator's count with made-up addresses.
+    case "seen":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "10 m"), prefix: "rl:seen" });
+    // Scene saves, keyed by the profile account: a pick is one tap, and a sign-in uploads a batch.
+    case "scenes":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "10 m"), prefix: "rl:scenes" });
+    // Scene reads, keyed by IP: one per bag load, cached a minute by the client.
+    case "scenes-read":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "1 m"), prefix: "rl:scenes:read" });
   }
 }
 

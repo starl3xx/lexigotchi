@@ -61,6 +61,14 @@ describe("nextSteps", () => {
     expect(steps.some((s) => "word" in s && s.word === "PIXEL")).toBe(false);
   });
 
+  it("never offers a word another player owns (the world read), as the Spell screen leaves it out", () => {
+    const free = nextSteps({ ...base, words: [], lower: counts("CRANE") }).filter((s) => s.kind === "spell");
+    expect(free.length).toBeGreaterThan(0);
+    const taken = new Set(free.map((s) => (s.kind === "spell" ? s.word : "")));
+    const after = nextSteps({ ...base, words: [], lower: counts("CRANE"), taken }).filter((s) => s.kind === "spell");
+    expect(after.every((s) => s.kind === "spell" && !taken.has(s.word))).toBe(true);
+  });
+
   it("a word the loose letters spell, without offering a word already owned", () => {
     const steps = nextSteps({ ...base, words: [word("CRANE", { staked: true, upper: [true, true, true, true, true] })], lower: counts("CRANE") });
     const spells = steps.filter((s) => s.kind === "spell");
@@ -98,5 +106,12 @@ describe("nextSteps", () => {
     const steps = nextSteps({ ...base, words: many });
     expect(steps.filter((s) => s.kind === "stake")).toHaveLength(3);
     expect(steps.filter((s) => s.kind === "roll")).toHaveLength(2);
+  });
+
+  it("doesn't call a bag empty when the letters sit in another linked wallet", () => {
+    const empty26 = Array.from({ length: 26 }, () => 0);
+    const base = { words: [], claimables: [], lower: empty26, upper: empty26, pity: empty26, rollProb: () => 0.1 };
+    expect(nextSteps(base).map((s) => s.kind)).toEqual(["start"]);
+    expect(nextSteps({ ...base, bagLetters: 7 }).map((s) => s.kind)).toEqual([]);
   });
 });

@@ -98,10 +98,18 @@ contract Rolls is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         commitId = _commit(msg.sender, letterIndex, KIND_LOOSE, 0, 0);
     }
 
-    /// @notice Roll the `pos`-th escrowed letter of a Word you beneficially own.
+    /// @notice Roll the `pos`-th escrowed letter of a Word you beneficially own, or of a staked Word
+    ///         whose staker named you its caretaker (Staking.setCaretaker).
     function commitWordRoll(uint256 tokenId, uint8 pos) external nonReentrant returns (uint256 commitId) {
         address bo = beneficialOwnerOf(tokenId);
-        if (msg.sender != bo) revert NotBeneficialOwner();
+        if (msg.sender != bo) {
+            // A caretaker may roll too, but only a STAKED Word (a held Word moves with ordinary
+            // approvals instead). The commit and its pity stay keyed on `bo` (below), so a caretaker
+            // never opens a second pity streak.
+            bool caretaker = address(staking) != address(0) && staking.isStaked(tokenId)
+                && staking.isCaretaker(bo, msg.sender);
+            if (!caretaker) revert NotBeneficialOwner();
+        }
         (uint8 li, bool isUp) = words.escrowLetter(tokenId, pos);
         if (isUp) revert AlreadyRaised();
         _collect(msg.sender, rollPrice, FeeSource.ROLL);

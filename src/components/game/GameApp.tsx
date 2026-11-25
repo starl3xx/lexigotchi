@@ -48,6 +48,8 @@ import { ProfileSheet } from "./sheets/ProfileSheet";
 import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writePendingLink } from "./useProfile";
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
+import { SceneSheet } from "./sheets/SceneSheet";
+import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
@@ -55,6 +57,7 @@ import {
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
+import { useWalletSighting } from "./useWalletSighting";
 import { WordStripLive } from "@/components/WordStrip";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
@@ -65,6 +68,8 @@ export function GameApp() {
   // Live $WORD peg — mounted HERE, above every screen, so the re-render on oracle arrival repaints
   // all USD numbers at once (a lower mount could show two peg readings side by side).
   useWordPrice();
+  // Counts this wallet in the operator console's Players tab, once a day (useWalletSighting).
+  useWalletSighting();
   // Pre-launch campaign: short-circuit the whole game and run the "add the app + share a cast →
   // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
   // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.
@@ -72,6 +77,7 @@ export function GameApp() {
   const Provider = isChainBacked() ? ChainGameProvider : GameProvider;
   return (
     <Provider>
+      <SceneSync />
       <OnboardingHost />
     </Provider>
   );
@@ -312,6 +318,12 @@ function SheetHost() {
   );
 }
 
+/** Uploads scene picks made before sign-in once a profile session exists (scenes/useWordScene). */
+function SceneSync() {
+  useSceneSync();
+  return null;
+}
+
 function SheetFor({ sheet }: { sheet: Sheet }) {
   const state = { sheet };
   if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
@@ -322,6 +334,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
+  if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} />;
   return null;
 }
 

@@ -5,6 +5,8 @@ import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
 import { Check, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
+import { useAccount } from "wagmi";
+import { usePublicProfile } from "../useProfile";
 import {
   fmtWord,
   hunger,
@@ -19,6 +21,11 @@ import { useEatingFlash } from "../useEatingFlash";
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
   const { state } = g;
+  // Staking ties a word to this wallet: only the staker can feed it. Say so before a player stakes
+  // from a wallet that isn't their game wallet (lib/db/gameWallet.ts).
+  const { address } = useAccount();
+  const gameWallet = usePublicProfile().profile?.gameWallet ?? null;
+  const offGameWallet = Boolean(gameWallet && address && gameWallet !== address.toLowerCase());
   const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
   // Guards against a second tap during the async chain flow — each tap is a PAID commit.
@@ -93,8 +100,21 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         <Card className="mb-3 border-gold bg-gold/10 text-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
-              It’s part of your bag. Switch to that wallet to stake, feed, or raise it.
+              {word.care ? (
+                <>
+                  {/* Staking.setCaretaker: the staker named this wallet; feed, roll, and ascend here. */}
+                  <strong className="font-display">
+                    Staked by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "your other wallet"}.
+                  </strong>{" "}
+                  This wallet takes care of it: you can feed, roll, and ascend it here, paying from this wallet. Only that
+                  wallet can unstake it.
+                </>
+              ) : (
+                <>
+                  <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
+                  It’s part of your bag. Switch to that wallet to stake, feed, or raise it.
+                </>
+              )}
             </div>
             {/* Opens the wallet's own account picker — the app can't choose the account, but it
                 can put the choice one tap away. wagmi follows accountsChanged, and `mine`
@@ -107,8 +127,13 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       )}
 
       {/* care: the label says what staking buys THIS word, and the note says why Feed is off */}
-      <div className={`grid grid-cols-2 gap-2 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
-        <Button variant={word.staked ? "ghost" : "teal"} onClick={() => g.toggleStake(word.word)}>
+      <div className={`grid grid-cols-2 gap-2 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
+        <Button
+          variant={word.staked ? "ghost" : "teal"}
+          disabled={!word.mine}
+          title={word.mine ? undefined : "Only the wallet that staked it can unstake it"}
+          onClick={() => g.toggleStake(word.word)}
+        >
           {word.staked ? "Unstake" : fullyRaised ? "Stake to earn" : "Stake for jackpot"}
         </Button>
         <Button
@@ -120,11 +145,17 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           <Cookie weight="fill" /> Feed {word.staked && h === "fed" && <Check weight="bold" size={14} />}
         </Button>
       </div>
+      {word.mine && !word.staked && offGameWallet && (
+        <p className="mt-2 text-xs font-bold text-candy-ink">
+          This isn’t your game wallet. Once staked here, only this wallet, and the caretakers it names, can feed {word.word}.
+        </p>
+      )}
       {word.mine && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}
-      {!word.mine && <div className="mb-3" />}
+      {word.care && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}
+      {!word.mine && !word.care && <div className="mb-3" />}
 
-      {/* raise letters */}
-      <Card className={`mb-3 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
+      {/* raise letters: the owner, or a caretaker of a staked word (Rolls.commitWordRoll) */}
+      <Card className={`mb-3 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display font-extrabold">Raise to UPPERCASE</span>
           <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · earns $WORD at 5/5</span>
@@ -155,7 +186,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
 
       {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0) */}
       {fullyRaised && maxLevel > 0 && (
-        <Card className={`mb-3 bg-gradient-to-b from-card to-gold/10 ${word.mine ? "" : "pointer-events-none opacity-40"}`}>
+        <Card className={`mb-3 bg-gradient-to-b from-card to-gold/10 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1 font-display font-extrabold">

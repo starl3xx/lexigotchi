@@ -47,6 +47,31 @@
         "excluded": [
           "tokenIds"
         ]
+      },
+      "setCaretaker(address,bool)": {
+        "intent": "Let a wallet care for your staked words",
+        "fields": [
+          {
+            "path": "wallet",
+            "label": "Caretaker wallet",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "eoa",
+                "wallet"
+              ],
+              "sources": [
+                "local",
+                "ens"
+              ]
+            }
+          },
+          {
+            "path": "allowed",
+            "label": "Allowed",
+            "format": "raw"
+          }
+        ]
       }
     }
   }

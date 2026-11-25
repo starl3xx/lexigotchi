@@ -76,6 +76,8 @@ export interface PulsePayload {
     externalInflow: number;
     totalClaims: number;
     dictionaryPct: number;
+    /** The dictionary's size (dictionary.ts), so no screen hardcodes it. */
+    dictionaryWords: number;
     uppercaseWords: number;
     stakedWords: number;
     activePlayers: number;
@@ -138,6 +140,7 @@ export function pulsePayload(): PulsePayload {
       externalInflow: f.externalInflowTotal,
       totalClaims: f.totalClaims,
       dictionaryPct: f.totalClaims / WORD_COUNT,
+      dictionaryWords: WORD_COUNT,
       uppercaseWords: f.uppercaseWords,
       stakedWords: f.stakedWords,
       activePlayers: f.activePlayers,

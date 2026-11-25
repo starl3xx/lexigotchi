@@ -6,6 +6,8 @@ import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
 import { idxToChar, useGame, mineLower, mineUpper } from "../state";
+import { GameWalletNotice } from "../GameWalletNotice";
+import { WordsPending, wordsUnknown } from "../WordsPending";
 
 export function BagScreen() {
   const g = useGame();
@@ -25,6 +27,7 @@ export function BagScreen() {
 
   return (
     <div className="space-y-3">
+      <GameWalletNotice />
       <Segmented
         className="md:max-w-sm"
         value={tab}
@@ -90,7 +93,12 @@ export function BagScreen() {
           </div>
           {state.words.length === 0 ? (
             <div className="lg:col-span-2">
-              <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+              {/* the words' read may be on its way, or have failed: "no words" would be wrong then */}
+              {wordsUnknown(state) ? (
+                <WordsPending />
+              ) : (
+                <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+              )}
             </div>
           ) : (
             state.words.map((w) => <WordCard key={w.word} word={w} />)

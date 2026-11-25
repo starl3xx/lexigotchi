@@ -50,6 +50,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
   Pull main first: a stale checkout stops at its own last migration. Jake runs production migrations.
+  **A new migration must be dated after the last one** (its `when` in `drizzle/meta/_journal.json`):
+  `migrate` skips an older-dated one and still says "applied successfully". Main's dates run ahead of
+  the clock, so when `generate` stamps an earlier time, set `when` by hand just past the last entry.
+  `tests/migrations.test.ts` fails on it. After a merge that renumbers one, check the table exists.
 - **Redeploying production after a Vercel setting changes:** merge a PR to main (every merge builds;
   `vercel.json` skips nothing). The dashboard's Redeploy hasn't worked for the owner, and this Mac
   has no Vercel CLI. Check the result at `/api/profile/config` and similar switch endpoints.
@@ -138,7 +142,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   joins when one FID verified it AND a seed (the first wallet or a signature link); Farcaster rows
   never vouch (no chaining), never merge accounts, prune only on a positive Neynar answer and never
   on a claimed day; one advisory lock serializes writes. The core link reads never select `via`/`fid`,
-  so a database without 0009 still resolves accounts.
+  so a database without 0009 still resolves accounts. **Game wallet** (`lib/db/gameWallet.ts`, table
+  `game_wallets`, migration 0010; its own table because `getProfile` selects every profiles column):
+  the wallet the player keeps everything in; a stored wallet that left the account reads as none.
+  `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
+  `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
+  **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
+  staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
+  the free snack is the staker's; commits name the staker; only the staker unstakes). Game words carry
+  `care` (the connected wallet cares for the staker); word rolls and ascensions look up commits by the
+  staker; the Wallets card sets them per wallet (`readCaretakers`, `setCaretakerCalls`).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
@@ -210,8 +223,40 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
   server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
-  share links to `/s/<letters>` (the case in the path is each tile's case), whose `og:image` is
-  `/s/<letters>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed).
+  share links to `/s/<word>?scene=<id>` (the case in the path is each tile's case), whose `og:image`
+  is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
+  own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
+  `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
+  on the game's card.
+- **Scenes** (decisions.md #15; `src/lib/scenes.ts` = the list and the unlock, `SCENE_UNLOCK_WORDS`
+  = 3 words ever held, so it stays open after a dissolve: `state.wordsEverHeld`, from
+  `readWordsHeld`'s transfer scan; `src/components/scenes/`): each word's home on the Today stage
+  (`TodayStage` → `SceneFrame`, 16:9), in the Showcase, in the scene sheet (`sheets/SceneSheet`, the
+  palette button under the stage), and on the share card. The Today stage walks the player's words
+  with ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with
+  the next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry
+  (`toneOf`, `.scene-tone`/`.scene-fog` in globals.css: feTurbulence fog images drifting in three
+  layers, over the word, under the bubble and arrows). One drawing per scene (`art/*.tsx`) serves
+  the browser and Satori, so it keeps Satori's rules (`kit.tsx` says them; `tests/scenes.test.tsx`
+  holds them): plain SVG elements only, called as functions (a component or fragment inside the
+  `<svg>` crashes the card), no attribute left undefined (Satori writes "undefined", and a bad
+  `transform` drops the group), no `<text>`. The feet stand `SCENE_FLOOR` units above the bottom in
+  every scene and size (`layout.ts`, shared with the card). Motion is the `scn-` classes in
+  globals.css, behind prefers-reduced-motion, only when `animated` (never on the card or
+  thumbnails). **A pick is saved** in the browser always, and in table `word_scenes` (migration
+  0011, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
+  player already has: keyed by the wallet holding the word, writable by any wallet in the session's
+  profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
+  the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
+- **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
+  stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
+  UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
+  the letters, then the bounty and quick actions. Two free-flowing columns on lg; a phone stacks them
+  in that order (`display: contents` column wrappers + `order`). Every card speaks to the player in
+  front of it: the empty stage per `emptyStageCase` (loading, words only in a linked wallet, can
+  spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
+  how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
+  newcomer's invitation while their words load (Today, Showcase, Bag).
 - **The game's X account is [@lexigotchi](https://x.com/lexigotchi)** (`X_HANDLE`/`X_URL` in `site.ts`): the
   landing footer, the docs footer, More, and `twitter:site` point at it. Posts go out through
   **Typefully social set 372033**, never the X API, and only with starl3xx's go-ahead for each post.
@@ -223,13 +268,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Farcaster-only until it gets one.
 - **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
   that changes something testers would notice adds a `## Tester note` section right after Summary,
-  one or two plain sentences in player language (house copy rules). `.github/workflows/beta-updates.yml`
+  one or two plain sentences in player language (house copy rules). It may use **bold**, `code`, and
+  [links](https://…), which show as formatting in Telegram (`.github/scripts/tester-note.mjs` turns
+  them into Telegram's HTML; anything else shows as typed, and a note Telegram can't read goes out as
+  typed; notes too long for one message go out one by one). `.github/workflows/beta-updates.yml`
   posts it as @lexigotchi_bot when Vercel's Production deploy of that commit succeeds, then labels the
   PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
-  `TELEGRAM_CHAT_ID`; "Run workflow" on it only checks the bot can reach the group.
+  `TELEGRAM_CHAT_ID`; "Run workflow" on it checks the bot can reach the group and the formatter
+  loads, and never posts.
   **New members get a welcome**: Telegram calls `/api/telegram/webhook` (`src/lib/telegram.ts`), which
-  greets anyone who joins with the HEYOO card (`/s/HEYOO/card`, uploaded by the route) and a caption
-  pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
+  greets anyone who joins by their @username (else their first name, as a mention of their account,
+  so both notify) with the HEYOO card
+  (`/s/HEYOO/card`, uploaded by the route) and a caption pointing at the pinned message. Vercel needs `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
   `TELEGRAM_WEBHOOK_SECRET` (dark without them; the secret header is checked in constant time); the
   "Telegram webhook" workflow registers the URL and secret with Telegram. Rerun it after the token or
   secret changes. A basic group upgraded to a supergroup gets a new id; the route logs it.
@@ -248,6 +298,30 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   baseline `config/deployments.json` + localStorage overrides), `auth.ts` (allowlist via
   `NEXT_PUBLIC_ADMIN_*`, dev-open when unset), `format.ts` (USD↔$WORD-wei peg). Tabs in
   `src/components/admin/tabs/`.
+  **Live tabs.** Pulse and Treasury read the live game first (`/api/admin/live`: the FeeRouter's pots,
+  the treasury, letters minted, words claimed, holders; public chain data, open and edge-cached) and
+  label the sim below as "Projection"; Broadcast's templates quote the same live numbers and this
+  week's bounty theme (`lib/themes.ts`), never the sim. **Players** (`/api/admin/players`, `lib/admin/playersData.ts`
+  → pure `playerRows.ts`): every wallet seen, from the contracts' events since deploy (faucet on
+  testnet only; packs and dailies from `Committed`'s count; reveals, claims, rolls, stakes, feeds),
+  `scanWorld` holdings, and the database (sightings, profile flags, push browsers, swap listings,
+  Farcaster users), plus the beta group's Telegram member count; a funnel and new-wallet counts that
+  leave out the TEAM's wallets (the allowlist, `TEAM_WALLETS`, registry roles, server keys, and any
+  wallet linked into a team account). **System** (`/api/admin/system`, `systemStatus.ts`): game mode,
+  every server key as its public address (`serverKeys.ts`, never the key) with gas and onchain wiring,
+  the keeper's last resolve, every feature switch with the setting NAMES it still needs
+  (`switches.ts`, shared with Notifications), and applied migrations (drizzle's own table against the
+  journal). Notifications shows all three reminder channels. **Players and System are GATED on the
+  server** (`lib/admin/serverAuth.ts`): a wallet session (the profile's SIWE token) for a wallet in
+  `NEXT_PUBLIC_ADMIN_WALLETS`, or a Quick Auth FID in `NEXT_PUBLIC_ADMIN_FIDS`; `NEXT_PUBLIC_ADMIN_OPEN`
+  does NOT open them in production, and they're `no-store`. The client sends the session through
+  `useAdminApi` and offers a sign-in on 401. Never import a server module (db, `systemStatus`) VALUE
+  into a tab: types only, or the Postgres driver lands in the browser bundle.
+- **Wallet sightings** (`lib/sightings.ts`, `lib/db/sightings.ts`, table `wallet_sightings`, migration
+  0012): the game posts `/api/players/seen` once per wallet per UTC day (`useWalletSighting`, mounted
+  in GameApp) so Players can count wallets that connect and do nothing onchain. Unsigned by design, so
+  the count is labelled unverified; rate-limited by IP; a FID only from a verified Quick Auth token.
+  Dark (503, no client retry storm: the day is marked only on success) until 0012 is applied.
 - **`FeeRouter.seed(uint8 bucket, uint256 amount)`** (owner-only) was added so the admin can fund the
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery

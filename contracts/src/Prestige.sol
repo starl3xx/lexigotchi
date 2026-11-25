@@ -79,9 +79,13 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         signer = _signer;
     }
 
-    /// @notice Begin an ascension attempt on a full-UPPERCASE staked Word you own.
+    /// @notice Begin an ascension attempt on a full-UPPERCASE Word you stake, or one whose staker
+    ///         named you its caretaker (Staking.setCaretaker).
     function commitPrestige(uint256 tokenId) external nonReentrant returns (uint256 commitId) {
-        if (staking.beneficialOwner(tokenId) != msg.sender) revert NotBeneficialOwner();
+        address bo = staking.beneficialOwner(tokenId);
+        // The staker ascends, or a wallet it named as caretaker on Staking. An unstaked Word has no
+        // staker (address(0)), and nobody can be address(0)'s caretaker, so it still reverts.
+        if (bo != msg.sender && !staking.isCaretaker(bo, msg.sender)) revert NotBeneficialOwner();
         if (words.caseOf(tokenId) != CaseState.Uppercase) revert NotFullyRaised();
         if (words.prestigeLevel(tokenId) >= maxLevel) revert MaxLevel();
         if (attemptOpen[tokenId]) revert AttemptOpen(); // finish (reveal) the open attempt first
@@ -92,8 +96,10 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
 
         uint32 p = prestigePity[tokenId];
         commitId = commits.length;
-        commits.push(PrestigeCommit({tokenId: tokenId, owner: msg.sender, revealed: false, pityAtCommit: p}));
-        emit PrestigeCommitted(commitId, tokenId, msg.sender, p);
+        // The commit names the STAKER, not the caller: reveal re-checks beneficialOwner == owner, so a
+        // caretaker's commit naming itself would turn every signed success into a paid no-op.
+        commits.push(PrestigeCommit({tokenId: tokenId, owner: bo, revealed: false, pityAtCommit: p}));
+        emit PrestigeCommitted(commitId, tokenId, bo, p);
     }
 
     /// @notice Resolve an ascension with the backend's signed outcome.

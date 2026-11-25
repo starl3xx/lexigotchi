@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean, primaryKey } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -237,6 +237,40 @@ export const profiles = pgTable(
 export type Profile = typeof profiles.$inferSelect;
 
 /**
+ * Every wallet the game has seen connected, for the operator console's Players tab: when it first
+ * and last connected, on how many UTC days, and from where (the web or a Farcaster host). Written by
+ * `/api/players/seen`, which the game calls once per wallet per day (lib/sightings.ts).
+ *
+ * UNVERIFIED by design: the call is unsigned, so the console labels this a count of wallets seen,
+ * not proof that each was connected. Asking every visitor to sign just to be counted would be a
+ * wallet popup for nothing. `fid` is set only from a verified Quick Auth token, never a client claim.
+ *
+ * Not secret (a wallet address is public), and never shown outside the gated admin route. Losing the
+ * table loses the history of visits, not anything a player owns.
+ */
+export const walletSightings = pgTable(
+  "wallet_sightings",
+  {
+    /** Lowercase wallet address. */
+    address: text("address").primaryKey(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    /** How many distinct UTC days the wallet was seen on. */
+    daysSeen: integer("days_seen").notNull().default(1),
+    /** The UTC day number (Unix days) of the last sighting: a second call that day adds no day. */
+    lastDay: integer("last_day").notNull(),
+    /** "web" or "farcaster", at the first sighting and at the last. */
+    firstVia: text("first_via").notNull(),
+    lastVia: text("last_via").notNull(),
+    /** The verified FID seen with this wallet most recently, if any. */
+    fid: integer("fid"),
+  },
+  (t) => [index("wallet_sightings_first_seen_idx").on(t.firstSeenAt)],
+);
+
+export type WalletSighting = typeof walletSightings.$inferSelect;
+
+/**
  * One "Link X" attempt: the OAuth `state`, the wallet that started it, and the PKCE verifier. Kept
  * on the server, not in a cookie, because inside a Farcaster host the X page opens in another
  * browser that has no cookie of ours. Single use and short-lived (`usedAt`, `expiresAt`).
@@ -279,6 +313,19 @@ export const walletLinks = pgTable(
 );
 
 /**
+ * The player's game wallet (migration 0010): the one wallet they choose to keep their letters,
+ * words, and $WORD in, because every onchain action uses the connected wallet's own holdings. One
+ * row per account (its first wallet). A wallet that has left the account reads as no choice.
+ * Its own table, not a `profiles` column: profile reads select every column, so a new one there
+ * would break them on a database that hasn't migrated yet.
+ */
+export const gameWallets = pgTable("game_wallets", {
+  account: text("account").primaryKey(),
+  wallet: text("wallet").notNull(),
+  chosenAt: timestamp("chosen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * One "Link another wallet" attempt: a code made under the account's session, then signed (inside a
  * Sign-In with Ethereum message that names the account) by the wallet joining. Kept on the server so
  * the second wallet can sign anywhere: the same browser after a wallet switch, another device, or a
@@ -309,4 +356,31 @@ export const emailCodes = pgTable(
     usedAt: timestamp("used_at", { withTimezone: true }),
   },
   (t) => [index("email_codes_address_idx").on(t.address)],
+);
+
+/**
+ * Each word's scene (lib/scenes), as the wallet holding it chose it: the Today stage, the Showcase,
+ * and the share card stand the word there. Saved on the server so a choice follows the player to
+ * every device and host (decisions.md #15); the browser keeps its own copy, so a pick works offline
+ * and before sign-in.
+ *
+ * Keyed by the wallet that held the word, not the profile account: the session proves that wallet,
+ * the bag already knows every word's holder, and linking or unlinking wallets later moves nothing. A
+ * word that changes hands starts on the Stage for its new holder. Cosmetic and public: a wallet may
+ * save a scene for any dictionary word, and a row only changes what that wallet's own words show.
+ * `updatedAt` is when the player picked it (their browser's clock, kept within the last 30 days),
+ * so a pick made before sign-in and uploaded later still sorts by when it was made.
+ */
+export const wordScenes = pgTable(
+  "word_scenes",
+  {
+    /** Lowercase wallet address. */
+    wallet: text("wallet").notNull(),
+    /** UPPERCASE dictionary word. */
+    word: text("word").notNull(),
+    /** A SceneId (lib/scenes). */
+    scene: text("scene").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.wallet, t.word] })],
 );

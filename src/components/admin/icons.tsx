@@ -53,4 +53,7 @@ export {
   ShareNetwork,
   Info,
   PencilSimple,
+  UserList,
+  Plugs,
+  TelegramLogo,
 } from "@phosphor-icons/react";

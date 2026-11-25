@@ -25,9 +25,19 @@ export interface NextStepsInput {
   /** The connected wallet's own loose letters, 26 counts each (mineLower / mineUpper). */
   lower: number[];
   upper: number[];
+  /**
+   * Loose letters across the whole bag (every linked wallet). A player whose letters sit in another
+   * wallet doesn't have an empty bag: the game wallet notice tells them where things are.
+   */
+  bagLetters?: number;
   /** Per-letter roll pity (A..Z) and the odds it gives. */
   pity: readonly number[];
   rollProb: (pity: number) => number;
+  /**
+   * Words another player owns (the world read), so "you can spell" never offers one: a claim of an
+   * owned word reverts, and the Spell screen leaves them out too.
+   */
+  taken?: ReadonlySet<string>;
 }
 
 /** Most items per kind, so the card stays a short list and not the whole bag. */
@@ -50,7 +60,7 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
   // Words the loose letters spell right now. UPPERCASE first: such a word is born earning. A word
   // offered in UPPERCASE isn't offered again in lowercase (Bugbot on #119): that would be the same
   // word twice, the second at the worse case.
-  const offered = new Set(i.words.map((w) => w.word));
+  const offered = new Set([...i.words.map((w) => w.word), ...(i.taken ?? [])]);
   const upperSpells = spellableNow(i.upper, offered, MAX.spell);
   for (const word of upperSpells) {
     steps.push({ kind: "spell", word, upper: true });
@@ -79,7 +89,7 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
 
   // An empty bag: nothing above applies, so point at the start.
   const letters = i.lower.reduce((a, b) => a + b, 0) + i.upper.reduce((a, b) => a + b, 0);
-  if (mine.length === 0 && letters === 0) steps.push({ kind: "start" });
+  if (i.words.length === 0 && letters === 0 && (i.bagLetters ?? 0) === 0) steps.push({ kind: "start" });
 
   return steps;
 }

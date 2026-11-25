@@ -7,6 +7,7 @@ import { getDb, type DbOrTx } from "./client";
 import { emailCodes, profiles, xLinkStates, type Profile } from "./schema";
 import type { NameSource, ProfileView, PublicProfileRow, PublicProfileView } from "@/lib/profile/rules";
 import { accountWallets, walletsOfAccount, farcasterWalletsOf } from "./walletLinks";
+import { gameWalletOf } from "./gameWallet";
 
 /**
  * Postgres "relation does not exist": the owner hasn't applied migration 0006 yet. Drizzle wraps
@@ -33,14 +34,15 @@ export async function setNameSource(address: string, source: NameSource | null):
 /** An account's own profile view (email included) with its wallets: what the profile routes return. */
 export async function accountView(account: string): Promise<ProfileView> {
   const [p, wallets, viaFarcaster] = await Promise.all([getProfile(account), walletsOfAccount(account), farcasterWalletsOf(account)]);
-  return { ...toView(account, p), account: account.toLowerCase(), wallets, viaFarcaster };
+  const gameWallet = await gameWalletOf(account, wallets);
+  return { ...toView(account, p), account: account.toLowerCase(), wallets, viaFarcaster, gameWallet };
 }
 
 /** A wallet's public view, resolved to its account: the account's X and name, and its wallets. */
 export async function publicViewOf(address: string): Promise<PublicProfileView> {
   const { account, wallets } = await accountWallets(address);
-  const [p, viaFarcaster] = await Promise.all([getProfile(account), farcasterWalletsOf(account)]);
-  return { ...toPublicView(account, p), address: address.toLowerCase(), account, wallets, viaFarcaster };
+  const [p, viaFarcaster, gameWallet] = await Promise.all([getProfile(account), farcasterWalletsOf(account), gameWalletOf(account, wallets)]);
+  return { ...toPublicView(account, p), address: address.toLowerCase(), account, wallets, viaFarcaster, gameWallet };
 }
 
 /** The public view: everything but the email. */
