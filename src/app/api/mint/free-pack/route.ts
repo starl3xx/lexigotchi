@@ -6,7 +6,7 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { NETWORK } from "@/lib/onchain/network";
 import { isAddress } from "viem";
-import { claimFree, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
+import { claimFree, fidLedgerAccount, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
 import { fidsByAddressesDetailed } from "@/lib/neynar";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
@@ -63,9 +63,20 @@ export async function POST(req: Request) {
   // Expired grants are settled against the chain first (lib/onchain/freeLedger.ts), so a pack voucher
   // that lapsed unused gives its five letters back, BEFORE this profile's own grant is read: a re-issue
   // is only a re-issue of a grant that still counts.
-  await settleGrants(NETWORK.id, account);
-  const recordedGrant = await recordedFreeGrant(NETWORK.id, account, "pack", 0);
-  const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...(recordedGrant ? [recordedGrant.key] : [])])];
+  //
+  // Which ledger account the pack goes on: the profile, when the key belongs to it (an X or Coinbase
+  // key came from the profile itself; a FID must have verified one of its wallets). A FID that didn't
+  // isn't recorded ON the profile (no planting a stranger's key), but its pack still counts, under a
+  // ledger account of the FID's own.
+  const owned = await keyOwnedByProfile({ fid, derivedFromProfile: who.source !== "fid", accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
+  const ledger = owned || fid === null ? account : fidLedgerAccount(fid);
+  await settleGrants(NETWORK.id, ledger);
+  const [recordedGrant, profileGrant] = await Promise.all([
+    recordedFreeGrant(NETWORK.id, ledger, "pack", 0),
+    ledger === account ? Promise.resolve(null) : recordedFreeGrant(NETWORK.id, account, "pack", 0),
+  ]);
+  const recordedKeys = [recordedGrant?.key, profileGrant?.key].filter((k): k is bigint => k != null);
+  const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...recordedKeys])];
   const [open, claimed] = await Promise.all([
     client.readContract({ address: letters, abi: lettersAbi, functionName: "freePackOpen" }) as Promise<boolean>,
     client.multicall({
@@ -92,20 +103,12 @@ export async function POST(req: Request) {
   const deadline = BigInt(now + VOUCHER_TTL_SECONDS);
 
   // One free pack per PROFILE (lib/db/freeClaims.ts; starl3xx: "only one wallet per profile should get
-  // a free anything"): recorded before signing, first key wins; a database error refuses, never signs
-  // twice. Only a key that belongs to the profile is recorded on it (keyOwnedByProfile): an X or
-  // Coinbase key came from the profile itself, and a FID must have verified one of its wallets.
+  // a free anything"): recorded on `ledger` (above) before signing, first key wins; a database error
+  // refuses, never signs twice.
   try {
-    const owned = await keyOwnedByProfile({
-      fid,
-      derivedFromProfile: who.source !== "fid",
-      accountWallets: accountWalletList,
-      lookup: fidsByAddressesDetailed,
-    });
-    const claim = owned
-      ? await claimFree({
+    const claim = await claimFree({
           chainId: NETWORK.id,
-          account,
+          account: ledger,
           kind: "pack",
           period: 0,
           key,
@@ -114,8 +117,7 @@ export async function POST(req: Request) {
           voucherTtlSeconds: VOUCHER_TTL_SECONDS,
           usedOnchain: async (k) =>
             Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),
-        })
-      : "skipped";
+        });
     if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
   } catch (err) {
     console.error("[free-pack] couldn't record the profile's free pack, refusing:", String((err as Error)?.message ?? err).slice(0, 120));

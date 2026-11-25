@@ -6,7 +6,7 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { NETWORK } from "@/lib/onchain/network";
 import { accountWallets } from "@/lib/db/walletLinks";
-import { freeDailiesTaken, freeLettersSigned, freePackTaken, recordedFreeKey } from "@/lib/db/freeClaims";
+import { fidLedgerAccount, freeDailiesTaken, freeLettersSigned, freePackTaken, recordedFreeKey } from "@/lib/db/freeClaims";
 import { settleGrants } from "@/lib/onchain/freeLedger";
 import { claimedWordCount } from "@/lib/onchain/claimedWords";
 import { dailiesLeft, freeLetterBudget, freeStop, FREE_LETTERS, type FreeStop } from "@/lib/freeLetters";
@@ -76,10 +76,22 @@ export async function GET(req: Request) {
     const claimed = keys.some((_, i) => Number(reads[i * 2]) === today + 1);
     const packOnchain = keys.some((_, i) => Boolean(reads[i * 2 + 1]));
 
+    // The profile's ledger, and an unverified Farcaster sign-in's own (fidLedgerAccount): the routes
+    // record a FID that never verified the profile's wallets there. The larger count shows; `fid` is the
+    // client's word, but this only reads.
+    const fidLedger = fid !== null ? fidLedgerAccount(fid) : null;
     await settleGrants(NETWORK.id, account);
+    if (fidLedger) await settleGrants(NETWORK.id, fidLedger);
+    const most = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : Math.max(a, b));
     const [taken, packRecorded, signed, claimedWords] = await Promise.all([
-      freeDailiesTaken(NETWORK.id, account).catch(() => null),
-      freePackTaken(NETWORK.id, account).catch(() => null),
+      Promise.all([
+        freeDailiesTaken(NETWORK.id, account).catch(() => null),
+        fidLedger ? freeDailiesTaken(NETWORK.id, fidLedger).catch(() => null) : Promise.resolve(null),
+      ]).then(([a, b]) => most(a, b)),
+      Promise.all([
+        freePackTaken(NETWORK.id, account).catch(() => null),
+        fidLedger ? freePackTaken(NETWORK.id, fidLedger).catch(() => null) : Promise.resolve(null),
+      ]).then(([a, b]) => Boolean(a) || Boolean(b)),
       freeLettersSigned(NETWORK.id).catch(() => null),
       claimedWordCount(),
     ]);

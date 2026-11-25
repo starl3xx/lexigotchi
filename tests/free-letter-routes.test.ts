@@ -89,6 +89,7 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
   const real = await orig<typeof import("@/lib/db/freeClaims")>();
   return {
     keyOwnedByProfile: real.keyOwnedByProfile,
+    fidLedgerAccount: real.fidLedgerAccount,
     recordedFreeKey: async (_c: number, account: string, kind: string, period: number) => {
       const r = find(account, kind, period);
       return r ? BigInt(r.key) : null;
@@ -106,7 +107,8 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
       return "taken";
     },
     settleFreeClaims: async (o: { account?: string; check: (p: { account: string; kind: "daily" | "pack"; period: number; key: bigint }[]) => Promise<readonly boolean[]> }) => {
-      const due = rows.filter((r) => r.used === null && r.expiresAt < now * 1000 && (!o.account || r.account === o.account));
+      // Like the real one: only vouchers expired more than SETTLE_GRACE_SECONDS (300) ago.
+      const due = rows.filter((r) => r.used === null && r.expiresAt < (now - 300) * 1000 && (!o.account || r.account === o.account));
       const used = await o.check(due.map((r) => ({ account: r.account, kind: r.kind, period: r.period, key: BigInt(r.key) })));
       due.forEach((r, i) => (r.used = Boolean(used[i])));
       return due.length;
@@ -122,9 +124,9 @@ const post = async (path: "free-daily" | "free-pack", wallet: string) => {
   const res: Response = await POST(new Request(`http://localhost/api/mint/${path}`, { method: "POST", body: JSON.stringify({ wallet }) }));
   return { status: res.status, body: await res.json() };
 };
-const status = async (wallet: string) => {
+const status = async (wallet: string, withFid?: number) => {
   const { GET } = await import("@/app/api/mint/daily-status/route");
-  const res: Response = await GET(new Request(`http://localhost/api/mint/daily-status?wallet=${wallet}`));
+  const res: Response = await GET(new Request(`http://localhost/api/mint/daily-status?wallet=${wallet}${withFid ? `&fid=${withFid}` : ""}`));
   return res.json();
 };
 const keys = async () => import("@/lib/onchain/verifications");
@@ -179,6 +181,24 @@ describe("10 free daily letters per profile", () => {
     expect((await post("free-daily", S)).body.error).toBe("daily_limit_reached");
   });
 
+  it("counts a Farcaster sign-in that never verified the profile's wallets, under the FID's own ledger", async () => {
+    // FID 77 signs in on the profile's wallet, but Farcaster says 77 verified none of its wallets: its
+    // grants can't go ON the profile (no planting), yet they must still count (the review on this PR).
+    fid = 77;
+    for (let d = 1; d <= 10; d++) rows.push(daily("fid:77", 77n, DAY - d));
+    const res = await post("free-daily", S);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("daily_limit_reached");
+    expect((await status(S, 77)).done).toBe(true);
+
+    rows = [];
+    const first = await post("free-daily", S);
+    expect(first.status).toBe(200);
+    expect(first.body.voucher.fid).toBe("77");
+    expect(rows).toMatchObject([{ account: "fid:77", kind: "daily", letters: 1 }]); // recorded, and counted
+    expect(rows.some((r) => r.account === P)).toBe(false); // not planted on the profile
+  });
+
   it("a daily whose voucher lapsed unused doesn't count toward the 10", async () => {
     const { verifiedDailyKey } = await keys();
     for (let d = 2; d <= 10; d++) rows.push(daily(P, verifiedDailyKey(P), DAY - d));
@@ -206,13 +226,13 @@ describe("the free-letter budget", () => {
   it("gives a voucher's letters back when it expires unused, and keeps them when the chain shows it used", async () => {
     vi.stubEnv("FREE_LETTER_BUDGET", "7");
     // Q's free pack: signed 5 letters, its voucher expired, never sent.
-    rows.push({ account: Q, kind: "pack", period: 0, key: "999", letters: 5, expiresAt: (now - 60) * 1000, used: null });
+    rows.push({ account: Q, kind: "pack", period: 0, key: "999", letters: 5, expiresAt: (now - 600) * 1000, used: null });
     const pack = await post("free-pack", S);
     expect(pack.status).toBe(200); // 5 came back, so 0 + 5 ≤ 7
     expect(rows.find((r) => r.account === Q)?.used).toBe(false);
 
     // The same again, but the chain shows Q's pack was used: its 5 stay counted.
-    rows = [{ account: Q, kind: "pack", period: 0, key: "999", letters: 5, expiresAt: (now - 60) * 1000, used: null }];
+    rows = [{ account: Q, kind: "pack", period: 0, key: "999", letters: 5, expiresAt: (now - 600) * 1000, used: null }];
     packClaimed.add("999");
     expect((await post("free-pack", S)).body.error).toBe("free_letters_gone"); // 5 + 5 > 7
     expect(rows.find((r) => r.account === Q)?.used).toBe(true);

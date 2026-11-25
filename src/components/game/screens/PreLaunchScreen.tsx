@@ -165,8 +165,8 @@ export function PreLaunchScreen() {
               <TileWord word="early" upper={[false, false, false, false, false]} detail="bust" size={48} />
             </div>
             <p className="mt-2 text-center text-xs leading-relaxed text-ink/65">
-              Every verified player gets a <strong>free pack of 5</strong> plus <strong>10 free daily letters</strong>: link Farcaster, X, or a
-              Coinbase-verified wallet when the game opens.
+              Every verified player gets a <strong>free pack of 5</strong> plus <strong>10 free daily letters</strong>: prove you’re one person
+              when the game opens.
             </p>
           </div>
 

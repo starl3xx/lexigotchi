@@ -62,7 +62,12 @@ export function MintScreen() {
               )}
               Pulled today <Check weight="bold" size={13} className="text-teal-ink" />
             </span>
-            <span className="text-xs text-ink/50">resets in <Countdown /></span>
+            {/* the 10th was the last: no countdown to a letter that isn't coming */}
+            {free?.done ? (
+              <span className="text-xs text-ink/50">your last free one</span>
+            ) : (
+              <span className="text-xs text-ink/50">resets in <Countdown /></span>
+            )}
           </div>
         ) : daily.eligible && free && (free.done || free.stop) ? (
           <p className="text-sm text-ink/70">
@@ -79,7 +84,7 @@ export function MintScreen() {
           <DailyUnlock />
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">One free letter a day, on the house, for your first {free?.dailyLimit ?? 10} days.</span>
+            <span className="text-sm text-ink/70">One free letter a day, on the house, until you’ve had {free?.dailyLimit ?? 10}.</span>
             <Button onClick={() => g.dailyMint()}>
               <Ticket weight="fill" /> Pull free
             </Button>

@@ -68,7 +68,8 @@ export function TodayLetters() {
               </span>
             </span>
             <span className="shrink-0 text-xs text-ink/50">
-              next in <Countdown />
+              {/* the 10th was the last: no countdown to a letter that isn't coming */}
+              {g.freeLetters?.done ? "your last free one" : <>next in <Countdown /></>}
             </span>
           </div>
         ) : daily.eligible && g.freeLetters && (g.freeLetters.done || g.freeLetters.stop) ? (

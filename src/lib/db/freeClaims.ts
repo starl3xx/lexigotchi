@@ -82,48 +82,80 @@ export async function claimFree(opts: {
   /** Did this key take the free thing onchain? */
   usedOnchain: (key: bigint) => Promise<boolean>;
 }): Promise<FreeClaim> {
-  const account = opts.account.toLowerCase();
-  const where = whereOf(opts.chainId, account, opts.kind, opts.period);
   try {
-    const inserted = await getDb()
-      .insert(freeClaims)
-      .values({ chainId: opts.chainId, account, kind: opts.kind, period: opts.period, claimKey: opts.key.toString(), letters: opts.letters, expiresAt: opts.expiresAt })
-      .onConflictDoNothing()
-      .returning({ claimKey: freeClaims.claimKey });
-    if (inserted.length > 0) return "ok";
-    const [row] = await getDb().select({ claimKey: freeClaims.claimKey, claimedAt: freeClaims.claimedAt }).from(freeClaims).where(where).limit(1);
-    if (!row) return "taken"; // vanished under us: refuse, the player retries
-    if (row.claimKey === opts.key.toString()) {
-      // The same identity asking again gets a fresh voucher, so the takeover window restarts from now
-      // (Bugbot on #178: a stale time let a second key in while the retried voucher was spendable).
-      await getDb()
-        .update(freeClaims)
-        .set({ claimedAt: sql`now()`, expiresAt: opts.expiresAt, used: null })
-        .where(and(where, eq(freeClaims.claimKey, row.claimKey)));
-      return "ok";
-    }
-    const expired = Date.now() - row.claimedAt.getTime() > opts.voucherTtlSeconds * 1000;
-    if (!expired || (await opts.usedOnchain(BigInt(row.claimKey)))) return "taken";
-    // The first voucher expired unused: this key takes over. Compare-and-set on the old key AND on the
-    // row still being expired when written, so a same-key retry that refreshed it meanwhile wins
-    // (Bugbot on #178: matching the key alone let a takeover overwrite a just-refreshed voucher).
-    const moved = await getDb()
-      .update(freeClaims)
-      .set({ claimKey: opts.key.toString(), claimedAt: sql`now()`, letters: opts.letters, expiresAt: opts.expiresAt, used: null })
-      .where(
-        and(
-          where,
-          eq(freeClaims.claimKey, row.claimKey),
-          sql`${freeClaims.claimedAt} < now() - make_interval(secs => ${opts.voucherTtlSeconds})`,
-        ),
-      )
-      .returning({ claimKey: freeClaims.claimKey });
-    return moved.length > 0 ? "ok" : "taken";
+    return await claimFreeWith(opts, true);
   } catch (err) {
+    // A database with 0013 but not 0015 (the ledger columns): keep recording the profile's claim the
+    // way it did before, so merging ahead of the migration never switches the record off.
+    if (isMissingSchema(err) && !isMissingTable(err)) {
+      try {
+        return await claimFreeWith(opts, false);
+      } catch (e) {
+        if (isMissingSchema(e)) return "skipped";
+        throw e;
+      }
+    }
     if (isMissingSchema(err)) return "skipped";
     throw err;
   }
 }
+
+async function claimFreeWith(opts: Parameters<typeof claimFree>[0], ledger: boolean): Promise<FreeClaim> {
+  const account = opts.account.toLowerCase();
+  const where = whereOf(opts.chainId, account, opts.kind, opts.period);
+  const fresh = ledger ? { letters: opts.letters, expiresAt: opts.expiresAt, used: null } : {};
+  // Drizzle's insert names EVERY schema column (DEFAULT for the ones not given), so the pre-0015
+  // insert is raw SQL with 0013's columns only.
+  const inserted = ledger
+    ? await getDb()
+        .insert(freeClaims)
+        .values({ chainId: opts.chainId, account, kind: opts.kind, period: opts.period, claimKey: opts.key.toString(), ...fresh })
+        .onConflictDoNothing()
+        .returning({ claimKey: freeClaims.claimKey })
+    : await getDb().execute(
+        sql`insert into ${freeClaims} (chain_id, account, kind, period, claim_key) values (${opts.chainId}, ${account}, ${opts.kind}, ${opts.period}, ${opts.key.toString()}) on conflict do nothing returning claim_key`,
+      );
+  if (inserted.length > 0) return "ok";
+  const [row] = await getDb().select({ claimKey: freeClaims.claimKey, claimedAt: freeClaims.claimedAt }).from(freeClaims).where(where).limit(1);
+  if (!row) return "taken"; // vanished under us: refuse, the player retries
+  if (row.claimKey === opts.key.toString()) {
+    // The same identity asking again gets a fresh voucher, so the takeover window restarts from now
+    // (Bugbot on #178: a stale time let a second key in while the retried voucher was spendable), and
+    // the grant counts again until its new voucher is settled.
+    await getDb()
+      .update(freeClaims)
+      .set({ claimedAt: sql`now()`, ...fresh })
+      .where(and(where, eq(freeClaims.claimKey, row.claimKey)));
+    return "ok";
+  }
+  const expired = Date.now() - row.claimedAt.getTime() > opts.voucherTtlSeconds * 1000;
+  if (!expired || (await opts.usedOnchain(BigInt(row.claimKey)))) return "taken";
+  // The first voucher expired unused: this key takes over. Compare-and-set on the old key AND on the
+  // row still being expired when written, so a same-key retry that refreshed it meanwhile wins
+  // (Bugbot on #178: matching the key alone let a takeover overwrite a just-refreshed voucher).
+  const moved = await getDb()
+    .update(freeClaims)
+    .set({ claimKey: opts.key.toString(), claimedAt: sql`now()`, ...fresh })
+    .where(
+      and(
+        where,
+        eq(freeClaims.claimKey, row.claimKey),
+        sql`${freeClaims.claimedAt} < now() - make_interval(secs => ${opts.voucherTtlSeconds})`,
+      ),
+    )
+    .returning({ claimKey: freeClaims.claimKey });
+  return moved.length > 0 ? "ok" : "taken";
+}
+
+/**
+ * The ledger account for a Farcaster sign-in whose FID never verified the profile's wallets: its
+ * grants can't be recorded ON that profile (a stranger's sign-in must not plant its key there), but
+ * they still count toward the 10 and the budget, under an account of the FID's own.
+ */
+export const fidLedgerAccount = (fid: number) => `fid:${fid}`;
+
+/** How long after a voucher's deadline its grant is settled (stale RPC reads after a send). */
+export const SETTLE_GRACE_SECONDS = 300;
 
 /** An expired, unsettled grant, as the settle check sees it. */
 export interface PendingGrant {
@@ -146,13 +178,20 @@ export async function settleFreeClaims(opts: {
   check: (rows: readonly PendingGrant[]) => Promise<readonly boolean[]>;
 }): Promise<number> {
   try {
-    const conds = [eq(freeClaims.chainId, opts.chainId), sql`${freeClaims.used} IS NULL`, sql`${freeClaims.expiresAt} < now()`];
+    // Only vouchers expired a while ago: a public RPC can answer from a node that hasn't seen a
+    // just-mined transaction, and a grant settled as unused is final. A row written without an
+    // expiry (main's insert, before 0015) is taken to expire ten minutes after it was claimed.
+    const conds = [
+      eq(freeClaims.chainId, opts.chainId),
+      sql`${freeClaims.used} IS NULL`,
+      sql`coalesce(${freeClaims.expiresAt}, ${freeClaims.claimedAt} + interval '600 seconds') < now() - make_interval(secs => ${SETTLE_GRACE_SECONDS})`,
+    ];
     if (opts.account) conds.push(eq(freeClaims.account, opts.account.toLowerCase()));
     const rows = await getDb()
       .select({ account: freeClaims.account, kind: freeClaims.kind, period: freeClaims.period, claimKey: freeClaims.claimKey })
       .from(freeClaims)
       .where(and(...conds))
-      .orderBy(freeClaims.expiresAt)
+      .orderBy(freeClaims.claimedAt)
       .limit(opts.limit);
     if (rows.length === 0) return 0;
     const pending = rows.map((r) => ({ account: r.account, kind: r.kind as FreeKind, period: r.period, key: BigInt(r.claimKey) }));
