@@ -118,6 +118,30 @@ export function freeSnackDigest(a: {
   );
 }
 
+/** MockUSDC.FAUCET_KIND (Base Sepolia test USDC only). */
+export const USDC_FAUCET_KIND = keccak256(toBytes("lexigotchi.mockUsdc.faucet"));
+
+/**
+ * MockUSDC.faucet (Base Sepolia only): 25 test USDC per PROFILE per UTC day. `caller` is msg.sender,
+ * who receives the USDC; `profile` the caller's profile (its account). (contracts/test/mocks/MockUSDC.sol)
+ */
+export function usdcFaucetDigest(a: { usdc: Hex; caller: Hex; profile: Hex; today: number; deadline: bigint }): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: "address" },
+        { type: "uint256" },
+        { type: "bytes32" },
+        { type: "address" },
+        { type: "address" },
+        { type: "uint32" },
+        { type: "uint256" },
+      ],
+      [a.usdc, chainId(), USDC_FAUCET_KIND, a.caller, a.profile, a.today, a.deadline],
+    ),
+  );
+}
+
 /** Letters.reveal — the draw outcome. `buyer` is the STORED committer, not msg.sender. (Letters.sol:254) */
 export function lettersRevealDigest(a: {
   letters: Hex;

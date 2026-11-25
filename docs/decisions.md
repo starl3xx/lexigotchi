@@ -495,6 +495,37 @@ setter. All small, riding existing suite patterns.
     - **Guarded in code:** `tests/copy-rules.test.ts` fails on the never-write list and the "Instead
       of" terms in player-facing code and the player docs (contracts.mdx and fairness.mdx keep their
       technical terms), with a short allowlist whose entries each carry a reason.
+25. **Every word is a card, and the Showcase folds into the Bag** (starl3xx, 2026-11-25, on the
+    "Scene Cards" mock: "every formed word is presented in a scene... back of the card with
+    info... rethink the whole showcase feature as maybe something that's built into the bag?").
+    Step 2 of the four in #23.
+    - **The card:** a word's scene is its front; the button in the top right turns it over. The
+      back is "deep" (a rich material per tier, cream type), with a faint card-stock texture, the
+      tiles still on a rack in perspective, and the words on steady plates. Labels semibold and as
+      written, the same size as their values; values regular.
+    - **The back:** rarity (one of N) and dictionary number; case; ascension; **Yours since** (the
+      day it reached the player's profile; a move between their own wallets keeps it); staked and
+      mood; earned, earns a day, cost to make; points; **Found by** (the first player ever to claim
+      it, kept through a dissolve and re-spell); the jackpot (drawn or never, no date: the draw
+      counter isn't a calendar); the token. The two history facts read the word's own Claimed and
+      Transfer logs (`/api/words/story`, keyed by the word alone, cached a minute; staking's moves
+      left out), only while a back shows. Unknown is a dash, never "you" or "never". No table: no
+      migration.
+    - **Where cards are:** the Today stage (the card in focus: it moves), the Bag (opens on Words; a
+      grid of still cards with each card's rarity in its corner and its name and state under it, my
+      addition to the mock so hunger and sale stay visible), and an opened word's sheet (its card
+      on top, with Scene and Share under it). Up next on Today, the claim celebration, and a
+      flippable Market card stay as they were: left for later.
+    - **The Showcase screen is gone:** Share and Scene sit under an opened card; onchain badges
+      moved to the profile; a scene picked from an opened word returns to it.
+    - **The GPU rules, measured** (phone size, CPU 4× slowed, practice mode): only the card in
+      focus moves; a still character holds entirely still (it used to keep its idle bounce);
+      the Bag draws each card's scene only as it nears the screen (32 cards drew 32,000 elements
+      and took 2.4 s to open; now 11,000 and 1.3 s, idle at rest); the back's material is CSS
+      drawn once, and nothing on a card loops; each tile defines only the gradients it draws.
+      Finishes reach Spell, the Market, and the Jackpot as still tiles, and the Dictionary as flat
+      tiles with the material baked per tier (the full rig made each keystroke 2–4× slower).
+    - Next: live backs drawn with OGL (step 3), then the share loop (step 4).
 
 ## Pricing & launch economics (decided June 2026)
 

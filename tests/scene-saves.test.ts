@@ -103,15 +103,15 @@ vi.mock("@/lib/profile/session", async (orig) => ({
 vi.mock("@/lib/profile/account", () => ({ sessionAccountOf: async () => account }));
 vi.mock("@/lib/db/walletLinks", () => ({ walletsOfAccount: async () => accountWallets }));
 vi.mock("@/lib/ratelimit", () => ({ allow: async () => true }));
-vi.mock("@/lib/db/wordScenes", () => ({
-  scenesOf: async (wallets: string[]) => {
+vi.mock("@/lib/db/wordPicks", () => ({
+  scenePicksFor: async (wallets: string[]) => {
     if (missingTable) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
     return wallets.includes(A) ? [{ wallet: A, word: "CRANE", scene: "winter", updatedAt: new Date(NOW) }] : [];
   },
-  saveScenes: async (wallet: string, picks: unknown[]) => {
+  saveScenePicks: async (profile: string, picks: unknown[]) => {
     if (missingTable) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
     if (full) return "full";
-    saved.push({ wallet, picks });
+    saved.push({ wallet: profile, picks });
     return "ok";
   },
 }));
@@ -145,12 +145,14 @@ describe("/api/scenes", () => {
     expect(saved).toEqual([]);
   });
 
-  it("saves for the session's wallet, and for the other wallets of its profile account", async () => {
+  it("saves picks for any wallet of the session's profile, under the PROFILE (decisions.md #22)", async () => {
     const { PUT } = await import("@/app/api/scenes/route");
     accountWallets = [A, B];
     const res = await PUT(put({ picks: [{ word: "CRANE", scene: "fall", at: NOW }, { word: "VIVID", scene: "spring", at: NOW, wallet: B }] }));
     expect(res.status).toBe(200);
-    expect(saved.map((s) => s.wallet).sort()).toEqual([A, B]);
+    // One save, keyed by the profile (the account A heads), holding both wallets' words.
+    expect(saved.map((s) => s.wallet)).toEqual([A]);
+    expect(saved[0].picks).toHaveLength(2);
   });
 
   it("refuses a wallet outside the session's profile, saving nothing", async () => {
@@ -160,7 +162,7 @@ describe("/api/scenes", () => {
     expect(saved).toEqual([]);
   });
 
-  it("refuses a bad save, a full wallet, and says so plainly before migration 0011", async () => {
+  it("refuses a bad save, a full profile, and says so plainly before migration 0011", async () => {
     const { GET, PUT } = await import("@/app/api/scenes/route");
     expect((await PUT(put({ picks: [{ word: "XQZPW", scene: "fall" }] }))).status).toBe(400);
     full = true;
@@ -169,5 +171,50 @@ describe("/api/scenes", () => {
     missingTable = true;
     expect((await PUT(put({ picks: [{ word: "CRANE", scene: "fall" }] }))).status).toBe(503);
     expect((await GET(new Request(`http://localhost/api/scenes?wallets=${A}`))).status).toBe(503);
+  });
+});
+
+// ── picks by profile (lib/db/wordPicks, decisions.md #22) ─────────────────────────────────────────
+describe("picks belong to the profile", async () => {
+  const { picksForWallets, stalePicks } = await vi.importActual<typeof import("@/lib/db/wordPicks")>("@/lib/db/wordPicks");
+  const P = A; // the profile: its first wallet
+  const at = new Date(NOW);
+
+  it("every wallet of a profile sees the profile's picks; a stranger sees none", () => {
+    const accounts = new Map([[A, P], [B, P], [C, C]]);
+    const rows = [{ profile: P, word: "CRANE", value: "winter", updatedAt: at }];
+    const seen = picksForWallets([A, B, C], accounts, rows);
+    expect(seen.map((r) => r.wallet)).toEqual([A, B]);
+    expect(seen.every((r) => r.word === "CRANE" && r.scene === "winter")).toBe(true);
+  });
+
+  it("a pick a wallet saved under its own key before joining stays its profile's; the newest per word wins", () => {
+    const accounts = new Map([[A, P], [B, P]]); // B joined P after saving picks as itself
+    const rows = [
+      { profile: B, word: "VIVID", value: "fall", updatedAt: at }, // saved by B before it joined
+      { profile: P, word: "CRANE", value: "winter", updatedAt: new Date(NOW - 1_000) },
+      { profile: B, word: "CRANE", value: "spring", updatedAt: at }, // newer: wins
+    ];
+    const seen = picksForWallets([A], accounts, rows);
+    expect(seen.map((r) => `${r.word}:${r.scene}`).sort()).toEqual(["CRANE:spring", "VIVID:fall"]);
+  });
+
+  it("the keeper keeps a joined wallet's old picks (their effective profile is the account)", () => {
+    const rows = [{ profile: B, word: "VIVID" }];
+    const held = new Map([["VIVID", P]]);
+    const accountOf = (k: string) => (k === B ? P : k);
+    expect(stalePicks(rows, held, accountOf)).toEqual([]);
+    expect(stalePicks(rows, held)).toHaveLength(1); // without the links it would have gone
+  });
+
+  it("a pick comes off only when the scan shows its word held by another profile", () => {
+    const rows = [
+      { profile: P, word: "CRANE" }, // still the profile's (staked, or moved to its other wallet)
+      { profile: P, word: "VIVID" }, // sold to C's profile
+      { profile: P, word: "GRAPE" }, // missing from the scan: dissolved, or its owner read failed
+    ];
+    const held = new Map([["CRANE", P], ["VIVID", C]]);
+    // A missing answer never deletes: only VIVID, positively held by someone else, goes.
+    expect(stalePicks(rows, held).map((r) => r.word)).toEqual(["VIVID"]);
   });
 });

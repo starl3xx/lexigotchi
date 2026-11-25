@@ -5,6 +5,7 @@
  * your two Z's"), shareable to Farcaster/X.
  */
 import { useState } from "react";
+import { shopEnabled } from "@/lib/shop/config";
 import { ALPHABET, wordTier } from "@/lib/economy";
 import { Button, Card, SectionTitle, TierBadge } from "../primitives";
 import { LetterTile, PrestigeStars, WordTiles } from "../LetterTile";
@@ -301,6 +302,8 @@ function WordsForSale() {
   return (
     <Card className="lg:col-span-2">
       <SectionTitle action={<span className="text-xs text-ink/55">{rows.length} for sale</span>}>Words for sale</SectionTitle>
+      {/* The Customization Spec: taste stays with the player (decisions.md #22). Only once there's a Shop. */}
+      {shopEnabled() && <p className="-mt-1 mb-2 text-xs text-ink/55">Scenes and costumes stay with the seller.</p>}
       {rows.length === 0 ? (
         <p className="py-3 text-center text-sm text-ink/50">
           No words for sale yet. To sell one, open it in your bag and tap Sell.

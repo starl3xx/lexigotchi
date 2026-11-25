@@ -124,6 +124,19 @@ export function linkMapFrom(rows: readonly { address: string; account: string }[
   };
 }
 
+/**
+ * The whole link table, or a THROW on any database error, a missing table included. For a step
+ * that deletes on what the links say (the keeper clearing scene picks): read as "no links", every
+ * linked wallet would be a profile of its own, and its profile's picks would all look stale.
+ */
+export async function loadLinkMapStrict(): Promise<LinkMap> {
+  const rows = await getDb()
+    .select({ address: walletLinks.address, account: walletLinks.account })
+    .from(walletLinks)
+    .orderBy(walletLinks.linkedAt);
+  return linkMapFrom(rows);
+}
+
 /** The whole link table, read once. Small: only linked wallets have a row. Never throws. */
 export async function loadLinkMap(): Promise<LinkMap> {
   try {

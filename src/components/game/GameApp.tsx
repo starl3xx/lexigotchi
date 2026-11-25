@@ -47,6 +47,8 @@ import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writeP
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { SceneSheet } from "./sheets/SceneSheet";
+import { ShopSheet } from "./sheets/ShopSheet";
+import { shopEnabled } from "@/lib/shop/config";
 import { EarningsSheet } from "./sheets/EarningsSheet";
 import { useEarningsNote } from "./useEarningsNote";
 import { useSceneSync } from "../scenes/useWordScene";
@@ -56,7 +58,7 @@ import { WalletNetworkNotice } from "./WalletNetworkNotice";
 import {
   Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
-  Storefront,
+  Storefront, ShoppingBag,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 import { useWalletSighting } from "./useWalletSighting";
@@ -353,6 +355,8 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} fromWord={state.sheet.fromWord} />;
+  // Only reachable from entries that already check the chain game and SHOP_ENABLED; checked again here.
+  if (state.sheet?.kind === "shop" && shopEnabled()) return <ShopSheet />;
   if (state.sheet?.kind === "earnings") return <EarningsSheet />;
   return null;
 }
@@ -556,7 +560,19 @@ function SideRail() {
         {RAIL.map((group) => (
           <div key={group.heading}>
             <div className="px-3 pb-1.5 text-xs font-bold text-ink/50">{group.heading}</div>
-            <div className="space-y-1">{group.items.map((i) => item(i.view, i.label, i.Icon))}</div>
+            <div className="space-y-1">
+              {group.items.map((i) => item(i.view, i.label, i.Icon))}
+              {/* The Shop is a sheet, behind SHOP_ENABLED (decisions.md #22): no entry while it's off. */}
+              {group.heading === "Collect" && state.chainBacked && shopEnabled() && (
+                <button
+                  onClick={() => openSheet({ kind: "shop" })}
+                  className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
+                >
+                  <ShoppingBag size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                  Shop
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </nav>

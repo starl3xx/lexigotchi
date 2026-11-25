@@ -172,9 +172,11 @@ export type Sheet =
   | { kind: "addapp" }
   /** A claim just landed: the new word celebrates (sheets/CelebrateSheet). */
   | { kind: "celebrate"; word: string }
-  /** Pick a word's scene, from the Today stage (sheets/SceneSheet). */
-  /** `fromWord`: opened from the word's own sheet, so closing it goes back there. */
+  /** Pick a word's scene, from the Today stage or an opened word (sheets/SceneSheet). `fromWord`:
+   *  opened from the word's own sheet, so closing it goes back there. */
   | { kind: "scene"; word: string; fromWord?: boolean }
+  /** The Shop (decisions.md #22), behind SHOP_ENABLED (sheets/ShopSheet). */
+  | { kind: "shop" }
   | { kind: "earnings" }
   | null;
 
@@ -783,6 +785,14 @@ export interface GameApi {
   listWord: (word: string, price: number) => Promise<boolean>;
   buyWord: (orderHash: string) => void;
   cancelWordListing: (orderHash: string) => void;
+  /**
+   * The Shop (decisions.md #22; chain only, behind SHOP_ENABLED): buy one of an item for the
+   * connected wallet in USDC. Batched approve + buy where the wallet can, else a USDC permit, else
+   * approve then buy. Resolves true once the purchase landed.
+   */
+  buyShopItem: (item: { id: number; priceUsdc: bigint }) => Promise<boolean>;
+  /** Test USDC (Base Sepolia only): 25 a profile a day from MockUSDC's faucet. Resolves true on arrival. */
+  getTestUsdc: () => Promise<boolean>;
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
@@ -960,6 +970,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       cancelSwapOffer: () => {},
       wordBoard: [],
       listWord: async () => false,
+      // The practice game has no USDC and no Shop (both are chain only).
+      buyShopItem: async () => false,
+      getTestUsdc: async () => {
+        toast("Test USDC is only in the test game", "info");
+        return false;
+      },
       buyWord: () => {},
       cancelWordListing: () => {},
 

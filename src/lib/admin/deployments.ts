@@ -29,7 +29,9 @@ export type ContractKey =
   | "jackpot"
   | "yieldDistributor"
   | "bounty"
-  | "saleFees";
+  | "saleFees"
+  /** The Shop (decisions.md #22): beside the suite, in the registry's `shop` block. */
+  | "shop";
 
 /** `priceKeeper` moves the onchain prices (repeg); a registry written before it existed has none. */
 export type RoleKey = "treasury" | "signer" | "keeper" | "owner" | "priceKeeper";
@@ -47,7 +49,8 @@ export interface Deployments {
 // build, where they would silently point operator transactions at the wrong contracts.
 const STORAGE_KEY = `lexigotchi:deployments:${NETWORK.id}`;
 
-export const CONTRACT_KEYS: ContractKey[] = [
+/** The game's suite: what "deployed" means for the game (the Shop is not part of it). */
+export const SUITE_KEYS: ContractKey[] = [
   "feeRouter",
   "letters",
   "words",
@@ -61,6 +64,9 @@ export const CONTRACT_KEYS: ContractKey[] = [
   "saleFees",
 ];
 
+/** Every contract the console knows: the suite, then the Shop. */
+export const CONTRACT_KEYS: ContractKey[] = [...SUITE_KEYS, "shop"];
+
 export const ROLE_KEYS: RoleKey[] = ["treasury", "signer", "keeper", "owner", "priceKeeper"];
 
 /** The committed baseline (server + client). */
@@ -71,7 +77,10 @@ export const BASE_DEPLOYMENTS: Deployments = {
   wordToken: baseline.wordToken,
   // Every role present, null where the file has none (mainnet's predates priceKeeper).
   roles: { priceKeeper: null, ...(baseline.roles as Partial<Deployments["roles"]>) } as Deployments["roles"],
-  contracts: baseline.contracts as Deployments["contracts"],
+  contracts: {
+    ...(baseline.contracts as Omit<Deployments["contracts"], "shop">),
+    shop: (baseline as { shop?: { shop: string | null } }).shop?.shop ?? null,
+  },
 };
 
 function plainObject(v: unknown): Record<string, unknown> {
@@ -136,10 +145,10 @@ export function clearDeployments(): void {
 
 /** Any valid contract address set at all? */
 export function anyDeployed(d: Deployments): boolean {
-  return CONTRACT_KEYS.some((k) => isAddress(d.contracts[k] ?? ""));
+  return SUITE_KEYS.some((k) => isAddress(d.contracts[k] ?? ""));
 }
 
 /** Whole suite present with valid addresses? */
 export function fullyDeployed(d: Deployments): boolean {
-  return CONTRACT_KEYS.every((k) => isAddress(d.contracts[k] ?? ""));
+  return SUITE_KEYS.every((k) => isAddress(d.contracts[k] ?? ""));
 }

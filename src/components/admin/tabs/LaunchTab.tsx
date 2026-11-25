@@ -16,7 +16,7 @@ import {
   loadDeployments,
   saveDeployments,
   fullyDeployed,
-  CONTRACT_KEYS,
+  SUITE_KEYS,
   type ContractKey,
 } from "@/lib/admin/deployments";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -215,7 +215,7 @@ export function LaunchTab() {
 
   // --- post-deploy address capture ---------------------------------------------------------------
   const parsed = parseAddresses(log);
-  const parsedCount = CONTRACT_KEYS.filter((k) => parsed[k]).length;
+  const parsedCount = SUITE_KEYS.filter((k) => parsed[k]).length;
 
   const saveToRegistry = () => {
     const cur = loadDeployments();
@@ -400,7 +400,7 @@ export function LaunchTab() {
           className="mt-2 w-full rounded-xl border-[3px] border-ink bg-paper px-3 py-2 font-mono text-[11px] outline-none focus:bg-paper-dark/40"
         />
         <div className="mt-3 grid gap-1 sm:grid-cols-2">
-          {CONTRACT_KEYS.map((k) => {
+          {SUITE_KEYS.map((k) => {
             const c = CONTRACTS.find((x) => x.key === k)!;
             const addr = parsed[k];
             return (
