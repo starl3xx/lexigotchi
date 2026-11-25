@@ -6,7 +6,7 @@
  * outside it the token mint fails and these resolve to a no-op / null (they never throw).
  *
  * Note: we import the raw `@farcaster/miniapp-sdk` here because `quickAuth` isn't surfaced by
- * `@neynar/react`'s `useMiniApp()` hook the rest of the app uses.
+ * the `useMiniApp()` hook (./MiniAppHost) the rest of the app uses.
  */
 import sdk from "@farcaster/miniapp-sdk";
 import { webAuthToken, hasWebSession } from "@/lib/auth/siwfWeb";

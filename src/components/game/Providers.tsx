@@ -2,9 +2,10 @@
 /**
  * Client providers for the game, on the open web AND inside a Farcaster client.
  *
- * `MiniAppProvider` (Neynar) wraps the Farcaster Mini App SDK — it calls `sdk.actions.ready()`,
- * exposes the user/context, haptics, and "added" state via `useMiniApp()`. On the open web it
- * resolves to "not in a mini app" and stays out of the way.
+ * `MiniAppHost` decides whether a Farcaster host is there by whether one answers, and only then
+ * mounts Neynar's `MiniAppProvider` (which calls `sdk.actions.ready()`). The game reads the host's
+ * context and "added" state through `useMiniApp()` from ./MiniAppHost. On the web, and in a React
+ * Native wallet browser such as Rainbow's, no host answers and the game plays as the web.
  *
  * `RainbowKitProvider` owns the connect modal for web players (the wallet is the account; see
  * lib/onchain/wagmi). Inside a Farcaster client nothing ever opens it — the mini-app connector
@@ -16,13 +17,13 @@
  */
 import "@neynar/react/dist/style.css";
 import "@rainbow-me/rainbowkit/styles.css";
-import { MiniAppProvider } from "@neynar/react";
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { getWagmiConfig, APP_NAME } from "@/lib/onchain/wagmi";
 import { walletTheme } from "./walletTheme";
+import { MiniAppHost } from "./MiniAppHost";
 
 export function Providers({ children }: { children: ReactNode }) {
   // One QueryClient per mount, held in state so React strict-mode double-invocation and any
@@ -31,7 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const [wagmiConfig] = useState(getWagmiConfig);
 
   return (
-    <MiniAppProvider analyticsEnabled backButtonEnabled>
+    <MiniAppHost>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider
@@ -43,6 +44,6 @@ export function Providers({ children }: { children: ReactNode }) {
           </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
-    </MiniAppProvider>
+    </MiniAppHost>
   );
 }

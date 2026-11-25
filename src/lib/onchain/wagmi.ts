@@ -11,7 +11,7 @@
  *
  *   - Farcaster mini app — index 0, OUTSIDE the RainbowKit list. It auto-connects inside a
  *     Farcaster/Base client and must never appear in the web modal (connecting it outside a host
- *     fails). RainbowKit hides it on its own: the modal lists only connectors it built itself plus
+ *     fails). Outside a host it has no provider at all (`farcasterWhereHosted`). RainbowKit hides it on its own: the modal lists only connectors it built itself plus
  *     EIP-6963 announcements (which carry a data: icon — this one's icon is an https URL).
  *     useOnchain.connect assumes it sits at index 0.
  *   - Everything else comes from RainbowKit's `connectorsForWallets`, rendered by its modal.
@@ -40,7 +40,7 @@
  * EIP-1193 provider. wagmi is here for connection state, chain switching, and READS (viem clients,
  * multicall). See docs/web3-runtime-plan.md and CLAUDE.md's builder-code rule.
  */
-import { createConfig, http, type Config } from "wagmi";
+import { createConfig, createConnector, http, type Config, type CreateConnectorFn } from "wagmi";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { connectorsForWallets, type Wallet, type WalletList } from "@rainbow-me/rainbowkit";
 import {
@@ -53,6 +53,7 @@ import {
   rainbowWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
+import { hostAnswered } from "@/lib/miniAppHost";
 import { NETWORK } from "./network";
 import { ACTIVE_CHAIN, base, baseSepolia } from "./chain";
 
@@ -110,6 +111,30 @@ export function walletList(projectId: string = WALLETCONNECT_PROJECT_ID): Wallet
   ];
 }
 
+/**
+ * The Farcaster wallet, offered only where a Farcaster host answers. On every page load wagmi's
+ * reconnect asks each connector for its accounts, one at a time. In a React Native wallet browser
+ * (Rainbow, MetaMask Mobile) this connector's question goes to a host that isn't there and never
+ * comes back, so the reconnect never finished: a returning player was asked to connect again on
+ * every visit (lib/miniAppHost has the rest of that story). With no provider, reconnect skips it.
+ * `hostAnswered()` is settled by the time wagmi runs, because wagmi mounts inside MiniAppHost.
+ * Asking the SDK again would hold every reconnect in a wallet browser for another second.
+ */
+export function farcasterWhereHosted(
+  inner: CreateConnectorFn = farcasterMiniApp(),
+  inHost: () => boolean = hostAnswered,
+): CreateConnectorFn {
+  return createConnector((config) => {
+    const connector = inner(config);
+    return {
+      ...connector,
+      async getProvider(params?: { chainId?: number }) {
+        return inHost() ? connector.getProvider(params) : undefined;
+      },
+    };
+  });
+}
+
 let cached: Config | undefined;
 
 /** The wagmi config, created lazily so it's only built in the browser. */
@@ -122,7 +147,7 @@ export function getWagmiConfig(): Config {
   });
   cached = createConfig({
     chains: [ACTIVE_CHAIN],
-    connectors: [farcasterMiniApp(), ...webWallets],
+    connectors: [farcasterWhereHosted(), ...webWallets],
     // Both ids are declared to satisfy wagmi's Record<chainId, Transport> (ACTIVE_CHAIN widens to
     // the union); only the configured chain's is ever used. The RPC override applies solely to the
     // active network, so a mainnet URL can't end up serving testnet reads.

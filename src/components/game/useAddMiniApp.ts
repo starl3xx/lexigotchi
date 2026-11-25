@@ -9,7 +9,7 @@
  * returns `{ ok, error? }` instead of throwing, so callers just branch on `ok`.
  */
 import { useCallback, useState } from "react";
-import { useMiniApp } from "@neynar/react";
+import { useMiniApp } from "./MiniAppHost";
 import { useViewer } from "./useViewer";
 import { recordAdd } from "./campaignClient";
 
