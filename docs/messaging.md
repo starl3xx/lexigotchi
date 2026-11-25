@@ -84,7 +84,7 @@ Jake's builder posts stay in Jake's own voice.
 
 ---
 
-_Notes kept outside the guide (the guide above is verbatim, decisions.md #22):_
+_Notes kept outside the guide (the guide above is verbatim, decisions.md #23):_
 
 - **TODO: the tier rename.** The guide says "Mythic" for the 46 rarest words because it assumes the
   rarity rename (Epic → Legendary, Legendary → Mythic) has landed. It hasn't yet: the code's top tier

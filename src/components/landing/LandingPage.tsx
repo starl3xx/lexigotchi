@@ -7,7 +7,7 @@
  *
  * Every number is derived (dictionary, economy, params), never typed. The art is the game's own
  * TileCharacter, so the page and the game can't drift apart visually either. The words follow the
- * messaging guide (docs/messaging.md, decisions.md #22): a word-pet game; lead with a pet, a word, or
+ * messaging guide (docs/messaging.md, decisions.md #23): a word-pet game; lead with a pet, a word, or
  * a rare letter, never with earning; the jackpot always says "staked and fed".
  */
 import Link from "next/link";

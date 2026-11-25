@@ -395,7 +395,64 @@ setter. All small, riding existing suite patterns.
       campaign). All free letters share a budget of 30,000 (`FREE_LETTER_BUDGET`), and free grants stop
       when the dictionary is about 95% claimed. Server-side only: no contract changes.
 
-22. **Lexigotchi is a word-pet game: the messaging guide** (starl3xx, 2026-11-25). In the owner's words:
+22. **The Shop: cosmetics in USDC on Base, split in the same transaction** (starl3xx, 2026-11-25;
+    the Lexigotchi Customization Spec, "Money and plumbing"). In the owner's words:
+    - "what if we make the add-ons in USDC on base?"
+    - "20% should buy $WORD and add it to the reward pool"
+    - "ideally, when someone buys something in USDC, the same transaction does the split all in one
+      (splitting, buying WORD, adding it where it needs to go, and sending the remaining USDC to a
+      treasury/revenue wallet)"
+    - "i want to make sure the above prompt doesn't introduce the actual cosmetic / limited items, but
+      just lays the infrastructure for when they're added"
+    - "we'll also need a way for beta testers to acquire testnet USDC on Base, in order to test this (in
+      the swap panel, and/or elsewhere)"
+
+    Why: the shop is the studio's revenue line, so income never depends on selling treasury $WORD,
+    and every sale is also buy pressure on $WORD and yield for staked, fed words (#19). Playing stays
+    in $WORD. The spec's two rules hold: history travels with the word and taste stays with the
+    player, and status can't be bought (cosmetics get the scene and what letters wear, never the tile's
+    material, border, or rings).
+    - **Mechanics** (`contracts/src/Shop.sol`): an owner-managed registry of prices in USDC, sale
+      windows, and supply, EMPTY at deploy; what an item is lives off chain. A purchase sends
+      `revenueBps` (80%; the owner may change it, never above 90%) straight from the buyer to the
+      revenue wallet, swaps the rest to $WORD, and routes it through FeeSource.ROYALTY like the
+      word-sale fee (#18): the Rewards Pool, less the bounty carve. One transaction, no weekly buy (the
+      spec's open question on timing is answered by the owner's "same transaction").
+    - **The swap never blocks a sale.** It runs in its own call frame inside try/catch: on any failure
+      the USDC waits in the Shop, `SwapDeferred` says why, and the sale completes; anyone may `sweep`
+      later, and the keeper does it daily beside `SaleFees.flush()`.
+    - **The floor reads the price keeper's peg** where it already lives (Letters' `packPrice` for a $1
+      pack, #7), so the Shop adds no price-keeper job (the spec: "no price keeper is needed"); every swap
+      must buy at least that worth less `maxSlippageBps` (10% by default: the real route's fees measured
+      0.7% on a Base fork, and the peg moves only on a 5% drift). No peg = the swap waits, never runs
+      unprotected. A Uniswap v4 pool has no built-in TWAP, so the peg is the only onchain price.
+    - **No shop money reaches the jackpot** (the spec): a swap refuses to route while the ROYALTY split
+      gives the jackpot a share. Nothing here changes Words.sol or the FeeRouter; the FeeRouter's owner
+      registers the Shop with `setCollector`.
+    - **No owner function withdraws USDC or $WORD** (pinned by `tests/shop-abi.test.ts`). The one
+      indirect path, a hostile adapter with a floor near zero, is behind a 2-day public delay: the
+      adapter and the floor's peg change together, only through `proposeRoute` then `acceptRoute`.
+    - **Sweeps come in chunks**: at most `maxSweepUsdc` ($100 by default) a call, once a block, so a
+      sandwich of a permissionless sweep costs more in pool fees than it can take (the internal audit,
+      `contracts/AUDIT.md`), and a large backlog still drains.
+    - **The route** (`contracts/src/adapters/UniV4UsdcWordAdapter.sol`): USDC → WETH on Uniswap v3's
+      0.05% pool, then WETH → $WORD on $WORD's v4 pool (Clanker's, with its dynamic-fee hook), in one
+      Universal Router call. The pool key was read onchain and hashes to the pool id. It sits behind
+      `IUsdcSwapAdapter`, so a new route is a new adapter, not a new Shop.
+    - **Ownership of items is a database record keyed by profile**, filled from `Purchased`, so every
+      linked wallet shares it; not tradeable at first. Scene picks move from the holding wallet to
+      (profile, word) and clear when the word leaves the profile; the Market says "Scenes and costumes
+      stay with the seller".
+    - **Testnet only:** test USDC (`MockUSDC`: Circle's permit name "USD Coin" and version "2", 6
+      decimals) with a faucet of 25 per profile per UTC day, vouched by the app's signer, because the
+      test $WORD faucet has no limit to copy and only the server knows a wallet's profile. One
+      placeholder "Test item" on Base Sepolia exercises the flow; never on mainnet.
+    - **Still owed before the shop opens on mainnet:** the owner's go-ahead for the mainnet deploy; the
+      price keeper key in production, or the floor's peg goes stale; the CDP paymaster allowlist, for
+      sponsored buys; and a sales-tax check with an accountant (the spec: Iowa taxes some digital
+      products).
+
+23. **Lexigotchi is a word-pet game: the messaging guide** (starl3xx, 2026-11-25). In the owner's words:
     "the thing that's unique about this game is its unique combination of tamagotchi + pokemon + letters/words, and the fact that it's onchain and you can own and sell and swap and customize stuff. we can't lose the basic premise (get letters, form words, feed them, earn, eg) but we can be strategic how we talk about the broader game/universe and different hooks we use when promoting and talking about it"
     - **The guide** is `docs/messaging.md`, the source of truth for every player-facing word: the
       positioning line ("a word-pet game: collect living letters, raise them, and spell words nobody

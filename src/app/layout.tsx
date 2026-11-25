@@ -5,7 +5,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_URL ?? "https://lexigotchi.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  // The messaging guide's title and share description (docs/messaging.md, decisions.md #22).
+  // The messaging guide's title and share description (docs/messaging.md, decisions.md #23).
   title: "Lexigotchi: a word-pet game on Base",
   description: "Collect letters, raise them, and spell words only you can own.",
   // Tab icon + Home Screen icon. There was no favicon at all (every page load 404'd /favicon.ico).

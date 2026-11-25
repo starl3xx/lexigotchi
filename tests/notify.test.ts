@@ -267,7 +267,7 @@ describe("limits are importable without the fail-fast throw", () => {
   });
 });
 
-// The messaging guide (docs/messaging.md, decisions.md #22): reminders name the letter or word, in its
+// The messaging guide (docs/messaging.md, decisions.md #23): reminders name the letter or word, in its
 // case, and a jackpot line carries "staked and fed".
 describe("reminders speak in the pet voice", () => {
   it("the hunger reminder names the word on the soonest clock, and counts the rest", () => {

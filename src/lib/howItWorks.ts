@@ -1,7 +1,7 @@
 /**
  * The four-step "how it works" copy, shared by the first-run onboarding (`Onboarding.tsx`) and the
  * landing page (`src/app/page.tsx`), so the two can never tell a player different things. The steps
- * follow the premise in the messaging guide (docs/messaging.md, decisions.md #22): collect letters,
+ * follow the premise in the messaging guide (docs/messaging.md, decisions.md #23): collect letters,
  * raise them, spell words only you can own, and keep them fed.
  *
  * Every number is DERIVED (dictionary size, roll odds, tier counts, supply, free letters), never

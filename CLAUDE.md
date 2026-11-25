@@ -516,7 +516,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 
 ## Copy and messaging
 
-**`docs/messaging.md` is the source of truth for every word a player reads** (decisions.md #22):
+**`docs/messaging.md` is the source of truth for every word a player reads** (decisions.md #23):
 Lexigotchi is a word-pet game: collect living letters, raise them, and spell words nobody else can
 own. Read it before writing any copy (the app, the landing page, the docs, reminders, share text,
 bot posts). The hard rules:

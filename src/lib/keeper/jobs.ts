@@ -549,7 +549,7 @@ export function createKeeper(opts: { dry: boolean }) {
     if (targets.length === 0) return;
 
     // Grouped by identical copy (the named word, the count, the hours), so players who'd read the
-    // same message share one send. Naming the word (decisions.md #22) makes most groups a single
+    // same message share one send. Naming the word (decisions.md #23) makes most groups a single
     // player: about one request per player, where the count-only copy shared one per deadline.
     const groups = new Map<string, { word: string; words: number; hoursLeft: number; fids: number[] }>();
     for (const t of targets) {
