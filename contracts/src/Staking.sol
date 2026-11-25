@@ -36,15 +36,22 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
     mapping(uint256 tokenId => uint64) public lastFed;
     // (UTC day + 1) on which a player last used their free snack; default 0 means "never".
     mapping(address player => uint32 dayPlusOne) public freeSnackDayPlusOne;
+    /// @notice Wallets a staker lets care for its staked Words: feed them here, and roll and ascend
+    ///         them (Rolls, Prestige). A caretaker pays with its own $WORD and never receives a Word,
+    ///         so it can take nothing. This is separate from ERC-721 operator approval on purpose: a
+    ///         marketplace, or any other operator of the staker's Words, gets nothing here.
+    mapping(address staker => mapping(address wallet => bool)) public isCaretaker;
 
     event Staked(uint256 indexed tokenId, address indexed staker);
     event Unstaked(uint256 indexed tokenId, address indexed staker);
     event Fed(uint256 indexed tokenId, address indexed staker, uint64 at);
     event CareParamsSet(uint64 peckishAfter, uint64 hungryAfter, uint256 snackPrice);
     event FreeDailySnackSet(bool enabled);
+    event CaretakerSet(address indexed staker, address indexed wallet, bool allowed);
 
     error NotStaked();
     error NotStaker();
+    error BadCaretaker();
 
     constructor(
         IERC20 _word,
@@ -87,23 +94,36 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
     }
 
     function feed(uint256 tokenId) public nonReentrant {
-        if (stakerOf[tokenId] == address(0)) revert NotStaked();
-        if (stakerOf[tokenId] != msg.sender) revert NotStaker(); // only the staker feeds their own word
+        address staker = stakerOf[tokenId];
+        if (staker == address(0)) revert NotStaked();
+        // The staker feeds, or a wallet the staker named with setCaretaker.
+        if (staker != msg.sender && !isCaretaker[staker][msg.sender]) revert NotStaker();
         // The first feed of the UTC day is free (the check-in hook); every other feed is paid + burned.
+        // The free snack is the STAKER's, whoever feeds. Keyed on the caller, every caretaker would
+        // bring its own, and one staker could name a wallet per Word to feed them all free each day.
         uint32 todayPlusOne = uint32(block.timestamp / 1 days) + 1;
-        if (freeDailySnack && freeSnackDayPlusOne[msg.sender] != todayPlusOne) {
-            freeSnackDayPlusOne[msg.sender] = todayPlusOne;
+        if (freeDailySnack && freeSnackDayPlusOne[staker] != todayPlusOne) {
+            freeSnackDayPlusOne[staker] = todayPlusOne;
         } else {
+            // The caller pays, never the staker: a staker keeps a standing allowance to this
+            // contract, so charging the staker would let a caretaker spend the staker's $WORD.
             _collect(msg.sender, snackPrice, FeeSource.SNACK); // snacks are 100% burned
         }
         lastFed[tokenId] = uint64(block.timestamp);
-        emit Fed(tokenId, stakerOf[tokenId], uint64(block.timestamp));
+        emit Fed(tokenId, staker, uint64(block.timestamp));
     }
 
     function feedMany(uint256[] calldata tokenIds) external {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             feed(tokenIds[i]);
         }
+    }
+
+    /// @notice Let `wallet` feed, roll, and ascend the Words you stake, or stop it (`allowed` false).
+    function setCaretaker(address wallet, bool allowed) external {
+        if (wallet == address(0) || wallet == msg.sender) revert BadCaretaker();
+        isCaretaker[msg.sender][wallet] = allowed;
+        emit CaretakerSet(msg.sender, wallet, allowed);
     }
 
     // --- views (read by Jackpot / YieldDistributor / Prestige) ------------------------------------

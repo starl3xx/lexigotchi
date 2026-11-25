@@ -6,7 +6,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {IERC20Errors, IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockSwapRouter} from "./mocks/MockSwapRouter.sol";
@@ -1485,5 +1485,300 @@ contract LexigotchiTest is Test {
             minted += l.mintedEver(i);
         }
         assertEq(minted, 25, "the books agree: cap 26 = 25 minted + 1 unreserved");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Linked wallets: caretakers (Staking.setCaretaker) and pull-then-act with standard approvals
+    // ---------------------------------------------------------------------------------------------
+
+    address carol = makeAddr("carol");
+
+    function _care(address staker, address wallet) internal {
+        vm.prank(staker);
+        staking.setCaretaker(wallet, true);
+    }
+
+    /// A caretaker feeds with the STAKER's free snack, and pays for every other snack itself.
+    function test_Caretaker_feedsWithTheStakersFreeSnack() public {
+        uint256 t1 = _claimLower(alice, 0);
+        uint256 t2 = _claimLower(alice, 1);
+        _stake(alice, t1);
+        _stake(alice, t2);
+        _care(alice, bob);
+        _approveAll(bob);
+
+        uint256 aliceBal = word.balanceOf(alice);
+        uint256 bobBal = word.balanceOf(bob);
+        vm.prank(bob);
+        staking.feed(t1); // the staker's free snack
+        assertEq(word.balanceOf(bob), bobBal, "the free snack costs the caretaker nothing");
+        assertEq(staking.freeSnackDayPlusOne(alice), uint32(block.timestamp / 1 days) + 1, "alice's free snack is used");
+        assertEq(staking.freeSnackDayPlusOne(bob), 0, "bob's own free snack is untouched");
+
+        vm.prank(bob);
+        staking.feed(t2); // paid, by the caller
+        assertEq(bobBal - word.balanceOf(bob), SNACK, "the caretaker pays the second snack");
+        assertEq(word.balanceOf(alice), aliceBal, "the staker pays nothing");
+        assertEq(staking.lastFed(t2), block.timestamp, "fed");
+    }
+
+    /// Two caretakers can't bring two free snacks: there is one per staker per UTC day.
+    function test_Caretaker_cannotMultiplyFreeSnacks() public {
+        uint256 t1 = _claimLower(alice, 0);
+        uint256 t2 = _claimLower(alice, 1);
+        _stake(alice, t1);
+        _stake(alice, t2);
+        _care(alice, bob);
+        _care(alice, carol);
+        _approveAll(bob);
+        word.mint(carol, 1e30);
+        _approveAll(carol);
+
+        uint256 supply0 = word.totalSupply();
+        vm.prank(bob);
+        staking.feed(t1);
+        vm.prank(carol);
+        staking.feed(t2);
+        assertEq(supply0 - word.totalSupply(), SNACK, "exactly one free snack between them");
+    }
+
+    /// In one feedMany, each staker's free snack covers one of its own words; the caller pays the rest.
+    function test_Caretaker_feedManyUsesEachStakersFreeSnack() public {
+        uint256 t1 = _claimLower(alice, 0);
+        uint256 t2 = _claimLower(alice, 1);
+        uint256 t3 = _claimLower(bob, 2);
+        _stake(alice, t1);
+        _stake(alice, t2);
+        _stake(bob, t3);
+        _care(alice, bob);
+
+        uint256 bobBal = word.balanceOf(bob);
+        uint256[] memory ids = new uint256[](3);
+        ids[0] = t1; // alice's free snack
+        ids[1] = t2; // paid by bob
+        ids[2] = t3; // bob's own free snack
+        vm.prank(bob);
+        staking.feedMany(ids);
+        assertEq(bobBal - word.balanceOf(bob), SNACK, "one paid snack for three words across two stakers");
+    }
+
+    /// A caretaker's paid snack never touches the staker's standing allowance to Staking.
+    function test_Caretaker_neverSpendsTheStakersWord() public {
+        uint256 t1 = _claimLower(alice, 0); // alice approved Staking for the max
+        _stake(alice, t1);
+        _care(alice, bob); // bob holds $WORD but approved nothing
+        vm.prank(alice);
+        staking.feed(t1); // alice uses her own free snack
+
+        uint256 aliceBal = word.balanceOf(alice);
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(staking), 0, SNACK));
+        staking.feed(t1);
+        assertEq(word.balanceOf(alice), aliceBal, "alice's allowance was never used");
+    }
+
+    /// Only named wallets feed. Words operator approval grants nothing on Staking, and revoking works.
+    function test_Caretaker_onlyNamedWalletsAndRevocable() public {
+        word.mint(carol, 1e30);
+        uint256 t1 = _claimLower(alice, 0);
+        uint256 t3 = _claimLower(carol, 2);
+        _stake(alice, t1);
+        _stake(carol, t3);
+        _approveAll(bob);
+
+        // a Words operator (a marketplace, or anyone alice approved) is not a caretaker
+        vm.prank(alice);
+        words.setApprovalForAll(bob, true);
+        vm.prank(bob);
+        vm.expectRevert(Staking.NotStaker.selector);
+        staking.feed(t1);
+
+        _care(alice, bob);
+        vm.prank(bob);
+        staking.feed(t1);
+
+        // alice's caretaker is nobody else's
+        vm.prank(bob);
+        vm.expectRevert(Staking.NotStaker.selector);
+        staking.feed(t3);
+
+        vm.prank(alice);
+        staking.setCaretaker(bob, false);
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(bob);
+        vm.expectRevert(Staking.NotStaker.selector);
+        staking.feed(t1);
+    }
+
+    function test_Caretaker_setterRejectsZeroAndSelfAndEmits() public {
+        vm.startPrank(alice);
+        vm.expectRevert(Staking.BadCaretaker.selector);
+        staking.setCaretaker(address(0), true);
+        vm.expectRevert(Staking.BadCaretaker.selector);
+        staking.setCaretaker(alice, true);
+        vm.expectEmit(true, true, false, true, address(staking));
+        emit Staking.CaretakerSet(alice, bob, true);
+        staking.setCaretaker(bob, true);
+        vm.stopPrank();
+        assertTrue(staking.isCaretaker(alice, bob));
+        assertFalse(staking.isCaretaker(bob, alice), "one way only");
+    }
+
+    /// A caretaker rolls a staked word: the caller pays; the commit, its open-roll slot, and pity stay the owner's.
+    function test_Caretaker_rollsAStakedWordUnderTheOwnersPity() public {
+        uint256 t = _claimLower(alice, 0); // CRANE
+        _stake(alice, t);
+        _care(alice, bob);
+        _approveAll(bob);
+
+        uint256 aliceBal = word.balanceOf(alice);
+        uint256 bobBal = word.balanceOf(bob);
+        vm.prank(bob);
+        uint256 id0 = rolls.commitWordRoll(t, 0); // C = letter index 2
+        (address owner,,,,,,) = rolls.commits(id0);
+        assertEq(owner, alice, "the commit names the beneficial owner");
+        assertEq(bobBal - word.balanceOf(bob), ROLL, "the caretaker pays");
+        assertEq(word.balanceOf(alice), aliceBal, "the owner pays nothing");
+
+        vm.prank(alice);
+        vm.expectRevert(Rolls.RollOpen.selector);
+        rolls.commitWordRoll(t, 0); // one open roll per (owner, letter), whichever wallet opened it
+
+        rolls.reveal(id0, false, _signRoll(id0, alice, 2, false));
+        assertEq(rolls.pityOf(alice, 2), 1, "a miss raises the owner's pity");
+        assertEq(rolls.pityOf(bob, 2), 0, "the caretaker has no streak of its own");
+
+        vm.prank(bob);
+        uint256 id1 = rolls.commitWordRoll(t, 0);
+        rolls.reveal(id1, true, _signRoll(id1, alice, 2, true));
+        assertEq(uint8(words.caseOf(t)), uint8(CaseState.Mixed), "the escrowed C is raised");
+        assertEq(words.ownerOf(t), address(staking), "the word never left Staking");
+    }
+
+    /// A caretaker acts only on STAKED words: a word the owner merely holds moves with approvals instead.
+    function test_Caretaker_cannotRollAHeldWord() public {
+        uint256 t = _claimLower(alice, 0); // held by alice, not staked
+        _care(alice, bob);
+        _approveAll(bob);
+        vm.prank(bob);
+        vm.expectRevert(Rolls.NotBeneficialOwner.selector);
+        rolls.commitWordRoll(t, 0);
+    }
+
+    /// With Staking unset on Rolls, the caretaker branch is skipped cleanly (no call to address(0)).
+    function test_Caretaker_rollsCheckSurvivesUnsetStaking() public {
+        uint256 t = _claimLower(alice, 0);
+        _care(alice, bob);
+        _approveAll(bob);
+        rolls.setStaking(IStaking(address(0)));
+        vm.prank(bob);
+        vm.expectRevert(Rolls.NotBeneficialOwner.selector);
+        rolls.commitWordRoll(t, 0);
+    }
+
+    /// A caretaker ascends a staked word. The commit names the STAKER, so a signed success lands.
+    function test_Caretaker_ascendsAndTheCommitNamesTheStaker() public {
+        uint256 t = _claimUpper(alice, 0);
+        _approveAll(bob);
+        _care(alice, bob);
+
+        vm.prank(bob);
+        vm.expectRevert(Prestige.NotBeneficialOwner.selector);
+        prestige.commitPrestige(t); // unstaked: nobody can ascend it, caretaker or not
+
+        _stake(alice, t);
+        uint256 bobBal = word.balanceOf(bob);
+        vm.expectEmit(true, true, true, true, address(prestige));
+        emit Prestige.PrestigeCommitted(0, t, alice, 0); // indexers find the commit by the staker
+        vm.prank(bob);
+        uint256 id = prestige.commitPrestige(t);
+        (, address owner,,) = prestige.commits(id);
+        assertEq(owner, alice, "the commit names the staker");
+        assertEq(bobBal - word.balanceOf(bob), PRESTIGE_FEE + SNACK, "the caretaker pays the fee and the snack");
+        prestige.reveal(id, true, _signPrestige(id, t, alice, true));
+        assertEq(words.prestigeLevel(t), 1, "the signed success lands");
+
+        vm.prank(carol);
+        vm.expectRevert(Prestige.NotBeneficialOwner.selector);
+        prestige.commitPrestige(t); // a stranger still can't
+    }
+
+    /// Fed only by a caretaker, the word stays in the jackpot, and the pot pays the staker.
+    function test_Caretaker_feedingKeepsTheJackpotWithTheStaker() public {
+        vm.warp(1755000000);
+        _approveAll(bob);
+        vm.prank(bob);
+        letters.commitPack(); // funds the pot
+
+        uint256 t = _claimLower(alice, 0); // CRANE, the day's answer
+        _stake(alice, t);
+        _care(alice, bob);
+        for (uint256 d = 0; d < 4; d++) {
+            vm.warp(block.timestamp + 1 days);
+            vm.prank(bob);
+            staking.feed(t);
+        }
+        assertFalse(staking.isHungry(t), "fed by the caretaker");
+
+        uint256 pot = feeRouter.jackpotBalance();
+        uint256 aliceBefore = word.balanceOf(alice);
+        uint256 bobBefore = word.balanceOf(bob);
+        vm.prank(keeper);
+        assertTrue(jackpot.resolve("CRANE", keccak256("salt1"), bytes32(0)), "eligible");
+        assertEq(word.balanceOf(alice) - aliceBefore, pot, "the staker wins the pot");
+        assertEq(word.balanceOf(bob), bobBefore, "the caretaker gets nothing");
+    }
+
+    /// No contract change: with standard approvals, a second wallet pulls letters and $WORD, then claims.
+    function test_LinkedWallet_pullLettersAndWordThenClaim() public {
+        _fundLower(alice, "CRANE");
+        vm.startPrank(alice);
+        letters.setApprovalForAll(bob, true); // alice lets her other wallet move her letters
+        word.approve(bob, CLAIM); // and a bounded amount of her $WORD
+        vm.stopPrank();
+        _approveAll(bob); // bob's own game approvals
+
+        uint256[] memory ids = new uint256[](5);
+        uint256[] memory amounts = new uint256[](5);
+        bytes memory b = bytes("CRANE");
+        for (uint256 k = 0; k < 5; k++) {
+            ids[k] = uint8(b[k]) - 65;
+            amounts[k] = 1;
+        }
+        uint256 bobBal = word.balanceOf(bob);
+        vm.startPrank(bob);
+        letters.safeBatchTransferFrom(alice, bob, ids, amounts, "");
+        word.transferFrom(alice, bob, CLAIM);
+        uint256 t = words.claim("CRANE", false, _proof(0));
+        vm.stopPrank();
+        assertEq(words.ownerOf(t), bob, "the word lands in the acting wallet");
+        assertEq(word.balanceOf(bob), bobBal, "the fee came from alice's wallet, through bob");
+        assertEq(letters.balanceOf(alice, 2), 0, "alice's letters were spent");
+    }
+
+    /// Pulling a letter away from an open loose roll turns that roll's signed success into a no-op.
+    /// The client must never pull a lowercase letter while the source wallet has a roll open on it.
+    function test_LinkedWallet_pullUnderAnOpenRollVoidsTheSuccess() public {
+        _fundLower(alice, "C");
+        _approveAll(alice);
+        vm.prank(alice);
+        uint256 id = rolls.commitLooseRoll(2);
+        vm.prank(alice);
+        letters.setApprovalForAll(bob, true);
+        vm.prank(bob);
+        letters.safeTransferFrom(alice, bob, 2, 1, "");
+        rolls.reveal(id, true, _signRoll(id, alice, 2, true));
+        assertEq(letters.balanceOf(bob, 2), 1, "still lowercase: the paid success did nothing");
+        assertEq(letters.balanceOf(bob, 28) + letters.balanceOf(alice, 28), 0, "no UPPERCASE C anywhere");
+    }
+
+    /// Without diff B, a caretaker cannot unstake: only the staker moves a Word out of Staking.
+    function test_Caretaker_cannotUnstake() public {
+        uint256 t = _claimLower(alice, 0);
+        _stake(alice, t);
+        _care(alice, bob);
+        vm.prank(bob);
+        vm.expectRevert(Staking.NotStaker.selector);
+        staking.unstake(t);
     }
 }
