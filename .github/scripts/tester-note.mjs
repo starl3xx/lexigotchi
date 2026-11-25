@@ -14,18 +14,23 @@
  * "need[s] to include what kind of update [it is]"). A post opens with its kind's label. The labels
  * are fixed text, never the heading's own words, so they need no escaping and can't break Telegram's
  * HTML.
- * @type {Map<string, { emoji: string, label: string, words: string[] }>}
+ *
+ * `rule` is the line of hyphens under the label (starl3xx: "the length of the type above it"): as
+ * many as make it about as wide as the emoji and the bold label in SF Pro, the font Telegram uses on
+ * Apple devices (Roboto, on Android, is within one). Counting the label's characters instead leaves
+ * the line short, since a hyphen is narrower than most letters. Measure again if a label changes.
+ * @type {Map<string, { emoji: string, label: string, rule: number, words: string[] }>}
  */
 export const KINDS = new Map([
-  ["new", { emoji: "🆕", label: "New feature", words: ["new", "new feature", "feature"] }],
-  ["fix", { emoji: "🐛", label: "Bug fix", words: ["fix", "bug fix", "bugfix", "bug"] }],
-  ["qol", { emoji: "✨", label: "Quality of life", words: ["qol", "quality of life", "polish", "improvement"] }],
-  ["change", { emoji: "🔄", label: "Change", words: ["change", "balance", "balance change", "rule change"] }],
-  ["heads-up", { emoji: "⚠️", label: "Heads up", words: ["heads up", "headsup", "notice"] }],
+  ["new", { emoji: "🆕", label: "New feature", rule: 16, words: ["new", "new feature", "feature"] }],
+  ["fix", { emoji: "🐛", label: "Bug fix", rule: 11, words: ["fix", "bug fix", "bugfix", "bug"] }],
+  ["qol", { emoji: "✨", label: "Quality of life", rule: 17, words: ["qol", "quality of life", "polish", "improvement"] }],
+  ["change", { emoji: "🔄", label: "Change", rule: 11, words: ["change", "balance", "balance change", "rule change"] }],
+  ["heads-up", { emoji: "⚠️", label: "Heads up", rule: 13, words: ["heads up", "headsup", "notice"] }],
 ]);
 // A note whose heading names no kind, or one not listed above, still posts: under this label. A note
 // that didn't post would be tried again on every deploy.
-const UPDATE = { emoji: "📣", label: "Update" };
+export const UPDATE = { emoji: "📣", label: "Update", rule: 11 };
 
 /**
  * The kind a heading's words name ("(fix)", ": Bug fix", "- QOL update"), or null.
@@ -115,7 +120,6 @@ export function noteHtml(markdown) {
   return restoreCode(formatted, (code) => `<code>${code}</code>`);
 }
 
-const FOOTER = "Live now at lexigotchi.fun/play";
 // Telegram refuses a message over 4,096 characters, and a refused post is never labelled, so it
 // would be tried again on every deploy. A note is cut to fit; notes that don't fit together go out
 // one by one.
@@ -143,37 +147,45 @@ function fit(note) {
  * for when Telegram refuses the HTML, and `notes`, the indexes of the notes it carries (so their PRs
  * can be labelled as soon as it is sent).
  *
- * Every note opens with its kind: a single note under a line of its own ("🐛 Bug fix"), keeping its
- * line breaks; several in one post, when they fit, as one bullet each ("• 🐛 Bug fix: …"). Each
- * note is converted on its own, so a stray ** in one can't pair with the next.
+ * The notes are grouped by kind, in the order the kinds first appear. Each kind opens with its label
+ * over a line of hyphens:
+ *
+ *   ✨ Quality of life
+ *   -----------------
+ *   The note.
+ *
+ * A kind with one note shows it as written, line breaks kept; one with several shows a bullet each,
+ * on one line. Each note is converted on its own, so a stray ** in one can't pair with the next.
  * @param {({ kind: string | null, note: string } | string)[]} notes
  * @returns {{ html: string, text: string, notes: number[] }[]}
  */
 export function betaPosts(notes) {
   const items = notes.map((n) => {
     const { kind, note } = typeof n === "string" ? { kind: null, note: n } : n;
-    return { ...((kind && KINDS.get(kind)) || UPDATE), note: fit(note) };
+    // Only the kinds listed: never a name off an object's prototype.
+    return { kind: kind && KINDS.has(kind) ? kind : null, note: fit(note) };
   });
   /** @param {number[]} picked */
   const post = (picked) => {
+    /** @type {Map<string | null, number[]>} */
+    const groups = new Map();
+    for (const i of picked) groups.set(items[i].kind, [...(groups.get(items[i].kind) ?? []), i]);
     /**
      * @param {(note: string) => string} format
      * @param {(label: string) => string} strong
      */
-    const body = (format, strong) => {
-      if (picked.length === 1) {
-        const { emoji, label, note } = items[picked[0]];
-        return `${emoji} ${strong(label)}\n${format(note)}`;
-      }
-      return picked
-        .map((i) => `• ${items[i].emoji} ${strong(`${items[i].label}:`)} ${format(items[i].note.replace(/\n+/g, " "))}`)
+    const body = (format, strong) =>
+      [...groups]
+        .map(([kind, these]) => {
+          const { emoji, label, rule } = (kind && KINDS.get(kind)) || UPDATE;
+          const text =
+            these.length === 1
+              ? format(items[these[0]].note)
+              : these.map((i) => `• ${format(items[i].note.replace(/\n+/g, " "))}`).join("\n\n");
+          return `${emoji} ${strong(label)}\n${"-".repeat(rule)}\n${text}`;
+        })
         .join("\n\n");
-    };
-    return {
-      html: `${body(noteHtml, (label) => `<b>${label}</b>`)}\n\n${FOOTER}`,
-      text: `${body((n) => n, (label) => label)}\n\n${FOOTER}`,
-      notes: picked,
-    };
+    return { html: body(noteHtml, (label) => `<b>${label}</b>`), text: body((n) => n, (label) => label), notes: picked };
   };
   const together = post(items.map((_, i) => i));
   // `text` is never shorter than what Telegram counts (it still has the markdown's own marks).
