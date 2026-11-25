@@ -8,6 +8,7 @@ export {
   IconContext,
   House,
   Backpack,
+  FilmStrip,
   Sparkle,
   Diamond,
   Trophy,

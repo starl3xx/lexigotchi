@@ -392,7 +392,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
   from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
-  Telegram welcome). Next step (not built): the share loop.
+  Telegram welcome). The share loop is built (decisions.md #27; see Word cards).
 - **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its scene on the
   front (`SceneFrame`) and its story on the back (`CardBack`, deep materials per tier in globals.css
   `.cb.m-*`), turned by the corner button. The flip belongs to the word (a host showing another word
@@ -416,7 +416,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `makeTiltFilter` draws only real moves (about a degree, ~30 a second), never off screen. The Today
   stage passes `live={!state.sheet}`, and an evicted back steps aside (`onEvicted`). CSS is the
   fallback everywhere else. A back under 560 px shows four
-  stats; an opened card lists the rest under it (`CardMore`).
+  stats; an opened card lists the rest under it (`CardMore`). **The share loop** (decisions.md #27;
+  `cards/loop/`, `cards/ShareVideo.tsx`): Share → "Make a video of the card" draws six seconds of the
+  card turning (OGL, the same `materialGlsl` as the live back, over `/s/<word>/back`, a transparent
+  Satori picture of the back's words: no "you", nothing from the query) and encodes it in the
+  browser (WebCodecs H.264 + `mp4-muxer`, deprecated but 9 kB: swap in `makeLoop.ts` only). It
+  takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
+  Two taps (make, then share or save), offered only where the file can leave; the preview plays
+  twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the corner wordmark on every frame.
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
