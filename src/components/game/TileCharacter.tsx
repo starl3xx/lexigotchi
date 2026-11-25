@@ -15,8 +15,9 @@
  * sizes. `full` = whole character; `bust` = tile + face, no limbs; `tile` = face only (the
  * dense-grid / word-row form). Auto-selected by size, overridable via `detail`.
  *
- * THE DRAWING IS FOUR STACKED LAYERS, each its own <svg>: the floor (shadow, shoes), the legs, the
- * body (rings, arms, tile, face), and the top (held hands, zzz, confetti). The loops (the breath,
+ * THE DRAWING IS UP TO FOUR STACKED LAYERS, each its own <svg>: the floor (shadow, shoes), the legs,
+ * the body (rings, arms, tile, face), and the top (held hands, zzz, confetti); an empty one isn't
+ * drawn, so a small tile in a grid is the body alone. The loops (the breath,
  * a jump) are CSS transforms on the legs and body LAYERS, never on a shape inside one. A browser
  * slides a finished layer without redrawing it; a transform inside an <svg> makes WebKit (every
  * iPhone browser and mini-app host) redraw the whole letter on every frame. Measured for one word
@@ -910,38 +911,42 @@ export function TileCharacter({
       </svg>
     );
 
+  // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
+  const hasFloor = showLimbs || state === "upgrade";
+  const hasTop = (showLimbs && linkLeft) || (showFace && (state === "hungry" || state === "rolling" || state === "eating")) || state === "celebrate";
   const layers = [
     // the floor: what never moves
-    layer(
-      "floor",
-      <>
-        {boil && showLimbs && (
-          <defs>
-            <filter id={`tc-boil-${uid}`} x="-20%" y="-20%" width="140%" height="140%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves={2} seed={seed} result="n" />
-              <feDisplacementMap in="SourceGraphic" in2="n" scale={2} xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-          </defs>
-        )}
-        {/* gold burst rays (upgrade) — behind everything */}
-        {state === "upgrade" && <BurstRays reduced={reduced} />}
-        {/* ground shadow: on the floor, whatever the figure does */}
-        {showLimbs && <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />}
-        {/* shoes — planted */}
-        {showLimbs && (
-          <g filter={boilFilter}>
-            <path d={SHOE} fill={INK} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-1 1)`} />
-            <path d={SHOE} fill={INK} transform={`translate(${FOOT_RX} ${FOOT_Y})`} />
-            {size >= SHINE_FROM && (
-              <g stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none">
-                <path d={SHOE_SHINE} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-1 1)`} />
-                <path d={SHOE_SHINE} transform={`translate(${FOOT_RX} ${FOOT_Y})`} />
-              </g>
-            )}
-          </g>
-        )}
-      </>,
-    ),
+    hasFloor &&
+      layer(
+        "floor",
+        <>
+          {boil && showLimbs && (
+            <defs>
+              <filter id={`tc-boil-${uid}`} x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves={2} seed={seed} result="n" />
+                <feDisplacementMap in="SourceGraphic" in2="n" scale={2} xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+            </defs>
+          )}
+          {/* gold burst rays (upgrade) — behind everything */}
+          {state === "upgrade" && <BurstRays reduced={reduced} />}
+          {/* ground shadow: on the floor, whatever the figure does */}
+          {showLimbs && <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />}
+          {/* shoes — planted */}
+          {showLimbs && (
+            <g filter={boilFilter}>
+              <path d={SHOE} fill={INK} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-1 1)`} />
+              <path d={SHOE} fill={INK} transform={`translate(${FOOT_RX} ${FOOT_Y})`} />
+              {size >= SHINE_FROM && (
+                <g stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none">
+                  <path d={SHOE_SHINE} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-1 1)`} />
+                  <path d={SHOE_SHINE} transform={`translate(${FOOT_RX} ${FOOT_Y})`} />
+                </g>
+              )}
+            </g>
+          )}
+        </>,
+      ),
 
     // the legs: the layer stretches from the feet, so they stay planted while the body rises
     showLimbs &&
@@ -1083,18 +1088,19 @@ export function TileCharacter({
     ),
 
     // the top: what stands still in front of the body
-    layer(
-      "top",
-      <>
-        {/* the hands this letter and its left neighbour hold */}
-        {showLimbs && linkLeft && <Clasp darts={darts} />}
-        {/* per-state extras anchored to the scene */}
-        {showFace && state === "hungry" && <Zzz reduced={reduced} />}
-        {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} />}
-        {showFace && state === "eating" && <Snack />}
-        {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
-      </>,
-    ),
+    hasTop &&
+      layer(
+        "top",
+        <>
+          {/* the hands this letter and its left neighbour hold */}
+          {showLimbs && linkLeft && <Clasp darts={darts} />}
+          {/* per-state extras anchored to the scene */}
+          {showFace && state === "hungry" && <Zzz reduced={reduced} />}
+          {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} />}
+          {showFace && state === "eating" && <Snack />}
+          {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
+        </>,
+      ),
   ];
 
   const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""}, ${state}${g >= 5 ? " · holographic" : g ? ` · gilded ${g}` : ""}`;
@@ -1145,8 +1151,7 @@ export function TileCharacter({
 // ===========================================================================
 export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean): void {
   useEffect(() => {
-    const row = ref.current;
-    if (!active || !row) return;
+    if (!active) return;
     let next = 0;
     const timers = new Set<number>();
     const later = (fn: () => void, ms: number) => {
@@ -1160,10 +1165,14 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
       el.classList.add(cls);
       later(() => el.classList.remove(cls), ms);
     };
-    const tiles = () => Array.from(row.querySelectorAll<HTMLElement>("[data-tc]"));
+    // The row is read from the ref at every tick, never kept: a host may swap the element under it
+    // (the Today stage keys the word's row by word), and a timer holding the old one would go on
+    // blinking a word that has left the page while the new one stared.
+    const tiles = () => Array.from(ref.current?.querySelectorAll<HTMLElement>("[data-tc]") ?? []);
     const tick = () => {
       const all = tiles();
-      if (all.length && !document.hidden) {
+      const row = ref.current;
+      if (row && all.length && !document.hidden) {
         const i = Math.floor(Math.random() * all.length);
         const el = all[i];
         const r = Math.random();

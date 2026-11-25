@@ -41,9 +41,13 @@ describe("the loops run on layers", () => {
     if (state !== "hungry") expect(els.some((el) => el.tagName.toLowerCase() === "svg")).toBe(true);
   });
 
-  it("is four stacked layers: floor, legs, body, top", () => {
-    const { container } = render(<TileCharacter char="a" size={140} />);
-    expect(container.querySelectorAll("svg")).toHaveLength(4);
+  it("is stacked layers (floor, legs, body, top), and draws only the ones that hold something", () => {
+    // a letter holding its left neighbour's hand has all four: the clasp is on the top
+    expect(render(<TileCharacter char="a" size={140} linkLeft />).container.querySelectorAll("svg")).toHaveLength(4);
+    // alone at rest, nothing is on top
+    expect(render(<TileCharacter char="a" size={140} />).container.querySelectorAll("svg")).toHaveLength(3);
+    // a small tile in a grid is the body alone, one <svg>, as it was before the layers
+    expect(render(<TileCharacter char="a" size={52} />).container.querySelectorAll("svg")).toHaveLength(1);
   });
 
   it("a still tile, and a small tile with no legs at rest, run nothing", () => {
@@ -134,6 +138,16 @@ describe("a word's life", () => {
     expect(el.children[0].classList.contains("tc-blink")).toBe(true);
     at(125);
     expect(el.children[0].classList.contains("tc-blink")).toBe(false);
+  });
+
+  it("follows the row when its element is swapped (the Today stage keys the row by word)", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const ref = { current: row() };
+    renderHook(() => useWordLife(ref, true));
+    const next = row();
+    ref.current = next; // the next word's row; the hook isn't told
+    at(600);
+    expect(next.children[0].classList.contains("tc-blink")).toBe(true);
   });
 
   it("does nothing while it isn't active, and cleans up when it stops", () => {
