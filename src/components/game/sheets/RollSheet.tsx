@@ -87,6 +87,11 @@ export function RollSheet({ target }: { target: RollTarget }) {
 
   // MINE, not the union — the roll commit checks msg.sender's balance of this letter.
   const looseLeft = loose ? mineLower(state)[target.idx] : 0;
+  // "Roll again" from the result, so rolling until it lands never means closing the sheet and
+  // reopening it (starl3xx, 2026-11-24). A miss never touches the letter, so it can always roll
+  // again: no holdings read, which may lag the reveal. A win can only on a loose letter with another
+  // lowercase copy left; a raised word slot is done.
+  const canRollAgain = phase === "miss" || (phase === "win" && loose && looseLeft > 0);
 
   return (
     <Sheet open onClose={close} title="Raise a letter">
@@ -159,14 +164,16 @@ export function RollSheet({ target }: { target: RollTarget }) {
             Close (we’ll finish it)
           </Button>
         )}
+        {/* Roll again rolls at once (one tap a roll), so its price is on it. Done sizes to its text so
+            the priced label fits beside it on a phone. */}
         {(phase === "win" || phase === "miss") && (
           <div className="flex gap-2">
-            <Button full variant="ghost" onClick={close}>
+            <Button full={!canRollAgain} variant="ghost" onClick={close}>
               Done
             </Button>
-            {loose && looseLeft > 0 && (
-              <Button full variant="gold" onClick={() => setPhase("ready")}>
-                Roll again
+            {canRollAgain && (
+              <Button variant="gold" className="flex-1" disabled={!g.canAfford(g.price("roll"))} onClick={reveal}>
+                Roll again · {fmtWord(g.price("roll"))} $WORD
               </Button>
             )}
           </div>
