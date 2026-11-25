@@ -735,6 +735,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * Roll commits the server has CONFIRMED revealed (relayed "mined" or "already"; never a wallet-sent
+   * reveal, which may not be mined yet). "Roll again" commits a new roll seconds after a reveal, and
+   * an RPC node a block behind can still read the old commit as open then: picked up as "your
+   * unfinished roll" or as the "new" commit, it would replay the old result and leave the new paid
+   * roll open. These ids are never open again, so every search for an open roll skips them.
+   */
+  const revealedRolls = useRef(new Set<string>());
+
+  /**
    * Reveal a KNOWN, already-paid roll commit. The server finishes it (sends the reveal from its
    * relayer key, decisions.md #14), so the wallet never previews the result; when the server can't
    * send, it returns the signature and the player's wallet sends it, as before.
@@ -757,10 +766,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         reread();
         for (const delay of [2_000, 6_000, 15_000]) setTimeout(reread, delay);
         if (r.relayed === "mined") {
+          revealedRolls.current.add(String(id));
           if (Number.isInteger(r.pity) && Number.isInteger(r.letterIndex)) notePity(r.owner, r.letterIndex, r.pity!);
           return { status: "resolved", success: r.success };
         }
-        if (r.relayed === "already") return { status: "resolved", success: r.success };
+        if (r.relayed === "already") {
+          revealedRolls.current.add(String(id));
+          return { status: "resolved", success: r.success };
+        }
         // Broadcast but not yet mined: the chain finishes it; a second reveal would only revert.
         return { status: "stranded", note: "Your roll is finishing onchain. It’ll show in a moment." };
       }
@@ -784,7 +797,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       toast("Rolling…", "info");
       // Everything past this point follows a PAID commit, so no failure here is "safe to retry".
       // A caretaker's word roll is committed in the STAKER's name (Rolls keys it on the owner).
-      const id = await waitForNewRollCommit(owner ?? address, before);
+      // Skip confirmed reveals too: a lagging read of one is not the commit just sent.
+      const id = await waitForNewRollCommit(owner ?? address, [...before, ...[...revealedRolls.current].map(BigInt)]);
       if (id === null) {
         return { status: "stranded", note: "Roll committed but slow to appear. Reopen to finish it" };
       }
@@ -801,7 +815,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const resumeOpenRoll = useCallback(
     async (letterIndex: number, markPaid: () => void, run: RunFn, owner?: `0x${string}`): Promise<ActionOutcome | null> => {
       if (!address) return null;
-      const open = await readOpenRollFor(owner ?? address, letterIndex);
+      // Confirmed reveals are skipped INSIDE the scan, so a lagging read of one can't hide a later
+      // commit that really is open.
+      const open = await readOpenRollFor(owner ?? address, letterIndex, revealedRolls.current);
       if (open === null) return null;
       toast("Finishing your unfinished roll on this letter first", "info");
       markPaid(); // paid at its commit; a failure from here leaves it open, never "try again for free"

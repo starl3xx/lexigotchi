@@ -507,14 +507,23 @@ export async function waitForNewRollCommit(owner: `0x${string}`, knownIds: reado
  * (Rolls.rollOpen), so a new roll on that letter would revert until this one is revealed. Found
  * from the commit events, not `hasOpenRoll`, so it also works against a deployment that predates
  * that view (where it simply finds the stranded roll worth finishing anyway).
+ *
+ * `skip`: commits the caller KNOWS are revealed. A node behind the chain can still read one as open,
+ * so the scan passes over them and keeps looking: stopping there would miss a later roll that
+ * really is open (Bugbot on #181).
  */
-export async function readOpenRollFor(owner: `0x${string}`, letterIndex: number): Promise<bigint | null> {
+export async function readOpenRollFor(
+  owner: `0x${string}`,
+  letterIndex: number,
+  skip?: ReadonlySet<string>,
+): Promise<bigint | null> {
   const rolls = addressOf("rolls");
   const client = getPublicClient();
   const logs = await client.getLogs({ address: rolls, event: ROLL_COMMITTED, args: { owner }, fromBlock: deployBlock(), toBlock: "latest" });
   for (const l of logs) {
     if (Number(l.args.letterIndex) !== letterIndex) continue;
     const id = l.args.commitId as bigint;
+    if (skip?.has(String(id))) continue;
     const c = (await client.readContract({ address: rolls, abi: rollsAbi, functionName: "commits", args: [id] })) as unknown as readonly [string, number, number, number, boolean, number, bigint];
     if (!c[4]) return id;
   }
