@@ -1167,10 +1167,35 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
       }, ms);
       timers.add(id);
     };
-    const flash = (el: Element, cls: string, ms: number) => {
-      el.classList.add(cls);
-      later(() => el.classList.remove(cls), ms);
+    // What each kind of gesture has pending on each tile: its ending. A newer gesture of the same
+    // kind on the same tile takes the ending over, so an older one's timer can't cut it short (a
+    // second glance landing on a letter mid-glance ended when the first was due to; Bugbot on #215).
+    const ends = new WeakMap<Element, Map<string, number>>();
+    const hold = (el: HTMLElement, kind: string, on: () => void, off: () => void, ms: number) => {
+      const mine = ends.get(el) ?? new Map<string, number>();
+      ends.set(el, mine);
+      const before = mine.get(kind);
+      if (before !== undefined) {
+        window.clearTimeout(before);
+        timers.delete(before);
+      }
+      on();
+      const id = window.setTimeout(() => {
+        timers.delete(id);
+        mine.delete(kind);
+        off();
+      }, ms);
+      timers.add(id);
+      mine.set(kind, id);
     };
+    const flash = (el: HTMLElement, cls: string, ms: number) =>
+      hold(
+        el,
+        cls,
+        () => el.classList.add(cls),
+        () => el.classList.remove(cls),
+        ms,
+      );
     // The row is read from the ref at every tick, never kept: a host may swap the element under it
     // (the Today stage keys the word's row by word), and a timer holding the old one would go on
     // blinking a word that has left the page while the new one stared.
@@ -1191,11 +1216,17 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
           // first (globals.css, .tc-pupil). Each sets and clears only its own, so neither can take
           // the eyes off the other: sharing one property did both ways (Bugbot on #215, twice).
           const dir = all.length === 1 ? (Math.random() < 0.5 ? -1 : 1) : i === 0 ? 1 : i === all.length - 1 ? -1 : Math.random() < 0.5 ? -1 : 1;
-          el.style.setProperty("--glance", String(dir * 0.9));
-          later(() => el.style.removeProperty("--glance"), 900 + Math.random() * 1100);
+          hold(
+            el,
+            "glance",
+            () => el.style.setProperty("--glance", String(dir * 0.9)),
+            () => el.style.removeProperty("--glance"),
+            900 + Math.random() * 1100,
+          );
         } else {
-          // a rare letter's star, or a gilded tile's, twinkles once
-          const starred = all.filter((t) => t.querySelector(".tc-star"));
+          // a rare letter's star, or a gilded tile's, twinkles once (not one that is mid-twinkle:
+          // the class is already on, so the animation wouldn't play again)
+          const starred = all.filter((t) => t.querySelector(".tc-star") && !t.classList.contains("tc-spark"));
           if (starred.length) flash(starred[Math.floor(Math.random() * starred.length)], "tc-spark", SPARK_MS);
         }
       }

@@ -165,6 +165,22 @@ describe("a word's life", () => {
     expect(tile.style.getPropertyValue("--gx")).toBe("0.4");
   });
 
+  it("a second glance on a letter mid-glance lasts its own time, not the first one's", () => {
+    // start at 590 ms · glance on the last letter for 999 ms · next tick 800 ms on · glance on it
+    // again for 1989 ms · then blinks elsewhere
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    for (const v of [0.1, 0.7, 0.7, 0.09, 0, 0.7, 0.7, 0.99]) rnd.mockReturnValueOnce(v);
+    const el = row();
+    renderHook(() => useWordLife({ current: el }, true));
+    const tile = el.children[2] as HTMLElement;
+    at(600);
+    expect(tile.style.getPropertyValue("--glance")).toBe("-0.9");
+    at(1100); // 1700 ms: the first glance was due to end at 1589, and the second began at 1390
+    expect(tile.style.getPropertyValue("--glance")).toBe("-0.9");
+    at(1700); // 3400 ms: the second has ended (3379)
+    expect(tile.style.getPropertyValue("--glance")).toBe("");
+  });
+
   it("does nothing while it isn't active, and cleans up when it stops", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.1);
     const idle = row();

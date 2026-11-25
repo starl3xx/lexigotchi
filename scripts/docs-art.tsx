@@ -60,10 +60,12 @@ interface Ch {
   gild?: Gild;
   /** the word's rarity, worn as the tile's finish (its light never passes in a picture: nothing adds .rf-moment) */
   tier?: Tier;
-  /** in a word: this letter holds its neighbour's hand on that side, and leans a little (group sets these) */
+  /** in a word: this letter holds its neighbour's hand on that side, leans a little, and knows its
+   *  place, which sets its beat in the word's breath and where its finish's glints sit (group sets these) */
   linkLeft?: boolean;
   linkRight?: boolean;
   lean?: number;
+  index?: number;
 }
 interface Group {
   chars: Ch[];
@@ -91,7 +93,7 @@ let drawn = 0;
 function character(c: Ch, size: number): Placed {
   // `flat`: the rig as ONE <svg> (its layers as groups), which a picture in a single file needs
   const html = renderToStaticMarkup(
-    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} linkLeft={c.linkLeft} linkRight={c.linkRight} lean={c.lean} flat />,
+    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} linkLeft={c.linkLeft} linkRight={c.linkRight} lean={c.lean} index={c.index} flat />,
   );
   let svg = html.match(/<svg[\s\S]*<\/svg>/)![0].replace(/ class="overflow-visible"/, ' overflow="visible"');
   const prefix = `c${drawn++}-`;
@@ -108,7 +110,7 @@ function group(g: Group): Placed {
   // a word's letters hold hands and lean, as in the game: each overlaps the last by the rig's share
   const word = g.chars.map((c) => c.ch).join("");
   const n = g.chars.length;
-  const parts = g.chars.map((c, i) => character(n > 1 ? { ...c, linkLeft: i > 0, linkRight: i < n - 1, lean: leanFor(word, i) } : c, g.size));
+  const parts = g.chars.map((c, i) => character(n > 1 ? { ...c, linkLeft: i > 0, linkRight: i < n - 1, lean: leanFor(word, i), index: i } : c, g.size));
   const overlap = -g.size * LINK_OVERLAP;
   const wordW = parts.reduce((s, p) => s + p.w, 0) + overlap * (parts.length - 1);
   const charH = Math.max(...parts.map((p) => p.h));
