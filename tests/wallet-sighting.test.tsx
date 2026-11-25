@@ -3,10 +3,11 @@
  * The connect beacon every player runs (useWalletSighting, mounted in GameApp). Pinned: it waits
  * for the viewer to resolve so the web/Farcaster label is right, it says nothing without a wallet,
  * it posts once per wallet per UTC day, and it marks the day only when the server stored it (so a
- * server without migration 0009 hears again on the next visit, not never).
+ * server without migration 0012 hears again on the next visit, not never), and that a tab left open
+ * across UTC midnight reports the new day.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, cleanup, waitFor } from "@testing-library/react";
+import { renderHook, cleanup, waitFor, act } from "@testing-library/react";
 import { sightingStorageKey, utcDay } from "@/lib/sightings";
 
 const W = "0x00000000000000000000000000000000000000A1";
@@ -64,5 +65,23 @@ describe("useWalletSighting", () => {
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 20));
     expect(localStorage.getItem(sightingStorageKey(W))).toBeNull();
+  });
+
+  it("reports the new day when the tab stays open across UTC midnight", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      vi.setSystemTime(Date.UTC(2026, 10, 24, 23, 59, 30));
+      renderHook(() => useWalletSighting());
+      await act(async () => {});
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(sightingStorageKey(W))).toBe(String(utcDay(Date.UTC(2026, 10, 24, 12))));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000); // past midnight, no reload, same wallet
+      });
+      expect(post).toHaveBeenCalledTimes(2);
+      expect(localStorage.getItem(sightingStorageKey(W))).toBe(String(utcDay(Date.UTC(2026, 10, 25, 12))));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
