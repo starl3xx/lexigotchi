@@ -35,6 +35,22 @@ export function networkToSwitchTo(o: {
   return o.walletChainId === game.id ? null : game;
 }
 
+/** A switch that `ensureChain` confirmed: the wallet left `from` for `to`. */
+export interface ConfirmedMove {
+  from: number;
+  to: number;
+}
+
+/**
+ * The wallet's network as far as the game knows. wagmi learns of a switch from the wallet's
+ * chainChanged event, and some wallets never send one; wagmi also can't be told of Base on a testnet
+ * build (it's configured with the game's network only). So while wagmi still reports the network a
+ * confirmed switch left, the switch's target wins (Bugbot on #202).
+ */
+export function knownWalletChain(reported: number | undefined, moved: ConfirmedMove | null): number | undefined {
+  return moved && reported === moved.from ? moved.to : reported;
+}
+
 const OTHER_NAMES: Record<number, string> = {
   1: "Ethereum",
   10: "Optimism",

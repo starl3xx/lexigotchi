@@ -17,7 +17,15 @@ import { useGame } from "./state";
 import { useViewer } from "./useViewer";
 import { NETWORK } from "@/lib/onchain/network";
 import { ensureChain, type Eip1193Provider } from "@/lib/onchain/sendCalls";
-import { MAINNET_VIEWS, networkToSwitchTo, switchRefusal, walletNetworkName, type SwitchRefusal } from "@/lib/onchain/walletNetwork";
+import {
+  MAINNET_VIEWS,
+  knownWalletChain,
+  networkToSwitchTo,
+  switchRefusal,
+  walletNetworkName,
+  type ConfirmedMove,
+  type SwitchRefusal,
+} from "@/lib/onchain/walletNetwork";
 
 export function WalletNetworkNotice() {
   const { state } = useGame();
@@ -26,13 +34,17 @@ export function WalletNetworkNotice() {
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
   const [busy, setBusy] = useState(false);
-  // Remembered with the network it happened on, so a refusal on Base doesn't follow the wallet elsewhere.
-  const [refused, setRefused] = useState<{ on: number; why: SwitchRefusal } | null>(null);
-  const want = networkToSwitchTo({ chainBacked: state.chainBacked, address, walletChainId: chainId, view: state.view });
+  // Remembered with the network it happened on and the one it asked for, so a refusal follows neither
+  // the wallet to another network nor the player to a screen that wants another one (Bugbot on #202).
+  const [refused, setRefused] = useState<{ on: number; to: number; why: SwitchRefusal } | null>(null);
+  // The last switch ensureChain confirmed, for a wallet that never tells wagmi (knownWalletChain).
+  const [moved, setMoved] = useState<ConfirmedMove | null>(null);
+  const walletChainId = knownWalletChain(chainId, moved);
+  const want = networkToSwitchTo({ chainBacked: state.chainBacked, address, walletChainId, view: state.view });
   if (!want) return null;
-  const from = chainId!;
+  const from = walletChainId!;
   const swapping = MAINNET_VIEWS.has(state.view);
-  const why = refused?.on === from ? refused.why : null;
+  const why = refused?.on === from && refused.to === want.id ? refused.why : null;
 
   const doSwitch = async () => {
     if (!connector?.getProvider) return;
@@ -40,14 +52,15 @@ export function WalletNetworkNotice() {
     setRefused(null);
     try {
       await ensureChain((await connector.getProvider()) as Eip1193Provider, want);
-      // The wallet is there now (ensureChain read it back). Tell wagmi too, since some wallets never
-      // announce the change; the wallet is already on the network, so this asks nothing of the player.
-      // wagmi knows only the game's network (Base for the swap on a testnet build is the wallet's news).
+      // The wallet is there now (ensureChain read it back), so the notice believes it even if wagmi
+      // never hears. Tell wagmi too where it can be told: it knows only the game's network, and the
+      // wallet is already there, so this asks nothing of the player.
+      if (chainId !== undefined) setMoved({ from: chainId, to: want.id });
       if (want.id === NETWORK.id) {
         await Promise.race([switchChainAsync({ chainId: want.id }), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
       }
     } catch (err) {
-      setRefused({ on: from, why: switchRefusal(err) });
+      setRefused({ on: from, to: want.id, why: switchRefusal(err) });
     } finally {
       setBusy(false);
     }

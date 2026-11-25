@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BASE, BASE_SEPOLIA } from "@/lib/onchain/network";
 import { WrongChainError } from "@/lib/onchain/sendCalls";
-import { networkToSwitchTo, switchRefusal, walletNetworkName } from "@/lib/onchain/walletNetwork";
+import { knownWalletChain, networkToSwitchTo, switchRefusal, walletNetworkName } from "@/lib/onchain/walletNetwork";
 
 /**
  * Which network the connected wallet should switch to (WalletNetworkNotice). The bug: Rainbow's
@@ -47,6 +47,19 @@ describe("networkToSwitchTo", () => {
     expect(networkToSwitchTo({ chainBacked: true, address: undefined, walletChainId: BASE.id, view: "home" })).toBeNull();
     expect(networkToSwitchTo({ chainBacked: true, address: ADDR, walletChainId: undefined, view: "home" })).toBeNull();
     expect(networkToSwitchTo({ chainBacked: false, address: ADDR, walletChainId: ARBITRUM, view: "home" })).toBeNull();
+  });
+});
+
+describe("knownWalletChain", () => {
+  it("trusts a confirmed switch while wagmi still reports the network it left (Bugbot on #202)", () => {
+    // Arbitrum to Base on the $WORD page of a testnet build: wagmi can't be told, and the wallet was silent.
+    const moved = { from: ARBITRUM, to: BASE.id };
+    expect(knownWalletChain(ARBITRUM, moved)).toBe(BASE.id);
+    expect(at(knownWalletChain(ARBITRUM, moved), "word")).toBeNull(); // the notice goes away
+    // Once wagmi reports anything else, wagmi is right again.
+    expect(knownWalletChain(ETHEREUM, moved)).toBe(ETHEREUM);
+    expect(knownWalletChain(BASE_SEPOLIA.id, null)).toBe(BASE_SEPOLIA.id);
+    expect(knownWalletChain(undefined, moved)).toBeUndefined();
   });
 });
 
