@@ -43,7 +43,7 @@ export function BroadcastTab() {
     {
       label: "General",
       build: () =>
-        `Raise your letters. Spell your words. Own the dictionary.\n\nLexigotchi is a tamagotchi-style $WORD collection game on Base — mint letter characters, roll them to UPPERCASE, claim words, stake for the daily jackpot. ↓`,
+        `Raise your letters. Spell your words. Own the dictionary.\n\nLexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own. Keep them fed, and they’re in the running for the daily jackpot. ↓`,
     },
   ];
 

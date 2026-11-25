@@ -506,6 +506,34 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
   composability, decisions.md "Royalty & marketplace architecture").
 
+## Copy and messaging
+
+**`docs/messaging.md` is the source of truth for every word a player reads** (decisions.md #22):
+Lexigotchi is a word-pet game: collect living letters, raise them, and spell words nobody else can
+own. Read it before writing any copy (the app, the landing page, the docs, reminders, share text,
+bot posts). The hard rules:
+
+- **Never name Tamagotchi or Pokémon** in player-facing copy, nor near-quote them ("gotta spell 'em
+  all", "Pokédex"). The comparison stays internal.
+- **Say / instead of:** letters, words (not NFTs, tokens, assets); yours, one owner, onchain (not
+  Web3, decentralized); raise, roll (not gamble, bet, upgrade); spell, claim a word (not mint a
+  word); feed, snack, hungry (not maintain, upkeep); the daily word, the jackpot, in the running (not
+  lottery, draw as a noun, ticket); earns $WORD every day (not yield, APR, returns, passive income);
+  Dictionary (not Lexidex); the Market (not marketplace, exchange).
+- **Never write:** price, pump, moon, invest, investment, "number go up", or a dollar figure for
+  $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
+  functional uses: a word's sale price on the Market and the $WORD page's own data.
+- **The jackpot always carries "staked and fed".**
+- **Lead with a pet, a word, or a rare letter, never with earning.** Letters are characters, written
+  in their case ("your q is hungry"); a reminder names the letter or word ("FUNKY is peckish").
+- **Numbers are derived, never typed** (`src/lib/howItWorks.ts`: `WORDS`, `TOP_TIER`,
+  `RAREST_LETTER`, `FREE_PACK`/`FREE_DAILIES`/`FREE_TO_START`, `LADDER`, `days`). The top tier's name
+  comes from `TIERS`, so the Mythic rename will flow through on its own (docs/messaging.md's TODO).
+- **`tests/copy-rules.test.ts` guards it**: the banned words fail the build in player-facing code
+  (`src/components` except the operator console, `src/app`, and the copy-bearing `src/lib` files) and
+  the player docs (except `contracts.mdx` and `fairness.mdx`, which keep token standards). An
+  exception goes in `VOCAB_ALLOW` with its reason.
+
 ## Gotchas / conventions
 
 - **`package.json` `overrides: { cuer: "0.0.4" }` is load-bearing.** RainbowKit 2.2.11 pins `cuer`

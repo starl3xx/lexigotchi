@@ -149,8 +149,8 @@ export function ClaimScreen() {
         <h1 className="font-display text-2xl font-extrabold md:hidden">Spell a word</h1>
         <p className="text-sm text-ink/60">
           Any five letters, any mix of lowercase and UPPERCASE. Claiming a dictionary word costs{" "}
-          <strong className="font-bold text-ink">{feeText}</strong> and locks its five letters inside your
-          Word NFT.
+          <strong className="font-bold text-ink">{feeText}</strong> and locks its five letters inside it. The
+          word is yours alone: every word has one owner.
         </p>
       </div>
 

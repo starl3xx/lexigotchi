@@ -395,6 +395,21 @@ setter. All small, riding existing suite patterns.
       campaign). All free letters share a budget of 30,000 (`FREE_LETTER_BUDGET`), and free grants stop
       when the dictionary is about 95% claimed. Server-side only: no contract changes.
 
+22. **Lexigotchi is a word-pet game: the messaging guide** (starl3xx, 2026-11-25). In the owner's words:
+    "the thing that's unique about this game is its unique combination of tamagotchi + pokemon + letters/words, and the fact that it's onchain and you can own and sell and swap and customize stuff. we can't lose the basic premise (get letters, form words, feed them, earn, eg) but we can be strategic how we talk about the broader game/universe and different hooks we use when promoting and talking about it"
+    - **The guide** is `docs/messaging.md`, the source of truth for every player-facing word: the
+      positioning line ("a word-pet game: collect living letters, raise them, and spell words nobody
+      else can own"), the premise every hook lands on, the hooks, the voice, the Say / Instead of
+      table, and the never-write list.
+    - **Ruling: the Tamagotchi/Pokémon comparison stays internal.** Player-facing copy never names
+      either one (both are guarded trademarks), nor near-quotes them ("gotta spell 'em all",
+      "Pokédex"). The comparison explains the game to the team; players hear "word pets".
+    - **Lead with a pet, a word, or a rare letter, never with earning.** Being onchain is the proof
+      that "yours" means yours, not the pitch. The jackpot always carries "staked and fed".
+    - **Guarded in code:** `tests/copy-rules.test.ts` fails on the never-write list and the "Instead
+      of" terms in player-facing code and the player docs (contracts.mdx and fairness.mdx keep their
+      technical terms), with a short allowlist whose entries each carry a reason.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

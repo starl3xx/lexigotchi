@@ -86,7 +86,7 @@ export function HomeScreen() {
   );
 }
 
-/** Today's jackpot: the pot, the draw, and whether the player may hold the secret word. */
+/** Today's jackpot: the pot, the countdown, and whether the player may hold the secret word. */
 function JackpotCard() {
   const g = useGame();
   const { state } = g;
@@ -115,17 +115,17 @@ function JackpotCard() {
             You may be holding today’s secret word <Eye weight="fill" size={14} />
           </span>
         ) : ownsAnswer ? (
-          <span className="font-bold text-candy-ink">You hold today’s word. Stake and feed it to be in the draw!</span>
+          <span className="font-bold text-candy-ink">You hold today’s word. Stake it and keep it fed to be in the running!</span>
         ) : state.wordsLoading || state.wordsError ? (
           // Not known yet: a returning player must never read the newcomer's line while loading.
-          <span className="text-ink/60">The secret word is hidden until the draw.</span>
+          <span className="text-ink/60">The secret word stays hidden until it’s drawn.</span>
         ) : state.words.length === 0 ? (
-          // A player with nothing in the draw hears how to get in, not just that the word is secret.
-          <span className="text-ink/60">Spell a word and stake it to be in the draw.</span>
+          // A player with nothing in the running hears how to get in, not just that the word is secret.
+          <span className="text-ink/60">Spell a word, stake it, and keep it fed to be in the running.</span>
         ) : !state.words.some(jackpotEligible) ? (
-          <span className="text-ink/60">None of your words is in the draw. Stake one and keep it fed.</span>
+          <span className="text-ink/60">None of your words is in the running. Stake one and keep it fed.</span>
         ) : (
-          <span className="text-ink/60">The secret word is hidden until the draw.</span>
+          <span className="text-ink/60">The secret word stays hidden until it’s drawn.</span>
         )}
       </div>
       <Button full variant="gold" className="mt-3" onClick={() => g.nav("jackpot")}>

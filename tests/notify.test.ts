@@ -13,6 +13,8 @@ import {
   listingFilled,
 } from "@/lib/notify/templates";
 import { NOTIFICATION_WEBHOOK_URL, farcasterManifest } from "@/lib/site";
+import { HUNGER_WARN_HOURS } from "@/lib/notify/triggers";
+import { DEFAULT_PARAMS } from "@/lib/params";
 
 // A push cannot be recalled. Every test here guards a failure that is only visible AFTER it has
 // already reached every player's phone.
@@ -126,8 +128,9 @@ describe("length limits", () => {
     const longWord = "z".repeat(40);
     for (let day = 0; day < 14; day++) {
       const built = [
-        hungerWarning(1, 6, day),
-        hungerWarning(9999, 24, day),
+        hungerWarning({ word: "ABOUT", words: 1, hoursLeft: 6 }, day),
+        hungerWarning({ word: longWord, words: 2, hoursLeft: 6 }, day),
+        hungerWarning({ word: longWord, words: 9999, hoursLeft: 24 }, day),
         dailyReady(day),
         jackpotWon(longWord, hugeAmount, day),
         jackpotRollover(hugeAmount, day),
@@ -144,7 +147,7 @@ describe("length limits", () => {
   });
 
   it("realistic copy fits without needing the clamp as a crutch", () => {
-    expect(withinLimits(hungerWarning(3, 6))).toBe(true);
+    expect(withinLimits(hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }))).toBe(true);
     expect(withinLimits(dailyReady())).toBe(true);
     expect(withinLimits(jackpotWon("cabin", "1,250,000 $WORD"))).toBe(true);
     expect(withinLimits(earningsPaid("42,000 $WORD"))).toBe(true);
@@ -160,7 +163,7 @@ describe("template rotation", () => {
 
   it("is deterministic — the same day yields the same copy", () => {
     expect(dailyReady(500).title).toBe(dailyReady(500).title);
-    expect(hungerWarning(2, 6, 7).title).toBe(hungerWarning(2, 6, 7).title);
+    expect(hungerWarning({ word: "FUNKY", words: 2, hoursLeft: 6 }, 7).title).toBe(hungerWarning({ word: "FUNKY", words: 2, hoursLeft: 6 }, 7).title);
   });
 
   it("keys idempotency per day so a retried cron cannot double-push", () => {
@@ -173,7 +176,7 @@ describe("template rotation", () => {
 // dangerous — a receipt keyed by day is a real notification the player silently never receives.
 describe("idempotency keys match what the message describes", () => {
   it("NUDGES repeat their key within a day, so a retried pass can't double-push", () => {
-    expect(hungerWarning(3, 6, 500).notificationId).toBe(hungerWarning(9, 2, 500).notificationId);
+    expect(hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }, 500).notificationId).toBe(hungerWarning({ word: "CRANE", words: 9, hoursLeft: 2 }, 500).notificationId);
     expect(pityCapped("q", 500).notificationId).toBe(pityCapped("q", 500).notificationId);
   });
 
@@ -183,7 +186,7 @@ describe("idempotency keys match what the message describes", () => {
   });
 
   it("nudges still separate across days and across letters", () => {
-    expect(hungerWarning(3, 6, 500).notificationId).not.toBe(hungerWarning(3, 6, 501).notificationId);
+    expect(hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }, 500).notificationId).not.toBe(hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }, 501).notificationId);
     expect(pityCapped("q", 500).notificationId).not.toBe(pityCapped("z", 500).notificationId);
   });
 
@@ -261,5 +264,31 @@ describe("limits are importable without the fail-fast throw", () => {
       );
       expect(src, `${name} should import limits`).toMatch(/from ["']@\/lib\/notify\/limits["']/);
     }
+  });
+});
+
+// The messaging guide (docs/messaging.md, decisions.md #22): reminders name the letter or word, in its
+// case, and a jackpot line carries "staked and fed".
+describe("reminders speak in the pet voice", () => {
+  it("the hunger reminder names the word on the soonest clock, and counts the rest", () => {
+    expect(hungerWarning({ word: "funky", words: 1, hoursLeft: 6 }).body).toBe(
+      "FUNKY is peckish. Feed it within 6h, or it goes hungry and sits out the jackpot.",
+    );
+    expect(hungerWarning({ word: "FUNKY", words: 2, hoursLeft: 6 }).body).toContain("FUNKY and 1 more word are peckish");
+    expect(hungerWarning({ word: "FUNKY", words: 4, hoursLeft: 6 }).body).toContain("FUNKY and 3 more words are peckish");
+  });
+
+  it("calls every warned word peckish only because the warning window sits inside the peckish stretch", () => {
+    const { peckishAfterDays, hungryAfterDays } = DEFAULT_PARAMS.care;
+    expect(HUNGER_WARN_HOURS).toBeLessThanOrEqual((hungryAfterDays - peckishAfterDays) * 24);
+  });
+
+  it("names a rolled letter lowercase, as it is while it rolls", () => {
+    expect(pityCapped("Q").body).toContain("your q:");
+  });
+
+  it("says staked and fed wherever the jackpot is won or rolls over", () => {
+    expect(jackpotWon("cabin", "1 $WORD").body).toContain("staked and fed");
+    expect(jackpotRollover("1 $WORD").body).toContain("staked and fed");
   });
 });

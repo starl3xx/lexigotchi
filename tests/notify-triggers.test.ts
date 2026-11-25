@@ -59,7 +59,7 @@ describe("fidLookupFrom", () => {
 describe("hungerTargets", () => {
   it("warns while there is still time to act", () => {
     const t = hungerTargets([w({ secondsUnfed: HUNGRY_AT - 6 * HOUR })], lookup);
-    expect(t).toEqual([{ fid: 100, words: 1, hoursLeft: 6 }]);
+    expect(t).toEqual([{ fid: 100, word: "ABOUT", words: 1, hoursLeft: 6 }]);
   });
 
   // Already-hungry words would re-qualify every single day. That's how a useful warning becomes
@@ -98,13 +98,23 @@ describe("hungerTargets", () => {
   it("reports the SOONEST deadline, since that's the clock the player has to beat", () => {
     const t = hungerTargets(
       [
-        w({ tokenId: 1n, secondsUnfed: HUNGRY_AT - 20 * HOUR }),
-        w({ tokenId: 2n, secondsUnfed: HUNGRY_AT - 3 * HOUR }),
-        w({ tokenId: 3n, secondsUnfed: HUNGRY_AT - 11 * HOUR }),
+        w({ tokenId: 1n, word: "CRANE", secondsUnfed: HUNGRY_AT - 20 * HOUR }),
+        w({ tokenId: 2n, word: "FUNKY", secondsUnfed: HUNGRY_AT - 3 * HOUR }),
+        w({ tokenId: 3n, word: "ABOUT", secondsUnfed: HUNGRY_AT - 11 * HOUR }),
       ],
       lookup,
     );
-    expect(t).toEqual([{ fid: 100, words: 3, hoursLeft: 3 }]);
+    // The reminder names the word on that clock ("FUNKY is peckish"), not the first one scanned.
+    expect(t).toEqual([{ fid: 100, word: "FUNKY", words: 3, hoursLeft: 3 }]);
+  });
+
+  it("names the alphabetically first word when two share the soonest deadline, so a rerun says the same", () => {
+    const words = [
+      w({ tokenId: 1n, word: "VIVID", secondsUnfed: HUNGRY_AT - 4 * HOUR }),
+      w({ tokenId: 2n, word: "CRANE", secondsUnfed: HUNGRY_AT - 4 * HOUR }),
+    ];
+    expect(hungerTargets(words, lookup)[0].word).toBe("CRANE");
+    expect(hungerTargets([...words].reverse(), lookup)[0].word).toBe("CRANE");
   });
 
   it("groups a player's words across all their linked wallets into one warning", () => {
@@ -115,7 +125,7 @@ describe("hungerTargets", () => {
       ],
       lookup,
     );
-    expect(t).toEqual([{ fid: 200, words: 2, hoursLeft: 5 }]);
+    expect(t).toEqual([{ fid: 200, word: "ABOUT", words: 2, hoursLeft: 5 }]);
   });
 
   it("drops owners who aren't notifiable players rather than guessing", () => {

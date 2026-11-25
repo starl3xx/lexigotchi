@@ -69,6 +69,8 @@ export const HUNGER_WARN_HOURS = 30;
 
 export interface HungerTarget {
   fid: number;
+  /** The word whose deadline is soonest, named by the reminder ("FUNKY is peckish"). */
+  word: string;
   /** How many of their staked words are inside the warning window. */
   words: number;
   /** Hours until the SOONEST of them goes hungry — the deadline that actually matters. */
@@ -110,6 +112,7 @@ export function hungerTargets(
  */
 export interface AddressHungerTarget {
   address: string;
+  word: string;
   words: number;
   hoursLeft: number;
 }
@@ -131,9 +134,9 @@ function groupHunger<K>(
   keyOf: (owner: string) => K | undefined,
   warnWithinHours: number,
   p: Params,
-): Map<K, { words: number; hoursLeft: number }> {
+): Map<K, { word: string; words: number; hoursLeft: number }> {
   const hungryAt = p.care.hungryAfterDays * DAY;
-  const byKey = new Map<K, { words: number; soonest: number }>();
+  const byKey = new Map<K, { word: string; words: number; soonest: number }>();
 
   for (const w of words) {
     if (!w.staked) continue;
@@ -145,17 +148,22 @@ function groupHunger<K>(
     const prev = byKey.get(key);
     if (prev) {
       prev.words += 1;
-      prev.soonest = Math.min(prev.soonest, secondsLeft);
+      // The soonest deadline names the reminder; a tie goes to the alphabetically first word, so a
+      // rerun names the same one.
+      if (secondsLeft < prev.soonest || (secondsLeft === prev.soonest && w.word < prev.word)) {
+        prev.soonest = secondsLeft;
+        prev.word = w.word;
+      }
     } else {
-      byKey.set(key, { words: 1, soonest: secondsLeft });
+      byKey.set(key, { word: w.word, words: 1, soonest: secondsLeft });
     }
   }
 
-  const out = new Map<K, { words: number; hoursLeft: number }>();
+  const out = new Map<K, { word: string; words: number; hoursLeft: number }>();
   for (const [key, v] of byKey) {
     // Round DOWN so we never promise more time than the player has. Floor to 1h so the copy
     // never reads "in 0h", which sounds like it already happened.
-    out.set(key, { words: v.words, hoursLeft: Math.max(1, Math.floor(v.soonest / HOUR)) });
+    out.set(key, { word: v.word, words: v.words, hoursLeft: Math.max(1, Math.floor(v.soonest / HOUR)) });
   }
   return out;
 }

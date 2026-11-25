@@ -1,5 +1,7 @@
 /**
- * Notification copy, in Lexigotchi's voice.
+ * Notification copy, in Lexigotchi's voice: the pet voice of the messaging guide (docs/messaging.md,
+ * decisions.md #22). A reminder names the letter or word it's about, written in its case ("FUNKY is
+ * peckish", "your q"), and a jackpot line always carries "staked and fed".
  *
  * TWO RULES, both learned from reading LHAW's production notifier:
  *
@@ -32,6 +34,10 @@
  */
 
 import { LIMITS } from "./limits";
+import { DEFAULT_PARAMS } from "@/lib/params";
+
+/** The pity cap, as titles and bodies quote it ("85%"): a param, so a static string per build. */
+const PITY_CAP = `${Math.round(DEFAULT_PARAMS.roll.pityCap * 100)}%`;
 
 export interface Notification {
   title: string;
@@ -60,11 +66,20 @@ const HUNGER_TITLES = [
   "Your words need a snack",
 ] as const;
 
-export function hungerWarning(wordCount: number, hoursLeft: number, day = epochDay()): Notification {
-  const s = wordCount === 1 ? "word" : "words";
+/**
+ * `word` is the one whose deadline is soonest (lib/notify/triggers), named the way the game shows
+ * words; `words` counts every staked word inside the warning window. Every one of them is peckish:
+ * the window (HUNGER_WARN_HOURS) sits inside the peckish stretch, which tests/notify.test.ts holds.
+ */
+export function hungerWarning(t: { word: string; words: number; hoursLeft: number }, day = epochDay()): Notification {
+  const word = t.word.toUpperCase();
+  const others = t.words - 1;
   return {
     title: rotate(HUNGER_TITLES, day),
-    body: `${wordCount} staked ${s} go hungry in ${hoursLeft}h: no yield, no jackpot. A snack fixes it.`,
+    body:
+      others <= 0
+        ? `${word} is peckish. Feed it within ${t.hoursLeft}h, or it goes hungry and sits out the jackpot.`
+        : `${word} and ${others} more ${others === 1 ? "word" : "words"} are peckish. Feed them within ${t.hoursLeft}h, or they go hungry and sit out the jackpot.`,
     notificationId: `hunger-${day}`,
   };
 }
@@ -73,16 +88,16 @@ export function hungerWarning(wordCount: number, hoursLeft: number, day = epochD
 // Only ever sent to players who have NOT pulled today (see the cron). A daily ping to someone who
 // already played is the single fastest way to get an app muted.
 const DAILY_TITLES = [
-  "Your daily letter is ready",
+  "Your free letter is here",
   "A fresh letter awaits",
   "Today’s letter is waiting",
-  "Come collect your letter",
+  "Come meet today’s letter",
 ] as const;
 
 export function dailyReady(day = epochDay()): Notification {
   return {
     title: rotate(DAILY_TITLES, day),
-    body: "Your next free daily letter is ready. One letter, on the house. Go see what you draw.",
+    body: "Your free letter is here, on the house. Come see who showed up.",
     notificationId: `daily-${day}`,
   };
 }
@@ -98,7 +113,7 @@ const WON_TITLES = ["You won the jackpot", "The pot is yours", "Your word came u
 export function jackpotWon(word: string, amount: string, day = epochDay()): Notification {
   return {
     title: rotate(WON_TITLES, day),
-    body: `${word.toUpperCase()} was today’s answer. ${amount} just landed in your bag.`,
+    body: `${word.toUpperCase()} was today’s word, and you held it staked and fed. ${amount} just landed in your wallet.`,
     notificationId: `won-${day}`,
   };
 }
@@ -109,7 +124,7 @@ const ROLLOVER_TITLES = ["The pot keeps growing", "Nobody had it", "The jackpot 
 export function jackpotRollover(amount: string, day = epochDay()): Notification {
   return {
     title: rotate(ROLLOVER_TITLES, day),
-    body: `No one held today’s word, so the pot rolled over. It’s up to ${amount} now.`,
+    body: `Nobody held today’s word staked and fed, so the pot rolled over. It’s up to ${amount} now.`,
     notificationId: `rollover-${day}`,
   };
 }
@@ -128,13 +143,16 @@ export function earningsPaid(amount: string, day = epochDay()): Notification {
 }
 
 // ── Rolls ─────────────────────────────────────────────────────────────────────────────
-const PITY_TITLES = ["Your next roll is 85%", "Best odds you’ll get", "Your luck is capped"] as const;
+const PITY_TITLES = [`Your next roll is ${PITY_CAP}`, "Best odds you’ll get", "Your luck is capped"] as const;
 
-/** NUDGE. One prod per letter per day is deliberate: the 85% cap persists until you roll it. */
+/**
+ * NUDGE. One prod per letter per day is deliberate: the cap persists until you roll it. A roll raises
+ * a lowercase letter, so the letter is named lowercase ("your q").
+ */
 export function pityCapped(letter: string, day = epochDay()): Notification {
   return {
     title: rotate(PITY_TITLES, day),
-    body: `Enough near-misses on ${letter.toUpperCase()}: your next roll sits at the 85% cap. Failure costs you nothing.`,
+    body: `Enough near-misses on your ${letter.toLowerCase()}: its next roll sits at the ${PITY_CAP} cap. A miss never hurts it.`,
     notificationId: `pity-${letter.toLowerCase()}-${day}`,
   };
 }
@@ -151,7 +169,7 @@ const SOLD_TITLES = ["Your letter sold", "Someone took your offer", "Swap filled
 export function listingFilled(letter: string, orderHash: string, day = epochDay()): Notification {
   return {
     title: rotate(SOLD_TITLES, day),
-    body: `Your ${letter.toUpperCase()} listing just filled. The trade settled onchain. Check your bag.`,
+    body: `Your ${letter} found a new home: the trade settled onchain. Check your bag.`,
     // Trimmed to fit the 128-char id budget; a 32-byte hash prefix is still collision-free here.
     notificationId: `filled-${orderHash.toLowerCase().replace(/^0x/, "").slice(0, 32)}`,
   };

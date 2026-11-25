@@ -3,22 +3,23 @@
  * Cheat sheet: the core loop on one screen, behind the header's "?" (and the desktop rail's link).
  *
  * starl3xx asked for "basically the onboarding flow (written for maximum understanding and minimal
- * confusion) but as a popup": collect letters; make words and raise letters; stake and feed, where
- * every staked, fed word is in the jackpot but only all-UPPERCASE ones earn $WORD. The intro tells a
- * story once; this is what a player checks mid-game. Prices are the live ones (g.price), and the
- * care thresholds come from params, so the sheet can't drift from the contracts.
+ * confusion) but as a popup". It follows the premise in the messaging guide (docs/messaging.md,
+ * decisions.md #22): collect letters, raise them, spell words only you can own, and keep them fed,
+ * where every staked, fed word is in the running for the jackpot but only all-UPPERCASE ones earn
+ * $WORD. The intro tells a story once; this is what a player checks mid-game. Prices are the live
+ * ones (g.price), and the care thresholds and free letters come from params, so the sheet can't
+ * drift from the contracts.
  */
 import type { ReactNode } from "react";
 import { Button, Sheet } from "../primitives";
-import { Cookie, Sparkle, TextAa } from "../ui/icons";
+import { Cookie, DiceFive, Sparkle, TextAa } from "../ui/icons";
 import { fmtUsd, fmtWord, showsUsd, useGame } from "../state";
 import { useOnboarding } from "../Onboarding";
 import { useOpenUrl } from "../useShare";
 import { usePublicProfile } from "../useProfile";
 import { DOCS_URL } from "@/lib/site";
 import { DEFAULT_PARAMS } from "@/lib/params";
-
-const days = (n: number) => (n === 1 ? "a day" : `${n} days`);
+import { FREE_DAILIES, FREE_PACK, days } from "@/lib/howItWorks";
 
 export function CheatSheet() {
   const g = useGame();
@@ -34,19 +35,23 @@ export function CheatSheet() {
 
   return (
     <Sheet open onClose={g.closeSheet} title="Cheat sheet">
-      <p className="mb-4 text-sm text-ink/60">The whole game in three steps.</p>
+      <p className="mb-4 text-sm text-ink/60">
+        The whole game in four steps: collect letters, raise them, spell words only you can own, and keep them fed.
+      </p>
 
       <div className="space-y-3">
         <Step n={1} icon={<Sparkle weight="fill" size={18} />} title="Collect letters">
           <li>
-            <strong>A free pack of 5 plus 10 free daily letters.</strong> To unlock them, tap your picture and
-            link Farcaster{xEnabled ? " or X," : ""} or verify your wallet with Coinbase. Take one daily letter a
-            day until you’ve had 10.
+            <strong>
+              Free to start: a pack of {FREE_PACK} plus {FREE_DAILIES} free daily letters.
+            </strong>{" "}
+            To unlock them, tap your picture and link Farcaster{xEnabled ? " or X," : ""} or verify your wallet with
+            Coinbase. Take one daily letter a day until you’ve had {FREE_DAILIES}.
           </li>
           <li>
-            <strong>Or buy a pack of 5</strong> anytime: {price("pack")}.
+            <strong>Or buy a pack of {FREE_PACK}</strong> anytime: {price("pack")}.
           </li>
-          <li>Every letter arrives lowercase.</li>
+          <li>Every letter is a little character, and every one arrives lowercase.</li>
           {profilesEnabled && (
             <li>
               <strong>Play with more than one wallet?</strong> Link them in your profile: one bag and one set of
@@ -56,32 +61,36 @@ export function CheatSheet() {
           )}
         </Step>
 
-        <Step n={2} icon={<TextAa weight="bold" size={18} />} title="Make words and raise letters">
-          <li>
-            <strong>Spell a word:</strong> any five letters that make a dictionary word, in any mix of lowercase and UPPERCASE.
-            Claim it for {price("claim")} and it’s yours alone. Each word has one owner.
-          </li>
+        <Step n={2} icon={<DiceFive weight="fill" size={18} />} title="Raise them">
           <li>
             <strong>Roll a letter</strong> to raise it to UPPERCASE: {price("roll")} a roll. A miss never
             hurts the letter, and every miss raises your odds on the next roll.
           </li>
-          <li>Do these in any order: roll loose letters first, or roll the letters inside a word you own.</li>
+          <li>Roll loose letters, or the letters inside a word you own: whichever you like first.</li>
         </Step>
 
-        <Step n={3} icon={<Cookie weight="fill" size={18} />} title="Stake and feed your words">
+        <Step n={3} icon={<TextAa weight="bold" size={18} />} title="Spell words">
           <li>
-            <strong>Every staked word you keep fed is in the daily jackpot.</strong> Each day one secret
-            word is drawn. If you hold it, staked and fed, you win the pot.
+            <strong>Five letters make a word:</strong> any five that spell a dictionary word, in any mix of
+            lowercase and UPPERCASE. Claim it for {price("claim")} and it’s yours alone. Each word has one owner.
+          </li>
+        </Step>
+
+        <Step n={4} icon={<Cookie weight="fill" size={18} />} title="Keep them fed">
+          <li>
+            <strong>Stake your words and feed each one once a day.</strong> One snack a day is free for your
+            whole profile; after that, a snack is {price("snack")}. After {days(peckishAfterDays)} without food a
+            word gets peckish and earns half. After {days(hungryAfterDays)} it’s hungry: it sits out the jackpot
+            and earns no $WORD until you feed it.
           </li>
           <li>
-            <strong>Only all-UPPERCASE words earn $WORD</strong> every day, while they’re staked and fed. It’s
-            paid each day, straight to the wallet that holds the word: nothing to claim. Tap the line under your words on Today
-            to see what each one has earned.
+            <strong>Every word you keep staked and fed is in the running for the daily jackpot.</strong> Each day
+            one secret word is drawn. If you hold it, staked and fed, the pot is yours.
           </li>
           <li>
-            <strong>Feed each staked word once a day.</strong> One snack a day is free for your whole profile; after that, a snack
-            is {price("snack")}. After {days(peckishAfterDays)} without food a word gets peckish and earns
-            half. After {days(hungryAfterDays)} it’s hungry: no jackpot and no $WORD until you feed it.
+            <strong>All-UPPERCASE words earn $WORD</strong> every day, while they’re staked and fed. It’s paid
+            each day, straight to the wallet that holds the word: nothing to claim. Tap the line under your words
+            on Today to see what each one has earned.
           </li>
           <li>Each week, staked words that match the week’s theme also share the bounty.</li>
           <li>

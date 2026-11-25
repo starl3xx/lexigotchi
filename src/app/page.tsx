@@ -12,9 +12,9 @@ import { emailEnabled } from "@/lib/notify/email";
  * same `fc:miniapp` / `fc:frame` / `base:app_id` tags are emitted here so that keeps working.
  */
 export const metadata: Metadata = {
-  title: "Lexigotchi: raise your letters, spell your words, own the dictionary",
-  description:
-    "A letter-collecting game on Base. Collect little letter characters, roll them up to UPPERCASE, spell 1-of-1 words, and keep them fed to chase the daily $WORD jackpot. Any wallet plays.",
+  // The guide's page title and share description (docs/messaging.md, decisions.md #22).
+  title: "Lexigotchi: a word-pet game on Base",
+  description: "Collect letters, raise them, and spell words only you can own.",
   alternates: { canonical: "/" },
   other: {
     "fc:miniapp": JSON.stringify(miniAppEmbed),

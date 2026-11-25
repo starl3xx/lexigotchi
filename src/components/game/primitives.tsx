@@ -158,7 +158,7 @@ export function PityMeter({ pity }: { pity: number }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs font-bold text-ink/70">
-        <span>upgrade odds</span>
+        <span>roll odds</span>
         <span className="font-display text-sm text-ink">{Math.round(prob * 100)}%</span>
       </div>
       <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-paper-dark">
