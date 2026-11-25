@@ -347,9 +347,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
 - **A claim may mix cases** (decisions.md #16): `Words.claim(word, uint8 upperMask, proof)` names
   each letter's case (bit k ⇒ position k UPPERCASE). The app's quick Claim uses UPPERCASE first.
-  **Until the next testnet redeploy the deployed Words still takes `bool uppercase`**, so the app's
-  claim call, `abis.ts`, and the `Claimed` event shape in `reads.ts` switch in that redeploy's PR,
-  never before (a mask sent to the old Words reverts every claim).
+  **Until the next testnet redeploy the deployed Words still takes `bool uppercase`.** The app half
+  is branch `feat/mixed-case-spell` (claim call, `abis.ts`, the `Claimed` event read by
+  `onchain/reads.ts` and `keeper/scan.ts`), and it ships IN the redeploy's PR, never on its own and
+  never after: the app alone sends a mask the old Words reverts; a redeploy alone sends a bool the
+  new Words reverts, and the bag and keeper miss every new word (the event signature changed).
 - Snacks 100% burn. The `ROYALTY` FeeSource is the in-house swap fee → 100% Treasury; both token
   contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
   composability, decisions.md "Royalty & marketplace architecture").
