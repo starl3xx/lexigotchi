@@ -150,22 +150,18 @@ describe("a word's life", () => {
     expect(next.children[0].classList.contains("tc-blink")).toBe(true);
   });
 
-  it("a glance lets go of the eyes when it ends, unless the pointer took them meanwhile", () => {
+  it("a glance has its own property, so it and the pointer can't take the eyes off each other", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.7); // the glance branch, the last letter, ending 1670 ms on
     const el = row();
     renderHook(() => useWordLife({ current: el }, true));
     const tile = el.children[2] as HTMLElement;
-    at(1200); // the first tick, at 1130 ms
-    expect(tile.style.getPropertyValue("--gx")).toBe("-0.9");
-    at(1700);
-    expect(tile.style.getPropertyValue("--gx")).toBe("");
-
-    // again, and this time the pointer arrives mid-glance and useGaze writes where it is
-    at(1000);
-    expect(tile.style.getPropertyValue("--gx")).toBe("-0.9");
-    el.matches = ((q: string) => q === ":hover") as typeof el.matches;
+    // the pointer is on this letter the whole time (useGaze writes --gx)
     tile.style.setProperty("--gx", "0.4");
-    at(2000);
+    at(1200); // the first tick, at 1130 ms
+    expect(tile.style.getPropertyValue("--glance")).toBe("-0.9");
+    expect(tile.style.getPropertyValue("--gx")).toBe("0.4");
+    at(1700); // the glance has ended: it let go of its own property, and only that
+    expect(tile.style.getPropertyValue("--glance")).toBe("");
     expect(tile.style.getPropertyValue("--gx")).toBe("0.4");
   });
 

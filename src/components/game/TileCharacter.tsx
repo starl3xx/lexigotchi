@@ -1146,8 +1146,9 @@ export function TileCharacter({
 
 // ===========================================================================
 // Life. One timer for a word (never one a tile, never a loop): every second or two one letter
-// blinks, glances at a neighbour, or its star twinkles. Each is a class or a custom property set on
-// the tile for a moment (globals.css says what they do), so between gestures nothing ticks.
+// blinks, glances at a neighbour (--glance), or its star twinkles. Each is a class or a custom
+// property set on the tile for a moment (globals.css says what they do), so between gestures
+// nothing ticks.
 // ===========================================================================
 export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean): void {
   useEffect(() => {
@@ -1171,8 +1172,7 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
     const tiles = () => Array.from(ref.current?.querySelectorAll<HTMLElement>("[data-tc]") ?? []);
     const tick = () => {
       const all = tiles();
-      const row = ref.current;
-      if (row && all.length && !document.hidden) {
+      if (all.length && !document.hidden) {
         const i = Math.floor(Math.random() * all.length);
         const el = all[i];
         const r = Math.random();
@@ -1181,18 +1181,13 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
           if (Math.random() < 0.22) later(() => flash(el, "tc-blink", BLINK_MS), 280); // now and then, twice
           if (Math.random() < 0.3 && all[i + 1]) later(() => flash(all[i + 1], "tc-blink", BLINK_MS), 150); // a neighbour catches it
         } else if (r < 0.88) {
-          // a glance: at a neighbour, or (an end letter) out at the world. Not while the pointer
-          // has their eyes (useGaze).
-          if (!row.matches(":hover")) {
-            const dir = all.length === 1 ? (Math.random() < 0.5 ? -1 : 1) : i === 0 ? 1 : i === all.length - 1 ? -1 : Math.random() < 0.5 ? -1 : 1;
-            el.style.setProperty("--gx", String(dir * 0.9));
-            // The glance ends by letting go of --gx, unless the pointer arrived meanwhile: then the
-            // eyes are the pointer's (useGaze wrote over the glance), and it lets go when it leaves.
-            // Clearing here would snap them level until the pointer next moved (Bugbot on #215).
-            later(() => {
-              if (!ref.current?.matches(":hover")) el.style.removeProperty("--gx");
-            }, 900 + Math.random() * 1100);
-          }
+          // A glance: at a neighbour, or (an end letter) out at the world. It has a property of its
+          // own, --glance, and the pointer has --gx / --gy (useGaze); the pupil reads the pointer's
+          // first (globals.css, .tc-pupil). Each sets and clears only its own, so neither can take
+          // the eyes off the other: sharing one property did both ways (Bugbot on #215, twice).
+          const dir = all.length === 1 ? (Math.random() < 0.5 ? -1 : 1) : i === 0 ? 1 : i === all.length - 1 ? -1 : Math.random() < 0.5 ? -1 : 1;
+          el.style.setProperty("--glance", String(dir * 0.9));
+          later(() => el.style.removeProperty("--glance"), 900 + Math.random() * 1100);
         } else {
           // a rare letter's star, or a gilded tile's, twinkles once
           const starred = all.filter((t) => t.querySelector(".tc-star"));
@@ -1207,7 +1202,7 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
       timers.forEach((id) => window.clearTimeout(id));
       tiles().forEach((el) => {
         el.classList.remove("tc-blink", "tc-spark");
-        el.style.removeProperty("--gx");
+        el.style.removeProperty("--glance");
       });
     };
   }, [ref, active]);
