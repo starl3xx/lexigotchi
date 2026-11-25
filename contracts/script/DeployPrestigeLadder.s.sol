@@ -20,11 +20,16 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  *         2. A new Prestige, the word ladder: 5 stages (Gilded 1–4 + Holographic), a stage-N attempt
  *            paying N × the base fee. The base defaults to two rolls ($0.50 at the roll's $0.25 peg);
  *            the signer, snack cost, move cap, and price keeper carry over from the old Prestige.
- *         3. Words trusts the new Prestige (setPrestige), the FeeRouter takes its fees, and the old
- *            one stops being a collector.
+ *         3. The old Prestige stops being a FeeRouter collector FIRST, so an attempt on it from here
+ *            on reverts whole (no fee taken) instead of being paid and left unable to reveal. Then the
+ *            new one becomes a collector and Words trusts it (setPrestige).
  *
- *         Stages already earned live in Words, so none are lost. The broadcaster must own the
- *         FeeRouter, Words, and the old Prestige (one owner EOA). Run it only when the old Prestige
+ *         Stages already earned live in Words, so none are lost. Ascension PITY lives in Prestige and
+ *         does not carry over: every word starts the new ladder at its stage's first-try odds. Until
+ *         the app points at the new address, ascension on the old one simply refuses.
+ *
+ *         The broadcaster must own the FeeRouter, Words, and the old Prestige (one owner EOA). Run it
+ *         only when the old Prestige
  *         has no unrevealed attempt: once Words stops trusting it, that reveal would revert and the
  *         paid fee would stay stuck. The script refuses if any attempt was ever made, unless
  *         ALLOW_PAST_ATTEMPTS=true (then check `attemptOpen` for the words that tried).
@@ -62,9 +67,9 @@ contract DeployPrestigeLadder is Script {
         );
         prestige.setMaxMoveBps(old.maxMoveBps());
         if (old.priceKeeper() != address(0)) prestige.setPriceKeeper(old.priceKeeper());
+        fr.setCollector(address(old), false); // first: no attempt can be paid on the old one from here
         fr.setCollector(address(prestige), true);
         words.setPrestige(address(prestige));
-        fr.setCollector(address(old), false);
         vm.stopBroadcast();
 
         console2.log("Prestige (ladder)", address(prestige));
