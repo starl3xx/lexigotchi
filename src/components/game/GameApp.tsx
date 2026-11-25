@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PRELAUNCH, DOCS_URL, X_HANDLE, X_URL } from "@/lib/site";
-import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
+import { GameProvider, useGame, fmtWord, fmtUsd, showsUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { useOpenUrl } from "./useShare";
 import { Onboarding, OnboardingContext } from "./Onboarding";
@@ -393,7 +393,8 @@ function TopBar() {
             {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
           <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/60">
-            {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
+            {/* Test $WORD has no value, so the testnet game shows no dollar figure for it. */}
+            {state.status !== "ready" ? "$WORD" : showsUsd(state) ? `${fmtUsd(state.balance)} · $WORD` : "test $WORD"}
           </div>
         </button>
         {helpBtn}

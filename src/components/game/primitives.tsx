@@ -396,8 +396,10 @@ function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
  */
 function ToastItem({ toast, onDone }: { toast: Toast; onDone: (id: number) => void }) {
   const [phase, setPhase] = useState<"enter" | "open" | "exit">("enter");
-  const [held, setHeld] = useState(false);
-  const left = useRef(toastMs(toast.text));
+  // A toast that arrives while the tab is hidden starts held: a phone player confirming in their
+  // wallet app would otherwise come back to a result that ran out while they were away.
+  const [held, setHeld] = useState(() => typeof document !== "undefined" && document.hidden);
+  const left = useRef(toast.ms ?? toastMs(toast.text));
   useEffect(() => {
     // Two frames: the first paints the entering pose, the second starts the transition from it.
     let b = 0;

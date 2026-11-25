@@ -17,6 +17,8 @@ function mockProvider(opts: {
   chainId?: string;
   switchBehavior?: "switch" | "silent-noop" | "reject" | "unrecognized";
   supports5792?: boolean;
+  /** What wallet_sendCalls answers (default the bare id "0xbatchid"). */
+  batchReply?: unknown;
 }) {
   let chain = opts.chainId ?? CHAIN_ID_HEX;
   const calls: { method: string; params?: unknown[] }[] = [];
@@ -37,7 +39,7 @@ function mockProvider(opts: {
           return null;
         case "wallet_sendCalls":
           if (opts.supports5792 === false) throw { code: 4200, message: "Unsupported method" };
-          return "0xbatchid";
+          return "batchReply" in opts ? opts.batchReply : "0xbatchid";
         case "eth_sendTransaction":
           return "0xtxhash";
         default:
@@ -55,6 +57,16 @@ describe("sendCallsAttributed — the write chokepoint", () => {
     const { provider, calls } = mockProvider({});
     const res = await sendCallsAttributed(provider, FROM, [{ to: TO, data: DATA }]);
     expect(res).toEqual({ via: "sendCalls", id: "0xbatchid" });
+
+    // ERC-5792 v2 wallets answer an object; the id inside it is the one wallet_getCallsStatus knows.
+    const v2 = mockProvider({ batchReply: { id: "0xv2batch", capabilities: {} } });
+    expect(await sendCallsAttributed(v2.provider, FROM, [{ to: TO, data: DATA }])).toEqual({ via: "sendCalls", id: "0xv2batch" });
+
+    // A reply with no id is still a send (the wallet accepted it), never the string "undefined".
+    for (const batchReply of [{ capabilities: {} }, null]) {
+      const noId = mockProvider({ batchReply });
+      expect(await sendCallsAttributed(noId.provider, FROM, [{ to: TO, data: DATA }])).toEqual({ via: "sendCalls" });
+    }
 
     const send = calls.find((c) => c.method === "wallet_sendCalls")!;
     const p = (send.params as Record<string, unknown>[])[0];

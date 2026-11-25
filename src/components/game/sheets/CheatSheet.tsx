@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 import { Button, Sheet } from "../primitives";
 import { Cookie, Sparkle, TextAa } from "../ui/icons";
-import { fmtUsd, fmtWord, useGame } from "../state";
+import { fmtUsd, fmtWord, showsUsd, useGame } from "../state";
 import { useOnboarding } from "../Onboarding";
 import { useOpenUrl } from "../useShare";
 import { usePublicProfile } from "../useProfile";
@@ -28,7 +28,7 @@ export function CheatSheet() {
   const { xEnabled, emailEnabled, profilesEnabled } = usePublicProfile();
   const price = (item: Parameters<typeof g.price>[0]) => {
     const w = g.price(item);
-    return `${fmtWord(w)} $WORD (${fmtUsd(w)})`;
+    return showsUsd(g.state) ? `${fmtWord(w)} $WORD (${fmtUsd(w)})` : `${fmtWord(w)} $WORD`;
   };
   const { peckishAfterDays, hungryAfterDays } = DEFAULT_PARAMS.care;
 
