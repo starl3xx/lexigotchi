@@ -1,5 +1,5 @@
 {
-  "_comment": "Base Sepolia REHEARSAL deployment (2026-11-25, the fourth one, a full redeploy with the owner's go-ahead). Not production. It adds mixed-case claims (Words.claim names each letter's case, decisions.md #17) and one free snack per profile (Staking.feedWithSnack, a signer voucher; plain feed always pays), on top of caretakers, Staking's guard against Words sent to it directly, the pre-mainnet audit fixes, and the 4,584-word dictionary. $WORD here is contracts/test/mocks/MockERC20.sol (permissionless mint(), the in-game testnet faucet), reused from the first rehearsal. No swap router ($WORD-only, as at launch). The AnswerChain head is the throwaway rehearsal schedule. The bounty carve is 1500 bps from deploy.",
+  "_comment": "Base Sepolia REHEARSAL deployment (2026-11-25, the fourth one, a full redeploy with the owner's go-ahead). Not production. It adds mixed-case claims (Words.claim names each letter's case, decisions.md #17) and one free snack per profile (Staking.feedWithSnack, a signer voucher; plain feed always pays), on top of caretakers, Staking's guard against Words sent to it directly, the pre-mainnet audit fixes, and the 4,584-word dictionary. $WORD here is contracts/test/mocks/MockERC20.sol (permissionless mint(), the in-game testnet faucet), reused from the first rehearsal. No swap router ($WORD-only, as at launch). The AnswerChain head is the throwaway rehearsal schedule. The bounty carve is 1500 bps from deploy. Economy retune (decisions.md #19, with the owner's go-ahead, 2026-11-25, block 63342833, contracts/script/DeployPrestigeLadder.s.sol): every paid split is 75/10/10/5, and Prestige is the word-ladder contract (5 stages, stage fee = base x stage); the old Prestige 0xbE4a96e3a6D49F6f2E623486b4E6FA9459Ec91C6 is no longer a FeeRouter collector, and Words points at the new one.",
   "network": "base-sepolia",
   "chainId": 84532,
   "deployedAt": "2026-11-25",
@@ -18,7 +18,7 @@
     "words": "0xc1b4e6625e1b1588AEeA70913526c4418f390F91",
     "rolls": "0x5BA540B19F3572A852f640bEB30C1b0E93728440",
     "staking": "0xC4A3Dbb64F9e569BEbD9042a4B55e1d25e7b1b5b",
-    "prestige": "0xbE4a96e3a6D49F6f2E623486b4E6FA9459Ec91C6",
+    "prestige": "0x20D4D992Ac077cA5d70a61f16575FA7f57190940",
     "answerChain": "0x3D92037B5F9EB7799F5307B1E68d3BB023867cb0",
     "jackpot": "0x96B1eef8c6C784db0B9bBc61368aF64990E6D187",
     "yieldDistributor": "0xb645E749689257D35E395EE4aE154032DB786942",
