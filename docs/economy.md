@@ -62,9 +62,8 @@ Word rarity score = −Σ log₁₀(letter frequency) over its 5 letters; tiers 
 | Epic | 184 | 4.01% | 5 |
 | Legendary | 46 | 1.00% | 8 |
 
-> Note: a single word sits on the Uncommon/Rare score-tie boundary, so the computed split is
-> 1375/687 vs the spec's 1330/667 — the combined 1,997 is invariant; the anchor
-> counts (Common 2292, Epic 184, Legendary 46) match exactly.
+> Note: the cuts fall at floor(N × .50/.80/.95/.99), so each count is exact, and `npm test` pins all five.
+> (The spec's Appendix B was written for 4,438 words: 2,219 / 1,330 / 667 / 177 / 45.)
 
 ### The 46 Legendaries (rarest first)
 

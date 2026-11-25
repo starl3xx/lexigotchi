@@ -18,7 +18,7 @@ the on-chain architecture. Written to be fed to an LLM (or a new contributor) as
 
 | Step | Action | Outcome |
 |---|---|---|
-| **Mint** | Pull lowercase letters — a free daily single (FID-gated) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
+| **Mint** | Pull lowercase letters — a free daily single (one per player: Farcaster, X, or a Coinbase-verified wallet) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
 | **Raise** | Roll a lowercase letter toward UPPERCASE | A capital letter (40% base, pity to 85%); failure is harmless |
 | **Claim** | Spell a dictionary word with 5 letters, any mix of cases | One Word NFT (ERC-721); the 5 letters are escrowed inside it |
 | **Stake & Snack** | Stake a Word to earn; feed it snacks | UPPERCASE words draw yield; any staked, fed word is a jackpot ticket |
@@ -116,13 +116,14 @@ score). Words are ranked ascending and cut at floor percentiles, with an alphabe
 
 | Tier | Percentile cut | Count | Stake weight |
 |---|---|---|---|
-| Common | ≤ 50% | 2,219 | 1 |
-| Uncommon | ≤ 80% | ~1,331 | 2 |
-| Rare | ≤ 95% | ~666 | 3 |
-| Epic | ≤ 99% | 177 | 5 |
-| Legendary | top 1% | 45 | 8 |
+| Common | ≤ 50% | 2,292 | 1 |
+| Uncommon | ≤ 80% | 1,375 | 2 |
+| Rare | ≤ 95% | 687 | 3 |
+| Epic | ≤ 99% | 184 | 5 |
+| Legendary | top 1% | 46 | 8 |
 
-(The Uncommon/Rare boundary straddles a score tie; the combined 1,997 is the invariant.) **JAZZY** is
+(Each count is exact at the `floor(4,584 × p)` cuts, and `npm test` pins all five. The spec's
+Appendix B was written for 4,438 words.) **JAZZY** is
 the apex crown — the only word combining two distinct ultra-rares with a double letter.
 
 ---

@@ -48,7 +48,8 @@ suite depends on its `burn()` + `transferFrom` semantics.
    one lowercase + mints one uppercase (net per-letter supply conserved); free vouchers consume cap
    like paid mints.
 3. **One word = one NFT.** `tokenId = keccak256(word)`; case derived from escrow, never stored wrong;
-   claim escrows exactly 5 of uniform case; dissolve returns exactly those 5 + frees the name.
+   claim escrows exactly 5, each in the case the claim names (any mix, decisions.md #17); dissolve
+   returns exactly those 5 + frees the name.
 4. **Fail is a no-op.** A signed-but-stale roll/prestige success degrades to a no-op, never harming the
    asset or stranding the fee (no expiry on commits).
 5. **Jackpot is self-funded.** `seed()` reverts on the jackpot bucket (`JackpotNotSeedable`); the chance

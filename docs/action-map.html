@@ -109,7 +109,7 @@ const CLUSTERS = [
   { name:"Get letters", badge:"🎟️", tag:"acquire", color:"var(--candy)", fg:"var(--paper)",
     blurb:"Bring letters — and the $WORD to pay for everything — into your bag.",
     acts:[
-      {ico:"🎟️", nm:"Mint the free daily letter", ds:"One free lowercase letter, gated to your Farcaster FID, every day.", where:"Mint · Home", code:"dailyMint"},
+      {ico:"🎟️", nm:"Mint the free daily letter", ds:"One free lowercase letter a day for each player, unlocked by Farcaster, X, or a Coinbase-verified wallet.", where:"Today · Mint", code:"dailyMint"},
       {ico:"📦", nm:"Open a pack of 5", ds:"Buy five lowercase letters anytime — odds mirror the dictionary.", where:"Mint", code:"openPack"},
       {ico:"💰", nm:"Buy $WORD", ds:"Top up your balance (pay in $WORD or ETH, auto-swapped).", where:"Balance", code:"—"},
     ]},
@@ -122,18 +122,18 @@ const CLUSTERS = [
     ]},
 
   { name:"Claim", badge:"✍️", tag:"create", color:"var(--teal)", fg:"var(--paper)",
-    blurb:"Turn 5 same-case letters into a word you own — and recycle the ones you regret.",
+    blurb:"Turn 5 letters into a word you own — and recycle the ones you regret.",
     acts:[
-      {ico:"✍️", nm:"Spell & claim a word", ds:"Escrow 5 uniform-case letters → a 1-of-1 word NFT (held by one player at a time).", where:"Spell", code:"claim"},
+      {ico:"✍️", nm:"Spell & claim a word", ds:"Escrow the 5 letters that spell a dictionary word, in any mix of cases → a 1-of-1 word NFT (held by one player at a time).", where:"Spell", code:"claim"},
       {ico:"♻️", nm:"Dissolve a word", ds:"Burn it, recover its 5 letters in their current case, and free the name.", where:"Word sheet", code:"dissolve"},
     ]},
 
   { name:"Care", badge:"🍪", tag:"maintain", color:"var(--billiard)", fg:"var(--paper)",
     blurb:"The tamagotchi loop. Staked words get hungry; feed them or they sit out.",
     acts:[
-      {ico:"📌", nm:"Stake / unstake a word", ds:"Put a word to work (earning + jackpot-eligible) — or pull it back out.", where:"Word sheet", code:"toggleStake"},
-      {ico:"🍪", nm:"Feed a word", ds:"Reset its hunger. First snack each day is free, then paid (100% burned).", where:"Word sheet", code:"feed"},
-      {ico:"🍪", nm:"Feed all hungry words", ds:"One tap to feed everything that needs it, as far as your balance goes.", where:"Home (care alert)", code:"feedAll"},
+      {ico:"📌", nm:"Stake / unstake a word", ds:"Put a word to work (jackpot-eligible, and earning once all-UPPERCASE) — or pull it back out.", where:"Word sheet", code:"toggleStake"},
+      {ico:"🍪", nm:"Feed a word", ds:"Reset its hunger. One snack a day is free for your whole profile; the rest are paid (100% burned).", where:"Word sheet", code:"feed"},
+      {ico:"🍪", nm:"Feed all hungry words", ds:"One tap to feed everything that needs it, as far as your balance goes.", where:"Today", code:"feedAll"},
     ]},
 
   { name:"Win", badge:"🏆", tag:"earn", color:"var(--brass)", fg:"var(--paper)",
@@ -150,17 +150,18 @@ const CLUSTERS = [
   { name:"Show off & trade", badge:"🎭", tag:"social", color:"var(--blue)", fg:"var(--paper)", span2:true,
     blurb:"The growth + secondary-market surface. Every cast is an ad; swaps move letters peer-to-peer.",
     acts:[
-      {ico:"🎭", nm:"Build a showcase & cast it", ds:"Arrange any letters you own into any string (no dictionary check) and cast it — pure flex.", where:"Showcase", code:"share"},
-      {ico:"🔁", nm:"Propose a letter swap", ds:"Offer a two-sided letter trade (\"my Q for your two Z's, + $WORD\") as a shareable cast.", where:"Swap", code:"share"},
+      {ico:"🎭", nm:"Build a showcase & cast it", ds:"Pick a word you own and its scene, and post it on X (or cast it on Farcaster) — pure flex.", where:"Showcase", code:"share"},
+      {ico:"🔁", nm:"Propose a letter swap", ds:"Offer a two-sided letter trade (\"my Q for your two Z's, + $WORD\") as a free signed offer on the Market.", where:"Market", code:"share"},
+      {ico:"🏷️", nm:"Sell a word", ds:"List a word for the $WORD price you choose. You get 90%; 10% goes to the Rewards Pool.", where:"Word sheet · Market", code:"listWord"},
       {ico:"📣", nm:"Share a win or a claim", ds:"Cast your jackpot win, a fresh claim, or a lucky pull straight to Farcaster.", where:"result sheets", code:"useShare"},
     ]},
 
   { name:"Account & explore", badge:"🧭", tag:"meta", color:"var(--night)", fg:"var(--paper)",
     blurb:"Identity, funds, and reference — the connective tissue.",
     acts:[
-      {ico:"🔑", nm:"Sign in with Farcaster", ds:"Connect your account (in-client auto, or Sign In With Neynar on web). Unlocks the FID daily.", where:"Home · Mint · Balance", code:"signIn"},
+      {ico:"🔑", nm:"Sign in with Farcaster", ds:"Your wallet is your account (auto in Farcaster clients). Link Farcaster or X, or verify with Coinbase, for the free daily letter.", where:"Profile", code:"signIn"},
       {ico:"📖", nm:"Browse the Dictionary", ds:"Explore all 4,584 claimable words, their rarity tiers, and who owns what.", where:"Dictionary", code:"—"},
-      {ico:"❓", nm:"Open the FAQ / replay intro", ds:"How the whole thing works, replayable any time.", where:"FAQ", code:"—"},
+      {ico:"❓", nm:"Open the cheat sheet / replay intro", ds:"How the whole thing works, with the docs and the intro one tap away.", where:"Cheat sheet (?)", code:"—"},
     ]},
 
   { sec:"Prototype-only (debug — not real player actions)" },
