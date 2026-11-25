@@ -8,14 +8,13 @@ import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
 import { dailyKeysFor, xDailyKey } from "@/lib/onchain/verifications";
 import { claimDraw, readDraw } from "@/lib/db/draws";
-import { claimFree, crossGrants, dailyPeriods, fidLedgerAccount, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
+import { claimFree, freeDailiesTaken, recordedFreeGrant } from "@/lib/db/freeClaims";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
 import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
-import { crossCounts, crossKeys, FREE_LETTERS, profileDailyDays } from "@/lib/freeLetters";
+import { FREE_LETTERS } from "@/lib/freeLetters";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { isAddress } from "viem";
-import { fidsByAddressesDetailed } from "@/lib/neynar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
   // keys exceed 2^53, and a JS number would silently corrupt one before BigInt() ever saw it.
   const who = await resolveFreeIdentity(req, wallet, "free-daily");
   if (!who.ok) return NextResponse.json({ ok: false, error: who.error }, { status: who.status });
-  const { key, fid, xUserId, xCounts, account, wallets: accountWalletList } = who;
+  const { key, fid, xUserId, xCounts, account } = who;
 
   const letters = addressOf("letters");
 
@@ -90,29 +89,15 @@ export async function POST(req: Request) {
   // Expired grants are settled against the chain first (lib/onchain/freeLedger.ts), so a voucher
   // that lapsed unused gives its letter back and its day stops counting, BEFORE this profile's own
   // grant for today is read: a re-issue is only a re-issue of a grant that still counts.
-  //
-  // Which ledger account this grant goes on: the profile, when the key belongs to it
-  // (keyOwnedByProfile: the wallet in the request is the client's word). A FID that never verified the
-  // profile's wallets isn't recorded ON it (no planting a stranger's key), but its grants still count
-  // toward the 10 and the budget, under a ledger account of the FID's own.
-  const owned = await keyOwnedByProfile({ fid, derivedFromProfile: true, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
-  const ledger = owned || fid === null ? account : fidLedgerAccount(fid);
-  await settleGrants(NETWORK.id, ledger);
-  // The profile's grants on OTHER ledger accounts (an unverified FID's, made for this profile or paid to
-  // one of its wallets; Bugbot on #199) count too: today's refuses today, every day counts toward the 10.
-  const [recordedGrant, profileGrant, cross] = await Promise.all([
-    recordedFreeGrant(NETWORK.id, ledger, "daily", today),
-    ledger === account ? Promise.resolve(null) : recordedFreeGrant(NETWORK.id, account, "daily", today),
-    crossGrants(NETWORK.id, account, accountWalletList, [ledger]),
-  ]);
-  const recordedKeys = [recordedGrant?.key, profileGrant?.key, ...crossKeys(cross, "daily", today)].filter((k): k is bigint => k != null);
-  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet })), ...recordedKeys])];
+  // Every grant is the profile's: resolveFreeIdentity only signs under a key that belongs to it.
+  await settleGrants(NETWORK.id, account);
+  const recordedGrant = await recordedFreeGrant(NETWORK.id, account, "daily", today);
+  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet })), ...(recordedGrant ? [recordedGrant.key] : [])])];
   const used = (await getPublicClient().multicall({
     allowFailure: false,
     contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),
   })) as unknown as (number | bigint)[];
-  // …or a grant for today on another ledger account that belongs to this profile (an unverified FID's).
-  if (used.some((u) => Number(u) === today + 1) || crossCounts(cross, "daily", today)) {
+  if (used.some((u) => Number(u) === today + 1)) {
     return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
   }
 
@@ -121,8 +106,7 @@ export async function POST(req: Request) {
   const reissue = Boolean(recordedGrant?.counts);
   try {
     if (!reissue) {
-      const ledgerDays = await dailyPeriods(NETWORK.id, ledger);
-      const taken = ledgerDays === null ? null : profileDailyDays(ledgerDays, cross);
+      const taken = await freeDailiesTaken(NETWORK.id, account);
       if (taken !== null && taken >= DEFAULT_PARAMS.freeLetters.freeDailyLimit) {
         return NextResponse.json({ ok: false, error: "daily_limit_reached", limit: DEFAULT_PARAMS.freeLetters.freeDailyLimit }, { status: 409 });
       }
@@ -141,18 +125,15 @@ export async function POST(req: Request) {
   // anything"): record this profile's day under this key BEFORE signing, first write wins. Another of
   // its wallets, signing under any other key, is refused for the day, unless that first voucher expired
   // unused. A database error refuses (never sign twice); before migration 0013 the onchain walk decides.
-  // The grant goes on `ledger` (above): the profile, or an unverified FID's own ledger account.
   try {
     const claim = await claimFree({
           chainId: NETWORK.id,
-          account: ledger,
+          account,
           kind: "daily",
           period: today,
           key,
           letters: FREE_LETTERS.daily,
           expiresAt: new Date(Number(deadline) * 1000),
-          wallet,
-          profile: account,
           voucherTtlSeconds: VOUCHER_TTL_SECONDS,
           usedOnchain: async (k) =>
             Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,

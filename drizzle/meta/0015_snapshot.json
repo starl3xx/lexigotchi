@@ -1,5 +1,5 @@
 {
-  "id": "a62013e9-a257-4b08-b3f5-cd1a2a6d0494",
+  "id": "26f3d376-3545-4590-bb8f-8faea4566429",
   "prevId": "71fead58-3b72-48b6-9007-b83143cf933c",
   "version": "7",
   "dialect": "postgresql",
@@ -180,18 +180,6 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": false
-        },
-        "wallet": {
-          "name": "wallet",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "profile": {
-          "name": "profile",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -224,48 +212,6 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "free_claims_wallet": {
-          "name": "free_claims_wallet",
-          "columns": [
-            {
-              "expression": "chain_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "wallet",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "free_claims_profile": {
-          "name": "free_claims_profile",
-          "columns": [
-            {
-              "expression": "chain_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "profile",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -6,10 +6,10 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { NETWORK } from "@/lib/onchain/network";
 import { accountWallets } from "@/lib/db/walletLinks";
-import { crossGrants, dailyPeriods, fidLedgerAccount, freeLettersSigned, freePackTaken, recordedFreeKey } from "@/lib/db/freeClaims";
+import { freeDailiesTaken, freeLettersSigned, freePackTaken, recordedFreeKey } from "@/lib/db/freeClaims";
 import { settleGrants } from "@/lib/onchain/freeLedger";
 import { claimedWordCount } from "@/lib/onchain/claimedWords";
-import { crossCounts, crossKeys, dailiesLeft, freeLetterBudget, freeStop, FREE_LETTERS, profileDailyDays, type FreeStop } from "@/lib/freeLetters";
+import { dailiesLeft, freeLetterBudget, freeStop, FREE_LETTERS, type FreeStop } from "@/lib/freeLetters";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
@@ -56,29 +56,14 @@ export async function GET(req: Request) {
   if (!isAddress(wallet)) return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
   const fid = Number.isInteger(fidRaw) && fidRaw > 0 && fidRaw < 2 ** 32 ? fidRaw : null;
   try {
-    const [related, now, { account, wallets }] = await Promise.all([relatedDailyKeys({ fid, wallet }), readChainTime(), accountWallets(wallet)]);
+    const [related, now, { account }] = await Promise.all([relatedDailyKeys({ fid, wallet }), readChainTime(), accountWallets(wallet)]);
     const today = Math.floor(now / 86_400);
-    // The profile's ledger, and an unverified Farcaster sign-in's own (fidLedgerAccount): the routes
-    // record a FID that never verified the profile's wallets there. `fid` is the client's word, but
-    // this only reads. Grants on any OTHER ledger that paid one of the profile's wallets count too
-    // (crossGrants; Bugbot on #199), as the routes count them.
-    const ledgers = [account, ...(fid !== null ? [fidLedgerAccount(fid)] : [])];
-    for (const l of ledgers) await settleGrants(NETWORK.id, l);
+    await settleGrants(NETWORK.id, account);
     // The keys this PROFILE took today's letter and its pack under (lib/db/freeClaims.ts), whatever the
     // walk finds: the walk needs Farcaster's lookups, and a failed one would show Pull to a profile
     // that pulled.
-    const [recorded, cross] = await Promise.all([
-      Promise.all(ledgers.flatMap((l) => [recordedFreeKey(NETWORK.id, l, "daily", today), recordedFreeKey(NETWORK.id, l, "pack", 0)])),
-      crossGrants(NETWORK.id, account, wallets, ledgers).catch(() => []),
-    ]);
-    const keys = [
-      ...new Set([
-        ...related,
-        ...recorded.filter((k): k is bigint => k !== null),
-        ...crossKeys(cross, "daily", today),
-        ...crossKeys(cross, "pack", 0),
-      ]),
-    ];
+    const recorded = await Promise.all([recordedFreeKey(NETWORK.id, account, "daily", today), recordedFreeKey(NETWORK.id, account, "pack", 0)]);
+    const keys = [...new Set([...related, ...recorded.filter((k): k is bigint => k !== null)])];
     const letters = addressOf("letters");
     const reads = (await getPublicClient().multicall({
       allowFailure: false,
@@ -87,18 +72,15 @@ export async function GET(req: Request) {
         { address: letters, abi: lettersAbi, functionName: "freePackClaimed" as const, args: [k] },
       ]),
     })) as unknown as (number | bigint | boolean)[];
-    const claimed = keys.some((_, i) => Number(reads[i * 2]) === today + 1) || crossCounts(cross, "daily", today);
-    const packOnchain = keys.some((_, i) => Boolean(reads[i * 2 + 1])) || crossCounts(cross, "pack", 0);
+    const claimed = keys.some((_, i) => Number(reads[i * 2]) === today + 1);
+    const packOnchain = keys.some((_, i) => Boolean(reads[i * 2 + 1]));
 
-    const [days, packRecorded, signed, claimedWords] = await Promise.all([
-      Promise.all(ledgers.map((l) => dailyPeriods(NETWORK.id, l).catch(() => null))).then((all) =>
-        all.every((d) => d === null) ? null : all.flatMap((d) => d ?? []),
-      ),
-      Promise.all(ledgers.map((l) => freePackTaken(NETWORK.id, l).catch(() => null))).then((all) => all.some(Boolean)),
+    const [taken, packRecorded, signed, claimedWords] = await Promise.all([
+      freeDailiesTaken(NETWORK.id, account).catch(() => null),
+      freePackTaken(NETWORK.id, account).catch(() => null),
       freeLettersSigned(NETWORK.id).catch(() => null),
       claimedWordCount(),
     ]);
-    const taken = days === null ? null : profileDailyDays(days, cross);
     const left = dailiesLeft(taken);
     const budget = freeLetterBudget();
     const stopFor = (n: number) => freeStop({ claimed: claimedWords, dictionary: WORD_COUNT, signed, budget, letters: n });

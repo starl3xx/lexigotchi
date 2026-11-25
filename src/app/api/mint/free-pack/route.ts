@@ -6,12 +6,11 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { NETWORK } from "@/lib/onchain/network";
 import { isAddress } from "viem";
-import { claimFree, crossGrants, fidLedgerAccount, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
-import { fidsByAddressesDetailed } from "@/lib/neynar";
+import { claimFree, recordedFreeGrant } from "@/lib/db/freeClaims";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
 import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
-import { crossCounts, crossKeys, FREE_LETTERS } from "@/lib/freeLetters";
+import { FREE_LETTERS } from "@/lib/freeLetters";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // node:crypto + quick-auth
@@ -35,7 +34,7 @@ const VOUCHER_TTL_SECONDS = 600;
  *
  * One pack per profile: `freePackClaimed` across every key the profile has (relatedDailyKeys, the same
  * walk the daily uses, plus the key this profile's pack was recorded under), then the `free_claims`
- * record, first key wins. Then the free-letter budget and the dictionary stop. The nonce is the key,
+ * record, first key wins. A Farcaster sign-in only counts for a profile it belongs to (resolveFreeIdentity). Then the free-letter budget and the dictionary stop. The nonce is the key,
  * so a repeat request re-issues the SAME voucher; `freePackClaimed[key]` is the onchain one-shot guard.
  *
  * Body: `{ wallet: "0x..." }`
@@ -53,7 +52,7 @@ export async function POST(req: Request) {
 
   const who = await resolveFreeIdentity(req, wallet, "free-pack");
   if (!who.ok) return NextResponse.json({ ok: false, error: who.error }, { status: who.status });
-  const { key, fid, account, wallets: accountWalletList } = who;
+  const { key, fid, account } = who;
 
   const letters = addressOf("letters");
   const client = getPublicClient();
@@ -63,24 +62,10 @@ export async function POST(req: Request) {
   // Expired grants are settled against the chain first (lib/onchain/freeLedger.ts), so a pack voucher
   // that lapsed unused gives its five letters back, BEFORE this profile's own grant is read: a re-issue
   // is only a re-issue of a grant that still counts.
-  //
-  // Which ledger account the pack goes on: the profile, when the key belongs to it (an X or Coinbase
-  // key came from the profile itself; a FID must have verified one of its wallets). A FID that didn't
-  // isn't recorded ON the profile (no planting a stranger's key), but its pack still counts, under a
-  // ledger account of the FID's own.
-  const owned = await keyOwnedByProfile({ fid, derivedFromProfile: who.source !== "fid", accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
-  const ledger = owned || fid === null ? account : fidLedgerAccount(fid);
-  await settleGrants(NETWORK.id, ledger);
-  // A pack on ANOTHER ledger account that belongs to this profile (an unverified FID's, made for it or
-  // paid to one of its wallets; Bugbot on #199) means this profile has had one, from the moment it was
-  // signed (lib/freeLetters.ts profileDailyDays says why, and what that costs).
-  const [recordedGrant, profileGrant, cross] = await Promise.all([
-    recordedFreeGrant(NETWORK.id, ledger, "pack", 0),
-    ledger === account ? Promise.resolve(null) : recordedFreeGrant(NETWORK.id, account, "pack", 0),
-    crossGrants(NETWORK.id, account, accountWalletList, [ledger]),
-  ]);
-  const recordedKeys = [recordedGrant?.key, profileGrant?.key, ...crossKeys(cross, "pack", 0)].filter((k): k is bigint => k != null);
-  const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...recordedKeys])];
+  // Every grant is the profile's: resolveFreeIdentity only signs under a key that belongs to it.
+  await settleGrants(NETWORK.id, account);
+  const recordedGrant = await recordedFreeGrant(NETWORK.id, account, "pack", 0);
+  const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...(recordedGrant ? [recordedGrant.key] : [])])];
   const [open, claimed] = await Promise.all([
     client.readContract({ address: letters, abi: lettersAbi, functionName: "freePackOpen" }) as Promise<boolean>,
     client.multicall({
@@ -89,7 +74,7 @@ export async function POST(req: Request) {
     }) as Promise<boolean[]>,
   ]);
   if (!open) return NextResponse.json({ ok: false, error: "campaign_closed" }, { status: 409 });
-  if (claimed.some(Boolean) || crossCounts(cross, "pack", 0)) return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
+  if (claimed.some(Boolean)) return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
 
   // The free-letter budget and the dictionary stop (decisions.md #21). A pack this profile already
   // holds a counted voucher for is a re-issue: no new letters.
@@ -107,19 +92,17 @@ export async function POST(req: Request) {
   const deadline = BigInt(now + VOUCHER_TTL_SECONDS);
 
   // One free pack per PROFILE (lib/db/freeClaims.ts; starl3xx: "only one wallet per profile should get
-  // a free anything"): recorded on `ledger` (above) before signing, first key wins; a database error
-  // refuses, never signs twice.
+  // a free anything"): recorded before signing, first key wins; a database error refuses, never signs
+  // twice.
   try {
     const claim = await claimFree({
           chainId: NETWORK.id,
-          account: ledger,
+          account,
           kind: "pack",
           period: 0,
           key,
           letters: FREE_LETTERS.pack,
           expiresAt: new Date(Number(deadline) * 1000),
-          wallet,
-          profile: account,
           voucherTtlSeconds: VOUCHER_TTL_SECONDS,
           usedOnchain: async (k) =>
             Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),

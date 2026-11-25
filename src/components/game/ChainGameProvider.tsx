@@ -72,7 +72,7 @@ import {
   readOpenPrestigeFor,
 } from "@/lib/onchain/reads";
 import { dailyKeysFor } from "@/lib/onchain/verifications";
-import { usePublicProfile } from "./useProfile";
+import { useProfileSession, usePublicProfile } from "./useProfile";
 import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, walletTypedDataJson, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
@@ -634,13 +634,17 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * For the two routes that also serve the verified-wallet identity (daily voucher, letter
-   * reveal): token attached when present, plain fetch when not. Everything else stays on
-   * `postJson` — its `not_signed_in` pre-flight is load-bearing for the paid flows.
+   * For the routes that also serve the verified-wallet identity (the free daily and pack vouchers,
+   * the letter reveal): token attached when present, plain fetch when not. The wallet's profile
+   * session rides along too when the player has one: it proves this wallet is theirs, so a Farcaster
+   * sign-in that hasn't verified the wallet still counts (lib/onchain/freeIdentity.ts). Everything
+   * else stays on `postJson` — its `not_signed_in` pre-flight is load-bearing for the paid flows.
    */
+  const { token: profileToken } = useProfileSession();
   const openPostJson = useCallback(
-    <T,>(url: string, body: unknown) => maybeAuthedPostJson<T>(url, body),
-    [],
+    <T,>(url: string, body: unknown) =>
+      maybeAuthedPostJson<T>(url, body, profileToken ? { "x-lexigotchi-session": profileToken } : {}),
+    [profileToken],
   );
 
   /** Server error codes → something a player can act on. */
@@ -697,6 +701,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       switch (code) {
         case "verification_required":
           return "The free pack needs a linked account or a Coinbase-verified wallet. Open your profile";
+        case "farcaster_wallet_unverified":
+          return "Your Farcaster account hasn’t verified this wallet. Verify it in Farcaster, or sign in with this wallet in your profile";
         case "x_too_young":
           return "Your X account unlocks the free pack once it’s 90 days old";
         case "verification_unavailable":
@@ -729,6 +735,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           return "The daily needs a linked account or a Coinbase-verified wallet. Open your profile";
         case "x_too_young":
           return "Your X account unlocks the daily once it’s 90 days old";
+        case "farcaster_wallet_unverified":
+          return "Your Farcaster account hasn’t verified this wallet. Verify it in Farcaster, or sign in with this wallet in your profile";
         case "verification_unavailable":
           return "Can’t check your verification right now. Try again in a minute";
         case "daily_limit_reached":

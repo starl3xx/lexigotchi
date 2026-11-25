@@ -188,12 +188,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   is the LEDGER (migration 0015: `letters`, `expires_at`, `used`): a grant counts from signing; once
   its voucher expires it is settled against the chain (`freePackClaimed` / `dailyUsed`), and an unused
   one gives its letters back and its day stops counting. Settle BEFORE reading the profile's own grant
-  (a re-issue is only of a grant that still counts). A FID that never verified the profile's wallets
-  records on its own ledger, `fid:<id>`, and every row keeps the `wallet` its voucher pays and the
-  `profile` it was made for: a grant on another ledger that was made for this profile or paid one of
-  its wallets counts for it, from signing until given back (`crossGrants`, `crossCounts`), so an unlink
-  can't reset it and one person can't hold a Farcaster and a Coinbase voucher at once (Bugbot on #199).
-  Accepted cost: a stranger's voucher naming a wallet holds its free letter until it lapses unused. Both routes share `resolveFreeIdentity` (FID,
+  (a re-issue is only of a grant that still counts). **A FID counts only for a profile it belongs to**
+  (`resolveFreeIdentity`): it verified one of the profile's wallets (Neynar; an outage counts), or the
+  request carries that wallet's profile session (`x-lexigotchi-session`, sent by `openPostJson`).
+  Otherwise the request falls through to the profile's X and Coinbase keys, then is refused
+  `farcaster_wallet_unverified`. So every grant lives on the profile: no stranger can record on or hold
+  someone else's letters, and nobody gets a second set under a key the profile never sees (Bugbot on
+  #178 and #199; an `fid:` ledger with cross-wallet counting was tried and dropped for this). Both
+  routes share `resolveFreeIdentity` (FID,
   then X, then Coinbase); the pack takes any `uint256` key, so no contract change. daily-status
   returns `dailyTaken`/`done`/`packTaken`/`stop`/`packStop`/`dictionaryFull` (GameApi
   `freeLetters`); the daily reminder skips finished profiles (`dailiesDone`) and everyone once free

@@ -77,10 +77,6 @@ export async function claimFree(opts: {
   letters: number;
   /** The voucher's deadline: after it, the row is settled against the chain. */
   expiresAt: Date;
-  /** The wallet the voucher pays (its buyer): ties a grant on another ledger account to the profile. */
-  wallet: string;
-  /** The profile the grant is for (the request's account): it keeps counting there after an unlink. */
-  profile: string;
   /** Seconds a voucher stays spendable: an older claim whose key never reached the chain can be taken over. */
   voucherTtlSeconds: number;
   /** Did this key take the free thing onchain? */
@@ -107,9 +103,7 @@ export async function claimFree(opts: {
 async function claimFreeWith(opts: Parameters<typeof claimFree>[0], ledger: boolean): Promise<FreeClaim> {
   const account = opts.account.toLowerCase();
   const where = whereOf(opts.chainId, account, opts.kind, opts.period);
-  const fresh = ledger
-    ? { letters: opts.letters, expiresAt: opts.expiresAt, used: null, wallet: opts.wallet.toLowerCase(), profile: opts.profile.toLowerCase() }
-    : {};
+  const fresh = ledger ? { letters: opts.letters, expiresAt: opts.expiresAt, used: null } : {};
   // Drizzle's insert names EVERY schema column (DEFAULT for the ones not given), so the pre-0015
   // insert is raw SQL with 0013's columns only.
   const inserted = ledger
@@ -152,13 +146,6 @@ async function claimFreeWith(opts: Parameters<typeof claimFree>[0], ledger: bool
     .returning({ claimKey: freeClaims.claimKey });
   return moved.length > 0 ? "ok" : "taken";
 }
-
-/**
- * The ledger account for a Farcaster sign-in whose FID never verified the profile's wallets: its
- * grants can't be recorded ON that profile (a stranger's sign-in must not plant its key there), but
- * they still count toward the 10 and the budget, under an account of the FID's own.
- */
-export const fidLedgerAccount = (fid: number) => `fid:${fid}`;
 
 /** How long after a voucher's deadline its grant is settled (stale RPC reads after a send). */
 export const SETTLE_GRACE_SECONDS = 300;
@@ -259,86 +246,23 @@ export async function freePackTaken(chainId: number, account: string): Promise<b
   }
 }
 
-/** A grant as the cross-ledger rules read it (lib/freeLetters.ts). */
+/** A counting daily grant, as the reminder reads it (lib/freeLetters.ts finishedProfiles). */
 export interface GrantRow {
   account: string;
   kind: FreeKind;
   period: number;
   key: bigint;
   used: boolean | null;
-  wallet: string | null;
-  profile: string | null;
 }
 
-const toGrant = (r: { account: string; kind: string; period: number; claimKey: string; used: boolean | null; wallet: string | null; profile: string | null }): GrantRow => ({
-  account: r.account,
-  kind: r.kind as FreeKind,
-  period: r.period,
-  key: BigInt(r.claimKey),
-  used: r.used,
-  wallet: r.wallet,
-  profile: r.profile,
-});
-const grantCols = {
-  account: freeClaims.account,
-  kind: freeClaims.kind,
-  period: freeClaims.period,
-  claimKey: freeClaims.claimKey,
-  used: freeClaims.used,
-  wallet: freeClaims.wallet,
-  profile: freeClaims.profile,
-};
-
-/** The days a ledger account's free dailies count for. Null without migration 0015. */
-export async function dailyPeriods(chainId: number, account: string): Promise<number[] | null> {
-  try {
-    const rows = await getDb()
-      .select({ period: freeClaims.period })
-      .from(freeClaims)
-      .where(and(eq(freeClaims.chainId, chainId), eq(freeClaims.account, account.toLowerCase()), eq(freeClaims.kind, "daily"), counts));
-    return rows.map((r) => r.period);
-  } catch (err) {
-    if (isMissingSchema(err)) return null;
-    throw err;
-  }
-}
-
-/**
- * Grants recorded on OTHER ledger accounts that belong to this profile: made for it (`profile`), or
- * paid to one of its wallets (`wallet`). An unverified FID's grants live on `fid:<id>`, and both ties
- * keep them counted here, before and after an unlink (Bugbot on #199). Empty without migration 0015,
- * or when there are none.
- */
-export async function crossGrants(chainId: number, profile: string, wallets: readonly string[], excludeAccounts: readonly string[]): Promise<GrantRow[]> {
-  try {
-    const lowered = wallets.map((w) => w.toLowerCase());
-    const rows = await getDb()
-      .select(grantCols)
-      .from(freeClaims)
-      .where(
-        and(
-          eq(freeClaims.chainId, chainId),
-          lowered.length
-            ? sql`(${freeClaims.profile} = ${profile.toLowerCase()} OR ${inArray(freeClaims.wallet, lowered)})`
-            : eq(freeClaims.profile, profile.toLowerCase()),
-          ...(excludeAccounts.length ? [sql`${freeClaims.account} NOT IN (${sql.join(excludeAccounts.map((a) => sql`${a.toLowerCase()}`), sql`, `)})`] : []),
-        ),
-      );
-    return rows.map(toGrant);
-  } catch (err) {
-    if (isMissingSchema(err)) return [];
-    throw err;
-  }
-}
-
-/** Every daily grant that counts, for the reminder's "finished" sets (lib/freeLetters.ts finishedProfiles). */
+/** Every daily grant that counts, for the daily reminder's "finished" sets. Never throws. */
 export async function countingDailyGrants(chainId: number): Promise<GrantRow[]> {
   try {
     const rows = await getDb()
-      .select(grantCols)
+      .select({ account: freeClaims.account, kind: freeClaims.kind, period: freeClaims.period, claimKey: freeClaims.claimKey, used: freeClaims.used })
       .from(freeClaims)
       .where(and(eq(freeClaims.chainId, chainId), eq(freeClaims.kind, "daily"), counts));
-    return rows.map(toGrant);
+    return rows.map((r) => ({ account: r.account, kind: r.kind as FreeKind, period: r.period, key: BigInt(r.claimKey), used: r.used }));
   } catch (err) {
     if (!isMissingSchema(err)) console.error("[free-claims] daily grants read failed:", String((err as Error)?.message ?? err).slice(0, 120));
     return [];

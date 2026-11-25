@@ -57,76 +57,30 @@ export function usedOnchain(kind: FreeKind, period: number, onchain: boolean | n
   return Number(onchain) >= period + 1;
 }
 
-/** A grant, as the cross-ledger rules read it (lib/db/freeClaims.ts GrantRow). */
+/** A daily grant, as the reminder reads it (lib/db/freeClaims.ts GrantRow). */
 export interface Grant {
   account: string;
   kind: FreeKind;
   period: number;
   key: bigint;
   used: boolean | null;
-  wallet: string | null;
-  /** The profile the grant was made for (null on rows from before migration 0015's backfill). */
-  profile: string | null;
 }
 
 /**
- * The days a profile's free dailies count for: its own ledger's days (`ledgerDays`), plus the days of
- * grants on OTHER ledger accounts that belong to it (`cross`: an unverified FID's, made for this
- * profile or paid to one of its wallets; Bugbot on #199), unless given back.
- *
- * A cross grant counts, and blocks (crossCounts), from the moment it's signed, not only once the
- * chain shows it used: otherwise one person could hold a Farcaster voucher and a Coinbase voucher for
- * the same wallet at once. The accepted cost: a stranger's voucher naming a wallet holds that wallet's
- * free letter until it lapses unused (10 minutes, plus the settle grace), and a stranger who keeps
- * asking keeps holding it, one wallet per Farcaster account they control (decided for anti-farming,
- * decisions.md #21).
+ * The profiles that have taken all `limit` free dailies, for the daily reminder, with every key they
+ * took them under: Farcaster reminds by FID, so a profile that pulled under a Coinbase or X key is
+ * matched by walking the FID's keys; browsers and email match the account or its keys (Bugbot on #199).
  */
-export function profileDailyDays(ledgerDays: readonly number[], cross: readonly Pick<Grant, "kind" | "period" | "used">[]): number {
-  const days = new Set(ledgerDays);
-  for (const g of cross) if (g.kind === "daily" && g.used !== false) days.add(g.period);
-  return days.size;
-}
-
-/** Does a cross grant for (kind, period) still count? Then this profile already has it. */
-export function crossCounts(cross: readonly Pick<Grant, "kind" | "period" | "used">[], kind: FreeKind, period: number): boolean {
-  return cross.some((g) => g.kind === kind && g.period === period && g.used !== false);
-}
-
-/** Keys of cross grants for (kind, period): they join the onchain check (`dailyUsed` / `freePackClaimed`). */
-export function crossKeys(cross: readonly Pick<Grant, "kind" | "period" | "key">[], kind: FreeKind, period: number): bigint[] {
-  return cross.filter((g) => g.kind === kind && g.period === period).map((g) => g.key);
-}
-
-/**
- * The profiles that have taken all `limit` free dailies, for the daily reminder: every counting daily
- * grant is assigned to its profile (its ledger account, or, for an unverified FID's grant, the profile
- * holding the wallet it paid), then each finished profile's ledger accounts, keys, and wallets are
- * returned, so each channel can match on what it knows (Farcaster by key, browsers and email by
- * account, keys, or wallets; Bugbot on #199).
- */
-export function finishedProfiles(
-  grants: readonly Grant[],
-  accountOf: (wallet: string) => string,
-  limit: number,
-): { accounts: Set<string>; keys: Set<string>; wallets: Set<string> } {
-  const profileOf = (g: Grant) => g.profile ?? (g.account.startsWith("fid:") && g.wallet ? accountOf(g.wallet) : g.account);
+export function finishedProfiles(grants: readonly Grant[], limit: number): { accounts: Set<string>; keys: Set<string> } {
   const days = new Map<string, Set<number>>();
   for (const g of grants) {
     if (g.kind !== "daily" || g.used === false) continue;
-    const p = profileOf(g);
-    if (!days.has(p)) days.set(p, new Set());
-    days.get(p)!.add(g.period);
+    if (!days.has(g.account)) days.set(g.account, new Set());
+    days.get(g.account)!.add(g.period);
   }
-  const done = new Set([...days].filter(([, d]) => d.size >= limit).map(([p]) => p));
-  const out = { accounts: new Set<string>(), keys: new Set<string>(), wallets: new Set<string>() };
-  for (const g of grants) {
-    if (g.kind !== "daily" || !done.has(profileOf(g))) continue;
-    out.accounts.add(g.account);
-    out.accounts.add(profileOf(g));
-    out.keys.add(g.key.toString());
-    if (g.wallet) out.wallets.add(g.wallet);
-  }
-  return out;
+  const accounts = new Set([...days].filter(([, d]) => d.size >= limit).map(([a]) => a));
+  const keys = new Set(grants.filter((g) => g.kind === "daily" && accounts.has(g.account)).map((g) => g.key.toString()));
+  return { accounts, keys };
 }
 
 /** The player-facing words for a stop, shared by the routes' callers. */

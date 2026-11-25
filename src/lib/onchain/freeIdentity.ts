@@ -9,6 +9,14 @@
  * (older than 90 days, while X is on), then a Coinbase-verified wallet in the profile (the connected
  * one first). The key is always the PROVING identity's, so linking wallets never adds one.
  * Rate-limited per FID or per wallet before the Coinbase check, which costs two mainnet reads.
+ *
+ * A FID counts only for a profile it belongs to: it verified one of the profile's wallets (Farcaster
+ * says so; when Farcaster can't answer, it counts), or the request proves it controls the wallet with
+ * that wallet's profile session (the `x-lexigotchi-session` sign-in). The wallet in the body is the
+ * client's word, so without either a stranger's Farcaster sign-in could name anyone's wallet and
+ * record grants on their profile (Bugbot on #178), or take letters under a key the profile never sees
+ * (Bugbot on #199). A FID that doesn't count falls through to the profile's X and Coinbase identities,
+ * and with neither the request is refused (`farcaster_wallet_unverified`), which says how to fix it.
  */
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { allow } from "@/lib/ratelimit";
@@ -18,6 +26,9 @@ import { profilesEnabled } from "@/lib/profile/session";
 import { xEnabled } from "@/lib/profile/x";
 import { xOldEnough } from "@/lib/profile/rules";
 import { isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "./verifications";
+import { keyOwnedByProfile } from "@/lib/db/freeClaims";
+import { fidsByAddressesDetailed } from "@/lib/neynar";
+import { sessionAddress } from "@/lib/profile/session";
 
 export type FreeIdentity =
   | {
@@ -45,9 +56,15 @@ export async function resolveFreeIdentity(req: Request, wallet: string, tag: str
   const base = { fid, xUserId, xCounts, account, wallets };
   const limited = { ok: false as const, status: 429, error: "rate_limited" };
 
+  let fidElsewhere = false;
   if (fid) {
     if (!(await allow("record-add", fid))) return limited;
-    return { ok: true, key: BigInt(fid), source: "fid", ...base };
+    const signedInAs = sessionAddress(req);
+    const owned =
+      (signedInAs !== null && wallets.includes(signedInAs)) ||
+      (await keyOwnedByProfile({ fid, derivedFromProfile: false, accountWallets: wallets, lookup: fidsByAddressesDetailed }));
+    if (owned) return { ok: true, key: BigInt(fid), source: "fid", ...base };
+    fidElsewhere = true; // a Farcaster sign-in this profile can't vouch for: try its X and Coinbase
   }
   if (!(await allow("record-add", wallet.toLowerCase()))) return limited;
   if (xCounts && xUserId) return { ok: true, key: xDailyKey(xUserId), source: "x", ...base };
@@ -73,7 +90,8 @@ export async function resolveFreeIdentity(req: Request, wallet: string, tag: str
   if (!proving) {
     // A linked X that is too young is the likeliest reason here: say so, so the client can show the
     // day it unlocks instead of asking the player to verify something else.
-    return { ok: false, status: 403, error: xUserId && xEnabled() && !xCounts ? "x_too_young" : "verification_required" };
+    const error = fidElsewhere ? "farcaster_wallet_unverified" : xUserId && xEnabled() && !xCounts ? "x_too_young" : "verification_required";
+    return { ok: false, status: 403, error };
   }
   return { ok: true, key: verifiedDailyKey(proving), source: "coinbase", ...base };
 }

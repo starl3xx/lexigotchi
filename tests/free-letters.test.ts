@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/lib/params";
-import { crossCounts, crossKeys, dailiesLeft, finishedProfiles, freeLetterBudget, freeStop, profileDailyDays, usedOnchain, FREE_LETTERS, type Grant } from "@/lib/freeLetters";
+import { dailiesLeft, finishedProfiles, freeLetterBudget, freeStop, usedOnchain, FREE_LETTERS, type Grant } from "@/lib/freeLetters";
 
 const DICT = 4584;
 
@@ -81,41 +81,28 @@ describe("usedOnchain", () => {
   });
 });
 
-describe("across ledger accounts (Bugbot on #199)", () => {
+describe("finishedProfiles (the daily reminder)", () => {
   const T = 20_400;
-  const g = (o: Partial<Grant>): Grant => ({ account: "fid:7", kind: "daily", period: T - 1, key: 7n, used: true, wallet: "0xw", profile: null, ...o });
+  const g = (o: Partial<Grant>): Grant => ({ account: "0xp", kind: "daily", period: T - 1, key: 7n, used: true, ...o });
 
-  it("a profile's days are its own plus every kept day of its grants on other ledgers", () => {
-    expect(profileDailyDays([T - 3, T - 2], [g({ period: T - 1 }), g({ period: T - 2 })])).toBe(3); // a shared day counts once
-    expect(profileDailyDays([], [g({ period: T - 1, used: false })])).toBe(0); // given back
-    expect(profileDailyDays([], [g({ period: T, used: null })])).toBe(1); // signed today: counts already
-    expect(profileDailyDays([], [g({ kind: "pack", period: 0 })])).toBe(0);
-  });
-
-  it("a cross grant blocks from signing until it's given back", () => {
-    expect(crossCounts([g({ period: T, used: null })], "daily", T)).toBe(true);
-    expect(crossCounts([g({ period: T, used: false })], "daily", T)).toBe(false);
-    expect(crossCounts([g({ kind: "pack", period: 0, used: null })], "pack", 0)).toBe(true);
-    expect(crossCounts([g({ period: T - 1 })], "daily", T)).toBe(false);
-  });
-
-  it("today's cross grants join the onchain check by key", () => {
-    const cross = [g({ period: T, key: 1n }), g({ period: T - 1, key: 2n }), g({ kind: "pack", period: 0, key: 3n })];
-    expect(crossKeys(cross, "daily", T)).toEqual([1n]);
-    expect(crossKeys(cross, "pack", 0)).toEqual([3n]);
-  });
-
-  it("finished profiles carry every account, key, and wallet they used, so each reminder channel can match", () => {
-    const accountOf = (w: string) => (w === "0xs" ? "0xp" : w);
+  it("finds the profiles with all 10 kept days, and every key they took them under", () => {
     const grants: Grant[] = [
-      ...Array.from({ length: 6 }, (_, i) => g({ account: "0xp", key: 100n, period: T - 1 - i, wallet: "0xp" })),
-      ...Array.from({ length: 4 }, (_, i) => g({ account: "fid:7", key: 7n, period: T - 7 - i, wallet: "0xs", profile: i === 0 ? "0xp" : null })),
-      g({ account: "0xq", key: 200n, period: T - 1, wallet: "0xq" }),
+      ...Array.from({ length: 6 }, (_, i) => g({ key: 100n, period: T - 1 - i })),
+      ...Array.from({ length: 4 }, (_, i) => g({ key: 7n, period: T - 7 - i })), // the same profile, a FID key
+      g({ account: "0xq", key: 200n }),
     ];
-    const f = finishedProfiles(grants, accountOf, 10);
-    expect([...f.accounts].sort()).toEqual(["0xp", "fid:7"]);
+    const f = finishedProfiles(grants, 10);
+    expect([...f.accounts]).toEqual(["0xp"]);
     expect([...f.keys].sort()).toEqual(["100", "7"]);
-    expect([...f.wallets].sort()).toEqual(["0xp", "0xs"]);
-    expect(finishedProfiles(grants, accountOf, 11).accounts.size).toBe(0);
+    expect(finishedProfiles(grants, 11).accounts.size).toBe(0);
+  });
+
+  it("doesn't count a day given back, or a pack", () => {
+    const grants: Grant[] = [
+      ...Array.from({ length: 9 }, (_, i) => g({ period: T - 1 - i })),
+      g({ period: T - 10, used: false }),
+      g({ kind: "pack", period: 0 }),
+    ];
+    expect(finishedProfiles(grants, 10).accounts.size).toBe(0);
   });
 });

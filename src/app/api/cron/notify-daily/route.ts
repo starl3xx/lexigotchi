@@ -12,7 +12,7 @@ import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { maybeAddressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
-import { countingDailyGrants, fidLedgerAccount } from "@/lib/db/freeClaims";
+import { countingDailyGrants } from "@/lib/db/freeClaims";
 import { finishedProfiles } from "@/lib/freeLetters";
 import { freeGrantStop } from "@/lib/onchain/freeLedger";
 import { NETWORK } from "@/lib/onchain/network";
@@ -96,14 +96,12 @@ export async function GET(req: Request) {
     // walk the daily route refuses on (relatedDailyKeysMany), so a pull under another linked
     // wallet's Coinbase key, FID, or X counts as today's. loadLinkMap never throws.
     const links = await loadLinkMap();
-    // Profiles that took all 10, with every ledger account, key, and wallet they used, so each
-    // channel matches on what it knows: Farcaster by keys, browsers and email by account, keys, or
-    // wallets (lib/freeLetters.ts finishedProfiles; Bugbot on #199). A failed read finishes nobody.
-    const finished = finishedProfiles(await countingDailyGrants(NETWORK.id), (w) => links.accountOf(w), DEFAULT_PARAMS.freeLetters.freeDailyLimit);
-    const isFinished = (accounts: readonly string[], keys: readonly bigint[], wallets: readonly string[]) =>
-      accounts.some((a) => finished.accounts.has(a.toLowerCase())) ||
-      keys.some((k) => finished.keys.has(k.toString())) ||
-      wallets.some((w) => finished.wallets.has(w.toLowerCase()));
+    // Profiles that took all 10, with every key they took them under, so each channel matches on what
+    // it knows: Farcaster by the FID's walked keys, browsers and email by account or keys
+    // (lib/freeLetters.ts finishedProfiles; Bugbot on #199). A failed read finishes nobody.
+    const finished = finishedProfiles(await countingDailyGrants(NETWORK.id), DEFAULT_PARAMS.freeLetters.freeDailyLimit);
+    const isFinished = (accounts: readonly string[], keys: readonly bigint[]) =>
+      accounts.some((a) => finished.accounts.has(a.toLowerCase())) || keys.some((k) => finished.keys.has(k.toString()));
 
     // ── Farcaster ────────────────────────────────────────────────────────────────────────────
     let targets: number[] = [];
@@ -114,7 +112,7 @@ export async function GET(req: Request) {
       const due = dailyTargets(states, day);
       // A FID's finished profile may have claimed under a Coinbase or X key: walk the FID's keys.
       const dueKeys = finished.keys.size > 0 ? await relatedDailyKeysMany(due.map((f) => ({ fid: f, wallets: [] }))) : due.map(() => []);
-      targets = due.filter((f, i) => !isFinished([fidLedgerAccount(f)], [BigInt(f), ...dueKeys[i]], []));
+      targets = due.filter((f, i) => !isFinished([], [BigInt(f), ...dueKeys[i]]));
       // An empty target list is a legitimate outcome (everyone already played), NOT a reason to
       // broadcast. sendNotification refuses an empty audience; skipping the call says so plainly.
       if (targets.length > 0) result = await sendNotification({ ...dailyReady(day), targetFids: targets });
@@ -140,7 +138,7 @@ export async function GET(req: Request) {
       const due = keyed
         .filter((k) => {
           const account = links.accountOf(k.sub.address);
-          return !isFinished([account], k.keys, links.walletsOf(account)) && isDailyDue(lastPull(k.keys), day);
+          return !isFinished([account], k.keys) && isDailyDue(lastPull(k.keys), day);
         })
         .map((k) => k.sub);
       browserTargets = due.length;
@@ -169,7 +167,7 @@ export async function GET(req: Request) {
         const due = recips.filter(
           (r) =>
             r.emailDailyDay !== day &&
-            !isFinished([r.address], keysOf.get(r.address) ?? [], links.walletsOf(r.address)) &&
+            !isFinished([r.address], keysOf.get(r.address) ?? []) &&
             isDailyDue(Math.max(0, ...(keysOf.get(r.address) ?? []).map((k) => usedByKey.get(k) ?? 0)), day),
         );
         emailTargets = due.length;

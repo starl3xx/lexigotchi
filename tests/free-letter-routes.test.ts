@@ -52,7 +52,9 @@ vi.mock("@/lib/onchain/verifications", async (orig) => ({
   isCoinbaseVerified: async (w: string) => verified.has(w.toLowerCase()),
 }));
 vi.mock("@/lib/onchain/dailyIdentity", () => ({ relatedDailyKeys: async () => [] }));
-vi.mock("@/lib/neynar", () => ({ fidsByAddressesDetailed: async () => ({ fids: new Map(), answered: true }) }));
+// Which FIDs Farcaster says verified each wallet.
+let fidsOf: Record<string, number[]> = {};
+vi.mock("@/lib/neynar", () => ({ fidsByAddressesDetailed: async () => ({ fids: new Map(Object.entries(fidsOf)), answered: true }) }));
 vi.mock("@/lib/onchain/stickyDraw", () => ({ stickyDraw: async (a: { draw: () => number[] }) => a.draw() }));
 vi.mock("@/lib/db/draws", () => ({ claimDraw: async () => true, readDraw: async () => null }));
 
@@ -81,7 +83,7 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
 vi.mock("@/lib/onchain/claimedWords", () => ({ claimedWordCount: async () => claimedWords }));
 
 // ── the ledger (free_claims), in memory ─────────────────────────────────────────────────────
-interface Row { account: string; kind: "daily" | "pack"; period: number; key: string; letters: number; expiresAt: number; used: boolean | null; wallet?: string | null; profile?: string | null }
+interface Row { account: string; kind: "daily" | "pack"; period: number; key: string; letters: number; expiresAt: number; used: boolean | null }
 let rows: Row[] = [];
 const find = (account: string, kind: string, period: number) => rows.find((r) => r.account === account.toLowerCase() && r.kind === kind && r.period === period);
 const counts = (r: Row) => r.used !== false;
@@ -89,7 +91,6 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
   const real = await orig<typeof import("@/lib/db/freeClaims")>();
   return {
     keyOwnedByProfile: real.keyOwnedByProfile,
-    fidLedgerAccount: real.fidLedgerAccount,
     recordedFreeKey: async (_c: number, account: string, kind: string, period: number) => {
       const r = find(account, kind, period);
       return r ? BigInt(r.key) : null;
@@ -98,9 +99,9 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
       const r = find(account, kind, period);
       return r ? { key: BigInt(r.key), counts: counts(r) } : null;
     },
-    claimFree: async (o: { account: string; kind: "daily" | "pack"; period: number; key: bigint; letters: number; expiresAt: Date; wallet: string; profile: string; usedOnchain: (k: bigint) => Promise<boolean> }) => {
+    claimFree: async (o: { account: string; kind: "daily" | "pack"; period: number; key: bigint; letters: number; expiresAt: Date; usedOnchain: (k: bigint) => Promise<boolean> }) => {
       const r = find(o.account, o.kind, o.period);
-      const fresh = { key: o.key.toString(), letters: o.letters, expiresAt: o.expiresAt.getTime(), used: null, wallet: o.wallet.toLowerCase(), profile: o.profile.toLowerCase() };
+      const fresh = { key: o.key.toString(), letters: o.letters, expiresAt: o.expiresAt.getTime(), used: null };
       if (!r) return void rows.push({ account: o.account.toLowerCase(), kind: o.kind, period: o.period, ...fresh }), "ok";
       if (r.key === o.key.toString()) return Object.assign(r, fresh), "ok";
       if (r.expiresAt < now * 1000 && !(await o.usedOnchain(BigInt(r.key)))) return Object.assign(r, fresh), "ok";
@@ -114,27 +115,23 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
       return due.length;
     },
     freeLettersSigned: async () => rows.filter(counts).reduce((a, r) => a + r.letters, 0),
-    dailyPeriods: async (_c: number, account: string) => rows.filter((r) => r.account === account && r.kind === "daily" && counts(r)).map((r) => r.period),
-    crossGrants: async (_c: number, profile: string, wallets: readonly string[], exclude: readonly string[]) =>
-      rows
-        .filter((r) => (r.profile === profile.toLowerCase() || (r.wallet && wallets.map((w) => w.toLowerCase()).includes(r.wallet))) && !exclude.includes(r.account))
-        .map((r) => ({ account: r.account, kind: r.kind, period: r.period, key: BigInt(r.key), used: r.used, wallet: r.wallet ?? null, profile: r.profile ?? null })),
+    freeDailiesTaken: async (_c: number, account: string) => rows.filter((r) => r.account === account && r.kind === "daily" && counts(r)).length,
     freePackTaken: async (_c: number, account: string) => rows.some((r) => r.account === account && r.kind === "pack" && counts(r)),
   };
 });
 
-const post = async (path: "free-daily" | "free-pack", wallet: string) => {
+const post = async (path: "free-daily" | "free-pack", wallet: string, headers: Record<string, string> = {}) => {
   const { POST } = await import(`@/app/api/mint/${path}/route`);
-  const res: Response = await POST(new Request(`http://localhost/api/mint/${path}`, { method: "POST", body: JSON.stringify({ wallet }) }));
+  const res: Response = await POST(new Request(`http://localhost/api/mint/${path}`, { method: "POST", headers, body: JSON.stringify({ wallet }) }));
   return { status: res.status, body: await res.json() };
 };
-const status = async (wallet: string, withFid?: number) => {
+const status = async (wallet: string) => {
   const { GET } = await import("@/app/api/mint/daily-status/route");
-  const res: Response = await GET(new Request(`http://localhost/api/mint/daily-status?wallet=${wallet}${withFid ? `&fid=${withFid}` : ""}`));
+  const res: Response = await GET(new Request(`http://localhost/api/mint/daily-status?wallet=${wallet}`));
   return res.json();
 };
 const keys = async () => import("@/lib/onchain/verifications");
-const daily = (account: string, key: bigint, period: number, used: boolean | null = true, wallet: string | null = null): Row => ({
+const daily = (account: string, key: bigint, period: number, used: boolean | null = true): Row => ({
   account,
   kind: "daily",
   period,
@@ -142,7 +139,6 @@ const daily = (account: string, key: bigint, period: number, used: boolean | nul
   letters: 1,
   expiresAt: (period * 86_400 + 600) * 1000,
   used,
-  wallet,
 });
 
 beforeEach(() => {
@@ -155,6 +151,7 @@ beforeEach(() => {
   packClaimed = new Set();
   claimedWords = 10;
   rows = [];
+  fidsOf = {};
 });
 
 describe("10 free daily letters per profile", () => {
@@ -186,61 +183,6 @@ describe("10 free daily letters per profile", () => {
     expect((await post("free-daily", S)).body.error).toBe("daily_limit_reached");
   });
 
-  it("counts a Farcaster sign-in that never verified the profile's wallets, under the FID's own ledger", async () => {
-    // FID 77 signs in on the profile's wallet, but Farcaster says 77 verified none of its wallets: its
-    // grants can't go ON the profile (no planting), yet they must still count (the review on this PR).
-    fid = 77;
-    for (let d = 1; d <= 10; d++) rows.push(daily("fid:77", 77n, DAY - d));
-    const res = await post("free-daily", S);
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe("daily_limit_reached");
-    expect((await status(S, 77)).done).toBe(true);
-
-    rows = [];
-    const first = await post("free-daily", S);
-    expect(first.status).toBe(200);
-    expect(first.body.voucher.fid).toBe("77");
-    expect(rows).toMatchObject([{ account: "fid:77", kind: "daily", letters: 1 }]); // recorded, and counted
-    expect(rows.some((r) => r.account === P)).toBe(false); // not planted on the profile
-  });
-
-  it("counts an unverified FID's dailies against the profile whose wallet they paid, once the FID signs out (Bugbot on #199)", async () => {
-    // FID 77 (unverified on the profile's wallets) took 10 dailies paid to S. Signed out, S's own
-    // Coinbase key must not open 10 more.
-    for (let d = 1; d <= 10; d++) rows.push(daily("fid:77", 77n, DAY - d, true, S));
-    const res = await post("free-daily", S);
-    expect(res.body.error).toBe("daily_limit_reached");
-    expect((await status(P)).done).toBe(true);
-  });
-
-  it("a live voucher on another ledger for the wallet holds today's letter until it lapses unused (anti-farming)", async () => {
-    // FID 88 (unverified) holds a live voucher paid to S: one person must not also take S's own today.
-    rows.push({ ...daily("fid:88", 88n, DAY, null, S), expiresAt: (now + 600) * 1000 });
-    expect((await post("free-daily", S)).body.error).toBe("already_claimed_today");
-    expect((await status(S)).claimed).toBe(true);
-    // Lapsed unused (settled after its deadline and the grace): the owner takes today's.
-    now += 1_000;
-    expect((await post("free-daily", S)).status).toBe(200);
-  });
-
-  it("keeps an unverified FID's grants on the profile they were made for after the wallet is unlinked (Bugbot on #199)", async () => {
-    // FID 77's pack was made for profile P, paid to S. Then S leaves P.
-    rows.push({ account: "fid:77", kind: "pack", period: 0, key: "77", letters: 5, expiresAt: (now - 600) * 1000, used: true, wallet: S, profile: P });
-    packClaimed.add("77");
-    accountOf[S] = S;
-    walletsOf[P] = [P];
-    walletsOf[S] = [S];
-    try {
-      verified.add(P);
-      expect((await post("free-pack", P)).body.error).toBe("already_claimed"); // the profile it was made for
-      expect((await post("free-pack", S)).body.error).toBe("already_claimed"); // the wallet it paid
-    } finally {
-      accountOf[S] = P;
-      walletsOf[P] = [P, S];
-      delete walletsOf[S];
-    }
-  });
-
   it("a daily whose voucher lapsed unused doesn't count toward the 10", async () => {
     const { verifiedDailyKey } = await keys();
     for (let d = 2; d <= 10; d++) rows.push(daily(P, verifiedDailyKey(P), DAY - d));
@@ -248,6 +190,55 @@ describe("10 free daily letters per profile", () => {
     const res = await post("free-daily", S);
     expect(res.status).toBe(200); // the unused day was given back, so this is the 10th
     expect(rows.find((r) => r.period === DAY - 1)?.used).toBe(false);
+  });
+});
+
+describe("a Farcaster sign-in counts only for a profile it belongs to (Bugbot on #178 and #199)", () => {
+  const SECRET = "s".repeat(40);
+
+  it("signs under the FID when it verified one of the profile's wallets, and records it on the profile", async () => {
+    fid = 77;
+    fidsOf = { [P]: [77] };
+    verified = new Set();
+    const res = await post("free-daily", S);
+    expect(res.status).toBe(200);
+    expect(res.body.voucher.fid).toBe("77");
+    expect(rows).toMatchObject([{ account: P, kind: "daily", key: "77" }]);
+  });
+
+  it("falls through to the profile's Coinbase key when the FID verified none of its wallets", async () => {
+    fid = 77; // fidsOf empty: Farcaster says 77 verified neither P nor S
+    const { verifiedDailyKey } = await keys();
+    const res = await post("free-pack", S);
+    expect(res.status).toBe(200);
+    expect(res.body.voucher.fid).toBe(verifiedDailyKey(S).toString());
+    expect(rows).toMatchObject([{ account: P, kind: "pack", key: verifiedDailyKey(S).toString() }]);
+  });
+
+  it("refuses, saying how to fix it, when the FID verified none of its wallets and there's nothing else", async () => {
+    fid = 77;
+    verified = new Set();
+    for (const route of ["free-daily", "free-pack"] as const) {
+      const res = await post(route, S);
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe("farcaster_wallet_unverified");
+    }
+    expect(rows).toEqual([]); // nothing recorded anywhere: no stranger can hold a profile's letters
+  });
+
+  it("counts the FID when the request proves it controls the wallet with that wallet's profile session", async () => {
+    vi.stubEnv("PROFILE_SESSION_SECRET", SECRET);
+    const { issueSession } = await import("@/lib/profile/session");
+    fid = 77;
+    verified = new Set();
+    const headers = { "x-lexigotchi-session": issueSession(SECRET, S).token };
+    const res = await post("free-pack", S, headers);
+    expect(res.status).toBe(200);
+    expect(res.body.voucher.fid).toBe("77");
+    expect(rows).toMatchObject([{ account: P, kind: "pack", key: "77" }]);
+    // A session for a wallet outside the profile proves nothing.
+    rows = [];
+    expect((await post("free-pack", S, { "x-lexigotchi-session": issueSession(SECRET, Q).token })).body.error).toBe("farcaster_wallet_unverified");
   });
 });
 
@@ -335,16 +326,6 @@ describe("the free pack for every verified player", () => {
     packClaimed.add(verifiedDailyKey(S).toString());
     now += 3_600;
     expect((await post("free-pack", P)).body.error).toBe("already_claimed");
-  });
-
-  it("refuses a second pack once an unverified FID took one for this profile (Bugbot on #199)", async () => {
-    // FID 77, signed in but not verified on S, took a pack paid to S, and opened it.
-    rows.push({ account: "fid:77", kind: "pack", period: 0, key: "77", letters: 5, expiresAt: (now - 600) * 1000, used: null, wallet: S, profile: P });
-    packClaimed.add("77");
-    const again = await post("free-pack", S);
-    expect(again.status).toBe(409);
-    expect(again.body.error).toBe("already_claimed");
-    expect((await status(P)).packTaken).toBe(true);
   });
 
   it("refuses a player with nothing verified, with the reason the client can show", async () => {
