@@ -21,6 +21,7 @@ import { payoutWhen } from "./earnings";
 import { EarningsLine } from "./EarningsLine";
 import { stageLine, stageLineup, upNext } from "./stagePick";
 import { useForSale } from "./useForSale";
+import { feedAllLabel, wordsToFeed } from "./feedAll";
 import { useEmptyStageCase } from "./useTodayPlan";
 import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
@@ -37,8 +38,10 @@ export function TodayStage() {
   const g = useGame();
   const { state } = g;
   const forSale = useForSale();
-  const { items, needFood } =
-    state.status === "ready" ? stageLineup(state.words, (w) => hunger(w), new Set(forSale.keys())) : { items: [], needFood: 0 };
+  const { items } =
+    state.status === "ready" ? stageLineup(state.words, (w) => hunger(w), new Set(forSale.keys())) : { items: [] };
+  // Every word Feed all would feed (yours and the ones you care for), whichever word is on stage.
+  const toFeed = state.status === "ready" ? wordsToFeed(state.words) : [];
 
   // A fed star chews before it steps aside. Once fed it is no longer the neediest word, so the
   // stage would hand the spot to the next one at once and the feed would go unseen. Hold the word
@@ -172,7 +175,7 @@ export function TodayStage() {
               >
                 <Cookie weight="fill" /> Feed {W}
               </Button>
-              {needFood > 1 && (
+              {toFeed.length > 1 && (
                 <Button
                   variant="ghost"
                   className="shrink-0"
@@ -181,7 +184,7 @@ export function TodayStage() {
                     g.feedAll();
                   }}
                 >
-                  Feed all {needFood}
+                  Feed all {toFeed.length}
                 </Button>
               )}
             </>
@@ -201,6 +204,13 @@ export function TodayStage() {
               <Storefront weight="fill" /> See it in the Market
             </Button>
           )}
+          {/* The star is full (or waiting to be staked) but others want food: Feed all stays one tap
+              away, whichever word the arrows have put on stage. */}
+          {mood !== "hungry" && mood !== "peckish" && toFeed.length > 0 && (
+            <Button variant="ghost" className="shrink-0" onClick={() => g.feedAll()}>
+              <Cookie weight="fill" /> {feedAllLabel(toFeed)}
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="shrink-0 !px-3"
@@ -217,7 +227,7 @@ export function TodayStage() {
         </div>
       </div>
 
-      {needFood > 0 && <ReminderToggle compact />}
+      {toFeed.length > 0 && <ReminderToggle compact />}
 
       {/* Up next: the words → brings, then the Bag. A card puts its word on stage. */}
       <div className="grid grid-cols-2 gap-2">

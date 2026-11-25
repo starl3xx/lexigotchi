@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
-import { Basket, Sparkle, TextAa } from "../ui/icons";
+import { Basket, Cookie, Sparkle, TextAa } from "../ui/icons";
+import { feedAllLabel, wordsToFeed } from "../feedAll";
 import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
 import { WordsPending, wordsUnknown } from "../WordsPending";
@@ -27,6 +28,7 @@ export function BagScreen() {
   // A filter whose words all left (sold, staked, fed) shows everything rather than an empty list.
   const filter = counts[wordFilter] > 0 ? wordFilter : "all";
   const shown = sortWords(state.words.filter((w) => matchesWord(w, filter, ctx)), wordSort, ctx.hungerOf);
+  const toFeed = wordsToFeed(state.words);
 
   const lowerOwned = sortLetters(state.lower.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
   const upperOwned = sortLetters(state.upper.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
@@ -123,7 +125,19 @@ export function BagScreen() {
         <div className="space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {/* the heading and the empty state span both columns; only the cards pair up (Bugbot) */}
           <div className="lg:col-span-2">
-            <SectionTitle action={<Button size="sm" variant="primary" onClick={() => g.nav("claim")}>+ Spell</Button>}>
+            <SectionTitle
+              action={
+                <div className="flex gap-2">
+                  {/* Feed all (yours and the words you care for): one send, the free snack first. */}
+                  {toFeed.length > 0 && (
+                    <Button size="sm" variant="teal" onClick={() => g.feedAll()}>
+                      <Cookie weight="fill" /> {feedAllLabel(toFeed)}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="primary" onClick={() => g.nav("claim")}>+ Spell</Button>
+                </div>
+              }
+            >
               Claimed words
             </SectionTitle>
             {/* what the words earned (decisions.md #16); opens Your earnings */}

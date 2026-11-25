@@ -125,6 +125,7 @@ import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
 import { usePlayerWallets } from "./usePlayerWallets";
+import { wordsToFeed } from "./feedAll";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 
@@ -1408,7 +1409,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         // burns a snack for nothing and there is no revert to catch.
         // Mine, or a staker's word this wallet cares for (Staking.setCaretaker): feed() accepts both.
         // Any other linked wallet's word would revert the batch.
-        const hungryWords = state.words.filter((w) => (w.mine || w.care) && w.staked && w.daysUnfed > 0);
+        const hungryWords = wordsToFeed(state.words);
         const hungry = hungryWords.map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody’s hungry", "info");
         const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
