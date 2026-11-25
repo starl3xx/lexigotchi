@@ -10,6 +10,7 @@ import { fmtWord, hunger, mineLower, mineUpper, useGame } from "./state";
 import { pickStage } from "./stagePick";
 import { nextSteps, type NextStep } from "./todaySteps";
 import { useTakenWords } from "./useTodayPlan";
+import { useForSale } from "./useForSale";
 
 /** Rows shown before "Show more": a list of five read as a to-do list, not a nudge. */
 const SHOWN = 3;
@@ -19,11 +20,14 @@ export function NextSteps() {
   const { state } = g;
   const [all, setAll] = useState(false);
   const taken = useTakenWords();
+  const forSale = useForSale();
   if (state.status !== "ready") return null;
 
   // Don't ask twice: the Today stage already asks for an unstaked star to be staked, and for a
   // brand-new player the stage and the letters card both point at getting letters ("start").
-  const staged = pickStage(state.words, (w) => hunger(w));
+  const forSaleSet = new Set(forSale.keys());
+  // With the same listed words as the stage, so "the stage already asks" names the same word (Bugbot on #192).
+  const staged = pickStage(state.words, (w) => hunger(w), forSaleSet);
   const stagedStake = staged?.mood === "unstaked" ? staged.word.word : null;
   const steps = nextSteps({
     words: state.words,
@@ -34,6 +38,7 @@ export function NextSteps() {
     pity: state.pity,
     rollProb: g.rollProb,
     taken,
+    forSale: forSaleSet,
   }).filter((s) => !(s.kind === "stake" && s.word === stagedStake) && s.kind !== "start");
   if (steps.length === 0) return null;
   const visible = all ? steps : steps.slice(0, SHOWN);

@@ -15,11 +15,12 @@ import type { Gild } from "./TileCharacter";
 import { WordTiles, careState } from "./LetterTile";
 import { Button, HungerBadge, Pill } from "./primitives";
 import { ReminderToggle } from "./ReminderToggle";
-import { Backpack, CaretLeft, CaretRight, Cookie, Palette, Sparkle, TextAa, Ticket } from "./ui/icons";
+import { Backpack, CaretLeft, CaretRight, Cookie, Palette, Sparkle, Storefront, TextAa, Ticket } from "./ui/icons";
 import { fmtWord, hunger, useGame } from "./state";
 import { payoutWhen } from "./earnings";
 import { EarningsLine } from "./EarningsLine";
 import { stageLine, stageLineup, upNext } from "./stagePick";
+import { useForSale } from "./useForSale";
 import { useEmptyStageCase } from "./useTodayPlan";
 import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
@@ -35,7 +36,9 @@ const UP_NEXT = 3;
 export function TodayStage() {
   const g = useGame();
   const { state } = g;
-  const { items, needFood } = state.status === "ready" ? stageLineup(state.words, (w) => hunger(w)) : { items: [], needFood: 0 };
+  const forSale = useForSale();
+  const { items, needFood } =
+    state.status === "ready" ? stageLineup(state.words, (w) => hunger(w), new Set(forSale.keys())) : { items: [], needFood: 0 };
 
   // A fed star chews before it steps aside. Once fed it is no longer the neediest word, so the
   // stage would hand the spot to the next one at once and the feed would go unseen. Hold the word
@@ -86,7 +89,7 @@ export function TodayStage() {
   const mood = eating ? "full" : item.mood;
   const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
   const open = () => g.openSheet({ kind: "word", word: W });
-  const face = eating ? "eating" : mood === "unstaked" ? "idle" : careState(w);
+  const face = eating ? "eating" : mood === "unstaked" || mood === "forSale" ? "idle" : careState(w);
   const many = items.length > 1;
   // What the star earned at the latest payout, for its line (only when it earned something).
   const mineEarned = g.earnings?.byWord[W];
@@ -192,6 +195,11 @@ export function TodayStage() {
               See {W}
             </Button>
           )}
+          {mood === "forSale" && (
+            <Button variant="ghost" className="flex-1" onClick={() => g.nav("swap")}>
+              <Storefront weight="fill" /> See it in the Market
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="shrink-0 !px-3"
@@ -222,7 +230,13 @@ export function TodayStage() {
             <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" />
             <span className="flex w-full min-w-0 items-center gap-1.5">
               <span className="truncate font-display text-sm font-extrabold">{o.word}</span>
-              {m === "unstaked" ? <Pill className="bg-ink/10">not staked</Pill> : <HungerBadge state={hunger(o)} />}
+              {m === "forSale" ? (
+                <Pill className="bg-gold/25 text-gold-ink">for sale</Pill>
+              ) : m === "unstaked" ? (
+                <Pill className="bg-ink/10">not staked</Pill>
+              ) : (
+                <HungerBadge state={hunger(o)} />
+              )}
             </span>
           </button>
         ))}
