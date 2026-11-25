@@ -12,12 +12,13 @@ import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@
 import { getProfile } from "@/lib/db/profiles";
 import { accountWallets } from "@/lib/db/walletLinks";
 import { claimDraw, readDraw } from "@/lib/db/draws";
-import { claimFree, recordedFreeKey } from "@/lib/db/freeClaims";
+import { claimFree, keyOwnedByProfile, recordedFreeKey } from "@/lib/db/freeClaims";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { profilesEnabled } from "@/lib/profile/session";
 import { xEnabled } from "@/lib/profile/x";
 import { xOldEnough } from "@/lib/profile/rules";
 import { isAddress } from "viem";
+import { fidsByAddressesDetailed } from "@/lib/neynar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -145,17 +146,22 @@ export async function POST(req: Request) {
   // anything"): record this profile's day under this key BEFORE signing, first write wins. Another of
   // its wallets, signing under any other key, is refused for the day, unless that first voucher expired
   // unused. A database error refuses (never sign twice); before migration 0013 the onchain walk decides.
+  // Only a key that belongs to this profile is recorded on it (keyOwnedByProfile): the wallet in the
+  // request is the client's word. A FID that never verified the profile's wallets claims as before.
   try {
-    const claim = await claimFree({
-      chainId: NETWORK.id,
-      account,
-      kind: "daily",
-      period: today,
-      key,
-      voucherTtlSeconds: VOUCHER_TTL_SECONDS,
-      usedOnchain: async (k) =>
-        Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,
-    });
+    const owned = await keyOwnedByProfile({ fid, derivedFromProfile: true, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
+    const claim = owned
+      ? await claimFree({
+          chainId: NETWORK.id,
+          account,
+          kind: "daily",
+          period: today,
+          key,
+          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
+          usedOnchain: async (k) =>
+            Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,
+        })
+      : "skipped";
     if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
   } catch (err) {
     console.error("[free-daily] couldn't record the profile's daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));

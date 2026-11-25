@@ -7,6 +7,10 @@
  * chain), another key may take over.
  *
  * Kinds: "daily" (period = the UTC chain day) and "pack" (period 0, once ever).
+ *
+ * Only a key that BELONGS to the profile is recorded (the caller decides: `keyOwnedByProfile`): the
+ * request's wallet is the client's word, so a stranger's own Farcaster sign-in naming someone else's
+ * wallet must not plant its key on that profile and hold its free claim (Bugbot on #178).
  * Before the migration (no table), every call answers "skipped" and the route relies on the onchain
  * checks alone, as before. Any other database error throws: the route refuses rather than sign twice.
  */
@@ -53,7 +57,12 @@ export async function claimFree(opts: {
     if (inserted.length > 0) return "ok";
     const [row] = await getDb().select({ claimKey: freeClaims.claimKey, claimedAt: freeClaims.claimedAt }).from(freeClaims).where(where).limit(1);
     if (!row) return "taken"; // vanished under us: refuse, the player retries
-    if (row.claimKey === opts.key.toString()) return "ok"; // the same identity asking again
+    if (row.claimKey === opts.key.toString()) {
+      // The same identity asking again gets a fresh voucher, so the takeover window restarts from now
+      // (Bugbot on #178: a stale time let a second key in while the retried voucher was spendable).
+      await getDb().update(freeClaims).set({ claimedAt: sql`now()` }).where(and(where, eq(freeClaims.claimKey, row.claimKey)));
+      return "ok";
+    }
     const expired = Date.now() - row.claimedAt.getTime() > opts.voucherTtlSeconds * 1000;
     if (!expired || (await opts.usedOnchain(BigInt(row.claimKey)))) return "taken";
     // The first voucher expired unused: this key takes over (compare-and-set on the old key).
@@ -66,5 +75,27 @@ export async function claimFree(opts: {
   } catch (err) {
     if (isMissingTable(err)) return "skipped";
     throw err;
+  }
+}
+
+/**
+ * Does `key` belong to the profile whose wallets are `accountWallets`? An X key or a Coinbase key the
+ * route derived from the profile itself always does (pass `derivedFromProfile`). A FID does when it
+ * verified one of the profile's wallets; when Farcaster can't be asked, it counts (a stranger can't
+ * cause that outage, and the record is the backstop for exactly that case).
+ */
+export async function keyOwnedByProfile(opts: {
+  fid: number | null;
+  derivedFromProfile: boolean;
+  accountWallets: readonly string[];
+  lookup: (addresses: readonly string[]) => Promise<{ fids: Map<string, number[]>; answered: boolean }>;
+}): Promise<boolean> {
+  if (opts.fid === null) return opts.derivedFromProfile;
+  try {
+    const { fids, answered } = await opts.lookup(opts.accountWallets);
+    if ([...fids.values()].some((list) => list.includes(opts.fid!))) return true;
+    return !answered; // couldn't ask Farcaster in full: count it, as above
+  } catch {
+    return true;
   }
 }

@@ -11,7 +11,8 @@ import { isAddress } from "viem";
 import { getCampaignStatus } from "@/lib/db/queries";
 import { isCampaignConfigured } from "@/lib/db/client";
 import { accountWallets } from "@/lib/db/walletLinks";
-import { claimFree } from "@/lib/db/freeClaims";
+import { claimFree, keyOwnedByProfile } from "@/lib/db/freeClaims";
+import { fidsByAddressesDetailed } from "@/lib/neynar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // node:crypto + quick-auth
@@ -93,17 +94,22 @@ export async function POST(req: Request) {
   // get a free anything"): freePackClaimed is per Farcaster account, and a profile can hold more than
   // one. Recorded before signing, first FID wins; a database error refuses, never signs twice.
   try {
-    const { account } = await accountWallets(wallet);
-    const claim = await claimFree({
-      chainId: NETWORK.id,
-      account,
-      kind: "pack",
-      period: 0,
-      key: BigInt(fid),
-      voucherTtlSeconds: VOUCHER_TTL_SECONDS,
-      usedOnchain: async (k) =>
-        Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),
-    });
+    const { account, wallets: accountWalletList } = await accountWallets(wallet);
+    // Only a FID that verified one of the profile's wallets is recorded on it (the wallet is the
+    // client's word; keyOwnedByProfile).
+    const owned = await keyOwnedByProfile({ fid, derivedFromProfile: false, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
+    const claim = owned
+      ? await claimFree({
+          chainId: NETWORK.id,
+          account,
+          kind: "pack",
+          period: 0,
+          key: BigInt(fid),
+          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
+          usedOnchain: async (k) =>
+            Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),
+        })
+      : "skipped";
     if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
   } catch (err) {
     console.error("[free-pack] couldn't record the profile's free pack, refusing:", String((err as Error)?.message ?? err).slice(0, 120));

@@ -234,10 +234,23 @@ export async function fidsByAddress(address: string): Promise<number[]> {
 
 /** fidsByAddress for many wallets at once (350 per request): lowercase address → FIDs. Never throws. */
 export async function fidsByAddresses(addresses: readonly string[]): Promise<Map<string, number[]>> {
+  return (await fidsByAddressesDetailed(addresses)).fids;
+}
+
+/**
+ * The same lookup, saying whether Farcaster answered in full. `answered` false (no key, or any chunk
+ * failed) means an address missing from `fids` may still have a FID: callers that must tell "no FID"
+ * from "couldn't ask" read this (lib/db/freeClaims.ts keyOwnedByProfile).
+ */
+export async function fidsByAddressesDetailed(
+  addresses: readonly string[],
+): Promise<{ fids: Map<string, number[]>; answered: boolean }> {
   const key = process.env.NEYNAR_API_KEY;
   const out = new Map<string, number[]>();
   const unique = [...new Set(addresses.map((a) => a.toLowerCase()))];
-  if (!key || unique.length === 0) return out;
+  if (unique.length === 0) return { fids: out, answered: true };
+  if (!key) return { fids: out, answered: false };
+  let answered = true;
   for (let i = 0; i < unique.length; i += BULK_ADDRESSES) {
     const chunk = unique.slice(i, i + BULK_ADDRESSES);
     try {
@@ -246,7 +259,11 @@ export async function fidsByAddresses(addresses: readonly string[]): Promise<Map
         next: { revalidate: 300 },
       });
       if (!res.ok) {
-        if (res.status !== 404) console.error("[neynar] fids-by-addresses failed:", res.status, `(${chunk.length} addresses)`);
+        // 404 is Neynar's "none of these addresses has a FID": an answer, not a failure.
+        if (res.status !== 404) {
+          console.error("[neynar] fids-by-addresses failed:", res.status, `(${chunk.length} addresses)`);
+          answered = false;
+        }
         continue;
       }
       const data = (await res.json()) as Record<string, { fid?: number }[]>;
@@ -256,7 +273,8 @@ export async function fidsByAddresses(addresses: readonly string[]): Promise<Map
       }
     } catch (err) {
       console.error("[neynar] fids-by-addresses error:", err);
+      answered = false;
     }
   }
-  return out;
+  return { fids: out, answered };
 }
