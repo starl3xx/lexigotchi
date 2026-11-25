@@ -1,6 +1,6 @@
 "use client";
 /**
- * Words for sale (decisions.md #18, #29), as a list a player can search, narrow, and sort, however
+ * Words for sale (decisions.md #18, #30), as a list a player can search, narrow, and sort, however
  * long it gets: find a word by its letters, show one rarity, only all-UPPERCASE words (they earn once
  * staked), or only what the player's $WORD can buy, and order by the best deal, the price, the
  * newest, or the rarest. A word is one of a kind, so the list can never be longer than the dictionary.

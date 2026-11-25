@@ -52,7 +52,7 @@ export function pushBrowserCounts(): Promise<Read<Map<string, number>>> {
 }
 
 /**
- * Market listings made, per wallet: words and letters for sale (decisions.md #18, #29), plus any old
+ * Market listings made, per wallet: words and letters for sale (decisions.md #18, #30), plus any old
  * letter swap still on file. Rows, not what can fill now: the boards' routes are the judge of that.
  * A table that isn't there yet (letters, before migration 0017) counts as none.
  */

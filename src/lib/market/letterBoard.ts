@@ -1,5 +1,5 @@
 /**
- * The letters side of the Market, as the server reads it (decisions.md #29). Server-only.
+ * The letters side of the Market, as the server reads it (decisions.md #30). Server-only.
  *
  * `letter_listings` is a bulletin board: the chain says what can fill. Every row served is checked
  * against Seaport (`getOrderStatus`, the seller's counter) and the Letters contract (the seller's

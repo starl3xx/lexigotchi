@@ -1,5 +1,5 @@
 /**
- * Recent sales (decisions.md #29): which Seaport fills count as a sale on the Market. The table is a
+ * Recent sales (decisions.md #30): which Seaport fills count as a sale on the Market. The table is a
  * copy of public history that anyone can add to by buying, so a fill that isn't a Word or letters
  * sold for $WORD, with the sale fee paid, must never get in.
  */

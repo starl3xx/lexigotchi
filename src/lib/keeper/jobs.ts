@@ -830,7 +830,7 @@ export function createKeeper(opts: { dry: boolean }) {
   }
 
   /**
-   * The Market's recent sales (decisions.md #29): read any sale the table hasn't seen. The Market's
+   * The Market's recent sales (decisions.md #30): read any sale the table hasn't seen. The Market's
    * own route does the same on a visit; this covers a day nobody opened it. Reads only.
    */
   async function marketSales() {

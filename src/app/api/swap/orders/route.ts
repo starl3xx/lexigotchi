@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * The old letter swap (one letter for one letter), retired by decisions.md #29: letters sell for
+ * The old letter swap (one letter for one letter), retired by decisions.md #30: letters sell for
  * $WORD now (`/api/market/letters`). Nothing new lists here, and the board no longer shows these
  * offers, so nobody is handed one to fill.
  *

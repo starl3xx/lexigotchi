@@ -1,6 +1,6 @@
 "use client";
 /**
- * Sell a word (decisions.md #18, #29): a price in $WORD, a free signature, and 10% of the sale goes
+ * Sell a word (decisions.md #18, #30): a price in $WORD, a free signature, and 10% of the sale goes
  * to the Rewards Pool. One form, in two places: under an opened word, and on the Market's Sell page.
  *
  * The form helps with the price (starl3xx, 2026-11-25: "helping the user with suggested prices,

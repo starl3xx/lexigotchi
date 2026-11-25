@@ -1,6 +1,6 @@
 "use client";
 /**
- * Sell, on the Market itself (decisions.md #29; starl3xx, 2026-11-25: "I should be able to list words
+ * Sell, on the Market itself (decisions.md #30; starl3xx, 2026-11-25: "I should be able to list words
  * and letters both from the Market"). Three parts, top to bottom:
  * - what the player has for sale now, from every wallet of theirs, with a way to take each off sale
  *   (a paused letter listing too: it would go back on sale by itself, at its old price);

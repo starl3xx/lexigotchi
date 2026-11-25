@@ -1,5 +1,5 @@
 /**
- * The practice game's Market (decisions.md #29): a small seeded stall, so the page can be tried with
+ * The practice game's Market (decisions.md #30): a small seeded stall, so the page can be tried with
  * no wallet (and pictured in the docs). Listings come from made-up players; buying moves practice
  * $WORD, letters, and words in the practice store, and the player's own listings sit there unsold,
  * because nobody else is playing.

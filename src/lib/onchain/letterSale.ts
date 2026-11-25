@@ -1,5 +1,5 @@
 /**
- * Selling letters on the Market (decisions.md #29): a Seaport order that offers several of ONE letter
+ * Selling letters on the Market (decisions.md #30): a Seaport order that offers several of ONE letter
  * for a $WORD price each, with 10% of each letter's price paid to `SaleFees`, which routes it into
  * the Rewards Pool. A buyer takes any number of them.
  *

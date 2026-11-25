@@ -695,7 +695,7 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .sc-small .cb-tier { font-size: 12px; }
 
 /* ---------------------------------------------------------------------------------------------
-   The Market's letter shelf (decisions.md #29; components/game/market/LettersBoard.tsx).
+   The Market's letter shelf (decisions.md #30; components/game/market/LettersBoard.tsx).
    The 26 letters stand on a plank, and a paper price tag hangs under each one that is for sale:
    the lowest price, and how many. 52 kinds of letter hold any number of listings, so the shelf is
    the same size whether three letters are for sale or three thousand.

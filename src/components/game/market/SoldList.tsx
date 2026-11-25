@@ -1,6 +1,6 @@
 "use client";
 /**
- * What sold lately (decisions.md #29), newest first: the thing, what the buyer paid, who sold it to
+ * What sold lately (decisions.md #30), newest first: the thing, what the buyer paid, who sold it to
  * whom, and when. It is read from the chain by the server, so a sale made anywhere shows here.
  */
 import type { Tier } from "@/lib/economy";

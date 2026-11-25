@@ -255,7 +255,7 @@ A staked word's care state is a function of days since last fed:
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
   keyed by the wallet holding the word; decisions.md #15).
-- **The Market** (decisions.md #18, #29): words and letters sell for $WORD through Seaport orders
+- **The Market** (decisions.md #18, #30): words and letters sell for $WORD through Seaport orders
   (`src/lib/onchain/wordSale.ts`, `letterSale.ts`), each with a **10% fee to the Rewards Pool**
   (`SaleFees` → the `ROYALTY` split); OpenSea stays open. A letter listing holds several of one letter
   at a price each, and a buyer takes any number of them. The old one-for-one letter swap is retired.

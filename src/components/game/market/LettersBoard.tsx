@@ -1,6 +1,6 @@
 "use client";
 /**
- * Letters for sale (decisions.md #29): the shelf, and the counter under it.
+ * Letters for sale (decisions.md #30): the shelf, and the counter under it.
  *
  * The shelf is the whole alphabet, each letter with a price tag when someone is selling it (the
  * lowest price, and how many). Letters of a kind are alike, so however many listings there are, a

@@ -644,7 +644,7 @@ setter. All small, riding existing suite patterns.
       rest (a Legendary word measured 33% with them, 7.5% without); the Holographic foil's drifting
       gradient is still a loop inside the drawing; a free arm that trails the breath (in the
       review) was dropped, because it would be a moving shape inside the body's layer.
-29. **The Market sells letters too, shows what sold, and helps with the price** (starl3xx,
+30. **The Market sells letters too, shows what sold, and helps with the price** (starl3xx,
     2026-11-25, in the owner's words: "Market should have recent sales, and generally be beefed up
     as a marketplace"; "a user should be able to browse/sort for listed letters and words"; "Letters
     shouldn't be “swap” anymore, they should be listable like words (and consider that a user might
@@ -971,7 +971,7 @@ they exist to move (retention, re-acquisition demand) are exactly what this sim 
 - **Secondary letter market** — ✅ now modeled (see the experiment section above). Verdict: weak
   economic lever (~4.5% casual recoup, no reliable velocity gain), strong social case → build the
   swap primitive light. Refinement owed: a rarity-tiered floor (scarce letters should clear higher).
-  (2026-11-25, #29: the swap is retired; letters sell for $WORD on the Market, each at its seller's
+  (2026-11-25, #30: the swap is retired; letters sell for $WORD on the Market, each at its seller's
   price, so the market itself prices scarce letters higher.)
 - **Renewable late-game loop** — ✅ now modeled (prestige + theme bounty; see "Renewable late-game
   loop" above). Verdict: prestige = a modest finite durable sink + mild whale yield-concentration;

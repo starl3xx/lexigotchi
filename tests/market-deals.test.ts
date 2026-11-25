@@ -1,5 +1,5 @@
 /**
- * The Market's thinking (decisions.md #29, lib/market/deals.ts): what stands beside a price, what a
+ * The Market's thinking (decisions.md #30, lib/market/deals.ts): what stands beside a price, what a
  * sell form offers, how the words list narrows and sorts, and which listings a player sees first.
  */
 import { describe, it, expect } from "vitest";

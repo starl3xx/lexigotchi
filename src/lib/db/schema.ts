@@ -549,7 +549,7 @@ export const shopIndex = pgTable(
 );
 
 /**
- * Letters for sale on the Market (decisions.md #29; migration 0017): one Seaport order per row,
+ * Letters for sale on the Market (decisions.md #30; migration 0017): one Seaport order per row,
  * offering `qty` of one letter id at a $WORD price each. A buyer takes any number of them, so the
  * row stays until the order is sold out, cancelled, or expired; how many are left is Seaport's to
  * say (`getOrderStatus`), never this table's. `unitPriceWei` is numeric so the cheapest of a letter
@@ -581,7 +581,7 @@ export const letterListings = pgTable(
 );
 
 /**
- * Sales on the Market (decisions.md #29; migration 0017): one row per Seaport `OrderFulfilled` that
+ * Sales on the Market (decisions.md #30; migration 0017): one row per Seaport `OrderFulfilled` that
  * sold a Word or letters and paid the sale fee. Read from the chain (lib/market/sales.ts), so it is
  * a copy of public history, idempotent on (chain, transaction, log index). `shop_index` holds how
  * far it has read, under the SaleFees address.

@@ -209,7 +209,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
   feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
   `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
-  **The Market** (the `swap` view; decisions.md #29; `screens/MarketScreen.tsx`, `components/game/market/`,
+  **The Market** (the `swap` view; decisions.md #30; `screens/MarketScreen.tsx`, `components/game/market/`,
   `lib/market/`): words AND letters sell for $WORD, 10% to `SaleFees`. Four parts behind one switch
   (Words, Letters, Sell, Sold), "Just sold" and the player's picks above. Both stores feed it through
   `g.market` (the practice store from a seeded stall, `market/practiceMarket.ts`).

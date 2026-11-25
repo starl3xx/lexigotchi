@@ -1,5 +1,5 @@
 /**
- * Fills `market_sales` from the chain (decisions.md #29). Server-only.
+ * Fills `market_sales` from the chain (decisions.md #30). Server-only.
  *
  * A sale on the Market is a Seaport fill that pays the sale fee, so two things on the chain name it:
  * - the $WORD `Transfer` into `SaleFees` (indexed by receiver), which finds every sale's transaction

@@ -1,5 +1,5 @@
 /**
- * The Market's thinking (decisions.md #29; starl3xx, 2026-11-25: "Market listing should be
+ * The Market's thinking (decisions.md #30; starl3xx, 2026-11-25: "Market listing should be
  * intelligent; that is, helping the user with suggested prices, comparison, etc, and directing the
  * user to the best deal *for them*"). Pure, so every number is tested (tests/market-deals.test.ts).
  *
