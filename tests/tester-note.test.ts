@@ -17,6 +17,31 @@ describe("finding a PR's tester note", () => {
     }
   });
 
+  it("stops at a code fence: a note is sentences, never a diagram (#208 posted its file list)", () => {
+    const pr208 = [
+      "## Tester note (new)",
+      "",
+      "The Shop is open on the test network with one test item. Tap Get test USDC in your balance, buy the test item, and tell us if anything about paying felt off.",
+      "",
+      "```text",
+      "before merging",
+      "  1. migration 0016 has run in production",
+      "```",
+      "",
+      "The code change is docs only, published with the switch:",
+      "- `docs-site/contracts.mdx`: the Shop and Test USDC rows.",
+      "",
+      "## Evidence",
+    ].join("\n");
+    expect(testerNote(pr208)).toEqual({
+      kind: "new",
+      note: "The Shop is open on the test network with one test item. Tap Get test USDC in your balance, buy the test item, and tell us if anything about paying felt off.",
+    });
+    expect(testerNote("## Tester note\nOne.\n~~~\ncode\n~~~")?.note).toBe("One.");
+    // `code` inside a sentence is still the note's own formatting, not a fence.
+    expect(testerNote("## Tester note\nTap `Get test USDC`.\n\n## Evidence")?.note).toBe("Tap `Get test USDC`.");
+  });
+
   it("has no note without the section, an empty one, or a “none”, whatever kind its heading names", () => {
     expect(testerNote("## Summary\nStuff.")).toBeNull();
     expect(testerNote(null)).toBeNull();
