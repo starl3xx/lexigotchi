@@ -169,7 +169,8 @@ Live on Base Sepolia since 2026-11-25 (`config/deployments.base-sepolia.json` `s
    to the CDP paymaster policy first, then let those calls ask for sponsorship. Until then they pay
    their own gas.
 4. **Before a mainnet Shop:** your go-ahead for `contracts/script/DeployShop.s.sol` (it creates no
-   items and refuses a pool key that doesn't hash to $WORD's pool id); `PRICE_KEEPER_PRIVATE_KEY` set,
+   items and refuses a pool key that doesn't hash to $WORD's pool id); a fork measurement of the
+   sweep-sandwich economics (`contracts/AUDIT.md`, fourth pass); `PRICE_KEEPER_PRIVATE_KEY` set,
    or the floor's peg goes stale; a sales-tax check with an accountant (the spec: Iowa taxes some
    digital products); each real item's `shop_items` row BEFORE its `addItem`; and a change to
    `lib/shop/rules.ts` `shopOn`, which keeps mainnet off on purpose.
