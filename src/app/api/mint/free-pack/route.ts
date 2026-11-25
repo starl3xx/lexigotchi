@@ -11,7 +11,7 @@ import { fidsByAddressesDetailed } from "@/lib/neynar";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
 import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
-import { crossKeys, FREE_LETTERS } from "@/lib/freeLetters";
+import { crossCounts, crossKeys, FREE_LETTERS } from "@/lib/freeLetters";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // node:crypto + quick-auth
@@ -71,13 +71,13 @@ export async function POST(req: Request) {
   const owned = await keyOwnedByProfile({ fid, derivedFromProfile: who.source !== "fid", accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
   const ledger = owned || fid === null ? account : fidLedgerAccount(fid);
   await settleGrants(NETWORK.id, ledger);
-  // A pack on ANOTHER ledger account that paid one of the profile's wallets (an unverified FID's;
-  // Bugbot on #199) joins the onchain check: once its key opened a pack, this profile has had one. A
-  // voucher not yet used blocks nothing, so a stranger naming this wallet can't hold its pack.
+  // A pack on ANOTHER ledger account that belongs to this profile (an unverified FID's, made for it or
+  // paid to one of its wallets; Bugbot on #199) means this profile has had one, from the moment it was
+  // signed (lib/freeLetters.ts profileDailyDays says why, and what that costs).
   const [recordedGrant, profileGrant, cross] = await Promise.all([
     recordedFreeGrant(NETWORK.id, ledger, "pack", 0),
     ledger === account ? Promise.resolve(null) : recordedFreeGrant(NETWORK.id, account, "pack", 0),
-    crossGrants(NETWORK.id, accountWalletList, [ledger]),
+    crossGrants(NETWORK.id, account, accountWalletList, [ledger]),
   ]);
   const recordedKeys = [recordedGrant?.key, profileGrant?.key, ...crossKeys(cross, "pack", 0)].filter((k): k is bigint => k != null);
   const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...recordedKeys])];
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     }) as Promise<boolean[]>,
   ]);
   if (!open) return NextResponse.json({ ok: false, error: "campaign_closed" }, { status: 409 });
-  if (claimed.some(Boolean)) return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
+  if (claimed.some(Boolean) || crossCounts(cross, "pack", 0)) return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
 
   // The free-letter budget and the dictionary stop (decisions.md #21). A pack this profile already
   // holds a counted voucher for is a re-issue: no new letters.
@@ -119,6 +119,7 @@ export async function POST(req: Request) {
           letters: FREE_LETTERS.pack,
           expiresAt: new Date(Number(deadline) * 1000),
           wallet,
+          profile: account,
           voucherTtlSeconds: VOUCHER_TTL_SECONDS,
           usedOnchain: async (k) =>
             Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),

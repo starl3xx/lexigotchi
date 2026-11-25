@@ -79,6 +79,8 @@ export async function claimFree(opts: {
   expiresAt: Date;
   /** The wallet the voucher pays (its buyer): ties a grant on another ledger account to the profile. */
   wallet: string;
+  /** The profile the grant is for (the request's account): it keeps counting there after an unlink. */
+  profile: string;
   /** Seconds a voucher stays spendable: an older claim whose key never reached the chain can be taken over. */
   voucherTtlSeconds: number;
   /** Did this key take the free thing onchain? */
@@ -105,7 +107,9 @@ export async function claimFree(opts: {
 async function claimFreeWith(opts: Parameters<typeof claimFree>[0], ledger: boolean): Promise<FreeClaim> {
   const account = opts.account.toLowerCase();
   const where = whereOf(opts.chainId, account, opts.kind, opts.period);
-  const fresh = ledger ? { letters: opts.letters, expiresAt: opts.expiresAt, used: null, wallet: opts.wallet.toLowerCase() } : {};
+  const fresh = ledger
+    ? { letters: opts.letters, expiresAt: opts.expiresAt, used: null, wallet: opts.wallet.toLowerCase(), profile: opts.profile.toLowerCase() }
+    : {};
   // Drizzle's insert names EVERY schema column (DEFAULT for the ones not given), so the pre-0015
   // insert is raw SQL with 0013's columns only.
   const inserted = ledger
@@ -263,17 +267,27 @@ export interface GrantRow {
   key: bigint;
   used: boolean | null;
   wallet: string | null;
+  profile: string | null;
 }
 
-const toGrant = (r: { account: string; kind: string; period: number; claimKey: string; used: boolean | null; wallet: string | null }): GrantRow => ({
+const toGrant = (r: { account: string; kind: string; period: number; claimKey: string; used: boolean | null; wallet: string | null; profile: string | null }): GrantRow => ({
   account: r.account,
   kind: r.kind as FreeKind,
   period: r.period,
   key: BigInt(r.claimKey),
   used: r.used,
   wallet: r.wallet,
+  profile: r.profile,
 });
-const grantCols = { account: freeClaims.account, kind: freeClaims.kind, period: freeClaims.period, claimKey: freeClaims.claimKey, used: freeClaims.used, wallet: freeClaims.wallet };
+const grantCols = {
+  account: freeClaims.account,
+  kind: freeClaims.kind,
+  period: freeClaims.period,
+  claimKey: freeClaims.claimKey,
+  used: freeClaims.used,
+  wallet: freeClaims.wallet,
+  profile: freeClaims.profile,
+};
 
 /** The days a ledger account's free dailies count for. Null without migration 0015. */
 export async function dailyPeriods(chainId: number, account: string): Promise<number[] | null> {
@@ -290,20 +304,23 @@ export async function dailyPeriods(chainId: number, account: string): Promise<nu
 }
 
 /**
- * Grants recorded on OTHER ledger accounts that paid one of `wallets` (a profile's): an unverified
- * FID's grants, which belong to the profile whose wallet they paid (Bugbot on #199). Empty without
- * migration 0015 (no wallet column), or when there are none.
+ * Grants recorded on OTHER ledger accounts that belong to this profile: made for it (`profile`), or
+ * paid to one of its wallets (`wallet`). An unverified FID's grants live on `fid:<id>`, and both ties
+ * keep them counted here, before and after an unlink (Bugbot on #199). Empty without migration 0015,
+ * or when there are none.
  */
-export async function crossGrants(chainId: number, wallets: readonly string[], excludeAccounts: readonly string[]): Promise<GrantRow[]> {
-  if (wallets.length === 0) return [];
+export async function crossGrants(chainId: number, profile: string, wallets: readonly string[], excludeAccounts: readonly string[]): Promise<GrantRow[]> {
   try {
+    const lowered = wallets.map((w) => w.toLowerCase());
     const rows = await getDb()
       .select(grantCols)
       .from(freeClaims)
       .where(
         and(
           eq(freeClaims.chainId, chainId),
-          inArray(freeClaims.wallet, wallets.map((w) => w.toLowerCase())),
+          lowered.length
+            ? sql`(${freeClaims.profile} = ${profile.toLowerCase()} OR ${inArray(freeClaims.wallet, lowered)})`
+            : eq(freeClaims.profile, profile.toLowerCase()),
           ...(excludeAccounts.length ? [sql`${freeClaims.account} NOT IN (${sql.join(excludeAccounts.map((a) => sql`${a.toLowerCase()}`), sql`, `)})`] : []),
         ),
       );

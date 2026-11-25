@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/lib/params";
-import { crossKeys, dailiesLeft, finishedProfiles, freeLetterBudget, freeStop, profileDailyDays, usedOnchain, FREE_LETTERS, type Grant } from "@/lib/freeLetters";
+import { crossCounts, crossKeys, dailiesLeft, finishedProfiles, freeLetterBudget, freeStop, profileDailyDays, usedOnchain, FREE_LETTERS, type Grant } from "@/lib/freeLetters";
 
 const DICT = 4584;
 
@@ -83,13 +83,20 @@ describe("usedOnchain", () => {
 
 describe("across ledger accounts (Bugbot on #199)", () => {
   const T = 20_400;
-  const g = (o: Partial<Grant>): Grant => ({ account: "fid:7", kind: "daily", period: T - 1, key: 7n, used: true, wallet: "0xw", ...o });
+  const g = (o: Partial<Grant>): Grant => ({ account: "fid:7", kind: "daily", period: T - 1, key: 7n, used: true, wallet: "0xw", profile: null, ...o });
 
-  it("a profile's days are its own plus past, kept days its wallets were paid on other ledgers", () => {
-    expect(profileDailyDays([T - 3, T - 2], [g({ period: T - 1 }), g({ period: T - 2 })], T)).toBe(3); // a shared day counts once
-    expect(profileDailyDays([], [g({ period: T - 1, used: false })], T)).toBe(0); // given back
-    expect(profileDailyDays([], [g({ period: T, used: null })], T)).toBe(0); // today's: never a stranger's block
-    expect(profileDailyDays([], [g({ kind: "pack", period: 0 })], T)).toBe(0);
+  it("a profile's days are its own plus every kept day of its grants on other ledgers", () => {
+    expect(profileDailyDays([T - 3, T - 2], [g({ period: T - 1 }), g({ period: T - 2 })])).toBe(3); // a shared day counts once
+    expect(profileDailyDays([], [g({ period: T - 1, used: false })])).toBe(0); // given back
+    expect(profileDailyDays([], [g({ period: T, used: null })])).toBe(1); // signed today: counts already
+    expect(profileDailyDays([], [g({ kind: "pack", period: 0 })])).toBe(0);
+  });
+
+  it("a cross grant blocks from signing until it's given back", () => {
+    expect(crossCounts([g({ period: T, used: null })], "daily", T)).toBe(true);
+    expect(crossCounts([g({ period: T, used: false })], "daily", T)).toBe(false);
+    expect(crossCounts([g({ kind: "pack", period: 0, used: null })], "pack", 0)).toBe(true);
+    expect(crossCounts([g({ period: T - 1 })], "daily", T)).toBe(false);
   });
 
   it("today's cross grants join the onchain check by key", () => {
@@ -102,7 +109,7 @@ describe("across ledger accounts (Bugbot on #199)", () => {
     const accountOf = (w: string) => (w === "0xs" ? "0xp" : w);
     const grants: Grant[] = [
       ...Array.from({ length: 6 }, (_, i) => g({ account: "0xp", key: 100n, period: T - 1 - i, wallet: "0xp" })),
-      ...Array.from({ length: 4 }, (_, i) => g({ account: "fid:7", key: 7n, period: T - 7 - i, wallet: "0xs" })),
+      ...Array.from({ length: 4 }, (_, i) => g({ account: "fid:7", key: 7n, period: T - 7 - i, wallet: "0xs", profile: i === 0 ? "0xp" : null })),
       g({ account: "0xq", key: 200n, period: T - 1, wallet: "0xq" }),
     ];
     const f = finishedProfiles(grants, accountOf, 10);

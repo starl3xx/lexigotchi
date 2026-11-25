@@ -9,7 +9,7 @@ import { accountWallets } from "@/lib/db/walletLinks";
 import { crossGrants, dailyPeriods, fidLedgerAccount, freeLettersSigned, freePackTaken, recordedFreeKey } from "@/lib/db/freeClaims";
 import { settleGrants } from "@/lib/onchain/freeLedger";
 import { claimedWordCount } from "@/lib/onchain/claimedWords";
-import { crossKeys, dailiesLeft, freeLetterBudget, freeStop, FREE_LETTERS, profileDailyDays, type FreeStop } from "@/lib/freeLetters";
+import { crossCounts, crossKeys, dailiesLeft, freeLetterBudget, freeStop, FREE_LETTERS, profileDailyDays, type FreeStop } from "@/lib/freeLetters";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     // that pulled.
     const [recorded, cross] = await Promise.all([
       Promise.all(ledgers.flatMap((l) => [recordedFreeKey(NETWORK.id, l, "daily", today), recordedFreeKey(NETWORK.id, l, "pack", 0)])),
-      crossGrants(NETWORK.id, wallets, ledgers).catch(() => []),
+      crossGrants(NETWORK.id, account, wallets, ledgers).catch(() => []),
     ]);
     const keys = [
       ...new Set([
@@ -87,8 +87,8 @@ export async function GET(req: Request) {
         { address: letters, abi: lettersAbi, functionName: "freePackClaimed" as const, args: [k] },
       ]),
     })) as unknown as (number | bigint | boolean)[];
-    const claimed = keys.some((_, i) => Number(reads[i * 2]) === today + 1);
-    const packOnchain = keys.some((_, i) => Boolean(reads[i * 2 + 1]));
+    const claimed = keys.some((_, i) => Number(reads[i * 2]) === today + 1) || crossCounts(cross, "daily", today);
+    const packOnchain = keys.some((_, i) => Boolean(reads[i * 2 + 1])) || crossCounts(cross, "pack", 0);
 
     const [days, packRecorded, signed, claimedWords] = await Promise.all([
       Promise.all(ledgers.map((l) => dailyPeriods(NETWORK.id, l).catch(() => null))).then((all) =>
@@ -98,7 +98,7 @@ export async function GET(req: Request) {
       freeLettersSigned(NETWORK.id).catch(() => null),
       claimedWordCount(),
     ]);
-    const taken = days === null ? null : profileDailyDays(days, cross, today);
+    const taken = days === null ? null : profileDailyDays(days, cross);
     const left = dailiesLeft(taken);
     const budget = freeLetterBudget();
     const stopFor = (n: number) => freeStop({ claimed: claimedWords, dictionary: WORD_COUNT, signed, budget, letters: n });

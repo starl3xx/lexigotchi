@@ -189,10 +189,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   its voucher expires it is settled against the chain (`freePackClaimed` / `dailyUsed`), and an unused
   one gives its letters back and its day stops counting. Settle BEFORE reading the profile's own grant
   (a re-issue is only of a grant that still counts). A FID that never verified the profile's wallets
-  records on its own ledger, `fid:<id>`, and every row keeps the `wallet` its voucher pays: grants on
-  another ledger that paid one of the profile's wallets count for it (`crossGrants`; past kept days
-  toward the 10, today's dailies and any pack by key in the onchain check), but a voucher not yet used
-  never blocks, so a stranger naming a wallet can't hold its letters (Bugbot on #199). Both routes share `resolveFreeIdentity` (FID,
+  records on its own ledger, `fid:<id>`, and every row keeps the `wallet` its voucher pays and the
+  `profile` it was made for: a grant on another ledger that was made for this profile or paid one of
+  its wallets counts for it, from signing until given back (`crossGrants`, `crossCounts`), so an unlink
+  can't reset it and one person can't hold a Farcaster and a Coinbase voucher at once (Bugbot on #199).
+  Accepted cost: a stranger's voucher naming a wallet holds its free letter until it lapses unused. Both routes share `resolveFreeIdentity` (FID,
   then X, then Coinbase); the pack takes any `uint256` key, so no contract change. daily-status
   returns `dailyTaken`/`done`/`packTaken`/`stop`/`packStop`/`dictionaryFull` (GameApi
   `freeLetters`); the daily reminder skips finished profiles (`dailiesDone`) and everyone once free

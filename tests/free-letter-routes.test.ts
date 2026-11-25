@@ -81,7 +81,7 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
 vi.mock("@/lib/onchain/claimedWords", () => ({ claimedWordCount: async () => claimedWords }));
 
 // ── the ledger (free_claims), in memory ─────────────────────────────────────────────────────
-interface Row { account: string; kind: "daily" | "pack"; period: number; key: string; letters: number; expiresAt: number; used: boolean | null; wallet?: string | null }
+interface Row { account: string; kind: "daily" | "pack"; period: number; key: string; letters: number; expiresAt: number; used: boolean | null; wallet?: string | null; profile?: string | null }
 let rows: Row[] = [];
 const find = (account: string, kind: string, period: number) => rows.find((r) => r.account === account.toLowerCase() && r.kind === kind && r.period === period);
 const counts = (r: Row) => r.used !== false;
@@ -98,9 +98,9 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
       const r = find(account, kind, period);
       return r ? { key: BigInt(r.key), counts: counts(r) } : null;
     },
-    claimFree: async (o: { account: string; kind: "daily" | "pack"; period: number; key: bigint; letters: number; expiresAt: Date; wallet: string; usedOnchain: (k: bigint) => Promise<boolean> }) => {
+    claimFree: async (o: { account: string; kind: "daily" | "pack"; period: number; key: bigint; letters: number; expiresAt: Date; wallet: string; profile: string; usedOnchain: (k: bigint) => Promise<boolean> }) => {
       const r = find(o.account, o.kind, o.period);
-      const fresh = { key: o.key.toString(), letters: o.letters, expiresAt: o.expiresAt.getTime(), used: null, wallet: o.wallet.toLowerCase() };
+      const fresh = { key: o.key.toString(), letters: o.letters, expiresAt: o.expiresAt.getTime(), used: null, wallet: o.wallet.toLowerCase(), profile: o.profile.toLowerCase() };
       if (!r) return void rows.push({ account: o.account.toLowerCase(), kind: o.kind, period: o.period, ...fresh }), "ok";
       if (r.key === o.key.toString()) return Object.assign(r, fresh), "ok";
       if (r.expiresAt < now * 1000 && !(await o.usedOnchain(BigInt(r.key)))) return Object.assign(r, fresh), "ok";
@@ -115,10 +115,10 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
     },
     freeLettersSigned: async () => rows.filter(counts).reduce((a, r) => a + r.letters, 0),
     dailyPeriods: async (_c: number, account: string) => rows.filter((r) => r.account === account && r.kind === "daily" && counts(r)).map((r) => r.period),
-    crossGrants: async (_c: number, wallets: readonly string[], exclude: readonly string[]) =>
+    crossGrants: async (_c: number, profile: string, wallets: readonly string[], exclude: readonly string[]) =>
       rows
-        .filter((r) => r.wallet && wallets.map((w) => w.toLowerCase()).includes(r.wallet) && !exclude.includes(r.account))
-        .map((r) => ({ account: r.account, kind: r.kind, period: r.period, key: BigInt(r.key), used: r.used, wallet: r.wallet ?? null })),
+        .filter((r) => (r.profile === profile.toLowerCase() || (r.wallet && wallets.map((w) => w.toLowerCase()).includes(r.wallet))) && !exclude.includes(r.account))
+        .map((r) => ({ account: r.account, kind: r.kind, period: r.period, key: BigInt(r.key), used: r.used, wallet: r.wallet ?? null, profile: r.profile ?? null })),
     freePackTaken: async (_c: number, account: string) => rows.some((r) => r.account === account && r.kind === "pack" && counts(r)),
   };
 });
@@ -213,11 +213,32 @@ describe("10 free daily letters per profile", () => {
     expect((await status(P)).done).toBe(true);
   });
 
-  it("a stranger's unused voucher naming the wallet today never blocks the owner", async () => {
-    rows.push(daily("fid:88", 88n, DAY, null, S)); // a live voucher, only spendable by S
-    for (let d = 1; d <= 9; d++) rows.push(daily(P, 5n, DAY - d));
-    const res = await post("free-daily", S);
-    expect(res.status).toBe(200); // today's cross grant isn't counted: the owner takes the 10th
+  it("a live voucher on another ledger for the wallet holds today's letter until it lapses unused (anti-farming)", async () => {
+    // FID 88 (unverified) holds a live voucher paid to S: one person must not also take S's own today.
+    rows.push({ ...daily("fid:88", 88n, DAY, null, S), expiresAt: (now + 600) * 1000 });
+    expect((await post("free-daily", S)).body.error).toBe("already_claimed_today");
+    expect((await status(S)).claimed).toBe(true);
+    // Lapsed unused (settled after its deadline and the grace): the owner takes today's.
+    now += 1_000;
+    expect((await post("free-daily", S)).status).toBe(200);
+  });
+
+  it("keeps an unverified FID's grants on the profile they were made for after the wallet is unlinked (Bugbot on #199)", async () => {
+    // FID 77's pack was made for profile P, paid to S. Then S leaves P.
+    rows.push({ account: "fid:77", kind: "pack", period: 0, key: "77", letters: 5, expiresAt: (now - 600) * 1000, used: true, wallet: S, profile: P });
+    packClaimed.add("77");
+    accountOf[S] = S;
+    walletsOf[P] = [P];
+    walletsOf[S] = [S];
+    try {
+      verified.add(P);
+      expect((await post("free-pack", P)).body.error).toBe("already_claimed"); // the profile it was made for
+      expect((await post("free-pack", S)).body.error).toBe("already_claimed"); // the wallet it paid
+    } finally {
+      accountOf[S] = P;
+      walletsOf[P] = [P, S];
+      delete walletsOf[S];
+    }
   });
 
   it("a daily whose voucher lapsed unused doesn't count toward the 10", async () => {
@@ -316,12 +337,10 @@ describe("the free pack for every verified player", () => {
     expect((await post("free-pack", P)).body.error).toBe("already_claimed");
   });
 
-  it("refuses a second pack once an unverified FID's pack for this wallet was opened, and not before (Bugbot on #199)", async () => {
-    // FID 77, signed in but not verified on S, took a pack paid to S.
-    rows.push({ account: "fid:77", kind: "pack", period: 0, key: "77", letters: 5, expiresAt: (now + 600) * 1000, used: null, wallet: S });
-    expect((await post("free-pack", S)).status).toBe(200); // not opened yet: a stranger's voucher can't hold S's pack
-    rows = rows.filter((r) => r.account === "fid:77");
-    packClaimed.add("77"); // now opened onchain
+  it("refuses a second pack once an unverified FID took one for this profile (Bugbot on #199)", async () => {
+    // FID 77, signed in but not verified on S, took a pack paid to S, and opened it.
+    rows.push({ account: "fid:77", kind: "pack", period: 0, key: "77", letters: 5, expiresAt: (now - 600) * 1000, used: null, wallet: S, profile: P });
+    packClaimed.add("77");
     const again = await post("free-pack", S);
     expect(again.status).toBe(409);
     expect(again.body.error).toBe("already_claimed");

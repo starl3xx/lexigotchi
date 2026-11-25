@@ -65,19 +65,31 @@ export interface Grant {
   key: bigint;
   used: boolean | null;
   wallet: string | null;
+  /** The profile the grant was made for (null on rows from before migration 0015's backfill). */
+  profile: string | null;
 }
 
 /**
- * The days a profile's free dailies count for: its own ledger's days (`ledgerDays`), plus days that
- * grants on OTHER ledger accounts paid one of its wallets (`cross`: an unverified FID's, Bugbot on
- * #199). A cross grant counts only for a day already past and only if not given back: today's could
- * be a stranger's voucher naming this wallet, which only the wallet can spend, so it must never block
- * the owner. Today's cross grants are instead checked onchain (their keys join the `dailyUsed` walk).
+ * The days a profile's free dailies count for: its own ledger's days (`ledgerDays`), plus the days of
+ * grants on OTHER ledger accounts that belong to it (`cross`: an unverified FID's, made for this
+ * profile or paid to one of its wallets; Bugbot on #199), unless given back.
+ *
+ * A cross grant counts, and blocks (crossCounts), from the moment it's signed, not only once the
+ * chain shows it used: otherwise one person could hold a Farcaster voucher and a Coinbase voucher for
+ * the same wallet at once. The accepted cost: a stranger's voucher naming a wallet holds that wallet's
+ * free letter until it lapses unused (10 minutes, plus the settle grace), and a stranger who keeps
+ * asking keeps holding it, one wallet per Farcaster account they control (decided for anti-farming,
+ * decisions.md #21).
  */
-export function profileDailyDays(ledgerDays: readonly number[], cross: readonly Pick<Grant, "kind" | "period" | "used">[], today: number): number {
+export function profileDailyDays(ledgerDays: readonly number[], cross: readonly Pick<Grant, "kind" | "period" | "used">[]): number {
   const days = new Set(ledgerDays);
-  for (const g of cross) if (g.kind === "daily" && g.period < today && g.used !== false) days.add(g.period);
+  for (const g of cross) if (g.kind === "daily" && g.used !== false) days.add(g.period);
   return days.size;
+}
+
+/** Does a cross grant for (kind, period) still count? Then this profile already has it. */
+export function crossCounts(cross: readonly Pick<Grant, "kind" | "period" | "used">[], kind: FreeKind, period: number): boolean {
+  return cross.some((g) => g.kind === kind && g.period === period && g.used !== false);
 }
 
 /** Keys of cross grants for (kind, period): they join the onchain check (`dailyUsed` / `freePackClaimed`). */
@@ -97,7 +109,7 @@ export function finishedProfiles(
   accountOf: (wallet: string) => string,
   limit: number,
 ): { accounts: Set<string>; keys: Set<string>; wallets: Set<string> } {
-  const profileOf = (g: Grant) => (g.account.startsWith("fid:") && g.wallet ? accountOf(g.wallet) : g.account);
+  const profileOf = (g: Grant) => g.profile ?? (g.account.startsWith("fid:") && g.wallet ? accountOf(g.wallet) : g.account);
   const days = new Map<string, Set<number>>();
   for (const g of grants) {
     if (g.kind !== "daily" || g.used === false) continue;
