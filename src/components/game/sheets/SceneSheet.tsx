@@ -30,6 +30,7 @@ export function SceneSheet({ word }: { word: string }) {
           // No hunger tone here on purpose: the player is choosing a scene and needs to see it
           // clear, not grey and fogged (the Today stage behind the sheet still shows the mood).
           gild={gild}
+          tier={w.tier}
           className="rounded-xl border-[3px] border-ink"
         />
         <p className="text-center text-sm text-ink/70">

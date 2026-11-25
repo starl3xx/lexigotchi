@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { WordStripLive } from "@/components/WordStrip";
+import { wordTier } from "@/lib/economy";
 import { parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
 import { parseScene, sceneMeta } from "@/lib/scenes";
 import { BASE_APP_ID, embedsWithImage } from "@/lib/site";
@@ -55,7 +56,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
         A Lexigotchi showcase
       </p>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
-        <SceneFrame scene={scene} word={word} upper={upper} />
+        <SceneFrame scene={scene} word={word} upper={upper} tier={wordTier(word)} />
       </div>
       <h1 className="sr-only">{text}</h1>
       <p className="max-w-md text-center text-lg font-semibold text-ink/75">

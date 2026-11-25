@@ -18,7 +18,7 @@ export function CelebrateSheet({ word }: { word: string }) {
     <Sheet open onClose={g.closeSheet} title="A new word">
       <div className="flex flex-col items-center gap-3 pb-2 text-center">
         <div className="pt-2">
-          <TileWord word={w.word} upper={w.upper} state="celebrate" size={54} detail="full" />
+          <TileWord word={w.word} upper={w.upper} state="celebrate" size={54} detail="full" tier={w.tier} />
         </div>
         <div className="font-display text-2xl font-extrabold">{w.word} is yours.</div>
         {/* The practice store stakes a word as it is claimed, so ask only when it isn't staked:

@@ -18,7 +18,7 @@ import {
   LETTERS_BY_FREQUENCY,
   TIERS,
   TIER_COUNTS,
-  LEGENDARIES,
+  MYTHICS,
   Q_WORDS,
   DOUBLED_ULTRA_RARES,
   wordsByTier,
@@ -76,9 +76,9 @@ md += `
 > Note: the cuts fall at floor(N × .50/.80/.95/.99), so each count is exact, and \`npm test\` pins all five.
 > (The spec's Appendix B was written for 4,438 words: 2,219 / 1,330 / 667 / 177 / 45.)
 
-### The ${LEGENDARIES.length} Legendaries (rarest first)
+### The ${MYTHICS.length} Mythic words (rarest first)
 
-${LEGENDARIES.join(", ")}.
+${MYTHICS.join(", ")}.
 
 ### All ${Q_WORDS.length} Q-words
 
