@@ -8,7 +8,7 @@ import {
   dailyReady,
   jackpotWon,
   jackpotRollover,
-  claimReady,
+  earningsPaid,
   pityCapped,
   listingFilled,
 } from "@/lib/notify/templates";
@@ -131,7 +131,7 @@ describe("length limits", () => {
         dailyReady(day),
         jackpotWon(longWord, hugeAmount, day),
         jackpotRollover(hugeAmount, day),
-        claimReady(hugeAmount, day),
+        earningsPaid(hugeAmount, day),
         pityCapped("q", day),
         listingFilled("w", "0xabc0000000000000000000000000000000000000000000000000000000000001", day),
       ];
@@ -147,7 +147,7 @@ describe("length limits", () => {
     expect(withinLimits(hungerWarning(3, 6))).toBe(true);
     expect(withinLimits(dailyReady())).toBe(true);
     expect(withinLimits(jackpotWon("cabin", "1,250,000 $WORD"))).toBe(true);
-    expect(withinLimits(claimReady("42,000 $WORD"))).toBe(true);
+    expect(withinLimits(earningsPaid("42,000 $WORD"))).toBe(true);
   });
 });
 
@@ -174,8 +174,12 @@ describe("template rotation", () => {
 describe("idempotency keys match what the message describes", () => {
   it("NUDGES repeat their key within a day, so a retried pass can't double-push", () => {
     expect(hungerWarning(3, 6, 500).notificationId).toBe(hungerWarning(9, 2, 500).notificationId);
-    expect(claimReady("1 $WORD", 500).notificationId).toBe(claimReady("9 $WORD", 500).notificationId);
     expect(pityCapped("q", 500).notificationId).toBe(pityCapped("q", 500).notificationId);
+  });
+
+  it("the payday receipt is keyed by its payout day: there is one payout a day (decisions.md #16)", () => {
+    expect(earningsPaid("1 $WORD", 500).notificationId).toBe(earningsPaid("9 $WORD", 500).notificationId);
+    expect(earningsPaid("1 $WORD", 500).notificationId).not.toBe(earningsPaid("1 $WORD", 501).notificationId);
   });
 
   it("nudges still separate across days and across letters", () => {

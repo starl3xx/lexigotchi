@@ -5,6 +5,10 @@
  *
  *   --wallet          inject a mock EIP-1193 wallet and click Connect
  *   --goto <screen>   bottom-nav target after load: Today | Bag | Mint | Win | More
+ *   --click <regex>   then click the first button whose accessible name matches (e.g. "\$WORD" opens Your $WORD);
+ *                     repeat it for a sequence of clicks
+ *   --wait <ms>       after the last click, before the screenshot (default 2000; a faucet tap needs ~30000)
+ *   --drop-sends      with --wallet: the wallet returns a made-up tx hash and broadcasts nothing
  *   --shot <name>     screenshot basename (default: play) → /tmp/lexi-shots/<name>.png
  *   --url <url>       default http://localhost:3000/play
  *
@@ -35,7 +39,22 @@ const val = (n, d) => (argv.includes(n) ? argv[argv.indexOf(n) + 1] : d);
 const URL = val("--url", "http://localhost:3000/play");
 const SHOT = val("--shot", "play");
 const GOTO = val("--goto", null);
+const CLICKS = argv.flatMap((a, i) => (a === "--click" && argv[i + 1] ? [argv[i + 1]] : []));
+// Checked before a browser starts: a bad pattern should say so, not throw a bare SyntaxError later.
+const CLICK_RES = CLICKS.map((name) => {
+  try {
+    return new RegExp(name, "i");
+  } catch (e) {
+    console.error(`--click ${JSON.stringify(name)} is not a valid pattern: ${e.message}`);
+    process.exit(2);
+  }
+});
+// `--wait` with no number (or a non-number) falls back to the default instead of NaN, which skipped
+// the wait entirely.
+const WAIT_ARG = Number(val("--wait", 2000));
+const WAIT_MS = Number.isFinite(WAIT_ARG) && WAIT_ARG >= 0 ? WAIT_ARG : 2000;
 const WANT_WALLET = flag("--wallet");
+const DROP_SENDS = flag("--drop-sends");
 const SHOT_DIR = "/tmp/lexi-shots";
 const RPC = "https://sepolia.base.org";
 const KEYFILE = "contracts/sepolia-deployer.secret.json";
@@ -66,6 +85,11 @@ page.on("console", (m) => {
 
 if (WANT_WALLET) {
   await page.exposeFunction("__walletRpc", async (method, params = []) => {
+    // --drop-sends: answer with a made-up hash and broadcast NOTHING — a wallet that says "sent" when
+    // no transaction ever reaches the chain (a tester's faucet did this on 2026-11-24).
+    if (method === "eth_sendTransaction" && DROP_SENDS) {
+      return `0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+    }
     if (method === "eth_sendTransaction") {
       const t = params[0];
       return wallet.sendTransaction({
@@ -139,6 +163,38 @@ if (GOTO) {
   await page.waitForTimeout(6000);
 }
 
+// Toasts dismiss themselves in seconds, so they're recorded while the driver waits, not after.
+// Toasts carry `data-toast` (primitives.tsx). Not "every child of the live region": that also caught
+// the busy pill, whose spinner is an <svg> with no innerText, and the throw lost every toast on
+// screen while the pill was up.
+const readToasts = () =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("[data-toast]")]
+      .map((e) => (e instanceof HTMLElement ? e.innerText : e.textContent ?? "").trim())
+      .filter(Boolean),
+  );
+const seenToasts = new Set();
+for (const [i, name] of CLICKS.entries()) {
+  const target = page.getByRole("button", { name: CLICK_RES[i] }).first();
+  if (!(await target.count())) {
+    // Skip it: clicking a locator that matches nothing waits out Playwright's 30 s timeout.
+    console.log(`click      : no button matches /${name}/i`);
+    continue;
+  }
+  // Said out loud: a click that silently failed (say, blocked by a sheet still animating in) and
+  // then a full --wait reads exactly like the app ignoring the tap.
+  const clicked = await target.click({ timeout: 10_000 }).then(
+    () => true,
+    (e) => (console.log(`click      : /${name}/i failed: ${String(e.message).split("\n")[0]}`), false),
+  );
+  if (!clicked) continue;
+  const until = Date.now() + (i === CLICKS.length - 1 ? WAIT_MS : 1500); // a sheet's enter animation
+  while (Date.now() < until) {
+    for (const t of await readToasts().catch(() => [])) seenToasts.add(t);
+    await page.waitForTimeout(250);
+  }
+}
+
 const shotPath = `${SHOT_DIR}/${SHOT}.png`;
 await page.screenshot({ path: shotPath });
 
@@ -150,6 +206,8 @@ console.log("wallet     :", WANT_WALLET ? account.address : "none");
 console.log("screen     :", GOTO ?? "(default)");
 console.log("screenshot :", shotPath);
 console.log("HEADER     :", JSON.stringify(header));
+for (const t of await readToasts().catch(() => [])) seenToasts.add(t);
+console.log("TOASTS     :", JSON.stringify([...seenToasts]));
 console.log("--- BODY (first 600) ---");
 console.log(body.slice(0, 600));
 console.log("--- CONSOLE ERRORS:", errors.length, "---");

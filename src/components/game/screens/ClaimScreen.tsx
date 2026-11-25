@@ -13,7 +13,7 @@ import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } fr
 import { useWorld } from "../useWorld";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Crown, Lock, Sparkle } from "../ui/icons";
-import { anagramsOf, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, spellableNow, useGame } from "../state";
+import { anagramsOf, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, showsUsd, spellableNow, useGame } from "../state";
 
 export function ClaimScreen() {
   const g = useGame();
@@ -87,7 +87,7 @@ export function ClaimScreen() {
 
   const upperCount = mineUpper(state).reduce((a, b) => a + b, 0);
   const fee = g.price("claim");
-  const feeText = `${fmtWord(fee)} $WORD (${fmtUsd(fee)})`;
+  const feeText = showsUsd(state) ? `${fmtWord(fee)} $WORD (${fmtUsd(fee)})` : `${fmtWord(fee)} $WORD`;
   const canClaim = g.canAfford(fee);
   const getWord = () => g.openSheet({ kind: "balance", need: { amount: fee, action: "a claim" } });
 

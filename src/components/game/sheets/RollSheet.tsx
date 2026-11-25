@@ -1,6 +1,9 @@
 "use client";
 /** Roll & Shine — commit→reveal an upgrade. Fail is a no-op (the asset is never harmed). */
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { readPity } from "@/lib/onchain/reads";
+import { NETWORK } from "@/lib/onchain/network";
 import { TileCharacter } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
@@ -27,7 +30,20 @@ export function RollSheet({ target }: { target: RollTarget }) {
   const word = !loose ? state.words.find((w) => w.word === target.word) : undefined;
   const char = loose ? idxToChar(target.idx) : word ? word.word[target.pos] : "?";
   // word-position rolls share the per-letter pity streak (the (owner, letterId) rule)
-  const pity = loose ? state.pity[target.idx] : word ? state.pity[charToIdx(word.word[target.pos])] : 0;
+  // A caretaker rolls in the STAKER's name, so the odds come from the staker's pity, not this wallet's.
+  const stakerPity = useQuery({
+    queryKey: ["pity", NETWORK.id, word?.care ? word.holder?.toLowerCase() : null],
+    queryFn: () => readPity(word!.holder as `0x${string}`),
+    enabled: Boolean(word?.care && word.holder),
+    staleTime: 30_000,
+  });
+  // Until the staker's pity is read, show base odds rather than this wallet's (unrelated) streak.
+  // With this browser's fresh reveal notes laid over it, as the provider does for this wallet.
+  const pitySource =
+    word?.care && word.holder
+      ? g.pityOf(word.holder, stakerPity.data ?? Array.from({ length: 26 }, () => 0))
+      : state.pity;
+  const pity = loose ? state.pity[target.idx] : word ? pitySource[charToIdx(word.word[target.pos])] : 0;
 
   const close = () => {
     // returning from a word-position roll? pop back to the word sheet for flow

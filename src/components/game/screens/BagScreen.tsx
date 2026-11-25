@@ -8,6 +8,7 @@ import { Basket, Sparkle, TextAa } from "../ui/icons";
 import { idxToChar, useGame, mineLower, mineUpper } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
 import { WordsPending, wordsUnknown } from "../WordsPending";
+import { EarningsLine } from "../EarningsLine";
 
 export function BagScreen() {
   const g = useGame();
@@ -90,6 +91,10 @@ export function BagScreen() {
             <SectionTitle action={<Button size="sm" variant="primary" onClick={() => g.nav("claim")}>+ Spell</Button>}>
               Claimed words
             </SectionTitle>
+            {/* what the words earned (decisions.md #16); opens Your earnings */}
+            <div className="mb-2 empty:hidden">
+              <EarningsLine />
+            </div>
           </div>
           {state.words.length === 0 ? (
             <div className="lg:col-span-2">

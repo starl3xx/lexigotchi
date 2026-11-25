@@ -419,7 +419,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             <Qa q="What is $WORD?">
               <A href={LINKS.word}>$WORD</A> is the token on Base behind Lexigotchi and{" "}
               <A href={LINKS.lhaw}>Let’s Have A Word!</A> It pays for packs, rolls, words, and snacks, and it funds the
-              daily jackpot.
+              daily jackpot. Your all-UPPERCASE words earn it every day, paid to you automatically.
             </Qa>
             <Qa q="Can a roll cost me my letter?">
               Never. A failed roll leaves your letter exactly as it was, and your odds on that letter go up for the next

@@ -20,10 +20,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `npm test` — economy + solvency invariants (84 vitest tests)
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (65 forge tests)
-- `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
+- `npm run keeper -- [--resolve] [--yield] [--bounty] [--payout] [--achievements] [--notify] [--dry]` — the
   daily operator pass, by hand. **Scheduled** by `/api/cron/keeper` (vercel.json, 00:05 UTC): same
   jobs (`src/lib/keeper/jobs.ts`, `createKeeper({ dry })`), the ones listed in `KEEPER_JOBS` (default
-  `resolve,yield,bounty,repeg,notify`; achievements opt-in; the bounty settles each week on the first
+  `resolve,yield,bounty,payout,repeg,notify`; a KEEPER_JOBS that lists jobs must name `payout` too;
+  achievements opt-in; the bounty settles each week on the first
   day of the next, `bountyPeriodToSettle`), strictly one at a time (one key, one
   nonce), and a failed job doesn't skip the rest. It needs `KEEPER_PRIVATE_KEY` and
   `ANSWER_CHAIN_SEED`/`ANSWER_CHAIN_DAYS` in Vercel; without a deployment or a key it does nothing.
@@ -41,6 +42,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   never deleted: a rerun's rebuilt tree is stored BESIDE the first (the root is in the key), because
   an openEpoch sent but unconfirmed may still land. The rows can't be rebuilt later (the scan reads
   the latest state), so back them up like operational data.
+  **`payout`** pays every opened, unpaid share itself (decisions.md #16; `src/lib/keeper/payout.ts`):
+  `claim` is permissionless and pays the leaf's account, so the keeper batches claims through
+  Multicall3 (150 a transaction, per-call failure allowed, 90 s budget; the rest wait a run). Players
+  never collect; earnings are SHOWN instead (`/api/rewards/earnings`, `src/lib/rewards/`, the
+  Earnings sheet, `components/game/earnings.ts`). "Collect" (never "Claim") is the fallback for a
+  share the keeper missed. Test it on an Anvil fork with a throwaway database, never on the real
+  chain: run `scripts/keeper.ts` with `tsx` directly and explicit env, so `.env.local` stays out.
 - `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
   **Mainnet uses `--new-seed`**: the whole schedule re-derives from one 64-hex secret
@@ -147,6 +155,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the wallet the player keeps everything in; a stored wallet that left the account reads as none.
   `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
   `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
+  **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
+  staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
+  the free snack is the staker's; commits name the staker; only the staker unstakes). Game words carry
+  `care` (the connected wallet cares for the staker); word rolls and ascensions look up commits by the
+  staker; the Wallets card sets them per wallet (`readCaretakers`, `setCaretakerCalls`).
+  **Free things, once per PROFILE** (`lib/db/freeClaims.ts`, table `free_claims`, migration 0013;
+  starl3xx: "only one wallet per profile should get a free anything"): the free daily (kind "daily",
+  per chain day) and the free pack (kind "pack", once) record the account and the key they sign
+  under, first key wins, before signing; another key is refused unless the first voucher expired
+  unused; a DB error refuses; no table = the onchain checks alone. daily-status adds the recorded key
+  to its walk. The free snack stays per staking wallet (onchain).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
@@ -293,6 +312,30 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   baseline `config/deployments.json` + localStorage overrides), `auth.ts` (allowlist via
   `NEXT_PUBLIC_ADMIN_*`, dev-open when unset), `format.ts` (USD↔$WORD-wei peg). Tabs in
   `src/components/admin/tabs/`.
+  **Live tabs.** Pulse and Treasury read the live game first (`/api/admin/live`: the FeeRouter's pots,
+  the treasury, letters minted, words claimed, holders; public chain data, open and edge-cached) and
+  label the sim below as "Projection"; Broadcast's templates quote the same live numbers and this
+  week's bounty theme (`lib/themes.ts`), never the sim. **Players** (`/api/admin/players`, `lib/admin/playersData.ts`
+  → pure `playerRows.ts`): every wallet seen, from the contracts' events since deploy (faucet on
+  testnet only; packs and dailies from `Committed`'s count; reveals, claims, rolls, stakes, feeds),
+  `scanWorld` holdings, and the database (sightings, profile flags, push browsers, swap listings,
+  Farcaster users), plus the beta group's Telegram member count; a funnel and new-wallet counts that
+  leave out the TEAM's wallets (the allowlist, `TEAM_WALLETS`, registry roles, server keys, and any
+  wallet linked into a team account). **System** (`/api/admin/system`, `systemStatus.ts`): game mode,
+  every server key as its public address (`serverKeys.ts`, never the key) with gas and onchain wiring,
+  the keeper's last resolve, every feature switch with the setting NAMES it still needs
+  (`switches.ts`, shared with Notifications), and applied migrations (drizzle's own table against the
+  journal). Notifications shows all three reminder channels. **Players and System are GATED on the
+  server** (`lib/admin/serverAuth.ts`): a wallet session (the profile's SIWE token) for a wallet in
+  `NEXT_PUBLIC_ADMIN_WALLETS`, or a Quick Auth FID in `NEXT_PUBLIC_ADMIN_FIDS`; `NEXT_PUBLIC_ADMIN_OPEN`
+  does NOT open them in production, and they're `no-store`. The client sends the session through
+  `useAdminApi` and offers a sign-in on 401. Never import a server module (db, `systemStatus`) VALUE
+  into a tab: types only, or the Postgres driver lands in the browser bundle.
+- **Wallet sightings** (`lib/sightings.ts`, `lib/db/sightings.ts`, table `wallet_sightings`, migration
+  0012): the game posts `/api/players/seen` once per wallet per UTC day (`useWalletSighting`, mounted
+  in GameApp) so Players can count wallets that connect and do nothing onchain. Unsigned by design, so
+  the count is labelled unverified; rate-limited by IP; a FID only from a verified Quick Auth token.
+  Dark (503, no client retry storm: the day is marked only on success) until 0012 is applied.
 - **`FeeRouter.seed(uint8 bucket, uint256 amount)`** (owner-only) was added so the admin can fund the
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery
@@ -315,7 +358,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   tap (preparing → confirm in your wallet → waiting for the chain), and a second tap while one is in
   flight sends nothing. Wrap any new action in `track`, or its tap looks ignored during the
   proof/voucher/read work before the wallet opens, and send with the `run` it hands the flow (each
-  action's own, so an action abandoned with Hide can't drive a newer one's status). Claim, stake, unstake, and feed then **re-read the words until the change shows** (`sendAndSettle`, `src/lib/onchain/settle.ts`: reads at 0, 2, 5, 10, and 20 s) and announce it with the word; one read right after a send misses it, because a send returns when the wallet accepts and the words are a log scan. **Rolls are
+  action's own, so an action abandoned with Hide can't drive a newer one's status). Claim, stake, unstake, and feed then **re-read the words until the change shows** (`sendAndSettle`, `src/lib/onchain/settle.ts`: reads at 0, 2, 5, 10, and 20 s) and announce it with the word; one read right after a send misses it, because a send returns when the wallet accepts and the words are a log scan. The testnet **faucet**
+  settles on the mint's OWN result, on the same schedule (`settleSend` in `src/lib/onchain/traceSend.ts`:
+  the receipt on Base Sepolia, or `wallet_getCallsStatus` for a batch, whose "failed" beats a
+  bundler receipt that succeeded), and names any other outcome: never reached Base Sepolia, another
+  network, reverted, or pending. The balance is only the fallback for a send nobody can trace, from a
+  fresh read (a cached baseline both missed real mints and passed off earlier ones). Every read is
+  capped, since the action gate waits on them. "Sent" proved nothing: a tester's wallet said sent
+  and broadcast nothing (2026-11-24). **Rolls are
   finished by the server** (decisions.md #14): `revealRoll` posts `{ relay: true }` and
   `/api/roll/reveal` sends `Rolls.reveal` from `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`),
   so the wallet never previews the result; the answer's `relayed` field says what happened, and only
@@ -345,7 +395,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
-- **A claim may mix cases** (decisions.md #16): `Words.claim(word, uint8 upperMask, proof)` names
+- **A claim may mix cases** (decisions.md #17): `Words.claim(word, uint8 upperMask, proof)` names
   each letter's case (bit k ⇒ position k UPPERCASE). The app's quick Claim uses UPPERCASE first.
   **Until the next testnet redeploy the deployed Words still takes `bool uppercase`.** The app half
   is branch `feat/mixed-case-spell` (claim call, `abis.ts`, the `Claimed` event read by

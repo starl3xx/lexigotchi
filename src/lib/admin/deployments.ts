@@ -15,6 +15,9 @@ import { isAddress } from "./format";
 /** The committed registry for the ACTIVE network (see lib/onchain/network). */
 const baseline = NETWORK.key === "base-sepolia" ? baseSepolia : baseMainnet;
 
+/** The committed registry file for the active network: where an operator pastes the addresses. */
+export const REGISTRY_FILE = `config/deployments${NETWORK.key === "base-sepolia" ? ".base-sepolia" : ""}.json`;
+
 export type ContractKey =
   | "feeRouter"
   | "letters"
@@ -27,7 +30,8 @@ export type ContractKey =
   | "yieldDistributor"
   | "bounty";
 
-export type RoleKey = "treasury" | "signer" | "keeper" | "owner";
+/** `priceKeeper` moves the onchain prices (repeg); a registry written before it existed has none. */
+export type RoleKey = "treasury" | "signer" | "keeper" | "owner" | "priceKeeper";
 
 export interface Deployments {
   network: string;
@@ -55,7 +59,7 @@ export const CONTRACT_KEYS: ContractKey[] = [
   "bounty",
 ];
 
-export const ROLE_KEYS: RoleKey[] = ["treasury", "signer", "keeper", "owner"];
+export const ROLE_KEYS: RoleKey[] = ["treasury", "signer", "keeper", "owner", "priceKeeper"];
 
 /** The committed baseline (server + client). */
 export const BASE_DEPLOYMENTS: Deployments = {
@@ -63,7 +67,8 @@ export const BASE_DEPLOYMENTS: Deployments = {
   chainId: baseline.chainId,
   deployedAt: baseline.deployedAt,
   wordToken: baseline.wordToken,
-  roles: baseline.roles as Deployments["roles"],
+  // Every role present, null where the file has none (mainnet's predates priceKeeper).
+  roles: { priceKeeper: null, ...(baseline.roles as Partial<Deployments["roles"]>) } as Deployments["roles"],
   contracts: baseline.contracts as Deployments["contracts"],
 };
 

@@ -13,10 +13,27 @@ export interface Claimable {
   proof: `0x${string}`[];
 }
 
-/** What `epochs(epochId)` says on chain, reduced to the two fields that decide servability. */
+/** What `epochs(epochId)` says on chain, reduced to the fields that decide servability. */
 export interface EpochState {
   open: boolean;
   root: string;
+  /**
+   * Nothing left to pay (claimed >= funded). Every share paid, or the owner recovered the rest
+   * after the claim window (recoverUnclaimed), so an unpaid share in it can never be paid.
+   */
+  spent?: boolean;
+}
+
+/** A live share with what the chain says about it: paid, or dead (unpaid in a spent epoch). */
+export type ShareStatus = Claimable & { paid: boolean; dead: boolean };
+
+/** Join the live shares with their `hasClaimed` answers (same order) and their epochs' state. */
+export function shareStatuses(live: readonly Claimable[], paid: readonly boolean[], epochs: ReadonlyMap<string, EpochState>): ShareStatus[] {
+  return live.map((c, i) => ({
+    ...c,
+    paid: Boolean(paid[i]),
+    dead: !paid[i] && Boolean(epochs.get(epochKey(c.stream, c.epochId))?.spent),
+  }));
 }
 
 export const epochKey = (stream: string, epochId: string) => `${stream}:${epochId}`;

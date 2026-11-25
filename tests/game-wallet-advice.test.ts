@@ -53,9 +53,17 @@ describe("gameWalletAdvice", () => {
     expect(a).toEqual({ kind: "move_to_game", from: W, to: F, holdings: has({ letters: 1 }) });
   });
 
-  it("$WORD alone counts: a game wallet with no $WORD can't pay for anything", () => {
-    const a = gameWalletAdvice({ ...base, connected: W, gameWallet: F, holdings: { [F]: empty, [W]: has({ word: 500 }), [V]: empty } });
-    expect(a.kind).toBe("move_to_game");
+  it("$WORD alone never triggers a notice: each wallet pays its own fees (starl3xx's screenshot)", () => {
+    // On the game wallet, the Farcaster wallet holds only 50M $WORD: nothing to gather.
+    expect(gameWalletAdvice({ ...base, connected: F, gameWallet: F, holdings: { [F]: empty, [W]: has({ word: 50_000_000 }), [V]: empty } }).kind).toBe("none");
+    // On a non-game wallet that holds only $WORD: nothing to move.
+    expect(gameWalletAdvice({ ...base, connected: W, gameWallet: F, holdings: { [F]: has({ letters: 2 }), [W]: has({ word: 500 }), [V]: empty } }).kind).toBe("switch_to_game");
+  });
+
+  it("staked words elsewhere don't need gathering when this wallet is their caretaker", () => {
+    const holdings = { [F]: has({ letters: 2 }), [W]: has({ staked: 1 }), [V]: empty };
+    expect(gameWalletAdvice({ ...base, connected: F, gameWallet: F, holdings }).kind).toBe("gather");
+    expect(gameWalletAdvice({ ...base, connected: F, gameWallet: F, holdings, caretakerOf: new Set([W]) }).kind).toBe("none");
   });
 
   it("staked words elsewhere keep the gather notice up: only their wallet can feed them", () => {

@@ -237,6 +237,40 @@ export const profiles = pgTable(
 export type Profile = typeof profiles.$inferSelect;
 
 /**
+ * Every wallet the game has seen connected, for the operator console's Players tab: when it first
+ * and last connected, on how many UTC days, and from where (the web or a Farcaster host). Written by
+ * `/api/players/seen`, which the game calls once per wallet per day (lib/sightings.ts).
+ *
+ * UNVERIFIED by design: the call is unsigned, so the console labels this a count of wallets seen,
+ * not proof that each was connected. Asking every visitor to sign just to be counted would be a
+ * wallet popup for nothing. `fid` is set only from a verified Quick Auth token, never a client claim.
+ *
+ * Not secret (a wallet address is public), and never shown outside the gated admin route. Losing the
+ * table loses the history of visits, not anything a player owns.
+ */
+export const walletSightings = pgTable(
+  "wallet_sightings",
+  {
+    /** Lowercase wallet address. */
+    address: text("address").primaryKey(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    /** How many distinct UTC days the wallet was seen on. */
+    daysSeen: integer("days_seen").notNull().default(1),
+    /** The UTC day number (Unix days) of the last sighting: a second call that day adds no day. */
+    lastDay: integer("last_day").notNull(),
+    /** "web" or "farcaster", at the first sighting and at the last. */
+    firstVia: text("first_via").notNull(),
+    lastVia: text("last_via").notNull(),
+    /** The verified FID seen with this wallet most recently, if any. */
+    fid: integer("fid"),
+  },
+  (t) => [index("wallet_sightings_first_seen_idx").on(t.firstSeenAt)],
+);
+
+export type WalletSighting = typeof walletSightings.$inferSelect;
+
+/**
  * One "Link X" attempt: the OAuth `state`, the wallet that started it, and the PKCE verifier. Kept
  * on the server, not in a cookie, because inside a Farcaster host the X page opens in another
  * browser that has no cookie of ours. Single use and short-lived (`usedAt`, `expiresAt`).
@@ -349,4 +383,27 @@ export const wordScenes = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.wallet, t.word] })],
+);
+
+/**
+ * Free things, once per PROFILE (migration 0013; starl3xx: "only one wallet per profile should get a
+ * free anything"). A free route records the account (its first wallet) and the key it signs under,
+ * first write wins, so the profile's other wallets are refused whatever key they'd sign under:
+ * - kind "daily", period = the UTC chain day: one free daily letter a day. Backs up the onchain
+ *   `dailyUsed` walk (relatedDailyKeys), which needs Farcaster's lookups and fails open.
+ * - kind "pack", period 0: the one free pack. Backs up `freePackClaimed[fid]`, which is per Farcaster
+ *   account, and a profile can hold more than one.
+ */
+export const freeClaims = pgTable(
+  "free_claims",
+  {
+    chainId: integer("chain_id").notNull(),
+    account: text("account").notNull(),
+    kind: text("kind").notNull(),
+    period: integer("period").notNull(),
+    /** The key the voucher was signed under (decimal string: a daily key can exceed 2^160). */
+    claimKey: text("claim_key").notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("free_claims_account_kind_period").on(t.chainId, t.account, t.kind, t.period)],
 );

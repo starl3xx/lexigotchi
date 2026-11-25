@@ -16,7 +16,9 @@ import { WordTiles, careState } from "./LetterTile";
 import { Button, HungerBadge, Pill } from "./primitives";
 import { ReminderToggle } from "./ReminderToggle";
 import { Backpack, CaretLeft, CaretRight, Cookie, Palette, Sparkle, TextAa, Ticket } from "./ui/icons";
-import { hunger, useGame } from "./state";
+import { fmtWord, hunger, useGame } from "./state";
+import { payoutWhen } from "./earnings";
+import { EarningsLine } from "./EarningsLine";
 import { stageLine, stageLineup, upNext } from "./stagePick";
 import { useEmptyStageCase } from "./useTodayPlan";
 import { WORDS_READ_FAILED } from "./WordsPending";
@@ -86,6 +88,12 @@ export function TodayStage() {
   const open = () => g.openSheet({ kind: "word", word: W });
   const face = eating ? "eating" : mood === "unstaked" ? "idle" : careState(w);
   const many = items.length > 1;
+  // What the star earned at the latest payout, for its line (only when it earned something).
+  const mineEarned = g.earnings?.byWord[W];
+  const earnedLatest =
+    mineEarned && mineEarned.latest > 0 && g.earnings?.latestAt
+      ? { amount: fmtWord(mineEarned.latest), when: payoutWhen(g.earnings.latestAt) }
+      : undefined;
 
   const show = (name: string, side: "next" | "prev") => {
     setEnter(side);
@@ -135,7 +143,7 @@ export function TodayStage() {
                   it reads on a bright scene as well as a dark one. */}
               <div className="pointer-events-none absolute inset-x-0 top-[7%] flex justify-center px-12">
                 <p key={W} className="scene-fade-in relative max-w-[30ch] rounded-xl border-2 border-ink bg-card px-3 py-1.5 text-center text-sm font-bold shadow-[2px_2px_0_#1b1714]">
-                  {eating ? `${W} is full again. Thank you!` : stageLine({ word: w, mood })}
+                  {eating ? `${W} is full again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
                   <span
                     aria-hidden
                     className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink bg-card"
@@ -193,6 +201,10 @@ export function TodayStage() {
           >
             <Palette weight="fill" size={18} />
           </Button>
+        </div>
+        {/* What the words earned at the latest payout (decisions.md #16); opens Your earnings. */}
+        <div className="bg-night px-3 pb-2.5 empty:hidden">
+          <EarningsLine onDark />
         </div>
       </div>
 

@@ -63,8 +63,13 @@ Still to do on Sepolia:
    turning the flag on sponsors only calls that ask: today, Move here (Letters `safeBatchTransferFrom`,
    Words `safeTransferFrom`, $WORD `transfer`). The CDP policy must allow those before the flag goes
    on; add an action to the policy before it asks.
-2. Claim a reward. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a fully
-   UPPERCASE staked word.
+2. Watch a payout land by itself (decisions.md #16): the keeper's `payout` job pays every share the
+   morning its epoch opens. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a
+   fully UPPERCASE staked word (testers had three on 2026-11-25). Proven on a fork of Base Sepolia
+   (2026-11-25): three shares in one Multicall3 transaction, 171,089 gas, builder code attached, and a
+   rerun paid nothing twice. The scheduled run hadn't opened a single yield epoch on Base Sepolia by
+   then, and the jackpot hadn't resolved since 2026-11-21: check `/api/cron/keeper`'s logs and
+   `KEEPER_PRIVATE_KEY` / `KEEPER_JOBS` in Vercel first.
 3. Time a keeper run once many words exist. The word scan grows with every claim.
 
 ## 2. Keys and secrets (owner)
@@ -85,9 +90,11 @@ every future jackpot, and losing it ends the jackpot (`setHead` reverts once the
 ## 3. Database (owner, from a terminal with production access)
 
 Apply migrations `0003` (browser push), `0004` (reward claims), `0005` (sticky draws), `0006`
-(profiles: the X link, name and picture choice, email codes), and `0007` (send-once markers for
-email reminders) with `npm run db:migrate`. All five only add tables or columns. Until 0004 exists, the keeper refuses to open a
-yield epoch, so the bucket rolls over and nothing is lost.
+(profiles: the X link, name and picture choice, email codes), `0007` (send-once markers for
+email reminders), `0008` (linked wallets), `0009` (how a linked wallet joined), `0010` (the game
+wallet), `0011` (saved word scenes), and `0012` (wallet sightings, for the console's Players tab) with `npm run db:migrate`. All of them only add tables or columns. Until 0004 exists, the keeper refuses to open a
+yield epoch, so the bucket rolls over and nothing is lost. The console's System tab lists which
+migrations production has applied.
 
 ## 4. Deploy (owner approves: about 17.2M gas over 38 transactions)
 

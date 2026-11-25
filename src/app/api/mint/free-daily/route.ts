@@ -12,11 +12,13 @@ import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@
 import { getProfile } from "@/lib/db/profiles";
 import { accountWallets } from "@/lib/db/walletLinks";
 import { claimDraw, readDraw } from "@/lib/db/draws";
+import { claimFree, keyOwnedByProfile, recordedFreeKey } from "@/lib/db/freeClaims";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { profilesEnabled } from "@/lib/profile/session";
 import { xEnabled } from "@/lib/profile/x";
 import { xOldEnough } from "@/lib/profile/rules";
 import { isAddress } from "viem";
+import { fidsByAddressesDetailed } from "@/lib/neynar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -128,13 +130,42 @@ export async function POST(req: Request) {
   // accounts are linked. That includes a FID this request didn't sign in with, and the other
   // wallets of the player's Farcaster accounts (relatedDailyKeys).
   const { all } = dailyKeysFor({ fid, xUserId, xCounts, wallet });
-  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet }))])];
+  // …plus the key this PROFILE already took today's letter under, if any (lib/db/freeClaims.ts): the
+  // walk needs Farcaster's lookups, and a failed lookup must not open a second letter.
+  const recorded = await recordedFreeKey(NETWORK.id, account, "daily", today);
+  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet })), ...(recorded !== null ? [recorded] : [])])];
   const used = (await getPublicClient().multicall({
     allowFailure: false,
     contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),
   })) as unknown as (number | bigint)[];
   if (used.some((u) => Number(u) === today + 1)) {
     return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
+  }
+
+  // One free letter a day per PROFILE (starl3xx: "only one wallet per profile should get a free
+  // anything"): record this profile's day under this key BEFORE signing, first write wins. Another of
+  // its wallets, signing under any other key, is refused for the day, unless that first voucher expired
+  // unused. A database error refuses (never sign twice); before migration 0013 the onchain walk decides.
+  // Only a key that belongs to this profile is recorded on it (keyOwnedByProfile): the wallet in the
+  // request is the client's word. A FID that never verified the profile's wallets claims as before.
+  try {
+    const owned = await keyOwnedByProfile({ fid, derivedFromProfile: true, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
+    const claim = owned
+      ? await claimFree({
+          chainId: NETWORK.id,
+          account,
+          kind: "daily",
+          period: today,
+          key,
+          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
+          usedOnchain: async (k) =>
+            Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,
+        })
+      : "skipped";
+    if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
+  } catch (err) {
+    console.error("[free-daily] couldn't record the profile's daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+    return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
   }
 
   const nextMidnight = (today + 1) * 86_400;

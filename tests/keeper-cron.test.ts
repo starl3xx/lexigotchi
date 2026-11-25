@@ -36,11 +36,12 @@ beforeEach(() => {
 });
 
 describe("jobsFrom", () => {
-  it("defaults to resolve, yield, repeg, notify, and always runs in canonical order", async () => {
+  it("defaults to resolve, yield, bounty, payout, repeg, notify, and always runs in canonical order", async () => {
     const { jobsFrom } = await import("@/lib/keeper/jobs");
-    // The bounty is on at launch (decisions.md #11, amended); achievements stay opt-in.
-    expect(jobsFrom(undefined)).toEqual(["resolve", "yield", "bounty", "repeg", "notify"]);
-    expect(jobsFrom("notify, bounty,resolve")).toEqual(["resolve", "bounty", "notify"]);
+    // The bounty is on at launch (decisions.md #11, amended); payout pays what those two opened, right
+    // after them (decisions.md #16); achievements stay opt-in.
+    expect(jobsFrom(undefined)).toEqual(["resolve", "yield", "bounty", "payout", "repeg", "notify"]);
+    expect(jobsFrom("notify, payout, bounty,resolve")).toEqual(["resolve", "bounty", "payout", "notify"]);
     expect(() => jobsFrom("resolve,payday")).toThrow(/payday/);
   });
 });
@@ -66,7 +67,7 @@ describe("GET /api/cron/keeper", () => {
     const res = await GET(call("Bearer s3cret"));
     expect(res.status).toBe(200);
     expect(events).toEqual([
-      "start:resolve", "end:resolve", "start:yield", "end:yield", "start:bounty", "end:bounty",
+      "start:resolve", "end:resolve", "start:yield", "end:yield", "start:bounty", "end:bounty", "start:payout", "end:payout",
       "start:repeg", "end:repeg", "start:notify", "end:notify",
     ]);
   });
@@ -81,6 +82,7 @@ describe("GET /api/cron/keeper", () => {
       { job: "resolve", ok: true },
       { job: "yield", ok: false, error: "yield broke" },
       { job: "bounty", ok: true },
+      { job: "payout", ok: true },
       { job: "repeg", ok: true },
       { job: "notify", ok: true },
     ]);

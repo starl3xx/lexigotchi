@@ -162,6 +162,14 @@ showed; only the *decisions* changed.
    / gather), $WORD in Move (opt-in), and a warning before staking off it. Not the profile's first
    wallet by default: that one is sometimes picked by rule. A contract change so any of a player's
    wallets can play and feed is being DESIGNED before mainnet (no contract edits yet).
+   Then (same day; starl3xx: "1. yes 2. no for now 3. yes 4. full redeploy"): the caretaker list
+   (diff A) is in the contracts, plus a guard so Staking refuses a Word sent to it directly (audit
+   scan); caretaker unstake (diff B) is NOT taken; opt-in approvals between a player's wallets come
+   later in the app; Base Sepolia gets a full redeploy (testers' testnet items reset).
+   Then (same day; starl3xx: "only one wallet per profile should get a free anything"): the free daily
+   letter and the free pack are recorded per PROFILE in the database (free_claims), so a profile's
+   other wallets are refused even when the Farcaster lookups behind the onchain walk fail. The free
+   snack is still per staking wallet onchain; one per profile needs a contract change.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
@@ -233,7 +241,23 @@ showed; only the *decisions* changed.
     with no change here. A scene pick never asks to sign in: unsynced picks upload the next time a
     session exists, and the newer pick wins when the browser and the server disagree. No onchain
     ownership check on save: a row only changes what its own wallet's words show.
-16. **Mixed-case claims** (starl3xx, 2026-11-24). Replaces v0.1's "any case, but uniform — Mixed
+16. **Earnings are paid automatically, and shown wherever a word is** (starl3xx, 2026-11-25, on a
+    tester's "If you have a 5/5 uppercase staked and earning $word is there a place to see how much
+    has been earned so far?": chose "Paid automatically"). Until now each day's yield share sat in a
+    Merkle epoch until the player found a Collect button and signed a claim, and nothing showed what
+    a word had earned. `MerkleEpochs.claim` is permissionless and always pays the leaf's baked-in
+    account, so the keeper's new `payout` job (after `yield` and `bounty`, in the default
+    KEEPER_JOBS) sends every unpaid share's claim itself, batched through Multicall3 with per-call
+    failure allowed, oldest epoch first, within 90 s of the cron's 300. No contract change. Cost to the
+    operator: about 57k gas per share (171,089 for three in one batch, measured on a Base Sepolia
+    fork), about $0.001 per earning word per day at 2026-11-25 Base prices. Players never sign, pay
+    gas, or watch the 90-day window close. Display: `/api/rewards/earnings` (each word's earnings
+    for the player's wallets, the latest payout day by chain time, anything unpaid), the Earnings
+    sheet, a line under the Today stage and the Bag's words, the featured word's bubble, the word
+    sheet, the Bag card's coin, the balance sheet, and a toast once per payout. The verb is
+    "Collect" (never "Claim", which is spelling a word), kept only as the fallback for a share the
+    keeper missed. Practice pays its words on Skip a day, as the keeper would.
+17. **Mixed-case claims** (starl3xx, 2026-11-24). Replaces v0.1's "any case, but uniform — Mixed
     sets cannot initiate a claim": "you should be able to spell a word with a mix of any case
     letters". A tester with four UPPERCASE letters found the Spell screen's UPPERCASE tab locked and
     their raised letters missing from the tray, because no five of one case spelled a word.

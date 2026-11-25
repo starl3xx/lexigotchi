@@ -25,6 +25,9 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
 import { NETWORK } from "@/lib/onchain/network";
+import { BASE_SEPOLIA_FAUCETS_URL } from "@/lib/site";
+import { useOpenUrl } from "../useShare";
+import { EarningsLine } from "../EarningsLine";
 
 // "Buy $WORD" (pinned to Base mainnet, Farcaster's swap or Matcha) lives in useBuyWord.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -40,6 +43,10 @@ export function BalanceSheet() {
   const me = resolveIdentity(viewer, profile.profile);
   const daily = useDailyEligibility();
   const { buy, env } = useBuyWord();
+  const openUrl = useOpenUrl();
+  // The chain game on Base Sepolia. Its balance is TEST $WORD: a tester holding the real token on
+  // Base read "$WORD on Base" under a 0 and asked where theirs went (2026-11-24).
+  const testnet = state.chainBacked && NETWORK.isTestnet;
 
   const need = state.sheet?.kind === "balance" ? state.sheet.need : undefined;
   const shortfall = need ? Math.max(0, need.amount - state.balance) : 0;
@@ -49,7 +56,9 @@ export function BalanceSheet() {
       {/* what just got blocked — the reason this sheet opened */}
       {need && shortfall > 0 && (
         <Card className="mb-3 border-candy bg-candy/10 text-center text-sm">
-          You need <strong>{fmtWord(shortfall)} more $WORD</strong> ({fmtUsd(shortfall)}) for {need.action}.
+          {/* No dollar figure for test $WORD: it has no value, and the card below says so. */}
+          You need <strong>{fmtWord(shortfall)} more $WORD</strong>
+          {testnet ? "" : ` (${fmtUsd(shortfall)})`} for {need.action}.
         </Card>
       )}
 
@@ -88,15 +97,50 @@ export function BalanceSheet() {
         <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">
           <TweenNumber value={state.balance} format={fmtWord} />
         </div>
-        <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
+        {testnet ? (
+          <>
+            <div className="text-sm text-ink/60">Test $WORD on {NETWORK.name}</div>
+            <div className="mt-1 text-xs text-ink/55">Your real $WORD stays on Base. It doesn’t count in the test game.</div>
+          </>
+        ) : (
+          <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
+        )}
       </Card>
+      {/* what the player's words have paid into it (decisions.md #16); opens Your earnings */}
+      <div className="cel-sm mt-2 rounded-xl bg-card px-2 py-2 empty:hidden">
+        <EarningsLine />
+      </div>
 
-      <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
-        <ArrowsLeftRight weight="bold" /> Buy $WORD
-      </Button>
-      <p className="mt-1.5 text-center text-xs text-ink/55">
-        Opens your wallet’s swap in Farcaster, or the $WORD swap page on the web.
-      </p>
+      {testnet ? (
+        <>
+          {/* The test game's way to get $WORD, so it is the main action. Buy stays pinned to mainnet
+              on purpose (it buys the real token), and as the main button under "You need X more
+              $WORD" it pointed a tester short of TEST $WORD at spending real money. The faucet is a
+              transaction like any other: a plain wallet pays its gas, a sponsored one doesn't. */}
+          <Button full size="lg" variant="teal" className="mt-3" onClick={g.addDemoBalance}>
+            <Plus weight="bold" /> Get test $WORD
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink/55">
+            Free from the testnet faucet. If your wallet pays its own gas, it needs a little {NETWORK.name} ETH.{" "}
+            <button onClick={() => void openUrl(BASE_SEPOLIA_FAUCETS_URL)} className="font-bold underline">
+              Get some free
+            </button>
+          </p>
+          <Button full variant="ghost" className="mt-3" disabled={env === "loading"} onClick={buy}>
+            <ArrowsLeftRight weight="bold" /> Buy real $WORD
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink/55">The real token on Base, for when the game launches there.</p>
+        </>
+      ) : (
+        <>
+          <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
+            <ArrowsLeftRight weight="bold" /> Buy $WORD
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink/55">
+            Opens your wallet’s swap in Farcaster, or the $WORD swap page on the web.
+          </p>
+        </>
+      )}
 
       <Card className="mt-3">
         <div className="mb-2 flex items-center gap-1.5 font-display font-extrabold">
@@ -151,14 +195,14 @@ export function BalanceSheet() {
         )}
       </Card>
 
-      {/* Practice game: a demo top-up. Testnet: the test-token faucet. Mainnet: nothing — real
-          $WORD comes from the Buy button above, never from a button that mints it. */}
-      {(!g.state.chainBacked || NETWORK.isTestnet) && (
+      {/* Practice game: a demo top-up. Testnet: the faucet is the main button above. Mainnet:
+          nothing, because real $WORD comes from the Buy button, never from a button that mints it. */}
+      {!g.state.chainBacked && (
         <button
           onClick={g.addDemoBalance}
           className="mx-auto mt-3 flex items-center gap-1 text-xs font-bold text-ink/45 underline"
         >
-          <Plus /> {g.state.chainBacked ? "get test $WORD (testnet faucet)" : "add demo balance (practice)"}
+          <Plus /> add demo balance (practice)
         </button>
       )}
     </Sheet>

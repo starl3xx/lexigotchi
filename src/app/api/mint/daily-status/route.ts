@@ -4,6 +4,9 @@ import { addressOf, isSuiteDeployed } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
+import { NETWORK } from "@/lib/onchain/network";
+import { accountWallets } from "@/lib/db/walletLinks";
+import { recordedFreeKey } from "@/lib/db/freeClaims";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,8 +27,12 @@ export async function GET(req: Request) {
   if (!isAddress(wallet)) return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
   const fid = Number.isInteger(fidRaw) && fidRaw > 0 && fidRaw < 2 ** 32 ? fidRaw : null;
   try {
-    const [keys, now] = await Promise.all([relatedDailyKeys({ fid, wallet }), readChainTime()]);
+    const [related, now, { account }] = await Promise.all([relatedDailyKeys({ fid, wallet }), readChainTime(), accountWallets(wallet)]);
     const today = Math.floor(now / 86_400);
+    // The key this PROFILE took today's letter under (lib/db/freeClaims.ts), whatever the walk finds:
+    // the walk needs Farcaster's lookups, and a failed one would show Pull to a profile that pulled.
+    const recorded = await recordedFreeKey(NETWORK.id, account, "daily", today);
+    const keys = [...new Set([...related, ...(recorded !== null ? [recorded] : [])])];
     const used = (await getPublicClient().multicall({
       allowFailure: false,
       contracts: keys.map((k) => ({ address: addressOf("letters"), abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),

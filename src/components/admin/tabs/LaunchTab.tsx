@@ -222,6 +222,7 @@ export function LaunchTab() {
     if (isAddress(val("TREASURY"))) roles.treasury = val("TREASURY");
     if (isAddress(val("SIGNER"))) roles.signer = val("SIGNER");
     if (isAddress(val("KEEPER"))) roles.keeper = val("KEEPER");
+    if (isAddress(val("PRICE_KEEPER"))) roles.priceKeeper = val("PRICE_KEEPER");
     const next = {
       ...cur,
       wordToken: isAddress(val("WORD_TOKEN")) ? val("WORD_TOKEN") : cur.wordToken,

@@ -4,6 +4,7 @@
  *   npm run keeper -- --resolve          reveal today's word + resolve the jackpot
  *   npm run keeper -- --yield            open today's yield epoch (epochId = UTC day)
  *   npm run keeper -- --bounty           open this week's bounty period if unopened
+ *   npm run keeper -- --payout           pay every opened share still unpaid (decisions.md #16)
  *   npm run keeper -- --achievements     attest newly-earned EAS badges
  *   npm run keeper -- --notify           warn players whose staked words are about to go hungry
  *   npm run keeper -- --announce "t" "b" one-off push to everyone who added the mini app
@@ -33,7 +34,7 @@ const keeper = createKeeper({ dry: args.has("--dry") });
 // THUNKS, run strictly one after another. This used to push the job PROMISES, which started every
 // job at once (same key, racing for one nonce) while the loop below only awaited them in order.
 const jobs: { name: string; run: () => Promise<void> }[] = [];
-for (const job of ["resolve", "yield", "bounty", "achievements", "repeg", "notify"] as KeeperJob[]) {
+for (const job of ["resolve", "yield", "bounty", "payout", "achievements", "repeg", "notify"] as KeeperJob[]) {
   if (args.has(`--${job}`)) jobs.push({ name: job, run: () => keeper.run(job) });
 }
 // --announce "<title>" "<body>" — positional, so the copy is visible in shell history.
@@ -48,7 +49,7 @@ if (annIdx !== -1) {
 }
 if (jobs.length === 0) {
   console.log(
-    'usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--repeg] [--notify] ' +
+    'usage: npm run keeper -- [--resolve] [--yield] [--bounty] [--payout] [--achievements] [--repeg] [--notify] ' +
       '[--announce "<title>" "<body>"] [--dry]',
   );
   process.exit(1);

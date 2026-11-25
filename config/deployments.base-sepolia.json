@@ -1,28 +1,28 @@
 {
- "_comment": "Base Sepolia REHEARSAL deployment (2026-11-21, the second one). Not production. It carries the pre-mainnet audit fixes (#96, #101) and the 4,584-word dictionary (#102). $WORD here is contracts/test/mocks/MockERC20.sol (permissionless mint(), the in-game testnet faucet), reused from the first rehearsal. No swap router ($WORD-only, as at launch). The AnswerChain head is the throwaway rehearsal schedule (contracts/answer-chain.sepolia-rehearsal.secret.json), restarted at day 0, NOT the production schedule. The deployer key holds owner, treasury, keeper, AND priceKeeper here, which mainnet must never do. Selected by NEXT_PUBLIC_CHAIN_ID=84532. The first rehearsal (2026-08-12, 4,438 words, pre-audit) is retired: its addresses are in git history.",
- "network": "base-sepolia",
- "chainId": 84532,
- "deployedAt": "2026-11-21",
- "deployBlock": 61798778,
- "wordToken": "0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea",
- "roles": {
-  "treasury": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
-  "signer": "0xc60062CBc714dBBc570D6A3E33bB7f59C0125490",
-  "keeper": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
-  "owner": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
-  "priceKeeper": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3"
- },
- "contracts": {
-  "feeRouter": "0xCddb26398ed6012076B19Bf5278589Ad77535a20",
-  "letters": "0x433B08547d58aA315752340EC7813Fcc71b7d0CC",
-  "words": "0x42292fF0BaAdBC90bD83a11e3C7Ca9E3474F924D",
-  "rolls": "0x71b504a88ebBffb95B9CE6F2f63702Df6d7FD7e5",
-  "staking": "0x6262032BA960390D3016D0c83E1a772b6ea9F3A8",
-  "prestige": "0x753D08deFf53D35A5d94E6393A9d20e1187d710E",
-  "answerChain": "0x4550B7EBbD7bdA737327306e585De6Cb15995888",
-  "jackpot": "0xB036F25F8CBFDe037CD6472C7F93F6E4d81A06aD",
-  "yieldDistributor": "0xDfDF31DbcD1C0D0ea14DA449bEdeBF1C37516814",
-  "bounty": "0x372F0ad0541CdafcF949a5d2f9E7080CE7a8E847"
- },
- "easAchievementsSchema": "0x6db0014788aac7bfd20d8e8a434aab51cd583466b2cc6f6cd8a83d0e3767293b"
+  "_comment": "Base Sepolia REHEARSAL deployment (2026-11-24, the third one, a full redeploy with the owner's go-ahead). Not production. It adds caretakers (Staking.setCaretaker: a staker's other wallets may feed, roll, and ascend its staked Words) and Staking's guard against Words sent to it directly (#171), on top of the pre-mainnet audit fixes and the 4,584-word dictionary. $WORD here is contracts/test/mocks/MockERC20.sol (permissionless mint(), the in-game testnet faucet), reused from the first rehearsal. No swap router ($WORD-only, as at launch). The AnswerChain head is the throwaway rehearsal schedule. The bounty carve is 1500 bps from deploy.",
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-11-24",
+  "deployBlock": 63223362,
+  "wordToken": "0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea",
+  "roles": {
+    "treasury": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
+    "signer": "0xc60062CBc714dBBc570D6A3E33bB7f59C0125490",
+    "keeper": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
+    "owner": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",
+    "priceKeeper": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3"
+  },
+  "contracts": {
+    "feeRouter": "0xc7231eBf15978363DE8483d90485484e9747815C",
+    "letters": "0xED9C65541d797EcABFf999A1E200Afb741182877",
+    "words": "0x0E960d3dEc0ED520412BF717735A7658019728f9",
+    "rolls": "0xd8cb13D6DC88E5C76a4675e297E2421F38fC1529",
+    "staking": "0xe289d40F297f8726Addf8c6f86eBe617905Ed8A1",
+    "prestige": "0x8B635231090cc1632bA4c9e276599110dA5DCBc4",
+    "answerChain": "0x128130c5BbBa01538Ddb1ff552F65A2E0E247cAA",
+    "jackpot": "0x12f794e29f9F69F313D0B27Af12EC82025879dDA",
+    "yieldDistributor": "0xEE8213240a04dfa0F44d76175d47D5818aE3Bff3",
+    "bounty": "0x995525E5E1003C4Eb504746B404D65369613eB46"
+  },
+  "easAchievementsSchema": "0x6db0014788aac7bfd20d8e8a434aab51cd583466b2cc6f6cd8a83d0e3767293b"
 }

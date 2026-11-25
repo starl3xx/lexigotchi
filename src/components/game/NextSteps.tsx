@@ -49,9 +49,10 @@ export function NextSteps() {
       <ul className="divide-y-2 divide-ink/10">
         {visible.map((s, i) => (
           <Row key={keyOf(s)} step={s} reveal={i >= SHOWN ? i - SHOWN : undefined}>
+            {/* "Collect", never "Claim" (claiming is spelling a word); teal, as care and growth are */}
             {s.kind === "rewards" && (
-              <Button size="sm" variant="gold" onClick={g.claimEarnings}>
-                Claim
+              <Button size="sm" variant="teal" onClick={g.claimEarnings}>
+                Collect
               </Button>
             )}
             {s.kind === "stake" && (
@@ -129,7 +130,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
         icon: <Coins weight="fill" size={20} />,
         text: (
           <>
-            You have <strong>{fmtWord(s.amount)} $WORD</strong> in rewards to collect.
+            <strong>{fmtWord(s.amount)} $WORD</strong> your words earned hasn’t been paid out yet.
           </>
         ),
       };

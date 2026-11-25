@@ -19,7 +19,7 @@ import {
   dailyReady,
   jackpotWon,
   jackpotRollover,
-  claimReady,
+  earningsPaid,
   pityCapped,
   listingFilled,
   type Notification,
@@ -34,6 +34,16 @@ interface StatusPayload {
   checks: { isProd: boolean; flagOn: boolean; hasKey: boolean };
   audience: number | null;
   audienceError: string | null;
+  /** Every reminder channel: Farcaster, browser push, email (the route's ChannelStatus). */
+  channels?: {
+    key: string;
+    label: string;
+    on: boolean;
+    detail: string;
+    missing: string[];
+    audience: number | null;
+    audienceNote: string;
+  }[];
 }
 
 const SAMPLE_HASH = "0x4f2c1d8e9a0b3c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5";
@@ -45,7 +55,7 @@ function gallery(day: number): { kind: "nudge" | "receipt"; when: string; note: 
     { kind: "nudge", when: "cron 13:00 UTC — hasn't pulled, played in the last 7 days", note: dailyReady(day) },
     { kind: "receipt", when: "keeper — on a winning resolve", note: jackpotWon("cabin", "1,250,000 $WORD", day) },
     { kind: "nudge", when: "not yet wired — pot crossed a threshold", note: jackpotRollover("4,800,000 $WORD", day) },
-    { kind: "nudge", when: "not yet wired — unclaimed epoch rewards", note: claimReady("42,000 $WORD", day) },
+    { kind: "receipt", when: "not yet wired — a payout paid the player’s words", note: earningsPaid("42,000 $WORD", day) },
     { kind: "nudge", when: "not yet wired — pity hit the 85% cap", note: pityCapped("q", day) },
     { kind: "receipt", when: "not yet wired — a Seaport listing filled", note: listingFilled("w", SAMPLE_HASH, day) },
   ];
@@ -113,26 +123,58 @@ export function NotificationsTab() {
       ) : data.armed ? (
         <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
           <span className="text-xs">
-            <b>Push is ARMED.</b> Keeper and cron runs will reach real phones. A sent notification
+            <b>Farcaster push is ARMED.</b> Keeper and cron runs will reach real phones. A sent notification
             cannot be recalled.
           </span>
         </Banner>
       ) : (
         <Banner tone="ok" icon={<ShieldCheck weight="bold" size={14} />}>
           <span className="text-xs">
-            <b>Push is inert</b> — nothing can send. {data?.blockers.join("; ")}.
+            <b>Farcaster push is inert</b>: nothing can send through Farcaster. {data?.blockers.join("; ")}.
           </span>
         </Banner>
       )}
 
-      <AdminCard title="Status">
+      {data?.channels && (
+        <AdminCard title="Every reminder channel">
+          <p className="mb-2 text-xs text-ink/60">
+            The keeper (00:05 UTC) sends hunger warnings on each channel that is on: Farcaster first, browser push for wallets
+            Farcaster can&apos;t reach, and email to wallets that opted in. The 13:00 UTC cron sends the daily-letter reminder. Each
+            channel has its own switch.
+          </p>
+          <div className="divide-y divide-ink/10">
+            {data.channels.map((c) => (
+              <div key={c.key} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                <div className="min-w-0 max-w-xl">
+                  <div className="text-sm font-bold">{c.label}</div>
+                  <div className="text-[11px] text-ink/55">{c.audienceNote}</div>
+                  {!c.on && c.missing.length > 0 && (
+                    <div className="mt-0.5 text-[11px] text-ink/70">
+                      Needs: {c.missing.map((m) => <code key={m} className="mr-1.5">{m}</code>)}
+                    </div>
+                  )}
+                </div>
+                <StatusBadge tone={c.on ? "warning" : "ok"}>{c.on ? "sends for real" : "off"}</StatusBadge>
+              </div>
+            ))}
+          </div>
+        </AdminCard>
+      )}
+
+      <AdminCard title="Farcaster notifications">
         {!data && <SectionLabel>unknown — the status endpoint did not answer</SectionLabel>}
         <KeyVal k="Production deployment" v={!data ? "—" : data.checks.isProd ? "yes" : "no"} />
         <KeyVal k="NOTIFICATIONS_ENABLED" v={!data ? "—" : data.checks.flagOn ? '"true"' : "not set"} mono />
         <KeyVal k="NEYNAR_API_KEY" v={!data ? "—" : data.checks.hasKey ? "present" : "missing"} />
         <KeyVal
           k="Audience (added the mini app)"
-          v={data?.audienceError ? `unavailable — ${data.audienceError}` : `${data?.audience ?? "—"} players`}
+          v={
+            data?.audienceError
+              ? `unavailable — ${data.audienceError}`
+              : data?.audience == null
+                ? "—"
+                : `${data.audience} player${data.audience === 1 ? "" : "s"}`
+          }
         />
         <div className="mt-3">
           <StatusBadge tone={!data ? "error" : data.armed ? "warning" : "ok"}>

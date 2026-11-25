@@ -27,6 +27,7 @@ import {
   prestigeSuccessProbability,
 } from "@/lib/params";
 import { Rng } from "@/lib/rng";
+import { NETWORK } from "@/lib/onchain/network";
 
 // ---------------------------------------------------------------------------
 // Dictionary helpers (built once)
@@ -84,6 +85,11 @@ export interface OwnedWord {
   mine: boolean;
   /** Where the word lives when it isn't the connected wallet's (lowercase address; chain only). */
   holder?: string;
+  /**
+   * The connected wallet is a CARETAKER of this word's staker (Staking.setCaretaker): it may feed,
+   * roll, and ascend it, paying its own fees. Only the staker stakes, unstakes, or dissolves.
+   */
+  care?: boolean;
 }
 
 export type View =
@@ -122,12 +128,16 @@ export type Sheet =
   | { kind: "celebrate"; word: string }
   /** Pick a word's scene, from the Today stage (sheets/SceneSheet). */
   | { kind: "scene"; word: string }
+  | { kind: "earnings" }
   | null;
 
 export interface Toast {
   id: number;
   text: string;
   tone: "good" | "bad" | "info";
+  /** How long it stays up, when its length-based default (`toastMs`) is too short: a result that
+   *  lands long after the tap, which the player may come back to. */
+  ms?: number;
 }
 
 /** Whether chain-derived state is actually known. See ChainGate — "loading" is not "zero". */
@@ -165,6 +175,8 @@ export interface GameState {
   wordsLoading?: boolean;
   /** The words read failed and has nothing to show (a connection problem, not an empty bag). */
   wordsError?: boolean;
+  /** Practice only: what its words have earned (earnings.ts practicePayout). The chain game reads earnings from the server. */
+  earned?: PracticeEarned;
   streak: number;
   day: number;
   dailyMinted: boolean;
@@ -262,6 +274,12 @@ export function fmtWord(n: number): string {
   return `${Math.round(n)}`;
 }
 export const fmtUsd = (word: number) => `$${usdOf(word).toFixed(2)}`;
+/**
+ * Whether $WORD amounts get a dollar figure. Not in the chain game on a testnet: test $WORD has no
+ * value, and a dollar figure beside it is what made a tester expect their real $WORD to count. The
+ * practice game keeps them (it previews the real prices).
+ */
+export const showsUsd = (state: Pick<GameState, "chainBacked">) => !(state.chainBacked && NETWORK.isTestnet);
 
 // ---------------------------------------------------------------------------
 // Seed (a populated starting save so every screen has life)
@@ -326,7 +344,7 @@ export function seedState(): GameState {
 type Action =
   | { t: "nav"; view: View }
   | { t: "sheet"; sheet: Sheet }
-  | { t: "toast"; text: string; tone: Toast["tone"] }
+  | { t: "toast"; text: string; tone: Toast["tone"]; ms?: number }
   | { t: "untoast"; id: number }
   | { t: "dailyMint"; idx: number }
   | { t: "pack"; idxs: number[] }
@@ -339,7 +357,7 @@ type Action =
   | { t: "prestige"; word: string; success: boolean }
   | { t: "dissolve"; word: string }
   | { t: "revealJackpot"; won: boolean; amount: number }
-  | { t: "skipDay"; jackpotWord: string; bountyTheme: number }
+  | { t: "skipDay"; jackpotWord: string; bountyTheme: number; at: number }
   | { t: "addDemoBalance" };
 
 function spend(s: GameState, amount: number): number {
@@ -355,7 +373,7 @@ export function reducer(s: GameState, a: Action): GameState {
     case "toast":
       return {
         ...s,
-        toasts: [...s.toasts, { id: s.nextToastId, text: a.text, tone: a.tone }],
+        toasts: [...s.toasts, { id: s.nextToastId, text: a.text, tone: a.tone, ...(a.ms ? { ms: a.ms } : {}) }],
         nextToastId: s.nextToastId + 1,
       };
     case "untoast":
@@ -527,10 +545,16 @@ export function reducer(s: GameState, a: Action): GameState {
         balance: a.won ? s.balance + a.amount : s.balance,
         jackpotPot: a.won ? 0 : s.jackpotPot,
       };
-    case "skipDay":
+    case "skipDay": {
+      // The night's payout, paid at once as the keeper does (decisions.md #16), from the hunger the
+      // day ended with.
+      const paid = practicePayout(s.words);
+      const paidTotal = Object.values(paid).reduce((x, y) => x + y, 0);
       return {
         ...s,
         day: s.day + 1,
+        balance: s.balance + paidTotal,
+        earned: addPracticeDay(s.earned, a.at, paid),
         dailyMinted: false,
         dailyLetter: null,
         freeSnackUsed: false,
@@ -541,6 +565,7 @@ export function reducer(s: GameState, a: Action): GameState {
         bountyTheme: a.bountyTheme,
         words: s.words.map((w) => (w.staked ? { ...w, daysUnfed: w.daysUnfed + 1 } : w)),
       };
+    }
     default:
       return s;
   }
@@ -557,6 +582,7 @@ import type { ActionOutcome } from "@/lib/onchain/guardedAction";
 import type { Busy } from "@/lib/onchain/actionGate";
 import type { GameParams } from "@/lib/onchain/reads";
 import type { PublicFace } from "@/lib/profile/rules";
+import { addPracticeDay, practiceEarnings, practicePayout, type PlayerEarnings, type PracticeEarned } from "./earnings";
 export type { ActionOutcome };
 
 /** What a move did: sent, or why it didn't send. */
@@ -624,6 +650,10 @@ export interface GameApi {
    * account (lib/onchain/move.ts). The destination is re-checked against the account, fresh.
    */
   moveToWallet: (to: string, opts?: { includeWord?: boolean }) => Promise<MoveOutcome>;
+  /** Let `wallet` care for the words the connected wallet stakes (or stop it). Resolves true once sent. */
+  setCaretaker: (wallet: string, allowed: boolean) => Promise<boolean>;
+  /** A wallet's pity with this browser's fresh reveal notes over the chain read (chain only). */
+  pityOf: (wallet: string, chainPity: readonly number[]) => number[];
   /** Read the words again after a failed read (the chain store; the practice store has none to fail). */
   reloadWords?: () => void;
   /** null = no draw happened (already revealed); else the outcome. */
@@ -647,11 +677,17 @@ export interface GameApi {
   /** Finish the oldest unrevealed commit: fetch the deterministic draw, send the reveal, open the sheet. */
   openPending: () => void;
   /**
-   * Unclaimed reward leaves across the union bag — the keeper's published epochs minus what the
-   * chain says is claimed. Whole-$WORD amounts for display; the provider holds the raw proofs.
+   * What the player's words have earned (earnings.ts): per word, the latest payout, and anything
+   * not paid out yet. Null while unknown (loading, or the read failed): never "earned nothing".
+   */
+  earnings: PlayerEarnings | null;
+  /**
+   * Shares not paid out yet across the union bag (the keeper's published epochs minus what the
+   * chain says is paid). The keeper pays them each morning (decisions.md #16), so this is usually
+   * empty. Whole-$WORD amounts for display; the provider holds the raw proofs.
    */
   claimables: { stream: "yield" | "bounty"; tokenId: string; amount: number }[];
-  /** Claim every leaf in one send. Leaves pay their baked-in accounts, so this is union-safe. */
+  /** Collect every waiting share in one send. Each pays its own wallet, so this is union-safe. */
   claimEarnings: () => void;
   /** The letter-swap board (Seaport orders; chain only — the mock's swap is a share-toy). */
   /** Open letter offers that can fill now; `face` is the maker's profile face, when it has one. */
@@ -785,6 +821,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "prestige", word, success });
         return success;
       },
+      pityOf: (_wallet, chainPity) => [...chainPity],
+      setCaretaker: async () => {
+        toast("Caretakers work in the onchain game", "info");
+        return false;
+      },
       moveToWallet: async () => {
         toast("Moving letters works in the onchain game", "info");
         return "unavailable" as const;
@@ -804,7 +845,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       skipDay: () => {
         const jackpotWord = r.pick(WORDS);
         const bountyTheme = r.int(THEMES.length);
-        dispatch({ t: "skipDay", jackpotWord, bountyTheme });
+        dispatch({ t: "skipDay", jackpotWord, bountyTheme, at: Date.now() });
         toast("A new day dawns", "info");
       },
       addDemoBalance: () => {
@@ -817,7 +858,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       busy: null,
       dismissBusy: () => {},
       openPending: () => {},
-      // The mock has no keeper and no epochs — earnings arrive via its own staking tick instead.
+      // Practice pays its words when a day passes (skipDay), at once, so nothing ever waits.
+      earnings: practiceEarnings(state.earned),
       claimables: [],
       claimEarnings: () => {},
       // The mock's swap is the share-toy above; the real board is chain-only.

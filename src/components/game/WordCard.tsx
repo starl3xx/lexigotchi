@@ -3,11 +3,13 @@
 import { HungerBadge, Pill, TierBadge } from "./primitives";
 import { CaseBadge, PrestigeStars, WordTiles, careState } from "./LetterTile";
 import { Coins, Ticket } from "./ui/icons";
-import { hunger, jackpotEligible, useGame, wordCase, type OwnedWord } from "./state";
+import { fmtWord, hunger, jackpotEligible, useGame, wordCase, type OwnedWord } from "./state";
 
 export function WordCard({ word }: { word: OwnedWord }) {
-  const { openSheet, state } = useGame();
+  const { openSheet, state, earnings } = useGame();
   const h = hunger(word);
+  // What it earned at the latest payout (decisions.md #16), beside the coin.
+  const latest = earnings?.byWord[word.word]?.latest ?? 0;
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const answerReady = isAnswer && jackpotEligible(word); // owns the day's word AND it's staked + fed
   const earning = word.staked && wordCase(word) === "UPPERCASE" && h !== "hungry";
@@ -26,9 +28,13 @@ export function WordCard({ word }: { word: OwnedWord }) {
           <div className="flex items-center gap-1.5 font-display text-base font-extrabold">
             {word.word}
             <PrestigeStars level={word.prestigeLevel} />
-            {earning && (
-              <span title="earning $WORD" className="text-gold-ink">
+            {(earning || latest > 0) && (
+              <span
+                title={latest > 0 ? `earned ${fmtWord(latest)} $WORD at the latest payout` : "earning $WORD"}
+                className="inline-flex items-center gap-0.5 text-xs font-bold text-gold-ink"
+              >
                 <Coins weight="fill" size={14} />
+                {latest > 0 && `+${fmtWord(latest)}`}
               </span>
             )}
           </div>
