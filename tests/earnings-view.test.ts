@@ -48,16 +48,17 @@ describe("earningsFromJson", () => {
         bountyTotal: String(7n * E18),
         total: String(150_012n * E18),
         waiting: String(7n * E18),
+        latest: String(40_007n * E18), // the day's yield and a bounty week that settled that morning
       },
       (id) => (id === "11" ? "VIVID" : undefined),
     );
     expect(e.byWord).toEqual({ VIVID: { total: 150_000, latest: 40_000, waiting: 0 } });
-    expect([e.total, e.latest, e.waiting, e.bounty]).toEqual([150_012, 40_000, 7, 7]);
+    expect([e.total, e.latest, e.waiting, e.bounty]).toEqual([150_012, 40_007, 7, 7]);
     expect(new Date(e.latestAt!).toISOString()).toBe("2026-11-25T00:05:00.000Z");
   });
 
   it("with no payout day, there is no payout time", () => {
-    const e = earningsFromJson({ latestDay: null, words: [], yieldTotal: "0", yieldLatest: "0", bountyTotal: "0", total: "0", waiting: "0" }, () => undefined);
+    const e = earningsFromJson({ latestDay: null, words: [], yieldTotal: "0", yieldLatest: "0", bountyTotal: "0", total: "0", waiting: "0", latest: "0" }, () => undefined);
     expect(e.latestAt).toBeNull();
   });
 });
@@ -77,8 +78,10 @@ describe("earningStatus and earningLine", () => {
     expect(earningStatus(word("VIVID"), "peckish")).toEqual({ kind: "half" });
     expect(earningStatus(word("VIVID"), "hungry")).toEqual({ kind: "paused" });
     expect(earningStatus(word("VIVID", { staked: false }), "fed")).toEqual({ kind: "unstaked" });
-    expect(earningStatus(word("CRANE", { upper: [true, true, true, false, false] }), "fed")).toEqual({ kind: "raise", left: 2 });
-    expect(earningLine("CRANE", { kind: "raise", left: 1 })).toBe("Raise 1 more letter to UPPERCASE and stake CRANE to earn $WORD every day.");
+    expect(earningStatus(word("CRANE", { upper: [true, true, true, false, false] }), "fed")).toEqual({ kind: "raise", left: 2, staked: true });
+    expect(earningLine("CRANE", { kind: "raise", left: 1, staked: false })).toBe("Raise 1 more letter to UPPERCASE and stake CRANE to earn $WORD every day.");
+    // already staked: never asked to stake it again (Bugbot on #177)
+    expect(earningLine("CRANE", { kind: "raise", left: 2, staked: true })).toBe("Raise 2 more letters to UPPERCASE, and CRANE earns $WORD every day.");
     expect(earningLine("VIVID", { kind: "paused" })).toBe("VIVID is hungry, so it earns nothing until you feed it.");
   });
 });

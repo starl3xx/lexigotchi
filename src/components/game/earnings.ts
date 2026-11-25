@@ -29,7 +29,7 @@ export interface PlayerEarnings {
   latestAt: number | null;
   /** Yield per word, keyed by the word (uppercase). Words no longer held aren't here. */
   byWord: Record<string, WordEarned>;
-  /** All earned (yield and bounty), the latest payout's yield, and what isn't paid out yet. */
+  /** All earned (yield and bounty), what the latest payout brought (its yield and a bounty week settled that morning), and what isn’t paid out yet. */
   total: number;
   latest: number;
   waiting: number;
@@ -53,7 +53,7 @@ export function earningsFromJson(j: EarningsJson, wordOf: (tokenId: string) => s
     latestAt: j.latestDay === null ? null : j.latestDay * 86_400_000 + PAYOUT_MINUTE_MS,
     byWord,
     total: wei(j.total),
-    latest: wei(j.yieldLatest),
+    latest: wei(j.latest),
     waiting: wei(j.waiting),
     bounty: wei(j.bountyTotal),
   };
@@ -97,13 +97,13 @@ export function payoutTimeLocal(now: number = Date.now()): string {
  * - "half": peckish, half a share until fed.
  * - "paused": hungry, no share until fed.
  * - "unstaked": all UPPERCASE but not staked.
- * - "raise": not all UPPERCASE yet (`left` letters to go).
+ * - "raise": not all UPPERCASE yet (`left` letters to go; `staked`, so its line never asks to stake it again).
  */
-export type EarningStatus = { kind: "earning" } | { kind: "half" } | { kind: "paused" } | { kind: "unstaked" } | { kind: "raise"; left: number };
+export type EarningStatus = { kind: "earning" } | { kind: "half" } | { kind: "paused" } | { kind: "unstaked" } | { kind: "raise"; left: number; staked: boolean };
 
 export function earningStatus(word: Pick<OwnedWord, "upper" | "staked">, h: Hunger): EarningStatus {
   const left = word.upper.filter((u) => !u).length;
-  if (left > 0) return { kind: "raise", left };
+  if (left > 0) return { kind: "raise", left, staked: word.staked };
   if (!word.staked) return { kind: "unstaked" };
   if (h === "hungry") return { kind: "paused" };
   if (h === "peckish") return { kind: "half" };
@@ -196,6 +196,8 @@ export function earningLine(word: string, s: EarningStatus): string {
     case "unstaked":
       return `Stake ${word} and it earns $WORD every day.`;
     case "raise":
-      return `Raise ${s.left} more letter${s.left === 1 ? "" : "s"} to UPPERCASE and stake ${word} to earn $WORD every day.`;
+      return s.staked
+        ? `Raise ${s.left} more letter${s.left === 1 ? "" : "s"} to UPPERCASE, and ${word} earns $WORD every day.`
+        : `Raise ${s.left} more letter${s.left === 1 ? "" : "s"} to UPPERCASE and stake ${word} to earn $WORD every day.`;
   }
 }

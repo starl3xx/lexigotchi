@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { decodeFunctionData, getAddress } from "viem";
-import { earningsJson, latestOpenDay, summarizeEarnings, type LeafStatus } from "@/lib/rewards/earnings";
+import { bountyPayDay, earningsJson, latestOpenDay, summarizeEarnings, type LeafStatus } from "@/lib/rewards/earnings";
 import { epochKey, shareStatuses, type Claimable, type EpochState } from "@/lib/keeper/claimables";
 import { PAYOUT_BATCH, payoutBatches, payoutCalls } from "@/lib/keeper/payout";
 import { merkleEpochsAbi } from "@/lib/onchain/abis";
@@ -37,6 +37,21 @@ describe("summarizeEarnings", () => {
       ["1", 22n, 0n, 12n, 2],
     ]);
     expect([s.yieldTotal, s.yieldLatest, s.waiting, s.total]).toEqual([92n, 52n, 40n, 92n]);
+  });
+
+  it("counts a bounty week in the latest payout when it settled that same morning (Bugbot on #177)", () => {
+    // week 2968 pays on day (2968 + 1) × 7 = 20783; week 2967 paid a week earlier
+    const s = summarizeEarnings(
+      [
+        leaf({ epochId: "20783", amount: 10n }),
+        leaf({ stream: "bounty", epochId: "2968", amount: 50n }),
+        leaf({ stream: "bounty", epochId: "2967", amount: 7n }),
+      ],
+      20783,
+    );
+    expect(bountyPayDay(2968)).toBe(20783);
+    expect([s.yieldLatest, s.latest, s.bountyTotal]).toEqual([10n, 60n, 57n]);
+    expect(summarizeEarnings([leaf({ stream: "bounty", epochId: "2968", amount: 50n })], 20784).latest).toBe(0n);
   });
 
   it("keeps the bounty apart from the words' daily earnings, and in the totals", () => {

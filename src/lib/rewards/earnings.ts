@@ -12,6 +12,8 @@
  * have paid a previous holder. Pure, so the sums are tested (tests/earnings.test.ts).
  */
 
+import { DEFAULT_PARAMS } from "@/lib/params";
+
 export type RewardStream = "yield" | "bounty";
 
 /** One stored share whose epoch the chain opened with that same root (keeper/claimables liveLeaves). */
@@ -57,17 +59,35 @@ export interface EarningsSummary {
   /** Both streams: earned, and earned but not paid yet. */
   total: bigint;
   waiting: bigint;
+  /**
+   * What the latest payout day brought, both streams: its yield, plus a bounty week that settled
+   * that same morning (Bugbot on #177: the day a bounty pays, "today" must include it).
+   */
+  latest: bigint;
 }
 
-export function summarizeEarnings(leaves: readonly LeafStatus[], latestDay: number | null): EarningsSummary {
+/**
+ * The UTC day a bounty week pays: the keeper settles week P on the first day of week P + 1
+ * (keeper/jobs.ts bountyPeriodToSettle), and on no other day.
+ */
+export function bountyPayDay(period: number, periodDays: number = DEFAULT_PARAMS.bounty.periodDays): number {
+  return (period + 1) * periodDays;
+}
+
+export function summarizeEarnings(
+  leaves: readonly LeafStatus[],
+  latestDay: number | null,
+  periodDays: number = DEFAULT_PARAMS.bounty.periodDays,
+): EarningsSummary {
   const byWord = new Map<string, WordEarnings>();
-  let yieldTotal = 0n, yieldLatest = 0n, bountyTotal = 0n, waiting = 0n;
+  let yieldTotal = 0n, yieldLatest = 0n, bountyTotal = 0n, bountyLatest = 0n, waiting = 0n;
   const latest = latestDay === null ? null : String(latestDay);
   for (const l of leaves) {
     if (l.dead) continue;
     if (!l.paid) waiting += l.amount;
     if (l.stream === "bounty") {
       bountyTotal += l.amount;
+      if (latestDay !== null && bountyPayDay(Number(l.epochId), periodDays) === latestDay) bountyLatest += l.amount;
       continue;
     }
     yieldTotal += l.amount;
@@ -82,7 +102,16 @@ export function summarizeEarnings(leaves: readonly LeafStatus[], latestDay: numb
     byWord.set(l.tokenId, w);
   }
   const words = [...byWord.values()].sort((a, b) => (b.total > a.total ? 1 : b.total < a.total ? -1 : a.tokenId.localeCompare(b.tokenId)));
-  return { latestDay, words, yieldTotal, yieldLatest, bountyTotal, total: yieldTotal + bountyTotal, waiting };
+  return {
+    latestDay,
+    words,
+    yieldTotal,
+    yieldLatest,
+    bountyTotal,
+    total: yieldTotal + bountyTotal,
+    waiting,
+    latest: yieldLatest + bountyLatest,
+  };
 }
 
 /** The summary as JSON: every amount a decimal wei string (bigint doesn't serialize). */
@@ -94,6 +123,7 @@ export interface EarningsJson {
   bountyTotal: string;
   total: string;
   waiting: string;
+  latest: string;
 }
 
 export function earningsJson(s: EarningsSummary): EarningsJson {
@@ -105,6 +135,7 @@ export function earningsJson(s: EarningsSummary): EarningsJson {
     bountyTotal: String(s.bountyTotal),
     total: String(s.total),
     waiting: String(s.waiting),
+    latest: String(s.latest),
   };
 }
 
