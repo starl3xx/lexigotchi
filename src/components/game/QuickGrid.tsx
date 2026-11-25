@@ -1,6 +1,6 @@
 "use client";
 /** The "Do something" tile grid — shared by Home and the More page so the two can't drift. */
-import { ArrowsLeftRight, Backpack, BookOpen, Coins, MaskHappy, Medal, Planet, Ranking, Sparkle, TextAa, Trophy } from "./ui/icons";
+import { Backpack, BookOpen, Coins, MaskHappy, Medal, Planet, Ranking, Sparkle, Storefront, TextAa, Trophy } from "./ui/icons";
 import { useGame, type View } from "./state";
 import { WORD_COUNT } from "@/lib/dictionary";
 
@@ -9,7 +9,7 @@ const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = 
   { Icon: TextAa, label: "Spell a word", sub: "claim it forever", to: "claim" },
   { Icon: BookOpen, label: "Dictionary", sub: `${WORD_COUNT.toLocaleString("en-US")} words`, to: "dictionary" },
   { Icon: MaskHappy, label: "Showcase", sub: "show off a word", to: "showcase" },
-  { Icon: ArrowsLeftRight, label: "Swap", sub: "trade letters", to: "swap" },
+  { Icon: Storefront, label: "Market", sub: "buy, sell & swap", to: "swap" },
   { Icon: Backpack, label: "My bag", sub: "letters & words", to: "bag" },
 ];
 

@@ -22,6 +22,7 @@ export {
   BookOpen,
   MaskHappy,
   ArrowsLeftRight,
+  Storefront,
   ArrowsDownUp,
   Eye,
   Smiley,

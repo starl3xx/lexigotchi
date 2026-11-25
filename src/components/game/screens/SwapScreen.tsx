@@ -1,7 +1,8 @@
 "use client";
 /**
- * Swap — words for sale ($WORD, 10% to the Rewards Pool; decisions.md #18) and a direct two-sided
- * letter escrow ("my Q for your two Z's"), shareable to Farcaster/X.
+ * Market (the "swap" view; starl3xx: "Swap tab should probably be Market now") — words for sale
+ * ($WORD, 10% to the Rewards Pool; decisions.md #18) and a direct two-sided letter escrow ("my Q for
+ * your two Z's"), shareable to Farcaster/X.
  */
 import { useState } from "react";
 import { ALPHABET, wordTier } from "@/lib/economy";
@@ -182,7 +183,7 @@ function ChainSwap() {
   return (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       <div className="lg:col-span-2">
-        <h1 className="font-display text-2xl font-extrabold md:hidden">Swap</h1>
+        <h1 className="font-display text-2xl font-extrabold md:hidden">Market</h1>
         <p className="text-sm text-ink/60">
           Sell words for $WORD, and trade one letter for one letter. Seaport settles both: listing is a
           free signature, and the trade happens the moment someone takes it.
@@ -193,7 +194,7 @@ function ChainSwap() {
 
       {/* create */}
       <Card>
-        <SectionTitle>Make an offer</SectionTitle>
+        <SectionTitle>Swap letters</SectionTitle>
         <div className="mb-1 text-xs font-bold text-ink/60">You give</div>
         <div className="flex flex-wrap gap-1.5">
           {mine.length === 0 && (
@@ -221,7 +222,7 @@ function ChainSwap() {
 
       {/* board */}
       <Card>
-        <SectionTitle action={<span className="text-xs text-ink/55">{board.length} open</span>}>The board</SectionTitle>
+        <SectionTitle action={<span className="text-xs text-ink/55">{board.length} open</span>}>Letter offers</SectionTitle>
         {board.length === 0 ? (
           <p className="py-3 text-center text-sm text-ink/50">No open offers. List one above.</p>
         ) : (
