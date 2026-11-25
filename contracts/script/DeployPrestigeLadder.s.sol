@@ -29,10 +29,9 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  *         the app points at the new address, ascension on the old one simply refuses.
  *
  *         The broadcaster must own the FeeRouter, Words, and the old Prestige (one owner EOA). Run it
- *         only when the old Prestige
- *         has no unrevealed attempt: once Words stops trusting it, that reveal would revert and the
- *         paid fee would stay stuck. The script refuses if any attempt was ever made, unless
- *         ALLOW_PAST_ATTEMPTS=true (then check `attemptOpen` for the words that tried).
+ *         only when the old Prestige has no unrevealed attempt: once Words stops trusting it, that
+ *         reveal would revert and the paid fee would stay stuck. The script refuses if any attempt was
+ *         ever made, unless ALLOW_PAST_ATTEMPTS=true (then check `attemptOpen` for the words that tried).
  *
  *         Required env: FEE_ROUTER, WORDS, STAKING, ROLLS, OLD_PRESTIGE.
  *         Optional: SIGNER, PRESTIGE_FEE (wei), PRESTIGE_MAX_LEVEL (5), ALLOW_PAST_ATTEMPTS.
