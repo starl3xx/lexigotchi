@@ -16,6 +16,9 @@ import { parseAbiItem } from "viem";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { addressOf, allAddresses, deployBlock } from "@/lib/onchain/addresses";
 import { scanAllWords } from "@/lib/keeper/scan";
+import { yieldWeight } from "@/lib/keeper/shares";
+import { feeRouterAbi } from "@/lib/onchain/abis";
+import { DEFAULT_PARAMS } from "@/lib/params";
 
 const TRANSFER_SINGLE = parseAbiItem(
   "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)",
@@ -26,6 +29,7 @@ const TRANSFER_BATCH = parseAbiItem(
 const JACKPOT_WON = parseAbiItem(
   "event JackpotWon(uint32 indexed day, uint256 indexed tokenId, address indexed winner, uint256 amount)",
 );
+const WORD_REVEALED = parseAbiItem("event WordRevealed(uint32 indexed day, string word, bytes32 next)");
 const ZERO = "0x0000000000000000000000000000000000000000";
 const WEI = 10n ** 18n;
 
@@ -44,6 +48,8 @@ export interface WorldSnapshot {
   letters: Record<string, { lower: number; upper: number }>;
   /** Jackpot wins per wallet: how many, and the whole $WORD they paid. */
   wins: Record<string, { count: number; amount: number }>;
+  /** The keeper's total yield weight right now (Σ `yieldWeight` over every word). */
+  yieldWeight: number;
 }
 
 /** One ERC-1155 movement: `ids[i]` moved `values[i]` from `from` to `to`. */
@@ -116,7 +122,38 @@ export async function scanWorld(): Promise<WorldSnapshot> {
     })),
     letters: letterTotals(transfers, skip),
     wins,
+    yieldWeight: keeperWords.reduce((a, w) => a + yieldWeight(w), 0),
   };
+}
+
+/**
+ * Today's yield pot in whole $WORD: the Rewards Pool × the daily rate, the same pot the keeper's
+ * `yield` job opens (lib/keeper/jobs.ts). It moves through the day as fees come in.
+ */
+export async function readYieldPot(): Promise<number> {
+  const pool = (await getPublicClient().readContract({
+    address: addressOf("feeRouter"),
+    abi: feeRouterAbi,
+    functionName: "poolBalance",
+  })) as bigint;
+  return (Number(pool / 10n ** 12n) / 1e6) * DEFAULT_PARAMS.staking.dailyDistributionRate;
+}
+
+/**
+ * Every secret word revealed so far (AnswerChain's WordRevealed), keyed by word, with its UTC day.
+ * The locked schedule never repeats a word (answerChain.ts seededSchedule), so a revealed word can't
+ * be drawn again: a buyer should know that before paying for one.
+ */
+export async function scanDrawn(): Promise<Record<string, number>> {
+  const logs = await getPublicClient().getLogs({
+    address: addressOf("answerChain"),
+    event: WORD_REVEALED,
+    fromBlock: deployBlock(),
+    toBlock: "latest",
+  });
+  const out: Record<string, number> = {};
+  for (const l of logs) if (l.args.word) out[String(l.args.word).toUpperCase()] = Number(l.args.day);
+  return out;
 }
 
 export type BoardKey = "words" | "letters" | "raised" | "wins";

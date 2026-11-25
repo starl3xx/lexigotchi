@@ -194,7 +194,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `useForSale()` (the board ∩ the bag): Next steps skip it (`nextSteps({ forSale })`), the Today stage
   shows it last in mood `forSale` ("…is for sale in the Market."), and its Bag card shows the price.
   The Bag's filters and sorts are `bagView.ts` (pure, tested), remembered per browser
-  (`useStoredChoice`). **Wallets sign
+  (`useStoredChoice`). **Cost to make** (`lib/wordCost.ts`, pure, tested; `WordValue.tsx`): the sell
+  form and every listing show about what the word costs to build now at the live prices and average
+  tries (letters at `pack ÷ 5 ÷ (26 × odds)`, so a pack's draws average its price; raises; the claim;
+  each ascension stage reached), "Use this price" (3 significant figures), what it would earn a day
+  (`/api/world`'s `yieldToday`: today's pot and the keeper's summed `yieldWeight`, the same weight
+  `yieldLeaves` uses), and whether the jackpot already drew it (`drawn`, from `WordRevealed`). **Wallets sign
   `walletTypedDataJson(order)`, never `JSON.stringify(orderTypedData(order))`:** eth-sig-util wallets
   read a missing `EIP712Domain` as empty and sign another digest (every MetaMask listing failed
   bad_signature until #187); viem fills it in, so a viem-signed test can't catch this.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadLinkMap } from "@/lib/db/walletLinks";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
-import { buildLeaderboards, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
+import { buildLeaderboards, readYieldPot, scanDrawn, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
 import { type PublicFace } from "@/lib/profile/rules";
 import { playerFaces } from "@/lib/profile/faces";
 
@@ -27,6 +27,13 @@ export interface WorldResponse {
   owners?: Record<string, string>;
   boards?: Record<BoardKey, BoardRow[]>;
   profiles?: Record<string, PublicFace>;
+  /**
+   * Today's yield: the pot (whole $WORD) and the total weight sharing it, for "earns about X a day"
+   * (lib/wordCost.ts dailyEarnEstimate). Absent when either read failed.
+   */
+  yieldToday?: { pot: number; weight: number };
+  /** Secret words revealed so far → their UTC day. A revealed word is never drawn again. */
+  drawn?: Record<string, number>;
 }
 
 const TTL_MS = 60_000;
@@ -34,7 +41,13 @@ let cached: { at: number; body: WorldResponse } | null = null;
 let inflight: Promise<WorldResponse> | null = null;
 
 async function build(): Promise<WorldResponse> {
-  const [snap, links] = await Promise.all([scanWorld(), loadLinkMap()]);
+  // The pot and the draws are extras for the Market: a failed read leaves them out, never the world.
+  const [snap, links, pot, drawn] = await Promise.all([
+    scanWorld(),
+    loadLinkMap(),
+    readYieldPot().catch(() => null),
+    scanDrawn().catch(() => undefined),
+  ]);
   // One row per player: linked wallets count toward their account (loadLinkMap never throws).
   const boards = buildLeaderboards(snap, 25, links.accountOf);
   const owners: Record<string, string> = {};
@@ -44,7 +57,8 @@ async function build(): Promise<WorldResponse> {
   // Every wallet wears its account's face (lib/profile/faces.ts): the profile's X or chosen name,
   // and the first wallet's Farcaster face when the wallet has none of its own.
   const { profiles } = await playerFaces(shown);
-  return { ok: true, live: true, at: Date.now(), owners, boards, profiles };
+  const yieldToday = pot === null ? undefined : { pot, weight: snap.yieldWeight };
+  return { ok: true, live: true, at: Date.now(), owners, boards, profiles, yieldToday, drawn };
 }
 
 export async function GET() {

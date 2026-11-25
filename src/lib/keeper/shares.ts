@@ -85,16 +85,21 @@ export function yieldLeaves(
   potWei: bigint,
   p: Params = DEFAULT_PARAMS,
 ): RewardLeaf[] {
-  const entries = words
-    .filter((w) => w.staked && w.upperAll)
-    .map((w) => ({
-      w,
-      weight:
-        TIER_WEIGHT[wordTier(w.word)] *
-        hungerFactor(w.daysUnfed, p) *
-        p.prestige.yieldMultPerLevel ** w.prestigeLevel,
-    }));
+  const entries = words.filter((w) => w.staked && w.upperAll).map((w) => ({ w, weight: yieldWeight(w, p) }));
   return split(entries, potWei);
+}
+
+/**
+ * One word's weight in the daily yield, exactly as `yieldLeaves` weighs it: 0 unless staked and all
+ * UPPERCASE, else tier weight × hunger × the ascension multiplier. The world's "earns about X a day"
+ * estimate (lib/wordCost.ts) sums this over every word, so it can't drift from the keeper's split.
+ */
+export function yieldWeight(
+  w: Pick<KeeperWord, "word" | "staked" | "upperAll" | "daysUnfed" | "prestigeLevel">,
+  p: Params = DEFAULT_PARAMS,
+): number {
+  if (!w.staked || !w.upperAll) return 0;
+  return TIER_WEIGHT[wordTier(w.word)] * hungerFactor(w.daysUnfed, p) * p.prestige.yieldMultPerLevel ** w.prestigeLevel;
 }
 
 /**
