@@ -51,7 +51,7 @@ export type SendResult =
 /** Thrown when the wallet is not on the game's chain and could not be moved there. */
 export class WrongChainError extends Error {
   constructor(net: NetworkDef = NETWORK) {
-    super(`Your wallet is on the wrong network — switch it to ${net.name} and try again`);
+    super(`Your wallet is on the wrong network. Switch it to ${net.name} and try again.`);
     this.name = "WrongChainError";
   }
 }
@@ -66,8 +66,11 @@ export class WrongChainError extends Error {
  * but honoring it is the wallet's choice. So: check, ask to switch (adding the chain if the wallet
  * doesn't know it), then RE-CHECK — a wallet can silently no-op a switch request, and the re-check
  * is the only part the wallet can't fake by resolving the promise.
+ *
+ * WalletNetworkNotice's Switch button uses it too: wagmi's own `switchChain` waits for a change event
+ * that a wallet which resolves the switch and stays put never sends, so the button would spin forever.
  */
-async function ensureChain(provider: Eip1193Provider, net: NetworkDef = NETWORK): Promise<void> {
+export async function ensureChain(provider: Eip1193Provider, net: NetworkDef = NETWORK): Promise<void> {
   const idHex = `0x${net.id.toString(16)}`;
   const read = async () => parseInt(String(await provider.request({ method: "eth_chainId" })), 16);
   if ((await read()) === net.id) return;

@@ -13,8 +13,8 @@
  * the game was already playing on their wallet. The SDK is imported dynamically so the
  * statically-prerendered /play route never touches it during SSR.
  */
-import { useAccount } from "wagmi";
-import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
+import { useAccount, useDisconnect } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet, TweenNumber } from "../primitives";
 import { ArrowsLeftRight, CaretRight, Check, CircleNotch, Coins, Plus, Smiley, Wallet } from "../ui/icons";
 import { fmtUsd, fmtWord, useGame } from "../state";
@@ -38,7 +38,7 @@ export function BalanceSheet() {
   const viewer = useViewer();
   const { address } = useAccount();
   const { openConnectModal, connectModalOpen } = useConnectModal();
-  const { openAccountModal } = useAccountModal();
+  const { disconnect } = useDisconnect();
   const profile = useProfile();
   const me = resolveIdentity(viewer, profile.profile);
   const daily = useDailyEligibility();
@@ -162,18 +162,18 @@ export function BalanceSheet() {
             <span className="flex items-center gap-1.5 font-bold text-teal-ink">
               <Check weight="bold" /> Connected
             </span>
-            {/* The only way OUT of a wallet on the web. An extension wallet can be disconnected from
-                the extension, but a Base Account popup session or a WalletConnect phone session has
-                nothing in the browser to click — without this, a player who connected the wrong
-                wallet is stuck with it. RainbowKit's account modal carries copy + disconnect. */}
-            <button
-              onClick={openAccountModal}
-              disabled={!openAccountModal}
-              className="flex items-center gap-1.5 text-xs text-ink/60"
-            >
+            {/* A way OUT of a wallet on the web (the profile has one too). An extension wallet can be
+                disconnected from the extension, but a Base Account popup session or a WalletConnect
+                phone session has nothing in the browser to click: without this, a player who
+                connected the wrong wallet is stuck with it. wagmi's own disconnect, the call
+                RainbowKit's account modal made: that modal isn't offered on a network RainbowKit
+                doesn't know, which left this button dead in Rainbow's browser (2026-11-25). */}
+            <span className="flex items-center gap-2 text-xs text-ink/60">
               <span className="font-mono">{short(address)}</span>
-              <span className="font-bold text-ink/45 underline">Switch</span>
-            </button>
+              <button onClick={() => disconnect()} className="font-bold text-ink/45 underline">
+                Disconnect
+              </button>
+            </span>
           </div>
         ) : (
           <>
