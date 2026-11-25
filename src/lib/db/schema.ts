@@ -405,6 +405,15 @@ export const freeClaims = pgTable(
     /** The key the voucher was signed under (decimal string: a daily key can exceed 2^160). */
     claimKey: text("claim_key").notNull(),
     claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * The free-letter ledger (migration 0015, decisions.md #21): how many letters this grant gave (1
+     * for a daily, 5 for the pack), when its voucher stops being spendable, and whether it reached
+     * the chain. `used` null = not settled yet (it counts); false = expired unused, so its letters
+     * go back to the budget and its day doesn't count toward the 10.
+     */
+    letters: integer("letters").notNull().default(1),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    used: boolean("used"),
   },
   (t) => [uniqueIndex("free_claims_account_kind_period").on(t.chainId, t.account, t.kind, t.period)],
 );

@@ -19,7 +19,9 @@ import {
 } from "@/lib/economy";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { fmtNum } from "@/lib/admin/format";
-import { AdminCard, MetricCard, SectionLabel } from "../ui";
+import { AdminCard, MetricCard, SectionLabel, useFetch } from "../ui";
+import type { LivePayload } from "@/app/api/admin/live/route";
+import { DEFAULT_PARAMS } from "@/lib/params";
 import { BarsChart } from "../charts";
 import { Crown, Sparkle, Stack, Package } from "../icons";
 
@@ -28,6 +30,10 @@ const tightest = [...ALPHABET].sort((a, b) => LETTER_SUPPLY_CAP[a] - LETTER_SUPP
 
 export function SupplyTab() {
   const capData = ALPHABET.map((L) => ({ label: L, value: LETTER_SUPPLY_CAP[L] }));
+  // The live free-letter ledger and claimed words (decisions.md #21), from the open live route.
+  const { data: live } = useFetch<LivePayload>("/api/admin/live");
+  const fl = live?.freeLetters ?? null;
+  const claimedShare = live?.words ? live.words.claimed / live.words.dictionary : null;
 
   return (
     <div className="space-y-6">
@@ -41,6 +47,42 @@ export function SupplyTab() {
           <MetricCard icon={<Sparkle weight="bold" size={14} />} label="Tightest letter" tone="warning" value={`${tightest} · ${fmtNum(LETTER_SUPPLY_CAP[tightest])}`} sub="first to mint out" />
           <MetricCard icon={<Crown weight="bold" size={14} />} label="Legendaries" tone="warning" value={fmtNum(LEGENDARIES.length)} sub="apex-rarity words" />
         </div>
+      </section>
+
+      <section>
+        <SectionLabel>Free letters (live)</SectionLabel>
+        {live && !live.live ? (
+          <p className="text-sm text-ink/55">No deployment on this network: the free letters are signed by the live game only.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <MetricCard
+              icon={<Package weight="bold" size={14} />}
+              label="Free letters signed"
+              value={fl ? fmtNum(fl.signed) : "–"}
+              sub={fl ? `${fmtNum(fl.packs)} packs · ${fmtNum(fl.dailies)} dailies · ${fmtNum(fl.pending)} unsettled` : "needs migration 0015"}
+            />
+            <MetricCard
+              icon={<Stack weight="bold" size={14} />}
+              label="Budget left"
+              tone={fl && fl.remaining < fl.budget * 0.1 ? "warning" : undefined}
+              value={fl ? fmtNum(fl.remaining) : "–"}
+              sub={fl ? `of ${fmtNum(fl.budget)} (FREE_LETTER_BUDGET)` : "–"}
+            />
+            <MetricCard
+              icon={<Sparkle weight="bold" size={14} />}
+              label="Free daily limit"
+              value={fmtNum(fl?.dailyLimit ?? DEFAULT_PARAMS.freeLetters.freeDailyLimit)}
+              sub="per profile, one a day"
+            />
+            <MetricCard
+              icon={<Crown weight="bold" size={14} />}
+              label="Dictionary claimed"
+              tone={claimedShare !== null && claimedShare >= DEFAULT_PARAMS.freeLetters.freeStopClaimedFraction ? "warning" : undefined}
+              value={claimedShare !== null ? `${(claimedShare * 100).toFixed(1)}%` : "–"}
+              sub={`free letters stop at ${Math.round(DEFAULT_PARAMS.freeLetters.freeStopClaimedFraction * 100)}%${live?.words ? ` · ${fmtNum(live.words.claimed)} of ${fmtNum(live.words.dictionary)}` : ""}`}
+            />
+          </div>
+        )}
       </section>
 
       <BarsChart

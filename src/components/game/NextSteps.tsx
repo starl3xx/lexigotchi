@@ -185,7 +185,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
     case "start":
       return {
         icon: <Sparkle weight="fill" size={20} />,
-        text: <>Get your first letters: a pack of 5, or your free daily letter.</>,
+        text: <>Get your first letters: your free pack and daily letters, or a pack of 5.</>,
       };
   }
 }

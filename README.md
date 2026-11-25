@@ -22,7 +22,7 @@ npm run dev          # http://localhost:3000 (landing page) · /play (the game)
 ```
 
 Players in a Farcaster client are auto-connected; on the open web they connect any wallet (the wallet
-is the account) and can link Farcaster or X, or verify with Coinbase, to unlock the free daily letter. Where the network's
+is the account) and can link Farcaster or X, or verify with Coinbase, to unlock the free letters (a pack of 5 plus 10 daily letters). Where the network's
 contracts are deployed (Base Sepolia today), every button is a real onchain action; anywhere else the game runs in
 practice mode on a mock store, so the full loop is explorable end to end. See the player docs at **[lexigotchi.fun/docs](https://lexigotchi.fun/docs)** (source: `docs-site/`) for how the game works, and **[GAME_DOCUMENTATION.md](./GAME_DOCUMENTATION.md)**
 for the complete mechanics, odds, and economy reference.

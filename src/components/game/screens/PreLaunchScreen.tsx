@@ -1,9 +1,11 @@
 "use client";
 /**
  * PreLaunchScreen — the pre-launch campaign splash, shown in place of the ENTIRE game when
- * `NEXT_PUBLIC_PRELAUNCH === "1"` (see the gate in GameApp). Players who add the mini app AND
- * share a cast before launch are promised a free 5-letter pack on day one. A two-step checklist
- * in Lexigotchi's cel / vaudeville aesthetic.
+ * `NEXT_PUBLIC_PRELAUNCH === "1"` (see the gate in GameApp). A two-step checklist (add the mini app,
+ * share a cast) in Lexigotchi's cel / vaudeville aesthetic. The free pack is no longer this campaign's
+ * reward: every verified player gets a pack of 5 plus 10 daily letters at launch (decisions.md #21),
+ * so nothing here promises it. The adds and verified shares are still recorded: they'll mark the
+ * players who were there before opening night (a future "Opening Night" Wordmark, parked).
  *
  * Modelled on LHAW's `/splash` "OG Hunter" campaign, in Lexigotchi's design language. Step state is
  * now SERVER-BACKED: on mount we hydrate from `/api/campaign/status`, the add is persisted via
@@ -27,8 +29,8 @@ import { Check, CircleNotch, Gift, Plus, ShareNetwork, Sparkle } from "../ui/ico
 
 /** What the player posts. Embeds the /play link so the cast renders a launchable Lexigotchi card. */
 const SHARE_TEXT =
-  "Lexigotchi is coming to Farcaster: raise letters, own words, and chase the daily $WORD jackpot. 🎩\n\n" +
-  "Add the app + share before launch and a free 5-letter pack is waiting for you on day one.";
+  "Lexigotchi opens soon: raise letters, own words, and chase the daily $WORD jackpot. 🎩\n\n" +
+  "Every verified player starts with a free pack of 5 plus 10 free daily letters.";
 
 type Step = "added" | "shared";
 
@@ -124,8 +126,8 @@ export function PreLaunchScreen() {
 
   const heroTitle = done ? "You’re on the list!" : "Get in before the doors open";
   const heroSub = done
-    ? "Your free 5-letter pack is reserved. We’ll raise the curtain soon. See you on opening day."
-    : "Lexigotchi opens soon. Add the app and share a cast now, and a free 5-letter pack will be waiting the moment we launch.";
+    ? "You were here before the doors opened. We’ll raise the curtain soon. See you on opening night."
+    : "Lexigotchi opens soon. Add the app and share a cast now to be there for opening night.";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-paper">
@@ -154,16 +156,17 @@ export function PreLaunchScreen() {
             </div>
           </div>
 
-          {/* reward — the free 5-pack */}
+          {/* what every verified player gets at launch (not exclusive to this campaign) */}
           <div className="cel mt-6 rounded-2xl bg-gradient-to-b from-card to-gold/20 p-4">
             <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-extrabold text-gold-ink">
-              <Gift weight="fill" size={14} /> Your launch-day reward
+              <Gift weight="fill" size={14} /> Free letters at launch
             </div>
             <div className="flex items-end justify-center py-1">
               <TileWord word="early" upper={[false, false, false, false, false]} detail="bust" size={48} />
             </div>
             <p className="mt-2 text-center text-xs leading-relaxed text-ink/65">
-              A free <strong>5-letter pack</strong>: five fresh lowercase letters to start spelling and raising, dropped to you on day one.
+              Every verified player gets a <strong>free pack of 5</strong> plus <strong>10 free daily letters</strong>: link Farcaster, X, or a
+              Coinbase-verified wallet when the game opens.
             </p>
           </div>
 
@@ -176,8 +179,8 @@ export function PreLaunchScreen() {
 
           {/* the two steps */}
           <div className="cel mt-5 rounded-2xl bg-card p-4">
-            <h2 className="font-display text-lg font-extrabold">Two steps to claim it</h2>
-            <p className="mb-3 text-xs text-ink/60">Do both before we launch to lock in your pack.</p>
+            <h2 className="font-display text-lg font-extrabold">Be there for opening night</h2>
+            <p className="mb-3 text-xs text-ink/60">Do both before we launch, and we’ll remember you were here first.</p>
 
             <div className="space-y-2.5">
               <StepRow n={1} done={added} title="Add Lexigotchi" sub="Save it to your Farcaster mini apps.">
@@ -206,7 +209,7 @@ export function PreLaunchScreen() {
           </div>
 
           <p className="mx-auto mt-5 max-w-[24rem] text-center text-xs leading-relaxed text-ink/55">
-            Your pack is tied to your Farcaster account and waiting at launch. No wallet needed yet.
+            We note it on your Farcaster account. No wallet needed yet.
           </p>
         </main>
       </div>

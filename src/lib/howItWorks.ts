@@ -23,7 +23,7 @@ export const HOW_IT_WORKS: readonly HowItWorksStep[] = [
   {
     n: 1,
     title: "Collect letters",
-    body: "Mint one free lowercase letter every day, or grab a pack of five anytime. Every letter is a little character you own and raise.",
+    body: "Link Farcaster, X, or a Coinbase-verified wallet for a free pack of 5 plus 10 free daily letters, or grab a pack of five anytime. Every letter is a little character you own and raise.",
   },
   {
     n: 2,

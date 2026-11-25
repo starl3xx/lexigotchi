@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Rea
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
+  type FreeLetterView,
   type GameApi,
   type GameState,
   type OwnedWord,
@@ -117,6 +118,7 @@ import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
+import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
 import { usePlayerWallets } from "./usePlayerWallets";
 
@@ -365,8 +367,18 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase(), viewer.fid ?? null],
     queryFn: async () => {
       const r = await fetch(`/api/mint/daily-status?wallet=${address}${viewer.fid ? `&fid=${viewer.fid}` : ""}`);
-      const d = (await r.json()) as { ok: boolean; claimed?: boolean };
-      return d.ok ? Boolean(d.claimed) : false;
+      const d = (await r.json()) as Partial<DailyStatus> & { ok: boolean };
+      if (!d.ok) return null;
+      const view: FreeLetterView = {
+        dailyLeft: d.dailyTaken == null ? null : Math.max(0, (d.dailyLimit ?? 10) - d.dailyTaken),
+        dailyLimit: d.dailyLimit ?? 10,
+        done: Boolean(d.done),
+        packTaken: Boolean(d.packTaken),
+        stop: d.stop ?? null,
+        packStop: d.packStop ?? null,
+        dictionaryFull: Boolean(d.dictionaryFull),
+      };
+      return { claimed: Boolean(d.claimed), view };
     },
     enabled: Boolean(address) && chain.deployed,
     staleTime: 30_000,
@@ -487,7 +499,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ? "loading"
           : "ready";
 
-  const chainSaysClaimed = (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data ?? false);
+  const chainSaysClaimed = (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data?.claimed ?? false);
   const dailyClaimed = chainSaysClaimed || (seenToday !== null && Date.now() - seenToday.at < DAILY_SEEN_TRUST_MS);
   const state: GameState = useMemo(
     () => ({
@@ -683,17 +695,22 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const packError = useCallback(
     (code?: string) => {
       switch (code) {
-        case "add_required":
-          return "Add Lexigotchi first: that’s step one of earning the free pack";
-        case "share_required":
-          return "Share your cast to unlock the free pack";
-        case "eligibility_unavailable":
-          // Configured-but-unreachable campaign DB. Nothing was spent and nothing was lost.
-          return "Can’t check your free pack right now. Try again in a minute";
+        case "verification_required":
+          return "The free pack needs a linked account or a Coinbase-verified wallet. Open your profile";
+        case "x_too_young":
+          return "Your X account unlocks the free pack once it’s 90 days old";
+        case "verification_unavailable":
+          return "Can’t check your verification right now. Try again in a minute";
         case "already_claimed":
           return "You’ve already opened your free pack";
         case "campaign_closed":
-          return "The free-pack campaign has ended";
+          return "Free packs have ended";
+        case "free_letters_gone":
+          return "All the free letters have been given out. Packs are still for sale";
+        case "free_letters_closed":
+          return "The dictionary is nearly full, so free letters have ended. Packs are still for sale";
+        case "try_again":
+          return "Can’t open your free pack right now. Try again in a minute";
         default:
           return authError(code, "Pack");
       }
@@ -714,6 +731,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           return "Your X account unlocks the daily once it’s 90 days old";
         case "verification_unavailable":
           return "Can’t check your verification right now. Try again in a minute";
+        case "daily_limit_reached":
+          return "You’ve had all 10 free daily letters. Packs are still for sale";
+        case "free_letters_gone":
+          return "All the free letters have been given out. Packs are still for sale";
+        case "free_letters_closed":
+          return "The dictionary is nearly full, so free letters have ended. Packs are still for sale";
         default:
           return authError(code, "The daily");
       }
@@ -890,6 +913,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // mock table stands in as a label only: canAfford is false without chain.player, and every
       // send builds its calldata from chain.params, never from this number.
       lettersLeft: chain.params?.unreservedSupply ?? null,
+      freeLetters: relatedDayQ.data?.view ?? null,
       // Until params load, assume OFF: better a hidden button for a moment than one that reverts.
       maxPrestigeLevel: chain.params?.maxPrestigeLevel ?? 0,
       price: (item: PriceItem) => (chain.params ? chainPrice(chain.params.word, item) : MOCK_PRICE[item]),
@@ -968,7 +992,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!address) return void toast("Connect a wallet first", "bad");
           if (soldOutFor(5)) return;
 
-          const res = await postJson<{ voucher: PackVoucher }>("/api/mint/free-pack", { wallet: address });
+          // Any verified identity (Farcaster, X, or Coinbase): the token rides along when there is one.
+          const res = await openPostJson<{ voucher: PackVoucher }>("/api/mint/free-pack", { wallet: address });
           if (!res?.ok) return void toast(packError(res?.error), "bad");
 
           // Snapshot what was already outstanding so the new commit can be told apart from a
@@ -1005,6 +1030,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast("Your pack is paid for. Reopen to finish it", "info");
           }
           dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
+          void relatedDayQ.refetch(); // the pack is taken: the Mint card stops offering it
         }, undefined);
         return [];
       },

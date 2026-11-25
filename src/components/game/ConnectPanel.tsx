@@ -175,7 +175,7 @@ export function ConnectPanel() {
         ) : (
           <>
             <p className="mt-1 text-xs text-ink/55">
-              Proves you’re one person, which unlocks one free letter a day.{" "}
+              Proves you’re one person, which unlocks a free pack of 5 plus 10 free daily letters.{" "}
               {xEnabled
                 ? "A linked X account or a Coinbase-verified wallet does the same, so you can skip this and link one later in your profile."
                 : "A Coinbase-verified wallet does the same, so you can skip this and verify later."}

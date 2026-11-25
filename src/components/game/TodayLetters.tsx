@@ -71,6 +71,15 @@ export function TodayLetters() {
               next in <Countdown />
             </span>
           </div>
+        ) : daily.eligible && g.freeLetters && (g.freeLetters.done || g.freeLetters.stop) ? (
+          // All 10 taken, or free letters have stopped for everyone (decisions.md #21).
+          <p className="text-sm text-ink/70">
+            {g.freeLetters.done
+              ? `You’ve had all ${g.freeLetters.dailyLimit} free daily letters. Packs of 5 are always for sale.`
+              : g.freeLetters.stop === "dictionary"
+                ? "The dictionary is nearly full, so free letters have ended. Packs are still for sale."
+                : "All the free letters have been given out. Packs are still for sale."}
+          </p>
         ) : !daily.eligible ? (
           // A signed-out web player can't claim it from here: the shared DailyUnlock offers both
           // identities (Farcaster, or a Coinbase-verified wallet). Inside a Farcaster client the
@@ -80,7 +89,11 @@ export function TodayLetters() {
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-ink/70">
               <span className="font-bold text-ink">Your free letter is ready.</span>
-              <div className="text-xs text-ink/50">One a day, on the house</div>
+              <div className="text-xs text-ink/50">
+                {g.freeLetters?.dailyLeft != null
+                  ? `${g.freeLetters.dailyLeft} of your ${g.freeLetters.dailyLimit} free daily letters left`
+                  : "One a day, on the house"}
+              </div>
             </div>
             <Button
               variant="primary"
