@@ -84,6 +84,10 @@ export function CheatSheet() {
             half. After {days(hungryAfterDays)} it’s hungry: no jackpot and no $WORD until you feed it.
           </li>
           <li>Each week, staked words that match the week’s theme also share the bounty.</li>
+          <li>
+            <strong>Sell a word</strong> from its card, for $WORD you choose. You get 90%; 10% goes to the
+            Rewards Pool.
+          </li>
           {emailEnabled && (
             <li>
               <strong>Want a nudge?</strong> Add your email in your profile, and the game tells you before a
