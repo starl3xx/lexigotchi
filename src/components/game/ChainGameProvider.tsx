@@ -469,12 +469,17 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // Words for sale (decisions.md #18). The route reads each word's state live and drops what can't
   // fill, so every row here could be bought as of the last read. It carries no orders: the signed
   // order is fetched when the player buys or takes one off sale (fetchWordOrder).
+  const freshWords = useRef(false);
   const wordBoardQ = useQuery({
     queryKey: ["wordBoard", NETWORK.id],
     queryFn: async () => {
-      const res = await fetch("/api/swap/words");
+      const fresh = freshWords.current;
+      freshWords.current = false;
+      const res = await fetch(fresh ? "/api/swap/words?fresh=1" : "/api/swap/words");
       const data = await res.json();
-      if (!data?.ok) return [] as WordListing[];
+      // A refused or failed read throws, so the last good board stays up: an empty list here would
+      // say "no words are for sale" when the truth is "couldn't read" (a rate limit, an RPC hiccup).
+      if (!data?.ok) throw new Error(`words board: ${data?.error ?? res.status}`);
       const faces = (data.profiles ?? {}) as Record<string, PublicFace>;
       return (data.listings as Omit<WordListing, "price" | "face">[]).map((l) => ({
         ...l,
@@ -484,10 +489,25 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     },
     enabled: chain.deployed,
     staleTime: 15_000,
+    retry: 1,
     // Other players' listings arrive while the Market is on screen, without a reload; elsewhere it
     // doesn't poll (the route checks every listing against the chain).
     refetchInterval: ui.view === "swap" ? 15_000 : false,
   });
+  const refetchWords = wordBoardQ.refetch;
+  /**
+   * After this player lists, buys, or cancels a word: read the board from the chain, not from the
+   * server's few-second-old copy, at once and again at 4 and 10 seconds (an RPC may show a write a
+   * moment late).
+   */
+  const refreshWords = useCallback(() => {
+    const read = () => {
+      freshWords.current = true;
+      void refetchWords();
+    };
+    read();
+    for (const ms of [4_000, 10_000]) setTimeout(read, ms);
+  }, [refetchWords]);
 
   // Letters for sale, recent sales, and the player's own listings (decisions.md #28).
   const market = useChainMarket({ enabled: chain.deployed, onMarket: ui.view === "swap", wallets: bagWallets });
@@ -1626,7 +1646,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         letterStats: market.letterStats,
         tierStats: market.tierStats,
         faces: market.faces,
-        loading: market.loading,
+        loading: market.loading || (ui.view === "swap" && wordBoardQ.isPending),
+        unavailable: market.unavailable || (wordBoardQ.isError && !wordBoardQ.data),
         lettersClosed: market.lettersClosed,
         oldSwaps: market.oldSwaps.map(({ maker, giveId, wantId, orderHash }) => ({ maker, giveId, wantId, orderHash })),
         isMine: (maker: string) => bagWallets.some((w) => w.toLowerCase() === maker.toLowerCase()),
@@ -1696,7 +1717,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               }).then((r) => r.json());
               if (res?.ok) {
                 toast(`${qty} × ${name} for sale. They sell the moment someone buys them`, "good");
-                void market.refresh();
+                void market.refresh(true);
                 return true;
               }
               const why: Record<string, string> = {
@@ -1731,7 +1752,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             const row = await fetchLetterOrder(ask.orderHash);
             if (!row || row.available < 1) {
               toast("That listing just sold out", "info");
-              void market.refresh();
+              void market.refresh(true);
               return false;
             }
             const take = Math.min(count, row.available);
@@ -1763,11 +1784,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         cancelLetterListing: (orderHash: string) => {
           void track("Taking your letters off sale", async (run) => {
             const row = await fetchLetterOrder(orderHash);
-            if (!row) return void market.refresh();
-            if (await run("Cancel listing", () => cancelOrderCalls(row.order))) {
-              // The route reads Seaport, which a public RPC may show a moment late.
-              for (const ms of [0, 4_000, 10_000]) setTimeout(() => void market.refresh(), ms);
-            }
+            if (!row) return void market.refresh(true);
+            // The refresh re-reads at 0, 4, and 10 s: the route reads Seaport, which an RPC may show a moment late.
+            if (await run("Cancel listing", () => cancelOrderCalls(row.order))) void market.refresh(true);
           }, undefined);
         },
 
@@ -1840,7 +1859,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             }).then((r) => r.json());
             if (res?.ok) {
               toast(`${word} is for sale. It sells the moment someone buys it`, "good");
-              void wordBoardQ.refetch();
+              refreshWords();
               return true;
             }
             const why: Record<string, string> = {
@@ -1874,7 +1893,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // The board said this price a moment ago; the order must still say it.
           if (!signed || orderPriceWei(signed.order) !== BigInt(row.priceWei)) {
             toast(`${row.word} just sold, or came off sale`, "info");
-            void wordBoardQ.refetch();
+            refreshWords();
             return false;
           }
           return sendAndSettle(
@@ -1887,7 +1906,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               pending: `Sent. ${row.word} will show in your bag once the chain confirms it.`,
             },
           ).then((ok) => {
-            void wordBoardQ.refetch();
+            refreshWords();
             void market.refresh(true);
             return ok;
           });
@@ -1897,8 +1916,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       cancelWordListing: (orderHash: string) => {
         void track("Taking your word off sale", async (run) => {
           const signed = await fetchWordOrder(orderHash);
-          if (!signed) return void wordBoardQ.refetch();
-          if (await run("Cancel listing", () => cancelOrderCalls(signed.order))) void wordBoardQ.refetch();
+          if (!signed) return void refreshWords();
+          if (await run("Cancel listing", () => cancelOrderCalls(signed.order))) refreshWords();
         }, undefined);
       },
 
@@ -2039,7 +2058,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

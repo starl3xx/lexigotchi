@@ -155,6 +155,8 @@ export interface MarketApi {
   faces: Record<string, PublicFace>;
   /** The boards haven't answered yet: "nothing for sale" isn't known. */
   loading: boolean;
+  /** A board couldn't be read, and nothing is kept to show: a connection problem, not an empty Market. */
+  unavailable: boolean;
   /** Letters can't be listed yet (the server isn't ready for them). */
   lettersClosed: boolean;
   /** The retired letter swap: the player's old offers that could still fill, to cancel. */
@@ -1035,6 +1037,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         tierStats: practiceStats(state.market?.sales ?? []).tiers,
         faces: PRACTICE_FACES,
         loading: false,
+        unavailable: false,
         lettersClosed: false,
         oldSwaps: [],
         isMine: (maker) => maker === PRACTICE_ME,

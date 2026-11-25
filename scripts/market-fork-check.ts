@@ -13,7 +13,8 @@
  * It runs the app's own builders (buildLetterSaleOrder, buyLettersCalls, cancelOrderCalls) and the
  * same typed data a wallet signs, then checks what Seaport did:
  *   1. list 5, buy 2: the letters, the seller's 90%, and the fee all move by exactly 2 letters' worth
- *   2. ask for 5 when 3 are left: Seaport fills 3 and takes 3 letters' worth, no more
+ *   2. ask for 5 when 3 are left: Seaport fills 3 and takes 3 letters' worth, no more (this buy
+ *      carries the builder suffix after its calldata, as the app's sends do)
  *   3. a sold-out order can't fill again
  *   4. an order whose payments don't divide by the quantity can't fill in part (why the fee is split
  *      per letter)
@@ -25,6 +26,7 @@ import { baseSepolia } from "viem/chains";
 import { addressOf, wordTokenAddress } from "../src/lib/onchain/addresses";
 import { SEAPORT, cancelOrderCalls, fulfillPartCalls, orderComponentsArg, orderTypedData, seaportAbi, type SeaportOrder } from "../src/lib/onchain/seaport";
 import { buildLetterSaleOrder, buyLettersCalls, checkLetterSaleOrder, lettersPriceWei, prepareLetterListingCalls, splitUnitPrice, unsoldLetters } from "../src/lib/onchain/letterSale";
+import { appendBuilderSuffix } from "../src/lib/onchain/builderCode";
 import type { Call } from "../src/lib/onchain/sendCalls";
 
 const FORK_URL = process.env.FORK_URL ?? "http://127.0.0.1:8599";
@@ -151,7 +153,9 @@ async function main() {
 
   // ── 2. ask for 5 when 3 are left ──────────────────────────────────────────────────────────
   before = { sellerWord: await wordOf(seller.address), fees: await wordOf(saleFees), aliceWord: await wordOf(bob.address) };
-  await send(bob, buyLettersCalls(order, signature, 5, await allowanceOf(bob.address)));
+  // This buy carries the app's builder suffix after its calldata (ERC-8021, lib/onchain/builderCode.ts),
+  // as every plain send from the game does: Seaport must take the extra bytes.
+  await send(bob, buyLettersCalls(order, signature, 5, await allowanceOf(bob.address)).map((c) => ({ ...c, data: appendBuilderSuffix(c.data) })));
   check("ask for 5 with 3 left: the buyer gets 3", (await lettersOf(bob.address, letterId)) === 3n);
   check("ask for 5 with 3 left: the buyer pays for 3", before.aliceWord - (await wordOf(bob.address)) === unit * 3n);
   check("ask for 5 with 3 left: the seller is paid for 3", (await wordOf(seller.address)) - before.sellerWord === sellerWei * 3n);

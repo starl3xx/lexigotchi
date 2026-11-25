@@ -96,14 +96,28 @@ export function useChainMarket(a: { enabled: boolean; onMarket: boolean; wallets
     staleTime: 5 * 60_000,
   });
 
-  /** Read everything again. `sold`: a purchase just landed, so ask the server to read the chain for it now. */
+  /**
+   * Read everything again. `changed`: this player just bought or cancelled, so ask the server to read
+   * the chain now (the boards are kept a few seconds, and an RPC may show a write a moment late):
+   * at once, then at 4 and 10 seconds, as the cancel flows already did.
+   */
   const refresh = useCallback(
-    async (sold = false) => {
-      if (sold) {
-        const fresh = await getJson<SalesAnswer>("/api/market/sales?fresh=1");
-        if (fresh) qc.setQueryData(["market", "sales", NETWORK.id], fresh);
-      }
-      await qc.invalidateQueries({ queryKey: ["market"] });
+    async (changed = false) => {
+      const read = async (fresh: boolean) => {
+        if (fresh) {
+          const [book, sold] = await Promise.all([
+            getJson<{ book: Record<number, LetterBook>; profiles?: Record<string, PublicFace>; open?: boolean }>("/api/market/letters?fresh=1"),
+            getJson<SalesAnswer>("/api/market/sales?fresh=1"),
+          ]);
+          if (book) qc.setQueryData<BookAnswer>(["market", "letters", NETWORK.id], { book: book.book ?? {}, profiles: book.profiles ?? {}, closed: book.open === false });
+          if (sold) qc.setQueryData(["market", "sales", NETWORK.id], sold);
+        }
+        await qc.invalidateQueries({ queryKey: ["market", "mine"] });
+        if (!fresh) await qc.invalidateQueries({ queryKey: ["market"] });
+      };
+      if (!changed) return read(false);
+      for (const ms of [4_000, 10_000]) setTimeout(() => void read(true), ms);
+      return read(true);
     },
     [qc],
   );
@@ -125,10 +139,12 @@ export function useChainMarket(a: { enabled: boolean; onMarket: boolean; wallets
       tierStats: salesQ.data?.tiers ?? {},
       faces: { ...(salesQ.data?.profiles ?? {}), ...(bookQ.data?.profiles ?? {}) } as Record<string, PublicFace>,
       loading,
+      // The board couldn't be read and there is nothing kept to show: not the same as "nothing for sale".
+      unavailable: a.enabled && a.onMarket && bookQ.isError && !bookQ.data,
       oldSwaps: oldSwapsQ.data ?? [],
       refresh,
       moreAsks,
     }),
-    [bookQ.data, mineQ.data, salesQ.data, oldSwapsQ.data, loading, refresh, moreAsks],
+    [bookQ.data, bookQ.isError, mineQ.data, salesQ.data, oldSwapsQ.data, loading, a.enabled, a.onMarket, refresh, moreAsks],
   );
 }

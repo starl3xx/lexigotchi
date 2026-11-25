@@ -74,6 +74,12 @@ export function MarketScreen() {
         <p className="text-sm text-ink/60">Buy and sell words and letters for $WORD. A sale happens the moment someone buys.</p>
       </div>
 
+      {g.market.unavailable && (
+        <p role="status" className="rounded-xl border-2 border-ink bg-candy/10 px-3 py-2 text-sm">
+          The Market couldn’t be read just now. It tries again by itself in a few seconds.
+        </p>
+      )}
+
       {g.market.sales.length > 0 && (
         <div className="-mx-1 flex items-center gap-3 overflow-x-auto px-1 pb-1" aria-label="Just sold">
           <button type="button" onClick={() => setTab("sold")} className="shrink-0 font-display text-sm font-extrabold underline decoration-2 underline-offset-2">

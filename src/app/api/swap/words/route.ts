@@ -74,7 +74,7 @@ async function readStatus(rows: Row[]) {
 }
 
 export async function POST(req: Request) {
-  if (!(await allow("record-add", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
+  if (!(await allow("market-list", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: false, error: "not_deployed" }, 503);
   const body = (await req.json().catch(() => null)) as { order?: SeaportOrder; signature?: string; word?: string } | null;
   const order = body?.order;
@@ -253,7 +253,7 @@ async function readBoard(now: number): Promise<{ at: number; listings: unknown[]
 }
 
 export async function GET(req: Request) {
-  if (!(await allow("status", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
+  if (!(await allow("market-read", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: true, listings: [], profiles: {} });
   const now = Math.floor(Date.now() / 1000);
   const url = new URL(req.url);
@@ -283,6 +283,8 @@ export async function GET(req: Request) {
       return json({ ok: true, stale: live.map((r) => ({ order: JSON.parse(r.orderJson), orderHash: r.orderHash })) });
     }
 
+    // After a purchase or a cancel: read the chain again, unless the kept board is under 2 s old.
+    if (url.searchParams.get("fresh") === "1" && board && Date.now() - board.at >= 2_000) board = null;
     const { listings, makers } = await readBoard(now);
     return json({ ok: true, listings, profiles: await marketFaces(makers) });
   } catch (err) {

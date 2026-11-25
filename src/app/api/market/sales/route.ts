@@ -61,7 +61,7 @@ function toSale(r: SaleRow): MarketSale {
 }
 
 export async function GET(req: Request) {
-  if (!(await allow("status", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
+  if (!(await allow("market-read", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: true, sales: [], letters: {}, tiers: {}, profiles: {} });
   const q = new URL(req.url).searchParams;
   try {

@@ -130,6 +130,15 @@ export function bustLetterBook(): void {
 }
 
 /**
+ * A player just bought or cancelled: read the chain again for them instead of answering from memory,
+ * unless the kept board is under two seconds old (so a caller repeating `fresh` can't make every
+ * read a full one).
+ */
+export function refreshLetterBook(): void {
+  if (cached && Date.now() - cached.at >= 2_000) cached = null;
+}
+
+/**
  * Every letter's open listings, cheapest first, `BOOK_DEPTH` deep. A letter whose cheapest rows are
  * all paused, with more rows behind them, gets one more page read, so it never looks empty while
  * something further down can be bought.

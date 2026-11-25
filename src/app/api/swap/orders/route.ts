@@ -31,7 +31,7 @@ export async function POST() {
 }
 
 export async function GET(req: Request) {
-  if (!(await allow("status", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
+  if (!(await allow("market-read", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: true, orders: [] });
   const makers = parseWallets(new URL(req.url).searchParams.get("maker"));
   if (!makers) return json({ ok: true, orders: [] });

@@ -115,11 +115,19 @@ export async function recordSaleTransaction(hash: Hash): Promise<number | null> 
 
 /** Ranges read per catch-up at most, so one call can't run for minutes on a narrow RPC. */
 const MAX_RANGES_PER_CATCH_UP = 60;
+/**
+ * Blocks read again on every catch-up, behind the cursor. An RPC can say a block exists before it
+ * serves that block's logs (lib/onchain/settle.ts: reads aren't consistent right after a write), and
+ * a cursor moved past such a block would skip its sale for good. About a minute of Base; recording
+ * a log twice is a no-op.
+ */
+const OVERLAP_BLOCKS = 30;
 
 /**
- * Read every fee transfer since the last indexed block, record its transaction's sales, and move the
- * cursor after each range, so a catch-up cut short resumes where it stopped. It asks for the whole
- * span first and halves it while the RPC refuses it as too wide (down to 100 blocks).
+ * Read every fee transfer since the last indexed block (and a short overlap before it), record its
+ * transaction's sales, and move the cursor after each range, so a catch-up cut short resumes where
+ * it stopped. It asks for the whole span first and halves it while the RPC refuses it as too wide
+ * (down to 100 blocks).
  */
 export async function catchUpSales(): Promise<{ recorded: number; through: number } | null> {
   const saleFees = maybeAddressOf("saleFees");
@@ -128,7 +136,7 @@ export async function catchUpSales(): Promise<{ recorded: number; through: numbe
   const latest = Number(await client.getBlockNumber());
   const start = Number(deployBlock());
   const last = await indexedThrough(NETWORK.id, saleFees);
-  let from = Math.max(last === null ? start : last + 1, start);
+  let from = Math.max(last === null ? start : last + 1 - OVERLAP_BLOCKS, start);
   if (from > latest) return { recorded: 0, through: latest };
   let span = latest - from + 1;
   let recorded = 0;

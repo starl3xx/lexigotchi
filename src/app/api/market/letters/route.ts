@@ -8,7 +8,7 @@ import { SEAPORT, seaportAbi, orderComponentsArg, orderTypedData, type SeaportOr
 import { addressOf, isSuiteDeployed, wordTokenAddress } from "@/lib/onchain/addresses";
 import { erc1155ApprovalAbi, lettersAbi } from "@/lib/onchain/abis";
 import { checkLetterSaleOrder, LETTER_IDS } from "@/lib/onchain/letterSale";
-import { BOOK_DEPTH, bustLetterBook, checkLetterRows, pruneSpent, readLetterBook, toAsk, toMine } from "@/lib/market/letterBoard";
+import { BOOK_DEPTH, bustLetterBook, checkLetterRows, pruneSpent, readLetterBook, refreshLetterBook, toAsk, toMine } from "@/lib/market/letterBoard";
 import { parseWallets } from "@/lib/sceneSaves";
 import { marketFaces as faces } from "@/lib/market/faces";
 
@@ -27,7 +27,8 @@ export const runtime = "nodejs";
  * at its old price the next time the seller held that letter.
  *
  * GET: the board, every letter's cheapest open listings (lib/market/letterBoard.ts), and `open`:
- *   whether letters can be listed here yet (false until migration 0017 has run).
+ *   whether letters can be listed here yet (false until migration 0017 has run). `?fresh=1`, sent
+ *   after a purchase or a cancel, reads the chain again in place of the few-second-old copy.
  * GET `?letter=<id>&offset=<n>`: more of one letter's listings, cheapest first.
  * GET `?order=<hash>`: one listing's signed order, to buy from or cancel. The board itself never
  *   carries orders or signatures, so it stays small however many listings there are.
@@ -40,7 +41,7 @@ const WEI = 10n ** 18n;
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(req: Request) {
-  if (!(await allow("record-add", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
+  if (!(await allow("market-list", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: false, error: "not_deployed" }, 503);
   const body = (await req.json().catch(() => null)) as { order?: SeaportOrder; signature?: string } | null;
   const order = body?.order;
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  if (!(await allow("status", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
+  if (!(await allow("market-read", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: true, book: {}, profiles: {} });
   const q = new URL(req.url).searchParams;
   try {
@@ -160,6 +161,7 @@ export async function GET(req: Request) {
 
     // `open`: can letters be listed here yet (migration 0017)? The Sell page asks before it offers to.
     if (!(await marketTables()).letters) return json({ ok: true, open: false, book: {}, depth: BOOK_DEPTH, profiles: {} });
+    if (q.get("fresh") === "1") refreshLetterBook();
     const book = await readLetterBook();
     const makers = Object.values(book).flatMap((b) => b.asks.map((a) => a.maker));
     return json({ ok: true, open: true, book, depth: BOOK_DEPTH, profiles: await faces(makers) });
