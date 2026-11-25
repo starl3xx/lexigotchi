@@ -10,11 +10,10 @@
  *   - Supply cap:   floor(slots × DEMAND_MULTIPLE), DEMAND_MULTIPLE = 2.5  → 57,294 total.
  *   - Rarity score: −Σ log₁₀(letterFrequency) over a word's 5 letters (higher = rarer).
  *   - Tiers:        rank words by score asc; cut at floor(N×p) for p = .50/.80/.95/.99.
- *                   Ties broken alphabetically (stable, deterministic). This reproduces
- *                   Common=2292, Epic=184, Legendary=46 and the exact 46-Legendary list
- *                   (re-derived for 4,584 words; the spec's 4,438-word figures were 2219/177/45);
- *                   a single word straddles the Uncommon/Rare score-tie boundary, so we
- *                   treat that combined bucket (1,997 words) as the asserted invariant.
+ *                   Ties broken alphabetically (stable, deterministic). This gives
+ *                   Common=2292, Uncommon=1375, Rare=687, Epic=184, Legendary=46 and the exact
+ *                   46-Legendary list, all pinned by tests (re-derived for 4,584 words; the
+ *                   spec's 4,438-word figures were 2219/1330/667/177/45).
  */
 import { WORDS } from "./dictionary";
 

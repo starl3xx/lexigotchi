@@ -71,9 +71,8 @@ for (const t of TIERS) {
 }
 
 md += `
-> Note: a single word sits on the Uncommon/Rare score-tie boundary, so the computed split is
-> ${TIER_COUNTS.Uncommon}/${TIER_COUNTS.Rare} vs the spec's 1330/667 — the combined 1,997 is invariant; the anchor
-> counts (Common ${TIER_COUNTS.Common}, Epic ${TIER_COUNTS.Epic}, Legendary ${TIER_COUNTS.Legendary}) match exactly.
+> Note: the cuts fall at floor(N × .50/.80/.95/.99), so each count is exact, and \`npm test\` pins all five.
+> (The spec's Appendix B was written for 4,438 words: 2,219 / 1,330 / 667 / 177 / 45.)
 
 ### The ${LEGENDARIES.length} Legendaries (rarest first)
 

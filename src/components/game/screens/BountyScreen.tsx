@@ -121,7 +121,7 @@ export function BountyScreen() {
                   <span className="font-display text-ink/50">#{i + 1}</span>
                   {r.who}
                 </span>
-                <span className="font-bold">{r.n} words</span>
+                <span className="font-bold">{r.n} {r.n === 1 ? "word" : "words"}</span>
               </div>
             ))}
         </div>

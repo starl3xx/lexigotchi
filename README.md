@@ -22,15 +22,16 @@ npm run dev          # http://localhost:3000 (landing page) · /play (the game)
 ```
 
 Players in a Farcaster client are auto-connected; on the open web they connect any wallet (the wallet
-is the account) and can link Farcaster to unlock the free daily letter. Every button is wired to the (mock) game state, so the full loop is explorable end to
-end. See the player docs at **[lexigotchi.fun/docs](https://lexigotchi.fun/docs)** (source: `docs-site/`) for how the game works, and **[GAME_DOCUMENTATION.md](./GAME_DOCUMENTATION.md)**
+is the account) and can link Farcaster or X, or verify with Coinbase, to unlock the free daily letter. Where the network's
+contracts are deployed (Base Sepolia today), every button is a real onchain action; anywhere else the game runs in
+practice mode on a mock store, so the full loop is explorable end to end. See the player docs at **[lexigotchi.fun/docs](https://lexigotchi.fun/docs)** (source: `docs-site/`) for how the game works, and **[GAME_DOCUMENTATION.md](./GAME_DOCUMENTATION.md)**
 for the complete mechanics, odds, and economy reference.
 
 ### Environment
 
 Copy `.env.example` → `.env.local` and set:
 
-- `NEXT_PUBLIC_NEYNAR_CLIENT_ID` — Neynar client ID (public; powers web Sign In With Neynar)
+- `NEXT_PUBLIC_NEYNAR_CLIENT_ID` — Neynar client ID (public; the mini app's notification webhook URL is derived from it)
 - `NEYNAR_API_KEY` — Neynar app API key (server-side only, never exposed)
 - `NEXT_PUBLIC_URL` — the deployed origin (used for the mini-app manifest + share-embed images)
 
@@ -56,20 +57,22 @@ served at `/.well-known/farcaster.json`.
 
 ## The loop
 
-1. **Mint** lowercase letters — a free daily single (1 per Farcaster FID) or packs of 5. Odds
+1. **Mint** lowercase letters — a free daily single (one per player, unlocked by Farcaster, X, or a
+   Coinbase-verified wallet) or packs of 5. Odds
    mirror the dictionary; capitals are never pulled.
 2. **Raise** a letter to UPPERCASE with a roll — 40% on the first try, +15 points per miss, up to 85%. A failed
    roll never harms your letter.
-3. **Claim** a word by escrowing 5 uniform-case letters → one ERC-721 per word
-   (`tokenId = keccak256(word)`); case is derived from the escrow.
+3. **Claim** a word by escrowing the 5 letters that spell it, in any mix of lowercase and UPPERCASE →
+   one ERC-721 per word (`tokenId = keccak256(word)`); case is derived from the escrow.
 4. **Stake & Snack** — UPPERCASE words draw yield; any staked, fed word is a jackpot ticket. Feed
    snacks or they get hungry.
 5. **Win** — Lexigotchi reveals a secret word daily from its own pre-committed hash-chain; hold it
    staked and fed and you take the whole pot.
 
 Two renewable late-game loops sit on top: a **weekly theme bounty** (broad) and **prestige/ascension**
-(deep). Plus **showcases** (cast any letters you own), **swaps** (two-sided letter escrow), and
-**dissolution** (recover a word's letters, free the name).
+(deep). Plus **showcases** (share a word you own, X first), the **Market** (two-sided letter swaps,
+and words listed for sale in $WORD: 90% to the seller, 10% to the Rewards Pool), and **dissolution**
+(recover a word's letters, free the name).
 
 ---
 
@@ -83,10 +86,11 @@ payouts are capped at balance) and **failed rolls that provably never harm an as
 npm run contracts:setup    # vendor forge-std + OpenZeppelin into contracts/lib
 npm run derive:contracts   # write contracts/config/economy.json (caps, weights, dictionary root)
 npm run contracts:build
-npm run contracts:test     # 54 tests
+npm run contracts:test
 ```
 
-> **Phase 0 — code-complete and unit-tested, not yet audited or deployed.** See
+> **Live on Base Sepolia (the testnet rehearsal); Base mainnet at launch.** Internally audited
+> ([`contracts/AUDIT.md`](./contracts/AUDIT.md)). See
 > [`contracts/README.md`](./contracts/README.md) for the architecture, the documented trust model, the
 > deploy script, and the pre-mainnet checklist.
 
@@ -129,7 +133,7 @@ Sectioned tabs:
 - **Settings** — _Deployments_ (the contract address registry) and _Broadcast_ (operator
   announcements).
 
-Because the contracts aren't deployed yet, every on-chain action is built into a **transaction plan**
+Every owner action is built into a **transaction plan**
 — a copy-pasteable `cast send` command **and** a Gnosis Safe Transaction Builder batch — rather than
 signed in the browser (the right model for a multisig owner). Funding the pools uses an owner-only
 `FeeRouter.seed(bucket, amount)` added for this purpose (Pool + Bounty only; the jackpot self-funds
@@ -144,8 +148,8 @@ security boundary for any action is the owner's wallet signature, not the route 
 ## Status
 
 Phase 0 prototype → Phase 1 Mint &amp; Claim → Phase 2 Roll &amp; Shine (+ Showcase) → Phase 3 Stake
-&amp; Snack (+ jackpot) → Phase 4 Deepen. The app and the contract suite are built; deployment,
-audit, and the production keeper/signer infrastructure are the next milestones. Prices in `params.ts`
+&amp; Snack (+ jackpot) → Phase 4 Deepen. The app and the contract suite run on Base Sepolia,
+with the hosted keeper and signer; Base mainnet is next. Prices in `params.ts`
 are USD-pegged placeholders the tokenomics sim exists to set.
 
 ## License
