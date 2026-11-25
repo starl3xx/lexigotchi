@@ -14,6 +14,7 @@ import { fmtWord, useGame } from "../state";
 import { BUY_URL, useBuyWord } from "../useBuyWord";
 import { SwapCard } from "../SwapCard";
 import { TestFaucets } from "../TestFaucets";
+import { shopEnabled } from "@/lib/shop/config";
 import { NETWORK } from "@/lib/onchain/network";
 import { useOpenUrl } from "../useShare";
 import { fmtMarketCap } from "@/components/WordStrip";
@@ -133,9 +134,9 @@ export function WordScreen() {
       {/* swap, on the web (Farcaster uses the host's swap, above) */}
       {env === "web" && <SwapCard />}
 
-      {/* The test game's $WORD and USDC, beside the real swap (TestFaucets renders nothing on mainnet).
-          The swap above trades the REAL token on Base; these are the test network's. */}
-      {NETWORK.isTestnet && g.state.chainBacked && (
+      {/* The test game's $WORD and USDC, beside the real swap, while the Shop is on (TestFaucets renders
+          nothing on mainnet). The swap above trades the REAL token on Base; these are the test network's. */}
+      {NETWORK.isTestnet && g.state.chainBacked && shopEnabled() && (
         <Card>
           <SectionTitle>For the test game</SectionTitle>
           <p className="mb-3 text-xs text-ink/60">

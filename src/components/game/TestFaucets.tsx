@@ -4,7 +4,8 @@
  * Get test $WORD (MockERC20's open mint) and Get test USDC (MockUSDC, 25 a profile a day, vouched by
  * the server). Both wait for the mint itself and say plainly what went wrong (ChainGameProvider
  * `runFaucet`). Nothing here exists on mainnet: the caller renders it only on a test network, and
- * the USDC button only where MockUSDC is in the registry. Test USDC never shows as dollars.
+ * the USDC button only while the Shop is on (SHOP_ENABLED) with MockUSDC in the registry. Test USDC
+ * never shows as dollars.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
@@ -17,7 +18,7 @@ import { getPublicClient } from "@/lib/onchain/reads";
 import { usdcAddress } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
 import { BASE_SEPOLIA_FAUCETS_URL } from "@/lib/site";
-import { testUsdcFaucetOn } from "@/lib/shop/config";
+import { shopEnabled, testUsdcFaucetOn } from "@/lib/shop/config";
 import { usdcLabel } from "@/lib/shop/rules";
 
 /** The connected wallet's test USDC, or undefined while unknown (null where there is none to read). */
@@ -36,7 +37,8 @@ export function useTestUsdcBalance() {
 export function TestFaucets({ size = "lg" }: { size?: "md" | "lg" }) {
   const g = useGame();
   const openUrl = useOpenUrl();
-  const usdcOn = testUsdcFaucetOn();
+  // Test USDC is for the Shop: offered only while the Shop is switched on.
+  const usdcOn = testUsdcFaucetOn() && shopEnabled();
   const usdcBal = useTestUsdcBalance();
   if (!NETWORK.isTestnet || !g.state.chainBacked) return null;
   return (
