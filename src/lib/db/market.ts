@@ -57,6 +57,28 @@ export async function insertLetterListing(row: typeof letterListings.$inferInser
   await getDb().insert(letterListings).values(row).onConflictDoNothing();
 }
 
+/**
+ * List `row` unless `blocked` says another of this seller's rows for the letter is still live, with
+ * the check and the insert under one lock for that seller and letter. Without the lock, two
+ * listings sent together both pass the check and both land, and the one the seller forgets stays
+ * fillable at its old price (Bugbot on #219). `blocked` gets the seller's other rows, read inside
+ * the lock, and answers from the chain. Returns whether it listed.
+ */
+export async function listLetterUnlessLive(
+  row: typeof letterListings.$inferInsert,
+  blocked: (others: LetterRow[]) => Promise<boolean>,
+): Promise<boolean> {
+  const maker = row.maker.toLowerCase();
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`lexigotchi:letter_listing:${maker}:${row.letterId}`}))`);
+    const rows = await tx.select().from(letterListings).where(and(eq(letterListings.maker, maker), eq(letterListings.letterId, row.letterId)));
+    const others = rows.filter((r) => r.orderHash !== row.orderHash);
+    if (others.length > 0 && (await blocked(others))) return false;
+    await tx.insert(letterListings).values({ ...row, maker }).onConflictDoNothing();
+    return true;
+  });
+}
+
 /** One seller's rows for one letter id: the "one live listing per seller per letter" check, and what to cancel first. */
 export function letterRowsOfMakerLetter(maker: string, letterId: number): Promise<LetterRow[]> {
   return orEmpty(() =>

@@ -2,7 +2,8 @@
  * The Market's ROUTES, end to end (decisions.md #29): the route handlers themselves, against Seaport
  * on a local fork and a THROWAWAY local database. scripts/market-fork-check.ts proves the order;
  * this proves what the server does with it: what it refuses, what the board shows as letters sell,
- * leave, and come back, the cancel-then-relist, and that a sale reaches recent sales from the chain.
+ * leave, and come back, the cancel-then-relist, two listings sent together, and that a sale reaches
+ * recent sales from the chain.
  *
  *   createdb lexi_market_check && for f in drizzle/0*.sql; do sed 's/--> statement-breakpoint//g' "$f" | psql -q -d lexi_market_check; done
  *   anvil --fork-url https://sepolia.base.org --port 8599
@@ -157,6 +158,15 @@ async function main() {
   mine = await get(letters_, `/api/market/letters?mine=${seller.address}`);
   check("only the new listing is left, at 9,000", mine.listings?.length === 1 && mine.listings[0].unitPrice === 9_000, mine);
   check("the cancelled order is gone", (await get(letters_, `/api/market/letters?order=${hash}`)).error === "gone");
+
+  // ── letters: two listings of one letter, sent together ──
+  await send(seller, L.prepareLetterListingCalls([relist], true));
+  const [one1, one2] = [await mk(1, 8_000n), await mk(1, 7_000n)];
+  const [sig1, sig2] = [await sign(one1), await sign(one2)];
+  const both = await Promise.all([post(letters_, "/api/market/letters", { order: one1, signature: sig1 }), post(letters_, "/api/market/letters", { order: one2, signature: sig2 })]);
+  check("of two listings of one letter sent together, exactly one lists", both.filter((x) => x.ok === true).length === 1 && both.filter((x) => x.error === "cancel_first").length === 1, both);
+  mine = await get(letters_, `/api/market/letters?mine=${seller.address}`);
+  check("and the seller has exactly one listing of it", mine.listings?.length === 1, mine);
 
   // ── words: list, read, buy, last sale ──
   await send(seller, WS.prepareListingCalls(tokenId, [], false));

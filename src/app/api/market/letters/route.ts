@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
 import { isMissingTable } from "@/lib/db/profiles";
-import { insertLetterListing, letterRowByHash, letterRowsOfLetter, letterRowsOfMakerLetter, letterRowsOfMakers, marketTables } from "@/lib/db/market";
+import { letterRowByHash, letterRowsOfLetter, letterRowsOfMakerLetter, letterRowsOfMakers, listLetterUnlessLive, marketTables } from "@/lib/db/market";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { SEAPORT, seaportAbi, orderComponentsArg, orderTypedData, type SeaportOrder } from "@/lib/onchain/seaport";
 import { addressOf, isSuiteDeployed, wordTokenAddress } from "@/lib/onchain/addresses";
@@ -82,23 +82,19 @@ export async function POST(req: Request) {
     if (counter.status !== "success" || counter.result !== BigInt(order.counter)) return json({ ok: false, error: "bad_counter" }, 409);
     const hash = (orderHash.result as string).toLowerCase();
 
-    // One live listing per seller per letter: a new price cancels the old one first.
-    const others = (await letterRowsOfMakerLetter(maker, check.letterId)).filter((r) => r.orderHash !== hash);
-    if (others.length > 0) {
-      const states = await checkLetterRows(others, now);
-      await pruneSpent(states);
-      if (states.some((s) => !s.spent && !s.foreign)) return json({ ok: false, error: "cancel_first" }, 409);
-    }
-
-    await insertLetterListing({
-      maker,
-      letterId: check.letterId,
-      qty: check.qty,
-      unitPriceWei: check.unitPriceWei.toString(),
-      orderJson: JSON.stringify(order),
-      signature,
-      orderHash: hash,
-    });
+    // One live listing per seller per letter: a new price cancels the old one first. The check and
+    // the insert share a lock, so two listings sent together can't both pass it.
+    let spentRows: Awaited<ReturnType<typeof checkLetterRows>> = [];
+    const listed = await listLetterUnlessLive(
+      { maker, letterId: check.letterId, qty: check.qty, unitPriceWei: check.unitPriceWei.toString(), orderJson: JSON.stringify(order), signature, orderHash: hash },
+      async (others) => {
+        const states = await checkLetterRows(others, now);
+        spentRows = states;
+        return states.some((s) => !s.spent && !s.foreign);
+      },
+    );
+    await pruneSpent(spentRows); // after the lock is released: it has its own connection
+    if (!listed) return json({ ok: false, error: "cancel_first" }, 409);
     bustLetterBook();
     return json({ ok: true, orderHash: hash });
   } catch (err) {
@@ -110,7 +106,8 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   if (!(await allow("market-read", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
-  if (!isSuiteDeployed()) return json({ ok: true, book: {}, profiles: {} });
+  // `open: false`: nothing can be listed where the game's contracts aren't deployed.
+  if (!isSuiteDeployed()) return json({ ok: true, open: false, book: {}, profiles: {} });
   const q = new URL(req.url).searchParams;
   try {
     const orderArg = q.get("order");

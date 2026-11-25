@@ -1755,6 +1755,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               void market.refresh(true);
               return false;
             }
+            // The order must still be the one the player tapped: this letter, at the price shown.
+            if (Number(row.order.offer[0].identifierOrCriteria) !== ask.letterId || lettersPriceWei(row.order, 1) !== BigInt(ask.unitPrice) * 10n ** 18n) {
+              toast("That listing changed. Take another look at it", "info");
+              void market.refresh(true);
+              return false;
+            }
             const take = Math.min(count, row.available);
             const price = lettersPriceWei(row.order, take);
             if (chain.player!.balanceWei < price) {
