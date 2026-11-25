@@ -31,6 +31,7 @@ import { isChainBacked, isRealEconomy } from "@/lib/onchain/gameMode";
 import { NETWORK } from "@/lib/onchain/network";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { TileCharacter, TileWord } from "@/components/game/TileCharacter";
+import { TierMark } from "@/components/game/TierMark";
 import { WordStripLive } from "@/components/WordStrip";
 import {
   ArrowRight,
@@ -340,7 +341,17 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
       <section aria-label="The game in numbers" className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
         <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
           <Stat figure={WORDS}>words, one owner each</Stat>
-          <Stat figure={TOP_TIER.count}>{TOP_TIER.name} words</Stat>
+          {/* the top tier wears its mark (TierMark: six corners), as it does everywhere in the game */}
+          <Stat
+            figure={
+              <>
+                {TOP_TIER.count}
+                <TierMark tier={TOP_TIER.name} size={30} />
+              </>
+            }
+          >
+            {TOP_TIER.name} words
+          </Stat>
           <Stat
             figure={
               <>

@@ -429,6 +429,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
   from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
   Telegram welcome). The share loop is built (decisions.md #27; see Word cards).
+  **Each tier also has a mark** (decisions.md #29; `lib/tierMark.ts` = the paths, colours, and
+  corner counts; `components/game/TierMark.tsx`): a round bead for Common, then a cut stone with
+  three, four, five, and six corners, so a player orders them by counting. It sits beside the tier's
+  name everywhere: the card back's plate, the Bag badge, `TierBadge` pills and the tier filters, the
+  landing page, and the share loop's back picture, which draws the same paths (`tierMarkPaths`, every
+  attribute given, for Satori). Three flat paths, no motion. A new mark must not be a star, a tilted
+  diamond, a crown, or a sparkle: those mean ascension, a raised letter, and Mint. The player docs'
+  picture is `marks.svg` (`npm run docs:art`).
 - **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its scene on the
   front (`SceneFrame`) and its story on the back (`CardBack`, deep materials per tier in globals.css
   `.cb.m-*`), turned by the corner button. The flip belongs to the word (a host showing another word

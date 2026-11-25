@@ -4,6 +4,7 @@ import { ImageResponse } from "next/og";
 import { OgTile } from "../../../_og/tile";
 import { parseShowcase } from "@/lib/showcase";
 import { wordTier, type Tier } from "@/lib/economy";
+import { tierMarkPaths } from "@/lib/tierMark";
 import { ascensionLabel, cardNumber, caseLabel, tierCount, wordPoints } from "@/lib/cardFacts";
 import { isSuiteDeployed, addressOf } from "@/lib/onchain/addresses";
 import { getPublicClient } from "@/lib/onchain/reads";
@@ -35,13 +36,13 @@ const W = 1200;
 const H = 630;
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** Each material's frame line, gem, and rack (globals.css `.cb.m-*`, the same colors). */
-const LOOK: Record<Tier, { line: string; gem: string; rackTop: string; rackFront: string }> = {
-  Common: { line: "#9a8164", gem: "#cbbb9c", rackTop: "#54402d", rackFront: "#2a1e15" },
-  Uncommon: { line: "#5cc4a9", gem: "#5cc4a9", rackTop: "#22705e", rackFront: "#0c3028" },
-  Rare: { line: "#7fb0ef", gem: "#6e9fe0", rackTop: "#2a5799", rackFront: "#0b1d3d" },
-  Legendary: { line: "#e9b949", gem: "#f0b53a", rackTop: "#8a6418", rackFront: "#3a2806" },
-  Mythic: { line: "#b48cf0", gem: "#a77ce8", rackTop: "#552c94", rackFront: "#1d0d36" },
+/** Each material’s frame line and rack (globals.css `.cb.m-*`, the same colors). */
+const LOOK: Record<Tier, { line: string; rackTop: string; rackFront: string }> = {
+  Common: { line: "#9a8164", rackTop: "#54402d", rackFront: "#2a1e15" },
+  Uncommon: { line: "#5cc4a9", rackTop: "#22705e", rackFront: "#0c3028" },
+  Rare: { line: "#7fb0ef", rackTop: "#2a5799", rackFront: "#0b1d3d" },
+  Legendary: { line: "#e9b949", rackTop: "#8a6418", rackFront: "#3a2806" },
+  Mythic: { line: "#b48cf0", rackTop: "#552c94", rackFront: "#1d0d36" },
 };
 
 const TEXT = "#f7efdc";
@@ -136,10 +137,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ text: s
           {/* the rarity, and the word's number */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 22px 8px 14px", borderRadius: 999, ...PLATE, fontSize: 34, fontWeight: 800 }}>
+              {/* the tier's mark, the game's own (lib/tierMark): plain paths, every attribute given (Satori's rules) */}
               <svg width="36" height="36" viewBox="0 0 20 20">
-                <path d="M10 1 L18 6 L18 14 L10 19 L2 14 L2 6 Z" fill={look.gem} stroke="#231a14" strokeWidth="1.2" />
-                <path d="M10 1 L18 6 L10 9 L2 6 Z" fill="#ffffff" opacity="0.55" />
-                <path d="M10 9 L18 6 L18 14 L10 19 Z" fill="#000000" opacity="0.14" />
+                {tierMarkPaths(tier).map((p, i) => (
+                  <path key={i} d={p.d} fill={p.fill} opacity={p.opacity} stroke={p.stroke} strokeWidth={p.strokeWidth} strokeLinejoin="round" />
+                ))}
               </svg>
               {tier}
             </div>

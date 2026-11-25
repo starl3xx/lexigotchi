@@ -16,8 +16,7 @@ import { HungerBadge, Pill } from "../game/primitives";
 import { Coins, Storefront, Ticket } from "../game/ui/icons";
 import { fmtWord, hunger, jackpotEligible, useGame, wordCase, type OwnedWord } from "../game/state";
 import { SceneCard } from "./SceneCard";
-import { Gem } from "./CardBack";
-import { materialOf } from "./material";
+import { TierMark } from "../game/TierMark";
 
 /**
  * Whether the element has come near the screen (within a screen's height), once: then it stays true.
@@ -68,8 +67,8 @@ export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }
             ) : (
               <div className="aspect-[16/9] w-full bg-night" />
             )}
-            <span className={`sc-badge m-${materialOf(word.tier)}`}>
-              <Gem />
+            <span className="sc-badge">
+              <TierMark tier={word.tier} className="cb-gem" />
               {word.tier}
             </span>
           </>
