@@ -69,16 +69,20 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
 }
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
-export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId): string {
-  return `${SITE_URL}${showcaseCardPath(text, ratio, scene)}`;
+export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
+  return `${SITE_URL}${showcaseCardPath(text, ratio, scene, saved)}`;
 }
 
 /**
  * The card's path on this site. The game reads the picture through it (Save image), because
  * `SITE_URL` may name another origin than the page's (a preview build, localhost).
+ *
+ * `saved`: the picture travels alone (Save image, and later the share video), so it carries a
+ * quiet wordmark in its corner. A link card carries no name: X shows the site under it and the
+ * post names @lexigotchi, and Farcaster's card has the game's button (decisions.md #22).
  */
-export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId): string {
-  return `/s/${text}/card${sceneQuery(scene, ratio === "fc" ? { ratio: "3x2" } : {})}`;
+export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
+  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}) })}`;
 }
 
 /** The cast's words. The link goes separately as the cast's embed. */

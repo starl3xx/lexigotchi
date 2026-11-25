@@ -114,7 +114,8 @@ describe("the webhook route", () => {
       globalThis.fetch = realFetch;
     }
     expect(calls).toEqual([
-      "card /s/HEYOO/card",
+      // the saved picture: it goes alone, so it carries the game's name in a corner (decisions.md #22)
+      "card /s/HEYOO/card?saved=1",
       "telegram sendPhoto HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
     ]);
   });

@@ -18,8 +18,10 @@
  * group scales-Y while the body group translates-Y, and the shoes never animate. Reduced-motion
  * (spec §7) drops to the static pose carried by eyes + brow + tilt.
  */
-import { useEffect, useId, useState, type CSSProperties } from "react";
-import { LETTERS_BY_FREQUENCY, scrabbleValue } from "@/lib/economy";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
+import { finishFor, mixHex } from "@/lib/rarityFinish";
+import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, type FinishMotion } from "./TileFinish";
 
 export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
 export type TilePose = "rest" | "hero" | "link";
@@ -58,6 +60,13 @@ export interface TileCharacterProps {
    * (scenes/SceneFrame), which a share page renders on the server. `size` still picks the detail.
    */
   fluid?: boolean;
+  /** The rarity of the word this letter is part of, worn as the tile's material (lib/rarityFinish,
+   *  ./TileFinish). Loose letters have none. */
+  tier?: Tier;
+  /** Draw the finish without its motion: a still frame (a still scene, a thumbnail). */
+  still?: boolean;
+  /** The letter's place in its word, so the finish's light passes along the word in turn. */
+  index?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +163,68 @@ export function usePrefersReducedMotion(): boolean {
     return () => mq.removeEventListener("change", on);
   }, []);
   return reduced;
+}
+
+/**
+ * A device that should get the still finishes: a low-end phone (2 GB of memory or less, which only
+ * Chromium reports) or Save-Data on. Read once (it can't change mid-session) and SSR-safe (false
+ * until mounted). Not the core count: WebKit reports at most 2 on iOS (a fingerprinting guard), so
+ * it would keep every iPhone still, the mini app's hosts included. The finishes' motion is cheap by
+ * design instead: a moment every few seconds, only for the word in focus (useFinishMoment).
+ */
+let lowPowerCache: boolean | null = null;
+function readLowPower(): boolean {
+  if (lowPowerCache !== null) return lowPowerCache;
+  const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+  lowPowerCache = (typeof nav.deviceMemory === "number" && nav.deviceMemory <= 2) || nav.connection?.saveData === true;
+  return lowPowerCache;
+}
+export function useLowPower(): boolean {
+  const [low, setLow] = useState(false);
+  useEffect(() => setLow(readLowPower()), []);
+  return low;
+}
+
+/** How long a word's row carries .rf-moment: the 2.4–3 s effects plus the stagger along five letters. */
+const MOMENT_MS = 4300;
+/**
+ * A finished word's moments (globals.css, .rf-moment; ./TileFinish): the first soon after it
+ * appears, then one every `period` seconds of its tier, and one whenever `play()` is called (the
+ * pointer coming onto the word). One timer per word, never per tile; none at all while `active` is
+ * false (off screen, a still scene, reduced motion, a slow device, no finish). Returns whether a
+ * moment is playing, and `play`.
+ */
+export function useFinishMoment(tier: Tier | undefined, active: boolean): [boolean, () => void] {
+  const reduced = usePrefersReducedMotion();
+  const lowPower = useLowPower();
+  const period = finishFor(tier)?.period;
+  const on = active && !!period && !reduced && !lowPower;
+  const [playing, setPlaying] = useState(false);
+  const busy = useRef(false);
+  const ends = useRef<number | undefined>(undefined);
+  const play = useCallback(() => {
+    if (!on || busy.current) return;
+    busy.current = true;
+    setPlaying(true);
+    ends.current = window.setTimeout(() => {
+      busy.current = false;
+      setPlaying(false);
+    }, MOMENT_MS);
+  }, [on]);
+  useEffect(() => {
+    if (!on || !period) return;
+    let next = window.setTimeout(function tick() {
+      play();
+      next = window.setTimeout(tick, period * 1000);
+    }, 1200);
+    return () => {
+      window.clearTimeout(next);
+      window.clearTimeout(ends.current);
+      busy.current = false;
+      setPlaying(false);
+    };
+  }, [on, period, play]);
+  return [playing && on, play];
 }
 
 // ---------------------------------------------------------------------------
@@ -335,7 +406,7 @@ function Rings({ gild, holo }: { gild: Gild; holo?: string }) {
   );
 }
 
-function Twinkles({ gild, reduced, holo }: { gild: Gild; reduced: boolean; holo?: string }) {
+function Twinkles({ gild, reduced, holo, soft }: { gild: Gild; reduced: boolean; holo?: string; soft?: string }) {
   if (gild <= 0) return null;
   const ro = ringOuter(gild);
   const items = [
@@ -343,6 +414,17 @@ function Twinkles({ gild, reduced, holo }: { gild: Gild; reduced: boolean; holo?
     { x: T.x - ro + 4, y: MID + 14, show: gild >= 2, d: 0.5 },
     { x: CX + 34, y: T.y - ro - 2, show: gild >= 4, d: 1 },
   ];
+  // on a finished tile (below Holographic), the same twinkles as soft glints with no outline
+  if (soft && gild < 5)
+    return (
+      <>
+        {items
+          .filter((t) => t.show)
+          .map((t, i) => (
+            <Glint key={i} x={t.x} y={t.y} s={0.7} color={soft} delay={0} anim={false} />
+          ))}
+      </>
+    );
   return (
     <>
       {items
@@ -363,11 +445,14 @@ function Twinkles({ gild, reduced, holo }: { gild: Gild; reduced: boolean; holo?
 }
 
 /** One pip per stage of the word ladder: four gold, then the Holographic one in foil. */
-function Pips({ gild, holo }: { gild: Gild; holo?: string }) {
+function Pips({ gild, holo, plate = false }: { gild: Gild; holo?: string; plate?: boolean }) {
   if (gild <= 0) return null;
   const y = BOT - 22;
   return (
     <g>
+      {/* on a rarity face (gold, say), the pips sit on a white plate, or the gold ones
+          (earned) vanish into the face while the white ones (still to come) stand out */}
+      {plate && <rect x={CX - 60} y={y - 12} width={120} height={24} rx={12} fill="#ffffff" stroke={INK} strokeWidth={2} />}
       {[0, 1, 2, 3, 4].map((i) => {
         const cx = CX + (i - 2) * 22;
         const filled = i < gild;
@@ -568,8 +653,12 @@ export function TileCharacter({
   className = "",
   style,
   fluid = false,
+  tier,
+  still = false,
+  index = 0,
 }: TileCharacterProps) {
   const reduced = usePrefersReducedMotion();
+  const lowPower = useLowPower();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
   const holoPaint = `url(#tc-holo-${uid})`;
 
@@ -624,6 +713,15 @@ export function TileCharacter({
   const bodyAnim = reduced ? "" : BODY_ANIM[state];
   const legAnim = reduced || state !== "idle" ? "" : "animate-tc-legbob";
 
+  // the word's rarity, as the tile's material (lib/rarityFinish, ./TileFinish). It moves
+  // only where the whole character is drawn; a hungry word loses its shine, a peckish one dims.
+  const fin = finishFor(tier);
+  const motion: FinishMotion =
+    state === "hungry" ? "rest" : reduced || lowPower || still || lod !== "full" ? "off" : state === "peckish" ? "dim" : "on";
+  const finSmall = lod === "tile";
+  // eyelids match the tile (the top of a finished face, where the eyes sit: the tint over the face)
+  const lidFill = fin ? mixHex(faceFill, fin.face[0], fin.alpha) : faceFill;
+
   const Glove = ({ gx, gy }: { gx: number; gy: number }) => (
     <g filter={boilFilter}>
       <circle cx={gx + 4} cy={gy + 4} r={6.5} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
@@ -662,6 +760,8 @@ export function TileCharacter({
         </defs>
       )}
 
+      <FinishDefs tier={tier} uid={uid} bw={borderW} />
+
       {/* gold burst rays (upgrade) — behind everything */}
       {state === "upgrade" && <BurstRays reduced={reduced} />}
 
@@ -696,6 +796,9 @@ export function TileCharacter({
             </g>
           )}
 
+          {/* the rarity's aura, behind the tile */}
+          {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} />}
+
           {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
           {upper && <Rings gild={g} holo={holo} />}
 
@@ -704,6 +807,12 @@ export function TileCharacter({
 
           {/* tile face */}
           <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill={faceFill} stroke={border} strokeWidth={borderW} />
+          {/* the rarity's material, a translucent tint over the face (facets, foil, glitter,
+              frame), then the light passing under the letter */}
+          <FinishSurface tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
+          <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} index={index} />
+          {/* the border again, over the material's edge */}
+          {fin && <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={border} strokeWidth={borderW} />}
 
           {/* the printed glyph — real text, razor-sharp at any size (spec §9) */}
           <text
@@ -719,12 +828,15 @@ export function TileCharacter({
             {glyph}
           </text>
 
+          {/* the rarity's light over the letter (the streak, the glints, the fire) */}
+          <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} small={finSmall} index={index} />
+
           {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
               still reads via the rings + pips (one crown per letter would clutter / clip) */}
           {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
 
           {/* gild pips on the lower face */}
-          <Pips gild={g} holo={holo} />
+          <Pips gild={g} holo={holo} plate={!!fin} />
 
           {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
               never collides with the inventory count bubble */}
@@ -737,6 +849,7 @@ export function TileCharacter({
               fontWeight={800}
               fontSize={20}
               fill={INK}
+              {...(fin ? { stroke: "#fffaf0", strokeWidth: 4, strokeLinejoin: "round" as const, paintOrder: "stroke" } : {})}
             >
               {value ?? scrabbleValue(char)}
             </text>
@@ -755,14 +868,14 @@ export function TileCharacter({
             <g>
               {expr.eyes === "open" && (
                 <g className={expr.dart && !reduced ? "animate-tc-dart" : ""}>
-                  <Eye ex={CX - 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={faceFill} id={`${uid}l`} />
-                  <Eye ex={CX + 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={faceFill} id={`${uid}r`} />
+                  <Eye ex={CX - 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}l`} />
+                  <Eye ex={CX + 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}r`} />
                 </g>
               )}
               {expr.eyes !== "open" && (
                 <>
-                  <Eye ex={CX - 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={faceFill} id={`${uid}l`} />
-                  <Eye ex={CX + 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={faceFill} id={`${uid}r`} />
+                  <Eye ex={CX - 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}l`} />
+                  <Eye ex={CX + 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}r`} />
                 </>
               )}
               <path d={browPath(CX - 26, eyeY - eyeR - 4, expr.brow, 1)} stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round" />
@@ -772,12 +885,19 @@ export function TileCharacter({
 
           {/* rare-letter glint — a corner badge (not part of the face), so show it at every LOD
               incl. dense grids/word rows, matching the legacy tile. Gilded tiles use twinkles. */}
-          {RAREST.has(char.toUpperCase()) && g === 0 && (
+          {RAREST.has(char.toUpperCase()) && g === 0 && (!fin || finSmall) && (
             <path d={star4(T.x + T.w - 6, T.y + 6, 6, 2.2)} fill={GOLD} stroke={INK} strokeWidth={0.8} className={reduced ? "" : "animate-tc-twinkle"} style={PLANT} />
+          )}
+          {/* on a finished tile, the rare-letter mark is a soft gold glint in the same corner */}
+          {RAREST.has(char.toUpperCase()) && g === 0 && fin && !finSmall && (
+            <Glint x={T.x + T.w - 6} y={T.y + 6} s={0.75} color={GOLD} delay={0} anim={false} />
           )}
 
           {/* gild twinkles — riding the rings */}
-          <Twinkles gild={g} reduced={reduced} holo={holo} />
+          <Twinkles gild={g} reduced={reduced || motion === "off" || motion === "rest"} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
+
+          {/* the rarity's motes, drifting up */}
+          {lod === "full" && <FinishMotes tier={tier} uid={uid} motion={motion} seed={seed} index={index} />}
         </g>
       </g>
 
@@ -827,6 +947,8 @@ export function TileWord({
   size = 64,
   detail = "auto",
   className = "",
+  tier,
+  still,
 }: {
   word: string;
   upper: boolean[];
@@ -835,15 +957,22 @@ export function TileWord({
   size?: number;
   detail?: TileDetail;
   className?: string;
+  /** The word's rarity, worn as its tiles' material (lib/rarityFinish). */
+  tier?: Tier;
+  /** The finish without its motion. */
+  still?: boolean;
 }) {
   const letters = [...word];
   // full-size words show characters "holding hands" (link pose, arms overlap); smaller word
   // rows have no limbs, so they sit in a neat row with a small positive gap instead.
   const full = detail === "full" || (detail === "auto" && size >= 100);
+  // a full-size finished word has its moments (only full-size tiles draw the finish's motion)
+  const [moment, play] = useFinishMoment(tier, full && !still && state !== "hungry");
   return (
     <div
-      className={`flex items-end justify-center ${className}`}
+      className={`flex items-end justify-center ${moment ? "rf-moment" : ""} ${className}`}
       style={full ? undefined : { gap: Math.max(2, Math.round(size * 0.08)) }}
+      onPointerEnter={full ? play : undefined}
     >
       {letters.map((ch, i) => (
         <div key={i} style={full ? { marginLeft: i ? -size * 0.14 : 0 } : undefined}>
@@ -855,6 +984,9 @@ export function TileWord({
             pose={full ? "link" : "rest"}
             size={size}
             detail={detail}
+            tier={tier}
+            still={still}
+            index={i}
           />
         </div>
       ))}
