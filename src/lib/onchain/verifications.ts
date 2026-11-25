@@ -116,8 +116,8 @@ export const X_KEY_FLOOR = 1n << 162n;
  * X user ids are 64-bit, so a raw id could equal a real FID (< 2^32), and would sit inside that
  * range of `dailyUsed`. Offset, every X key is in [2^162, 2^162 + 2^64): disjoint from FIDs, from
  * verified wallets [2^160, 2^161), and from the reserved Base Verify range [2^161, 2^162). Bigint
- * from birth; a string in JSON. `freePackClaimed` shares this keyspace, but the free-pack route only
- * ever signs for a Quick Auth FID, so an X key can't reach a free pack.
+ * from birth; a string in JSON. `freePackClaimed` shares this keyspace, and the free pack signs under
+ * these keys too (decisions.md #21: every verified player gets one), so one X account is one pack.
  */
 export function xDailyKey(xUserId: string): bigint {
   if (!/^\d{1,20}$/.test(xUserId)) throw new Error(`xDailyKey: not an X user id: ${xUserId}`);

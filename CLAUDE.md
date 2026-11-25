@@ -180,7 +180,26 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   per chain day) and the free pack (kind "pack", once) record the account and the key they sign
   under, first key wins, before signing; another key is refused unless the first voucher expired
   unused; a DB error refuses; no table = the onchain checks alone. daily-status adds the recorded key
-  to its walk. **The free snack, once per profile** (live since Sepolia rehearsal #4, block 63,309,448):
+  to its walk. **The free-letter policy** (decisions.md #21; `lib/freeLetters.ts` pure + tested,
+  `lib/onchain/freeLedger.ts`, `lib/onchain/freeIdentity.ts`): every verified profile gets a free pack
+  of 5 plus 10 free daily letters (params `freeLetters.freeDailyLimit`), all from one budget
+  (`FREE_LETTER_BUDGET`, else params 30,000), and free grants stop at `freeStopClaimedFraction` 0.95
+  of the dictionary claimed (`claimedWordCount`, the Claimed scan, cached 5 minutes). `free_claims`
+  is the LEDGER (migration 0015: `letters`, `expires_at`, `used`): a grant counts from signing; once
+  its voucher expires it is settled against the chain (`freePackClaimed` / `dailyUsed`), and an unused
+  one gives its letters back and its day stops counting. Settle BEFORE reading the profile's own grant
+  (a re-issue is only of a grant that still counts). **A FID counts only for a profile it belongs to**
+  (`resolveFreeIdentity`): it verified one of the profile's wallets (Neynar; an outage counts), or the
+  request carries that wallet's profile session (`x-lexigotchi-session`, sent by `openPostJson`).
+  Otherwise the request falls through to the profile's X and Coinbase keys, then is refused
+  `farcaster_wallet_unverified`. So every grant lives on the profile: no stranger can record on or hold
+  someone else's letters, and nobody gets a second set under a key the profile never sees (Bugbot on
+  #178 and #199; an `fid:` ledger with cross-wallet counting was tried and dropped for this). Both
+  routes share `resolveFreeIdentity` (FID,
+  then X, then Coinbase); the pack takes any `uint256` key, so no contract change. daily-status
+  returns `dailyTaken`/`done`/`packTaken`/`stop`/`packStop`/`dictionaryFull` (GameApi
+  `freeLetters`); the daily reminder skips finished profiles (`dailiesDone`) and everyone once free
+  letters stop. A missing 0015 reads as "can't count" and those rules are skipped: run it at merge. **The free snack, once per profile** (live since Sepolia rehearsal #4, block 63,309,448):
   `Staking.feedWithSnack(ids, staker, profile, deadline, sig)` frees `ids[0]` when the signer vouched
   for (caller, staker, profile = the staker's account, UTC day) and `freeSnackDayPlusOne[profile]`
   isn't today; otherwise it pays, no revert. Plain `feed`/`feedMany` always pay. No database record:
@@ -457,8 +476,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   < 2^32, verified wallets `2^160 | uint160(address)`, Base Verify reserved at 2^161, X
   `2^162 | xUserId` — **always bigint, never a JS number**. **One letter a day per player**:
   `dailyKeysFor` lists every key a request can see, and the server refuses (and the client shows
-  "claimed") if any was used today. An unclaimed day is lost: `dailyUsed` keeps only the last day.
-  The free pack signs for a Quick Auth FID only, so X keys never reach `freePackClaimed`. Packs of 5 for everyone. ETH accepted via
+  "claimed") if any was used today. 10 free dailies per profile in all (decisions.md #21), so a
+  skipped day isn't lost. The free pack signs under the same three key namespaces (X and Coinbase keys
+  reach `freePackClaimed`, which never reads the key). Packs of 5 for everyone. ETH accepted via
   auto-swap → all accounting in $WORD.
 - Rolls: **40% base, +15pp pity, cap 85%** (decisions.md #19), reset on success. Pity per
   `(owner, letterId)`. Failure never burns/downgrades the asset.

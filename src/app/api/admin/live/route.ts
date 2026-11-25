@@ -5,6 +5,9 @@ import { isSuiteDeployed, roleAddresses, wordTokenAddress } from "@/lib/onchain/
 import { NETWORK } from "@/lib/onchain/network";
 import { scanWorld } from "@/lib/world";
 import { WORD_COUNT } from "@/lib/dictionary";
+import { freeLetterTotals } from "@/lib/db/freeClaims";
+import { freeLetterBudget } from "@/lib/freeLetters";
+import { DEFAULT_PARAMS } from "@/lib/params";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,6 +30,22 @@ export interface LivePayload {
   words?: { claimed: number; dictionary: number; uppercase: number; staked: number };
   /** Wallets holding at least one letter or word (the game's own contracts left out). */
   holders?: number;
+  /**
+   * The free-letter ledger (decisions.md #21; aggregate counts from `free_claims`, no player data):
+   * letters signed and not given back, the budget, the daily limit, and the stop. Null before
+   * migration 0015 or when the database can't be read.
+   */
+  freeLetters?: {
+    signed: number;
+    budget: number;
+    remaining: number;
+    packs: number;
+    dailies: number;
+    /** Signed but not settled yet (their vouchers may still lapse and give letters back). */
+    pending: number;
+    dailyLimit: number;
+    stopFraction: number;
+  } | null;
 }
 
 const TTL_MS = 60_000;
@@ -36,14 +55,16 @@ let inflight: Promise<LivePayload> | null = null;
 async function build(): Promise<LivePayload> {
   const treasury = roleAddresses().treasury ?? null;
   const client = getPublicClient();
-  const [buckets, supply, world, treasuryWei] = await Promise.all([
+  const [buckets, supply, world, treasuryWei, ledger] = await Promise.all([
     readFeeBuckets(),
     readLetterSupply(),
     scanWorld(),
     treasury
       ? client.readContract({ address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [treasury] })
       : Promise.resolve(null),
+    freeLetterTotals(NETWORK.id).catch(() => null),
   ]);
+  const budget = freeLetterBudget();
   const holders = new Set<string>([...Object.keys(world.letters), ...world.words.map((w) => w.owner)]);
   return {
     ok: true,
@@ -60,6 +81,15 @@ async function build(): Promise<LivePayload> {
       staked: world.words.filter((w) => w.staked).length,
     },
     holders: holders.size,
+    freeLetters: ledger
+      ? {
+          ...ledger,
+          budget,
+          remaining: Math.max(0, budget - ledger.signed),
+          dailyLimit: DEFAULT_PARAMS.freeLetters.freeDailyLimit,
+          stopFraction: DEFAULT_PARAMS.freeLetters.freeStopClaimedFraction,
+        }
+      : null,
   };
 }
 

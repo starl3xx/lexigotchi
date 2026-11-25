@@ -134,6 +134,20 @@ export interface Params {
     eligibilityRequiresNotHungry: boolean;
   };
 
+  /**
+   * Free letters for verified players (decisions.md #21; starl3xx: "every verified player (FC, X, or
+   * CB-verified) gets a free 5-pack at launch and 10 free daily letters", "30K budget is good").
+   * Enforced by the server (the free-pack and free-daily routes, lib/freeLetters.ts), not the contracts.
+   */
+  freeLetters: {
+    /** Free daily letters per profile, in all (still at most one a chain day). */
+    freeDailyLimit: number;
+    /** Every free letter, packs (5) and dailies (1), shares this budget. Env `FREE_LETTER_BUDGET` overrides it. */
+    budget: number;
+    /** Free grants stop once this share of the dictionary is claimed (the pack-buy card then points at the Market). */
+    freeStopClaimedFraction: number;
+  };
+
   /** Secondary-market royalty (v0.2 §8, destination overridden — see `splits.royalty`). */
   market: {
     royaltyRate: number; // e.g., 0.025 (the sim's letter-trading lever, `trading`)
@@ -337,6 +351,11 @@ export const DEFAULT_PARAMS: Params = {
   },
   jackpot: {
     eligibilityRequiresNotHungry: true,
+  },
+  freeLetters: {
+    freeDailyLimit: 10,
+    budget: 30_000,
+    freeStopClaimedFraction: 0.95,
   },
   market: {
     royaltyRate: 0.025,

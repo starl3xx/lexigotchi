@@ -1,33 +1,26 @@
 "use client";
-/** Mint — pull lowercase letters. Daily single (FID-gated) + packs of 5. Odds mirror the dictionary. */
+/**
+ * Mint — pull lowercase letters: the free letters for verified players (a pack of 5 plus 10 daily
+ * letters, decisions.md #21) and paid packs of 5. Odds mirror the dictionary.
+ */
 import { LETTERS_BY_FREQUENCY, TOTAL_SLOTS } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
 import { fmtUsd, fmtWord, idxToChar, showsUsd, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
-import { useEffect, useState } from "react";
-import { fetchCampaignStatus } from "../campaignClient";
-import { useViewer } from "../useViewer";
+import { useState } from "react";
 import { PendingReveal } from "../PendingReveal";
 
 export function MintScreen() {
   const g = useGame();
   const { state } = g;
   const daily = useDailyEligibility();
-  const viewer = useViewer();
-  // The FREE campaign pack is gated server-side on add+share. Ask up front so only an eligible
-  // player sees its button, instead of one that bounces off a 403 ("rip a pack does nothing" was
-  // the live report). null = unknown (not signed in / DB absent) → no free-pack card.
-  const [packEligible, setPackEligible] = useState<boolean | null>(null);
+  // The player's free letters (daily-status): how many daily letters are left, whether the pack is
+  // taken, and whether free letters have stopped. Null in practice and while it loads.
+  const free = g.freeLetters;
   /** A paid chain pack is in flight (commit sent or about to be): hold the button. */
   const [buying, setBuying] = useState(false);
-  useEffect(() => {
-    if (!state.chainBacked || !viewer.isAuthed) return void setPackEligible(null);
-    let dead = false;
-    void fetchCampaignStatus().then((cs) => { if (!dead) setPackEligible(cs ? cs.eligible : null); });
-    return () => { dead = true; };
-  }, [state.chainBacked, viewer.isAuthed]);
   const packPrice = g.price("pack");
   // Every letter in the game is minted or promised to an open pack: the contract would refuse.
   const soldOut = g.lettersLeft !== null && g.lettersLeft < 5;
@@ -50,7 +43,15 @@ export function MintScreen() {
 
       {/* daily single */}
       <Card className="bg-card">
-        <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · 1 / day</span>}>Daily single</SectionTitle>
+        <SectionTitle
+          action={
+            <span className="text-xs font-bold text-teal-ink">
+              {!daily.eligible ? "Free" : free?.dailyLeft != null ? `Free · ${free.dailyLeft} of ${free.dailyLimit} left` : "Free · 1 a day"}
+            </span>
+          }
+        >
+          {daily.eligible ? "Daily letter" : "Free letters"}
+        </SectionTitle>
         {state.dailyMinted ? (
           <div className="flex items-center justify-between text-sm text-ink/70">
             <span className="inline-flex items-center gap-1">
@@ -61,8 +62,21 @@ export function MintScreen() {
               )}
               Pulled today <Check weight="bold" size={13} className="text-teal-ink" />
             </span>
-            <span className="text-xs text-ink/50">resets in <Countdown /></span>
+            {/* the 10th was the last: no countdown to a letter that isn't coming */}
+            {free?.done ? (
+              <span className="text-xs text-ink/50">your last free one</span>
+            ) : (
+              <span className="text-xs text-ink/50">resets in <Countdown /></span>
+            )}
           </div>
+        ) : daily.eligible && free && (free.done || free.stop) ? (
+          <p className="text-sm text-ink/70">
+            {free.done
+              ? `You’ve had all ${free.dailyLimit} free daily letters. Packs of 5 are always for sale below.`
+              : free.stop === "dictionary"
+                ? "The dictionary is nearly full, so free letters have ended. Packs are still for sale."
+                : "All the free letters have been given out. Packs are still for sale."}
+          </p>
         ) : !daily.eligible ? (
           // Locked. Farcaster, an old-enough X account (while X is on), or a Coinbase-verified wallet
           // opens it, and the shared DailyUnlock is the one place that offers them, so Home and Mint
@@ -70,7 +84,7 @@ export function MintScreen() {
           <DailyUnlock />
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">One free letter, on the house, every day.</span>
+            <span className="text-sm text-ink/70">One free letter a day, on the house, until you’ve had {free?.dailyLimit ?? 10}.</span>
             <Button onClick={() => g.dailyMint()}>
               <Ticket weight="fill" /> Pull free
             </Button>
@@ -78,12 +92,13 @@ export function MintScreen() {
         )}
       </Card>
 
-      {/* the free campaign pack: only for players who earned it (add the mini app + share a cast) */}
-      {state.chainBacked && packEligible === true && (
+      {/* the free pack: once per verified profile (decisions.md #21). Locked players see the offer in
+          DailyUnlock, in the daily card above. */}
+      {state.chainBacked && daily.eligible && free && !free.packTaken && !free.packStop && (
         <Card className="bg-card">
           <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · once</span>}>Your free pack</SectionTitle>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ink/70">Five letters, on the house, for sharing Lexigotchi.</span>
+            <span className="text-sm text-ink/70">Five letters, on the house, for proving you’re one person.</span>
             <Button onClick={() => g.openPack()}>
               <Ticket weight="fill" /> Open free
             </Button>
@@ -131,9 +146,15 @@ export function MintScreen() {
           <Package weight="fill" />
           {soldOut ? "Sold out" : buying ? "Opening…" : g.canAfford(packPrice) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
-        {state.chainBacked && packEligible === false && (
-          <p className="mt-2 text-center text-xs text-ink/55">
-            Earn a free pack: add Lexigotchi in the Farcaster app and share a cast.
+        {free?.dictionaryFull && (
+          // About 95% of the words have owners (decisions.md #21): letters still sell, but a new word is
+          // more likely to come from the Market than from a pack.
+          <p className="mt-2 text-center text-xs text-ink/60">
+            The dictionary is nearly full: most words already have an owner. Packs still sell, and the Market has words for
+            sale.{" "}
+            <button onClick={() => g.nav("swap")} className="font-bold text-teal-ink underline">
+              See the Market
+            </button>
           </p>
         )}
       </Card>

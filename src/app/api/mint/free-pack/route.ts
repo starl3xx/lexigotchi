@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getAuthedFid } from "@/lib/auth/quickAuth";
-import { allow } from "@/lib/ratelimit";
 import { addressOf } from "@/lib/onchain/addresses";
 import { freePackDigest } from "@/lib/onchain/digests";
 import { signDigest } from "@/lib/onchain/signer";
@@ -8,11 +6,11 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { NETWORK } from "@/lib/onchain/network";
 import { isAddress } from "viem";
-import { getCampaignStatus } from "@/lib/db/queries";
-import { isCampaignConfigured } from "@/lib/db/client";
-import { accountWallets } from "@/lib/db/walletLinks";
-import { claimFree, keyOwnedByProfile } from "@/lib/db/freeClaims";
-import { fidsByAddressesDetailed } from "@/lib/neynar";
+import { claimFree, recordedFreeGrant } from "@/lib/db/freeClaims";
+import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
+import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
+import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
+import { FREE_LETTERS } from "@/lib/freeLetters";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // node:crypto + quick-auth
@@ -21,25 +19,27 @@ export const runtime = "nodejs"; // node:crypto + quick-auth
 const VOUCHER_TTL_SECONDS = 600;
 
 /**
- * POST — issue a free-pack voucher for the Quick-Auth-verified caller.
+ * POST — issue the free-pack voucher: five free letters, once per PROFILE, for every verified player
+ * (decisions.md #21: "every verified player (FC, X, or CB-verified) gets a free 5-pack"). It used to be
+ * the pre-launch campaign's reward, signed only for a Quick Auth FID that added the mini app and
+ * shared a cast; the campaign still records adds and shares, but no longer gates the pack.
  *
- * The contract never validates the FID; it only checks that the signer blessed the tuple. So signing
- * a client-supplied fid would hand away the entire Sybil gate — the FID comes from the verified JWT,
- * always, and the wallet is bound into the digest so the voucher can't be used from another address.
+ * The identity is the daily's (lib/onchain/freeIdentity.ts): a Farcaster FID, an X account older than
+ * 90 days, or a Coinbase-verified wallet, keyed in the namespaces `freePackClaimed` shares with
+ * `dailyUsed` (`uint256`, never interpreted by the contract), so no contract change. The contract only
+ * checks that the signer blessed (contract, chain, kind, buyer, key, nonce, deadline), so signing a
+ * client-supplied identity would hand away the whole gate: the FID comes from the verified JWT, the X
+ * account from the profile, the Coinbase key from an attestation. The wallet is bound into the digest,
+ * so the voucher can't be spent from another address.
  *
- * The voucher is deterministic in the nonce, which means a repeat request RE-ISSUES THE SAME one
- * rather than minting a second entitlement. That's deliberate: `nonce` is bound into the digest but
- * is not recorded on-chain, so it prevents nothing by itself. `freePackClaimed[fid]` is the only
- * real one-shot guard, and it is set at commit time by the contract.
+ * One pack per profile: `freePackClaimed` across every key the profile has (relatedDailyKeys, the same
+ * walk the daily uses, plus the key this profile's pack was recorded under), then the `free_claims`
+ * record, first key wins. A Farcaster sign-in only counts for a profile it belongs to (resolveFreeIdentity). Then the free-letter budget and the dictionary stop. The nonce is the key,
+ * so a repeat request re-issues the SAME voucher; `freePackClaimed[key]` is the onchain one-shot guard.
  *
  * Body: `{ wallet: "0x..." }`
  */
 export async function POST(req: Request) {
-  const fid = await getAuthedFid(req);
-  if (!fid) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  if (!(await allow("record-add", fid)))
-    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
-
   let wallet: string | undefined;
   try {
     wallet = (await req.json())?.wallet;
@@ -50,69 +50,39 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
   }
 
-  // CAMPAIGN ELIGIBILITY. The free pack is the reward for adding the mini app AND sharing a
-  // verified cast — without this check any authenticated FID can claim one, which is not a sybil
-  // hole (freePackClaimed is one-per-FID on-chain) but does hand out the campaign reward to people
-  // who never ran the campaign.
-  //
-  // Skipped only when the campaign backend isn't configured at all: on a testnet rehearsal there is
-  // no Neon database, and failing closed there would make the pack unclaimable rather than
-  // protected. Gated on the DB's presence, never on NODE_ENV, so a production deploy that loses its
-  // DATABASE_URL fails CLOSED.
-  if (isCampaignConfigured()) {
-    try {
-      const status = await getCampaignStatus(fid);
-      if (!status.eligible) {
-        return NextResponse.json(
-          { ok: false, error: status.added ? "share_required" : "add_required" },
-          { status: 403 },
-        );
-      }
-    } catch (err) {
-      // A campaign DB that is configured but unreachable must NOT open the gate.
-      console.error("[free-pack] eligibility check failed:", err);
-      return NextResponse.json({ ok: false, error: "eligibility_unavailable" }, { status: 503 });
-    }
-  }
+  const who = await resolveFreeIdentity(req, wallet, "free-pack");
+  if (!who.ok) return NextResponse.json({ ok: false, error: who.error }, { status: who.status });
+  const { key, fid, account } = who;
 
   const letters = addressOf("letters");
   const client = getPublicClient();
 
-  // On-chain refusals next — these are the authoritative guards, and checking them here turns a
+  // On-chain refusals first: they are the authoritative guards, and checking them here turns a
   // confusing revert into a clean error the UI can explain.
-  const [open, claimed] = await client.multicall({
-    allowFailure: false,
-    contracts: [
-      { address: letters, abi: lettersAbi, functionName: "freePackOpen" },
-      { address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [BigInt(fid)] },
-    ] as const,
-  });
+  // Expired grants are settled against the chain first (lib/onchain/freeLedger.ts), so a pack voucher
+  // that lapsed unused gives its five letters back, BEFORE this profile's own grant is read: a re-issue
+  // is only a re-issue of a grant that still counts.
+  // Every grant is the profile's: resolveFreeIdentity only signs under a key that belongs to it.
+  await settleGrants(NETWORK.id, account);
+  const recordedGrant = await recordedFreeGrant(NETWORK.id, account, "pack", 0);
+  const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...(recordedGrant ? [recordedGrant.key] : [])])];
+  const [open, claimed] = await Promise.all([
+    client.readContract({ address: letters, abi: lettersAbi, functionName: "freePackOpen" }) as Promise<boolean>,
+    client.multicall({
+      allowFailure: false,
+      contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "freePackClaimed" as const, args: [k] })),
+    }) as Promise<boolean[]>,
+  ]);
   if (!open) return NextResponse.json({ ok: false, error: "campaign_closed" }, { status: 409 });
-  if (claimed) return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
+  if (claimed.some(Boolean)) return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
 
-  // One free pack per PROFILE (lib/db/freeClaims.ts; starl3xx: "only one wallet per profile should
-  // get a free anything"): freePackClaimed is per Farcaster account, and a profile can hold more than
-  // one. Recorded before signing, first FID wins; a database error refuses, never signs twice.
+  // The free-letter budget and the dictionary stop (decisions.md #21). A pack this profile already
+  // holds a counted voucher for is a re-issue: no new letters.
   try {
-    const { account, wallets: accountWalletList } = await accountWallets(wallet);
-    // Only a FID that verified one of the profile's wallets is recorded on it (the wallet is the
-    // client's word; keyOwnedByProfile).
-    const owned = await keyOwnedByProfile({ fid, derivedFromProfile: false, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
-    const claim = owned
-      ? await claimFree({
-          chainId: NETWORK.id,
-          account,
-          kind: "pack",
-          period: 0,
-          key: BigInt(fid),
-          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
-          usedOnchain: async (k) =>
-            Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),
-        })
-      : "skipped";
-    if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
+    const stop = await freeGrantStop(NETWORK.id, recordedGrant?.counts ? 0 : FREE_LETTERS.pack);
+    if (stop) return NextResponse.json({ ok: false, error: STOP_ERROR[stop] }, { status: 409 });
   } catch (err) {
-    console.error("[free-pack] couldn't record the profile's free pack, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+    console.error("[free-pack] couldn't read the free-letter ledger, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
     return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
   }
 
@@ -121,22 +91,37 @@ export async function POST(req: Request) {
   const now = await readChainTime();
   const deadline = BigInt(now + VOUCHER_TTL_SECONDS);
 
-  // Deterministic per (fid, wallet) so a retry re-issues the identical voucher.
-  const nonce = BigInt(fid);
+  // One free pack per PROFILE (lib/db/freeClaims.ts; starl3xx: "only one wallet per profile should get
+  // a free anything"): recorded before signing, first key wins; a database error refuses, never signs
+  // twice.
+  try {
+    const claim = await claimFree({
+          chainId: NETWORK.id,
+          account,
+          kind: "pack",
+          period: 0,
+          key,
+          letters: FREE_LETTERS.pack,
+          expiresAt: new Date(Number(deadline) * 1000),
+          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
+          usedOnchain: async (k) =>
+            Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),
+        });
+    if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed" }, { status: 409 });
+  } catch (err) {
+    console.error("[free-pack] couldn't record the profile's free pack, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+    return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
+  }
 
-  const inner = freePackDigest({
-    letters,
-    buyer: wallet as `0x${string}`,
-    fid: BigInt(fid),
-    nonce,
-    deadline,
-  });
-  const signature = await signDigest(inner);
+  // Deterministic per key so a retry re-issues the identical voucher.
+  const nonce = key;
+  const signature = await signDigest(freePackDigest({ letters, buyer: wallet as `0x${string}`, fid: key, nonce, deadline }));
 
   return NextResponse.json({
     ok: true,
     voucher: {
-      fid: String(fid),
+      // A string: X and Coinbase keys are ≥ 2^160, past what a JSON number holds exactly.
+      fid: String(key),
       nonce: String(nonce),
       deadline: String(deadline),
       signature,

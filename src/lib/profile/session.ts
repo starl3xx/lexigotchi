@@ -119,7 +119,7 @@ export function checkChallenge(
  * anything else in a Sign-In with Ethereum statement.
  */
 export function linkStatement(account: string): string {
-  return `Link this wallet to the Lexigotchi account ${getAddress(account)}: one bag, one profile, one free daily letter. It is free and sends no transaction.`;
+  return `Link this wallet to the Lexigotchi account ${getAddress(account)}: one bag, one profile, one set of free letters. It is free and sends no transaction.`;
 }
 
 export function linkMessage(opts: { address: string; account: string; code: string; domain: string; chainId: number; now?: number }): string {
