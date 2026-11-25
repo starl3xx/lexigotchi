@@ -120,6 +120,13 @@
       "when": 1795726536169,
       "tag": "0016_shop",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795726596169,
+      "tag": "0017_market",
+      "breakpoints": true
     }
   ]
 }

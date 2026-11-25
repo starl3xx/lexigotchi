@@ -77,7 +77,7 @@ export interface PlayerInputs {
   profiles: readonly ProfileFlags[];
   /** Browsers subscribed to reminders, per wallet. */
   pushBrowsers: ReadonlyMap<string, number>;
-  /** Open letter-swap listings made, per wallet. */
+  /** Market listings made (words and letters for sale), per wallet. */
   listings: ReadonlyMap<string, number>;
   /** The account (first wallet) a linked wallet belongs to, when it isn't its own. */
   accountOf: (address: string) => string;

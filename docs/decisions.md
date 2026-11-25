@@ -597,6 +597,82 @@ setter. All small, riding existing suite patterns.
     - **Departures:** the back picture's labels are bold, not the semibold the game uses (Satori
       has only Söhne's regular and bold). Untested: an iPhone making and sharing the video, the
       mini-app hosts, X taking the file, and a real GPU's make time (software WebGL: 5–12 s).
+28. **The Market sells letters too, shows what sold, and helps with the price** (starl3xx,
+    2026-11-25, in the owner's words: "Market should have recent sales, and generally be beefed up
+    as a marketplace"; "a user should be able to browse/sort for listed letters and words"; "Letters
+    shouldn't be “swap” anymore, they should be listable like words (and consider that a user might
+    want to list multiple Ws at a time, for example)"; "Think through if/when there are a bunch of
+    words and letters listed: how is this presented and made navigable for the user?"; "I should be
+    able to list words and letters both from the Market, as well as browse and buy"; "Market
+    listing should be intelligent; that is, helping the user with suggested prices, comparison,
+    etc, and directing the user to the best deal *for them*"; "not everything has to be in its own
+    box; you can think through how to present this tab uniquely, within the existing design
+    constraints of the game"). Extends #18 from words to letters, and retires the one-for-one
+    letter swap ("swap primitive, light", June 2026).
+    - **Letters sell for $WORD, several at a time.** One Seaport order offers `qty` of one letter id
+      at a price each, and a buyer takes any number of them (OrderType PARTIAL_OPEN, filled with
+      `fulfillAdvancedOrder` as k of qty). No new contract: `SaleFees` routes any $WORD it holds.
+      **Every amount is a per-letter amount times the quantity**, because Seaport fills a part only
+      when every share is a whole amount: the fee is split per letter (rounded up), then
+      multiplied. Splitting it on the total, as a word's is, makes orders no part of which can fill
+      (proven on a fork; the route refuses them as `uneven_price`). Prices are whole $WORD, so the
+      price shown is the price paid.
+    - **The fee is 10%, to the Rewards Pool, the same as a word** (`params.market.letterSaleFee`,
+      its own number). **This is an inference, and the owner's to confirm:** he said "listable like
+      words" and named no fee. It reverses two earlier entries: the feeless letter trade (the swap
+      "carries no fees"), and the June 2.5% in-house rate that #18 had already replaced for words.
+      Reason for the default: one rule for the whole Market, and the fee pays staked, fed words
+      (#19). The same risk #18 named applies (a market the game runs and takes a cut of); "no
+      counsel" was the owner's ruling there, and nobody asked again here.
+    - **A stale letter order is a money risk a stale word order never was.** A word's approval is
+      for that word and clears when it moves; ERC-1155 has only approve-for-all, which never
+      clears. An order the seller can't honor now would fill again, at its old price, the next
+      time they held that letter. So: one live order per seller per letter; listing again cancels
+      the earlier ones onchain in the same send as the approval; a listing must be backed by the
+      letters when it is made; and the seller always sees their own orders under Sell, paused ones
+      included, with a way to take each off sale. The one old swap offer that existed gets the same.
+    - **The swap is retired, not deleted.** Nothing new lists (`/api/swap/orders` answers 410), and
+      the board no longer hands those offers to anyone. A signed offer stays fillable onchain until
+      cancelled or expired, so its maker still sees it, with Cancel.
+    - **Recent sales are read from the chain**, never reported by a client: every sale pays
+      `SaleFees`, so the $WORD transfers into it list every sale's transaction, and Seaport's
+      `OrderFulfilled` in that transaction says what sold (for a part, the amounts of that part).
+      `market_sales` is a copy of that history, idempotent on (chain, transaction, log index); the
+      sales route and the keeper's `fees` job both read forward from a cursor.
+    - **Many listings** (the owner's question). Letters: 52 kinds hold any number of listings, so
+      the board is the alphabet with one tag per letter (the lowest price, how many), and its
+      counter lists a letter's sellers cheapest first, a page at a time. The server reads only the
+      cheapest rows of each letter (numeric prices, one index), checks only those against the
+      chain, and keeps the answer a few seconds, so the work is bounded by 52, not by the number of
+      listings. Words: one of a kind, so the list can never pass the dictionary's 4,584; it is
+      served whole and small (no orders or signatures: an order is fetched by its hash when the
+      player acts), then searched, narrowed, and sorted in the browser. Not done: paging the words
+      list on the server, which the live state behind "best deal" would need a stored copy for.
+    - **Helping with the price.** Three references stand beside a price, none of them "what it's
+      worth": about what the thing costs to make (`lib/wordCost.ts`; a letter is its share of a
+      pack, an UPPERCASE one adds the average rolls), the lowest price the same thing is for sale
+      at, and what it sold for lately. A sell form offers prices with their reasons; a listing
+      shows its price against the cost to make.
+    - **The best deal for them** (`lib/market/deals.ts` `pickDeals`): up to three listings, never
+      the player's own. First, a letter that finishes a word their bag is exactly one letter short
+      of, among the words nobody owns (rarest word first); then whatever is furthest under its cost
+      to make, a word only if they can pay for it. A big bag is one short of something with almost
+      every letter, so one place is always kept for a price under cost.
+    - **The page** (`screens/MarketScreen.tsx`, `components/game/market/`): Words, Letters, Sell,
+      and Sold behind one switch, with "Just sold" and the picks above. Drawn as a market: the
+      letter shelf (tiles on a plank, a paper price tag hanging under each letter for sale), ruled
+      headings, and dashed dividers in place of a stack of boxed cards. Selling is on the Market
+      itself, for words and letters; an opened word keeps its Sell.
+    - **The practice game has a Market** (a seeded stall, `market/practiceMarket.ts`), so the page
+      can be tried, and pictured in the docs, with no wallet.
+    - **Proven before it shipped:** the order against Seaport itself on a fork
+      (`scripts/market-fork-check.ts`: buy 2 of 5, ask for more than is left, sold out, cancelled,
+      uneven payments), and the routes against that fork and a throwaway database
+      (`scripts/market-routes-check.ts`).
+    - **Not done:** a reminder to the seller when something sells (the template exists, unwired);
+      buying one letter from several sellers in one send; an X card for a listing; offers (a
+      buyer naming a price). Migration 0017 adds `letter_listings` and `market_sales`; until it
+      runs, letters can't be listed and recent sales are empty, and words sell as before.
 
 ## Pricing & launch economics (decided June 2026)
 
@@ -848,6 +924,8 @@ they exist to move (retention, re-acquisition demand) are exactly what this sim 
 - **Secondary letter market** — ✅ now modeled (see the experiment section above). Verdict: weak
   economic lever (~4.5% casual recoup, no reliable velocity gain), strong social case → build the
   swap primitive light. Refinement owed: a rarity-tiered floor (scarce letters should clear higher).
+  (2026-11-25, #28: the swap is retired; letters sell for $WORD on the Market, each at its seller's
+  price, so the market itself prices scarce letters higher.)
 - **Renewable late-game loop** — ✅ now modeled (prestige + theme bounty; see "Renewable late-game
   loop" above). Verdict: prestige = a modest finite durable sink + mild whale yield-concentration;
   theme bounty = the casual-reachable goal whose economic demand the sim *understates* (no

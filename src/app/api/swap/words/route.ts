@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
 import { getDb } from "@/lib/db/client";
@@ -11,8 +11,9 @@ import { addressOf, isSuiteDeployed, wordTokenAddress } from "@/lib/onchain/addr
 import { prestigeAbi, stakingAbi, wordsAbi } from "@/lib/onchain/abis";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { checkWordSaleOrder, type SeaportOrder } from "@/lib/onchain/wordSale";
-import { playerFaces } from "@/lib/profile/faces";
-import type { PublicFace } from "@/lib/profile/rules";
+import { marketFaces } from "@/lib/market/faces";
+import { lastWordSales } from "@/lib/db/market";
+import { NETWORK } from "@/lib/onchain/network";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,7 +29,11 @@ export const runtime = "nodejs";
  * leaves the old one fillable.
  *
  * GET: what's for sale, each with the word's state read live (its case, prestige, pity, hunger),
- * never from the listing. Spent rows are pruned; rows that can't fill right now are hidden but kept.
+ * never from the listing, and what the word last sold for. Spent rows are pruned; rows that can't
+ * fill right now are hidden but kept. The whole board is one answer (a word has one owner, so it is
+ * never longer than the dictionary), kept in memory for a few seconds, and it carries no orders or
+ * signatures, so it stays small.
+ * GET `?order=<hash>`: one listing's signed order, to buy or to take off sale.
  * GET `?stale=<maker>:<tokenId>`: that seller's orders for that word that could still fill, for
  * the client to cancel before listing it again.
  */
@@ -140,6 +145,7 @@ export async function POST(req: Request) {
         orderHash: orderHash.result as string,
       })
       .onConflictDoNothing();
+    board = null;
     return json({ ok: true, orderHash: orderHash.result });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
@@ -148,14 +154,126 @@ export async function POST(req: Request) {
   }
 }
 
+/** The most rows one board read takes, newest first. Far above the Market's size; a guard, not a page. */
+const MAX_ROWS = 1_500;
+const BOARD_TTL_MS = 8_000;
+let board: { at: number; listings: unknown[]; makers: string[] } | null = null;
+
+const WEI = 10n ** 18n;
+const same = (a: string | undefined, b: string) => (a ?? "").toLowerCase() === b.toLowerCase();
+
+/** Signed for these contracts? A shared database may hold another network's rows: never shown, never pruned. */
+function ours(o: SeaportOrder): boolean {
+  return same(o.offer?.[0]?.token, addressOf("words")) && same(o.consideration?.[1]?.recipient, addressOf("saleFees")) && same(o.consideration?.[0]?.token, wordTokenAddress());
+}
+
+async function readBoard(now: number): Promise<{ at: number; listings: unknown[]; makers: string[] }> {
+  if (board && Date.now() - board.at < BOARD_TTL_MS) return board;
+  const db = getDb();
+  const all = await db.select().from(wordListings).orderBy(desc(wordListings.createdAt)).limit(MAX_ROWS);
+  const rows = all.filter((r) => ours(JSON.parse(r.orderJson) as SeaportOrder));
+  if (rows.length === 0) return (board = { at: Date.now(), listings: [], makers: [] });
+  const states = await readStatus(rows);
+  const open: Row[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (spent(rows[i], states[i].status, states[i].counter, now)) {
+      await db.delete(wordListings).where(eq(wordListings.id, rows[i].id));
+    } else {
+      open.push(rows[i]);
+    }
+  }
+  if (open.length === 0) return (board = { at: Date.now(), listings: [], makers: [] });
+
+  // The word's state, live: a listing's snapshot could be days old.
+  const words = addressOf("words");
+  const staking = addressOf("staking");
+  const prestige = addressOf("prestige");
+  const makers = [...new Set(open.map((r) => r.maker))] as `0x${string}`[];
+  const client = getPublicClient();
+  const PER = 11;
+  const [detail, alls, lastSales] = await Promise.all([
+    client.multicall({
+      allowFailure: true,
+      batchSize: 8_192,
+      contracts: open.flatMap((r) => {
+        const id = BigInt(r.tokenId);
+        return [
+          { address: words, abi: wordsAbi, functionName: "ownerOf" as const, args: [id] },
+          { address: words, abi: wordsAbi, functionName: "getApproved" as const, args: [id] },
+          { address: words, abi: wordsAbi, functionName: "claimedAt" as const, args: [id] },
+          { address: words, abi: wordsAbi, functionName: "prestigeLevel" as const, args: [id] },
+          { address: prestige, abi: prestigeAbi, functionName: "prestigePity" as const, args: [id] },
+          { address: staking, abi: stakingAbi, functionName: "lastFed" as const, args: [id] },
+          ...Array.from({ length: 5 }, (_, pos) => ({
+            address: words, abi: wordsAbi, functionName: "escrowLetter" as const, args: [id, pos] as const,
+          })),
+        ];
+      }),
+    }),
+    client.multicall({
+      allowFailure: true,
+      contracts: makers.map((m) => ({ address: words, abi: wordsAbi, functionName: "isApprovedForAll" as const, args: [m, SEAPORT] })),
+    }),
+    // A word's last sale is a reference beside its price; without the sales table there is none.
+    lastWordSales(NETWORK.id, [...new Set(open.map((r) => r.word))]).catch(() => new Map<string, { priceWei: string; soldAt: Date }>()),
+  ]);
+  const allOf = new Map(makers.map((m, i) => [m, alls[i].status === "success" && alls[i].result === true]));
+
+  const listings = [];
+  for (let i = 0; i < open.length; i++) {
+    const r = open[i];
+    const d = detail.slice(i * PER, i * PER + PER);
+    const ok = (k: number) => d[k].status === "success";
+    const owner = ok(0) ? String(d[0].result).toLowerCase() : null;
+    const approved = (ok(1) && String(d[1].result).toLowerCase() === SEAPORT.toLowerCase()) || allOf.get(r.maker as `0x${string}`) === true;
+    const claimedAt = ok(2) ? Number(d[2].result) : -1;
+    // Fillable now: the seller still holds it, unstaked, approved, and it's the same claim it was.
+    if (owner !== r.maker || !approved || claimedAt !== r.claimedAt) continue;
+    const lastFedRaw = ok(5) ? Number(d[5].result) : 0;
+    const lastFedAt = lastFedRaw < claimedAt ? 0 : lastFedRaw;
+    const last = lastSales.get(r.word);
+    listings.push({
+      maker: r.maker,
+      word: r.word,
+      tokenId: r.tokenId,
+      priceWei: r.priceWei,
+      orderHash: r.orderHash,
+      upper: Array.from({ length: 5 }, (_, pos) => {
+        const e = d[6 + pos];
+        return e.status === "success" ? Boolean((e.result as unknown as readonly [number, boolean])[1]) : false;
+      }),
+      prestigeLevel: ok(3) ? Number(d[3].result) : 0,
+      prestigePity: ok(4) ? Number(d[4].result) : 0,
+      lastFedAt,
+      listedAt: r.createdAt.toISOString(),
+      lastSale: last ? { price: Number(BigInt(last.priceWei) / WEI), at: last.soldAt.getTime() } : undefined,
+    });
+  }
+  return (board = { at: Date.now(), listings, makers: [...new Set(listings.map((l) => l.maker))] });
+}
+
 export async function GET(req: Request) {
   if (!(await allow("status", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   if (!isSuiteDeployed()) return json({ ok: true, listings: [], profiles: {} });
   const now = Math.floor(Date.now() / 1000);
   const url = new URL(req.url);
   const staleArg = url.searchParams.get("stale");
+  const orderArg = url.searchParams.get("order");
   try {
     const db = getDb();
+    if (orderArg !== null) {
+      if (!/^0x[0-9a-fA-F]{64}$/.test(orderArg)) return json({ ok: false, error: "bad_request" }, 400);
+      const rows = await db.select().from(wordListings).where(eq(wordListings.orderHash, orderArg.toLowerCase())).limit(1);
+      const order = rows[0] ? (JSON.parse(rows[0].orderJson) as SeaportOrder) : null;
+      if (!rows[0] || !order || !ours(order)) return json({ ok: false, error: "gone" }, 404);
+      const [state] = await readStatus(rows);
+      if (spent(rows[0], state.status, state.counter, now)) {
+        await db.delete(wordListings).where(eq(wordListings.id, rows[0].id));
+        board = null;
+        return json({ ok: false, error: "gone" }, 404);
+      }
+      return json({ ok: true, order, signature: rows[0].signature, word: rows[0].word });
+    }
     if (staleArg) {
       const [maker, tokenId] = staleArg.toLowerCase().split(":");
       if (!/^0x[0-9a-f]{40}$/.test(maker ?? "") || !/^\d{1,78}$/.test(tokenId ?? "")) return json({ ok: false, error: "bad_request" }, 400);
@@ -165,90 +283,8 @@ export async function GET(req: Request) {
       return json({ ok: true, stale: live.map((r) => ({ order: JSON.parse(r.orderJson), orderHash: r.orderHash })) });
     }
 
-    const rows = await db.select().from(wordListings).limit(300);
-    if (rows.length === 0) return json({ ok: true, listings: [], profiles: {} });
-    const states = await readStatus(rows);
-    const open: Row[] = [];
-    for (let i = 0; i < rows.length; i++) {
-      if (spent(rows[i], states[i].status, states[i].counter, now)) {
-        await db.delete(wordListings).where(eq(wordListings.id, rows[i].id));
-      } else {
-        open.push(rows[i]);
-      }
-    }
-    if (open.length === 0) return json({ ok: true, listings: [], profiles: {} });
-
-    // The word's state, live: a listing's snapshot could be days old.
-    const words = addressOf("words");
-    const staking = addressOf("staking");
-    const prestige = addressOf("prestige");
-    const makers = [...new Set(open.map((r) => r.maker))] as `0x${string}`[];
-    const client = getPublicClient();
-    const PER = 11;
-    const [detail, alls] = await Promise.all([
-      client.multicall({
-        allowFailure: true,
-        contracts: open.flatMap((r) => {
-          const id = BigInt(r.tokenId);
-          return [
-            { address: words, abi: wordsAbi, functionName: "ownerOf" as const, args: [id] },
-            { address: words, abi: wordsAbi, functionName: "getApproved" as const, args: [id] },
-            { address: words, abi: wordsAbi, functionName: "claimedAt" as const, args: [id] },
-            { address: words, abi: wordsAbi, functionName: "prestigeLevel" as const, args: [id] },
-            { address: prestige, abi: prestigeAbi, functionName: "prestigePity" as const, args: [id] },
-            { address: staking, abi: stakingAbi, functionName: "lastFed" as const, args: [id] },
-            ...Array.from({ length: 5 }, (_, pos) => ({
-              address: words, abi: wordsAbi, functionName: "escrowLetter" as const, args: [id, pos] as const,
-            })),
-          ];
-        }),
-      }),
-      client.multicall({
-        allowFailure: true,
-        contracts: makers.map((m) => ({ address: words, abi: wordsAbi, functionName: "isApprovedForAll" as const, args: [m, SEAPORT] })),
-      }),
-    ]);
-    const allOf = new Map(makers.map((m, i) => [m, alls[i].status === "success" && alls[i].result === true]));
-
-    const listings = [];
-    for (let i = 0; i < open.length; i++) {
-      const r = open[i];
-      const d = detail.slice(i * PER, i * PER + PER);
-      const ok = (k: number) => d[k].status === "success";
-      const owner = ok(0) ? String(d[0].result).toLowerCase() : null;
-      const approved = (ok(1) && String(d[1].result).toLowerCase() === SEAPORT.toLowerCase()) || allOf.get(r.maker as `0x${string}`) === true;
-      const claimedAt = ok(2) ? Number(d[2].result) : -1;
-      // Fillable now: the seller still holds it, unstaked, approved, and it's the same claim it was.
-      if (owner !== r.maker || !approved || claimedAt !== r.claimedAt) continue;
-      const claimedAtRaw = claimedAt;
-      const lastFedRaw = ok(5) ? Number(d[5].result) : 0;
-      const lastFedAt = lastFedRaw < claimedAtRaw ? 0 : lastFedRaw;
-      listings.push({
-        maker: r.maker,
-        word: r.word,
-        tokenId: r.tokenId,
-        priceWei: r.priceWei,
-        order: JSON.parse(r.orderJson),
-        signature: r.signature,
-        orderHash: r.orderHash,
-        upper: Array.from({ length: 5 }, (_, pos) => {
-          const e = d[6 + pos];
-          return e.status === "success" ? Boolean((e.result as unknown as readonly [number, boolean])[1]) : false;
-        }),
-        prestigeLevel: ok(3) ? Number(d[3].result) : 0,
-        prestigePity: ok(4) ? Number(d[4].result) : 0,
-        lastFedAt,
-        listedAt: r.createdAt.toISOString(),
-      });
-    }
-
-    let profiles: Record<string, PublicFace> = {};
-    try {
-      profiles = (await playerFaces([...new Set(listings.map((l) => l.maker))])).profiles;
-    } catch {
-      /* faceless rows still sell */
-    }
-    return json({ ok: true, listings, profiles });
+    const { listings, makers } = await readBoard(now);
+    return json({ ok: true, listings, profiles: await marketFaces(makers) });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: true, listings: [], profiles: {} });
     console.error("[words-board] read failed:", String((err as Error)?.message ?? err).slice(0, 160));

@@ -682,3 +682,86 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .sc-small .cb-body { padding: 8px 10px; gap: 2px; grid-template-rows: auto 1fr; }
 .sc-small .cb-top { padding-right: 34px; }
 .sc-small .cb-tier { font-size: 12px; }
+
+/* ---------------------------------------------------------------------------------------------
+   The Market's letter shelf (decisions.md #28; components/game/market/LettersBoard.tsx).
+   The 26 letters stand on a plank, and a paper price tag hangs under each one that is for sale:
+   the lowest price, and how many. 52 kinds of letter hold any number of listings, so the shelf is
+   the same size whether three letters are for sale or three thousand.
+   - .mk-slot: one letter's place (a button). Its plank segment meets its neighbors', so each row
+     reads as one shelf.
+   - .mk-tag: the tag, on its string (::before), with its punched hole (::after). Alternate tags
+     hang a degree or two off level; the open letter's tag is ink ("you are here" is ink).
+   Still: nothing here moves by itself. A hover lifts the tag where a mouse hovers.
+   --------------------------------------------------------------------------------------------- */
+.mk-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+  min-width: 0;
+}
+.mk-plank {
+  display: block;
+  /* A pixel over its slot, so no seam shows between neighbors at a fractional pixel ratio. */
+  width: calc(100% + 1px);
+  height: 9px;
+  margin-top: 1px;
+  background: theme(colors.tile);
+  border-top: 3px solid theme(colors.ink);
+  border-bottom: 3px solid theme(colors.ink);
+}
+.mk-tag {
+  position: relative;
+  margin-top: 9px;
+  min-width: 2.6rem;
+  max-width: 100%;
+  padding: 9px 3px 3px;
+  border: 2px solid theme(colors.ink);
+  border-radius: 6px;
+  background: theme(colors.card);
+  box-shadow: 2px 2px 0 theme(colors.ink);
+  text-align: center;
+  line-height: 1.05;
+  transition: transform 160ms var(--ease-out), background-color 150ms ease;
+}
+.mk-tag::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -11px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  background: theme(colors.ink);
+}
+.mk-tag::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border: 1.5px solid theme(colors.ink);
+  border-radius: 50%;
+  background: theme(colors.paper.DEFAULT);
+}
+.mk-slot:nth-child(3n + 1) .mk-tag { rotate: -2deg; }
+.mk-slot:nth-child(3n) .mk-tag { rotate: 1.5deg; }
+.mk-slot[aria-pressed="true"] .mk-tag {
+  background: theme(colors.ink);
+  color: theme(colors.paper.DEFAULT);
+  rotate: 0deg;
+}
+.mk-slot:focus-visible {
+  outline: 3px solid theme(colors.candy.DEFAULT);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .mk-slot:hover .mk-tag { transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-tag { transition: none; }
+}

@@ -389,8 +389,8 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
               </div>
             }
           >
-            Your letters and words live in your wallet, not on our server. Sell a word on the Market, swap a letter for
-            the one you’re missing, or keep the whole set.
+            Your letters and words live in your wallet, not on our server. Sell a word on the Market, buy the one
+            letter you’re missing, or keep the whole set.
           </Feature>
           <Feature
             id="care"

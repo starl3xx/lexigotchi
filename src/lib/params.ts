@@ -158,6 +158,12 @@ export interface Params {
      */
     wordSaleFee: number;
     /**
+     * The fee on letters sold on the Market, as a fraction of what the buyer pays for each letter
+     * (decisions.md #28: the same 10% as a word, to the Rewards Pool). Its own number, so the two
+     * can be tuned apart.
+     */
+    letterSaleFee: number;
+    /**
      * Macro abstraction for Phase 0: daily secondary GMV modeled as this fraction of the
      * day's PRIMARY fee GMV (mints+rolls+claims). Royalty on it routes per `splits.royalty`
      * (now the Rewards Pool). This exercises the royalty faucet without a (fragile) per-letter
@@ -360,6 +366,7 @@ export const DEFAULT_PARAMS: Params = {
   market: {
     royaltyRate: 0.025,
     wordSaleFee: 0.1,
+    letterSaleFee: 0.1,
     // Open composability (decision, June 2026) ⇒ external-marketplace royalties are optional and
     // largely uncollected, so external secondary royalty is modeled as 0. The in-house swap fee
     // (the `trading` lever) is the only ENFORCED royalty → splits.royalty. Any external royalty that

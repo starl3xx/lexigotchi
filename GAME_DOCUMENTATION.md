@@ -231,7 +231,7 @@ A staked word's care state is a function of days since last fed:
 
 ---
 
-## 12. Cards, Sharing, Swap, Dissolution
+## 12. Cards, Sharing, the Market, Dissolution
 
 - **Word cards:** every owned word is a card (`src/components/cards/`): the word standing in its
   scene on the front, and a back in its rarity's material, turned over by the button in the top
@@ -255,10 +255,12 @@ A staked word's care state is a function of days since last fed:
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
   keyed by the wallet holding the word; decisions.md #15).
-- **Swap:** a direct letter-for-letter trade (a Seaport order, `src/lib/onchain/seaport.ts`),
-  shareable as a Farcaster/X cast. It solves exact-match discovery and doubles as a gifting loop, and
-  it carries **no fee**. **Words sell** on the in-game board for $WORD with a **10% fee to the Rewards
-  Pool** (`SaleFees` → the `ROYALTY` split, decisions.md #18); OpenSea stays open. The sell form and
+- **The Market** (decisions.md #18, #28): words and letters sell for $WORD through Seaport orders
+  (`src/lib/onchain/wordSale.ts`, `letterSale.ts`), each with a **10% fee to the Rewards Pool**
+  (`SaleFees` → the `ROYALTY` split); OpenSea stays open. A letter listing holds several of one letter
+  at a price each, and a buyer takes any number of them. The old one-for-one letter swap is retired.
+  Recent sales are read from the chain (`src/lib/market/sales.ts`). The Market suggests prices and
+  picks listings for each player (`src/lib/market/deals.ts`). The sell form and
   each listing show the word's **cost to make** (`src/lib/wordCost.ts`: letters at
   `pack ÷ 5 ÷ (26 × odds)`, the expected rolls for each UPPERCASE letter, the claim, and the expected
   attempts at each ascension stage reached, at the live prices), what it would earn a day staked from

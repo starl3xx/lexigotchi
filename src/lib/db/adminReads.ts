@@ -8,7 +8,7 @@
  */
 import { count, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "./client";
-import { profiles, swapOrders, users, webPushSubscriptions } from "./schema";
+import { letterListings, profiles, swapOrders, users, webPushSubscriptions, wordListings } from "./schema";
 import { isMissingTable } from "./profiles";
 import type { ProfileFlags } from "@/lib/admin/playerRows";
 
@@ -51,10 +51,26 @@ export function pushBrowserCounts(): Promise<Read<Map<string, number>>> {
   });
 }
 
+/**
+ * Market listings made, per wallet: words and letters for sale (decisions.md #18, #28), plus any old
+ * letter swap still on file. Rows, not what can fill now: the boards' routes are the judge of that.
+ * A table that isn't there yet (letters, before migration 0017) counts as none.
+ */
 export function listingCounts(): Promise<Read<Map<string, number>>> {
   return read(new Map(), async () => {
-    const rows = await getDb().select({ maker: swapOrders.maker, n: count() }).from(swapOrders).groupBy(swapOrders.maker);
-    return new Map(rows.map((r) => [r.maker.toLowerCase(), Number(r.n)]));
+    const db = getDb();
+    const none = (err: unknown) => {
+      if (isMissingTable(err)) return [] as { maker: string; n: number }[];
+      throw err;
+    };
+    const [swaps, words, letters] = await Promise.all([
+      db.select({ maker: swapOrders.maker, n: count() }).from(swapOrders).groupBy(swapOrders.maker).catch(none),
+      db.select({ maker: wordListings.maker, n: count() }).from(wordListings).groupBy(wordListings.maker).catch(none),
+      db.select({ maker: letterListings.maker, n: count() }).from(letterListings).groupBy(letterListings.maker).catch(none),
+    ]);
+    const out = new Map<string, number>();
+    for (const r of [...swaps, ...words, ...letters]) out.set(r.maker.toLowerCase(), (out.get(r.maker.toLowerCase()) ?? 0) + Number(r.n));
+    return out;
   });
 }
 

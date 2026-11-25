@@ -8,7 +8,7 @@ const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = 
   { Icon: Sparkle, label: "Mint letters", sub: "packs & daily", to: "mint" },
   { Icon: TextAa, label: "Spell a word", sub: "claim it forever", to: "claim" },
   { Icon: BookOpen, label: "Dictionary", sub: `${WORD_COUNT.toLocaleString("en-US")} words`, to: "dictionary" },
-  { Icon: Storefront, label: "Market", sub: "buy, sell & swap", to: "swap" },
+  { Icon: Storefront, label: "Market", sub: "words & letters", to: "swap" },
   { Icon: Backpack, label: "My bag", sub: "words & letters", to: "bag" },
   { Icon: Ranking, label: "Leaderboard", sub: "top players", to: "leaderboard" },
 ];

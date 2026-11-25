@@ -17,6 +17,7 @@ import { erc20Abi, jackpotAbi, lettersAbi, rollsAbi, saleFeesAbi, shopAbi, words
 import { shopAddress } from "@/lib/onchain/addresses";
 import { MIN_SWEEP_USDC, holderProfiles, sweepMinWordOut } from "@/lib/keeper/shop";
 import { catchUp as catchUpWardrobe } from "@/lib/shop/indexer";
+import { catchUpSales } from "@/lib/market/sales";
 import { clearPicksOffLeftWords } from "@/lib/db/wordPicks";
 import { readGameParams } from "@/lib/onchain/reads";
 import { fetchWordPrice } from "@/lib/oracle/wordPrice";
@@ -828,7 +829,20 @@ export function createKeeper(opts: { dry: boolean }) {
     }
   }
 
-  /** The `fees` job: the word-sale fees, then the Shop. A failed flush never skips the Shop's upkeep. */
+  /**
+   * The Market's recent sales (decisions.md #28): read any sale the table hasn't seen. The Market's
+   * own route does the same on a visit; this covers a day nobody opened it. Reads only.
+   */
+  async function marketSales() {
+    try {
+      const got = await catchUpSales();
+      console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed on this network; skipped");
+    } catch (err) {
+      console.error("market: reading sales failed:", String((err as Error)?.message ?? err).slice(0, 200));
+    }
+  }
+
+  /** The `fees` job: the sale fees, then the Shop, then the Market's sales. A failed step never skips the next. */
   async function feesJob() {
     try {
       await flushSaleFees();
@@ -836,6 +850,7 @@ export function createKeeper(opts: { dry: boolean }) {
       console.error("fees: flush failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }
     await shopUpkeep();
+    if (!DRY) await marketSales();
   }
 
   return {

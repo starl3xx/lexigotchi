@@ -47,7 +47,7 @@ const FUNNEL_STEPS: { key: keyof Funnel; label: string; note?: string; testnetOn
   { key: "linkedX", label: "Linked X" },
   { key: "email", label: "Confirmed an email" },
   { key: "reminders", label: "Turned on reminders", note: "email or browser push" },
-  { key: "listings", label: "Listed a letter swap" },
+  { key: "listings", label: "Listed on the Market" },
 ];
 
 export function PlayersTab() {
