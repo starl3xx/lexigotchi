@@ -1,6 +1,6 @@
 /** The Bag's filters and sorts (src/components/game/bagView.ts). */
 import { describe, it, expect } from "vitest";
-import { matchesWord, sortLetters, sortWords, validChoice, wordFilterCounts, WORD_FILTERS } from "@/components/game/bagView";
+import { matchesWord, sortLetters, sortWords, validChoice, wordFilterCounts, WORD_FILTERS, WORD_SORTS } from "@/components/game/bagView";
 import type { Hunger, OwnedWord } from "@/components/game/state";
 
 const word = (w: string, o: Partial<OwnedWord> = {}): OwnedWord => ({
@@ -40,9 +40,21 @@ describe("sorts", () => {
     expect(names(sortWords(bag, "hungriest", hungerOf)).slice(0, 3)).toEqual(["GRAVY", "NOVEL", "DOUGH"]);
   });
 
-  it("rarest first, then A to Z", () => {
-    expect(names(sortWords(bag, "rarest", hungerOf)).slice(0, 2)).toEqual(["DOUGH", "GRAVY"]);
+  it("best first: rarity, then case, then ascension (a lowercase Mythic above a raised Legendary)", () => {
+    const mix = [
+      word("RUGBY", { tier: "Legendary", upper: UP }),
+      word("DOUGH", { tier: "Rare", upper: UP, prestigeLevel: 1 }),
+      word("BUGGY", { tier: "Mythic" }),
+      word("GRAVY", { tier: "Rare", upper: UP }),
+      word("HONED", { tier: "Uncommon" }),
+      word("FRESH", { tier: "Uncommon", upper: [true, false, false, false, false] }),
+    ];
+    expect(names(sortWords(mix, "best", hungerOf))).toEqual(["BUGGY", "RUGBY", "DOUGH", "GRAVY", "FRESH", "HONED"]);
+  });
+
+  it("A to Z, and no separate rarest sort any more (best leads with rarity)", () => {
     expect(names(sortWords(bag, "az", hungerOf))).toEqual(["DOUGH", "FRESH", "GRAVY", "NOVEL", "STORE"]);
+    expect(validChoice("rarest", WORD_SORTS, "best")).toBe("best"); // a stored "rarest" falls back
   });
 
   it("letters A to Z, or most held first", () => {
