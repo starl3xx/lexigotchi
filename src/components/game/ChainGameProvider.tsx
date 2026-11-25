@@ -35,8 +35,12 @@ import {
   type ActionOutcome,
   type PriceItem,
   MOCK_PRICE,
+  canSpellAs,
+  caseMask,
   chainPrice,
   jackpotEligible,
+  mineLower,
+  mineUpper,
   GameCtx,
   reducer,
   seedState,
@@ -1058,9 +1062,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           return { status: "resolved", success: draw.reveal.success };
         }), NOT_STARTED),
 
-      claim: (word: string, useUpper: boolean) => {
+      claim: (word: string, cases: boolean[]) => {
         void track(`Claiming ${word}`, async (run) => {
           if (!chain.params || !chain.player) return void toast("Still loading", "info");
+          // Words.claim takes the letters from THIS wallet, each in the case named: a case this
+          // wallet doesn't hold reverts onchain, so say it here instead of sending.
+          if (!canSpellAs(word, cases, mineLower(state), mineUpper(state))) return void toast(`Can’t claim ${word} with these letters`, "bad");
           const proof = await fetch(`/api/dictionary/proof?word=${encodeURIComponent(word)}`).then((r) => r.json());
           if (!proof.ok) {
             // The word list was updated and the contract hasn't caught up (setDictionaryRoot).
@@ -1073,7 +1080,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const landed = await sendAndSettle(
             run,
             `Claim ${word}`,
-            () => claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
+            () => claimCalls(proof.word, proof.proof, caseMask(cases), chain.params!, chain.player!),
             (ws) => ws.some((x) => x.word === W),
             {
               done: () => `${W} is yours. It’s in your Bag.`,

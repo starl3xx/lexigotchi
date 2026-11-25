@@ -20,13 +20,13 @@ export function useTakenWords(): Set<string> {
   return useMemo(() => new Set([...state.words.map((w) => w.word), ...Object.keys(owners ?? {})]), [state.words, owners]);
 }
 
-/** Do the connected wallet's loose letters spell a word nobody owns yet (in either case)? */
+/** Do the connected wallet's loose letters spell a word nobody owns yet (in any mix of cases)? */
 export function useCanSpell(): boolean {
   const { state } = useGame();
   const taken = useTakenWords();
   const upper = mineUpper(state);
   const lower = mineLower(state);
-  return useMemo(() => spellableNow(upper, taken, 1).length > 0 || spellableNow(lower, taken, 1).length > 0, [upper, lower, taken]);
+  return useMemo(() => spellableNow(lower, upper, taken, 1).length > 0, [upper, lower, taken]);
 }
 
 /** What the empty Today stage says to this player (stagePick.ts, emptyStageCase). */

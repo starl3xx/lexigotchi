@@ -350,7 +350,7 @@ type Action =
   | { t: "pack"; idxs: number[] }
   | { t: "rollLoose"; idx: number; success: boolean }
   | { t: "rollWord"; word: string; pos: number; success: boolean }
-  | { t: "claim"; word: string; useUpper: boolean }
+  | { t: "claim"; word: string; cases: boolean[] }
   | { t: "stake"; word: string }
   | { t: "feed"; word: string }
   | { t: "feedAll" }
@@ -439,18 +439,20 @@ export function reducer(s: GameState, a: Action): GameState {
       if (
         !WORD_SET.has(info) ||
         s.words.some((w) => w.word === info) ||
-        !canSpell(info, a.useUpper ? s.upper : s.lower) ||
+        !canSpellAs(info, a.cases, s.lower, s.upper) ||
         s.balance < COST.claim
       ) {
         return s;
       }
       const tier = wordTier(info);
-      const src = a.useUpper ? s.upper.slice() : s.lower.slice();
-      for (const ch of info) src[charToIdx(ch)]--;
+      // Each letter leaves the bag in the case it was claimed in (any mix, decisions.md #16).
+      const lower = s.lower.slice();
+      const upper = s.upper.slice();
+      [...info].forEach((ch, k) => (a.cases[k] ? upper : lower)[charToIdx(ch)]--);
       const word: OwnedWord = {
         word: info,
         tier,
-        upper: [a.useUpper, a.useUpper, a.useUpper, a.useUpper, a.useUpper],
+        upper: [...a.cases],
         staked: true, // auto-stake on claim (UX nicety)
         daysUnfed: 0,
         prestigeLevel: 0,
@@ -459,7 +461,8 @@ export function reducer(s: GameState, a: Action): GameState {
       };
       return {
         ...s,
-        [a.useUpper ? "upper" : "lower"]: src,
+        lower,
+        upper,
         words: [word, ...s.words],
         wordsEverHeld: Math.max(s.wordsEverHeld || 0, s.words.length) + 1,
         balance: spend(s, COST.claim),
@@ -638,7 +641,12 @@ export interface GameApi {
    */
   rollLoose: (idx: number) => boolean | null | Promise<ActionOutcome>;
   rollWord: (word: string, pos: number) => boolean | null | Promise<ActionOutcome>;
-  claim: (word: string, useUpper: boolean) => void;
+  /**
+   * Claim `word` with each letter in the case `cases` names (true = UPPERCASE; any mix,
+   * decisions.md #16). A quick claim passes `claimCase(word, mineUpper(state))`; the Spell rack
+   * passes the tiles the player picked.
+   */
+  claim: (word: string, cases: boolean[]) => void;
   toggleStake: (word: string) => void;
   feed: (word: string) => void;
   feedAll: () => void;
@@ -771,9 +779,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "rollWord", word, pos, success });
         return success;
       },
-      claim: (word, useUpper) => {
-        const inv = useUpper ? state.upper : state.lower;
-        if (!WORD_SET.has(word) || state.words.some((w) => w.word === word) || !canSpell(word, inv)) {
+      claim: (word, cases) => {
+        if (!WORD_SET.has(word) || state.words.some((w) => w.word === word) || !canSpellAs(word, cases, state.lower, state.upper)) {
           toast("Can’t claim that word", "bad");
           return;
         }
@@ -781,7 +788,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           needWord(COST.claim, "this claim"); // spellable but broke — a buy moment, not a dead end
           return;
         }
-        dispatch({ t: "claim", word, useUpper });
+        dispatch({ t: "claim", word, cases });
         dispatch({ t: "sheet", sheet: { kind: "celebrate", word } });
       },
       toggleStake: (word) => dispatch({ t: "stake", word }),
@@ -882,22 +889,58 @@ export function useGame(): GameApi {
   return ctx;
 }
 
-/** Convenience: is this word spellable from a single-case inventory? */
-export function canSpell(word: string, inv: number[]): boolean {
-  const need: Record<number, number> = {};
+/**
+ * Can this word be spelled from these loose letters, in any mix of cases? A claim names each
+ * letter's case (Words.claim's upperMask; decisions.md #16), so a lowercase and an UPPERCASE copy
+ * of a letter both count.
+ */
+export function canSpell(word: string, lower: readonly number[], upper: readonly number[]): boolean {
+  const need = new Map<number, number>();
   for (const ch of word) {
     const i = charToIdx(ch);
-    need[i] = (need[i] ?? 0) + 1;
+    need.set(i, (need.get(i) ?? 0) + 1);
   }
-  return Object.entries(need).every(([i, c]) => inv[Number(i)] >= c);
+  for (const [i, c] of need) if (lower[i] + upper[i] < c) return false;
+  return true;
 }
 
-/** Up to `limit` unclaimed dictionary words spellable from a single-case inventory. */
-export function spellableNow(inv: number[], owned: Set<string>, limit = 12): string[] {
+/** Can the word be claimed with exactly these cases (true = UPPERCASE), letter by letter? */
+export function canSpellAs(word: string, cases: readonly boolean[], lower: readonly number[], upper: readonly number[]): boolean {
+  if (cases.length !== word.length) return false;
+  const left = { lower: lower.slice(), upper: upper.slice() };
+  for (let k = 0; k < word.length; k++) {
+    const inv = cases[k] ? left.upper : left.lower;
+    const i = charToIdx(word[k]);
+    if (inv[i] <= 0) return false;
+    inv[i]--;
+  }
+  return true;
+}
+
+/**
+ * The case each letter of a quick claim uses: UPPERCASE wherever the player has one to spare,
+ * lowercase otherwise (starl3xx, 2026-11-24: "UPPERCASE first"; decisions.md #16). The word starts
+ * as close to all-UPPERCASE as the bag allows. The sim claims the same way.
+ */
+export function claimCase(word: string, upper: readonly number[]): boolean[] {
+  const left = upper.slice();
+  return [...word].map((ch) => {
+    const i = charToIdx(ch);
+    if (left[i] <= 0) return false;
+    left[i]--;
+    return true;
+  });
+}
+
+/** Words.claim's upperMask: bit k set ⇒ the letter at position k is UPPERCASE. */
+export const caseMask = (cases: readonly boolean[]): number => cases.reduce((m, up, k) => (up ? m | (1 << k) : m), 0);
+
+/** Up to `limit` unclaimed dictionary words these loose letters spell, in any mix of cases. */
+export function spellableNow(lower: readonly number[], upper: readonly number[], owned: ReadonlySet<string>, limit = 12): string[] {
   const out: string[] = [];
   for (const w of WORDS) {
     if (owned.has(w)) continue;
-    if (canSpell(w, inv)) {
+    if (canSpell(w, lower, upper)) {
       out.push(w);
       if (out.length >= limit) break;
     }
