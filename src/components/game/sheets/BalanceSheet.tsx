@@ -27,6 +27,7 @@ import { resolveIdentity, useProfile } from "../useProfile";
 import { NETWORK } from "@/lib/onchain/network";
 import { BASE_SEPOLIA_FAUCETS_URL } from "@/lib/site";
 import { useOpenUrl } from "../useShare";
+import { EarningsLine } from "../EarningsLine";
 
 // "Buy $WORD" (pinned to Base mainnet, Farcaster's swap or Matcha) lives in useBuyWord.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -105,6 +106,10 @@ export function BalanceSheet() {
           <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
         )}
       </Card>
+      {/* what the player's words have paid into it (decisions.md #16); opens Your earnings */}
+      <div className="cel-sm mt-2 rounded-xl bg-card px-2 py-2 empty:hidden">
+        <EarningsLine />
+      </div>
 
       {testnet ? (
         <>

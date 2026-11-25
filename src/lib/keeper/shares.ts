@@ -49,7 +49,8 @@ export interface RewardLeaf {
 /** Weight scale: floats → integer millionths, exact under bigint division. */
 const SCALE = 1_000_000n;
 
-function hungerFactor(daysUnfed: number, p: Params): number {
+/** A word's share of the day: fed 1, peckish `peckishYieldFactor`, hungry 0. */
+export function hungerFactor(daysUnfed: number, p: Params): number {
   if (daysUnfed >= p.care.hungryAfterDays) return 0;
   if (daysUnfed >= p.care.peckishAfterDays) return p.care.peckishYieldFactor;
   return 1;

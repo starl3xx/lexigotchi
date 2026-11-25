@@ -96,6 +96,8 @@ import {
   type RewardClaim,
 } from "@/lib/onchain/actions";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
+import type { EarningsJson } from "@/lib/rewards/earnings";
+import { earningsFromJson } from "./earnings";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK, networkById } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
@@ -381,19 +383,41 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     refetchInterval: 60_000,
   });
 
-  // Unclaimed reward leaves for the whole bag, from the keeper's published epochs.
+  // What the bag's words have earned (lib/rewards/earnings.ts). The keeper pays every morning at
+  // 00:05 UTC (decisions.md #16), so a few minutes' staleness is fine; a refocus reads it again.
+  const earningsQ = useQuery({
+    queryKey: ["earnings", NETWORK.id, bagKey],
+    queryFn: async (): Promise<EarningsJson | null> => {
+      const res = await fetch(`/api/rewards/earnings?wallets=${bagWallets.join(",")}`);
+      const data = await res.json().catch(() => null);
+      // A failed read is "unknown" (null), never "earned nothing".
+      return data?.ok ? (data.earnings as EarningsJson) : null;
+    },
+    enabled: !!address && chain.deployed,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  });
+
+  // Shares not paid out yet for the whole bag, from the keeper's published epochs. Polled like the
+  // earnings, so a screen left open across the 00:05 UTC payout stops offering what it just paid
+  // (Bugbot on #177); Collect also reads it fresh before sending.
   const claimablesQ = useQuery({
     queryKey: ["claimables", NETWORK.id, bagKey],
     queryFn: async () => {
       const res = await fetch(`/api/rewards/claimable?wallets=${bagWallets.join(",")}`);
-      const data = await res.json();
-      return data?.ok ? (data.claimables as {
+      const data = await res.json().catch(() => null);
+      // A failed read throws, so it's an error (the last good list stays), never "nothing waiting":
+      // Collect would otherwise say everything was paid (Bugbot on #177).
+      if (!data?.ok) throw new Error(data?.error ?? `claimable ${res.status}`);
+      return data.claimables as {
         stream: "yield" | "bounty"; epochId: string; tokenId: string;
         account: `0x${string}`; amount: string; proof: `0x${string}`[];
-      }[]) : [];
+      }[];
     },
     enabled: !!address && chain.deployed,
     staleTime: 30_000,
+    refetchInterval: 5 * 60_000,
+    retry: 1, // Collect waits on a refetch; don't make it sit through three retries
   });
 
   // The letter-swap board (Seaport bulletin). Rows are pre-filtered by the API against
@@ -1327,24 +1351,43 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
 
+      earnings: earningsQ.data
+        ? earningsFromJson(earningsQ.data, (id) => state.words.find((w) => tokenIdOf(w.word).toString() === id)?.word)
+        : null,
       claimables: (claimablesQ.data ?? []).map((c) => ({
         stream: c.stream,
         tokenId: c.tokenId,
         amount: Number(BigInt(c.amount) / 10n ** 12n) / 1e6, // wei → whole $WORD for display
       })),
       claimEarnings: () => {
-        const raw = claimablesQ.data ?? [];
-        if (raw.length === 0) return;
-        const claims: RewardClaim[] = raw.map((c) => ({
-          stream: c.stream,
-          epochId: BigInt(c.epochId),
-          tokenId: BigInt(c.tokenId),
-          account: c.account,
-          amount: BigInt(c.amount),
-          proof: c.proof,
-        }));
-        void track("Claiming your rewards", async (run) => {
-          if (await run("Claim", () => claimRewardCalls(claims))) void claimablesQ.refetch();
+        if ((claimablesQ.data ?? []).length === 0) return;
+        // "Collect", never "Claim": claiming is what spelling a word does.
+        void track("Collecting your earnings", async (run) => {
+          // Read the list fresh before sending: the keeper may have paid some of it since the screen
+          // last looked, and a claim of a paid share reverts the whole send (Bugbot on #177).
+          const fresh = await claimablesQ.refetch();
+          if (fresh.isError) {
+            toast("Couldn’t check what’s waiting. Try again in a moment.", "bad");
+            return;
+          }
+          const raw = fresh.data ?? [];
+          if (raw.length === 0) {
+            void earningsQ.refetch();
+            toast("Already paid out: nothing left to collect", "good");
+            return;
+          }
+          const claims: RewardClaim[] = raw.map((c) => ({
+            stream: c.stream,
+            epochId: BigInt(c.epochId),
+            tokenId: BigInt(c.tokenId),
+            account: c.account,
+            amount: BigInt(c.amount),
+            proof: c.proof,
+          }));
+          if (await run("Collect", () => claimRewardCalls(claims))) {
+            void claimablesQ.refetch();
+            void earningsQ.refetch();
+          }
         }, undefined);
       },
 
@@ -1449,7 +1492,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

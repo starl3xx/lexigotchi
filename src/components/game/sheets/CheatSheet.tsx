@@ -74,7 +74,9 @@ export function CheatSheet() {
             word is drawn. If you hold it, staked and fed, you win the pot.
           </li>
           <li>
-            <strong>Only all-UPPERCASE words earn $WORD</strong> every day, while they’re staked and fed.
+            <strong>Only all-UPPERCASE words earn $WORD</strong> every day, while they’re staked and fed. It’s
+            paid each day, straight to the wallet that holds the word: nothing to claim. Tap the line under your words on Today
+            to see what each one has earned.
           </li>
           <li>
             <strong>Feed each staked word once a day.</strong> One snack a day is free; after that, a snack

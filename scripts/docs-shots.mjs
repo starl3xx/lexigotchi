@@ -2,7 +2,7 @@
  * Screenshots of the real game for the player docs (docs-site/images/screen-*.jpg).
  *
  *   NEXT_PUBLIC_CHAIN_ID= npm run dev          # practice (mock) mode: seeded bag, no wallet
- *   npm run docs:shots [-- http://localhost:3000/play] [today bag showcase bounty word profile]
+ *   npm run docs:shots [-- http://localhost:3000/play] [today bag showcase bounty word earnings profile]
  *
  * Names after the URL remake only those shots; with none, it remakes them all. Always practice
  * mode, so no real address or balance is ever pictured. The Next dev badge and the practice-only
@@ -67,6 +67,23 @@ for (const [name, file] of [["Today", "today"], ["Bag", "bag"], ["Showcase", "sh
   }
   console.log(`wrote docs-site/images/screen-${file}.jpg`);
 }
+// Your earnings: feed the hungry VIVID, let a practice day pass so it earns, and open the sheet from
+// the line under the stage. Last of the practice shots, because it changes the practice game.
+if (want("earnings")) {
+  await page.locator("nav").getByRole("button", { name: "Today", exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: /Feed VIVID/ }).first().click();
+  await page.waitForTimeout(800);
+  // The skip button is hidden from the pictures above, so press it without showing it.
+  await page.locator('[aria-label="Skip a day"]').first().dispatchEvent("click");
+  // The new day's toasts hold for up to 6 s (primitives.tsx toastMs); let them go before the picture.
+  await page.waitForTimeout(6500);
+  await page.getByRole("button", { name: /Your words earned/ }).first().click();
+  await page.waitForTimeout(1200);
+  await shot("earnings");
+  console.log("wrote docs-site/images/screen-earnings.jpg");
+}
+
 // Your profile, with a wallet connected and nothing linked: the state a new player sees.
 if (want("profile")) {
   const config = await fetch(new URL("/api/profile/config", url)).then((r) => r.json()).catch(() => null);

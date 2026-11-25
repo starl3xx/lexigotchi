@@ -74,7 +74,7 @@ export interface SystemPayload {
 const KEY_JOBS: Record<ServerKeyRole, { job: string; sends: boolean }> = {
   signer: { job: "Signs letter draws, roll and prestige outcomes, and daily vouchers. Sends nothing.", sends: false },
   relayer: { job: "Finishes every roll on the server (Rolls.reveal), so the wallet never previews the result.", sends: true },
-  keeper: { job: "The daily cron: resolves the jackpot, opens yield and bounty epochs.", sends: true },
+  keeper: { job: "The daily cron: resolves the jackpot, opens yield and bounty epochs, and pays every share out.", sends: true },
   priceKeeper: { job: "Moves the onchain prices toward their USD targets (repeg).", sends: true },
 };
 

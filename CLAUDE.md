@@ -20,10 +20,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `npm test` — economy + solvency invariants (84 vitest tests)
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (65 forge tests)
-- `npm run keeper -- [--resolve] [--yield] [--bounty] [--achievements] [--notify] [--dry]` — the
+- `npm run keeper -- [--resolve] [--yield] [--bounty] [--payout] [--achievements] [--notify] [--dry]` — the
   daily operator pass, by hand. **Scheduled** by `/api/cron/keeper` (vercel.json, 00:05 UTC): same
   jobs (`src/lib/keeper/jobs.ts`, `createKeeper({ dry })`), the ones listed in `KEEPER_JOBS` (default
-  `resolve,yield,bounty,repeg,notify`; achievements opt-in; the bounty settles each week on the first
+  `resolve,yield,bounty,payout,repeg,notify`; a KEEPER_JOBS that lists jobs must name `payout` too;
+  achievements opt-in; the bounty settles each week on the first
   day of the next, `bountyPeriodToSettle`), strictly one at a time (one key, one
   nonce), and a failed job doesn't skip the rest. It needs `KEEPER_PRIVATE_KEY` and
   `ANSWER_CHAIN_SEED`/`ANSWER_CHAIN_DAYS` in Vercel; without a deployment or a key it does nothing.
@@ -41,6 +42,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   never deleted: a rerun's rebuilt tree is stored BESIDE the first (the root is in the key), because
   an openEpoch sent but unconfirmed may still land. The rows can't be rebuilt later (the scan reads
   the latest state), so back them up like operational data.
+  **`payout`** pays every opened, unpaid share itself (decisions.md #16; `src/lib/keeper/payout.ts`):
+  `claim` is permissionless and pays the leaf's account, so the keeper batches claims through
+  Multicall3 (150 a transaction, per-call failure allowed, 90 s budget; the rest wait a run). Players
+  never collect; earnings are SHOWN instead (`/api/rewards/earnings`, `src/lib/rewards/`, the
+  Earnings sheet, `components/game/earnings.ts`). "Collect" (never "Claim") is the fallback for a
+  share the keeper missed. Test it on an Anvil fork with a throwaway database, never on the real
+  chain: run `scripts/keeper.ts` with `tsx` directly and explicit env, so `.env.local` stays out.
 - `npm run answerchain:generate` — the pre-committed jackpot answer schedule + `ANSWERCHAIN_HEAD`.
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
   **Mainnet uses `--new-seed`**: the whole schedule re-derives from one 64-hex secret

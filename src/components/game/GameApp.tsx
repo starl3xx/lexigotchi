@@ -49,6 +49,8 @@ import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writeP
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { SceneSheet } from "./sheets/SceneSheet";
+import { EarningsSheet } from "./sheets/EarningsSheet";
+import { useEarningsNote } from "./useEarningsNote";
 import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
@@ -78,6 +80,7 @@ export function GameApp() {
   return (
     <Provider>
       <SceneSync />
+      <EarningsNote />
       <OnboardingHost />
     </Provider>
   );
@@ -319,6 +322,11 @@ function SheetHost() {
 }
 
 /** Uploads scene picks made before sign-in once a profile session exists (scenes/useWordScene). */
+function EarningsNote() {
+  useEarningsNote();
+  return null;
+}
+
 function SceneSync() {
   useSceneSync();
   return null;
@@ -335,6 +343,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} />;
+  if (state.sheet?.kind === "earnings") return <EarningsSheet />;
   return null;
 }
 
@@ -402,7 +411,7 @@ function TopBar() {
         {!state.chainBacked && (
         <button
           onClick={skipDay}
-          title="Skip a day (prototype): advances hunger and draws a new daily word"
+          title="Skip a day (practice): pays your earning words, advances hunger, and draws a new daily word"
           className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
           aria-label="Skip a day"
         >

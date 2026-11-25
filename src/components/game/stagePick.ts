@@ -104,8 +104,11 @@ export function emptyStageCase(i: { loading: boolean; error?: boolean; words: nu
   return i.letters > 0 ? "more" : "start";
 }
 
-/** The star's one line, in its own voice. What it needs, and what that costs it today. */
-export function stageLine(pick: Pick<StagePick, "word" | "mood">): string {
+/**
+ * The star's one line, in its own voice. What it needs, and what that costs it today. `earned`: what
+ * it earned at the latest payout, already formatted ("40.2K", "today"), when it earned something.
+ */
+export function stageLine(pick: Pick<StagePick, "word" | "mood">, earned?: { amount: string; when: string }): string {
   const W = pick.word.word;
   const full5 = raised(pick.word) === pick.word.upper.length;
   switch (pick.mood) {
@@ -114,6 +117,7 @@ export function stageLine(pick: Pick<StagePick, "word" | "mood">): string {
     case "peckish":
       return full5 ? `${W} is peckish. It earns half until you feed it.` : `${W} is peckish. Feed it before it goes hungry.`;
     case "full":
+      if (full5 && earned) return `${W} is full, in the jackpot, and earned ${earned.amount} $WORD ${earned.when}.`;
       return full5 ? `${W} is full, in the jackpot, and earning $WORD.` : `${W} is full and in the daily jackpot.`;
     case "unstaked":
       return `${W} is waiting. Stake it to enter the jackpot.`;

@@ -133,6 +133,15 @@ the apex crown — the only word combining two distinct ultra-rares with a doubl
   peckish words at half.
 - **Yield is a self-scaling fraction of the pool** — `pool × dailyDistributionRate` with
   `dailyDistributionRate = 1%`. It finds an equilibrium `pool* ≈ dailyInflow / rate` and never drains.
+- **Paid automatically** (decisions.md #16). Each day at 00:05 UTC the keeper opens the day's
+  yield epoch (one Merkle share per earning word), then its `payout` job sends every unpaid share's
+  `claim` itself, batched through Multicall3. `claim` is permissionless and always pays the share's
+  baked-in account, so players never sign, pay gas, or race the 90-day claim window. A share the
+  keeper misses waits for the next run, and the player can collect it from the Earnings sheet.
+- **Shown everywhere a word is** (`/api/rewards/earnings`, `components/game/earnings.ts`): the
+  Earnings sheet (each word's total and latest payout, and what would make it earn more), a line
+  under the Today stage and the Bag's words, the featured word's bubble, the word sheet, the Bag
+  card's coin, the balance sheet, and a toast once per payout.
 - Separately, **any staked word of any case** (as long as it's not hungry) is a **jackpot ticket**.
 - Early on, with few UPPERCASE words, payouts are tiny and the pool grows; as upgrades accumulate,
   outflow rises and the pool settles. This is intended — no "top-ups."
@@ -304,8 +313,8 @@ trust model, and the deploy + pre-mainnet checklist.
 | `YieldDistributor` / `Bounty` | Per-epoch Merkle distributors funded from the pool / bounty buckets |
 
 **Trust seams (Phase 0, documented):** a backend `signer` decides roll/prestige outcomes (EGGS model)
-and authorizes the FID daily; a `keeper` reveals the daily word and posts the yield/bounty Merkle
-roots. Both are trusted for *fairness only* — never for solvency (every payout is bucket-capped) and
+and authorizes the FID daily; a `keeper` reveals the daily word, posts the yield/bounty Merkle
+roots, and pays every share out (its `payout` job; anyone may, since `claim` pays the leaf's account). Both are trusted for *fairness only* — never for solvency (every payout is bucket-capped) and
 never to harm an asset (failures are no-ops). A distinct `priceKeeper` hot key may auto-repeg prices
 within a clamped band (solvency-irrelevant, can't cross zero). The `owner` is a single hardware-wallet
 EOA — **no multisig**.

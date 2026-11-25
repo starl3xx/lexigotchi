@@ -115,13 +115,15 @@ export function jackpotRollover(amount: string, day = epochDay()): Notification 
 }
 
 // ── Earnings ──────────────────────────────────────────────────────────────────────────
-const CLAIM_TITLES = ["Your rewards are ready", "You have earnings to claim", "Time to collect"] as const;
+// RECEIPT. Earnings are paid automatically each morning (decisions.md #16), so this tells a player
+// what landed, never asks them to collect. One per payout day.
+const PAID_TITLES = ["Payday for your words", "Your words got paid", "Fresh $WORD from your words"] as const;
 
-export function claimReady(amount: string, day = epochDay()): Notification {
+export function earningsPaid(amount: string, day = epochDay()): Notification {
   return {
-    title: rotate(CLAIM_TITLES, day),
-    body: `${amount} in yield and bounties is sitting unclaimed. One tap moves it to your bag.`,
-    notificationId: `claim-${day}`,
+    title: rotate(PAID_TITLES, day),
+    body: `Your words earned ${amount} at today’s payout, paid straight to the wallets that hold them.`,
+    notificationId: `paid-${day}`,
   };
 }
 
@@ -161,7 +163,7 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   daily: DAILY_TITLES,
   won: WON_TITLES,
   rollover: ROLLOVER_TITLES,
-  claim: CLAIM_TITLES,
+  paid: PAID_TITLES,
   pity: PITY_TITLES,
   sold: SOLD_TITLES,
 };

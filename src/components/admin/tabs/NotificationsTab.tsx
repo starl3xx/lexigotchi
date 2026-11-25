@@ -19,7 +19,7 @@ import {
   dailyReady,
   jackpotWon,
   jackpotRollover,
-  claimReady,
+  earningsPaid,
   pityCapped,
   listingFilled,
   type Notification,
@@ -55,7 +55,7 @@ function gallery(day: number): { kind: "nudge" | "receipt"; when: string; note: 
     { kind: "nudge", when: "cron 13:00 UTC — hasn't pulled, played in the last 7 days", note: dailyReady(day) },
     { kind: "receipt", when: "keeper — on a winning resolve", note: jackpotWon("cabin", "1,250,000 $WORD", day) },
     { kind: "nudge", when: "not yet wired — pot crossed a threshold", note: jackpotRollover("4,800,000 $WORD", day) },
-    { kind: "nudge", when: "not yet wired — unclaimed epoch rewards", note: claimReady("42,000 $WORD", day) },
+    { kind: "receipt", when: "not yet wired — a payout paid the player’s words", note: earningsPaid("42,000 $WORD", day) },
     { kind: "nudge", when: "not yet wired — pity hit the 85% cap", note: pityCapped("q", day) },
     { kind: "receipt", when: "not yet wired — a Seaport listing filled", note: listingFilled("w", SAMPLE_HASH, day) },
   ];

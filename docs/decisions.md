@@ -241,6 +241,22 @@ showed; only the *decisions* changed.
     with no change here. A scene pick never asks to sign in: unsynced picks upload the next time a
     session exists, and the newer pick wins when the browser and the server disagree. No onchain
     ownership check on save: a row only changes what its own wallet's words show.
+16. **Earnings are paid automatically, and shown wherever a word is** (starl3xx, 2026-11-25, on a
+    tester's "If you have a 5/5 uppercase staked and earning $word is there a place to see how much
+    has been earned so far?": chose "Paid automatically"). Until now each day's yield share sat in a
+    Merkle epoch until the player found a Collect button and signed a claim, and nothing showed what
+    a word had earned. `MerkleEpochs.claim` is permissionless and always pays the leaf's baked-in
+    account, so the keeper's new `payout` job (after `yield` and `bounty`, in the default
+    KEEPER_JOBS) sends every unpaid share's claim itself, batched through Multicall3 with per-call
+    failure allowed, oldest epoch first, within 90 s of the cron's 300. No contract change. Cost to the
+    operator: about 57k gas per share (171,089 for three in one batch, measured on a Base Sepolia
+    fork), about $0.001 per earning word per day at 2026-11-25 Base prices. Players never sign, pay
+    gas, or watch the 90-day window close. Display: `/api/rewards/earnings` (each word's earnings
+    for the player's wallets, the latest payout day by chain time, anything unpaid), the Earnings
+    sheet, a line under the Today stage and the Bag's words, the featured word's bubble, the word
+    sheet, the Bag card's coin, the balance sheet, and a toast once per payout. The verb is
+    "Collect" (never "Claim", which is spelling a word), kept only as the fallback for a share the
+    keeper missed. Practice pays its words on Skip a day, as the keeper would.
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,
