@@ -47,7 +47,7 @@ export default function TileLab() {
         <p className="max-w-2xl text-ink/70">
           The vaudeville rubber-hose tile — a Scrabble letter come to life. Lowercase is the kid;
           UPPERCASE is the glow-up (it becomes the blue <em>Let&rsquo;s Have A Word!</em> game tile).
-          No mouth: all expression is eyes, brows, and the planted-feet bounce.
+          No mouth: all expression is eyes, lids, brows, and the lean.
         </p>
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold">
           <input type="checkbox" checked={boil} onChange={(e) => setBoil(e.target.checked)} />
@@ -86,7 +86,7 @@ export default function TileLab() {
         </div>
       </Section>
 
-      <Section title="Poses" hint="rest · hero (hand on hip, arm up) · link (holding hands in a word).">
+      <Section title="Poses" hint="rest · hero (hand on hip, arm up) · a word (holding hands, each letter with its own small lean).">
         <div className="flex flex-wrap items-end justify-center gap-12">
           <Cell label="rest">
             <TileCharacter char="b" size={140} pose="rest" boil={boil} />
@@ -94,7 +94,7 @@ export default function TileLab() {
           <Cell label="hero">
             <TileCharacter char="b" size={140} pose="hero" boil={boil} />
           </Cell>
-          <Cell label="link (×5)">
+          <Cell label="a word (×5)">
             <TileWord word="CRANE" upper={[true, true, true, true, true]} size={104} />
           </Cell>
         </div>
