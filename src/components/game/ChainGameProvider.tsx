@@ -470,7 +470,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    // careFor: the caretaker read lands after the words; `care` must follow it (Bugbot on #173).
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -969,7 +970,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const before = await readOpenRollCommits(owner);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
-          return finishRoll(before, run, owner);
+          const outcome = await finishRoll(before, run, owner);
+          // A caretaker's roll moves the STAKER's pity: re-read it (the chain lags a fresh reveal),
+          // so the roll sheet's meter and odds follow the staker's streak (Bugbot on #173).
+          if (owner.toLowerCase() !== address.toLowerCase()) {
+            for (const ms of [0, 4_000, 10_000]) setTimeout(() => void qc.invalidateQueries({ queryKey: ["pity", NETWORK.id, owner.toLowerCase()] }), ms);
+          }
+          return outcome;
         }), NOT_STARTED),
 
       prestige: (word: string) =>

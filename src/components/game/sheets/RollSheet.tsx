@@ -32,12 +32,13 @@ export function RollSheet({ target }: { target: RollTarget }) {
   // word-position rolls share the per-letter pity streak (the (owner, letterId) rule)
   // A caretaker rolls in the STAKER's name, so the odds come from the staker's pity, not this wallet's.
   const stakerPity = useQuery({
-    queryKey: ["pity", NETWORK.id, word?.care ? word.holder : null],
+    queryKey: ["pity", NETWORK.id, word?.care ? word.holder?.toLowerCase() : null],
     queryFn: () => readPity(word!.holder as `0x${string}`),
     enabled: Boolean(word?.care && word.holder),
     staleTime: 30_000,
   });
-  const pitySource = word?.care ? stakerPity.data ?? state.pity : state.pity;
+  // Until the staker's pity is read, show base odds rather than this wallet's (unrelated) streak.
+  const pitySource = word?.care ? stakerPity.data ?? Array.from({ length: 26 }, () => 0) : state.pity;
   const pity = loose ? state.pity[target.idx] : word ? pitySource[charToIdx(word.word[target.pos])] : 0;
 
   const close = () => {
