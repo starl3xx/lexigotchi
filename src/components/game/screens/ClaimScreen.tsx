@@ -1,7 +1,7 @@
 "use client";
 /**
  * Spell: build a word from any 5 of your letters, in any mix of lowercase and UPPERCASE, and claim a
- * valid dictionary word (decisions.md #16). The rack claims exactly the tiles picked; a word from the
+ * valid dictionary word (decisions.md #17). The rack claims exactly the tiles picked; a word from the
  * list claims each letter UPPERCASE where the bag has one (claimCase, "UPPERCASE first"). A filter
  * (All, lowercase, UPPERCASE; filterBag) narrows the tray and the list to one case, and says so when
  * a case is empty or spells nothing alone.

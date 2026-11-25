@@ -41,7 +41,7 @@ const LINK_ERRORS: Record<string, string> = {
   same_wallet: "That’s the wallet that made the link. Switch to the other wallet to link it.",
   stale_code: "That link expired or was already used. Make a new one from your other wallet.",
   bad_signature: "The signature didn’t match this wallet. Try again.",
-  claimed_today: "This account took today’s free letter, so its wallets stay together until tomorrow (UTC).",
+  claimed_today: "This account took today’s free letter or free snack, so its wallets stay together until tomorrow (UTC).",
   first_wallet: "The account’s first wallet can’t leave. Unlink the others instead.",
   farcaster_wallet: "This wallet joined through your Farcaster account. Remove its verification in Farcaster to take it out.",
   no_session: "Sign in with your wallet first.",

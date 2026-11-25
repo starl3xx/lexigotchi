@@ -84,7 +84,7 @@ describe("claim composes operator + allowance + claim, in that order", () => {
     expect(calls[0].to.toLowerCase()).toBe(WORDS);
   });
 
-  // A claim names each letter's case (decisions.md #16): CRANE with its C and A raised is bits 0 and 2.
+  // A claim names each letter's case (decisions.md #17): CRANE with its C and A raised is bits 0 and 2.
   it("sends the case mask as Words.claim's upperMask", () => {
     const calls = A.claimCalls("CRANE", [PROOF], 0b00101, params(), approvedPlayer());
     const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
@@ -118,20 +118,30 @@ describe("staking", () => {
     expect(A.unstakeCalls(1n)).toHaveLength(1);
   });
 
-  it("the free daily feed needs no allowance", () => {
-    expect(A.feedCalls(1n, params(), barePlayer(), true)).toHaveLength(1);
+  // A plain feed always pays (Staking.feed): the free snack comes only with a voucher.
+  it("a plain feed approves a snack", () => {
+    expect(A.feedCalls(1n, params(), barePlayer())).toHaveLength(2);
+    expect(A.feedManyCalls([1n], params(), barePlayer())).toHaveLength(2);
+    expect(A.feedCalls(1n, params(), approvedPlayer())).toHaveLength(1);
   });
 
-  it("a paid feed does", () => {
-    expect(A.feedCalls(1n, params(), barePlayer(), false)).toHaveLength(2);
-  });
-
-  it("feedMany sizes the approval for n-1 when the free feed is available", () => {
-    const calls = A.feedManyCalls([1n, 2n, 3n], params(), barePlayer(), true);
-    const decoded = decodeFunctionData({ abi: abis.erc20Abi, data: calls[0].data! });
-    // maxUint256 by strategy, but the call must exist at all — n-1 = 2 paid snacks > 0.
-    expect(decoded.functionName).toBe("approve");
-    expect(A.feedManyCalls([1n], params(), barePlayer(), true)).toHaveLength(1); // 0 paid → no approval
+  it("feedWithSnack sends the voucher, and approves as if nothing were free", () => {
+    const v = {
+      staker: "0x1111111111111111111111111111111111111111",
+      profile: "0x2222222222222222222222222222222222222222",
+      deadline: "1786000000",
+      sig: "0x1234",
+    } as const;
+    // One word: the snack may be spent by another of the profile's wallets first, then the
+    // contract charges it, so the approval is still there.
+    const one = A.feedWithSnackCalls([1n], v, params(), barePlayer());
+    expect(one).toHaveLength(2);
+    expect(decodeFunctionData({ abi: abis.erc20Abi, data: one[0].data! }).functionName).toBe("approve");
+    const decoded = decodeFunctionData({ abi: abis.stakingAbi, data: one[1].data! });
+    expect(one[1].to.toLowerCase()).toBe(STAKING);
+    expect(decoded.functionName).toBe("feedWithSnack");
+    expect(decoded.args).toEqual([[1n], v.staker, v.profile, 1786000000n, v.sig]);
+    expect(A.feedWithSnackCalls([1n, 2n], v, params(), approvedPlayer())).toHaveLength(1);
   });
 });
 

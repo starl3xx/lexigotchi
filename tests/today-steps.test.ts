@@ -91,7 +91,7 @@ describe("nextSteps", () => {
     expect(spells.every((s) => s.kind === "spell" && s.cases.every(Boolean))).toBe(true);
   });
 
-  // decisions.md #16: a word may mix cases. One raised C and a lowercase "rane" spell CRANE, the C
+  // decisions.md #17: a word may mix cases. One raised C and a lowercase "rane" spell CRANE, the C
   // going in UPPERCASE; words using more raised letters are offered first.
   it("offers a word spelled with a mix of cases, its raised letter going in UPPERCASE", () => {
     const spells = nextSteps({ ...base, words: [], lower: counts("RANE"), upper: counts("C") }).filter((s) => s.kind === "spell");

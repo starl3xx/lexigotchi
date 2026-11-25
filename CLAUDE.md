@@ -169,7 +169,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `Staking.feedWithSnack(ids, staker, profile, deadline, sig)` frees `ids[0]` when the signer vouched
   for (caller, staker, profile = the staker's account, UTC day) and `freeSnackDayPlusOne[profile]`
   isn't today; otherwise it pays, no revert. Plain `feed`/`feedMany` always pay. No database record:
-  the onchain key is the cap.
+  the onchain key is the cap. App: `POST /api/care/free-snack {wallet, staker}` signs it (no sign-in:
+  the voucher is the caller's only), refusing `used_today` when the profile OR any of its wallets as
+  a key used today (a wallet that joined after spending its own), and `try_again` on a DB error
+  (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
+  feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
+  `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

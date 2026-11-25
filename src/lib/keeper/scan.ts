@@ -17,7 +17,7 @@ import type { KeeperWord } from "./shares";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 // From the generated ABI, never a hand copy: a copy kept `bool uppercase` after Claimed changed to
-// `uint8 upperMask` (decisions.md #16), and a log filter on the old signature matches nothing.
+// `uint8 upperMask` (decisions.md #17), and a log filter on the old signature matches nothing.
 const CLAIMED_EVENT = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
 export async function scanAllWords(): Promise<KeeperWord[]> {

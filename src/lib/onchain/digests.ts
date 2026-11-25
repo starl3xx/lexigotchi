@@ -1,5 +1,5 @@
 /**
- * The six signer-voucher digests, as pure encoders.
+ * The seven signer-voucher digests, as pure encoders.
  *
  * Every commit→reveal step in the game is gated by an ECDSA signature from the backend `signer` key
  * over one of these preimages. If an encoder disagrees with its Solidity counterpart by a single
@@ -17,14 +17,18 @@
  * Chain id comes from NETWORK, never a literal — a signer that hardcodes mainnet's 8453 while the
  * contracts are on Sepolia produces BadSignature on every call.
  *
- * Sources: contracts/src/Letters.sol:181,224,235,254 · Rolls.sol:135 · Prestige.sol:99
+ * Sources: contracts/src/Letters.sol:181,224,235,254 · Rolls.sol:135 · Prestige.sol:99 ·
+ * Staking.sol feedWithSnack
  */
-import { encodeAbiParameters, keccak256, type Hex } from "viem";
+import { encodeAbiParameters, keccak256, toBytes, type Hex } from "viem";
 import { NETWORK } from "./network";
 
 /** contracts/src/Letters.sol:43-44 — `internal`, so not readable on-chain; pinned here. */
 export const KIND_FREE_DAILY = 0;
 export const KIND_FREE_PACK = 1;
+
+/** Staking.sol `FREE_SNACK_KIND`: a bytes32 tag, not a uint8 like Letters' (it's `private`, so pinned here). */
+export const FREE_SNACK_KIND = keccak256(toBytes("lexigotchi.staking.freeSnack"));
 
 /** Seconds per UTC day — the chain's day boundary, which is NOT the player's local midnight. */
 const DAY = 86_400;
@@ -80,6 +84,36 @@ export function freePackDigest(a: {
     encodeAbiParameters(
       [{ type: "address" }, { type: "uint256" }, { type: "uint8" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
       [a.letters, chainId(), KIND_FREE_PACK, a.buyer, a.fid, a.nonce, a.deadline],
+    ),
+  );
+}
+
+/**
+ * Staking.feedWithSnack: one free snack per PROFILE per UTC day. `caller` is msg.sender (the wallet
+ * that sends the feed), `staker` the staker of the first Word fed, `profile` the staker's profile
+ * (its account).
+ */
+export function freeSnackDigest(a: {
+  staking: Hex;
+  caller: Hex;
+  staker: Hex;
+  profile: Hex;
+  today: number;
+  deadline: bigint;
+}): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: "address" },
+        { type: "uint256" },
+        { type: "bytes32" },
+        { type: "address" },
+        { type: "address" },
+        { type: "address" },
+        { type: "uint32" },
+        { type: "uint256" },
+      ],
+      [a.staking, chainId(), FREE_SNACK_KIND, a.caller, a.staker, a.profile, a.today, a.deadline],
     ),
   );
 }

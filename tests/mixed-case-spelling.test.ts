@@ -1,5 +1,5 @@
 /**
- * Spelling with any mix of cases (decisions.md #16): a word's five letters may be any mix of
+ * Spelling with any mix of cases (decisions.md #17): a word's five letters may be any mix of
  * lowercase and UPPERCASE. These are the rules the Spell screen, Today's next steps, the mock game,
  * and the chain claim (Words.claim's upperMask) share.
  */

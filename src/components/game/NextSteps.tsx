@@ -145,7 +145,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
         ),
       };
     case "spell": {
-      // A claim may mix cases (decisions.md #16); say how many of its letters go in raised.
+      // A claim may mix cases (decisions.md #17); say how many of its letters go in raised.
       const raised = s.cases.filter(Boolean).length;
       return {
         icon: <TextAa weight="bold" size={20} />,

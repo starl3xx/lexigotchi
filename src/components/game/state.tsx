@@ -445,7 +445,7 @@ export function reducer(s: GameState, a: Action): GameState {
         return s;
       }
       const tier = wordTier(info);
-      // Each letter leaves the bag in the case it was claimed in (any mix, decisions.md #16).
+      // Each letter leaves the bag in the case it was claimed in (any mix, decisions.md #17).
       const lower = s.lower.slice();
       const upper = s.upper.slice();
       [...info].forEach((ch, k) => (a.cases[k] ? upper : lower)[charToIdx(ch)]--);
@@ -643,7 +643,7 @@ export interface GameApi {
   rollWord: (word: string, pos: number) => boolean | null | Promise<ActionOutcome>;
   /**
    * Claim `word` with each letter in the case `cases` names (true = UPPERCASE; any mix,
-   * decisions.md #16). A quick claim passes `claimCase(word, mineUpper(state))`; the Spell rack
+   * decisions.md #17). A quick claim passes `claimCase(word, mineUpper(state))`; the Spell rack
    * passes the tiles the player picked.
    */
   claim: (word: string, cases: boolean[]) => void;
@@ -891,7 +891,7 @@ export function useGame(): GameApi {
 
 /**
  * Can this word be spelled from these loose letters, in any mix of cases? A claim names each
- * letter's case (Words.claim's upperMask; decisions.md #16), so a lowercase and an UPPERCASE copy
+ * letter's case (Words.claim's upperMask; decisions.md #17), so a lowercase and an UPPERCASE copy
  * of a letter both count.
  */
 export function canSpell(word: string, lower: readonly number[], upper: readonly number[]): boolean {
@@ -919,7 +919,7 @@ export function canSpellAs(word: string, cases: readonly boolean[], lower: reado
 
 /**
  * The case each letter of a quick claim uses: UPPERCASE wherever the player has one to spare,
- * lowercase otherwise (starl3xx, 2026-11-24: "UPPERCASE first"; decisions.md #16). The word starts
+ * lowercase otherwise (starl3xx, 2026-11-24: "UPPERCASE first"; decisions.md #17). The word starts
  * as close to all-UPPERCASE as the bag allows. The sim claims the same way.
  */
 export function claimCase(word: string, upper: readonly number[]): boolean[] {

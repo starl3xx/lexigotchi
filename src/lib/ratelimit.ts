@@ -24,7 +24,8 @@ export type RateKind =
   | "profile"
   | "seen"
   | "scenes"
-  | "scenes-read";
+  | "scenes-read"
+  | "free-snack";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -69,6 +70,10 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     // Scene reads, keyed by IP: one per bag load, cached a minute by the client.
     case "scenes-read":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "1 m"), prefix: "rl:scenes:read" });
+    // Free-snack vouchers, keyed by the calling wallet: one per feed tap, and a voucher is useless to
+    // anyone but that wallet, so this only bounds signing load.
+    case "free-snack":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:free-snack" });
   }
 }
 

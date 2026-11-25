@@ -15,7 +15,7 @@ import { claimCase, spellableNow } from "./state";
 export type NextStep =
   | { kind: "rewards"; amount: number }
   | { kind: "stake"; word: string; earns: boolean }
-  /** `cases`: each letter's case for the claim (claimCase: UPPERCASE first; any mix, decisions.md #16). */
+  /** `cases`: each letter's case for the claim (claimCase: UPPERCASE first; any mix, decisions.md #17). */
   | { kind: "spell"; word: string; cases: boolean[] }
   | { kind: "roll"; word: string; pos: number; letter: string; odds: number }
   | { kind: "start" };
