@@ -2,7 +2,8 @@
  * Where the keeper's jackpot answers come from, and the check that runs before every reveal.
  *
  * Two sources, in order:
- *   1. ANSWER_CHAIN_SEED (+ ANSWER_CHAIN_DAYS, default 730): the seeded schedule, rebuilt in memory
+ *   1. ANSWER_CHAIN_SEED (+ ANSWER_CHAIN_DAYS, default the whole pool, FULL_SCHEDULE_DAYS = 4,584):
+ *      the seeded schedule, rebuilt in memory
  *      (src/lib/answerChain.ts). This is what a hosted, scheduled keeper uses: a 64-hex secret fits
  *      a hosting secret where the 200+ KB file does not.
  *   2. ANSWER_CHAIN_FILE: a generated schedule file. Defaults to the throwaway Sepolia rehearsal
@@ -13,7 +14,7 @@
  * NEVER log a word, a salt, or the seed: whoever holds a future word wins that jackpot.
  */
 import { readFileSync } from "node:fs";
-import { buildAnswerChain, seededSchedule, type ChainLink } from "@/lib/answerChain";
+import { FULL_SCHEDULE_DAYS, buildAnswerChain, seededSchedule, type ChainLink } from "@/lib/answerChain";
 
 export const REHEARSAL_FILE = "contracts/answer-chain.sepolia-rehearsal.secret.json";
 
@@ -30,7 +31,7 @@ export function loadAnswerSchedule(
   if (seed) {
     // Empty counts as unset: a copied .env.example has `ANSWER_CHAIN_DAYS=` with nothing after it.
     const daysRaw = env.ANSWER_CHAIN_DAYS?.trim();
-    const days = daysRaw ? Number(daysRaw) : 730;
+    const days = daysRaw ? Number(daysRaw) : FULL_SCHEDULE_DAYS;
     return { links: buildAnswerChain(seededSchedule(seed, days)).links, source: "seed" };
   }
   const file = env.ANSWER_CHAIN_FILE ?? REHEARSAL_FILE;

@@ -4,7 +4,7 @@
  * scheduled keeper run without the 200+ KB schedule file.
  */
 import { describe, it, expect } from "vitest";
-import { buildAnswerChain, parseSeed, seededSchedule, verifyAnswerChain } from "@/lib/answerChain";
+import { FULL_SCHEDULE_DAYS, buildAnswerChain, parseSeed, seededSchedule, verifyAnswerChain } from "@/lib/answerChain";
 import { linkToReveal, loadAnswerSchedule } from "@/lib/keeper/answerSchedule";
 import { isWord } from "@/lib/dictionary";
 import { ANSWER_POOL_V1, ANSWER_POOL_V1_SHA256 } from "@/lib/answerPool";
@@ -82,11 +82,26 @@ describe("loadAnswerSchedule", () => {
     expect(s.links[0].commit).toBe("0x9db0e7881eff9ebf43590147b1d918f96bbb6d72516802325cdcc2c0bfe7c1e1");
   });
 
-  it("treats an empty ANSWER_CHAIN_DAYS as unset (the 730-day default)", () => {
+  it("treats an empty ANSWER_CHAIN_DAYS as unset (the whole pool)", () => {
     const fromEmpty = loadAnswerSchedule({ ANSWER_CHAIN_SEED: SEED_A, ANSWER_CHAIN_DAYS: "" });
     const fromDefault = loadAnswerSchedule({ ANSWER_CHAIN_SEED: SEED_A });
-    expect(fromEmpty.links).toHaveLength(730);
+    expect(fromEmpty.links).toHaveLength(FULL_SCHEDULE_DAYS);
     expect(fromEmpty.links[0].commit).toBe(fromDefault.links[0].commit);
+  });
+
+  it("by default draws every word in the pool exactly once, so a drawn word is never drawn again", () => {
+    const words = seededSchedule(SEED_A, FULL_SCHEDULE_DAYS).map((e) => e.word);
+    expect(FULL_SCHEDULE_DAYS).toBe(ANSWER_POOL_V1.length);
+    expect(new Set(words).size).toBe(words.length);
+    expect([...words].sort()).toEqual([...ANSWER_POOL_V1].sort());
+  });
+
+  it("keeps the first days of a shorter schedule when the same seed is lengthened", () => {
+    // Why re-committing Sepolia's 730-day list at full length kept every planned answer: a partial
+    // shuffle's first picks don't depend on how many days follow.
+    const short = seededSchedule(SEED_A, 730);
+    const full = seededSchedule(SEED_A, FULL_SCHEDULE_DAYS);
+    expect(full.slice(0, 730)).toEqual(short);
   });
 
   it("falls back to the schedule file", () => {
