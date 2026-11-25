@@ -21,6 +21,10 @@
  * FID-only gate locks an operator out of a normal browser entirely.
  *
  * Either credential opens the console. Both are allowlists; neither is a secret.
+ *
+ * TWO EXCEPTIONS are gated on the server too: `/api/admin/players` and `/api/admin/system` list who
+ * visited and which keys this deployment holds, with no signature behind them, so the route itself
+ * checks a proven credential (lib/admin/serverAuth.ts). NEXT_PUBLIC_ADMIN_OPEN doesn't open those.
  */
 
 function parseList(raw: string | undefined): string[] {

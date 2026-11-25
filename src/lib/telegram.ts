@@ -88,6 +88,27 @@ export function welcomeFor(update: TgUpdate, chatId: string): { caption: string;
 }
 
 /**
+ * How many members the beta group has (people and bots, the operator included), for the operator
+ * console. Null when the bot isn't configured or Telegram doesn't answer in time. Never logs: the
+ * request URL carries the bot token.
+ */
+export async function chatMemberCount(
+  chatId = process.env.TELEGRAM_CHAT_ID ?? "",
+  token = process.env.TELEGRAM_BOT_TOKEN ?? "",
+): Promise<number | null> {
+  if (!chatId || !token) return null;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getChatMemberCount?chat_id=${encodeURIComponent(chatId)}`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    const data = (await res.json().catch(() => null)) as { ok?: boolean; result?: unknown } | null;
+    return data?.ok && typeof data.result === "number" ? data.result : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Send `png` with `caption` to the chat as a photo, with `mentions` as the caption's entities.
  * Throws with Telegram's own description on failure.
  */

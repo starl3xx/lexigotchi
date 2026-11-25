@@ -7,17 +7,19 @@
  */
 import { useMemo, useState } from "react";
 import type { PulsePayload } from "@/lib/admin/metrics";
+import type { LivePayload } from "@/app/api/admin/live/route";
 import { SEED_BUCKETS } from "@/lib/admin/contracts";
 import type { Deployments } from "@/lib/admin/deployments";
 import { useDeployments } from "../useDeployments";
 import { castCommand, safeBatchJson, validateIntent, type TxIntent } from "@/lib/admin/tx";
-import { fmtUsd, fmtWordCompact, isAddress, shortAddr, usdToWordWei, WEI } from "@/lib/admin/format";
+import { currentWordUsd, fmtUsd, fmtWordCompact, isAddress, shortAddr, usdToWordWei, WEI } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, ErrorState, Field, KeyVal, MetricCard, SectionLabel, Select, Spinner, TextField, useFetch } from "../ui";
 import { Coins, Info, Lock, Trophy, Wallet, Warning } from "../icons";
 import { NETWORK } from "@/lib/onchain/network";
 
 export function TreasuryTab() {
   const { data, loading, error, reload } = useFetch<PulsePayload>("/api/admin/pulse");
+  const live = useFetch<LivePayload>("/api/admin/live").data;
   const d = useDeployments();
 
   if (loading && !data) return <Spinner />;
@@ -31,8 +33,32 @@ export function TreasuryTab() {
         <h2 className="font-display text-lg font-extrabold">Treasury &amp; Pools</h2>
       </div>
 
+      {live?.live && live.buckets && (
+        <section>
+          <SectionLabel>Bucket levels · live on {live.network?.name}</SectionLabel>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {(
+              [
+                ["Rewards Pool", live.buckets.pool, "funds UPPERCASE yield"],
+                ["Jackpot", live.buckets.jackpot, "self-funded from fees"],
+                ["Bounty Pool", live.buckets.bounty, "the weekly bounty"],
+                ["Treasury", live.treasury?.word ?? null, "the treasury wallet’s $WORD"],
+              ] as const
+            ).map(([label, word, sub]) => (
+              <MetricCard
+                key={label}
+                icon={<Coins weight="bold" size={14} />}
+                label={label}
+                value={word == null ? "–" : `${fmtWordCompact(word)} $WORD`}
+                sub={word == null ? sub : `${sub} · ≈ ${fmtUsd(word * currentWordUsd())}`}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section>
-        <SectionLabel>Bucket levels · projected (sim) until the suite is live</SectionLabel>
+        <SectionLabel>Bucket levels · projection (economy sim)</SectionLabel>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <MetricCard icon={<Coins weight="bold" size={14} />} label="Rewards Pool" tone="accent" value={h ? fmtUsd(h.pool) : "—"} sub="funds UPPERCASE yield" series={data?.series.pool} />
           <MetricCard icon={<Trophy weight="bold" size={14} />} label="Jackpot" tone="warning" value={h ? fmtUsd(h.jackpot) : "—"} sub="self-funded from fees" series={data?.series.jackpot} />

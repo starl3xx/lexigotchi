@@ -139,6 +139,7 @@ export function AccessTab() {
         <KeyVal k="Treasury" v={<span className="font-mono text-xs">{shortAddr(d?.roles.treasury)}</span>} />
         <KeyVal k="Keeper" v={<span className="font-mono text-xs">{shortAddr(d?.roles.keeper)}</span>} />
         <KeyVal k="Signer" v={<span className="font-mono text-xs">{shortAddr(d?.roles.signer)}</span>} />
+        <KeyVal k="Price keeper" v={<span className="font-mono text-xs">{shortAddr(d?.roles.priceKeeper)}</span>} />
       </AdminCard>
 
       <AdminCard title="Deploy-time wiring">
