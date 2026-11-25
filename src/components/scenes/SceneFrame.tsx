@@ -13,8 +13,7 @@
  * scene in full color, clear. The characters keep their color: their faces already show the mood.
  */
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { TileCharacter, useFinishMoment, type Gild, type TileState } from "../game/TileCharacter";
-import type { Tier } from "@/lib/economy";
+import { TileCharacter, type Gild, type TileState } from "../game/TileCharacter";
 import type { SceneId } from "@/lib/scenes";
 import { SCENE_W, SceneBack, SceneFront } from "./SceneArt";
 import { sceneLayout } from "./layout";
@@ -54,13 +53,7 @@ export function SceneFrame({
   onSwipe,
   overlay,
   className = "",
-  tier,
 }: {
-  /**
-   * The word's rarity, worn as its tiles' material (lib/rarityFinish, decisions.md #23). Only a
-   * word's own scene passes it; the scene sheet and picker show scenes, not words.
-   */
-  tier?: Tier;
   scene: SceneId;
   word: string;
   upper: boolean[];
@@ -110,18 +103,6 @@ export function SceneFrame({
   // the effect catches up: never draw a scene twice (same key, same gradient ids; Bugbot on #164).
   const was = wasState !== scene ? wasState : null;
 
-  // Nothing moves where it can't be seen: while the frame is off screen its scene, its tiles, and
-  // their finishes hold still (globals.css, .scene-offscreen), which keeps a long page cheap.
-  const box = useRef<HTMLDivElement>(null);
-  const [offscreen, setOffscreen] = useState(false);
-  useEffect(() => {
-    const el = box.current;
-    if (!animated || !el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([e]) => setOffscreen(!e.isIntersecting), { rootMargin: "80px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [animated]);
-
   // Swipe: a mostly sideways drag of 48 px or more. The tap that ends a swipe doesn't open the word.
   const down = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
@@ -146,17 +127,12 @@ export function SceneFrame({
       }
     : {};
 
-  // The word's finish has its moments while the scene is animated and on screen, and the word isn't
-  // hungry (a hungry word's shine is gone); pointing at the word plays one (TileCharacter's
-  // useFinishMoment). One timer for the word, not one per tile.
-  const [moment, play] = useFinishMoment(tier, animated && !offscreen && !!word && state !== "hungry", word);
-
   // The characters hold hands (each overlaps the last, as in TileWord), sized in percent of the row.
   const tiles = (
-    <div className={`flex items-end ${moment ? "rf-moment" : ""}`} onPointerEnter={play}>
+    <div className="flex items-end">
       {[...word].map((ch, i) => (
         <div key={i} style={{ width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0 }}>
-          <TileCharacter char={ch} upper={upper[i] ?? false} state={state} gild={gild} pose="link" size={L.tileW} detail="full" fluid tier={tier} index={i} still={!animated} />
+          <TileCharacter char={ch} upper={upper[i] ?? false} state={state} gild={gild} pose="link" size={L.tileW} detail="full" fluid />
         </div>
       ))}
     </div>
@@ -172,7 +148,7 @@ export function SceneFrame({
   );
 
   return (
-    <div ref={box} className={`relative aspect-[16/9] w-full overflow-hidden ${offscreen ? "scene-offscreen" : ""} ${className}`} {...swipe}>
+    <div className={`relative aspect-[16/9] w-full overflow-hidden ${className}`} {...swipe}>
       {was && layers(was, false, "")}
       {layers(scene, false, was ? "scene-fade-in" : "")}
       {word && (

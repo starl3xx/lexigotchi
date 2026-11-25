@@ -449,3 +449,101 @@ export const wordListings = pgTable(
   },
   (t) => [uniqueIndex("word_listings_hash_idx").on(t.orderHash), index("word_listings_token_idx").on(t.tokenId)],
 );
+
+/**
+ * Per-word picks, keyed by PROFILE (migration 0016; decisions.md #22, the Customization Spec: "taste
+ * stays with the player"). Replaces `word_scenes`, which was keyed by the wallet holding the word:
+ * a pick now follows the player's profile (the account's first wallet, or the wallet itself when
+ * unlinked) across every wallet in it, and comes off the word when the word leaves the profile
+ * (the keeper clears those rows; a staked word or a Move between the profile's wallets keeps it).
+ * `kind` leaves a slot for what letters wear later (e.g. "costume"); only "scene" is written today.
+ * Migration 0016 copies every `word_scenes` row in, under its wallet's account; `word_scenes` stays
+ * for a rollback, and the code reads it only while this table is missing.
+ */
+export const wordPicks = pgTable(
+  "word_picks",
+  {
+    /** The profile: its account's first wallet, lowercase. */
+    profile: text("profile").notNull(),
+    /** UPPERCASE dictionary word (its id: tokenId = keccak256(word)). */
+    word: text("word").notNull(),
+    /** "scene" today. */
+    kind: text("kind").notNull(),
+    /** What was picked: a SceneId for kind "scene". */
+    value: text("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.profile, t.word, t.kind] })],
+);
+
+/**
+ * The wardrobe (migration 0016; decisions.md #22): one row per Shop purchase, from the Shop's
+ * `Purchased` event, so it is idempotent on (chain, transaction, log index). Ownership is a database
+ * record keyed by profile, so every linked wallet shares it, and not tradeable. `recipient` is kept so
+ * the profile can be resolved again later (a wallet may join a profile after buying); `profile` is the
+ * recipient's account when the row was written. `shop` is in the key's neighbors because item ids
+ * restart when a Shop is redeployed.
+ */
+export const wardrobe = pgTable(
+  "wardrobe",
+  {
+    chainId: integer("chain_id").notNull(),
+    /** The Shop's address, lowercase. */
+    shop: text("shop").notNull(),
+    itemId: integer("item_id").notNull(),
+    txHash: text("tx_hash").notNull(),
+    logIndex: integer("log_index").notNull(),
+    blockNumber: bigint("block_number", { mode: "number" }).notNull(),
+    /** Lowercase wallets. */
+    buyer: text("buyer").notNull(),
+    recipient: text("recipient").notNull(),
+    profile: text("profile").notNull(),
+    /** USDC units (6 decimals). */
+    priceUsdc: bigint("price_usdc", { mode: "number" }).notNull(),
+    toStudio: bigint("to_studio", { mode: "number" }).notNull(),
+    /** $WORD wei routed to the pool in the purchase, decimal (0 when the swap waited). */
+    wordToPool: text("word_to_pool").notNull(),
+    deferredUsdc: bigint("deferred_usdc", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
+    index("wardrobe_recipient_idx").on(t.chainId, t.shop, t.recipient),
+    index("wardrobe_profile_idx").on(t.chainId, t.shop, t.profile),
+  ],
+);
+
+/**
+ * What each Shop item IS (migration 0016): its name, kind, and art. Starts EMPTY, and nothing seeds
+ * it: real items get a row when they're added. The app never shows an item without one, except on a
+ * test network, where it is a plain "Test item" card (lib/shop/rules.ts).
+ */
+export const shopItems = pgTable(
+  "shop_items",
+  {
+    chainId: integer("chain_id").notNull(),
+    shop: text("shop").notNull(),
+    itemId: integer("item_id").notNull(),
+    name: text("name").notNull(),
+    /** An ItemKind (lib/shop/rules.ts). */
+    kind: text("kind").notNull(),
+    /** A reference to its art (a scene id, an asset path); null until it has art. */
+    art: text("art"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.chainId, t.shop, t.itemId] })],
+);
+
+/** How far the wardrobe has read each Shop's `Purchased` events (migration 0016). */
+export const shopIndex = pgTable(
+  "shop_index",
+  {
+    chainId: integer("chain_id").notNull(),
+    shop: text("shop").notNull(),
+    /** The last block whose events are in `wardrobe`. */
+    lastBlock: bigint("last_block", { mode: "number" }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.chainId, t.shop] })],
+);

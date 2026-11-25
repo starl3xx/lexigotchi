@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
+import { encodeFunctionData } from "viem";
 import {
   type FreeLetterView,
   type GameApi,
@@ -77,10 +78,12 @@ import { useProfileSession, usePublicProfile } from "./useProfile";
 import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, walletTypedDataJson, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
-import { erc1155ApprovalAbi, erc20Abi, wordsAbi } from "@/lib/onchain/abis";
+import { erc1155ApprovalAbi, erc20Abi, mockUsdcAbi, shopAbi, wordsAbi } from "@/lib/onchain/abis";
 import { buildWordSaleOrder, buyWordCalls, prepareListingCalls, MIN_WORD_PRICE, orderPriceWei, type SeaportOrder } from "@/lib/onchain/wordSale";
 import { getPublicClient, toWordWei } from "@/lib/onchain/reads";
-import { addressOf, wordTokenAddress } from "@/lib/onchain/addresses";
+import { addressOf, shopAddress, usdcAddress, wordTokenAddress } from "@/lib/onchain/addresses";
+import { approveCall, buyCall, buyRoute, buyWithPermitCall, isUnsupported, permitTypedDataJson, type BuyRoute } from "@/lib/shop/buy";
+import { TEST_USDC_FAUCET, fmtUsdc } from "@/lib/shop/rules";
 import { THEMES, themeForPeriod } from "@/lib/themes";
 import { useViewer } from "./useViewer";
 import {
@@ -922,6 +925,143 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
 
+  /**
+   * A testnet faucet send, settled on the mint's OWN result (lib/onchain/traceSend), then said plainly.
+   *
+   * It waits for the MINT, not the send. A send returns when the wallet accepts: on 2026-11-24 a
+   * tester saw "Faucet sent" over a balance that never moved, and no transaction from their wallet
+   * ever reached Base Sepolia (it held Base Sepolia ETH). So "arrived" needs the mint's own result
+   * (`settleSend`: its receipt, or the wallet's batch status), and anything else is named to the
+   * player. Watching the balance instead both missed real mints and passed off earlier ones as new,
+   * so the balance is only the fallback for a send nobody can trace. It never refuses to send for
+   * want of ETH: sponsored smart wallets mint holding none. Shared by test $WORD and test USDC.
+   */
+  /**
+   * What became of a send, from its OWN result: the receipt on this chain, or the wallet's batch
+   * status (whose "failed" beats a bundler receipt that succeeded). `changed` is only the fallback
+   * for a send nobody can trace. Capped at 45 s; every read is capped too (the action gate waits).
+   */
+  const traceSent = useCallback(
+    async (sent: SendResult | undefined, changed?: () => Promise<boolean>): Promise<SendTrace> => {
+      const READ_MS = 5_000;
+      const client = getPublicClient();
+      // A read that FAILS must not pass for "not found": only viem's not-found errors mean that.
+      const notFound = (e: unknown, name: string) => {
+        if ((e as { name?: string })?.name === name) return null;
+        throw e;
+      };
+      const last: { trace: SendTrace } = { trace: { kind: "unknown" } };
+      const settled = await withTimeout(
+        settleSend(
+          sent,
+          {
+            chainId: NETWORK.id,
+            walletTimeoutMs: READ_MS,
+            receipt: (hash) =>
+              orThrowAfter(client.getTransactionReceipt({ hash }), READ_MS).then(
+                (r) => ({ status: r.status }),
+                (e) => notFound(e, "TransactionReceiptNotFoundError"),
+              ),
+            known: (hash) =>
+              orThrowAfter(client.getTransaction({ hash }), READ_MS).then(
+                () => true,
+                (e) => notFound(e, "TransactionNotFoundError") ?? false,
+              ),
+            callsStatus: async (id) => {
+              const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
+              if (!provider) throw new Error("no provider");
+              return provider.request({ method: "wallet_getCallsStatus", params: [id] });
+            },
+          },
+          { onTrace: (t) => (last.trace = t), changed },
+        ),
+        45_000,
+        null,
+      );
+      return settled ?? last.trace;
+    },
+    [connector],
+  );
+
+  const runFaucet = useCallback(
+    async (
+      run: RunFn,
+      f: { what: string; calls: () => Call[]; token: `0x${string}`; amount: bigint; arrived: string },
+    ): Promise<boolean> => {
+      if (!address) return false;
+      /** Every read is capped: the action gate waits on all of it, and viem retries each read. */
+      const READ_MS = 5_000;
+      const client = getPublicClient();
+      const balanceOf = () =>
+        orThrowAfter(
+          client.readContract({ address: f.token, abi: erc20Abi, functionName: "balanceOf", args: [address] }) as Promise<bigint>,
+          READ_MS,
+        );
+      // Only the fallback below uses this, so the send never waits on it. A FRESH read, never a
+      // cached balance: a cache from before a spend set a target the mint could never reach.
+      const before = await balanceOf().catch(() => undefined);
+      let sent: SendResult | undefined;
+      const ok = await run("Faucet", f.calls, { settles: true, onSent: (r) => (sent = r) });
+      if (!ok) return false;
+
+      const trace = await traceSent(sent, before === undefined ? undefined : async () => (await balanceOf()) >= before + f.amount);
+      void chain.refresh();
+      if (trace.kind === "landed" || trace.kind === "seen") {
+        toast(f.arrived, "good");
+        return true;
+      }
+
+      // For a desktop tester's console, and for us when they share it.
+      console.warn(`[faucet] no ${f.what} arrived`, { address, sent, trace });
+      // These come up to ~45 s after the tap, often while the player is in their wallet app, and
+      // they are the only explanation the player gets: they stay up for 15 s (a hidden tab also
+      // holds them, see ToastItem).
+      const say = (text: string, tone: Toast["tone"]) => toast(text, tone, 15_000);
+      const at = "hash" in trace ? ` (${shortHash(trace.hash)})` : "";
+      const here = NETWORK.name;
+      switch (trace.kind) {
+        case "reverted":
+          say(`The faucet transaction failed on ${here}${at}. Try again.`, "bad");
+          break;
+        case "pending":
+          say(`Your faucet transaction is still waiting on ${here}${at}.`, "info");
+          break;
+        case "unseen":
+          // Base's mempool is private, so a transaction still queued in the wallet looks like this.
+          say(
+            `Your wallet says it sent the faucet transaction${at}, but ${here} hasn’t seen it. Your wallet may be holding it behind an earlier transaction, or sent it on another network.`,
+            "bad",
+          );
+          break;
+        case "other_chain": {
+          const there = networkById(trace.chainId)?.name ?? `another network (chain ${trace.chainId})`;
+          say(`Your wallet ran the faucet on ${there}, not ${here}. Nothing was minted.`, "bad");
+          break;
+        }
+        case "wallet_failed":
+          say("Your wallet says the faucet transaction failed. Try again.", "bad");
+          break;
+        case "wallet_pending":
+          say("Your wallet says the faucet transaction is still pending.", "info");
+          break;
+        case "unknown": {
+          // Sponsored smart wallets hold no ETH and need none, so this only says "if". The sheet
+          // may be closed by now, so it says where the link is rather than "below".
+          const eth = await withTimeout(client.getBalance({ address }).catch(() => null), READ_MS, null);
+          say(
+            eth === 0n
+              ? `No ${f.what} yet. If your wallet pays its own gas, it needs ${here} ETH: Your $WORD has a link to get some free.`
+              : `Your wallet accepted it, but no ${f.what} has arrived yet. Check your wallet’s activity.`,
+            "info",
+          );
+          break;
+        }
+      }
+      return false;
+    },
+    [address, chain, toast, traceSent],
+  );
+
   const api: GameApi = useMemo(
     () => ({
       state,
@@ -1374,124 +1514,76 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       revealJackpot: () => null,
       skipDay: () => toast("Time moves on its own here", "info"),
 
-      // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet.
-      //
-      // It waits for the MINT, not the send. A send returns when the wallet accepts: on 2026-11-24 a
-      // tester saw "Faucet sent" over a balance that never moved, and no transaction from their
-      // wallet ever reached Base Sepolia (it held Base Sepolia ETH). So "arrived" needs the mint's
-      // own result (`settleSend`: its receipt, or the wallet's batch status), and anything else is
-      // named to the player. Watching the balance instead both missed real mints and passed off
-      // earlier ones as new, so the balance is only the fallback for a send nobody can trace. It
-      // never refuses to send for want of ETH: sponsored smart wallets mint holding none.
+      // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet. The flow
+      // (wait for the mint itself, then say plainly what happened) is `runFaucet`, shared with test USDC.
       addDemoBalance: () => {
         if (!NETWORK.isTestnet) return void toast("No faucet on mainnet", "bad");
         if (!address) return void toast("Connect a wallet first", "bad");
-        void track("Getting test $WORD", async (run) => {
-          const FAUCET = 50_000_000;
-          /** Every read is capped: the action gate waits on all of it, and viem retries each read. */
-          const READ_MS = 5_000;
-          const client = getPublicClient();
-          const balanceOf = () =>
-            orThrowAfter(
-              client.readContract({
-                address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [address],
-              }) as Promise<bigint>,
-              READ_MS,
-            );
-          // Only the fallback below uses this, so the send never waits on it. A FRESH read, never the
-          // cached balance: a cache from before a spend set a target the mint could never reach.
-          const before = await balanceOf().catch(() => undefined);
-          let sent: SendResult | undefined;
-          const ok = await run("Faucet", () => faucetCalls(address, FAUCET), {
-            settles: true,
-            onSent: (r) => (sent = r),
-          });
-          if (!ok) return;
+        const FAUCET = 50_000_000;
+        void track("Getting test $WORD", (run) =>
+          runFaucet(run, {
+            what: "test $WORD",
+            calls: () => faucetCalls(address, FAUCET),
+            token: wordTokenAddress(),
+            amount: toWordWei(FAUCET),
+            arrived: `Test $WORD arrived: ${fmtWord(FAUCET)}`,
+          }),
+        false);
+      },
 
-          // A read that FAILS must not pass for "not found": only viem's not-found errors mean that.
-          const notFound = (e: unknown, name: string) => {
-            if ((e as { name?: string })?.name === name) return null;
-            throw e;
-          };
-          // The mint's own result decides (receipt, or the wallet's batch status). The balance counts
-          // only for a send nobody can trace, and only the whole mint from the fresh start.
-          const last: { trace: SendTrace } = { trace: { kind: "unknown" } };
-          const settled = await withTimeout(
-            settleSend(
-              sent,
-              {
-                chainId: NETWORK.id,
-                walletTimeoutMs: READ_MS,
-                receipt: (hash) =>
-                  orThrowAfter(client.getTransactionReceipt({ hash }), READ_MS).then(
-                    (r) => ({ status: r.status }),
-                    (e) => notFound(e, "TransactionReceiptNotFoundError"),
-                  ),
-                known: (hash) =>
-                  orThrowAfter(client.getTransaction({ hash }), READ_MS).then(
-                    () => true,
-                    (e) => notFound(e, "TransactionNotFoundError") ?? false,
-                  ),
-                callsStatus: async (id) => {
-                  const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
-                  if (!provider) throw new Error("no provider");
-                  return provider.request({ method: "wallet_getCallsStatus", params: [id] });
-                },
-              },
-              {
-                onTrace: (t) => (last.trace = t),
-                changed: before === undefined ? undefined : async () => (await balanceOf()) >= before + toWordWei(FAUCET),
-              },
-            ),
-            45_000,
-            null,
-          );
-          const trace = settled ?? last.trace;
-          void chain.refresh();
-          if (trace.kind === "landed" || trace.kind === "seen") {
-            return void toast(`Test $WORD arrived: ${fmtWord(FAUCET)}`, "good");
-          }
-
-          // For a desktop tester's console, and for us when they share it.
-          console.warn("[faucet] no test $WORD arrived", { address, sent, trace });
-          // These come up to ~45 s after the tap, often while the player is in their wallet app, and
-          // they are the only explanation the player gets: they stay up for 15 s (a hidden tab also
-          // holds them, see ToastItem).
-          const say = (text: string, tone: Toast["tone"]) => toast(text, tone, 15_000);
-          const at = "hash" in trace ? ` (${shortHash(trace.hash)})` : "";
-          const here = NETWORK.name;
-          switch (trace.kind) {
-            case "reverted":
-              return void say(`The faucet transaction failed on ${here}${at}. Try again.`, "bad");
-            case "pending":
-              return void say(`Your faucet transaction is still waiting on ${here}${at}.`, "info");
-            case "unseen":
-              // Base's mempool is private, so a transaction still queued in the wallet looks like this.
-              return void say(
-                `Your wallet says it sent the faucet transaction${at}, but ${here} hasn’t seen it. Your wallet may be holding it behind an earlier transaction, or sent it on another network.`,
-                "bad",
-              );
-            case "other_chain": {
-              const there = networkById(trace.chainId)?.name ?? `another network (chain ${trace.chainId})`;
-              return void say(`Your wallet ran the faucet on ${there}, not ${here}. Nothing was minted.`, "bad");
-            }
-            case "wallet_failed":
-              return void say("Your wallet says the faucet transaction failed. Try again.", "bad");
-            case "wallet_pending":
-              return void say("Your wallet says the faucet transaction is still pending.", "info");
-            case "unknown": {
-              // Sponsored smart wallets hold no ETH and need none, so this only says "if". The sheet
-              // may be closed by now, so it says where the link is rather than "below".
-              const eth = await withTimeout(client.getBalance({ address }).catch(() => null), READ_MS, null);
-              return void say(
-                eth === 0n
-                  ? `No test $WORD yet. If your wallet pays its own gas, it needs ${here} ETH: Your $WORD has a link to get some free.`
-                  : "Your wallet accepted it, but no test $WORD has arrived yet. Check your wallet’s activity.",
+      getTestUsdc: async () => {
+        const usdc = usdcAddress();
+        if (!NETWORK.isTestnet || !usdc) {
+          toast("No test USDC on this network", "bad");
+          return false;
+        }
+        if (!address) {
+          toast("Connect a wallet first", "bad");
+          return false;
+        }
+        return track(
+          "Getting test USDC",
+          async (run) => {
+            // The server vouches for one tap per profile per UTC day (it alone knows the profile).
+            const r = await fetch("/api/faucet/usdc", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ wallet: address }),
+            }).catch(() => null);
+            const d = (await r?.json().catch(() => null)) as
+              | { ok: boolean; error?: string; voucher?: { profile: `0x${string}`; deadline: string; sig: `0x${string}` } }
+              | null;
+            if (!d?.ok || !d.voucher) {
+              toast(
+                d?.error === "used_today"
+                  ? "You’ve had today’s test USDC. There’s more tomorrow."
+                  : d?.error === "rate_limited"
+                    ? "Too many taps. Try again in a few minutes."
+                    : "Couldn’t get test USDC just now. Try again.",
                 "info",
               );
+              return false;
             }
-          }
-        }, undefined);
+            const v = d.voucher;
+            return runFaucet(run, {
+              what: "test USDC",
+              calls: () => [
+                {
+                  to: usdc,
+                  data: encodeFunctionData({
+                    abi: mockUsdcAbi,
+                    functionName: "faucet",
+                    args: [v.profile, BigInt(v.deadline), v.sig],
+                  }),
+                },
+              ],
+              token: usdc,
+              amount: TEST_USDC_FAUCET,
+              arrived: `Test USDC arrived: ${fmtUsdc(TEST_USDC_FAUCET)} test USDC`,
+            });
+          },
+          false,
+        );
       },
 
       earnings: earningsQ.data
@@ -1748,8 +1840,125 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (await revealCommit(oldest.commitId, run)) void pendingQ.refetch();
         }, undefined);
       },
+
+      // The Shop (decisions.md #22). Never sponsored: a refused paymaster call fails the whole send in
+      // Coinbase Wallet, and the CDP policy doesn't cover the Shop yet (web3-runtime-plan.md).
+      buyShopItem: async (item: { id: number; priceUsdc: bigint }) => {
+        const shop = shopAddress();
+        const usdc = usdcAddress();
+        if (!shop || !usdc) {
+          toast("The Shop isn’t open on this network", "bad");
+          return false;
+        }
+        if (!address) {
+          toast("Connect a wallet first", "bad");
+          return false;
+        }
+        const me = address;
+        return track(
+          "Buying",
+          async (run, phase) => {
+            const client = getPublicClient();
+            // Read fresh, in one block: the price may have changed since the sheet loaded.
+            const [onchain, balance, allowance, nonce, name, version] = await client.multicall({
+              allowFailure: false,
+              contracts: [
+                { address: shop, abi: shopAbi, functionName: "item", args: [BigInt(item.id)] },
+                { address: usdc, abi: erc20Abi, functionName: "balanceOf", args: [me] },
+                { address: usdc, abi: erc20Abi, functionName: "allowance", args: [me, shop] },
+                { address: usdc, abi: mockUsdcAbi, functionName: "nonces", args: [me] },
+                { address: usdc, abi: mockUsdcAbi, functionName: "name" },
+                { address: usdc, abi: mockUsdcAbi, functionName: "version" },
+              ],
+            });
+            const price = (onchain as { priceUsdc: bigint }).priceUsdc;
+            if (price !== item.priceUsdc) {
+              toast("This item’s price just changed. Have another look.", "info");
+              return false;
+            }
+            if ((balance as bigint) < price) {
+              toast(NETWORK.isTestnet ? "Not enough test USDC. Tap Get test USDC first." : "Not enough USDC in this wallet.", "info");
+              return false;
+            }
+            const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
+            const batch = provider
+              ? await provider
+                  .request({ method: "wallet_getCapabilities", params: [me, [NETWORK.idHex]] })
+                  .then(() => true, () => false)
+              : false;
+            let route: BuyRoute = buyRoute({ allowance: allowance as bigint, price, batch });
+            let calls: Call[] = [buyCall(shop, item.id, me)];
+            if (route === "batch") calls = [approveCall(usdc, shop, price), buyCall(shop, item.id, me)];
+            if (route === "permit" && provider) {
+              phase("wallet");
+              const deadline = BigInt(Math.floor(Date.now() / 1000) + 30 * 60);
+              const sig = await provider
+                .request({
+                  method: "eth_signTypedData_v4",
+                  params: [
+                    me,
+                    permitTypedDataJson({
+                      usdc, name: name as string, version: version as string, chainId: NETWORK.id,
+                      owner: me, spender: shop, value: price, nonce: nonce as bigint, deadline,
+                    }),
+                  ],
+                })
+                .then(
+                  (r) => r as `0x${string}`,
+                  (err) => {
+                    if (isUnsupported(err)) return null; // can't sign a permit: approve, then buy
+                    throw err; // the player said no
+                  },
+                )
+                .catch((err) => {
+                  toast(/reject|denied|4001/i.test(String((err as Error)?.message)) ? "Cancelled" : "Couldn’t sign the payment", "info");
+                  return undefined;
+                });
+              if (sig === undefined) return false;
+              if (sig === null) route = "approve-then-buy";
+              else calls = [buyWithPermitCall(shop, item.id, me, deadline, sig)];
+            }
+            if (route === "approve-then-buy") {
+              let approved: SendResult | undefined;
+              if (!(await run("Approve", () => [approveCall(usdc, shop, price)], { settles: true, onSent: (r) => (approved = r) }))) return false;
+              const t = await traceSent(approved);
+              if (t.kind !== "landed" && t.kind !== "seen") {
+                toast("The USDC approval didn’t land, so nothing was bought. Try again.", "bad");
+                return false;
+              }
+            }
+
+            let sent: SendResult | undefined;
+            if (!(await run("Buy", () => calls, { settles: true, onSent: (r) => (sent = r) }))) return false;
+            const trace = await traceSent(sent);
+            if (trace.kind !== "landed" && trace.kind !== "seen") {
+              toast(
+                trace.kind === "reverted" || trace.kind === "wallet_failed"
+                  ? "The purchase failed, and nothing was charged. Try again."
+                  : "Your purchase hasn’t landed yet. It shows here once it does.",
+                trace.kind === "reverted" || trace.kind === "wallet_failed" ? "bad" : "info",
+                15_000,
+              );
+              return false;
+            }
+            // Record it now so it's in the wardrobe at once; the wardrobe's own catch-up is the backstop.
+            if ("hash" in trace) {
+              await fetch("/api/shop/record", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ txHash: trace.hash }),
+              }).catch(() => null);
+            }
+            void qc.invalidateQueries({ queryKey: ["shop"] });
+            void chain.refresh();
+            toast("Bought. It’s in your wardrobe.", "good");
+            return true;
+          },
+          false,
+        );
+      },
     }),
-    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, wordBoardQ, sendAndSettle, snackVoucher],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, wordBoardQ, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

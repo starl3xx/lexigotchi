@@ -123,8 +123,8 @@ score). Words are ranked ascending and cut at floor percentiles, with an alphabe
 | Common | ≤ 50% | 2,292 | 1 |
 | Uncommon | ≤ 80% | 1,375 | 2 |
 | Rare | ≤ 95% | 687 | 3 |
-| Legendary | ≤ 99% | 184 | 5 |
-| Mythic | top 1% | 46 | 8 |
+| Epic | ≤ 99% | 184 | 5 |
+| Legendary | top 1% | 46 | 8 |
 
 (Each count is exact at the `floor(4,584 × p)` cuts, and `npm test` pins all five. The spec's
 Appendix B was written for 4,438 words.) **JAZZY** is
@@ -135,7 +135,7 @@ the apex crown — the only word combining two distinct ultra-rares with a doubl
 ## 7. Staking & yield
 
 - Stake a Word (it's custodied by the staking contract). **Daily yield is UPPERCASE-only**, paid from
-  the **Rewards Pool** and weighted by tier (Common 1 … Mythic 8) × prestige (1.10^level), with
+  the **Rewards Pool** and weighted by tier (Common 1 … Legendary 8) × prestige (1.10^level), with
   peckish words at half.
 - **Yield is a self-scaling fraction of the pool** — `pool × dailyDistributionRate` with
   `dailyDistributionRate = 1%`. It finds an equilibrium `pool* ≈ dailyInflow / rate` and never drains.

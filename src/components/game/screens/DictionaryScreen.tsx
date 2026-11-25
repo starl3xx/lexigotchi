@@ -12,7 +12,7 @@ import { useGame } from "../state";
 import { PlayerChip } from "../PlayerChip";
 import { useMyWallets, useWorld } from "../useWorld";
 
-const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Legendary", "Mythic"];
+const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
 export function DictionaryScreen() {
   const g = useGame();

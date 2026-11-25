@@ -13,7 +13,7 @@ import {
   TIERS,
   TIER_COUNTS,
   TIER_WEIGHT,
-  MYTHICS,
+  LEGENDARIES,
   DOUBLED_ULTRA_RARES,
   Q_WORDS,
 } from "@/lib/economy";
@@ -45,7 +45,7 @@ export function SupplyTab() {
           <MetricCard icon={<Stack weight="bold" size={14} />} label="Claimable words" value={fmtNum(WORD_COUNT)} sub="the full dictionary" />
           <MetricCard icon={<Package weight="bold" size={14} />} label="Letter supply cap" value={fmtNum(TOTAL_SUPPLY_CAP)} sub={`across 26 ids · ${DEMAND_MULTIPLE}× demand (mainnet; Sepolia keeps 2.5×)`} />
           <MetricCard icon={<Sparkle weight="bold" size={14} />} label="Tightest letter" tone="warning" value={`${tightest} · ${fmtNum(LETTER_SUPPLY_CAP[tightest])}`} sub="first to mint out" />
-          <MetricCard icon={<Crown weight="bold" size={14} />} label="Mythic words" tone="warning" value={fmtNum(MYTHICS.length)} sub="apex-rarity words" />
+          <MetricCard icon={<Crown weight="bold" size={14} />} label="Legendaries" tone="warning" value={fmtNum(LEGENDARIES.length)} sub="apex-rarity words" />
         </div>
       </section>
 
@@ -113,7 +113,7 @@ export function SupplyTab() {
             </tbody>
           </table>
           <p className="mt-2 text-[11px] text-ink/45">
-            Rarer tiers carry more stake weight (Common 1 → Mythic 8); UPPERCASE doubles it again.
+            Rarer tiers carry more stake weight (Common 1 → Legendary 8); UPPERCASE doubles it again.
           </p>
         </AdminCard>
 
@@ -132,9 +132,9 @@ export function SupplyTab() {
         </AdminCard>
       </div>
 
-      <AdminCard title={`Mythic words · ${MYTHICS.length}`}>
+      <AdminCard title={`Legendaries · ${LEGENDARIES.length}`}>
         <div className="flex flex-wrap gap-1.5">
-          {MYTHICS.map((w) => (
+          {LEGENDARIES.map((w) => (
             <span key={w} className="rounded-lg border-2 border-ink bg-paper-dark/60 px-2 py-0.5 text-xs font-bold">
               {w}
             </span>

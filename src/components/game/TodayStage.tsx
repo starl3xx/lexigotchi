@@ -136,7 +136,6 @@ export function TodayStage() {
           state={face}
           tone={toneOf(face)}
           gild={gild}
-          tier={w.tier}
           enter={enter}
           onWord={open}
           wordLabel={`Open ${W}`}
@@ -228,7 +227,7 @@ export function TodayStage() {
             aria-label={`Put ${o.word} on stage`}
             className="cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-card px-2.5 py-2 text-left"
           >
-            <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" tier={o.tier} />
+            <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" />
             <span className="flex w-full min-w-0 items-center gap-1.5">
               <span className="truncate font-display text-sm font-extrabold">{o.word}</span>
               {m === "forSale" ? (

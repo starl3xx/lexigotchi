@@ -9,7 +9,6 @@ import { TileCharacter, TileWord, type Gild, type TileDetail, type TilePose, typ
 import { Pill } from "./primitives";
 import { Star } from "./ui/icons";
 import { stageName } from "@/lib/ascension";
-import type { Tier } from "@/lib/economy";
 import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
 import { caseBadgeText } from "./careNote";
 
@@ -78,7 +77,6 @@ export function WordTiles({
   state = "idle",
   gild = 0,
   detail = "auto",
-  tier,
 }: {
   word: string;
   upper: boolean[];
@@ -86,11 +84,8 @@ export function WordTiles({
   state?: TileState;
   gild?: number;
   detail?: TileDetail;
-  /** The word's rarity, worn as its tiles' material. Pass it where a player's own word is drawn
-   *  (decisions.md #23); a list draws it still, since only the word in focus moves. */
-  tier?: Tier;
 }) {
-  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} tier={tier} />;
+  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} />;
 }
 
 const CASE_STYLE: Record<CaseState, string> = {

@@ -8,7 +8,7 @@ import {
   LETTER_SUPPLY_CAP,
   TOTAL_SUPPLY_CAP,
   TIER_COUNTS,
-  MYTHICS,
+  LEGENDARIES,
   Q_WORDS,
   DOUBLED_ULTRA_RARES,
   ALPHABET,
@@ -32,8 +32,8 @@ const SPEC_CAPS: Record<string, number> = {
   B: 1608, G: 1593, K: 1419, F: 1251, W: 1065, V: 861, Z: 300, X: 273, J: 210, Q: 138,
 };
 
-// ---- Appendix B: the 46 Mythic words (rarest first; JAZZY is still the apex; the spec called this tier Legendary) ----
-const SPEC_MYTHICS = "JAZZY FUZZY FIZZY DIZZY ABUZZ JIFFY RAQQA JUMPY QUICK PIZZA MEZZO QUACK JUMBO QUIRK JUICY AFFIX OXBOW ZIPPY JANKY XEROX DJING WOOZY WHIFF QUARK ZUMBA ZHONG QUINN JIVED BURQA JUKED HIJAB QUALM PUFFY KLUTZ FJORD JUMPS UNBOX NIQAB JUDGE ZYNGA JUNKS GIZMO QUINT JERKY FLUFF BUGGY".split(" ");
+// ---- Appendix B: the 46 Legendaries (rarest first; JAZZY is still the apex) ----
+const SPEC_LEGENDARIES = "JAZZY FUZZY FIZZY DIZZY ABUZZ JIFFY RAQQA JUMPY QUICK PIZZA MEZZO QUACK JUMBO QUIRK JUICY AFFIX OXBOW ZIPPY JANKY XEROX DJING WOOZY WHIFF QUARK ZUMBA ZHONG QUINN JIVED BURQA JUKED HIJAB QUALM PUFFY KLUTZ FJORD JUMPS UNBOX NIQAB JUDGE ZYNGA JUNKS GIZMO QUINT JERKY FLUFF BUGGY".split(" ");
 
 const SPEC_Q_WORDS = "BURQA EQUAL EQUIP ESQUE NIQAB PIQUE QUACK QUADS QUAIL QUAKE QUALM QUANT QUARK QUART QUASH QUASI QUAYS QUEEN QUEER QUELL QUERY QUESO QUEST QUEUE QUICK QUIET QUILL QUILT QUINN QUINT QUIPS QUIRK QUITE QUITO QUITS QUORA QUOTA QUOTE QURAN RAQQA ROQUE SQUAD SQUAT SQUID TUQUE".split(" ");
 
@@ -94,16 +94,16 @@ describe("rarity tiers (Appendix B)", () => {
     expect(TIER_COUNTS.Common).toBe(2292);
     expect(TIER_COUNTS.Uncommon).toBe(1375);
     expect(TIER_COUNTS.Rare).toBe(687);
-    expect(TIER_COUNTS.Legendary).toBe(184);
-    expect(TIER_COUNTS.Mythic).toBe(46);
+    expect(TIER_COUNTS.Epic).toBe(184);
+    expect(TIER_COUNTS.Legendary).toBe(46);
     const total = Object.values(TIER_COUNTS).reduce((a, b) => a + b, 0);
     expect(total).toBe(4584);
   });
 
-  it("reproduces the exact 46-Mythic set, rarest-first order intact for the top of the list", () => {
-    expect([...MYTHICS].sort()).toEqual([...SPEC_MYTHICS].sort());
+  it("reproduces the exact 46-Legendary set, rarest-first order intact for the top of the list", () => {
+    expect([...LEGENDARIES].sort()).toEqual([...SPEC_LEGENDARIES].sort());
     // ordering check: JAZZY is the apex, the published top-10 order holds
-    expect(MYTHICS.slice(0, 10)).toEqual(SPEC_MYTHICS.slice(0, 10));
+    expect(LEGENDARIES.slice(0, 10)).toEqual(SPEC_LEGENDARIES.slice(0, 10));
   });
 
   it("identifies all 9 doubled-grail crowns (a grail letter twice; ABUZZ is new)", () => {
@@ -117,7 +117,7 @@ describe("stake weight (§5.5)", () => {
   it("multiplies tier weight by case multiplier", () => {
     expect(stakeWeight("Common", "lowercase")).toBe(1);
     expect(stakeWeight("Common", "UPPERCASE")).toBe(2);
-    expect(stakeWeight("Mythic", "UPPERCASE")).toBe(16); // 8 × 2 — the max single-word weight
+    expect(stakeWeight("Legendary", "UPPERCASE")).toBe(16); // 8 × 2 — the max single-word weight
     expect(stakeWeight("Rare", "Mixed")).toBe(3); // Mixed earns at lowercase rate
   });
 });

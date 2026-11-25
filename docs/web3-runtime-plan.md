@@ -146,7 +146,7 @@ starts working. Then smoke-test with a small wallet.
 Lexigotchi's dictionary is Let's Have A Word's (`data/guess_words_clean.ts`, byte-for-byte). When
 theirs grows:
 1. Copy the file over, run `npm test`, and update the pinned numbers in `tests/economy.test.ts` (word
-   count, letter caps, tiers, Mythic words). Then run `npm run derive` and `npm run derive:contracts`.
+   count, letter caps, tiers, Legendaries). Then run `npm run derive` and `npm run derive:contracts`.
 2. Merge, then send `Words.setDictionaryRoot(<new root>)` from the owner wallet right away. Until it
    lands, the claim route answers "the word list was just updated" instead of serving proofs the
    contract would reject.
@@ -154,6 +154,25 @@ theirs grows:
    letters after deploy. Their letters come from the existing supply.
 4. The jackpot schedule doesn't move: it shuffles the frozen `src/lib/answerPool.ts`, never the
    live list.
+
+## The Shop (decisions.md #22)
+
+Live on Base Sepolia since 2026-11-25 (`config/deployments.base-sepolia.json` `shop`; one placeholder
+"Test item" at 1 test USDC, added with the admin's `addItem` builder). Mainnet has none. Owner steps:
+
+1. **Run migration 0016** in production (`npm run db:migrate` from an updated main): the wardrobe,
+   `shop_items`, `shop_index`, and `word_picks` (it copies `word_scenes` in). Until it runs, scene
+   picks keep working from `word_scenes`, and purchases aren't recorded in the wardrobe.
+2. **Switch it on for the test build:** `NEXT_PUBLIC_SHOP_ENABLED=true` in Vercel Production (inlined
+   at build, so a merge redeploys it). Mainnet ignores it.
+3. **Sponsored buys (optional):** add the Shop's `buy`/`buyWithPermit` and MockUSDC's `approve`/`faucet`
+   to the CDP paymaster policy first, then let those calls ask for sponsorship. Until then they pay
+   their own gas.
+4. **Before a mainnet Shop:** your go-ahead for `contracts/script/DeployShop.s.sol` (it creates no
+   items and refuses a pool key that doesn't hash to $WORD's pool id); `PRICE_KEEPER_PRIVATE_KEY` set,
+   or the floor's peg goes stale; a sales-tax check with an accountant (the spec: Iowa taxes some
+   digital products); each real item's `shop_items` row BEFORE its `addItem`; and a change to
+   `lib/shop/rules.ts` `shopOn`, which keeps mainnet off on purpose.
 
 ## Known follow-ups (not blockers)
 

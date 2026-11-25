@@ -3,23 +3,25 @@ import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
 import { isMissingTable } from "@/lib/db/profiles";
 import { walletsOfAccount } from "@/lib/db/walletLinks";
-import { saveScenes, scenesOf } from "@/lib/db/wordScenes";
+import { saveScenePicks, scenePicksFor } from "@/lib/db/wordPicks";
 import { sessionAccountOf } from "@/lib/profile/account";
 import { profilesEnabled, sessionAddress } from "@/lib/profile/session";
 import { parsePicks, parseWallets } from "@/lib/sceneSaves";
 
 /**
- * Saved scenes (decisions.md #15, lib/db/wordScenes.ts): each word's scene, keyed by the wallet that
- * holds it, so a player's picks follow them to every device and host.
+ * Saved scenes (decisions.md #15 and #22, lib/db/wordPicks.ts): each word's scene, keyed by the
+ * PROFILE that holds it (its account's first wallet), so a pick follows the player to every device,
+ * host, and wallet in their profile, and comes off when the word leaves the profile.
  *
- * GET `?wallets=a,b` — the scenes those wallets saved. Public, like a profile's public view: a scene
- * is cosmetic, and anyone can see it on a share card anyway.
+ * GET `?wallets=a,b` — the scenes of those wallets' profiles, one row per wallet named. Public, like a
+ * profile's public view: a scene is cosmetic, and anyone can see it on a share card anyway.
  * PUT `{ picks: [{ word, scene, at, wallet? }] }` — save picks, under a profile session
- * (`x-lexigotchi-session`). A session may save for any wallet in its profile account, so one
- * sign-in covers a whole unified profile; a newer pick already saved is never overwritten.
+ * (`x-lexigotchi-session`), for words held by any wallet in the session's profile; a newer pick
+ * already saved is never overwritten.
  *
  * Dark with profiles (PROFILES_ENABLED, the secret, a database), and "not_configured" until
- * migration 0011 runs. The client then keeps every pick in the browser, as before.
+ * migration 0011 runs (before 0016, picks are kept by wallet in word_scenes). The client then keeps
+ * every pick in the browser, as before.
  */
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,7 +34,7 @@ export async function GET(req: Request) {
   if (!wallets) return json({ ok: false, error: "bad_wallets" }, 400);
   if (!(await allow("scenes-read", clientIp(req)))) return json({ ok: false, error: "rate_limited" }, 429);
   try {
-    const rows = await scenesOf(wallets);
+    const rows = await scenePicksFor(wallets);
     return json({ ok: true, scenes: rows.map((r) => ({ wallet: r.wallet, word: r.word, scene: r.scene, at: r.updatedAt.getTime() })) });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);
@@ -55,9 +57,8 @@ export async function PUT(req: Request) {
   try {
     const byWallet = new Map<string, typeof picks>();
     for (const p of picks) byWallet.set(p.wallet, [...(byWallet.get(p.wallet) ?? []), p]);
-    for (const [w, ps] of byWallet) {
-      if ((await saveScenes(w, ps)) === "full") return json({ ok: false, error: "full" }, 409);
-    }
+    // Every wallet named is in the session's account, so the picks are that one profile's.
+    if ((await saveScenePicks(account, picks, byWallet)) === "full") return json({ ok: false, error: "full" }, 409);
     return json({ ok: true });
   } catch (err) {
     if (isMissingTable(err)) return json({ ok: false, error: "not_configured" }, 503);

@@ -1,6 +1,7 @@
 "use client";
 /** Word detail — stake, feed, raise letters to UPPERCASE, ascend (prestige), sell, or dissolve. */
 import { useState } from "react";
+import { shopEnabled } from "@/lib/shop/config";
 import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
 import { CaretRight, Check, Coins, Cookie, Crown, Star, Ticket } from "../ui/icons";
@@ -80,7 +81,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
     >
       {/* hero — the word as a row of tiles wearing the word's current care state */}
       <div className={`mb-3 flex justify-center rounded-2xl border-[3px] border-ink py-5 ${fullyRaised ? "bg-gold/15" : "bg-paper-dark/40"}`}>
-        <WordTiles word={word.word} upper={word.upper} size={54} state={eating ? "eating" : careState(word)} gild={word.prestigeLevel} detail="bust" tier={word.tier} />
+        <WordTiles word={word.word} upper={word.upper} size={54} state={eating ? "eating" : careState(word)} gild={word.prestigeLevel} detail="bust" />
       </div>
 
       {/* status */}
@@ -415,6 +416,9 @@ function SellCard({ word }: { word: OwnedWord }) {
             ? `The buyer pays ${worth(price)}. You get ${fmtWord(price - fee)} $WORD, and ${fmtWord(fee)} goes to the Rewards Pool.`
             : `The buyer pays your price. You get ${100 - SALE_FEE * 100}%, and ${SALE_FEE * 100}% goes to the Rewards Pool.`}{" "}
           Listing is a free signature. While it’s for sale, {word.word} earns nothing and has no jackpot entry.
+          {/* The Customization Spec: taste stays with the player (decisions.md #22). Said only once
+              there's a Shop to buy taste in. */}
+          {shopEnabled() && " Scenes and costumes stay with the seller."}
         </p>
         {/* Against the rounded figure "Use this price" offers, so taking it never reads as too low. */}
         {cost && price > 0 && price < roundPrice(cost.total) && (

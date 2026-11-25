@@ -37,6 +37,8 @@ type Registry = {
   contracts: Record<ContractKey, string | null>;
   /** The EAS schema the keeper attests achievements under, registered per network. */
   easAchievementsSchema?: string | null;
+  /** The Shop beside the suite (decisions.md #22): never part of isSuiteDeployed. */
+  shop?: { shop: string | null; usdc: string | null; adapter: string | null; deployBlock: number | null };
 };
 
 const REGISTRY: Registry =
@@ -100,6 +102,29 @@ export function roleAddresses(): Record<string, `0x${string}`> {
   const out: Record<string, `0x${string}`> = {};
   for (const [role, addr] of Object.entries(REGISTRY.roles)) if (addr) out[role] = addr.toLowerCase() as `0x${string}`;
   return out;
+}
+
+/** The Shop on the active network, or null where it isn't deployed (decisions.md #22). */
+export function shopAddress(): `0x${string}` | null {
+  return (REGISTRY.shop?.shop as `0x${string}` | null | undefined) ?? null;
+}
+
+/**
+ * USDC on the active network: Circle's on Base mainnet (from Circle's docs, never from memory),
+ * MockUSDC on Base Sepolia. Null where the registry names none.
+ */
+export function usdcAddress(): `0x${string}` | null {
+  return (REGISTRY.shop?.usdc as `0x${string}` | null | undefined) ?? null;
+}
+
+/** The Shop's swap adapter, for the admin's view of the route. */
+export function shopAdapterAddress(): `0x${string}` | null {
+  return (REGISTRY.shop?.adapter as `0x${string}` | null | undefined) ?? null;
+}
+
+/** The block the Shop was deployed in: the floor for its event scans. */
+export function shopDeployBlock(): bigint {
+  return BigInt(REGISTRY.shop?.deployBlock ?? 0);
 }
 
 /** True when the whole suite resolves — the gate for showing real on-chain UI at all. */

@@ -22,7 +22,6 @@ const { DEFAULT_PARAMS } = await import("@/lib/params");
 const { default: tailwind } = await import("../tailwind.config");
 type TileState = import("@/components/game/TileCharacter").TileState;
 type Gild = import("@/components/game/TileCharacter").Gild;
-type Tier = import("@/lib/economy").Tier;
 
 const OUT = join(process.cwd(), "docs-site", "images");
 const INK = "#1b1714";
@@ -56,8 +55,6 @@ interface Ch {
   upper?: boolean;
   state?: TileState;
   gild?: Gild;
-  /** the word's rarity, worn as the tile's finish (still: a picture has no light passing) */
-  tier?: Tier;
 }
 interface Group {
   chars: Ch[];
@@ -84,7 +81,7 @@ let drawn = 0;
  */
 function character(c: Ch, size: number): Placed {
   const html = renderToStaticMarkup(
-    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} still />,
+    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" />,
   );
   let svg = html.match(/<svg[\s\S]*<\/svg>/)![0].replace(/ class="overflow-visible"/, ' overflow="visible"');
   const prefix = `c${drawn++}-`;
@@ -240,23 +237,9 @@ const FIGURES: Record<string, string> = {
     ],
     { title: "The word crane in three cases: lowercase, three of five raised, and all UPPERCASE" },
   ),
-  "crown.svg": figure([[{ chars: word("jazzy", { upper: true, state: "celebrate", tier: "Mythic" }), size: 92, label: "JAZZY", sub: "the rarest word: Mythic" }]], {
-    title: "JAZZY, the rarest word, celebrating in its Mythic amethyst",
+  "crown.svg": figure([[{ chars: word("jazzy", { upper: true, state: "celebrate" }), size: 92, label: "JAZZY", sub: "the rarest crown" }]], {
+    title: "JAZZY, the rarest word, celebrating",
   }),
-  "finishes.svg": figure(
-    [
-      (
-        [
-          ["Common", "plain"],
-          ["Uncommon", "satin jade"],
-          ["Rare", "sapphire foil"],
-          ["Legendary", "polished gold"],
-          ["Mythic", "cut amethyst"],
-        ] as [Tier, string][]
-      ).map(([tier, sub]) => ({ chars: [{ ch: "a", tier }], size: 96, label: tier, sub })),
-    ],
-    { gap: 22, title: "The letter a in each tier’s finish: Common plain, Uncommon satin jade, Rare sapphire foil, Legendary polished gold, Mythic cut amethyst" },
-  ),
   "moods.svg": figure(
     [
       [

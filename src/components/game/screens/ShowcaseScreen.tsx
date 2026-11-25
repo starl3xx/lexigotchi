@@ -53,10 +53,9 @@ export function ShowcaseScreen() {
   const [picked, setPicked] = useState<string | null>(null);
   const w = words.find((x) => x.word === picked) ?? words[0];
   const { scene } = useWordScene(w?.word);
-  // The card X and Farcaster show, saved as a file (before the early return: it's a hook). A saved
-  // picture travels without its link, so it carries the game's name in a corner.
+  // The card X and Farcaster show, saved as a file (before the early return: it's a hook).
   const saveImage = useSaveImage(
-    w ? showcaseCardPath(showcaseWordText(w.word, w.upper), "x", scene, true) : null,
+    w ? showcaseCardPath(showcaseWordText(w.word, w.upper), "x", scene) : null,
     w ? `lexigotchi-${w.word.toLowerCase()}-${scene}.png` : "lexigotchi.png",
   );
 
@@ -112,7 +111,7 @@ export function ShowcaseScreen() {
         )}
 
         <div className="cel overflow-hidden rounded-2xl">
-          <SceneFrame scene={scene} word={w.word} upper={w.upper} gild={gild} tier={w.tier} />
+          <SceneFrame scene={scene} word={w.word} upper={w.upper} gild={gild} />
         </div>
 
         <div className="space-y-2">
@@ -146,7 +145,7 @@ export function ShowcaseScreen() {
                   onClick={() => setPicked(x.word)}
                   className={`cel-sm press rounded-xl px-2 py-1.5 ${on ? "bg-ink" : "bg-card"}`}
                 >
-                  <WordTiles word={x.word} upper={x.upper} size={18} detail="tile" tier={x.tier} />
+                  <WordTiles word={x.word} upper={x.upper} size={18} detail="tile" />
                 </button>
               );
             })}

@@ -80,7 +80,7 @@ const claimVisited = new Int32Array(NUM_WORDS);
 let claimGen = 0;
 
 const TIER_RANK: Record<Tier, number> = {
-  Common: 0, Uncommon: 1, Rare: 2, Legendary: 3, Mythic: 4,
+  Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4,
 };
 
 // ---------------------------------------------------------------------------
@@ -100,10 +100,10 @@ export const THEMES: { name: string; test: (w: string) => boolean }[] = [
   { name: "starts with a vowel", test: (w) => "AEIOU".includes(w[0]) },
   { name: "ends in Y", test: (w) => w.endsWith("Y") },
   {
-    name: "Legendary or Mythic",
+    name: "Epic or Legendary",
     test: (w) => {
       const t = wordTier(w);
-      return t === "Legendary" || t === "Mythic";
+      return t === "Epic" || t === "Legendary";
     },
   },
 ];

@@ -123,8 +123,8 @@ export const TIER_STYLE: Record<Tier, { bg: string; label: string }> = {
   Common: { bg: "bg-ink/10 text-ink", label: "Common" },
   Uncommon: { bg: "bg-teal/25 text-teal-ink", label: "Uncommon" },
   Rare: { bg: "bg-[#3b6ea5]/25 text-[#2c5680]", label: "Rare" },
+  Epic: { bg: "bg-[#7b4ea3]/25 text-[#5d3a7e]", label: "Epic" },
   Legendary: { bg: "bg-gold/30 text-gold-ink", label: "Legendary" },
-  Mythic: { bg: "bg-[#7b4ea3]/25 text-[#5d3a7e]", label: "Mythic" },
 };
 
 export function TierBadge({ tier }: { tier: Tier }) {

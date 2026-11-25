@@ -131,7 +131,7 @@ function WordRow({ word, status, total, latest, when }: { word: OwnedWord; statu
       onClick={() => g.openSheet({ kind: "word", word: word.word })}
       className="cel-sm press flex w-full items-center gap-2.5 rounded-xl bg-card px-3 py-2 text-left"
     >
-      <WordTiles word={word.word} upper={word.upper} size={20} state={careState(word)} tier={word.tier} />
+      <WordTiles word={word.word} upper={word.upper} size={20} state={careState(word)} />
       <span className="min-w-0 flex-1">
         <span className="block font-display font-extrabold">{word.word}</span>
         <Pill className={st.tone}>{st.label(status)}</Pill>

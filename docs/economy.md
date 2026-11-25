@@ -60,13 +60,13 @@ Word rarity score = −Σ log₁₀(letter frequency) over its 5 letters; tiers 
 | Common | 2,292 | 50.00% | 1 |
 | Uncommon | 1,375 | 30.00% | 2 |
 | Rare | 687 | 14.99% | 3 |
-| Legendary | 184 | 4.01% | 5 |
-| Mythic | 46 | 1.00% | 8 |
+| Epic | 184 | 4.01% | 5 |
+| Legendary | 46 | 1.00% | 8 |
 
 > Note: the cuts fall at floor(N × .50/.80/.95/.99), so each count is exact, and `npm test` pins all five.
 > (The spec's Appendix B was written for 4,438 words: 2,219 / 1,330 / 667 / 177 / 45.)
 
-### The 46 Mythic words (rarest first)
+### The 46 Legendaries (rarest first)
 
 JAZZY, FUZZY, FIZZY, DIZZY, ABUZZ, JIFFY, RAQQA, JUMPY, QUICK, PIZZA, MEZZO, QUACK, JUMBO, QUIRK, JUICY, AFFIX, OXBOW, ZIPPY, JANKY, XEROX, DJING, WOOZY, WHIFF, QUARK, ZUMBA, ZHONG, QUINN, JIVED, BURQA, JUKED, HIJAB, QUALM, PUFFY, KLUTZ, FJORD, JUMPS, UNBOX, NIQAB, JUDGE, ZYNGA, JUNKS, GIZMO, QUINT, JERKY, FLUFF, BUGGY.
 

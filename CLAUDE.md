@@ -231,6 +231,37 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `walletTypedDataJson(order)`, never `JSON.stringify(orderTypedData(order))`:** eth-sig-util wallets
   read a missing `EIP712Domain` as empty and sign another digest (every MetaMask listing failed
   bad_signature until #187); viem fills it in, so a viem-signed test can't catch this.
+  **The Shop** (decisions.md #22; infrastructure only: no real item exists yet): cosmetics for USDC on
+  Base, `contracts/src/Shop.sol` (registry EMPTY at deploy; a sale sends 80% straight to the revenue
+  wallet and swaps the rest to $WORD through `adapters/UniV4UsdcWordAdapter` into ROYALTY, in the same
+  transaction; a failed swap waits in the Shop for `sweep`, which the keeper's `fees` job runs; the
+  floor reads Letters' `packPrice` peg; the adapter and the peg change only through `proposeRoute` →
+  `acceptRoute` after 2 days; no withdraw path, pinned by `tests/shop-abi.test.ts`). Registry: the
+  `shop` block of `config/deployments*.json` (`shopAddress`/`usdcAddress`), NOT in `contracts`, so
+  `isSuiteDeployed` never waits on it; the admin keeps `SUITE_KEYS` apart from `CONTRACT_KEYS` the
+  same way. App: **SHOP_ENABLED** = `NEXT_PUBLIC_SHOP_ENABLED=true` AND a test network AND the Shop
+  deployed (`lib/shop/rules.ts` `shopOn`; mainnet is off whatever the setting says); `/api/shop` (the
+  registry + `shop_items` metadata), `sheets/ShopSheet` (the rail's Collect group and More, no entry
+  while off), `buyShopItem` (batched approve + buy where `wallet_getCapabilities` answers, else a USDC
+  permit, typed data WITH `EIP712Domain`, else approve, wait, buy; never sponsored until the CDP policy
+  covers the Shop). An item shows only with a `shop_items` row; on a test network one without shows as
+  a plain "Test item" card (a rule about networks, never a stored name). **Wardrobe** = table
+  `wardrobe` (migration 0016), one row per `Purchased` (idempotent on chain, tx, log index), read by
+  profile: `/api/shop/record` right after a buy, and `lib/shop/indexer.ts` `catchUp` (wardrobe reads,
+  the keeper) from `shop_index`'s cursor, halving its range when an RPC refuses a wide `getLogs` (the
+  public Base RPCs allow 200 blocks). **Picks are per profile** (`word_picks`, `lib/db/wordPicks.ts`,
+  migration 0016 copies `word_scenes` in under each wallet's account; `kind` "scene" today, a slot
+  for "costume"): `/api/scenes` still speaks wallets and maps them to profiles; before 0016 it falls
+  back to `word_scenes`; the keeper clears picks off words that left the profile (staking and Move
+  keep them). The Market says "Scenes and costumes stay with the seller" only while SHOP_ENABLED.
+  **Test USDC** (Base Sepolia only): `MockUSDC` (Circle's permit domain "USD Coin" / "2", 6 decimals),
+  25 a profile a UTC day through a signer voucher (`/api/faucet/usdc`, `usdcFaucetDigest`, the free
+  snack's pattern), "Get test USDC" beside "Get test $WORD" (`TestFaucets`: Your $WORD and the $WORD
+  page), and in the Shop sheet when a tester can't afford an item; it never shows as dollars. The
+  Sepolia route is `MockUsdcWordAdapter` (the peg's rate; it mints test $WORD, so it needs no
+  funding; its owner can `setBroken` to exercise a deferred swap). Admin: the Shop tab (revenue to
+  date, $WORD to the pool, waiting USDC, sales per item, settings, the transaction builders;
+  `/api/admin/shop`) and the System switch list.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
@@ -349,19 +380,6 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
   the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
-- **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
-  **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
-  material on its tiles (`lib/rarityFinish.ts` = the table; `components/game/TileFinish.tsx` = the
-  layers; pass `tier` to `TileCharacter`/`TileWord`/`WordTiles`/`SceneFrame`). **Motion is moments,
-  never loops** (`useFinishMoment` adds `.rf-moment` to the word's row every tier period; globals.css
-  `rf-*`; `tests/rarity-finish.test.tsx` fails on an `rf-` animation outside `.rf-moment`, on
-  `infinite`, or on a dash-offset animation): only full-size words, on screen, not hungry, not under
-  reduced motion, Save-Data, or 2 GB memory. Never gate motion on `hardwareConcurrency` (iOS reports
-  2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
-  card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
-  from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
-  Telegram welcome). Next steps (not built): scene cards with backs, the Showcase folded into the
-  Bag, live backs with OGL, the share loop.
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under

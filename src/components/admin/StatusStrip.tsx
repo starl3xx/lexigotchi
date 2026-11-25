@@ -3,7 +3,7 @@
  * Persistent operator status strip (LHAW parity) — always-visible deployment + health state so the
  * operator knows, at a glance, whether they're acting on a live suite or building plans.
  */
-import { CONTRACT_KEYS } from "@/lib/admin/deployments";
+import { SUITE_KEYS } from "@/lib/admin/deployments";
 import { isAddress, shortAddr } from "@/lib/admin/format";
 import { useDeployments } from "./useDeployments";
 import { StatusBadge } from "./ui";
@@ -15,12 +15,12 @@ export function StatusStrip() {
   const d = useDeployments();
 
   // Count only VALID addresses as deployed — consistent with the transaction builders / Access tab.
-  const deployedCount = d ? CONTRACT_KEYS.filter((k) => isAddress(d.contracts[k] ?? "")).length : 0;
-  const live = deployedCount === CONTRACT_KEYS.length;
+  const deployedCount = d ? SUITE_KEYS.filter((k) => isAddress(d.contracts[k] ?? "")).length : 0;
+  const live = deployedCount === SUITE_KEYS.length;
   const phase: { tone: "ok" | "warning" | "error" | "accent"; label: string } = live
     ? { tone: "ok", label: "Suite live" }
     : deployedCount > 0
-      ? { tone: "warning", label: `${deployedCount}/${CONTRACT_KEYS.length} deployed` }
+      ? { tone: "warning", label: `${deployedCount}/${SUITE_KEYS.length} deployed` }
       : { tone: "warning", label: "Not deployed" };
 
   return (

@@ -345,7 +345,7 @@ function FilterLabel({ name, count }: { name: string; count: number }) {
   );
 }
 
-const SPELL_TIERS: (Tier | "All")[] = ["All", "Mythic", "Legendary", "Rare", "Uncommon", "Common"];
+const SPELL_TIERS: (Tier | "All")[] = ["All", "Legendary", "Epic", "Rare", "Uncommon", "Common"];
 const SPELL_PAGE = 60;
 
 /** The claim fee, said plainly; when the balance can't cover it, the way to get more. */

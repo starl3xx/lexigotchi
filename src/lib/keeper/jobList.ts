@@ -11,7 +11,9 @@ export type KeeperJob = "resolve" | "fees" | "yield" | "bounty" | "payout" | "ac
 /**
  * The scheduled run's jobs, from KEEPER_JOBS. Default "resolve,fees,yield,bounty,payout,repeg,notify".
  * `fees` routes the day's word-sale fees into the Rewards Pool (SaleFees.flush, decisions.md #18)
- * just before `yield` opens the day's epoch from that pool. The
+ * just before `yield` opens the day's epoch from that pool, then does the Shop's upkeep (decisions.md
+ * #22: sweep its waiting USDC into the pool, catch the wardrobe up, clear picks off words that left
+ * their profile; each step on its own, so one failing never skips another). The
  * bounty is ON at launch (decisions.md #11, amended 2026-11-23), and `payout` pays the shares those
  * two just opened (decisions.md #16), so it runs right after them. Achievements need the network's
  * EAS schema, so they stay opt-in. A KEEPER_JOBS that lists its jobs must name `payout` too.

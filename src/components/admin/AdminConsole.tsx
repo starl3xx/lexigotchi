@@ -17,6 +17,7 @@ import {
   RocketLaunch,
   ShieldCheck,
   Stack,
+  Storefront,
   UserList,
   Wallet,
   Wrench,
@@ -34,6 +35,7 @@ import { BroadcastTab } from "./tabs/BroadcastTab";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { PlayersTab } from "./tabs/PlayersTab";
 import { SystemTab } from "./tabs/SystemTab";
+import { ShopTab } from "./tabs/ShopTab";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 type TabId =
@@ -49,7 +51,8 @@ type TabId =
   | "access"
   | "deployments"
   | "broadcast"
-  | "notifications";
+  | "notifications"
+  | "shop";
 
 interface TabDef {
   id: TabId;
@@ -67,6 +70,7 @@ const TABS: TabDef[] = [
   { id: "system", label: "System", section: "Operations", icon: <GearSix weight="bold" size={15} />, render: () => <SystemTab /> },
   { id: "launch", label: "Launch", section: "Operations", icon: <RocketLaunch weight="bold" size={15} />, render: () => <LaunchTab /> },
   { id: "treasury", label: "Treasury & Pools", section: "Operations", icon: <Wallet weight="bold" size={15} />, render: () => <TreasuryTab /> },
+  { id: "shop", label: "Shop", section: "Operations", icon: <Storefront weight="bold" size={15} />, render: () => <ShopTab /> },
   { id: "parameters", label: "Parameters", section: "Operations", icon: <Faders weight="bold" size={15} />, render: () => <ParametersTab /> },
   { id: "keeper", label: "Keeper", section: "Operations", icon: <Wrench weight="bold" size={15} />, render: () => <KeeperTab /> },
   { id: "access", label: "Access & Safety", section: "Operations", icon: <ShieldCheck weight="bold" size={15} />, render: () => <AccessTab /> },

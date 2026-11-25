@@ -1,7 +1,8 @@
 "use client";
 /** More — the full "Do something" directory (the bottom-nav tab that used to dump into Claim). */
 import { Button, SectionTitle } from "../primitives";
-import { EnvelopeSimple } from "../ui/icons";
+import { EnvelopeSimple, ShoppingBag } from "../ui/icons";
+import { shopEnabled } from "@/lib/shop/config";
 import { useGame } from "../state";
 import { usePublicProfile } from "../useProfile";
 import { useOpenUrl } from "../useShare";
@@ -11,12 +12,22 @@ import { ReminderToggle } from "../ReminderToggle";
 
 export function MoreScreen() {
   const openUrl = useOpenUrl();
-  const { openSheet } = useGame();
+  const { openSheet, state } = useGame();
   const { emailEnabled } = usePublicProfile();
   return (
     <div className="space-y-3">
       <h1 className="font-display text-2xl font-extrabold">Do something</h1>
       <QuickGrid extended />
+      {/* The Shop (decisions.md #22): a sheet, and no entry while SHOP_ENABLED is off. */}
+      {state.chainBacked && shopEnabled() && (
+        <button onClick={() => openSheet({ kind: "shop" })} className="cel-sm flex w-full items-center gap-3 rounded-2xl bg-card p-3 text-left press">
+          <ShoppingBag size={26} weight="bold" className="press-icon text-candy-ink" />
+          <span>
+            <span className="block font-display text-sm font-extrabold">Shop</span>
+            <span className="block text-xs text-ink/60">Things for your words, in USDC</span>
+          </span>
+        </button>
+      )}
       <ReminderToggle />
       {/* Email reminders live in the profile; this makes them findable where the other reminders are. */}
       {emailEnabled && (
