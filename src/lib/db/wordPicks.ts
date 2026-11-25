@@ -11,7 +11,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { wordPicks } from "./schema";
 import { isMissingTable } from "./profiles";
-import { accountsOf } from "./walletLinks";
+import { accountsOf, walletsOfAccount } from "./walletLinks";
 import { saveScenes, scenesOf, type SavedScene } from "./wordScenes";
 import type { SceneId } from "@/lib/scenes";
 
@@ -24,28 +24,46 @@ export interface PickRow {
 }
 
 /**
- * The picks each named wallet sees: its PROFILE's, repeated per wallet named (pure, tested). Two
- * wallets of one profile see the same picks; a wallet with no profile is its own.
+ * The picks each named wallet sees (pure, tested): every row whose EFFECTIVE profile is the wallet's
+ * profile, the newest per word, repeated per wallet named. A row's effective profile is the account
+ * its key belongs to NOW (`accountOf(row.profile)`), so picks a wallet saved under its own key before
+ * it joined a profile still belong to that profile. A wallet with no profile is its own.
  */
-export function picksForWallets(wallets: readonly string[], accountOf: ReadonlyMap<string, string>, rows: readonly PickRow[]): SavedScene[] {
+export function picksForWallets(
+  wallets: readonly string[],
+  accountOf: ReadonlyMap<string, string>,
+  rows: readonly PickRow[],
+): SavedScene[] {
+  const eff = (key: string) => accountOf.get(key) ?? key;
   const out: SavedScene[] = [];
   for (const w of wallets) {
-    const p = accountOf.get(w) ?? w;
-    for (const r of rows) if (r.profile === p) out.push({ wallet: w, word: r.word, scene: r.value, updatedAt: r.updatedAt });
+    const p = eff(w);
+    const newest = new Map<string, PickRow>();
+    for (const r of rows) {
+      if (eff(r.profile) !== p) continue;
+      const had = newest.get(r.word);
+      if (!had || r.updatedAt > had.updatedAt) newest.set(r.word, r);
+    }
+    for (const r of newest.values()) out.push({ wallet: w, word: r.word, scene: r.value, updatedAt: r.updatedAt });
   }
   return out;
 }
 
 /**
  * The picks to take off (pure, tested): only those whose word the scan POSITIVELY shows held by a
- * different profile. A word missing from the scan stays: the scan drops a word whose owner read
- * failed as well as one that was dissolved, and nothing here can tell them apart, so a missing
- * answer never deletes. (A dissolved word's pick goes once someone claims the word again.)
+ * profile other than the row's effective one (`accountOf(row.profile)`: a wallet that joined a profile
+ * after saving under its own key keeps its picks). A word missing from the scan stays: the scan drops
+ * a word whose owner read failed as well as one that was dissolved, and nothing here can tell them
+ * apart, so a missing answer never deletes. (A dissolved word's pick goes once someone claims it again.)
  */
-export function stalePicks(rows: readonly { profile: string; word: string }[], holderProfile: ReadonlyMap<string, string>) {
+export function stalePicks(
+  rows: readonly { profile: string; word: string }[],
+  holderProfile: ReadonlyMap<string, string>,
+  accountOf: (key: string) => string = (k) => k,
+) {
   return rows.filter((r) => {
     const holder = holderProfile.get(r.word);
-    return holder !== undefined && holder !== r.profile;
+    return holder !== undefined && holder !== accountOf(r.profile);
   });
 }
 
@@ -65,17 +83,25 @@ export async function scenePicksFor(wallets: readonly string[]): Promise<SavedSc
   if (list.length === 0) return [];
   const accounts = await accountsOf(list);
   const profiles = [...new Set(list.map((w) => accounts.get(w) ?? w))];
+  // Rows may also sit under a profile wallet's OWN key (saved before it joined), so read those too,
+  // and map each such key to its profile.
+  const keyToProfile = new Map(accounts);
+  for (const p of profiles) {
+    keyToProfile.set(p, p);
+    for (const w of await walletsOfAccount(p).catch(() => [p])) keyToProfile.set(w.toLowerCase(), p);
+  }
+  const keys = [...keyToProfile.keys()];
   let rows: PickRow[];
   try {
     rows = await getDb()
       .select({ profile: wordPicks.profile, word: wordPicks.word, value: wordPicks.value, updatedAt: wordPicks.updatedAt })
       .from(wordPicks)
-      .where(and(inArray(wordPicks.profile, profiles), eq(wordPicks.kind, "scene")));
+      .where(and(inArray(wordPicks.profile, keys), eq(wordPicks.kind, "scene")));
   } catch (err) {
     if (isMissingTable(err)) return scenesOf(list); // before 0016: the wallet-keyed table
     throw err;
   }
-  return picksForWallets(list, accounts, rows);
+  return picksForWallets(list, keyToProfile, rows);
 }
 
 /**
@@ -133,7 +159,10 @@ export async function saveScenePicks(
  * ANOTHER profile loses its pick (`stalePicks`). Returns how many rows went. A missing table is 0
  * (nothing to clear yet).
  */
-export async function clearPicksOffLeftWords(holderProfile: ReadonlyMap<string, string>): Promise<number> {
+export async function clearPicksOffLeftWords(
+  holderProfile: ReadonlyMap<string, string>,
+  accountOf: (key: string) => string,
+): Promise<number> {
   const db = getDb();
   let rows: { profile: string; word: string }[];
   try {
@@ -142,7 +171,7 @@ export async function clearPicksOffLeftWords(holderProfile: ReadonlyMap<string, 
     if (isMissingTable(err)) return 0;
     throw err;
   }
-  const stale = stalePicks(rows, holderProfile);
+  const stale = stalePicks(rows, holderProfile, accountOf);
   let cleared = 0;
   // Grouped by profile, so each delete names one profile and the words it no longer holds.
   const byProfile = new Map<string, string[]>();
