@@ -261,7 +261,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Sepolia route is `MockUsdcWordAdapter` (the peg's rate; it mints test $WORD, so it needs no
   funding; its owner can `setBroken` to exercise a deferred swap). Admin: the Shop tab (revenue to
   date, $WORD to the pool, waiting USDC, sales per item, settings, the transaction builders;
-  `/api/admin/shop`) and the System switch list.
+  `/api/admin/shop`) and the System switch list. **Switched on in production (the Sepolia build) by
+  #208**, with `NEXT_PUBLIC_SHOP_ENABLED=true` in Vercel Production; unset it and merge to hide it.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

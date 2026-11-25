@@ -186,6 +186,13 @@ found no error, and the Base fork test runs the real route (`test/ShopFork.t.sol
   delay moot (an owner could set a near-zero floor, then sandwich). The peg now moves only with the
   route: `proposeRoute(adapter, pegSource, pegPackUsdc)` → `acceptRoute` after `ROUTE_DELAY` (2 days),
   in public (`test_pegChangeWaitsTheDelayToo`).
+- **Before a mainnet Shop: re-scan the fixes.** The route delay (`proposeRoute`/`acceptRoute`) and the
+  sweep cap were written after this pass's scan, from its findings; they are tested but have not been
+  scanned themselves. Run the skill again on `Shop.sol` before the mainnet deploy.
+- **Before a mainnet Shop: measure the sweep-sandwich claim on a fork.** That a $100 sweep is not worth
+  sandwiching (the attacker's own pool fees outweigh the gap to the floor) is argued from the pool's
+  depth (~$19K) and the hook's fees, not measured. Measure it on a Base fork against the live pool
+  (push the price, sweep $100, unwind) and set `maxSweepUsdc` from the result before mainnet.
 - **Accepted: the floor trusts a peg with no freshness check.** The price keeper moves Letters'
   `packPrice` only on a 5% drift, so its age says nothing about its accuracy, and a stale peg can sit
   up to that much (plus the price keeper's lag) off the market. Too high, and swaps wait (safe). Too
