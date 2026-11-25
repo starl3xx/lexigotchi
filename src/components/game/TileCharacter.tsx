@@ -1,30 +1,79 @@
 "use client";
 /**
- * TileCharacter — the vaudeville rubber-hose tile (design handoff §1–9).
+ * TileCharacter — the vaudeville rubber-hose tile (design handoff §1–9; the letter review,
+ * decisions.md #28).
  *
- * A Scrabble-style letter tile come to life: the letter is *printed on the tile* (the face),
- * with pie-eyes perched on the top edge, noodle arms/legs, mitt gloves and bean shoes. No
- * mouth — all expression is eyes + brows + body tilt/bounce. One parameterised component draws
- * every glyph, both cases, all 7 states and all 4 gild stages (never hand-author per-letter art).
+ * A Scrabble-style letter tile come to life: the letter is *printed on the tile* (the face), with
+ * pie-eyes perched on the top edge, noodle arms and legs, mitts, and bean shoes. No mouth: all
+ * expression is eyes, lids, brows, and the body's lean. One parameterised component draws every
+ * glyph, both cases, all 7 states and every gild stage (never hand-author per-letter art).
  *
  * Cases (the "glow-up"): lowercase = the kid (warm cream wood). UPPERCASE = the grown-up — it
  * literally becomes the blue Let's Have A Word! input tile. Case is derived, never stored.
  *
  * Level-of-detail (spec §9): the printed glyph never degrades; only the limbs simplify at small
- * sizes. `full` = whole character + bounce; `bust` = tile + face, no limbs; `tile` = face only
- * (the dense-grid / word-row form). Auto-selected by size, overridable via `detail`.
+ * sizes. `full` = whole character; `bust` = tile + face, no limbs; `tile` = face only (the
+ * dense-grid / word-row form). Auto-selected by size, overridable via `detail`.
  *
- * Motion is pure CSS keyframes (tailwind.config.ts `tc-*`); feet stay planted because the legs
- * group scales-Y while the body group translates-Y, and the shoes never animate. Reduced-motion
- * (spec §7) drops to the static pose carried by eyes + brow + tilt.
+ * THE DRAWING IS FOUR STACKED LAYERS, each its own <svg>: the floor (shadow, shoes), the legs, the
+ * body (rings, arms, tile, face), and the top (held hands, zzz, confetti). The loops (the breath,
+ * a jump) are CSS transforms on the legs and body LAYERS, never on a shape inside one. A browser
+ * slides a finished layer without redrawing it; a transform inside an <svg> makes WebKit (every
+ * iPhone browser and mini-app host) redraw the whole letter on every frame. Measured for one word
+ * at rest: 47% of a processor core as shapes inside one <svg>, 6.5% as layers. Keep it that way:
+ * anything that loops goes on a layer, and anything inside a layer moves in MOMENTS (a blink, a
+ * twinkle, the finish's light), never forever. Feet stay planted because the legs layer stretches
+ * from the feet while the body layer rises. `flat` draws the same thing as ONE <svg> (the layers
+ * as groups) for a picture that must be a single file (scripts/docs-art.tsx).
+ *
+ * Life comes from one timer for a word (useWordLife), never one a tile: blinks, glances, a
+ * twinkle. Reduced-motion (spec §7) drops to the still pose carried by eyes, lids, brows, and lean.
  */
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
 import { finishFor, mixHex } from "@/lib/rarityFinish";
+import { LINK_OVERLAP } from "@/components/scenes/layout";
+import {
+  ARM_BRACE,
+  ARM_BRACE_R,
+  ARM_HIP,
+  ARM_REST,
+  ARM_REST_R,
+  ARM_WAVE,
+  BOT,
+  CLASP,
+  CX,
+  DARTS_FROM,
+  FOOT_LX,
+  FOOT_RX,
+  FOOT_Y,
+  LEG_L,
+  LEG_R,
+  LIMB_W,
+  LINK_L,
+  LINK_R,
+  MID,
+  MITT,
+  SHADOW,
+  SHINE_FROM,
+  SHOE,
+  SHOE_SHINE,
+  T,
+  TOP,
+  VB,
+  eyeBox,
+  leanFor,
+  mittAt,
+  pupilOf,
+  type Arm,
+  type Hand,
+} from "./tileShapes";
+
+export { WORD_LEAN, leanFor } from "./tileShapes";
 import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, type FinishMotion } from "./TileFinish";
 
 export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
-export type TilePose = "rest" | "hero" | "link";
+export type TilePose = "rest" | "hero";
 export type TileDetail = "auto" | "full" | "bust" | "tile";
 /** Ascension stage, UPPERCASE only: 0 plain, 1–4 Gilded, 5 Holographic (the word ladder, decisions.md #19). */
 export type Gild = 0 | 1 | 2 | 3 | 4 | 5;
@@ -67,6 +116,15 @@ export interface TileCharacterProps {
   still?: boolean;
   /** The letter's place in its word, so the finish's light passes along the word in turn. */
   index?: number;
+  /** This letter holds its left / right neighbour's hand (a word). The clasp between two letters is
+   *  drawn once, by the letter on the right; an end letter's outer arm hangs at rest. */
+  linkLeft?: boolean;
+  linkRight?: boolean;
+  /** A resting lean in degrees, about the feet (a hand-placed tile; leanFor). Mood adds to it. */
+  lean?: number;
+  /** One <svg> instead of four stacked layers, for a picture that must be a single file (the docs'
+   *  art). The loops then run on groups inside it, which costs a redraw a frame: never in the app. */
+  flat?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,43 +157,52 @@ const CONFETTI = ["#d8463f", "#f0a617", "#2a9d8f", "#3b82f6", "#7b1e26"];
 const RAREST = new Set(LETTERS_BY_FREQUENCY.slice(-6));
 
 // ---------------------------------------------------------------------------
-// Geometry — everything lives in a 240×340 viewBox (spec §1). Tile = 150×150 @ (45,100).
-// ---------------------------------------------------------------------------
-const VB = { w: 240, h: 340 };
-const T = { x: 45, y: 100, w: 150, h: 150, r: 20 };
-const CX = T.x + T.w / 2; // 120
-const TOP = T.y; //          100
-const BOT = T.y + T.h; //    250
-const MID = T.y + T.h / 2; // 175
-
-// ---------------------------------------------------------------------------
 // Expression + motion presets, keyed by state.
 // ---------------------------------------------------------------------------
-type EyeMode = "open" | "happy" | "closed";
-type Brow = "raised" | "flat" | "worried" | "sad";
+type EyeMode = "open" | "closed" | "squeeze";
+type Brow = "none" | "raised" | "worried" | "sad";
 interface Expr {
   eyes: EyeMode;
-  lid: number; // fraction of the eye covered by the lid (open states only)
+  /** fraction of the eye a smile pushes the LOWER lid up over (open eyes only) */
+  smile?: number;
+  /** fraction of the eye the lid covers (open eyes only) */
+  lid: number;
+  /** how far the lid's outer corner droops, in units (a tired eye) */
+  slant: number;
   brow: Brow;
-  dart?: boolean; // pupils dart side-to-side
 }
 const EXPR: Record<TileState, Expr> = {
-  idle: { eyes: "open", lid: 0.2, brow: "raised" },
-  peckish: { eyes: "open", lid: 0.52, brow: "flat" },
-  hungry: { eyes: "closed", lid: 0, brow: "sad" },
-  eating: { eyes: "happy", lid: 0, brow: "raised" },
-  rolling: { eyes: "open", lid: 0.14, brow: "worried", dart: true },
-  upgrade: { eyes: "open", lid: 0.05, brow: "raised" },
-  celebrate: { eyes: "happy", lid: 0, brow: "raised" },
+  // Wide open at rest, and no brows: a half-lid on every idle letter read as bored (and, with the
+  // rim and an arched brow, as glasses). A brow now always means a feeling.
+  idle: { eyes: "open", lid: 0, slant: 0, brow: "none" },
+  peckish: { eyes: "open", lid: 0.4, slant: 3.5, brow: "sad" },
+  hungry: { eyes: "closed", lid: 0, slant: 0, brow: "sad" },
+  eating: { eyes: "open", lid: 0, slant: 0, smile: 0.5, brow: "raised" },
+  // can't look: eyes squeezed shut, one peeking now and then (no "?" over the head)
+  rolling: { eyes: "squeeze", lid: 0, slant: 0, brow: "worried" },
+  upgrade: { eyes: "open", lid: 0, slant: 0, brow: "raised" },
+  celebrate: { eyes: "open", lid: 0, slant: 0, smile: 0.42, brow: "raised" },
 };
+// The body layer's loop per state (tailwind.config.ts, the tc-* keyframes). Idle breathes: slow
+// and small, where it used to bounce to a beat.
 const BODY_ANIM: Record<TileState, string> = {
-  idle: "animate-tc-idle",
-  peckish: "animate-tc-bobslow",
-  hungry: "",
+  idle: "animate-tc-breathe",
+  peckish: "animate-tc-sigh",
+  hungry: "animate-tc-sleep",
   eating: "animate-tc-eat",
-  rolling: "animate-tc-roll",
+  rolling: "animate-tc-brace",
   upgrade: "animate-tc-pop",
   celebrate: "animate-tc-jump",
+};
+// The legs layer keeps the feet planted while the body moves: each body loop has its leg loop.
+const LEG_ANIM: Record<TileState, string> = {
+  idle: "animate-tc-legbreathe",
+  peckish: "animate-tc-legsigh",
+  hungry: "",
+  eating: "",
+  rolling: "animate-tc-knock",
+  upgrade: "",
+  celebrate: "animate-tc-legjump",
 };
 const TILT: Record<TileState, number> = {
   idle: 0,
@@ -248,114 +315,154 @@ export function useFinishMoment(tier: Tier | undefined, active: boolean, word = 
   return [playing === word && on, play];
 }
 
-// ---------------------------------------------------------------------------
-// Limb geometry per pose. Arms are noodle quadratics → gloves; legs splay to shoes.
-// ---------------------------------------------------------------------------
-function arms(pose: TilePose) {
-  if (pose === "hero")
-    return {
-      left: { d: `M ${T.x + 4} ${MID} Q 44 198 64 206`, gx: 64, gy: 206 }, // hand on hip
-      right: { d: `M ${T.x + T.w - 4} ${MID} Q 214 150 210 116`, gx: 210, gy: 112 }, // arm waved up
-    };
-  if (pose === "link")
-    return {
-      left: { d: `M ${T.x + 4} ${MID + 2} Q 26 182 8 184`, gx: 8, gy: 184 }, // reach out to hold hands
-      right: { d: `M ${T.x + T.w - 4} ${MID + 2} Q 214 182 232 184`, gx: 232, gy: 184 },
-    };
-  return {
-    left: { d: `M ${T.x + 4} ${MID} Q 28 206 36 232`, gx: 36, gy: 232 }, // rest — hang down
-    right: { d: `M ${T.x + T.w - 4} ${MID} Q 212 206 204 232`, gx: 204, gy: 232 },
-  };
+// ===========================================================================
+// Mitt — a palm, a thumb, and a cuff where the arm goes in. Two circles read as a ball.
+// ===========================================================================
+function Mitt({ hand, darts, filter }: { hand: Hand; darts: boolean; filter?: string }) {
+  const { thumb, palm, cuff } = MITT;
+  return (
+    <g transform={mittAt(hand)} filter={filter}>
+      <ellipse cx={thumb.cx} cy={thumb.cy} rx={thumb.rx} ry={thumb.ry} transform={`rotate(${thumb.rot} ${thumb.cx} ${thumb.cy})`} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+      <ellipse {...palm} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
+      {darts && <path d={MITT.darts} stroke={INK} strokeWidth={1.7} strokeLinecap="round" fill="none" />}
+      <rect {...cuff} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+    </g>
+  );
 }
 
-const FOOT_Y = 300;
-const FOOT_LX = CX - 30; // 90
-const FOOT_RX = CX + 30; // 150
-// rounded bean (local, toe +x), drawn ~0.78× (spec §4)
-const SHOE = "M -15 1 Q -21 -19 -1 -21 Q 17 -22 25 -13 Q 33 -5 44 -7 Q 53 -7 53 2 Q 53 4 47 4 L -11 4 Q -15 4 -15 1 Z";
+/** Two hands held: my left hand over my neighbour's right, my thumb across it (tileShapes, CLASP). */
+function Clasp({ darts }: { darts: boolean }) {
+  const { cuff, cuffs, under, thumb, over } = CLASP;
+  return (
+    <g>
+      {cuffs.map((t) => (
+        <rect key={t} {...cuff} transform={t} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+      ))}
+      <ellipse {...under} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
+      <ellipse cx={thumb.cx} cy={thumb.cy} rx={thumb.rx} ry={thumb.ry} transform={`rotate(${thumb.rot} ${thumb.cx} ${thumb.cy})`} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+      <ellipse {...over} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
+      {darts && <path d={CLASP.darts} stroke={INK} strokeWidth={1.7} strokeLinecap="round" fill="none" />}
+    </g>
+  );
+}
 
 // ===========================================================================
-// Eye — open (lidded) / happy (up-arc) / closed (down-arc). Brow drawn separately.
+// Eye — a tall oval with one big pupil. Open, it can wear a lid; shut, it keeps its shape (the eyes
+// are the character's head: an arc alone leaves a plain tile). Every open eye carries a second
+// drawing of itself shut, shown for the moment of a blink (.tc-blink on the tile; globals.css).
 // ===========================================================================
 function Eye({
   ex,
   ey,
-  r,
+  rx,
+  ry,
   expr,
-  look,
+  side,
   face,
   id,
+  peek = false,
 }: {
   ex: number;
   ey: number;
-  r: number;
+  rx: number;
+  ry: number;
   expr: Expr;
-  look: number; // -1..1 side-glance
+  /** -1: the left eye · 1: the right */
+  side: -1 | 1;
   face: string; // eyelid fill (matches the tile face)
   id: string;
+  /** rolling: this eye opens for a moment now and then */
+  peek?: boolean;
 }) {
-  if (expr.eyes !== "open") {
-    const a = r * 0.78;
-    const d =
-      expr.eyes === "happy"
-        ? `M ${ex - a} ${ey + 2} Q ${ex} ${ey - a} ${ex + a} ${ey + 2}` // smiling up-arc
-        : `M ${ex - a} ${ey - 2} Q ${ex} ${ey + a} ${ex + a} ${ey - 2}`; // sleepy down-arc
-    return <path d={d} stroke={INK} strokeWidth={3.6} fill="none" strokeLinecap="round" />;
-  }
-  const pr = r * 0.52; // pupil radius
-  const px = ex + look * r * 0.4;
-  const py = ey + r * 0.34; // sits low
-  const lidH = expr.lid * 2 * r; // px covered from the top
+  const ball = (fill: string) => <ellipse cx={ex} cy={ey} rx={rx} ry={ry} fill={fill} stroke={INK} strokeWidth={3.2} />;
+  const line = (d: string, w = 3.6) => <path d={d} stroke={INK} strokeWidth={w} fill="none" strokeLinecap="round" strokeLinejoin="round" />;
+  const a = rx * 0.66;
+  const shut = {
+    // lashes down: a blink, or asleep
+    closed: `M ${ex - a} ${ey + ry * 0.12} Q ${ex} ${ey + ry * 0.58} ${ex + a} ${ey + ry * 0.12}`,
+    // screwed up tight: a chevron pointing at the nose
+    squeeze: `M ${ex + side * a * 0.75} ${ey - ry * 0.32} L ${ex - side * a * 0.7} ${ey + ry * 0.06} L ${ex + side * a * 0.75} ${ey + ry * 0.44}`,
+  };
+  const pupil = pupilOf(ex, ey, rx, ry, side, !!expr.smile);
   const clip = `tc-eye-${id}`;
-  return (
-    <g>
+  const lidY = ey - ry + expr.lid * 2 * ry;
+  const yL = lidY + (side === -1 ? expr.slant : -expr.slant);
+  const yR = lidY + (side === 1 ? expr.slant : -expr.slant);
+  const open = (wide: boolean) => (
+    <>
       <defs>
         <clipPath id={clip}>
-          <circle cx={ex} cy={ey} r={r} />
+          <ellipse cx={ex} cy={ey} rx={rx} ry={ry} />
         </clipPath>
       </defs>
-      <circle cx={ex} cy={ey} r={r} fill={EYE_WHITE} stroke={INK} strokeWidth={3.4} />
-      {/* pupil with a pie-slice wedge cut pointing up-right + a glint */}
+      {ball(EYE_WHITE)}
       <g clipPath={`url(#${clip})`}>
-        <circle cx={px} cy={py} r={pr} fill={INK} />
-        <path
-          d={`M ${px} ${py} L ${px + pr * 1.15} ${py - pr * 0.32} A ${pr * 1.2} ${pr * 1.2} 0 0 0 ${px + pr * 0.55} ${py - pr * 1.1} Z`}
-          fill={EYE_WHITE}
-        />
-        <circle cx={px - pr * 0.4} cy={py - pr * 0.45} r={pr * 0.26} fill={EYE_WHITE} />
-        {/* eyelid dropping from the top */}
-        {lidH > 0.5 && (
-          <>
-            <rect x={ex - r} y={ey - r} width={2 * r} height={lidH} fill={face} />
-            <line
-              x1={ex - r}
-              y1={ey - r + lidH}
-              x2={ex + r}
-              y2={ey - r + lidH}
-              stroke={INK}
-              strokeWidth={3.2}
-            />
-          </>
+        {/* the pupil, with the pie-slice cut that makes it a vaudeville eye (one highlight, not two) */}
+        <g className={wide ? undefined : "tc-pupil"} transform={wide ? `translate(0 ${-ry * 0.2})` : undefined}>
+          <ellipse cx={pupil.cx} cy={pupil.cy} rx={wide ? pupil.rx * 0.62 : pupil.rx} ry={wide ? pupil.ry * 0.62 : pupil.ry} fill={INK} />
+          {!wide && <path d={pupil.cut} fill={EYE_WHITE} />}
+        </g>
+        {/* a smile pushes the lower lid up: a happy eye that keeps its pupil (an arc alone, inside the
+            eye's outline, reads as a frown) */}
+        {!wide && !!expr.smile && (
+          <path
+            d={`M ${ex - rx - 4} ${ey + ry + 4} L ${ex + rx + 4} ${ey + ry + 4} L ${ex + rx + 4} ${ey + ry - expr.smile * 2 * ry + 7} Q ${ex} ${ey + ry - expr.smile * 2 * ry - 9} ${ex - rx - 4} ${ey + ry - expr.smile * 2 * ry + 7} Z`}
+            fill={face}
+            stroke={INK}
+            strokeWidth={3}
+          />
+        )}
+        {/* the lid, its outer corner drooping when tired */}
+        {!wide && expr.lid > 0.02 && (
+          <path
+            d={`M ${ex - rx - 4} ${ey - ry - 4} L ${ex + rx + 4} ${ey - ry - 4} L ${ex + rx + 4} ${yR} Q ${ex} ${lidY + 2} ${ex - rx - 4} ${yL} Z`}
+            fill={face}
+            stroke={INK}
+            strokeWidth={3}
+          />
         )}
       </g>
-      {/* re-stroke the rim over the lid edge */}
-      <circle cx={ex} cy={ey} r={r} fill="none" stroke={INK} strokeWidth={3.4} />
+      <ellipse cx={ex} cy={ey} rx={rx} ry={ry} fill="none" stroke={INK} strokeWidth={3.2} />
+    </>
+  );
+  if (expr.eyes !== "open") {
+    return (
+      <g>
+        <g className={peek ? "animate-tc-peek-shut" : undefined}>
+          {ball(face)}
+          {line(shut[expr.eyes])}
+        </g>
+        {peek && (
+          <g className="animate-tc-peek-open" opacity={0}>
+            {open(true)}
+          </g>
+        )}
+      </g>
+    );
+  }
+  return (
+    <g>
+      <g className="tc-eye-open">{open(false)}</g>
+      <g className="tc-eye-shut" visibility="hidden">
+        {ball(face)}
+        {line(shut.closed)}
+      </g>
     </g>
   );
 }
 
 function browPath(ex: number, y: number, brow: Brow, side: -1 | 1): string {
-  const inner = ex + side * 9; // toward the nose
-  const outer = ex - side * 9;
+  const inner = ex - side * 9; // toward the nose
+  const outer = ex + side * 9;
   switch (brow) {
-    case "flat":
-      return `M ${outer} ${y} L ${inner} ${y}`;
     case "worried":
-      return `M ${outer} ${y + 3} L ${inner} ${y - 2}`; // inner up, outer down
+      return `M ${outer} ${y + 4} Q ${ex} ${y - 1} ${inner} ${y - 4}`; // inner up, outer down
     case "sad":
-      return `M ${outer} ${y + 4} L ${inner} ${y - 3}`;
+      return `M ${outer} ${y + 5} Q ${ex} ${y} ${inner} ${y - 3}`;
+    case "raised":
+      return `M ${outer} ${y} Q ${ex} ${y - 7} ${inner} ${y}`;
     default:
-      return `M ${outer} ${y + 2} Q ${ex} ${y - 4} ${inner} ${y + 2}`; // raised arc
+      return "";
   }
 }
 
@@ -427,7 +534,7 @@ function Rings({ gild, holo }: { gild: Gild; holo?: string }) {
   );
 }
 
-function Twinkles({ gild, reduced, holo, soft }: { gild: Gild; reduced: boolean; holo?: string; soft?: string }) {
+function Twinkles({ gild, holo, soft }: { gild: Gild; holo?: string; soft?: string }) {
   if (gild <= 0) return null;
   const ro = ringOuter(gild);
   const items = [
@@ -457,8 +564,8 @@ function Twinkles({ gild, reduced, holo, soft }: { gild: Gild; reduced: boolean;
             fill={TWINKLE}
             stroke={gild >= 5 && holo ? holo : GOLD}
             strokeWidth={gild >= 5 ? 2 : 1}
-            className={reduced ? "" : "animate-tc-twinkle"}
-            style={reduced ? undefined : ({ animationDelay: `${t.d}s`, ...PLANT } as CSSProperties)}
+            className="tc-star"
+            style={{ animationDelay: `${t.d}s`, ...PLANT } as CSSProperties}
           />
         ))}
     </>
@@ -619,21 +726,32 @@ function Zzz({ reduced }: { reduced: boolean }) {
   );
 }
 
-function Huh({ reduced }: { reduced: boolean }) {
+/** Rolling: beads of sweat flicking off the top corners (white, like the mitts: no red, no "?"). */
+function Sweat({ reduced, eyeY }: { reduced: boolean; eyeY: number }) {
+  // A still frame shows none: a bead frozen in the air reads as an ear.
+  if (reduced) return null;
+  const drop = "M 0 -7 C 4 -1 5 3 0 5 C -5 3 -4 -1 0 -7 Z";
+  // each bead flies along its own "up" (its group's turn), so one keyframe serves both
+  const drops = [
+    { x: CX - 58, y: eyeY - 24, rot: -40, d: 0 },
+    { x: CX + 58, y: eyeY - 24, rot: 40, d: 0.7 },
+  ];
   return (
-    <text
-      x={CX}
-      y={TOP - 14}
-      textAnchor="middle"
-      fontFamily="var(--font-body)"
-      fontWeight={800}
-      fontSize={34}
-      fill={CURTAIN}
-      className={reduced ? "" : "animate-tc-bobslow"}
-      style={PLANT}
-    >
-      ?
-    </text>
+    <g>
+      {drops.map((s, i) => (
+        <g key={i} transform={`translate(${s.x} ${s.y}) rotate(${s.rot})`}>
+          <path
+            d={drop}
+            fill={EYE_WHITE}
+            stroke={INK}
+            strokeWidth={2}
+            opacity={0}
+            className="animate-tc-sweat"
+            style={{ animationDelay: `${s.d}s`, transformBox: "fill-box", transformOrigin: "center" } as CSSProperties}
+          />
+        </g>
+      ))}
+    </g>
   );
 }
 
@@ -656,6 +774,9 @@ function Snack() {
 // ===========================================================================
 // Main component
 // ===========================================================================
+/** A layer fills the tile's box, stacked on the layers before it. */
+const LAYER: CSSProperties = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", display: "block" };
+
 export function TileCharacter({
   char,
   upper = false,
@@ -677,9 +798,13 @@ export function TileCharacter({
   tier,
   still = false,
   index = 0,
+  linkLeft = false,
+  linkRight = false,
+  lean = 0,
+  flat = false,
 }: TileCharacterProps) {
   // A still frame holds the whole character still, not only its finish: a grid of cards would
-  // otherwise run each tile's idle bounce, hundreds of repainting animations (the Bag's words).
+  // otherwise run each tile's idle loop, hundreds of animations (the Bag's words).
   const reduced = usePrefersReducedMotion() || still;
   const lowPower = useLowPower();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
@@ -687,7 +812,8 @@ export function TileCharacter({
 
   const glyph = upper ? char.toUpperCase() : char.toLowerCase();
   const expr = EXPR[state];
-  const tilt = TILT[state];
+  // a resting lean (a hand-placed tile) plus the mood's slump; the feet never tilt
+  const tilt = TILT[state] + lean;
   const g: Gild = upper ? gild : 0; // gild is UPPERCASE-only
   const holo = g >= 5 ? holoPaint : undefined; // the foil, only on a Holographic tile
 
@@ -722,19 +848,23 @@ export function TileCharacter({
   const letterFont = "var(--font-body)"; // Söhne bold for both cases (design review)
   const letterWeight = 800;
 
-  const eyeR = upper ? 21 : 20;
-  // Gilded tiles have a thicker top border — perch the eyes on its OUTER edge so they ride up
-  // and stay near the top as the gild ring grows (design review). Lowercase keeps the base spot.
-  const eyeY = upper ? TOP + eyeR - 1 - ringOuter(g) : TOP + 4;
+  // the eyes, riding the ring's outer edge on an UPPERCASE tile (tileShapes, eyeBox)
+  const { rx: eyeRx, ry: eyeRy, dx: eyeDx, y: eyeY } = eyeBox(upper, ringOuter(g));
   // when pips are present, nudge the printed letter up so the two never collide
   const letterY = MID + 4 - (g >= 1 ? 12 : 0);
-  const face = arms(pose);
   const seed = char.toUpperCase().charCodeAt(0);
   const boilFilter = boil && showLimbs ? `url(#tc-boil-${uid})` : undefined;
 
-  const renderH = Math.round(size * (VIEW.h / VIEW.w));
-  const bodyAnim = reduced ? "" : BODY_ANIM[state];
-  const legAnim = reduced || state !== "idle" ? "" : "animate-tc-legbob";
+  // The loops. A word's letters breathe each a little behind the last, like five creatures and not
+  // one machine; the clasps stand still and the arms end under them, so that can't part hands.
+  const calm = state === "idle" || state === "peckish";
+  const phase: CSSProperties | undefined = !reduced && calm && index ? { animationDelay: `${(-index * 0.6).toFixed(2)}s` } : undefined;
+  // A small tile with no legs stands still at rest: a tile bobbing in the air isn't breathing, and a
+  // grid of them (the loose letters on Today, the Bag) was a dozen loops for nothing.
+  const restsStill = calm && !showLimbs;
+  const bodyAnim = reduced || restsStill ? "" : BODY_ANIM[state];
+  const legAnim = reduced ? "" : LEG_ANIM[state];
+  const tiltT = tilt ? `rotate(${tilt} ${CX} ${BOT})` : undefined;
 
   // the word's rarity, as the tile's material (lib/rarityFinish, ./TileFinish). It moves
   // only where the whole character is drawn; a hungry word loses its shine, a peckish one dims.
@@ -747,192 +877,225 @@ export function TileCharacter({
   // eyelids match the tile (the top of a finished face, where the eyes sit: the tint over the face)
   const lidFill = fin ? mixHex(faceFill, fin.face[0], fin.alpha) : faceFill;
 
-  const Glove = ({ gx, gy }: { gx: number; gy: number }) => (
-    <g filter={boilFilter}>
-      <circle cx={gx + 4} cy={gy + 4} r={6.5} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
-      <circle cx={gx} cy={gy} r={13} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
-    </g>
-  );
+  // The arms. A side that holds a neighbour's hand reaches for the clasp; a free side hangs at
+  // rest, holds on to the tile's corner when rolling, or strikes the hero pose.
+  const armL: Arm | null = !showLimbs || linkLeft ? null : state === "rolling" ? ARM_BRACE : pose === "hero" ? ARM_HIP : ARM_REST;
+  const armR: Arm | null = !showLimbs || linkRight ? null : state === "rolling" ? ARM_BRACE_R : pose === "hero" ? ARM_WAVE : ARM_REST_R;
+  const darts = size >= DARTS_FROM; // the mitt's two stitches: only where they are more than a speck
+  const limb = (d: string) => <path d={d} stroke={INK} strokeWidth={LIMB_W} fill="none" strokeLinecap="round" />;
+  const freeArm = (a: Arm | null) =>
+    a && (
+      <g filter={boilFilter}>
+        {limb(a.d)}
+        {!a.front && <Mitt hand={a.hand} darts={darts} />}
+      </g>
+    );
+  const frontMitt = (a: Arm | null) => a && a.front && <Mitt hand={a.hand} darts={darts} filter={boilFilter} />;
 
-  const svg = (
-    <svg
-      viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
-      width={fluid ? "100%" : size}
-      height={fluid ? undefined : renderH}
-      className="overflow-visible"
-      style={fluid ? { display: "block", height: "auto" } : { display: "block" }}
-    >
-      {boil && showLimbs && (
-        <defs>
-          <filter id={`tc-boil-${uid}`} x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves={2} seed={seed} result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale={2} xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-      )}
+  // ── The four layers (the header says why) ─────────────────────────────────────────────────────
+  // Distances in the loops' keyframes are in the drawing's units, through --ux / --uy: one unit as
+  // a percent of the layer's own box, so translateY(calc(var(--uy) * -3)) is three units up at any
+  // size. An origin is a point of the drawing as a percent of the box, for the same reason.
+  const vb = `${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`;
+  const units = { "--ux": `${(100 / VIEW.w).toFixed(4)}%`, "--uy": `${(100 / VIEW.h).toFixed(4)}%` } as CSSProperties;
+  const originAt = (x: number, y: number) => `${(((x - VIEW.x) / VIEW.w) * 100).toFixed(3)}% ${(((y - VIEW.y) / VIEW.h) * 100).toFixed(3)}%`;
+  const layer = (key: string, children: ReactNode, anim = "", origin?: string) =>
+    flat ? (
+      <g key={key} className={anim || undefined} style={origin ? ({ transformBox: "view-box", transformOrigin: origin, ...phase } as CSSProperties) : undefined}>
+        {children}
+      </g>
+    ) : (
+      <svg key={key} viewBox={vb} aria-hidden className={`overflow-visible ${anim}`} style={origin ? { ...LAYER, transformOrigin: origin, ...phase } : LAYER}>
+        {children}
+      </svg>
+    );
 
-      {/* Holographic foil: one gradient per tile, drifting unless reduced motion (stage 5 only) */}
-      {g >= 5 && (
-        <defs>
-          <linearGradient id={`tc-holo-${uid}`} x1="0" y1="0" x2="0.6" y2="0.6" spreadMethod="reflect">
-            {HOLO_STOPS.map(([o, c]) => (
-              <stop key={o} offset={o} stopColor={c} />
-            ))}
-            {!reduced && (
-              <animateTransform attributeName="gradientTransform" type="translate" values="0 0; 0.6 0.6; 0 0" dur="6s" repeatCount="indefinite" />
-            )}
-          </linearGradient>
-        </defs>
-      )}
-
-      <FinishDefs tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
-
-      {/* gold burst rays (upgrade) — behind everything */}
-      {state === "upgrade" && <BurstRays reduced={reduced} />}
-
-      {/* ground shadow — static, anchors the figure. Wide, and sitting just under the shoes. */}
-      {showLimbs && <ellipse cx={CX} cy={FOOT_Y + 2} rx={86} ry={12} fill={INK} opacity={0.17} />}
-
-      {/* shoes — planted, never animate */}
-      {showLimbs && (
-        <g fill={INK} filter={boilFilter}>
-          <path d={SHOE} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-0.78 0.78)`} />
-          <path d={SHOE} transform={`translate(${FOOT_RX} ${FOOT_Y}) scale(0.78 0.78)`} />
-        </g>
-      )}
-
-      {/* figure: static tilt wrapper (SVG attr) so it composes with the CSS bounce inside */}
-      <g transform={tilt ? `rotate(${tilt} ${CX} ${BOT})` : undefined}>
-        {/* legs — scaleY bounce from the feet */}
+  const layers = [
+    // the floor: what never moves
+    layer(
+      "floor",
+      <>
+        {boil && showLimbs && (
+          <defs>
+            <filter id={`tc-boil-${uid}`} x="-20%" y="-20%" width="140%" height="140%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves={2} seed={seed} result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale={2} xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        )}
+        {/* gold burst rays (upgrade) — behind everything */}
+        {state === "upgrade" && <BurstRays reduced={reduced} />}
+        {/* ground shadow: on the floor, whatever the figure does */}
+        {showLimbs && <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />}
+        {/* shoes — planted */}
         {showLimbs && (
-          <g className={legAnim} style={PLANT} filter={boilFilter}>
-            <path d={`M ${CX - 24} ${BOT - 8} Q ${CX - 36} 275 ${FOOT_LX} ${FOOT_Y - 6}`} stroke={INK} strokeWidth={9} fill="none" strokeLinecap="round" />
-            <path d={`M ${CX + 24} ${BOT - 8} Q ${CX + 36} 275 ${FOOT_RX} ${FOOT_Y - 6}`} stroke={INK} strokeWidth={9} fill="none" strokeLinecap="round" />
+          <g filter={boilFilter}>
+            <path d={SHOE} fill={INK} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-1 1)`} />
+            <path d={SHOE} fill={INK} transform={`translate(${FOOT_RX} ${FOOT_Y})`} />
+            {size >= SHINE_FROM && (
+              <g stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none">
+                <path d={SHOE_SHINE} transform={`translate(${FOOT_LX} ${FOOT_Y}) scale(-1 1)`} />
+                <path d={SHOE_SHINE} transform={`translate(${FOOT_RX} ${FOOT_Y})`} />
+              </g>
+            )}
           </g>
         )}
+      </>,
+    ),
 
-        {/* body group — tile + face + arms + gloves translate up together */}
-        <g className={bodyAnim} style={PLANT}>
-          {/* arms behind the tile */}
-          {showLimbs && (
-            <g filter={boilFilter}>
-              <path d={face.left.d} stroke={INK} strokeWidth={9} fill="none" strokeLinecap="round" />
-              <path d={face.right.d} stroke={INK} strokeWidth={9} fill="none" strokeLinecap="round" />
-            </g>
-          )}
+    // the legs: the layer stretches from the feet, so they stay planted while the body rises
+    showLimbs &&
+      layer(
+        "legs",
+        <g transform={tiltT}>
+          <g className="tc-legs-perk" style={{ transformBox: "view-box", transformOrigin: `${CX}px ${FOOT_Y - 6}px` }} filter={boilFilter}>
+            {limb(LEG_L)}
+            {limb(LEG_R)}
+          </g>
+        </g>,
+        legAnim,
+        originAt(CX, FOOT_Y - 6),
+      ),
 
-          {/* the rarity's aura, behind the tile */}
-          {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
+    // the body: glow, rings, arms, the tile and its face
+    layer(
+      "body",
+      <>
+        {/* Holographic foil: one gradient per tile, drifting unless reduced motion (stage 5 only) */}
+        {g >= 5 && (
+          <defs>
+            <linearGradient id={`tc-holo-${uid}`} x1="0" y1="0" x2="0.6" y2="0.6" spreadMethod="reflect">
+              {HOLO_STOPS.map(([o, c]) => (
+                <stop key={o} offset={o} stopColor={c} />
+              ))}
+              {!reduced && (
+                <animateTransform attributeName="gradientTransform" type="translate" values="0 0; 0.6 0.6; 0 0" dur="6s" repeatCount="indefinite" />
+              )}
+            </linearGradient>
+          </defs>
+        )}
+        <FinishDefs tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
 
-          {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
-          {upper && <Rings gild={g} holo={holo} />}
+        {/* static lean (SVG attr), then the hover's rise (globals.css, .tc-perk) */}
+        <g transform={tiltT}>
+          <g className="tc-perk">
+            {/* the rarity's aura, behind the tile */}
+            {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
 
-          {/* lowercase 3-D bottom edge (the wooden shelf) */}
-          {!upper && <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
+            {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
+            {upper && <Rings gild={g} holo={holo} />}
 
-          {/* tile face */}
-          <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill={faceFill} stroke={border} strokeWidth={borderW} />
-          {/* the rarity's material, a translucent tint over the face (facets, foil, glitter,
-              frame), then the light passing under the letter */}
-          <FinishSurface tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
-          <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} index={index} />
-          {/* the border again, over the material's edge */}
-          {fin && <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={border} strokeWidth={borderW} />}
+            {/* The arms go over the rings and under the face, so an UPPERCASE letter's arms show
+                (they used to hide behind its ring). An arm that holds a neighbour's hand is drawn
+                upright whatever the lean (the lean undone), toward where the hands meet. */}
+            {showLimbs && (linkLeft || linkRight) && (
+              <g transform={tilt ? `rotate(${-tilt} ${CX} ${BOT})` : undefined} filter={boilFilter}>
+                {linkLeft && limb(LINK_L)}
+                {linkRight && limb(LINK_R)}
+              </g>
+            )}
+            {freeArm(armL)}
+            {freeArm(armR)}
 
-          {/* the printed glyph — real text, razor-sharp at any size (spec §9) */}
-          <text
-            x={CX}
-            y={letterY}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontFamily={letterFont}
-            fontWeight={letterWeight}
-            fontSize={92}
-            fill={letterFill}
-          >
-            {glyph}
-          </text>
+            {/* lowercase 3-D bottom edge (the wooden shelf) */}
+            {!upper && <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
 
-          {/* the rarity's light over the letter (the streak, the glints, the fire) */}
-          <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} small={finSmall} index={index} />
+            {/* tile face */}
+            <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill={faceFill} stroke={border} strokeWidth={borderW} />
+            {/* the rarity's material, a translucent tint over the face (facets, foil, glitter,
+                frame), then the light passing under the letter */}
+            <FinishSurface tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
+            <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} index={index} />
+            {/* the border again, over the material's edge */}
+            {fin && <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={border} strokeWidth={borderW} />}
 
-          {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
-              still reads via the rings + pips (one crown per letter would clutter / clip) */}
-          {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
-
-          {/* gild pips on the lower face */}
-          <Pips gild={g} holo={holo} plate={!!fin} />
-
-          {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
-              never collides with the inventory count bubble */}
-          {!upper && lod !== "tile" && (
-            <text
-              x={T.x + T.w - 14}
-              y={BOT - 13}
-              textAnchor="end"
-              fontFamily="var(--font-body)"
-              fontWeight={800}
-              fontSize={20}
-              fill={INK}
-              {...(fin ? { stroke: "#fffaf0", strokeWidth: 4, strokeLinejoin: "round" as const, paintOrder: "stroke" } : {})}
-            >
-              {value ?? scrabbleValue(char)}
+            {/* the printed glyph — real text, razor-sharp at any size (spec §9) */}
+            <text x={CX} y={letterY} textAnchor="middle" dominantBaseline="central" fontFamily={letterFont} fontWeight={letterWeight} fontSize={92} fill={letterFill}>
+              {glyph}
             </text>
-          )}
 
-          {/* gloves on top of the tile edges */}
-          {showLimbs && (
-            <>
-              <Glove gx={face.left.gx} gy={face.left.gy} />
-              <Glove gx={face.right.gx} gy={face.right.gy} />
-            </>
-          )}
+            {/* the rarity's light over the letter (the streak, the glints, the fire) */}
+            <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} small={finSmall} index={index} />
 
-          {/* eyes + brows perched on the top edge */}
-          {showFace && (
-            <g>
-              {expr.eyes === "open" && (
-                <g className={expr.dart && !reduced ? "animate-tc-dart" : ""}>
-                  <Eye ex={CX - 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}l`} />
-                  <Eye ex={CX + 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}r`} />
-                </g>
-              )}
-              {expr.eyes !== "open" && (
-                <>
-                  <Eye ex={CX - 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}l`} />
-                  <Eye ex={CX + 26} ey={eyeY} r={eyeR} expr={expr} look={0} face={lidFill} id={`${uid}r`} />
-                </>
-              )}
-              <path d={browPath(CX - 26, eyeY - eyeR - 4, expr.brow, 1)} stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round" />
-              <path d={browPath(CX + 26, eyeY - eyeR - 4, expr.brow, -1)} stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round" />
-            </g>
-          )}
+            {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
+                still reads via the rings + pips (one crown per letter would clutter / clip) */}
+            {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
 
-          {/* rare-letter glint — a corner badge (not part of the face), so show it at every LOD
-              incl. dense grids/word rows, matching the legacy tile. Gilded tiles use twinkles. */}
-          {RAREST.has(char.toUpperCase()) && g === 0 && (!fin || finSmall) && (
-            <path d={star4(T.x + T.w - 6, T.y + 6, 6, 2.2)} fill={GOLD} stroke={INK} strokeWidth={0.8} className={reduced ? "" : "animate-tc-twinkle"} style={PLANT} />
-          )}
-          {/* on a finished tile, the rare-letter mark is a soft gold glint in the same corner */}
-          {RAREST.has(char.toUpperCase()) && g === 0 && fin && !finSmall && (
-            <Glint x={T.x + T.w - 6} y={T.y + 6} s={0.75} color={GOLD} delay={0} anim={false} />
-          )}
+            {/* gild pips on the lower face */}
+            <Pips gild={g} holo={holo} plate={!!fin} />
 
-          {/* gild twinkles — riding the rings */}
-          <Twinkles gild={g} reduced={reduced || motion === "off" || motion === "rest"} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
+            {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
+                never collides with the inventory count bubble */}
+            {!upper && lod !== "tile" && (
+              <text
+                x={T.x + T.w - 14}
+                y={BOT - 13}
+                textAnchor="end"
+                fontFamily="var(--font-body)"
+                fontWeight={800}
+                fontSize={20}
+                fill={INK}
+                {...(fin ? { stroke: "#fffaf0", strokeWidth: 4, strokeLinejoin: "round" as const, paintOrder: "stroke" } : {})}
+              >
+                {value ?? scrabbleValue(char)}
+              </text>
+            )}
 
-          {/* the rarity's motes, drifting up */}
-          {lod === "full" && <FinishMotes tier={tier} uid={uid} motion={motion} dim={finDim} seed={seed} index={index} />}
+            {/* a mitt that rests on the tile (holding on, hand on hip) */}
+            {frontMitt(armL)}
+            {frontMitt(armR)}
+
+            {/* eyes + brows perched on the top edge */}
+            {showFace && (
+              <g>
+                <Eye ex={CX - eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={-1} face={lidFill} id={`${uid}l`} />
+                <Eye ex={CX + eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={1} face={lidFill} id={`${uid}r`} peek={state === "rolling" && !reduced} />
+                {expr.brow !== "none" && (
+                  <g className="tc-brow" stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round">
+                    <path d={browPath(CX - eyeDx, eyeY - eyeRy - 5, expr.brow, -1)} />
+                    <path d={browPath(CX + eyeDx, eyeY - eyeRy - 5, expr.brow, 1)} />
+                  </g>
+                )}
+              </g>
+            )}
+
+            {/* rare-letter glint — a corner badge (not part of the face), so show it at every LOD
+                incl. dense grids/word rows, matching the legacy tile. Gilded tiles use twinkles.
+                It twinkles in a moment (.tc-spark, useWordLife), never in a loop. */}
+            {RAREST.has(char.toUpperCase()) && g === 0 && (!fin || finSmall) && (
+              <path d={star4(T.x + T.w - 6, T.y + 6, 6, 2.2)} fill={GOLD} stroke={INK} strokeWidth={0.8} className="tc-star" style={PLANT} />
+            )}
+            {/* on a finished tile, the rare-letter mark is a soft gold glint in the same corner */}
+            {RAREST.has(char.toUpperCase()) && g === 0 && fin && !finSmall && (
+              <Glint x={T.x + T.w - 6} y={T.y + 6} s={0.75} color={GOLD} delay={0} anim={false} />
+            )}
+
+            {/* gild twinkles — riding the rings */}
+            <Twinkles gild={g} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
+
+            {/* the rarity's motes, drifting up */}
+            {lod === "full" && <FinishMotes tier={tier} uid={uid} motion={motion} dim={finDim} seed={seed} index={index} />}
+          </g>
         </g>
-      </g>
+      </>,
+      bodyAnim,
+      originAt(CX, BOT),
+    ),
 
-      {/* per-state extras anchored to the scene */}
-      {showFace && state === "hungry" && <Zzz reduced={reduced} />}
-      {showFace && state === "rolling" && <Huh reduced={reduced} />}
-      {showFace && state === "eating" && <Snack />}
-      {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
-    </svg>
-  );
+    // the top: what stands still in front of the body
+    layer(
+      "top",
+      <>
+        {/* the hands this letter and its left neighbour hold */}
+        {showLimbs && linkLeft && <Clasp darts={darts} />}
+        {/* per-state extras anchored to the scene */}
+        {showFace && state === "hungry" && <Zzz reduced={reduced} />}
+        {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} />}
+        {showFace && state === "eating" && <Snack />}
+        {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
+      </>,
+    ),
+  ];
 
   const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""}, ${state}${g >= 5 ? " · holographic" : g ? ` · gilded ${g}` : ""}`;
   const Tag = onClick ? "button" : "div";
@@ -942,12 +1105,27 @@ export function TileCharacter({
       onClick={onClick}
       title={title}
       aria-label={label}
+      data-tc=""
       className={`relative inline-flex items-center justify-center transition-transform ${
         selected ? "-translate-y-1" : ""
       } ${dim ? "opacity-35" : ""} ${onClick ? "tile-press" : ""} ${className}`}
-      style={{ width: fluid ? "100%" : size, ...style }}
+      style={{ width: fluid ? "100%" : size, "--i": index, ...style } as CSSProperties}
     >
-      {svg}
+      {flat ? (
+        <svg
+          viewBox={vb}
+          width={fluid ? "100%" : size}
+          height={fluid ? undefined : Math.round(size * (VIEW.h / VIEW.w))}
+          className="overflow-visible"
+          style={{ display: "block", ...(fluid ? { height: "auto" } : null), ...units }}
+        >
+          {layers}
+        </svg>
+      ) : (
+        <span className="relative block w-full" style={{ aspectRatio: `${VIEW.w} / ${VIEW.h}`, ...units }}>
+          {layers}
+        </span>
+      )}
       {count !== undefined && count > 1 && (
         <span className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-card px-1 text-[11px] font-bold">
           {count}
@@ -961,8 +1139,136 @@ export function TileCharacter({
 }
 
 // ===========================================================================
-// TileWord — a 5-letter word as a row of TileCharacters "holding hands" (the link pose).
-// Tiles overlap so neighbouring gloves meet; choreography staggers the bounce.
+// Life. One timer for a word (never one a tile, never a loop): every second or two one letter
+// blinks, glances at a neighbour, or its star twinkles. Each is a class or a custom property set on
+// the tile for a moment (globals.css says what they do), so between gestures nothing ticks.
+// ===========================================================================
+export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean): void {
+  useEffect(() => {
+    const row = ref.current;
+    if (!active || !row) return;
+    let next = 0;
+    const timers = new Set<number>();
+    const later = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(() => {
+        timers.delete(id);
+        fn();
+      }, ms);
+      timers.add(id);
+    };
+    const flash = (el: Element, cls: string, ms: number) => {
+      el.classList.add(cls);
+      later(() => el.classList.remove(cls), ms);
+    };
+    const tiles = () => Array.from(row.querySelectorAll<HTMLElement>("[data-tc]"));
+    const tick = () => {
+      const all = tiles();
+      if (all.length && !document.hidden) {
+        const i = Math.floor(Math.random() * all.length);
+        const el = all[i];
+        const r = Math.random();
+        if (r < 0.62) {
+          flash(el, "tc-blink", BLINK_MS);
+          if (Math.random() < 0.22) later(() => flash(el, "tc-blink", BLINK_MS), 280); // now and then, twice
+          if (Math.random() < 0.3 && all[i + 1]) later(() => flash(all[i + 1], "tc-blink", BLINK_MS), 150); // a neighbour catches it
+        } else if (r < 0.88) {
+          // a glance: at a neighbour, or (an end letter) out at the world. Not while the pointer
+          // has their eyes (useGaze).
+          if (!row.matches(":hover")) {
+            const dir = all.length === 1 ? (Math.random() < 0.5 ? -1 : 1) : i === 0 ? 1 : i === all.length - 1 ? -1 : Math.random() < 0.5 ? -1 : 1;
+            el.style.setProperty("--gx", String(dir * 0.9));
+            later(() => el.style.removeProperty("--gx"), 900 + Math.random() * 1100);
+          }
+        } else {
+          // a rare letter's star, or a gilded tile's, twinkles once
+          const starred = all.filter((t) => t.querySelector(".tc-star"));
+          if (starred.length) flash(starred[Math.floor(Math.random() * starred.length)], "tc-spark", SPARK_MS);
+        }
+      }
+      next = window.setTimeout(tick, 800 + Math.random() * 1900);
+    };
+    next = window.setTimeout(tick, 500 + Math.random() * 900);
+    return () => {
+      window.clearTimeout(next);
+      timers.forEach((id) => window.clearTimeout(id));
+      tiles().forEach((el) => {
+        el.classList.remove("tc-blink", "tc-spark");
+        el.style.removeProperty("--gx");
+      });
+    };
+  }, [ref, active]);
+}
+/** How long the shut eye shows. */
+const BLINK_MS = 120;
+/** One twinkle (globals.css, tc-spark). */
+const SPARK_MS = 2900; // 1.8 s, and the last of a gilded tile's three stars starts a second in
+
+/**
+ * While the pointer is over a word, its letters look at it: two custom properties a tile (--gx,
+ * --gy, each -1..1), set at most once a frame. Returns the handlers for the word's row; none when
+ * `active` is false.
+ */
+export function useGaze(ref: RefObject<HTMLElement | null>, active: boolean) {
+  const frame = useRef(0);
+  const at = useRef<{ x: number; y: number } | null>(null);
+  const apply = useCallback(() => {
+    frame.current = 0;
+    const row = ref.current;
+    const p = at.current;
+    if (!row || !p) return;
+    row.querySelectorAll<HTMLElement>("[data-tc]").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      const dx = p.x - (r.left + r.width / 2);
+      const dy = p.y - (r.top + r.height * 0.3); // the eyes sit near the top of the box
+      const d = Math.hypot(dx, dy) || 1;
+      const k = Math.min(1, d / (r.width * 0.6));
+      el.style.setProperty("--gx", ((dx / d) * k).toFixed(2));
+      el.style.setProperty("--gy", ((dy / d) * k).toFixed(2));
+    });
+  }, [ref]);
+  const clear = useCallback(() => {
+    at.current = null;
+    ref.current?.querySelectorAll<HTMLElement>("[data-tc]").forEach((el) => {
+      el.style.removeProperty("--gx");
+      el.style.removeProperty("--gy");
+    });
+  }, [ref]);
+  useEffect(() => () => window.cancelAnimationFrame(frame.current), []);
+  // a word that stops being watched (it went still, or off screen) lets go of the pointer
+  useEffect(() => {
+    if (!active) clear();
+  }, [active, clear]);
+  if (!active) return {};
+  return {
+    onPointerMove: (e: { clientX: number; clientY: number; pointerType?: string }) => {
+      if (e.pointerType && e.pointerType !== "mouse") return; // a touch has no hover to follow
+      at.current = { x: e.clientX, y: e.clientY };
+      if (!frame.current) frame.current = window.requestAnimationFrame(apply);
+    },
+    onPointerLeave: clear,
+  };
+}
+
+/**
+ * A letter standing alone where it is the star (the roll sheet): the same blinks and glances as a
+ * word, off a timer of its own. Not for grids: one timer a letter is what a word avoids.
+ */
+export function TileSolo(props: TileCharacterProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const reduced = usePrefersReducedMotion();
+  const onScreen = useOnScreen(ref, !props.still);
+  const state = props.state ?? "idle";
+  useWordLife(ref, !props.still && !reduced && onScreen && (state === "idle" || state === "peckish"));
+  return (
+    <div ref={ref} className="inline-flex">
+      <TileCharacter {...props} />
+    </div>
+  );
+}
+
+// ===========================================================================
+// TileWord — a word as a row of TileCharacters holding hands.
+// Full-size tiles overlap so each pair's hands meet between them (PITCH, the clasp).
 // ===========================================================================
 export function TileWord({
   word,
@@ -988,15 +1294,17 @@ export function TileWord({
   still?: boolean;
 }) {
   const letters = [...word];
-  // full-size words show characters "holding hands" (link pose, arms overlap); smaller word
+  // full-size words show characters holding hands (arms meet between the tiles); smaller word
   // rows have no limbs, so they sit in a neat row with a small positive gap instead.
   const full = detail === "full" || (detail === "auto" && size >= 100);
-  // a full-size finished word has its moments (only full-size tiles draw the finish's motion), while
+  // a full-size word has its life (blinks, glances) and, if it has a finish, its moments, while
   // it's on screen: a word scrolled away, or a copy hidden at this width, holds still
   const row = useRef<HTMLDivElement>(null);
-  const moving = full && !still && state !== "hungry" && !!finishFor(tier);
-  const onScreen = useOnScreen(row, moving);
-  const [moment, play] = useFinishMoment(tier, moving && onScreen, word);
+  const reduced = usePrefersReducedMotion();
+  const alive = full && !still;
+  const onScreen = useOnScreen(row, alive);
+  const [moment, play] = useFinishMoment(tier, alive && onScreen && state !== "hungry" && !!finishFor(tier), word);
+  useWordLife(row, alive && onScreen && !reduced && (state === "idle" || state === "peckish"));
   return (
     <div
       ref={row}
@@ -1005,18 +1313,20 @@ export function TileWord({
       onPointerEnter={full ? play : undefined}
     >
       {letters.map((ch, i) => (
-        <div key={i} style={full ? { marginLeft: i ? -size * 0.14 : 0 } : undefined}>
+        <div key={i} style={full ? { marginLeft: i ? -size * LINK_OVERLAP : 0 } : undefined}>
           <TileCharacter
             char={ch}
             upper={upper[i] ?? false}
             state={state}
             gild={gild}
-            pose={full ? "link" : "rest"}
             size={size}
             detail={detail}
             tier={tier}
             still={still}
             index={i}
+            linkLeft={full && i > 0}
+            linkRight={full && i < letters.length - 1}
+            lean={full ? leanFor(word, i) : 0}
           />
         </div>
       ))}

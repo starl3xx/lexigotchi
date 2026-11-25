@@ -108,27 +108,35 @@ const config: Config = {
           "70%": { transform: "scale(1.12) rotate(4deg)", opacity: "1" },
           "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
         },
-        sheen: {
-          "0%": { transform: "translateX(-120%) skewX(-20deg)" },
-          "100%": { transform: "translateX(220%) skewX(-20deg)" },
+        // --- TileCharacter (the letter review, decisions.md #28) ---
+        // The loops below run on the character's LAYERS (whole <svg>s: the body, the legs), never on
+        // a shape inside one, so a browser slides a finished picture instead of redrawing the letter
+        // on every frame (TileCharacter's header has the numbers). Distances are in the drawing's
+        // units through --ux / --uy (one unit as a percent of the layer's box, set by the tile), so
+        // the motion is the same at every size. Feet stay planted: the legs layer stretches from
+        // the feet while the body layer rises.
+        // idle: a breath (it used to bounce 7 units every 1.5 s, in step, like a metronome)
+        tcBreathe: {
+          "0%,100%": { transform: "translateY(0) scale(1.004, 0.996)" },
+          "50%": { transform: "translateY(calc(var(--uy) * -3)) scale(0.995, 1.008)" },
         },
-        // --- TileCharacter states (spec §5). Feet stay planted: legs scaleY, body translateY. ---
-        tcIdle: {
-          "0%,100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-7px)" },
-        },
-        tcLegBob: {
+        tcLegBreathe: {
           "0%,100%": { transform: "scaleY(1)" },
-          "50%": { transform: "scaleY(1.11)" },
+          "50%": { transform: "scaleY(1.06)" },
         },
-        tcBobSlow: {
-          "0%,100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-4px)" },
+        // peckish: slower and shallower, sinking a little
+        tcSigh: {
+          "0%,100%": { transform: "translateY(calc(var(--uy) * 1))" },
+          "45%": { transform: "translateY(calc(var(--uy) * -1.5))" },
         },
-        tcRoll: {
-          "0%,100%": { transform: "translate(0,0)" },
-          "25%": { transform: "translate(-2.5px,1px)" },
-          "75%": { transform: "translate(2.5px,-1px)" },
+        tcLegSigh: {
+          "0%,100%": { transform: "scaleY(0.98)" },
+          "45%": { transform: "scaleY(1.03)" },
+        },
+        // hungry: asleep, a slow rise and fall
+        tcSleep: {
+          "0%,100%": { transform: "scale(1, 1)" },
+          "50%": { transform: "scale(1.012, 0.984)" },
         },
         tcEat: {
           "0%,100%": { transform: "rotate(-3deg)" },
@@ -141,7 +149,38 @@ const config: Config = {
         },
         tcJump: {
           "0%,100%": { transform: "translateY(0) rotate(-1.5deg)" },
-          "50%": { transform: "translateY(-15px) rotate(1.5deg)" },
+          "50%": { transform: "translateY(calc(var(--uy) * -15)) rotate(1.5deg)" },
+        },
+        tcLegJump: {
+          "0%,100%": { transform: "scaleY(1)" },
+          "50%": { transform: "scaleY(1.29)" },
+        },
+        // rolling: it can't look. The body trembles, the knees knock.
+        tcBrace: {
+          "0%,100%": { transform: "translate(calc(var(--ux) * -1.3), 0)" },
+          "50%": { transform: "translate(calc(var(--ux) * 1.3), calc(var(--uy) * 0.6))" },
+        },
+        tcKnock: {
+          "0%,100%": { transform: "skewX(-5deg)" },
+          "50%": { transform: "skewX(5deg)" },
+        },
+        // These three run INSIDE a layer: one letter in the roll sheet, for as long as a roll takes.
+        // a bead of sweat flicks off the brow (its group's turn points it; px are drawing units)
+        tcSweat: {
+          "0%": { opacity: "0", transform: "translateY(3px) scale(0.5)" },
+          "18%,62%": { opacity: "1" },
+          "100%": { opacity: "0", transform: "translateY(-18px) scale(1)" },
+        },
+        // one eye peeks open for a moment, then screws shut again (the two swap, step-end)
+        tcPeekOpen: {
+          "0%": { opacity: "0" },
+          "60%": { opacity: "1" },
+          "82%,100%": { opacity: "0" },
+        },
+        tcPeekShut: {
+          "0%": { opacity: "1" },
+          "60%": { opacity: "0" },
+          "82%,100%": { opacity: "1" },
         },
         tcConfetti: {
           "0%": { opacity: "0", transform: "translateY(-16px) rotate(0)" },
@@ -150,14 +189,6 @@ const config: Config = {
           "100%": { opacity: "0", transform: "translateY(var(--tc-fall, 82px)) rotate(360deg)" },
         },
         tcRay: { to: { transform: "rotate(360deg)" } },
-        tcTwinkle: {
-          "0%,100%": { transform: "scale(0.5) rotate(0deg)", opacity: "0.35" },
-          "50%": { transform: "scale(1.15) rotate(35deg)", opacity: "1" },
-        },
-        tcDart: {
-          "0%,100%": { transform: "translateX(-2px)" },
-          "50%": { transform: "translateX(2px)" },
-        },
         tcZzz: {
           "0%": { opacity: "0", transform: "translateY(2px) scale(0.8)" },
           "30%": { opacity: "1" },
@@ -174,18 +205,22 @@ const config: Config = {
         shuffle: "shuffle 1.6s ease-in-out infinite",
         kick: "kick 0.9s ease-in-out infinite",
         pop: "pop 0.45s ease-out both",
-        sheen: "sheen 1.1s ease-in-out",
-        "tc-idle": "tcIdle 1.5s ease-in-out infinite",
-        "tc-legbob": "tcLegBob 1.5s ease-in-out infinite",
-        "tc-bobslow": "tcBobSlow 2.6s ease-in-out infinite",
-        "tc-roll": "tcRoll 0.24s ease-in-out infinite",
+        "tc-breathe": "tcBreathe 3.6s ease-in-out infinite",
+        "tc-legbreathe": "tcLegBreathe 3.6s ease-in-out infinite",
+        "tc-sigh": "tcSigh 5.2s ease-in-out infinite",
+        "tc-legsigh": "tcLegSigh 5.2s ease-in-out infinite",
+        "tc-sleep": "tcSleep 5.6s ease-in-out infinite",
         "tc-eat": "tcEat 0.5s ease-in-out infinite",
         "tc-pop": "tcPop 0.9s ease-in-out infinite",
         "tc-jump": "tcJump 0.75s ease-in-out infinite",
+        "tc-legjump": "tcLegJump 0.75s ease-in-out infinite",
+        "tc-brace": "tcBrace 0.17s linear infinite",
+        "tc-knock": "tcKnock 0.34s ease-in-out infinite",
+        "tc-sweat": "tcSweat 1.5s ease-out infinite",
+        "tc-peek-open": "tcPeekOpen 3.2s step-end infinite",
+        "tc-peek-shut": "tcPeekShut 3.2s step-end infinite",
         "tc-confetti": "tcConfetti 1.5s linear infinite",
         "tc-ray": "tcRay 7s linear infinite",
-        "tc-twinkle": "tcTwinkle 1.8s ease-in-out infinite",
-        "tc-dart": "tcDart 0.9s ease-in-out infinite",
         "tc-zzz": "tcZzz 2.4s ease-in-out infinite",
       },
     },

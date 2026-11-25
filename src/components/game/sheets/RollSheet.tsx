@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { readPity } from "@/lib/onchain/reads";
 import { NETWORK } from "@/lib/onchain/network";
-import { TileCharacter } from "../TileCharacter";
+import { TileSolo } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
 import { Crown } from "../ui/icons";
 import { charToIdx, fmtWord, idxToChar, mineLower, useGame, type RollTarget } from "../state";
@@ -96,17 +96,15 @@ export function RollSheet({ target }: { target: RollTarget }) {
   return (
     <Sheet open onClose={close} title="Raise a letter">
       <div className="flex flex-col items-center gap-3 pb-2">
-        {/* the character */}
+        {/* The character. While the roll is out it can't look (the rig's rolling state): eyes shut
+            tight, one peeking, hands on its corners, for as long as the chain takes. Nothing is drawn
+            over it: the bar that used to sweep across ended after a second and then sat on the
+            letter's left third until the roll came back. */}
         <div className="relative flex h-44 items-end justify-center">
           {phase === "win" ? (
-            <TileCharacter char={char} upper state="upgrade" size={150} />
+            <TileSolo char={char} upper state="upgrade" size={150} />
           ) : (
-            <TileCharacter char={char} state={phase === "rolling" ? "rolling" : phase === "miss" && shrug ? "peckish" : "idle"} size={140} />
-          )}
-          {phase === "rolling" && (
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute inset-y-0 w-1/3 animate-sheen bg-paper/40" />
-            </div>
+            <TileSolo char={char} state={phase === "rolling" ? "rolling" : phase === "miss" && shrug ? "peckish" : "idle"} size={140} />
           )}
         </div>
 

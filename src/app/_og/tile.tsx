@@ -3,19 +3,52 @@ import type { Tier } from "@/lib/economy";
 import { finishFor, type Finish } from "@/lib/rarityFinish";
 import { facets, glintFlare, SCROLL_MIRRORS, SCROLL_PATH } from "@/components/game/TileFinish";
 
+import {
+  ARM_REST,
+  ARM_REST_R,
+  BOT,
+  CLASP,
+  CX,
+  DARTS_FROM,
+  FOOT_LX,
+  FOOT_RX,
+  FOOT_Y,
+  LEG_L,
+  LEG_R,
+  LIMB_W,
+  LINK_L,
+  LINK_R,
+  MID,
+  MITT,
+  PITCH,
+  SHADOW,
+  SHINE_FROM,
+  SHOE,
+  SHOE_SHINE,
+  T,
+  eyeBox,
+  mittAt,
+  pupilOf,
+  type Hand,
+} from "@/components/game/tileShapes";
+
 /**
  * A static vaudeville tile character built for Satori (next/og). The real rig (`TileCharacter`)
  * is a "use client" SVG component with `<text>`, filters and CSS animation, none of which Satori
- * renders, so this is a purpose-built, idle, Satori-safe twin: inline SVG *shapes* for the tile +
- * eyes + noodle limbs + bean shoes, with the printed letter overlaid as Söhne `<div>` text (the
- * only way to get real glyphs into an ImageResponse). Geometry mirrors the rig's 240×340 /
- * 150-tile layout so it reads as the same character.
+ * renders, so this is a purpose-built, idle, Satori-safe twin: inline SVG *shapes* for the tile,
+ * eyes, noodle limbs, mitts and bean shoes, with the printed letter overlaid as Söhne `<div>` text
+ * (the only way to get real glyphs into an ImageResponse).
+ *
+ * Every shape's numbers come from components/game/tileShapes, the same file the rig draws from, so
+ * the card can't drift from the game (it had: arms at rest inside a word, simpler eyes). In a word
+ * the letters hold hands and lean as they do in the app (`linkLeft` / `linkRight`, `lean`).
  *
  * The word's rarity is drawn as the app draws a still finish (components/game/TileFinish, motion
  * "off"): the aura behind the tile, the material over the face, the border again, the letter,
  * then the glints over it, in a second svg above the letter. Satori's rules hold here as in the
  * scenes (scenes/kit.tsx): only plain SVG elements, built by functions, never a component or a
- * fragment inside an `<svg>`, and no attribute left undefined.
+ * fragment inside an `<svg>`, and no attribute left undefined (so a lean of 0 is still a real
+ * rotate: Satori drops a group whose transform it can't read).
  */
 
 const INK = "#2a1e1a";
@@ -25,15 +58,6 @@ const LHAW = "#3b82f6";
 const LHAW_RING = "#bbd1fd";
 const LHAW_INK = "#111827";
 const EYE_WHITE = "#ffffff";
-
-const SHOE =
-  "M -15 1 Q -21 -19 -1 -21 Q 17 -22 25 -13 Q 33 -5 44 -7 Q 53 -7 53 2 Q 53 4 47 4 L -11 4 Q -15 4 -15 1 Z";
-
-// the rig's geometry (TileCharacter, TileFinish: the tile 150×150 at 45,100)
-const T = { x: 45, y: 100, w: 150, h: 150, r: 20 };
-const CX = T.x + T.w / 2;
-const MID = T.y + T.h / 2;
-const BOT = T.y + T.h;
 
 /** The face inside the border (the border's inner edge). */
 function inner(bw: number, inset = 0) {
@@ -179,6 +203,60 @@ function finishGlints(fin: Finish, index: number): ReactElement[] {
   return out;
 }
 
+const limb = (key: string, d: string): ReactElement => <path key={key} d={d} stroke={INK} strokeWidth={LIMB_W} fill="none" strokeLinecap="round" />;
+
+/** A mitt at a hand (tileShapes, MITT): a thumb, a palm, a cuff, and on big tiles two stitches. */
+function mitt(key: string, hand: Hand, darts: boolean): ReactElement {
+  const { thumb, palm, cuff } = MITT;
+  return (
+    <g key={key} transform={mittAt(hand)}>
+      <ellipse cx={thumb.cx} cy={thumb.cy} rx={thumb.rx} ry={thumb.ry} transform={`rotate(${thumb.rot} ${thumb.cx} ${thumb.cy})`} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+      <ellipse {...palm} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
+      {darts ? <path d={MITT.darts} stroke={INK} strokeWidth={1.7} strokeLinecap="round" fill="none" /> : null}
+      <rect {...cuff} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+    </g>
+  );
+}
+
+/**
+ * The hands two letters hold (tileShapes, CLASP). The rig lets the letter on the right draw both
+ * hands, a little past its own left edge; Satori clips a drawing to its box, so here each letter
+ * draws its own hand: the left letter the hand under (`mine: "under"`, carried one letter's pitch
+ * to the right into its own space), the right letter its thumb and the hand over. The right letter
+ * is the later sibling, so its hand still lands on top.
+ */
+function claspHalf(mine: "under" | "over", darts: boolean): ReactElement {
+  const { cuff, cuffs, under, thumb, over } = CLASP;
+  if (mine === "under") {
+    return (
+      <g key="clasp-under" transform={`translate(${PITCH} 0)`}>
+        <rect {...cuff} transform={cuffs[0]} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+        <ellipse {...under} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
+      </g>
+    );
+  }
+  return (
+    <g key="clasp-over">
+      <rect {...cuff} transform={cuffs[1]} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+      <ellipse cx={thumb.cx} cy={thumb.cy} rx={thumb.rx} ry={thumb.ry} transform={`rotate(${thumb.rot} ${thumb.cx} ${thumb.cy})`} fill={EYE_WHITE} stroke={INK} strokeWidth={2.6} />
+      <ellipse {...over} fill={EYE_WHITE} stroke={INK} strokeWidth={2.8} />
+      {darts ? <path d={CLASP.darts} stroke={INK} strokeWidth={1.7} strokeLinecap="round" fill="none" /> : null}
+    </g>
+  );
+}
+
+/** An open eye at rest (tileShapes: eyeBox, pupilOf): a tall oval, one big pupil, its pie cut. */
+function eye(key: string, ex: number, ey: number, rx: number, ry: number, side: -1 | 1): ReactElement {
+  const p = pupilOf(ex, ey, rx, ry, side);
+  return (
+    <g key={key}>
+      <ellipse cx={ex} cy={ey} rx={rx} ry={ry} fill={EYE_WHITE} stroke={INK} strokeWidth={3.2} />
+      <ellipse cx={p.cx} cy={p.cy} rx={p.rx} ry={p.ry} fill={INK} />
+      <path d={p.cut} fill={EYE_WHITE} />
+    </g>
+  );
+}
+
 export function OgTile({
   char,
   upper = false,
@@ -187,6 +265,9 @@ export function OgTile({
   tier,
   index = 0,
   uid = "t",
+  linkLeft = false,
+  linkRight = false,
+  lean = 0,
 }: {
   char: string;
   upper?: boolean;
@@ -198,6 +279,11 @@ export function OgTile({
   index?: number;
   /** Keeps this tile's gradient and clip ids apart from its neighbours'. */
   uid?: string;
+  /** This letter holds its left / right neighbour's hand (a word), as in the app. */
+  linkLeft?: boolean;
+  linkRight?: boolean;
+  /** Its resting lean in degrees, about its feet (tileShapes, leanFor). */
+  lean?: number;
 }): ReactElement {
   const glyph = upper ? char.toUpperCase() : char.toLowerCase();
   // crop: full character (with limbs) vs a tight tile+head box (icon)
@@ -207,17 +293,19 @@ export function OgTile({
   const sy = h / vb.H;
 
   // letter overlay placed exactly over the tile face (45,100,150,150 in viewBox space)
-  const faceLeft = (45 - vb.x) * sx;
-  const faceTop = (100 - vb.y) * sy;
-  const faceSize = 150 * sx;
-  const eyeR = upper ? 21 : 20;
+  const faceLeft = (T.x - vb.x) * sx;
+  const faceTop = (T.y - vb.y) * sy;
+  const faceSize = T.w * sx;
+  const eyes = eyeBox(upper);
   const fin = finishFor(tier);
   const bw = upper ? 12 : 4; // the face's border
   const u = (n: string) => `rf-${n}-${uid}`;
-  const border = (
-    <rect x="45" y="100" width="150" height="150" rx="20" fill="none" stroke={upper ? LHAW : INK} strokeWidth={bw} />
-  );
+  const border = <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={upper ? LHAW : INK} strokeWidth={bw} />;
   const glints = fin ? finishGlints(fin, index) : [];
+  // the lean, about the feet; the shoes, the shadow, and the held hands stay upright
+  const tilt = `rotate(${lean} ${CX} ${BOT})`;
+  const darts = w >= DARTS_FROM;
+  const foot = (x: number, flip: 1 | -1) => `translate(${x} ${FOOT_Y}) scale(${flip} 1)`;
 
   return (
     <div style={{ position: "relative", display: "flex", width: w, height: h }}>
@@ -225,54 +313,55 @@ export function OgTile({
         {fin && finishDefs(fin, u, bw)}
         {limbs && (
           <g>
-            <ellipse cx="120" cy="302" rx="86" ry="12" fill={INK} opacity="0.17" />
-            <path d={SHOE} transform="translate(90 300) scale(-0.78 0.78)" fill={INK} />
-            <path d={SHOE} transform="translate(150 300) scale(0.78 0.78)" fill={INK} />
-            <path d="M 96 242 Q 84 275 90 294" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
-            <path d="M 144 242 Q 156 275 150 294" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
-            {/* arms (behind the tile — gloves are drawn in front, after the face) */}
-            <path d="M 49 175 Q 28 206 36 232" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
-            <path d="M 191 175 Q 212 206 204 232" stroke={INK} strokeWidth="9" fill="none" strokeLinecap="round" />
+            <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />
+            <path d={SHOE} transform={foot(FOOT_LX, -1)} fill={INK} />
+            <path d={SHOE} transform={foot(FOOT_RX, 1)} fill={INK} />
+            {w >= SHINE_FROM ? <path d={SHOE_SHINE} transform={foot(FOOT_LX, -1)} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none" /> : null}
+            {w >= SHINE_FROM ? <path d={SHOE_SHINE} transform={foot(FOOT_RX, 1)} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none" /> : null}
           </g>
         )}
 
-        {/* the rarity's aura, behind the tile */}
-        {fin && finishAura(fin, u)}
+        {/* behind the arms: the legs, the rarity's aura, and the case's ring or wooden edge */}
+        <g transform={tilt}>
+          {limbs ? limb("leg-l", LEG_L) : null}
+          {limbs ? limb("leg-r", LEG_R) : null}
+          {fin && finishAura(fin, u)}
+          {upper ? (
+            <rect x={T.x - 11} y={T.y - 11} width={T.w + 22} height={T.h + 22} rx={T.r + 11} fill="none" stroke={LHAW_RING} strokeWidth="10" />
+          ) : (
+            <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />
+          )}
+        </g>
 
-        {/* tile face + case skin */}
-        {upper ? (
-          <rect x="34" y="89" width="172" height="172" rx="31" fill="none" stroke={LHAW_RING} strokeWidth="10" />
-        ) : (
-          <rect x="45" y="107" width="150" height="150" rx="20" fill={EDGE_WOOD} />
-        )}
-        <rect x="45" y="100" width="150" height="150" rx="20" fill={upper ? "#ffffff" : TILE_FACE} stroke={upper ? LHAW : INK} strokeWidth={bw} />
-        {/* the rarity's material over the face, then the border again over its edge */}
-        {fin && finishSurface(fin, u, bw)}
-        {fin && border}
+        {/* the arms that reach for a neighbour's hand: upright, over the ring and under the face */}
+        {limbs && linkLeft ? limb("link-l", LINK_L) : null}
+        {limbs && linkRight ? limb("link-r", LINK_R) : null}
 
-        {/* mitt gloves — in front of the tile face (matches the rig) */}
-        {limbs && (
-          <g>
-            <circle cx="40" cy="236" r="6.5" fill={EYE_WHITE} stroke={INK} strokeWidth="2.6" />
-            <circle cx="36" cy="232" r="13" fill={EYE_WHITE} stroke={INK} strokeWidth="2.8" />
-            <circle cx="208" cy="236" r="6.5" fill={EYE_WHITE} stroke={INK} strokeWidth="2.6" />
-            <circle cx="204" cy="232" r="13" fill={EYE_WHITE} stroke={INK} strokeWidth="2.8" />
-          </g>
-        )}
+        <g transform={tilt}>
+          {/* the free arms hang at rest, each ending in its mitt */}
+          {limbs && !linkLeft ? limb("arm-l", ARM_REST.d) : null}
+          {limbs && !linkLeft ? mitt("mitt-l", ARM_REST.hand, darts) : null}
+          {limbs && !linkRight ? limb("arm-r", ARM_REST_R.d) : null}
+          {limbs && !linkRight ? mitt("mitt-r", ARM_REST_R.hand, darts) : null}
 
-        {/* pie-eyes on the top edge */}
-        <circle cx="94" cy="104" r={eyeR} fill={EYE_WHITE} stroke={INK} strokeWidth="3.4" />
-        <circle cx="146" cy="104" r={eyeR} fill={EYE_WHITE} stroke={INK} strokeWidth="3.4" />
-        <circle cx="94" cy="111" r={eyeR * 0.52} fill={INK} />
-        <circle cx="146" cy="111" r={eyeR * 0.52} fill={INK} />
-        <circle cx="90" cy="101" r="2.8" fill={EYE_WHITE} />
-        <circle cx="142" cy="101" r="2.8" fill={EYE_WHITE} />
-        {/* raised brows */}
-        <path d="M 85 81 Q 94 75 103 81" stroke={INK} strokeWidth="4.6" fill="none" strokeLinecap="round" />
-        <path d="M 137 81 Q 146 75 155 81" stroke={INK} strokeWidth="4.6" fill="none" strokeLinecap="round" />
+          {/* tile face */}
+          <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill={upper ? "#ffffff" : TILE_FACE} stroke={upper ? LHAW : INK} strokeWidth={bw} />
+          {/* the rarity's material over the face, then the border again over its edge */}
+          {fin && finishSurface(fin, u, bw)}
+          {fin && border}
+
+          {/* pie-eyes on the top edge, wide open */}
+          {eye("eye-l", CX - eyes.dx, eyes.y, eyes.rx, eyes.ry, -1)}
+          {eye("eye-r", CX + eyes.dx, eyes.y, eyes.rx, eyes.ry, 1)}
+        </g>
+
+        {/* the held hands, on top (claspHalf says why each letter draws its own) */}
+        {limbs && linkRight ? claspHalf("under", darts) : null}
+        {limbs && linkLeft ? claspHalf("over", darts) : null}
       </svg>
 
-      {/* the printed letter — Söhne via Satori text, centred on the tile face */}
+      {/* the printed letter — Söhne via Satori text, centred on the tile face, leaning with it
+          (the face's bottom centre is the feet's pivot's x, so the lean turns about 50% 100%) */}
       <div
         style={{
           position: "absolute",
@@ -286,6 +375,8 @@ export function OgTile({
           fontSize: faceSize * 0.62,
           fontWeight: 800,
           color: upper ? LHAW_INK : INK,
+          transform: `rotate(${lean}deg)`,
+          transformOrigin: "50% 100%",
         }}
       >
         {glyph}
@@ -294,7 +385,7 @@ export function OgTile({
       {/* the glints, over the letter as in the app */}
       {glints.length > 0 && (
         <svg width={w} height={h} viewBox={`${vb.x} ${vb.y} ${vb.W} ${vb.H}`} style={{ position: "absolute", left: 0, top: 0 }}>
-          {glints}
+          <g transform={tilt}>{glints}</g>
         </svg>
       )}
     </div>

@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { OgTile } from "../../../_og/tile";
+import { leanFor } from "@/components/game/tileShapes";
 import { SCENE_W, SceneBack, SceneFront } from "@/components/scenes/SceneArt";
 import { sceneLayout } from "@/components/scenes/layout";
 import { parseShowcase } from "@/lib/showcase";
@@ -41,7 +42,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const tileH = Math.round((tileW * 340) / 240);
   // The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't
   // a dictionary word, so it has none and stays plain.
-  const tier = wordTier(tiles.map((t) => t.char).join(""));
+  const word = tiles.map((t) => t.char).join("");
+  const tier = wordTier(word);
 
   return new ImageResponse(
     (
@@ -50,7 +52,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         <div style={{ position: "absolute", left: rowLeft, top: feetY - Math.round((tileH * 302) / 340), display: "flex", alignItems: "flex-end" }}>
           {tiles.map((t, i) => (
             <div key={i} style={{ display: "flex", marginLeft: i ? -overlap : 0 }}>
-              <OgTile char={t.char} upper={t.upper} w={tileW} tier={tier} index={i} uid={`t${i}`} />
+              <OgTile char={t.char} upper={t.upper} w={tileW} tier={tier} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
             </div>
           ))}
         </div>
