@@ -310,12 +310,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // the server decides (lib/onchain/freeIdentity.ts). daily-status walks the FIDs that verified this
   // profile's wallets and the keys recorded on it, so an owned FID's pull still shows; a Farcaster
   // account that doesn't own this wallet no longer reads as "pulled today" (Bugbot on #199).
-  const { primary: dailyKey, all: dailyKeys } = dailyKeysFor({
+  const { primary: dailyKey, all: walletDailyKeys } = dailyKeysFor({
     fid: null,
     xUserId: pubProfile.profile?.x?.id ?? null,
     xCounts: pubProfile.xCounts,
     wallet: address ?? null,
   });
+  // …plus the key the server last signed this browser's daily under (a FID it decided belongs to this
+  // profile, say), so a pull under it shows at once and a failed send can tell whether it landed
+  // (Bugbot on #199). An unowned FID never gets here: the server never signs under it.
+  const [voucherKey, setVoucherKey] = useState<bigint | null>(null);
+  const dailyKeys = useMemo(
+    () => (voucherKey !== null && !walletDailyKeys.includes(voucherKey) ? [...walletDailyKeys, voucherKey] : walletDailyKeys),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [voucherKey, walletDailyKeys.map(String).join(",")],
+  );
 
   const dayQ = useQuery({
     queryKey: ["dayState", NETWORK.id, dailyKeys.map(String).join(",")],
@@ -953,6 +962,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           );
           if (!res?.ok) { toast(dailyError(res?.error), "bad"); return { status: "not-started" as const }; }
           const v = res.voucher;
+          setVoucherKey(BigInt(v.fid));
           const commitCalls = () =>
             commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature });
 
@@ -974,9 +984,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             // The send failed somewhere. On the two-prompt fallback that can mean "commit went
             // out, reveal was declined" — check the chain rather than guess, so a mere cancel at
             // the first prompt isn't reported as money moved.
-            const day = await dayQ.refetch();
+            // Read the exact key this voucher was signed under: whichever identity the server chose.
+            const landed = await readDayState([BigInt(v.fid)]).then((d) => d.dailyUsed).catch(() => false);
+            void dayQ.refetch();
             void pendingQ.refetch();
-            if (day.data?.dailyUsed) {
+            if (landed) {
               markPaid();
               noteDailyRef.current(null);
               return { status: "stranded" as const, note: "Your letter is committed. Tap Open to reveal it" };
