@@ -815,9 +815,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const resumeOpenRoll = useCallback(
     async (letterIndex: number, markPaid: () => void, run: RunFn, owner?: `0x${string}`): Promise<ActionOutcome | null> => {
       if (!address) return null;
-      const open = await readOpenRollFor(owner ?? address, letterIndex);
-      // A confirmed reveal read by a lagging node isn't open: commit a new roll instead.
-      if (open === null || revealedRolls.current.has(String(open))) return null;
+      // Confirmed reveals are skipped INSIDE the scan, so a lagging read of one can't hide a later
+      // commit that really is open.
+      const open = await readOpenRollFor(owner ?? address, letterIndex, revealedRolls.current);
+      if (open === null) return null;
       toast("Finishing your unfinished roll on this letter first", "info");
       markPaid(); // paid at its commit; a failure from here leaves it open, never "try again for free"
       return revealRoll(open, run);
