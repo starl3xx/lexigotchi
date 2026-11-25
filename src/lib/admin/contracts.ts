@@ -91,7 +91,7 @@ export const FEE_SOURCES: FeeSourceDef[] = [
   { id: 3, key: "CLAIM", label: "Claim", bps: [3250, 1000, 3250, 2500], note: "claim a word" },
   { id: 4, key: "SNACK", label: "Snack", bps: [0, 0, 10000, 0], note: "100% burn" },
   { id: 5, key: "PRESTIGE", label: "Prestige", bps: [4750, 1000, 2750, 1500], note: "ascension commit fee" },
-  { id: 6, key: "ROYALTY", label: "Royalty", bps: [0, 0, 0, 10000], note: "in-house swap fee → treasury" },
+  { id: 6, key: "ROYALTY", label: "Word sale fee", bps: [10000, 0, 0, 0], note: "10% of a word sale (SaleFees) → Rewards Pool (decisions.md #18)" },
 ];
 
 /** The three FeeRouter buckets the operator can seed (jackpot deliberately excluded — see Treasury tab). */

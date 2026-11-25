@@ -58,6 +58,7 @@ export const CONTRACT_KEYS: ContractKey[] = [
   "jackpot",
   "yieldDistributor",
   "bounty",
+  "saleFees",
 ];
 
 export const ROLE_KEYS: RoleKey[] = ["treasury", "signer", "keeper", "owner", "priceKeeper"];
