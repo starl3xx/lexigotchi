@@ -14,6 +14,7 @@
 import { getAbiItem, parseEventLogs, type Hash } from "viem";
 import { shopAbi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
+import { isRangeLimit } from "@/lib/onchain/logs";
 import { shopAddress, shopDeployBlock } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
 import { accountsOf } from "@/lib/db/walletLinks";
@@ -59,11 +60,6 @@ async function toRows(shop: `0x${string}`, logs: readonly PurchasedLog[]): Promi
   });
 }
 
-/** An RPC's "too many blocks / results" answer to eth_getLogs (the public Base RPCs allow 200 blocks). */
-function isRangeLimit(err: unknown): boolean {
-  const m = `${(err as { details?: string })?.details ?? ""} ${(err as Error)?.message ?? ""}`;
-  return /limited to|block range|range|too many|exceed/i.test(m);
-}
 
 /** Ranges read per catch-up at most, so one call can't run for minutes on a narrow RPC. */
 const MAX_RANGES_PER_CATCH_UP = 60;

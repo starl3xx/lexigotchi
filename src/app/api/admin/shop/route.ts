@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { getAbiItem } from "viem";
 import { shopAbi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
+import { getLogsAdaptive } from "@/lib/onchain/logs";
 import { shopAddress, shopDeployBlock, usdcAddress } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
 import { readShop } from "@/lib/shop/registry";
@@ -27,8 +28,9 @@ export async function GET() {
   const from = shopDeployBlock();
   const [state, purchases, sweeps, settings, meta] = await Promise.all([
     readShop(),
-    client.getLogs({ address: shop, event: PURCHASED, fromBlock: from, toBlock: "latest" }),
-    client.getLogs({ address: shop, event: SWEPT, fromBlock: from, toBlock: "latest" }),
+    // The public Base RPCs refuse a getLogs past 200 blocks; this halves its span until accepted.
+    getLogsAdaptive(client, { address: shop, event: PURCHASED, fromBlock: from }),
+    getLogsAdaptive(client, { address: shop, event: SWEPT, fromBlock: from }),
     client.multicall({
       allowFailure: false,
       contracts: [
@@ -57,9 +59,18 @@ export async function GET() {
     })),
     sweeps.map((l) => ({ usdcIn: l.args.usdcIn!, wordOut: l.args.wordOut!, strayWord: l.args.strayWord! })),
   );
-  const [revenueWallet, maxSlippageBps, maxSweepUsdc, adapter, pegSource, pegPackUsdc, pending, owner] = settings as [
-    string, number, bigint, string, string, bigint, readonly [string, string, bigint, bigint], string,
+  const [revenueWallet, maxSlippageBps, maxSweepUsdc, adapter, pegSource, pegPackUsdc, pendingRaw, owner] = settings as unknown as [
+    string, number, bigint, string, string, bigint, unknown, string,
   ];
+  // `pendingRoute` is a public struct getter: viem answers with the outputs as an array, but read it
+  // by name as well, so a change in how a client decodes it can't break this route.
+  const pr = pendingRaw as readonly unknown[] & { adapter?: string; pegSource?: string; pegPackUsdc?: bigint; readyAt?: bigint };
+  const pending = {
+    adapter: (pr.adapter ?? pr[0]) as string,
+    pegSource: (pr.pegSource ?? pr[1]) as string,
+    pegPackUsdc: BigInt((pr.pegPackUsdc ?? pr[2] ?? 0) as bigint),
+    readyAt: BigInt((pr.readyAt ?? pr[3] ?? 0) as bigint),
+  };
   const s = (v: bigint) => v.toString();
   return NextResponse.json(
     {
@@ -80,7 +91,9 @@ export async function GET() {
       pegPackUsdc: s(pegPackUsdc),
       floorPerUsdc: floor1 === null ? null : s(floor1 as bigint),
       pendingRoute:
-        pending[3] === 0n ? null : { adapter: pending[0], pegSource: pending[1], pegPackUsdc: s(pending[2]), readyAt: Number(pending[3]) },
+        pending.readyAt === 0n
+          ? null
+          : { adapter: pending.adapter, pegSource: pending.pegSource, pegPackUsdc: s(pending.pegPackUsdc), readyAt: Number(pending.readyAt) },
       pendingUsdc: s(state?.pendingUsdc ?? 0n),
       totals: {
         sales: totals.sales,

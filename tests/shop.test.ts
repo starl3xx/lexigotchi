@@ -199,3 +199,27 @@ describe("the test USDC voucher", () => {
     expect(usdcFaucetDigest({ ...a, caller: SHOP })).not.toBe(expected);
   });
 });
+
+describe("getLogs on a narrow RPC", async () => {
+  const { getLogsAdaptive } = await import("@/lib/onchain/logs");
+  it("halves its span until the RPC accepts it, and reads every block once", async () => {
+    const seen: [bigint, bigint][] = [];
+    const client = {
+      getBlockNumber: async () => 5_000n,
+      getLogs: async ({ fromBlock, toBlock }: { fromBlock: bigint; toBlock: bigint }) => {
+        if (toBlock - fromBlock + 1n > 200n) throw Object.assign(new Error("RPC Request failed."), { details: "eth_getLogs is limited to a 200 range" });
+        seen.push([fromBlock, toBlock]);
+        return [{ blockNumber: fromBlock }];
+      },
+    };
+    const logs = await getLogsAdaptive(client as never, { address: SHOP, event: { type: "event", name: "X", inputs: [] } as never, fromBlock: 1_000n });
+    expect(seen[0][0]).toBe(1_000n);
+    expect(seen.at(-1)![1]).toBe(5_000n);
+    for (let i = 1; i < seen.length; i++) expect(seen[i][0]).toBe(seen[i - 1][1] + 1n); // no gap, no overlap
+    expect(logs).toHaveLength(seen.length);
+  });
+  it("passes any other error through", async () => {
+    const client = { getBlockNumber: async () => 10n, getLogs: async () => { throw new Error("boom"); } };
+    await expect(getLogsAdaptive(client as never, { address: SHOP, event: {} as never, fromBlock: 0n })).rejects.toThrow("boom");
+  });
+});
