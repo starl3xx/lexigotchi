@@ -116,7 +116,7 @@ describe("player-facing copy", () => {
  * Tamagotchi and Pokémon comparison stays internal (both are guarded trademarks). "Yield" is the
  * contracts' and the operators' word; a player reads "earns $WORD every day".
  */
-const BANNED: readonly { term: string; re: RegExp; sample: string }[] = [
+const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: boolean }[] = [
   { term: "lottery", re: /\blotter(y|ies)\b/i, sample: "It’s a daily lottery." },
   { term: "invest", re: /\binvest(s|ed|ing|ment|ments|or|ors)?\b/i, sample: "A smart investment." },
   { term: "NFT", re: /\bNFTs?\b/i, sample: "Your letters lock inside a Word NFT." },
@@ -126,10 +126,12 @@ const BANNED: readonly { term: string; re: RegExp; sample: string }[] = [
   { term: "yield", re: /\byield(s|ed|ing)?\b/i, sample: "A peckish word earns half its yield." },
   { term: "pump", re: /\bpump(s|ed|ing)?\b/i, sample: "Watch $WORD pump." },
   { term: "moon", re: /\bmoon(s|ing)?\b/i, sample: "To the moon." },
-  { term: "Lexidex", re: /\blexidex\b/i, sample: "Fill your Lexidex." },
-  { term: "Tamagotchi", re: /tamagotchi/i, sample: "A tamagotchi-style game." },
-  { term: "Pokémon", re: /pok[eé]mon/i, sample: "Like Pokemon, but letters." },
-  { term: "Pokédex", re: /pok[eé]dex/i, sample: "Complete your Pokédex." },
+  // Never a code value either, so these are checked in every string, single words included: the
+  // manifest's discovery tag "tamagotchi" was one (decisions.md #22).
+  { term: "Lexidex", re: /\blexidex\b/i, sample: "Fill your Lexidex.", everywhere: true },
+  { term: "Tamagotchi", re: /tamagotchi/i, sample: "A tamagotchi-style game.", everywhere: true },
+  { term: "Pokémon", re: /pok[eé]mon/i, sample: "Like Pokemon, but letters.", everywhere: true },
+  { term: "Pokédex", re: /pok[eé]dex/i, sample: "Complete your Pokédex.", everywhere: true },
 ];
 
 /** Player-facing code: wider than the copy-rule roots, because a description or a reminder is copy too. */
@@ -175,12 +177,16 @@ describe("the messaging guide's words", () => {
     }
   });
 
-  const strings = renderedStrings(VOCAB_ROOTS).filter((s) => s.jsx || !CODE_VALUE.test(s.text.trim()));
+  const every = renderedStrings(VOCAB_ROOTS);
+  const strings = every.filter((s) => s.jsx || !CODE_VALUE.test(s.text.trim()));
+  const prose = new Set(strings);
   it("finds the strings it is meant to check", () => expect(strings.length).toBeGreaterThan(1000));
 
   it("player-facing code never uses them", () => {
-    const hits = strings.flatMap((s) =>
-      BANNED.filter((b) => b.re.test(s.text) && !allowed(s.where, b.term)).map((b) => `${s.where} (${b.term}): ${s.text.trim().slice(0, 80)}`),
+    const hits = every.flatMap((s) =>
+      BANNED.filter((b) => (b.everywhere || prose.has(s)) && b.re.test(s.text) && !allowed(s.where, b.term)).map(
+        (b) => `${s.where} (${b.term}): ${s.text.trim().slice(0, 80)}`,
+      ),
     );
     expect(hits).toEqual([]);
   });
