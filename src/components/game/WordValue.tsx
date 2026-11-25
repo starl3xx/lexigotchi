@@ -23,10 +23,6 @@ export function useCostToMake(w: WordShape): CostToMake | null {
   return Number.isFinite(c.total) && c.total > 0 ? c : null;
 }
 
-/** "Nov 26" for a UTC day number (AnswerChain's day). */
-const dayLabel = (day: number) =>
-  new Date(day * 86_400_000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-
 export function WordValue({
   word,
   cost,
@@ -44,7 +40,7 @@ export function WordValue({
   const world = useWorld().data;
   const amount = (n: number) => (showsUsd(g.state) ? `${fmtWord(n)} $WORD (${fmtUsd(n)})` : `${fmtWord(n)} $WORD`);
   const earn = world?.yieldToday ? dailyEarnEstimate(word, world.yieldToday) : undefined;
-  const drawnDay = world?.drawn?.[word.word];
+  const drawn = world?.drawn?.[word.word] !== undefined;
 
   const parts = cost && (
     <span>
@@ -62,12 +58,11 @@ export function WordValue({
         Earns about <strong className="font-display text-ink">{fmtWord(earn)} $WORD a day</strong>, staked and fed, at today’s pool.
       </p>
     ) : null;
-  const drawnLine =
-    drawnDay === undefined ? null : (
-      <p className="font-bold text-candy-ink">
-        Drawn for the jackpot on {dayLabel(drawnDay)}. The draw never picks a word twice, so it can’t win the jackpot again.
-      </p>
-    );
+  const drawnLine = drawn ? (
+    <p className="font-bold text-candy-ink">
+      Already drawn for the jackpot. The locked order of secret words never repeats one, so it won’t be drawn again.
+    </p>
+  ) : null;
 
   if (compact) {
     return (

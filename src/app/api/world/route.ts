@@ -32,7 +32,7 @@ export interface WorldResponse {
    * (lib/wordCost.ts dailyEarnEstimate). Absent when either read failed.
    */
   yieldToday?: { pot: number; weight: number };
-  /** Secret words revealed so far → their UTC day. A revealed word is never drawn again. */
+  /** Secret words revealed so far → their draw number (1 = the first; not a date). */
   drawn?: Record<string, number>;
 }
 

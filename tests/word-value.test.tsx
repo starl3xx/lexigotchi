@@ -82,10 +82,12 @@ describe("WordValue", () => {
 
   it("flags a word the jackpot has already drawn", () => {
     prices = PRICES;
-    const nov26 = Date.UTC(2026, 10, 26) / 86_400_000;
-    world = { drawn: { CRANE: nov26 } };
+    world = { drawn: { CRANE: 1 } }; // AnswerChain's draw counter: the first reveal, not a date
     render(<Harness word={{ word: "CRANE", upper, prestigeLevel: 0 }} compact />);
-    expect(screen.getByText(/Drawn for the jackpot on Nov 26/)).toBeTruthy();
-    expect(screen.getByText(/can’t win the jackpot again/)).toBeTruthy();
+    expect(screen.getByText(/Already drawn for the jackpot/)).toBeTruthy();
+    expect(screen.getByText(/won’t be drawn again/)).toBeTruthy();
+    cleanup();
+    render(<Harness word={{ word: "TEASE", upper, prestigeLevel: 0 }} compact />);
+    expect(screen.queryByText(/drawn for the jackpot/i)).toBeNull();
   });
 });

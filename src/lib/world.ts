@@ -12,12 +12,12 @@
  * Like the keeper's scan, this reads every event since deploy on each call, so the API route caches
  * it. Fine for months; later it belongs on the event indexer (decisions.md #10).
  */
-import { parseAbiItem } from "viem";
+import { getAbiItem, parseAbiItem } from "viem";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { addressOf, allAddresses, deployBlock } from "@/lib/onchain/addresses";
 import { scanAllWords } from "@/lib/keeper/scan";
 import { yieldWeight } from "@/lib/keeper/shares";
-import { feeRouterAbi } from "@/lib/onchain/abis";
+import { answerChainAbi, feeRouterAbi } from "@/lib/onchain/abis";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
 const TRANSFER_SINGLE = parseAbiItem(
@@ -29,7 +29,8 @@ const TRANSFER_BATCH = parseAbiItem(
 const JACKPOT_WON = parseAbiItem(
   "event JackpotWon(uint32 indexed day, uint256 indexed tokenId, address indexed winner, uint256 amount)",
 );
-const WORD_REVEALED = parseAbiItem("event WordRevealed(uint32 indexed day, string word, bytes32 next)");
+// From the generated ABI, never a hand copy: a filter on a stale signature silently matches nothing.
+const WORD_REVEALED = getAbiItem({ abi: answerChainAbi, name: "WordRevealed" });
 const ZERO = "0x0000000000000000000000000000000000000000";
 const WEI = 10n ** 18n;
 
@@ -140,9 +141,10 @@ export async function readYieldPot(): Promise<number> {
 }
 
 /**
- * Every secret word revealed so far (AnswerChain's WordRevealed), keyed by word, with its UTC day.
- * The locked schedule never repeats a word (answerChain.ts seededSchedule), so a revealed word can't
- * be drawn again: a buyer should know that before paying for one.
+ * Every secret word revealed so far (AnswerChain's WordRevealed), keyed by word, with its draw number.
+ * The event's `day` is AnswerChain's `revealedDay`, a COUNTER (1 = the first reveal), not a calendar
+ * day, so it's never shown as a date. The locked schedule never repeats a word (answerChain.ts
+ * seededSchedule), so a revealed word won't be drawn again in it: a buyer should know that.
  */
 export async function scanDrawn(): Promise<Record<string, number>> {
   const logs = await getPublicClient().getLogs({
