@@ -8,11 +8,11 @@ import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
 import { dailyKeysFor, xDailyKey } from "@/lib/onchain/verifications";
 import { claimDraw, readDraw } from "@/lib/db/draws";
-import { claimFree, fidLedgerAccount, freeDailiesTaken, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
+import { claimFree, crossGrants, dailyPeriods, fidLedgerAccount, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
 import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
-import { FREE_LETTERS } from "@/lib/freeLetters";
+import { crossKeys, FREE_LETTERS, profileDailyDays } from "@/lib/freeLetters";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { isAddress } from "viem";
 import { fidsByAddressesDetailed } from "@/lib/neynar";
@@ -98,11 +98,14 @@ export async function POST(req: Request) {
   const owned = await keyOwnedByProfile({ fid, derivedFromProfile: true, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
   const ledger = owned || fid === null ? account : fidLedgerAccount(fid);
   await settleGrants(NETWORK.id, ledger);
-  const [recordedGrant, profileGrant] = await Promise.all([
+  // The profile's grants on OTHER ledger accounts (an unverified FID's, which paid one of its wallets;
+  // Bugbot on #199) count too: today's join the onchain walk, earlier days count toward the 10.
+  const [recordedGrant, profileGrant, cross] = await Promise.all([
     recordedFreeGrant(NETWORK.id, ledger, "daily", today),
     ledger === account ? Promise.resolve(null) : recordedFreeGrant(NETWORK.id, account, "daily", today),
+    crossGrants(NETWORK.id, accountWalletList, [ledger]),
   ]);
-  const recordedKeys = [recordedGrant?.key, profileGrant?.key].filter((k): k is bigint => k != null);
+  const recordedKeys = [recordedGrant?.key, profileGrant?.key, ...crossKeys(cross, "daily", today)].filter((k): k is bigint => k != null);
   const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet })), ...recordedKeys])];
   const used = (await getPublicClient().multicall({
     allowFailure: false,
@@ -117,7 +120,8 @@ export async function POST(req: Request) {
   const reissue = Boolean(recordedGrant?.counts);
   try {
     if (!reissue) {
-      const taken = await freeDailiesTaken(NETWORK.id, ledger);
+      const ledgerDays = await dailyPeriods(NETWORK.id, ledger);
+      const taken = ledgerDays === null ? null : profileDailyDays(ledgerDays, cross, today);
       if (taken !== null && taken >= DEFAULT_PARAMS.freeLetters.freeDailyLimit) {
         return NextResponse.json({ ok: false, error: "daily_limit_reached", limit: DEFAULT_PARAMS.freeLetters.freeDailyLimit }, { status: 409 });
       }
@@ -146,6 +150,7 @@ export async function POST(req: Request) {
           key,
           letters: FREE_LETTERS.daily,
           expiresAt: new Date(Number(deadline) * 1000),
+          wallet,
           voucherTtlSeconds: VOUCHER_TTL_SECONDS,
           usedOnchain: async (k) =>
             Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,

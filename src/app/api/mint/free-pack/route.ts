@@ -6,12 +6,12 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { NETWORK } from "@/lib/onchain/network";
 import { isAddress } from "viem";
-import { claimFree, fidLedgerAccount, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
+import { claimFree, crossGrants, fidLedgerAccount, keyOwnedByProfile, recordedFreeGrant } from "@/lib/db/freeClaims";
 import { fidsByAddressesDetailed } from "@/lib/neynar";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
 import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
-import { FREE_LETTERS } from "@/lib/freeLetters";
+import { crossKeys, FREE_LETTERS } from "@/lib/freeLetters";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // node:crypto + quick-auth
@@ -71,11 +71,15 @@ export async function POST(req: Request) {
   const owned = await keyOwnedByProfile({ fid, derivedFromProfile: who.source !== "fid", accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
   const ledger = owned || fid === null ? account : fidLedgerAccount(fid);
   await settleGrants(NETWORK.id, ledger);
-  const [recordedGrant, profileGrant] = await Promise.all([
+  // A pack on ANOTHER ledger account that paid one of the profile's wallets (an unverified FID's;
+  // Bugbot on #199) joins the onchain check: once its key opened a pack, this profile has had one. A
+  // voucher not yet used blocks nothing, so a stranger naming this wallet can't hold its pack.
+  const [recordedGrant, profileGrant, cross] = await Promise.all([
     recordedFreeGrant(NETWORK.id, ledger, "pack", 0),
     ledger === account ? Promise.resolve(null) : recordedFreeGrant(NETWORK.id, account, "pack", 0),
+    crossGrants(NETWORK.id, accountWalletList, [ledger]),
   ]);
-  const recordedKeys = [recordedGrant?.key, profileGrant?.key].filter((k): k is bigint => k != null);
+  const recordedKeys = [recordedGrant?.key, profileGrant?.key, ...crossKeys(cross, "pack", 0)].filter((k): k is bigint => k != null);
   const keys = [...new Set([key, ...(await relatedDailyKeys({ fid, wallet })), ...recordedKeys])];
   const [open, claimed] = await Promise.all([
     client.readContract({ address: letters, abi: lettersAbi, functionName: "freePackOpen" }) as Promise<boolean>,
@@ -114,6 +118,7 @@ export async function POST(req: Request) {
           key,
           letters: FREE_LETTERS.pack,
           expiresAt: new Date(Number(deadline) * 1000),
+          wallet,
           voucherTtlSeconds: VOUCHER_TTL_SECONDS,
           usedOnchain: async (k) =>
             Boolean(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "freePackClaimed", args: [k] })),

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/lib/params";
-import { dailiesLeft, freeLetterBudget, freeStop, usedOnchain, FREE_LETTERS } from "@/lib/freeLetters";
+import { crossKeys, dailiesLeft, finishedProfiles, freeLetterBudget, freeStop, profileDailyDays, usedOnchain, FREE_LETTERS, type Grant } from "@/lib/freeLetters";
 
 const DICT = 4584;
 
@@ -78,5 +78,37 @@ describe("usedOnchain", () => {
     expect(usedOnchain("daily", D, 0)).toBe(false); // never used: the letter goes back
     expect(usedOnchain("daily", D, D)).toBe(false); // the day before
     expect(usedOnchain("daily", D, BigInt(D + 3))).toBe(true); // a later day: counted, the safe side
+  });
+});
+
+describe("across ledger accounts (Bugbot on #199)", () => {
+  const T = 20_400;
+  const g = (o: Partial<Grant>): Grant => ({ account: "fid:7", kind: "daily", period: T - 1, key: 7n, used: true, wallet: "0xw", ...o });
+
+  it("a profile's days are its own plus past, kept days its wallets were paid on other ledgers", () => {
+    expect(profileDailyDays([T - 3, T - 2], [g({ period: T - 1 }), g({ period: T - 2 })], T)).toBe(3); // a shared day counts once
+    expect(profileDailyDays([], [g({ period: T - 1, used: false })], T)).toBe(0); // given back
+    expect(profileDailyDays([], [g({ period: T, used: null })], T)).toBe(0); // today's: never a stranger's block
+    expect(profileDailyDays([], [g({ kind: "pack", period: 0 })], T)).toBe(0);
+  });
+
+  it("today's cross grants join the onchain check by key", () => {
+    const cross = [g({ period: T, key: 1n }), g({ period: T - 1, key: 2n }), g({ kind: "pack", period: 0, key: 3n })];
+    expect(crossKeys(cross, "daily", T)).toEqual([1n]);
+    expect(crossKeys(cross, "pack", 0)).toEqual([3n]);
+  });
+
+  it("finished profiles carry every account, key, and wallet they used, so each reminder channel can match", () => {
+    const accountOf = (w: string) => (w === "0xs" ? "0xp" : w);
+    const grants: Grant[] = [
+      ...Array.from({ length: 6 }, (_, i) => g({ account: "0xp", key: 100n, period: T - 1 - i, wallet: "0xp" })),
+      ...Array.from({ length: 4 }, (_, i) => g({ account: "fid:7", key: 7n, period: T - 7 - i, wallet: "0xs" })),
+      g({ account: "0xq", key: 200n, period: T - 1, wallet: "0xq" }),
+    ];
+    const f = finishedProfiles(grants, accountOf, 10);
+    expect([...f.accounts].sort()).toEqual(["0xp", "fid:7"]);
+    expect([...f.keys].sort()).toEqual(["100", "7"]);
+    expect([...f.wallets].sort()).toEqual(["0xp", "0xs"]);
+    expect(finishedProfiles(grants, accountOf, 11).accounts.size).toBe(0);
   });
 });

@@ -57,6 +57,66 @@ export function usedOnchain(kind: FreeKind, period: number, onchain: boolean | n
   return Number(onchain) >= period + 1;
 }
 
+/** A grant, as the cross-ledger rules read it (lib/db/freeClaims.ts GrantRow). */
+export interface Grant {
+  account: string;
+  kind: FreeKind;
+  period: number;
+  key: bigint;
+  used: boolean | null;
+  wallet: string | null;
+}
+
+/**
+ * The days a profile's free dailies count for: its own ledger's days (`ledgerDays`), plus days that
+ * grants on OTHER ledger accounts paid one of its wallets (`cross`: an unverified FID's, Bugbot on
+ * #199). A cross grant counts only for a day already past and only if not given back: today's could
+ * be a stranger's voucher naming this wallet, which only the wallet can spend, so it must never block
+ * the owner. Today's cross grants are instead checked onchain (their keys join the `dailyUsed` walk).
+ */
+export function profileDailyDays(ledgerDays: readonly number[], cross: readonly Pick<Grant, "kind" | "period" | "used">[], today: number): number {
+  const days = new Set(ledgerDays);
+  for (const g of cross) if (g.kind === "daily" && g.period < today && g.used !== false) days.add(g.period);
+  return days.size;
+}
+
+/** Keys of cross grants for (kind, period): they join the onchain check (`dailyUsed` / `freePackClaimed`). */
+export function crossKeys(cross: readonly Pick<Grant, "kind" | "period" | "key">[], kind: FreeKind, period: number): bigint[] {
+  return cross.filter((g) => g.kind === kind && g.period === period).map((g) => g.key);
+}
+
+/**
+ * The profiles that have taken all `limit` free dailies, for the daily reminder: every counting daily
+ * grant is assigned to its profile (its ledger account, or, for an unverified FID's grant, the profile
+ * holding the wallet it paid), then each finished profile's ledger accounts, keys, and wallets are
+ * returned, so each channel can match on what it knows (Farcaster by key, browsers and email by
+ * account, keys, or wallets; Bugbot on #199).
+ */
+export function finishedProfiles(
+  grants: readonly Grant[],
+  accountOf: (wallet: string) => string,
+  limit: number,
+): { accounts: Set<string>; keys: Set<string>; wallets: Set<string> } {
+  const profileOf = (g: Grant) => (g.account.startsWith("fid:") && g.wallet ? accountOf(g.wallet) : g.account);
+  const days = new Map<string, Set<number>>();
+  for (const g of grants) {
+    if (g.kind !== "daily" || g.used === false) continue;
+    const p = profileOf(g);
+    if (!days.has(p)) days.set(p, new Set());
+    days.get(p)!.add(g.period);
+  }
+  const done = new Set([...days].filter(([, d]) => d.size >= limit).map(([p]) => p));
+  const out = { accounts: new Set<string>(), keys: new Set<string>(), wallets: new Set<string>() };
+  for (const g of grants) {
+    if (g.kind !== "daily" || !done.has(profileOf(g))) continue;
+    out.accounts.add(g.account);
+    out.accounts.add(profileOf(g));
+    out.keys.add(g.key.toString());
+    if (g.wallet) out.wallets.add(g.wallet);
+  }
+  return out;
+}
+
 /** The player-facing words for a stop, shared by the routes' callers. */
 export const FREE_STOP_COPY: Record<Exclude<FreeStop, null>, string> = {
   dictionary: "The dictionary is nearly full, so free letters have ended. Packs are still for sale, and the Market has words for sale.",

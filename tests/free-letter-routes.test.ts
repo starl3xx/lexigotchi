@@ -81,7 +81,7 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
 vi.mock("@/lib/onchain/claimedWords", () => ({ claimedWordCount: async () => claimedWords }));
 
 // ── the ledger (free_claims), in memory ─────────────────────────────────────────────────────
-interface Row { account: string; kind: "daily" | "pack"; period: number; key: string; letters: number; expiresAt: number; used: boolean | null }
+interface Row { account: string; kind: "daily" | "pack"; period: number; key: string; letters: number; expiresAt: number; used: boolean | null; wallet?: string | null }
 let rows: Row[] = [];
 const find = (account: string, kind: string, period: number) => rows.find((r) => r.account === account.toLowerCase() && r.kind === kind && r.period === period);
 const counts = (r: Row) => r.used !== false;
@@ -98,9 +98,9 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
       const r = find(account, kind, period);
       return r ? { key: BigInt(r.key), counts: counts(r) } : null;
     },
-    claimFree: async (o: { account: string; kind: "daily" | "pack"; period: number; key: bigint; letters: number; expiresAt: Date; usedOnchain: (k: bigint) => Promise<boolean> }) => {
+    claimFree: async (o: { account: string; kind: "daily" | "pack"; period: number; key: bigint; letters: number; expiresAt: Date; wallet: string; usedOnchain: (k: bigint) => Promise<boolean> }) => {
       const r = find(o.account, o.kind, o.period);
-      const fresh = { key: o.key.toString(), letters: o.letters, expiresAt: o.expiresAt.getTime(), used: null };
+      const fresh = { key: o.key.toString(), letters: o.letters, expiresAt: o.expiresAt.getTime(), used: null, wallet: o.wallet.toLowerCase() };
       if (!r) return void rows.push({ account: o.account.toLowerCase(), kind: o.kind, period: o.period, ...fresh }), "ok";
       if (r.key === o.key.toString()) return Object.assign(r, fresh), "ok";
       if (r.expiresAt < now * 1000 && !(await o.usedOnchain(BigInt(r.key)))) return Object.assign(r, fresh), "ok";
@@ -114,7 +114,11 @@ vi.mock("@/lib/db/freeClaims", async (orig) => {
       return due.length;
     },
     freeLettersSigned: async () => rows.filter(counts).reduce((a, r) => a + r.letters, 0),
-    freeDailiesTaken: async (_c: number, account: string) => rows.filter((r) => r.account === account && r.kind === "daily" && counts(r)).length,
+    dailyPeriods: async (_c: number, account: string) => rows.filter((r) => r.account === account && r.kind === "daily" && counts(r)).map((r) => r.period),
+    crossGrants: async (_c: number, wallets: readonly string[], exclude: readonly string[]) =>
+      rows
+        .filter((r) => r.wallet && wallets.map((w) => w.toLowerCase()).includes(r.wallet) && !exclude.includes(r.account))
+        .map((r) => ({ account: r.account, kind: r.kind, period: r.period, key: BigInt(r.key), used: r.used, wallet: r.wallet ?? null })),
     freePackTaken: async (_c: number, account: string) => rows.some((r) => r.account === account && r.kind === "pack" && counts(r)),
   };
 });
@@ -130,7 +134,7 @@ const status = async (wallet: string, withFid?: number) => {
   return res.json();
 };
 const keys = async () => import("@/lib/onchain/verifications");
-const daily = (account: string, key: bigint, period: number, used: boolean | null = true): Row => ({
+const daily = (account: string, key: bigint, period: number, used: boolean | null = true, wallet: string | null = null): Row => ({
   account,
   kind: "daily",
   period,
@@ -138,6 +142,7 @@ const daily = (account: string, key: bigint, period: number, used: boolean | nul
   letters: 1,
   expiresAt: (period * 86_400 + 600) * 1000,
   used,
+  wallet,
 });
 
 beforeEach(() => {
@@ -197,6 +202,22 @@ describe("10 free daily letters per profile", () => {
     expect(first.body.voucher.fid).toBe("77");
     expect(rows).toMatchObject([{ account: "fid:77", kind: "daily", letters: 1 }]); // recorded, and counted
     expect(rows.some((r) => r.account === P)).toBe(false); // not planted on the profile
+  });
+
+  it("counts an unverified FID's dailies against the profile whose wallet they paid, once the FID signs out (Bugbot on #199)", async () => {
+    // FID 77 (unverified on the profile's wallets) took 10 dailies paid to S. Signed out, S's own
+    // Coinbase key must not open 10 more.
+    for (let d = 1; d <= 10; d++) rows.push(daily("fid:77", 77n, DAY - d, true, S));
+    const res = await post("free-daily", S);
+    expect(res.body.error).toBe("daily_limit_reached");
+    expect((await status(P)).done).toBe(true);
+  });
+
+  it("a stranger's unused voucher naming the wallet today never blocks the owner", async () => {
+    rows.push(daily("fid:88", 88n, DAY, null, S)); // a live voucher, only spendable by S
+    for (let d = 1; d <= 9; d++) rows.push(daily(P, 5n, DAY - d));
+    const res = await post("free-daily", S);
+    expect(res.status).toBe(200); // today's cross grant isn't counted: the owner takes the 10th
   });
 
   it("a daily whose voucher lapsed unused doesn't count toward the 10", async () => {
@@ -293,6 +314,18 @@ describe("the free pack for every verified player", () => {
     packClaimed.add(verifiedDailyKey(S).toString());
     now += 3_600;
     expect((await post("free-pack", P)).body.error).toBe("already_claimed");
+  });
+
+  it("refuses a second pack once an unverified FID's pack for this wallet was opened, and not before (Bugbot on #199)", async () => {
+    // FID 77, signed in but not verified on S, took a pack paid to S.
+    rows.push({ account: "fid:77", kind: "pack", period: 0, key: "77", letters: 5, expiresAt: (now + 600) * 1000, used: null, wallet: S });
+    expect((await post("free-pack", S)).status).toBe(200); // not opened yet: a stranger's voucher can't hold S's pack
+    rows = rows.filter((r) => r.account === "fid:77");
+    packClaimed.add("77"); // now opened onchain
+    const again = await post("free-pack", S);
+    expect(again.status).toBe(409);
+    expect(again.body.error).toBe("already_claimed");
+    expect((await status(P)).packTaken).toBe(true);
   });
 
   it("refuses a player with nothing verified, with the reason the client can show", async () => {

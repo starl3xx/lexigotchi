@@ -12,7 +12,8 @@ import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { maybeAddressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
-import { dailiesDone } from "@/lib/db/freeClaims";
+import { countingDailyGrants, fidLedgerAccount } from "@/lib/db/freeClaims";
+import { finishedProfiles } from "@/lib/freeLetters";
 import { freeGrantStop } from "@/lib/onchain/freeLedger";
 import { NETWORK } from "@/lib/onchain/network";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -91,7 +92,18 @@ export async function GET(req: Request) {
     // profile that took all 10 is skipped below. A failed ledger read reminds as before.
     const stopped = await freeGrantStop(NETWORK.id, 1).catch(() => null);
     if (stopped) return NextResponse.json({ ok: true, skipped: `free_letters_${stopped}`, audience: fids.length });
-    const finished = await dailiesDone(NETWORK.id, DEFAULT_PARAMS.freeLetters.freeDailyLimit);
+    // Linked wallets: a reminder reads every key the player's ACCOUNT could pull under, the same
+    // walk the daily route refuses on (relatedDailyKeysMany), so a pull under another linked
+    // wallet's Coinbase key, FID, or X counts as today's. loadLinkMap never throws.
+    const links = await loadLinkMap();
+    // Profiles that took all 10, with every ledger account, key, and wallet they used, so each
+    // channel matches on what it knows: Farcaster by keys, browsers and email by account, keys, or
+    // wallets (lib/freeLetters.ts finishedProfiles; Bugbot on #199). A failed read finishes nobody.
+    const finished = finishedProfiles(await countingDailyGrants(NETWORK.id), (w) => links.accountOf(w), DEFAULT_PARAMS.freeLetters.freeDailyLimit);
+    const isFinished = (accounts: readonly string[], keys: readonly bigint[], wallets: readonly string[]) =>
+      accounts.some((a) => finished.accounts.has(a.toLowerCase())) ||
+      keys.some((k) => finished.keys.has(k.toString())) ||
+      wallets.some((w) => finished.wallets.has(w.toLowerCase()));
 
     // ── Farcaster ────────────────────────────────────────────────────────────────────────────
     let targets: number[] = [];
@@ -99,16 +111,14 @@ export async function GET(req: Request) {
     if (fids.length > 0) {
       const used = await readDailyUsed(fids.map((fid) => BigInt(fid)));
       const states: DailyState[] = fids.map((fid, i) => ({ fid, lastDailyDayPlusOne: Number(used[i]) }));
-      targets = dailyTargets(states, day).filter((fid) => !finished.keys.has(String(fid)));
+      const due = dailyTargets(states, day);
+      // A FID's finished profile may have claimed under a Coinbase or X key: walk the FID's keys.
+      const dueKeys = finished.keys.size > 0 ? await relatedDailyKeysMany(due.map((f) => ({ fid: f, wallets: [] }))) : due.map(() => []);
+      targets = due.filter((f, i) => !isFinished([fidLedgerAccount(f)], [BigInt(f), ...dueKeys[i]], []));
       // An empty target list is a legitimate outcome (everyone already played), NOT a reason to
       // broadcast. sendNotification refuses an empty audience; skipping the call says so plainly.
       if (targets.length > 0) result = await sendNotification({ ...dailyReady(day), targetFids: targets });
     }
-
-    // Linked wallets: a reminder reads every key the player's ACCOUNT could pull under, the same
-    // walk the daily route refuses on (relatedDailyKeysMany), so a pull under another linked
-    // wallet's Coinbase key, FID, or X counts as today's. loadLinkMap never throws.
-    const links = await loadLinkMap();
 
     // ── Browsers ─────────────────────────────────────────────────────────────────────────────
     // Each subscription reads its player's daily slots; FIDs the Farcaster channel already reminds
@@ -128,7 +138,10 @@ export async function GET(req: Request) {
       // dailyUsed holds day+1, so the largest value is the most recent pull of any of the keys.
       const lastPull = (keys: bigint[]) => Math.max(...keys.map((key) => usedByKey.get(key) ?? 0));
       const due = keyed
-        .filter((k) => !finished.accounts.has(links.accountOf(k.sub.address)) && isDailyDue(lastPull(k.keys), day))
+        .filter((k) => {
+          const account = links.accountOf(k.sub.address);
+          return !isFinished([account], k.keys, links.walletsOf(account)) && isDailyDue(lastPull(k.keys), day);
+        })
         .map((k) => k.sub);
       browserTargets = due.length;
       if (due.length > 0) browserResult = await sendWebPush(due, dailyReady(day));
@@ -154,7 +167,10 @@ export async function GET(req: Request) {
         const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
         // Skip anyone this day's reminder already reached: a retried cron must not email twice (Bugbot on #139).
         const due = recips.filter(
-          (r) => r.emailDailyDay !== day && !finished.accounts.has(r.address.toLowerCase()) && isDailyDue(Math.max(0, ...(keysOf.get(r.address) ?? []).map((k) => usedByKey.get(k) ?? 0)), day),
+          (r) =>
+            r.emailDailyDay !== day &&
+            !isFinished([r.address], keysOf.get(r.address) ?? [], links.walletsOf(r.address)) &&
+            isDailyDue(Math.max(0, ...(keysOf.get(r.address) ?? []).map((k) => usedByKey.get(k) ?? 0)), day),
         );
         emailTargets = due.length;
         const messages = due.flatMap((r) => reminderEmail(r.email, r.address, dailyReady(day)) ?? []);

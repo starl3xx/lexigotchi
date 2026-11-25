@@ -1,5 +1,5 @@
 {
-  "id": "dc9c74ed-5863-45c0-a219-6e8823859e48",
+  "id": "213a1259-b73f-4660-9444-a1d0585ce6eb",
   "prevId": "71fead58-3b72-48b6-9007-b83143cf933c",
   "version": "7",
   "dialect": "postgresql",
@@ -180,6 +180,12 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": false
+        },
+        "wallet": {
+          "name": "wallet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -212,6 +218,27 @@
             }
           ],
           "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "free_claims_wallet": {
+          "name": "free_claims_wallet",
+          "columns": [
+            {
+              "expression": "chain_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "wallet",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}

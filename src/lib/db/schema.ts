@@ -414,8 +414,16 @@ export const freeClaims = pgTable(
     letters: integer("letters").notNull().default(1),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     used: boolean("used"),
+    /**
+     * The wallet the voucher pays (its `buyer`, lowercase). A grant recorded on another ledger account
+     * (an unverified FID's) still belongs to the profile that holds this wallet (Bugbot on #199).
+     */
+    wallet: text("wallet"),
   },
-  (t) => [uniqueIndex("free_claims_account_kind_period").on(t.chainId, t.account, t.kind, t.period)],
+  (t) => [
+    uniqueIndex("free_claims_account_kind_period").on(t.chainId, t.account, t.kind, t.period),
+    index("free_claims_wallet").on(t.chainId, t.wallet),
+  ],
 );
 
 /**
