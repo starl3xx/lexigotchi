@@ -53,6 +53,7 @@ import { useEarningsNote } from "./useEarningsNote";
 import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
+import { WalletNetworkNotice } from "./WalletNetworkNotice";
 import {
   Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
@@ -174,6 +175,9 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
             {/* Phones: the full width (as before). Desktop: a readable column the screens fill
                 with their own grids. Tablets in portrait get a centered phone-width column. */}
             <div className="mx-auto w-full max-w-[560px] md:max-w-5xl">
+              {/* A wallet on a network this screen can't use: say so, with Switch and Disconnect
+                  (the game's network, or Base on the $WORD page, whose swap is on Base mainnet). */}
+              <WalletNetworkNotice />
               {/* Keyed by view so navigating away from a crashed screen clears the error — otherwise
                   one bad screen holds its error state across every later navigation. */}
               <ScreenErrorBoundary key={state.view}>

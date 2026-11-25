@@ -10,7 +10,7 @@
  * wallet session (useProfile): one free signature that proves the wallet is theirs.
  */
 import { useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card, Sheet } from "../primitives";
 import { Check, CheckCircle, CircleNotch, Gift, Lock, SealCheck, Smiley, Wallet, XLogo } from "../ui/icons";
@@ -36,6 +36,7 @@ export function ProfileSheet() {
   // With no wallet and no Farcaster, there is nothing to check: the hook's "checking" would spin forever.
   const checking = daily.checking && (Boolean(address) || viewer.environment === "loading");
   const { openConnectModal } = useConnectModal();
+  const { disconnect } = useDisconnect();
   const p = useProfile();
   const openUrl = useOpenUrl();
   const me = resolveIdentity(viewer, p.profile);
@@ -84,6 +85,13 @@ export function ProfileSheet() {
         {!address && viewer.environment === "web" && openConnectModal && (
           <Button size="sm" variant="teal" onClick={openConnectModal}>
             <Wallet weight="bold" /> Connect
+          </Button>
+        )}
+        {/* Out of this wallet, on the web (in a Farcaster host the wallet is the host's). wagmi's own
+            disconnect, not RainbowKit's account modal, which isn't offered on a network it doesn't know. */}
+        {address && viewer.environment === "web" && (
+          <Button size="sm" variant="ghost" onClick={() => disconnect()}>
+            Disconnect
           </Button>
         )}
       </div>

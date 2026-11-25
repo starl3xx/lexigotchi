@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { readCaretakers } from "@/lib/onchain/reads";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
+import { useDisconnect } from "wagmi";
 import { Button, Card } from "../primitives";
 import { Check, CircleNotch, LinkSimple as LinkIcon, Wallet } from "../ui/icons";
 import { useGame } from "../state";
@@ -59,6 +60,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
   const viewer = useViewer();
   const { openAccountModal } = useAccountModal();
   const { openConnectModal } = useConnectModal();
+  const { disconnect } = useDisconnect();
   const address = p.address;
   const wallets = p.profile?.wallets?.length ? p.profile.wallets : address ? [address] : [];
   const account = p.profile?.account ?? address ?? null;
@@ -456,7 +458,9 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
           </ul>
           <div className="mt-2 flex flex-wrap gap-2">
             {!inHost && (
-              <Button size="sm" variant="ghost" onClick={() => (openAccountModal ?? openConnectModal)?.()}>
+              // RainbowKit offers no account modal on a network it doesn't know: then disconnect, and
+              // the game's connect panel takes the other wallet.
+              <Button size="sm" variant="ghost" onClick={() => (openAccountModal ?? openConnectModal ?? (() => disconnect()))()}>
                 Switch wallet
               </Button>
             )}

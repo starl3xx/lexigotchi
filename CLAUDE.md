@@ -256,6 +256,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   host. It mounts Neynar's provider only in a host, so read `useMiniApp()` from `./MiniAppHost`,
   never from `@neynar/react` (that one throws on the web). The Farcaster wallet connector has no
   provider outside a host (`farcasterWhereHosted`), or wagmi's reconnect waits on it forever.
+  **A wallet on a network the screen can't use** gets `WalletNetworkNotice` above every screen
+  (`lib/onchain/walletNetwork.ts`: the game's network, Base Sepolia now and Base at launch; on the
+  $WORD page, whose swap is on Base mainnet, Base or the game's; the Market is the game's). Its Switch runs sendCalls' `ensureChain` (wagmi's `switchChain`
+  never returns from a wallet that stays put); its Disconnect is wagmi's. RainbowKit's account
+  modal, which held the only Disconnect, isn't offered on a network RainbowKit doesn't know, so
+  Rainbow's browser on Base had no way out (2026-11-25). Disconnect also sits in the profile
+  header and in Your $WORD. Known gap: RainbowKit asks for the switch during connect, and a wallet
+  that accepts it and stays put never finishes connecting (wagmi waits for a change event).
   `ConnectPanel.tsx` (the web front door: wallet required,
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
