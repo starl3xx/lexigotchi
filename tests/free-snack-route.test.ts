@@ -14,7 +14,8 @@ vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532");
 vi.stubEnv("SIGNER_PRIVATE_KEY", KEY);
 vi.stubEnv("SIGNER_DRAW_SECRET", "test-secret-not-a-real-one");
 
-vi.mock("@/lib/ratelimit", () => ({ allow: async () => true }));
+const limited = new Set<string>();
+vi.mock("@/lib/ratelimit", () => ({ allow: async (kind: string) => !limited.has(kind) }));
 
 // Made-up wallets: P is the profile's account (its first wallet), S a second wallet that stakes,
 // C a caretaker in a profile of its own.
@@ -46,6 +47,7 @@ const call = async (body: unknown) => {
 };
 
 beforeEach(() => {
+  limited.clear();
   now = DAY * 86_400 + 3_600;
   toggle = true;
   used = {};
@@ -100,6 +102,11 @@ describe("/api/care/free-snack", () => {
       throw new Error("connection reset");
     };
     expect(await call({ wallet: S, staker: S })).toMatchObject({ status: 503, body: { error: "try_again" } });
+  });
+
+  it("limits by IP, not only by the wallet the request names (Bugbot on #182)", async () => {
+    limited.add("free-snack-ip");
+    expect(await call({ wallet: C, staker: P })).toMatchObject({ status: 429, body: { error: "rate_limited" } });
   });
 
   it("says so when the free snack is switched off, and checks its input", async () => {

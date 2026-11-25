@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
 import { allow } from "@/lib/ratelimit";
+import { clientIp } from "@/lib/auth/clientIp";
 import { addressOf, isSuiteDeployed } from "@/lib/onchain/addresses";
 import { stakingAbi } from "@/lib/onchain/abis";
 import { chainDay, freeSnackDigest } from "@/lib/onchain/digests";
@@ -29,6 +30,10 @@ import { accountWalletsStrict } from "@/lib/db/walletLinks";
 const VOUCHER_TTL_SECONDS = 600;
 
 export async function POST(req: Request) {
+  // Keyed by IP first: the wallet below is the request's own word (Bugbot on #182).
+  if (!(await allow("free-snack-ip", clientIp(req)))) {
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
+  }
   const body = (await req.json().catch(() => null)) as { wallet?: string; staker?: string } | null;
   const wallet = body?.wallet;
   const staker = body?.staker;
