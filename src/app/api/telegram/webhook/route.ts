@@ -32,8 +32,9 @@ export async function POST(req: Request) {
 
   try {
     // Upload the card ourselves rather than hand Telegram its URL: nothing then depends on
-    // Telegram's servers fetching our site.
-    const card = await fetch(showcaseCardUrl("HEYOO"));
+    // Telegram's servers fetching our site. It goes as a bare picture, with no link card around it,
+    // so it is the saved picture: the one with the game's name in its corner (decisions.md #23).
+    const card = await fetch(showcaseCardUrl("HEYOO", "x", undefined, true));
     if (!card.ok) throw new Error(`HEYOO card: ${card.status}`);
     const png = await card.blob();
     try {

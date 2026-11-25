@@ -380,6 +380,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
   the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
+- **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
+  **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
+  material on its tiles (`lib/rarityFinish.ts` = the table; `components/game/TileFinish.tsx` = the
+  layers; pass `tier` to `TileCharacter`/`TileWord`/`WordTiles`/`SceneFrame`). **Motion is moments,
+  never loops** (`useFinishMoment` adds `.rf-moment` to the word's row every tier period; globals.css
+  `rf-*`; `tests/rarity-finish.test.tsx` fails on an `rf-` animation outside `.rf-moment`, on
+  `infinite`, or on a dash-offset animation): only full-size words, on screen, not hungry, not under
+  reduced motion, Save-Data, or 2 GB memory. Never gate motion on `hardwareConcurrency` (iOS reports
+  2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
+  card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
+  from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
+  Telegram welcome). Next steps (not built): scene cards with backs, the Showcase folded into the
+  Bag, live backs with OGL, the share loop.
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
@@ -544,6 +557,34 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Rewards Pool (decisions.md #18; the bounty carve applies); both token
   contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
   composability, decisions.md "Royalty & marketplace architecture").
+
+## Copy and messaging
+
+**`docs/messaging.md` is the source of truth for every word a player reads** (decisions.md #24):
+Lexigotchi is a word-pet game: collect living letters, raise them, and spell words nobody else can
+own. Read it before writing any copy (the app, the landing page, the docs, reminders, share text,
+bot posts). The hard rules:
+
+- **Never name Tamagotchi or Pokémon** in player-facing copy, nor near-quote them ("gotta spell 'em
+  all", "Pokédex"). The comparison stays internal.
+- **Say / instead of:** letters, words (not NFTs, tokens, assets); yours, one owner, onchain (not
+  Web3, decentralized); raise, roll (not gamble, bet, upgrade); spell, claim a word (not mint a
+  word); feed, snack, hungry (not maintain, upkeep); the daily word, the jackpot, in the running (not
+  lottery, draw as a noun, ticket); earns $WORD every day (not yield, APR, returns, passive income);
+  Dictionary (not Lexidex); the Market (not marketplace, exchange).
+- **Never write:** price, pump, moon, invest, investment, "number go up", or a dollar figure for
+  $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
+  functional uses: a word's sale price on the Market and the $WORD page's own data.
+- **The jackpot always carries "staked and fed".**
+- **Lead with a pet, a word, or a rare letter, never with earning.** Letters are characters, written
+  in their case ("your q is hungry"); a reminder names the letter or word ("FUNKY is peckish").
+- **Numbers are derived, never typed** (`src/lib/howItWorks.ts`: `WORDS`, `TOP_TIER`,
+  `RAREST_LETTER`, `FREE_PACK`/`FREE_DAILIES`/`FREE_TO_START`, `LADDER`, `days`). The top tier's name
+  comes from `TIERS`, so a tier rename flows through on its own (it reads Mythic since #23).
+- **`tests/copy-rules.test.ts` guards it**: the banned words fail the build in player-facing code
+  (`src/components` except the operator console, `src/app`, and the copy-bearing `src/lib` files) and
+  the player docs (except `contracts.mdx` and `fairness.mdx`, which keep token standards). An
+  exception goes in `VOCAB_ALLOW` with its reason.
 
 ## Gotchas / conventions
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { WordStripLive } from "@/components/WordStrip";
+import { wordTier } from "@/lib/economy";
 import { parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
 import { parseScene, sceneMeta } from "@/lib/scenes";
 import { BASE_APP_ID, embedsWithImage } from "@/lib/site";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const scene = parseScene((await searchParams).scene);
   const text = showcaseText(tiles);
   const title = `${text} · a Lexigotchi showcase`;
-  const description = "Lexigotchi is a tamagotchi-style letter game on Base. Raise your own letters.";
+  const description = "Lexigotchi is a word-pet game on Base. Collect letters, raise them, and spell words only you can own.";
   const card = { url: showcaseCardUrl(text, "x", scene), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
   const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene));
   return {
@@ -55,11 +56,11 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
         A Lexigotchi showcase
       </p>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
-        <SceneFrame scene={scene} word={word} upper={upper} />
+        <SceneFrame scene={scene} word={word} upper={upper} tier={wordTier(word)} />
       </div>
       <h1 className="sr-only">{text}</h1>
       <p className="max-w-md text-center text-lg font-semibold text-ink/75">
-        Lexigotchi is a tamagotchi-style letter game on Base. Collect letter characters, roll them to UPPERCASE, and claim real words.
+        Lexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link

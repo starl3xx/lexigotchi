@@ -51,7 +51,7 @@ const SAMPLE_HASH = "0x4f2c1d8e9a0b3c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a
 /** Every template, rendered with realistic data. `day` rotates the variants the way production does. */
 function gallery(day: number): { kind: "nudge" | "receipt"; when: string; note: Notification }[] {
   return [
-    { kind: "nudge", when: "keeper, daily — staked words near the hunger line", note: hungerWarning(3, 6, day) },
+    { kind: "nudge", when: "keeper, daily — staked words near the hunger line", note: hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }, day) },
     { kind: "nudge", when: "cron 13:00 UTC — hasn't pulled, played in the last 7 days", note: dailyReady(day) },
     { kind: "receipt", when: "keeper — on a winning resolve", note: jackpotWon("cabin", "1,250,000 $WORD", day) },
     { kind: "nudge", when: "not yet wired — pot crossed a threshold", note: jackpotRollover("4,800,000 $WORD", day) },

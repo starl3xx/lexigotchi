@@ -87,7 +87,7 @@ export function SwapScreen() {
           New swap
         </Button>
         <p className="text-center text-xs text-ink/50">
-          A direct two-sided escrow, not a marketplace. Open price discovery still lives on any 1155 venue.
+          A swap goes straight from one player to another: both sides move together, or nothing moves.
         </p>
       </div>
     );

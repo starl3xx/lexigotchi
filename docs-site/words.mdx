@@ -7,7 +7,7 @@ description: "Spell a dictionary word to claim it. Every word has one owner."
 
 Spell a word from the dictionary with **any five of your letters, in any mix of cases**: all lowercase, all UPPERCASE, or some of each. Claiming it costs **\$0.50 in \$WORD**.
 
-When you claim, your five letters lock inside a **Word NFT**. There is exactly one NFT per word, so nobody else can own your word while you do.
+When you claim, your five letters lock inside the word, and the word is yours alone. Each word has exactly one owner, so nobody else can own it while you do.
 
 The dictionary is the same 4,584 five-letter words as [Let’s Have A Word!](/lets-have-a-word). The **Dictionary** tab shows every word and who owns it. Search it, show only unclaimed or claimed words, or show one rarity at a time.
 
@@ -38,26 +38,30 @@ Every word is scored by how rare its letters are and given one of five tiers. A 
 | Common | 2,292 | 1 |
 | Uncommon | 1,375 | 2 |
 | Rare | 687 | 3 |
-| Epic | 184 | 5 |
-| Legendary | 46 | 8 |
+| Legendary | 184 | 5 |
+| Mythic | 46 | 8 |
 
-The rarest words are **crowns**. JAZZY is the rarest of all.
+Every tier above Common has its own **finish** on its letter tiles: Uncommon is satin jade, Rare is sapphire foil, Legendary is polished gold, and Mythic is cut amethyst. Every few seconds, a light passes over the word you’re looking at. A word shows its finish in any case, in the game and on its share card. A peckish word’s shine dims, and a hungry word loses it until you feed it.
 
-![JAZZY, the rarest crown, celebrating](/images/crown.svg)
+![The letter a in each tier’s finish: Common plain, Uncommon satin jade, Rare sapphire foil, Legendary polished gold, Mythic cut amethyst](/images/finishes.svg)
+
+The rarest words are **Mythic**. JAZZY is the rarest of all.
+
+![JAZZY, the rarest word, celebrating in its Mythic amethyst](/images/crown.svg)
 
 ## Dissolving a word
 
-Changed your mind? **Dissolve** a word to burn its NFT and get its five letters back, in their current case. The word is then free for anyone to claim. Unstake it first: a staked word can’t be dissolved.
+Changed your mind? **Dissolve** a word to unmake it and get its five letters back, in their current case. The word is then free for anyone to claim. Unstake it first: a staked word can’t be dissolved.
 
-## The Word NFT
+## Your word, onchain
 
-Each claimed word is an [ERC-721](https://eips.ethereum.org/EIPS/eip-721) token on Base, the standard most NFTs use. The collection is called **Lexigotchi Word** (symbol `WORD-NFT`).
+Each claimed word lives onchain on Base, under the [ERC-721](https://eips.ethereum.org/EIPS/eip-721) standard for one-of-a-kind items. The collection is called **Lexigotchi Word** (symbol `WORD-NFT`).
 
-- **One token per word, for good.** A word’s token ID is the keccak256 hash of the word in capitals, so CRANE always has the same ID and can only ever exist once.
+- **One word, one ID, for good.** A word’s ID is the keccak256 hash of the word in capitals, so CRANE always has the same ID and can only ever exist once.
 - **It holds its letters.** Your five letters move into the Words contract when you claim, and they stay there while the word exists. Raising a letter in a word swaps it for its UPPERCASE version inside the contract. The word’s case is read from those five letters, never stored on its own.
-- **You can transfer or sell it.** [Sell it in the game’s Market](/showcase-and-swap#sell-a-word) for \$WORD, send it to another wallet, or trade it anywhere that supports NFTs on Base. Its letters, its case, and its [ascension](/ascension) go with it.
-- **Except while it’s staked.** [Staking](/care) moves the NFT into the game’s Staking contract until you unstake. A staked word can’t be transferred, sold, or dissolved.
-- **Royalties.** Each word carries a 2.5% royalty signal for the game’s treasury, using [ERC-2981](https://eips.ethereum.org/EIPS/eip-2981). Marketplaces may honor it, but the contract doesn’t enforce it.
-- **It changes over time.** Rolls and ascension change how a word looks. Each change emits an [ERC-4906](https://eips.ethereum.org/EIPS/eip-4906) event, which tells marketplaces to refresh their copy.
+- **You can send or sell it.** [Sell it on the Market](/showcase-and-swap#sell-a-word) for \$WORD, send it to another wallet, or trade it anywhere on Base that supports ERC-721. Its letters, its case, and its [ascension](/ascension) go with it.
+- **Except while it’s staked.** [Staking](/care) moves the word into the game’s Staking contract until you unstake. A staked word can’t be sent, sold, or dissolved.
+- **Royalties.** Each word carries a 2.5% royalty signal for the game’s treasury, using [ERC-2981](https://eips.ethereum.org/EIPS/eip-2981). Other apps that trade words may honor it, but the contract doesn’t enforce it.
+- **It changes over time.** Rolls and ascension change how a word looks. Each change emits an [ERC-4906](https://eips.ethereum.org/EIPS/eip-4906) event, which tells other apps to refresh their picture of it.
 
 The contract addresses are on [contracts and standards](/contracts).

@@ -23,7 +23,7 @@ export interface StagePick {
   needFood: number;
 }
 
-export const TIER_RANK: Record<Tier, number> = { Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 };
+export const TIER_RANK: Record<Tier, number> = { Common: 0, Uncommon: 1, Rare: 2, Legendary: 3, Mythic: 4 };
 const raised = (w: OwnedWord) => w.upper.filter(Boolean).length;
 
 /** Best first: more letters raised, then rarer, then more gilded, then alphabetical (stable). The Showcase opens on the best word too. */

@@ -5,6 +5,10 @@
  * code positions are skipped; JSX text, titles, aria-labels, toasts, and notification copy are not.
  *
  * A lone placeholder for a missing value uses an en dash ("–"), never an em dash.
+ *
+ * The second half is the messaging guide's word list (docs/messaging.md, decisions.md #24): the
+ * never-write words and the "Instead of" terms, over a wider set of player-facing files and the player
+ * docs. An exception goes in VOCAB_ALLOW with its reason, never by loosening a pattern.
  */
 import { describe, it, expect } from "vitest";
 import ts from "typescript";
@@ -19,10 +23,14 @@ function files(p: string): string[] {
   return /\.tsx?$/.test(p) && !/\.test\./.test(p) ? [p] : [];
 }
 
-/** Every rendered string in the player-facing UI, with where it lives. */
-function renderedStrings(): { where: string; text: string }[] {
-  const out: { where: string; text: string }[] = [];
-  for (const f of ROOTS.flatMap(files)) {
+/**
+ * Every rendered string in the player-facing UI, with where it lives. `jsx` marks JSX text, which is
+ * always prose; a string literal can also be a code value (an enum member, a key), which the word
+ * check tells apart by its shape.
+ */
+function renderedStrings(roots: readonly string[] = ROOTS): { where: string; text: string; jsx: boolean }[] {
+  const out: { where: string; text: string; jsx: boolean }[] = [];
+  for (const f of roots.flatMap(files)) {
     const src = readFileSync(f, "utf8");
     const sf = ts.createSourceFile(f, src, ts.ScriptTarget.Latest, true, f.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
     const visit = (n: ts.Node) => {
@@ -39,7 +47,7 @@ function renderedStrings(): { where: string; text: string }[] {
           (p && ts.isPropertyAssignment(p) && p.name === n);
         if (!code) text = n.text;
       }
-      if (text?.trim()) out.push({ where: `${f}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1}`, text });
+      if (text?.trim()) out.push({ where: `${f}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1}`, text, jsx: ts.isJsxText(n) });
       ts.forEachChild(n, visit);
     };
     visit(sf);
@@ -96,5 +104,101 @@ describe("player-facing copy", () => {
 
   it("spells onchain as one word", () => {
     expect(strings.filter((s) => /\bon-chain\b/i.test(s.text)).map((s) => s.where)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The messaging guide's words (docs/messaging.md, decisions.md #24)
+// ---------------------------------------------------------------------------
+
+/**
+ * Words player-facing copy never uses: the guide's never-write list and its "Instead of" terms. The
+ * Tamagotchi and Pokémon comparison stays internal (both are guarded trademarks). "Yield" is the
+ * contracts' and the operators' word; a player reads "earns $WORD every day".
+ */
+const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: boolean }[] = [
+  { term: "lottery", re: /\blotter(y|ies)\b/i, sample: "It’s a daily lottery." },
+  { term: "invest", re: /\binvest(s|ed|ing|ment|ments|or|ors)?\b/i, sample: "A smart investment." },
+  { term: "NFT", re: /\bNFTs?\b/i, sample: "Your letters lock inside a Word NFT." },
+  { term: "APR", re: /\bAPR\b/, sample: "Up to 40% APR." },
+  { term: "APY", re: /\bAPY\b/, sample: "A 12% APY." },
+  { term: "passive income", re: /\bpassive income\b/i, sample: "Earn passive income." },
+  { term: "yield", re: /\byield(s|ed|ing)?\b/i, sample: "A peckish word earns half its yield." },
+  { term: "pump", re: /\bpump(s|ed|ing)?\b/i, sample: "Watch $WORD pump." },
+  { term: "moon", re: /\bmoon(s|ing)?\b/i, sample: "To the moon." },
+  // Never a code value either, so these are checked in every string, single words included: the
+  // manifest's discovery tag "tamagotchi" was one (decisions.md #24).
+  { term: "Lexidex", re: /\blexidex\b/i, sample: "Fill your Lexidex.", everywhere: true },
+  { term: "Tamagotchi", re: /tamagotchi/i, sample: "A tamagotchi-style game.", everywhere: true },
+  { term: "Pokémon", re: /pok[eé]mon/i, sample: "Like Pokemon, but letters.", everywhere: true },
+  { term: "Pokédex", re: /pok[eé]dex/i, sample: "Complete your Pokédex.", everywhere: true },
+];
+
+/** Player-facing code: wider than the copy-rule roots, because a description or a reminder is copy too. */
+const VOCAB_ROOTS = [
+  "src/components",
+  "src/app",
+  "src/lib/howItWorks.ts",
+  "src/lib/notify",
+  "src/lib/site.ts",
+  "src/lib/showcase.ts",
+  "src/lib/scenes.ts",
+  "src/lib/themes.ts",
+  "src/lib/telegram.ts",
+  "src/lib/ascension.ts",
+];
+
+/** Docs pages that keep their technical terms (the guide: token standards belong there). */
+const DOCS_TECHNICAL = new Set(["docs-site/contracts.mdx", "docs-site/fairness.mdx"]);
+
+/**
+ * The exceptions, each with its reason. `where` is a path prefix: a folder, a file, or a file and
+ * line ("src/x.tsx:12"). Keep it small: a new entry needs a reason a reviewer would accept.
+ */
+const VOCAB_ALLOW: readonly { where: string; term: string; reason: string }[] = [
+  {
+    where: "src/components/admin/",
+    term: "yield",
+    reason: "the operator console, not player-facing: operators read the contracts' own word (the Broadcast tab, whose text is posted, is not excused)",
+  },
+];
+const allowed = (where: string, term: string) =>
+  VOCAB_ALLOW.some((a) => a.term === term && where.startsWith(a.where) && !where.startsWith("src/components/admin/tabs/BroadcastTab.tsx"));
+
+/** A string literal shaped like a code value (an enum member, a key, a path), not prose. */
+const CODE_VALUE = /^[a-z0-9_:./#?=&-]*$/;
+
+describe("the messaging guide's words", () => {
+  it.each(BANNED)("the pattern for $term catches it", ({ re, sample }) => expect(re.test(sample)).toBe(true));
+  it("every exception names a banned term and a reason", () => {
+    for (const a of VOCAB_ALLOW) {
+      expect(BANNED.map((b) => b.term)).toContain(a.term);
+      expect(a.reason.length).toBeGreaterThan(20);
+    }
+  });
+
+  const every = renderedStrings(VOCAB_ROOTS);
+  const strings = every.filter((s) => s.jsx || !CODE_VALUE.test(s.text.trim()));
+  const prose = new Set(strings);
+  it("finds the strings it is meant to check", () => expect(strings.length).toBeGreaterThan(1000));
+
+  it("player-facing code never uses them", () => {
+    const hits = every.flatMap((s) =>
+      BANNED.filter((b) => (b.everywhere || prose.has(s)) && b.re.test(s.text) && !allowed(s.where, b.term)).map(
+        (b) => `${s.where} (${b.term}): ${s.text.trim().slice(0, 80)}`,
+      ),
+    );
+    expect(hits).toEqual([]);
+  });
+
+  it("the player docs never use them (contracts and fairness keep their technical terms)", () => {
+    const hits = docsProse()
+      .filter((p) => !DOCS_TECHNICAL.has(p.where))
+      .flatMap((p) =>
+        p.text.split("\n").flatMap((line, i) =>
+          BANNED.filter((b) => b.re.test(line) && !allowed(`${p.where}:${i + 1}`, b.term)).map((b) => `${p.where}:${i + 1} (${b.term})`),
+        ),
+      );
+    expect(hits).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@ const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = 
 
 /** Extra rows the More page adds beyond Home's six. */
 const MORE_TILES: typeof TILES = [
-  { Icon: Trophy, label: "Jackpot", sub: "daily draw & bounty", to: "jackpot" },
+  { Icon: Trophy, label: "Jackpot", sub: "daily word & bounty", to: "jackpot" },
   { Icon: Ranking, label: "Leaderboard", sub: "top players", to: "leaderboard" },
   { Icon: Coins, label: "$WORD", sub: "price, supply, burns", to: "word" },
   { Icon: Planet, label: "Let’s Have A Word!", sub: "the $WORD word hunt", to: "lhaw" },

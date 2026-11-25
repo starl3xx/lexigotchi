@@ -30,17 +30,17 @@ A **pack of five** lowercase letters costs **\$1 in \$WORD**. You can buy packs 
 
 ## Which letters you get
 
-A letter’s odds mirror the dictionary. The 4,584 words have 22,920 letters between them, and each letter’s chance in a draw is its share of those slots. So E, S, A, R, and O come up often. The rarest letters are the **grails**: V, Z, X, J, and Q.
+A letter’s odds mirror the dictionary. The 4,584 words have 22,920 letters between them, and each letter’s chance in a pack is its share of those slots. So E, S, A, R, and O come up often. The rarest letters are the **grails**: V, Z, X, J, and Q.
 
 ![The five grails, the rarest letters: V, Z, X, J, and Q](/images/grails.svg)
 
 Every letter also has a fixed supply: 3 times its share of the dictionary, or **68,760 letters** in all. (The testnet game keeps its original supply, 57,294.)
 
-## Letter tokens
+## Your letters, onchain
 
-Letters are [ERC-1155](https://eips.ethereum.org/EIPS/eip-1155) tokens on Base, the standard for items you can hold several of. There are 52 token IDs: 0 to 25 are lowercase a to z, and 26 to 51 are UPPERCASE A to Z.
+Letters live onchain on Base, under the [ERC-1155](https://eips.ethereum.org/EIPS/eip-1155) standard for items you can hold several of. There are 52 letter IDs: 0 to 25 are lowercase a to z, and 26 to 51 are UPPERCASE A to Z.
 
-- **They’re yours to move.** Send letters to another wallet, [swap](/showcase-and-swap#swap-letters) them with other players, or trade them anywhere that supports ERC-1155 tokens on Base.
+- **They’re yours to move.** Send letters to another wallet, [swap](/showcase-and-swap#swap-letters) them with other players, or trade them anywhere on Base that supports ERC-1155.
 - **The supply is fixed onchain.** The Letters contract enforces each letter’s cap. Once a letter’s supply has been minted, no more of it can be.
 - **UPPERCASE comes only from rolls.** A successful [roll](/rolls) burns your lowercase letter and mints its UPPERCASE version. Only the game’s own contracts may do that, so an UPPERCASE letter can’t be minted any other way.
 
