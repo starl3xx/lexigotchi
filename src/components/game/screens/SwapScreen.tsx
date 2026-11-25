@@ -317,7 +317,7 @@ function WordsForSale() {
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <WordTiles word={l.word} upper={l.upper} size={26} />
+                    <WordTiles word={l.word} upper={l.upper} size={26} tier={wordTier(l.word)} still />
                     <TierBadge tier={wordTier(l.word)} />
                     <PrestigeStars level={l.prestigeLevel} />
                   </div>

@@ -1,6 +1,6 @@
 "use client";
 /** The "Do something" tile grid — shared by Home and the More page so the two can't drift. */
-import { Backpack, BookOpen, Coins, MaskHappy, Planet, Ranking, Sparkle, Storefront, TextAa, Trophy } from "./ui/icons";
+import { Backpack, BookOpen, Coins, Planet, Ranking, Sparkle, Storefront, TextAa, Trophy } from "./ui/icons";
 import { useGame, type View } from "./state";
 import { WORD_COUNT } from "@/lib/dictionary";
 
@@ -8,15 +8,14 @@ const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = 
   { Icon: Sparkle, label: "Mint letters", sub: "packs & daily", to: "mint" },
   { Icon: TextAa, label: "Spell a word", sub: "claim it forever", to: "claim" },
   { Icon: BookOpen, label: "Dictionary", sub: `${WORD_COUNT.toLocaleString("en-US")} words`, to: "dictionary" },
-  { Icon: MaskHappy, label: "Showcase", sub: "show off a word", to: "showcase" },
   { Icon: Storefront, label: "Market", sub: "buy, sell & swap", to: "swap" },
-  { Icon: Backpack, label: "My bag", sub: "letters & words", to: "bag" },
+  { Icon: Backpack, label: "My bag", sub: "words & letters", to: "bag" },
+  { Icon: Ranking, label: "Leaderboard", sub: "top players", to: "leaderboard" },
 ];
 
 /** Extra rows the More page adds beyond Home's six. */
 const MORE_TILES: typeof TILES = [
   { Icon: Trophy, label: "Jackpot", sub: "daily word & bounty", to: "jackpot" },
-  { Icon: Ranking, label: "Leaderboard", sub: "top players", to: "leaderboard" },
   { Icon: Coins, label: "$WORD", sub: "price, supply, burns", to: "word" },
   { Icon: Planet, label: "Let’s Have A Word!", sub: "the $WORD word hunt", to: "lhaw" },
 ];

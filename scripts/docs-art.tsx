@@ -56,7 +56,7 @@ interface Ch {
   upper?: boolean;
   state?: TileState;
   gild?: Gild;
-  /** the word's rarity, worn as the tile's finish (still: a picture has no light passing) */
+  /** the word's rarity, worn as the tile's finish (its light never passes in a picture: nothing adds .rf-moment) */
   tier?: Tier;
 }
 interface Group {
@@ -84,7 +84,7 @@ let drawn = 0;
  */
 function character(c: Ch, size: number): Placed {
   const html = renderToStaticMarkup(
-    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} still />,
+    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} />,
   );
   let svg = html.match(/<svg[\s\S]*<\/svg>/)![0].replace(/ class="overflow-visible"/, ' overflow="visible"');
   const prefix = `c${drawn++}-`;

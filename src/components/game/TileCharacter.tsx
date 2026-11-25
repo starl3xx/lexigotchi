@@ -63,7 +63,7 @@ export interface TileCharacterProps {
   /** The rarity of the word this letter is part of, worn as the tile's material (lib/rarityFinish,
    *  ./TileFinish). Loose letters have none. */
   tier?: Tier;
-  /** Draw the finish without its motion: a still frame (a still scene, a thumbnail). */
+  /** A still frame: the character and its finish hold still (a still scene, a card in a grid, a thumbnail). */
   still?: boolean;
   /** The letter's place in its word, so the finish's light passes along the word in turn. */
   index?: number;
@@ -678,7 +678,9 @@ export function TileCharacter({
   still = false,
   index = 0,
 }: TileCharacterProps) {
-  const reduced = usePrefersReducedMotion();
+  // A still frame holds the whole character still, not only its finish: a grid of cards would
+  // otherwise run each tile's idle bounce, hundreds of repainting animations (the Bag's words).
+  const reduced = usePrefersReducedMotion() || still;
   const lowPower = useLowPower();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
   const holoPaint = `url(#tc-holo-${uid})`;
@@ -783,7 +785,7 @@ export function TileCharacter({
         </defs>
       )}
 
-      <FinishDefs tier={tier} uid={uid} bw={borderW} />
+      <FinishDefs tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
 
       {/* gold burst rays (upgrade) — behind everything */}
       {state === "upgrade" && <BurstRays reduced={reduced} />}

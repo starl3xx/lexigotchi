@@ -197,5 +197,6 @@ Two more notes come out when a switch flips, not with the launch PR:
 The docs' pictures (`docs-site/images/*.svg`) are drawn from the game's character rig and the fee
 splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either. The
 screenshots (`docs-site/images/screen-*.jpg`) come from `npm run docs:shots` against a practice-mode
-dev server (`scripts/docs-shots.mjs`); retake them after a visible change to Today, Bag, Showcase,
+dev server (`scripts/docs-shots.mjs`); retake them after a visible change to Today, the Bag (its cards
+and its letters), an opened word's card and Share,
 the Jackpot page (its bounty half), or the $WORD page, and at launch, when practice mode ends.

@@ -9,6 +9,7 @@ import { WordTiles } from "../LetterTile";
 import { Confetti, DiceFive, Gift, SmileyMeh, Star } from "../ui/icons";
 import { fmtWord, hunger, jackpotEligible, useGame } from "../state";
 import { BountySection } from "./BountySection";
+import { wordTier } from "@/lib/economy";
 
 const PAST = ["MOTEL", "GRAPE", "QUILT"];
 
@@ -67,14 +68,14 @@ export function JackpotScreen() {
                 You held <strong>{state.jackpotWord}</strong>, staked &amp; fed. The pot is yours.
               </p>
               <div className="my-3 flex justify-center">
-                <WordTiles word={state.jackpotWord} upper={Array(5).fill(true)} state="celebrate" size={54} detail="bust" />
+                <WordTiles word={state.jackpotWord} upper={Array(5).fill(true)} state="celebrate" size={54} detail="bust" tier={wordTier(state.jackpotWord)} />
               </div>
             </div>
           ) : (
             <div className="py-2">
               <p className="text-sm text-ink/60">Today’s secret word was</p>
               <div className="my-2 flex justify-center">
-                <WordTiles word={state.jackpotWord} upper={Array(5).fill(false)} size={40} />
+                <WordTiles word={state.jackpotWord} upper={Array(5).fill(false)} size={40} tier={wordTier(state.jackpotWord)} />
               </div>
               <p className="text-sm">
                 {ownedAnswer

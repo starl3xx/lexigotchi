@@ -104,6 +104,29 @@ describe("the share card's still keeps Satori's rules", () => {
   });
 });
 
+describe("a tile's finish definitions", () => {
+  // Every url(#rf-…) a tile uses must be one it defined: FinishDefs draws only what the tile needs.
+  const cases = TIERS.flatMap((t) =>
+    (["full", "bust", "tile"] as const).flatMap((detail) =>
+      (["idle", "peckish", "hungry"] as const).flatMap((state) => [false, true].map((still) => ({ tier: t.name, detail, state, still }))),
+    ),
+  );
+  it.each(cases.map((c) => [`${c.tier} ${c.detail} ${c.state}${c.still ? " still" : ""}`, c] as const))("%s: no reference to a missing definition", (_, c) => {
+    const html = renderToStaticMarkup(<TileCharacter char="q" upper tier={c.tier} state={c.state} still={c.still} detail={c.detail} size={c.detail === "tile" ? 30 : 120} />);
+    const defined = new Set([...html.matchAll(/id="(rf-[^"]+)"/g)].map((m) => m[1]));
+    const used = [...html.matchAll(/url\(#(rf-[^)]+)\)/g)].map((m) => m[1]);
+    expect(used.filter((u) => !defined.has(u))).toEqual([]);
+  });
+
+  it("draws far fewer definitions for a small still tile than for a moving one", () => {
+    const count = (html: string) => [...html.matchAll(/id="rf-/g)].length;
+    const small = count(renderToStaticMarkup(<TileCharacter char="q" tier="Legendary" detail="tile" size={30} still />));
+    const big = count(renderToStaticMarkup(<TileCharacter char="q" tier="Legendary" detail="full" size={120} />));
+    expect(small).toBeLessThanOrEqual(4); // the face, its clip, the soft highlight, the hot spot
+    expect(big).toBeGreaterThan(small);
+  });
+});
+
 describe("a word's mood on its finish", () => {
   const draw = (state: "idle" | "peckish" | "hungry") =>
     renderToStaticMarkup(<TileCharacter char="a" tier="Legendary" state={state} still detail="full" size={120} />);
@@ -151,6 +174,12 @@ describe("the moving light stays cheap", () => {
     // the fastest tier's period leaves a rest after each moment
     const fastest = Math.min(...Object.values(FINISH).map((f) => f!.period));
     expect(MOMENT_END_S).toBeLessThan(fastest - 1);
+  });
+
+  it("never loops anything on a card: the back holds still, and only the turn moves", () => {
+    const at = css.indexOf("Scene cards (components/cards/SceneCard.tsx)");
+    expect(at).toBeGreaterThan(0);
+    expect(css.slice(at)).not.toMatch(/infinite/);
   });
 
   it("never animates a stroke's dash (it re-strokes the outline every frame)", () => {

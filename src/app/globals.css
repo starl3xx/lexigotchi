@@ -428,6 +428,8 @@ body {
   .scene-fog-2 { animation: scene-fog 76s linear infinite -20s, scene-fog-breathe 8s ease-in-out infinite alternate -3s; }
   .scene-fog-3 { animation: scene-fog 46s linear infinite -9s, scene-fog-breathe 6.5s ease-in-out infinite alternate -1s; }
 }
+/* a still scene (a card in a grid, a thumbnail) keeps its fog but doesn't drift it */
+.scene-still .scene-fog-bank { animation: none !important; }
 @keyframes scene-fog { to { transform: translateX(-50%); } }
 @keyframes scene-fog-breathe { from { opacity: 0.6; } }
 
@@ -538,3 +540,130 @@ body {
   30% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-74px) scale(1); }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Scene cards (components/cards/SceneCard.tsx): a word's scene on the front, its story on the back
+   (CardBack.tsx), turned over by the button in the top right. The turn is a transform (composited):
+   it costs nothing at rest. The back is drawn once and holds still: no tile on it bounces or shines,
+   and no part of it loops. Sizes come from the card's own width (container queries, cqw units).
+   --------------------------------------------------------------------------------------------- */
+.sc { position: relative; aspect-ratio: 16 / 9; width: 100%; perspective: 1800px; container-type: inline-size; }
+.sc-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.25, 1.12); }
+.sc.is-back .sc-inner { transform: rotateY(180deg); }
+.sc-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #1b1714; transform: translateZ(0); }
+.sc-back { transform: rotateY(180deg) translateZ(0); }
+.sc-framed .sc-face { border: 3px solid #1b1714; border-radius: 16px; }
+.sc-framed.sc-small .sc-face { border-width: 2px; border-radius: 12px; }
+.sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }
+@keyframes sc-lift { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-2%) scale(1.035); } }
+/* the scene nobody can see holds still */
+.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"], .sc.is-back .sc-front [class*="scn-"], .sc.is-back .sc-front .scene-fog-bank { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .sc-inner { transition: none; transform: none !important; }
+  .sc-face { backface-visibility: visible; -webkit-backface-visibility: visible; transition: opacity 0.25s; }
+  .sc-back { transform: none; opacity: 0; }
+  .sc.is-back .sc-back { opacity: 1; }
+  .sc.is-back .sc-front { opacity: 0; }
+  .sc.is-flipping { animation: none; }
+}
+.sc-flip { position: absolute; top: clamp(6px, 2.4cqw, 14px); right: clamp(6px, 2.4cqw, 14px); z-index: 6; width: clamp(36px, 7cqw, 44px); height: clamp(36px, 7cqw, 44px); display: grid; place-items: center; border-radius: 999px; border: 2px solid #1b1714; background: rgba(251, 244, 227, 0.94); color: #1b1714; box-shadow: 2px 2px 0 #1b1714; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.sc-small .sc-flip { width: 30px; height: 30px; top: 6px; right: 6px; }
+/* a card that opens its word: the whole card, under the flip button */
+.sc-open { position: absolute; inset: 0; z-index: 5; border-radius: 12px; cursor: pointer; }
+.sc-open:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
+.sc-flip svg { width: 58%; height: 58%; }
+.sc-flip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #1b1714; }
+.sc-flip:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) { .sc-flip:hover { transform: translate(-1px, -1px) rotate(-18deg); box-shadow: 3px 3px 0 #1b1714; } }
+/* a card's rarity, on its front in a grid */
+.sc-badge { position: absolute; left: 6px; top: 6px; z-index: 3; display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px 3px 4px; border-radius: 999px; border: 1.5px solid #1b1714; background: rgba(251, 244, 227, 0.94); font-size: 12px; font-weight: 700; line-height: 1; color: #1b1714; pointer-events: none; }
+.sc-badge .cb-gem { width: 14px; height: 14px; }
+
+/* A list's word as flat tiles (components/game/MiniTiles.tsx): the rig's colors, the finish baked
+   into a background per tier. A lowercase tile sits on its wooden edge; an UPPERCASE one wears the
+   pale blue ring. */
+.mini-tile { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #2a1e1a; background-color: #f8efdd; box-shadow: 0 2px 0 #c7ae84; font-size: 12px; font-weight: 800; line-height: 1; color: #2a1e1a; }
+.mini-tile.is-up { background-color: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 2px #bbd1fd; color: #111827; }
+
+/* ---- the back ---- */
+.cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); --cb-plate: rgba(14, 10, 8, 0.52); --cb-plate-line: rgba(255, 255, 255, 0.14); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
+.cb > * { position: absolute; }
+.cb-mat { inset: 0; background: var(--cb-mat); }
+.cb-mat > * { position: absolute; inset: 0; }
+.cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); border: 2px solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); pointer-events: none; }
+/* the materials, deep */
+.m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --gem: #cbbb9c; --rk-top: #54402d; --rk-front: #2a1e15; }
+.m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --gem: #5cc4a9; --rk-top: #22705e; --rk-front: #0c3028; }
+.m-rare { --cb-base: #0b1f40; --cb-mat: linear-gradient(165deg, #1d4485, #0b1f40 70%); --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --gem: #6e9fe0; --rk-top: #2a5799; --rk-front: #0b1d3d; }
+.m-legendary { --cb-base: #2e2006; --cb-mat: linear-gradient(135deg, #2e2006, #6b4a10 38%, #2e2006 66%, #5a3e0c); --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --gem: #f0b53a; --rk-top: #8a6418; --rk-front: #3a2806; }
+.m-mythic { --cb-base: #1d0d36; --cb-mat: linear-gradient(165deg, #47237a, #1d0d36 70%); --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --gem: #a77ce8; --rk-top: #552c94; --rk-front: #1d0d36; }
+.cb-brush { background: repeating-linear-gradient(-32deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 4px); }
+.cb-glitter { background-image: radial-gradient(circle, rgba(255, 238, 180, 0.9) 0 0.9px, transparent 1.3px), radial-gradient(circle, rgba(255, 250, 220, 0.7) 0 0.7px, transparent 1.1px); background-size: 19px 19px, 13px 13px; background-position: 0 0, 7px 9px; opacity: 0.7; }
+.cb-facets { width: 100%; height: 100%; }
+.cb-facets .fl { stroke: rgba(255, 255, 255, 0.22); }
+.cb-facets .ft { fill: rgba(255, 255, 255, 0.07); stroke: rgba(255, 255, 255, 0.3); }
+/* Mythic's fire: a spectral line inside the frame, still (a looping hue shift repaints every frame) */
+.cb-fire { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); padding: 2.5px; background: linear-gradient(135deg, #ff7ad9, #ffd84d, #6ff2ff, #8f9bff, #ff7ad9); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0.38; pointer-events: none; }
+.cb-corner { width: clamp(16px, 6cqw, 38px); height: clamp(16px, 6cqw, 38px); pointer-events: none; }
+.cb-corner svg { width: 100%; height: 100%; display: block; }
+.cb-corner .sc1 { stroke: rgba(255, 244, 200, 0.55); }
+.cb-corner .sc2 { stroke: #e9b949; }
+.cb-corner.tl { left: clamp(8px, 2.6cqw, 16px); top: clamp(8px, 2.6cqw, 16px); }
+.cb-corner.tr { right: clamp(8px, 2.6cqw, 16px); top: clamp(8px, 2.6cqw, 16px); transform: scaleX(-1); }
+.cb-corner.bl { left: clamp(8px, 2.6cqw, 16px); bottom: clamp(8px, 2.6cqw, 16px); transform: scaleY(-1); }
+.cb-corner.br { right: clamp(8px, 2.6cqw, 16px); bottom: clamp(8px, 2.6cqw, 16px); transform: scale(-1, -1); }
+.cb-gem { width: 1.15em; height: 1.15em; flex: none; }
+.cb-gem .g1 { fill: var(--gem, #b9a98c); stroke: #231a14; stroke-width: 1.2; }
+.cb-gem .g2 { fill: #ffffff; opacity: 0.55; }
+.cb-gem .g3 { fill: #000000; opacity: 0.14; }
+/* card stock: a faint linen weave and grain */
+.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 3px); }
+
+/* the words and tiles, on steady plates */
+.cb-body { inset: 0; padding: clamp(12px, 4cqw, 30px) clamp(14px, 4.4cqw, 34px); display: grid; grid-template-rows: auto 1fr auto; gap: clamp(4px, 1.5cqw, 12px); }
+.cb-plate { background: var(--cb-plate); border: 1px solid var(--cb-plate-line); border-radius: clamp(6px, 1.4cqw, 10px); }
+.cb-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: clamp(40px, 9cqw, 58px); }
+.cb-tier { display: inline-flex; align-items: center; gap: 0.4em; font-weight: 800; font-size: clamp(13px, 2.8cqw, 21px); padding: 0.25em 0.6em 0.25em 0.4em; border-radius: 999px; }
+.cb-no { font-size: clamp(12px, 1.8cqw, 14px); font-variant-numeric: tabular-nums; color: var(--cb-sub); white-space: nowrap; padding: 0.3em 0.6em; border-radius: 999px; }
+.cb-main { display: grid; grid-template-columns: 0.92fr 1.08fr; gap: clamp(10px, 2.6cqw, 22px); align-items: center; min-height: 0; }
+.cb-wordcol { display: grid; gap: clamp(5px, 1.3cqw, 10px); align-content: center; }
+/* the rack: its top recedes behind the tiles (lit), its lip stands in front (in shadow) */
+.cb-rackwrap { position: relative; --rh: 6.4cqw; padding: 0 3cqw calc(var(--rh) * 0.33); }
+.cb-rack { position: absolute; left: 0; bottom: 0; width: 100%; height: var(--rh); display: block; overflow: visible; }
+.cb-rack-back { z-index: 0; }
+.cb-rack-front { z-index: 2; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)); }
+.rk-top { fill: var(--rk-top); }
+.rk-far { fill: rgba(0, 0, 0, 0.35); }
+.rk-groove { fill: rgba(0, 0, 0, 0.42); }
+.rk-front { fill: var(--rk-front); }
+.rk-lip { fill: rgba(255, 255, 255, 0.3); }
+.cb-tiles { position: relative; z-index: 1; display: flex; gap: 0.7cqw; }
+.cb-tile { flex: 1 1 0; min-width: 0; filter: drop-shadow(0 2px 1.5px rgba(0, 0, 0, 0.45)); }
+.cb-oneof { display: grid; gap: 2px; font-size: clamp(12px, 1.8cqw, 14px); padding: 0.5em 0.7em; justify-self: start; }
+.cb-oneof b { font-size: clamp(16px, 3.6cqw, 28px); line-height: 1; letter-spacing: -0.01em; }
+.cb-oneof span { color: var(--cb-sub); }
+.cb-stats { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(6px, 1.5cqw, 12px) clamp(8px, 2cqw, 16px); margin: 0; padding: clamp(8px, 1.8cqw, 14px); }
+/* labels: semibold, the values' size, a quieter color; values: regular */
+.cb-stat dt { font-size: clamp(12px, 2cqw, 16px); font-weight: 600; line-height: 1.2; color: var(--cb-sub); }
+.cb-stat dd { margin: 0; font-size: clamp(12px, 2cqw, 16px); font-weight: 400; line-height: 1.2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cb-pips { display: inline-flex; gap: 2px; }
+.cb-pips i { width: 7px; height: 7px; transform: rotate(45deg); border: 1.2px solid rgba(201, 207, 216, 0.8); background: rgba(255, 255, 255, 0.85); display: block; }
+.cb-pips i.on { border-color: #231a14; background: #f0a617; }
+.cb-pips i.holo { background: linear-gradient(135deg, #ff9ad5, #ffe28a, #8ff0d0, #8ec5ff, #c7a0ff); }
+.cb-foot { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12px; padding: 0.45em 0.8em; color: var(--cb-sub); }
+.cb-foot b { color: var(--cb-text); font-weight: 400; }
+.cb-id { font-variant-numeric: tabular-nums; margin-left: auto; color: var(--cb-sub); }
+a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
+.cb-mini { display: block; justify-self: start; font-size: 12px; font-weight: 400; line-height: 1.2; padding: 3px 7px; }
+/* a phone-sized back: four stats, no bottom line */
+@container (max-width: 560px) {
+  .cb-more, .cb-foot { display: none; }
+  .cb-body { grid-template-rows: auto 1fr; }
+}
+/* a thumbnail's back (CardBack mini): the rarity, the tiles on their rack, one line */
+.sc-small .cb-main { grid-template-columns: 1fr; gap: 4px; align-content: center; }
+.sc-small .cb-rackwrap { max-width: 78%; }
+.sc-small .cb-wordcol { gap: 5px; }
+.sc-small .cb-body { padding: 8px 10px; gap: 2px; grid-template-rows: auto 1fr; }
+.sc-small .cb-top { padding-right: 34px; }
+.sc-small .cb-tier { font-size: 12px; }

@@ -1,6 +1,6 @@
 /**
  * The scene drawings (lib/scenes.ts names them). One drawing serves three places: the Today
- * stage, the Showcase, and the share card (`/s/<word>/card`, drawn by Satori on the server).
+ * stage and the word's cards, and the share card (`/s/<word>/card`, drawn by Satori on the server).
  *
  * Pure SVG shapes and gradients, no hooks, no `<text>`, no CSS that Satori can't read, so the same
  * markup renders in the browser and in an ImageResponse (kit.tsx has the rules that keeps). Motion
