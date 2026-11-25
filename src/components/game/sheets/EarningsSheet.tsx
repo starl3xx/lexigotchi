@@ -10,7 +10,7 @@
 import { Button, Card, Pill, Sheet, TweenNumber } from "../primitives";
 import { WordTiles, careState } from "../LetterTile";
 import { Coins } from "../ui/icons";
-import { fmtUsd, fmtWord, hunger, useGame, type OwnedWord } from "../state";
+import { fmtUsd, fmtWord, hunger, showsUsd, useGame, type OwnedWord } from "../state";
 import { earningStatus, payoutPhrase, payoutTimeLocal, payoutWhen, type EarningStatus } from "../earnings";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
@@ -55,12 +55,16 @@ export function EarningsSheet() {
             <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">
               <TweenNumber value={e.total} format={fmtWord} />
             </div>
-            <div className="text-sm text-ink/60">{fmtUsd(e.total)} · $WORD</div>
+            {/* dollars hide on testnet, as everywhere (showsUsd): test $WORD isn't worth them */}
+            <div className="text-sm text-ink/60">{showsUsd(state) ? `${fmtUsd(e.total)} · $WORD` : state.chainBacked ? "test $WORD" : "$WORD"}</div>
             <div className="mt-1 text-sm">
-              {when ? (
+              {when && e.latest > 0 ? (
                 <>
                   <strong className="text-gold-ink">+{fmtWord(e.latest)}</strong> {payoutPhrase(when)}
                 </>
+              ) : when ? (
+                // the latest payout paid other players' words, not these: say so, never "+0"
+                <span className="text-ink/60">Nothing earned {payoutPhrase(when)}</span>
               ) : (
                 <span className="text-ink/60">No payouts yet</span>
               )}

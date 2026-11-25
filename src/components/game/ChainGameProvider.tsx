@@ -398,7 +398,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     refetchInterval: 5 * 60_000,
   });
 
-  // Shares not paid out yet for the whole bag, from the keeper's published epochs.
+  // Shares not paid out yet for the whole bag, from the keeper's published epochs. Polled like the
+  // earnings, so a screen left open across the 00:05 UTC payout stops offering what it just paid
+  // (Bugbot on #177); Collect also reads it fresh before sending.
   const claimablesQ = useQuery({
     queryKey: ["claimables", NETWORK.id, bagKey],
     queryFn: async () => {
@@ -411,6 +413,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     },
     enabled: !!address && chain.deployed,
     staleTime: 30_000,
+    refetchInterval: 5 * 60_000,
   });
 
   // The letter-swap board (Seaport bulletin). Rows are pre-filtered by the API against
@@ -1350,18 +1353,25 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         amount: Number(BigInt(c.amount) / 10n ** 12n) / 1e6, // wei → whole $WORD for display
       })),
       claimEarnings: () => {
-        const raw = claimablesQ.data ?? [];
-        if (raw.length === 0) return;
-        const claims: RewardClaim[] = raw.map((c) => ({
-          stream: c.stream,
-          epochId: BigInt(c.epochId),
-          tokenId: BigInt(c.tokenId),
-          account: c.account,
-          amount: BigInt(c.amount),
-          proof: c.proof,
-        }));
+        if ((claimablesQ.data ?? []).length === 0) return;
         // "Collect", never "Claim": claiming is what spelling a word does.
         void track("Collecting your earnings", async (run) => {
+          // Read the list fresh before sending: the keeper may have paid some of it since the screen
+          // last looked, and a claim of a paid share reverts the whole send (Bugbot on #177).
+          const raw = (await claimablesQ.refetch()).data ?? [];
+          if (raw.length === 0) {
+            void earningsQ.refetch();
+            toast("Already paid out: nothing left to collect", "good");
+            return;
+          }
+          const claims: RewardClaim[] = raw.map((c) => ({
+            stream: c.stream,
+            epochId: BigInt(c.epochId),
+            tokenId: BigInt(c.tokenId),
+            account: c.account,
+            amount: BigInt(c.amount),
+            proof: c.proof,
+          }));
           if (await run("Collect", () => claimRewardCalls(claims))) {
             void claimablesQ.refetch();
             void earningsQ.refetch();

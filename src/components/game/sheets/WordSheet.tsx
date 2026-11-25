@@ -292,7 +292,10 @@ function EarningsRow({ word, h }: { word: OwnedWord; h: Hunger }) {
           <span className="block">
             {status.kind === "raise" || status.kind === "unstaked"
               ? earningLine(word.word, status)
-              : "Nothing earned yet. Its share comes with each daily payout."}
+              : // null earnings are unknown (loading, or the read failed), never "earned nothing"
+                e
+                ? "Nothing earned yet. Its share comes with each daily payout."
+                : "Adding up what it has earned…"}
           </span>
         )}
       </span>
