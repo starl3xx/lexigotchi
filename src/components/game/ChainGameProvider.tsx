@@ -405,15 +405,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     queryKey: ["claimables", NETWORK.id, bagKey],
     queryFn: async () => {
       const res = await fetch(`/api/rewards/claimable?wallets=${bagWallets.join(",")}`);
-      const data = await res.json();
-      return data?.ok ? (data.claimables as {
+      const data = await res.json().catch(() => null);
+      // A failed read throws, so it's an error (the last good list stays), never "nothing waiting":
+      // Collect would otherwise say everything was paid (Bugbot on #177).
+      if (!data?.ok) throw new Error(data?.error ?? `claimable ${res.status}`);
+      return data.claimables as {
         stream: "yield" | "bounty"; epochId: string; tokenId: string;
         account: `0x${string}`; amount: string; proof: `0x${string}`[];
-      }[]) : [];
+      }[];
     },
     enabled: !!address && chain.deployed,
     staleTime: 30_000,
     refetchInterval: 5 * 60_000,
+    retry: 1, // Collect waits on a refetch; don't make it sit through three retries
   });
 
   // The letter-swap board (Seaport bulletin). Rows are pre-filtered by the API against
@@ -1358,7 +1362,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         void track("Collecting your earnings", async (run) => {
           // Read the list fresh before sending: the keeper may have paid some of it since the screen
           // last looked, and a claim of a paid share reverts the whole send (Bugbot on #177).
-          const raw = (await claimablesQ.refetch()).data ?? [];
+          const fresh = await claimablesQ.refetch();
+          if (fresh.isError) {
+            toast("Couldn’t check what’s waiting. Try again in a moment.", "bad");
+            return;
+          }
+          const raw = fresh.data ?? [];
           if (raw.length === 0) {
             void earningsQ.refetch();
             toast("Already paid out: nothing left to collect", "good");
