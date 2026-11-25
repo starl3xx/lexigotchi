@@ -522,7 +522,7 @@ contract LexigotchiTest is Test {
         word.approve(address(words), type(uint256).max);
         letters.setApprovalForAll(address(words), true);
         vm.expectRevert(Words.AlreadyClaimed.selector);
-        words.claim("CRANE", false, _proof(0));
+        words.claim("CRANE", 0, _proof(0));
         vm.stopPrank();
     }
 
@@ -532,7 +532,7 @@ contract LexigotchiTest is Test {
         word.approve(address(words), type(uint256).max);
         letters.setApprovalForAll(address(words), true);
         vm.expectRevert(Words.NotInDictionary.selector);
-        words.claim("ZZZZZ", false, _proof(0)); // wrong proof / not a leaf
+        words.claim("ZZZZZ", 0, _proof(0)); // wrong proof / not a leaf
         vm.stopPrank();
     }
 
@@ -550,9 +550,66 @@ contract LexigotchiTest is Test {
         vm.startPrank(bob);
         word.approve(address(words), type(uint256).max);
         letters.setApprovalForAll(address(words), true);
-        uint256 reId = words.claim("CRANE", false, _proof(0));
+        uint256 reId = words.claim("CRANE", 0, _proof(0));
         vm.stopPrank();
         assertEq(words.ownerOf(reId), bob, "bob re-claimed");
+    }
+
+    // A word may be claimed in any mix of cases (decisions.md, "Mixed-case claims"). CRANE with its
+    // C and A raised: mask bits 0 and 2.
+    uint8 internal constant C_A_RAISED = 0x05;
+
+    function _fundCraneMixed(address who) internal {
+        letters.mintUpper(who, 2, 1); // C
+        letters.mintLower(who, 17, 1); // r
+        letters.mintUpper(who, 0, 1); // A
+        letters.mintLower(who, 13, 1); // n
+        letters.mintLower(who, 4, 1); // e
+    }
+
+    function test_Claim_mixedCase_escrowsEachLetterInItsCase() public {
+        _fundCraneMixed(alice);
+        _approveAll(alice);
+        uint256 id = uint256(keccak256(bytes("CRANE")));
+        vm.expectEmit(true, true, false, true, address(words));
+        emit Words.Claimed(id, alice, "CRANE", C_A_RAISED);
+        vm.prank(alice);
+        uint256 tokenId = words.claim("CRANE", C_A_RAISED, _proof(0));
+
+        assertEq(uint8(words.caseOf(tokenId)), uint8(CaseState.Mixed), "starts Mixed");
+        (uint8 c, bool cUp) = words.escrowLetter(tokenId, 0);
+        (uint8 r, bool rUp) = words.escrowLetter(tokenId, 1);
+        assertEq(c, 2, "C at 0");
+        assertTrue(cUp, "C is raised");
+        assertEq(r, 17, "r at 1");
+        assertFalse(rUp, "r is not");
+        // Each letter left in the case it was named in.
+        assertEq(letters.balanceOf(address(words), 2 + 26), 1, "UPPERCASE C escrowed");
+        assertEq(letters.balanceOf(address(words), 17), 1, "lowercase r escrowed");
+        assertEq(letters.balanceOf(alice, 2 + 26) + letters.balanceOf(alice, 17), 0, "alice has neither");
+
+        // Dissolving gives each one back in its case.
+        vm.prank(alice);
+        words.dissolve(tokenId, "CRANE");
+        assertEq(letters.balanceOf(alice, 2 + 26), 1, "UPPERCASE C back");
+        assertEq(letters.balanceOf(alice, 0 + 26), 1, "UPPERCASE A back");
+        assertEq(letters.balanceOf(alice, 4), 1, "lowercase e back");
+    }
+
+    function test_Claim_mixedCase_needsEachLetterInItsNamedCase() public {
+        _fundLower(alice, "CRANE"); // all lowercase: no UPPERCASE C to escrow
+        _approveAll(alice);
+        vm.prank(alice);
+        vm.expectRevert();
+        words.claim("CRANE", C_A_RAISED, _proof(0));
+    }
+
+    function test_Claim_rejectsMaskBeyondFivePositions() public {
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        vm.prank(alice);
+        vm.expectRevert(Words.BadCaseMask.selector);
+        words.claim("CRANE", 0x20, _proof(0));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1009,14 +1066,14 @@ contract LexigotchiTest is Test {
         _fundLower(who, WORDS_[wordIndex]);
         _approveAll(who);
         vm.prank(who);
-        tokenId = words.claim(WORDS_[wordIndex], false, _proof(wordIndex));
+        tokenId = words.claim(WORDS_[wordIndex], 0, _proof(wordIndex));
     }
 
     function _claimUpper(address who, uint256 wordIndex) internal returns (uint256 tokenId) {
         _fundUpper(who, WORDS_[wordIndex]);
         _approveAll(who);
         vm.prank(who);
-        tokenId = words.claim(WORDS_[wordIndex], true, _proof(wordIndex));
+        tokenId = words.claim(WORDS_[wordIndex], 0x1F, _proof(wordIndex));
     }
 
     // --- Merkle (4 leaves, sorted-pair, matching OZ MerkleProof) ---
@@ -1749,7 +1806,7 @@ contract LexigotchiTest is Test {
         vm.startPrank(bob);
         letters.safeBatchTransferFrom(alice, bob, ids, amounts, "");
         word.transferFrom(alice, bob, CLAIM);
-        uint256 t = words.claim("CRANE", false, _proof(0));
+        uint256 t = words.claim("CRANE", 0, _proof(0));
         vm.stopPrank();
         assertEq(words.ownerOf(t), bob, "the word lands in the acting wallet");
         assertEq(word.balanceOf(bob), bobBal, "the fee came from alice's wallet, through bob");

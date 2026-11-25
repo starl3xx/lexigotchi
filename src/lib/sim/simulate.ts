@@ -292,26 +292,46 @@ function makePlayer(world: World, archetype: Archetype, day: number): Player {
   };
 }
 
-/** Can the player spell this word from a single-case inventory (lower or upper)? */
-function canSpell(info: WordInfo, inv: number[]): boolean {
-  for (const [idx, cnt] of info.pairs) if (inv[idx] < cnt) return false;
+/**
+ * Can the player spell this word from their letters, in any mix of cases? A claim may name each
+ * letter's case (Words.claim's `upperMask`; decisions.md, "Mixed-case claims"), so a letter counts
+ * whether it is lowercase or UPPERCASE.
+ */
+function canSpell(info: WordInfo, player: Player): boolean {
+  for (const [idx, cnt] of info.pairs) if (player.lower[idx] + player.upper[idx] < cnt) return false;
   return true;
 }
 
 /**
- * Find an unclaimed word the player can spell from 5 UNIFORM-case letters — all-lowercase
- * (the common path) OR all-UPPERCASE (built from loose rolls). v0.2 §5.4 allows either, as
- * long as the set is uniform; Mixed sets cannot initiate a claim.
+ * The case each of the word's five letters is claimed in: UPPERCASE wherever the player has one to
+ * spare, lowercase otherwise. The app's quick Claim does the same (starl3xx, 2026-11-24): it starts
+ * the word closer to all-UPPERCASE, and raising a letter inside a word costs the same as a loose one.
+ * Call only once canSpell holds.
+ */
+function claimCase(word: string, player: Player): ClaimedWord["upper"] {
+  const usedUpper = new Map<number, number>();
+  return [...word].map((ch) => {
+    const idx = ch.charCodeAt(0) - A_CODE;
+    const used = usedUpper.get(idx) ?? 0;
+    if (player.upper[idx] <= used) return false;
+    usedUpper.set(idx, used + 1);
+    return true;
+  }) as ClaimedWord["upper"]; // every dictionary word has five letters
+}
+
+/**
+ * Find an unclaimed word the player can spell from any five of its letters, in any mix of cases,
+ * and the case each letter would be claimed in (claimCase).
  */
 function findClaimable(
   player: Player,
   world: World,
   crown: boolean,
   preferSet?: Set<string>,
-): { word: string; upper: boolean } | null {
+): { word: string; upper: ClaimedWord["upper"] } | null {
   claimGen++;
-  let best: { word: string; upper: boolean; tier: number } | null = null;
-  let firstAny: { word: string; upper: boolean } | null = null; // fallback when chasing a theme
+  let best: { word: string; upper: ClaimedWord["upper"]; tier: number } | null = null;
+  let firstAny: { word: string; upper: ClaimedWord["upper"] } | null = null; // fallback when chasing a theme
   let checked = 0;
   for (let li = 0; li < 26; li++) {
     if (player.lower[li] === 0 && player.upper[li] === 0) continue;
@@ -320,13 +340,8 @@ function findClaimable(
       claimVisited[widx] = claimGen;
       const info = WORD_INFO[widx];
       if (world.claims.has(info.word)) continue;
-      // prefer a lowercase claim; fall back to an all-uppercase one
-      const upper: boolean | null = canSpell(info, player.lower)
-        ? false
-        : canSpell(info, player.upper)
-          ? true
-          : null;
-      if (upper === null) continue;
+      if (!canSpell(info, player)) continue;
+      const upper = claimCase(info.word, player);
       // theme chase (lever: bounty): a matching claimable word wins immediately, over tier/first
       if (preferSet && preferSet.has(info.word)) return { word: info.word, upper };
       if (!crown) {
@@ -345,14 +360,17 @@ function findClaimable(
   return firstAny;
 }
 
-function escrowClaim(player: Player, word: string, upper: boolean): void {
+function escrowClaim(player: Player, word: string, upper: ClaimedWord["upper"]): void {
   const info = WORD_INFO[WORD_INDEX.get(word)!];
-  const inv = upper ? player.upper : player.lower; // debit the inventory the claim used
-  for (const [idx, cnt] of info.pairs) inv[idx] -= cnt;
+  // Debit each letter from the case it was claimed in.
+  [...word].forEach((ch, k) => {
+    const idx = ch.charCodeAt(0) - A_CODE;
+    (upper[k] ? player.upper : player.lower)[idx] -= 1;
+  });
   player.words.set(word, {
     word,
     tier: info.tier,
-    upper: [upper, upper, upper, upper, upper], // case derived from escrow contents (v0.2 §2)
+    upper: [...upper], // case derived from escrow contents (v0.2 §2)
     staked: false,
     daysUnfed: 0,
     fedToday: false,
@@ -460,7 +478,7 @@ function findNearest(player: Player, world: World, max: number): number[] | null
   let best: { missing: number[]; have: number } | null = null;
   let checked = 0;
   outer: for (let li = 0; li < 26; li++) {
-    if (player.lower[li] === 0) continue;
+    if (player.lower[li] === 0 && player.upper[li] === 0) continue;
     for (const widx of WORDS_BY_RAREST[li]) {
       if (claimVisited[widx] === claimGen) continue;
       claimVisited[widx] = claimGen;
@@ -469,7 +487,8 @@ function findNearest(player: Player, world: World, max: number): number[] | null
       let have = 0;
       const missing: number[] = [];
       for (const [idx, cnt] of info.pairs) {
-        const h = Math.min(player.lower[idx], cnt);
+        // Either case counts toward a word (mixed-case claims); only the missing ones are bid for.
+        const h = Math.min(player.lower[idx] + player.upper[idx], cnt);
         have += h;
         for (let k = h; k < cnt; k++) missing.push(idx);
       }
