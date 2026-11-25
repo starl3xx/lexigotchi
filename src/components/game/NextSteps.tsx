@@ -25,7 +25,9 @@ export function NextSteps() {
 
   // Don't ask twice: the Today stage already asks for an unstaked star to be staked, and for a
   // brand-new player the stage and the letters card both point at getting letters ("start").
-  const staged = pickStage(state.words, (w) => hunger(w));
+  const forSaleSet = new Set(forSale.keys());
+  // With the same listed words as the stage, so "the stage already asks" names the same word (Bugbot on #192).
+  const staged = pickStage(state.words, (w) => hunger(w), forSaleSet);
   const stagedStake = staged?.mood === "unstaked" ? staged.word.word : null;
   const steps = nextSteps({
     words: state.words,
@@ -36,7 +38,7 @@ export function NextSteps() {
     pity: state.pity,
     rollProb: g.rollProb,
     taken,
-    forSale: new Set(forSale.keys()),
+    forSale: forSaleSet,
   }).filter((s) => !(s.kind === "stake" && s.word === stagedStake) && s.kind !== "start");
   if (steps.length === 0) return null;
   const visible = all ? steps : steps.slice(0, SHOWN);
