@@ -4,12 +4,13 @@ import { ImageResponse } from "next/og";
 import { OgTile } from "../../../_og/tile";
 import { parseShowcase } from "@/lib/showcase";
 import { wordTier, type Tier } from "@/lib/economy";
-import { DICTIONARY_SIZE, ascensionLabel, caseLabel, dictionaryNumber, tierCount, wordPoints } from "@/lib/cardFacts";
+import { ascensionLabel, cardNumber, caseLabel, tierCount, wordPoints } from "@/lib/cardFacts";
 import { isSuiteDeployed, addressOf } from "@/lib/onchain/addresses";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { wordsAbi } from "@/lib/onchain/abis";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { readWordStory } from "@/lib/onchain/wordStory";
+import { readMadeOrder } from "@/lib/keeper/scan";
 import { playerFaces } from "@/lib/profile/faces";
 
 /**
@@ -18,10 +19,10 @@ import { playerFaces } from "@/lib/profile/faces";
  * paints the back's material under it (cards/live/materialGlsl), the same material the game's live
  * back draws, so the video and the game match.
  *
- * The video travels to strangers, so the back speaks of the word, never of "you": its rarity and
- * number, its case (from the link, like the share card's front), its points, and from the chain
- * when the game is live, its ascension and who first found it. Nothing comes from the query
- * string. The facts can change (an ascension, a first finder's name), so it caches for minutes,
+ * The video travels to strangers, so the back speaks of the word, never of "you": its rarity, its
+ * case (from the link, like the share card's front), its points, and from the chain when the game
+ * is live, its card number (its place in the order words were first made), its ascension, and who
+ * first found it. Nothing comes from the query string. The facts can change (an ascension, a first finder's name), so it caches for minutes,
  * not the share card's week.
  */
 
@@ -47,7 +48,28 @@ const TEXT = "#f7efdc";
 const SUB = "rgba(247, 239, 220, 0.74)";
 const PLATE = { background: "rgba(14, 10, 8, 0.52)", border: "1px solid rgba(255, 255, 255, 0.14)" };
 
-type ChainFacts = { level: number | null; finder: string | null };
+type ChainFacts = { number: number | null; level: number | null; finder: string | null };
+
+// Every word's card number, shared by all words. A number never changes once given, so a known one
+// is kept; a word not numbered yet (claimed a moment ago) reads them again, at most once a minute.
+const ORDER_TTL_MS = 60_000;
+let order: { at: number; map: Record<string, number> } | null = null;
+let orderRead: Promise<Record<string, number>> | null = null;
+async function numberOf(word: string): Promise<number | null> {
+  const known = order?.map[word];
+  if (known) return known;
+  if (order && Date.now() - order.at < ORDER_TTL_MS) return null;
+  orderRead ??= readMadeOrder()
+    .then((map) => {
+      order = { at: Date.now(), map };
+      return map;
+    })
+    .finally(() => {
+      orderRead = null;
+    });
+  const map = await orderRead.catch(() => null);
+  return map?.[word] ?? null;
+}
 // Kept per word, not per link: a word's 32 casings are one word's facts. A few minutes on a warm
 // instance, and one read for callers that arrive together.
 const FACTS_TTL_MS = 5 * 60_000;
@@ -69,10 +91,11 @@ function chainFactsOf(word: string): Promise<ChainFacts> {
   return read;
 }
 
-/** Ascension and first finder, from the chain, when the game is live; nothing otherwise. */
+/** Card number, ascension, and first finder, from the chain, when the game is live; nothing otherwise. */
 async function chainFacts(word: string): Promise<ChainFacts> {
-  if (!isSuiteDeployed()) return { level: null, finder: null };
-  const [level, story] = await Promise.all([
+  if (!isSuiteDeployed()) return { number: null, level: null, finder: null };
+  const [number, level, story] = await Promise.all([
+    numberOf(word),
     getPublicClient()
       .readContract({ address: addressOf("words"), abi: wordsAbi, functionName: "prestigeLevel", args: [tokenIdOf(word)] })
       .then((l) => Number(l))
@@ -86,7 +109,7 @@ async function chainFacts(word: string): Promise<ChainFacts> {
     const name = faces?.profiles[first]?.username;
     finder = name ? `@${name}` : `${first.slice(0, 6)}…${first.slice(-4)}`;
   }
-  return { level, finder };
+  return { number, level, finder };
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ text: string }> }) {
@@ -95,7 +118,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ text: s
   const word = tiles.map((t) => t.char).join("");
   const tier = wordTier(word);
   const look = LOOK[tier];
-  const { level, finder } = await chainFactsOf(word);
+  const { number, level, finder } = await chainFactsOf(word);
 
   const stats: [string, string][] = [
     ["Case", caseLabel(tiles.map((t) => t.upper))],
@@ -120,9 +143,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ text: s
               </svg>
               {tier}
             </div>
-            <div style={{ display: "flex", padding: "10px 22px", borderRadius: 999, ...PLATE, fontSize: 24, color: SUB }}>
-              No. {fmt(dictionaryNumber(word))} of {fmt(DICTIONARY_SIZE)}
-            </div>
+            {/* its card number, only when known (the practice game has no chain to number it) */}
+            {number ? <div style={{ display: "flex", padding: "10px 22px", borderRadius: 999, ...PLATE, fontSize: 26, fontWeight: 800, letterSpacing: 0.5, color: SUB }}>{cardNumber(number)}</div> : null}
           </div>
 
           <div style={{ display: "flex", flex: 1, gap: 40, alignItems: "center" }}>

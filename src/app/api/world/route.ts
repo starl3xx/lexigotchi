@@ -34,6 +34,8 @@ export interface WorldResponse {
   yieldToday?: { pot: number; weight: number };
   /** Secret words revealed so far → their draw number (1 = the first; not a date). */
   drawn?: Record<string, number>;
+  /** Each live word's card number, by word: #1 is the first word anyone made (lib/cardFacts `madeOrder`). */
+  numbers?: Record<string, number>;
 }
 
 const TTL_MS = 60_000;
@@ -51,14 +53,18 @@ async function build(): Promise<WorldResponse> {
   // One row per player: linked wallets count toward their account (loadLinkMap never throws).
   const boards = buildLeaderboards(snap, 25, links.accountOf);
   const owners: Record<string, string> = {};
-  for (const w of snap.words) owners[w.word] = w.owner;
+  const numbers: Record<string, number> = {};
+  for (const w of snap.words) {
+    owners[w.word] = w.owner;
+    if (w.number) numbers[w.word] = w.number;
+  }
   const shown = new Set<string>(Object.values(owners));
   for (const rows of Object.values(boards)) for (const r of rows) shown.add(r.address);
   // Every wallet wears its account's face (lib/profile/faces.ts): the profile's X or chosen name,
   // and the first wallet's Farcaster face when the wallet has none of its own.
   const { profiles } = await playerFaces(shown);
   const yieldToday = pot === null ? undefined : { pot, weight: snap.yieldWeight };
-  return { ok: true, live: true, at: Date.now(), owners, boards, profiles, yieldToday, drawn };
+  return { ok: true, live: true, at: Date.now(), owners, boards, profiles, yieldToday, drawn, numbers };
 }
 
 export async function GET() {

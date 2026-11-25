@@ -8,21 +8,57 @@
  * - **Yours since**: the day it reached the player's profile. A move between the player's own
  *   wallets keeps the date; staking moves the token to the Staking contract and back, which isn't a
  *   change of hands, so the story leaves those transfers out.
+ *
+ * Its number comes from every word's claims (`madeOrder`, served as `/api/world`'s `numbers`): the
+ * order words were first made.
  */
 import { TIER_COUNTS, scrabbleValue, type Tier } from "./economy";
-import { WORDS, WORD_COUNT } from "./dictionary";
+import { WORD_COUNT } from "./dictionary";
 import { tokenIdHexOf } from "./onchain/tokenId";
 import { stageName } from "./ascension";
 import { dailyEarnEstimate } from "./wordCost";
 import { yieldWeight } from "./keeper/shares";
 
-/** How many words there are, for "No. 2,930 of 4,584". */
-export const DICTIONARY_SIZE = WORD_COUNT;
+/**
+ * The card's number, "#0001": the word's place in the order words were first made, so #0001 is the
+ * first word anyone ever spelled (starl3xx, 2026-11-25: "numbered based on their creation… not
+ * alphabet or rarity or anything"). Four digits hold every word (WORD_COUNT is under 10,000).
+ * Unknown (the world still loading) is a dash, never a guess.
+ */
+export function cardNumber(n: number | null | undefined): string {
+  return n ? `#${String(n).padStart(Math.max(4, String(WORD_COUNT).length), "0")}` : "#–";
+}
 
-const NUMBER_OF = new Map(WORDS.map((w, i) => [w, i + 1]));
-/** The word's place in the dictionary, A to Z (1-based), or 0 for a word that isn't in it. */
-export function dictionaryNumber(word: string): number {
-  return NUMBER_OF.get(word.toUpperCase()) ?? 0;
+/** One `Claimed` event: the word, and where it sits in the chain. */
+export interface ClaimAt {
+  word: string;
+  block: bigint;
+  index: number;
+}
+
+/**
+ * Every word's card number, from every `Claimed` event: numbered in the order each word was FIRST
+ * claimed (block, then the event's place in it). A word dissolved and spelled again keeps its first
+ * number, as it keeps its first finder, so a number never changes once given and no two words share one.
+ */
+export function madeOrder(claims: readonly ClaimAt[]): Record<string, number> {
+  const sorted = [...claims].sort((a, b) => (a.block === b.block ? a.index - b.index : a.block < b.block ? -1 : 1));
+  const out: Record<string, number> = {};
+  let next = 1;
+  for (const c of sorted) {
+    const w = c.word.toUpperCase();
+    if (!(w in out)) out[w] = next++;
+  }
+  return out;
+}
+
+/**
+ * The practice game's numbers: no chain and nobody else, so the player made every word there (its
+ * cards say "Found by you"), numbered by when each came to them, the oldest first.
+ */
+export function practiceNumbers(words: readonly { word: string; since?: number }[]): Record<string, number> {
+  const sorted = [...words].sort((a, b) => (a.since ?? 0) - (b.since ?? 0) || a.word.localeCompare(b.word));
+  return Object.fromEntries(sorted.map((w, i) => [w.word.toUpperCase(), i + 1]));
 }
 
 /** How many words share its tier: "one of 46 Mythic words". */

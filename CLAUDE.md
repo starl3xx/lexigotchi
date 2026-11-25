@@ -403,7 +403,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   character (idle bounce too), and a still `SceneFrame` stops its fog; lists pass `still`
   (`WordTiles still`), and the Dictionary's 80 rows use flat `MiniTiles` (the rig there made each
   keystroke 2–4× slower). The back's facts are `lib/cardFacts.ts` (pure, tested) via
-  `useCardFacts`: unknown is a dash, never "you" or "never"; "Found by" and "Yours since" read
+  `useCardFacts`: unknown is a dash, never "you" or "never"; the card number (`#0001`) is the order
+  words were first claimed (`madeOrder`, served as `/api/world`'s `numbers`), never A to Z; "Found by" and "Yours since" read
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
   while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
   screen is gone (Share and Scene sit under an opened card; badges moved to the profile; a scene

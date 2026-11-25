@@ -632,7 +632,7 @@ body {
 .cb-plate { background: var(--cb-plate); border: 1px solid var(--cb-plate-line); border-radius: clamp(6px, 1.4cqw, 10px); }
 .cb-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: clamp(40px, 9cqw, 58px); }
 .cb-tier { display: inline-flex; align-items: center; gap: 0.4em; font-weight: 800; font-size: clamp(13px, 2.8cqw, 21px); padding: 0.25em 0.6em 0.25em 0.4em; border-radius: 999px; }
-.cb-no { font-size: clamp(12px, 1.8cqw, 14px); font-variant-numeric: tabular-nums; color: var(--cb-sub); white-space: nowrap; padding: 0.3em 0.6em; border-radius: 999px; }
+.cb-no { font-size: clamp(12px, 1.8cqw, 14px); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--cb-sub); white-space: nowrap; padding: 0.3em 0.6em; border-radius: 999px; }
 .cb-main { display: grid; grid-template-columns: 0.92fr 1.08fr; gap: clamp(10px, 2.6cqw, 22px); align-items: center; min-height: 0; }
 .cb-wordcol { display: grid; gap: clamp(5px, 1.3cqw, 10px); align-content: center; }
 /* the rack: its top recedes behind the tiles (lit), its lip stands in front (in shadow) */

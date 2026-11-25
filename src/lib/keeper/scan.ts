@@ -2,6 +2,7 @@ import { getAbiItem } from "viem";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { addressOf, deployBlock } from "@/lib/onchain/addresses";
 import { wordsAbi, stakingAbi } from "@/lib/onchain/abis";
+import { madeOrder } from "@/lib/cardFacts";
 import type { KeeperWord } from "./shares";
 
 /**
@@ -20,15 +21,28 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 // `uint8 upperMask` (decisions.md #17), and a log filter on the old signature matches nothing.
 const CLAIMED_EVENT = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
+/** Every `Claimed` event since deploy (a word claimed again after a dissolve has more than one). */
+function readClaimed() {
+  return getPublicClient().getLogs({ address: addressOf("words"), event: CLAIMED_EVENT, fromBlock: deployBlock(), toBlock: "latest" });
+}
+
+/** Every word's card number from its claims (lib/cardFacts `madeOrder`): #1 is the first word made. */
+function numbersOf(claimed: Awaited<ReturnType<typeof readClaimed>>): Record<string, number> {
+  return madeOrder(claimed.map((l) => ({ word: String(l.args.word), block: l.blockNumber, index: l.logIndex })));
+}
+
+/** Every word's card number, read on its own (the back picture needs no more than this). */
+export async function readMadeOrder(): Promise<Record<string, number>> {
+  return numbersOf(await readClaimed());
+}
+
 export async function scanAllWords(): Promise<KeeperWord[]> {
   const words = addressOf("words");
   const staking = addressOf("staking");
   const client = getPublicClient();
 
-  const [claimed, now] = await Promise.all([
-    client.getLogs({ address: words, event: CLAIMED_EVENT, fromBlock: deployBlock(), toBlock: "latest" }),
-    readChainTime(),
-  ]);
+  const [claimed, now] = await Promise.all([readClaimed(), readChainTime()]);
+  const numbers = numbersOf(claimed);
 
   const wordById = new Map<string, string>();
   for (const l of claimed) wordById.set(String(l.args.tokenId), String(l.args.word).toUpperCase());
@@ -80,9 +94,11 @@ export async function scanAllWords(): Promise<KeeperWord[]> {
     // for the hunger warning (which needs the remainder flooring discards). Derived from the same
     // number so they cannot drift.
     const secondsUnfed = lastFed === 0 ? 0 : Math.max(0, now - lastFed);
+    const word = wordById.get(String(id)) ?? "?????";
     return {
       tokenId: id,
-      word: wordById.get(String(id)) ?? "?????",
+      word,
+      number: numbers[word],
       owner,
       staked,
       secondsUnfed,

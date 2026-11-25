@@ -41,6 +41,8 @@ export interface WorldWord {
   staked: boolean;
   /** UPPERCASE letters in the word, 0..5. */
   raised: number;
+  /** Its card number: #1 is the first word anyone made (lib/cardFacts `madeOrder`). */
+  number?: number;
 }
 
 export interface WorldSnapshot {
@@ -120,6 +122,7 @@ export async function scanWorld(): Promise<WorldSnapshot> {
       owner: w.owner.toLowerCase(),
       staked: w.staked,
       raised: w.raised ?? (w.upperAll ? 5 : 0),
+      number: w.number,
     })),
     letters: letterTotals(transfers, skip),
     wins,
