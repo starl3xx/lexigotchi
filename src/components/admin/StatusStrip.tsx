@@ -45,9 +45,13 @@ export function StatusStrip() {
       </span>
       <span className="ml-auto inline-flex items-center gap-1 text-ink/45">
         <Pulse weight="bold" size={13} />{" "}
+        {/* What the GAME runs comes from the COMMITTED registry (gameMode.ts), while the badge counts
+            this browser's registry too, which may hold pasted, uncommitted addresses (Bugbot on #166). */}
         {isChainBacked()
-          ? `Chain game live on ${NETWORK.name}${NETWORK.isTestnet ? " (test $WORD)" : ""}`
-          : "Practice game · no contracts on this network"}
+          ? `Game: chain, live on ${NETWORK.name}${NETWORK.isTestnet ? " (test $WORD)" : ""}`
+          : live
+            ? "Game: practice until these addresses are committed"
+            : "Game: practice · no contracts on this network"}
       </span>
     </div>
   );

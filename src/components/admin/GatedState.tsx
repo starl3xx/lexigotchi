@@ -3,7 +3,7 @@
  * What a gated tab shows when the server refuses (lib/admin/serverAuth.ts): a sign-in button, or the
  * setting to change. Each locked state names its fix.
  */
-import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import type { AdminRefusal } from "./useAdminApi";
 import { AdminCard, Banner } from "./ui";
 import { Lock, Warning } from "./icons";
@@ -25,6 +25,7 @@ export function GatedState({
   address: string | null;
 }) {
   const { openConnectModal } = useConnectModal();
+  const { openAccountModal } = useAccountModal();
   const title =
     refusal.error === "sign_in" ? "Sign in to see this" : refusal.error === "not_allowed" ? "Not an operator wallet" : "Not set up on this deployment";
   return (
@@ -58,10 +59,23 @@ export function GatedState({
           <span className="text-xs text-ink/50">One signature, no transaction. The session lasts 30 days.</span>
         </div>
       )}
-      {refusal.error === "not_allowed" && refusal.who && (
-        <p className="mt-2 inline-flex items-center gap-1 text-xs text-ink/55">
-          <Lock weight="bold" size={12} /> Signed in as <span className="font-mono">{refusal.who.startsWith("0x") ? shortAddr(refusal.who) : refusal.who}</span>
-        </p>
+      {refusal.error === "not_allowed" && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* Switching to the operator wallet reloads the tab with no session, which offers its sign-in. */}
+          <button
+            onClick={openAccountModal}
+            disabled={!openAccountModal}
+            className="cel rounded-xl bg-paper-dark px-4 py-2 text-sm font-extrabold disabled:opacity-50"
+          >
+            Switch wallet
+          </button>
+          {refusal.who && (
+            <span className="inline-flex items-center gap-1 text-xs text-ink/55">
+              <Lock weight="bold" size={12} /> Signed in as{" "}
+              <span className="font-mono">{refusal.who.startsWith("0x") ? shortAddr(refusal.who) : refusal.who}</span>
+            </span>
+          )}
+        </div>
       )}
       {signInError && <p className="mt-2 text-xs text-candy">{signInError}</p>}
     </AdminCard>

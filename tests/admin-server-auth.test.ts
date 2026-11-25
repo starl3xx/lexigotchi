@@ -39,9 +39,15 @@ describe("adminDecision", () => {
     expect(adminDecision({ isProd: true, wallets, fids, sessionWallet: null, fid: 6500 })).toMatchObject({ ok: true, via: "fid" });
   });
 
-  it("refuses a proven credential that isn't on the list, with 403", () => {
+  it("refuses a proven wallet session that isn't on the list, with 403", () => {
     expect(adminDecision({ isProd: true, wallets, fids, sessionWallet: STRANGER, fid: null })).toMatchObject({ status: 403, who: STRANGER });
-    expect(adminDecision({ isProd: true, wallets, fids, sessionWallet: null, fid: 42 })).toMatchObject({ status: 403, who: "fid 42" });
+    expect(adminDecision({ isProd: true, wallets, fids, sessionWallet: STRANGER, fid: 42 })).toMatchObject({ status: 403, who: STRANGER });
+  });
+
+  it("still offers the wallet sign-in when only a FID off the list came along", () => {
+    // Inside a Farcaster host every request carries a FID; a wallet-only operator must still get in.
+    expect(adminDecision({ isProd: true, wallets, fids, sessionWallet: null, fid: 42 })).toMatchObject({ status: 401, error: "sign_in" });
+    expect(adminDecision({ isProd: true, wallets, fids: none, sessionWallet: OP, fid: 42 })).toMatchObject({ ok: true, via: "wallet" });
   });
 
   it("names the fix, never an allowlisted wallet", () => {

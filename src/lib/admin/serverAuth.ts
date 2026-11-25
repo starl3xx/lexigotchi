@@ -31,9 +31,9 @@ function parseList(raw: string | undefined): Set<string> {
 
 export type AdminDecision =
   | { ok: true; via: "wallet" | "fid" | "dev"; who: string }
-  /** No credential was presented: the console should offer the sign-in. */
+  /** No wallet session (a FID off the list counts as none): the console should offer the sign-in. */
   | { ok: false; status: 401; error: "sign_in" }
-  /** A credential was proven, but it isn't on the allowlist. */
+  /** A wallet session was proven, but neither it nor any FID is on the allowlist. */
   | { ok: false; status: 403; error: "not_allowed"; who: string }
   /** Production with no allowlist: nobody can pass until one is set. */
   | { ok: false; status: 503; error: "not_configured" };
@@ -57,7 +57,9 @@ export function adminDecision(opts: {
   if (wallet && wallets.has(wallet)) return { ok: true, via: "wallet", who: wallet };
   if (opts.fid != null && fids.has(String(opts.fid))) return { ok: true, via: "fid", who: `fid ${opts.fid}` };
   if (wallet) return { ok: false, status: 403, error: "not_allowed", who: wallet };
-  if (opts.fid != null) return { ok: false, status: 403, error: "not_allowed", who: `fid ${opts.fid}` };
+  // A FID that isn't on the list refuses NOTHING by itself. Inside a Farcaster host (or after a web
+  // Farcaster sign-in) every request carries one, and an operator allowlisted only by wallet must
+  // still be offered the wallet sign-in, which the console offers on 401 alone (Bugbot on #166).
   return { ok: false, status: 401, error: "sign_in" };
 }
 
