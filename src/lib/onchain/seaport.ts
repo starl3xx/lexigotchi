@@ -72,7 +72,7 @@ export function buildLetterSwapOrder(args: {
   };
 }
 
-/** The EIP-712 payload a wallet signs (eth_signTypedData_v4). */
+/** The EIP-712 payload, for viem and the server (verify, hash). A WALLET gets `walletTypedDataJson`. */
 export function orderTypedData(order: LetterSwapOrder) {
   return {
     domain: { name: "Seaport", version: "1.6", chainId: NETWORK.id, verifyingContract: SEAPORT },
@@ -163,6 +163,30 @@ const seaportAbi = [
     inputs: [{ name: "offerer", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;
 export { seaportAbi };
+
+/**
+ * The JSON a WALLET signs (eth_signTypedData_v4): `orderTypedData` plus the domain's own type.
+ * Wallets built on MetaMask's eth-sig-util treat a missing `EIP712Domain` as an EMPTY one, hash the
+ * domain as `EIP712Domain()`, and sign a different digest than Seaport checks: every listing from such
+ * a wallet failed as bad_signature, and every letter offer from one could never fill (starl3xx's
+ * "Listing failed: bad_signature", 2026-11-25). viem fills the type in itself, which is why a
+ * viem-signed test passed. Never send `orderTypedData` to a wallet; send this.
+ */
+export function walletTypedDataJson(order: LetterSwapOrder): string {
+  const t = orderTypedData(order);
+  return JSON.stringify({
+    ...t,
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
+      ...t.types,
+    },
+  });
+}
 
 /** Order → the on-chain OrderParameters tuple (adds totalOriginalConsiderationItems). */
 function toParameters(o: LetterSwapOrder) {

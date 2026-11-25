@@ -6,7 +6,7 @@ import { clientIp } from "@/lib/auth/clientIp";
 import { getDb } from "@/lib/db/client";
 import { swapOrders } from "@/lib/db/schema";
 import { getPublicClient } from "@/lib/onchain/reads";
-import { SEAPORT, seaportAbi, orderComponentsArg, type LetterSwapOrder } from "@/lib/onchain/seaport";
+import { SEAPORT, seaportAbi, orderComponentsArg, orderTypedData, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { addressOf } from "@/lib/onchain/addresses";
 import { erc1155ApprovalAbi, lettersAbi } from "@/lib/onchain/abis";
 import { playerFaces } from "@/lib/profile/faces";
@@ -41,9 +41,8 @@ export const runtime = "nodejs";
  * The letter-swap bulletin board.
  *
  * POST — list a signed order. The server verifies the SHAPE (our fixed 1⇄1 letter format, the
- * maker matches the offerer) and derives the orderHash on-chain — but the SIGNATURE is Seaport's
- * to judge at fill time. A forged listing can't steal anything; it just fails to fill. The DB is
- * never the truth about validity.
+ * maker matches the offerer), the SIGNATURE (so an offer that could never fill never lists), and
+ * derives the orderHash on-chain. The DB is never the truth about validity: Seaport judges at fill.
  *
  * GET — open orders. Every row is checked against Seaport.getOrderStatus in one multicall and
  * anything filled/cancelled/expired is dropped (and pruned) — the chain arbitrates, we serve. An
@@ -81,6 +80,15 @@ export async function POST(req: Request) {
   if (!shapeOk) return NextResponse.json({ ok: false, error: "bad_shape" }, { status: 400 });
 
   try {
+    // The signature too: an offer signed over another digest can never fill, and used to sit on the
+    // board anyway (a wallet that read a missing EIP712Domain as empty; seaport.ts walletTypedDataJson).
+    const signed = await getPublicClient().verifyTypedData({
+      ...orderTypedData(o),
+      message: orderComponentsArg(o),
+      address: o.offerer as `0x${string}`,
+      signature: sig as `0x${string}`,
+    });
+    if (!signed) return NextResponse.json({ ok: false, error: "bad_signature" }, { status: 400 });
     const orderHash = (await getPublicClient().readContract({
       address: SEAPORT, abi: seaportAbi, functionName: "getOrderHash",
       args: [orderComponentsArg(o)],
