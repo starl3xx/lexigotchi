@@ -10,20 +10,53 @@
 // is escaped, and the old Markdown mode fails on a lone "_". HTML needs only & < > escaped.
 
 /**
+ * The kinds of update a note can be, each with the words its heading may use (starl3xx: an update
+ * "need[s] to include what kind of update [it is]"). A post opens with its kind's label. The labels
+ * are fixed text, never the heading's own words, so they need no escaping and can't break Telegram's
+ * HTML.
+ * @type {Map<string, { emoji: string, label: string, words: string[] }>}
+ */
+export const KINDS = new Map([
+  ["new", { emoji: "🆕", label: "New feature", words: ["new", "new feature", "feature"] }],
+  ["fix", { emoji: "🐛", label: "Bug fix", words: ["fix", "bug fix", "bugfix", "bug"] }],
+  ["qol", { emoji: "✨", label: "Quality of life", words: ["qol", "quality of life", "polish", "improvement"] }],
+  ["change", { emoji: "🔄", label: "Change", words: ["change", "balance", "balance change", "rule change"] }],
+  ["heads-up", { emoji: "⚠️", label: "Heads up", words: ["heads up", "headsup", "notice"] }],
+]);
+// A note whose heading names no kind, or one not listed above, still posts: under this label. A note
+// that didn't post would be tried again on every deploy.
+const UPDATE = { emoji: "📣", label: "Update" };
+
+/**
+ * The kind a heading's words name ("(fix)", ": Bug fix", "- QOL update"), or null.
+ * @param {string} words
+ */
+function kindOf(words) {
+  const said = words.toLowerCase().replace(/[^a-z]+/g, " ").trim().replace(/ update$/, "");
+  for (const [kind, { words: names }] of KINDS) if (names.includes(said)) return kind;
+  return null;
+}
+
+// "## Tester note", and after it, the kind: "## Tester note (fix)". Not "## Tester notes".
+const HEADING = /^#{2,3}\s*tester note\b(.*)$/i;
+
+/**
  * The "## Tester note" section of a PR description: everything under that heading, up to the next
  * heading, a horizontal rule (---, * * *, ___), or the "🤖 Generated with …" line that ends our PR
- * descriptions. Null when there is none, or it says "none", "n/a", or "-".
+ * descriptions, and the kind of update its heading names (null for none, or one not in KINDS).
+ * Null when there is no section, or it says "none", "n/a", or "-".
  * @param {string | null | undefined} text
- * @returns {string | null}
+ * @returns {{ kind: string | null, note: string } | null}
  */
 export function testerNote(text) {
   const lines = (text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/);
-  const start = lines.findIndex((l) => /^#{2,3}\s*tester note\s*$/i.test(l.trim()));
+  const start = lines.findIndex((l) => HEADING.test(l.trim()));
   if (start < 0) return null;
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((l) => /^(#{1,6}\s|([-*_])( *\2){2,}$|🤖)/u.test(l.trim()));
   const note = (end < 0 ? rest : rest.slice(0, end)).join("\n").trim();
-  return !note || /^(none|n\/a|-)$/i.test(note) ? null : note;
+  if (!note || /^(none|n\/a|-)$/i.test(note)) return null;
+  return { kind: kindOf(HEADING.exec(lines[start].trim())?.[1] ?? ""), note };
 }
 
 /** @param {string} s */
@@ -105,25 +138,44 @@ function fit(note) {
 }
 
 /**
- * The posts for one or more notes, oldest first. Each has `html` to send with parse_mode HTML,
- * `text`, the same post as typed, for when Telegram refuses the HTML, and `notes`, the indexes of
- * the notes it carries (so their PRs can be labelled as soon as it is sent).
+ * The posts for one or more notes (as `testerNote` gives them; a bare string is a note of no named
+ * kind), oldest first. Each has `html` to send with parse_mode HTML, `text`, the same post as typed,
+ * for when Telegram refuses the HTML, and `notes`, the indexes of the notes it carries (so their PRs
+ * can be labelled as soon as it is sent).
  *
- * All the notes go in one post when they fit, as one bullet each (a single note keeps its line
- * breaks). Each note is converted on its own, so a stray ** in one can't pair with the next.
- * @param {string[]} notes
+ * Every note opens with its kind: a single note under a line of its own ("🐛 Bug fix"), keeping its
+ * line breaks; several in one post, when they fit, as one bullet each ("• 🐛 Bug fix: …"). Each
+ * note is converted on its own, so a stray ** in one can't pair with the next.
+ * @param {({ kind: string | null, note: string } | string)[]} notes
  * @returns {{ html: string, text: string, notes: number[] }[]}
  */
 export function betaPosts(notes) {
-  const fitted = notes.map(fit);
+  const items = notes.map((n) => {
+    const { kind, note } = typeof n === "string" ? { kind: null, note: n } : n;
+    return { ...((kind && KINDS.get(kind)) || UPDATE), note: fit(note) };
+  });
   /** @param {number[]} picked */
   const post = (picked) => {
-    /** @param {(note: string) => string} format */
-    const body = (format) =>
-      picked.length === 1 ? format(fitted[picked[0]]) : picked.map((i) => `• ${format(fitted[i].replace(/\n+/g, " "))}`).join("\n\n");
-    return { html: `${body(noteHtml)}\n\n${FOOTER}`, text: `${body((n) => n)}\n\n${FOOTER}`, notes: picked };
+    /**
+     * @param {(note: string) => string} format
+     * @param {(label: string) => string} strong
+     */
+    const body = (format, strong) => {
+      if (picked.length === 1) {
+        const { emoji, label, note } = items[picked[0]];
+        return `${emoji} ${strong(label)}\n${format(note)}`;
+      }
+      return picked
+        .map((i) => `• ${items[i].emoji} ${strong(`${items[i].label}:`)} ${format(items[i].note.replace(/\n+/g, " "))}`)
+        .join("\n\n");
+    };
+    return {
+      html: `${body(noteHtml, (label) => `<b>${label}</b>`)}\n\n${FOOTER}`,
+      text: `${body((n) => n, (label) => label)}\n\n${FOOTER}`,
+      notes: picked,
+    };
   };
-  const together = post(fitted.map((_, i) => i));
+  const together = post(items.map((_, i) => i));
   // `text` is never shorter than what Telegram counts (it still has the markdown's own marks).
-  return together.text.length <= MESSAGE_MAX ? [together] : fitted.map((_, i) => post([i]));
+  return together.text.length <= MESSAGE_MAX ? [together] : items.map((_, i) => post([i]));
 }
