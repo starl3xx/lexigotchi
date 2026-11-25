@@ -64,7 +64,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   = 4,584, about 12.5 years): each word is drawn exactly once, so a drawn word is never drawn again
   (starl3xx, 2026-11-25). A shorter list would run out and need a new chain, which could repeat an old
   answer. The same seed lengthened keeps its first days' answers (a partial shuffle), which is how
-  Sepolia went from 730 to the full pool before its first reveal. The keeper checks each derived link against the onchain `currentCommit`
+  Sepolia went from 730 to the full pool before its first reveal. **The contract enforces it too**
+  (mainnet's AnswerChain; Sepolia's predates it): `wasRevealed` remembers every revealed word, and
+  `reveal` reverts `AlreadyRevealed` on a repeat, so a list rotated in after exhaustion must leave
+  out every revealed word or the jackpot stalls at the repeat (decisions.md #20). The keeper checks each derived link against the onchain `currentCommit`
   before revealing (`src/lib/keeper/answerSchedule.ts`), so a wrong seed or a re-vendored dictionary
   stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
