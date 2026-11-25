@@ -5,7 +5,10 @@
  *   1. ANSWER_CHAIN_SEED (+ ANSWER_CHAIN_DAYS, default 730): the seeded schedule, rebuilt in memory
  *      (src/lib/answerChain.ts). This is what a hosted, scheduled keeper uses: a 64-hex secret fits
  *      a hosting secret where the 200+ KB file does not.
- *   2. ANSWER_CHAIN_FILE: a generated schedule file. Defaults to the throwaway Sepolia rehearsal.
+ *   2. ANSWER_CHAIN_FILE: a generated schedule file. Defaults to the throwaway Sepolia rehearsal
+ *      file, which no longer matches the Sepolia chain: since 2026-11-25 it commits to a SEEDED list
+ *      (contracts/answer-chain.sepolia-seed.secret.json; Vercel ANSWER_CHAIN_SEED), and linkToReveal
+ *      refuses a mismatched schedule before sending anything.
  *
  * NEVER log a word, a salt, or the seed: whoever holds a future word wins that jackpot.
  */
