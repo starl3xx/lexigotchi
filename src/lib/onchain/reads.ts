@@ -13,7 +13,7 @@
  * Amounts cross into the app as WHOLE $WORD (numbers), converted once, here. The UI thinks in whole
  * $WORD; only calldata thinks in wei.
  */
-import { createPublicClient, formatUnits, type PublicClient } from "viem";
+import { createPublicClient, formatUnits, getAbiItem, type PublicClient } from "viem";
 import { rpcTransport } from "./transport";
 import { ACTIVE_CHAIN } from "./chain";
 import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
@@ -615,16 +615,9 @@ export interface ChainWord {
   prestigeLevel: number;
 }
 
-const CLAIMED_EVENT = {
-  type: "event",
-  name: "Claimed",
-  inputs: [
-    { name: "tokenId", type: "uint256", indexed: true },
-    { name: "owner", type: "address", indexed: true },
-    { name: "word", type: "string", indexed: false },
-    { name: "uppercase", type: "bool", indexed: false },
-  ],
-} as const;
+// From the generated ABI, never a hand copy: a copy kept `bool uppercase` after Claimed changed to
+// `uint8 upperMask` (decisions.md #16), and a log filter on the old signature matches nothing.
+const CLAIMED_EVENT = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
 const TRANSFER_EVENT = {
   type: "event",

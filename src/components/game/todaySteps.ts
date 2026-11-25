@@ -10,12 +10,13 @@
  * wallet's words (`mine`) appear: a linked wallet's word can't be staked or rolled from here.
  */
 import type { OwnedWord } from "./state";
-import { spellableNow } from "./state";
+import { claimCase, spellableNow } from "./state";
 
 export type NextStep =
   | { kind: "rewards"; amount: number }
   | { kind: "stake"; word: string; earns: boolean }
-  | { kind: "spell"; word: string; upper: boolean }
+  /** `cases`: each letter's case for the claim (claimCase: UPPERCASE first; any mix, decisions.md #16). */
+  | { kind: "spell"; word: string; cases: boolean[] }
   | { kind: "roll"; word: string; pos: number; letter: string; odds: number }
   | { kind: "start" };
 
@@ -57,17 +58,15 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
     .sort((a, b) => Number(b.upper.every(Boolean)) - Number(a.upper.every(Boolean)));
   for (const w of unstaked.slice(0, MAX.stake)) steps.push({ kind: "stake", word: w.word, earns: w.upper.every(Boolean) });
 
-  // Words the loose letters spell right now. UPPERCASE first: such a word is born earning. A word
-  // offered in UPPERCASE isn't offered again in lowercase (Bugbot on #119): that would be the same
-  // word twice, the second at the worse case.
+  // Words the loose letters spell right now, in any mix of cases, each letter UPPERCASE where the
+  // bag has one (claimCase). The words using the most UPPERCASE letters come first: all five raised
+  // is born earning, and the rest start closest to it. Each word is offered once (Bugbot on #119).
   const offered = new Set([...i.words.map((w) => w.word), ...(i.taken ?? [])]);
-  const upperSpells = spellableNow(i.upper, offered, MAX.spell);
-  for (const word of upperSpells) {
-    steps.push({ kind: "spell", word, upper: true });
-    offered.add(word);
-  }
-  const room = MAX.spell - upperSpells.length;
-  if (room > 0) for (const word of spellableNow(i.lower, offered, room)) steps.push({ kind: "spell", word, upper: false });
+  const raised = (cases: boolean[]) => cases.filter(Boolean).length;
+  const spells = spellableNow(i.lower, i.upper, offered, Infinity)
+    .map((word) => ({ word, cases: claimCase(word, i.upper) }))
+    .sort((a, b) => raised(b.cases) - raised(a.cases)); // stable: dictionary order within a count
+  for (const s of spells.slice(0, MAX.spell)) steps.push({ kind: "spell", ...s });
 
   // Letters to raise inside words: staked words first (they earn once fully UPPERCASE), then the
   // closest to done. In each word, the lowercase letter with the best odds (pity is per letter).

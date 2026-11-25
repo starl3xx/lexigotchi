@@ -58,7 +58,7 @@ export function CheatSheet() {
 
         <Step n={2} icon={<TextAa weight="bold" size={18} />} title="Make words and raise letters">
           <li>
-            <strong>Spell a word:</strong> five letters of the same case that make a dictionary word.
+            <strong>Spell a word:</strong> any five letters that make a dictionary word, in any mix of lowercase and UPPERCASE.
             Claim it for {price("claim")} and it’s yours alone. Each word has one owner.
           </li>
           <li>

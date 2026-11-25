@@ -92,12 +92,13 @@ export function revealCalls(commitId: bigint, letterIndexes: readonly number[], 
 /**
  * Claim a word. Three calls: the 1155 operator approval, the $WORD allowance for the claim fee, then
  * the claim. `word` must be UPPERCASE — the contract requires 'A'..'Z' (Words.sol:108), the merkle
- * leaf is over that same string, and tokenId is keccak256 of it.
+ * leaf is over that same string, and tokenId is keccak256 of it. `upperMask` names each letter's
+ * case (bit k ⇒ position k UPPERCASE; any mix, decisions.md #16): `caseMask` in the game state.
  */
 export function claimCalls(
   word: string,
   proof: readonly `0x${string}`[],
-  uppercase: boolean,
+  upperMask: number,
   params: GameParams,
   player: PlayerState,
 ): Call[] {
@@ -119,7 +120,7 @@ export function claimCalls(
       data: encodeFunctionData({
         abi: wordsAbi,
         functionName: "claim",
-        args: [word.toUpperCase(), uppercase, proof as `0x${string}`[]],
+        args: [word.toUpperCase(), upperMask, proof as `0x${string}`[]],
       }),
     },
   ];

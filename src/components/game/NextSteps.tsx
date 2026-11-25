@@ -61,7 +61,7 @@ export function NextSteps() {
             )}
             {s.kind === "spell" &&
               (g.canAfford(claim) ? (
-                <Button size="sm" variant="teal" onClick={() => g.claim(s.word, s.upper)}>
+                <Button size="sm" variant="teal" onClick={() => g.claim(s.word, s.cases)}>
                   Claim · {fmtWord(claim)}
                 </Button>
               ) : (
@@ -100,7 +100,7 @@ export function NextSteps() {
 }
 
 function keyOf(s: NextStep): string {
-  if (s.kind === "spell") return `spell:${s.upper ? "U" : "l"}:${s.word}`;
+  if (s.kind === "spell") return `spell:${s.word}`;
   return s.kind === "stake" || s.kind === "roll" ? `${s.kind}:${s.word}` : s.kind;
 }
 
@@ -143,16 +143,29 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
           </>
         ),
       };
-    case "spell":
+    case "spell": {
+      // A claim may mix cases (decisions.md #16); say how many of its letters go in raised.
+      const raised = s.cases.filter(Boolean).length;
       return {
         icon: <TextAa weight="bold" size={20} />,
-        text: (
-          <>
-            You can spell <strong className="font-display">{s.word}</strong> with your {s.upper ? "UPPERCASE " : ""}letters
-            {s.upper ? ". It earns $WORD from day one once staked." : "."}
-          </>
-        ),
+        text:
+          raised === 5 ? (
+            <>
+              You can spell <strong className="font-display">{s.word}</strong> with your UPPERCASE letters. It earns $WORD
+              from day one once staked.
+            </>
+          ) : raised > 0 ? (
+            <>
+              You can spell <strong className="font-display">{s.word}</strong> with your letters, {raised} of them
+              UPPERCASE.
+            </>
+          ) : (
+            <>
+              You can spell <strong className="font-display">{s.word}</strong> with your letters.
+            </>
+          ),
       };
+    }
     case "roll":
       return {
         icon: <Crown weight="fill" size={20} />,

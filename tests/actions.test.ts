@@ -71,7 +71,7 @@ describe("free paths need no approvals", () => {
 
 describe("claim composes operator + allowance + claim, in that order", () => {
   it("emits all three for a fresh player", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], false, params(), barePlayer());
+    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), barePlayer());
     expect(calls).toHaveLength(3);
     expect(calls[0].to.toLowerCase()).toBe(LETTERS); // setApprovalForAll on the 1155
     expect(calls[1].to.toLowerCase()).toBe(TOKEN); // $WORD allowance
@@ -79,20 +79,28 @@ describe("claim composes operator + allowance + claim, in that order", () => {
   });
 
   it("drops both approvals once they exist", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], false, params(), approvedPlayer());
+    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), approvedPlayer());
     expect(calls).toHaveLength(1);
     expect(calls[0].to.toLowerCase()).toBe(WORDS);
   });
 
+  // A claim names each letter's case (decisions.md #16): CRANE with its C and A raised is bits 0 and 2.
+  it("sends the case mask as Words.claim's upperMask", () => {
+    const calls = A.claimCalls("CRANE", [PROOF], 0b00101, params(), approvedPlayer());
+    const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
+    expect(decoded.functionName).toBe("claim");
+    expect(decoded.args?.[1]).toBe(5);
+  });
+
   // The contract requires 'A'..'Z'; the merkle leaf and tokenId are over the same uppercase string.
   it("uppercases the word regardless of input casing", () => {
-    const calls = A.claimCalls("crane", [PROOF], false, params(), approvedPlayer());
+    const calls = A.claimCalls("crane", [PROOF], 0, params(), approvedPlayer());
     const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
     expect(decoded.args?.[0]).toBe("CRANE");
   });
 
   it("approves $WORD to WORDS, not to the fee router", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], false, params(), barePlayer());
+    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), barePlayer());
     const decoded = decodeFunctionData({ abi: abis.erc20Abi, data: calls[1].data! });
     expect((decoded.args?.[0] as string).toLowerCase()).toBe(WORDS);
   });

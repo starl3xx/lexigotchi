@@ -73,7 +73,7 @@ describe("nextSteps", () => {
     const steps = nextSteps({ ...base, words: [word("CRANE", { staked: true, upper: [true, true, true, true, true] })], lower: counts("CRANE") });
     const spells = steps.filter((s) => s.kind === "spell");
     expect(spells.length).toBeGreaterThan(0);
-    expect(spells.every((s) => s.kind === "spell" && s.word !== "CRANE" && !s.upper)).toBe(true);
+    expect(spells.every((s) => s.kind === "spell" && s.word !== "CRANE" && s.cases.every((up) => !up))).toBe(true);
   });
 
   it("a word spellable in both cases is offered once, in UPPERCASE (Bugbot on #119)", () => {
@@ -81,14 +81,28 @@ describe("nextSteps", () => {
     const spells = steps.filter((s) => s.kind === "spell");
     const words = spells.map((s) => s.kind === "spell" && s.word);
     expect(new Set(words).size).toBe(words.length);
-    expect(spells[0]).toMatchObject({ upper: true });
+    expect(spells[0].kind === "spell" && spells[0].cases.every(Boolean)).toBe(true);
   });
 
   it("offers up to two UPPERCASE spells when the letters allow (Bugbot on #119)", () => {
     const steps = nextSteps({ ...base, words: [], upper: counts("CRANEBLAST") });
     const spells = steps.filter((s) => s.kind === "spell");
     expect(spells).toHaveLength(2);
-    expect(spells.every((s) => s.kind === "spell" && s.upper)).toBe(true);
+    expect(spells.every((s) => s.kind === "spell" && s.cases.every(Boolean))).toBe(true);
+  });
+
+  // decisions.md #16: a word may mix cases. One raised C and a lowercase "rane" spell CRANE, the C
+  // going in UPPERCASE; words using more raised letters are offered first.
+  it("offers a word spelled with a mix of cases, its raised letter going in UPPERCASE", () => {
+    const spells = nextSteps({ ...base, words: [], lower: counts("RANE"), upper: counts("C") }).filter((s) => s.kind === "spell");
+    expect(spells.length).toBeGreaterThan(0);
+    for (const s of spells) if (s.kind === "spell") expect(s.cases).toEqual([...s.word].map((ch) => ch === "C"));
+  });
+
+  it("offers the words using the most UPPERCASE letters first", () => {
+    // CRANE all raised, beside lowercase B, L, S, T: an all-UPPERCASE anagram of CRANE beats BLAST (one raised A).
+    const spells = nextSteps({ ...base, words: [], lower: counts("BLST"), upper: counts("CRANE") }).filter((s) => s.kind === "spell");
+    expect(spells[0].kind === "spell" && spells[0].cases.every(Boolean)).toBe(true);
   });
 
   it("rewards to collect come first", () => {
