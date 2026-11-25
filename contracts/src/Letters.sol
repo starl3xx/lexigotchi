@@ -21,7 +21,7 @@ import {RepegKeeper} from "./RepegKeeper.sol";
  * @notice The 52-id letter ERC-1155 (lowercase id `i` = `i`, uppercase id `i` = `26+i`).
  *
  *         Mints are 100% lowercase (v0.2 §1.3) and demand-mirrored: the signer draws each letter by
- *         its share of dictionary slots (Appendix A); per-letter supply caps (floor(slots × 2.5)) are
+ *         its share of dictionary slots (Appendix A); per-letter supply caps (floor(slots × the demand multiple), constructor args) are
  *         enforced on-chain at reveal. Randomness uses the same EGGS commit→server-signed reveal as
  *         rolls — there is NO expiry window, so a paid commit is always revealable and a fee is never
  *         forfeited, and the buyer cannot grind the draw by selectively aborting an unfavourable one.

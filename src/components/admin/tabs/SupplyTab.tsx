@@ -8,6 +8,7 @@ import {
   ALPHABET,
   LETTERS_BY_FREQUENCY,
   LETTER_SUPPLY_CAP,
+  DEMAND_MULTIPLE,
   TOTAL_SUPPLY_CAP,
   TIERS,
   TIER_COUNTS,
@@ -36,7 +37,7 @@ export function SupplyTab() {
         <SectionLabel>At a glance</SectionLabel>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <MetricCard icon={<Stack weight="bold" size={14} />} label="Claimable words" value={fmtNum(WORD_COUNT)} sub="the full dictionary" />
-          <MetricCard icon={<Package weight="bold" size={14} />} label="Letter supply cap" value={fmtNum(TOTAL_SUPPLY_CAP)} sub="across 26 ids · 2.5× demand" />
+          <MetricCard icon={<Package weight="bold" size={14} />} label="Letter supply cap" value={fmtNum(TOTAL_SUPPLY_CAP)} sub={`across 26 ids · ${DEMAND_MULTIPLE}× demand (mainnet; Sepolia keeps 2.5×)`} />
           <MetricCard icon={<Sparkle weight="bold" size={14} />} label="Tightest letter" tone="warning" value={`${tightest} · ${fmtNum(LETTER_SUPPLY_CAP[tightest])}`} sub="first to mint out" />
           <MetricCard icon={<Crown weight="bold" size={14} />} label="Legendaries" tone="warning" value={fmtNum(LEGENDARIES.length)} sub="apex-rarity words" />
         </div>

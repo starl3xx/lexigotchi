@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { WORDS, WORD_COUNT, RAW_WORD_LIST, BANNED } from "@/lib/dictionary";
 import {
   LETTER_SLOTS,
+  DEMAND_MULTIPLE,
   TOTAL_SLOTS,
   LETTER_ODDS,
   LETTER_SUPPLY_CAP,
@@ -26,9 +27,9 @@ const SPEC_SLOTS: Record<string, number> = {
   G: 531, K: 473, F: 417, W: 355, V: 287, Z: 100, X: 91, J: 70, Q: 46,
 };
 const SPEC_CAPS: Record<string, number> = {
-  E: 5967, S: 5945, A: 4875, R: 3885, O: 3830, T: 3317, I: 3277, L: 3172,
-  N: 2727, D: 2365, U: 2050, C: 1995, P: 1827, M: 1655, H: 1610, Y: 1535,
-  B: 1340, G: 1327, K: 1182, F: 1042, W: 887, V: 717, Z: 250, X: 227, J: 175, Q: 115,
+  E: 7161, S: 7134, A: 5850, R: 4662, O: 4596, T: 3981, I: 3933, L: 3807,
+  N: 3273, D: 2838, U: 2460, C: 2394, P: 2193, M: 1986, H: 1932, Y: 1842,
+  B: 1608, G: 1593, K: 1419, F: 1251, W: 1065, V: 861, Z: 300, X: 273, J: 210, Q: 138,
 };
 
 // ---- Appendix B: the 46 Legendaries (rarest first; JAZZY is still the apex) ----
@@ -70,12 +71,14 @@ describe("letter economy (Appendix A)", () => {
     expect(sum).toBeCloseTo(1, 12);
   });
 
-  it("matches the supply cap (floor of 2.5×) for every letter, totalling 57,294", () => {
+  it("matches the supply cap (3.0× the slots) for every letter, totalling 68,760", () => {
     for (const L of ALPHABET) expect(LETTER_SUPPLY_CAP[L]).toBe(SPEC_CAPS[L]);
-    // The idealized headline is 2.5 × slots (57,300); the deployable per-ID caps are
-    // floor(slots × 2.5), which sum to 57,294. (For 4,438 words: 55,475 and 55,467.)
-    expect(TOTAL_SUPPLY_CAP).toBe(57294);
-    expect(Math.round(TOTAL_SLOTS * 2.5)).toBe(57300); // the idealized pre-floor headline
+    // decisions.md #21: 3.0×. Every slot count × 3 is a whole number, so the per-ID caps lose nothing
+    // to flooring and sum to exactly 3 × 22,920. (At 2.5× they summed to 57,294; for 4,438 words at
+    // 2.5×: 55,475 and 55,467.)
+    expect(DEMAND_MULTIPLE).toBe(3);
+    expect(TOTAL_SUPPLY_CAP).toBe(68760);
+    expect(TOTAL_SLOTS * 3).toBe(68760);
   });
 
   it("Q is the scarcest letter: 46 slots, 45 Q-words (RAQQA's double explains the gap)", () => {

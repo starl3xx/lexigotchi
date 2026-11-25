@@ -7,7 +7,8 @@
  *
  *   - Eligible set: the DEDUPED dictionary (4,584 words / 22,920 letter slots).
  *   - Mint odds:    a letter's share of the 22,920 slots.
- *   - Supply cap:   floor(slots × DEMAND_MULTIPLE), DEMAND_MULTIPLE = 2.5  → 57,294 total.
+ *   - Supply cap:   floor(slots × DEMAND_MULTIPLE), DEMAND_MULTIPLE = 3.0  → 68,760 total
+ *                   (2.5× and 57,294 until decisions.md #21; Sepolia's deployed Letters keeps those).
  *   - Rarity score: −Σ log₁₀(letterFrequency) over a word's 5 letters (higher = rarer).
  *   - Tiers:        rank words by score asc; cut at floor(N×p) for p = .50/.80/.95/.99.
  *                   Ties broken alphabetically (stable, deterministic). This gives
@@ -20,8 +21,14 @@ import { WORDS } from "./dictionary";
 export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 export type Letter = (typeof ALPHABET)[number];
 
-/** Multiple of total dictionary demand minted as the global supply cap (spec §5.2). */
-export const DEMAND_MULTIPLE = 2.5;
+/**
+ * Multiple of total dictionary demand minted as the global supply cap (spec §5.2). 3.0 since
+ * decisions.md #21 (starl3xx, 2026-11-25: "okay yeah let's do 3.0x"), was 2.5. The ONE place to change
+ * it: params.supply.demandMultiple, the sim, docs/economy.md, and contracts/config/economy.json (the
+ * Letters constructor's caps) all follow it. Caps are constructor args, so a change takes effect at the
+ * next Letters deploy: Sepolia keeps 2.5×, mainnet launches at 3.0×.
+ */
+export const DEMAND_MULTIPLE = 3.0;
 
 // ---------------------------------------------------------------------------
 // Letter economy (Appendix A)
@@ -52,12 +59,12 @@ export function supplyCap(letter: string, multiple = DEMAND_MULTIPLE): number {
   return Math.floor(LETTER_SLOTS[letter.toUpperCase()] * multiple);
 }
 
-/** Letter → supply cap at the default 2.5× demand multiple. */
+/** Letter → supply cap at the default demand multiple. */
 export const LETTER_SUPPLY_CAP: Readonly<Record<string, number>> = Object.freeze(
   Object.fromEntries(ALPHABET.map((L) => [L, supplyCap(L)])),
 );
 
-/** Total minted-letter supply cap across all 26 ids (Σ floor(slots × 2.5) = 57,294). */
+/** Total minted-letter supply cap across all 26 ids (Σ floor(slots × 3.0) = 68,760). */
 export const TOTAL_SUPPLY_CAP = Object.values(LETTER_SUPPLY_CAP).reduce((a, b) => a + b, 0);
 
 /** Letters ordered most-common → rarest (S, E, A, … J, Q). */

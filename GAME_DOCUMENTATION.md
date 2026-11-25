@@ -38,9 +38,10 @@ Two renewable late-game loops sit on top: a **weekly theme bounty** (broad, casu
 - **Mint odds are demand-mirrored** (spec Appendix A): a letter's probability of being pulled equals
   its share of all letter slots in the dictionary. The dictionary has **22,920 slots** (= 5 × 4,584
   words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails.
-- **Per-letter supply caps** = `floor(slots × 2.5)` (the demand multiple). They sum to a global cap
-  of **57,294 letters**. The sim shows all letters mint out around day 57 at scale; after that the
-  durable economy runs on rolls + snacks, not minting.
+- **Per-letter supply caps** = `floor(slots × 3.0)` (the demand multiple, 3.0 since decisions.md #21;
+  Sepolia's deployed Letters keeps 2.5×). They sum to a global cap of **68,760 letters**. The sim
+  (1,500 players, a year) shows 99% of the dictionary claimed around day 50 and all letters minted
+  out around day 59; after that the durable economy runs on rolls + snacks, not minting.
 
 Most common → rarest letter order: **S E A … J Q**.
 
@@ -301,7 +302,7 @@ roll:     baseSuccess 0.40 · pityStep +0.15 · pityCap 0.85
 staking:  dailyDistributionRate 0.01 · yieldRequiresUppercase true
 care:     peckishAfterDays 1 · hungryAfterDays 3 · peckishYieldFactor 0.5 · freeDailySnack true
 jackpot:  eligibilityRequiresNotHungry true
-supply:   demandMultiple 2.5  (→ 57,294 total cap)
+supply:   demandMultiple 3.0  (→ 68,760 total cap; Sepolia's deployed caps stay at 2.5× → 57,294)
 prestige: levels 5 · commitFee $0.50 × stage · baseByLevel 0.40/0.35/0.30/0.25/0.20 / +0.10 / cap 0.85 · 1.10× per stage  (sim lever OFF; game ON)
 bounty:   periodDays 7 · carveFraction 0.15 · chaseProbability 0.5 · rarityWeight 1.0  (default OFF)
 ```
