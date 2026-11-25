@@ -238,7 +238,11 @@ A staked word's care state is a function of days since last fed:
 - **Swap:** a direct letter-for-letter trade (a Seaport order, `src/lib/onchain/seaport.ts`),
   shareable as a Farcaster/X cast. It solves exact-match discovery and doubles as a gifting loop, and
   it carries **no fee**. **Words sell** on the in-game board for $WORD with a **10% fee to the Rewards
-  Pool** (`SaleFees` → the `ROYALTY` split, decisions.md #18); OpenSea stays open.
+  Pool** (`SaleFees` → the `ROYALTY` split, decisions.md #18); OpenSea stays open. The sell form and
+  each listing show the word's **cost to make** (`src/lib/wordCost.ts`: letters at
+  `pack ÷ 5 ÷ (26 × odds)`, the expected rolls for each UPPERCASE letter, the claim, and the expected
+  attempts at each ascension stage reached, at the live prices), what it would earn a day staked from
+  today's pot, and whether the jackpot has already drawn it.
 - **Dissolution:** see §5.
 
 ---

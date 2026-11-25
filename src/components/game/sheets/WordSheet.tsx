@@ -24,6 +24,8 @@ import { careNote } from "../careNote";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { useEatingFlash } from "../useEatingFlash";
 import { earningLine, earningStatus, payoutWhen } from "../earnings";
+import { WordValue, useCostToMake } from "../WordValue";
+import { roundPrice } from "@/lib/wordCost";
 
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
@@ -345,6 +347,7 @@ function SellCard({ word }: { word: OwnedWord }) {
   const [busy, setBusy] = useState(false);
   const price = Number(text.replace(/[^0-9]/g, ""));
   const fee = Math.ceil(price * SALE_FEE);
+  const cost = useCostToMake(word);
   const worth = (n: number) => (showsUsd(state) ? `${fmtWord(n)} $WORD (${fmtUsd(n)})` : `${fmtWord(n)} $WORD`);
 
   if (listing) {
@@ -359,6 +362,7 @@ function SellCard({ word }: { word: OwnedWord }) {
           </button>
         </div>
         <p className="mt-1 text-xs text-ink/60">It sells the moment someone buys it. You get {fmtWord(listing.price - Math.ceil(listing.price * SALE_FEE))} $WORD.</p>
+        <WordValue word={word} cost={cost} compact />
       </Card>
     );
   }
@@ -387,6 +391,7 @@ function SellCard({ word }: { word: OwnedWord }) {
           }
         }}
       >
+        <WordValue word={word} cost={cost} onUse={(n) => setText(n.toLocaleString("en-US"))} />
         <label className="block text-xs font-bold text-ink/60" htmlFor={`sell-${word.word}`}>
           Price, in $WORD
         </label>
@@ -411,6 +416,10 @@ function SellCard({ word }: { word: OwnedWord }) {
             : `The buyer pays your price. You get ${100 - SALE_FEE * 100}%, and ${SALE_FEE * 100}% goes to the Rewards Pool.`}{" "}
           Listing is a free signature. While it’s for sale, {word.word} earns nothing and has no jackpot entry.
         </p>
+        {/* Against the rounded figure "Use this price" offers, so taking it never reads as too low. */}
+        {cost && price > 0 && price < roundPrice(cost.total) && (
+          <p className="mt-1 text-xs font-bold text-gold-ink">That’s less than it costs to make, about {fmtWord(cost.total)} $WORD. It’s your call.</p>
+        )}
         <button type="button" onClick={() => setOpen(false)} className="mt-1 text-xs font-bold text-ink/45 underline">
           Not now
         </button>

@@ -14,6 +14,7 @@ import { useShare } from "../useShare";
 import { useAccount } from "wagmi";
 import { PlayerChip } from "../PlayerChip";
 import { useMyWallets } from "../useWorld";
+import { WordValue, useCostToMake } from "../WordValue";
 
 const QUICK_WORD = [0, 500_000, 1_000_000, 2_500_000];
 
@@ -325,6 +326,7 @@ function WordsForSale() {
                     {l.prestigePity > 0 && ` · ${l.prestigePity} failed ascension${l.prestigePity === 1 ? "" : "s"}, so better odds next time`}
                     {unfed > 0 && ` · unfed ${unfed} day${unfed === 1 ? "" : "s"}`}
                   </div>
+                  <ListingValue listing={l} />
                   {!mine && (
                     <span className="mt-1 block text-xs text-ink/60">
                       <PlayerChip address={l.maker} profile={l.face} size={18} />
@@ -355,8 +357,16 @@ function WordsForSale() {
       )}
       <p className="mt-2 text-xs text-ink/55">
         The buyer pays the price in $WORD: 90% to the seller, 10% to the Rewards Pool, which pays staked words. The word arrives
-        with its letters, case, and prestige.
+        with its letters, case, and prestige. “To make” is about what building the word costs at today’s prices, with the
+        average number of tries.
       </p>
     </Card>
   );
+}
+
+/** A listing's reference numbers (WordValue): its own component, since the cost is a hook. */
+function ListingValue({ listing }: { listing: WordListing }) {
+  const shape = { word: listing.word, upper: listing.upper, prestigeLevel: listing.prestigeLevel };
+  const cost = useCostToMake(shape);
+  return <WordValue word={shape} cost={cost} compact />;
 }

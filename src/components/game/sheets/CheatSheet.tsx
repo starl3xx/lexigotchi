@@ -86,7 +86,7 @@ export function CheatSheet() {
           <li>Each week, staked words that match the week’s theme also share the bounty.</li>
           <li>
             <strong>Sell a word</strong> from its card, for $WORD you choose. You get 90%; 10% goes to the
-            Rewards Pool.
+            Rewards Pool. The form shows about what the word costs to make.
           </li>
           {emailEnabled && (
             <li>
