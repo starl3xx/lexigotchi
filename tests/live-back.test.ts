@@ -31,7 +31,7 @@ vi.mock("ogl", () => {
   return { Renderer, Program, Mesh: class {}, Triangle: class {} };
 });
 const { attachSurface, SWEEP_MS } = await import("@/components/cards/live/liveSurface");
-const { lightFromTilt, makeTiltFilter, TILT_MIN_MS } = await import("@/components/cards/live/tilt");
+const { lightFromTilt, makeTiltFilter, REST_LIGHT, TILT_MIN_MS } = await import("@/components/cards/live/tilt");
 
 // animation frames on fake timers, 16 ms apart
 beforeEach(() => {
@@ -147,11 +147,35 @@ describe("the tilt's frames", () => {
 });
 
 describe("the tilt", () => {
+  const held = { beta: 40, gamma: -8 };
+
+  it("starts where the sweep left the light: the phone as it's held moves nothing", () => {
+    expect(lightFromTilt(held, held)).toEqual([...REST_LIGHT]);
+    expect(makeTiltFilter()(...lightFromTilt(held, held), 0)).toBe(false);
+  });
+
   it("moves the light across as the phone tips left and right, and up and down as it tips toward you", () => {
-    expect(lightFromTilt({ beta: 40, gamma: 0 }, { beta: 40 })).toEqual([0.5, 0.5]);
-    const [x] = lightFromTilt({ beta: 40, gamma: 10 }, { beta: 40 });
-    expect(x).toBeGreaterThan(0.5);
-    const [, y] = lightFromTilt({ beta: 50, gamma: 0 }, { beta: 40 });
-    expect(y).toBeLessThan(0.5);
+    const [x] = lightFromTilt({ beta: 40, gamma: 2 }, held);
+    expect(x).toBeGreaterThan(REST_LIGHT[0]);
+    const [, y] = lightFromTilt({ beta: 50, gamma: -8 }, held);
+    expect(y).toBeLessThan(REST_LIGHT[1]);
+  });
+
+  it("waits for the sweep: a tilt in the middle of it doesn't cut it short (Bugbot on #213)", () => {
+    const s = attachSurface(canvas(), "legendary")!;
+    vi.advanceTimersByTime(100);
+    renders.n = 0;
+    s.sweep();
+    vi.advanceTimersByTime(SWEEP_MS / 4);
+    s.nudge(0.9, 0.9); // a phone's reading, early
+    vi.advanceTimersByTime(SWEEP_MS);
+    // the sweep drew its whole second: about one frame each 16 ms
+    expect(renders.n).toBeGreaterThan(SWEEP_MS / 16 - 5);
+    // after it, a tilt moves the light
+    renders.n = 0;
+    s.nudge(0.6, 0.4);
+    vi.advanceTimersByTime(20);
+    expect(renders.n).toBe(1);
+    s.destroy();
   });
 });

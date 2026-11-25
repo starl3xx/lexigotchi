@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { CardMaterial } from "../material";
-import { attachSurface } from "./liveSurface";
+import { SWEEP_MS, attachSurface } from "./liveSurface";
 import { lightFromTilt, makeTiltFilter, tiltAllowed } from "./tilt";
 
 export function LiveMaterial({ material }: { material: CardMaterial }) {
@@ -46,9 +46,10 @@ export function LiveMaterial({ material }: { material: CardMaterial }) {
     const ro = new ResizeObserver(() => surface.resize());
     ro.observe(box);
 
-    // The phone's tilt, around how it was held when the back came up. Only real moves draw (the
+    // The phone's tilt, around how it was held when the sweep ended. Only real moves draw (the
     // hand's tremor doesn't, ./tilt makeTiltFilter), and nothing while the card is off screen.
-    let rest: { beta: number } | null = null;
+    let rest: { beta: number; gamma: number } | null = null;
+    const sweepEnds = performance.now() + SWEEP_MS;
     const moved = makeTiltFilter();
     let onScreen = true;
     const io =
@@ -58,9 +59,15 @@ export function LiveMaterial({ material }: { material: CardMaterial }) {
     io?.observe(box);
     const onTilt = (e: DeviceOrientationEvent) => {
       if (!onScreen || (e.beta == null && e.gamma == null)) return;
-      rest ??= { beta: e.beta ?? 0 };
+      // During the sweep a reading only says how the phone is held; after it, the light moves by how
+      // far the phone turns from there, starting where the sweep left it (no jump, Bugbot on #213).
+      const held = { beta: e.beta ?? rest?.beta ?? 0, gamma: e.gamma ?? rest?.gamma ?? 0 };
+      if (performance.now() < sweepEnds || !rest) {
+        rest = held;
+        return;
+      }
       const [x, y] = lightFromTilt(e, rest);
-      if (moved(x, y, performance.now())) surface.light(x, y);
+      if (moved(x, y, performance.now())) surface.nudge(x, y);
     };
     let listening = false;
     const listen = () => {

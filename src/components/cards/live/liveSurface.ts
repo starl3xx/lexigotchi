@@ -18,6 +18,7 @@
  */
 import { Mesh, Program, Renderer, Triangle } from "ogl";
 import type { CardMaterial } from "../material";
+import { REST_LIGHT } from "./tilt";
 
 const MAT_INDEX: Record<CardMaterial, number> = { common: 0, uncommon: 1, rare: 2, legendary: 3, mythic: 4 };
 
@@ -136,7 +137,9 @@ export interface LiveSurface {
   light(x: number, y: number): void;
   /** Fit the drawing buffer to the canvas's size and draw. */
   resize(): void;
-  /** Sweep the light across the back once (about a second), then stop. */
+  /** Move the light as `light` does, unless the sweep is still running: a tilt waits for it. */
+  nudge(x: number, y: number): void;
+  /** Sweep the light across the back once (about a second), then stop where it rests (REST_LIGHT). */
   sweep(): void;
   /** Let the context go. */
   destroy(): void;
@@ -197,6 +200,12 @@ export function attachSurface(canvas: HTMLCanvasElement, material: CardMaterial,
       setLight(x, y);
       draw();
     },
+    nudge(x, y) {
+      // A phone sends its first reading at once, and every moment after: the sweep runs its course
+      // (Bugbot on #213), and the tilt takes over from where it leaves the light.
+      if (sweepFrame) return;
+      surface.light(x, y);
+    },
     resize() {
       // The layout box, not getBoundingClientRect: mid-turn the card is a 3D projection, narrower
       // than it will be, and a canvas sized from that leaves part of the back uncovered.
@@ -213,7 +222,7 @@ export function attachSurface(canvas: HTMLCanvasElement, material: CardMaterial,
         const k = Math.min(1, (now - t0) / SWEEP_MS);
         const e = 1 - (1 - k) ** 3; // ease out
         // from the top left, across, to resting a little left of centre
-        setLight(0.05 + 0.4 * e, 0.15 + 0.2 * e);
+        setLight(0.05 + (REST_LIGHT[0] - 0.05) * e, 0.15 + (REST_LIGHT[1] - 0.15) * e);
         program.uniforms.uTime.value = (now - start) / 1000;
         renderer.render({ scene: mesh });
         sweepFrame = k < 1 ? requestAnimationFrame(step) : 0;

@@ -49,8 +49,9 @@ export const TILT_MIN_MS = 33;
  * about a degree since the last frame, and no sooner than ~33 ms after it. The hand's tremor
  * draws nothing.
  */
-export function makeTiltFilter(minMove = TILT_MIN_MOVE, minMs = TILT_MIN_MS) {
-  let last: { x: number; y: number; t: number } | null = null;
+export function makeTiltFilter(minMove = TILT_MIN_MOVE, minMs = TILT_MIN_MS, from: readonly [number, number] = REST_LIGHT) {
+  // Starts where the light rests, so the first reading draws only if the phone has really moved.
+  let last: { x: number; y: number; t: number } | null = { x: from[0], y: from[1], t: -Infinity };
   return (x: number, y: number, now: number): boolean => {
     if (last && Math.abs(x - last.x) < minMove && Math.abs(y - last.y) < minMove) return false;
     if (last && now - last.t < minMs) return false;
@@ -59,12 +60,21 @@ export function makeTiltFilter(minMove = TILT_MIN_MOVE, minMs = TILT_MIN_MS) {
   };
 }
 
+/** Where the light rests once a back's sweep ends (liveSurface's sweep ends here): a little left of
+ *  centre, toward the top. A tilt moves it from here, so the first reading never makes it jump. */
+export const REST_LIGHT: readonly [number, number] = [0.45, 0.35];
+
 /**
  * The light from a tilt: tipping the phone left and right moves it across, toward and away moves
- * it up and down, around how the phone was held when the back came up (`rest`).
+ * it up and down, from where it rests (`from`), by how far the phone has turned since it was held
+ * at `rest` (its reading when the back's sweep ended).
  */
-export function lightFromTilt(e: { beta: number | null; gamma: number | null }, rest: { beta: number }): [number, number] {
-  const gamma = e.gamma ?? 0;
+export function lightFromTilt(
+  e: { beta: number | null; gamma: number | null },
+  rest: { beta: number; gamma: number },
+  from: readonly [number, number] = REST_LIGHT,
+): [number, number] {
+  const gamma = e.gamma ?? rest.gamma;
   const beta = e.beta ?? rest.beta;
-  return [0.5 + gamma / 50, 0.5 - (beta - rest.beta) / 50];
+  return [from[0] + (gamma - rest.gamma) / 50, from[1] - (beta - rest.beta) / 50];
 }
