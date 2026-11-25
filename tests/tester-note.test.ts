@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 // The same file the "Beta updates" workflow loads (plain JavaScript, so it runs with nothing installed).
-import { KINDS, betaPosts, noteHtml, testerNote } from "../.github/scripts/tester-note.mjs";
+import { KINDS, UPDATE, betaPosts, noteHtml, testerNote } from "../.github/scripts/tester-note.mjs";
 
 // #160's note, as it was posted with its asterisks showing.
 const PR_160 =
   "**New: your linked wallets count as one player.** The leaderboard adds them up into one row. Hunger warnings and \"daily letter ready\" reminders now cover all your wallets. You can also **move your letters** from one wallet to another: connect the wallet that holds them, open your profile, and tap **Move this wallet's letters**. The sending wallet needs a little Base Sepolia ETH for the fee. Staked words stay where they are.";
-const FOOTER = "Live now at lexigotchi.fun/play";
 
 describe("finding a PR's tester note", () => {
   const body = (note: string) => `## Summary\n\nStuff.\n\n## Tester note\n\n${note}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n`;
@@ -148,20 +147,26 @@ describe("a note's formatting for Telegram", () => {
 });
 
 describe("the posts", () => {
-  it("is one post for one note, opening with its kind, formatted, with the as-typed text kept for a fallback", () => {
+  it("is one post for one note: its kind over a line of hyphens, then the note, formatted, with the as-typed text kept for a fallback", () => {
     // #181's note, as it was posted without saying what kind of update it was.
     const roll = "When a roll misses, tap **Roll again** to roll the same letter straight away.";
     expect(betaPosts([testerNote(`## Tester note (qol)\n\n${roll}`)!])).toEqual([
       {
-        html: `✨ <b>Quality of life</b>\nWhen a roll misses, tap <b>Roll again</b> to roll the same letter straight away.\n\n${FOOTER}`,
-        text: `✨ Quality of life\n${roll}\n\n${FOOTER}`,
+        html: "✨ <b>Quality of life</b>\n-----------------\nWhen a roll misses, tap <b>Roll again</b> to roll the same letter straight away.",
+        text: `✨ Quality of life\n-----------------\n${roll}`,
         notes: [0],
       },
     ]);
   });
 
+  it("keeps a single note's line breaks, and adds nothing after it", () => {
+    const [post] = betaPosts([{ kind: "fix", note: "One.\n\nTwo." }]);
+    expect(post.html).toBe("🐛 <b>Bug fix</b>\n-----------\nOne.\n\nTwo.");
+    expect(post.html).not.toMatch(/lexigotchi\.fun/);
+  });
+
   it("says Update for a note that names no kind, or one it doesn't know", () => {
-    const update = `📣 <b>Update</b>\n<b>New:</b> a thing.\n\n${FOOTER}`;
+    const update = "📣 <b>Update</b>\n-----------\n<b>New:</b> a thing.";
     expect(betaPosts(["**New:** a thing."])[0].html).toBe(update);
     expect(betaPosts([{ kind: null, note: "**New:** a thing." }])[0].html).toBe(update);
     // Only the kinds it lists: never a name off the object's prototype.
@@ -170,21 +175,41 @@ describe("the posts", () => {
     }
   });
 
-  it("bullets several notes on one line each, each with its own kind, converting each on its own", () => {
-    // A stray ** in the first note must not pair with the second note's.
-    const [post, ...more] = betaPosts([{ kind: "fix", note: "Odd **star\nhere." }, { kind: "new", note: "**Two.**" }, "Three."]);
+  it("groups several notes by kind, in the order the kinds first appear, converting each note on its own", () => {
+    // A stray ** in the first note must not pair with the next one's.
+    const [post, ...more] = betaPosts([
+      { kind: "fix", note: "Odd **star\nhere." },
+      { kind: "new", note: "**Two.**" },
+      { kind: "fix", note: "Three." },
+      "Four.",
+      { kind: "wibble", note: "Five." },
+    ]);
     expect(more).toEqual([]);
     expect(post).toEqual({
-      html: `• 🐛 <b>Bug fix:</b> Odd **star here.\n\n• 🆕 <b>New feature:</b> <b>Two.</b>\n\n• 📣 <b>Update:</b> Three.\n\n${FOOTER}`,
-      text: `• 🐛 Bug fix: Odd **star here.\n\n• 🆕 New feature: **Two.**\n\n• 📣 Update: Three.\n\n${FOOTER}`,
-      notes: [0, 1, 2],
+      html: [
+        "🐛 <b>Bug fix</b>\n-----------\n• Odd **star here.\n\n• Three.",
+        "🆕 <b>New feature</b>\n----------------\n<b>Two.</b>",
+        "📣 <b>Update</b>\n-----------\n• Four.\n\n• Five.",
+      ].join("\n\n"),
+      text: [
+        "🐛 Bug fix\n-----------\n• Odd **star here.\n\n• Three.",
+        "🆕 New feature\n----------------\n**Two.**",
+        "📣 Update\n-----------\n• Four.\n\n• Five.",
+      ].join("\n\n"),
+      notes: [0, 1, 2, 3, 4],
     });
   });
 
-  it("gives every kind a label that keeps the house copy rules", () => {
-    for (const { label } of KINDS.values()) {
+  it("gives every kind a label that keeps the house copy rules, over a line about as wide as it", () => {
+    for (const { emoji, label, rule } of [...KINDS.values(), UPDATE]) {
       expect(label).not.toMatch(/—|'|[A-Z]{2}/);
       expect(label[0]).toBe(label[0].toUpperCase());
+      // A hyphen is narrower than most letters, so the line has at least one per letter of the label,
+      // and not so many that it overshoots (the emoji counts as two letters, and the space one).
+      const width = label.length + 3;
+      expect(rule, label).toBeGreaterThanOrEqual(width - 3);
+      expect(rule, label).toBeLessThanOrEqual(Math.ceil(width * 1.25));
+      expect(emoji.length, label).toBeGreaterThan(0);
     }
   });
 
@@ -192,13 +217,13 @@ describe("the posts", () => {
     const long = "word ".repeat(500).trim();
     const posts = betaPosts([long, long, { kind: "fix", note: "**Short.**" }]);
     expect(posts.map((p) => p.notes)).toEqual([[0], [1], [2]]);
-    expect(posts[2].html).toBe(`🐛 <b>Bug fix</b>\n<b>Short.</b>\n\n${FOOTER}`);
+    expect(posts[2].html).toBe("🐛 <b>Bug fix</b>\n-----------\n<b>Short.</b>");
     for (const p of posts) expect(p.text.length).toBeLessThanOrEqual(4096);
   });
 
   it("cuts a note too long for one message, never in the middle of an emoji", () => {
     const [post] = betaPosts([{ kind: "heads-up", note: "🐸".repeat(5000) }]);
-    expect(post.text).toBe(`⚠️ Heads up\n${"🐸".repeat(1750)}…\n\n${FOOTER}`);
+    expect(post.text).toBe(`⚠️ Heads up\n-------------\n${"🐸".repeat(1750)}…`);
     expect(post.text.length).toBeLessThanOrEqual(4096);
   });
 });

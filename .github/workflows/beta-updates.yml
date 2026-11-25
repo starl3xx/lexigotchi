@@ -87,7 +87,7 @@ jobs:
               const chat = await telegram("getChat", { chat_id: chatId });
               core.notice(`@${me.username} can reach "${chat.title}". Nothing posted.`);
               const sample = betaPosts([testerNote("## Tester note (fix)\n\n**Bold** text")])[0].html;
-              core.notice(`The formatter loads: ${sample.split("\n").slice(0, 2).join(" / ")}`);
+              core.notice(`The formatter loads: ${sample.split("\n").join(" / ")}`);
               return;
             }
 
