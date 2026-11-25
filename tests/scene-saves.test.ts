@@ -188,13 +188,14 @@ describe("picks belong to the profile", async () => {
     expect(seen.every((r) => r.word === "CRANE" && r.scene === "winter")).toBe(true);
   });
 
-  it("a pick comes off when its word leaves the profile, and stays through a stake or a Move", () => {
+  it("a pick comes off only when the scan shows its word held by another profile", () => {
     const rows = [
       { profile: P, word: "CRANE" }, // still the profile's (staked, or moved to its other wallet)
       { profile: P, word: "VIVID" }, // sold to C's profile
-      { profile: P, word: "GRAPE" }, // dissolved: held by nobody
+      { profile: P, word: "GRAPE" }, // missing from the scan: dissolved, or its owner read failed
     ];
     const held = new Map([["CRANE", P], ["VIVID", C]]);
-    expect(stalePicks(rows, held).map((r) => r.word)).toEqual(["VIVID", "GRAPE"]);
+    // A missing answer never deletes: only VIVID, positively held by someone else, goes.
+    expect(stalePicks(rows, held).map((r) => r.word)).toEqual(["VIVID"]);
   });
 });

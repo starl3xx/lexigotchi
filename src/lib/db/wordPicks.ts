@@ -37,12 +37,16 @@ export function picksForWallets(wallets: readonly string[], accountOf: ReadonlyM
 }
 
 /**
- * The picks to take off (pure, tested): every pick whose own profile doesn't hold its word now.
- * `holderProfile` maps each held word to the profile holding it; a word missing from it is held by
- * nobody (dissolved).
+ * The picks to take off (pure, tested): only those whose word the scan POSITIVELY shows held by a
+ * different profile. A word missing from the scan stays: the scan drops a word whose owner read
+ * failed as well as one that was dissolved, and nothing here can tell them apart, so a missing
+ * answer never deletes. (A dissolved word's pick goes once someone claims the word again.)
  */
 export function stalePicks(rows: readonly { profile: string; word: string }[], holderProfile: ReadonlyMap<string, string>) {
-  return rows.filter((r) => holderProfile.get(r.word) !== r.profile);
+  return rows.filter((r) => {
+    const holder = holderProfile.get(r.word);
+    return holder !== undefined && holder !== r.profile;
+  });
 }
 
 /** Rows one profile may hold per kind: far more words than a player owns, and a cap on filling the table. */
@@ -125,10 +129,9 @@ export async function saveScenePicks(
 
 /**
  * Take picks off words that left their profile (the keeper, after its world scan). `holderProfile`
- * maps each held word (UPPERCASE) to the profile that holds it now; a word missing from it is held by
- * nobody (dissolved). A pick stays only while its own profile holds the word, so a word that comes
- * back to a profile later starts on the default scene. Returns how many rows went. A missing table is
- * 0 (nothing to clear yet).
+ * maps each held word (UPPERCASE) to the profile that holds it now; only a word it shows held by
+ * ANOTHER profile loses its pick (`stalePicks`). Returns how many rows went. A missing table is 0
+ * (nothing to clear yet).
  */
 export async function clearPicksOffLeftWords(holderProfile: ReadonlyMap<string, string>): Promise<number> {
   const db = getDb();

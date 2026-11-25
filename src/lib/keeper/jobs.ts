@@ -55,7 +55,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import { loadAnswerSchedule, linkToReveal } from "@/lib/keeper/answerSchedule";
 import type { WebPushSubscription } from "@/lib/db/schema";
 import type { KeeperWord } from "@/lib/keeper/shares";
-import { loadLinkMap } from "@/lib/db/walletLinks";
+import { loadLinkMap, loadLinkMapStrict } from "@/lib/db/walletLinks";
 
 
 /** Strip a jackpot word and salt from text in every encoding viem may print them in. */
@@ -816,7 +816,9 @@ export function createKeeper(opts: { dry: boolean }) {
       console.log("shop: the Shop isn't deployed on this network; skipped");
     }
     try {
-      const [words, links] = await Promise.all([scanAllWords(), loadLinkMap()]);
+      // The STRICT link read: a failed read must skip this step, never read as "no links" (then every
+      // linked wallet's profile would look like another profile, and its picks would all go).
+      const [words, links] = await Promise.all([scanAllWords(), loadLinkMapStrict()]);
       const held = holderProfiles(words, links.accountOf);
       if (DRY) return void console.log(`shop: ${held.size} held words checked for picks (dry run)`);
       const cleared = await clearPicksOffLeftWords(held);

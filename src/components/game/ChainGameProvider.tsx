@@ -1930,7 +1930,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
             let sent: SendResult | undefined;
             if (!(await run("Buy", () => calls, { settles: true, onSent: (r) => (sent = r) }))) return false;
-            const trace = await traceSent(sent);
+            // For a send nobody can trace, the fallback is the buyer's own USDC: down by the price
+            // from the fresh read above means the purchase landed.
+            const before = balance as bigint;
+            const trace = await traceSent(sent, async () => {
+              const now = (await client.readContract({ address: usdc, abi: erc20Abi, functionName: "balanceOf", args: [me] })) as bigint;
+              return now <= before - price;
+            });
             if (trace.kind !== "landed" && trace.kind !== "seen") {
               toast(
                 trace.kind === "reverted" || trace.kind === "wallet_failed"
