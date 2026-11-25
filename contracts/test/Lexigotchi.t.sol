@@ -373,6 +373,28 @@ contract LexigotchiTest is Test {
         letters.commitDailyFree(fid, deadline, _signFreeDaily(alice, fid, deadline));
     }
 
+    /// decisions.md #21: the free pack signs under the daily's key namespaces, so X keys (2^162 | id)
+    /// and Coinbase-verified keys (2^160 | address) reach `freePackClaimed` with no contract change:
+    /// the key is an opaque uint256 the signer blesses, once per key.
+    function test_FreePack_acceptsXAndCoinbaseKeys() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 xKey = (uint256(1) << 162) | 1234567;
+        uint256 cbKey = (uint256(1) << 160) | uint256(uint160(alice));
+
+        vm.prank(alice);
+        letters.commitPackFree(xKey, xKey, deadline, _signFreePack(alice, xKey, xKey, deadline));
+        assertTrue(letters.freePackClaimed(xKey), "an X key takes the pack");
+        assertFalse(letters.freePackClaimed(1234567), "a FID with the same low bits is untouched");
+
+        vm.prank(alice);
+        letters.commitPackFree(cbKey, cbKey, deadline, _signFreePack(alice, cbKey, cbKey, deadline));
+        assertTrue(letters.freePackClaimed(cbKey), "a Coinbase key takes the pack");
+
+        vm.prank(alice);
+        vm.expectRevert(Letters.FreePackAlreadyClaimed.selector);
+        letters.commitPackFree(xKey, xKey, deadline, _signFreePack(alice, xKey, xKey, deadline));
+    }
+
     function test_FreePack_mintsFiveOnceFree() public {
         uint256 fid = 6500;
         uint256 deadline = block.timestamp + 1 hours;

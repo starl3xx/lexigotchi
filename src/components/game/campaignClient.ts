@@ -6,7 +6,7 @@
  * outside it the token mint fails and these resolve to a no-op / null (they never throw).
  *
  * Note: we import the raw `@farcaster/miniapp-sdk` here because `quickAuth` isn't surfaced by
- * `@neynar/react`'s `useMiniApp()` hook the rest of the app uses.
+ * the `useMiniApp()` hook (./MiniAppHost) the rest of the app uses.
  */
 import sdk from "@farcaster/miniapp-sdk";
 import { webAuthToken, hasWebSession } from "@/lib/auth/siwfWeb";
@@ -97,13 +97,14 @@ export async function maybeAuthedFetch(path: string, init?: RequestInit): Promis
 export async function authedPostJson<T = Record<string, never>>(
   path: string,
   body: unknown,
+  headers: Record<string, string> = {},
 ): Promise<({ ok: true; error?: undefined } & T) | { ok: false; error: string }> {
   // Either provenance will do. authedFetch picks the right token; this only guards against calling
   // a signing route with no credential at all, which would 401.
   if (!(await canSign())) return { ok: false, error: "not_signed_in" };
   const res = await authedFetch(path, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
   if (!res) return { ok: false, error: "request_failed" };
@@ -126,12 +127,13 @@ export async function authedPostJson<T = Record<string, never>>(
 export async function maybeAuthedPostJson<T = Record<string, never>>(
   path: string,
   body: unknown,
+  headers: Record<string, string> = {},
 ): Promise<({ ok: true; error?: undefined } & T) | { ok: false; error: string }> {
-  if (await canSign()) return authedPostJson<T>(path, body);
+  if (await canSign()) return authedPostJson<T>(path, body, headers);
   try {
     const res = await fetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
     });
     return await res.json();

@@ -135,12 +135,12 @@ function JackpotCard() {
   );
 }
 
-/** This week's bounty theme, a tap away. */
+/** This week's bounty theme, a tap away: the bounty half of the Jackpot page. */
 function BountyTeaser() {
   const g = useGame();
   const theme = THEMES[g.state.bountyTheme];
   return (
-    <button onClick={() => g.nav("bounty")} className="w-full text-left">
+    <button onClick={() => g.nav("jackpot", "bounty")} className="w-full text-left">
       <Card className="press bg-teal/10">
         <div className="flex items-center justify-between gap-2">
           <div>

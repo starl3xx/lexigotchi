@@ -92,9 +92,13 @@ showed; only the *decisions* changed.
    human = up to 4 dailies/day (1 FID + 3 attested wallets), each behind KYC. Upgrade path: Base
    Verify's per-consumer `identityHash` (strict one-human-one-claim) once access is granted —
    applied via their interest form.
+   **AMENDED by #21 (2026-11-25):** 10 free daily letters per profile in all (still at most one a
+   day), plus a free pack, from a 30,000-letter budget, ending near 95% of the dictionary claimed.
 2. **Campaign airdrop — claim-on-first-open**: the eligible player connects and the signer mints a
    one-time 5-pack voucher to their own wallet (idempotent vs `pack_grants`). No FID→address
    resolution, no gas on no-shows.
+   **AMENDED by #21 (2026-11-25):** the free pack is for every verified profile (Farcaster, X, or
+   Coinbase-verified), not the campaign's add-and-share reward; the campaign still records both.
 3. **Jackpot — operator rake cut 25%→10%** (freed share to burn/pool). **No AMOE** (owner's call);
    the `AnswerChain` skill element is the non-lottery argument — counsel to vet chance-vs-skill.
 4. **Full letter supply at launch** (2.5× cap, ~55,467); no metered waves.

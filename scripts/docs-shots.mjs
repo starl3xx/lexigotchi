@@ -45,7 +45,7 @@ await page.addStyleTag({ content: 'nextjs-portal,[aria-label="Skip a day"]{displ
 
 const shot = (file, clip) => page.screenshot({ path: join(out, `screen-${file}.jpg`), type: "jpeg", quality: 82, clip });
 
-for (const [name, file] of [["Today", "today"], ["Bag", "bag"], ["Showcase", "showcase"], ["Bounty", "bounty"], ["$WORD", "word"]]) {
+for (const [name, file] of [["Today", "today"], ["Bag", "bag"], ["Showcase", "showcase"], ["Jackpot", "bounty"], ["$WORD", "word"]]) {
   if (!want(file)) continue;
   const item = page.locator("nav").getByRole("button", { name, exact: true }).or(page.locator("nav").getByRole("link", { name, exact: true }));
   if (!(await item.count())) throw new Error(`no rail item "${name}"`);

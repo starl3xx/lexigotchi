@@ -1,5 +1,11 @@
 "use client";
-/** Bounty — the weekly featured category. Hold matching words, staked & fed, to share the pool. */
+/**
+ * The weekly bounty, the second half of the Jackpot page (screens/JackpotScreen): this week's
+ * theme and pool, the player's matching words, and when the week pays. Hold matching words,
+ * staked & fed, to share the pool. It had its own page until the two were combined (starl3xx,
+ * 2026-11-25); Today's bounty card links here with `nav("jackpot", "bounty")`, which scrolls to
+ * this section's `data-section`.
+ */
 import { TIER_WEIGHT } from "@/lib/economy";
 import { Button, Card, EmptyState, SectionTitle } from "../primitives";
 import { WordCard } from "../WordCard";
@@ -28,7 +34,7 @@ const LEADERBOARD = [
   { who: "vowelhoarder", n: 6 },
 ];
 
-export function BountyScreen() {
+export function BountySection() {
   const g = useGame();
   const { state } = g;
   const theme = THEMES[state.bountyTheme];
@@ -44,7 +50,7 @@ export function BountyScreen() {
   const claimTotal = g.claimables.reduce((a, c) => a + c.amount, 0);
 
   return (
-    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+    <section data-section="bounty" aria-label="Weekly bounty" className="space-y-3 lg:space-y-4">
       <Card className="bg-gradient-to-b from-teal/15 to-paper">
         <div className="flex items-start justify-between">
           <div>
@@ -108,7 +114,7 @@ export function BountyScreen() {
 
       {!state.chainBacked && (
       <Card>
-        <SectionTitle>Leaderboard</SectionTitle>
+        <SectionTitle>Bounty leaderboard</SectionTitle>
         <div className="space-y-1.5">
           {[{ who: "you", n: eligible.length }, ...LEADERBOARD]
             .sort((a, b) => b.n - a.n)
@@ -127,6 +133,6 @@ export function BountyScreen() {
         </div>
       </Card>
       )}
-    </div>
+    </section>
   );
 }

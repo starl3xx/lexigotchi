@@ -1,6 +1,6 @@
 "use client";
 /** The "Do something" tile grid — shared by Home and the More page so the two can't drift. */
-import { Backpack, BookOpen, Coins, MaskHappy, Medal, Planet, Ranking, Sparkle, Storefront, TextAa, Trophy } from "./ui/icons";
+import { Backpack, BookOpen, Coins, MaskHappy, Planet, Ranking, Sparkle, Storefront, TextAa, Trophy } from "./ui/icons";
 import { useGame, type View } from "./state";
 import { WORD_COUNT } from "@/lib/dictionary";
 
@@ -15,8 +15,7 @@ const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = 
 
 /** Extra rows the More page adds beyond Home's six. */
 const MORE_TILES: typeof TILES = [
-  { Icon: Trophy, label: "Jackpot", sub: "today’s draw", to: "jackpot" },
-  { Icon: Medal, label: "Bounty", sub: "this week’s theme", to: "bounty" },
+  { Icon: Trophy, label: "Jackpot", sub: "daily draw & bounty", to: "jackpot" },
   { Icon: Ranking, label: "Leaderboard", sub: "top players", to: "leaderboard" },
   { Icon: Coins, label: "$WORD", sub: "price, supply, burns", to: "word" },
   { Icon: Planet, label: "Let’s Have A Word!", sub: "the $WORD word hunt", to: "lhaw" },

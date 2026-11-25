@@ -18,7 +18,7 @@ the on-chain architecture. Written to be fed to an LLM (or a new contributor) as
 
 | Step | Action | Outcome |
 |---|---|---|
-| **Mint** | Pull lowercase letters — a free daily single (one per player: Farcaster, X, or a Coinbase-verified wallet) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
+| **Mint** | Pull lowercase letters — free for verified players (a pack of 5 plus 10 daily letters, once per profile: Farcaster, X, or a Coinbase-verified wallet) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
 | **Raise** | Roll a lowercase letter toward UPPERCASE | A capital letter (40% base, pity to 85%); failure is harmless |
 | **Claim** | Spell a dictionary word with 5 letters, any mix of cases | One Word NFT (ERC-721); the 5 letters are escrowed inside it |
 | **Stake & Snack** | Stake a Word to earn; feed it snacks | UPPERCASE words draw yield; any staked, fed word is a jackpot ticket |
@@ -57,9 +57,12 @@ Most common → rarest letter order: **S E A … J Q**.
 - **Payment:** **$WORD-only at launch** — ETH-only players buy $WORD first (the in-app swap +
   DexScreener). The contracts also carry an **ETH auto-swap** mint path (Uniswap v3 / aggregator,
   slippage-bounded), deferred until $WORD liquidity is deeper. All internal accounting is in $WORD.
-- **Free vouchers:** besides the paid paths, the backend signer can authorize **zero-cost** mints —
-  the free FID daily, and a **one-time free 5-pack** (the claim-on-first-open launch airdrop). Both
-  skip fees entirely and reveal the same demand-mirrored draw.
+- **Free vouchers:** besides the paid paths, the backend signer can authorize **zero-cost** mints for
+  every verified profile (Farcaster, X older than 90 days, or a Coinbase-verified wallet;
+  decisions.md #21): a **one-time free 5-pack** and **10 free daily letters** (at most one a chain
+  day), from a **30,000-letter budget** (`FREE_LETTER_BUDGET`), stopping when the dictionary is about
+  **95% claimed**. Enforced by the server (`free_claims`, migration 0015), not the contracts: both
+  vouchers take any `uint256` key. Both skip fees entirely and reveal the same demand-mirrored draw.
 - **Randomness:** the EGGS commit→server-signed reveal (same model as rolls). The buyer commits +
   pays, then the backend signer reveals a fair demand-mirrored draw; per-letter caps are enforced
   on-chain. There is no expiry window, so a paid commit is always revealable — a fee is never

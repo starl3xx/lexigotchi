@@ -1,7 +1,7 @@
 "use client";
 /**
- * The daily's locked state, shared by Home and Mint so the two screens can never disagree about
- * who gets the free letter.
+ * The free letters' locked state, shared by Home and Mint so the two screens can never disagree about
+ * who gets them: a free pack of 5 plus 10 free daily letters (decisions.md #21).
  *
  * Two identities unlock it — a Farcaster sign-in, or a Coinbase-verified wallet — shown as two
  * CTAs, not a hierarchy: a Base App player has no Farcaster context at all (the host dropped FID
@@ -44,9 +44,9 @@ export function DailyUnlock() {
   return (
     <div className="space-y-2">
       <div className="text-sm text-ink/70">
-        One free letter a day, with Farcaster{xEnabled ? ", X," : ""} or a Coinbase-verified wallet.
+        A free pack of 5 plus 10 free daily letters, for linking Farcaster{xEnabled ? ", X," : ""} or a Coinbase-verified wallet.
         <div className="text-xs text-ink/50">
-          {checking ? "Checking your wallet…" : `${xEnabled ? "Any one" : "Either one"} proves you’re one person, once a day.`}
+          {checking ? "Checking your wallet…" : `${xEnabled ? "Any one" : "Either one"} proves you’re one person.`}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">

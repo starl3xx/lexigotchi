@@ -225,7 +225,7 @@ const A = ({ href, children }: { href: string; children: ReactNode }) => (
 
 /**
  * `xOn`: X linking is switched on (`xEnabled()`, read by the server page). It adds X as a door to the
- * free daily letter, so the page never offers an account the game can't link yet. `emailOn`: email
+ * free letters, so the page never offers an account the game can't link yet. `emailOn`: email
  * reminders are switched on (`emailEnabled()`), so "no email" becomes "email optional".
  */
 export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; emailOn?: boolean }) {
@@ -388,16 +388,16 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             tag="Optional"
             iconBg="bg-[#855DCD]"
           >
-            Link it to unlock one free letter a day. Inside Farcaster, the game connects on its own.
+            Link it to unlock a free pack of 5 plus 10 free daily letters. Inside Farcaster, the game connects on its own.
           </Door>
           {xOn && (
             <Door icon={<XLogo weight="bold" size={22} className="text-paper" aria-hidden />} name="X" tag="Optional" iconBg="bg-ink">
-              Link an X account older than 90 days for the same free daily letter. It shows publicly next to your wallet.
+              Link an X account older than 90 days for the same free letters. It shows publicly next to your wallet.
             </Door>
           )}
           <Door icon={<SealCheck weight="fill" size={24} className="text-[#0052ff]" aria-hidden />} name="Coinbase verification" tag="Optional">
             {xOn ? "No Farcaster or X? " : "No Farcaster? "}A <A href={VERIFY_URL}>Coinbase-verified</A> wallet unlocks the same
-            free daily letter.
+            free letters.
           </Door>
         </div>
       </section>
@@ -414,8 +414,8 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
           <div className="space-y-4">
             <Qa q="Do I need a Farcaster account?">
               {xOn
-                ? "No. Your wallet is your account. Linking Farcaster is optional. The free daily letter needs Farcaster, X, or a Coinbase-verified wallet."
-                : "No. Your wallet is your account. Linking Farcaster is optional, and it unlocks the free daily letter."}
+                ? "No. Your wallet is your account. Linking Farcaster is optional. The free letters (a pack of 5 plus 10 daily letters) need Farcaster, X, or a Coinbase-verified wallet."
+                : "No. Your wallet is your account. Linking Farcaster is optional, and it unlocks the free letters: a pack of 5 plus 10 daily letters."}
             </Qa>
             <Qa q="What is $WORD?">
               <A href={LINKS.word}>$WORD</A> is the token on Base behind Lexigotchi and{" "}

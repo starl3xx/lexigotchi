@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getAuthedFid } from "@/lib/auth/quickAuth";
-import { allow } from "@/lib/ratelimit";
 import { addressOf } from "@/lib/onchain/addresses";
 import { freeDailyDigest, lettersRevealDigest, chainDay } from "@/lib/onchain/digests";
 import { signDigest, drawLetters, dailySeed } from "@/lib/onchain/signer";
@@ -8,17 +6,15 @@ import { getPublicClient, readChainTime, readLetterSupply } from "@/lib/onchain/
 import { lettersAbi } from "@/lib/onchain/abis";
 import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
-import { dailyKeysFor, isCoinbaseVerified, verifiedDailyKey, xDailyKey } from "@/lib/onchain/verifications";
-import { getProfile } from "@/lib/db/profiles";
-import { accountWallets } from "@/lib/db/walletLinks";
+import { dailyKeysFor, xDailyKey } from "@/lib/onchain/verifications";
 import { claimDraw, readDraw } from "@/lib/db/draws";
-import { claimFree, keyOwnedByProfile, recordedFreeKey } from "@/lib/db/freeClaims";
+import { claimFree, freeDailiesTaken, recordedFreeGrant } from "@/lib/db/freeClaims";
 import { relatedDailyKeys } from "@/lib/onchain/dailyIdentity";
-import { profilesEnabled } from "@/lib/profile/session";
-import { xEnabled } from "@/lib/profile/x";
-import { xOldEnough } from "@/lib/profile/rules";
+import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
+import { freeGrantStop, settleGrants, STOP_ERROR } from "@/lib/onchain/freeLedger";
+import { FREE_LETTERS } from "@/lib/freeLetters";
+import { DEFAULT_PARAMS } from "@/lib/params";
 import { isAddress } from "viem";
-import { fidsByAddressesDetailed } from "@/lib/neynar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,7 +38,9 @@ const VOUCHER_TTL_SECONDS = 600;
  *     consume a real FID's slot.
  *
  * Order: the JWT, then X, then Coinbase, so a signed-in player's daily always lands on their FID —
- * their streak doesn't fork the day they link something else. And ONE letter a day per player:
+ * their streak doesn't fork the day they link something else. TEN in all per profile (decisions.md
+ * #21; the ledger in lib/db/freeClaims.ts), from the free-letter budget, until the dictionary is about
+ * 95% claimed. And ONE letter a day per player:
  * before signing, every key this request can see (the FID, this wallet's X, this wallet's Coinbase
  * key) is read, and any one used today refuses the daily. Linking more accounts never adds letters.
  *
@@ -67,56 +65,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
   }
 
-  // Identity. `key` is bigint from birth: verified-wallet keys exceed 2^53, and a JS number would
-  // silently corrupt one before BigInt() ever saw it.
-  let key: bigint;
-  const fid = await getAuthedFid(req);
-  // The wallet's account (its linked wallets, lib/db/walletLinks.ts; a lone wallet is its own). The
-  // profile, and so the X link, is the account's. A profile read that fails (or a database without
-  // migration 0006 or 0008) just means no X: the other two paths still work.
-  const { account, wallets: accountWalletList } = await accountWallets(wallet);
-  const xRow = profilesEnabled() ? await getProfile(account).catch(() => null) : null;
-  const xUserId = xRow?.xUserId ?? null;
-  const xCounts = Boolean(xUserId) && xEnabled() && xOldEnough(xRow?.xCreatedAt);
-  if (fid) {
-    if (!(await allow("record-add", fid)))
-      return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
-    key = BigInt(fid);
-  } else if (xCounts && xUserId) {
-    if (!(await allow("record-add", wallet.toLowerCase())))
-      return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
-    key = xDailyKey(xUserId);
-  } else {
-    // Rate limit BEFORE the attestation check — it costs two mainnet RPC reads and this is an
-    // unauthenticated surface.
-    if (!(await allow("record-add", wallet.toLowerCase())))
-      return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
-    // The connected wallet first, then the account's other wallets. The key is always the PROVING
-    // wallet's (never one made up for this wallet), so linking never adds a letter.
-    let proving: string | null = null;
-    let unchecked = false;
-    for (const w of [wallet.toLowerCase(), ...accountWalletList.filter((a) => a !== wallet.toLowerCase())]) {
-      try {
-        if (await isCoinbaseVerified(w as `0x${string}`)) {
-          proving = w;
-          break;
-        }
-      } catch (err) {
-        // "Could not check" is not "not verified" — a 403 here would tell a verified player they
-        // aren't, every time the mainnet RPC hiccups.
-        console.error("[free-daily] attestation check failed:", err);
-        unchecked = true;
-      }
-    }
-    if (!proving && unchecked) return NextResponse.json({ ok: false, error: "verification_unavailable" }, { status: 502 });
-    if (!proving) {
-      // A linked X that is too young is the likeliest reason here: say so, so the client can show
-      // the day it unlocks instead of asking the player to verify something else.
-      const error = xUserId && xEnabled() && !xCounts ? "x_too_young" : "verification_required";
-      return NextResponse.json({ ok: false, error }, { status: 403 });
-    }
-    key = verifiedDailyKey(proving);
-  }
+  // Identity (lib/onchain/freeIdentity.ts, shared with the free pack): the Quick Auth FID, then the
+  // profile's X account, then a Coinbase-verified wallet. `key` is bigint from birth: verified-wallet
+  // keys exceed 2^53, and a JS number would silently corrupt one before BigInt() ever saw it.
+  const who = await resolveFreeIdentity(req, wallet, "free-daily");
+  if (!who.ok) return NextResponse.json({ ok: false, error: who.error }, { status: who.status });
+  const { key, fid, xUserId, xCounts, account } = who;
 
   const letters = addressOf("letters");
 
@@ -132,8 +86,13 @@ export async function POST(req: Request) {
   const { all } = dailyKeysFor({ fid, xUserId, xCounts, wallet });
   // …plus the key this PROFILE already took today's letter under, if any (lib/db/freeClaims.ts): the
   // walk needs Farcaster's lookups, and a failed lookup must not open a second letter.
-  const recorded = await recordedFreeKey(NETWORK.id, account, "daily", today);
-  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet })), ...(recorded !== null ? [recorded] : [])])];
+  // Expired grants are settled against the chain first (lib/onchain/freeLedger.ts), so a voucher
+  // that lapsed unused gives its letter back and its day stops counting, BEFORE this profile's own
+  // grant for today is read: a re-issue is only a re-issue of a grant that still counts.
+  // Every grant is the profile's: resolveFreeIdentity only signs under a key that belongs to it.
+  await settleGrants(NETWORK.id, account);
+  const recordedGrant = await recordedFreeGrant(NETWORK.id, account, "daily", today);
+  const keys = [...new Set([key, ...all, ...(await relatedDailyKeys({ fid, wallet })), ...(recordedGrant ? [recordedGrant.key] : [])])];
   const used = (await getPublicClient().multicall({
     allowFailure: false,
     contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),
@@ -142,34 +101,48 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
   }
 
-  // One free letter a day per PROFILE (starl3xx: "only one wallet per profile should get a free
-  // anything"): record this profile's day under this key BEFORE signing, first write wins. Another of
-  // its wallets, signing under any other key, is refused for the day, unless that first voucher expired
-  // unused. A database error refuses (never sign twice); before migration 0013 the onchain walk decides.
-  // Only a key that belongs to this profile is recorded on it (keyOwnedByProfile): the wallet in the
-  // request is the client's word. A FID that never verified the profile's wallets claims as before.
+  // The free-letter rules (decisions.md #21), checked before anything is recorded or signed. A grant
+  // already counted for today (this profile asking again) is a re-issue: no new day, no new letter.
+  const reissue = Boolean(recordedGrant?.counts);
   try {
-    const owned = await keyOwnedByProfile({ fid, derivedFromProfile: true, accountWallets: accountWalletList, lookup: fidsByAddressesDetailed });
-    const claim = owned
-      ? await claimFree({
-          chainId: NETWORK.id,
-          account,
-          kind: "daily",
-          period: today,
-          key,
-          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
-          usedOnchain: async (k) =>
-            Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,
-        })
-      : "skipped";
-    if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
+    if (!reissue) {
+      const taken = await freeDailiesTaken(NETWORK.id, account);
+      if (taken !== null && taken >= DEFAULT_PARAMS.freeLetters.freeDailyLimit) {
+        return NextResponse.json({ ok: false, error: "daily_limit_reached", limit: DEFAULT_PARAMS.freeLetters.freeDailyLimit }, { status: 409 });
+      }
+    }
+    const stop = await freeGrantStop(NETWORK.id, reissue ? 0 : FREE_LETTERS.daily);
+    if (stop) return NextResponse.json({ ok: false, error: STOP_ERROR[stop] }, { status: 409 });
   } catch (err) {
-    console.error("[free-daily] couldn't record the profile's daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+    console.error("[free-daily] couldn't read the free-letter ledger, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
     return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
   }
 
   const nextMidnight = (today + 1) * 86_400;
   const deadline = BigInt(Math.min(now + VOUCHER_TTL_SECONDS, nextMidnight - 1));
+
+  // One free letter a day per PROFILE (starl3xx: "only one wallet per profile should get a free
+  // anything"): record this profile's day under this key BEFORE signing, first write wins. Another of
+  // its wallets, signing under any other key, is refused for the day, unless that first voucher expired
+  // unused. A database error refuses (never sign twice); before migration 0013 the onchain walk decides.
+  try {
+    const claim = await claimFree({
+          chainId: NETWORK.id,
+          account,
+          kind: "daily",
+          period: today,
+          key,
+          letters: FREE_LETTERS.daily,
+          expiresAt: new Date(Number(deadline) * 1000),
+          voucherTtlSeconds: VOUCHER_TTL_SECONDS,
+          usedOnchain: async (k) =>
+            Number(await getPublicClient().readContract({ address: letters, abi: lettersAbi, functionName: "dailyUsed", args: [k] })) === today + 1,
+        });
+    if (claim === "taken") return NextResponse.json({ ok: false, error: "already_claimed_today" }, { status: 409 });
+  } catch (err) {
+    console.error("[free-daily] couldn't record the profile's daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
+    return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
+  }
 
   // An X-keyed voucher must leave a record BEFORE it's signed: the X account's unlink/move/replace
   // guard (xKeyUsedToday) reads today's stored draw, and a voucher is spendable for ten minutes

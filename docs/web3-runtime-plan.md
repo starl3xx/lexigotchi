@@ -83,6 +83,7 @@ Still to do on Sepolia:
 | Price-keeper key | Vercel `PRICE_KEEPER_PRIVATE_KEY` | A third key. Fund it with a little ETH. |
 | Roll relayer key | Vercel `RELAYER_PRIVATE_KEY` | A fourth key. It sends each roll's result, so players confirm once per roll and the wallet never previews the outcome (decisions.md #14). Fund it with a little ETH; each roll costs it under a cent. Never the keeper's key. |
 | Answer seed | Vercel `ANSWER_CHAIN_SEED`, `ANSWER_CHAIN_DAYS` | From `npm run answerchain:generate -- --new-seed`: every pool word once by default (4,584 days; leave `ANSWER_CHAIN_DAYS` empty or set it to 4584). Back up the file offline and the seed on paper. |
+| Free-letter budget | Vercel `FREE_LETTER_BUDGET` (optional) | Every free pack (5) and daily (1) letter comes out of it; unset = 30,000 (decisions.md #21). Needs migration 0015 (`free_claims` ledger columns). |
 
 The seed is never printed. It is the `seed` field of the generated file. Whoever holds it wins
 every future jackpot, and losing it ends the jackpot (`setHead` reverts once the chain is live).
@@ -197,4 +198,4 @@ The docs' pictures (`docs-site/images/*.svg`) are drawn from the game's characte
 splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either. The
 screenshots (`docs-site/images/screen-*.jpg`) come from `npm run docs:shots` against a practice-mode
 dev server (`scripts/docs-shots.mjs`); retake them after a visible change to Today, Bag, Showcase,
-Bounty, or the $WORD page, and at launch, when practice mode ends.
+the Jackpot page (its bounty half), or the $WORD page, and at launch, when practice mode ends.
