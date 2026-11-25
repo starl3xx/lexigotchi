@@ -261,6 +261,32 @@ showed; only the *decisions* changed.
     sheet, the Bag card's coin, the balance sheet, and a toast once per payout. The verb is
     "Collect" (never "Claim", which is spelling a word), kept only as the fallback for a share the
     keeper missed. Practice pays its words on Skip a day, as the keeper would.
+17. **Mixed-case claims** (starl3xx, 2026-11-24). Replaces v0.1's "any case, but uniform — Mixed
+    sets cannot initiate a claim": "you should be able to spell a word with a mix of any case
+    letters". A tester with four UPPERCASE letters found the Spell screen's UPPERCASE tab locked and
+    their raised letters missing from the tray, because no five of one case spelled a word.
+    `Words.claim(word, uint8 upperMask, proof)` now names each letter's case (bit k ⇒ position k
+    escrowed UPPERCASE; 0 all lowercase, 0x1F all UPPERCASE), and `Claimed` carries the mask. Nothing
+    else in the contracts changes: the escrow always stored a per-letter mask (raising a letter in a
+    word made Mixed words already), so case stays derived, a staked Mixed word is jackpot-eligible,
+    and yield still needs all five raised. **The app's quick Claim uses UPPERCASE first** where the
+    player holds both cases of a letter ("UPPERCASE first"); picking tiles by hand claims exactly
+    the tiles picked. The sim does the same. **Sim effect** (365 days, 1,500 players, seeds 7/11/23,
+    vs one-case claims): claims still reach the whole dictionary and solvency holds, but year-one
+    all-UPPERCASE words fall 7–15% (838/820/812 → 712/727/756) and yield-eligible words 13–24%
+    (373/382/419 → 325/292/329). Lowercase first instead keeps a few more all-UPPERCASE words
+    (809/733/766), not consistently, and loses the same yield (322/293/353), so the cause is the
+    mixing itself, not which case goes first. Why is not yet traced: a guess is that raised letters
+    now spread across many Mixed words instead of waiting to fill whole UPPERCASE ones. Archetype
+    ROI moves too (gamblers recoup about 130–145% instead of 100–120%); the staker archetype swings
+    between 0% and 80% on every seed and rule, so it says nothing here. **Ships with a redeploy**:
+    Words isn't upgradeable and Staking, Jackpot, Rolls, and Prestige hold its address, so the
+    app's claim call (`claimCalls`), the `Claimed` event the bag and the keeper read
+    (`onchain/reads.ts`, `keeper/scan.ts`), and `abis.ts` switch in the same change that points the
+    registry at a Words with this signature, on branch `feat/mixed-case-spell`. Either order alone
+    breaks testnet: the app first, and every claim reverts on the old Words; the redeploy first,
+    and every claim reverts on the new one and claimed words drop out of the bag and the keeper's
+    scan. Until then the deployed Words still takes one case (owner: "Build now, deploy later").
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

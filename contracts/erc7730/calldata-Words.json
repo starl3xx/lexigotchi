@@ -20,7 +20,7 @@
   },
   "display": {
     "formats": {
-      "claim(string,bool,bytes32[])": {
+      "claim(string,uint8,bytes32[])": {
         "intent": "Spell a word \u2014 claim it as your NFT",
         "fields": [
           {
@@ -30,7 +30,7 @@
           }
         ],
         "excluded": [
-          "uppercase",
+          "upperMask",
           "proof"
         ]
       },
