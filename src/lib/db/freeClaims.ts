@@ -65,11 +65,19 @@ export async function claimFree(opts: {
     }
     const expired = Date.now() - row.claimedAt.getTime() > opts.voucherTtlSeconds * 1000;
     if (!expired || (await opts.usedOnchain(BigInt(row.claimKey)))) return "taken";
-    // The first voucher expired unused: this key takes over (compare-and-set on the old key).
+    // The first voucher expired unused: this key takes over. Compare-and-set on the old key AND on the
+    // row still being expired when written, so a same-key retry that refreshed it meanwhile wins
+    // (Bugbot on #178: matching the key alone let a takeover overwrite a just-refreshed voucher).
     const moved = await getDb()
       .update(freeClaims)
       .set({ claimKey: opts.key.toString(), claimedAt: sql`now()` })
-      .where(and(where, eq(freeClaims.claimKey, row.claimKey)))
+      .where(
+        and(
+          where,
+          eq(freeClaims.claimKey, row.claimKey),
+          sql`${freeClaims.claimedAt} < now() - make_interval(secs => ${opts.voucherTtlSeconds})`,
+        ),
+      )
       .returning({ claimKey: freeClaims.claimKey });
     return moved.length > 0 ? "ok" : "taken";
   } catch (err) {
