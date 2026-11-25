@@ -15,7 +15,7 @@ import { Button, Card } from "./primitives";
 import { CircleNotch, Warning } from "./ui/icons";
 import { useGame } from "./state";
 import { useViewer } from "./useViewer";
-import { NETWORK } from "@/lib/onchain/network";
+import { BASE, NETWORK } from "@/lib/onchain/network";
 import { ensureChain, type Eip1193Provider } from "@/lib/onchain/sendCalls";
 import {
   MAINNET_VIEWS,
@@ -85,6 +85,9 @@ export function WalletNetworkNotice() {
             <>
               Your wallet didn’t switch to {want.name}. A wallet that can’t use {want.name} can’t play the test game:
               connect one that can, like MetaMask or Coinbase Wallet.
+              {/* Said only of a wallet on Base, the one network we know it has. Rainbow refuses Base
+                  Sepolia outright (starl3xx, 2026-11-25), but plays on Base. */}
+              {from === BASE.id && <> It can play on Base once the game launches there.</>}
             </>
           ) : (
             <>Your wallet didn’t switch to {want.name}. Switch it in your wallet app, or connect another wallet.</>
