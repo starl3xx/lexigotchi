@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean, primaryKey } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -322,4 +322,31 @@ export const emailCodes = pgTable(
     usedAt: timestamp("used_at", { withTimezone: true }),
   },
   (t) => [index("email_codes_address_idx").on(t.address)],
+);
+
+/**
+ * Each word's scene (lib/scenes), as the wallet holding it chose it: the Today stage, the Showcase,
+ * and the share card stand the word there. Saved on the server so a choice follows the player to
+ * every device and host (decisions.md #15); the browser keeps its own copy, so a pick works offline
+ * and before sign-in.
+ *
+ * Keyed by the wallet that held the word, not the profile account: the session proves that wallet,
+ * the bag already knows every word's holder, and linking or unlinking wallets later moves nothing. A
+ * word that changes hands starts on the Stage for its new holder. Cosmetic and public: a wallet may
+ * save a scene for any dictionary word, and a row only changes what that wallet's own words show.
+ * `updatedAt` is when the player picked it (their browser's clock, kept within the last 30 days),
+ * so a pick made before sign-in and uploaded later still sorts by when it was made.
+ */
+export const wordScenes = pgTable(
+  "word_scenes",
+  {
+    /** Lowercase wallet address. */
+    wallet: text("wallet").notNull(),
+    /** UPPERCASE dictionary word. */
+    word: text("word").notNull(),
+    /** A SceneId (lib/scenes). */
+    scene: text("scene").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.wallet, t.word] })],
 );

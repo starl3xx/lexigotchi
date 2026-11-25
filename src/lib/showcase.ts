@@ -1,27 +1,38 @@
 /**
- * A Showcase share: any letters a player arranged, in any case, as a link with its own card.
+ * A Showcase share: one of the player's words, in its case and its scene, as a link with its own
+ * card.
  *
  * Built for X first, Farcaster second. X shows a large picture only when the shared link's page
  * carries its own `og:image`, and the old share posted `/play`, whose card is the generic logo. So
- * each showcase gets a page, `/s/<letters>`, whose card draws those letters (`/s/<letters>/card`):
- * a 1.91:1 picture for X's large card, and a 3:2 one for the Farcaster embed, whose spec requires
- * 3:2. The case in the path is the case of each tile: `/s/HeLLo` is H and LL UPPERCASE.
+ * each showcase gets a page, `/s/<word>`, whose card draws that word (`/s/<word>/card`): a 1.91:1
+ * picture for X's large card, and a 3:2 one for the Farcaster embed, whose spec requires 3:2. The
+ * case in the path is the case of each tile: `/s/CRAne` is C, R, and A UPPERCASE. `?scene=` names
+ * the scene the word stands in (lib/scenes); with none, it stands on the Stage.
  *
- * Nothing here checks ownership. A showcase is vanity ("any letters, any order, no dictionary
- * check"), so the page claims only what a link can prove: these letters, arranged.
+ * A showcase is a dictionary word (starl3xx, 2026-11-24: "Showcase should only be for words you
+ * own (people could tweet all sorts of crazy shit otherwise!)"). The app offers only the player's
+ * own words, and the page and card draw only dictionary words, so a hand-typed link can't put any
+ * other text on the game's card. The dictionary is the guard, not ownership. The page doesn't ask
+ * who owns the word: a word changes hands, its case changes as its letters are rolled up, and a
+ * posted link must keep drawing after both. So a hand-typed link can still draw a dictionary word
+ * the sender doesn't own, in any case and scene. That is the limit, and it is harmless.
  */
+import { isWord } from "./dictionary";
+import { DEFAULT_SCENE, type SceneId } from "./scenes";
 import { SITE_URL, X_HANDLE } from "./site";
 
-/** The rack holds at most 8 tiles, and sharing needs at least 2 (ShowcaseScreen). */
-export const SHOWCASE_MIN = 2;
-export const SHOWCASE_MAX = 8;
+/**
+ * The game's own cards, drawn though they are not dictionary words: the beta group's welcome
+ * (`/s/HEYOO/card`, lib/telegram.ts). Add to this list only for a card the game itself sends.
+ */
+export const HOUSE_CARDS: readonly string[] = ["HEYOO"];
 
 export interface ShowcaseTile {
   char: string;
   upper: boolean;
 }
 
-/** Letters only, A to Z in either case, 2 to 8 of them. Anything else is not a showcase. */
+/** A dictionary word (or a house card), A to Z in either case. Anything else is not a showcase. */
 export function parseShowcase(raw: string): ShowcaseTile[] | null {
   let text = raw;
   try {
@@ -29,7 +40,9 @@ export function parseShowcase(raw: string): ShowcaseTile[] | null {
   } catch {
     return null;
   }
-  if (!new RegExp(`^[A-Za-z]{${SHOWCASE_MIN},${SHOWCASE_MAX}}$`).test(text)) return null;
+  if (!/^[A-Za-z]+$/.test(text)) return null;
+  const key = text.toUpperCase();
+  if (!isWord(key) && !HOUSE_CARDS.includes(key)) return null;
   return [...text].map((c) => ({ char: c.toUpperCase(), upper: c === c.toUpperCase() }));
 }
 
@@ -38,13 +51,26 @@ export function showcaseText(tiles: readonly ShowcaseTile[]): string {
   return tiles.map((t) => (t.upper ? t.char.toUpperCase() : t.char.toLowerCase())).join("");
 }
 
-export function showcaseUrl(text: string): string {
-  return `${SITE_URL}/s/${text}`;
+/** A word's path text from its letters and their case: CRANE with C, R, A raised is "CRAne". */
+export function showcaseWordText(word: string, upper: readonly boolean[]): string {
+  return [...word].map((c, i) => (upper[i] ? c.toUpperCase() : c.toLowerCase())).join("");
+}
+
+/** The Stage takes no parameter, so a link made before scenes existed is a Stage link. */
+function sceneQuery(scene: SceneId | undefined, more: Record<string, string> = {}): string {
+  const q = new URLSearchParams(more);
+  if (scene && scene !== DEFAULT_SCENE) q.set("scene", scene);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+export function showcaseUrl(text: string, scene?: SceneId): string {
+  return `${SITE_URL}/s/${text}${sceneQuery(scene)}`;
 }
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
-export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x"): string {
-  return `${SITE_URL}/s/${text}/card${ratio === "fc" ? "?ratio=3x2" : ""}`;
+export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId): string {
+  return `${SITE_URL}/s/${text}/card${sceneQuery(scene, ratio === "fc" ? { ratio: "3x2" } : {})}`;
 }
 
 /** The cast's words. The link goes separately as the cast's embed. */

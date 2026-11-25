@@ -208,11 +208,17 @@ A staked word's care state is a function of days since last fed:
 
 ## 12. Showcase, Swap, Dissolution
 
-- **Showcase:** arrange any letters you own into any string (2–8 chars, no dictionary check) and share
-  it, on X first or as a Farcaster cast. Each share links to `/s/<letters>`, whose card draws the
-  letters (1200×630 for X's large card, 3:2 for the Farcaster embed). Offchain, read-only vanity — no
-  NFT, no fee. The primary organic growth loop (every showcase is
-  an ad) and a source of letter demand *outside* the dictionary.
+- **Showcase:** pick one of your own words and its scene, and share it, on X first or as a Farcaster
+  cast. Each share links to `/s/<word>?scene=<scene>`, whose card draws the word standing in that
+  scene (1200×630 for X's large card, 3:2 for the Farcaster embed). The page and card draw
+  dictionary words only, never free text (decisions.md #15). Offchain, read-only vanity — no NFT,
+  no fee. The primary organic growth loop (every showcase is an ad).
+- **Scenes:** each word's home, drawn behind it on the Today stage, in the Showcase, and on the share
+  card (`src/lib/scenes.ts`, `src/components/scenes/`). The Stage for everyone; Trophy Case, Picture
+  Day, Spring, Summer, Fall, and Winter unlock once a player has held 3 words, and stay unlocked.
+  A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
+  is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
+  keyed by the wallet holding the word; decisions.md #15).
 - **Swap:** a direct two-sided letter escrow ("my Q for your two Z's, + N $WORD"), shareable as a
   Farcaster/X cast. It solves exact-match discovery and doubles as a gifting loop. **Not a
   marketplace** — open price discovery stays on standard 1155/721 venues; a 2.5% fee on in-house swaps

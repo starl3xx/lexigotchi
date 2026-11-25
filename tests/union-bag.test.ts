@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bagWalletsOf, unionWords, sumLetterCounts } from "@/lib/onchain/unionBag";
+import { bagWalletsOf, unionEverHeld, unionWords, sumLetterCounts } from "@/lib/onchain/unionBag";
 import type { ChainWord } from "@/lib/onchain/reads";
 
 const CONNECTED = "0xAAAAaaaaAAAAaaaaAAAAaaaaAAAAaaaaAAAAaaaa";
@@ -82,5 +82,17 @@ describe("sumLetterCounts", () => {
     // A failed linked-wallet read degrades to [] — the union must not NaN.
     expect(sumLetterCounts([a, []])).toEqual(a);
     expect(sumLetterCounts([])).toEqual(Array.from({ length: 52 }, () => 0));
+  });
+});
+
+describe("unionEverHeld — every word the bag has ever held (the scenes unlock)", () => {
+  it("counts each word once across linked wallets, dissolved and moved words included", () => {
+    // "11" was dissolved after the connected wallet held it; "22" moved to the linked wallet.
+    expect(unionEverHeld([{ everHeld: ["11", "22"] }, { everHeld: ["22", "33"] }])).toBe(3);
+  });
+
+  it("is zero for an empty bag or failed reads", () => {
+    expect(unionEverHeld([])).toBe(0);
+    expect(unionEverHeld([{ everHeld: [] }])).toBe(0);
   });
 });

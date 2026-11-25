@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 
 /**
  * Telegram's webhook for @lexigotchi_bot (src/lib/telegram.ts). Today it does one thing: when
- * someone joins the beta testers' group, it greets them with the HEYOO card (the same picture a
- * Showcase of HEYOO shares, `/s/HEYOO/card`).
+ * someone joins the beta testers' group, it greets them with the HEYOO card (`/s/HEYOO/card`, the
+ * Showcase card drawing; HEYOO isn't a dictionary word, so it is one of lib/showcase's HOUSE_CARDS).
  *
  * Fails closed: without the token, the chat, and the secret it answers 404, and a request without
  * Telegram's secret header answers 401. After that it always answers 200, because Telegram retries
