@@ -33,7 +33,6 @@ import { BagScreen } from "./screens/BagScreen";
 import { MintScreen } from "./screens/MintScreen";
 import { ClaimScreen } from "./screens/ClaimScreen";
 import { JackpotScreen } from "./screens/JackpotScreen";
-import { BountyScreen } from "./screens/BountyScreen";
 import { DictionaryScreen } from "./screens/DictionaryScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { LhawScreen } from "./screens/LhawScreen";
@@ -55,7 +54,7 @@ import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
-  Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
+  Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
   Storefront,
 } from "./ui/icons";
@@ -143,11 +142,20 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
   }
   lastView.current = state.view;
   const viewIn = viewAnim.current.animate;
-  // A new screen starts at its top, not at the old screen's scroll position.
+  // A new screen starts at its top, not at the old screen's scroll position, unless the link named
+  // a part of it (`nav(view, section)`: Today's bounty card, whose section a phone shows under the
+  // jackpot). This runs after the screen's own effects, so nothing on mount can undo it. A section
+  // already near the top (a wide screen's second column) leaves the page at its top, and one that
+  // isn't rendered (the connect panel covers the screen) falls back to the top.
   const mainRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0 });
-  }, [state.view]);
+    const main = mainRef.current;
+    if (!main) return;
+    const target = state.section ? main.querySelector<HTMLElement>(`[data-section="${state.section}"]`) : null;
+    const offset = target ? target.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop : 0;
+    const pad = parseFloat(getComputedStyle(main).paddingTop) || 0;
+    main.scrollTo({ top: offset > main.clientHeight / 3 ? offset - pad : 0 });
+  }, [state.view, state.section]);
 
   return (
     <IconContext.Provider value={{ weight: "bold", size: 18 }}>
@@ -288,7 +296,6 @@ function Screen({ view }: { view: View }) {
     case "mint": return <MintScreen />;
     case "claim": return <ClaimScreen />;
     case "jackpot": return <JackpotScreen />;
-    case "bounty": return <BountyScreen />;
     case "dictionary": return <DictionaryScreen />;
     case "leaderboard": return <LeaderboardScreen />;
     case "word": return <WordScreen />;
@@ -476,8 +483,7 @@ const VIEW_TITLE: Record<View, string> = {
   bag: "Your bag",
   mint: "Mint letters",
   claim: "Spell a word",
-  jackpot: "Daily jackpot",
-  bounty: "Weekly bounty",
+  jackpot: "Jackpot & bounty",
   dictionary: "Dictionary",
   leaderboard: "Leaderboard",
   word: "$WORD",
@@ -501,7 +507,6 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
     heading: "Win",
     items: [
       { view: "jackpot", label: "Jackpot", Icon: Trophy },
-      { view: "bounty", label: "Bounty", Icon: Medal },
       { view: "leaderboard", label: "Leaderboard", Icon: Ranking },
     ],
   },
@@ -592,7 +597,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "bounty", "dictionary", "leaderboard", "word", "lhaw", "showcase", "swap"];
+const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "showcase", "swap"];
 
 function BottomNav() {
   const { state, nav } = useGame();

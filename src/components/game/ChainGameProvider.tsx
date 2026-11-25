@@ -31,6 +31,7 @@ import {
   type Sheet,
   type Toast,
   type View,
+  type ViewSection,
   type ChainStatus,
   type ActionOutcome,
   type PriceItem,
@@ -877,7 +878,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const api: GameApi = useMemo(
     () => ({
       state,
-      nav: (view: View) => dispatch({ t: "nav", view }),
+      nav: (view: View, section?: ViewSection) => dispatch({ t: "nav", view, section }),
       openSheet: (sheet: Sheet) => dispatch({ t: "sheet", sheet }),
       closeSheet: () => dispatch({ t: "sheet", sheet: null }),
       toast,
