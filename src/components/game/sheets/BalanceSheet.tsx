@@ -25,6 +25,7 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
 import { NETWORK } from "@/lib/onchain/network";
+import { EarningsLine } from "../EarningsLine";
 
 // "Buy $WORD" (pinned to Base mainnet, Farcaster's swap or Matcha) lives in useBuyWord.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -90,6 +91,10 @@ export function BalanceSheet() {
         </div>
         <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
       </Card>
+      {/* what the player's words have paid into it (decisions.md #16); opens Your earnings */}
+      <div className="cel-sm mt-2 rounded-xl bg-card px-2 py-2 empty:hidden">
+        <EarningsLine />
+      </div>
 
       <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
         <ArrowsLeftRight weight="bold" /> Buy $WORD

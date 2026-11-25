@@ -46,6 +46,30 @@ export async function storeEpochLeaves(
   });
 }
 
+/** Every stored tree on this chain: its stream, epoch, and root (the keeper's payout job). */
+export async function rewardTrees(chainId: number): Promise<{ stream: RewardStream; epochId: string; root: string }[]> {
+  const rows = await getDb()
+    .selectDistinct({ stream: rewardLeaves.stream, epochId: rewardLeaves.epochId, root: rewardLeaves.root })
+    .from(rewardLeaves)
+    .where(eq(rewardLeaves.chainId, chainId));
+  return rows.map((r) => ({ ...r, stream: r.stream as RewardStream }));
+}
+
+/** Every stored leaf of one tree. */
+export async function rewardTreeLeaves(chainId: number, t: { stream: RewardStream; epochId: string; root: string }): Promise<RewardLeafRow[]> {
+  return getDb()
+    .select()
+    .from(rewardLeaves)
+    .where(
+      and(
+        eq(rewardLeaves.chainId, chainId),
+        eq(rewardLeaves.stream, t.stream),
+        eq(rewardLeaves.epochId, t.epochId),
+        eq(rewardLeaves.root, t.root.toLowerCase()),
+      ),
+    );
+}
+
 /** Every stored leaf paying one of these wallets on this chain. Callers still check the chain. */
 export async function rewardLeavesFor(chainId: number, accounts: readonly string[]): Promise<RewardLeafRow[]> {
   if (accounts.length === 0) return [];

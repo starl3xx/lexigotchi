@@ -93,6 +93,8 @@ import {
   type RewardClaim,
 } from "@/lib/onchain/actions";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
+import type { EarningsJson } from "@/lib/rewards/earnings";
+import { earningsFromJson } from "./earnings";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
@@ -356,7 +358,22 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     refetchInterval: 60_000,
   });
 
-  // Unclaimed reward leaves for the whole bag, from the keeper's published epochs.
+  // What the bag's words have earned (lib/rewards/earnings.ts). The keeper pays every morning at
+  // 00:05 UTC (decisions.md #16), so a few minutes' staleness is fine; a refocus reads it again.
+  const earningsQ = useQuery({
+    queryKey: ["earnings", NETWORK.id, bagKey],
+    queryFn: async (): Promise<EarningsJson | null> => {
+      const res = await fetch(`/api/rewards/earnings?wallets=${bagWallets.join(",")}`);
+      const data = await res.json().catch(() => null);
+      // A failed read is "unknown" (null), never "earned nothing".
+      return data?.ok ? (data.earnings as EarningsJson) : null;
+    },
+    enabled: !!address && chain.deployed,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  });
+
+  // Shares not paid out yet for the whole bag, from the keeper's published epochs.
   const claimablesQ = useQuery({
     queryKey: ["claimables", NETWORK.id, bagKey],
     queryFn: async () => {
@@ -1144,6 +1161,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         void track("Getting test $WORD", (run) => run("Faucet", () => faucetCalls(address, 50_000_000)), false);
       },
 
+      earnings: earningsQ.data
+        ? earningsFromJson(earningsQ.data, (id) => state.words.find((w) => tokenIdOf(w.word).toString() === id)?.word)
+        : null,
       claimables: (claimablesQ.data ?? []).map((c) => ({
         stream: c.stream,
         tokenId: c.tokenId,
@@ -1160,8 +1180,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           amount: BigInt(c.amount),
           proof: c.proof,
         }));
-        void track("Claiming your rewards", async (run) => {
-          if (await run("Claim", () => claimRewardCalls(claims))) void claimablesQ.refetch();
+        // "Collect", never "Claim": claiming is what spelling a word does.
+        void track("Collecting your earnings", async (run) => {
+          if (await run("Collect", () => claimRewardCalls(claims))) {
+            void claimablesQ.refetch();
+            void earningsQ.refetch();
+          }
         }, undefined);
       },
 
@@ -1266,7 +1290,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

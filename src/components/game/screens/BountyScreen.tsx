@@ -67,21 +67,19 @@ export function BountyScreen() {
         </div>
       </Card>
 
-      {/* claimable earnings — the keeper's published epochs (yield + bounty), union-bag wide */}
+      {/* Earnings not paid out yet (yield + bounty), union-bag wide. The keeper pays them every
+          morning (decisions.md #16), so this shows only when a payout failed or is late. */}
       {state.chainBacked && g.claimables.length > 0 && (
-        <Card className="border-gold bg-gold/10">
+        <Card className="border-teal bg-teal/10">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="font-display font-extrabold">
-                {fmtWord(claimTotal)} $WORD to claim
-              </div>
+              <div className="font-display font-extrabold">{fmtWord(claimTotal)} $WORD not paid out yet</div>
               <div className="text-xs text-ink/60">
-                {g.claimables.length} reward{g.claimables.length === 1 ? "" : "s"} across yield and bounty epochs.
-                Each pays its own wallet, so one tap collects for your whole bag.
+                It goes out by itself with the next payout. Each share pays the wallet that holds its word.
               </div>
             </div>
-            <Button variant="gold" onClick={() => g.claimEarnings()}>
-              Claim all
+            <Button variant="teal" onClick={() => g.claimEarnings()}>
+              Collect
             </Button>
           </div>
         </Card>

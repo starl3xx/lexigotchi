@@ -63,8 +63,13 @@ Still to do on Sepolia:
    turning the flag on sponsors only calls that ask: today, Move here (Letters `safeBatchTransferFrom`,
    Words `safeTransferFrom`, $WORD `transfer`). The CDP policy must allow those before the flag goes
    on; add an action to the policy before it asks.
-2. Claim a reward. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a fully
-   UPPERCASE staked word.
+2. Watch a payout land by itself (decisions.md #16): the keeper's `payout` job pays every share the
+   morning its epoch opens. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a
+   fully UPPERCASE staked word (testers had three on 2026-11-25). Proven on a fork of Base Sepolia
+   (2026-11-25): three shares in one Multicall3 transaction, 171,089 gas, builder code attached, and a
+   rerun paid nothing twice. The scheduled run hadn't opened a single yield epoch on Base Sepolia by
+   then, and the jackpot hadn't resolved since 2026-11-21: check `/api/cron/keeper`'s logs and
+   `KEEPER_PRIVATE_KEY` / `KEEPER_JOBS` in Vercel first.
 3. Time a keeper run once many words exist. The word scan grows with every claim.
 
 ## 2. Keys and secrets (owner)

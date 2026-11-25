@@ -13,7 +13,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ACTIVE_CHAIN } from "@/lib/onchain/chain";
 import { addressOf, achievementsSchema, deployBlock } from "@/lib/onchain/addresses";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
-import { jackpotAbi, lettersAbi, rollsAbi, wordsAbi, stakingAbi, prestigeAbi } from "@/lib/onchain/abis";
+import { jackpotAbi, lettersAbi, rollsAbi, wordsAbi, stakingAbi, prestigeAbi, yieldDistributorAbi } from "@/lib/onchain/abis";
 import { readGameParams } from "@/lib/onchain/reads";
 import { fetchWordPrice } from "@/lib/oracle/wordPrice";
 import { planRepeg, type PricePoint } from "@/lib/keeper/repeg";
@@ -44,7 +44,9 @@ import { sendWebPush } from "@/lib/notify/webPush";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { emailRecipients, markEmailSent, type EmailRecipient } from "@/lib/db/profiles";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
-import { storeEpochLeaves } from "@/lib/db/rewards";
+import { rewardTreeLeaves, rewardTrees, storeEpochLeaves } from "@/lib/db/rewards";
+import { MULTICALL3, PAYOUT_BUDGET_MS, multicall3Abi, payoutBatches, payoutCalls } from "@/lib/keeper/payout";
+import type { Claimable } from "@/lib/keeper/claimables";
 import { NETWORK } from "@/lib/onchain/network";
 import { loadAnswerSchedule, linkToReveal } from "@/lib/keeper/answerSchedule";
 import type { WebPushSubscription } from "@/lib/db/schema";
@@ -66,14 +68,15 @@ export function redactSecrets(text: string, word: string, salt: string): string 
   return out;
 }
 
-export type KeeperJob = "resolve" | "yield" | "bounty" | "achievements" | "repeg" | "notify";
+export type KeeperJob = "resolve" | "yield" | "bounty" | "payout" | "achievements" | "repeg" | "notify";
 
 /**
- * The scheduled run's jobs, from KEEPER_JOBS. Default "resolve,yield,bounty,repeg,notify": the bounty
- * is ON at launch (decisions.md #11, amended 2026-11-23). Achievements need the network's EAS schema,
- * so they stay opt-in.
+ * The scheduled run's jobs, from KEEPER_JOBS. Default "resolve,yield,bounty,payout,repeg,notify": the
+ * bounty is ON at launch (decisions.md #11, amended 2026-11-23), and `payout` pays the shares those
+ * two just opened (decisions.md #16), so it runs right after them. Achievements need the network's
+ * EAS schema, so they stay opt-in. A KEEPER_JOBS that lists its jobs must name `payout` too.
  */
-export const DEFAULT_JOBS: KeeperJob[] = ["resolve", "yield", "bounty", "repeg", "notify"];
+export const DEFAULT_JOBS: KeeperJob[] = ["resolve", "yield", "bounty", "payout", "repeg", "notify"];
 
 /**
  * The bounty period the daily run settles today, or null. A period pays when it ENDS, so players
@@ -89,7 +92,7 @@ export function bountyPeriodToSettle(day: number, periodDays: number = DEFAULT_P
   const period = day / periodDays - 1;
   return period >= 0 ? period : null;
 }
-export const KNOWN_JOBS: readonly KeeperJob[] = ["resolve", "yield", "bounty", "achievements", "repeg", "notify"];
+export const KNOWN_JOBS: readonly KeeperJob[] = ["resolve", "yield", "bounty", "payout", "achievements", "repeg", "notify"];
 
 export function jobsFrom(raw: string | undefined): KeeperJob[] {
   if (!raw?.trim()) return DEFAULT_JOBS;
@@ -287,6 +290,80 @@ export function createKeeper(opts: { dry: boolean }) {
     });
     const rcpt = await w.waitForTransactionReceipt({ hash });
     console.log(`${kind}: openEpoch ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+  }
+
+  /**
+   * Pay every stored share that is still unpaid (decisions.md #16): today's yield right after
+   * `yield` opens it, a settled bounty week after `bounty`, and anything an earlier run missed.
+   * Only trees the chain opened with that same root, and only epochs with something left, so a
+   * claim here can't revert for a reason the next run would repeat. Batched through Multicall3 with
+   * per-call failure allowed; what doesn't fit in PAYOUT_BUDGET_MS waits for the next run.
+   */
+  async function payOut() {
+    const client = getPublicClient();
+    const streamAddr = (s: "yield" | "bounty") => addressOf(s === "yield" ? "yieldDistributor" : "bounty");
+
+    // The trees the chain opened with that root and that still have something to pay.
+    const trees = await rewardTrees(NETWORK.id);
+    if (trees.length === 0) return void console.log("payout: no stored shares");
+    const epochKeys = [...new Map(trees.map((t) => [`${t.stream}:${t.epochId}`, t])).values()];
+    const states = (await client.multicall({
+      allowFailure: false,
+      contracts: epochKeys.map((t) => ({
+        address: streamAddr(t.stream), abi: merkleEpochsAbi, functionName: "epochs" as const, args: [BigInt(t.epochId)],
+      })),
+    })) as unknown as (readonly [string, bigint, bigint, bigint, boolean, bigint])[];
+    // stream:epoch:root of each epoch that is open and has something left to pay
+    const owing = new Set<string>();
+    epochKeys.forEach((t, i) => {
+      const [root, funded, claimed, , open] = states[i];
+      if (open && claimed < funded) owing.add(`${t.stream}:${t.epochId}:${root.toLowerCase()}`);
+    });
+    const live = trees.filter((t) => owing.has(`${t.stream}:${t.epochId}:${t.root.toLowerCase()}`));
+    if (live.length === 0) return void console.log("payout: every opened share is paid");
+
+    const rows = (await Promise.all(live.map((t) => rewardTreeLeaves(NETWORK.id, t)))).flat();
+    const paid = (await client.multicall({
+      allowFailure: false,
+      contracts: rows.map((r) => ({
+        address: streamAddr(r.stream as "yield" | "bounty"), abi: yieldDistributorAbi, functionName: "hasClaimed" as const,
+        args: [BigInt(r.epochId), BigInt(r.tokenId)],
+      })),
+    })) as unknown as boolean[];
+    const unpaid: Claimable[] = rows
+      .filter((_, i) => !paid[i])
+      .map((r) => ({
+        stream: r.stream as "yield" | "bounty", epochId: r.epochId, tokenId: r.tokenId,
+        account: r.account as `0x${string}`, amount: r.amount, proof: r.proof,
+      }));
+    const owed = unpaid.reduce((a, c) => a + BigInt(c.amount), 0n);
+    console.log(`payout: ${unpaid.length} unpaid share(s), ${owed} wei, in ${live.length} epoch(s)`);
+    if (unpaid.length === 0 || DRY) return;
+
+    const w = wallet();
+    const started = Date.now();
+    let sent = 0, landed = 0, landedWei = 0n;
+    for (const batch of payoutBatches(unpaid)) {
+      if (Date.now() - started > PAYOUT_BUDGET_MS) {
+        console.log(`payout: out of time — ${unpaid.length - sent} share(s) wait for the next run`);
+        break;
+      }
+      const hash = await w.writeContract({
+        dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the keeper's writes are app writes too
+        address: MULTICALL3, abi: multicall3Abi, functionName: "aggregate3",
+        args: [payoutCalls(batch, streamAddr)],
+      });
+      const rcpt = await w.waitForTransactionReceipt({ hash });
+      sent += batch.length;
+      // What actually paid: RewardClaimed events, not the batch size (a call may fail on its own).
+      for (const ev of parseEventLogs({ abi: yieldDistributorAbi, eventName: "RewardClaimed", logs: rcpt.logs })) {
+        landed += 1;
+        landedWei += ev.args.amount;
+      }
+      console.log(`payout: batch of ${batch.length} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+    }
+    console.log(`payout: paid ${landed} of ${sent} share(s) sent, ${landedWei} wei`);
+    if (landed < sent) throw new Error(`payout: ${sent - landed} share(s) sent but not paid — they're retried next run`);
   }
 
   const EAS = "0x4200000000000000000000000000000000000021" as const;
@@ -657,6 +734,7 @@ export function createKeeper(opts: { dry: boolean }) {
   return {
     resolveJackpot,
     openStream,
+    payOut,
     attestAchievements,
     notifyHunger,
     announce,
@@ -670,6 +748,8 @@ export function createKeeper(opts: { dry: boolean }) {
           return openStream("yield");
         case "bounty":
           return openStream("bounty");
+        case "payout":
+          return payOut();
         case "achievements":
           return attestAchievements();
         case "repeg":
