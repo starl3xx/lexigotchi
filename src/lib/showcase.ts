@@ -68,6 +68,18 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
   return `${SITE_URL}/s/${text}${sceneQuery(scene)}`;
 }
 
+/**
+ * The card picture's look, as a number in its address (`v`). A word's card is the same picture
+ * forever, so it is cached hard: a day in a browser, a week at the edge, and for good by X and
+ * Farcaster. "Forever" ends when the card is redrawn, and then every one of those caches is wrong
+ * at once: the share video drew its front from the browser's copy and showed the old letters for a
+ * day after the letters changed (starl3xx, 2026-11-25). So raise this whenever the picture's look
+ * changes (the letters, a scene, the frame), and every cache starts again.
+ *
+ * 2: the letter review (decisions.md #28).
+ */
+export const CARD_LOOK = 2;
+
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
   return `${SITE_URL}${showcaseCardPath(text, ratio, scene, saved)}`;
@@ -82,7 +94,7 @@ export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: S
  * post names @lexigotchi, and Farcaster's card has the game's button (decisions.md #23).
  */
 export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
-  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}) })}`;
+  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}), v: String(CARD_LOOK) })}`;
 }
 
 /** The back of the word's card, for the share loop's turning card (`/s/<word>/back`, same origin). */

@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest";
 import {
   HOUSE_CARDS,
   parseShowcase,
+  CARD_LOOK,
   showcaseCardUrl,
   showcasePostText,
   showcaseText,
@@ -67,15 +68,25 @@ describe("share links", () => {
 
   it("point at the showcase page and its two card shapes", () => {
     expect(showcaseUrl("CRAne")).toMatch(/\/s\/CRAne$/);
-    expect(showcaseCardUrl("CRAne")).toMatch(/\/s\/CRAne\/card$/);
-    expect(showcaseCardUrl("CRAne", "fc")).toMatch(/\/s\/CRAne\/card\?ratio=3x2$/);
+    expect(showcaseCardUrl("CRAne")).toMatch(new RegExp(`/s/CRAne/card\\?v=${CARD_LOOK}$`));
+    expect(showcaseCardUrl("CRAne", "fc")).toMatch(new RegExp(`/s/CRAne/card\\?ratio=3x2&v=${CARD_LOOK}$`));
+  });
+
+  it("put the card's look in every card picture's address, so a redrawn card escapes every cache", () => {
+    // The picture is cached for a day in a browser and a week at the edge. The share video draws
+    // its front from this address, and showed the old letters after the letters changed.
+    for (const url of [showcaseCardUrl("CRAne"), showcaseCardUrl("CRAne", "fc", "spring"), showcaseCardUrl("CRAne", "x", undefined, true)]) {
+      expect(new URL(url).searchParams.get("v")).toBe(String(CARD_LOOK));
+    }
+    // the page's own address is a link people keep: it carries no version
+    expect(showcaseUrl("CRAne", "spring")).not.toMatch(/[?&]v=/);
   });
 
   it("carry the scene, and leave it off for the Stage, so a link made before scenes is a Stage link", () => {
     expect(showcaseUrl("CRAne", "winter")).toMatch(/\/s\/CRAne\?scene=winter$/);
     expect(showcaseUrl("CRAne", "stage")).toMatch(/\/s\/CRAne$/);
-    expect(showcaseCardUrl("CRAne", "x", "fall")).toMatch(/\/s\/CRAne\/card\?scene=fall$/);
-    expect(showcaseCardUrl("CRAne", "fc", "fall")).toMatch(/\/s\/CRAne\/card\?ratio=3x2&scene=fall$/);
+    expect(showcaseCardUrl("CRAne", "x", "fall")).toMatch(new RegExp(`/s/CRAne/card\\?v=${CARD_LOOK}&scene=fall$`));
+    expect(showcaseCardUrl("CRAne", "fc", "fall")).toMatch(new RegExp(`/s/CRAne/card\\?ratio=3x2&v=${CARD_LOOK}&scene=fall$`));
   });
 
   it("prefill X's composer with the words and the link, tagging @lexigotchi once", () => {
