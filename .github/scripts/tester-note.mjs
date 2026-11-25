@@ -47,8 +47,10 @@ const HEADING = /^#{2,3}\s*tester note\b(.*)$/i;
 
 /**
  * The "## Tester note" section of a PR description: everything under that heading, up to the next
- * heading, a horizontal rule (---, * * *, ___), or the "🤖 Generated with …" line that ends our PR
- * descriptions, and the kind of update its heading names (null for none, or one not in KINDS).
+ * heading, a horizontal rule (---, * * *, ___), a code fence (``` or ~~~), or the "🤖 Generated with …"
+ * line that ends our PR descriptions, and the kind of update its heading names (null for none, or one
+ * not in KINDS). A note is a sentence or two in player language, never code: a fence means the
+ * writer's own notes started (#208 posted its diagram and file list to the testers that way).
  * Null when there is no section, or it says "none", "n/a", or "-".
  * @param {string | null | undefined} text
  * @returns {{ kind: string | null, note: string } | null}
@@ -58,7 +60,7 @@ export function testerNote(text) {
   const start = lines.findIndex((l) => HEADING.test(l.trim()));
   if (start < 0) return null;
   const rest = lines.slice(start + 1);
-  const end = rest.findIndex((l) => /^(#{1,6}\s|([-*_])( *\2){2,}$|🤖)/u.test(l.trim()));
+  const end = rest.findIndex((l) => /^(#{1,6}\s|([-*_])( *\2){2,}$|```|~~~|🤖)/u.test(l.trim()));
   const note = (end < 0 ? rest : rest.slice(0, end)).join("\n").trim();
   if (!note || /^(none|n\/a|-)$/i.test(note)) return null;
   return { kind: kindOf(HEADING.exec(lines[start].trim())?.[1] ?? ""), note };
