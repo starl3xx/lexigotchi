@@ -20,7 +20,7 @@ export const runtime = "nodejs";
  * So anyone can add an address, and the console says the count is unverified. Rate-limited by IP.
  * The response says nothing about the wallet, so the route can't be used to look anyone up.
  *
- * Dark until migration 0011: a missing table answers not_configured and the game stays quiet.
+ * Dark until migration 0012: a missing table answers not_configured and the game stays quiet.
  */
 export async function POST(req: Request) {
   if (!isCampaignConfigured()) {

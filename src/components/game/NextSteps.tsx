@@ -9,6 +9,7 @@ import { Coins, Crown, Sparkle, Ticket, TextAa } from "./ui/icons";
 import { fmtWord, hunger, mineLower, mineUpper, useGame } from "./state";
 import { pickStage } from "./stagePick";
 import { nextSteps, type NextStep } from "./todaySteps";
+import { useTakenWords } from "./useTodayPlan";
 
 /** Rows shown before "Show more": a list of five read as a to-do list, not a nudge. */
 const SHOWN = 3;
@@ -17,9 +18,11 @@ export function NextSteps() {
   const g = useGame();
   const { state } = g;
   const [all, setAll] = useState(false);
+  const taken = useTakenWords();
   if (state.status !== "ready") return null;
 
-  // The Today stage already asks for an unstaked star to be staked; don't ask twice.
+  // Don't ask twice: the Today stage already asks for an unstaked star to be staked, and for a
+  // brand-new player the stage and the letters card both point at getting letters ("start").
   const staged = pickStage(state.words, (w) => hunger(w));
   const stagedStake = staged?.mood === "unstaked" ? staged.word.word : null;
   const steps = nextSteps({
@@ -27,9 +30,11 @@ export function NextSteps() {
     claimables: g.claimables,
     lower: mineLower(state),
     upper: mineUpper(state),
+    bagLetters: state.lower.reduce((a, b) => a + b, 0) + state.upper.reduce((a, b) => a + b, 0),
     pity: state.pity,
     rollProb: g.rollProb,
-  }).filter((s) => !(s.kind === "stake" && s.word === stagedStake));
+    taken,
+  }).filter((s) => !(s.kind === "stake" && s.word === stagedStake) && s.kind !== "start");
   if (steps.length === 0) return null;
   const visible = all ? steps : steps.slice(0, SHOWN);
   const hidden = steps.length - visible.length;

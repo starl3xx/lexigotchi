@@ -47,6 +47,7 @@ import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
 import {
   readFeeBuckets,
   readOwnedWords,
+  readWordsHeld,
   readLetterCounts,
   readOpenRolls,
   readWalletBalances,
@@ -63,7 +64,7 @@ import {
 } from "@/lib/onchain/reads";
 import { dailyKeysFor } from "@/lib/onchain/verifications";
 import { usePublicProfile } from "./useProfile";
-import { unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
+import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
 import { erc1155ApprovalAbi } from "@/lib/onchain/abis";
@@ -138,7 +139,8 @@ interface RollReveal extends OutcomeReveal {
  * `settles`: the caller re-reads until the change shows and says so itself (`sendAndSettle`), so
  * the send skips its generic "sent" toast and its background re-reads of the words.
  */
-type RunOpts = { settles?: boolean };
+/** `sponsored`: ask the paymaster to pay the gas (only calls the CDP policy allows: see sendCalls). */
+type RunOpts = { settles?: boolean; sponsored?: boolean };
 type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
 
 /** Chain words → the shape screens already destructure. */
@@ -218,9 +220,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     queryKey: ["ownedWords", NETWORK.id, bagKey],
     queryFn: async () => {
       const perWallet = await Promise.all(
-        bagWallets.map(async (wallet) => ({ wallet, words: await readOwnedWords(wallet) })),
+        bagWallets.map(async (wallet) => ({ wallet, ...(await readWordsHeld(wallet)) })),
       );
-      return unionWords(perWallet, address);
+      return { words: unionWords(perWallet, address), everHeld: unionEverHeld(perWallet) };
     },
     enabled: !!address && chain.deployed,
     staleTime: 10_000,
@@ -424,7 +426,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
-      words: (wordsQ.data ?? []).map(toOwnedWord),
+      words: (wordsQ.data?.words ?? []).map(toOwnedWord),
+      wordsEverHeld: wordsQ.data?.everHeld ?? 0,
+      // "No words yet, and a read in flight" is loading: the first read, and a retry after a failed one
+      // (TanStack's isLoading stays false when refetching from an error; Bugbot on #164).
+      wordsLoading: wordsQ.isLoading || (!wordsQ.data && wordsQ.isFetching),
+      wordsError: wordsQ.isError && !wordsQ.data && !wordsQ.isFetching,
       // Off-chain / not-yet-wired surfaces. These are invented by the mock and have no chain
       // equivalent yet; they are zeroed rather than faked so nothing reads as real.
       streak: 0,
@@ -442,7 +449,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -450,7 +457,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     async (label: string, build: () => Call[], phase: SetPhase, opts?: RunOpts) => {
       try {
         phase("wallet");
-        await chain.send(build());
+        await chain.send(build(), { sponsored: opts?.sponsored });
         phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
@@ -505,7 +512,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (!(await run(label, build, { settles: true }))) return false;
       let last: BagWord[] = [];
       const seen = await readUntil(
-        async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data ?? []),
+        async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data?.words ?? []),
         landed,
       );
       toast(seen ? says.done(last) : says.pending, seen ? "good" : "info");
@@ -1064,6 +1071,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ), false);
       },
 
+      reloadWords: () => void wordsQ.refetch(),
+
       moveToWallet: (to: string, opts?: { includeWord?: boolean }) =>
         track<MoveOutcome>(`Moving to ${to.slice(0, 6)}…${to.slice(-4)}`, async (run) => {
           if (!address) return "no_wallet";
@@ -1099,7 +1108,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             toast("A roll is still open on this wallet. Move after it finishes.", "info");
             return "open_roll";
           }
-          const ok = await run(`Move to ${dest.slice(0, 6)}…${dest.slice(-4)}`, () => moveCalls(from, dest, plan));
+          // Moves are free where the wallet and the paymaster can sponsor them (smart wallets).
+          const ok = await run(`Move to ${dest.slice(0, 6)}…${dest.slice(-4)}`, () => moveCalls(from, dest, plan), { sponsored: true });
           // Refresh after ANY attempt that reached the wallet, not just a full success: without a
           // wallet that batches, the calls go one by one, so the letters can land while a word
           // transfer is declined, and the rows would keep showing the old counts. Both wallets'

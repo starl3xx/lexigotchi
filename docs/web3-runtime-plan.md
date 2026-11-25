@@ -59,6 +59,10 @@ Still to do on Sepolia:
    It is the only place gas sponsorship can be tested. A wallet can't reach a `localhost`
    paymaster URL, and Coinbase Wallet then fails the whole send ("Something went wrong") instead of
    paying its own gas. Until it's proven, keep `NEXT_PUBLIC_PAYMASTER_ENABLED` off in production.
+   Sponsorship is asked PER CALL (`sendCallsAttributed(…, { sponsored: true })`, default off), so
+   turning the flag on sponsors only calls that ask: today, Move here (Letters `safeBatchTransferFrom`,
+   Words `safeTransferFrom`, $WORD `transfer`). The CDP policy must allow those before the flag goes
+   on; add an action to the policy before it asks.
 2. Claim a reward. The bounty week that settles on 2026-11-26 gives one; a yield epoch needs a fully
    UPPERCASE staked word.
 3. Time a keeper run once many words exist. The word scan grows with every claim.
@@ -83,7 +87,7 @@ every future jackpot, and losing it ends the jackpot (`setHead` reverts once the
 Apply migrations `0003` (browser push), `0004` (reward claims), `0005` (sticky draws), `0006`
 (profiles: the X link, name and picture choice, email codes), `0007` (send-once markers for
 email reminders), `0008` (linked wallets), `0009` (how a linked wallet joined), `0010` (the game
-wallet), and `0011` (wallet sightings, for the console's Players tab) with `npm run db:migrate`. All of them only add tables or columns. Until 0004 exists, the keeper refuses to open a
+wallet), `0011` (saved word scenes), and `0012` (wallet sightings, for the console's Players tab) with `npm run db:migrate`. All of them only add tables or columns. Until 0004 exists, the keeper refuses to open a
 yield epoch, so the bucket rolls over and nothing is lost. The console's System tab lists which
 migrations production has applied.
 

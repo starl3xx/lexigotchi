@@ -51,6 +51,12 @@ export interface TileCharacterProps {
   title?: string;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Fill the parent's width instead of `size` px (the height follows the drawing's shape). For a
+   * layout in percentages that must draw before anything is measured: a word standing in its scene
+   * (scenes/SceneFrame), which a share page renders on the server. `size` still picks the detail.
+   */
+  fluid?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -547,6 +553,7 @@ export function TileCharacter({
   title,
   className = "",
   style,
+  fluid = false,
 }: TileCharacterProps) {
   const reduced = usePrefersReducedMotion();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
@@ -611,10 +618,10 @@ export function TileCharacter({
   const svg = (
     <svg
       viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
-      width={size}
-      height={renderH}
+      width={fluid ? "100%" : size}
+      height={fluid ? undefined : renderH}
       className="overflow-visible"
-      style={{ display: "block" }}
+      style={fluid ? { display: "block", height: "auto" } : { display: "block" }}
     >
       {boil && showLimbs && (
         <defs>
@@ -763,7 +770,7 @@ export function TileCharacter({
       className={`relative inline-flex items-center justify-center transition-transform ${
         selected ? "-translate-y-1" : ""
       } ${dim ? "opacity-35" : ""} ${onClick ? "tile-press" : ""} ${className}`}
-      style={{ width: size, ...style }}
+      style={{ width: fluid ? "100%" : size, ...style }}
     >
       {svg}
       {count !== undefined && count > 1 && (

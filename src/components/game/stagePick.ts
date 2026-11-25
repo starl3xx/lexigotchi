@@ -26,8 +26,8 @@ export interface StagePick {
 const TIER_RANK: Record<Tier, number> = { Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 };
 const raised = (w: OwnedWord) => w.upper.filter(Boolean).length;
 
-/** Best first: more letters raised, then rarer, then more gilded, then alphabetical (stable). */
-function byBest(a: OwnedWord, b: OwnedWord): number {
+/** Best first: more letters raised, then rarer, then more gilded, then alphabetical (stable). The Showcase opens on the best word too. */
+export function byBest(a: OwnedWord, b: OwnedWord): number {
   return raised(b) - raised(a) || TIER_RANK[b.tier] - TIER_RANK[a.tier] || b.prestigeLevel - a.prestigeLevel || a.word.localeCompare(b.word);
 }
 
@@ -49,6 +49,59 @@ export function pickStage(words: OwnedWord[], hungerOf: (w: OwnedWord) => Hunger
   }
   const best = [...mine].sort(byBest)[0];
   return best ? { word: best, mood: "unstaked", others: [], needFood: 0 } : null;
+}
+
+/** One word in the stage's lineup, in the mood it shows there. */
+export interface LineupItem {
+  word: OwnedWord;
+  mood: StageMood;
+}
+
+/**
+ * Every word the player can put on the Today stage, in the order the ← and → arrows walk them:
+ * the staked words neediest first (pickStage's order, so the first is the star pickStage chooses),
+ * then the unstaked ones best first (they wait to be staked). Only the connected wallet's words,
+ * like pickStage. `needFood` counts the staked words that want feeding ("Feed all N").
+ */
+export function stageLineup(words: OwnedWord[], hungerOf: (w: OwnedWord) => Hunger): { items: LineupItem[]; needFood: number } {
+  const pick = pickStage(words, hungerOf);
+  if (!pick) return { items: [], needFood: 0 };
+  const staked: LineupItem[] = pick.mood === "unstaked" ? [] : [{ word: pick.word, mood: pick.mood }, ...pick.others];
+  const waiting = words
+    .filter((w) => w.mine && !w.staked)
+    .sort(byBest)
+    .map((w): LineupItem => ({ word: w, mood: "unstaked" }));
+  return { items: [...staked, ...waiting], needFood: pick.needFood };
+}
+
+/**
+ * The words that follow the featured one in the lineup, wrapping around, at most `max` of them:
+ * the cards under the stage, so they show what → brings next.
+ */
+export function upNext<T>(items: readonly T[], index: number, max: number): T[] {
+  const n = items.length;
+  return Array.from({ length: Math.min(max, Math.max(0, n - 1)) }, (_, k) => items[(index + 1 + k) % n]);
+}
+
+/**
+ * What the Today stage says when no word of the connected wallet can stand on it, by player:
+ * - "loading": the words are still on their way (a returning player must not see the newcomer's
+ *   invitation for a second).
+ * - "error": the words couldn't be read; it is a connection problem, not an empty bag.
+ * - "elsewhere": the player has words, all in a linked wallet (only the connected wallet's words
+ *   take the stage: they can't be fed or staked from here).
+ * - "spell": no words yet, and their letters spell one nobody owns.
+ * - "more": no words yet, some letters, not enough to spell one.
+ * - "start": brand new, no letters and no words.
+ */
+export type EmptyStageCase = "loading" | "error" | "elsewhere" | "spell" | "more" | "start";
+
+export function emptyStageCase(i: { loading: boolean; error?: boolean; words: number; mineWords: number; letters: number; canSpell: boolean }): EmptyStageCase {
+  if (i.loading) return "loading";
+  if (i.error) return "error";
+  if (i.words > 0 && i.mineWords === 0) return "elsewhere";
+  if (i.canSpell) return "spell";
+  return i.letters > 0 ? "more" : "start";
 }
 
 /** The star's one line, in its own voice. What it needs, and what that costs it today. */

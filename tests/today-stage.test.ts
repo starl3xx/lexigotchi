@@ -3,7 +3,7 @@
  * the stage, and says so in one line.
  */
 import { describe, it, expect } from "vitest";
-import { pickStage, stageLine } from "@/components/game/stagePick";
+import { emptyStageCase, pickStage, stageLine, stageLineup, upNext } from "@/components/game/stagePick";
 import type { Hunger, OwnedWord } from "@/components/game/state";
 
 const word = (w: string, o: Partial<OwnedWord> = {}): OwnedWord => ({
@@ -45,6 +45,69 @@ describe("pickStage", () => {
   it("never stages a linked wallet's word, and is empty with no words", () => {
     expect(pickStage([word("PIXEL", { mine: false, daysUnfed: 5 })], hungerOf)).toBeNull();
     expect(pickStage([], hungerOf)).toBeNull();
+  });
+});
+
+describe("stageLineup (the ← and → arrows)", () => {
+  it("starts with the star, walks the staked words neediest first, then the unstaked best first", () => {
+    const { items, needFood } = stageLineup(
+      [word("TEASE"), word("MOTEL", { staked: false }), word("CRANE", { daysUnfed: 1 }), word("VIVID", { daysUnfed: 3 }), word("ZESTY", { staked: false, upper: ALL_UP })],
+      hungerOf,
+    );
+    expect(items.map((i) => [i.word.word, i.mood])).toEqual([
+      ["VIVID", "hungry"],
+      ["CRANE", "peckish"],
+      ["TEASE", "full"],
+      ["ZESTY", "unstaked"],
+      ["MOTEL", "unstaked"],
+    ]);
+    expect(items[0].word.word).toBe(pickStage(items.map((i) => i.word), hungerOf)!.word.word);
+    expect(needFood).toBe(2);
+  });
+
+  it("with nothing staked, lists the waiting words once each", () => {
+    const { items } = stageLineup([word("MOTEL", { staked: false }), word("VIVID", { staked: false, upper: ALL_UP })], hungerOf);
+    expect(items.map((i) => i.word.word)).toEqual(["VIVID", "MOTEL"]);
+  });
+
+  it("leaves out a linked wallet's words, and is empty with none", () => {
+    expect(stageLineup([word("PIXEL", { mine: false }), word("TEASE")], hungerOf).items.map((i) => i.word.word)).toEqual(["TEASE"]);
+    expect(stageLineup([], hungerOf)).toEqual({ items: [], needFood: 0 });
+  });
+});
+
+describe("emptyStageCase (the stage with no word of the player's to show)", () => {
+  const base = { loading: false, words: 0, mineWords: 0, letters: 0, canSpell: false };
+
+  it("tells each kind of player the one step toward their first word", () => {
+    expect(emptyStageCase(base)).toBe("start"); // brand new: no letters, no words
+    expect(emptyStageCase({ ...base, letters: 3 })).toBe("more"); // letters, not enough to spell
+    expect(emptyStageCase({ ...base, letters: 7, canSpell: true })).toBe("spell"); // letters that spell a word
+  });
+
+  it("never shows a returning player the newcomer's invitation while their words load", () => {
+    expect(emptyStageCase({ ...base, loading: true })).toBe("loading");
+    expect(emptyStageCase({ ...base, loading: true, letters: 7, canSpell: true })).toBe("loading");
+  });
+
+  it("says a failed read is a connection problem, not an empty bag", () => {
+    expect(emptyStageCase({ ...base, error: true, letters: 7, canSpell: true })).toBe("error");
+    expect(emptyStageCase({ ...base, loading: true, error: true })).toBe("loading");
+  });
+
+  it("knows the words are in a linked wallet, not missing", () => {
+    expect(emptyStageCase({ ...base, words: 3, mineWords: 0, letters: 9, canSpell: true })).toBe("elsewhere");
+  });
+});
+
+describe("upNext (the cards under the stage)", () => {
+  it("shows up to three words after the featured one, wrapping around, never the featured one", () => {
+    const five = ["A", "B", "C", "D", "E"];
+    expect(upNext(five, 0, 3)).toEqual(["B", "C", "D"]);
+    expect(upNext(five, 3, 3)).toEqual(["E", "A", "B"]);
+    expect(upNext(["A", "B"], 1, 3)).toEqual(["A"]);
+    expect(upNext(["A"], 0, 3)).toEqual([]);
+    expect(upNext([], 0, 3)).toEqual([]);
   });
 });
 

@@ -204,6 +204,35 @@ showed; only the *decisions* changed.
     from the wallet and spoil the same way; the same relay can cover them later. Also ruled: the
     unlimited $WORD approval and the one-time letter and word "approve all" stay ("I think
     unlimited spending permission is fine"; "Keep as is").
+15. **Showcase shows only your own words; words live in scenes** (starl3xx, 2026-11-24). Reverses
+    the free-text Showcase of #13: "Changed my mind: Showcase should only be for words you own
+    (people could tweet all sorts of crazy shit otherwise!)". The Showcase now offers the player's
+    own words (the whole bag), and `/s/<text>` and its card draw dictionary words only
+    (`parseShowcase`, plus `HOUSE_CARDS` for the game's own HEYOO welcome card). Any other link is a
+    404, including the free-text shares made before this. The dictionary is the guard, not
+    ownership: the page doesn't check who owns the word, because a word changes hands and its case
+    changes as its letters are rolled up, and a posted link must keep drawing after both. So a
+    hand-typed link can still draw a dictionary word the sender doesn't own. That is the limit, and
+    it is harmless. And each word gets a **scene**, its home on the Today stage, in the Showcase,
+    and on the share card: "the background is a user’s words’ home habitat, it should be very
+    thoughtfully designed and pretty/delightful". The Stage for everyone, redrawn with perspective
+    and motion. Trophy Case, Picture Day, Spring, Summer, Fall, and Winter unlock at 3 words and
+    stay unlocked ("an Unlock for reaching, say, 3 words spelled"; "unlock should stay open after 3
+    words, even if one is dissolved"): the count is every word the bag's wallets have EVER held,
+    read from the same transfer scan as the bag (`readWordsHeld`, `unionEverHeld`), so it holds on
+    every device with nothing stored. The scene shows the word's mood: grey and foggy when peckish,
+    near-grey under thick rolling fog when hungry, clear when fed ("a cool animated, opaque fog";
+    no film grain: "not a fan of the grain"). The share link carries the scene (`?scene=`).
+    **Where a pick lives** ("make sure you're thinking through how scenes are stored/preserved/tied
+    to a user and their profile"): in the browser always, at once (offline, before sign-in, practice
+    mode), and in table `word_scenes` (migration 0011, `/api/scenes`) when profiles are on and the
+    player already has a profile session, so it follows them to every device and host. A row is
+    keyed by the wallet HOLDING the word, not the profile account: the bag knows every word's holder,
+    and linking or unlinking wallets moves nothing. A session may save for every wallet in its
+    profile account, so one sign-in covers a unified profile (the single-profile work in progress)
+    with no change here. A scene pick never asks to sign in: unsynced picks upload the next time a
+    session exists, and the newer pick wins when the browser and the server disagree. No onchain
+    ownership check on save: a row only changes what its own wallet's words show.
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

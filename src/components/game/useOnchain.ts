@@ -38,7 +38,7 @@ export interface OnchainState {
   error?: string;
   connect: () => void;
   /** Send a batch through the attributed chokepoint, then refresh reads. */
-  send: (calls: Call[]) => Promise<SendResult>;
+  send: (calls: Call[], opts?: { sponsored?: boolean }) => Promise<SendResult>;
   refresh: () => Promise<void>;
 }
 
@@ -70,11 +70,11 @@ export function useOnchain(): OnchainState {
   }, [qc, address]);
 
   const send = useCallback(
-    async (calls: Call[]) => {
+    async (calls: Call[], opts?: { sponsored?: boolean }) => {
       if (!address) throw new Error("Connect a wallet first.");
       if (!connector?.getProvider) throw new Error("This connector exposes no EIP-1193 provider.");
       const provider = (await connector.getProvider()) as Eip1193Provider;
-      const result = await sendCallsAttributed(provider, address, calls);
+      const result = await sendCallsAttributed(provider, address, calls, { sponsored: opts?.sponsored === true });
       // The batch is not atomic, so an approval can land while the action fails. Never trust the
       // intended end state — re-read it.
       //

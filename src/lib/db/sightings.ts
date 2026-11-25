@@ -1,9 +1,9 @@
 /**
- * Wallet sightings (schema.ts `wallet_sightings`, migration 0011). Server-only.
+ * Wallet sightings (schema.ts `wallet_sightings`, migration 0012). Server-only.
  *
  * Callers treat a missing table (`isMissingTable`) as "not set up yet": the beacon route answers
  * not_configured and the Players tab says the migration is owed, so nothing breaks before the owner
- * applies 0011.
+ * applies 0012.
  */
 import { sql } from "drizzle-orm";
 import { getDb } from "./client";

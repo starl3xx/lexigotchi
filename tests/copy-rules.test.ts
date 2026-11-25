@@ -11,7 +11,7 @@ import ts from "typescript";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOTS = ["src/components/game", "src/components/landing", "src/lib/howItWorks.ts", "src/lib/notify/templates.ts"];
+const ROOTS = ["src/components/game", "src/components/landing", "src/components/scenes", "src/lib/scenes.ts", "src/lib/howItWorks.ts", "src/lib/notify/templates.ts"];
 const CODE_ATTR = /^(className|href|src|key|id|type|d|viewBox|fill|stroke|style|rel|target|role|method|name|htmlFor|transform|points|xmlns|preserveAspectRatio|mode|as|lang|dir|inputMode|autoComplete)$/;
 
 function files(p: string): string[] {

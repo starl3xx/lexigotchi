@@ -105,7 +105,7 @@ export function PlayersTab() {
                 icon={<Plugs weight="bold" size={14} />}
                 label="Seen connecting"
                 value={data.sources.sightings === "ok" ? fmtNum(data.funnel.seen) : "–"}
-                sub={data.sources.sightings === "ok" ? "unverified: the game reports it" : "needs migration 0011"}
+                sub={data.sources.sightings === "ok" ? "unverified: the game reports it" : "needs migration 0012"}
               />
               <MetricCard
                 icon={<Users weight="bold" size={14} />}
@@ -139,7 +139,7 @@ function SourceBanners({ data }: { data: PlayersPayload }) {
     <div className="space-y-2">
       {s.sightings === "not_migrated" && (
         <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
-          Wallets that connect and then do nothing aren&apos;t counted yet. Apply migration 0011 (<code>npm run db:migrate</code>) and the
+          Wallets that connect and then do nothing aren&apos;t counted yet. Apply migration 0012 (<code>npm run db:migrate</code>) and the
           game starts reporting them.
         </Banner>
       )}

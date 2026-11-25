@@ -450,6 +450,38 @@ export function useProfile() {
 }
 
 /**
+ * Just the profile session, for features that save under it without ever asking to sign in (the
+ * scenes sync, scenes/useWordScene): whether profiles are on, the connected wallet, its stored token
+ * (null when signed out), and a way to forget a token the server refused. Shares useProfile's cache
+ * entries, so a sign-in in the Profile sheet shows here at once.
+ */
+export function useProfileSession(): { enabled: boolean; address: string | null; token: string | null; forget: () => void } {
+  const { address } = useAccount();
+  const addr = address?.toLowerCase() ?? null;
+  const qc = useQueryClient();
+  const config = useQuery({
+    queryKey: ["profileConfig"],
+    queryFn: async (): Promise<ProfileConfig | null> => {
+      const r = await fetch("/api/profile/config");
+      return r.ok ? ((await r.json()) as ProfileConfig) : null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const tokenQ = useQuery({
+    queryKey: ["profileToken", addr],
+    queryFn: () => (addr ? readToken(addr) : null),
+    enabled: !!addr,
+    staleTime: Infinity,
+  });
+  const forget = useCallback(() => {
+    if (!addr) return;
+    writeToken(addr, null);
+    qc.setQueryData(["profileToken", addr], null);
+  }, [addr, qc]);
+  return { enabled: Boolean(config.data?.profiles), address: addr, token: tokenQ.data ?? null, forget };
+}
+
+/**
  * The wallet's public profile and whether its linked X unlocks the daily, with no session needed.
  * Shares useProfile's cache entries, so it costs nothing extra where both are used.
  */

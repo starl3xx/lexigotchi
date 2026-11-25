@@ -66,6 +66,15 @@ export function unionWords(
   return [...byId.values()];
 }
 
+/**
+ * How many distinct words the bag's wallets have ever held, between them (readWordsHeld's
+ * `everHeld`, by token id). A word moved between linked wallets, or dissolved and claimed again,
+ * counts once. The scenes unlock reads it, so the unlock stays open after a word is dissolved.
+ */
+export function unionEverHeld(perWallet: readonly { everHeld: readonly string[] }[]): number {
+  return new Set(perWallet.flatMap((p) => p.everHeld)).size;
+}
+
 /** Element-wise sum of letter-count arrays (52 slots: 26 lowercase + 26 uppercase). */
 export function sumLetterCounts(counts: readonly (readonly number[])[]): number[] {
   const out = Array.from({ length: 52 }, () => 0);

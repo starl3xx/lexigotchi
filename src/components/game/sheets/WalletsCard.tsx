@@ -302,9 +302,11 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                         : "Linked"}
                   {h && <> · {holdingsText(h)}</>}
                 </div>
-                {!isHere && movable(h) > 0 && (
+                {/* Only a wallet whose things are in the wrong place gets the hint: never the game wallet. */}
+                {!isHere && movable(h) > 0 && w !== gameWallet && (
                   <div className="mt-0.5 text-[11px] text-ink/50">
-                    {inHost ? "Open Lexigotchi on the web with this wallet to move them." : "Switch to this wallet to move them."}
+                    {inHost ? "Open Lexigotchi on the web with this wallet" : "Switch to this wallet"} to move them
+                    {gameWallet ? " to your game wallet" : ""}.
                   </div>
                 )}
               </div>
@@ -380,8 +382,10 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             </label>
           )}
           <p className="mt-1.5 text-xs text-ink/60">
-            This wallet sends the move, so it needs a little ETH on {NETWORK.name} for the network fee. Open swap offers from
-            this wallet stop working. The game can’t undo a move.
+            {process.env.NEXT_PUBLIC_PAYMASTER_ENABLED === "1"
+              ? `With Coinbase Wallet the move is free: the game pays the network fee. Other wallets need a little ETH on ${NETWORK.name}.`
+              : `This wallet sends the move, so it needs a little ETH on ${NETWORK.name} for the network fee.`}{" "}
+            Open swap offers from this wallet stop working. The game can’t undo a move.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button
