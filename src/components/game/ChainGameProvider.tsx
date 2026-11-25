@@ -306,8 +306,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // this wrong shows "Pull" to a player the contract or the server will refuse, and the refusal
   // reads as a bug (it did, on the first live test).
   const pubProfile = usePublicProfile();
+  // The FID is left out of this browser's own read: it counts only for a profile it belongs to, which
+  // the server decides (lib/onchain/freeIdentity.ts). daily-status walks the FIDs that verified this
+  // profile's wallets and the keys recorded on it, so an owned FID's pull still shows; a Farcaster
+  // account that doesn't own this wallet no longer reads as "pulled today" (Bugbot on #199).
   const { primary: dailyKey, all: dailyKeys } = dailyKeysFor({
-    fid: viewer.fid,
+    fid: null,
     xUserId: pubProfile.profile?.x?.id ?? null,
     xCounts: pubProfile.xCounts,
     wallet: address ?? null,
@@ -364,9 +368,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // account that verified this wallet, or one of its other wallets) also counts, as it does when
   // the daily route refuses. Without it the web shows Pull after a mini-app pull (Bugbot on #138).
   const relatedDayQ = useQuery({
-    queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase(), viewer.fid ?? null],
+    queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase()],
     queryFn: async () => {
-      const r = await fetch(`/api/mint/daily-status?wallet=${address}${viewer.fid ? `&fid=${viewer.fid}` : ""}`);
+      const r = await fetch(`/api/mint/daily-status?wallet=${address}`);
       const d = (await r.json()) as Partial<DailyStatus> & { ok: boolean };
       if (!d.ok) return null;
       const view: FreeLetterView = {
