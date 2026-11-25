@@ -46,6 +46,7 @@ import {
   seedState,
   fmtWord,
   type MoveOutcome,
+  type WordListing,
 } from "./state";
 import { rollSuccessProbability } from "@/lib/params";
 import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
@@ -73,7 +74,8 @@ import { usePublicProfile } from "./useProfile";
 import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
-import { erc1155ApprovalAbi, erc20Abi } from "@/lib/onchain/abis";
+import { erc1155ApprovalAbi, erc20Abi, wordsAbi } from "@/lib/onchain/abis";
+import { buildWordSaleOrder, buyWordCalls, prepareListingCalls, MIN_WORD_PRICE, orderPriceWei, type SeaportOrder } from "@/lib/onchain/wordSale";
 import { getPublicClient, toWordWei } from "@/lib/onchain/reads";
 import { addressOf, wordTokenAddress } from "@/lib/onchain/addresses";
 import { THEMES, themeForPeriod } from "@/lib/themes";
@@ -444,6 +446,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     staleTime: 15_000,
     // Other players' offers arrive while the board is on screen, without a reload; elsewhere it
     // doesn't poll (the route checks every order against Seaport).
+    refetchInterval: ui.view === "swap" ? 15_000 : false,
+  });
+
+  // Words for sale (decisions.md #18). The route reads each word's state live and drops what can't
+  // fill, so every row here could be bought as of the last read.
+  const wordBoardQ = useQuery({
+    queryKey: ["wordBoard", NETWORK.id],
+    queryFn: async () => {
+      const res = await fetch("/api/swap/words");
+      const data = await res.json();
+      if (!data?.ok) return [] as (WordListing & { order: SeaportOrder; signature: `0x${string}` })[];
+      const faces = (data.profiles ?? {}) as Record<string, PublicFace>;
+      return (data.listings as (Omit<WordListing, "price" | "face"> & { order: SeaportOrder; signature: `0x${string}` })[]).map((l) => ({
+        ...l,
+        price: Number(BigInt(l.priceWei) / 10n ** 18n),
+        face: faces[l.maker],
+      }));
+    },
+    enabled: chain.deployed,
+    staleTime: 15_000,
     refetchInterval: ui.view === "swap" ? 15_000 : false,
   });
 
@@ -1524,6 +1546,118 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
 
+      wordBoard: (wordBoardQ.data ?? []).map(({ order: _o, signature: _s, ...l }) => l),
+
+      /**
+       * Sell a word (decisions.md #18). At most one send, then a free signature: the send cancels
+       * this wallet's earlier orders for the word (a new price must never leave an old one
+       * fillable) and approves this word alone to Seaport. Either part is skipped when not needed.
+       */
+      listWord: async (word: string, price: number) => {
+        const w = state.words.find((x) => x.word === word);
+        if (!address || !w || !w.mine) return false;
+        if (w.staked) {
+          toast(`Unstake ${word} first: a staked word can’t be sold`, "info");
+          return false;
+        }
+        if (!Number.isFinite(price) || price < MIN_WORD_PRICE) {
+          toast(`The lowest price is ${fmtWord(MIN_WORD_PRICE)} $WORD`, "bad");
+          return false;
+        }
+        const listed = await track(`Listing ${word}`, async (run, phase) => {
+          const tokenId = tokenIdOf(word);
+          const client = getPublicClient();
+          try {
+            const [staleRes, approvedTo] = await Promise.all([
+              fetch(`/api/swap/words?stale=${address.toLowerCase()}:${tokenId}`).then((r) => r.json()),
+              client.readContract({ address: addressOf("words"), abi: wordsAbi, functionName: "getApproved", args: [tokenId] }),
+            ]);
+            const stale = ((staleRes?.ok ? staleRes.stale : []) as { order: SeaportOrder }[]).map((s) => s.order);
+            const approved = String(approvedTo).toLowerCase() === SEAPORT.toLowerCase();
+            const prep = prepareListingCalls(tokenId, stale, approved);
+            if (prep.length > 0 && !(await run(stale.length > 0 ? "Replace your listing" : "Approve this word", () => prep))) return false;
+            const counter = (await client.readContract({
+              address: SEAPORT, abi: seaportAbi, functionName: "getCounter", args: [address],
+            })) as bigint;
+            const saltBytes = new Uint8Array(16);
+            crypto.getRandomValues(saltBytes);
+            const salt = BigInt("0x" + [...saltBytes].map((b) => b.toString(16).padStart(2, "0")).join(""));
+            const order = buildWordSaleOrder({
+              maker: address, tokenId, priceWei: BigInt(Math.floor(price)) * 10n ** 18n, counter,
+              nowSeconds: Math.floor(Date.now() / 1000) - 60, salt,
+            });
+            const provider = (await connector?.getProvider()) as { request: (a: { method: string; params: unknown[] }) => Promise<unknown> } | undefined;
+            if (!provider) {
+              toast("This wallet can’t sign listings", "bad");
+              return false;
+            }
+            phase("wallet");
+            const signature = (await provider.request({
+              method: "eth_signTypedData_v4",
+              params: [address, JSON.stringify(orderTypedData(order))],
+            })) as `0x${string}`;
+            phase("working");
+            const res = await fetch("/api/swap/words", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ order, signature, word }),
+            }).then((r) => r.json());
+            if (res?.ok) {
+              toast(`${word} is for sale. It sells the moment someone buys it`, "good");
+              void wordBoardQ.refetch();
+              return true;
+            }
+            const why: Record<string, string> = {
+              cancel_first: "Your earlier listing is still being cancelled. Try again in a minute",
+              not_approved: "The approval hasn’t landed yet. Try again in a minute",
+              not_owner: `This wallet doesn’t hold ${word} right now`,
+              price_too_low: `The lowest price is ${fmtWord(MIN_WORD_PRICE)} $WORD`,
+            };
+            toast(why[res?.error] ?? `Listing failed: ${res?.error ?? "unknown"}`, "bad");
+            return false;
+          } catch (err) {
+            const msg = String((err as Error).message ?? "");
+            if (/reject|denied|4001/i.test(msg)) toast("Cancelled", "info");
+            else toast(`Listing failed: ${msg.slice(0, 70)}`, "bad");
+            return false;
+          }
+        }, false);
+        return listed === true;
+      },
+
+      buyWord: (orderHash: string) => {
+        const row = (wordBoardQ.data ?? []).find((r) => r.orderHash === orderHash);
+        if (!row || !address || !chain.player) return;
+        const price = orderPriceWei(row.order);
+        if (chain.player.balanceWei < price) return void toast(`You need ${fmtWord(row.price)} $WORD to buy ${row.word}`, "bad");
+        void track(`Buying ${row.word}`, async (run) => {
+          const allowance = (await getPublicClient().readContract({
+            address: wordTokenAddress(), abi: erc20Abi, functionName: "allowance", args: [address, SEAPORT],
+          })) as bigint;
+          return sendAndSettle(
+            run,
+            `Buy ${row.word}`,
+            () => buyWordCalls(row.order, row.signature, allowance),
+            (ws) => ws.some((x) => x.word === row.word && x.mine),
+            {
+              done: () => `${row.word} is yours.`,
+              pending: `Sent. ${row.word} will show in your bag once the chain confirms it.`,
+            },
+          ).then((ok) => {
+            void wordBoardQ.refetch();
+            return ok;
+          });
+        }, false);
+      },
+
+      cancelWordListing: (orderHash: string) => {
+        void track("Taking your word off sale", async (run) => {
+          const row = (wordBoardQ.data ?? []).find((r) => r.orderHash === orderHash);
+          if (!row) return;
+          if (await run("Cancel listing", () => cancelOrderCalls(row.order))) void wordBoardQ.refetch();
+        }, undefined);
+      },
+
       // Stranded-commit recovery. The first live daily mined its commit and then lost its reveal
       // (page state died between the two wallet prompts) — the letter sat unopened with no way to
       // claim it. The reveal is deterministic and free, so finishing is always safe.
@@ -1538,7 +1672,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle, snackVoucher],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, wordBoardQ, sendAndSettle, snackVoucher],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

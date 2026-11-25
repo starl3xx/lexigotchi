@@ -55,7 +55,7 @@ Each claimed word is an [ERC-721](https://eips.ethereum.org/EIPS/eip-721) token 
 
 - **One token per word, for good.** A word’s token ID is the keccak256 hash of the word in capitals, so CRANE always has the same ID and can only ever exist once.
 - **It holds its letters.** Your five letters move into the Words contract when you claim, and they stay there while the word exists. Raising a letter in a word swaps it for its UPPERCASE version inside the contract. The word’s case is read from those five letters, never stored on its own.
-- **You can transfer or sell it.** It’s a standard NFT: send it to another wallet, or trade it anywhere that supports NFTs on Base. Its letters, its case, and its [ascension](/ascension) go with it.
+- **You can transfer or sell it.** [Sell it on the game’s board](/showcase-and-swap#sell-a-word) for \$WORD, send it to another wallet, or trade it anywhere that supports NFTs on Base. Its letters, its case, and its [ascension](/ascension) go with it.
 - **Except while it’s staked.** [Staking](/care) moves the NFT into the game’s Staking contract until you unstake. A staked word can’t be transferred, sold, or dissolved.
 - **Royalties.** Each word carries a 2.5% royalty signal for the game’s treasury, using [ERC-2981](https://eips.ethereum.org/EIPS/eip-2981). Marketplaces may honor it, but the contract doesn’t enforce it.
 - **It changes over time.** Rolls and ascension change how a word looks. Each change emits an [ERC-4906](https://eips.ethereum.org/EIPS/eip-4906) event, which tells marketplaces to refresh their copy.

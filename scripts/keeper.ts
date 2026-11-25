@@ -2,6 +2,7 @@
  * The daily keeper — the operator's heartbeat, run once per UTC day (cron or by hand):
  *
  *   npm run keeper -- --resolve          reveal today's word + resolve the jackpot
+ *   npm run keeper -- --fees             route the word-sale fees into the Rewards Pool (decisions.md #18)
  *   npm run keeper -- --yield            open today's yield epoch (epochId = UTC day)
  *   npm run keeper -- --bounty           open this week's bounty period if unopened
  *   npm run keeper -- --payout           pay every opened share still unpaid (decisions.md #16)
@@ -34,7 +35,7 @@ const keeper = createKeeper({ dry: args.has("--dry") });
 // THUNKS, run strictly one after another. This used to push the job PROMISES, which started every
 // job at once (same key, racing for one nonce) while the loop below only awaited them in order.
 const jobs: { name: string; run: () => Promise<void> }[] = [];
-for (const job of ["resolve", "yield", "bounty", "payout", "achievements", "repeg", "notify"] as KeeperJob[]) {
+for (const job of ["resolve", "fees", "yield", "bounty", "payout", "achievements", "repeg", "notify"] as KeeperJob[]) {
   if (args.has(`--${job}`)) jobs.push({ name: job, run: () => keeper.run(job) });
 }
 // --announce "<title>" "<body>" — positional, so the copy is visible in shell history.

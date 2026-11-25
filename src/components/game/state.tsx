@@ -92,6 +92,24 @@ export interface OwnedWord {
   care?: boolean;
 }
 
+/** A word for sale on the board (GET /api/swap/words), its state read live, not from the listing. */
+export interface WordListing {
+  maker: string;
+  word: string;
+  tokenId: string;
+  /** What the buyer pays, whole $WORD (the seller gets 90%). */
+  price: number;
+  priceWei: string;
+  upper: boolean[];
+  prestigeLevel: number;
+  /** Failed ascensions in a row: it travels with the word, and raises its next chance. */
+  prestigePity: number;
+  /** Staking.lastFed (0 = fresh): the hunger clock keeps running while it's for sale. */
+  lastFedAt: number;
+  orderHash: string;
+  face?: PublicFace;
+}
+
 export type View =
   | "home"
   | "more"
@@ -704,6 +722,16 @@ export interface GameApi {
   createSwapOffer: (giveId: number, wantId: number) => void;
   fillSwapOffer: (orderHash: string) => void;
   cancelSwapOffer: (orderHash: string) => void;
+  /** Words for sale (decisions.md #18; chain only), each with its state read live. */
+  wordBoard: WordListing[];
+  /**
+   * List a word the connected wallet holds, unstaked, for `price` whole $WORD (the buyer pays it;
+   * 10% goes to the Rewards Pool). Cancels this wallet's earlier listings of it and approves it to
+   * Seaport in one send when needed, then a free signature. Resolves true once listed.
+   */
+  listWord: (word: string, price: number) => Promise<boolean>;
+  buyWord: (orderHash: string) => void;
+  cancelWordListing: (orderHash: string) => void;
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
@@ -874,6 +902,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       createSwapOffer: () => {},
       fillSwapOffer: () => {},
       cancelSwapOffer: () => {},
+      wordBoard: [],
+      listWord: async () => false,
+      buyWord: () => {},
+      cancelWordListing: () => {},
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),

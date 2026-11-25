@@ -1,11 +1,14 @@
 "use client";
-/** Swap — a direct two-sided letter escrow ("my Q for your two Z's"), shareable to Farcaster/X. */
+/**
+ * Swap — words for sale ($WORD, 10% to the Rewards Pool; decisions.md #18) and a direct two-sided
+ * letter escrow ("my Q for your two Z's"), shareable to Farcaster/X.
+ */
 import { useState } from "react";
-import { ALPHABET } from "@/lib/economy";
-import { Button, Card, SectionTitle } from "../primitives";
-import { LetterTile } from "../LetterTile";
+import { ALPHABET, wordTier } from "@/lib/economy";
+import { Button, Card, SectionTitle, TierBadge } from "../primitives";
+import { LetterTile, PrestigeStars, WordTiles } from "../LetterTile";
 import { ArrowsDownUp, ShareNetwork } from "../ui/icons";
-import { charToIdx, fmtWord, idxToChar, mineLower, mineUpper, useGame } from "../state";
+import { charToIdx, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, showsUsd, useGame, type WordListing } from "../state";
 import { useShare } from "../useShare";
 import { useAccount } from "wagmi";
 import { PlayerChip } from "../PlayerChip";
@@ -181,10 +184,12 @@ function ChainSwap() {
       <div className="lg:col-span-2">
         <h1 className="font-display text-2xl font-extrabold md:hidden">Swap</h1>
         <p className="text-sm text-ink/60">
-          One letter for one letter, settled by Seaport. Listing is a free signature; the trade
-          happens the moment someone fills it.
+          Sell words for $WORD, and trade one letter for one letter. Seaport settles both: listing is a
+          free signature, and the trade happens the moment someone takes it.
         </p>
       </div>
+
+      <WordsForSale />
 
       {/* create */}
       <Card>
@@ -271,5 +276,86 @@ function ChainSwap() {
         )}
       </Card>
     </div>
+  );
+}
+
+/**
+ * Words for sale (decisions.md #18). Each row shows the word as it is NOW (case, prestige, ascension
+ * pity, days unfed), read live by the board's route, since a listing can be days old. "Yours" is the
+ * player, not the wallet, as on the letter board: only the wallet that listed a word can take it off
+ * sale, and only the connected wallet buys.
+ */
+function WordsForSale() {
+  const g = useGame();
+  const { state } = g;
+  const { address } = useAccount();
+  const me = address?.toLowerCase();
+  const myWallets = useMyWallets();
+  const isMine = (l: WordListing) => myWallets.has(l.maker) || l.maker === me;
+  const rows = [...g.wordBoard].sort((a, b) => Number(isMine(b)) - Number(isMine(a)) || a.price - b.price);
+  const worth = (n: number) => (showsUsd(state) ? `${fmtWord(n)} $WORD (${fmtUsd(n)})` : `${fmtWord(n)} $WORD`);
+  const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+  const now = Date.now() / 1000;
+  return (
+    <Card className="lg:col-span-2">
+      <SectionTitle action={<span className="text-xs text-ink/55">{rows.length} for sale</span>}>Words for sale</SectionTitle>
+      {rows.length === 0 ? (
+        <p className="py-3 text-center text-sm text-ink/50">
+          No words for sale yet. To sell one, open it in your bag and tap Sell.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((l) => {
+            const unfed = l.lastFedAt > 0 ? Math.floor((now - l.lastFedAt) / 86_400) : 0;
+            const mine = isMine(l);
+            return (
+              <div
+                key={l.orderHash}
+                className={`flex items-center justify-between gap-3 rounded-xl border-2 border-ink px-3 py-2 ${mine ? "bg-gold/10" : "bg-paper-dark/30"}`}
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <WordTiles word={l.word} upper={l.upper} size={26} />
+                    <TierBadge tier={wordTier(l.word)} />
+                    <PrestigeStars level={l.prestigeLevel} />
+                  </div>
+                  <div className="mt-1 text-xs text-ink/60">
+                    <strong className="font-display text-ink">{worth(l.price)}</strong>
+                    {l.prestigePity > 0 && ` · ${l.prestigePity} failed ascension${l.prestigePity === 1 ? "" : "s"}, so better odds next time`}
+                    {unfed > 0 && ` · unfed ${unfed} day${unfed === 1 ? "" : "s"}`}
+                  </div>
+                  {!mine && (
+                    <span className="mt-1 block text-xs text-ink/60">
+                      <PlayerChip address={l.maker} profile={l.face} size={18} />
+                    </span>
+                  )}
+                </div>
+                {mine ? (
+                  l.maker === me ? (
+                    <button onClick={() => g.cancelWordListing(l.orderHash)} className="shrink-0 text-xs font-bold text-ink/45 underline">
+                      Take off sale
+                    </button>
+                  ) : (
+                    <span className="shrink-0 text-right text-[11px] leading-tight text-ink/50">
+                      From {short(l.maker)}.
+                      <br />
+                      Switch to it to take it off sale.
+                    </span>
+                  )
+                ) : (
+                  <Button size="sm" variant="teal" className="shrink-0" disabled={!address} onClick={() => g.buyWord(l.orderHash)}>
+                    Buy
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="mt-2 text-xs text-ink/55">
+        The buyer pays the price in $WORD: 90% to the seller, 10% to the Rewards Pool, which pays staked words. The word arrives
+        with its letters, case, and prestige.
+      </p>
+    </Card>
   );
 }

@@ -20,10 +20,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `npm test` — economy + solvency invariants (84 vitest tests)
 - `npm run build` / `npm run typecheck`
 - `npm run contracts:setup` (vendor deps) → `npm run contracts:build` / `npm run contracts:test` (65 forge tests)
-- `npm run keeper -- [--resolve] [--yield] [--bounty] [--payout] [--achievements] [--notify] [--dry]` — the
+- `npm run keeper -- [--resolve] [--fees] [--yield] [--bounty] [--payout] [--achievements] [--notify] [--dry]` — the
   daily operator pass, by hand. **Scheduled** by `/api/cron/keeper` (vercel.json, 00:05 UTC): same
   jobs (`src/lib/keeper/jobs.ts`, `createKeeper({ dry })`), the ones listed in `KEEPER_JOBS` (default
-  `resolve,yield,bounty,payout,repeg,notify`; a KEEPER_JOBS that lists jobs must name `payout` too;
+  `resolve,fees,yield,bounty,payout,repeg,notify`; `fees` flushes SaleFees into the pool just before
+  `yield`; a KEEPER_JOBS that lists jobs must name `payout` and `fees` too;
   achievements opt-in; the bounty settles each week on the first
   day of the next, `bountyPeriodToSettle`), strictly one at a time (one key, one
   nonce), and a failed job doesn't skip the rest. It needs `KEEPER_PRIVATE_KEY` and
@@ -175,6 +176,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
   feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
   `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
+  **Words for sale** (decisions.md #18; `lib/onchain/wordSale.ts`, `/api/swap/words`, table
+  `word_listings`, migration 0014): Seaport orders offering one Word for $WORD, 90% to the seller and
+  10% (`params.market.wordSaleFee`, rounded up) to `SaleFees`, which the keeper's `fees` job flushes
+  into the pool before `yield`. The route checks the SHAPE (`checkWordSaleOrder`: kind from content,
+  fee ≥ 10% to SaleFees), the SIGNATURE (`verifyTypedData`, smart wallets too), ownership, a per-token
+  approval, and the counter, and allows one live listing per word per seller (`cancel_first`). Rows
+  that can't fill right now are hidden, not pruned: a signed order would fill again if the word came
+  back approved, so listing again cancels them onchain in the same send as the approval
+  (`prepareListingCalls`, `GET ?stale=maker:tokenId`). Buying approves exactly the price. Staked
+  words can't be listed. Word state on the board is read live, never from the listing.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

@@ -99,6 +99,13 @@
       "when": 1795726356169,
       "tag": "0013_free_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795726416169,
+      "tag": "0014_word_listings",
+      "breakpoints": true
     }
   ]
 }

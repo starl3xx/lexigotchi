@@ -11,9 +11,9 @@ import { createWalletClient, publicActions } from "viem";
 import { rpcTransport } from "@/lib/onchain/transport";
 import { privateKeyToAccount } from "viem/accounts";
 import { ACTIVE_CHAIN } from "@/lib/onchain/chain";
-import { addressOf, achievementsSchema, deployBlock } from "@/lib/onchain/addresses";
+import { addressOf, achievementsSchema, deployBlock, wordTokenAddress } from "@/lib/onchain/addresses";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
-import { jackpotAbi, lettersAbi, rollsAbi, wordsAbi, stakingAbi, prestigeAbi, yieldDistributorAbi } from "@/lib/onchain/abis";
+import { erc20Abi, jackpotAbi, lettersAbi, rollsAbi, saleFeesAbi, wordsAbi, stakingAbi, prestigeAbi, yieldDistributorAbi } from "@/lib/onchain/abis";
 import { readGameParams } from "@/lib/onchain/reads";
 import { fetchWordPrice } from "@/lib/oracle/wordPrice";
 import { planRepeg, type PricePoint } from "@/lib/keeper/repeg";
@@ -729,8 +729,37 @@ export function createKeeper(opts: { dry: boolean }) {
     }
   }
 
+  /**
+   * Route the word-sale fees into the Rewards Pool (SaleFees.flush, decisions.md #18). It runs just
+   * before `yield`, so a day's fees are in the pool that day's epoch is opened from. Anyone may
+   * flush; the keeper is the one that always does. Skips when nothing waits, or where SaleFees isn't
+   * deployed yet.
+   */
+  async function flushSaleFees() {
+    let saleFees: `0x${string}`;
+    try {
+      saleFees = addressOf("saleFees");
+    } catch {
+      return void console.log("fees: SaleFees isn't deployed on this network; skipped");
+    }
+    const pending = (await getPublicClient().readContract({
+      address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [saleFees],
+    })) as bigint;
+    if (pending === 0n) return void console.log("fees: no sale fees waiting");
+    console.log(`fees: ${(pending / 10n ** 18n).toLocaleString("en-US")} $WORD of sale fees → the Rewards Pool`);
+    if (DRY) return;
+    const w = wallet();
+    const hash = await w.writeContract({
+      dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the keeper's writes are app writes too
+      address: saleFees, abi: saleFeesAbi, functionName: "flush",
+    });
+    const rcpt = await w.waitForTransactionReceipt({ hash });
+    console.log(`fees: flush ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+  }
+
   return {
     resolveJackpot,
+    flushSaleFees,
     openStream,
     payOut,
     attestAchievements,
@@ -742,6 +771,8 @@ export function createKeeper(opts: { dry: boolean }) {
       switch (job) {
         case "resolve":
           return resolveJackpot();
+        case "fees":
+          return flushSaleFees();
         case "yield":
           return openStream("yield");
         case "bounty":

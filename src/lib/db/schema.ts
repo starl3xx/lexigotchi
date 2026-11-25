@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean, primaryKey, bigint } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -406,4 +406,36 @@ export const freeClaims = pgTable(
     claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("free_claims_account_kind_period").on(t.chainId, t.account, t.kind, t.period)],
+);
+
+/**
+ * Words for sale on the in-game board (decisions.md #18, migration 0014): Seaport orders that offer
+ * one Word for $WORD, 10% to SaleFees. Like `swap_orders`, a bulletin board, never the truth: the
+ * route checks every row against Seaport and the Words contract on read. A row whose order can no
+ * longer fill (filled, cancelled, expired, or superseded by a counter bump) is pruned. A row whose
+ * word just isn't fillable right now (moved, staked, approval gone, re-claimed) is kept but hidden,
+ * because its signed order would fill again if the word came back approved: listing the word again
+ * cancels those rows onchain first.
+ */
+export const wordListings = pgTable(
+  "word_listings",
+  {
+    id: serial("id").primaryKey(),
+    /** Lowercase seller address (the order's offerer). */
+    maker: text("maker").notNull(),
+    /** The Word's token id, decimal (keccak256 of the word: wider than any SQL integer). */
+    tokenId: text("token_id").notNull(),
+    /** The word, UPPERCASE (tokenId is its hash, checked on listing). */
+    word: text("word").notNull(),
+    /** What the buyer pays, $WORD wei, decimal. */
+    priceWei: text("price_wei").notNull(),
+    /** Words.claimedAt when listed: a different value later means the word was dissolved and re-claimed. */
+    claimedAt: bigint("claimed_at", { mode: "number" }).notNull(),
+    /** The full Seaport OrderComponents, JSON, exactly as signed. */
+    orderJson: text("order_json").notNull(),
+    signature: text("signature").notNull(),
+    orderHash: text("order_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("word_listings_hash_idx").on(t.orderHash), index("word_listings_token_idx").on(t.tokenId)],
 );
