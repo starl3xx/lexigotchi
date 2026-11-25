@@ -11,14 +11,14 @@ import { useAccount } from "wagmi";
 import { Button, EmptyState, SectionTitle } from "../primitives";
 import { WordTiles } from "../LetterTile";
 import type { Gild } from "../TileCharacter";
-import { ShareNetwork, TextAa, XLogo } from "../ui/icons";
+import { DownloadSimple, ShareNetwork, TextAa, XLogo } from "../ui/icons";
 import { useGame } from "../state";
 import { byBest } from "../stagePick";
-import { usePostToX, useShare } from "../useShare";
+import { usePostToX, useSaveImage, useShare } from "../useShare";
 import { SceneFrame } from "../../scenes/SceneFrame";
 import { ScenePicker } from "../../scenes/ScenePicker";
 import { useWordScene } from "../../scenes/useWordScene";
-import { showcasePostText, showcaseUrl, showcaseWordText, showcaseXText } from "@/lib/showcase";
+import { showcaseCardPath, showcasePostText, showcaseUrl, showcaseWordText, showcaseXText } from "@/lib/showcase";
 import { ACHIEVEMENT_META } from "@/lib/keeper/achievements";
 import { usePlayerWallets } from "../usePlayerWallets";
 import { WordsPending, wordsUnknown } from "../WordsPending";
@@ -53,6 +53,11 @@ export function ShowcaseScreen() {
   const [picked, setPicked] = useState<string | null>(null);
   const w = words.find((x) => x.word === picked) ?? words[0];
   const { scene } = useWordScene(w?.word);
+  // The card X and Farcaster show, saved as a file (before the early return: it's a hook).
+  const saveImage = useSaveImage(
+    w ? showcaseCardPath(showcaseWordText(w.word, w.upper), "x", scene) : null,
+    w ? `lexigotchi-${w.word.toLowerCase()}-${scene}.png` : "lexigotchi.png",
+  );
 
   const intro = (
     <div>
@@ -113,8 +118,14 @@ export function ShowcaseScreen() {
           <Button full size="lg" variant="primary" onClick={() => postToX({ text: showcaseXText(text), url: showcaseUrl(text, scene) })}>
             <XLogo weight="bold" /> Post {w.word} on X
           </Button>
+          {/* X's composer shows no card for a link it hasn't read yet, and each new word or scene is a
+              new link: the card comes once X has read it (tested 2026-11-24, even with a fast image). */}
+          <p className="text-center text-xs text-ink/55">X adds the picture once it reads the link.</p>
           <Button full variant="ghost" onClick={() => share({ text: showcasePostText(text), embed: showcaseUrl(text, scene) })}>
             <ShareNetwork weight="fill" /> Cast on Farcaster
+          </Button>
+          <Button full variant="ghost" onClick={() => void saveImage()}>
+            <DownloadSimple weight="bold" /> Save image
           </Button>
         </div>
       </div>

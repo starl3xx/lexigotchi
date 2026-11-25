@@ -70,7 +70,15 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId): string {
-  return `${SITE_URL}/s/${text}/card${sceneQuery(scene, ratio === "fc" ? { ratio: "3x2" } : {})}`;
+  return `${SITE_URL}${showcaseCardPath(text, ratio, scene)}`;
+}
+
+/**
+ * The card's path on this site. The game reads the picture through it (Save image), because
+ * `SITE_URL` may name another origin than the page's (a preview build, localhost).
+ */
+export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId): string {
+  return `/s/${text}/card${sceneQuery(scene, ratio === "fc" ? { ratio: "3x2" } : {})}`;
 }
 
 /** The cast's words. The link goes separately as the cast's embed. */

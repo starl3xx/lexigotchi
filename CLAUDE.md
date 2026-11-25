@@ -250,7 +250,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
-  on the game's card.
+  on the game's card. **X's composer shows no card for a link X hasn't read yet** (tested 2026-11-24:
+  a never-posted link with a fast static image showed none either; a second paste later did). It is
+  not our card's speed, so the Showcase says "X adds the picture once it reads the link." **Save
+  image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
+  share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
+  download on computers, the browser (press and hold) in a host with no share sheet.
 - **Scenes** (decisions.md #15; `src/lib/scenes.ts` = the list and the unlock, `SCENE_UNLOCK_WORDS`
   = 3 words ever held, so it stays open after a dissolve: `state.wordsEverHeld`, from
   `readWordsHeld`'s transfer scan; `src/components/scenes/`): each word's home on the Today stage
