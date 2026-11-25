@@ -108,7 +108,7 @@ describe("subscription validation", () => {
 
 describe("sendWebPush guards", () => {
   const target = { endpoint: "https://fcm.googleapis.com/fcm/send/1", p256dh: KEY65, auth: KEY16 };
-  const note = hungerWarning(1, 5, 20000);
+  const note = hungerWarning({ word: "ABOUT", words: 1, hoursLeft: 5 }, 20000);
   const arm = () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("WEB_PUSH_ENABLED", "true");
@@ -207,7 +207,7 @@ describe("browser push audiences", () => {
 
   it("groups by wallet with the FID path's rules (staked, approaching, soonest wins)", () => {
     const t = hungerTargetsByAddress([word(A, 10 * 3600), word(A, 4 * 3600), word(B, 5 * 3600, false), word(B, -1)]);
-    expect(t).toEqual([{ address: A.toLowerCase(), words: 2, hoursLeft: 4 }]);
+    expect(t).toEqual([{ address: A.toLowerCase(), word: "ABOUT", words: 2, hoursLeft: 4 }]);
   });
 
   it("warns only subscribed wallets that Farcaster doesn't already reach", () => {

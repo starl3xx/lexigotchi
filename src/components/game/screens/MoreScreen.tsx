@@ -35,7 +35,7 @@ export function MoreScreen() {
       )}
       <SectionTitle>About</SectionTitle>
       <p className="text-xs text-ink/55">
-        Raise your letters. Spell your words. Own the dictionary. A $WORD collection game on Base.
+        Raise your letters. Spell your words. Own the dictionary. A word-pet game on Base.
       </p>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         <button onClick={() => void openUrl(DOCS_URL)} className="text-xs font-bold text-ink/60 underline">

@@ -2,7 +2,7 @@
   "name": "lexigotchi",
   "version": "0.1.0",
   "private": true,
-  "description": "Raise your letters. Spell your words. Own the dictionary. \u2014 a tamagotchi-style collection game for the $WORD / Let's Have A Word! ecosystem on Base.",
+  "description": "Raise your letters. Spell your words. Own the dictionary. A word-pet game on Base, in the $WORD / Let's Have A Word! universe.",
   "type": "module",
   "engines": {
     "node": "24.x"

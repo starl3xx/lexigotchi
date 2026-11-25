@@ -11,6 +11,8 @@ the on-chain architecture. Written to be fed to an LLM (or a new contributor) as
 - **Specs of record:** `docs/spec/v0.1.md` + `docs/spec/v0.2-changelog.md` (v0.2 wins any conflict),
   with decisions logged in `docs/decisions.md`. Economy values are **derived in code** from the
   vendored dictionary and asserted against the spec in tests — they never drift.
+- **How the game talks about itself:** `docs/messaging.md` (decisions.md #24) is the source of truth
+  for every player-facing word; this document describes mechanics, not copy.
 
 ---
 

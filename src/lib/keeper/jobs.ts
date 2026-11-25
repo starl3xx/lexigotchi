@@ -518,7 +518,7 @@ export function createKeeper(opts: { dry: boolean }) {
     const emailOf = new Map(recips.map((r) => [r.address, r.email]));
     const messages = targets.flatMap((t) => {
       const to = emailOf.get(t.address);
-      return (to && reminderEmail(to, t.address, hungerWarning(t.words, t.hoursLeft))) || [];
+      return (to && reminderEmail(to, t.address, hungerWarning(t))) || [];
     });
     console.log(`notify (email): ${messages.length} wallet(s) to warn`);
     if (DRY || messages.length === 0) return;
@@ -548,18 +548,19 @@ export function createKeeper(opts: { dry: boolean }) {
     console.log(`notify: ${words.length} words, ${fids.length} notifiable, ${targets.length} to warn`);
     if (targets.length === 0) return;
 
-    // Grouped by (words, hoursLeft) so players sharing a deadline share one send — the copy is
-    // identical, and it keeps a large audience inside a handful of requests.
-    const groups = new Map<string, { words: number; hoursLeft: number; fids: number[] }>();
+    // Grouped by identical copy (the named word, the count, the hours), so players who'd read the
+    // same message share one send. Naming the word (decisions.md #24) makes most groups a single
+    // player: about one request per player, where the count-only copy shared one per deadline.
+    const groups = new Map<string, { word: string; words: number; hoursLeft: number; fids: number[] }>();
     for (const t of targets) {
-      const key = `${t.words}:${t.hoursLeft}`;
-      const g = groups.get(key) ?? { words: t.words, hoursLeft: t.hoursLeft, fids: [] };
+      const key = `${t.word}:${t.words}:${t.hoursLeft}`;
+      const g = groups.get(key) ?? { word: t.word, words: t.words, hoursLeft: t.hoursLeft, fids: [] };
       g.fids.push(t.fid);
       groups.set(key, g);
     }
 
     for (const g of groups.values()) {
-      const note = hungerWarning(g.words, g.hoursLeft);
+      const note = hungerWarning(g);
       if (DRY) {
         console.log(`  [dry] ${g.fids.length} fid(s): "${note.title}" / "${note.body}"`);
         continue;
@@ -585,15 +586,15 @@ export function createKeeper(opts: { dry: boolean }) {
     console.log(`notify (browser): ${subs.length} subscription(s), ${targets.length} wallet(s) to warn`);
     if (targets.length === 0) return;
 
-    const groups = new Map<string, { words: number; hoursLeft: number; addresses: Set<string> }>();
+    const groups = new Map<string, { word: string; words: number; hoursLeft: number; addresses: Set<string> }>();
     for (const t of targets) {
-      const key = `${t.words}:${t.hoursLeft}`;
-      const g = groups.get(key) ?? { words: t.words, hoursLeft: t.hoursLeft, addresses: new Set<string>() };
+      const key = `${t.word}:${t.words}:${t.hoursLeft}`;
+      const g = groups.get(key) ?? { word: t.word, words: t.words, hoursLeft: t.hoursLeft, addresses: new Set<string>() };
       g.addresses.add(t.address);
       groups.set(key, g);
     }
     for (const g of groups.values()) {
-      const note = hungerWarning(g.words, g.hoursLeft);
+      const note = hungerWarning(g);
       const recipients = subs.filter((s) => g.addresses.has(accountOf(s.address).toLowerCase()));
       if (DRY) {
         console.log(`  [dry] ${recipients.length} browser(s): "${note.title}" / "${note.body}"`);

@@ -89,9 +89,11 @@ const miniappConfig = {
   subtitle: "Raise letters. Own words.",
   // NB: the Farcaster manifest validator rejects special chars (incl. `$` and `—`) in `description`.
   // Keep this to plain text — letters, spaces, commas, periods, hyphens only.
-  description: "A tamagotchi-style word collection game on Base. Raise letters to UPPERCASE, claim words, and chase the daily jackpot.",
+  // The messaging guide's line (docs/messaging.md): a word-pet game, never a comparison to another
+  // game (decisions.md #24), in the description or the tags.
+  description: "A word-pet game on Base. Collect letters, raise them, and spell words only you can own.",
   primaryCategory: "games",
-  tags: ["game", "word", "collection", "base", "tamagotchi"],
+  tags: ["game", "word", "collection", "base", "pets"],
 };
 
 /**

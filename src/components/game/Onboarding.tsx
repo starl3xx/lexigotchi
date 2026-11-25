@@ -5,7 +5,7 @@
  * GameApp); replayable from the FAQ. Matches the cel / rubber-hose aesthetic of the game.
  */
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { HOW_IT_WORKS } from "@/lib/howItWorks";
+import { HOW_IT_WORKS, type HowItWorksStep } from "@/lib/howItWorks";
 import { Button } from "./primitives";
 import { TileCharacter, TileWord } from "./TileCharacter";
 import { Confetti, Cookie, DiceFive, Sparkle, Trophy } from "./ui/icons";
@@ -21,30 +21,36 @@ interface Step {
   visual: ReactNode;
 }
 
-/** The copy is shared with the landing page (src/lib/howItWorks.ts); only the visuals live here. */
-const VISUALS: ReactNode[] = [
-  <div key="collect" className="flex items-end justify-center gap-1">
-    {[..."WORD"].map((c, i) => (
-      <TileCharacter key={i} char={c} detail="full" state="idle" size={76} />
-    ))}
-  </div>,
-  <TileWord key="create" word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
-  <div key="roll" className="flex items-center justify-center gap-3">
-    <TileCharacter char="R" detail="full" state="idle" size={68} />
-    <DiceFive weight="fill" size={34} className="shrink-0 text-candy-ink" />
-    <TileCharacter char="R" upper detail="full" state="upgrade" size={94} />
-  </div>,
-  <div key="win" className="relative flex items-center justify-center">
-    <Confetti weight="fill" size={150} className="absolute text-candy/30" />
-    <Trophy weight="fill" size={104} className="relative text-gold-ink" />
-    <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-card text-candy-ink shadow-[2px_2px_0_#1b1714]">
-      <Cookie weight="fill" size={22} />
-    </span>
-    <Sparkle weight="fill" size={24} className="absolute -right-1 -top-1 text-gold" />
-  </div>,
-];
+/** The copy is shared with the landing page (src/lib/howItWorks.ts); only the visuals live here, by step. */
+const VISUALS: Record<HowItWorksStep["id"], ReactNode> = {
+  collect: (
+    <div className="flex items-end justify-center gap-1">
+      {[..."WORD"].map((c, i) => (
+        <TileCharacter key={i} char={c} detail="full" state="idle" size={76} />
+      ))}
+    </div>
+  ),
+  raise: (
+    <div className="flex items-center justify-center gap-3">
+      <TileCharacter char="R" detail="full" state="idle" size={68} />
+      <DiceFive weight="fill" size={34} className="shrink-0 text-candy-ink" />
+      <TileCharacter char="R" upper detail="full" state="upgrade" size={94} />
+    </div>
+  ),
+  spell: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
+  feed: (
+    <div className="relative flex items-center justify-center">
+      <Confetti weight="fill" size={150} className="absolute text-candy/30" />
+      <Trophy weight="fill" size={104} className="relative text-gold-ink" />
+      <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-card text-candy-ink shadow-[2px_2px_0_#1b1714]">
+        <Cookie weight="fill" size={22} />
+      </span>
+      <Sparkle weight="fill" size={24} className="absolute -right-1 -top-1 text-gold" />
+    </div>
+  ),
+};
 
-const STEPS: Step[] = HOW_IT_WORKS.map((s, i) => ({ ...s, visual: VISUALS[i] }));
+const STEPS: Step[] = HOW_IT_WORKS.map((s) => ({ ...s, visual: VISUALS[s.id] }));
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);

@@ -32,6 +32,13 @@ export function BagScreen() {
   const upperOwned = sortLetters(state.upper.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
   const lowerCount = state.lower.reduce((a, b) => a + b, 0);
   const upperCount = state.upper.reduce((a, b) => a + b, 0);
+  // An empty bag points at the free pack only while the server says it's there to take
+  // (docs/messaging.md: "No letters yet. Your free pack is waiting."). "No letters yet" is for a bag
+  // that has never held anything: letters spelled into words leave the loose counts too, so a player
+  // with words (or whose words haven't loaded) reads "No loose letters" (Bugbot on #205).
+  const fl = g.freeLetters;
+  const packWaiting = !!fl && !fl.packTaken && !fl.packStop;
+  const newBag = lowerCount + upperCount === 0 && state.words.length === 0 && !wordsUnknown(state);
 
   // The union bag counts everything the player's linked wallets hold; the difference from the
   // connected wallet's own counts is what spelling/rolling can't touch from here.
@@ -76,7 +83,11 @@ export function BagScreen() {
               lowercase · {lowerCount}
             </SectionTitle>
             {lowerOwned.length === 0 ? (
-              <EmptyState Icon={Basket} title="No loose letters" sub="Mint a pack to fill your bag." />
+              <EmptyState
+                Icon={Basket}
+                title={newBag ? "No letters yet" : "No loose letters"}
+                sub={packWaiting ? "Your free pack is waiting." : "Mint a pack to fill your bag."}
+              />
             ) : (
               <div className={LETTER_GRID}>
                 {lowerOwned.map(({ i, c }) => (
@@ -159,7 +170,7 @@ export function BagScreen() {
               {wordsUnknown(state) ? (
                 <WordsPending />
               ) : (
-                <EmptyState Icon={TextAa} title="No words yet" sub="Spell a dictionary word from 5 letters to claim it forever." />
+                <EmptyState Icon={TextAa} title="No words yet" sub="Five letters make one." />
               )}
             </div>
           ) : (

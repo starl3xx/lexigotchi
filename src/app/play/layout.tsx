@@ -5,7 +5,7 @@ import { miniAppEmbed, frameEmbed, BASE_APP_ID } from "@/lib/site";
  *  renders a launchable Lexigotchi card in Farcaster clients. Renders full-bleed (no header/footer chrome). */
 export const metadata: Metadata = {
   title: "Play Lexigotchi",
-  description: "Raise your letters, claim words, and chase the daily $WORD jackpot.",
+  description: "A word-pet game on Base. Collect letters, raise them, and spell words only you can own.",
   other: {
     "fc:miniapp": JSON.stringify(miniAppEmbed),
     "fc:frame": JSON.stringify(frameEmbed),

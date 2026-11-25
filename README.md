@@ -2,10 +2,13 @@
 
 > **Raise your letters. Spell your words. Own the dictionary.**
 
-A tamagotchi-style **$WORD** collection game on **Base** — a Farcaster Mini App and web app in the
-_Let's Have A Word!_ ecosystem. Mint animated rubber-hose **letter characters**, gamble them from
-lowercase to **UPPERCASE**, spell words from a 4,584-word dictionary to claim them as NFTs, then
-**stake and feed** them to earn $WORD and chase a daily jackpot.
+**Lexigotchi is a word-pet game: collect living letters, raise them, and spell words nobody else can own.**
+
+A word-pet game on **Base**, a Farcaster Mini App and web app in the _Let's Have A Word!_ $WORD
+universe. Collect animated rubber-hose **letter characters**, roll them from lowercase to
+**UPPERCASE**, spell words from a 4,584-word dictionary that are yours alone, then **stake and
+feed** them to earn $WORD and stay in the running for the daily jackpot. How the game talks about
+itself is in [`docs/messaging.md`](docs/messaging.md).
 
 <p align="center"><em>Mint → Raise → Claim → Stake &amp; Snack → Win</em></p>
 

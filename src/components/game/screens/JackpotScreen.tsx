@@ -88,12 +88,12 @@ export function JackpotScreen() {
           )}
         </Card>
 
-        {/* your tickets */}
+        {/* your words in the running */}
         <Card>
-          <SectionTitle action={<span className="text-xs text-ink/55">{tickets.length} in play</span>}>Your tickets</SectionTitle>
-          <p className="mb-2 text-xs text-ink/60">Any staked, not-hungry word is a ticket. If it’s today’s secret word, you win.</p>
+          <SectionTitle action={<span className="text-xs text-ink/55">{tickets.length} in play</span>}>Your words in the running</SectionTitle>
+          <p className="mb-2 text-xs text-ink/60">Every word you keep staked and fed is in the running. If it’s today’s secret word, the pot is yours.</p>
           {tickets.length === 0 ? (
-            <p className="text-sm text-candy-ink">No eligible words. Stake and feed one to get in the draw.</p>
+            <p className="text-sm text-candy-ink">None of your words is in the running. Stake one and keep it fed.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {tickets.map((w) => (
