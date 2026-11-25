@@ -411,7 +411,8 @@ setter. All small, riding existing suite patterns.
       make it as efficient as possible across all devices"). Every tier's period (7–10 s), the word in
       focus gets one moment: a light crosses it letter by letter, then everything rests. Looping the
       same effects on every tile kept a 4×-slowed phone's main thread at 99% (a Common word: 37%). In
-      moments, the share page costs 16% (Legendary) and 26% (Mythic) over 12 s at 4× slowed. Only
+      moments, the share page costs 16% (Legendary) and 26% (Mythic) over 12 s at 4× slowed (headless
+      Chrome, software raster: a real GPU, a real iPhone, and a low-end Android are untested). Only
       full-size words move, only on screen, never under reduced motion or Save-Data or on a phone
       with 2 GB or less. Lists draw still tiles. The core count isn't a test: WebKit reports at most
       2 on iOS, which would have kept every iPhone still.

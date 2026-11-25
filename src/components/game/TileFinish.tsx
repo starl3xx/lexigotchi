@@ -54,11 +54,33 @@ function inner(bw: number, inset = 0) {
   return { x: T.x + k, y: T.y + k, width: T.w - 2 * k, height: T.h - 2 * k, rx: Math.max(2, T.r - k) };
 }
 
-/** A moment's length (globals.css: the light pass, the facets, the glints run 2.4 s). */
+/** One effect's run (globals.css: the light pass, the facets, the fire, the glints run 2.4 s). */
 const MOMENT_S = 2.4;
+/** A mote's rise (globals.css: rf-mote runs 3 s). */
+const MOTE_S = 3;
+/** How far behind its neighbour each letter's light starts: the light runs along the word. */
+const STAGGER = 0.22;
+/** The last letter's place in a five-letter word. */
+const LAST = 4;
+/** The latest a glint starts after its letter's turn (Mythic's second glint on an odd tile). */
+const GLINT_AT = 1.5;
+/** The latest a facet lights, as a fraction of the run (the right facet). */
+const FACET_AT = 0.62;
+/** When a mote starts: after the light, one by one, along the word. */
+const moteDelay = (i: number, index: number, seed: number) => 0.4 + i * 0.3 + index * 0.15 + (seed % 3) * 0.1;
+/**
+ * When the last effect of a moment ends, in seconds: the latest of the last letter's light, facets,
+ * glints, and motes. The word's row keeps .rf-moment this long (TileCharacter's useFinishMoment);
+ * shorter, and the last effects would snap off mid-way.
+ */
+export const MOMENT_END_S = Math.max(
+  LAST * STAGGER + FACET_AT * MOMENT_S + MOMENT_S,
+  GLINT_AT + LAST * STAGGER + MOMENT_S,
+  moteDelay(2, LAST, 2) + MOTE_S,
+);
 /** When an element starts within a moment: its letter's turn (the light runs along the word), plus
- *  `at`, a fraction of the moment. */
-const timing = (index: number, at = 0): CSSProperties => ({ animationDelay: `${(index * 0.22 + at * MOMENT_S).toFixed(2)}s` });
+ *  `at`, a fraction of the run. */
+const timing = (index: number, at = 0): CSSProperties => ({ animationDelay: `${(index * STAGGER + at * MOMENT_S).toFixed(2)}s` });
 
 /** The four-point flare of a glint at (x, y), `s` its scale. */
 export function glintFlare(x: number, y: number, s: number): string {
@@ -339,7 +361,7 @@ export function FinishShine({ tier, uid, bw, motion, small, index }: { tier?: Ti
               [fc.left, 0.12],
               [fc.top, 0.35],
               [fc.bottom, 0.4],
-              [fc.right, 0.62],
+              [fc.right, FACET_AT],
             ].map(([d, at], i) => (
               <path key={i} d={d as string} className="rf-facet" style={timing(index, at as number)} opacity={0} />
             ))}
@@ -363,15 +385,15 @@ export function FinishShine({ tier, uid, bw, motion, small, index }: { tier?: Ti
       {rich && !small && motion !== "dim" && (
         <>
           {index % 2 === 0 ? (
-            <Glint x={T.x + 26} y={T.y + 40} s={0.9} color={fin.glow} delay={0.8 + index * 0.22} anim={anim} />
+            <Glint x={T.x + 26} y={T.y + 40} s={0.9} color={fin.glow} delay={0.8 + index * STAGGER} anim={anim} />
           ) : (
-            <Glint x={T.x + T.w - 24} y={MID + 40} s={0.7} color={fin.glow} delay={1.1 + index * 0.22} anim={anim} />
+            <Glint x={T.x + T.w - 24} y={MID + 40} s={0.7} color={fin.glow} delay={1.1 + index * STAGGER} anim={anim} />
           )}
           {fin.material === "amethyst" &&
             (index % 2 === 0 ? (
-              <Glint x={T.x + 30} y={BOT - 26} s={0.6} color="#8ff2ff" delay={1.3 + index * 0.22} anim={anim} />
+              <Glint x={T.x + 30} y={BOT - 26} s={0.6} color="#8ff2ff" delay={1.3 + index * STAGGER} anim={anim} />
             ) : (
-              <Glint x={CX + 30} y={T.y + 30} s={0.55} color="#ff9be3" delay={1.5 + index * 0.22} anim={anim} />
+              <Glint x={CX + 30} y={T.y + 30} s={0.55} color="#ff9be3" delay={GLINT_AT + index * STAGGER} anim={anim} />
             ))}
         </>
       )}
@@ -385,19 +407,18 @@ export function FinishMotes({ tier, uid, motion, seed, index }: { tier?: Tier; u
   if (!fin || motion !== "on" || index % 2 === 1 || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
   const many = fin.material === "amethyst";
   const spots = [
-    { x: T.x - 6, y: MID + 30, r: 4.5, d: 0 },
-    { x: T.x + T.w + 8, y: MID + 10, r: 3.5, d: 1.7 },
-    { x: T.x + 22, y: BOT - 4, r: 3, d: 2.9 },
-    { x: T.x + T.w - 18, y: BOT - 8, r: 4, d: 0.9 },
-    { x: CX + 6, y: T.y + 30, r: 3, d: 2.3 },
-    { x: T.x - 10, y: T.y + 40, r: 3.5, d: 3.6 },
+    { x: T.x - 6, y: MID + 30, r: 4.5 },
+    { x: T.x + T.w + 8, y: MID + 10, r: 3.5 },
+    { x: T.x + 22, y: BOT - 4, r: 3 },
+    { x: T.x + T.w - 18, y: BOT - 8, r: 4 },
+    { x: CX + 6, y: T.y + 30, r: 3 },
+    { x: T.x - 10, y: T.y + 40, r: 3.5 },
   ].slice(0, many ? 3 : 2);
-  // they rise after the light has passed, staggered along the word
-  const shift = (seed % 3) * 0.1;
+  // they rise after the light has passed, staggered along the word (moteDelay; MOMENT_END_S counts it)
   return (
     <g pointerEvents="none">
       {spots.map((m, i) => (
-        <g key={i} className="rf-mote" style={{ ...BOX, animationDelay: `${(0.5 + i * 0.35 + index * 0.22 + shift).toFixed(2)}s` }} opacity={0}>
+        <g key={i} className="rf-mote" style={{ ...BOX, animationDelay: `${moteDelay(i, index, seed).toFixed(2)}s` }} opacity={0}>
           <circle cx={m.x} cy={m.y} r={m.r * 2.4} fill={`url(#${id(uid)("mote")})`} />
           <circle cx={m.x} cy={m.y} r={m.r * 0.45} fill="#ffffff" />
         </g>

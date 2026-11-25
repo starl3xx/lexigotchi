@@ -491,8 +491,8 @@ body {
    it rests. Looping these on every tile kept a slow phone's main thread full (measured 4× slowed:
    a Legendary word 99% against a Common word's 37%). In moments, measured over 12 s on the share
    page (4× slowed), a Legendary word costs 16% and a Mythic one 26%; at rest, about two points of
-   a core more than a Common word (its glow and glints repaint as the tile bounces), and the GPU
-   process works the same for every tier. Only transform and opacity move (a dash offset re-strokes every
+   a core more than a Common word (its glow and glints repaint as the tile bounces). Measured in
+   headless Chrome, which rasters in software: a real GPU is untested. Only transform and opacity move (a dash offset re-strokes every
    frame, so there is no rim light). Each element's delay is set inline (its letter's place in the
    word). Between moments the light sits unseen at opacity 0 and the glints stay lit, so a tile at
    rest looks like its still picture. Under prefers-reduced-motion there are no moments.

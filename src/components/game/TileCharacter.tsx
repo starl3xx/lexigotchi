@@ -18,10 +18,10 @@
  * group scales-Y while the body group translates-Y, and the shoes never animate. Reduced-motion
  * (spec §7) drops to the static pose carried by eyes + brow + tilt.
  */
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
 import { finishFor, mixHex } from "@/lib/rarityFinish";
-import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, type FinishMotion } from "./TileFinish";
+import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, type FinishMotion } from "./TileFinish";
 
 export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
 export type TilePose = "rest" | "hero" | "link";
@@ -185,8 +185,24 @@ export function useLowPower(): boolean {
   return low;
 }
 
-/** How long a word's row carries .rf-moment: the 2.4–3 s effects plus the stagger along five letters. */
-const MOMENT_MS = 4300;
+/**
+ * Whether the element is on screen (within 80 px), while `watch` is on; true until the first
+ * answer. An element hidden by `display: none` reads as off screen.
+ */
+export function useOnScreen(ref: RefObject<Element | null>, watch: boolean): boolean {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!watch || !el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setOn(e.isIntersecting), { rootMargin: "80px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, watch]);
+  return on;
+}
+
+/** How long a word's row carries .rf-moment: until its last effect ends (TileFinish's MOMENT_END_S), and a little more. */
+const MOMENT_MS = Math.ceil(MOMENT_END_S * 1000) + 100;
 /**
  * A finished word's moments (globals.css, .rf-moment; ./TileFinish): the first soon after it
  * appears, then one every `period` seconds of its tier, and one whenever `play()` is called (the
@@ -966,10 +982,15 @@ export function TileWord({
   // full-size words show characters "holding hands" (link pose, arms overlap); smaller word
   // rows have no limbs, so they sit in a neat row with a small positive gap instead.
   const full = detail === "full" || (detail === "auto" && size >= 100);
-  // a full-size finished word has its moments (only full-size tiles draw the finish's motion)
-  const [moment, play] = useFinishMoment(tier, full && !still && state !== "hungry");
+  // a full-size finished word has its moments (only full-size tiles draw the finish's motion), while
+  // it's on screen: a word scrolled away, or a copy hidden at this width, holds still
+  const row = useRef<HTMLDivElement>(null);
+  const moving = full && !still && state !== "hungry" && !!finishFor(tier);
+  const onScreen = useOnScreen(row, moving);
+  const [moment, play] = useFinishMoment(tier, moving && onScreen);
   return (
     <div
+      ref={row}
       className={`flex items-end justify-center ${moment ? "rf-moment" : ""} ${className}`}
       style={full ? undefined : { gap: Math.max(2, Math.round(size * 0.08)) }}
       onPointerEnter={full ? play : undefined}

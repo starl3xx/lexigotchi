@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from "vitest";
 import { TIERS, type Tier } from "@/lib/economy";
 import { FINISH, finishFor, mixHex } from "@/lib/rarityFinish";
 import { OgTile } from "@/app/_og/tile";
+import { MOMENT_END_S } from "@/components/game/TileFinish";
 import { showcaseCardPath, showcaseCardUrl } from "@/lib/showcase";
 
 describe("the finishes", () => {
@@ -124,6 +125,16 @@ describe("the moving light stays cheap", () => {
       expect(rule).toMatch(/^\s*\.rf-moment \.rf-/);
       expect(rule).not.toMatch(/infinite/);
     }
+  });
+
+  it("keeps a moment on long enough for its last effect, and rests before the next", () => {
+    // no effect runs longer than a mote's 3 s rise, which MOMENT_END_S counts from its last start
+    const durations = finishRules.map((r) => Number(/animation:\s*rf-[a-z]+\s+([\d.]+)s/.exec(r)![1]));
+    expect(Math.max(...durations)).toBeLessThanOrEqual(3);
+    expect(MOMENT_END_S).toBeGreaterThan(3);
+    // the fastest tier's period leaves a rest after each moment
+    const fastest = Math.min(...Object.values(FINISH).map((f) => f!.period));
+    expect(MOMENT_END_S).toBeLessThan(fastest - 1);
   });
 
   it("never animates a stroke's dash (it re-strokes the outline every frame)", () => {
