@@ -593,6 +593,11 @@ body {
 .cb > * { position: absolute; }
 .cb-mat { inset: 0; background: var(--cb-mat); }
 .cb-mat > * { position: absolute; inset: 0; }
+/* the live material (cards/live): over the CSS one, shown once its first frame lands */
+.cb-gl { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.3s ease-out; }
+.cb-gl.is-ready { opacity: 1; }
+/* a finger dragging sideways across a back moves its light; up and down still scrolls the page */
+.sc-back { touch-action: pan-y; }
 .cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); border: 2px solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); pointer-events: none; }
 /* the materials, deep */
 .m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --gem: #cbbb9c; --rk-top: #54402d; --rk-front: #2a1e15; }
@@ -658,6 +663,12 @@ body {
 .cb-id { font-variant-numeric: tabular-nums; margin-left: auto; color: var(--cb-sub); }
 a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .cb-mini { display: block; justify-self: start; font-size: 12px; font-weight: 400; line-height: 1.2; padding: 3px 7px; }
+/* under an opened card, the rows a phone-sized back leaves out (CardBack's CardMore), only where the
+   card is narrow enough to leave them out (the same 560 px as below) */
+.sc-more-host { container-type: inline-size; }
+.sc-more { display: grid; margin: 0; padding: 2px 12px; border: 2px solid #1b1714; border-radius: 14px; background: #fbf4e3; font-size: 14px; }
+.sc-more > div + div { border-top: 1px solid rgba(27, 23, 20, 0.1); }
+@container (min-width: 560px) { .sc-more { display: none; } }
 /* a phone-sized back: four stats, no bottom line */
 @container (max-width: 560px) {
   .cb-more, .cb-foot { display: none; }

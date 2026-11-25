@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { OwnedWord } from "../game/state";
 import { CardBack } from "./CardBack";
+import { askForTilt } from "./live/tilt";
 
 /** How long the turn takes (globals.css, `.sc-inner`'s transition and `.sc.is-flipping`). */
 export const FLIP_MS = 850;
@@ -58,6 +59,8 @@ export function SceneCard({
   const flip = () => {
     const next = !back;
     if (next) setSeen(word.word);
+    // the tap that turns a card in focus over is the one iOS lets ask for the tilt (live/tilt)
+    if (next && !small) askForTilt();
     setOwn({ word: word.word, back: next });
     onFlip?.(next);
     setTurning(true);
@@ -74,7 +77,7 @@ export function SceneCard({
         </div>
         {showBack && (
           <div className="sc-face sc-back" inert={!back} aria-hidden={!back || undefined}>
-            <CardBack word={word} mini={small} />
+            <CardBack word={word} mini={small} live={back} />
           </div>
         )}
       </div>

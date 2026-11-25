@@ -526,6 +526,26 @@ setter. All small, riding existing suite patterns.
       Finishes reach Spell, the Market, and the Jackpot as still tiles, and the Dictionary as flat
       tiles with the material baked per tier (the full rig made each keystroke 2–4× slower).
     - Next: live backs drawn with OGL (step 3), then the share loop (step 4).
+26. **A card's back catches the light, live** (step 3 of #23; starl3xx, 2026-11-25: "yep, continue").
+    - **OGL** (WebGL, public domain; `ogl` 1.0.11, the one package this work adds) draws the back's
+      material on the card in focus (the Today stage, an opened word) while its back is up: the
+      mock's shader, deep treatment (`cards/live/liveSurface.ts`). The words and tiles stay HTML on
+      their plates; the CSS material stays under the canvas, and is all there is under reduced
+      motion, on a low-end phone, in the Bag's small cards, and wherever WebGL won't start.
+    - **The light** sweeps across once as the back comes up (1 s), then follows the pointer, a
+      finger dragging sideways across the back, or the phone's tilt. iOS asks for the tilt only
+      from a tap, so the tap that turns a card over asks (once a page load); a no leaves the finger.
+    - **The GPU rules, kept:** one context at a time, made when a back comes up and lost
+      (`WEBGL_lose_context`) when it turns back or leaves; frames only on change (one per frame
+      however many moves arrive; nothing at rest; a test counts them); at most 1.25× the CSS size;
+      no antialiasing. Measured (headless Chrome, software WebGL, so the GPU figures run high): a
+      resting live back costs the renderer 5–8% of a core and the pointer moving 11–17%, against
+      17–20% for the scene on the front at rest. Each mount makes its own canvas: a canvas keeps one
+      context for life, and a lost one never draws again (React mounts twice in development).
+    - **Phones see the whole back:** below 560 px a back shows four stats (#25), so an opened card
+      lists the rest under it while its back is up (`CardMore`; starl3xx: "yep").
+    - Not done: baking the shader's material into a picture for the cards that aren't live (CSS
+      stands in), and the share loop (step 4).
 
 ## Pricing & launch economics (decided June 2026)
 

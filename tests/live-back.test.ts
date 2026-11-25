@@ -1,0 +1,119 @@
+// @vitest-environment jsdom
+/**
+ * A card back's live material (components/cards/live): drawn on demand, never in a loop. One frame
+ * per change however many changes came in it, nothing at rest, a sweep that ends, and one context at
+ * a time, let go when the back leaves. OGL is stubbed: what's under test is when frames are drawn.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+const renders = { n: 0 };
+const lost = { n: 0 };
+vi.mock("ogl", () => {
+  class Renderer {
+    gl: { canvas: { width: number; height: number }; getExtension: (n: string) => unknown };
+    constructor() {
+      this.gl = { canvas: { width: 1, height: 1 }, getExtension: (n: string) => (n === "WEBGL_lose_context" ? { loseContext: () => void lost.n++ } : null) };
+    }
+    setSize(w: number, h: number) {
+      this.gl.canvas.width = w;
+      this.gl.canvas.height = h;
+    }
+    render() {
+      renders.n++;
+    }
+  }
+  class Program {
+    uniforms: Record<string, { value: unknown }>;
+    constructor(_gl: unknown, o: { uniforms: Record<string, { value: unknown }> }) {
+      this.uniforms = o.uniforms;
+    }
+  }
+  return { Renderer, Program, Mesh: class {}, Triangle: class {} };
+});
+const { attachSurface, SWEEP_MS } = await import("@/components/cards/live/liveSurface");
+const { lightFromTilt } = await import("@/components/cards/live/tilt");
+
+// animation frames on fake timers, 16 ms apart
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance", "Date"] });
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16) as unknown as number);
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
+  renders.n = 0;
+  lost.n = 0;
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+const canvas = () => {
+  const host = document.createElement("div");
+  const c = document.createElement("canvas");
+  host.appendChild(c);
+  return c;
+};
+
+describe("a live back", () => {
+  it("draws once when it starts, then nothing at rest", () => {
+    const s = attachSurface(canvas(), "legendary")!;
+    vi.advanceTimersByTime(100);
+    expect(renders.n).toBe(1);
+    vi.advanceTimersByTime(5000);
+    expect(renders.n).toBe(1);
+    s.destroy();
+  });
+
+  it("draws one frame for many light moves in the same frame", () => {
+    const s = attachSurface(canvas(), "rare")!;
+    vi.advanceTimersByTime(100);
+    renders.n = 0;
+    for (let i = 0; i < 20; i++) s.light(i / 20, 0.5);
+    vi.advanceTimersByTime(20);
+    expect(renders.n).toBe(1);
+    s.destroy();
+  });
+
+  it("sweeps the light once, then stops", () => {
+    const s = attachSurface(canvas(), "mythic")!;
+    vi.advanceTimersByTime(100);
+    renders.n = 0;
+    s.sweep();
+    vi.advanceTimersByTime(SWEEP_MS + 200);
+    const swept = renders.n;
+    expect(swept).toBeGreaterThan(10);
+    vi.advanceTimersByTime(5000);
+    expect(renders.n).toBe(swept);
+    s.destroy();
+  });
+
+  it("lets its context go, and a second back lets the first go", () => {
+    const a = attachSurface(canvas(), "uncommon")!;
+    expect(lost.n).toBe(0);
+    const b = attachSurface(canvas(), "common")!;
+    expect(lost.n).toBe(1);
+    b.destroy();
+    expect(lost.n).toBe(2);
+    a.destroy(); // already let go: nothing more
+    expect(lost.n).toBe(2);
+  });
+
+  it("draws nothing after it's let go", () => {
+    const s = attachSurface(canvas(), "legendary")!;
+    vi.advanceTimersByTime(100);
+    renders.n = 0;
+    s.light(0.2, 0.2);
+    s.destroy();
+    vi.advanceTimersByTime(100);
+    expect(renders.n).toBe(0);
+  });
+});
+
+describe("the tilt", () => {
+  it("moves the light across as the phone tips left and right, and up and down as it tips toward you", () => {
+    expect(lightFromTilt({ beta: 40, gamma: 0 }, { beta: 40 })).toEqual([0.5, 0.5]);
+    const [x] = lightFromTilt({ beta: 40, gamma: 10 }, { beta: 40 });
+    expect(x).toBeGreaterThan(0.5);
+    const [, y] = lightFromTilt({ beta: 50, gamma: 0 }, { beta: 40 });
+    expect(y).toBeLessThan(0.5);
+  });
+});

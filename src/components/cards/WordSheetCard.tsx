@@ -16,6 +16,7 @@ import { useGame, type OwnedWord } from "../game/state";
 import { usePostToX, useSaveImage, useShare } from "../game/useShare";
 import { showcaseCardPath, showcasePostText, showcaseUrl, showcaseWordText, showcaseXText } from "@/lib/showcase";
 import { SceneCard } from "./SceneCard";
+import { CardMore } from "./CardBack";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();
@@ -25,7 +26,9 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
   const face = eating ? "eating" : careState(word);
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   return (
-    <div className="mb-3 space-y-2">
+    // the card's width decides, by container query, whether the rows a phone-sized back leaves out
+    // are listed under it (CardMore)
+    <div className="sc-more-host mb-3 space-y-2">
       <SceneCard
         word={word}
         framed
@@ -33,6 +36,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
         onFlip={setBack}
         front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} animated={!back} />}
       />
+      {back && <CardMore word={word} />}
       <div className="grid grid-cols-2 gap-2">
         <Button variant="ghost" onClick={() => g.openSheet({ kind: "scene", word: word.word, fromWord: true })}>
           <Palette weight="fill" /> Scene

@@ -392,7 +392,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
   from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
-  Telegram welcome). Next steps (not built): live backs with OGL, the share loop.
+  Telegram welcome). Next step (not built): the share loop.
 - **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its scene on the
   front (`SceneFrame`) and its story on the back (`CardBack`, deep materials per tier in globals.css
   `.cb.m-*`), turned by the corner button. The flip belongs to the word (a host showing another word
@@ -407,7 +407,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
   while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
   screen is gone (Share and Scene sit under an opened card; badges moved to the profile; a scene
-  picked from an opened word returns to it).
+  picked from an opened word returns to it). **Live backs** (decisions.md #26; `cards/live/`, the `ogl`
+  package): WebGL draws a showing back's material on the card in focus only, on demand (a frame per
+  change, nothing at rest: `tests/live-back.test.ts` counts them), one context, lost when the back
+  leaves, each mount its own canvas (a lost context never draws again), at most 1.25× the CSS size.
+  The light sweeps in once, then follows the pointer, a sideways drag, or the tilt (iOS asks on the
+  flip tap, `askForTilt`). CSS is the fallback everywhere else. A back under 560 px shows four
+  stats; an opened card lists the rest under it (`CardMore`).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
