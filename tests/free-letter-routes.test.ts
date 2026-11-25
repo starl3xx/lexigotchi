@@ -215,6 +215,15 @@ describe("a Farcaster sign-in counts only for a profile it belongs to (Bugbot on
     expect(rows).toMatchObject([{ account: P, kind: "pack", key: verifiedDailyKey(S).toString() }]);
   });
 
+  it("after a fall-through, the unowned FID's own pull today doesn't refuse this profile (Bugbot on #199)", async () => {
+    fid = 77; // not this profile's
+    dailyUsed["77"] = DAY + 1; // its owner pulled today, on their own profile
+    const { verifiedDailyKey } = await keys();
+    const res = await post("free-daily", S);
+    expect(res.status).toBe(200);
+    expect(res.body.voucher.fid).toBe(verifiedDailyKey(S).toString());
+  });
+
   it("refuses, saying how to fix it, when the FID verified none of its wallets and there's nothing else", async () => {
     fid = 77;
     verified = new Set();

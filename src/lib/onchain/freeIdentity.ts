@@ -35,6 +35,7 @@ export type FreeIdentity =
       ok: true;
       key: bigint;
       source: "fid" | "x" | "coinbase";
+      /** The Farcaster sign-in, only when it counts for this profile (null after a fall-through). */
       fid: number | null;
       xUserId: string | null;
       /** The linked X account may claim (old enough, and X switched on). */
@@ -53,7 +54,10 @@ export async function resolveFreeIdentity(req: Request, wallet: string, tag: str
   const xRow = profilesEnabled() ? await getProfile(account).catch(() => null) : null;
   const xUserId = xRow?.xUserId ?? null;
   const xCounts = Boolean(xUserId) && xEnabled() && xOldEnough(xRow?.xCreatedAt);
-  const base = { fid, xUserId, xCounts, account, wallets };
+  // `fid` is returned only for a FID that belongs to this profile: one that doesn't isn't this
+  // player's identity here, so its key must not join the "already pulled today" walk (it would refuse
+  // this profile for its owner's pull) or stand in for an X voucher's pre-record (Bugbot on #199).
+  const base = { fid: null as number | null, xUserId, xCounts, account, wallets };
   const limited = { ok: false as const, status: 429, error: "rate_limited" };
 
   let fidElsewhere = false;
@@ -63,7 +67,7 @@ export async function resolveFreeIdentity(req: Request, wallet: string, tag: str
     const owned =
       (signedInAs !== null && wallets.includes(signedInAs)) ||
       (await keyOwnedByProfile({ fid, derivedFromProfile: false, accountWallets: wallets, lookup: fidsByAddressesDetailed }));
-    if (owned) return { ok: true, key: BigInt(fid), source: "fid", ...base };
+    if (owned) return { ok: true, key: BigInt(fid), source: "fid", ...base, fid };
     fidElsewhere = true; // a Farcaster sign-in this profile can't vouch for: try its X and Coinbase
   }
   if (!(await allow("record-add", wallet.toLowerCase()))) return limited;

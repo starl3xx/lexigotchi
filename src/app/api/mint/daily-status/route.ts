@@ -35,14 +35,14 @@ export interface DailyStatus {
 }
 
 /**
- * GET `?wallet=0x…[&fid=123]` → the player's free letters: today's daily (under ANY key the daily route
+ * GET `?wallet=0x…` → the player's free letters: today's daily (under ANY key the daily route
  * would count: relatedDailyKeys walks the FIDs that verified the wallet, those FIDs' other wallets,
  * every Coinbase and X key), how many of the 10 free dailies the profile has taken (`done` after the
  * 10th), whether it took its free pack, and whether free letters have stopped (the budget, or the
  * dictionary about 95% claimed). The client can't walk Farcaster on its own, so without this a player
  * who pulled in the mini app would see Pull on the web and get refused (Bugbot on #138).
  *
- * Read-only for the player: `fid` only adds keys to read, it unlocks nothing. It does settle this
+ * Read-only for the player. It does settle this
  * profile's expired grants against the chain (bookkeeping the next voucher request would do anyway).
  */
 export async function GET(req: Request) {
@@ -52,11 +52,12 @@ export async function GET(req: Request) {
   }
   const u = new URL(req.url);
   const wallet = u.searchParams.get("wallet") ?? "";
-  const fidRaw = Number(u.searchParams.get("fid"));
   if (!isAddress(wallet)) return NextResponse.json({ ok: false, error: "bad_wallet" }, { status: 400 });
-  const fid = Number.isInteger(fidRaw) && fidRaw > 0 && fidRaw < 2 ** 32 ? fidRaw : null;
   try {
-    const [related, now, { account }] = await Promise.all([relatedDailyKeys({ fid, wallet }), readChainTime(), accountWallets(wallet)]);
+    // The FIDs that verified the profile's wallets come from the walk. A `fid` query parameter (older
+    // clients send one) is ignored: the free routes count a FID only for a profile it belongs to, and a
+    // FID proven by a wallet session instead shows through the profile's recorded keys below.
+    const [related, now, { account }] = await Promise.all([relatedDailyKeys({ fid: null, wallet }), readChainTime(), accountWallets(wallet)]);
     const today = Math.floor(now / 86_400);
     await settleGrants(NETWORK.id, account);
     // The keys this PROFILE took today's letter and its pack under (lib/db/freeClaims.ts), whatever the
