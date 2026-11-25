@@ -15,7 +15,7 @@ import {
   ascensionLabel,
   caseLabel,
   cardDate,
-  dictionaryNumber,
+  practiceNumbers,
   earnsStaked,
   foundBy as foundByOf,
   shortTokenId,
@@ -34,8 +34,8 @@ export interface CardFacts {
   tier: Tier;
   /** How many words share its tier. */
   ofTier: number;
-  /** Its place in the dictionary, A to Z. */
-  number: number;
+  /** Its card number: its place in the order words were first made (#1 the first), or null while unknown. */
+  number: number | null;
   caseLabel: string;
   ascension: string;
   level: number;
@@ -63,6 +63,8 @@ export function useCardFacts(word: OwnedWord): CardFacts {
   const wallets = usePlayerWallets();
   const world = useWorld();
   const cost = useCostToMake(word);
+  const practiceWords = g.state.words;
+  const practice = useMemo(() => (chain ? {} : practiceNumbers(practiceWords)), [chain, practiceWords]);
   const story = useQuery({
     queryKey: ["story", word.word],
     enabled: chain,
@@ -95,7 +97,8 @@ export function useCardFacts(word: OwnedWord): CardFacts {
     return {
       tier: word.tier,
       ofTier: tierCount(word.tier),
-      number: dictionaryNumber(word.word),
+      // its place in the order words were first made: the chain's, or in practice the player's own
+      number: chain ? (world.data?.live ? (world.data.numbers?.[word.word] ?? null) : null) : (practice[word.word] ?? null),
       caseLabel: caseLabel(word.upper),
       ascension: ascensionLabel(word.prestigeLevel),
       level: word.prestigeLevel,
@@ -112,5 +115,5 @@ export function useCardFacts(word: OwnedWord): CardFacts {
       points: wordPoints(word.word),
       token: shortTokenId(word.word),
     };
-  }, [word, chain, wallets, story.data, world.data, g.earnings, cost]);
+  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice]);
 }

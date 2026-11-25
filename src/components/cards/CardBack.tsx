@@ -17,7 +17,7 @@
 import { TileCharacter, useLowPower, usePrefersReducedMotion, type Gild } from "../game/TileCharacter";
 import type { ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
-import { DICTIONARY_SIZE, ascensionLabel } from "@/lib/cardFacts";
+import { ascensionLabel, cardNumber } from "@/lib/cardFacts";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
@@ -137,9 +137,7 @@ function FullBody({ word }: { word: OwnedWord }) {
     <div className="cb-body">
       <div className="cb-top">
         <TierPlate tier={f.tier} />
-        <span className="cb-no cb-plate">
-          No. {fmt(f.number)} of {fmt(DICTIONARY_SIZE)}
-        </span>
+        <span className="cb-no cb-plate">{cardNumber(f.number)}</span>
       </div>
       <div className="cb-main">
         <div className="cb-wordcol">

@@ -4,19 +4,19 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  DICTIONARY_SIZE,
   ascensionLabel,
+  cardNumber,
   caseLabel,
   cardDate,
-  dictionaryNumber,
   earnsStaked,
+  madeOrder,
+  practiceNumbers,
   foundBy,
   shortTokenId,
   wordPoints,
   yoursSince,
   type Custody,
 } from "@/lib/cardFacts";
-import { WORDS } from "@/lib/dictionary";
 import { TIER_WEIGHT, wordTier } from "@/lib/economy";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { tokenIdHexOf } from "@/lib/onchain/tokenId";
@@ -110,10 +110,35 @@ describe("the word's own facts", () => {
     expect(ascensionLabel(5)).toBe("Holographic");
   });
 
-  it("numbers it by its place in the dictionary, A to Z", () => {
-    expect(dictionaryNumber(WORDS[0])).toBe(1);
-    expect(dictionaryNumber(WORDS[WORDS.length - 1].toLowerCase())).toBe(DICTIONARY_SIZE);
-    expect(dictionaryNumber("ZZZZZ")).toBe(0);
+  it("writes its number with four digits, and a dash while it's unknown", () => {
+    expect(cardNumber(1)).toBe("#0001");
+    expect(cardNumber(42)).toBe("#0042");
+    expect(cardNumber(4584)).toBe("#4584");
+    expect(cardNumber(null)).toBe("#–");
+    expect(cardNumber(0)).toBe("#–");
+  });
+
+  it("numbers words in the order they were first made, not A to Z or by rarity", () => {
+    const at = (word: string, block: bigint, index: number) => ({ word, block, index });
+    // logs out of order, two in one block, and a word claimed again after a dissolve
+    const n = madeOrder([
+      at("JAZZY", 30n, 0),
+      at("crane", 10n, 4),
+      at("ABOUT", 10n, 2),
+      at("CRANE", 40n, 1), // spelled again: keeps #2
+      at("ZESTY", 20n, 0),
+    ]);
+    expect(n).toEqual({ ABOUT: 1, CRANE: 2, ZESTY: 3, JAZZY: 4 });
+  });
+
+  it("numbers the practice game's words by when each came to the player", () => {
+    expect(
+      practiceNumbers([
+        { word: "TEASE", since: 300 },
+        { word: "CRANE", since: 100 },
+        { word: "MOTEL", since: 200 },
+      ]),
+    ).toEqual({ CRANE: 1, MOTEL: 2, TEASE: 3 });
   });
 
   it("adds up its letters' points", () => {

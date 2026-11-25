@@ -38,6 +38,8 @@ export interface KeeperWord {
   upperAll: boolean;
   /** UPPERCASE letters in the word, 0..5 (the world read's "raised" board). Absent in old fixtures. */
   raised?: number;
+  /** Its card number: its place in the order words were first made (lib/cardFacts `madeOrder`). */
+  number?: number;
 }
 
 export interface RewardLeaf {

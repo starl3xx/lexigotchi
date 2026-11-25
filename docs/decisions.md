@@ -503,13 +503,21 @@ setter. All small, riding existing suite patterns.
       back is "deep" (a rich material per tier, cream type), with a faint card-stock texture, the
       tiles still on a rack in perspective, and the words on steady plates. Labels semibold and as
       written, the same size as their values; values regular.
-    - **The back:** rarity (one of N) and dictionary number; case; ascension; **Yours since** (the
+    - **The back:** rarity (one of N) and its card number; case; ascension; **Yours since** (the
       day it reached the player's profile; a move between their own wallets keeps it); staked and
       mood; earned, earns a day, cost to make; points; **Found by** (the first player ever to claim
       it, kept through a dissolve and re-spell); the jackpot (drawn or never, no date: the draw
       counter isn't a calendar); the token. The two history facts read the word's own Claimed and
       Transfer logs (`/api/words/story`, keyed by the word alone, cached a minute; staking's moves
-      left out), only while a back shows. Unknown is a dash, never "you" or "never". No table: no
+      left out), only while a back shows. Unknown is a dash, never "you" or "never".
+      **The card number** (starl3xx, 2026-11-25: "#0001… numbered based on their creation… not
+      alphabet or rarity or anything"; it was the dictionary's A-to-Z place): `#` and four digits,
+      the word's place in the order words were FIRST claimed (`madeOrder`: every `Claimed` event,
+      by block then log index), so #0001 is the first word anyone spelled. A word dissolved and
+      spelled again keeps its number, as it keeps its first finder, so a number never changes or
+      repeats. Served as `/api/world`'s `numbers` from the keeper's scan (no extra read); the share
+      loop's back picture reads the same events, and leaves the number off when it can't know it.
+      The practice game numbers the player's words by when each came to them. No table: no
       migration.
     - **Where cards are:** the Today stage (the card in focus: it moves), the Bag (opens on Words; a
       grid of still cards with each card's rarity in its corner and its name and state under it, my
