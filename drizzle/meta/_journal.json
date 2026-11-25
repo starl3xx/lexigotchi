@@ -92,6 +92,13 @@
       "when": 1795726296169,
       "tag": "0012_wallet_sightings",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795726356169,
+      "tag": "0013_free_claims",
+      "breakpoints": true
     }
   ]
 }

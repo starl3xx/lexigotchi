@@ -384,3 +384,26 @@ export const wordScenes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.wallet, t.word] })],
 );
+
+/**
+ * Free things, once per PROFILE (migration 0013; starl3xx: "only one wallet per profile should get a
+ * free anything"). A free route records the account (its first wallet) and the key it signs under,
+ * first write wins, so the profile's other wallets are refused whatever key they'd sign under:
+ * - kind "daily", period = the UTC chain day: one free daily letter a day. Backs up the onchain
+ *   `dailyUsed` walk (relatedDailyKeys), which needs Farcaster's lookups and fails open.
+ * - kind "pack", period 0: the one free pack. Backs up `freePackClaimed[fid]`, which is per Farcaster
+ *   account, and a profile can hold more than one.
+ */
+export const freeClaims = pgTable(
+  "free_claims",
+  {
+    chainId: integer("chain_id").notNull(),
+    account: text("account").notNull(),
+    kind: text("kind").notNull(),
+    period: integer("period").notNull(),
+    /** The key the voucher was signed under (decimal string: a daily key can exceed 2^160). */
+    claimKey: text("claim_key").notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("free_claims_account_kind_period").on(t.chainId, t.account, t.kind, t.period)],
+);
