@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BASE, BASE_SEPOLIA } from "@/lib/onchain/network";
 import { WrongChainError } from "@/lib/onchain/sendCalls";
-import { knownWalletChain, networkToSwitchTo, switchRefusal, walletNetworkName } from "@/lib/onchain/walletNetwork";
+import { keepMove, knownWalletChain, networkToSwitchTo, switchRefusal, walletNetworkName } from "@/lib/onchain/walletNetwork";
 
 /**
  * Which network the connected wallet should switch to (WalletNetworkNotice). The bug: Rainbow's
@@ -53,13 +53,28 @@ describe("networkToSwitchTo", () => {
 describe("knownWalletChain", () => {
   it("trusts a confirmed switch while wagmi still reports the network it left (Bugbot on #202)", () => {
     // Arbitrum to Base on the $WORD page of a testnet build: wagmi can't be told, and the wallet was silent.
-    const moved = { from: ARBITRUM, to: BASE.id };
+    const moved = { address: ADDR, from: ARBITRUM, to: BASE.id };
     expect(knownWalletChain(ARBITRUM, moved)).toBe(BASE.id);
     expect(at(knownWalletChain(ARBITRUM, moved), "word")).toBeNull(); // the notice goes away
     // Once wagmi reports anything else, wagmi is right again.
     expect(knownWalletChain(ETHEREUM, moved)).toBe(ETHEREUM);
     expect(knownWalletChain(BASE_SEPOLIA.id, null)).toBe(BASE_SEPOLIA.id);
     expect(knownWalletChain(undefined, moved)).toBeUndefined();
+  });
+});
+
+describe("keepMove", () => {
+  const moved = { address: ADDR, from: ARBITRUM, to: BASE.id };
+  it("keeps a move only while wagmi reports the same wallet on the network it left", () => {
+    expect(keepMove(moved, ARBITRUM, ADDR)).toBe(moved);
+    expect(keepMove(moved, ARBITRUM, ADDR.toUpperCase().replace("0X", "0x"))).toBe(moved); // address case
+  });
+
+  it("drops it once wagmi has caught up, or for a disconnect or another wallet (Bugbot on #202)", () => {
+    expect(keepMove(moved, BASE.id, ADDR)).toBeNull(); // wagmi heard: from here on wagmi is right
+    expect(keepMove(moved, ARBITRUM, undefined)).toBeNull(); // disconnected
+    expect(keepMove(moved, ARBITRUM, "0x2222222222222222222222222222222222222222")).toBeNull(); // a new wallet there
+    expect(keepMove(null, ARBITRUM, ADDR)).toBeNull();
   });
 });
 

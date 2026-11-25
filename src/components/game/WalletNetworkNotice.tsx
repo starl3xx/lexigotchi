@@ -9,7 +9,7 @@
  * wagmi's, the call RainbowKit's account modal makes, since that modal isn't offered on a network
  * RainbowKit doesn't know. Inside a Farcaster host the wallet is the host's, so there's no Disconnect.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useDisconnect, useSwitchChain } from "wagmi";
 import { Button, Card } from "./primitives";
 import { CircleNotch, Warning } from "./ui/icons";
@@ -19,6 +19,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import { ensureChain, type Eip1193Provider } from "@/lib/onchain/sendCalls";
 import {
   MAINNET_VIEWS,
+  keepMove,
   knownWalletChain,
   networkToSwitchTo,
   switchRefusal,
@@ -37,9 +38,14 @@ export function WalletNetworkNotice() {
   // Remembered with the network it happened on and the one it asked for, so a refusal follows neither
   // the wallet to another network nor the player to a screen that wants another one (Bugbot on #202).
   const [refused, setRefused] = useState<{ on: number; to: number; why: SwitchRefusal } | null>(null);
-  // The last switch ensureChain confirmed, for a wallet that never tells wagmi (knownWalletChain).
+  // The last switch ensureChain confirmed, for a wallet that never tells wagmi (knownWalletChain),
+  // forgotten once wagmi reports another network or wallet (keepMove).
   const [moved, setMoved] = useState<ConfirmedMove | null>(null);
-  const walletChainId = knownWalletChain(chainId, moved);
+  const live = keepMove(moved, chainId, address);
+  useEffect(() => {
+    if (moved && !live) setMoved(null);
+  }, [moved, live]);
+  const walletChainId = knownWalletChain(chainId, live);
   const want = networkToSwitchTo({ chainBacked: state.chainBacked, address, walletChainId, view: state.view });
   if (!want) return null;
   const from = walletChainId!;
@@ -55,7 +61,7 @@ export function WalletNetworkNotice() {
       // The wallet is there now (ensureChain read it back), so the notice believes it even if wagmi
       // never hears. Tell wagmi too where it can be told: it knows only the game's network, and the
       // wallet is already there, so this asks nothing of the player.
-      if (chainId !== undefined) setMoved({ from: chainId, to: want.id });
+      if (chainId !== undefined && address) setMoved({ address, from: chainId, to: want.id });
       if (want.id === NETWORK.id) {
         await Promise.race([switchChainAsync({ chainId: want.id }), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
       }

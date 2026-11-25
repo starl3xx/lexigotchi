@@ -35,17 +35,29 @@ export function networkToSwitchTo(o: {
   return o.walletChainId === game.id ? null : game;
 }
 
-/** A switch that `ensureChain` confirmed: the wallet left `from` for `to`. */
+/** A switch that `ensureChain` confirmed: this wallet left `from` for `to`. */
 export interface ConfirmedMove {
+  address: string;
   from: number;
   to: number;
+}
+
+/**
+ * A confirmed move counts only while wagmi still reports the same wallet on the network it left.
+ * Once wagmi reports another network or another wallet (or none), it has caught up and is right
+ * from then on, even if it later reports `from` again: a switch back, or a new wallet there, must
+ * show the notice (Bugbot on #202). The caller forgets a move this returns null for.
+ */
+export function keepMove(moved: ConfirmedMove | null, reported: number | undefined, address: string | undefined): ConfirmedMove | null {
+  if (!moved || !address || reported !== moved.from) return null;
+  return address.toLowerCase() === moved.address.toLowerCase() ? moved : null;
 }
 
 /**
  * The wallet's network as far as the game knows. wagmi learns of a switch from the wallet's
  * chainChanged event, and some wallets never send one; wagmi also can't be told of Base on a testnet
  * build (it's configured with the game's network only). So while wagmi still reports the network a
- * confirmed switch left, the switch's target wins (Bugbot on #202).
+ * confirmed switch left, the switch's target wins (Bugbot on #202). Pass a move through `keepMove`.
  */
 export function knownWalletChain(reported: number | undefined, moved: ConfirmedMove | null): number | undefined {
   return moved && reported === moved.from ? moved.to : reported;
