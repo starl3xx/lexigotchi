@@ -47,8 +47,30 @@ const TEXT = "#f7efdc";
 const SUB = "rgba(247, 239, 220, 0.74)";
 const PLATE = { background: "rgba(14, 10, 8, 0.52)", border: "1px solid rgba(255, 255, 255, 0.14)" };
 
+type ChainFacts = { level: number | null; finder: string | null };
+// Kept per word, not per link: a word's 32 casings are one word's facts. A few minutes on a warm
+// instance, and one read for callers that arrive together.
+const FACTS_TTL_MS = 5 * 60_000;
+const factsCache = new Map<string, { at: number; facts: ChainFacts }>();
+const factsInflight = new Map<string, Promise<ChainFacts>>();
+function chainFactsOf(word: string): Promise<ChainFacts> {
+  const hit = factsCache.get(word);
+  if (hit && Date.now() - hit.at < FACTS_TTL_MS) return Promise.resolve(hit.facts);
+  let read = factsInflight.get(word);
+  if (!read) {
+    read = chainFacts(word)
+      .then((facts) => {
+        factsCache.set(word, { at: Date.now(), facts });
+        return facts;
+      })
+      .finally(() => factsInflight.delete(word));
+    factsInflight.set(word, read);
+  }
+  return read;
+}
+
 /** Ascension and first finder, from the chain, when the game is live; nothing otherwise. */
-async function chainFacts(word: string): Promise<{ level: number | null; finder: string | null }> {
+async function chainFacts(word: string): Promise<ChainFacts> {
   if (!isSuiteDeployed()) return { level: null, finder: null };
   const [level, story] = await Promise.all([
     getPublicClient()
@@ -73,7 +95,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ text: s
   const word = tiles.map((t) => t.char).join("");
   const tier = wordTier(word);
   const look = LOOK[tier];
-  const { level, finder } = await chainFacts(word);
+  const { level, finder } = await chainFactsOf(word);
 
   const stats: [string, string][] = [
     ["Case", caseLabel(tiles.map((t) => t.upper))],

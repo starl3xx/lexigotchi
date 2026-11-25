@@ -18,9 +18,9 @@ import { Button } from "../game/primitives";
 import { DownloadSimple, FilmStrip, ShareNetwork } from "../game/ui/icons";
 import { useGame, type OwnedWord } from "../game/state";
 import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
-import { showcaseBackPath, showcaseCardPath, showcaseXText } from "@/lib/showcase";
+import { showcaseBackPath, showcaseCardPath, showcasePostText, showcaseUrl } from "@/lib/showcase";
 import type { SceneId } from "@/lib/scenes";
-import { canDrawLive } from "./live/support";
+import { canMakeLoop } from "./live/support";
 import { materialOf } from "./material";
 
 /** A phone's share sheet that takes a video file. */
@@ -56,7 +56,7 @@ function useInHost(): boolean | null {
 
 type Made = { blob: Blob; url: string };
 
-export function ShareVideo({ word, text, scene }: { word: OwnedWord; text: string; scene: SceneId }) {
+export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; text: string; scene: SceneId; onMaking?: (making: boolean) => void }) {
   const g = useGame();
   const inHost = useInHost();
   const reduced = usePrefersReducedMotion();
@@ -68,10 +68,13 @@ export function ShareVideo({ word, text, scene }: { word: OwnedWord; text: strin
 
   // the made video belongs to this word and scene; a new pick starts over, and leaving lets it go
   const madeUrl = useRef<string | null>(null);
+  const makingRef = useRef(onMaking);
+  makingRef.current = onMaking;
   madeUrl.current = made?.url ?? null;
   useEffect(() => {
     return () => {
       abort.current?.abort();
+      makingRef.current?.(false); // called off: the card above may draw live again
       if (madeUrl.current) URL.revokeObjectURL(madeUrl.current);
       madeUrl.current = null;
       setMade(null);
@@ -79,14 +82,23 @@ export function ShareVideo({ word, text, scene }: { word: OwnedWord; text: strin
     };
   }, [text, scene]);
 
+  // Offered only where the browser can make it (asked without loading the loop's code: ./live/support)
+  // and the file can leave (a share sheet that takes files, or a download outside a host).
   const [ok, setOk] = useState(false);
   useEffect(() => {
     if (inHost === null) return;
-    void import("./loop/makeLoop").then(({ canMakeLoop }) => {
-      const leaves = canShareVideo() || !inHost;
-      setOk(canMakeLoop() && canDrawLive() && leaves);
+    let alive = true;
+    void canMakeLoop().then((can) => {
+      if (alive) setOk(can && (canShareVideo() || !inHost));
     });
+    return () => {
+      alive = false;
+    };
   }, [inHost]);
+  // the card above holds its live back off while the video is made (one WebGL context)
+  useEffect(() => {
+    onMaking?.(progress !== null);
+  }, [progress, onMaking]);
   // A device that should save its power (Save-Data, a low-end phone) isn't offered a burst of
   // drawing it didn't ask for; reduced motion is asked for the page, not for a file, so it's offered.
   if (!ok || lowPower) return null;
@@ -103,22 +115,26 @@ export function ShareVideo({ word, text, scene }: { word: OwnedWord; text: strin
         back: showcaseBackPath(text),
         material: materialOf(word.tier),
         signal: ctl.signal,
-        onProgress: (p) => setProgress(p),
+        onProgress: (p) => !ctl.signal.aborted && setProgress(p),
       });
+      // called off meanwhile (another scene, the sheet closed): this video isn't wanted
+      if (ctl.signal.aborted) return;
       plays.current = 0;
       setMade({ blob, url: URL.createObjectURL(blob) });
     } catch (e) {
       if (!ctl.signal.aborted) g.toast("Couldn’t make the video. Try again", "bad");
       void e;
     } finally {
-      setProgress(null);
+      if (!ctl.signal.aborted) setProgress(null);
     }
   };
 
   const file = () => new File([made!.blob], `lexigotchi-${word.word.toLowerCase()}-${scene}.mp4`, { type: "video/mp4" });
   const share = async () => {
     try {
-      await navigator.share({ files: [file()], text: showcaseXText(text) });
+      // The sheet's target is unknown (X, Farcaster, a message), so no @-handle, which names
+      // someone else on Farcaster; and the link, since the file carries none.
+      await navigator.share({ files: [file()], text: `${showcasePostText(text)} ${showcaseUrl(text, scene)}` });
     } catch (e) {
       // the player closing the sheet isn't a failure
       if ((e as Error)?.name !== "AbortError") g.toast("Couldn’t share the video. Try Save video", "bad");

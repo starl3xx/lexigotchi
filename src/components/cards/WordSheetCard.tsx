@@ -24,6 +24,8 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
   const { scene } = useWordScene(word.word);
   const [back, setBack] = useState(false);
   const [sharing, setSharing] = useState(false);
+  // while the share loop is made, it holds the one WebGL context: the live back waits
+  const [making, setMaking] = useState(false);
   const face = eating ? "eating" : careState(word);
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   return (
@@ -34,6 +36,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
         word={word}
         framed
         flipped={back}
+        live={!making}
         onFlip={setBack}
         front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} animated={!back} />}
       />
@@ -47,7 +50,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
         </Button>
       </div>
       {/* Mounted only when asked for: saving the picture fetches it ahead on phones. */}
-      {sharing && <ShareWord word={word} />}
+      {sharing && <ShareWord word={word} onMaking={setMaking} />}
     </div>
   );
 }
@@ -56,7 +59,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
  * Share the word in its scene: X first, Farcaster second (lib/showcase), or keep the picture. The
  * link's card draws the word in this scene; a saved picture carries the game's name in a corner.
  */
-function ShareWord({ word }: { word: OwnedWord }) {
+function ShareWord({ word, onMaking }: { word: OwnedWord; onMaking: (making: boolean) => void }) {
   const share = useShare();
   const postToX = usePostToX();
   const { scene } = useWordScene(word.word);
@@ -79,7 +82,7 @@ function ShareWord({ word }: { word: OwnedWord }) {
         </Button>
       </div>
       {/* the card turning over, as a video to post or keep (made only when asked: ./ShareVideo) */}
-      <ShareVideo word={word} text={text} scene={scene} />
+      <ShareVideo word={word} text={text} scene={scene} onMaking={onMaking} />
     </div>
   );
 }

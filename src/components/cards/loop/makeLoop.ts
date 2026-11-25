@@ -14,22 +14,18 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import type { CardMaterial } from "../material";
 import { releaseLive } from "../live/liveSurface";
 import { LOOP_SECONDS, attachLoop } from "./loopRenderer";
+import { VIDEO } from "../live/support";
 
-export const VIDEO_WIDTH = 1280;
-export const VIDEO_HEIGHT = 720;
-export const VIDEO_FPS = 30;
+// The frame, rate, and H.264 profiles (the plainest first: every browser that encodes H.264 takes
+// Baseline) are ../live/support's, which asks whether the browser can make the video at all.
+const VIDEO_WIDTH = VIDEO.width;
+const VIDEO_HEIGHT = VIDEO.height;
+const VIDEO_FPS = VIDEO.fps;
+const BITRATE = VIDEO.bitrate;
 const FRAMES = LOOP_SECONDS * VIDEO_FPS;
-const BITRATE = 4_000_000;
-/** H.264 profiles to try, the plainest first (every browser that encodes H.264 takes Baseline). */
-const CODECS = ["avc1.42001f", "avc1.4d0028", "avc1.640028"];
-
-/** Whether this browser can make the video at all: WebCodecs and WebGL. */
-export function canMakeLoop(): boolean {
-  return typeof window !== "undefined" && typeof VideoEncoder !== "undefined" && typeof VideoFrame !== "undefined";
-}
 
 async function pickCodec(): Promise<string | null> {
-  for (const codec of CODECS) {
+  for (const codec of VIDEO.codecs) {
     try {
       const r = await VideoEncoder.isConfigSupported({ codec, width: VIDEO_WIDTH, height: VIDEO_HEIGHT, bitrate: BITRATE, framerate: VIDEO_FPS });
       if (r.supported) return codec;
@@ -50,17 +46,17 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** The game's name, quiet, in the bottom right corner (as on a saved share card). */
+/**
+ * The game's name, quiet, in the bottom right corner. The video's corners are the game's paper,
+ * not a scene (the saved card's corner is), so it's ink on paper, not cream with a halo.
+ */
 function drawMark(g: CanvasRenderingContext2D) {
   g.save();
-  g.font = '800 30px "Soehne", system-ui, sans-serif';
+  g.font = '800 24px "Soehne", system-ui, sans-serif';
   g.textAlign = "right";
   g.textBaseline = "alphabetic";
-  g.fillStyle = "rgba(251, 244, 227, 0.92)";
-  g.shadowColor = "rgba(27, 23, 20, 0.85)";
-  g.shadowBlur = 6;
-  g.shadowOffsetY = 1;
-  g.fillText("LEXIGOTCHI", VIDEO_WIDTH - 34, VIDEO_HEIGHT - 28);
+  g.fillStyle = "rgba(27, 23, 20, 0.6)";
+  g.fillText("LEXIGOTCHI", VIDEO_WIDTH - 32, VIDEO_HEIGHT - 26);
   g.restore();
 }
 

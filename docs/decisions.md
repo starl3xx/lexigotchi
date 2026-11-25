@@ -582,7 +582,13 @@ setter. All small, riding existing suite patterns.
     - **Two taps** (make, then share or save): iOS opens the share sheet only from the tap itself.
       Offered only where the file can leave: a share sheet that takes files, or a download outside
       a mini-app host. Farcaster keeps the link (a GIF in a cast is untested). The corner wordmark is
-      on every frame (#23: "corner mark on saved images/videos"). Not on a low-end phone.
+      on every frame (#23: "corner mark on saved images/videos"), in ink: the video's corners are
+      the game's paper, not a scene. Not on a low-end phone. The share sheet's target is unknown, so
+      its words carry no @-handle (on Farcaster that names someone else), and they carry the
+      link, since the file has none.
+    - **Departures:** the back picture's labels are bold, not the semibold the game uses (Satori
+      has only Söhne's regular and bold). Untested: an iPhone making and sharing the video, the
+      mini-app hosts, X taking the file, and a real GPU's make time (software WebGL: 5–12 s).
 
 ## Pricing & launch economics (decided June 2026)
 
