@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { canSpell, canSpellAs, caseMask, charToIdx, claimCase, reducer, seedState, spellableNow } from "@/components/game/state";
-import { rackCases } from "@/components/game/screens/ClaimScreen";
+import { filterBag, rackCases } from "@/components/game/screens/ClaimScreen";
 
 const counts = (letters: string) => {
   const c = Array(26).fill(0);
@@ -86,5 +86,34 @@ describe("the case each letter is claimed in", () => {
     const cases = rackCases("EAGER", rack);
     expect(cases.filter(Boolean)).toHaveLength(1); // one raised E, wherever it lands
     expect(canSpellAs("EAGER", cases, counts("AGER"), counts("E"))).toBe(true);
+  });
+});
+
+// starl3xx: "Spell should show all letters a player has, of every case, and then let them filter
+// upper- or lower-case".
+describe("the Spell screen's case filter", () => {
+  const spells = (show: "all" | "lower" | "upper") => {
+    const bag = filterBag(show, TESTER.lower, TESTER.upper);
+    return { bag, words: spellableNow(bag.lower, bag.upper, new Set(), Infinity) };
+  };
+
+  it("All spells in any mix and claims UPPERCASE first", () => {
+    const { bag, words } = spells("all");
+    expect(words).toHaveLength(158);
+    expect(bag.casesFor("CREAM")).toEqual([true, false, false, true, false]); // the raised C and A
+  });
+
+  it("lowercase spells from lowercase letters alone, all claimed lowercase", () => {
+    const { bag, words } = spells("lower");
+    expect(words).toHaveLength(40); // what the tester's Spell screen offered before
+    expect(bag.upper.every((c) => c === 0)).toBe(true);
+    expect(bag.casesFor("MINES")).toEqual([false, false, false, false, false]);
+  });
+
+  it("UPPERCASE spells from raised letters alone, so it lists only words born earning", () => {
+    const { bag, words } = spells("upper");
+    expect(words).toHaveLength(0); // A, C, V, W spell nothing on their own: the screen says so
+    expect(bag.lower.every((c) => c === 0)).toBe(true);
+    expect(filterBag("upper", none, counts("CRANE")).casesFor("CRANE")).toEqual([true, true, true, true, true]);
   });
 });

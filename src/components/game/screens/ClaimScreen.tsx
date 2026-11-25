@@ -2,7 +2,9 @@
 /**
  * Spell: build a word from any 5 of your letters, in any mix of lowercase and UPPERCASE, and claim a
  * valid dictionary word (decisions.md #16). The rack claims exactly the tiles picked; a word from the
- * list claims each letter UPPERCASE where the bag has one (claimCase, "UPPERCASE first").
+ * list claims each letter UPPERCASE where the bag has one (claimCase, "UPPERCASE first"). A filter
+ * (All, lowercase, UPPERCASE; filterBag) narrows the tray and the list to one case, and says so when
+ * a case is empty or spells nothing alone.
  *
  * It used to take five letters of ONE case, behind a lowercase/UPPERCASE switch that locked until
  * five letters were raised. A tester with four raised letters saw UPPERCASE locked and those letters
@@ -40,23 +42,48 @@ export function rackCases(word: string, rack: readonly Tile[]): boolean[] {
   });
 }
 
+/** Which letters the tray and the word list show (starl3xx: "show all letters a player has, of
+ *  every case, and then let them filter upper- or lower-case"). */
+export type CaseFilter = "all" | "lower" | "upper";
+
+const NONE: readonly number[] = new Array(26).fill(0);
+
+/**
+ * What a filter does to the bag and to a claim. "all" spells in any mix of cases and claims each
+ * letter UPPERCASE where there's one (claimCase); "lower" and "upper" spell from that case alone
+ * and claim the whole word in it, so "upper" lists exactly the words born earning.
+ */
+export function filterBag(show: CaseFilter, lower: readonly number[], upper: readonly number[]) {
+  return {
+    lower: show === "upper" ? NONE : lower,
+    upper: show === "lower" ? NONE : upper,
+    casesFor: (word: string): boolean[] =>
+      show === "all" ? claimCase(word, upper) : [...word].map(() => show === "upper"),
+  };
+}
+
 export function ClaimScreen() {
   const g = useGame();
   const { state } = g;
   const [rack, setRack] = useState<Tile[]>([]);
+  const [show, setShow] = useState<CaseFilter>("all");
 
   // MINE, not the union: Words.claim consumes letters from msg.sender — spelling with a linked
   // wallet's letters would build a transaction the contract is guaranteed to revert.
   const lower = mineLower(state);
   const upper = mineUpper(state);
+  const bag = useMemo(() => filterBag(show, lower, upper), [show, lower, upper]);
   const owned = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
 
   const rackCount = (t: Tile) => rack.filter((x) => x.i === t.i && x.upper === t.upper).length;
   const held = (t: Tile) => (t.upper ? upper : lower)[t.i];
-  // Every loose letter in one tray, UPPERCASE first (as Today lists them).
+  const lowerCount = lower.reduce((a, b) => a + b, 0);
+  const upperCount = upper.reduce((a, b) => a + b, 0);
+  // The loose letters the filter shows, UPPERCASE first (as Today lists them). The rack keeps its
+  // tiles across filters, so a word can mix cases picked under different filters.
   const trayLetters: (Tile & { c: number })[] = [
-    ...upper.map((c, i) => ({ i, c, upper: true })),
-    ...lower.map((c, i) => ({ i, c, upper: false })),
+    ...bag.upper.map((c, i) => ({ i, c, upper: true })),
+    ...bag.lower.map((c, i) => ({ i, c, upper: false })),
   ].filter((x) => x.c > 0);
 
   const spelled = useMemo(
@@ -76,8 +103,8 @@ export function ClaimScreen() {
   // its own (useWorld refetches), so the Claims come back when it lands (Bugbot on #146).
   const ownerWait = world.isError || (world.data && !world.data.live) ? "Can’t check owner yet" : "Checking owner…";
   const spellable = useMemo(
-    () => spellableNow(lower, upper, owned, Infinity).filter((w) => !owners?.[w]),
-    [lower, upper, owned, owners],
+    () => spellableNow(bag.lower, bag.upper, owned, Infinity).filter((w) => !owners?.[w]),
+    [bag, owned, owners],
   );
   const [order, setOrder] = useState<"rarest" | "az">("rarest");
   const [tier, setTier] = useState<Tier | "All">("All");
@@ -96,7 +123,7 @@ export function ClaimScreen() {
   }, [spellable, activeTier, order]);
   // A full bag spells hundreds of words; render them a page at a time so a phone stays smooth.
   const [shown, setShown] = useState(SPELL_PAGE);
-  useEffect(() => setShown(SPELL_PAGE), [activeTier, order]);
+  useEffect(() => setShown(SPELL_PAGE), [activeTier, order, show]);
 
   const claim = (word: string, cases: boolean[]) => {
     g.claim(word, cases);
@@ -197,8 +224,26 @@ export function ClaimScreen() {
             here. "your letters" read as everything you own. */}
         <SectionTitle>Your unused letters</SectionTitle>
         <p className="-mt-1 mb-2 text-xs text-ink/50">Letters already in your words stay in them, so they aren’t listed.</p>
+        <Segmented
+          className="mb-3 md:max-w-sm"
+          value={show}
+          onChange={setShow}
+          options={[
+            { value: "all", label: <FilterLabel name="All" count={lowerCount + upperCount} /> },
+            { value: "lower", label: <FilterLabel name="lowercase" count={lowerCount} /> },
+            { value: "upper", label: <FilterLabel name="UPPERCASE" count={upperCount} /> },
+          ]}
+        />
         {trayLetters.length === 0 ? (
-          <EmptyState Icon={Basket} title="No letters" sub="Mint a pack to fill your bag." />
+          // Never a filter that empties the tray without saying why (a locked, silent UPPERCASE
+          // switch is what a tester hit).
+          show === "upper" ? (
+            <EmptyState Icon={Basket} title="No UPPERCASE letters yet" sub="Roll a letter to raise it. A raised letter can go into any word." />
+          ) : show === "lower" ? (
+            <EmptyState Icon={Basket} title="No lowercase letters" sub="Mint a pack to fill your bag." />
+          ) : (
+            <EmptyState Icon={Basket} title="No letters" sub="Mint a pack to fill your bag." />
+          )
         ) : (
           <div className="grid grid-cols-6 gap-2.5 md:grid-cols-[repeat(auto-fill,52px)]">
             {trayLetters.map((t) => {
@@ -220,12 +265,25 @@ export function ClaimScreen() {
         )}
       </div>
 
+      {/* A filtered case that spells nothing on its own: say so, and where the words are. */}
+      {spellable.length === 0 && show !== "all" && trayLetters.length > 0 && (
+        <p className="text-sm text-ink/60">
+          Your {show === "upper" ? "UPPERCASE" : "lowercase"} letters don’t spell a word on their own yet. Show{" "}
+          <button onClick={() => setShow("all")} className="font-bold text-ink underline">
+            All
+          </button>{" "}
+          to mix them with your {show === "upper" ? "lowercase" : "UPPERCASE"} ones.
+        </p>
+      )}
+
       {/* every word you can spell now */}
       {spellable.length > 0 && (
         <div>
           <SectionTitle>
-            You can spell {spellable.length === 1 ? "1 word" : `${spellable.length.toLocaleString("en-US")} words`} now
+            You can spell {spellable.length === 1 ? "1 word" : `${spellable.length.toLocaleString("en-US")} words`}
+            {show === "upper" ? " with your UPPERCASE letters" : show === "lower" ? " with your lowercase letters" : " now"}
           </SectionTitle>
+          {show === "upper" && <p className="-mt-1 mb-1 text-xs text-ink/60">All five raised: each earns $WORD from day one once staked.</p>}
           <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} each />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Segmented
@@ -250,8 +308,9 @@ export function ClaimScreen() {
           </div>
           <div className="mt-2 space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
             {quick.slice(0, shown).map((w) => {
-              // Each letter UPPERCASE where the bag has one ("UPPERCASE first"), as the tiles show.
-              const cases = claimCase(w, upper);
+              // The case the filter claims in (filterBag): under All, each letter UPPERCASE where the
+              // bag has one ("UPPERCASE first"). The tiles show exactly that.
+              const cases = bag.casesFor(w);
               return (
                 <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-card p-2.5">
                   <WordTiles word={w} upper={cases} size={26} />
@@ -274,6 +333,15 @@ export function ClaimScreen() {
         </div>
       )}
     </div>
+  );
+}
+
+/** A filter's name and how many loose letters it holds. */
+function FilterLabel({ name, count }: { name: string; count: number }) {
+  return (
+    <>
+      {name} <span className="opacity-60">·{count}</span>
+    </>
   );
 }
 
