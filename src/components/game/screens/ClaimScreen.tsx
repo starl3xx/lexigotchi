@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { wordScore, wordTier, type Tier } from "@/lib/economy";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
+import { TierMark } from "../TierMark";
 import { useWorld } from "../useWorld";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Sparkle } from "../ui/icons";
@@ -304,6 +305,7 @@ export function ClaimScreen() {
               {SPELL_TIERS.filter((t) => t === "All" || tierCounts[t]).map((t) => (
                 <button key={t} onClick={() => setTier(t)} className="group round-btn rounded-full">
                   <Pill className={activeTier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
+                    {t !== "All" && <TierMark tier={t} size={12} />}
                     {t}
                     <span className={activeTier === t ? "text-paper/60" : "text-ink/40"}>·{t === "All" ? spellable.length : tierCounts[t]}</span>
                   </Pill>

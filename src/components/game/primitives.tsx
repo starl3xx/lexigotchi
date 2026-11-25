@@ -5,6 +5,7 @@ import type { Tier } from "@/lib/economy";
 import { Basket, CheckCircle, CircleNotch, Info, Smiley, SmileyMeh, SmileyXEyes, WarningCircle, X } from "./ui/icons";
 import { useGame, type Hunger, type Toast } from "./state";
 import { useTween } from "./useTween";
+import { TierMark } from "./TierMark";
 import type { Busy } from "@/lib/onchain/actionGate";
 
 // ---------------------------------------------------------------------------
@@ -127,9 +128,14 @@ export const TIER_STYLE: Record<Tier, { bg: string; label: string }> = {
   Mythic: { bg: "bg-[#7b4ea3]/25 text-[#5d3a7e]", label: "Mythic" },
 };
 
+/** A word's rarity in a list: the tier's mark (./TierMark: a bead, then three to six corners) and its name. */
 export function TierBadge({ tier }: { tier: Tier }) {
   const s = TIER_STYLE[tier];
-  return <Pill className={s.bg}>{s.label}</Pill>;
+  return (
+    <Pill className={s.bg}>
+      <TierMark tier={tier} size={12} /> {s.label}
+    </Pill>
+  );
 }
 
 const HUNGER_STYLE: Record<Hunger, { bg: string; Icon: typeof Smiley; label: string }> = {

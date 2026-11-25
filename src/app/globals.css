@@ -600,11 +600,11 @@ body {
 .sc-back { touch-action: pan-y; }
 .cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); border: 2px solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); pointer-events: none; }
 /* the materials, deep */
-.m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --gem: #cbbb9c; --rk-top: #54402d; --rk-front: #2a1e15; }
-.m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --gem: #5cc4a9; --rk-top: #22705e; --rk-front: #0c3028; }
-.m-rare { --cb-base: #0b1f40; --cb-mat: linear-gradient(165deg, #1d4485, #0b1f40 70%); --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --gem: #6e9fe0; --rk-top: #2a5799; --rk-front: #0b1d3d; }
-.m-legendary { --cb-base: #2e2006; --cb-mat: linear-gradient(135deg, #2e2006, #6b4a10 38%, #2e2006 66%, #5a3e0c); --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --gem: #f0b53a; --rk-top: #8a6418; --rk-front: #3a2806; }
-.m-mythic { --cb-base: #1d0d36; --cb-mat: linear-gradient(165deg, #47237a, #1d0d36 70%); --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --gem: #a77ce8; --rk-top: #552c94; --rk-front: #1d0d36; }
+.m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-top: #54402d; --rk-front: #2a1e15; }
+.m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-top: #22705e; --rk-front: #0c3028; }
+.m-rare { --cb-base: #0b1f40; --cb-mat: linear-gradient(165deg, #1d4485, #0b1f40 70%); --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --rk-top: #2a5799; --rk-front: #0b1d3d; }
+.m-legendary { --cb-base: #2e2006; --cb-mat: linear-gradient(135deg, #2e2006, #6b4a10 38%, #2e2006 66%, #5a3e0c); --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-top: #8a6418; --rk-front: #3a2806; }
+.m-mythic { --cb-base: #1d0d36; --cb-mat: linear-gradient(165deg, #47237a, #1d0d36 70%); --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-top: #552c94; --rk-front: #1d0d36; }
 .cb-brush { background: repeating-linear-gradient(-32deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 4px); }
 .cb-glitter { background-image: radial-gradient(circle, rgba(255, 238, 180, 0.9) 0 0.9px, transparent 1.3px), radial-gradient(circle, rgba(255, 250, 220, 0.7) 0 0.7px, transparent 1.1px); background-size: 19px 19px, 13px 13px; background-position: 0 0, 7px 9px; opacity: 0.7; }
 .cb-facets { width: 100%; height: 100%; }
@@ -621,9 +621,6 @@ body {
 .cb-corner.bl { left: clamp(8px, 2.6cqw, 16px); bottom: clamp(8px, 2.6cqw, 16px); transform: scaleY(-1); }
 .cb-corner.br { right: clamp(8px, 2.6cqw, 16px); bottom: clamp(8px, 2.6cqw, 16px); transform: scale(-1, -1); }
 .cb-gem { width: 1.15em; height: 1.15em; flex: none; }
-.cb-gem .g1 { fill: var(--gem, #b9a98c); stroke: #231a14; stroke-width: 1.2; }
-.cb-gem .g2 { fill: #ffffff; opacity: 0.55; }
-.cb-gem .g3 { fill: #000000; opacity: 0.14; }
 /* card stock: a faint linen weave and grain */
 .cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 3px); }
 
