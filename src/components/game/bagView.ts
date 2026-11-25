@@ -6,11 +6,13 @@ import { byBest, TIER_RANK } from "./stagePick";
 import { wordCase, type Hunger, type OwnedWord } from "./state";
 
 export type WordFilter = "all" | "staked" | "unstaked" | "earning" | "needsFood" | "forSale";
-export type WordSort = "best" | "hungriest" | "rarest" | "az";
+// No "rarest" any more: Best first leads with rarity, so it sorted the same (a stored "rarest" reads as
+// the default through validChoice).
+export type WordSort = "best" | "hungriest" | "az";
 export type LetterSort = "az" | "most";
 
 export const WORD_FILTERS: readonly WordFilter[] = ["all", "staked", "unstaked", "earning", "needsFood", "forSale"];
-export const WORD_SORTS: readonly WordSort[] = ["best", "hungriest", "rarest", "az"];
+export const WORD_SORTS: readonly WordSort[] = ["best", "hungriest", "az"];
 export const LETTER_SORTS: readonly LetterSort[] = ["az", "most"];
 
 export const WORD_FILTER_LABEL: Record<WordFilter, string> = {
@@ -24,7 +26,6 @@ export const WORD_FILTER_LABEL: Record<WordFilter, string> = {
 export const WORD_SORT_LABEL: Record<WordSort, string> = {
   best: "Best first",
   hungriest: "Hungriest first",
-  rarest: "Rarest first",
   az: "A to Z",
 };
 
@@ -72,8 +73,6 @@ export function sortWords(words: readonly OwnedWord[], s: WordSort, hungerOf: (w
           b.daysUnfed - a.daysUnfed ||
           byBest(a, b),
       );
-    case "rarest":
-      return out.sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier] || byBest(a, b));
     case "az":
       return out.sort((a, b) => a.word.localeCompare(b.word));
   }

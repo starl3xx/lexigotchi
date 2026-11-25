@@ -26,9 +26,13 @@ export interface StagePick {
 export const TIER_RANK: Record<Tier, number> = { Common: 0, Uncommon: 1, Rare: 2, Legendary: 3, Mythic: 4 };
 const raised = (w: OwnedWord) => w.upper.filter(Boolean).length;
 
-/** Best first: more letters raised, then rarer, then more gilded, then alphabetical (stable). The Showcase opens on the best word too. */
+/**
+ * Best first: rarer, then more letters raised (case), then more gilded (ascension), then alphabetical
+ * (stable). Rarity leads (starl3xx, 2026-11-25: a lowercase Mythic belongs above a raised Legendary).
+ * The Bag's "Best first", the Today stage's star when every word is full, and the Showcase use it.
+ */
 export function byBest(a: OwnedWord, b: OwnedWord): number {
-  return raised(b) - raised(a) || TIER_RANK[b.tier] - TIER_RANK[a.tier] || b.prestigeLevel - a.prestigeLevel || a.word.localeCompare(b.word);
+  return TIER_RANK[b.tier] - TIER_RANK[a.tier] || raised(b) - raised(a) || b.prestigeLevel - a.prestigeLevel || a.word.localeCompare(b.word);
 }
 
 const NEED: Record<Hunger, number> = { hungry: 2, peckish: 1, fed: 0 };

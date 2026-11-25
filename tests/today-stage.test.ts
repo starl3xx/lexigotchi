@@ -29,11 +29,11 @@ describe("pickStage", () => {
     expect(pick.needFood).toBe(2);
   });
 
-  it("with everyone full, shows the best word: most raised, then rarest", () => {
+  it("with everyone full, shows the best word: rarest, then most raised", () => {
     const pick = pickStage([word("ABBEY", { tier: "Rare" }), word("CRANE", { upper: [true, true, true, false, false] }), word("ABUZZ", { tier: "Mythic" })], hungerOf)!;
-    expect(pick.word.word).toBe("CRANE");
+    expect(pick.word.word).toBe("ABUZZ");
     expect(pick.mood).toBe("full");
-    expect(pick.others[0].word.word).toBe("ABUZZ");
+    expect(pick.others[0].word.word).toBe("ABBEY");
   });
 
   it("with nothing staked, the best word waits to be staked", () => {
