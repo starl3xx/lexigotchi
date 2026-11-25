@@ -2,7 +2,8 @@
 /** A claimed Word as a tappable list row → opens the word detail sheet. */
 import { HungerBadge, Pill, TierBadge } from "./primitives";
 import { CaseBadge, PrestigeStars, WordTiles, careState } from "./LetterTile";
-import { Coins, Ticket } from "./ui/icons";
+import { Coins, Storefront, Ticket } from "./ui/icons";
+import { useForSale } from "./useForSale";
 import { fmtWord, hunger, jackpotEligible, useGame, wordCase, type OwnedWord } from "./state";
 
 export function WordCard({ word }: { word: OwnedWord }) {
@@ -13,6 +14,9 @@ export function WordCard({ word }: { word: OwnedWord }) {
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const answerReady = isAnswer && jackpotEligible(word); // owns the day's word AND it's staked + fed
   const earning = word.staked && wordCase(word) === "UPPERCASE" && h !== "hungry";
+  // Listed in the Market (starl3xx: "the fact that they're for sale should also be indicated in the
+  // player's Bag"): the price takes the place of "unstaked", which a listed word always is.
+  const price = useForSale().get(word.word);
 
   return (
     <button
@@ -40,7 +44,15 @@ export function WordCard({ word }: { word: OwnedWord }) {
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <TierBadge tier={word.tier} />
-            {word.staked ? <HungerBadge state={h} /> : <Pill className="bg-card text-ink/60">unstaked</Pill>}
+            {word.staked ? (
+              <HungerBadge state={h} />
+            ) : price !== undefined ? (
+              <Pill className="bg-gold/25 text-gold-ink">
+                <Storefront weight="fill" size={11} /> for sale · {fmtWord(price)}
+              </Pill>
+            ) : (
+              <Pill className="bg-card text-ink/60">unstaked</Pill>
+            )}
             <CaseBadge word={word} />
             {answerReady && (
               <Pill className="bg-candy/15 text-candy-ink">

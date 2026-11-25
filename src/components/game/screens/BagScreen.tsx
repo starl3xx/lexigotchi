@@ -5,18 +5,31 @@ import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { WordCard } from "../WordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
-import { idxToChar, useGame, mineLower, mineUpper } from "../state";
+import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
 import { WordsPending, wordsUnknown } from "../WordsPending";
 import { EarningsLine } from "../EarningsLine";
+import { LETTER_SORTS, WORD_FILTERS, WORD_FILTER_LABEL, WORD_SORTS, WORD_SORT_LABEL, matchesWord, sortLetters, sortWords, wordFilterCounts, type LetterSort, type WordFilter, type WordSort } from "../bagView";
+import { useForSale } from "../useForSale";
+import { useStoredChoice } from "../useStoredChoice";
 
 export function BagScreen() {
   const g = useGame();
   const { state } = g;
   const [tab, setTab] = useState<"letters" | "words">("letters");
 
-  const lowerOwned = state.lower.map((c, i) => ({ i, c })).filter((x) => x.c > 0);
-  const upperOwned = state.upper.map((c, i) => ({ i, c })).filter((x) => x.c > 0);
+  const [letterSort, setLetterSort] = useStoredChoice<LetterSort>("lexi:bag:letters:sort", LETTER_SORTS, "az");
+  const [wordFilter, setWordFilter] = useStoredChoice<WordFilter>("lexi:bag:words:filter", WORD_FILTERS, "all");
+  const [wordSort, setWordSort] = useStoredChoice<WordSort>("lexi:bag:words:sort", WORD_SORTS, "best");
+  const forSale = useForSale();
+  const ctx = { hungerOf: (w: OwnedWord) => hunger(w), forSale: new Set(forSale.keys()) };
+  const counts = wordFilterCounts(state.words, ctx);
+  // A filter whose words all left (sold, staked, fed) shows everything rather than an empty list.
+  const filter = counts[wordFilter] > 0 ? wordFilter : "all";
+  const shown = sortWords(state.words.filter((w) => matchesWord(w, filter, ctx)), wordSort, ctx.hungerOf);
+
+  const lowerOwned = sortLetters(state.lower.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
+  const upperOwned = sortLetters(state.upper.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
   const lowerCount = state.lower.reduce((a, b) => a + b, 0);
   const upperCount = state.upper.reduce((a, b) => a + b, 0);
 
@@ -41,6 +54,17 @@ export function BagScreen() {
 
       {tab === "letters" ? (
         <div className="space-y-4">
+          {lowerOwned.length + upperOwned.length > 1 && (
+            <Segmented
+              className="max-w-[16rem] text-xs"
+              value={letterSort}
+              onChange={setLetterSort}
+              options={[
+                { value: "az", label: "A to Z" },
+                { value: "most", label: "Most first" },
+              ]}
+            />
+          )}
           {elsewhere > 0 && (
             <p className="text-xs text-ink/55">
               {elsewhere} of these live in your linked wallets. They count in your bag, but
@@ -95,6 +119,39 @@ export function BagScreen() {
             <div className="mb-2 empty:hidden">
               <EarningsLine />
             </div>
+            {state.words.length > 1 && (
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Show">
+                  {WORD_FILTERS.filter((f) => f === "all" || counts[f] > 0).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      aria-pressed={filter === f}
+                      onClick={() => setWordFilter(f)}
+                      className={`press min-h-8 shrink-0 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-bold ${
+                        filter === f ? "bg-ink text-paper" : "bg-card text-ink/75"
+                      }`}
+                    >
+                      {WORD_FILTER_LABEL[f]} {f === "all" ? state.words.length : counts[f]}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-ink/60">
+                  Sort
+                  <select
+                    value={wordSort}
+                    onChange={(e) => setWordSort(e.target.value as WordSort)}
+                    className="min-h-8 rounded-lg border-2 border-ink bg-card px-2 text-xs font-bold text-ink"
+                  >
+                    {WORD_SORTS.map((s) => (
+                      <option key={s} value={s}>
+                        {WORD_SORT_LABEL[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
           </div>
           {state.words.length === 0 ? (
             <div className="lg:col-span-2">
@@ -106,7 +163,7 @@ export function BagScreen() {
               )}
             </div>
           ) : (
-            state.words.map((w) => <WordCard key={w.word} word={w} />)
+            shown.map((w) => <WordCard key={w.word} word={w} />)
           )}
         </div>
       )}

@@ -154,12 +154,20 @@ if (WANT_WALLET) {
 }
 
 if (GOTO) {
-  await page
-    .locator("nav button, footer button")
-    .filter({ hasText: new RegExp(`^${GOTO}$`) })
-    .first()
-    .click()
-    .catch(() => {});
+  // The tab bar isn't always inside <nav>/<footer>: fall back to the button's accessible name, and
+  // say so when neither finds it (this used to fail silently and screenshot Today instead).
+  // The first VISIBLE match: the desktop rail repeats every tab, hidden on a phone.
+  const candidates = [
+    page.locator("nav button, footer button").filter({ hasText: new RegExp(`^${GOTO}$`) }),
+    page.getByRole("button", { name: new RegExp(`^${GOTO}$`, "i") }),
+  ];
+  let target = null;
+  for (const loc of candidates) {
+    for (let i = 0; i < (await loc.count()) && !target; i++) if (await loc.nth(i).isVisible()) target = loc.nth(i);
+    if (target) break;
+  }
+  if (!target) console.log(`goto       : no visible tab named ${GOTO}`);
+  else await target.click().catch((e) => console.log(`goto       : ${String(e.message).slice(0, 80)}`));
   await page.waitForTimeout(6000);
 }
 

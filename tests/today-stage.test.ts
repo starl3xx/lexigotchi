@@ -120,3 +120,23 @@ describe("stageLine", () => {
     expect(stageLine({ word: word("MOTEL"), mood: "unstaked" })).toBe("MOTEL is waiting. Stake it to enter the jackpot.");
   });
 });
+
+describe("a word for sale on the stage", () => {
+  const forSale = new Set(["STORE"]);
+  it("a word waiting to be staked takes the stage before a listed one", () => {
+    const pick = pickStage([word("STORE", { staked: false, upper: ALL_UP }), word("FRESH", { staked: false })], hungerOf, forSale)!;
+    expect(pick.word.word).toBe("FRESH");
+    expect(pick.mood).toBe("unstaked");
+  });
+
+  it("when every word is listed, the star says it's for sale instead of asking to be staked", () => {
+    const pick = pickStage([word("STORE", { staked: false })], hungerOf, forSale)!;
+    expect(pick.mood).toBe("forSale");
+    expect(stageLine(pick)).toBe("STORE is for sale in the Market.");
+  });
+
+  it("the lineup puts listed words last, marked for sale", () => {
+    const { items } = stageLineup([word("STORE", { staked: false }), word("FRESH", { staked: false }), word("DOUGH")], hungerOf, forSale);
+    expect(items.map((i) => [i.word.word, i.mood])).toEqual([["DOUGH", "full"], ["FRESH", "unstaked"], ["STORE", "forSale"]]);
+  });
+});

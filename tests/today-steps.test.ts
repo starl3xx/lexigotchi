@@ -129,3 +129,12 @@ describe("nextSteps", () => {
     expect(nextSteps({ ...base, bagLetters: 7 }).map((s) => s.kind)).toEqual([]);
   });
 });
+
+describe("a word for sale in the Market (starl3xx: Next steps shouldn't include Stake for listed words)", () => {
+  it("gets no Stake step and no roll step; the other words still do", () => {
+    const words = [word("STORE"), word("FRESH")].map((w) => ({ ...w, staked: false }));
+    const steps = nextSteps({ ...base, words, forSale: new Set(["STORE"]) });
+    expect(steps.filter((s) => s.kind === "stake").map((s) => (s as { word: string }).word)).toEqual(["FRESH"]);
+    expect(steps.some((s) => "word" in s && s.word === "STORE")).toBe(false);
+  });
+});

@@ -39,6 +39,12 @@ export interface NextStepsInput {
    * owned word reverts, and the Spell screen leaves them out too.
    */
   taken?: ReadonlySet<string>;
+  /**
+   * The player's words for sale in the Market (starl3xx: "Next steps shouldn't include Stake for
+   * words that are listed"). Staking would end the listing, and a word on its way out isn't one to
+   * spend rolls on, so neither step offers one.
+   */
+  forSale?: ReadonlySet<string>;
 }
 
 /** Most items per kind, so the card stays a short list and not the whole bag. */
@@ -46,7 +52,8 @@ const MAX = { stake: 3, spell: 2, roll: 2 } as const;
 
 export function nextSteps(i: NextStepsInput): NextStep[] {
   const steps: NextStep[] = [];
-  const mine = i.words.filter((w) => w.mine);
+  // A listed word gets no care steps: it's for sale (forSale above).
+  const mine = i.words.filter((w) => w.mine && !i.forSale?.has(w.word));
 
   const rewards = i.claimables.reduce((a, c) => a + c.amount, 0);
   if (rewards > 0) steps.push({ kind: "rewards", amount: rewards });

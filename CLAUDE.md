@@ -190,7 +190,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   that can't fill right now are hidden, not pruned: a signed order would fill again if the word came
   back approved, so listing again cancels them onchain in the same send as the approval
   (`prepareListingCalls`, `GET ?stale=maker:tokenId`). Buying approves exactly the price. Staked
-  words can't be listed. Word state on the board is read live, never from the listing. **Wallets sign
+  words can't be listed. Word state on the board is read live, never from the listing. A listed word is
+  `useForSale()` (the board ∩ the bag): Next steps skip it (`nextSteps({ forSale })`), the Today stage
+  shows it last in mood `forSale` ("…is for sale in the Market."), and its Bag card shows the price.
+  The Bag's filters and sorts are `bagView.ts` (pure, tested), remembered per browser
+  (`useStoredChoice`). **Wallets sign
   `walletTypedDataJson(order)`, never `JSON.stringify(orderTypedData(order))`:** eth-sig-util wallets
   read a missing `EIP712Domain` as empty and sign another digest (every MetaMask listing failed
   bad_signature until #187); viem fills it in, so a viem-signed test can't catch this.
