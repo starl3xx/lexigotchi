@@ -93,7 +93,7 @@ export function usePostToX() {
 const touchFirst = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 /**
- * Save a picture (a Showcase card) to the device (starl3xx, 2026-11-24: "allow users to download
+ * Save a picture (a shared word's card) to the device (starl3xx, 2026-11-24: "allow users to download
  * their image somehow (or save to camera roll)"). `src` is same-origin, so its bytes can be read.
  *
  * - A phone gets the share sheet with the file: "Save Image" puts it in the camera roll. iOS opens

@@ -26,7 +26,7 @@ export interface StagePick {
 export const TIER_RANK: Record<Tier, number> = { Common: 0, Uncommon: 1, Rare: 2, Legendary: 3, Mythic: 4 };
 const raised = (w: OwnedWord) => w.upper.filter(Boolean).length;
 
-/** Best first: more letters raised, then rarer, then more gilded, then alphabetical (stable). The Showcase opens on the best word too. */
+/** Best first: more letters raised, then rarer, then more gilded, then alphabetical (stable). The Bag's cards come in this order by default. */
 export function byBest(a: OwnedWord, b: OwnedWord): number {
   return raised(b) - raised(a) || TIER_RANK[b.tier] - TIER_RANK[a.tier] || b.prestigeLevel - a.prestigeLevel || a.word.localeCompare(b.word);
 }

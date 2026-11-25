@@ -2,7 +2,7 @@
  * Screenshots of the real game for the player docs (docs-site/images/screen-*.jpg).
  *
  *   NEXT_PUBLIC_CHAIN_ID= npm run dev          # practice (mock) mode: seeded bag, no wallet
- *   npm run docs:shots [-- http://localhost:3000/play] [today bag showcase bounty word earnings profile]
+ *   npm run docs:shots [-- http://localhost:3000/play] [today bag cards share bounty word earnings profile]
  *
  * Names after the URL remake only those shots; with none, it remakes them all. Always practice
  * mode, so no real address or balance is ever pictured. The Next dev badge and the practice-only
@@ -45,16 +45,15 @@ await page.addStyleTag({ content: 'nextjs-portal,[aria-label="Skip a day"]{displ
 
 const shot = (file, clip) => page.screenshot({ path: join(out, `screen-${file}.jpg`), type: "jpeg", quality: 82, clip });
 
-for (const [name, file] of [["Today", "today"], ["Bag", "bag"], ["Showcase", "showcase"], ["Jackpot", "bounty"], ["$WORD", "word"]]) {
+for (const [name, file] of [["Today", "today"], ["Bag", "cards"], ["Bag", "bag"], ["Jackpot", "bounty"], ["$WORD", "word"]]) {
   if (!want(file)) continue;
   const item = page.locator("nav").getByRole("button", { name, exact: true }).or(page.locator("nav").getByRole("link", { name, exact: true }));
   if (!(await item.count())) throw new Error(`no rail item "${name}"`);
   await item.first().click();
   await page.waitForTimeout(name === "$WORD" ? 4000 : 1500);
-  if (file === "showcase") {
-    // CRANE, three letters raised, standing in Spring: a word, its scene, and the picker in one picture.
-    await page.getByRole("radio", { name: "CRANE", exact: true }).click();
-    await page.getByRole("radio", { name: "Spring", exact: true }).click();
+  if (file === "bag") {
+    // The Bag opens on Words (screen-cards); the letters page pictures its Letters side.
+    await page.getByRole("radio", { name: /^Letters/ }).or(page.getByRole("button", { name: /^Letters/ })).first().click();
     await page.waitForTimeout(800);
   }
   if (file === "word") {
@@ -67,6 +66,28 @@ for (const [name, file] of [["Today", "today"], ["Bag", "bag"], ["Showcase", "sh
   }
   console.log(`wrote docs-site/images/screen-${file}.jpg`);
 }
+// Sharing a word: CRANE, three letters raised, opened from the Bag, its scene set to Spring, with
+// Share open under its card. (Picking the scene from the opened word comes back to it on Done.)
+if (want("share")) {
+  await page.locator("nav").getByRole("button", { name: "Bag", exact: true }).first().click();
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: /^Words/ }).first().click(); // the bag shot left it on Letters
+  await page.waitForTimeout(1200);
+  await page.getByRole("button", { name: "Open CRANE", exact: true }).click();
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: "Scene", exact: true }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole("radio", { name: "Spring", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: "Share", exact: true }).click();
+  await page.waitForTimeout(1200);
+  await shot("share");
+  console.log("wrote docs-site/images/screen-share.jpg");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+}
+
 // Your earnings: feed the hungry VIVID, let a practice day pass so it earns, and open the sheet from
 // the line under the stage. Last of the practice shots, because it changes the practice game.
 if (want("earnings")) {

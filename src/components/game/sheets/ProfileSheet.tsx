@@ -21,6 +21,7 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 import { ReminderToggle } from "../ReminderToggle";
 import { WalletsCard } from "./WalletsCard";
+import { OnchainBadges } from "../OnchainBadges";
 import { useOpenUrl } from "../useShare";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { xEligibleOn, xOldEnough, type NameSource } from "@/lib/profile/rules";
@@ -95,6 +96,9 @@ export function ProfileSheet() {
           </Button>
         )}
       </div>
+
+      {/* your onchain badges, once you've earned one (they lived on the Showcase) */}
+      <OnchainBadges />
 
       {/* the free letters (decisions.md #21): a pack of 5 plus 10 daily letters per verified profile */}
       <Card className={`mb-3 ${daily.eligible ? "bg-teal/10" : "bg-gold/10"}`}>

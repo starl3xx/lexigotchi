@@ -1,9 +1,13 @@
 "use client";
-/** Word detail — stake, feed, raise letters to UPPERCASE, ascend (prestige), sell, or dissolve. */
+/**
+ * Word detail: the word's card (its scene, its back, its scene picker and share buttons), then stake,
+ * feed, raise letters to UPPERCASE, ascend (prestige), sell, or dissolve.
+ */
 import { useState } from "react";
 import { shopEnabled } from "@/lib/shop/config";
 import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
-import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
+import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
+import { WordSheetCard } from "../../cards/WordSheetCard";
 import { CaretRight, Check, Coins, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
 import { HOLOGRAPHIC_LEVEL, stageName } from "@/lib/ascension";
@@ -79,10 +83,9 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </span>
       }
     >
-      {/* hero — the word as a row of tiles wearing the word's current care state */}
-      <div className={`mb-3 flex justify-center rounded-2xl border-[3px] border-ink py-5 ${fullyRaised ? "bg-gold/15" : "bg-paper-dark/40"}`}>
-        <WordTiles word={word.word} upper={word.upper} size={54} state={eating ? "eating" : careState(word)} gild={word.prestigeLevel} detail="bust" tier={word.tier} />
-      </div>
+      {/* the word's card: its scene (in its care state), its story on the back, and the scene and
+          share buttons the Showcase used to hold (components/cards) */}
+      <WordSheetCard word={word} eating={eating} />
 
       {/* status */}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">

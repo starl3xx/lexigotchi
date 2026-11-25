@@ -91,6 +91,11 @@ export interface OwnedWord {
    * roll, and ascend it, paying its own fees. Only the staker stakes, unstakes, or dissolves.
    */
   care?: boolean;
+  /**
+   * When the word came to the player (unix seconds), in the practice game only: it has no chain to
+   * read a history from. The chain game reads it per word when a card's back shows (lib/cardFacts).
+   */
+  since?: number;
 }
 
 /** A word for sale on the board (GET /api/swap/words), its state read live, not from the listing. */
@@ -141,15 +146,15 @@ export type View =
   | "word"
   /** Let's Have A Word!, Lexigotchi's sibling in the $WORD universe. */
   | "lhaw"
-  | "showcase"
   | "swap";
 
 /**
  * A part of a screen a link can land on: GameApp scrolls `main` to the element with this
  * `data-section` after the screen mounts. Today's bounty card uses it, because on a phone the
- * bounty sits under the jackpot cards.
+ * bounty sits under the jackpot cards. "letters" opens the Bag on its Letters side (Today's "+N more
+ * letters"), since the Bag opens on Words.
  */
-export type ViewSection = "bounty";
+export type ViewSection = "bounty" | "letters";
 
 export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: string; pos: number };
 
@@ -168,8 +173,9 @@ export type Sheet =
   | { kind: "addapp" }
   /** A claim just landed: the new word celebrates (sheets/CelebrateSheet). */
   | { kind: "celebrate"; word: string }
-  /** Pick a word's scene, from the Today stage (sheets/SceneSheet). */
-  | { kind: "scene"; word: string }
+  /** Pick a word's scene, from the Today stage or an opened word (sheets/SceneSheet). `fromWord`:
+   *  opened from the word's own sheet, so closing it goes back there. */
+  | { kind: "scene"; word: string; fromWord?: boolean }
   /** The Shop (decisions.md #22), behind SHOP_ENABLED (sheets/ShopSheet). */
   | { kind: "shop" }
   | { kind: "earnings" }
@@ -333,6 +339,9 @@ export const showsUsd = (state: Pick<GameState, "chainBacked">) => !(state.chain
 // Seed (a populated starting save so every screen has life)
 // ---------------------------------------------------------------------------
 
+/** Now, in unix seconds: when a practice word came to the player (OwnedWord.since). */
+const practiceNow = () => Math.floor(Date.now() / 1000);
+
 export function seedState(): GameState {
   const lower = new Array(26).fill(0);
   const upper = new Array(26).fill(0);
@@ -347,15 +356,16 @@ export function seedState(): GameState {
     staked: boolean,
     daysUnfed: number,
     prestigeLevel = 0,
-  ): OwnedWord => ({ word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0, mine: true });
+    ageDays = 0,
+  ): OwnedWord => ({ word, tier: wordTier(word), upper: upperMask, staked, daysUnfed, prestigeLevel, prestigePity: 0, mine: true, since: practiceNow() - ageDays * 86_400 });
 
   const F = false;
   const T = true;
   const words: OwnedWord[] = [
-    mk("TEASE", [F, F, F, F, F], true, 0), // lowercase, fed, staked — today's jackpot word
-    mk("CRANE", [T, T, T, F, F], true, 1, 0), // mid-upgrade (Mixed), peckish
-    mk("VIVID", [T, T, T, T, T], true, 3, 1), // UPPERCASE + prestige L1, but HUNGRY (needs feeding!)
-    mk("MOTEL", [F, F, F, F, F], false, 0), // an unstaked spare
+    mk("TEASE", [F, F, F, F, F], true, 0, 0, 9), // lowercase, fed, staked — today’s jackpot word
+    mk("CRANE", [T, T, T, F, F], true, 1, 0, 6), // mid-upgrade (Mixed), peckish
+    mk("VIVID", [T, T, T, T, T], true, 3, 1, 14), // UPPERCASE + prestige L1, but HUNGRY (needs feeding!)
+    mk("MOTEL", [F, F, F, F, F], false, 0, 0, 2), // an unstaked spare
   ];
 
   return {
@@ -506,6 +516,7 @@ export function reducer(s: GameState, a: Action): GameState {
         prestigeLevel: 0,
         prestigePity: 0,
         mine: true,
+        since: practiceNow(),
       };
       return {
         ...s,

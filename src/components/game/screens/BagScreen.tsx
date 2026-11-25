@@ -1,9 +1,13 @@
 "use client";
-/** Bag — your loose letters (tap a lowercase one to raise it) and your claimed words. */
+/**
+ * Bag: your words, as cards (components/cards), and your loose letters (tap a lowercase one to raise
+ * it). It opens on Words while you have words, or while they are still on their way (starl3xx,
+ * 2026-11-25: "bag should default to words first"); a player with none lands on Letters.
+ */
 import { useState } from "react";
 import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
-import { WordCard } from "../WordCard";
+import { BagWordCard } from "../../cards/BagWordCard";
 import { Basket, Sparkle, TextAa } from "../ui/icons";
 import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
@@ -16,7 +20,9 @@ import { useStoredChoice } from "../useStoredChoice";
 export function BagScreen() {
   const g = useGame();
   const { state } = g;
-  const [tab, setTab] = useState<"letters" | "words">("letters");
+  // The tab the player chose; until they choose, Words when there are words (or they are loading).
+  const [chosenTab, setTab] = useState<"letters" | "words" | null>(null);
+  const tab = chosenTab ?? (state.section === "letters" || !(state.words.length > 0 || wordsUnknown(state)) ? "letters" : "words");
 
   const [letterSort, setLetterSort] = useStoredChoice<LetterSort>("lexi:bag:letters:sort", LETTER_SORTS, "az");
   const [wordFilter, setWordFilter] = useStoredChoice<WordFilter>("lexi:bag:words:filter", WORD_FILTERS, "all");
@@ -54,8 +60,8 @@ export function BagScreen() {
         value={tab}
         onChange={setTab}
         options={[
-          { value: "letters", label: <>Letters · {lowerCount + upperCount}</> },
           { value: "words", label: <>Words · {state.words.length}</> },
+          { value: "letters", label: <>Letters · {lowerCount + upperCount}</> },
         ]}
       />
 
@@ -174,7 +180,11 @@ export function BagScreen() {
               )}
             </div>
           ) : (
-            shown.map((w) => <WordCard key={w.word} word={w} />)
+            <div className="grid grid-cols-2 gap-x-2.5 gap-y-3.5 lg:col-span-2 lg:grid-cols-3">
+              {shown.map((w) => (
+                <BagWordCard key={w.word} word={w} price={forSale.get(w.word)} />
+              ))}
+            </div>
           )}
         </div>
       )}
