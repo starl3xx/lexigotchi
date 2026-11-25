@@ -4,7 +4,7 @@
  * and the chain claim (Words.claim's upperMask) share.
  */
 import { describe, expect, it } from "vitest";
-import { canSpell, canSpellAs, caseMask, claimCase, spellableNow } from "@/components/game/state";
+import { canSpell, canSpellAs, caseMask, charToIdx, claimCase, reducer, seedState, spellableNow } from "@/components/game/state";
 import { rackCases } from "@/components/game/screens/ClaimScreen";
 
 const counts = (letters: string) => {
@@ -57,6 +57,22 @@ describe("the case each letter is claimed in", () => {
     expect(caseMask([false, false, false, false, false])).toBe(0);
     expect(caseMask([true, true, true, true, true])).toBe(0x1f);
     expect(caseMask([true, false, true, false, false])).toBe(0b00101);
+  });
+
+  it("in the practice game, takes each letter from its own case and keeps the mix in the word", () => {
+    // The starter bag holds lowercase A A B C D E E G I N O L R S T T U and a raised R and E.
+    const s = seedState();
+    expect(s.words.some((w) => w.word === "TIERS")).toBe(false);
+    const cases = [false, false, true, true, false]; // t i E R s
+    const after = reducer(s, { t: "claim", word: "TIERS", cases });
+    const word = after.words.find((w) => w.word === "TIERS");
+    expect(word?.upper).toEqual(cases);
+    expect(after.upper[charToIdx("E")]).toBe(s.upper[charToIdx("E")] - 1);
+    expect(after.upper[charToIdx("R")]).toBe(s.upper[charToIdx("R")] - 1);
+    expect(after.lower[charToIdx("E")]).toBe(s.lower[charToIdx("E")]); // the lowercase e stays
+    expect(after.lower[charToIdx("T")]).toBe(s.lower[charToIdx("T")] - 1);
+    // A case the bag doesn't hold (no raised T) claims nothing.
+    expect(reducer(s, { t: "claim", word: "TIERS", cases: [true, false, false, false, false] })).toBe(s);
   });
 
   it("from the rack, uses exactly the tiles picked", () => {

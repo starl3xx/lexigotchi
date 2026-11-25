@@ -110,7 +110,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
               RAISED! <Crown weight="fill" />
             </div>
-            <p className="text-sm text-ink/60">Now UPPERCASE: the blue game tile. Spell it into an all-UPPERCASE word to earn $WORD.</p>
+            <p className="text-sm text-ink/60">Now UPPERCASE: the blue game tile. Spell it into any word, and once all five of a word’s letters are raised, it earns $WORD.</p>
           </div>
         )}
         {/* The new odds, shown at once: the provider lays the pity this miss set over the chain
