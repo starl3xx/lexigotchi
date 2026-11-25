@@ -108,9 +108,11 @@ migrations production has applied.
    `$BASE_RPC` is Lexigotchi's own Alchemy app (`BASE_MAINNET_RPC_URL` in `.env.local`).
    `--verify` uses the Etherscan key in LHAW's `contracts/.env` (`BASESCAN_API_KEY`). Etherscan's
    free plan refuses raw RPC calls on Base, but its contract endpoints (verification) answer it.
-3. Move ownership of all ten contracts to the hardware wallet: `transferOwnership` from the deployer,
-   then `acceptOwnership` from the hardware wallet. Rolls and Prestige included: like every
-   contract, they start owned by the deployer.
+3. Move ownership of all ten owned contracts to the hardware wallet: `transferOwnership` from the
+   deployer, then `acceptOwnership` from the hardware wallet. Rolls and Prestige included: like
+   every contract, they start owned by the deployer. The eleventh, `SaleFees` (the word-sale fee),
+   has no owner. Check that the FeeRouter lists it (`isCollector(saleFees)` is true) and that
+   `splits(6)` (ROYALTY) is 100% pool before the first word sells (decisions.md #18).
 4. Optional: register the EAS achievements schema on mainnet and add it to the registry. The
    `achievements` keeper job is opt-in.
 

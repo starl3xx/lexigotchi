@@ -14,6 +14,7 @@ import {AnswerChain} from "../src/AnswerChain.sol";
 import {Jackpot} from "../src/Jackpot.sol";
 import {YieldDistributor} from "../src/YieldDistributor.sol";
 import {Bounty} from "../src/Bounty.sol";
+import {SaleFees} from "../src/SaleFees.sol";
 import {ILetters} from "../src/interfaces/ILetters.sol";
 import {IWords} from "../src/interfaces/IWords.sol";
 import {IStaking} from "../src/interfaces/IStaking.sol";
@@ -76,6 +77,7 @@ contract Deploy is Script {
         Jackpot jackpot;
         YieldDistributor yieldDistributor;
         Bounty bounty;
+        SaleFees saleFees;
     }
 
     function run() external returns (Addrs memory a) {
@@ -100,6 +102,7 @@ contract Deploy is Script {
         );
         a.yieldDistributor = new YieldDistributor(c.word, a.feeRouter, c.keeper, deployer);
         a.bounty = new Bounty(c.word, a.feeRouter, c.keeper, deployer);
+        a.saleFees = new SaleFees(c.word, a.feeRouter);
 
         _wire(a, c);
 
@@ -113,6 +116,7 @@ contract Deploy is Script {
         a.feeRouter.setCollector(address(a.rolls), true);
         a.feeRouter.setCollector(address(a.staking), true);
         a.feeRouter.setCollector(address(a.prestige), true);
+        a.feeRouter.setCollector(address(a.saleFees), true); // the word-sale fee (Seaport → SaleFees.flush)
         a.feeRouter.setPayers(address(a.yieldDistributor), address(a.jackpot), address(a.bounty));
         if (c.bountyCarveBps > 0) a.feeRouter.setBountyCarveBps(c.bountyCarveBps);
         _setSplits(a.feeRouter);
@@ -162,7 +166,9 @@ contract Deploy is Script {
         fr.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500)); // jackpot rake 10% (freed 15pp → burn+pool)
         fr.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0)); // snacks 100% burn
         fr.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500)); // = roll
-        fr.setSplit(FeeSource.ROYALTY, FeeRouter.Split(0, 0, 0, 10000)); // in-house swap fee → treasury
+        // The word-sale fee (10%, SaleFees) → the Rewards Pool (starl3xx, 2026-11-25; was 100% Treasury
+        // for an in-house swap fee that never shipped). The bounty carve takes its share of the pool.
+        fr.setSplit(FeeSource.ROYALTY, FeeRouter.Split(10000, 0, 0, 0));
     }
 
     function _config() internal view returns (Config memory c) {
@@ -216,5 +222,6 @@ contract Deploy is Script {
         console2.log("Jackpot          ", address(a.jackpot));
         console2.log("YieldDistributor ", address(a.yieldDistributor));
         console2.log("Bounty           ", address(a.bounty));
+        console2.log("SaleFees         ", address(a.saleFees));
     }
 }

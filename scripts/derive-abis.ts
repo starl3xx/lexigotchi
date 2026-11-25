@@ -29,6 +29,7 @@ const CONTRACTS = [
   ["jackpot", "Jackpot"],
   ["yieldDistributor", "YieldDistributor"],
   ["bounty", "Bounty"],
+  ["saleFees", "SaleFees"],
 ] as const;
 
 /** Only the fragments the app actually calls — a full ERC-20 ABI is dead weight in the bundle. */

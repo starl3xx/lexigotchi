@@ -31,17 +31,24 @@ const LEVERS = [
   ["Freeze the answer sequence", "AnswerChain.setHead is only allowed before the chain starts or once exhausted — it can never be rewritten mid-stream."],
 ];
 
+/**
+ * The contracts that have an owner to hand over (Ownable2Step). SaleFees has none, so a batch that
+ * included it would revert as a whole (Bugbot on #185).
+ */
+const OWNED = CONTRACTS.filter((c) => c.fns.some((f) => f.fn === "transferOwnership"));
+
 export function AccessTab() {
   const d = useDeployments();
   const [multisig, setMultisig] = useState("");
   const [revealed, setRevealed] = useState(false);
 
   const valid = isAddress(multisig);
-  const missing = CONTRACTS.filter((c) => !isAddress(d?.contracts[c.key] ?? "")).map((c) => c.name);
+  // Only the contracts being handed over gate it: an undeployed SaleFees (no owner) mustn't (Bugbot on #185).
+  const missing = OWNED.filter((c) => !isAddress(d?.contracts[c.key] ?? "")).map((c) => c.name);
   const deployedAll = missing.length === 0;
   const transferIntents: TxIntent[] = useMemo(
     () =>
-      CONTRACTS.map((c) => ({
+      OWNED.map((c) => ({
         contractKey: c.key,
         contractName: c.name,
         address: d?.contracts[c.key] ?? null,
@@ -53,7 +60,7 @@ export function AccessTab() {
   );
   const acceptIntents: TxIntent[] = useMemo(
     () =>
-      CONTRACTS.map((c) => ({
+      OWNED.map((c) => ({
         contractKey: c.key,
         contractName: c.name,
         address: d?.contracts[c.key] ?? null,
@@ -101,7 +108,7 @@ export function AccessTab() {
         {valid && deployedAll && !revealed && (
           <div className="mt-4 space-y-2">
             <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
-              Sensitive — this hands ownership of all {CONTRACTS.length} contracts to the owner wallet. Double-check the
+              Sensitive — this hands ownership of all {OWNED.length} owned contracts to the owner wallet. Double-check the
               address, then type <code>transferOwnership</code> to reveal the transactions.
             </Banner>
             <ConfirmButton phrase="transferOwnership" onConfirm={() => setRevealed(true)}>

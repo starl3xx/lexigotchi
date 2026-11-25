@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 /**
  * @dev Fee sources, one configurable split each. Mirrors `params.ts splits.*`.
  *      PRESTIGE is its own slot (the sim defaults it to the ROLL split — the deploy
- *      script does the same on-chain). ROYALTY is the in-house swap fee (→ Treasury).
+ *      script does the same on-chain). ROYALTY is the word-sale fee (SaleFees → the Rewards Pool).
  */
 library FeeSource {
     uint8 internal constant PACK_MINT = 0;
