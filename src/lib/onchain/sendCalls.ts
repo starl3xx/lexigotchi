@@ -44,7 +44,8 @@ export interface Call {
 }
 
 export type SendResult =
-  | { via: "sendCalls"; id: string }
+  /** `id` is missing when the wallet's reply carried none: the batch may still land, untraceably. */
+  | { via: "sendCalls"; id?: string }
   | { via: "sendTransaction"; hashes: string[] };
 
 /** Thrown when the wallet is not on the game's chain and could not be moved there. */
@@ -124,7 +125,7 @@ export async function sendCallsAttributed(
   const net = opts.network ?? NETWORK;
   await ensureChain(provider, net);
   try {
-    const id = await provider.request({
+    const reply = await provider.request({
       method: "wallet_sendCalls",
       params: [
         {
@@ -137,7 +138,12 @@ export async function sendCallsAttributed(
         },
       ],
     });
-    return { via: "sendCalls", id: String(id) };
+    // ERC-5792 v2 answers `{ id, capabilities }`; the older draft answered the bare id (viem's
+    // sendCalls takes both). String() of the object was "[object Object]", which no
+    // wallet_getCallsStatus can look up (traceSend needs the real id). A reply with no id is NOT a
+    // failure: the wallet accepted the batch, so it is still reported as sent, just without an id.
+    const id = typeof reply === "string" ? reply : (reply as { id?: unknown } | null)?.id;
+    return typeof id === "string" && id ? { via: "sendCalls", id } : { via: "sendCalls" };
   } catch (err) {
     if (!isMethodUnsupported(err)) throw err;
     // Wallet lacks ERC-5792 — fall back to plain transactions, the builder suffix appended to each

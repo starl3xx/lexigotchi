@@ -101,11 +101,23 @@ The driver exits non-zero if any console error fired, so it works in a check.
 |---|---|
 | `--wallet` | Inject a mock EIP-1193 wallet and click Connect |
 | `--goto <screen>` | Bottom-nav target: `Today` `Bag` `Mint` `Win` `More` |
+| `--click <regex>` | Then click the first button whose name matches; repeat for a sequence. `'\$WORD'` opens Your $WORD |
+| `--wait <ms>` | After the last click (default 2000). Toasts seen meanwhile print as `TOASTS` |
+| `--drop-sends` | With `--wallet`: the wallet returns a made-up tx hash and broadcasts nothing |
 | `--shot <name>` | `/tmp/lexi-shots/<name>.png` (default `play`) |
 | `--url <url>` | Default `http://localhost:3000/play` |
 
 `--wallet` signs with `contracts/sepolia-deployer.secret.json` — a throwaway testnet key.
 **Never point it at anything but Sepolia.**
+
+The faucet, end to end (a real Base Sepolia mint; verified 2026-11-24):
+
+```bash
+node .claude/skills/run-lexigotchi/driver.mjs --wallet --click '\$WORD' --click 'testnet faucet' --wait 30000
+# TOASTS     : ["Test $WORD arrived: 50.00M"]
+node .claude/skills/run-lexigotchi/driver.mjs --wallet --drop-sends --click '\$WORD' --click 'testnet faucet' --wait 35000
+# TOASTS     : ["Your wallet says it sent the faucet transaction (0x…), but Base Sepolia hasn’t seen it. …"]
+```
 
 ## Direct invocation (no browser)
 

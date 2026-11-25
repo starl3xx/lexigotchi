@@ -380,7 +380,8 @@ function TopBar() {
             {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
           <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/60">
-            {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
+            {/* Test $WORD has no value, so the testnet game shows no dollar figure for it. */}
+            {state.status !== "ready" ? "$WORD" : state.chainBacked && NETWORK.isTestnet ? "test $WORD" : `${fmtUsd(state.balance)} · $WORD`}
           </div>
         </button>
         {helpBtn}

@@ -25,6 +25,8 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
 import { NETWORK } from "@/lib/onchain/network";
+import { BASE_SEPOLIA_FAUCETS_URL } from "@/lib/site";
+import { useOpenUrl } from "../useShare";
 
 // "Buy $WORD" (pinned to Base mainnet, Farcaster's swap or Matcha) lives in useBuyWord.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -40,6 +42,10 @@ export function BalanceSheet() {
   const me = resolveIdentity(viewer, profile.profile);
   const daily = useDailyEligibility();
   const { buy, env } = useBuyWord();
+  const openUrl = useOpenUrl();
+  // The chain game on Base Sepolia. Its balance is TEST $WORD: a tester holding the real token on
+  // Base read "$WORD on Base" under a 0 and asked where theirs went (2026-11-24).
+  const testnet = state.chainBacked && NETWORK.isTestnet;
 
   const need = state.sheet?.kind === "balance" ? state.sheet.need : undefined;
   const shortfall = need ? Math.max(0, need.amount - state.balance) : 0;
@@ -49,7 +55,9 @@ export function BalanceSheet() {
       {/* what just got blocked — the reason this sheet opened */}
       {need && shortfall > 0 && (
         <Card className="mb-3 border-candy bg-candy/10 text-center text-sm">
-          You need <strong>{fmtWord(shortfall)} more $WORD</strong> ({fmtUsd(shortfall)}) for {need.action}.
+          {/* No dollar figure for test $WORD: it has no value, and the card below says so. */}
+          You need <strong>{fmtWord(shortfall)} more $WORD</strong>
+          {testnet ? "" : ` (${fmtUsd(shortfall)})`} for {need.action}.
         </Card>
       )}
 
@@ -88,7 +96,14 @@ export function BalanceSheet() {
         <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">
           <TweenNumber value={state.balance} format={fmtWord} />
         </div>
-        <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
+        {testnet ? (
+          <>
+            <div className="text-sm text-ink/60">Test $WORD on {NETWORK.name}</div>
+            <div className="mt-1 text-xs text-ink/55">Your real $WORD stays on Base. It doesn’t count in the test game.</div>
+          </>
+        ) : (
+          <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
+        )}
       </Card>
 
       <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
@@ -160,6 +175,17 @@ export function BalanceSheet() {
         >
           <Plus /> {g.state.chainBacked ? "get test $WORD (testnet faucet)" : "add demo balance (practice)"}
         </button>
+      )}
+      {/* The faucet is a transaction like any other, and a plain wallet pays its gas. Without Base
+          Sepolia ETH it never lands (the faucet's own toast points here when that's the reason).
+          Sponsored smart wallets hold none and need none, so it says "if". */}
+      {testnet && (
+        <p className="mt-1 text-center text-xs text-ink/55">
+          If your wallet pays its own gas, it needs a little {NETWORK.name} ETH.{" "}
+          <button onClick={() => void openUrl(BASE_SEPOLIA_FAUCETS_URL)} className="font-bold underline">
+            Get some free
+          </button>
+        </p>
       )}
     </Sheet>
   );

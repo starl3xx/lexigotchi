@@ -40,6 +40,7 @@ import {
   GameCtx,
   reducer,
   seedState,
+  fmtWord,
   type MoveOutcome,
 } from "./state";
 import { rollSuccessProbability } from "@/lib/params";
@@ -65,9 +66,9 @@ import { usePublicProfile } from "./useProfile";
 import { unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
-import { erc1155ApprovalAbi } from "@/lib/onchain/abis";
-import { getPublicClient } from "@/lib/onchain/reads";
-import { addressOf } from "@/lib/onchain/addresses";
+import { erc1155ApprovalAbi, erc20Abi } from "@/lib/onchain/abis";
+import { getPublicClient, toWordWei } from "@/lib/onchain/reads";
+import { addressOf, wordTokenAddress } from "@/lib/onchain/addresses";
 import { THEMES, themeForPeriod } from "@/lib/themes";
 import { useViewer } from "./useViewer";
 import {
@@ -92,11 +93,12 @@ import {
 } from "@/lib/onchain/actions";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
-import { NETWORK } from "@/lib/onchain/network";
+import { NETWORK, networkById } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
-import type { Call } from "@/lib/onchain/sendCalls";
+import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls";
+import { shortHash, traceSend, withTimeout, type SendTrace } from "@/lib/onchain/traceSend";
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -136,8 +138,10 @@ interface RollReveal extends OutcomeReveal {
 /**
  * `settles`: the caller re-reads until the change shows and says so itself (`sendAndSettle`), so
  * the send skips its generic "sent" toast and its background re-reads of the words.
+ * `onSent`: hands the caller what the wallet returned (hashes or a batch id), to trace a send whose
+ * effect never shows (`traceSend`).
  */
-type RunOpts = { settles?: boolean };
+type RunOpts = { settles?: boolean; onSent?: (result: SendResult) => void };
 type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
 
 /** Chain words → the shape screens already destructure. */
@@ -449,7 +453,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     async (label: string, build: () => Call[], phase: SetPhase, opts?: RunOpts) => {
       try {
         phase("wallet");
-        await chain.send(build());
+        const sent = await chain.send(build());
+        opts?.onSent?.(sent);
         phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
@@ -1122,10 +1127,108 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       skipDay: () => toast("Time moves on its own here", "info"),
 
       // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet.
+      //
+      // It waits for the BALANCE, not the send. A send returns when the wallet accepts: on 2026-11-24
+      // a tester saw "Faucet sent" over a balance that never moved, and no mint for their wallet ever
+      // reached Base Sepolia (their wallet held Base Sepolia ETH). So it says "arrived" only once the
+      // mint shows. When it doesn't, it traces what the wallet returned and says what happened. It
+      // never refuses to send for want of ETH: sponsored smart wallets mint holding none.
       addDemoBalance: () => {
         if (!NETWORK.isTestnet) return void toast("No faucet on mainnet", "bad");
         if (!address) return void toast("Connect a wallet first", "bad");
-        void track("Getting test $WORD", (run) => run("Faucet", () => faucetCalls(address, 50_000_000)), false);
+        void track("Getting test $WORD", async (run) => {
+          const client = getPublicClient();
+          const balanceOf = async () =>
+            (await client.readContract({
+              address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [address],
+            })) as bigint;
+          const FAUCET = 50_000_000;
+          // The starting balance is READ, never guessed: falling back to 0 let any balance the wallet
+          // already held pass for the mint. A few tries, then refuse before anything is sent.
+          let before: bigint | undefined;
+          for (const wait of [0, 1_000, 2_000]) {
+            if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+            before = await balanceOf().catch(() => undefined);
+            if (before !== undefined) break;
+          }
+          if (before === undefined) return void toast("Couldn’t read your test $WORD balance. Try again in a moment.", "bad");
+          // A lagging node can answer with the balance from before an earlier mint; the cached read
+          // may be newer. The higher of the two, so an earlier mint can't pass for this one.
+          const start = chain.player && chain.player.balanceWei > before ? chain.player.balanceWei : before;
+          let sent: SendResult | undefined;
+          const ok = await run("Faucet", () => faucetCalls(address, FAUCET), {
+            settles: true,
+            onSent: (r) => (sent = r),
+          });
+          if (!ok) return;
+          // The whole mint, so other $WORD coming in meanwhile can't pass for it.
+          if (await readUntil(balanceOf, (b) => b >= start + toWordWei(FAUCET))) {
+            void chain.refresh();
+            return void toast(`Test $WORD arrived: ${fmtWord(FAUCET)}`, "good");
+          }
+
+          // A read that FAILS must not pass for "not found": only viem's not-found errors mean that.
+          const notFound = (e: unknown, name: string) => {
+            if ((e as { name?: string })?.name === name) return null;
+            throw e;
+          };
+          // Capped as a whole (the wallet's own answer has a shorter cap inside): the action gate
+          // waits on this, and each viem read retries on its own.
+          const trace = await withTimeout(
+            traceSend(sent, {
+              chainId: NETWORK.id,
+              receipt: (hash) =>
+                client.getTransactionReceipt({ hash }).then((r) => ({ status: r.status }), (e) => notFound(e, "TransactionReceiptNotFoundError")),
+              known: (hash) =>
+                client.getTransaction({ hash }).then(() => true, (e) => notFound(e, "TransactionNotFoundError") ?? false),
+              callsStatus: async (id) => {
+                const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
+                if (!provider) throw new Error("no provider");
+                return provider.request({ method: "wallet_getCallsStatus", params: [id] });
+              },
+            }),
+            15_000,
+            { kind: "unknown" } as SendTrace,
+          );
+          // For a desktop tester's console, and for us when they share it.
+          console.warn("[faucet] no test $WORD arrived", { address, sent, trace });
+          void chain.refresh();
+
+          const at = "hash" in trace ? ` (${shortHash(trace.hash)})` : "";
+          const here = NETWORK.name;
+          switch (trace.kind) {
+            case "landed":
+              return void toast(`The faucet landed${at}. Your balance will catch up in a moment.`, "info");
+            case "reverted":
+              return void toast(`The faucet transaction failed on ${here}${at}. Try again.`, "bad");
+            case "pending":
+              return void toast(`Your faucet transaction is still waiting on ${here}${at}.`, "info");
+            case "unseen":
+              // Base's mempool is private, so a transaction still queued in the wallet looks like this.
+              return void toast(
+                `Your wallet says it sent the faucet transaction${at}, but ${here} hasn’t seen it. Your wallet may be holding it behind an earlier transaction, or sent it on another network.`,
+                "bad",
+              );
+            case "other_chain": {
+              const there = networkById(trace.chainId)?.name ?? `another network (chain ${trace.chainId})`;
+              return void toast(`Your wallet ran the faucet on ${there}, not ${here}. Nothing was minted.`, "bad");
+            }
+            case "wallet_failed":
+              return void toast("Your wallet says the faucet transaction failed. Try again.", "bad");
+            case "wallet_pending":
+              return void toast("Your wallet says the faucet transaction is still pending.", "info");
+            case "unknown": {
+              // Sponsored smart wallets hold no ETH and need none, so this only says "if".
+              const eth = await withTimeout(client.getBalance({ address }).catch(() => null), 5_000, null);
+              return void toast(
+                eth === 0n
+                  ? `No test $WORD yet. If your wallet pays its own gas, it needs ${here} ETH: get some free below, then tap again.`
+                  : "Your wallet accepted it, but no test $WORD has arrived yet. Check your wallet’s activity.",
+                "info",
+              );
+            }
+          }
+        }, undefined);
       },
 
       claimables: (claimablesQ.data ?? []).map((c) => ({

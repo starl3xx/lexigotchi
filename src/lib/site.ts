@@ -14,6 +14,8 @@ export const X_URL = `https://x.com/${X_HANDLE}`;
 /** The player docs (docs-site/, Mintlify), proxied at /docs by the rewrites in vercel.json. Absolute,
  *  because a mini-app host opens links with sdk.actions.openUrl, and `next dev` has no rewrites. */
 export const DOCS_URL = "https://lexigotchi.fun/docs";
+/** Base's list of Base Sepolia ETH faucets (testnet gas). The same page docs-site/contracts.mdx links. */
+export const BASE_SEPOLIA_FAUCETS_URL = "https://docs.base.org/base-chain/network-information/network-faucets";
 
 /**
  * Pre-launch campaign gate. When `NEXT_PUBLIC_PRELAUNCH === "1"`, `/play` shows the
