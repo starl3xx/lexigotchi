@@ -85,6 +85,11 @@ export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: 
   return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}) })}`;
 }
 
+/** The back of the word's card, for the share loop's turning card (`/s/<word>/back`, same origin). */
+export function showcaseBackPath(text: string): string {
+  return `/s/${text}/back`;
+}
+
 /** The cast's words. The link goes separately as the cast's embed. */
 export function showcasePostText(text: string): string {
   return `${text} ✨ spelled with letters I raised in Lexigotchi`;

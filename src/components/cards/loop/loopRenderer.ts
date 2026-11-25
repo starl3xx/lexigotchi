@@ -1,0 +1,178 @@
+/**
+ * The share loop's turning card (decisions.md #27), on OGL: the word's share card on
+ * its front, its back (the `/s/<word>/back` picture over the material, drawn by the same shader as
+ * the live back: ../live/materialGlsl), turning over and home again in six seconds. `render(t)`
+ * draws the frame at time t, the same frame every time, so the video is the same however fast the
+ * device: ./makeLoop steps it and encodes each frame.
+ *
+ * From the "Scene Cards" mock (approved 2026-11-25: "front, rotates, shows back, on a like 5-8s
+ * loop"): the scene, a turn with a lift and a glare as it passes edge-on, the back catching the
+ * light, and the turn home.
+ */
+import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
+import { MATERIAL_GLSL, MAT_INDEX } from "../live/materialGlsl";
+import type { CardMaterial } from "../material";
+
+export const LOOP_SECONDS = 6;
+/** The share card's shape (1200×630): the card that turns. */
+const CARD_ASPECT = 1200 / 630;
+/** The game's paper, behind the card. */
+const PAPER: [number, number, number] = [0.957, 0.918, 0.824];
+
+const VERT = /* glsl */ `
+attribute vec3 position;
+attribute vec2 uv;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+`;
+
+const FRAG = /* glsl */ `
+precision highp float;
+uniform sampler2D tFront;
+uniform sampler2D tBack;
+uniform float uTime;
+uniform vec2 uLight;
+uniform float uMat;
+uniform float uAspect;
+uniform float uGlare;
+uniform float uGlareX;
+varying vec2 vUv;
+${MATERIAL_GLSL}
+float rounded(vec2 uv, float r) {
+  vec2 q = abs(vec2((uv.x - 0.5) * uAspect, uv.y - 0.5)) - vec2(0.5 * uAspect - r, 0.5 - r);
+  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+void main() {
+  float sd = rounded(vUv, 0.045);
+  if (sd > 0.0) discard;
+  vec3 col;
+  if (gl_FrontFacing) {
+    col = texture2D(tFront, vUv).rgb;
+  } else {
+    // the back: its material, with its words and tiles over it
+    vec2 buv = vec2(1.0 - vUv.x, vUv.y);
+    vec3 m = material(buv, uLight, uTime, uMat, uAspect, 1.0 / 630.0);
+    vec4 c = texture2D(tBack, buv);
+    col = mix(m, c.rgb, c.a);
+  }
+  // the light catching the card as it turns
+  float g = exp(-pow((vUv.x - uGlareX) * 3.2 + (vUv.y - 0.5) * 1.2, 2.0) * 6.0) * uGlare;
+  col += g * vec3(1.0, 0.97, 0.9) * 0.55;
+  // its ink edge (sd runs negative inside; the last sliver before the edge is ink)
+  col = mix(col, vec3(0.106, 0.09, 0.078), smoothstep(-0.014, -0.006, sd));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const SHADOW_FRAG = /* glsl */ `
+precision highp float;
+uniform float uSpread;
+varying vec2 vUv;
+void main() {
+  vec2 q = (vUv - 0.5) * vec2(1.0, 2.6);
+  float a = exp(-dot(q, q) * 9.0 / uSpread) * 0.32;
+  gl_FragColor = vec4(0.106, 0.09, 0.078, a);
+}
+`;
+
+const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
+/** Where the card is at time t of the loop: its turn (degrees), lift, tilt, and the glare. */
+export function loopPose(t: number) {
+  const s = ((t % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS;
+  const turn1 = ease(clamp01((s - 1.8) / 0.9));
+  const turn2 = ease(clamp01((s - 4.7) / 0.9));
+  const turn = 180 * turn1 + 180 * turn2;
+  const lift = Math.sin(Math.PI * clamp01((s - 1.8) / 0.9)) + Math.sin(Math.PI * clamp01((s - 4.7) / 0.9));
+  const tiltY = Math.sin(s * 1.3) * 5;
+  const tiltX = Math.sin(s * 0.9 + 1) * 3;
+  // a glare crossing the front early on, and crossing as each turn passes edge-on
+  const g1 = Math.max(0, 1 - Math.abs(s - 0.9) / 0.6);
+  const g2 = Math.sin(Math.PI * clamp01((s - 1.8) / 0.9));
+  const g3 = Math.max(0, 1 - Math.abs(s - 3.6) / 0.7);
+  const g4 = Math.sin(Math.PI * clamp01((s - 4.7) / 0.9));
+  const glare = Math.max(g1, g2, g3, g4);
+  const glareX =
+    s < 1.8 ? (s - 0.3) / 1.2 : s < 2.7 ? 1.1 - clamp01((s - 1.8) / 0.9) * 1.2 : s < 4.7 ? (s - 2.9) / 1.4 : 1.1 - clamp01((s - 4.7) / 0.9) * 1.2;
+  return { s, turn, lift, tiltX, tiltY, glare, glareX };
+}
+
+/** The back's light during the loop: a slow orbit, so the material is never dead still. */
+function loopLight(t: number): [number, number] {
+  return [0.5 + 0.24 * Math.cos(t * 0.42), 0.55 + 0.15 * Math.sin(t * 0.54)];
+}
+
+export interface LoopRenderer {
+  /** Draw the frame at time t (seconds). */
+  render(t: number): void;
+  /** Let the context go. */
+  destroy(): void;
+}
+
+/** A turning card on `canvas`, `width`×`height` pixels, its two faces from `front` and `back`. */
+export function attachLoop(
+  canvas: HTMLCanvasElement,
+  { front, back, material, width, height }: { front: TexImageSource; back: TexImageSource; material: CardMaterial; width: number; height: number },
+): LoopRenderer {
+  // The frame is read the moment it's drawn (./makeLoop): keep it until then.
+  const renderer = new Renderer({ canvas, width, height, dpr: 1, alpha: false, antialias: true, preserveDrawingBuffer: true });
+  const gl = renderer.gl;
+  gl.clearColor(PAPER[0], PAPER[1], PAPER[2], 1);
+  const camera = new Camera(gl, { fov: 30, aspect: width / height });
+  camera.position.set(0, 0, 2.65);
+  const scene = new Transform();
+  const tFront = new Texture(gl, { image: front as HTMLImageElement, generateMipmaps: false });
+  const tBack = new Texture(gl, { image: back as HTMLImageElement, generateMipmaps: false });
+  const program = new Program(gl, {
+    vertex: VERT,
+    fragment: FRAG,
+    cullFace: false,
+    uniforms: {
+      tFront: { value: tFront },
+      tBack: { value: tBack },
+      uTime: { value: 0 },
+      uLight: { value: [0.5, 0.5] },
+      uMat: { value: MAT_INDEX[material] },
+      uAspect: { value: CARD_ASPECT },
+      uGlare: { value: 0 },
+      uGlareX: { value: 0 },
+    },
+  });
+  const card = new Mesh(gl, { geometry: new Plane(gl, { width: CARD_ASPECT, height: 1 }), program });
+  card.setParent(scene);
+  const shadowProgram = new Program(gl, {
+    vertex: VERT,
+    fragment: SHADOW_FRAG,
+    transparent: true,
+    depthWrite: false,
+    cullFace: false,
+    uniforms: { uSpread: { value: 1 } },
+  });
+  const shadow = new Mesh(gl, { geometry: new Plane(gl, { width: CARD_ASPECT * 1.25, height: 0.5 }), program: shadowProgram });
+  shadow.position.set(0, -0.68, -0.2);
+  shadow.rotation.x = -Math.PI / 2.4;
+  shadow.setParent(scene);
+
+  return {
+    render(t) {
+      const p = loopPose(t);
+      card.rotation.y = (p.turn + p.tiltY) * (Math.PI / 180);
+      card.rotation.x = p.tiltX * (Math.PI / 180);
+      card.position.z = p.lift * 0.22;
+      card.position.y = p.lift * 0.03;
+      shadowProgram.uniforms.uSpread.value = 1 + p.lift * 0.5;
+      const [lx, ly] = loopLight(p.s);
+      program.uniforms.uTime.value = p.s;
+      program.uniforms.uLight.value = [lx, 1 - ly];
+      program.uniforms.uGlare.value = p.glare;
+      program.uniforms.uGlareX.value = p.glareX;
+      renderer.render({ scene, camera });
+    },
+    destroy() {
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    },
+  };
+}

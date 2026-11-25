@@ -555,6 +555,34 @@ setter. All small, riding existing suite patterns.
       continue" after I offered it).
     - Not done: baking the shader's material into a picture for the cards that aren't live (CSS
       stands in), and the share loop (step 4).
+27. **The share loop: a video of the card turning over** (step 4 of #23; starl3xx, 2026-11-25:
+    "a video or GIF that shows front, rotates, shows back, on a like 5-8s loop would be magical";
+    "move on to step 4"). A link's card on X shows only a still, so the turn goes out as a video
+    the player attaches to the post.
+    - **Made in the player's browser**, when they ask (Share → "Make a video of the card"): six
+      seconds, 30 fps, 1280×720, H.264 MP4. OGL draws each frame (`cards/loop/loopRenderer.ts`, the
+      mock's turn: the scene, a lift and a glare as it passes edge-on, the back catching the
+      light, home); the back's material is the live back's own shader (`cards/live/materialGlsl.ts`,
+      one source for both), under the back's words and tiles (`/s/<word>/back`, Satori, 1200×630,
+      transparent). The browser's own encoder (WebCodecs) encodes; mp4-muxer packs. Proven first
+      in Chromium, Chrome, and WebKit: a playable 6 s MP4, about 2.9 MB.
+    - **Why not MediaRecorder** (no package): it records in real time and drops frames on a slow
+      device. Drawing each frame and waiting for the encoder makes the same six seconds everywhere.
+    - **mp4-muxer, not Mediabunny:** 9.4 kB gzipped against 35.9 kB for the same MP4 pieces, and
+      MIT against MPL-2.0; but mp4-muxer is deprecated in Mediabunny's favour (no more fixes).
+      Swapping later touches one file (`cards/loop/makeLoop.ts`).
+    - **The back, for strangers:** the video travels beyond the player, so its back speaks of the
+      word, never "you": rarity and number, case (from the link, like the card), points, and from
+      the chain when the game is live, ascension and the first finder. Nothing from the query
+      string; cached minutes, not the card's week.
+    - **The GPU rules:** made only on the tap; the live back lets the one context go first
+      (`releaseLive`), and the loop's context is lost when it's done, fails, or is called off;
+      every frame waits for the encoder and yields; OGL and the muxer load on the tap (`/play` grew
+      2 kB). The preview plays twice and rests (a test fails on a looping `<video>`).
+    - **Two taps** (make, then share or save): iOS opens the share sheet only from the tap itself.
+      Offered only where the file can leave: a share sheet that takes files, or a download outside
+      a mini-app host. Farcaster keeps the link (a GIF in a cast is untested). The corner wordmark is
+      on every frame (#23: "corner mark on saved images/videos"). Not on a low-end phone.
 
 ## Pricing & launch economics (decided June 2026)
 

@@ -17,6 +17,7 @@ import { usePostToX, useSaveImage, useShare } from "../game/useShare";
 import { showcaseCardPath, showcasePostText, showcaseUrl, showcaseWordText, showcaseXText } from "@/lib/showcase";
 import { SceneCard } from "./SceneCard";
 import { CardMore } from "./CardBack";
+import { ShareVideo } from "./ShareVideo";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();
@@ -77,6 +78,8 @@ function ShareWord({ word }: { word: OwnedWord }) {
           <DownloadSimple weight="bold" /> Save image
         </Button>
       </div>
+      {/* the card turning over, as a video to post or keep (made only when asked: ./ShareVideo) */}
+      <ShareVideo word={word} text={text} scene={scene} />
     </div>
   );
 }
