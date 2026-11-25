@@ -4,7 +4,7 @@ import { LETTERS_BY_FREQUENCY, TOTAL_SLOTS } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { Check, Diamond, Package, Ticket } from "../ui/icons";
-import { fmtUsd, fmtWord, idxToChar, useGame } from "../state";
+import { fmtUsd, fmtWord, idxToChar, showsUsd, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { useEffect, useState } from "react";
 import { fetchCampaignStatus } from "../campaignClient";
@@ -96,7 +96,7 @@ export function MintScreen() {
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
-            <div className="text-xs text-ink/60">{`${fmtWord(packPrice)} $WORD · ${fmtUsd(packPrice)}`}</div>
+            <div className="text-xs text-ink/60">{showsUsd(state) ? `${fmtWord(packPrice)} $WORD · ${fmtUsd(packPrice)}` : `${fmtWord(packPrice)} $WORD`}</div>
           </div>
           <Package weight="fill" size={40} className="text-candy-ink" />
         </div>

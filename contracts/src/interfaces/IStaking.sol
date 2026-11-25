@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 /**
  * @title IStaking
  * @notice Word-NFT staking custody + hunger state. Read by Jackpot (eligibility) and
- *         Prestige/Rolls (beneficial owner of a staked token).
+ *         Prestige/Rolls (beneficial owner of a staked token, and the owner's caretakers).
  */
 interface IStaking {
     /// @return the address that staked `tokenId` (address(0) if not staked)
@@ -14,4 +14,6 @@ interface IStaking {
     function isHungry(uint256 tokenId) external view returns (bool);
     /// @return 0 = fed, 1 = peckish, 2 = hungry
     function hungerLevel(uint256 tokenId) external view returns (uint8);
+    /// @return true if `staker` named `wallet` to feed, roll, and ascend its staked Words
+    function isCaretaker(address staker, address wallet) external view returns (bool);
 }

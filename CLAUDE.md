@@ -155,6 +155,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the wallet the player keeps everything in; a stored wallet that left the account reads as none.
   `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
   `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
+  **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
+  staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
+  the free snack is the staker's; commits name the staker; only the staker unstakes). Game words carry
+  `care` (the connected wallet cares for the staker); word rolls and ascensions look up commits by the
+  staker; the Wallets card sets them per wallet (`readCaretakers`, `setCaretakerCalls`).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
@@ -301,6 +306,30 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   baseline `config/deployments.json` + localStorage overrides), `auth.ts` (allowlist via
   `NEXT_PUBLIC_ADMIN_*`, dev-open when unset), `format.ts` (USD↔$WORD-wei peg). Tabs in
   `src/components/admin/tabs/`.
+  **Live tabs.** Pulse and Treasury read the live game first (`/api/admin/live`: the FeeRouter's pots,
+  the treasury, letters minted, words claimed, holders; public chain data, open and edge-cached) and
+  label the sim below as "Projection"; Broadcast's templates quote the same live numbers and this
+  week's bounty theme (`lib/themes.ts`), never the sim. **Players** (`/api/admin/players`, `lib/admin/playersData.ts`
+  → pure `playerRows.ts`): every wallet seen, from the contracts' events since deploy (faucet on
+  testnet only; packs and dailies from `Committed`'s count; reveals, claims, rolls, stakes, feeds),
+  `scanWorld` holdings, and the database (sightings, profile flags, push browsers, swap listings,
+  Farcaster users), plus the beta group's Telegram member count; a funnel and new-wallet counts that
+  leave out the TEAM's wallets (the allowlist, `TEAM_WALLETS`, registry roles, server keys, and any
+  wallet linked into a team account). **System** (`/api/admin/system`, `systemStatus.ts`): game mode,
+  every server key as its public address (`serverKeys.ts`, never the key) with gas and onchain wiring,
+  the keeper's last resolve, every feature switch with the setting NAMES it still needs
+  (`switches.ts`, shared with Notifications), and applied migrations (drizzle's own table against the
+  journal). Notifications shows all three reminder channels. **Players and System are GATED on the
+  server** (`lib/admin/serverAuth.ts`): a wallet session (the profile's SIWE token) for a wallet in
+  `NEXT_PUBLIC_ADMIN_WALLETS`, or a Quick Auth FID in `NEXT_PUBLIC_ADMIN_FIDS`; `NEXT_PUBLIC_ADMIN_OPEN`
+  does NOT open them in production, and they're `no-store`. The client sends the session through
+  `useAdminApi` and offers a sign-in on 401. Never import a server module (db, `systemStatus`) VALUE
+  into a tab: types only, or the Postgres driver lands in the browser bundle.
+- **Wallet sightings** (`lib/sightings.ts`, `lib/db/sightings.ts`, table `wallet_sightings`, migration
+  0012): the game posts `/api/players/seen` once per wallet per UTC day (`useWalletSighting`, mounted
+  in GameApp) so Players can count wallets that connect and do nothing onchain. Unsigned by design, so
+  the count is labelled unverified; rate-limited by IP; a FID only from a verified Quick Auth token.
+  Dark (503, no client retry storm: the day is marked only on success) until 0012 is applied.
 - **`FeeRouter.seed(uint8 bucket, uint256 amount)`** (owner-only) was added so the admin can fund the
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery
@@ -323,7 +352,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   tap (preparing → confirm in your wallet → waiting for the chain), and a second tap while one is in
   flight sends nothing. Wrap any new action in `track`, or its tap looks ignored during the
   proof/voucher/read work before the wallet opens, and send with the `run` it hands the flow (each
-  action's own, so an action abandoned with Hide can't drive a newer one's status). Claim, stake, unstake, and feed then **re-read the words until the change shows** (`sendAndSettle`, `src/lib/onchain/settle.ts`: reads at 0, 2, 5, 10, and 20 s) and announce it with the word; one read right after a send misses it, because a send returns when the wallet accepts and the words are a log scan. **Rolls are
+  action's own, so an action abandoned with Hide can't drive a newer one's status). Claim, stake, unstake, and feed then **re-read the words until the change shows** (`sendAndSettle`, `src/lib/onchain/settle.ts`: reads at 0, 2, 5, 10, and 20 s) and announce it with the word; one read right after a send misses it, because a send returns when the wallet accepts and the words are a log scan. The testnet **faucet**
+  settles on the mint's OWN result, on the same schedule (`settleSend` in `src/lib/onchain/traceSend.ts`:
+  the receipt on Base Sepolia, or `wallet_getCallsStatus` for a batch, whose "failed" beats a
+  bundler receipt that succeeded), and names any other outcome: never reached Base Sepolia, another
+  network, reverted, or pending. The balance is only the fallback for a send nobody can trace, from a
+  fresh read (a cached baseline both missed real mints and passed off earlier ones). Every read is
+  capped, since the action gate waits on them. "Sent" proved nothing: a tester's wallet said sent
+  and broadcast nothing (2026-11-24). **Rolls are
   finished by the server** (decisions.md #14): `revealRoll` posts `{ relay: true }` and
   `/api/roll/reveal` sends `Rolls.reveal` from `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`),
   so the wallet never previews the result; the answer's `relayed` field says what happened, and only

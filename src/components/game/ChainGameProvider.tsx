@@ -40,6 +40,7 @@ import {
   GameCtx,
   reducer,
   seedState,
+  fmtWord,
   type MoveOutcome,
 } from "./state";
 import { rollSuccessProbability } from "@/lib/params";
@@ -51,6 +52,7 @@ import {
   readLetterCounts,
   readOpenRolls,
   readWalletBalances,
+  readCaretakers,
   readPity,
   readPendingCommits,
   readDayState,
@@ -67,9 +69,9 @@ import { usePublicProfile } from "./useProfile";
 import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
-import { erc1155ApprovalAbi } from "@/lib/onchain/abis";
-import { getPublicClient } from "@/lib/onchain/reads";
-import { addressOf } from "@/lib/onchain/addresses";
+import { erc1155ApprovalAbi, erc20Abi } from "@/lib/onchain/abis";
+import { getPublicClient, toWordWei } from "@/lib/onchain/reads";
+import { addressOf, wordTokenAddress } from "@/lib/onchain/addresses";
 import { THEMES, themeForPeriod } from "@/lib/themes";
 import { useViewer } from "./useViewer";
 import {
@@ -80,6 +82,7 @@ import {
   commitWordRollCalls,
   rollRevealCalls,
   commitPrestigeCalls,
+  setCaretakerCalls,
   prestigeRevealCalls,
   dissolveCalls,
   claimCalls,
@@ -96,11 +99,12 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import type { EarningsJson } from "@/lib/rewards/earnings";
 import { earningsFromJson } from "./earnings";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
-import { NETWORK } from "@/lib/onchain/network";
+import { NETWORK, networkById } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
-import type { Call } from "@/lib/onchain/sendCalls";
+import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls";
+import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from "@/lib/onchain/traceSend";
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -140,13 +144,15 @@ interface RollReveal extends OutcomeReveal {
 /**
  * `settles`: the caller re-reads until the change shows and says so itself (`sendAndSettle`), so
  * the send skips its generic "sent" toast and its background re-reads of the words.
+ * `onSent`: hands the caller what the wallet returned (hashes or a batch id), to trace a send whose
+ * effect never shows (`traceSend`).
  */
 /** `sponsored`: ask the paymaster to pay the gas (only calls the CDP policy allows: see sendCalls). */
-type RunOpts = { settles?: boolean; sponsored?: boolean };
+type RunOpts = { settles?: boolean; sponsored?: boolean; onSent?: (result: SendResult) => void };
 type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
 
-/** Chain words → the shape screens already destructure. */
-function toOwnedWord(w: BagWord): OwnedWord {
+/** Chain words → the shape screens already destructure. `careFor`: stakers that named this wallet. */
+function toOwnedWord(w: BagWord, careFor?: ReadonlySet<string>): OwnedWord {
   return {
     word: w.word,
     tier: wordTier(w.word),
@@ -162,6 +168,8 @@ function toOwnedWord(w: BagWord): OwnedWord {
     // with a "held by" note (the contracts act on msg.sender's assets, full stop).
     mine: w.mine,
     holder: w.mine ? undefined : w.holder,
+    // A staked word whose staker named this wallet its caretaker: feed, roll, and ascend from here.
+    care: !w.mine && w.staked && Boolean(careFor?.has(w.holder.toLowerCase())),
   };
 }
 
@@ -229,6 +237,23 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     enabled: !!address && chain.deployed,
     staleTime: 10_000,
   });
+
+  // Caretakers (Staking.setCaretaker): which stakers of words in the bag named THIS wallet, so it
+  // may feed, roll, and ascend those words. One multicall; nothing to ask when every word is mine.
+  const othersStaking = useMemo(
+    () => [...new Set((wordsQ.data?.words ?? []).filter((w) => !w.mine && w.staked).map((w) => w.holder.toLowerCase()))].sort(),
+    [wordsQ.data],
+  );
+  const careQ = useQuery({
+    queryKey: ["careFor", NETWORK.id, address?.toLowerCase(), othersStaking.join(",")],
+    queryFn: async () => {
+      const flags = await readCaretakers(othersStaking.map((staker) => ({ staker, wallet: address!.toLowerCase() })));
+      return othersStaking.filter((_, i) => flags[i]);
+    },
+    enabled: !!address && chain.deployed && othersStaking.length > 0,
+    staleTime: 60_000,
+  });
+  const careFor = useMemo(() => new Set(careQ.data ?? []), [careQ.data]);
 
   // Linked wallets' letter counts (the connected wallet's ride in via chain.player). Display-only:
   // claim/roll spend gates on the connected counts, so a failed read here degrades the union
@@ -410,7 +435,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   });
 
   const toast = useCallback(
-    (text: string, tone: Toast["tone"] = "info") => dispatch({ t: "toast", text, tone }),
+    (text: string, tone: Toast["tone"] = "info", ms?: number) => dispatch({ t: "toast", text, tone, ms }),
     [],
   );
 
@@ -443,7 +468,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
-      words: (wordsQ.data?.words ?? []).map(toOwnedWord),
+      words: (wordsQ.data?.words ?? []).map((w) => toOwnedWord(w, careFor)),
       wordsEverHeld: wordsQ.data?.everHeld ?? 0,
       // "No words yet, and a read in flight" is loading: the first read, and a retry after a failed one
       // (TanStack's isLoading stays false when refetching from an error; Bugbot on #164).
@@ -466,7 +491,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    // careFor: the caretaker read lands after the words; `care` must follow it (Bugbot on #173).
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -474,7 +500,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     async (label: string, build: () => Call[], phase: SetPhase, opts?: RunOpts) => {
       try {
         phase("wallet");
-        await chain.send(build(), { sponsored: opts?.sponsored });
+        const sent = await chain.send(build(), { sponsored: opts?.sponsored });
+        // The wallet has accepted: nothing after this may report the send as failed. A throwing
+        // callback would have toasted "failed" and invited a second send while the first lands.
+        try {
+          opts?.onSent?.(sent);
+        } catch (err) {
+          console.warn("[send] onSent threw", err);
+        }
         phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
@@ -736,11 +769,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
   const finishRoll = useCallback(
-    async (before: readonly bigint[], run: RunFn): Promise<ActionOutcome> => {
+    async (before: readonly bigint[], run: RunFn, owner?: `0x${string}`): Promise<ActionOutcome> => {
       if (!address) return { status: "not-started" };
       toast("Rolling…", "info");
       // Everything past this point follows a PAID commit, so no failure here is "safe to retry".
-      const id = await waitForNewRollCommit(address, before);
+      // A caretaker's word roll is committed in the STAKER's name (Rolls keys it on the owner).
+      const id = await waitForNewRollCommit(owner ?? address, before);
       if (id === null) {
         return { status: "stranded", note: "Roll committed but slow to appear. Reopen to finish it" };
       }
@@ -755,9 +789,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * one instead: it is already paid for, and finishing it is the only way that letter rolls again.
    */
   const resumeOpenRoll = useCallback(
-    async (letterIndex: number, markPaid: () => void, run: RunFn): Promise<ActionOutcome | null> => {
+    async (letterIndex: number, markPaid: () => void, run: RunFn, owner?: `0x${string}`): Promise<ActionOutcome | null> => {
       if (!address) return null;
-      const open = await readOpenRollFor(address, letterIndex);
+      const open = await readOpenRollFor(owner ?? address, letterIndex);
       if (open === null) return null;
       toast("Finishing your unfinished roll on this letter first", "info");
       markPaid(); // paid at its commit; a failure from here leaves it open, never "try again for free"
@@ -956,12 +990,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // No sign-in pre-check: the roll reveal serves any wallet (see /api/roll/reveal), so a
           // wallet-only player can always finish a roll they paid for.
           // The pity key is (owner, letter), so a word slot shares it with the loose letter.
-          const resumed = await resumeOpenRoll(word.toUpperCase().charCodeAt(pos) - 65, markPaid, run);
-          if (resumed) return resumed;
-          const before = await readOpenRollCommits(address);
+          // A caretaker rolls in the staker's name: the open-roll slot and the commit are the staker's.
+          const target = state.words.find((x) => x.word === word);
+          const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
+          // A caretaker's roll moves the STAKER's pity: re-read it after any reveal (a resumed one
+          // too), since the chain lags a fresh reveal (Bugbot on #173).
+          const refreshOwnerPity = () => {
+            if (owner.toLowerCase() === address.toLowerCase()) return;
+            for (const ms of [0, 4_000, 10_000]) setTimeout(() => void qc.invalidateQueries({ queryKey: ["pity", NETWORK.id, owner.toLowerCase()] }), ms);
+          };
+          const resumed = await resumeOpenRoll(word.toUpperCase().charCodeAt(pos) - 65, markPaid, run, owner);
+          if (resumed) {
+            refreshOwnerPity();
+            return resumed;
+          }
+          const before = await readOpenRollCommits(owner);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
-          return finishRoll(before, run);
+          const outcome = await finishRoll(before, run, owner);
+          refreshOwnerPity();
+          return outcome;
         }), NOT_STARTED),
 
       prestige: (word: string) =>
@@ -973,11 +1021,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             toast("Finishing your unfinished ascension first", "info");
             markPaid(); // paid at its commit
           } else {
-            const before = await readOpenPrestigeCommits(address);
+            // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
+            const target = state.words.find((x) => x.word === word);
+            const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
+            const before = await readOpenPrestigeCommits(owner);
             if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return { status: "not-started" as const };
             markPaid(); // fee + burned snack are gone from here on
             toast("Ascending…", "info");
-            id = await waitForNewPrestigeCommit(address, before);
+            id = await waitForNewPrestigeCommit(owner, before);
             if (id === null) {
               return { status: "stranded", note: "Ascension committed but slow to appear. Reopen to finish it" };
             }
@@ -1070,8 +1121,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         if (!chain.params || !chain.player) return;
         // Only words that are actually hungry — feed() has no on-chain guard, so feeding a fed word
         // burns a snack for nothing and there is no revert to catch.
-        // mine only: feed() is staker-only on-chain, so a linked wallet's word would revert the batch.
-        const hungryWords = state.words.filter((w) => w.mine && w.staked && w.daysUnfed > 0);
+        // Mine, or a staker's word this wallet cares for (Staking.setCaretaker): feed() accepts both.
+        // Any other linked wallet's word would revert the batch.
+        const hungryWords = state.words.filter((w) => (w.mine || w.care) && w.staked && w.daysUnfed > 0);
         const hungry = hungryWords.map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody’s hungry", "info");
         const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
@@ -1089,6 +1141,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       },
 
       reloadWords: () => void wordsQ.refetch(),
+
+      // Any wallet's pity with this browser's fresh reveal notes laid over it (the chain read lags):
+      // the roll sheet reads the STAKER's this way for a word this wallet cares for.
+      pityOf: (wallet: string, chainPity: readonly number[]) =>
+        overlayPity(chainPity, pityNotes[wallet.toLowerCase()] ?? {}, Date.now()),
+
+      setCaretaker: (wallet: string, allowed: boolean) =>
+        track(allowed ? "Adding a caretaker" : "Removing a caretaker", async (run) => {
+          if (!address) return false;
+          const w = wallet.toLowerCase() as `0x${string}`;
+          if (w === address.toLowerCase()) return false;
+          const ok = await run(allowed ? "Let it care for your words" : "Stop it caring for your words", () => setCaretakerCalls(w, allowed));
+          if (ok) for (const key of ["caretakers", "careFor"]) void qc.invalidateQueries({ queryKey: [key] });
+          return ok;
+        }, false),
 
       moveToWallet: (to: string, opts?: { includeWord?: boolean }) =>
         track<MoveOutcome>(`Moving to ${to.slice(0, 6)}…${to.slice(-4)}`, async (run) => {
@@ -1155,10 +1222,123 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       skipDay: () => toast("Time moves on its own here", "info"),
 
       // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet.
+      //
+      // It waits for the MINT, not the send. A send returns when the wallet accepts: on 2026-11-24 a
+      // tester saw "Faucet sent" over a balance that never moved, and no transaction from their
+      // wallet ever reached Base Sepolia (it held Base Sepolia ETH). So "arrived" needs the mint's
+      // own result (`settleSend`: its receipt, or the wallet's batch status), and anything else is
+      // named to the player. Watching the balance instead both missed real mints and passed off
+      // earlier ones as new, so the balance is only the fallback for a send nobody can trace. It
+      // never refuses to send for want of ETH: sponsored smart wallets mint holding none.
       addDemoBalance: () => {
         if (!NETWORK.isTestnet) return void toast("No faucet on mainnet", "bad");
         if (!address) return void toast("Connect a wallet first", "bad");
-        void track("Getting test $WORD", (run) => run("Faucet", () => faucetCalls(address, 50_000_000)), false);
+        void track("Getting test $WORD", async (run) => {
+          const FAUCET = 50_000_000;
+          /** Every read is capped: the action gate waits on all of it, and viem retries each read. */
+          const READ_MS = 5_000;
+          const client = getPublicClient();
+          const balanceOf = () =>
+            orThrowAfter(
+              client.readContract({
+                address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [address],
+              }) as Promise<bigint>,
+              READ_MS,
+            );
+          // Only the fallback below uses this, so the send never waits on it. A FRESH read, never the
+          // cached balance: a cache from before a spend set a target the mint could never reach.
+          const before = await balanceOf().catch(() => undefined);
+          let sent: SendResult | undefined;
+          const ok = await run("Faucet", () => faucetCalls(address, FAUCET), {
+            settles: true,
+            onSent: (r) => (sent = r),
+          });
+          if (!ok) return;
+
+          // A read that FAILS must not pass for "not found": only viem's not-found errors mean that.
+          const notFound = (e: unknown, name: string) => {
+            if ((e as { name?: string })?.name === name) return null;
+            throw e;
+          };
+          // The mint's own result decides (receipt, or the wallet's batch status). The balance counts
+          // only for a send nobody can trace, and only the whole mint from the fresh start.
+          const last: { trace: SendTrace } = { trace: { kind: "unknown" } };
+          const settled = await withTimeout(
+            settleSend(
+              sent,
+              {
+                chainId: NETWORK.id,
+                walletTimeoutMs: READ_MS,
+                receipt: (hash) =>
+                  orThrowAfter(client.getTransactionReceipt({ hash }), READ_MS).then(
+                    (r) => ({ status: r.status }),
+                    (e) => notFound(e, "TransactionReceiptNotFoundError"),
+                  ),
+                known: (hash) =>
+                  orThrowAfter(client.getTransaction({ hash }), READ_MS).then(
+                    () => true,
+                    (e) => notFound(e, "TransactionNotFoundError") ?? false,
+                  ),
+                callsStatus: async (id) => {
+                  const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
+                  if (!provider) throw new Error("no provider");
+                  return provider.request({ method: "wallet_getCallsStatus", params: [id] });
+                },
+              },
+              {
+                onTrace: (t) => (last.trace = t),
+                changed: before === undefined ? undefined : async () => (await balanceOf()) >= before + toWordWei(FAUCET),
+              },
+            ),
+            45_000,
+            null,
+          );
+          const trace = settled ?? last.trace;
+          void chain.refresh();
+          if (trace.kind === "landed" || trace.kind === "seen") {
+            return void toast(`Test $WORD arrived: ${fmtWord(FAUCET)}`, "good");
+          }
+
+          // For a desktop tester's console, and for us when they share it.
+          console.warn("[faucet] no test $WORD arrived", { address, sent, trace });
+          // These come up to ~45 s after the tap, often while the player is in their wallet app, and
+          // they are the only explanation the player gets: they stay up for 15 s (a hidden tab also
+          // holds them, see ToastItem).
+          const say = (text: string, tone: Toast["tone"]) => toast(text, tone, 15_000);
+          const at = "hash" in trace ? ` (${shortHash(trace.hash)})` : "";
+          const here = NETWORK.name;
+          switch (trace.kind) {
+            case "reverted":
+              return void say(`The faucet transaction failed on ${here}${at}. Try again.`, "bad");
+            case "pending":
+              return void say(`Your faucet transaction is still waiting on ${here}${at}.`, "info");
+            case "unseen":
+              // Base's mempool is private, so a transaction still queued in the wallet looks like this.
+              return void say(
+                `Your wallet says it sent the faucet transaction${at}, but ${here} hasn’t seen it. Your wallet may be holding it behind an earlier transaction, or sent it on another network.`,
+                "bad",
+              );
+            case "other_chain": {
+              const there = networkById(trace.chainId)?.name ?? `another network (chain ${trace.chainId})`;
+              return void say(`Your wallet ran the faucet on ${there}, not ${here}. Nothing was minted.`, "bad");
+            }
+            case "wallet_failed":
+              return void say("Your wallet says the faucet transaction failed. Try again.", "bad");
+            case "wallet_pending":
+              return void say("Your wallet says the faucet transaction is still pending.", "info");
+            case "unknown": {
+              // Sponsored smart wallets hold no ETH and need none, so this only says "if". The sheet
+              // may be closed by now, so it says where the link is rather than "below".
+              const eth = await withTimeout(client.getBalance({ address }).catch(() => null), READ_MS, null);
+              return void say(
+                eth === 0n
+                  ? `No test $WORD yet. If your wallet pays its own gas, it needs ${here} ETH: Your $WORD has a link to get some free.`
+                  : "Your wallet accepted it, but no test $WORD has arrived yet. Check your wallet’s activity.",
+                "info",
+              );
+            }
+          }
+        }, undefined);
       },
 
       earnings: earningsQ.data
@@ -1290,7 +1470,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

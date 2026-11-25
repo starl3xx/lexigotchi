@@ -162,6 +162,10 @@ showed; only the *decisions* changed.
    / gather), $WORD in Move (opt-in), and a warning before staking off it. Not the profile's first
    wallet by default: that one is sometimes picked by rule. A contract change so any of a player's
    wallets can play and feed is being DESIGNED before mainnet (no contract edits yet).
+   Then (same day; starl3xx: "1. yes 2. no for now 3. yes 4. full redeploy"): the caretaker list
+   (diff A) is in the contracts, plus a guard so Staking refuses a Word sent to it directly (audit
+   scan); caretaker unstake (diff B) is NOT taken; opt-in approvals between a player's wallets come
+   later in the app; Base Sepolia gets a full redeploy (testers' testnet items reset).
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

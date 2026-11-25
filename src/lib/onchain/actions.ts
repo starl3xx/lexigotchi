@@ -150,6 +150,19 @@ export function stakeCalls(tokenId: bigint, player: PlayerState): Call[] {
   ];
 }
 
+/**
+ * Let `wallet` (another of the player's wallets) feed, roll, and ascend the Words the CONNECTED wallet
+ * stakes, or stop it. Sent by the staker itself; it moves nothing (Staking.setCaretaker).
+ */
+export function setCaretakerCalls(wallet: `0x${string}`, allowed: boolean): Call[] {
+  return [
+    {
+      to: addressOf("staking"),
+      data: encodeFunctionData({ abi: stakingAbi, functionName: "setCaretaker", args: [wallet, allowed] }),
+    },
+  ];
+}
+
 export function unstakeCalls(tokenId: bigint): Call[] {
   return [
     { to: addressOf("staking"), data: encodeFunctionData({ abi: stakingAbi, functionName: "unstake", args: [tokenId] }) },

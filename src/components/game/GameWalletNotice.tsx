@@ -25,7 +25,9 @@ export function GameWalletNotice() {
   const { wallets, holdings, gameWallet } = useWalletHoldings();
   if (!state.chainBacked) return null;
   const inHost = viewer.environment === "farcaster";
-  const advice = gameWalletAdvice({ connected: address ?? null, gameWallet, wallets, holdings, inHost });
+  // Stakers that named this wallet a caretaker: their staked words are cared for from here.
+  const caretakerOf = new Set(state.words.filter((w) => w.care && w.holder).map((w) => w.holder!.toLowerCase()));
+  const advice = gameWalletAdvice({ connected: address ?? null, gameWallet, wallets, holdings, inHost, caretakerOf });
   if (advice.kind === "none") return null;
 
   const makeThisGame = async () => {
@@ -108,7 +110,13 @@ export function GameWalletNotice() {
           </ul>
           To play with them here, open Lexigotchi {advice.inHost ? "on the web " : ""}with each wallet and move them to this
           one, your game wallet.
-          {staked && <> Staked words stay with the wallet that staked them: feed them from there.</>}
+          {staked && (
+            <>
+              {" "}
+              Staked words stay with the wallet that staked them. Feed them from there, or, in that wallet’s profile, let this
+              one care for them.
+            </>
+          )}
         </>
       );
       break;

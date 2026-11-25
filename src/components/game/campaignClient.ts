@@ -73,6 +73,18 @@ export async function canSign(): Promise<boolean> {
 }
 
 /**
+ * A fetch that carries a Quick Auth token when one exists and goes in plain when none does. For the
+ * operator console's gated reads (lib/admin/serverAuth.ts), which accept a FID or a wallet session.
+ */
+export async function maybeAuthedFetch(path: string, init?: RequestInit): Promise<Response> {
+  if (await canSign()) {
+    const res = await authedFetch(path, init);
+    if (res) return res;
+  }
+  return fetch(path, init);
+}
+
+/**
  * Authenticated JSON POST for the signing routes (`/api/mint/*`, `/api/roll/*`, `/api/prestige/*`).
  *
  * These routes derive the FID from a verified Quick Auth JWT and 401 without one, so a plain

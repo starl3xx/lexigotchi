@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PRELAUNCH, DOCS_URL, X_HANDLE, X_URL } from "@/lib/site";
-import { GameProvider, useGame, fmtWord, fmtUsd, type Sheet, type View } from "./state";
+import { GameProvider, useGame, fmtWord, fmtUsd, showsUsd, type Sheet, type View } from "./state";
 import { useViewer } from "./useViewer";
 import { useOpenUrl } from "./useShare";
 import { Onboarding, OnboardingContext } from "./Onboarding";
@@ -59,6 +59,7 @@ import {
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
+import { useWalletSighting } from "./useWalletSighting";
 import { WordStripLive } from "@/components/WordStrip";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
@@ -69,6 +70,8 @@ export function GameApp() {
   // Live $WORD peg — mounted HERE, above every screen, so the re-render on oracle arrival repaints
   // all USD numbers at once (a lower mount could show two peg readings side by side).
   useWordPrice();
+  // Counts this wallet in the operator console's Players tab, once a day (useWalletSighting).
+  useWalletSighting();
   // Pre-launch campaign: short-circuit the whole game and run the "add the app + share a cast →
   // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
   // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.
@@ -399,7 +402,8 @@ function TopBar() {
             {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
           <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/60">
-            {state.status === "ready" ? `${fmtUsd(state.balance)} · $WORD` : "$WORD"}
+            {/* Test $WORD has no value, so the testnet game shows no dollar figure for it. */}
+            {state.status !== "ready" ? "$WORD" : showsUsd(state) ? `${fmtUsd(state.balance)} · $WORD` : "test $WORD"}
           </div>
         </button>
         {helpBtn}
