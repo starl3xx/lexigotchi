@@ -72,7 +72,7 @@ import {
 import { dailyKeysFor } from "@/lib/onchain/verifications";
 import { usePublicProfile } from "./useProfile";
 import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
-import { SEAPORT, seaportAbi, buildLetterSwapOrder, orderTypedData, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
+import { SEAPORT, seaportAbi, buildLetterSwapOrder, walletTypedDataJson, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
 import { erc1155ApprovalAbi, erc20Abi, wordsAbi } from "@/lib/onchain/abis";
 import { buildWordSaleOrder, buyWordCalls, prepareListingCalls, MIN_WORD_PRICE, orderPriceWei, type SeaportOrder } from "@/lib/onchain/wordSale";
@@ -1499,7 +1499,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             phase("wallet");
             const signature = (await provider.request({
               method: "eth_signTypedData_v4",
-              params: [address, JSON.stringify(orderTypedData(order))],
+              params: [address, walletTypedDataJson(order)],
             })) as `0x${string}`;
             phase("working");
             const res = await fetch("/api/swap/orders", {
@@ -1594,7 +1594,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             phase("wallet");
             const signature = (await provider.request({
               method: "eth_signTypedData_v4",
-              params: [address, JSON.stringify(orderTypedData(order))],
+              params: [address, walletTypedDataJson(order)],
             })) as `0x${string}`;
             phase("working");
             const res = await fetch("/api/swap/words", {
@@ -1612,6 +1612,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               not_approved: "The approval hasn’t landed yet. Try again in a minute",
               not_owner: `This wallet doesn’t hold ${word} right now`,
               price_too_low: `The lowest price is ${fmtWord(MIN_WORD_PRICE)} $WORD`,
+              bad_signature: "Your wallet’s signature didn’t check out. Try again, and tell us if it keeps happening",
             };
             toast(why[res?.error] ?? `Listing failed: ${res?.error ?? "unknown"}`, "bad");
             return false;
