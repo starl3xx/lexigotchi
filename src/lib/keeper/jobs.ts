@@ -821,7 +821,7 @@ export function createKeeper(opts: { dry: boolean }) {
       const [words, links] = await Promise.all([scanAllWords(), loadLinkMapStrict()]);
       const held = holderProfiles(words, links.accountOf);
       if (DRY) return void console.log(`shop: ${held.size} held words checked for picks (dry run)`);
-      const cleared = await clearPicksOffLeftWords(held);
+      const cleared = await clearPicksOffLeftWords(held, links.accountOf);
       console.log(`shop: ${cleared} pick(s) taken off words that left their profile`);
     } catch (err) {
       console.error("shop: clearing picks failed:", String((err as Error)?.message ?? err).slice(0, 200));

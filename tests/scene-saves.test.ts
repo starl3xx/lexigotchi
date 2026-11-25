@@ -188,6 +188,25 @@ describe("picks belong to the profile", async () => {
     expect(seen.every((r) => r.word === "CRANE" && r.scene === "winter")).toBe(true);
   });
 
+  it("a pick a wallet saved under its own key before joining stays its profile's; the newest per word wins", () => {
+    const accounts = new Map([[A, P], [B, P]]); // B joined P after saving picks as itself
+    const rows = [
+      { profile: B, word: "VIVID", value: "fall", updatedAt: at }, // saved by B before it joined
+      { profile: P, word: "CRANE", value: "winter", updatedAt: new Date(NOW - 1_000) },
+      { profile: B, word: "CRANE", value: "spring", updatedAt: at }, // newer: wins
+    ];
+    const seen = picksForWallets([A], accounts, rows);
+    expect(seen.map((r) => `${r.word}:${r.scene}`).sort()).toEqual(["CRANE:spring", "VIVID:fall"]);
+  });
+
+  it("the keeper keeps a joined wallet's old picks (their effective profile is the account)", () => {
+    const rows = [{ profile: B, word: "VIVID" }];
+    const held = new Map([["VIVID", P]]);
+    const accountOf = (k: string) => (k === B ? P : k);
+    expect(stalePicks(rows, held, accountOf)).toEqual([]);
+    expect(stalePicks(rows, held)).toHaveLength(1); // without the links it would have gone
+  });
+
   it("a pick comes off only when the scan shows its word held by another profile", () => {
     const rows = [
       { profile: P, word: "CRANE" }, // still the profile's (staked, or moved to its other wallet)
