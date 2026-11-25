@@ -75,7 +75,7 @@ export function CheatSheet() {
           </li>
           <li>
             <strong>Only all-UPPERCASE words earn $WORD</strong> every day, while they’re staked and fed. It’s
-            paid straight to your wallet each day: nothing to claim. Tap the line under your words on Today
+            paid each day, straight to the wallet that holds the word: nothing to claim. Tap the line under your words on Today
             to see what each one has earned.
           </li>
           <li>

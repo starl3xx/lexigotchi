@@ -81,9 +81,14 @@ export function payoutPhrase(when: string): string {
   return `at the payout ${when}`;
 }
 
-/** The daily payout time (00:05 UTC) in the player's own clock, e.g. "6:05 PM". */
-export function payoutTimeLocal(): string {
-  return new Date(Date.UTC(2000, 0, 1, 0, 5)).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+/**
+ * The daily payout time (00:05 UTC) in the player's own clock, e.g. "6:05 PM". Today's 00:05 UTC,
+ * not a fixed date's: a winter date would be an hour off all summer wherever clocks change.
+ */
+export function payoutTimeLocal(now: number = Date.now()): string {
+  const d = new Date(now);
+  d.setUTCHours(0, 5, 0, 0);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 /**

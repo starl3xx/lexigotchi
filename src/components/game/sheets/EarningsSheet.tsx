@@ -74,7 +74,7 @@ export function EarningsSheet() {
       </Card>
       <p className="mt-2 text-center text-xs text-ink/60">
         {state.chainBacked
-          ? `Paid straight to your wallet every day at ${payoutTimeLocal()} your time. Nothing to collect.`
+          ? `Paid every day at ${payoutTimeLocal()} your time, straight to the wallet that holds each word. Nothing to collect.`
           : "In practice, your words are paid each time you skip to the next day."}
       </p>
 

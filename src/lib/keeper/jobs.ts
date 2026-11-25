@@ -342,10 +342,11 @@ export function createKeeper(opts: { dry: boolean }) {
 
     const w = wallet();
     const started = Date.now();
-    let sent = 0, landed = 0, landedWei = 0n;
+    const sentShares: Claimable[] = [];
+    let landed = 0, landedWei = 0n;
     for (const batch of payoutBatches(unpaid)) {
       if (Date.now() - started > PAYOUT_BUDGET_MS) {
-        console.log(`payout: out of time — ${unpaid.length - sent} share(s) wait for the next run`);
+        console.log(`payout: out of time — ${unpaid.length - sentShares.length} share(s) wait for the next run`);
         break;
       }
       const hash = await w.writeContract({
@@ -354,16 +355,28 @@ export function createKeeper(opts: { dry: boolean }) {
         args: [payoutCalls(batch, streamAddr)],
       });
       const rcpt = await w.waitForTransactionReceipt({ hash });
-      sent += batch.length;
-      // What actually paid: RewardClaimed events, not the batch size (a call may fail on its own).
+      sentShares.push(...batch);
+      // What this run paid: RewardClaimed events, not the batch size (a call may fail on its own).
       for (const ev of parseEventLogs({ abi: yieldDistributorAbi, eventName: "RewardClaimed", logs: rcpt.logs })) {
         landed += 1;
         landedWei += ev.args.amount;
       }
       console.log(`payout: batch of ${batch.length} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
     }
-    console.log(`payout: paid ${landed} of ${sent} share(s) sent, ${landedWei} wei`);
-    if (landed < sent) throw new Error(`payout: ${sent - landed} share(s) sent but not paid — they're retried next run`);
+    console.log(`payout: paid ${landed} of ${sentShares.length} share(s) sent, ${landedWei} wei`);
+    if (landed === sentShares.length) return;
+    // A call that didn't pay is only a failure if its share is STILL unpaid: a player who collected it
+    // a moment earlier made this run's claim revert harmlessly (AlreadyClaimed).
+    const nowPaid = (await client.multicall({
+      allowFailure: false,
+      contracts: sentShares.map((c) => ({
+        address: streamAddr(c.stream), abi: yieldDistributorAbi, functionName: "hasClaimed" as const,
+        args: [BigInt(c.epochId), BigInt(c.tokenId)],
+      })),
+    })) as unknown as boolean[];
+    const stillUnpaid = nowPaid.filter((p) => !p).length;
+    if (stillUnpaid > 0) throw new Error(`payout: ${stillUnpaid} share(s) sent but still unpaid — they're retried next run`);
+    console.log(`payout: the other ${sentShares.length - landed} were already paid by someone else`);
   }
 
   const EAS = "0x4200000000000000000000000000000000000021" as const;

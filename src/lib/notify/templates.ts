@@ -122,7 +122,7 @@ const PAID_TITLES = ["Payday for your words", "Your words got paid", "Fresh $WOR
 export function earningsPaid(amount: string, day = epochDay()): Notification {
   return {
     title: rotate(PAID_TITLES, day),
-    body: `Your words earned ${amount} at today’s payout. It’s already in your wallet.`,
+    body: `Your words earned ${amount} at today’s payout, paid straight to the wallets that hold them.`,
     notificationId: `paid-${day}`,
   };
 }
