@@ -12,7 +12,7 @@
  * `tokenId = keccak256(bytes(word))`) with cryptographic randomness, no repeats. A non-dictionary
  * answer would be an unclaimable word — a guaranteed-rollover day — so membership is enforced.
  *
- *   npm run answerchain:generate                     # 730 days → contracts/answer-chain.secret.json
+ *   npm run answerchain:generate                     # every word once (4,584 days) → contracts/answer-chain.secret.json
  *   npm run answerchain:generate -- --days 365
  *   npm run answerchain:generate -- --words my-schedule.txt --out other.secret.json --force
  *   npm run answerchain:generate -- --new-seed       # seeded: a 64-hex secret re-derives it all
@@ -42,7 +42,7 @@ export {
   type ChainLink,
   type Hex32,
 } from "../src/lib/answerChain";
-import { buildAnswerChain, seededSchedule, verifyAnswerChain, type ChainEntry, type Hex32 } from "../src/lib/answerChain";
+import { FULL_SCHEDULE_DAYS, buildAnswerChain, seededSchedule, verifyAnswerChain, type ChainEntry, type Hex32 } from "../src/lib/answerChain";
 
 /** Crypto-random schedule: `days` distinct dictionary words (partial Fisher–Yates). */
 export function sampleSchedule(days: number): ChainEntry[] {
@@ -67,7 +67,7 @@ function arg(name: string): string | undefined {
 }
 
 function main(): void {
-  const daysRaw = arg("days") ?? "730";
+  const daysRaw = arg("days") ?? String(FULL_SCHEDULE_DAYS);
   const days = Number(daysRaw);
   if (!Number.isInteger(days)) throw new Error(`--days must be a whole number of days, got "${daysRaw}"`);
   const out = arg("out") ?? "contracts/answer-chain.secret.json";

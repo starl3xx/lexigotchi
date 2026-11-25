@@ -30,7 +30,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   nonce), and a failed job doesn't skip the rest. It needs `KEEPER_PRIVATE_KEY` and
   `ANSWER_CHAIN_SEED`/`ANSWER_CHAIN_DAYS` in Vercel; without a deployment or a key it does nothing.
   **All three are set in production since 2026-11-25** (the Sepolia keeper key; a seeded answer list
-  committed with `AnswerChain.setHead` at block 63,341,138, before any reveal; the seed is in the
+  committed with `AnswerChain.setHead` at block 63,341,138, before any reveal, and re-committed at the
+  full pool's 4,584 days at block 63,523,610, still before any reveal, so `ANSWER_CHAIN_DAYS=4584`; the seed is in the
   gitignored `contracts/answer-chain.sepolia-seed.secret.json`, so a local `--resolve` needs
   `ANSWER_CHAIN_SEED` from it). The rehearsal schedule FILE no longer matches the Sepolia chain, and
   the keeper refuses it.
@@ -59,7 +60,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Output is SECRET + irreplaceable (gitignored `*.secret.json`) — back it up offline; the keeper reads it daily.
   **Mainnet uses `--new-seed`**: the whole schedule re-derives from one 64-hex secret
   (`src/lib/answerChain.ts`), which the hosted keeper holds as `ANSWER_CHAIN_SEED` (+
-  `ANSWER_CHAIN_DAYS`). The keeper checks each derived link against the onchain `currentCommit`
+  `ANSWER_CHAIN_DAYS`). **Every list covers the whole frozen pool by default** (`FULL_SCHEDULE_DAYS`
+  = 4,584, about 12.5 years): each word is drawn exactly once, so a drawn word is never drawn again
+  (starl3xx, 2026-11-25). A shorter list would run out and need a new chain, which could repeat an old
+  answer. The same seed lengthened keeps its first days' answers (a partial shuffle), which is how
+  Sepolia went from 730 to the full pool before its first reveal. The keeper checks each derived link against the onchain `currentCommit`
   before revealing (`src/lib/keeper/answerSchedule.ts`), so a wrong seed or a re-vendored dictionary
   stops the run. The seed is printed nowhere; it is in the file's `seed` field.
 - `npm run db:generate` (schema → `drizzle/` migration) → `npm run db:migrate` (apply to Neon). Needs `DATABASE_URL*` in `.env.local`.
