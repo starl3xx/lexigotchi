@@ -19,7 +19,7 @@ the on-chain architecture. Written to be fed to an LLM (or a new contributor) as
 | Step | Action | Outcome |
 |---|---|---|
 | **Mint** | Pull lowercase letters — a free daily single (FID-gated) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
-| **Raise** | Roll a lowercase letter toward UPPERCASE | A capital letter (45% base, pity to 85%); failure is harmless |
+| **Raise** | Roll a lowercase letter toward UPPERCASE | A capital letter (40% base, pity to 85%); failure is harmless |
 | **Claim** | Spell a dictionary word with 5 letters, any mix of cases | One Word NFT (ERC-721); the 5 letters are escrowed inside it |
 | **Stake & Snack** | Stake a Word to earn; feed it snacks | UPPERCASE words draw yield; any staked, fed word is a jackpot ticket |
 | **Win** | Hold the day's secret word, staked & fed | The whole jackpot pot |
@@ -73,7 +73,7 @@ Most common → rarest letter order: **S E A … J Q**.
 
 The single value-bearing upgrade. Capitals are **raised, never pulled**.
 
-- **Odds:** **45% base**, **+10 percentage points** per consecutive failure on that `(owner, letter)`
+- **Odds:** **40% base**, **+15 percentage points** per consecutive failure on that `(owner, letter)`
   pair, **capped at 85%**, **reset to base on success**. Expected ~**1.9 rolls** per success; the
   worst realistic drought is ~5.
 - **Failure is an explicit no-op** — the letter is never burned or downgraded (hard compliance rule).
@@ -205,16 +205,19 @@ A staked word's care state is a function of days since last fed:
 
 ---
 
-## 11. Prestige / ascension (renewable loop #2)
+## 11. Prestige / ascension: the word ladder (renewable loop #2)
 
-- A **full-UPPERCASE staked Word** ascends through **4 Gilded stages**. Each level multiplies that
-  word's **yield and bounty weight by 1.10** (gentle, to cap whale concentration).
-- Each attempt pays the roll fee (**$0.25**) + burns a snack, and succeeds on the same pity ramp as
-  rolls. **Success** bumps the level (monotonic, never decremented); **failure is a no-op** — level,
-  case, and letters untouched. One open attempt per word (`Prestige.attemptOpen`), for the same
-  reason as rolls.
-- It's solvency-neutral: a prestiged word takes a bigger slice of the **same** fixed yield pot, never
-  enlarging it. A finite depth sink (4 levels × your maxed words) for the UPPERCASE cohort.
+- A **full-UPPERCASE staked Word** climbs **5 stages**: Gilded 1–4, then **Holographic** (the gold
+  turns to iridescent foil). ON at launch (decisions.md #19). Each stage multiplies that word's
+  **yield and bounty weight by 1.10** (gentle, to cap whale concentration).
+- Each stage is harder and costs more: first-try odds **40 / 35 / 30 / 25 / 20%**, then **+10pp per
+  miss** on that word (cap 85%); a stage-N attempt costs **N × $0.50** ($0.50 … $2.50,
+  `Prestige.stageFee`) plus a burned snack. About 12 attempts and $20 from UPPERCASE to Holographic.
+  **Success** bumps the stage (monotonic, never decremented); **failure is a no-op** — stage, case,
+  and letters untouched. One open attempt per word (`Prestige.attemptOpen`), for the same reason as
+  rolls; each commit records its stage, so the signer draws at that stage's odds.
+- It's solvency-neutral: an ascended word takes a bigger slice of the **same** fixed yield pot, never
+  enlarging it. A finite depth sink (5 stages × your maxed words) for the UPPERCASE cohort.
 
 ---
 
@@ -246,19 +249,21 @@ buckets can never pay out more than they hold; burn and treasury shares leave im
 
 | Source | Pool | Jackpot | Burn | Treasury |
 |---|---|---|---|---|
-| Pack mint | 40% | 10% | 20% | 30% |
-| Daily mint | 40% | 10% | 20% | 30% |
-| Roll | 47.5% | 10% | 27.5% | 15% |
-| Claim | 32.5% | 10% | 32.5% | 25% |
+| Pack mint | 75% | 10% | 10% | 5% |
+| Daily mint | 75% | 10% | 10% | 5% |
+| Roll | 75% | 10% | 10% | 5% |
+| Claim | 75% | 10% | 10% | 5% |
+| Prestige (ascension) | 75% | 10% | 10% | 5% |
 | Snack | 0% | 0% | **100%** | 0% |
-| Prestige | 47.5% | 10% | 27.5% | 15% |
-| Royalty (in-house swap) | 0% | 0% | 0% | 100% |
+| Royalty (the 10% word-sale fee, SaleFees) | 100% | 0% | 0% | 0% |
 
-Roll / claim / prestige route only **10%** to the jackpot — operator-rake minimization for lottery
-compliance; the freed share goes to burn + pool. The **bounty carve** (15%, on at launch)
-diverts a slice of the *pool* share into the bounty bucket. Each week's bounty pays when the week
-ends, to every staked, not-hungry word matching that week's theme. The economy is **strongly deflationary**:
-burn (snacks 100% + 20% of mints + 27.5% of rolls + 32.5% of claims) exceeds treasury accrual.
+**Rewards first** (decisions.md #19): every paid action sends 75% to the Rewards Pool, whose daily
+yield is the one reward that needs the whole loop (buy, raise, stake, feed). The jackpot keeps its
+**10%** (operator-rake minimization for lottery compliance, #3). The treasury takes 5% and never
+sells. The **bounty carve** (15%, on at launch) diverts a slice of the *pool* share into the bounty
+bucket. Each week's bounty pays when the week ends, to every staked, not-hungry word matching that
+week's theme. Burn comes from snacks (100%) plus 10% of every paid action, about 39% of all spending
+in the simulation.
 
 ---
 
@@ -271,7 +276,7 @@ burn (snacks 100% + 20% of mints + 27.5% of rolls + 32.5% of claims) exceeds tre
 - **$WORD:** ERC-20 on Base, `0x304e649e69979298bd1aee63e175adf07885fb4b`. ~100B supply, micro-cap
   (~$23.5K FDV, ~$21K liquidity as of June 2026), paired with WETH.
 - **Price ladder:** daily **free** · pack **$1.00** · roll **$0.25** · claim **$0.50** · snack
-  **$0.02** · prestige **$0.25**.
+  **$0.02** · ascension **$0.50 × the stage** ($0.50 … $2.50).
 - **Treasury bootstrap:** seed the **Rewards Pool** only (~$240); **never the jackpot**. The other
   lever is LP depth, not a faucet seed.
 
@@ -284,17 +289,18 @@ on-chain (the mechanic is fixed; the number can be tuned).
 
 ```
 prices:   pack $1.00 · dailyMint $0 (free) · roll $0.25 · claim $0.50 · snack $0.02
-roll:     baseSuccess 0.45 · pityStep +0.10 · pityCap 0.85
+roll:     baseSuccess 0.40 · pityStep +0.15 · pityCap 0.85
 staking:  dailyDistributionRate 0.01 · yieldRequiresUppercase true
 care:     peckishAfterDays 1 · hungryAfterDays 3 · peckishYieldFactor 0.5 · freeDailySnack true
 jackpot:  eligibilityRequiresNotHungry true
 supply:   demandMultiple 2.5  (→ 57,294 total cap)
-prestige: levels 4 · commitFee $0.25 · base 0.45 / +0.10 / cap 0.85 · 1.10× yield & bounty per level  (default OFF)
+prestige: levels 5 · commitFee $0.50 × stage · baseByLevel 0.40/0.35/0.30/0.25/0.20 / +0.10 / cap 0.85 · 1.10× per stage  (sim lever OFF; game ON)
 bounty:   periodDays 7 · carveFraction 0.15 · chaseProbability 0.5 · rarityWeight 1.0  (default OFF)
 ```
 
 Prestige and bounty are default-off **sim levers** with experiments (`npm run loop-exp`). At launch the
-bounty is on (`BOUNTY_CARVE_BPS=1500`) and prestige is off (`PRESTIGE_MAX_LEVEL=0`), per decisions.md #11.
+bounty is on (`BOUNTY_CARVE_BPS=1500`, decisions.md #11) and ascension is on (`PRESTIGE_MAX_LEVEL=5`,
+decisions.md #19).
 
 ---
 

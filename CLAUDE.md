@@ -422,8 +422,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   "claimed") if any was used today. An unclaimed day is lost: `dailyUsed` keeps only the last day.
   The free pack signs for a Quick Auth FID only, so X keys never reach `freePackClaimed`. Packs of 5 for everyone. ETH accepted via
   auto-swap → all accounting in $WORD.
-- Rolls: **45% base, +10pp pity, cap 85%**, reset on success. Pity per `(owner, letterId)`.
-  Failure never burns/downgrades the asset.
+- Rolls: **40% base, +15pp pity, cap 85%** (decisions.md #19), reset on success. Pity per
+  `(owner, letterId)`. Failure never burns/downgrades the asset.
+- **Rewards first** (decisions.md #19): every paid action (pack, daily, roll, claim, ascension)
+  splits **75% pool / 10% jackpot / 10% burn / 5% treasury**; snacks stay 100% burned. The admin
+  console's split table derives from `params.ts`, and `Deploy.s.sol` sets the same table.
+- **Ascension is the word ladder, ON at launch** (#19): Gilded 1–4, then **Holographic** (stage 5,
+  iridescent foil in the tile rig). A stage-N attempt costs N × `prestigeFee` (`Prestige.stageFee`;
+  `params.prestigeStageFeeUsd`) and draws at `prestige.baseByLevel[level]` (40/35/30/25/20%) + 10pp
+  per miss; each commit records its `level`, which `/api/prestige/reveal` reads. Stage names and the
+  fee multiple live in `src/lib/ascension.ts`; never write "Gilded L4"-style copy by hand.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.

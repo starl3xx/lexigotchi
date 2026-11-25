@@ -177,7 +177,8 @@ showed; only the *decisions* changed.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
-11. **Prestige OFF at launch** (enable post-cohort); the secondary-letter swap is P1. **The weekly
+11. ~~**Prestige OFF at launch** (enable post-cohort)~~ (reversed by #19: ascension, as the word
+    ladder, is ON at launch); the secondary-letter swap is P1. **The weekly
     bounty is ON at launch** (amended by starl3xx, 2026-11-23: "the bounty should be on at launch"):
     deploy with `BOUNTY_CARVE_BPS=1500` (params `bounty.carveFraction` 0.15, zero-sum against
     yield), and the keeper's `bounty` job is in the default run. A week pays when it ends: the run on
@@ -305,6 +306,40 @@ showed; only the *decisions* changed.
     unchanged (2.5% → Treasury, paid in ETH on other venues). No counsel: the owner accepted the risk
     raised at the time, a priced word that earns yield and holds jackpot entries, on a market the
     game runs and takes a cut of.
+19. **The economy rewards staked, fed word holders** (starl3xx, 2026-11-25). The goal, in the owner's
+    words: "we want them to buy letters, upgrade them to uppercase and stake them as words … the
+    economy should be structured to reward staked and fed word holders." Decided after a simulated
+    retune (1,500 players, a year, five seeds, archetypes interleaved through onboarding; see below):
+    - **Every paid action (packs, the daily letter, rolls, claims, ascension) splits 75% Rewards
+      Pool / 10% jackpot / 10% burn / 5% treasury.** Was 40/10/20/30 on mints, 47.5/10/27.5/15 on
+      rolls and ascension, 32.5/10/32.5/25 on claims. The pool's daily yield is the one reward that
+      needs every step of the loop (buy, raise, stake, feed). The jackpot stays at #3's 10% (two 25%
+      options were measured and declined). The treasury never sells, so 5% is a reserve for seeding
+      the pool or bounty, not income. Measured: 58% of all spending returns to staked, fed words
+      (37% before); a dedicated staker gets back 55¢ per dollar (36¢); about a fifth less burn than
+      before; no player type gets back more than it spends (whales 81¢, 83¢ with the whole package).
+    - **Snacks stay 100% burned.** Sending half of each snack to the pool would have paid whales
+      $1.04 per dollar spent, funded by everyone else's snacks.
+    - **Rolls: 40% first try, +15pp per miss, cap 85%** (was 45 / +10 / 85). The average stays about
+      1.97 rolls per raised letter (was 1.91): raising is the step the game wants players to take.
+    - **Ascension is the word ladder, ON at launch and on Sepolia** (reverses #11). Five stages:
+      Gilded 1–4, then Holographic (the gold turns to iridescent foil). First-try odds
+      40/35/30/25/20%, +10pp per miss on that word, cap 85%. A stage-N attempt costs N × $0.50
+      ($0.50 … $2.50) plus a burned snack: `Prestige.sol` charges `prestigeFee × (level + 1)`
+      (`stageFee`), so the price keeper still repegs one base number, and each commit records the
+      stage so the signer draws at that stage's odds. 1.10× yield and bounty weight per stage (a
+      Holographic Legendary ≈ 12.9× a Common). No cap on holographic words for now: harder odds are a
+      setting if they get too common; a hard limit would be a new contract feature. The contract
+      change reopens #12's internal audit for `Prestige.sol`.
+    - **What the split can't fix:** spending per staked word falls about tenfold from the building
+      phase to the late game, and prizes and returns both scale with it, so no split keeps both big
+      all year. Paid spending late in the game is the ladder's job. Revisit the split with real
+      numbers after a few months (an owner setter, one call per fee).
+    - **Found while measuring:** `simulate.ts` onboards archetypes in blocks (casuals first, whales
+      last), so at large populations the whales arrive after letters sell out and never play. These
+      numbers come from a copy that interleaves them. The repo's simulator still needs that fix, and
+      the "Renewable late-game loop" findings below (casual bounty share ~18%, whale yield share
+      ~48–52%) came from the block roster and may not hold (interleaved: ~2% and 76%).
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

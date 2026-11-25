@@ -10,6 +10,7 @@ import {
   prestigeStageFeeUsd,
 } from "@/lib/params";
 import { runSim, type SimConfig, DEFAULT_SIM_CONFIG } from "@/lib/sim/simulate";
+import { HOLOGRAPHIC_LEVEL, stageName, stageFeeMultiple } from "@/lib/ascension";
 
 const SMALL: SimConfig = { ...DEFAULT_SIM_CONFIG, days: 80, population: 200, rampDays: 30 };
 
@@ -54,6 +55,13 @@ describe("params", () => {
     expect(prestigeSuccessProbability(9, 4)).toBeCloseTo(0.85); // capped
     // A stage-N attempt costs N × the base fee (Prestige.sol: prestigeFee × (level + 1)).
     [0.5, 1, 1.5, 2, 2.5].forEach((usd, lvl) => expect(prestigeStageFeeUsd(lvl)).toBeCloseTo(usd));
+    // The stage names follow the ladder: the top stage is Holographic, and the contract's multiple
+    // (level + 1) matches params' per-stage USD price.
+    expect(HOLOGRAPHIC_LEVEL).toBe(DEFAULT_PARAMS.prestige.levels);
+    expect([0, 1, 4, 5].map(stageName)).toEqual(["UPPERCASE", "Gilded 1", "Gilded 4", "Holographic"]);
+    [0, 1, 2, 3, 4].forEach((lvl) =>
+      expect(stageFeeMultiple(lvl) * DEFAULT_PARAMS.prestige.commitFeeUsd).toBeCloseTo(prestigeStageFeeUsd(lvl)),
+    );
   });
 });
 

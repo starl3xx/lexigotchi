@@ -152,7 +152,7 @@ export function HungerBadge({ state }: { state: Hunger }) {
 // Meters / progress
 // ---------------------------------------------------------------------------
 
-/** Pity meter: shows the roll odds (45% base → 85% cap) with the current streak filled. */
+/** Pity meter: shows the roll odds (params.ts: 40% first try, +15 per miss, 85% cap) for the current streak. */
 export function PityMeter({ pity }: { pity: number }) {
   const prob = useGame().rollProb(pity);
   return (

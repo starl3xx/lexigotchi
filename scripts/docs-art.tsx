@@ -14,6 +14,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { stageName } from "@/lib/ascension";
 
 (globalThis as unknown as { React: typeof React }).React = React;
 const { TileCharacter } = await import("@/components/game/TileCharacter");
@@ -158,11 +159,12 @@ function card(W: number, H: number, body: string, title: string): string {
 /** Where each fee goes, as one stacked bar per fee, from the game's split table. */
 function feeChart(): string {
   const s = DEFAULT_PARAMS.splits;
-  // An ascension attempt uses the roll split (contracts/script/Deploy.s.sol sets PRESTIGE = ROLL).
+  // Rewards first (decisions.md #19): every paid action splits the same; snacks are 100% burned.
   const rows: [string, { burn: number; pool: number; jackpot: number; treasury: number }][] = [
     ["Pack", s.packMint],
     ["Roll", s.roll],
     ["Claim", s.claim],
+    ["Ascend", s.prestige ?? s.roll],
     ["Snack", s.snack],
   ];
   const keys = ["burn", "pool", "jackpot", "treasury"] as const;
@@ -203,6 +205,7 @@ function feeChart(): string {
 const word = (w: string, o: Omit<Ch, "ch"> | ((i: number) => Omit<Ch, "ch">) = {}): Ch[] =>
   [...w].map((ch, i) => ({ ch, ...(typeof o === "function" ? o(i) : o) }));
 const mult = (lvl: number) => `×${(DEFAULT_PARAMS.prestige.yieldMultPerLevel ** lvl).toFixed(2)} share`;
+const pctOf = (p: number) => `${Math.round(p * 100)}%`;
 
 const FIGURES: Record<string, string> = {
   "hero-heyoo.svg": figure([[{ chars: word("heyoo", { upper: true, state: "celebrate" }), size: 104 }]], {
@@ -221,7 +224,7 @@ const FIGURES: Record<string, string> = {
   "roll.svg": figure(
     [[
       { chars: [{ ch: "t" }], size: 104, label: "Your letter", sub: "lowercase" },
-      { chars: [{ ch: "t", state: "rolling" }], size: 104, label: "Rolling", sub: "45% on the first try" },
+      { chars: [{ ch: "t", state: "rolling" }], size: 104, label: "Rolling", sub: `${pctOf(DEFAULT_PARAMS.roll.baseSuccess)} on the first try` },
       { chars: [{ ch: "t", upper: true, state: "upgrade" }], size: 104, label: "A hit", sub: "UPPERCASE" },
     ]],
     { arrows: true, title: "A roll: a lowercase t, rolling, then raised to UPPERCASE" },
@@ -254,13 +257,13 @@ const FIGURES: Record<string, string> = {
     title: "The word lucky celebrating a jackpot win",
   }),
   "ascension.svg": figure(
-    [[0, 1, 2, 3, 4].map((g) => ({
+    [[0, 1, 2, 3, 4, 5].map((g) => ({
       chars: [{ ch: "w", upper: true, gild: g as Gild }],
-      size: 92,
-      label: g === 0 ? "UPPERCASE" : `Gilded ${g}`,
+      size: 80,
+      label: stageName(g),
       sub: g === 0 ? "where it starts" : mult(g),
     }))],
-    { arrows: true, title: "An UPPERCASE W ascending through four gilded stages" },
+    { arrows: true, title: "An UPPERCASE W ascending through four gilded stages, then Holographic" },
   ),
   "fees.svg": feeChart(),
 };

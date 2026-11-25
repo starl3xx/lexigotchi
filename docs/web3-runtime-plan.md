@@ -21,8 +21,8 @@ keys, money, a deploy, or a production database. Everything else is code and lan
   | #99 | The keeper runs itself (a daily cron), and the price keeper keeps prices on their USD peg. |
   | Cutover PR | Prototype buttons gone in the chain game; ascension hides while it is off. |
 
-- **Decisions that shape launch:** $WORD only (no ETH swap). Ascension (prestige) is off at launch;
-  the weekly bounty is on (#11). The owner is one hardware-wallet EOA, with four separate hot keys
+- **Decisions that shape launch:** $WORD only (no ETH swap). Ascension is ON at launch as the word
+  ladder (#19, reversing #11); the weekly bounty is on (#11). The owner is one hardware-wallet EOA, with four separate hot keys
   (signer, keeper, price keeper, roll relayer) and no multisig.
 
 ## 1. Rehearse on Sepolia
@@ -100,8 +100,8 @@ migrations production has applied.
 
 1. `npm run derive:contracts`. Then fill the deploy environment from the admin console's **Launch**
    tab, which converts the USD price ladder to $WORD at the live price. Set `TREASURY`, `SIGNER`,
-   `KEEPER`, `PRICE_KEEPER`, `ANSWERCHAIN_HEAD`, and `PRESTIGE_MAX_LEVEL=0` (ascension off at
-   launch; the game hides it), and `BOUNTY_CARVE_BPS=1500` (the bounty is on at launch: 15% of the
+   `KEEPER`, `PRICE_KEEPER`, `ANSWERCHAIN_HEAD`, and `PRESTIGE_MAX_LEVEL=5` (the word ladder, on at
+   launch, decisions.md #19; `PRESTIGE_FEE` is the $0.50 base), and `BOUNTY_CARVE_BPS=1500` (the bounty is on at launch: 15% of the
    pool's cut funds it). The Launch tab fills both by default. The keeper settles each week's bounty
    on the first day of the next week.
 2. `cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $BASE_RPC --broadcast --verify`.
@@ -189,9 +189,9 @@ Two more notes come out when a switch flips, not with the launch PR:
   (`xEnabled()`/`emailEnabled()` in `src/app/page.tsx`). If X or email is ever switched off again,
   change those docs pages back in the same step. X's callback is
   `https://lexigotchi.fun/api/x/callback`, and X bills each link from prepaid credits.
-- **Ascension.** The note at the top of `docs-site/ascension.mdx` and "It isn’t switched on yet" in
-  the FAQ. They come out when `PRESTIGE_MAX_LEVEL` is raised above 0. If the fee, odds, or
-  multipliers change from `params.ts` before then, update that page too.
+- **Ascension.** On at launch (#19), and the docs describe it as on. If it is ever switched off
+  (`PRESTIGE_MAX_LEVEL=0`), put a note back at the top of `docs-site/ascension.mdx` and in the FAQ.
+  If the stage prices, odds, or multipliers change in `params.ts`, update that page too.
 
 The docs' pictures (`docs-site/images/*.svg`) are drawn from the game's character rig and the fee
 splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either. The
