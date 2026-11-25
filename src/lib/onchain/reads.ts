@@ -13,7 +13,7 @@
  * Amounts cross into the app as WHOLE $WORD (numbers), converted once, here. The UI thinks in whole
  * $WORD; only calldata thinks in wei.
  */
-import { createPublicClient, formatUnits, type PublicClient } from "viem";
+import { createPublicClient, formatUnits, getAbiItem, type PublicClient } from "viem";
 import { rpcTransport } from "./transport";
 import { ACTIVE_CHAIN } from "./chain";
 import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
@@ -151,14 +151,6 @@ export interface PlayerState {
   operator: { lettersToWords: boolean; wordsToStaking: boolean };
   /** Letter inventory by id: 0-25 lowercase, 26-51 UPPERCASE. */
   letters: number[];
-  /**
-   * Whether THIS ADDRESS still has today's free snack.
-   *
-   * Not the same thing as `params.freeDailySnack`, which is the contract-wide feature toggle and is
-   * simply true. Only the first feed per address per UTC day is free (Staking.sol:85-90); confusing
-   * the two skips the $WORD approval on every subsequent feed, which then reverts on allowance.
-   */
-  freeSnackAvailable: boolean;
 }
 
 /** All 52 letter ids — lowercase 0-25, uppercase 26-51. */
@@ -271,17 +263,14 @@ export async function readPlayerState(player: `0x${string}`): Promise<PlayerStat
         functionName: "balanceOfBatch",
         args: [LETTER_IDS.map(() => player), LETTER_IDS],
       },
-      { address: staking, abi: stakingAbi, functionName: "freeSnackDayPlusOne", args: [player] },
     ] as const,
   });
 
-  const [bal, aLetters, aWords, aStaking, aRolls, aPrestige, opLW, opWS, batch, freeSnackDay] = r as unknown as [
-    bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, bigint[], number | bigint,
+  // The day's free snack isn't read here: it's the PROFILE's (Staking.freeSnackDayPlusOne[profile]),
+  // and only the server knows a wallet's profile, so POST /api/care/free-snack answers it per feed.
+  const [bal, aLetters, aWords, aStaking, aRolls, aPrestige, opLW, opWS, batch] = r as unknown as [
+    bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean, bigint[],
   ];
-
-  // Stored as day+1 so 0 can mean "never" — the free snack is spent only when it equals today+1.
-  const today = Math.floor((await readChainTime()) / 86_400);
-  const freeSnackAvailable = Number(freeSnackDay) !== today + 1;
 
   return {
     balanceWei: bal,
@@ -289,7 +278,6 @@ export async function readPlayerState(player: `0x${string}`): Promise<PlayerStat
     allowance: { letters: aLetters, words: aWords, staking: aStaking, rolls: aRolls, prestige: aPrestige },
     operator: { lettersToWords: opLW, wordsToStaking: opWS },
     letters: batch.map(Number),
-    freeSnackAvailable,
   };
 }
 
@@ -644,16 +632,9 @@ export interface ChainWord {
   prestigeLevel: number;
 }
 
-const CLAIMED_EVENT = {
-  type: "event",
-  name: "Claimed",
-  inputs: [
-    { name: "tokenId", type: "uint256", indexed: true },
-    { name: "owner", type: "address", indexed: true },
-    { name: "word", type: "string", indexed: false },
-    { name: "uppercase", type: "bool", indexed: false },
-  ],
-} as const;
+// From the generated ABI, never a hand copy: a copy kept `bool uppercase` after Claimed changed to
+// `uint8 upperMask` (decisions.md #17), and a log filter on the old signature matches nothing.
+const CLAIMED_EVENT = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
 const TRANSFER_EVENT = {
   type: "event",

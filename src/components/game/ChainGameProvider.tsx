@@ -35,8 +35,12 @@ import {
   type ActionOutcome,
   type PriceItem,
   MOCK_PRICE,
+  canSpellAs,
+  caseMask,
   chainPrice,
   jackpotEligible,
+  mineLower,
+  mineUpper,
   GameCtx,
   reducer,
   seedState,
@@ -90,6 +94,8 @@ import {
   unstakeCalls,
   feedCalls,
   feedManyCalls,
+  feedWithSnackCalls,
+  type SnackVoucher,
   faucetCalls,
   commitPackCalls,
   claimRewardCalls,
@@ -601,13 +607,6 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
   /** Server error codes → something a player can act on. */
-  /**
-   * Does this player still have today's free snack?
-   *
-   * Requires BOTH the contract-wide toggle and this address not having used today's — using only
-   * the toggle (which is permanently true) skips the approval and reverts every feed after the
-   * first one each day.
-   */
   /** See lib/onchain/guardedAction — the classification logic lives there so it can be tested. */
   const guarded = useCallback(
     (flow: Parameters<typeof guardedAction>[0]) =>
@@ -616,14 +615,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * Whether to SIZE a feed batch as free.
-   *
-   * Deliberately always false. PlayerState.freeSnackAvailable is read before the send and goes stale the
-   * moment the free snack is spent — and this code already documents that reads lag writes. Trusting
-   * it to SKIP the approval turns one stale read into a reverted transaction. Sizing conservatively
-   * costs a single max-approval, once, and then erc20ApprovalCalls returns [] forever.
+   * Today's free snack voucher for `staker`'s profile (POST /api/care/free-snack), or null: the
+   * profile used it today, or the server can't say. Null feeds paid, so a lookup never blocks a feed.
    */
-  const feedSizingFree = false;
+  const snackVoucher = useCallback(
+    async (staker: string | undefined): Promise<SnackVoucher | null> => {
+      if (!address || !staker) return null;
+      try {
+        const res = await fetch("/api/care/free-snack", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ wallet: address, staker }),
+        });
+        const j = (await res.json()) as { ok?: boolean; voucher?: SnackVoucher };
+        return j?.ok && j.voucher ? j.voucher : null;
+      } catch {
+        return null;
+      }
+    },
+    [address],
+  );
 
   const authError = useCallback((code: string | undefined, what: string) => {
     if (code === "not_signed_in" || code === "no_farcaster_host" || code === "unauthorized") {
@@ -1074,9 +1085,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           return { status: "resolved", success: draw.reveal.success };
         }), NOT_STARTED),
 
-      claim: (word: string, useUpper: boolean) => {
+      claim: (word: string, cases: boolean[]) => {
         void track(`Claiming ${word}`, async (run) => {
           if (!chain.params || !chain.player) return void toast("Still loading", "info");
+          // Words.claim takes the letters from THIS wallet, each in the case named: a case this
+          // wallet doesn't hold reverts onchain, so say it here instead of sending.
+          if (!canSpellAs(word, cases, mineLower(state), mineUpper(state))) return void toast(`Can’t claim ${word} with these letters`, "bad");
           const proof = await fetch(`/api/dictionary/proof?word=${encodeURIComponent(word)}`).then((r) => r.json());
           if (!proof.ok) {
             // The word list was updated and the contract hasn't caught up (setDictionaryRoot).
@@ -1089,7 +1103,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const landed = await sendAndSettle(
             run,
             `Claim ${word}`,
-            () => claimCalls(proof.word, proof.proof, useUpper, chain.params!, chain.player!),
+            () => claimCalls(proof.word, proof.proof, caseMask(cases), chain.params!, chain.player!),
             (ws) => ws.some((x) => x.word === W),
             {
               done: () => `${W} is yours. It’s in your Bag.`,
@@ -1129,18 +1143,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       feed: (word: string) => {
         if (!chain.params || !chain.player) return;
         // A feed moves Staking.lastFed, which the word's card reads (via the words list) for its mood.
-        const before = state.words.find((x) => x.word === word)?.lastFedAt ?? 0;
-        void track(`Feeding ${word}`, (run) =>
-          sendAndSettle(
+        const w = state.words.find((x) => x.word === word);
+        const before = w?.lastFedAt ?? 0;
+        // The day's free snack is the staker's profile's: ask for its voucher, else feed paid.
+        const staker = w?.mine ? address : w?.holder;
+        void track(`Feeding ${word}`, async (run) => {
+          const voucher = await snackVoucher(staker);
+          return sendAndSettle(
             run,
             `Feed ${word}`,
-            () => feedCalls(tokenIdOf(word), chain.params!, chain.player!, feedSizingFree),
+            () =>
+              voucher
+                ? feedWithSnackCalls([tokenIdOf(word)], voucher, chain.params!, chain.player!)
+                : feedCalls(tokenIdOf(word), chain.params!, chain.player!),
             (ws) => ws.some((x) => x.word === word && x.lastFedAt > before),
             {
               done: () => `${word} is fed.`,
               pending: `Sent. ${word} will show as fed once the chain confirms it.`,
             },
-          ), false);
+          );
+        }, false);
       },
 
       feedAll: () => {
@@ -1153,17 +1175,25 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         const hungry = hungryWords.map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody’s hungry", "info");
         const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
-        void track("Feeding your words", (run) =>
-          sendAndSettle(
+        // One voucher, for the first word's staker's profile: it frees that word, the rest are paid.
+        const first = hungryWords[0];
+        const firstStaker = first.mine ? address : first.holder;
+        void track("Feeding your words", async (run) => {
+          const voucher = await snackVoucher(firstStaker);
+          return sendAndSettle(
             run,
             "Feed all",
-            () => feedManyCalls(hungry, chain.params!, chain.player!, feedSizingFree),
+            () =>
+              voucher
+                ? feedWithSnackCalls(hungry, voucher, chain.params!, chain.player!)
+                : feedManyCalls(hungry, chain.params!, chain.player!),
             (ws) => [...before].every(([w, t]) => ws.some((x) => x.word === w && x.lastFedAt > t)),
             {
               done: () => (before.size === 1 ? `${[...before.keys()][0]} is fed.` : "Your words are fed."),
               pending: "Sent. Your words will show as fed once the chain confirms it.",
             },
-          ), false);
+          );
+        }, false);
       },
 
       reloadWords: () => void wordsQ.refetch(),
@@ -1508,7 +1538,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, boardQ, sendAndSettle, snackVoucher],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

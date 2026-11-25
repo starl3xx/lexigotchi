@@ -91,9 +91,10 @@ export function prestigeTotalNeeded(prestigeFeeWei: bigint, snackCostWei: bigint
 /**
  * The $WORD a `feedMany` batch pulls, accounting for the free daily snack.
  *
- * The day's first feed per address is free (Staking.sol:85-90), so n words cost (n-1) snacks when
- * the free one is still available. Sizing this as n × snackPrice over-approves harmlessly; sizing it
- * as n × snackPrice when the free feed ISN'T available under-approves and reverts the whole batch.
+ * Only `feedWithSnack` frees one, on a voucher for the profile's one free snack a day (plain feed and
+ * feedMany always pay), so n words cost (n-1) snacks when the free one is still available. Sizing
+ * this as n × snackPrice over-approves harmlessly; sizing it as (n-1) when the profile's free snack
+ * was spent meanwhile under-approves and reverts the whole batch.
  */
 export function feedManyNeeded(count: number, snackPriceWei: bigint, freeAvailable: boolean): bigint {
   const paid = Math.max(0, count - (freeAvailable ? 1 : 0));

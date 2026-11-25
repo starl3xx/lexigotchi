@@ -10,6 +10,8 @@ import {
   chainDay,
   KIND_FREE_DAILY,
   KIND_FREE_PACK,
+  freeSnackDigest,
+  FREE_SNACK_KIND,
 } from "@/lib/onchain/digests";
 
 /**
@@ -47,6 +49,13 @@ describe("signer digests match Foundry's abi.encode byte-for-byte", () => {
   it("free pack (KIND_FREE_PACK = 1, nonce-scoped)", () => {
     expect(freePackDigest({ letters: L, buyer: B, fid: FID, nonce: 7n, deadline: DL })).toBe(
       "0xdc26a10f301c2c11d14151a8921d977156252426b29a8dfb84eac56fb2c917e2",
+    );
+  });
+
+  it("free snack (bytes32 kind; caller, staker, profile, day)", () => {
+    expect(FREE_SNACK_KIND).toBe("0x07c3092415c6446e51fd5f3ec4e4dc1db38a640ac4b6fececde13d4065e7f840");
+    expect(freeSnackDigest({ staking: RO, caller: B, staker: L, profile: PR, today: TODAY, deadline: DL })).toBe(
+      "0xc56585c162de63e9501d99d1ce3dd904d6509fe38effebc9c9477026cbe7c507",
     );
   });
 

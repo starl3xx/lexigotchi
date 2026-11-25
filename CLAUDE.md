@@ -165,11 +165,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   per chain day) and the free pack (kind "pack", once) record the account and the key they sign
   under, first key wins, before signing; another key is refused unless the first voucher expired
   unused; a DB error refuses; no table = the onchain checks alone. daily-status adds the recorded key
-  to its walk. **The free snack, once per profile** (contracts, ships with Sepolia redeploy #4):
+  to its walk. **The free snack, once per profile** (live since Sepolia rehearsal #4, block 63,309,448):
   `Staking.feedWithSnack(ids, staker, profile, deadline, sig)` frees `ids[0]` when the signer vouched
   for (caller, staker, profile = the staker's account, UTC day) and `freeSnackDayPlusOne[profile]`
   isn't today; otherwise it pays, no revert. Plain `feed`/`feedMany` always pay. No database record:
-  the onchain key is the cap.
+  the onchain key is the cap. App: `POST /api/care/free-snack {wallet, staker}` signs it (no sign-in:
+  the voucher is the caller's only), refusing `used_today` when the profile OR any of its wallets as
+  a key used today (a wallet that joined after spending its own), and `try_again` on a DB error
+  (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
+  feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
+  `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
@@ -400,12 +405,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
 - **A claim may mix cases** (decisions.md #17): `Words.claim(word, uint8 upperMask, proof)` names
-  each letter's case (bit k ⇒ position k UPPERCASE). The app's quick Claim uses UPPERCASE first.
-  **Until the next testnet redeploy the deployed Words still takes `bool uppercase`.** The app half
-  is branch `feat/mixed-case-spell` (claim call, `abis.ts`, the `Claimed` event read by
-  `onchain/reads.ts` and `keeper/scan.ts`), and it ships IN the redeploy's PR, never on its own and
-  never after: the app alone sends a mask the old Words reverts; a redeploy alone sends a bool the
-  new Words reverts, and the bag and keeper miss every new word (the event signature changed).
+  each letter's case (bit k ⇒ position k UPPERCASE); in the app, `claim(word, cases)` with
+  `claimCase` / `canSpellAs` / `caseMask` (`state.tsx`). Spell has one tray and no case switch: the
+  rack claims exactly the tiles picked, and the word list and Today's next steps claim UPPERCASE
+  first. The `Claimed` event that the bag (`onchain/reads.ts`) and the keeper (`keeper/scan.ts`)
+  scan comes from the generated ABI (`getAbiItem`), never a hand copy: a copy kept the old `bool`
+  shape, and a log filter on a changed signature silently matches nothing.
 - Snacks 100% burn. The `ROYALTY` FeeSource is the in-house swap fee → 100% Treasury; both token
   contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
   composability, decisions.md "Royalty & marketplace architecture").

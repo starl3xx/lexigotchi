@@ -92,12 +92,13 @@ export function revealCalls(commitId: bigint, letterIndexes: readonly number[], 
 /**
  * Claim a word. Three calls: the 1155 operator approval, the $WORD allowance for the claim fee, then
  * the claim. `word` must be UPPERCASE — the contract requires 'A'..'Z' (Words.sol:108), the merkle
- * leaf is over that same string, and tokenId is keccak256 of it.
+ * leaf is over that same string, and tokenId is keccak256 of it. `upperMask` names each letter's
+ * case (bit k ⇒ position k UPPERCASE; any mix, decisions.md #17): `caseMask` in the game state.
  */
 export function claimCalls(
   word: string,
   proof: readonly `0x${string}`[],
-  uppercase: boolean,
+  upperMask: number,
   params: GameParams,
   player: PlayerState,
 ): Call[] {
@@ -119,7 +120,7 @@ export function claimCalls(
       data: encodeFunctionData({
         abi: wordsAbi,
         functionName: "claim",
-        args: [word.toUpperCase(), uppercase, proof as `0x${string}`[]],
+        args: [word.toUpperCase(), upperMask, proof as `0x${string}`[]],
       }),
     },
   ];
@@ -163,6 +164,41 @@ export function setCaretakerCalls(wallet: `0x${string}`, allowed: boolean): Call
   ];
 }
 
+/** Today's free snack voucher for a staker's profile, from POST /api/care/free-snack. */
+export interface SnackVoucher {
+  staker: `0x${string}`;
+  profile: `0x${string}`;
+  /** Decimal seconds (JSON has no bigint). */
+  deadline: string;
+  sig: `0x${string}`;
+}
+
+/**
+ * Feed `tokenIds`, the first with the profile's free snack for today (Staking.feedWithSnack); the
+ * rest are paid. `tokenIds[0]` must be the voucher's staker's Word. Sized as if nothing were free:
+ * another wallet of the profile may spend the snack first, and then the contract charges the first
+ * feed too (no revert), so a (n-1) allowance would revert the batch.
+ */
+export function feedWithSnackCalls(tokenIds: readonly bigint[], voucher: SnackVoucher, params: GameParams, player: PlayerState): Call[] {
+  const staking = addressOf("staking");
+  return [
+    ...erc20ApprovalCalls({
+      token: wordTokenAddress(),
+      spender: staking,
+      current: player.allowance.staking,
+      needed: feedManyNeeded(tokenIds.length, params.wei.snack, false),
+    }),
+    {
+      to: staking,
+      data: encodeFunctionData({
+        abi: stakingAbi,
+        functionName: "feedWithSnack",
+        args: [tokenIds as bigint[], voucher.staker, voucher.profile, BigInt(voucher.deadline), voucher.sig],
+      }),
+    },
+  ];
+}
+
 export function unstakeCalls(tokenId: bigint): Call[] {
   return [
     { to: addressOf("staking"), data: encodeFunctionData({ abi: stakingAbi, functionName: "unstake", args: [tokenId] }) },
@@ -170,32 +206,31 @@ export function unstakeCalls(tokenId: bigint): Call[] {
 }
 
 /**
- * Feed one word. The day's first feed per address is free, so this needs no allowance then — but the
- * second feed the same day does, and there is no on-chain guard against feeding an already-fed word
- * (Staking.sol:81-93), so the caller must gate on hunger or it will happily burn a snack for nothing.
+ * Feed one word, paid. The day's free snack comes only through `feedWithSnackCalls` (a server voucher
+ * for the profile). There is no onchain guard against feeding an already-fed word, so the caller must
+ * gate on hunger or it will happily burn a snack for nothing.
  */
-export function feedCalls(tokenId: bigint, params: GameParams, player: PlayerState, freeAvailable: boolean): Call[] {
+export function feedCalls(tokenId: bigint, params: GameParams, player: PlayerState): Call[] {
   const staking = addressOf("staking");
   return [
     ...erc20ApprovalCalls({
       token: wordTokenAddress(),
       spender: staking,
       current: player.allowance.staking,
-      needed: freeAvailable ? 0n : params.wei.snack,
+      needed: params.wei.snack,
     }),
     { to: staking, data: encodeFunctionData({ abi: stakingAbi, functionName: "feed", args: [tokenId] }) },
   ];
 }
 
 /**
- * Feed several. Sized with feedManyNeeded because the free snack covers exactly one of them —
- * under-approving reverts the ENTIRE batch, unlike the mock reducer which silently skips.
+ * Feed several, all paid (plain feedMany never frees one). Sized with feedManyNeeded: under-approving
+ * reverts the ENTIRE batch, unlike the mock reducer which silently skips.
  */
 export function feedManyCalls(
   tokenIds: readonly bigint[],
   params: GameParams,
   player: PlayerState,
-  freeAvailable: boolean,
 ): Call[] {
   const staking = addressOf("staking");
   return [
@@ -203,7 +238,7 @@ export function feedManyCalls(
       token: wordTokenAddress(),
       spender: staking,
       current: player.allowance.staking,
-      needed: feedManyNeeded(tokenIds.length, params.wei.snack, freeAvailable),
+      needed: feedManyNeeded(tokenIds.length, params.wei.snack, false),
     }),
     {
       to: staking,

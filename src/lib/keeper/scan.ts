@@ -1,3 +1,4 @@
+import { getAbiItem } from "viem";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { addressOf, deployBlock } from "@/lib/onchain/addresses";
 import { wordsAbi, stakingAbi } from "@/lib/onchain/abis";
@@ -15,16 +16,9 @@ import type { KeeperWord } from "./shares";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-const CLAIMED_EVENT = {
-  type: "event",
-  name: "Claimed",
-  inputs: [
-    { name: "tokenId", type: "uint256", indexed: true },
-    { name: "owner", type: "address", indexed: true },
-    { name: "word", type: "string", indexed: false },
-    { name: "uppercase", type: "bool", indexed: false },
-  ],
-} as const;
+// From the generated ABI, never a hand copy: a copy kept `bool uppercase` after Claimed changed to
+// `uint8 upperMask` (decisions.md #17), and a log filter on the old signature matches nothing.
+const CLAIMED_EVENT = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
 export async function scanAllWords(): Promise<KeeperWord[]> {
   const words = addressOf("words");

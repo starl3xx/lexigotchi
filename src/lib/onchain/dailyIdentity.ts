@@ -20,7 +20,7 @@ import { xUserIdsFor } from "@/lib/db/profiles";
 import { profilesEnabled } from "@/lib/profile/session";
 import { verifiedDailyKey, xDailyKey } from "./verifications";
 import { addressOf, isSuiteDeployed } from "./addresses";
-import { lettersAbi } from "./abis";
+import { lettersAbi, stakingAbi } from "./abis";
 import { getPublicClient, readChainTime } from "./reads";
 import { NETWORK } from "./network";
 import { readDraw } from "@/lib/db/draws";
@@ -116,24 +116,35 @@ export async function xKeyUsedToday(xUserId: string): Promise<boolean> {
 }
 
 /**
- * Did this account take today's free letter, or get a voucher for it, under any of its keys? While
- * it did, no wallet can leave the account: a wallet that leaves takes its keys out of the account's
- * one-letter check, and could pull again today on its own Farcaster, X, or Coinbase key. The same
- * rule as moving an X account (xKeyUsedToday). Throws if the chain can't say: the caller refuses.
+ * Did this account take today's free letter (or get a voucher for it, under any of its keys), or
+ * today's free snack? While it did, no wallet can leave the account: a wallet that leaves takes its
+ * keys out of the account's one-letter check, and could pull again today on its own Farcaster, X, or
+ * Coinbase key; and as a profile of its own it would have a fresh free snack (Staking.feedWithSnack
+ * keys the snack on the profile). The same rule as moving an X account (xKeyUsedToday). Throws if the
+ * chain can't say: the caller refuses.
  */
 export async function accountClaimedToday(account: string): Promise<boolean> {
   if (!isSuiteDeployed()) return false;
-  const keys = await relatedDailyKeys({ fid: null, wallet: account });
+  const [keys, { wallets }] = await Promise.all([relatedDailyKeys({ fid: null, wallet: account }), accountWallets(account)]);
   const letters = addressOf("letters");
-  const [now, used] = await Promise.all([
+  const staking = addressOf("staking");
+  // The snack's keys: the account, and each wallet as the profile it may have been earlier today
+  // (the free-snack route refuses on any of them, so the lock reads the same set).
+  const snackKeys = [...new Set([account.toLowerCase(), ...wallets])] as `0x${string}`[];
+  const [now, used, snacks] = await Promise.all([
     readChainTime(),
     getPublicClient().multicall({
       allowFailure: false,
       contracts: keys.map((k) => ({ address: letters, abi: lettersAbi, functionName: "dailyUsed" as const, args: [k] })),
     }) as Promise<(number | bigint)[]>,
+    getPublicClient().multicall({
+      allowFailure: false,
+      contracts: snackKeys.map((k) => ({ address: staking, abi: stakingAbi, functionName: "freeSnackDayPlusOne" as const, args: [k] })),
+    }) as Promise<(number | bigint)[]>,
   ]);
   const today = Math.floor(now / 86_400);
   if (used.some((u) => Number(u) === today + 1)) return true;
+  if (snacks.some((u) => Number(u) === today + 1)) return true;
   for (const k of keys) if (await readDraw(NETWORK.id, `d:${k}:${today}`)) return true;
   return false;
 }

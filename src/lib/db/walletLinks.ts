@@ -67,6 +67,32 @@ export async function accountWallets(address: string): Promise<{ account: string
   return { account, wallets: await walletsOfAccount(account) };
 }
 
+/**
+ * accountWallets, except that a database error THROWS instead of reading as "not linked". For a
+ * decision that must not split a profile, such as the free snack's (Staking.feedWithSnack): read as
+ * unlinked, a wallet would get a profile of its own and a second free snack. A missing table (before
+ * migration 0008) is a real answer: nobody is linked.
+ */
+export async function accountWalletsStrict(address: string): Promise<{ account: string; wallets: string[] }> {
+  const a = lower(address);
+  try {
+    const db = getDb();
+    const rows = await db.select({ account: walletLinks.account }).from(walletLinks).where(eq(walletLinks.address, a)).limit(1);
+    const account = rows[0]?.account ?? a;
+    const linked = await db
+      .select({ address: walletLinks.address })
+      .from(walletLinks)
+      .where(eq(walletLinks.account, account))
+      .orderBy(walletLinks.linkedAt)
+      .limit(MAX_ACCOUNT_WALLETS - 1);
+    return { account, wallets: [account, ...linked.map((r) => r.address)] };
+  } catch (err) {
+    const e = err as { code?: string; cause?: { code?: string } } | null;
+    if (e?.code === "42P01" || e?.cause?.code === "42P01") return { account: a, wallets: [a] };
+    throw err;
+  }
+}
+
 // ── every link at once (the world, the keeper, the reminder cron) ──────────────────────────────
 
 /** Every link, resolved both ways. A wallet with no link is its own one-wallet account. */
