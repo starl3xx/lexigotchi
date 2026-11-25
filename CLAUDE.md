@@ -313,10 +313,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `useAdminApi` and offers a sign-in on 401. Never import a server module (db, `systemStatus`) VALUE
   into a tab: types only, or the Postgres driver lands in the browser bundle.
 - **Wallet sightings** (`lib/sightings.ts`, `lib/db/sightings.ts`, table `wallet_sightings`, migration
-  0011): the game posts `/api/players/seen` once per wallet per UTC day (`useWalletSighting`, mounted
+  0012): the game posts `/api/players/seen` once per wallet per UTC day (`useWalletSighting`, mounted
   in GameApp) so Players can count wallets that connect and do nothing onchain. Unsigned by design, so
   the count is labelled unverified; rate-limited by IP; a FID only from a verified Quick Auth token.
-  Dark (503, no client retry storm: the day is marked only on success) until 0011 is applied.
+  Dark (503, no client retry storm: the day is marked only on success) until 0012 is applied.
 - **`FeeRouter.seed(uint8 bucket, uint256 amount)`** (owner-only) was added so the admin can fund the
   Rewards Pool (bucket 0) / Bounty (bucket 2) — pulls $WORD from the owner, credits the bucket, solvency
   invariant intact. Jackpot (bucket 1) reverts (`JackpotNotSeedable`) — it self-funds (lottery
