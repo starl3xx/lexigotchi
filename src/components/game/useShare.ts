@@ -108,6 +108,24 @@ export function useSaveImage(src: string | null, filename: string) {
   const v = useViewer();
   const g = useGame();
   const ready = useRef<{ src: string; blob: Blob } | null>(null);
+  // Inside ANY mini-app host, asked of the SDK itself: `v.environment` says "farcaster" only when the
+  // host hands over a FID, and the Base app doesn't, so its players read as "web" (Bugbot on #183).
+  const host = useRef<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const sdk = (await import("@farcaster/miniapp-sdk")).default;
+        const inMini = await sdk.isInMiniApp(); // a definitive boolean, with its own timeout
+        if (alive) host.current = inMini;
+      } catch {
+        if (alive) host.current = false;
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!src || !touchFirst()) return;
@@ -129,19 +147,21 @@ export function useSaveImage(src: string | null, filename: string) {
 
   return useCallback(async () => {
     if (!src) return;
+    const inHost = host.current ?? v.environment === "farcaster";
+    // A download in a host's web view does nothing, so a host never falls back to one: it opens the
+    // picture in the browser, or says it couldn't (never "saved" for a download that didn't happen).
     const openInBrowser = async () => {
       try {
         const sdk = (await import("@farcaster/miniapp-sdk")).default;
         await sdk.actions.openUrl(new URL(src, window.location.href).toString());
         g.toast("Press and hold the picture to save it", "info");
-        return true;
       } catch {
-        return false;
+        g.toast("Couldn’t open the picture. Try again", "bad");
       }
     };
     const sheet = touchFirst() && typeof navigator.canShare === "function";
-    // A host's web view with no share sheet can't keep a file: open the picture without fetching it.
-    if (v.environment === "farcaster" && !sheet && (await openInBrowser())) return;
+    // A host with no share sheet can't keep a file: open the picture without fetching it.
+    if (inHost && !sheet) return openInBrowser();
 
     let blob = ready.current?.src === src ? ready.current.blob : null;
     if (!blob) {
@@ -168,7 +188,7 @@ export function useSaveImage(src: string | null, filename: string) {
       return;
     }
     // A sheet that can't take this file: a host opens it in the browser, the web downloads it.
-    if (v.environment === "farcaster" && (await openInBrowser())) return;
+    if (inHost) return openInBrowser();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
