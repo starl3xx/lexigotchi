@@ -18,6 +18,8 @@ import { stageName } from "@/lib/ascension";
 
 (globalThis as unknown as { React: typeof React }).React = React;
 const { TileCharacter } = await import("@/components/game/TileCharacter");
+const { leanFor } = await import("@/components/game/tileShapes");
+const { LINK_OVERLAP } = await import("@/components/scenes/layout");
 const { DEFAULT_PARAMS } = await import("@/lib/params");
 const { TIER_MARK_CORNERS, tierMarkPaths } = await import("@/lib/tierMark");
 const { default: tailwind } = await import("../tailwind.config");
@@ -59,6 +61,12 @@ interface Ch {
   gild?: Gild;
   /** the word's rarity, worn as the tile's finish (its light never passes in a picture: nothing adds .rf-moment) */
   tier?: Tier;
+  /** in a word: this letter holds its neighbour's hand on that side, leans a little, and knows its
+   *  place, which sets its beat in the word's breath and where its finish's glints sit (group sets these) */
+  linkLeft?: boolean;
+  linkRight?: boolean;
+  lean?: number;
+  index?: number;
 }
 interface Group {
   chars: Ch[];
@@ -84,8 +92,9 @@ let drawn = 0;
  * word could borrow a full word's eyes. Every id gets a per-character prefix.
  */
 function character(c: Ch, size: number): Placed {
+  // `flat`: the rig as ONE <svg> (its layers as groups), which a picture in a single file needs
   const html = renderToStaticMarkup(
-    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} />,
+    <TileCharacter char={c.ch} upper={c.upper ?? false} state={c.state ?? "idle"} gild={c.gild ?? 0} size={size} detail="full" tier={c.tier} linkLeft={c.linkLeft} linkRight={c.linkRight} lean={c.lean} index={c.index} flat />,
   );
   let svg = html.match(/<svg[\s\S]*<\/svg>/)![0].replace(/ class="overflow-visible"/, ' overflow="visible"');
   const prefix = `c${drawn++}-`;
@@ -99,8 +108,11 @@ function character(c: Ch, size: number): Placed {
 
 /** A word (or one letter) with an optional label and sub-label centered under it. */
 function group(g: Group): Placed {
-  const parts = g.chars.map((c) => character(c, g.size));
-  const overlap = Math.round(g.size * -0.1); // the rig's tiles sit shoulder to shoulder
+  // a word's letters hold hands and lean, as in the game: each overlaps the last by the rig's share
+  const word = g.chars.map((c) => c.ch).join("");
+  const n = g.chars.length;
+  const parts = g.chars.map((c, i) => character(n > 1 ? { ...c, linkLeft: i > 0, linkRight: i < n - 1, lean: leanFor(word, i), index: i } : c, g.size));
+  const overlap = -g.size * LINK_OVERLAP;
   const wordW = parts.reduce((s, p) => s + p.w, 0) + overlap * (parts.length - 1);
   const charH = Math.max(...parts.map((p) => p.h));
   const textH = (g.label ? 24 : 0) + (g.sub ? 20 : 0);

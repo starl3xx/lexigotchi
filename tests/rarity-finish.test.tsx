@@ -12,7 +12,7 @@ import { FINISH, finishFor, mixHex } from "@/lib/rarityFinish";
 import { OgTile } from "@/app/_og/tile";
 import { MOMENT_END_S } from "@/components/game/TileFinish";
 import { TileCharacter } from "@/components/game/TileCharacter";
-import { showcaseCardPath, showcaseCardUrl } from "@/lib/showcase";
+import { CARD_LOOK, showcaseCardPath, showcaseCardUrl } from "@/lib/showcase";
 
 describe("the finishes", () => {
   it("dress every tier above Common, each in its own material", () => {
@@ -149,8 +149,8 @@ describe("the game's name on a share picture", () => {
   });
 
   it("is asked for by a saved picture, which travels alone", () => {
-    expect(showcaseCardPath("CRAne", "x", undefined, true)).toBe("/s/CRAne/card?saved=1");
-    expect(showcaseCardPath("CRAne", "fc", "fall", true)).toBe("/s/CRAne/card?ratio=3x2&saved=1&scene=fall");
+    expect(showcaseCardPath("CRAne", "x", undefined, true)).toBe(`/s/CRAne/card?saved=1&v=${CARD_LOOK}`);
+    expect(showcaseCardPath("CRAne", "fc", "fall", true)).toBe(`/s/CRAne/card?ratio=3x2&saved=1&v=${CARD_LOOK}&scene=fall`);
   });
 });
 

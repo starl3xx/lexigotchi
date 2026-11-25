@@ -1,5 +1,5 @@
 /**
- * The rarity marks (lib/tierMark, components/game/TierMark; decisions.md #28): a round bead for
+ * The rarity marks (lib/tierMark, components/game/TierMark; decisions.md #29): a round bead for
  * Common, then a stone with one more corner per tier. These hold the rule a player reads the marks
  * by (count the corners), the drawing rules that let the server draw them (plain paths, every
  * attribute given), and that the game and the back picture draw from the one source.

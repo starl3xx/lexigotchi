@@ -1,5 +1,5 @@
 /**
- * Each rarity's mark (decisions.md #28): a round bead for Common, then a cut stone with one more
+ * Each rarity's mark (decisions.md #29): a round bead for Common, then a cut stone with one more
  * corner per tier: three for Uncommon, four for Rare, five for Legendary, six for Mythic.
  *
  * - **One rule orders them:** count the corners. (Riftbound and Lorcana rank their cards the same way.)
