@@ -11,7 +11,7 @@ deployed**. Solidity 0.8.28, OpenZeppelin 5.x, Foundry. Target chain: Base (8453
 | `Letters` | ERC-1155 (52 ids); commit→signed-reveal mints, FID daily, **free vouchers** (free daily + one-time free-pack airdrop), ETH-swap path, `upgrade`, EIP-2981 signal |
 | `Words` | ERC-721 per dictionary word, Merkle-gated claim, 5-letter escrow, case-as-state, dissolve, prestige level, base-URI `tokenURI`, EIP-2981 signal |
 | `Rolls` | Commit→signed-reveal upgrades; fail = no-op; pity per `(beneficialOwner, letter)` |
-| `Staking` | Word custody + hunger clock + snack feed; eligibility truth for Jackpot |
+| `Staking` | Word custody + hunger clock + snack feed; eligibility truth for Jackpot; **caretakers** (a staker's other wallets may feed, roll, and ascend its staked Words) |
 | `Prestige` | Ascension of full-UPPERCASE staked words (signed reveal, monotonic, fail = no-op) |
 | `AnswerChain` | Pre-committed daily-word reverse hash-chain (unsteerable jackpot answer) |
 | `Jackpot` | `keccak(word)` lookup → pay the staked, fed holder atomically, else roll over |
@@ -33,6 +33,12 @@ suite depends on its `burn()` + `transferFrom` semantics.
   fairness of the split; never for solvency (payouts capped at funded).
 - **`priceKeeper`** (distinct hot key) — auto-repegs prices within an `onlyPriceKeeper` clamp + a
   hardcoded per-contract cooldown. Solvency-irrelevant; can't cross zero; default-disabled.
+- **Caretakers** (`Staking.setCaretaker`, 2026-11-24; design: `docs/linked-wallets-onchain.md`) — a
+  staker names its other wallets, which may then `feed`/`feedMany`, `Rolls.commitWordRoll`, and
+  `Prestige.commitPrestige` its STAKED Words. The caller always pays (never the staker's allowance);
+  the free snack is keyed on the staker (caretakers can't multiply it); prestige and word-roll commits
+  name the staker; nothing ever moves to a caretaker, and only the staker unstakes. A caretaker is
+  trusted only not to waste the staker's free snack or hold its open roll/ascension slot.
 
 ## Core invariants (the audit should try to break these)
 
