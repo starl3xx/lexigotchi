@@ -7,11 +7,21 @@
  * mint ever reached Base Sepolia. The game could only shrug. This asks the game's chain (and, for a
  * batch, the wallet) what happened, so the player and we can see the actual failure.
  *
+ * `settleSend` is the same question asked on a schedule after a send, and the way the faucet decides
+ * it worked: by the transaction's own result, not by watching a balance (a balance read against a
+ * stale baseline both missed real mints and passed off earlier ones as new).
+ *
  * Pure apart from `deps`, so it is tested without a chain or a wallet.
  */
 import type { SendResult } from "./sendCalls";
+import { SETTLE_OFFSETS_MS } from "./settle";
 
 export type SendTrace =
+  /**
+   * The send can't be traced (no hash, a wallet that can't say), but the change it was for showed
+   * up (`SettleDeps.changed`). Only `settleSend` returns it.
+   */
+  | { kind: "seen" }
   /** Mined and succeeded on the game's chain. */
   | { kind: "landed"; hash: string }
   /** Mined on the game's chain, and reverted. */
@@ -86,12 +96,19 @@ function readCallsStatus(raw: unknown): {
   hashes: string[];
 } {
   const s = (raw ?? {}) as { status?: unknown; chainId?: unknown; receipts?: unknown };
-  const code = typeof s.status === "string" ? s.status.toUpperCase() : s.status;
+  // A code sent as a string ("500") reads as the number; a word reads in upper case.
+  const code =
+    typeof s.status === "string" && /^\d+$/.test(s.status) ? Number(s.status)
+    : typeof s.status === "string" ? s.status.toUpperCase()
+    : s.status;
   const receipts = (Array.isArray(s.receipts) ? s.receipts : []) as { transactionHash?: unknown; status?: unknown }[];
   const receiptFailed = receipts.some((r) => r?.status === "0x0" || r?.status === 0 || r?.status === "reverted");
   return {
     pending: code === "PENDING" || (typeof code === "number" && code >= 100 && code < 200),
-    failed: (typeof code === "number" && code >= 400) || code === "FAILED" || receiptFailed,
+    failed:
+      (typeof code === "number" && code >= 400) ||
+      (typeof code === "string" && ["FAILED", "FAILURE", "REVERTED", "ERROR"].includes(code)) ||
+      receiptFailed,
     chainId: readChainId(s.chainId),
     hashes: receipts
       .map((r) => r?.transactionHash)
@@ -130,9 +147,10 @@ export async function traceSend(sent: SendResult | undefined, deps: TraceDeps): 
         if (elsewhere) return { kind: "other_chain", chainId: status.chainId! };
         return status.failed ? { kind: "wallet_failed" } : onChain;
       }
-      // The wallet's verdict beats the receipt: a smart wallet's hash is the bundler's handleOps
-      // transaction, which SUCCEEDS onchain when the operation inside it reverts.
-      if (status.failed && "hash" in onChain) return { kind: "reverted", hash: onChain.hash };
+      // The wallet's verdict beats a receipt that LANDED: a smart wallet's hash is the bundler's
+      // handleOps transaction, which succeeds onchain when the operation inside it reverts. A hash
+      // still pending stays pending: it may yet be mined, so "failed" would be premature.
+      if (status.failed && onChain.kind === "landed") return { kind: "reverted", hash: onChain.hash };
       return onChain;
     }
     if (elsewhere) return { kind: "other_chain", chainId: status.chainId! };
@@ -143,6 +161,54 @@ export async function traceSend(sent: SendResult | undefined, deps: TraceDeps): 
     // A failed read or a wallet without wallet_getCallsStatus says nothing about the send.
     return { kind: "unknown" };
   }
+}
+
+/** Rejects if `p` hasn't settled in `ms`: for a read whose silence must not pass for an answer
+ *  (a receipt read that hangs is "couldn't tell", never "no receipt"). */
+export function orThrowAfter<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p.finally(() => clearTimeout(timer)),
+    new Promise<T>((_, reject) => (timer = setTimeout(() => reject(new Error(`no answer in ${ms} ms`)), ms))),
+  ]);
+}
+
+export interface SettleOpts {
+  /** Read times from the start (default SETTLE_OFFSETS_MS: 0, 2, 5, 10, and 20 s). */
+  offsetsMs?: readonly number[];
+  sleep?: (ms: number) => Promise<void>;
+  /** Each trace as it is taken, so a caller that stops waiting early still has the latest. */
+  onTrace?: (t: SendTrace) => void;
+  /**
+   * For a send nobody can trace: whether the change it was for has shown up (the faucet: the
+   * balance grew by the mint). Asked only while the trace says "unknown", so a balance never
+   * outvotes the transaction's own result.
+   */
+  changed?: () => Promise<boolean>;
+}
+
+/** The answers that end the wait: the send's fate is known. */
+const SETTLED: ReadonlySet<SendTrace["kind"]> = new Set(["seen", "landed", "reverted", "wallet_failed", "other_chain"]);
+
+/**
+ * Trace a send on a schedule until its fate is known, and return the last answer. "landed" (or
+ * "seen") means it worked; anything else is what to tell the player. A send returns when the wallet
+ * accepts, and the game's RPC lags the chain, so the first few answers are usually "unseen" or
+ * "pending" and only later "landed".
+ */
+export async function settleSend(sent: SendResult | undefined, deps: TraceDeps, opts: SettleOpts = {}): Promise<SendTrace> {
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  let last: SendTrace = { kind: "unknown" };
+  let at = 0;
+  for (const offset of opts.offsetsMs ?? SETTLE_OFFSETS_MS) {
+    if (offset > at) await sleep(offset - at);
+    at = Math.max(at, offset);
+    last = await traceSend(sent, deps);
+    if (last.kind === "unknown" && opts.changed && (await opts.changed().catch(() => false))) last = { kind: "seen" };
+    opts.onTrace?.(last);
+    if (SETTLED.has(last.kind)) return last;
+  }
+  return last;
 }
 
 /** A hash short enough for a toast, long enough to match against an explorer. */

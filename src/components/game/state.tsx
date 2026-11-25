@@ -27,6 +27,7 @@ import {
   prestigeSuccessProbability,
 } from "@/lib/params";
 import { Rng } from "@/lib/rng";
+import { NETWORK } from "@/lib/onchain/network";
 
 // ---------------------------------------------------------------------------
 // Dictionary helpers (built once)
@@ -125,6 +126,9 @@ export interface Toast {
   id: number;
   text: string;
   tone: "good" | "bad" | "info";
+  /** How long it stays up, when its length-based default (`toastMs`) is too short: a result that
+   *  lands long after the tap, which the player may come back to. */
+  ms?: number;
 }
 
 /** Whether chain-derived state is actually known. See ChainGate — "loading" is not "zero". */
@@ -247,6 +251,12 @@ export function fmtWord(n: number): string {
   return `${Math.round(n)}`;
 }
 export const fmtUsd = (word: number) => `$${usdOf(word).toFixed(2)}`;
+/**
+ * Whether $WORD amounts get a dollar figure. Not in the chain game on a testnet: test $WORD has no
+ * value, and a dollar figure beside it is what made a tester expect their real $WORD to count. The
+ * practice game keeps them (it previews the real prices).
+ */
+export const showsUsd = (state: Pick<GameState, "chainBacked">) => !(state.chainBacked && NETWORK.isTestnet);
 
 // ---------------------------------------------------------------------------
 // Seed (a populated starting save so every screen has life)
@@ -310,7 +320,7 @@ export function seedState(): GameState {
 type Action =
   | { t: "nav"; view: View }
   | { t: "sheet"; sheet: Sheet }
-  | { t: "toast"; text: string; tone: Toast["tone"] }
+  | { t: "toast"; text: string; tone: Toast["tone"]; ms?: number }
   | { t: "untoast"; id: number }
   | { t: "dailyMint"; idx: number }
   | { t: "pack"; idxs: number[] }
@@ -339,7 +349,7 @@ export function reducer(s: GameState, a: Action): GameState {
     case "toast":
       return {
         ...s,
-        toasts: [...s.toasts, { id: s.nextToastId, text: a.text, tone: a.tone }],
+        toasts: [...s.toasts, { id: s.nextToastId, text: a.text, tone: a.tone, ...(a.ms ? { ms: a.ms } : {}) }],
         nextToastId: s.nextToastId + 1,
       };
     case "untoast":

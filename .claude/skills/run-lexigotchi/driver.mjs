@@ -40,6 +40,15 @@ const URL = val("--url", "http://localhost:3000/play");
 const SHOT = val("--shot", "play");
 const GOTO = val("--goto", null);
 const CLICKS = argv.flatMap((a, i) => (a === "--click" && argv[i + 1] ? [argv[i + 1]] : []));
+// Checked before a browser starts: a bad pattern should say so, not throw a bare SyntaxError later.
+const CLICK_RES = CLICKS.map((name) => {
+  try {
+    return new RegExp(name, "i");
+  } catch (e) {
+    console.error(`--click ${JSON.stringify(name)} is not a valid pattern: ${e.message}`);
+    process.exit(2);
+  }
+});
 // `--wait` with no number (or a non-number) falls back to the default instead of NaN, which skipped
 // the wait entirely.
 const WAIT_ARG = Number(val("--wait", 2000));
@@ -166,13 +175,19 @@ const readToasts = () =>
   );
 const seenToasts = new Set();
 for (const [i, name] of CLICKS.entries()) {
-  const target = page.getByRole("button", { name: new RegExp(name, "i") }).first();
+  const target = page.getByRole("button", { name: CLICK_RES[i] }).first();
   if (!(await target.count())) {
     // Skip it: clicking a locator that matches nothing waits out Playwright's 30 s timeout.
     console.log(`click      : no button matches /${name}/i`);
     continue;
   }
-  await target.click().catch(() => {});
+  // Said out loud: a click that silently failed (say, blocked by a sheet still animating in) and
+  // then a full --wait reads exactly like the app ignoring the tap.
+  const clicked = await target.click({ timeout: 10_000 }).then(
+    () => true,
+    (e) => (console.log(`click      : /${name}/i failed: ${String(e.message).split("\n")[0]}`), false),
+  );
+  if (!clicked) continue;
   const until = Date.now() + (i === CLICKS.length - 1 ? WAIT_MS : 1500); // a sheet's enter animation
   while (Date.now() < until) {
     for (const t of await readToasts().catch(() => [])) seenToasts.add(t);

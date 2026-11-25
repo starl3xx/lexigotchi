@@ -3,7 +3,7 @@
  * (and, for a batch, the wallet) what happened, instead of having said "sent" and stopping there.
  */
 import { describe, it, expect } from "vitest";
-import { traceSend, type TraceDeps } from "@/lib/onchain/traceSend";
+import { orThrowAfter, settleSend, traceSend, type SendTrace, type TraceDeps } from "@/lib/onchain/traceSend";
 
 const A = `0x${"a".repeat(64)}`;
 const B = `0x${"b".repeat(64)}`;
@@ -134,5 +134,93 @@ describe("traceSend: wallet_sendCalls batches", () => {
 
   it("gives up on a wallet that never answers, instead of holding the action", async () => {
     expect(await traceSend({ via: "sendCalls", id: "x" }, chain({ callsHang: true }))).toEqual({ kind: "unknown" });
+  });
+
+  it("reads failure words and codes sent as strings", async () => {
+    for (const status of ["FAILURE", "reverted", "500", "Failed"]) {
+      expect(await traceSend({ via: "sendCalls", id: "x" }, chain({ calls: { status } }))).toEqual({ kind: "wallet_failed" });
+    }
+    expect(await traceSend({ via: "sendCalls", id: "x" }, chain({ calls: { status: "100" } }))).toEqual({ kind: "wallet_pending" });
+  });
+
+  it("keeps a failed batch's hash that is still pending as pending, not failed", async () => {
+    const t = await traceSend(
+      { via: "sendCalls", id: "x" },
+      chain({ pending: [A], calls: { status: 500, chainId: "0x14a34", receipts: [{ transactionHash: A }] } }),
+    );
+    expect(t).toEqual({ kind: "pending", hash: A });
+  });
+});
+
+describe("settleSend: wait on the transaction's own result", () => {
+  /** A chain whose answer for hash A changes over time: one entry per read. */
+  function timeline(states: ("unseen" | "pending" | "success" | "reverted")[]): TraceDeps {
+    let n = 0;
+    const now = () => states[Math.min(n, states.length - 1)];
+    return {
+      chainId: SEPOLIA,
+      receipt: async () => {
+        const s = now();
+        return s === "success" || s === "reverted" ? { status: s } : null;
+      },
+      known: async () => {
+        const s = now();
+        n++; // one read of the chain per trace: receipt, then known
+        return s === "pending";
+      },
+      callsStatus: async () => undefined,
+    };
+  }
+  const noSleep = async () => {};
+
+  it("waits through unseen and pending until the transaction lands", async () => {
+    const seen: SendTrace["kind"][] = [];
+    const t = await settleSend({ via: "sendTransaction", hashes: [A] }, timeline(["unseen", "pending", "success"]), {
+      sleep: noSleep,
+      onTrace: (x) => seen.push(x.kind),
+    });
+    expect(t).toEqual({ kind: "landed", hash: A });
+    expect(seen).toEqual(["unseen", "pending", "landed"]);
+  });
+
+  it("stops at a revert", async () => {
+    const t = await settleSend({ via: "sendTransaction", hashes: [A] }, timeline(["reverted"]), { sleep: noSleep });
+    expect(t).toEqual({ kind: "reverted", hash: A });
+  });
+
+  it("reports the last answer when the schedule runs out", async () => {
+    const t = await settleSend({ via: "sendTransaction", hashes: [A] }, timeline(["unseen"]), { sleep: noSleep });
+    expect(t).toEqual({ kind: "unseen", hash: A });
+  });
+
+  it("never lets the balance outvote the transaction: unseen stays unseen though the balance grew", async () => {
+    const t = await settleSend({ via: "sendTransaction", hashes: [A] }, timeline(["unseen"]), {
+      sleep: noSleep,
+      changed: async () => true,
+    });
+    expect(t).toEqual({ kind: "unseen", hash: A });
+  });
+
+  it("falls back to the balance only for a send nobody can trace", async () => {
+    let reads = 0;
+    const t = await settleSend({ via: "sendCalls" }, chain(), { sleep: noSleep, changed: async () => ++reads >= 2 });
+    expect(t).toEqual({ kind: "seen" });
+    expect(reads).toBe(2);
+  });
+
+  it("follows the schedule's offsets", async () => {
+    const waits: number[] = [];
+    await settleSend({ via: "sendTransaction", hashes: [A] }, timeline(["unseen"]), {
+      offsetsMs: [0, 2_000, 5_000],
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect(waits).toEqual([2_000, 3_000]);
+  });
+});
+
+describe("orThrowAfter", () => {
+  it("rejects a read that never answers, so silence never passes for 'not found'", async () => {
+    await expect(orThrowAfter(new Promise(() => {}), 10)).rejects.toThrow(/no answer/);
+    await expect(orThrowAfter(Promise.resolve(7), 10)).resolves.toBe(7);
   });
 });

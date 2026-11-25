@@ -98,7 +98,7 @@ import { wordTier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls";
-import { shortHash, traceSend, withTimeout, type SendTrace } from "@/lib/onchain/traceSend";
+import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from "@/lib/onchain/traceSend";
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -394,7 +394,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   });
 
   const toast = useCallback(
-    (text: string, tone: Toast["tone"] = "info") => dispatch({ t: "toast", text, tone }),
+    (text: string, tone: Toast["tone"] = "info", ms?: number) => dispatch({ t: "toast", text, tone, ms }),
     [],
   );
 
@@ -454,7 +454,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       try {
         phase("wallet");
         const sent = await chain.send(build());
-        opts?.onSent?.(sent);
+        // The wallet has accepted: nothing after this may report the send as failed. A throwing
+        // callback would have toasted "failed" and invited a second send while the first lands.
+        try {
+          opts?.onSent?.(sent);
+        } catch (err) {
+          console.warn("[send] onSent threw", err);
+        }
         phase("working");
         await Promise.all([wordsQ.refetch(), pityQ.refetch(), dayQ.refetch(), relatedDayQ.refetch(), pendingQ.refetch()]);
         if (opts?.settles) return true;
@@ -1128,101 +1134,116 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
       // The faucet replaces addDemoBalance — real tokens on a testnet, nothing on mainnet.
       //
-      // It waits for the BALANCE, not the send. A send returns when the wallet accepts: on 2026-11-24
-      // a tester saw "Faucet sent" over a balance that never moved, and no mint for their wallet ever
-      // reached Base Sepolia (their wallet held Base Sepolia ETH). So it says "arrived" only once the
-      // mint shows. When it doesn't, it traces what the wallet returned and says what happened. It
+      // It waits for the MINT, not the send. A send returns when the wallet accepts: on 2026-11-24 a
+      // tester saw "Faucet sent" over a balance that never moved, and no transaction from their
+      // wallet ever reached Base Sepolia (it held Base Sepolia ETH). So "arrived" needs the mint's
+      // own result (`settleSend`: its receipt, or the wallet's batch status), and anything else is
+      // named to the player. Watching the balance instead both missed real mints and passed off
+      // earlier ones as new, so the balance is only the fallback for a send nobody can trace. It
       // never refuses to send for want of ETH: sponsored smart wallets mint holding none.
       addDemoBalance: () => {
         if (!NETWORK.isTestnet) return void toast("No faucet on mainnet", "bad");
         if (!address) return void toast("Connect a wallet first", "bad");
         void track("Getting test $WORD", async (run) => {
-          const client = getPublicClient();
-          const balanceOf = async () =>
-            (await client.readContract({
-              address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [address],
-            })) as bigint;
           const FAUCET = 50_000_000;
-          // The starting balance is READ, never guessed: falling back to 0 let any balance the wallet
-          // already held pass for the mint. A few tries, then refuse before anything is sent.
-          let before: bigint | undefined;
-          for (const wait of [0, 1_000, 2_000]) {
-            if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
-            before = await balanceOf().catch(() => undefined);
-            if (before !== undefined) break;
-          }
-          if (before === undefined) return void toast("Couldn’t read your test $WORD balance. Try again in a moment.", "bad");
-          // A lagging node can answer with the balance from before an earlier mint; the cached read
-          // may be newer. The higher of the two, so an earlier mint can't pass for this one.
-          const start = chain.player && chain.player.balanceWei > before ? chain.player.balanceWei : before;
+          /** Every read is capped: the action gate waits on all of it, and viem retries each read. */
+          const READ_MS = 5_000;
+          const client = getPublicClient();
+          const balanceOf = () =>
+            orThrowAfter(
+              client.readContract({
+                address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [address],
+              }) as Promise<bigint>,
+              READ_MS,
+            );
+          // Only the fallback below uses this, so the send never waits on it. A FRESH read, never the
+          // cached balance: a cache from before a spend set a target the mint could never reach.
+          const before = await balanceOf().catch(() => undefined);
           let sent: SendResult | undefined;
           const ok = await run("Faucet", () => faucetCalls(address, FAUCET), {
             settles: true,
             onSent: (r) => (sent = r),
           });
           if (!ok) return;
-          // The whole mint, so other $WORD coming in meanwhile can't pass for it.
-          if (await readUntil(balanceOf, (b) => b >= start + toWordWei(FAUCET))) {
-            void chain.refresh();
-            return void toast(`Test $WORD arrived: ${fmtWord(FAUCET)}`, "good");
-          }
 
           // A read that FAILS must not pass for "not found": only viem's not-found errors mean that.
           const notFound = (e: unknown, name: string) => {
             if ((e as { name?: string })?.name === name) return null;
             throw e;
           };
-          // Capped as a whole (the wallet's own answer has a shorter cap inside): the action gate
-          // waits on this, and each viem read retries on its own.
-          const trace = await withTimeout(
-            traceSend(sent, {
-              chainId: NETWORK.id,
-              receipt: (hash) =>
-                client.getTransactionReceipt({ hash }).then((r) => ({ status: r.status }), (e) => notFound(e, "TransactionReceiptNotFoundError")),
-              known: (hash) =>
-                client.getTransaction({ hash }).then(() => true, (e) => notFound(e, "TransactionNotFoundError") ?? false),
-              callsStatus: async (id) => {
-                const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
-                if (!provider) throw new Error("no provider");
-                return provider.request({ method: "wallet_getCallsStatus", params: [id] });
+          // The mint's own result decides (receipt, or the wallet's batch status). The balance counts
+          // only for a send nobody can trace, and only the whole mint from the fresh start.
+          const last: { trace: SendTrace } = { trace: { kind: "unknown" } };
+          const settled = await withTimeout(
+            settleSend(
+              sent,
+              {
+                chainId: NETWORK.id,
+                walletTimeoutMs: READ_MS,
+                receipt: (hash) =>
+                  orThrowAfter(client.getTransactionReceipt({ hash }), READ_MS).then(
+                    (r) => ({ status: r.status }),
+                    (e) => notFound(e, "TransactionReceiptNotFoundError"),
+                  ),
+                known: (hash) =>
+                  orThrowAfter(client.getTransaction({ hash }), READ_MS).then(
+                    () => true,
+                    (e) => notFound(e, "TransactionNotFoundError") ?? false,
+                  ),
+                callsStatus: async (id) => {
+                  const provider = (await connector?.getProvider?.()) as Eip1193Provider | undefined;
+                  if (!provider) throw new Error("no provider");
+                  return provider.request({ method: "wallet_getCallsStatus", params: [id] });
+                },
               },
-            }),
-            15_000,
-            { kind: "unknown" } as SendTrace,
+              {
+                onTrace: (t) => (last.trace = t),
+                changed: before === undefined ? undefined : async () => (await balanceOf()) >= before + toWordWei(FAUCET),
+              },
+            ),
+            45_000,
+            null,
           );
+          const trace = settled ?? last.trace;
+          void chain.refresh();
+          if (trace.kind === "landed" || trace.kind === "seen") {
+            return void toast(`Test $WORD arrived: ${fmtWord(FAUCET)}`, "good");
+          }
+
           // For a desktop tester's console, and for us when they share it.
           console.warn("[faucet] no test $WORD arrived", { address, sent, trace });
-          void chain.refresh();
-
+          // These come up to ~45 s after the tap, often while the player is in their wallet app, and
+          // they are the only explanation the player gets: they stay up for 15 s (a hidden tab also
+          // holds them, see ToastItem).
+          const say = (text: string, tone: Toast["tone"]) => toast(text, tone, 15_000);
           const at = "hash" in trace ? ` (${shortHash(trace.hash)})` : "";
           const here = NETWORK.name;
           switch (trace.kind) {
-            case "landed":
-              return void toast(`The faucet landed${at}. Your balance will catch up in a moment.`, "info");
             case "reverted":
-              return void toast(`The faucet transaction failed on ${here}${at}. Try again.`, "bad");
+              return void say(`The faucet transaction failed on ${here}${at}. Try again.`, "bad");
             case "pending":
-              return void toast(`Your faucet transaction is still waiting on ${here}${at}.`, "info");
+              return void say(`Your faucet transaction is still waiting on ${here}${at}.`, "info");
             case "unseen":
               // Base's mempool is private, so a transaction still queued in the wallet looks like this.
-              return void toast(
+              return void say(
                 `Your wallet says it sent the faucet transaction${at}, but ${here} hasn’t seen it. Your wallet may be holding it behind an earlier transaction, or sent it on another network.`,
                 "bad",
               );
             case "other_chain": {
               const there = networkById(trace.chainId)?.name ?? `another network (chain ${trace.chainId})`;
-              return void toast(`Your wallet ran the faucet on ${there}, not ${here}. Nothing was minted.`, "bad");
+              return void say(`Your wallet ran the faucet on ${there}, not ${here}. Nothing was minted.`, "bad");
             }
             case "wallet_failed":
-              return void toast("Your wallet says the faucet transaction failed. Try again.", "bad");
+              return void say("Your wallet says the faucet transaction failed. Try again.", "bad");
             case "wallet_pending":
-              return void toast("Your wallet says the faucet transaction is still pending.", "info");
+              return void say("Your wallet says the faucet transaction is still pending.", "info");
             case "unknown": {
-              // Sponsored smart wallets hold no ETH and need none, so this only says "if".
-              const eth = await withTimeout(client.getBalance({ address }).catch(() => null), 5_000, null);
-              return void toast(
+              // Sponsored smart wallets hold no ETH and need none, so this only says "if". The sheet
+              // may be closed by now, so it says where the link is rather than "below".
+              const eth = await withTimeout(client.getBalance({ address }).catch(() => null), READ_MS, null);
+              return void say(
                 eth === 0n
-                  ? `No test $WORD yet. If your wallet pays its own gas, it needs ${here} ETH: get some free below, then tap again.`
+                  ? `No test $WORD yet. If your wallet pays its own gas, it needs ${here} ETH: Your $WORD has a link to get some free.`
                   : "Your wallet accepted it, but no test $WORD has arrived yet. Check your wallet’s activity.",
                 "info",
               );

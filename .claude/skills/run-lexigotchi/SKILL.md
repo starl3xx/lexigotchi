@@ -113,9 +113,9 @@ The driver exits non-zero if any console error fired, so it works in a check.
 The faucet, end to end (a real Base Sepolia mint; verified 2026-11-24):
 
 ```bash
-node .claude/skills/run-lexigotchi/driver.mjs --wallet --click '\$WORD' --click 'testnet faucet' --wait 30000
+node .claude/skills/run-lexigotchi/driver.mjs --wallet --click '\$WORD' --click 'get test' --wait 30000
 # TOASTS     : ["Test $WORD arrived: 50.00M"]
-node .claude/skills/run-lexigotchi/driver.mjs --wallet --drop-sends --click '\$WORD' --click 'testnet faucet' --wait 35000
+node .claude/skills/run-lexigotchi/driver.mjs --wallet --drop-sends --click '\$WORD' --click 'get test' --wait 35000
 # TOASTS     : ["Your wallet says it sent the faucet transaction (0x…), but Base Sepolia hasn’t seen it. …"]
 ```
 

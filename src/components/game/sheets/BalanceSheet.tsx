@@ -106,12 +106,36 @@ export function BalanceSheet() {
         )}
       </Card>
 
-      <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
-        <ArrowsLeftRight weight="bold" /> Buy $WORD
-      </Button>
-      <p className="mt-1.5 text-center text-xs text-ink/55">
-        Opens your wallet’s swap in Farcaster, or the $WORD swap page on the web.
-      </p>
+      {testnet ? (
+        <>
+          {/* The test game's way to get $WORD, so it is the main action. Buy stays pinned to mainnet
+              on purpose (it buys the real token), and as the main button under "You need X more
+              $WORD" it pointed a tester short of TEST $WORD at spending real money. The faucet is a
+              transaction like any other: a plain wallet pays its gas, a sponsored one doesn't. */}
+          <Button full size="lg" variant="teal" className="mt-3" onClick={g.addDemoBalance}>
+            <Plus weight="bold" /> Get test $WORD
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink/55">
+            Free from the testnet faucet. If your wallet pays its own gas, it needs a little {NETWORK.name} ETH.{" "}
+            <button onClick={() => void openUrl(BASE_SEPOLIA_FAUCETS_URL)} className="font-bold underline">
+              Get some free
+            </button>
+          </p>
+          <Button full variant="ghost" className="mt-3" disabled={env === "loading"} onClick={buy}>
+            <ArrowsLeftRight weight="bold" /> Buy real $WORD
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink/55">The real token on Base, for when the game launches there.</p>
+        </>
+      ) : (
+        <>
+          <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
+            <ArrowsLeftRight weight="bold" /> Buy $WORD
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink/55">
+            Opens your wallet’s swap in Farcaster, or the $WORD swap page on the web.
+          </p>
+        </>
+      )}
 
       <Card className="mt-3">
         <div className="mb-2 flex items-center gap-1.5 font-display font-extrabold">
@@ -166,26 +190,15 @@ export function BalanceSheet() {
         )}
       </Card>
 
-      {/* Practice game: a demo top-up. Testnet: the test-token faucet. Mainnet: nothing — real
-          $WORD comes from the Buy button above, never from a button that mints it. */}
-      {(!g.state.chainBacked || NETWORK.isTestnet) && (
+      {/* Practice game: a demo top-up. Testnet: the faucet is the main button above. Mainnet:
+          nothing, because real $WORD comes from the Buy button, never from a button that mints it. */}
+      {!g.state.chainBacked && (
         <button
           onClick={g.addDemoBalance}
           className="mx-auto mt-3 flex items-center gap-1 text-xs font-bold text-ink/45 underline"
         >
-          <Plus /> {g.state.chainBacked ? "get test $WORD (testnet faucet)" : "add demo balance (practice)"}
+          <Plus /> add demo balance (practice)
         </button>
-      )}
-      {/* The faucet is a transaction like any other, and a plain wallet pays its gas. Without Base
-          Sepolia ETH it never lands (the faucet's own toast points here when that's the reason).
-          Sponsored smart wallets hold none and need none, so it says "if". */}
-      {testnet && (
-        <p className="mt-1 text-center text-xs text-ink/55">
-          If your wallet pays its own gas, it needs a little {NETWORK.name} ETH.{" "}
-          <button onClick={() => void openUrl(BASE_SEPOLIA_FAUCETS_URL)} className="font-bold underline">
-            Get some free
-          </button>
-        </p>
       )}
     </Sheet>
   );

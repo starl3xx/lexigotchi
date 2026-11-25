@@ -104,7 +104,9 @@ async function ensureChain(provider: Eip1193Provider, net: NetworkDef = NETWORK)
 
 /**
  * Send one or more calls from `from` on Base, always carrying the builder-code attribution. Returns
- * the ERC-5792 batch id (preferred path) or the individual tx hashes (fallback). Non-"unsupported"
+ * the ERC-5792 batch id (preferred path; missing when the wallet's reply carried none) or the
+ * individual tx hashes (fallback). Either way it returns when the WALLET accepts, before anything is
+ * mined: `settleSend` (./traceSend) is how a caller learns what happened. Non-"unsupported"
  * provider errors (e.g. a user rejection, code 4001) propagate unchanged.
  *
  * The chain guard runs FIRST, for both paths — no call leaves this function unless the wallet is
