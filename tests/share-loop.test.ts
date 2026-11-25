@@ -1,12 +1,12 @@
 /**
- * The share loop (components/cards/loop; decisions: word cards, step 4): the card's turn, the same
+ * The share loop (components/cards/loop; decisions.md #27): the card's turn, the same
  * every time; the back picture's route, which draws only dictionary words; and the rule that a
  * video in the game plays and rests (no `loop`: a page that never rests).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
-import { LOOP_SECONDS, loopPose } from "@/components/cards/loop/loopRenderer";
+import { LOOP_SECONDS, loopLight, loopPose } from "@/components/cards/loop/loopRenderer";
 import { showcaseBackPath } from "@/lib/showcase";
 
 describe("the card's turn", () => {
@@ -21,6 +21,17 @@ describe("the card's turn", () => {
 
   it("is the same frame every time (the video is the same on every device)", () => {
     for (const t of [0.1, 2.25, 3.7, 5.05]) expect(loopPose(t)).toEqual(loopPose(t));
+  });
+
+  it("loops without a jump: its last frame meets its first (Bugbot on #214)", () => {
+    const end = loopPose(LOOP_SECONDS - 1e-6);
+    const start = loopPose(0);
+    expect(end.turn % 360).toBeCloseTo(start.turn % 360, 3);
+    for (const k of ["tiltX", "tiltY", "lift", "glare"] as const) expect(end[k]).toBeCloseTo(start[k], 3);
+    const [lx0, ly0] = loopLight(0);
+    const [lx1, ly1] = loopLight(LOOP_SECONDS);
+    expect(lx1).toBeCloseTo(lx0, 6);
+    expect(ly1).toBeCloseTo(ly0, 6);
   });
 
   it("lifts the card as it turns, and rests it flat between", () => {

@@ -14,6 +14,8 @@ import { MATERIAL_GLSL, MAT_INDEX } from "../live/materialGlsl";
 import type { CardMaterial } from "../material";
 
 export const LOOP_SECONDS = 6;
+/** One turn of a sine per loop, in radians a second. */
+const ONCE = (2 * Math.PI) / LOOP_SECONDS;
 /** The share card's shape (1200×630): the card that turns. */
 const CARD_ASPECT = 1200 / 630;
 /** The game's paper, behind the card. */
@@ -87,8 +89,10 @@ export function loopPose(t: number) {
   const turn2 = ease(clamp01((s - 4.7) / 0.9));
   const turn = 180 * turn1 + 180 * turn2;
   const lift = Math.sin(Math.PI * clamp01((s - 1.8) / 0.9)) + Math.sin(Math.PI * clamp01((s - 4.7) / 0.9));
-  const tiltY = Math.sin(s * 1.3) * 5;
-  const tiltX = Math.sin(s * 0.9 + 1) * 3;
+  // Every motion repeats exactly once a loop (ONCE: one turn of a sine per six seconds), so the
+  // video loops without a jump at its seam (Bugbot on #214: the tilt used to snap ~5°).
+  const tiltY = Math.sin(s * ONCE) * 5;
+  const tiltX = Math.sin(s * ONCE + 1) * 3;
   // a glare crossing the front early on, and crossing as each turn passes edge-on
   const g1 = Math.max(0, 1 - Math.abs(s - 0.9) / 0.6);
   const g2 = Math.sin(Math.PI * clamp01((s - 1.8) / 0.9));
@@ -100,9 +104,10 @@ export function loopPose(t: number) {
   return { s, turn, lift, tiltX, tiltY, glare, glareX };
 }
 
-/** The back's light during the loop: a slow orbit, so the material is never dead still. */
-function loopLight(t: number): [number, number] {
-  return [0.5 + 0.24 * Math.cos(t * 0.42), 0.55 + 0.15 * Math.sin(t * 0.54)];
+/** The back's light during the loop: one slow orbit a loop, so the material is never dead still, and
+ *  it comes round to where it started. */
+export function loopLight(t: number): [number, number] {
+  return [0.5 + 0.24 * Math.cos(t * ONCE), 0.55 + 0.15 * Math.sin(t * ONCE)];
 }
 
 export interface LoopRenderer {
@@ -165,7 +170,8 @@ export function attachLoop(
       card.position.y = p.lift * 0.03;
       shadowProgram.uniforms.uSpread.value = 1 + p.lift * 0.5;
       const [lx, ly] = loopLight(p.s);
-      program.uniforms.uTime.value = p.s;
+      // the glitter and the fire turn with the light, which comes round; a clock wouldn't
+      program.uniforms.uTime.value = 0;
       program.uniforms.uLight.value = [lx, 1 - ly];
       program.uniforms.uGlare.value = p.glare;
       program.uniforms.uGlareX.value = p.glareX;

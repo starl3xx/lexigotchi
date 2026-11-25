@@ -137,7 +137,8 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
       await navigator.share({ files: [file()], text: `${showcasePostText(text)} ${showcaseUrl(text, scene)}` });
     } catch (e) {
       // the player closing the sheet isn't a failure
-      if ((e as Error)?.name !== "AbortError") g.toast("Couldn’t share the video. Try Save video", "bad");
+      // only point at Save video where there is one (a host has no download)
+      if ((e as Error)?.name !== "AbortError") g.toast(inHost ? "Couldn’t share the video. Try again" : "Couldn’t share the video. Try Save video", "bad");
     }
   };
 
@@ -167,7 +168,8 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
       />
       <div className="grid grid-cols-2 gap-2">
         {canShareVideo() ? (
-          <Button variant="primary" onClick={() => void share()}>
+          // the whole row in a host, where there's no Save video beside it
+          <Button variant="primary" className={inHost ? "col-span-2" : ""} onClick={() => void share()}>
             <ShareNetwork weight="fill" /> Share video
           </Button>
         ) : null}
