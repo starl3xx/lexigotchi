@@ -30,7 +30,7 @@ describe("pickStage", () => {
   });
 
   it("with everyone full, shows the best word: most raised, then rarest", () => {
-    const pick = pickStage([word("ABBEY", { tier: "Rare" }), word("CRANE", { upper: [true, true, true, false, false] }), word("ABUZZ", { tier: "Legendary" })], hungerOf)!;
+    const pick = pickStage([word("ABBEY", { tier: "Rare" }), word("CRANE", { upper: [true, true, true, false, false] }), word("ABUZZ", { tier: "Mythic" })], hungerOf)!;
     expect(pick.word.word).toBe("CRANE");
     expect(pick.mood).toBe("full");
     expect(pick.others[0].word.word).toBe("ABUZZ");

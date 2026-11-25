@@ -146,7 +146,7 @@ starts working. Then smoke-test with a small wallet.
 Lexigotchi's dictionary is Let's Have A Word's (`data/guess_words_clean.ts`, byte-for-byte). When
 theirs grows:
 1. Copy the file over, run `npm test`, and update the pinned numbers in `tests/economy.test.ts` (word
-   count, letter caps, tiers, Legendaries). Then run `npm run derive` and `npm run derive:contracts`.
+   count, letter caps, tiers, Mythic words). Then run `npm run derive` and `npm run derive:contracts`.
 2. Merge, then send `Words.setDictionaryRoot(<new root>)` from the owner wallet right away. Until it
    lands, the claim route answers "the word list was just updated" instead of serving proofs the
    contract would reject.

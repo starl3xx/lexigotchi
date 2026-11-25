@@ -211,7 +211,7 @@ export interface Params {
     enabled: boolean;
     /** Daily probability a redeploy-motivated owner dissolves a dead low-tier all-lowercase word. */
     dailyProb: number;
-    /** Only dissolve at/below this tier rank (0=Common…4=Legendary) — nobody burns a crown. */
+    /** Only dissolve at/below this tier rank (0=Common…4=Mythic) — nobody burns a crown. */
     maxTierRank: number;
   };
 
@@ -292,7 +292,7 @@ export interface Params {
      * `TIER_WEIGHT[tier] ** rarityWeight × prestigeMult`. This is the breadth ↔ rarity-incentive dial:
      *   0 = FLAT — every matching word shares equally (maximises casual reach, the bounty's headline
      *       virtue, since casuals mostly hold Commons);
-     *   1 = TIER-PROPORTIONAL — matches how staking yield already treats tier (Common 1 … Legendary 8),
+     *   1 = TIER-PROPORTIONAL — matches how staking yield already treats tier (Common 1 … Mythic 8),
      *       so it rewards owning/holding/feeding RARE matching words and gives collectors a reason to
      *       acquire them (driving the secondary market the flat model can't show) — at the cost of some
      *       casual reach;
@@ -389,7 +389,7 @@ export const DEFAULT_PARAMS: Params = {
     pityStep: 0.1,
     pityCap: 0.85,
     snacksPerAttempt: 1, // burns one snack per attempt (100% burn)
-    yieldMultPerLevel: 1.1, // gentle — caps a maxed Legendary at ~11.7× a base Common (not ~19.5×)
+    yieldMultPerLevel: 1.1, // gentle — caps a maxed Mythic at ~11.7× a base Common (not ~19.5×)
     bountyMultPerLevel: 1.1,
   },
   bounty: {

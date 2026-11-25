@@ -11,7 +11,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { WORD_COUNT } from "@/lib/dictionary";
-import { LEGENDARIES, LETTERS_BY_FREQUENCY } from "@/lib/economy";
+import { LETTERS_BY_FREQUENCY, MYTHICS } from "@/lib/economy";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { HOW_IT_WORKS, pct } from "@/lib/howItWorks";
 import { isChainBacked, isRealEconomy } from "@/lib/onchain/gameMode";
@@ -41,7 +41,7 @@ const LINKS = {
   starl3xx: "https://starl3xx.fun",
 };
 
-const RAREST_WORD = LEGENDARIES[0];
+const RAREST_WORD = MYTHICS[0];
 const days = (n: number) => (n === 1 ? "a day" : `${n} days`);
 const fraction = (x: number) => (x === 0.5 ? "half its yield" : `${pct(x)} of its yield`);
 /** The four rarest letters to pull, rarest first (pull odds = share of dictionary slots). */
@@ -92,7 +92,8 @@ function SectionHead({ kicker, title, children }: { kicker: string; title: strin
 
 /**
  * The hero stage: a vaudeville proscenium (curtain valance, spotlight, wooden floor) with the
- * rarest word in the dictionary mid-raise, two letters already UPPERCASE. Two renders at two sizes
+ * rarest word in the dictionary mid-raise, two letters already UPPERCASE, in its Mythic amethyst
+ * (lib/rarityFinish). Three renders at three sizes
  * rather than a CSS scale: TileWord lays out in pixels, and a transform would not shrink its box.
  */
 function Stage() {
@@ -121,13 +122,13 @@ function Stage() {
       />
 
       <div className="relative flex min-h-[240px] items-end justify-center px-4 pb-9 pt-16 sm:min-h-[400px]">
-        <TileWord word={RAREST_WORD} upper={upper} detail="full" size={58} className="sm:hidden" />
-        <TileWord word={RAREST_WORD} upper={upper} detail="full" size={96} className="hidden sm:flex lg:hidden xl:flex" />
-        <TileWord word={RAREST_WORD} upper={upper} detail="full" size={78} className="hidden lg:flex xl:hidden" />
+        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={58} className="sm:hidden" />
+        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={96} className="hidden sm:flex lg:hidden xl:flex" />
+        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={78} className="hidden lg:flex xl:hidden" />
       </div>
 
       <p className="absolute left-1/2 top-12 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[2px_2px_0_#1b1714] sm:top-14 sm:text-sm">
-        The rarest crown: {RAREST_WORD}
+        The rarest word: {RAREST_WORD}
       </p>
     </div>
   );
@@ -321,7 +322,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
       <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Stat figure={WORD_COUNT.toLocaleString("en-US")}>words in the dictionary, and each one has a single owner</Stat>
-          <Stat figure={LEGENDARIES.length}>Legendary crowns, the rarest words to spell</Stat>
+          <Stat figure={MYTHICS.length}>Mythic words, the rarest to spell</Stat>
           <Stat
             figure={
               <span className="flex gap-1.5">
