@@ -316,10 +316,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     xCounts: pubProfile.xCounts,
     wallet: address ?? null,
   });
-  // …plus the key the server last signed this browser's daily under (a FID it decided belongs to this
+  // …plus the key the server last signed this wallet's daily under (a FID it decided belongs to this
   // profile, say), so a pull under it shows at once and a failed send can tell whether it landed
-  // (Bugbot on #199). An unowned FID never gets here: the server never signs under it.
-  const [voucherKey, setVoucherKey] = useState<bigint | null>(null);
+  // (Bugbot on #199). An unowned FID never gets here: the server never signs under it. Kept with the
+  // wallet it was signed for: the provider stays mounted across account switches, and another
+  // wallet must not read as claimed under this one's key.
+  const [lastVoucher, setLastVoucher] = useState<{ wallet: string; key: bigint } | null>(null);
+  const voucherKey = lastVoucher && address && lastVoucher.wallet === address.toLowerCase() ? lastVoucher.key : null;
   const dailyKeys = useMemo(
     () => (voucherKey !== null && !walletDailyKeys.includes(voucherKey) ? [...walletDailyKeys, voucherKey] : walletDailyKeys),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -962,7 +965,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           );
           if (!res?.ok) { toast(dailyError(res?.error), "bad"); return { status: "not-started" as const }; }
           const v = res.voucher;
-          setVoucherKey(BigInt(v.fid));
+          setLastVoucher({ wallet: address.toLowerCase(), key: BigInt(v.fid) });
           const commitCalls = () =>
             commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature });
 
