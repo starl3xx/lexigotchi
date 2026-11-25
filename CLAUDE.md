@@ -165,7 +165,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   per chain day) and the free pack (kind "pack", once) record the account and the key they sign
   under, first key wins, before signing; another key is refused unless the first voucher expired
   unused; a DB error refuses; no table = the onchain checks alone. daily-status adds the recorded key
-  to its walk. **The free snack, once per profile** (contracts, ships with Sepolia redeploy #4):
+  to its walk. **The free snack, once per profile** (live since Sepolia rehearsal #4, block 63,309,448):
   `Staking.feedWithSnack(ids, staker, profile, deadline, sig)` frees `ids[0]` when the signer vouched
   for (caller, staker, profile = the staker's account, UTC day) and `freeSnackDayPlusOne[profile]`
   isn't today; otherwise it pays, no revert. Plain `feed`/`feedMany` always pay. No database record:
