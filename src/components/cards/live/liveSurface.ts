@@ -143,27 +143,21 @@ export interface LiveSurface {
 }
 
 let current: LiveSurface | null = null;
-
-/** Whether this browser can draw a live back at all (WebGL 1 is enough). */
-export function canDrawLive(): boolean {
-  if (typeof document === "undefined") return false;
-  try {
-    const c = document.createElement("canvas");
-    const gl = c.getContext("webgl");
-    const ok = !!gl;
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-    return ok;
-  } catch {
-    return false;
-  }
-}
+/** What to tell the current back if a newer one takes the context. */
+let evicted: (() => void) | null = null;
 
 /**
- * Draw `material` live on `canvas`. Only one live back at a time: the last one lets go first.
+ * Draw `material` live on `canvas`. Only one live back at a time: the last one lets go first, and
+ * is told (`onEvicted`), so it can step aside for its CSS material rather than show a dead canvas.
  * Returns null when WebGL won't start (the CSS material stays, as it would without WebGL).
  */
-export function attachSurface(canvas: HTMLCanvasElement, material: CardMaterial): LiveSurface | null {
-  current?.destroy();
+export function attachSurface(canvas: HTMLCanvasElement, material: CardMaterial, onEvicted?: () => void): LiveSurface | null {
+  if (current) {
+    const tell = evicted; // destroy() clears it
+    current.destroy();
+    tell?.();
+  }
+  evicted = onEvicted ?? null;
   let renderer: Renderer;
   try {
     renderer = new Renderer({ canvas, dpr: Math.min(MAX_DPR, window.devicePixelRatio || 1), alpha: false, antialias: false, powerPreference: "low-power" });
@@ -232,7 +226,10 @@ export function attachSurface(canvas: HTMLCanvasElement, material: CardMaterial)
       cancelAnimationFrame(queued);
       cancelAnimationFrame(sweepFrame);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
-      if (current === surface) current = null;
+      if (current === surface) {
+        current = null;
+        evicted = null;
+      }
     },
   };
   surface.resize();

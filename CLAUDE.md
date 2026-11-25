@@ -408,11 +408,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
   screen is gone (Share and Scene sit under an opened card; badges moved to the profile; a scene
   picked from an opened word returns to it). **Live backs** (decisions.md #26; `cards/live/`, the `ogl`
-  package): WebGL draws a showing back's material on the card in focus only, on demand (a frame per
+  package, loaded on the first live back): WebGL draws a showing back's material on the card in focus only, on demand (a frame per
   change, nothing at rest: `tests/live-back.test.ts` counts them), one context, lost when the back
   leaves, each mount its own canvas (a lost context never draws again), at most 1.25× the CSS size.
   The light sweeps in once, then follows the pointer, a sideways drag, or the tilt (iOS asks on the
-  flip tap, `askForTilt`). CSS is the fallback everywhere else. A back under 560 px shows four
+  flip tap, `askForTilt`, only when that back will draw live). A held phone tilts all the time:
+  `makeTiltFilter` draws only real moves (about a degree, ~30 a second), never off screen. The Today
+  stage passes `live={!state.sheet}`, and an evicted back steps aside (`onEvicted`). CSS is the
+  fallback everywhere else. A back under 560 px shows four
   stats; an opened card lists the rest under it (`CardMore`).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters

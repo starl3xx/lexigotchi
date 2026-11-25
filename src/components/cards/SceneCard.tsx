@@ -18,6 +18,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { OwnedWord } from "../game/state";
 import { CardBack } from "./CardBack";
 import { askForTilt } from "./live/tilt";
+import { canDrawLive } from "./live/support";
+import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
 
 /** How long the turn takes (globals.css, `.sc-inner`'s transition and `.sc.is-flipping`). */
 export const FLIP_MS = 850;
@@ -30,6 +32,7 @@ export function SceneCard({
   small = false,
   framed = false,
   onOpen,
+  live = true,
   className = "",
 }: {
   word: OwnedWord;
@@ -44,8 +47,13 @@ export function SceneCard({
   /** Tapping the card, either side, opens the word (a card in the Bag). A sibling of the flip
    *  button, never around it: one button can't hold another. */
   onOpen?: () => void;
+  /** Draw a showing back live (./live): off while something covers the card (a sheet over the Today
+   *  stage), so only the card in focus holds the one live context. */
+  live?: boolean;
   className?: string;
 }) {
+  const reduced = usePrefersReducedMotion();
+  const lowPower = useLowPower();
   // Uncontrolled: the flip, remembered with the word it belongs to.
   const [own, setOwn] = useState<{ word: string; back: boolean }>({ word: word.word, back: false });
   const back = controlled ?? (own.word === word.word && own.back);
@@ -60,7 +68,7 @@ export function SceneCard({
     const next = !back;
     if (next) setSeen(word.word);
     // the tap that turns a card in focus over is the one iOS lets ask for the tilt (live/tilt)
-    if (next && !small) askForTilt();
+    if (next && !small && live && !reduced && !lowPower && canDrawLive()) askForTilt();
     setOwn({ word: word.word, back: next });
     onFlip?.(next);
     setTurning(true);
@@ -77,7 +85,7 @@ export function SceneCard({
         </div>
         {showBack && (
           <div className="sc-face sc-back" inert={!back} aria-hidden={!back || undefined}>
-            <CardBack word={word} mini={small} live={back} />
+            <CardBack word={word} mini={small} live={back && live} />
           </div>
         )}
       </div>

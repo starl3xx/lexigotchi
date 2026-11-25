@@ -23,7 +23,11 @@ import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
 import { SCROLL_PATH_CARD, materialOf } from "./material";
 import { useCardFacts, type CardFacts } from "./useCardFacts";
-import { LiveMaterial } from "./live/LiveMaterial";
+import dynamic from "next/dynamic";
+import { canDrawLive } from "./live/support";
+
+// The live material loads the first time a back goes live: OGL stays out of the game's first download.
+const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.LiveMaterial), { ssr: false });
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const MOOD: Record<string, string> = { fed: "full", peckish: "peckish", hungry: "hungry" };
@@ -36,7 +40,7 @@ export function CardBack({ word, mini = false, live = false }: { word: OwnedWord
   const m = materialOf(word.tier);
   const reduced = usePrefersReducedMotion();
   const lowPower = useLowPower();
-  const drawLive = live && !mini && !reduced && !lowPower;
+  const drawLive = live && !mini && !reduced && !lowPower && canDrawLive();
   return (
     <div className={`cb m-${m}`}>
       <div className="cb-mat">

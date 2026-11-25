@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CardMaterial } from "../material";
 import { attachSurface } from "./liveSurface";
-import { lightFromTilt, tiltAllowed } from "./tilt";
+import { lightFromTilt, makeTiltFilter, tiltAllowed } from "./tilt";
 
 export function LiveMaterial({ material }: { material: CardMaterial }) {
   const host = useRef<HTMLDivElement>(null);
@@ -26,7 +26,8 @@ export function LiveMaterial({ material }: { material: CardMaterial }) {
     const el = document.createElement("canvas");
     el.style.cssText = "display:block;width:100%;height:100%";
     box.appendChild(el);
-    const surface = attachSurface(el, material);
+    // A newer live back took the context (another card in focus): step aside for the CSS material.
+    const surface = attachSurface(el, material, () => setReady(false));
     if (!surface) {
       el.remove();
       return;
@@ -45,13 +46,21 @@ export function LiveMaterial({ material }: { material: CardMaterial }) {
     const ro = new ResizeObserver(() => surface.resize());
     ro.observe(box);
 
-    // the phone's tilt, around how it was held when the back came up
+    // The phone's tilt, around how it was held when the back came up. Only real moves draw (the
+    // hand's tremor doesn't, ./tilt makeTiltFilter), and nothing while the card is off screen.
     let rest: { beta: number } | null = null;
+    const moved = makeTiltFilter();
+    let onScreen = true;
+    const io =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver(([e]) => void (onScreen = e.isIntersecting), { root: box.closest("main") });
+    io?.observe(box);
     const onTilt = (e: DeviceOrientationEvent) => {
-      if (e.beta == null && e.gamma == null) return;
+      if (!onScreen || (e.beta == null && e.gamma == null)) return;
       rest ??= { beta: e.beta ?? 0 };
       const [x, y] = lightFromTilt(e, rest);
-      surface.light(x, y);
+      if (moved(x, y, performance.now())) surface.light(x, y);
     };
     let listening = false;
     const listen = () => {
@@ -66,6 +75,7 @@ export function LiveMaterial({ material }: { material: CardMaterial }) {
     return () => {
       card.removeEventListener("pointermove", onMove);
       ro.disconnect();
+      io?.disconnect();
       window.removeEventListener("deviceorientation", onTilt);
       window.removeEventListener("lexi:tilt", listen);
       surface.destroy();

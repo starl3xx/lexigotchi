@@ -31,7 +31,7 @@ vi.mock("ogl", () => {
   return { Renderer, Program, Mesh: class {}, Triangle: class {} };
 });
 const { attachSurface, SWEEP_MS } = await import("@/components/cards/live/liveSurface");
-const { lightFromTilt } = await import("@/components/cards/live/tilt");
+const { lightFromTilt, makeTiltFilter, TILT_MIN_MS } = await import("@/components/cards/live/tilt");
 
 // animation frames on fake timers, 16 ms apart
 beforeEach(() => {
@@ -105,6 +105,44 @@ describe("a live back", () => {
     s.destroy();
     vi.advanceTimersByTime(100);
     expect(renders.n).toBe(0);
+  });
+});
+
+describe("a back that loses its context to another", () => {
+  it("is told, once, so it can show its CSS material instead of a dead canvas", () => {
+    const told = vi.fn();
+    const a = attachSurface(canvas(), "rare", told)!;
+    const b = attachSurface(canvas(), "mythic")!;
+    expect(told).toHaveBeenCalledTimes(1);
+    b.destroy();
+    a.destroy();
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  it("isn't told when it lets go itself", () => {
+    const told = vi.fn();
+    attachSurface(canvas(), "rare", told)!.destroy();
+    attachSurface(canvas(), "mythic")!.destroy();
+    expect(told).not.toHaveBeenCalled();
+  });
+});
+
+describe("the tilt's frames", () => {
+  it("draws nothing for a hand's tremor", () => {
+    const moved = makeTiltFilter();
+    expect(moved(0.5, 0.5, 0)).toBe(true); // the first reading draws
+    let drawn = 0;
+    for (let i = 1; i <= 300; i++) if (moved(0.5 + Math.sin(i) * 0.008, 0.5 + Math.cos(i * 1.3) * 0.008, i * 16)) drawn++;
+    expect(drawn).toBe(0);
+  });
+
+  it("draws real moves, at most about 30 a second", () => {
+    const moved = makeTiltFilter();
+    let drawn = 0;
+    // a steady tip across the back over one second, a reading every 16 ms
+    for (let i = 0; i <= 60; i++) if (moved(0.2 + i * 0.01, 0.5, i * 16)) drawn++;
+    expect(drawn).toBeGreaterThan(10);
+    expect(drawn).toBeLessThanOrEqual(1000 / TILT_MIN_MS + 1);
   });
 });
 

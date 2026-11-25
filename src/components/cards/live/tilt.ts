@@ -38,6 +38,27 @@ export function askForTilt(): void {
     });
 }
 
+/** The least the light moves (0–1 across the back) before a tilt draws a frame: about one degree. */
+export const TILT_MIN_MOVE = 0.02;
+/** The most often a tilt draws: about 30 frames a second, plenty for a soft light. */
+export const TILT_MIN_MS = 33;
+
+/**
+ * Which tilts draw a frame. A phone in the hand sends orientation all the time, and every reading
+ * drawing a frame would make a resting back a loop: a reading draws only once the light has moved
+ * about a degree since the last frame, and no sooner than ~33 ms after it. The hand's tremor
+ * draws nothing.
+ */
+export function makeTiltFilter(minMove = TILT_MIN_MOVE, minMs = TILT_MIN_MS) {
+  let last: { x: number; y: number; t: number } | null = null;
+  return (x: number, y: number, now: number): boolean => {
+    if (last && Math.abs(x - last.x) < minMove && Math.abs(y - last.y) < minMove) return false;
+    if (last && now - last.t < minMs) return false;
+    last = { x, y, t: now };
+    return true;
+  };
+}
+
 /**
  * The light from a tilt: tipping the phone left and right moves it across, toward and away moves
  * it up and down, around how the phone was held when the back came up (`rest`).
