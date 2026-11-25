@@ -49,6 +49,14 @@ export interface BuiltChain {
 /** bytes32(0) — required so `setHead` rotation works once the chain is exhausted (see header). */
 export const TERMINAL: Hex32 = `0x${"00".repeat(32)}`;
 
+/**
+ * A full schedule: every word in the frozen pool, each drawn exactly once (4,584 days, about 12.5
+ * years). The default everywhere (starl3xx, 2026-11-25: "drawn words should be guaranteed not to be
+ * drawn again"). A shorter chain would run out and need a NEW chain, which could draw an old answer
+ * again unless it left every revealed word out. Asking for fewer days is still possible, on purpose.
+ */
+export const FULL_SCHEDULE_DAYS = ANSWER_POOL_V1.length;
+
 const REVEAL_PARAMS = AbiParameters.from(["string", "bytes32", "bytes32"]);
 
 /** Mirrors `AnswerChain.reveal`'s check: `keccak256(abi.encode(word, salt, next))`. */
