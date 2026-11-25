@@ -180,6 +180,9 @@ A staked word's care state is a function of days since last fed:
   reverse **hash-chain** (`AnswerChain`), so the answer can't be steered by anyone, including the team.
   This is **decoupled from LHAW** (which runs on irregular rounds, not days), removing the old Phase-3
   dependency: the game runs the jackpot on its own clock.
+- **A word is drawn at most once, ever** (decisions.md #20): the committed list holds every word in
+  the frozen pool once (4,584 days), and `AnswerChain` refuses to reveal a word it has revealed
+  before (`wasRevealed`), even in a list rotated in later.
 - **Resolution is a single lookup:** does `keccak256(todaysWord)` exist, is it staked, and is it not
   hungry? If yes → its owner wins the **entire pot**. If no → it **rolls over** and grows. **Case is
   irrelevant** to the jackpot (only to yield).

@@ -52,4 +52,35 @@ contract AnswerChainVectorTest is Test {
         ac.reveal("BLAZE", SALT1, TERMINAL); // and the rotated chain reveals
         assertEq(ac.revealedDay(), 4);
     }
+
+    function test_aWordIsNeverRevealedTwiceInOneChain() public {
+        // A committed list that holds CRANE twice: the first CRANE reveals, the second is refused.
+        bytes32 h3 = keccak256(abi.encode("CRANE", SALT3, TERMINAL));
+        bytes32 h2 = keccak256(abi.encode("MOTEL", SALT2, h3));
+        bytes32 h1 = keccak256(abi.encode("CRANE", SALT1, h2));
+        AnswerChain ac = new AnswerChain(h1, address(this), address(this));
+        assertFalse(ac.wasRevealed(keccak256(bytes("CRANE"))));
+        ac.reveal("CRANE", SALT1, h2);
+        assertTrue(ac.wasRevealed(keccak256(bytes("CRANE"))), "keyed like the Words tokenId");
+        ac.reveal("MOTEL", SALT2, h3);
+        vm.expectRevert(AnswerChain.AlreadyRevealed.selector);
+        ac.reveal("CRANE", SALT3, TERMINAL);
+        assertEq(ac.revealedDay(), 2, "the repeat day never advances the chain");
+    }
+
+    function test_aRotatedChainCantRepeatAnOldAnswer() public {
+        (bytes32 h1, bytes32 h2, bytes32 h3) = _chainHead();
+        AnswerChain ac = new AnswerChain(h1, address(this), address(this));
+        ac.reveal("CRANE", SALT1, h2);
+        ac.reveal("MOTEL", SALT2, h3);
+        ac.reveal("GRAPE", SALT3, TERMINAL);
+        // Exhausted: the owner rotates in a new list whose first word is an old answer.
+        bytes32 repeatHead = keccak256(abi.encode("MOTEL", SALT1, TERMINAL));
+        ac.setHead(repeatHead);
+        vm.expectRevert(AnswerChain.AlreadyRevealed.selector);
+        ac.reveal("MOTEL", SALT1, TERMINAL);
+        // And a stuck list can't be swapped mid-stream either: setHead stays closed until exhaustion.
+        vm.expectRevert(AnswerChain.ChainLive.selector);
+        ac.setHead(keccak256(abi.encode("BLAZE", SALT1, TERMINAL)));
+    }
 }
