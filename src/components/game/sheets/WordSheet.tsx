@@ -94,7 +94,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         {word.staked ? <HungerBadge state={h} /> : null}
         {word.staked && jackpotEligible(word) && (
           <span className="inline-flex items-center gap-0.5 text-xs text-teal-ink">
-            <Ticket weight="fill" size={12} /> in the jackpot
+            <Ticket weight="fill" size={12} /> jackpot-eligible
           </span>
         )}
       </div>

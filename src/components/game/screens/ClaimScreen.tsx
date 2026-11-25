@@ -279,10 +279,15 @@ export function ClaimScreen() {
       {/* every word you can spell now */}
       {spellable.length > 0 && (
         <div>
+          {/* A count of words the letters can each spell ALONE, not all at once: spelling one uses
+              five letters another may need (starl3xx: "You can spell 1,570 words now" misled). */}
           <SectionTitle>
-            You can spell {spellable.length === 1 ? "1 word" : `${spellable.length.toLocaleString("en-US")} words`}
-            {show === "upper" ? " with your UPPERCASE letters" : show === "lower" ? " with your lowercase letters" : " now"}
+            {show === "upper" ? "Your UPPERCASE letters" : show === "lower" ? "Your lowercase letters" : "Your letters"} can spell{" "}
+            {spellable.length === 1 ? "1 possible word" : `${spellable.length.toLocaleString("en-US")} possible words`}
           </SectionTitle>
+          {spellable.length > 1 && (
+            <p className="-mt-1 mb-1 text-xs text-ink/60">One at a time: each word uses five of your letters, so spelling one can use letters another needs.</p>
+          )}
           {show === "upper" && <p className="-mt-1 mb-1 text-xs text-ink/60">All five raised: each earns $WORD from day one once staked.</p>}
           <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} each />
           <div className="mt-2 flex flex-wrap items-center gap-2">
