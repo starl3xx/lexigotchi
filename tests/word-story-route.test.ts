@@ -40,11 +40,19 @@ describe("a word's story", () => {
     expect(res.headers.get("cache-control")).toMatch(/public, s-maxage=60/);
   });
 
+  it("reads a word once for callers that come together, and keeps it a minute", async () => {
+    deployed.yes = true;
+    readWordStory.mockResolvedValue({ claims: [], transfers: [] });
+    await Promise.all([get("motel"), get("motel")]);
+    await get("motel");
+    expect(readWordStory).toHaveBeenCalledTimes(1);
+  });
+
   it("says the read failed rather than an empty story", async () => {
     deployed.yes = true;
     readWordStory.mockRejectedValue(new Error("rpc down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = await get("crane");
+    const res = await get("tease");
     expect(res.status).toBe(503);
     expect((await res.json()).ok).toBe(false);
   });

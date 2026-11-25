@@ -142,7 +142,7 @@ export function TodayLetters() {
           })}
           {hidden > 0 && (
             <button
-              onClick={() => g.nav("bag")}
+              onClick={() => g.nav("bag", "letters")}
               aria-label={`${hidden} more letters in your Bag`}
               className="cel-sm press grid h-11 w-11 place-items-center rounded-lg bg-card font-display text-sm font-extrabold text-ink/70 md:h-[52px] md:w-[52px]"
             >

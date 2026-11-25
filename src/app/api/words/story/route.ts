@@ -16,13 +16,35 @@ export const maxDuration = 20;
  */
 export type StoryResponse = ({ ok: true; live: true } & WordStory) | { ok: true; live: false } | { ok: false; error: string };
 
+// Each read scans the word's logs from the deploy block. A minute's answer per word on a warm
+// instance, and one shared read for callers that arrive together (as /api/world does), so the
+// edge cache missing (another query string, another region) never multiplies the scans.
+const TTL_MS = 60_000;
+const cache = new Map<string, { at: number; story: WordStory }>();
+const inflight = new Map<string, Promise<WordStory>>();
+function storyOf(word: string): Promise<WordStory> {
+  const hit = cache.get(word);
+  if (hit && Date.now() - hit.at < TTL_MS) return Promise.resolve(hit.story);
+  let read = inflight.get(word);
+  if (!read) {
+    read = readWordStory(word)
+      .then((story) => {
+        cache.set(word, { at: Date.now(), story });
+        return story;
+      })
+      .finally(() => inflight.delete(word));
+    inflight.set(word, read);
+  }
+  return read;
+}
+
 export async function GET(req: Request) {
   const word = (new URL(req.url).searchParams.get("word") ?? "").toUpperCase();
   if (!isWord(word)) return NextResponse.json({ ok: false, error: "not_a_word" } satisfies StoryResponse, { status: 400 });
   // The practice game has no chain: its words' stories are made up in the practice store.
   if (!isSuiteDeployed()) return NextResponse.json({ ok: true, live: false } satisfies StoryResponse);
   try {
-    const story = await readWordStory(word);
+    const story = await storyOf(word);
     return NextResponse.json({ ok: true, live: true, ...story } satisfies StoryResponse, {
       headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=600" },
     });

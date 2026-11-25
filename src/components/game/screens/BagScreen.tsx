@@ -22,7 +22,7 @@ export function BagScreen() {
   const { state } = g;
   // The tab the player chose; until they choose, Words when there are words (or they are loading).
   const [chosenTab, setTab] = useState<"letters" | "words" | null>(null);
-  const tab = chosenTab ?? (state.words.length > 0 || wordsUnknown(state) ? "words" : "letters");
+  const tab = chosenTab ?? (state.section === "letters" || !(state.words.length > 0 || wordsUnknown(state)) ? "letters" : "words");
 
   const [letterSort, setLetterSort] = useStoredChoice<LetterSort>("lexi:bag:letters:sort", LETTER_SORTS, "az");
   const [wordFilter, setWordFilter] = useStoredChoice<WordFilter>("lexi:bag:words:filter", WORD_FILTERS, "all");

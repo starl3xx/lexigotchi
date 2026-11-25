@@ -103,7 +103,8 @@ export function useCardFacts(word: OwnedWord): CardFacts {
       since,
       found,
       earned: g.earnings ? (g.earnings.byWord[word.word]?.total ?? 0) : null,
-      perDay: est === null ? "upper" : est === undefined ? null : est,
+      // A word not yet UPPERCASE can't earn: say so at once, not after the world loads.
+      perDay: !word.upper.every(Boolean) ? "upper" : est === undefined || est === null ? null : est,
       cost: cost?.total ?? null,
       // The practice game has no draws: no world, so nothing has been drawn.
       drawn: !chain ? "never" : drawnMap ? (drawnMap[word.word] ?? "never") : null,

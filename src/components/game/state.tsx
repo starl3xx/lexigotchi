@@ -151,9 +151,10 @@ export type View =
 /**
  * A part of a screen a link can land on: GameApp scrolls `main` to the element with this
  * `data-section` after the screen mounts. Today's bounty card uses it, because on a phone the
- * bounty sits under the jackpot cards.
+ * bounty sits under the jackpot cards. "letters" opens the Bag on its Letters side (Today's "+N more
+ * letters"), since the Bag opens on Words.
  */
-export type ViewSection = "bounty";
+export type ViewSection = "bounty" | "letters";
 
 export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: string; pos: number };
 

@@ -31,7 +31,9 @@ function useNear(ref: RefObject<Element | null>): boolean {
     const el = ref.current;
     if (near || !el) return;
     if (typeof IntersectionObserver === "undefined") return void setNear(true);
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && setNear(true), { rootMargin: "100% 0px" });
+    // The game scrolls inside <main>, not the window: a margin on the window would never reach a
+    // card below the fold (the scroller clips it first), so the scroller is the root.
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setNear(true), { root: el.closest("main"), rootMargin: "100% 0px" });
     io.observe(el);
     return () => io.disconnect();
   }, [ref, near]);
