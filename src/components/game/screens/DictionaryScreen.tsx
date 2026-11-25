@@ -95,7 +95,8 @@ export function DictionaryScreen() {
             <Pill className={tier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
               {t !== "All" && <TierMark tier={t} size={12} />}
               {t}
-              {t !== "All" && <span className="text-ink/40">·{TIER_COUNTS[t as Tier]}</span>}
+              {/* the count stays readable on the selected (ink) chip, as Spell's does */}
+              {t !== "All" && <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{TIER_COUNTS[t as Tier]}</span>}
             </Pill>
           </button>
         ))}
