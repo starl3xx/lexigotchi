@@ -17,7 +17,7 @@ import { wordTier } from "@/lib/economy";
  * embed, whose spec requires 3:2. The word and scene come from the URL, so a card is the same
  * picture forever and caches hard.
  *
- * No name on a link card (decisions.md #22; starl3xx, 2026-11-25: the pill under the word "looks
+ * No name on a link card (decisions.md #23; starl3xx, 2026-11-25: the pill under the word "looks
  * cheap/misplaced and makes the card look imbalanced"): X prints the site under the card and the
  * post names @lexigotchi; Farcaster's card carries the game's button. `?saved=1` is the picture
  * that travels alone (Save image, later the share video), so it carries a quiet wordmark in the

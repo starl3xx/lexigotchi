@@ -87,7 +87,7 @@ export function WordTiles({
   gild?: number;
   detail?: TileDetail;
   /** The word's rarity, worn as its tiles' material. Pass it where a player's own word is drawn
-   *  (decisions.md #22); a list draws it still, since only the word in focus moves. */
+   *  (decisions.md #23); a list draws it still, since only the word in focus moves. */
   tier?: Tier;
 }) {
   return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} tier={tier} />;

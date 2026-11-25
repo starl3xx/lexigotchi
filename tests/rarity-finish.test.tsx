@@ -1,5 +1,5 @@
 /**
- * Rarity finishes (decisions.md #22): each tier's material on the letter tiles, the share card's
+ * Rarity finishes (decisions.md #23): each tier's material on the letter tiles, the share card's
  * still of it, and the rule that keeps the moving light cheap.
  */
 import { readFileSync } from "fs";

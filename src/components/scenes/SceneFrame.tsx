@@ -57,7 +57,7 @@ export function SceneFrame({
   tier,
 }: {
   /**
-   * The word's rarity, worn as its tiles' material (lib/rarityFinish, decisions.md #22). Only a
+   * The word's rarity, worn as its tiles' material (lib/rarityFinish, decisions.md #23). Only a
    * word's own scene passes it; the scene sheet and picker show scenes, not words.
    */
   tier?: Tier;

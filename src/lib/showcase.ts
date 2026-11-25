@@ -79,7 +79,7 @@ export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: S
  *
  * `saved`: the picture travels alone (Save image, and later the share video), so it carries a
  * quiet wordmark in its corner. A link card carries no name: X shows the site under it and the
- * post names @lexigotchi, and Farcaster's card has the game's button (decisions.md #22).
+ * post names @lexigotchi, and Farcaster's card has the game's button (decisions.md #23).
  */
 export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
   return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}) })}`;

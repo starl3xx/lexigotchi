@@ -349,7 +349,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
   the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
-- **Rarity finishes** (decisions.md #22): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
+- **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
   **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
   material on its tiles (`lib/rarityFinish.ts` = the table; `components/game/TileFinish.tsx` = the
   layers; pass `tier` to `TileCharacter`/`TileWord`/`WordTiles`/`SceneFrame`). **Motion is moments,

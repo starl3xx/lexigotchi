@@ -1,5 +1,5 @@
 /**
- * A word's rarity, shown as the material of its letter tiles (decisions.md #22). Shared by the
+ * A word's rarity, shown as the material of its letter tiles (decisions.md #23). Shared by the
  * character rig (TileCharacter + TileFinish) and the share card's tile (app/_og/tile.tsx), so both
  * agree.
  *

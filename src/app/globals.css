@@ -482,7 +482,7 @@ body {
 .scene-offscreen [class*="scn-"], .scene-offscreen [class*="animate-"], .scene-offscreen [class*="rf-"] { animation-play-state: paused !important; }
 
 /* ---------------------------------------------------------------------------------------------
-   Rarity finishes on the letter tiles (decisions.md #22; components/game/TileFinish.tsx).
+   Rarity finishes on the letter tiles (decisions.md #23; components/game/TileFinish.tsx).
 
    A finish moves in MOMENTS, not loops: nothing runs at rest. Every few seconds (the tier's
    period) the word in focus gets one moment (TileCharacter's useFinishMoment adds .rf-moment to

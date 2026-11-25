@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A finished word's moments (TileCharacter's useFinishMoment; decisions.md #22): when they come,
+ * A finished word's moments (TileCharacter's useFinishMoment; decisions.md #23): when they come,
  * how long they last, and that a new word on the same stage never inherits the last one's moment.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
