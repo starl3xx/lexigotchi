@@ -117,7 +117,7 @@ const CLUSTERS = [
   { name:"Raise", badge:"🎲", tag:"gamble", color:"var(--gold-deep)", fg:"var(--paper)",
     blurb:"The one gamble: raise a lowercase letter to UPPERCASE. A miss never harms it.",
     acts:[
-      {ico:"🎲", nm:"Roll a loose letter", ds:"Gamble a lowercase letter → UPPERCASE. ~45%, climbs on a pity streak.", where:"Bag → Roll", code:"rollLoose"},
+      {ico:"🎲", nm:"Roll a loose letter", ds:"Gamble a lowercase letter → UPPERCASE. 40% first try, +15 points per miss, up to 85%.", where:"Bag → Roll", code:"rollLoose"},
       {ico:"🔡", nm:"Roll a letter inside a word", ds:"Raise one position of a claimed word, walking it toward all-caps.", where:"Word sheet → Roll", code:"rollWord"},
     ]},
 
@@ -142,7 +142,7 @@ const CLUSTERS = [
       {ico:"🏆", nm:"Win the daily jackpot", ds:"If your staked, fed word is the day's secret word, you take the whole pot.", where:"Jackpot", code:"revealJackpot"},
       {ico:"🎖️", nm:"Share the weekly bounty", ds:"Hold a staked, fed word matching the week's theme → split the pool.", where:"Bounty", code:"passive"},
       {ico:"💎", nm:"Earn UPPERCASE yield", ds:"Staked all-caps words accrue daily $WORD from the rewards pool.", where:"passive", code:"passive"},
-      {ico:"👑", nm:"Ascend / gild a word", ds:"Push a full-UPPERCASE staked word through Gilded levels for more yield + bounty weight.", where:"Word sheet", code:"prestige"},
+      {ico:"👑", nm:"Ascend / gild a word", ds:"Push a full-UPPERCASE staked word up the word ladder (Gilded 1–4, then Holographic) for more yield + bounty weight. Each stage costs more and is harder.", where:"Word sheet", code:"prestige"},
     ]},
 
   { sec:"Satellites — hang off the loop" },

@@ -574,7 +574,7 @@ function apportion(weights: number[], total: number): number[] {
  * Each letter index clears at the floor; matched = min(asks, bids), apportioned pro-rata.
  * Buyers pay the floor (recorded as spend, letter added to inventory → faster claims);
  * sellers receive floor×(1−royalty) (recorded as recoup); the royalty routes per splits.royalty
- * (now Treasury). Player-to-player $WORD only — solvency is untouched (just the royalty leak).
+ * (now the Rewards Pool, decisions.md #18). Player-to-player $WORD only — solvency is untouched (just the royalty leak).
  */
 function runClearing(world: World): { letters: number; volumeUsd: number } {
   const p = world.params;
@@ -915,9 +915,9 @@ export function runSim(cfg: SimConfig = DEFAULT_SIM_CONFIG): SimResult {
       tradeLetters = t.letters;
       tradeVolumeUsd = t.volumeUsd;
     } else {
-      // ---- secondary-market royalty → Treasury (splits.royalty), MACRO PROXY ----
+      // ---- secondary-market royalty → splits.royalty (the Rewards Pool), MACRO PROXY ----
       // Daily secondary GMV ≈ a fraction of the day's primary fee GMV; its 2.5% royalty routes
-      // per splits.royalty (now Treasury). Stand-in until per-letter resale is modeled (`trading`).
+      // per splits.royalty (now the Rewards Pool, #18). Stand-in until per-letter resale is modeled (`trading`).
       const secondaryVolume = world.ledger.grossRoutedToday * world.params.market.secondaryVolumeRatio;
       const royalty = secondaryVolume * world.params.market.royaltyRate;
       if (royalty > 0) world.ledger.route(royalty, world.params.splits.royalty);

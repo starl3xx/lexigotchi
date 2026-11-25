@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   if (revealed) return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
 
   const probability = prestigeSuccessProbability(Number(pityAtCommit), Number(level));
-  const success = drawSuccess("prestige", commitId, probability);
+  const success = drawSuccess("prestige", prestige, commitId, probability);
 
   const signature = await signDigest(
     prestigeRevealDigest({ prestige, commitId, tokenId, owner: owner as `0x${string}`, success }),
@@ -85,6 +85,7 @@ export async function POST(req: Request) {
       signature,
       pityAtCommit: Number(pityAtCommit),
       level: Number(level),
+      owner, // the staker the attempt names: the game checks a resumed attempt is this word's own
       probability,
     },
   });

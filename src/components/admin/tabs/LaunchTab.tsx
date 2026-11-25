@@ -84,7 +84,8 @@ const ENV: EnvField[] = [
   // --- care --------------------------------------------------------------------------------------
   { key: "PECKISH_AFTER", label: "Peckish after", group: G.care, type: "uint", default: "86400", help: "seconds unfed → ½ yield" },
   { key: "HUNGRY_AFTER", label: "Hungry after", group: G.care, type: "uint", default: "259200", help: "seconds → 0 yield, no jackpot" },
-  // 0 = ascension OFF at launch (decisions.md #11); the game hides it while maxLevel is 0.
+  // 5 = the word ladder, on at launch (decisions.md #19, which reversed #11); 0 switches ascension
+  // off, and the game hides it while maxLevel is 0.
   { key: "PRESTIGE_MAX_LEVEL", label: "Prestige max level", group: G.care, type: "uint", default: String(DEFAULT_PARAMS.prestige.levels), help: "5 = the word ladder, Gilded 1–4 + Holographic (on at launch, decisions.md #19); 0 = ascension off" },
 
   // --- repeg -------------------------------------------------------------------------------------

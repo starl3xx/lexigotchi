@@ -13,13 +13,20 @@
  * caching inefficiency, it's an exploit.
  *
  * The obvious fix is a cache keyed by commitId. We derive instead: every outcome is an HMAC of
- * (chainId, namespace, commitId) under a server secret. That is idempotent BY CONSTRUCTION —
+ * (chainId, contract, namespace, commitId) under a server secret. That is idempotent BY CONSTRUCTION —
  * identical inputs always produce identical letters — with no storage to be unavailable, no cache to
  * miss, and nothing to fail open. The player can't predict a draw without the secret, and can't
  * change one by asking again. A Redis outage degrades availability, never fairness.
  *
  * The commit fields the outcome depends on (pityAtCommit, letterIndex, count) are snapshots taken
  * on-chain at commit time, so they can't shift under a re-request either.
+ *
+ * ── Why the CONTRACT is in the draw ───────────────────────────────────────────────────────────
+ * Commit ids restart at 0 whenever a contract is redeployed (Sepolia's Prestige was, for the word
+ * ladder), and the retired contract's outcomes stay public in its events. Keyed by commitId alone,
+ * the new contract's commit N would repeat the old commit N, and a contract caller can choose its
+ * slot (commitId = commits.length; revert unless it's the one wanted). Binding the issuing
+ * contract's address gives every deployment its own draws (Prestige audit, 2026-11-25, AUDIT.md).
  */
 import { createHmac } from "node:crypto";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
@@ -59,10 +66,19 @@ export async function signDigest(innerDigest: Hex): Promise<Hex> {
   return signerAccount().signMessage({ message: { raw: innerDigest } });
 }
 
-/** Deterministic bytes for an outcome. Distinct namespaces so one commitId can't collide across games. */
-function outcomeBytes(namespace: string, commitId: bigint, extra = ""): Buffer {
+const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+
+/**
+ * Deterministic bytes for an outcome. Distinct namespaces so one commitId can't collide across games,
+ * and the issuing contract (lowercased, so checksum case can't fork a draw) so a redeploy's restarted
+ * ids can't repeat the old contract's public outcomes.
+ */
+function outcomeBytes(namespace: string, contract: `0x${string}`, commitId: bigint, extra = ""): Buffer {
+  if (!ADDRESS.test(contract)) throw new Error(`A draw needs the issuing contract's address, got "${contract}".`);
   const secret = requireEnv("SIGNER_DRAW_SECRET");
-  return createHmac("sha256", secret).update(`${NETWORK.id}:${namespace}:${commitId}:${extra}`).digest();
+  return createHmac("sha256", secret)
+    .update(`${NETWORK.id}:${contract.toLowerCase()}:${namespace}:${commitId}:${extra}`)
+    .digest();
 }
 
 /**
@@ -70,9 +86,9 @@ function outcomeBytes(namespace: string, commitId: bigint, extra = ""): Buffer {
  * rather than slicing offsets out of a shared digest — same determinism, but no offset arithmetic to
  * get quietly wrong, and no chance two steps read overlapping bytes.
  */
-function unitFloat(namespace: string, commitId: bigint, step: number): number {
+function unitFloat(namespace: string, contract: `0x${string}`, commitId: bigint, step: number): number {
   // 6 bytes = 48 bits, comfortably inside Number's exact-integer range.
-  const n = outcomeBytes(namespace, commitId, String(step)).readUIntBE(0, 6);
+  const n = outcomeBytes(namespace, contract, commitId, String(step)).readUIntBE(0, 6);
   return n / 2 ** 48;
 }
 
@@ -83,9 +99,11 @@ function unitFloat(namespace: string, commitId: bigint, step: number): number {
  * The cap check is not optional: `Letters.reveal` reverts CapExceeded if the signer draws a letter
  * whose mintedEver has reached cap, which would strand a paid commit.
  *
+ * @param contract - the Letters contract the commit lives on
  * @param available - per-letter remaining supply, indexed 0..25 (cap - mintedEver)
  */
 export function drawLetters(
+  contract: `0x${string}`,
   commitId: bigint,
   count: number,
   available: readonly number[],
@@ -101,7 +119,7 @@ export function drawLetters(
     const live = ALPHABET.map((ch, i) => ((remaining[i] ?? 0) > 0 ? (LETTER_ODDS[ch] ?? 0) : 0));
     const sum = live.reduce((a, b) => a + b, 0);
     if (sum <= 0) throw new Error("Ran out of uncapped letters mid-draw.");
-    let r = unitFloat(ns, commitId, k) * sum;
+    let r = unitFloat(ns, contract, commitId, k) * sum;
     let idx = 0;
     for (let i = 0; i < live.length; i++) {
       r -= live[i];
@@ -140,6 +158,11 @@ export function dailySeed(key: bigint, day: number): bigint {
  * Uses commits(commitId).pityAtCommit, never live pity — the snapshot is what the contract's own
  * accounting is based on, and it cannot move between the commit and the reveal.
  */
-export function drawSuccess(namespace: "roll" | "prestige", commitId: bigint, probability: number): boolean {
-  return unitFloat(namespace, commitId, 0) < probability;
+export function drawSuccess(
+  namespace: "roll" | "prestige",
+  contract: `0x${string}`,
+  commitId: bigint,
+  probability: number,
+): boolean {
+  return unitFloat(namespace, contract, commitId, 0) < probability;
 }

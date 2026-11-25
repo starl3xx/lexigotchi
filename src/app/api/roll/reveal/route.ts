@@ -83,7 +83,7 @@ export async function POST(req: Request) {
 
   // 40% base, +15pp per prior failure, capped at 85% (params.ts) — from the SNAPSHOT, not live pity.
   const probability = rollSuccessProbability(Number(pityAtCommit));
-  const success = drawSuccess("roll", commitId, probability);
+  const success = drawSuccess("roll", rolls, commitId, probability);
   const facts = {
     commitId: String(commitId),
     pityAtCommit: Number(pityAtCommit),

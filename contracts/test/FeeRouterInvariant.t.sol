@@ -57,14 +57,14 @@ contract FeeRouterInvariant is Test {
         feeRouter.setCollector(address(handler), true);
         feeRouter.setPayers(address(handler), address(handler), address(handler)); // handler is all 3 payers
 
-        // v0.2 split table (each sums to 10_000 bps)
-        feeRouter.setSplit(FeeSource.PACK_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        feeRouter.setSplit(FeeSource.DAILY_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        feeRouter.setSplit(FeeSource.ROLL, FeeRouter.Split(4750, 1000, 2750, 1500));
-        feeRouter.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500));
+        // The deploy's split table (Deploy.s.sol `_setSplits`, decisions.md #18/#19; each sums to 10_000 bps)
+        feeRouter.setSplit(FeeSource.PACK_MINT, FeeRouter.Split(7500, 1000, 1000, 500));
+        feeRouter.setSplit(FeeSource.DAILY_MINT, FeeRouter.Split(7500, 1000, 1000, 500));
+        feeRouter.setSplit(FeeSource.ROLL, FeeRouter.Split(7500, 1000, 1000, 500));
+        feeRouter.setSplit(FeeSource.CLAIM, FeeRouter.Split(7500, 1000, 1000, 500));
         feeRouter.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0));
-        feeRouter.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500));
-        feeRouter.setSplit(FeeSource.ROYALTY, FeeRouter.Split(0, 0, 0, 10000));
+        feeRouter.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(7500, 1000, 1000, 500));
+        feeRouter.setSplit(FeeSource.ROYALTY, FeeRouter.Split(10000, 0, 0, 0));
         feeRouter.setBountyCarveBps(1500); // carve ON so the bounty bucket is exercised
 
         targetContract(address(handler));

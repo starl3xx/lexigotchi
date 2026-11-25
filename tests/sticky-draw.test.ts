@@ -12,6 +12,7 @@ beforeAll(() => {
 const signer = () => import("@/lib/onchain/signer");
 
 const FULL = Array.from({ length: 26 }, () => 100);
+const LETTERS = "0x00000000000000000000000000000000000000a1" as const;
 
 /** An in-memory store with the same first-write-wins semantics as the database one. */
 function memoryStore(): DrawStore & { rows: Map<string, number[]> } {
@@ -35,11 +36,11 @@ function memoryStore(): DrawStore & { rows: Map<string, number[]> } {
 async function findShiftingCommit() {
   const { drawLetters } = await signer();
   for (let id = 0n; id < 500n; id++) {
-    const before = drawLetters(id, 5, FULL);
+    const before = drawLetters(LETTERS, id, 5, FULL);
     for (let capped = 0; capped < 26; capped++) {
       if (before.includes(capped)) continue;
       const after = FULL.map((n, i) => (i === capped ? 0 : n));
-      const redrawn = drawLetters(id, 5, after);
+      const redrawn = drawLetters(LETTERS, id, 5, after);
       if (redrawn.join() !== before.join()) return { id, before, after, redrawn };
     }
   }
@@ -67,7 +68,7 @@ describe("stickyDraw", () => {
     const s = await findShiftingCommit();
     const store = memoryStore();
     const ask = (available: number[]) =>
-      stickyDraw({ chainId: 84532, key: `c:${s.id}`, count: 5, available, draw: () => drawLetters(s.id, 5, available) }, store);
+      stickyDraw({ chainId: 84532, key: `c:${s.id}`, count: 5, available, draw: () => drawLetters(LETTERS, s.id, 5, available) }, store);
 
     expect(await ask(FULL)).toEqual(s.before);
     expect(await ask(s.after)).toEqual(s.before);
@@ -76,9 +77,9 @@ describe("stickyDraw", () => {
   it("draws again only when the stored draw can no longer be minted", async () => {
     const { drawLetters } = await signer();
     const store = memoryStore();
-    const first = await stickyDraw({ chainId: 84532, key: "c:7", count: 5, available: FULL, draw: () => drawLetters(7n, 5, FULL) }, store);
+    const first = await stickyDraw({ chainId: 84532, key: "c:7", count: 5, available: FULL, draw: () => drawLetters(LETTERS, 7n, 5, FULL) }, store);
     const dead = FULL.map((n, i) => (i === first[0] ? 0 : n)); // one of its letters capped out
-    const second = await stickyDraw({ chainId: 84532, key: "c:7", count: 5, available: dead, draw: () => drawLetters(7n, 5, dead) }, store);
+    const second = await stickyDraw({ chainId: 84532, key: "c:7", count: 5, available: dead, draw: () => drawLetters(LETTERS, 7n, 5, dead) }, store);
     expect(drawFits(first, dead)).toBe(false); // the old signature would revert CapExceeded
     expect(drawFits(second, dead)).toBe(true);
     expect(store.rows.get("84532:c:7")).toEqual(second);

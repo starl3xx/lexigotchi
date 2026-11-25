@@ -208,8 +208,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `xEnabled()`/`emailEnabled()` on the server, so its X door and "email optional" copy follow the
   switches, while `docs-site/` describes them as on.
 - **Letter draws are sticky** (`src/lib/onchain/stickyDraw.ts` + table `letter_draws`): the first draw
-  served for a pack commit (`c:<commitId>`) or an identity's daily (`d:<key>:<day>`) is served again
-  while it can still be minted. A draw depends on which letters are uncapped, so without this a
+  served for a pack commit (`c:<letters>:<commitId>`, the Letters address lowercased) or an identity's
+  daily (`d:<key>:<day>`) is served again while it can still be minted. Every draw's HMAC also names
+  the issuing contract (`signer.ts`): commit ids restart on a redeploy, and old outcomes are public. A draw depends on which letters are uncapped, so without this a
   cap-out could hand one unrevealed commit two valid signed draws. `/api/mint/reveal` and the
   free-daily bundle share the daily key. Fails open (plain draw) on a DB outage, so paid commits
   stay revealable.
