@@ -1,6 +1,6 @@
 /**
  * Notification copy, in Lexigotchi's voice: the pet voice of the messaging guide (docs/messaging.md,
- * decisions.md #23). A reminder names the letter or word it's about, written in its case ("FUNKY is
+ * decisions.md #24). A reminder names the letter or word it's about, written in its case ("FUNKY is
  * peckish", "your q"), and a jackpot line always carries "staked and fed".
  *
  * TWO RULES, both learned from reading LHAW's production notifier:

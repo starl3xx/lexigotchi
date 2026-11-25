@@ -143,7 +143,7 @@ export interface PracticeEarned {
 
 /**
  * A practice day's share per weight unit. Practice has no pool to split, so a fixed share stands in:
- * a Common word earns this a day, a Legendary 8×, as the keeper weighs them (keeper/shares.ts).
+ * a Common word earns this a day, a Mythic 8×, as the keeper weighs them (keeper/shares.ts).
  */
 export const PRACTICE_SHARE = 20_000;
 

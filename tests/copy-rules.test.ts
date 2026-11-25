@@ -6,7 +6,7 @@
  *
  * A lone placeholder for a missing value uses an en dash ("–"), never an em dash.
  *
- * The second half is the messaging guide's word list (docs/messaging.md, decisions.md #23): the
+ * The second half is the messaging guide's word list (docs/messaging.md, decisions.md #24): the
  * never-write words and the "Instead of" terms, over a wider set of player-facing files and the player
  * docs. An exception goes in VOCAB_ALLOW with its reason, never by loosening a pattern.
  */
@@ -108,7 +108,7 @@ describe("player-facing copy", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The messaging guide's words (docs/messaging.md, decisions.md #23)
+// The messaging guide's words (docs/messaging.md, decisions.md #24)
 // ---------------------------------------------------------------------------
 
 /**
@@ -127,7 +127,7 @@ const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: 
   { term: "pump", re: /\bpump(s|ed|ing)?\b/i, sample: "Watch $WORD pump." },
   { term: "moon", re: /\bmoon(s|ing)?\b/i, sample: "To the moon." },
   // Never a code value either, so these are checked in every string, single words included: the
-  // manifest's discovery tag "tamagotchi" was one (decisions.md #23).
+  // manifest's discovery tag "tamagotchi" was one (decisions.md #24).
   { term: "Lexidex", re: /\blexidex\b/i, sample: "Fill your Lexidex.", everywhere: true },
   { term: "Tamagotchi", re: /tamagotchi/i, sample: "A tamagotchi-style game.", everywhere: true },
   { term: "Pokémon", re: /pok[eé]mon/i, sample: "Like Pokemon, but letters.", everywhere: true },

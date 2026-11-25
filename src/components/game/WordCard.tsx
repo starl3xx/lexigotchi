@@ -27,7 +27,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
       {/* One wrapping row of badges under the name. A right-hand badge column overlapped the tier
           badge on phones: the name column shrinks (min-w-0) but its nowrap badges don't. */}
       <div className="flex items-center gap-3">
-        <WordTiles word={word.word} upper={word.upper} size={30} state={careState(word)} detail="bust" />
+        <WordTiles word={word.word} upper={word.upper} size={30} state={careState(word)} detail="bust" tier={word.tier} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 font-display text-base font-extrabold">
             {word.word}

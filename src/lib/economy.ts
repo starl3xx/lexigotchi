@@ -12,8 +12,8 @@
  *   - Rarity score: −Σ log₁₀(letterFrequency) over a word's 5 letters (higher = rarer).
  *   - Tiers:        rank words by score asc; cut at floor(N×p) for p = .50/.80/.95/.99.
  *                   Ties broken alphabetically (stable, deterministic). This gives
- *                   Common=2292, Uncommon=1375, Rare=687, Epic=184, Legendary=46 and the exact
- *                   46-Legendary list, all pinned by tests (re-derived for 4,584 words; the
+ *                   Common=2292, Uncommon=1375, Rare=687, Legendary=184, Mythic=46 and the exact
+ *                   46-Mythic list, all pinned by tests (re-derived for 4,584 words; the
  *                   spec's 4,438-word figures were 2219/1330/667/177/45).
  */
 import { WORDS } from "./dictionary";
@@ -94,7 +94,7 @@ export const scrabbleValue = (ch: string): number => SCRABBLE_VALUES[ch.toUpperC
 // Word rarity + tiers (Appendix B)
 // ---------------------------------------------------------------------------
 
-export type Tier = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
+export type Tier = "Common" | "Uncommon" | "Rare" | "Legendary" | "Mythic";
 
 export interface TierMeta {
   name: Tier;
@@ -104,13 +104,13 @@ export interface TierMeta {
   percentile: number;
 }
 
-/** Tier metadata in ascending rarity. Weights drive stake yield (Common 1 … Legendary 8). */
+/** Tier metadata in ascending rarity. Weights drive stake yield (Common 1 … Mythic 8). */
 export const TIERS: readonly TierMeta[] = Object.freeze([
   { name: "Common", weight: 1, percentile: 0.5 },
   { name: "Uncommon", weight: 2, percentile: 0.8 },
   { name: "Rare", weight: 3, percentile: 0.95 },
-  { name: "Epic", weight: 5, percentile: 0.99 },
-  { name: "Legendary", weight: 8, percentile: 1.0 },
+  { name: "Legendary", weight: 5, percentile: 0.99 },
+  { name: "Mythic", weight: 8, percentile: 1.0 },
 ]);
 
 export const TIER_WEIGHT: Readonly<Record<Tier, number>> = Object.freeze(
@@ -142,7 +142,7 @@ function computeRanking(): Ranked[] {
   const N = scored.length;
   const cuts = TIERS.slice(0, -1).map((t) => Math.floor(N * t.percentile)); // [2219, 3550, 4216, 4393]
   return scored.map((o, i) => {
-    let tier: Tier = "Legendary";
+    let tier: Tier = "Mythic";
     for (let t = 0; t < cuts.length; t++) {
       if (i < cuts[t]) {
         tier = TIERS[t].name;
@@ -187,8 +187,8 @@ export const TIER_COUNTS: Readonly<Record<Tier, number>> = Object.freeze(
 /** The full ranking (rarest last), exposed for the Dictionary screen + tests. */
 export const RANKED_WORDS: readonly Ranked[] = Object.freeze(RANKING);
 
-/** The Legendaries (46 for 4,584 words), rarest first (spec Appendix B's derivation). */
-export const LEGENDARIES: readonly string[] = Object.freeze(wordsByTier("Legendary"));
+/** The Mythic words (46 for 4,584 words), rarest first (spec Appendix B’s derivation; the top tier was called Legendary until decisions.md #23). */
+export const MYTHICS: readonly string[] = Object.freeze(wordsByTier("Mythic"));
 
 // ---------------------------------------------------------------------------
 // Case state → yield multiplier (spec §5.5)

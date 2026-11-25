@@ -84,13 +84,12 @@ Jake's builder posts stay in Jake's own voice.
 
 ---
 
-_Notes kept outside the guide (the guide above is verbatim, decisions.md #23):_
+_Notes kept outside the guide (the guide above is verbatim, decisions.md #24):_
 
-- **TODO: the tier rename.** The guide says "Mythic" for the 46 rarest words because it assumes the
-  rarity rename (Epic → Legendary, Legendary → Mythic) has landed. It hasn't yet: the code's top tier
-  is still called "Legendary" (`TIERS` in `src/lib/economy.ts`). The app and the landing page render
-  the top tier's name from the code, so they say "Legendary" until the rename ships and switch on
-  their own when it does. The docs site types the name and needs a pass with the rename.
+- **The tier rename has landed** (decisions.md #23, PR #203): the 46 rarest words are Mythic, as the
+  guide says, and the old Epic tier is now Legendary. The app and the landing page render the top
+  tier's name from the code (`TIERS` in `src/lib/economy.ts`), so a future rename follows on its own;
+  the docs site types the names.
 - **Every number in app copy is derived, never typed** (`src/lib/howItWorks.ts`): the word count,
   the top-tier count, the rarest letter's supply (138 q's at the mainnet 3.0× supply; Sepolia's
   deployed Letters keeps 2.5×, 115), and the free letters to start (the free pack plus

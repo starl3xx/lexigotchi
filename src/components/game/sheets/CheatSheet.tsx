@@ -4,7 +4,7 @@
  *
  * starl3xx asked for "basically the onboarding flow (written for maximum understanding and minimal
  * confusion) but as a popup". It follows the premise in the messaging guide (docs/messaging.md,
- * decisions.md #23): collect letters, raise them, spell words only you can own, and keep them fed,
+ * decisions.md #24): collect letters, raise them, spell words only you can own, and keep them fed,
  * where every staked, fed word is in the running for the jackpot but only all-UPPERCASE ones earn
  * $WORD. The intro tells a story once; this is what a player checks mid-game. Prices are the live
  * ones (g.price), and the care thresholds and free letters come from params, so the sheet can't

@@ -7,12 +7,12 @@
  *
  * Every number is derived (dictionary, economy, params), never typed. The art is the game's own
  * TileCharacter, so the page and the game can't drift apart visually either. The words follow the
- * messaging guide (docs/messaging.md, decisions.md #23): a word-pet game; lead with a pet, a word, or
+ * messaging guide (docs/messaging.md, decisions.md #24): a word-pet game; lead with a pet, a word, or
  * a rare letter, never with earning; the jackpot always says "staked and fed".
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LEGENDARIES } from "@/lib/economy";
+import { MYTHICS } from "@/lib/economy";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import {
   FREE_DAILIES,
@@ -55,7 +55,7 @@ const LINKS = {
   starl3xx: "https://starl3xx.fun",
 };
 
-const RAREST_WORD = LEGENDARIES[0];
+const RAREST_WORD = MYTHICS[0];
 /** How much a peckish word earns, against a fed one. */
 const fraction = (x: number) => (x === 0.5 ? "half as much" : `${pct(x)} as much`);
 /** A small count in words, as a sentence reads it ("miss three"); bigger ones stay numerals. */
@@ -114,7 +114,8 @@ function SectionHead({ kicker, title, children }: { kicker: string; title: strin
 
 /**
  * The hero stage: a vaudeville proscenium (curtain valance, spotlight, wooden floor) with the
- * rarest word in the dictionary mid-raise, two letters already UPPERCASE. Two renders at two sizes
+ * rarest word in the dictionary mid-raise, two letters already UPPERCASE, in its Mythic amethyst
+ * (lib/rarityFinish). Three renders at three sizes
  * rather than a CSS scale: TileWord lays out in pixels, and a transform would not shrink its box.
  */
 function Stage() {
@@ -143,13 +144,13 @@ function Stage() {
       />
 
       <div className="relative flex min-h-[240px] items-end justify-center px-4 pb-9 pt-16 sm:min-h-[400px]">
-        <TileWord word={RAREST_WORD} upper={upper} detail="full" size={58} className="sm:hidden" />
-        <TileWord word={RAREST_WORD} upper={upper} detail="full" size={96} className="hidden sm:flex lg:hidden xl:flex" />
-        <TileWord word={RAREST_WORD} upper={upper} detail="full" size={78} className="hidden lg:flex xl:hidden" />
+        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={58} className="sm:hidden" />
+        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={96} className="hidden sm:flex lg:hidden xl:flex" />
+        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={78} className="hidden lg:flex xl:hidden" />
       </div>
 
       <p className="absolute left-1/2 top-12 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[2px_2px_0_#1b1714] sm:top-14 sm:text-sm">
-        The rarest crown: {RAREST_WORD}
+        The rarest word: {RAREST_WORD}
       </p>
     </div>
   );

@@ -12,7 +12,7 @@ import { emailEnabled } from "@/lib/notify/email";
  * same `fc:miniapp` / `fc:frame` / `base:app_id` tags are emitted here so that keeps working.
  */
 export const metadata: Metadata = {
-  // The guide's page title and share description (docs/messaging.md, decisions.md #23).
+  // The guide's page title and share description (docs/messaging.md, decisions.md #24).
   title: "Lexigotchi: a word-pet game on Base",
   description: "Collect letters, raise them, and spell words only you can own.",
   alternates: { canonical: "/" },

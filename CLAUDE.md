@@ -349,6 +349,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
   the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
+- **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
+  **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
+  material on its tiles (`lib/rarityFinish.ts` = the table; `components/game/TileFinish.tsx` = the
+  layers; pass `tier` to `TileCharacter`/`TileWord`/`WordTiles`/`SceneFrame`). **Motion is moments,
+  never loops** (`useFinishMoment` adds `.rf-moment` to the word's row every tier period; globals.css
+  `rf-*`; `tests/rarity-finish.test.tsx` fails on an `rf-` animation outside `.rf-moment`, on
+  `infinite`, or on a dash-offset animation): only full-size words, on screen, not hungry, not under
+  reduced motion, Save-Data, or 2 GB memory. Never gate motion on `hardwareConcurrency` (iOS reports
+  2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
+  card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
+  from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
+  Telegram welcome). Next steps (not built): scene cards with backs, the Showcase folded into the
+  Bag, live backs with OGL, the share loop.
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
@@ -516,7 +529,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 
 ## Copy and messaging
 
-**`docs/messaging.md` is the source of truth for every word a player reads** (decisions.md #23):
+**`docs/messaging.md` is the source of truth for every word a player reads** (decisions.md #24):
 Lexigotchi is a word-pet game: collect living letters, raise them, and spell words nobody else can
 own. Read it before writing any copy (the app, the landing page, the docs, reminders, share text,
 bot posts). The hard rules:
@@ -536,7 +549,7 @@ bot posts). The hard rules:
   in their case ("your q is hungry"); a reminder names the letter or word ("FUNKY is peckish").
 - **Numbers are derived, never typed** (`src/lib/howItWorks.ts`: `WORDS`, `TOP_TIER`,
   `RAREST_LETTER`, `FREE_PACK`/`FREE_DAILIES`/`FREE_TO_START`, `LADDER`, `days`). The top tier's name
-  comes from `TIERS`, so the Mythic rename will flow through on its own (docs/messaging.md's TODO).
+  comes from `TIERS`, so a tier rename flows through on its own (it reads Mythic since #23).
 - **`tests/copy-rules.test.ts` guards it**: the banned words fail the build in player-facing code
   (`src/components` except the operator console, `src/app`, and the copy-bearing `src/lib` files) and
   the player docs (except `contracts.mdx` and `fairness.mdx`, which keep token standards). An

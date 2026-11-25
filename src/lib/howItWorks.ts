@@ -1,7 +1,7 @@
 /**
  * The four-step "how it works" copy, shared by the first-run onboarding (`Onboarding.tsx`) and the
  * landing page (`src/app/page.tsx`), so the two can never tell a player different things. The steps
- * follow the premise in the messaging guide (docs/messaging.md, decisions.md #23): collect letters,
+ * follow the premise in the messaging guide (docs/messaging.md, decisions.md #24): collect letters,
  * raise them, spell words only you can own, and keep them fed.
  *
  * Every number is DERIVED (dictionary size, roll odds, tier counts, supply, free letters), never
@@ -30,9 +30,8 @@ export const WORDS = count(WORD_COUNT);
 
 const TOP = TIERS[TIERS.length - 1].name;
 /**
- * The rarest rarity tier: its name and how many words are in it. The name comes from `TIERS`, so it
- * reads "Legendary" until the rarity rename (Legendary → Mythic, docs/messaging.md's TODO) lands,
- * and follows it on its own after.
+ * The rarest rarity tier: its name and how many words are in it ("Mythic", 46). The name comes from
+ * `TIERS`, so copy follows a rename on its own (decisions.md #23 renamed Legendary → Mythic).
  */
 export const TOP_TIER = { name: TOP, count: TIER_COUNTS[TOP] } as const;
 
