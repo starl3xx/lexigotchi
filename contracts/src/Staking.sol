@@ -52,6 +52,7 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
     error NotStaked();
     error NotStaker();
     error BadCaretaker();
+    error UnexpectedTransfer();
 
     constructor(
         IERC20 _word,
@@ -117,6 +118,19 @@ contract Staking is IStaking, ERC721Holder, Ownable2Step, ReentrancyGuard, FeeCo
         for (uint256 i = 0; i < tokenIds.length; i++) {
             feed(tokenIds[i]);
         }
+    }
+
+    /// @dev Accept a Word only when Staking pulls it in itself (stake()). A Word sent here directly
+    ///      with safeTransferFrom would get no stakerOf entry and could never be unstaked, so refuse it
+    ///      (audit scan, 2026-11-24). A plain transferFrom skips this callback; nothing can catch that.
+    function onERC721Received(address operator, address, uint256, bytes memory)
+        public
+        view
+        override
+        returns (bytes4)
+    {
+        if (msg.sender != address(words) || operator != address(this)) revert UnexpectedTransfer();
+        return this.onERC721Received.selector;
     }
 
     /// @notice Let `wallet` feed, roll, and ascend the Words you stake, or stop it (`allowed` false).

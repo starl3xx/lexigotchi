@@ -1781,4 +1781,16 @@ contract LexigotchiTest is Test {
         vm.expectRevert(Staking.NotStaker.selector);
         staking.unstake(t);
     }
+
+    /// Audit scan (2026-11-24): a Word sent straight to Staking (not through stake()) is refused, since
+    /// it would get no staker and could never come back out. Staking still takes Words via stake().
+    function test_Staking_refusesWordsSentDirectly() public {
+        uint256 t = _claimLower(alice, 0);
+        vm.prank(alice);
+        vm.expectRevert(Staking.UnexpectedTransfer.selector);
+        words.safeTransferFrom(alice, address(staking), t);
+        assertEq(words.ownerOf(t), alice, "the Word stays with its owner");
+        _stake(alice, t);
+        assertEq(staking.stakerOf(t), alice, "stake() still works");
+    }
 }
