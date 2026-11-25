@@ -43,7 +43,8 @@ export function AccessTab() {
   const [revealed, setRevealed] = useState(false);
 
   const valid = isAddress(multisig);
-  const missing = CONTRACTS.filter((c) => !isAddress(d?.contracts[c.key] ?? "")).map((c) => c.name);
+  // Only the contracts being handed over gate it: an undeployed SaleFees (no owner) mustn't (Bugbot on #185).
+  const missing = OWNED.filter((c) => !isAddress(d?.contracts[c.key] ?? "")).map((c) => c.name);
   const deployedAll = missing.length === 0;
   const transferIntents: TxIntent[] = useMemo(
     () =>
