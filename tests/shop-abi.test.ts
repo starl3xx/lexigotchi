@@ -20,15 +20,15 @@ const ALLOWED = [
   "addItem",
   "updateItem",
   "setActive",
-  // Money settings: where the 80% goes and how the floor reads; none moves a held token.
+  // Money settings: where the 80% goes, the floor's allowance, a sweep's size; none moves a held token.
   "setRevenueWallet",
   "setSplit",
   "setMaxSlippageBps",
-  "setPeg",
-  // The route, behind ADAPTER_DELAY.
-  "proposeAdapter",
-  "acceptAdapter",
-  "cancelAdapter",
+  "setMaxSweepUsdc",
+  // The route (the adapter and the floor's peg), behind ROUTE_DELAY.
+  "proposeRoute",
+  "acceptRoute",
+  "cancelRoute",
   // Pause and Ownable2Step.
   "pause",
   "unpause",
@@ -37,9 +37,14 @@ const ALLOWED = [
   "renounceOwnership",
 ].sort();
 
-const writes = shopAbi
+// Read as plain entries: the generated `as const` types already rule out what these tests check for,
+// and the point is to check the artifact, not the types.
+type Entry = { type: string; name?: string; stateMutability?: string };
+const entries = shopAbi as readonly Entry[];
+
+const writes = entries
   .filter((e) => e.type === "function" && e.stateMutability !== "view" && e.stateMutability !== "pure")
-  .map((e) => (e as { name: string }).name)
+  .map((e) => e.name!)
   .sort();
 
 describe("Shop ABI", () => {
@@ -48,14 +53,14 @@ describe("Shop ABI", () => {
   });
 
   it("has no function that sounds like taking tokens out", () => {
-    const names = shopAbi.filter((e) => e.type === "function").map((e) => (e as { name: string }).name);
+    const names = entries.filter((e) => e.type === "function").map((e) => e.name!);
     for (const n of names) {
       expect(n).not.toMatch(/withdraw|rescue|recover|skim|drain|claim|collect|send|transfer(?!Ownership)/i);
     }
   });
 
   it("takes no ETH", () => {
-    expect(shopAbi.some((e) => "stateMutability" in e && e.stateMutability === "payable")).toBe(false);
-    expect(shopAbi.some((e) => e.type === "receive" || e.type === "fallback")).toBe(false);
+    expect(entries.some((e) => e.stateMutability === "payable")).toBe(false);
+    expect(entries.some((e) => e.type === "receive" || e.type === "fallback")).toBe(false);
   });
 });

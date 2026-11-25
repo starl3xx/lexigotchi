@@ -41,14 +41,24 @@ interface IRoyaltySplit {
  *         frame fail; that only defers the swap, which is harmless.
  *
  *         The floor: every swap must return at least `floorFor(usdcIn)`, the USDC's worth of $WORD at
- *         the price keeper's peg less `maxSlippageBps`. A caller's own `minWordOut` only ever raises it.
- *         With no readable peg the floor is 0, and the swap waits rather than running unprotected.
+ *         the price keeper's peg less `maxSlippageBps`. A caller's own `minWordOut` only ever raises it
+ *         (the keeper passes one from the live price, since the peg moves only on a 5% drift). With no
+ *         readable peg the floor is 0, and the swap waits rather than running unprotected.
+ *
+ *         Sandwiches: anyone may sweep, so anyone can push the pool's price, sweep, and unwind in one
+ *         transaction, taking at most the gap down to the floor. So a sweep swaps at most
+ *         `maxSweepUsdc` (bounded by `MAX_SWEEP_USDC`) and runs at most once a block: at the default
+ *         $100, moving a pool this size far enough costs more in its own fees than the gap pays. The same
+ *         chunks drain a backlog too large to clear the floor in one trade. A buyer can only sandwich the
+ *         pool's share of their own purchase, which costs them the whole price.
  *
  *         Custody: the Shop holds only USDC whose swap is waiting, and $WORD only for the length of a
  *         swap. No function withdraws either. The one indirect path is the route itself: a malicious
- *         adapter paired with a floor set near zero could keep waiting USDC. So the adapter can change
- *         only `ADAPTER_DELAY` after a public proposal (`AdapterProposed`), and the floor's slippage is
- *         capped at `MAX_SLIPPAGE_BPS`. The 80% share is never held here at all.
+ *         adapter paired with a floor set near zero could keep waiting USDC. So the route (the adapter
+ *         AND where the floor reads its peg) changes only `ROUTE_DELAY` after a public proposal
+ *         (`RouteProposed`), and the floor's slippage is capped at `MAX_SLIPPAGE_BPS`. The 80% share is
+ *         never held here at all. The price keeper's own clamp on Letters bounds how fast it can move
+ *         the peg; a lower peg loosens the floor (more room for a sandwich), never the route.
  *
  *         No shop money reaches the jackpot (the Customization Spec's rule): a swap refuses to route
  *         while the ROYALTY split gives the jackpot anything, and waits instead.
@@ -63,8 +73,13 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
     uint16 public constant MAX_REVENUE_BPS = 9_000;
     /// @notice Hard cap on the floor's slippage allowance.
     uint16 public constant MAX_SLIPPAGE_BPS = 2_000;
-    /// @notice How long a proposed adapter waits before the owner can switch to it.
-    uint64 public constant ADAPTER_DELAY = 2 days;
+    /// @notice How long a proposed route (adapter and peg) waits before the owner can switch to it.
+    uint64 public constant ROUTE_DELAY = 2 days;
+    /// @notice A sweep swaps at most this much a call until the owner changes it ($100).
+    uint256 public constant DEFAULT_MAX_SWEEP_USDC = 100e6;
+    /// @notice Bounds on `maxSweepUsdc` ($1 to $1,000).
+    uint256 public constant MIN_SWEEP_USDC = 1e6;
+    uint256 public constant MAX_SWEEP_USDC = 1_000e6;
     /// @notice The lowest item price, $0.01, so every sale leaves the pool a share worth swapping.
     uint128 public constant MIN_PRICE_USDC = 10_000;
 
@@ -92,8 +107,20 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
     uint256 public pegPackUsdc;
 
     IUsdcSwapAdapter public adapter;
-    IUsdcSwapAdapter public pendingAdapter;
-    uint64 public pendingAdapterReadyAt;
+
+    /// @notice A proposed route, live from `readyAt`. `readyAt == 0` = none pending.
+    struct PendingRoute {
+        IUsdcSwapAdapter adapter;
+        IPackPricePeg pegSource;
+        uint256 pegPackUsdc;
+        uint64 readyAt;
+    }
+
+    PendingRoute public pendingRoute;
+
+    uint256 public maxSweepUsdc;
+    /// @notice The block of the last sweep: one a block.
+    uint256 public lastSweepBlock;
 
     event ItemAdded(
         uint256 indexed itemId, uint128 priceUsdc, uint64 start, uint64 end, uint32 maxSupply, bool active
@@ -115,9 +142,10 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
     event SplitSet(uint16 revenueBps);
     event MaxSlippageSet(uint16 maxSlippageBps);
     event PegSet(address source, uint256 packUsdc);
-    event AdapterProposed(address adapter, uint64 readyAt);
-    event AdapterProposalCancelled(address adapter);
+    event RouteProposed(address adapter, address pegSource, uint256 pegPackUsdc, uint64 readyAt);
+    event RouteProposalCancelled();
     event AdapterSet(address adapter);
+    event MaxSweepSet(uint256 maxSweepUsdc);
 
     error UnknownItem(uint256 itemId);
     error ItemInactive(uint256 itemId);
@@ -134,8 +162,10 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
     error NoPeg();
     error JackpotShare();
     error InsufficientWordOut(uint256 wordOut, uint256 minWordOut);
-    error NoPendingAdapter();
-    error AdapterNotReady(uint64 readyAt);
+    error NoPendingRoute();
+    error RouteNotReady(uint64 readyAt);
+    error SweepCapOutOfRange();
+    error SweptThisBlock();
 
     constructor(
         IERC20 _word,
@@ -160,11 +190,13 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
         maxSlippageBps = _maxSlippageBps;
         pegSource = _pegSource;
         pegPackUsdc = _pegPackUsdc;
+        maxSweepUsdc = DEFAULT_MAX_SWEEP_USDC;
         emit AdapterSet(address(_adapter));
         emit RevenueWalletSet(_revenueWallet);
         emit SplitSet(DEFAULT_REVENUE_BPS);
         emit MaxSlippageSet(_maxSlippageBps);
         emit PegSet(address(_pegSource), _pegPackUsdc);
+        emit MaxSweepSet(DEFAULT_MAX_SWEEP_USDC);
     }
 
     // --- buying -----------------------------------------------------------------------------------
@@ -221,16 +253,18 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
         emit Purchased(msg.sender, recipient, itemId, price, toStudio, wordOut, deferred);
     }
 
-    /// @notice Swap the USDC whose swap is waiting, through the same route and floor, and route the
-    ///         $WORD. Also routes any $WORD sent here directly. Permissionless; a no-op when nothing waits.
-    ///         Unlike a purchase, a failed swap reverts here.
+    /// @notice Swap up to `maxSweepUsdc` of the USDC whose swap is waiting, through the same route and
+    ///         floor, and route the $WORD. Also routes any $WORD sent here directly. Permissionless; once
+    ///         a block; a no-op when nothing waits. Unlike a purchase, a failed swap reverts here.
     function sweep(uint256 minWordOut)
         external
         nonReentrant
         whenNotPaused
         returns (uint256 usdcIn, uint256 wordOut)
     {
-        usdcIn = usdc.balanceOf(address(this));
+        if (lastSweepBlock == block.number) revert SweptThisBlock();
+        lastSweepBlock = block.number;
+        usdcIn = Math.min(usdc.balanceOf(address(this)), maxSweepUsdc);
         if (usdcIn != 0) wordOut = this.swapAndRoute(usdcIn, minWordOut);
         uint256 stray = word.balanceOf(address(this));
         if (stray != 0) {
@@ -345,40 +379,45 @@ contract Shop is FeeCollector, Ownable2Step, ReentrancyGuard, Pausable {
         emit MaxSlippageSet(bps);
     }
 
-    /// @notice Where the floor reads the peg, and the pack's USDC price it stands for. Change it with
-    ///         any owner retune of the pack's USD target, or the floor drifts by the same ratio.
-    function setPeg(IPackPricePeg source, uint256 packUsdc) external onlyOwner {
-        pegSource = source;
-        pegPackUsdc = packUsdc;
-        emit PegSet(address(source), packUsdc);
+    /// @notice How much one sweep may swap (between MIN_SWEEP_USDC and MAX_SWEEP_USDC).
+    function setMaxSweepUsdc(uint256 cap) external onlyOwner {
+        if (cap < MIN_SWEEP_USDC || cap > MAX_SWEEP_USDC) revert SweepCapOutOfRange();
+        maxSweepUsdc = cap;
+        emit MaxSweepSet(cap);
     }
 
     // --- owner: the route (delayed) ---------------------------------------------------------------
 
-    function proposeAdapter(IUsdcSwapAdapter next) external onlyOwner {
-        if (address(next) == address(0)) revert ZeroAddress();
-        uint64 readyAt = uint64(block.timestamp) + ADAPTER_DELAY;
-        pendingAdapter = next;
-        pendingAdapterReadyAt = readyAt;
-        emit AdapterProposed(address(next), readyAt);
+    /// @notice Propose a new route: the adapter, where the floor reads its peg, and the pack's USDC
+    ///         price that peg stands for. It can be accepted `ROUTE_DELAY` later. To change only the
+    ///         peg (with an owner retune of the pack's USD target), pass the current adapter; propose
+    ///         BEFORE the retune lands, so the floor errs high (swaps wait) rather than low.
+    function proposeRoute(IUsdcSwapAdapter nextAdapter, IPackPricePeg nextPegSource, uint256 nextPegPackUsdc)
+        external
+        onlyOwner
+    {
+        if (address(nextAdapter) == address(0)) revert ZeroAddress();
+        uint64 readyAt = uint64(block.timestamp) + ROUTE_DELAY;
+        pendingRoute = PendingRoute(nextAdapter, nextPegSource, nextPegPackUsdc, readyAt);
+        emit RouteProposed(address(nextAdapter), address(nextPegSource), nextPegPackUsdc, readyAt);
     }
 
-    function acceptAdapter() external onlyOwner {
-        IUsdcSwapAdapter next = pendingAdapter;
-        if (address(next) == address(0)) revert NoPendingAdapter();
-        if (block.timestamp < pendingAdapterReadyAt) revert AdapterNotReady(pendingAdapterReadyAt);
-        adapter = next;
-        pendingAdapter = IUsdcSwapAdapter(address(0));
-        pendingAdapterReadyAt = 0;
-        emit AdapterSet(address(next));
+    function acceptRoute() external onlyOwner {
+        PendingRoute memory next = pendingRoute;
+        if (next.readyAt == 0) revert NoPendingRoute();
+        if (block.timestamp < next.readyAt) revert RouteNotReady(next.readyAt);
+        delete pendingRoute;
+        adapter = next.adapter;
+        pegSource = next.pegSource;
+        pegPackUsdc = next.pegPackUsdc;
+        emit AdapterSet(address(next.adapter));
+        emit PegSet(address(next.pegSource), next.pegPackUsdc);
     }
 
-    function cancelAdapter() external onlyOwner {
-        IUsdcSwapAdapter next = pendingAdapter;
-        if (address(next) == address(0)) revert NoPendingAdapter();
-        pendingAdapter = IUsdcSwapAdapter(address(0));
-        pendingAdapterReadyAt = 0;
-        emit AdapterProposalCancelled(address(next));
+    function cancelRoute() external onlyOwner {
+        if (pendingRoute.readyAt == 0) revert NoPendingRoute();
+        delete pendingRoute;
+        emit RouteProposalCancelled();
     }
 
     // --- owner: pause -----------------------------------------------------------------------------

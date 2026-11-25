@@ -51,6 +51,28 @@ contract SpyAdapter is IUsdcSwapAdapter {
     }
 }
 
+/// @dev Pays the peg rate up to `depth` USDC, then a third of it: a thin pool's price impact.
+contract ThinPoolAdapter is IUsdcSwapAdapter {
+    IERC20 public immutable usdc;
+    MockERC20 public immutable word;
+    uint256 public immutable rate;
+    uint256 public immutable depth;
+
+    constructor(IERC20 _usdc, MockERC20 _word, uint256 _rate, uint256 _depth) {
+        usdc = _usdc;
+        word = _word;
+        rate = _rate;
+        depth = _depth;
+    }
+
+    function swapUsdcForWord(uint256 usdcIn, uint256 minWordOut, address to) external returns (uint256 out) {
+        usdc.transferFrom(msg.sender, address(this), usdcIn);
+        out = usdcIn <= depth ? (usdcIn * rate) / 1e6 : (usdcIn * rate) / 3e6;
+        require(out >= minWordOut, "slippage");
+        word.mint(to, out);
+    }
+}
+
 /// @dev Ignores minWordOut and pays a fixed amount: checks the Shop measures what arrived.
 contract LiarAdapter is IUsdcSwapAdapter {
     IERC20 public immutable usdc;
@@ -134,6 +156,13 @@ contract ShopTest is Test {
         usdc.mint(alice, 1_000e6);
         vm.prank(alice);
         usdc.approve(address(shop), type(uint256).max);
+    }
+
+    /// @dev Move the route through its delay (the only way the peg changes after deploy).
+    function _setRoute(Shop s, IUsdcSwapAdapter a, IPackPricePeg p, uint256 packUsdc) internal {
+        s.proposeRoute(a, p, packUsdc);
+        vm.warp(block.timestamp + s.ROUTE_DELAY());
+        s.acceptRoute();
     }
 
     function _newShop(IUsdcSwapAdapter a) internal returns (Shop) {
@@ -379,7 +408,7 @@ contract ShopTest is Test {
 
     function test_deferred_noPeg() public {
         uint256 id = _item(1e6);
-        shop.setPeg(IPackPricePeg(address(0)), 0);
+        _setRoute(shop, adapter, IPackPricePeg(address(0)), 0);
         vm.expectEmit(true, false, false, true, address(shop));
         emit Shop.SwapDeferred(id, 200_000, abi.encodeWithSelector(Shop.NoPeg.selector));
         vm.prank(alice);
@@ -387,7 +416,7 @@ contract ShopTest is Test {
         assertEq(shop.pendingUsdc(), 200_000);
 
         // A peg that reads zero waits too: the swap never runs unprotected.
-        shop.setPeg(peg, PACK_USDC);
+        _setRoute(shop, adapter, peg, PACK_USDC);
         peg.set(0);
         vm.prank(alice);
         shop.buy(id, alice, 0);
@@ -398,7 +427,7 @@ contract ShopTest is Test {
 
     function test_deferred_brokenPegSource() public {
         uint256 id = _item(1e6);
-        shop.setPeg(IPackPricePeg(address(0xdead)), PACK_USDC); // no code: the read reverts
+        _setRoute(shop, adapter, IPackPricePeg(address(0xdead)), PACK_USDC); // no code: the read reverts
         vm.prank(alice);
         shop.buy(id, alice, 0);
         assertEq(shop.pendingUsdc(), 200_000, "a broken peg defers the swap, never the sale");
@@ -487,6 +516,61 @@ contract ShopTest is Test {
         assertEq(shop.pendingUsdc(), 0);
         (uint256 pool,) = _poolShare(out);
         assertEq(feeRouter.poolBalance(), pool);
+    }
+
+    function test_sweep_swapsAtMostTheCapEachBlock() public {
+        uint256 id = _item(100e6); // $100: $20 of each sale waits when the swap fails
+        usdc.mint(alice, 1_000e6);
+        adapter.setBroken(true);
+        vm.startPrank(alice);
+        for (uint256 i = 0; i < 6; i++) shop.buy(id, alice, 0); // $120 waiting
+        vm.stopPrank();
+        adapter.setBroken(false);
+        assertEq(shop.pendingUsdc(), 120e6);
+
+        (uint256 first,) = shop.sweep(0);
+        assertEq(first, 100e6, "one chunk of maxSweepUsdc");
+        vm.expectRevert(Shop.SweptThisBlock.selector);
+        shop.sweep(0); // a second in the same block (or transaction) can't run
+        vm.roll(block.number + 1);
+        (uint256 second,) = shop.sweep(0);
+        assertEq(second, 20e6, "the rest, next block");
+        assertEq(shop.pendingUsdc(), 0);
+    }
+
+    function test_sweep_chunksDrainABacklogTheFloorCantTakeAtOnce() public {
+        // A route whose price falls with size, like a thin pool: past $50 the output sinks below the floor.
+        ThinPoolAdapter thin = new ThinPoolAdapter(usdc, word, PEG, 50e6);
+        Shop s = _newShop(thin);
+        feeRouter.setCollector(address(s), true);
+        usdc.mint(address(s), 120e6); // $120 waiting
+        vm.expectRevert(); // all at once: below the floor
+        vm.prank(bob);
+        this.sweepAll(s, 120e6);
+        s.setMaxSweepUsdc(50e6);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.roll(block.number + 1);
+            s.sweep(0);
+        }
+        assertEq(s.pendingUsdc(), 0, "chunks the floor accepts drain it");
+    }
+
+    /// @dev Helper so the "all at once" attempt runs at a raised cap without touching the shop under test.
+    function sweepAll(Shop s, uint256 cap) external {
+        s.setMaxSweepUsdc(cap > s.MAX_SWEEP_USDC() ? s.MAX_SWEEP_USDC() : cap);
+        s.sweep(0);
+    }
+
+    function test_sweepCapBounds() public {
+        vm.expectRevert(Shop.SweepCapOutOfRange.selector);
+        shop.setMaxSweepUsdc(999_999);
+        vm.expectRevert(Shop.SweepCapOutOfRange.selector);
+        shop.setMaxSweepUsdc(1_000e6 + 1);
+        shop.setMaxSweepUsdc(1_000e6);
+        assertEq(shop.maxSweepUsdc(), 1_000e6);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        shop.setMaxSweepUsdc(5e6);
     }
 
     function test_sweep_noopWhenNothingWaits() public {
@@ -653,9 +737,9 @@ contract ShopTest is Test {
         shop.setRevenueWallet(address(this));
         shop.setSplit(9_000);
         shop.setMaxSlippageBps(0);
-        shop.setPeg(peg, PACK_USDC);
-        shop.proposeAdapter(adapter);
-        shop.cancelAdapter();
+        shop.setMaxSweepUsdc(50e6);
+        shop.proposeRoute(adapter, peg, PACK_USDC);
+        shop.cancelRoute();
         shop.pause();
         shop.unpause();
         vm.expectRevert(Shop.OnlySelf.selector);
@@ -667,21 +751,41 @@ contract ShopTest is Test {
         assertEq(word.balanceOf(address(this)), 0);
     }
 
-    function test_adapterChangeWaitsTheDelay() public {
+    function test_routeChangeWaitsTheDelay() public {
         SpyAdapter next = new SpyAdapter(usdc, word, PEG);
-        vm.expectRevert(Shop.NoPendingAdapter.selector);
-        shop.acceptAdapter();
-        shop.proposeAdapter(next);
-        uint64 readyAt = uint64(block.timestamp) + shop.ADAPTER_DELAY();
-        assertEq(shop.pendingAdapterReadyAt(), readyAt);
+        vm.expectRevert(Shop.NoPendingRoute.selector);
+        shop.acceptRoute();
+        vm.expectRevert(Shop.NoPendingRoute.selector);
+        shop.cancelRoute();
+        shop.proposeRoute(next, peg, PACK_USDC);
+        uint64 readyAt = uint64(block.timestamp) + shop.ROUTE_DELAY();
+        (,,, uint64 pendingAt) = shop.pendingRoute();
+        assertEq(pendingAt, readyAt);
         vm.warp(readyAt - 1);
-        vm.expectRevert(abi.encodeWithSelector(Shop.AdapterNotReady.selector, readyAt));
-        shop.acceptAdapter();
+        vm.expectRevert(abi.encodeWithSelector(Shop.RouteNotReady.selector, readyAt));
+        shop.acceptRoute();
         assertEq(address(shop.adapter()), address(adapter), "the old route still runs");
         vm.warp(readyAt);
-        shop.acceptAdapter();
+        shop.acceptRoute();
         assertEq(address(shop.adapter()), address(next));
-        assertEq(address(shop.pendingAdapter()), address(0));
+        (,,, pendingAt) = shop.pendingRoute();
+        assertEq(pendingAt, 0, "nothing pending after");
+    }
+
+    /// @dev The audit's finding: the floor's peg once changed instantly (setPeg), which made the slippage
+    ///      cap and the adapter delay moot. Now the peg moves only with the route, after the delay.
+    function test_pegChangeWaitsTheDelayToo() public {
+        uint256 floorBefore = shop.floorFor(200_000);
+        shop.proposeRoute(adapter, peg, PACK_USDC * 1_000_000); // a peg that would make the floor ~0
+        assertEq(shop.floorFor(200_000), floorBefore, "a proposal changes nothing yet");
+        // Swaps keep running at the old floor during the delay, and anyone can see the proposal.
+        uint256 id = _item(1e6);
+        vm.prank(alice);
+        shop.buy(id, alice, 0);
+        assertEq(shop.pendingUsdc(), 0);
+        vm.warp(block.timestamp + shop.ROUTE_DELAY());
+        shop.acceptRoute();
+        assertLt(shop.floorFor(200_000), floorBefore);
     }
 
     // --- pause ------------------------------------------------------------------------------------

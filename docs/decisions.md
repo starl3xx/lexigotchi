@@ -430,7 +430,11 @@ setter. All small, riding existing suite patterns.
       gives the jackpot a share. Nothing here changes Words.sol or the FeeRouter; the FeeRouter's owner
       registers the Shop with `setCollector`.
     - **No owner function withdraws USDC or $WORD** (pinned by `tests/shop-abi.test.ts`). The one
-      indirect path, a hostile adapter, is behind a 2-day public delay (`proposeAdapter`).
+      indirect path, a hostile adapter with a floor near zero, is behind a 2-day public delay: the
+      adapter and the floor's peg change together, only through `proposeRoute` then `acceptRoute`.
+    - **Sweeps come in chunks**: at most `maxSweepUsdc` ($100 by default) a call, once a block, so a
+      sandwich of a permissionless sweep costs more in pool fees than it can take (the internal audit,
+      `contracts/AUDIT.md`), and a large backlog still drains.
     - **The route** (`contracts/src/adapters/UniV4UsdcWordAdapter.sol`): USDC → WETH on Uniswap v3's
       0.05% pool, then WETH → $WORD on $WORD's v4 pool (Clanker's, with its dynamic-fee hook), in one
       Universal Router call. The pool key was read onchain and hashes to the pool id. It sits behind
