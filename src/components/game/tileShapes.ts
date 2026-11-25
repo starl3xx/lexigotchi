@@ -155,7 +155,13 @@ export const WORD_LEAN = 2;
  */
 export function leanFor(word: string, i: number, max = WORD_LEAN): number {
   if (!max) return 0;
-  const h = Math.sin(word.toUpperCase().charCodeAt(i) * 12.9898 + i * 78.233 + word.length * 3.7) * 43758.5453;
-  const unit = (h - Math.floor(h)) * 2 - 1;
+  // An integer hash of the letter, its place, and the word's length. Not Math.sin: engines may
+  // differ in its last bit, and the server draws this too (the share card, and a share page that
+  // the browser then takes over), so "the same every time" has to mean exactly the same.
+  let h = Math.imul(word.toUpperCase().charCodeAt(i), 73856093) ^ Math.imul(i + 1, 19349663) ^ Math.imul(word.length, 83492791);
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  h ^= h >>> 16;
+  const unit = ((h >>> 0) / 4294967295) * 2 - 1;
   return Number((unit * max).toFixed(2));
 }

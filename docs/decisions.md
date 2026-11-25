@@ -628,8 +628,9 @@ setter. All small, riding existing suite patterns.
       drifted (arms at rest inside a word, simpler eyes).
     - **How it was measured** (my method, not a standard one): headless WebKit, the processor time
       of all its processes over 12 to 16 s, one five-letter word on a 650 px stage at 2× pixels,
-      on the owner's Mac; headless Chromium's GPU process for comparison. Ratios, not absolutes: a
-      real iPhone hasn't been measured. The main-thread figure under a 4× slowdown, used for #23,
+      on the owner's Mac; headless Chromium's GPU process for comparison. The scene's art stood
+      still on both sides, so these are the letters alone: on the live Today stage the scene's own
+      loops add to both. Ratios, not absolutes: a real iPhone hasn't been measured. The main-thread figure under a 4× slowdown, used for #23,
       says nothing here: Chromium already moves these loops off the main thread.
     - Not done, and worth their own look: the rarity light moments are now the largest cost at
       rest (a Legendary word measured 33% with them, 7.5% without); the Holographic foil's drifting

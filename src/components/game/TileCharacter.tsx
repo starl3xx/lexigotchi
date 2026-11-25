@@ -478,7 +478,9 @@ function star4(cx: number, cy: number, R = 7, r = 2.6) {
   for (let i = 0; i < 8; i++) {
     const ang = (Math.PI / 4) * i - Math.PI / 2;
     const rad = i % 2 === 0 ? R : r;
-    p.push(`${cx + rad * Math.cos(ang)} ${cy + rad * Math.sin(ang)}`);
+    // rounded: the server draws these too, and engines differ in the last digit of a sine, which
+    // React then reports as a mismatch when the browser takes the page over
+    p.push(`${(cx + rad * Math.cos(ang)).toFixed(2)} ${(cy + rad * Math.sin(ang)).toFixed(2)}`);
   }
   return `M ${p.join(" L ")} Z`;
 }
@@ -631,7 +633,10 @@ function BurstRays({ reduced }: { reduced: boolean }) {
     const r1 = 70;
     const r2 = 120;
     const wsp = 0.16;
-    const p = `M ${CX + r1 * Math.cos(a - wsp)} ${MID + r1 * Math.sin(a - wsp)} L ${CX + r2 * Math.cos(a)} ${MID + r2 * Math.sin(a)} L ${CX + r1 * Math.cos(a + wsp)} ${MID + r1 * Math.sin(a + wsp)} Z`;
+    // rounded, as star4's points are: a raw sine differs in its last digit between the server and
+    // WebKit, and every page with a newly raised letter on it logged a hydration mismatch there
+    const at = (r: number, t: number) => `${(CX + r * Math.cos(t)).toFixed(2)} ${(MID + r * Math.sin(t)).toFixed(2)}`;
+    const p = `M ${at(r1, a - wsp)} L ${at(r2, a)} L ${at(r1, a + wsp)} Z`;
     return <path key={i} d={p} fill={GOLD} />;
   });
   return (
