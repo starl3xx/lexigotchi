@@ -17,6 +17,8 @@ deployed**. Solidity 0.8.28, OpenZeppelin 5.x, Foundry. Target chain: Base (8453
 | `Jackpot` | `keccak(word)` lookup → pay the staked, fed holder atomically, else roll over |
 | `YieldDistributor` / `Bounty` | `MerkleEpochs` distributors funded from the Pool / Bounty buckets |
 | Mixins | `FeeCollector` (fee pulls), `RepegKeeper` (clamped + cooldown-rate-limited price keeper), `MerkleEpochs` |
+| `Shop` (decisions.md #22) | Cosmetics for USDC at fixed prices; 80% to the revenue wallet, the rest swapped to $WORD and routed through ROYALTY in the same transaction (a self-only try/catch frame, so a failed swap waits for `sweep`); floor from Letters' peg; route changes behind a 2-day delay; no withdraw path |
+| `adapters/UniV4UsdcWordAdapter` | The Shop's route: USDC → WETH (v3 0.05%) → $WORD (v4, Clanker's hook) in one Universal Router call; no owner, holds nothing |
 
 `$WORD` is an already-live ERC20Burnable (`ClankerToken`, `0x304e…fb4b`) — **out of scope**, but the
 suite depends on its `burn()` + `transferFrom` semantics.
@@ -162,6 +164,45 @@ so raising `maxLevel` past 5 also needs a sixth stage's odds, or the signer fall
 On Sepolia, a tester's word has climbed all five stages in 14 signed reveals: every miss raised its
 pity by one, every hit reset it, and each commit recorded the stage it was paid at.
 
+### Fourth internal pass (2026-11-25): the Shop
+
+`Shop.sol` and `adapters/UniV4UsdcWordAdapter.sol` are new (decisions.md #22). The `solidity-auditor`
+skill ran in DEEP mode on them and the Base Sepolia mocks (`MockUSDC`, `MockUsdcWordAdapter`): four
+vector scanners (170 vectors) and the adversarial reviewer, with FeeCollector, FeeRouter, and
+SaleFees as read-only context. The local skill is version 1; upstream is 4.1. The adversarial
+reviewer checked the adapter's Universal Router and v4 encoding against the published constants and
+found no error, and the Base fork test runs the real route (`test/ShopFork.t.sol`, skipped without
+`BASE_RPC_URL`: a $0.20 swap got 99.34% of the two pools' mid price).
+
+- **Medium, fixed: a permissionless `sweep` could be sandwiched in one transaction** (two
+  scanners and the adversarial reviewer). An attacker pushes the $WORD pool, calls `sweep(0)`, and
+  unwinds, so the waiting USDC fills at the floor. Fixed: a sweep swaps at most `maxSweepUsdc` ($100
+  by default, owner-set within $1–$1,000) and runs once a block, so one transaction can take at most
+  the floor's gap on one chunk, and moving a ~$19K pool that far costs more in its own fees. Anyone
+  may still sweep (the spec). The keeper passes a minimum from the live price, above the floor.
+- **Medium, fixed: `sweep` was all or nothing**, so a backlog whose own price impact passed the floor's
+  margin could never clear. The same chunks drain it (`test_sweep_chunksDrainABacklogTheFloorCantTakeAtOnce`).
+- **Medium, fixed: `setPeg` moved the floor at once**, which made the slippage cap and the adapter
+  delay moot (an owner could set a near-zero floor, then sandwich). The peg now moves only with the
+  route: `proposeRoute(adapter, pegSource, pegPackUsdc)` → `acceptRoute` after `ROUTE_DELAY` (2 days),
+  in public (`test_pegChangeWaitsTheDelayToo`).
+- **Accepted: the floor trusts a peg with no freshness check.** The price keeper moves Letters'
+  `packPrice` only on a 5% drift, so its age says nothing about its accuracy, and a stale peg can sit
+  up to that much (plus the price keeper's lag) off the market. Too high, and swaps wait (safe). Too
+  low, and a sandwich gets more room, bounded by the sweep chunk above and by the buyer's own price on
+  a purchase. A compromised price-keeper key can lower the peg within Letters' clamp (20% per 5 minutes),
+  which loosens the floor but can never change the route. The mainnet price keeper key must be set.
+- **Low, not fixed: `buy` has no maximum price.** A price raise can land before a buy that rides a
+  standing allowance. The app approves the exact price, so only a wallet that pre-approved more is
+  exposed, and the owner sets the prices.
+
+Checked and dropped: reentrancy through the adapter or router (one `nonReentrant` lock on every entry,
+and `swapAndRoute` is self-only; tests re-enter both ways), the try/catch frame (a revert undoes the
+adapter's pull and the routing together; a starved frame only defers), the measured `$WORD` delta (an
+adapter that lies about its output delivers nothing and the frame reverts), permit front-running (the
+allowance stands), the v3 leg's zero minimum (the v4 leg and two balance checks cover the whole route),
+and the mocks' vouchers (they bind contract, chain, caller, profile, and day).
+
 ## Suggested external focus
 
 Commit-reveal + voucher signature surface (digest layouts, replay, the KIND tags); FeeRouter
@@ -171,7 +212,7 @@ accounting + the `route()` surplus/delivered check; Words escrow + case-state; t
 
 ## Status
 
-`forge build` clean; **89 forge tests** (2026-11-25; incl. the invariant campaign and a cross-language
+`forge build` clean; **145 forge tests** (2026-11-25, with the Shop's 49 and its 4 fork tests; incl. the invariant campaign and a cross-language
 AnswerChain vector — the schedule generator `scripts/generate-answer-chain.ts` and
 `AnswerChain.reveal` share a verified fixture) + **857 vitest** (economy, solvency, signer draws, and the app) green. Known gaps
 for the audit/launch (see `README.md` checklist): the production swap-router adapter (deferred —
