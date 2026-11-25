@@ -55,8 +55,9 @@ import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import {
-  ArrowsLeftRight, Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
+  Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Medal, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
+  Storefront,
 } from "./ui/icons";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 import { useWalletSighting } from "./useWalletSighting";
@@ -482,7 +483,7 @@ const VIEW_TITLE: Record<View, string> = {
   word: "$WORD",
   lhaw: "Let’s Have A Word!",
   showcase: "Showcase",
-  swap: "Swap letters",
+  swap: "Market",
   more: "More",
 };
 
@@ -509,7 +510,7 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
     items: [
       { view: "dictionary", label: "Dictionary", Icon: BookOpen },
       { view: "showcase", label: "Showcase", Icon: MaskHappy },
-      { view: "swap", label: "Swap", Icon: ArrowsLeftRight },
+      { view: "swap", label: "Market", Icon: Storefront },
     ],
   },
   {

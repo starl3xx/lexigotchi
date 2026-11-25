@@ -176,7 +176,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
   feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
   `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
-  **Words for sale** (decisions.md #18; `lib/onchain/wordSale.ts`, `/api/swap/words`, table
+  **Words for sale**, on the **Market** (the `swap` view, renamed for players 2026-11-25; decisions.md #18; `lib/onchain/wordSale.ts`, `/api/swap/words`, table
   `word_listings`, migration 0014): Seaport orders offering one Word for $WORD, 90% to the seller and
   10% (`params.market.wordSaleFee`, rounded up) to `SaleFees`, which the keeper's `fees` job flushes
   into the pool before `yield`. The route checks the SHAPE (`checkWordSaleOrder`: kind from content,
