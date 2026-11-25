@@ -4,15 +4,17 @@
  * are marked and open their sheet; a word someone else owns shows their Farcaster picture and name
  * (or a short address), from the shared world read (/api/world).
  */
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
 import { Pill, Segmented, TierBadge } from "../primitives";
 import { useGame } from "../state";
 import { PlayerChip } from "../PlayerChip";
+import { MiniTiles } from "../MiniTiles";
 import { useMyWallets, useWorld } from "../useWorld";
 
 const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Legendary", "Mythic"];
+const LOWER = [false, false, false, false, false];
 
 export function DictionaryScreen() {
   const g = useGame();
@@ -22,6 +24,8 @@ export function DictionaryScreen() {
   const [claim, setClaim] = useState<"all" | "unclaimed" | "claimed">("all");
 
   const ownedSet = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
+  // Your words in their case; anyone else's (and the unclaimed) in the dictionary's lowercase.
+  const caseOf = useMemo(() => new Map(state.words.map((w) => [w.word, w.upper])), [state.words]);
   const world = useWorld();
   const mine = useMyWallets();
   const owners = world.data?.owners ?? {};
@@ -36,8 +40,11 @@ export function DictionaryScreen() {
   // Claimed = anyone's (yours included). Only filterable once the owners are known: before that an
   // absent owner means "unknown", and "Unclaimed" would list words someone owns.
   const claimFilter = ownersKnown ? claim : "all";
+  // The list draws each word in its tiles (80 words, 400 tiles): typing updates the box at once and
+  // the list a moment later, so a slow phone never lags behind the keys.
+  const query = useDeferredValue(q);
   const results = useMemo(() => {
-    const needle = q.trim().toUpperCase();
+    const needle = query.trim().toUpperCase();
     const out: string[] = [];
     for (const w of WORDS) {
       if (needle && !w.includes(needle)) continue;
@@ -50,7 +57,7 @@ export function DictionaryScreen() {
       if (out.length >= 80) break;
     }
     return out;
-  }, [q, tier, claimFilter, owners, ownedSet]);
+  }, [query, tier, claimFilter, owners, ownedSet]);
 
   return (
     <div className="space-y-3">
@@ -121,7 +128,12 @@ export function DictionaryScreen() {
               }`}
             >
               <div className="min-w-0">
-                <div className="font-display text-sm font-extrabold">{w}</div>
+                {/* the word in its tiles, in its finish, still; an unclaimed word faded, so the ones
+                    you could own stand apart (the scene cards mock, 2026-11-25) */}
+                <span className="sr-only">{w}</span>
+                <div aria-hidden className={ownersKnown && !owner && !owned ? "opacity-60" : ""}>
+                  <MiniTiles word={w} upper={caseOf.get(w) ?? LOWER} tier={wordTier(w)} />
+                </div>
                 {theirs ? (
                   <div className="mt-0.5 text-xs text-ink/70">
                     <PlayerChip address={owner} profile={profiles[owner]} size={16} />

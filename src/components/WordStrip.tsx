@@ -44,7 +44,7 @@ export function WordStrip({ marketCapUsd, className = "" }: { marketCapUsd: numb
   );
 }
 
-/** Self-fetching, for pages without the game shell (the landing page, Showcase pages). */
+/** Self-fetching, for pages without the game shell (the landing page, the share pages). */
 export function WordStripLive({ className = "" }: { className?: string }) {
   const { live } = useWordPrice();
   return <WordStrip marketCapUsd={live?.fdvUsd} className={className} />;

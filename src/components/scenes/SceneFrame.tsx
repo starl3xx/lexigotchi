@@ -172,7 +172,7 @@ export function SceneFrame({
   );
 
   return (
-    <div ref={box} className={`relative aspect-[16/9] w-full overflow-hidden ${offscreen ? "scene-offscreen" : ""} ${className}`} {...swipe}>
+    <div ref={box} className={`relative aspect-[16/9] w-full overflow-hidden ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`} {...swipe}>
       {was && layers(was, false, "")}
       {layers(scene, false, was ? "scene-fade-in" : "")}
       {word && (

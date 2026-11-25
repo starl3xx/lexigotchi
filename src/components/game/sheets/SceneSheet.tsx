@@ -1,8 +1,9 @@
 "use client";
 /**
  * A word's scene, picked from the Today stage: the word standing in its scene at the top, the
- * scenes to choose from underneath. A pick applies at once (and to the Showcase, which reads the
- * same saved choice).
+ * scenes to choose from underneath. A pick applies at once (and to the word's card and its share
+ * picture, which read the same saved choice). Opened from the word's own sheet (`fromWord`), closing
+ * it goes back to the word.
  */
 import { Button, Sheet } from "../primitives";
 import { careState } from "../LetterTile";
@@ -13,14 +14,15 @@ import { ScenePicker } from "../../scenes/ScenePicker";
 import { useWordScene } from "../../scenes/useWordScene";
 import { sceneMeta } from "@/lib/scenes";
 
-export function SceneSheet({ word }: { word: string }) {
+export function SceneSheet({ word, fromWord = false }: { word: string; fromWord?: boolean }) {
   const g = useGame();
   const w = g.state.words.find((x) => x.word === word);
   const { scene } = useWordScene(word);
   if (!w) return null;
+  const close = fromWord ? () => g.openSheet({ kind: "word", word }) : g.closeSheet;
   const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
   return (
-    <Sheet open onClose={g.closeSheet} title={`${word}’s scene`}>
+    <Sheet open onClose={close} title={`${word}’s scene`}>
       <div className="space-y-3 pb-2">
         <SceneFrame
           scene={scene}
@@ -37,7 +39,7 @@ export function SceneSheet({ word }: { word: string }) {
           <strong className="text-ink">{sceneMeta(scene).name}.</strong> {sceneMeta(scene).blurb}
         </p>
         <ScenePicker word={w.word} />
-        <Button variant="ghost" full onClick={g.closeSheet}>
+        <Button variant="ghost" full onClick={close}>
           Done
         </Button>
       </div>

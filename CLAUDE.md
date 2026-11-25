@@ -350,22 +350,22 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`scripts/docs-art.tsx`, the real character rig and `params.ts` splits): rerun it after changing
   either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
   server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
-- `src/lib/showcase.ts` + `src/app/s/[text]/` → **Showcase shares, X first** (decisions.md #13): a
+- `src/lib/showcase.ts` + `src/app/s/[text]/` → **Word shares, X first** (decisions.md #13; still named "showcase" in the code, though the Showcase screen folded into the word cards): a
   share links to `/s/<word>?scene=<id>` (the case in the path is each tile's case), whose `og:image`
   is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
   on the game's card. **X's composer shows no card for a link X hasn't read yet** (tested 2026-11-24:
   a never-posted link with a fast static image showed none either; a second paste later did). It is
-  not our card's speed, so the Showcase says "X adds the picture once it reads the link." **Save
+  not our card's speed, so Share (under an opened word's card, `cards/WordSheetCard.tsx`) says "X adds the picture once it reads the link." **Save
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
 - **Scenes** (decisions.md #15; `src/lib/scenes.ts` = the list and the unlock, `SCENE_UNLOCK_WORDS`
   = 3 words ever held, so it stays open after a dissolve: `state.wordsEverHeld`, from
   `readWordsHeld`'s transfer scan; `src/components/scenes/`): each word's home on the Today stage
-  (`TodayStage` → `SceneFrame`, 16:9), in the Showcase, in the scene sheet (`sheets/SceneSheet`, the
-  palette button under the stage), and on the share card. The Today stage walks the player's words
+  (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9), on its card in the Bag, in the scene sheet (`sheets/SceneSheet`, the
+  palette button under the stage, or Scene under an opened card), and on the share card. The Today stage walks the player's words
   with ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with
   the next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry
   (`toneOf`, `.scene-tone`/`.scene-fog` in globals.css: feTurbulence fog images drifting in three
@@ -392,8 +392,22 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
   from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
-  Telegram welcome). Next steps (not built): scene cards with backs, the Showcase folded into the
-  Bag, live backs with OGL, the share loop.
+  Telegram welcome). Next steps (not built): live backs with OGL, the share loop.
+- **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its scene on the
+  front (`SceneFrame`) and its story on the back (`CardBack`, deep materials per tier in globals.css
+  `.cb.m-*`), turned by the corner button. The flip belongs to the word (a host showing another word
+  gets its scene), the back mounts on the first turn, and a host holds its scene still while the
+  back is up or a sheet covers it. **Only the card in focus moves** (the Today stage, an opened
+  word: `WordSheetCard`); the Bag's grid (`BagWordCard`) is still and draws each scene only as it
+  nears the screen (32 cards drew 32,000 elements). `TileCharacter`'s `still` stops the whole
+  character (idle bounce too), and a still `SceneFrame` stops its fog; lists pass `still`
+  (`WordTiles still`), and the Dictionary's 80 rows use flat `MiniTiles` (the rig there made each
+  keystroke 2–4× slower). The back's facts are `lib/cardFacts.ts` (pure, tested) via
+  `useCardFacts`: unknown is a dash, never "you" or "never"; "Found by" and "Yours since" read
+  `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
+  while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
+  screen is gone (Share and Scene sit under an opened card; badges moved to the profile; a scene
+  picked from an opened word returns to it).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
@@ -402,7 +416,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   front of it: the empty stage per `emptyStageCase` (loading, words only in a linked wallet, can
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
-  newcomer's invitation while their words load (Today, Showcase, Bag).
+  newcomer's invitation while their words load (Today, Bag).
 - **The Jackpot page carries the bounty** (starl3xx, 2026-11-25): one tab (the phone's "Win", the
   rail's "Jackpot"), the daily jackpot then the weekly bounty (`screens/BountySection.tsx`), side by
   side from `lg`. There is no `bounty` view. Today keeps both cards; its bounty card links with

@@ -79,6 +79,7 @@ export function WordTiles({
   gild = 0,
   detail = "auto",
   tier,
+  still = false,
 }: {
   word: string;
   upper: boolean[];
@@ -89,8 +90,10 @@ export function WordTiles({
   /** The word's rarity, worn as its tiles' material. Pass it where a player's own word is drawn
    *  (decisions.md #23); a list draws it still, since only the word in focus moves. */
   tier?: Tier;
+  /** Hold the tiles still: a list draws its words still (only the card in focus moves). */
+  still?: boolean;
 }) {
-  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} tier={tier} />;
+  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} tier={tier} still={still} />;
 }
 
 const CASE_STYLE: Record<CaseState, string> = {

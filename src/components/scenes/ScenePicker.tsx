@@ -2,7 +2,7 @@
 /**
  * Pick a word's scene: every scene as a still thumbnail, the word's own one marked, and the locked
  * ones shown with what opens them (lib/scenes: own SCENE_UNLOCK_WORDS words). Used by the scene
- * sheet (from the Today stage) and the Showcase.
+ * sheet (from the Today stage, or from an opened word's card).
  */
 import { DEFAULT_SCENE, SCENES } from "@/lib/scenes";
 import { Lock } from "../game/ui/icons";

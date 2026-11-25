@@ -107,10 +107,15 @@ export function Glint({ x, y, s, color, delay, anim, cls = "rf-glint", style, wa
   );
 }
 
-export function FinishDefs({ tier, uid, bw }: { tier?: Tier; uid: string; bw: number }) {
+export function FinishDefs({ tier, uid, bw, small, motion }: { tier?: Tier; uid: string; bw: number; small: boolean; motion: FinishMotion }) {
   const fin = finishFor(tier);
   if (!fin) return null;
   const f = id(uid);
+  // Only what this tile draws: a list's tiles are small and still, and each one used to carry all
+  // thirteen gradients and patterns (the Dictionary draws 80 words, 400 tiles).
+  const m = fin.material;
+  const moving = motion === "on";
+  const rich = m === "gold" || m === "amethyst";
   return (
     <defs>
       <linearGradient id={f("face")} x1="0" y1="0" x2="0.55" y2="1">
@@ -120,43 +125,56 @@ export function FinishDefs({ tier, uid, bw }: { tier?: Tier; uid: string; bw: nu
         <rect {...inner(bw)} />
       </clipPath>
       {/* the light pass: a broad soft glow in the material's light, and a narrow streak */}
-      <linearGradient id={f("band")} x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor={fin.glow} stopOpacity="0" />
-        <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.55" />
-        <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
-      </linearGradient>
-      <linearGradient id={f("streak")} x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.95" />
-        <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-      </linearGradient>
+      {moving && (
+        <linearGradient id={f("band")} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={fin.glow} stopOpacity="0" />
+          <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.55" />
+          <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
+        </linearGradient>
+      )}
+      {moving && (
+        <linearGradient id={f("streak")} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      )}
       {/* a broad, soft resting highlight */}
-      <linearGradient id={f("soft")} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0.1" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="0.28" stopColor="#ffffff" stopOpacity="0.5" />
-        <stop offset="0.46" stopColor="#ffffff" stopOpacity="0" />
-      </linearGradient>
+      {(m === "satin" || m === "gold") && (
+        <linearGradient id={f("soft")} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0.1" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.28" stopColor="#ffffff" stopOpacity="0.5" />
+          <stop offset="0.46" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      )}
       {/* two crisp gloss streaks */}
-      <linearGradient id={f("gloss")} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0.26" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="0.36" stopColor="#ffffff" stopOpacity="0.6" />
-        <stop offset="0.44" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.35" />
-        <stop offset="0.55" stopColor="#ffffff" stopOpacity="0" />
-      </linearGradient>
+      {m === "foil" && (
+        <linearGradient id={f("gloss")} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0.26" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.36" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="0.44" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.35" />
+          <stop offset="0.55" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      )}
       {/* the hot spot a light makes on a polished surface */}
-      <radialGradient id={f("hot")} cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0" stopColor="#ffffff" stopOpacity="0.8" />
-        <stop offset="0.4" stopColor={fin.glow} stopOpacity="0.3" />
-        <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
-      </radialGradient>
+      {m !== "satin" && motion !== "rest" && (
+        <radialGradient id={f("hot")} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.8" />
+          <stop offset="0.4" stopColor={fin.glow} stopOpacity="0.3" />
+          <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
+        </radialGradient>
+      )}
       {/* brushed foil: fine diagonal lines, light and dark */}
-      <pattern id={f("brush")} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
-        <rect width="5" height="5" fill="none" />
-        <line x1="0.5" y1="0" x2="0.5" y2="5" stroke="#ffffff" strokeOpacity="0.3" strokeWidth="1.1" />
-        <line x1="3" y1="0" x2="3" y2="5" stroke={fin.deep} strokeOpacity="0.1" strokeWidth="0.9" />
-      </pattern>
+      {m === "foil" && !small && (
+        <pattern id={f("brush")} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
+          <rect width="5" height="5" fill="none" />
+          <line x1="0.5" y1="0" x2="0.5" y2="5" stroke="#ffffff" strokeOpacity="0.3" strokeWidth="1.1" />
+          <line x1="3" y1="0" x2="3" y2="5" stroke={fin.deep} strokeOpacity="0.1" strokeWidth="0.9" />
+        </pattern>
+      )}
       {/* glitter: fine bright specks */}
+      {m === "gold" && !small && (
       <pattern id={f("glitter")} width="23" height="23" patternUnits="userSpaceOnUse">
         <rect width="23" height="23" fill="none" />
         <circle cx="3" cy="4" r="1.1" fill="#ffffff" opacity="0.95" />
@@ -167,31 +185,40 @@ export function FinishDefs({ tier, uid, bw }: { tier?: Tier; uid: string; bw: nu
         <circle cx="2" cy="20" r="0.7" fill="#fff3c0" opacity="0.7" />
         <circle cx="21" cy="21" r="0.5" fill="#ffffff" opacity="0.6" />
       </pattern>
+      )}
       {/* the amethyst's table: lit from the upper left */}
-      <radialGradient id={f("table")} cx="0.3" cy="0.25" r="0.8">
-        <stop offset="0" stopColor="#ffffff" stopOpacity="0.5" />
-        <stop offset="0.6" stopColor="#ffffff" stopOpacity="0.08" />
-        <stop offset="1" stopColor={fin.deep} stopOpacity="0.1" />
-      </radialGradient>
+      {m === "amethyst" && (
+        <radialGradient id={f("table")} cx="0.3" cy="0.25" r="0.8">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.5" />
+          <stop offset="0.6" stopColor="#ffffff" stopOpacity="0.08" />
+          <stop offset="1" stopColor={fin.deep} stopOpacity="0.1" />
+        </radialGradient>
+      )}
       {/* fire: the spectrum a cut gem throws, along its edges */}
-      <linearGradient id={f("fire")} gradientUnits="userSpaceOnUse" x1={T.x} y1={T.y} x2={T.x + T.w} y2={BOT}>
-        <stop offset="0" stopColor="#ff7ad9" />
-        <stop offset="0.25" stopColor="#ffd84d" />
-        <stop offset="0.5" stopColor="#6ff2ff" />
-        <stop offset="0.75" stopColor="#8f9bff" />
-        <stop offset="1" stopColor="#ff7ad9" />
-      </linearGradient>
-      {/* glow for the aura and the motes */}
-      <radialGradient id={f("aura")} cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0.62" stopColor={fin.glow} stopOpacity="0.75" />
-        <stop offset="0.8" stopColor={fin.glow} stopOpacity="0.28" />
-        <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
-      </radialGradient>
-      <radialGradient id={f("mote")} cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
-        <stop offset="0.3" stopColor={fin.glow} stopOpacity="0.9" />
-        <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
-      </radialGradient>
+      {m === "amethyst" && !small && (
+        <linearGradient id={f("fire")} gradientUnits="userSpaceOnUse" x1={T.x} y1={T.y} x2={T.x + T.w} y2={BOT}>
+          <stop offset="0" stopColor="#ff7ad9" />
+          <stop offset="0.25" stopColor="#ffd84d" />
+          <stop offset="0.5" stopColor="#6ff2ff" />
+          <stop offset="0.75" stopColor="#8f9bff" />
+          <stop offset="1" stopColor="#ff7ad9" />
+        </linearGradient>
+      )}
+      {/* glow for the aura (drawn above the smallest size) and the motes (only moving) */}
+      {rich && !small && (
+        <radialGradient id={f("aura")} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0.62" stopColor={fin.glow} stopOpacity="0.75" />
+          <stop offset="0.8" stopColor={fin.glow} stopOpacity="0.28" />
+          <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
+        </radialGradient>
+      )}
+      {rich && moving && (
+        <radialGradient id={f("mote")} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
+          <stop offset="0.3" stopColor={fin.glow} stopOpacity="0.9" />
+          <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
+        </radialGradient>
+      )}
     </defs>
   );
 }

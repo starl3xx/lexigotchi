@@ -1,8 +1,8 @@
 "use client";
 /**
  * What a "your words" list shows while the player's words aren't known: on their way, or the read
- * failed. Either way "no words yet" would be wrong for a returning player, so the Bag and the
- * Showcase show this instead of their empty states (Bugbot on #164), as the Today stage does with
+ * failed. Either way "no words yet" would be wrong for a returning player, so the Bag shows this
+ * instead of its empty state (Bugbot on #164), as the Today stage does with
  * its own bubble (TodayStage's EmptyStage, same words).
  */
 import { Button } from "./primitives";

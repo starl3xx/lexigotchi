@@ -37,7 +37,6 @@ import { DictionaryScreen } from "./screens/DictionaryScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { LhawScreen } from "./screens/LhawScreen";
 import { WordScreen } from "./screens/WordScreen";
-import { ShowcaseScreen } from "./screens/ShowcaseScreen";
 import { SwapScreen } from "./screens/SwapScreen";
 import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
@@ -57,7 +56,7 @@ import { CelebrateSheet } from "./sheets/CelebrateSheet";
 import { AddAppHost } from "./AddAppHost";
 import { WalletNetworkNotice } from "./WalletNetworkNotice";
 import {
-  Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, MaskHappy, Planet, Question, Ranking,
+  Backpack, BookBookmark, BookOpen, Coins, DotsThree, Fire, House, IconContext, Planet, Question, Ranking,
   SkipForward, Smiley, Sparkle, TextAa, Trophy, XLogo,
   Storefront, ShoppingBag,
 } from "./ui/icons";
@@ -306,7 +305,6 @@ function Screen({ view }: { view: View }) {
     case "leaderboard": return <LeaderboardScreen />;
     case "word": return <WordScreen />;
     case "lhaw": return <LhawScreen />;
-    case "showcase": return <ShowcaseScreen />;
     case "swap": return <SwapScreen />;
     default: return <HomeScreen />;
   }
@@ -356,7 +354,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
-  if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} />;
+  if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} fromWord={state.sheet.fromWord} />;
   // Only reachable from entries that already check the chain game and SHOP_ENABLED; checked again here.
   if (state.sheet?.kind === "shop" && shopEnabled()) return <ShopSheet />;
   if (state.sheet?.kind === "earnings") return <EarningsSheet />;
@@ -496,7 +494,6 @@ const VIEW_TITLE: Record<View, string> = {
   leaderboard: "Leaderboard",
   word: "$WORD",
   lhaw: "Let’s Have A Word!",
-  showcase: "Showcase",
   swap: "Market",
   more: "More",
 };
@@ -522,7 +519,6 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
     heading: "Collect",
     items: [
       { view: "dictionary", label: "Dictionary", Icon: BookOpen },
-      { view: "showcase", label: "Showcase", Icon: MaskHappy },
       { view: "swap", label: "Market", Icon: Storefront },
     ],
   },
@@ -617,7 +613,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "showcase", "swap"];
+const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "swap"];
 
 function BottomNav() {
   const { state, nav } = useGame();

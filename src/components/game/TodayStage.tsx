@@ -25,6 +25,7 @@ import { feedAllLabel, wordsToFeed } from "./feedAll";
 import { useEmptyStageCase } from "./useTodayPlan";
 import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
+import { SceneCard } from "../cards/SceneCard";
 import { useWordScene } from "../scenes/useWordScene";
 
 /** How long a fed word chews on stage before the next word takes its place. */
@@ -84,6 +85,8 @@ export function TodayStage() {
   const item = idx >= 0 ? items[idx] : null;
   // The featured word stands in its own scene (scenes/useWordScene: the player's pick, else the Stage).
   const { scene } = useWordScene(item?.word.word);
+  // The card turned over, remembered with its word: the next word opens on its scene.
+  const [backOf, setBackOf] = useState<string | null>(null);
 
   if (!item) return state.status === "ready" ? <EmptyStage /> : null;
   const w = item.word;
@@ -132,34 +135,45 @@ export function TodayStage() {
   return (
     <section aria-label={`${W} on stage`} className="space-y-2" onKeyDown={onKeyDown}>
       <div className="cel overflow-hidden rounded-2xl bg-night">
-        <SceneFrame
-          scene={scene}
-          word={W}
-          upper={w.upper}
-          state={face}
-          tone={toneOf(face)}
-          gild={gild}
-          tier={w.tier}
-          enter={enter}
-          onWord={open}
-          wordLabel={`Open ${W}`}
-          onSwipe={many ? go : undefined}
-          overlay={
-            <>
-              {/* Under the valance, over the scene: the star's one line, in a bubble of its own so
-                  it reads on a bright scene as well as a dark one. */}
-              <div className="pointer-events-none absolute inset-x-0 top-[7%] flex justify-center px-12">
-                <p key={W} className="scene-fade-in relative max-w-[30ch] rounded-xl border-2 border-ink bg-card px-3 py-1.5 text-center text-sm font-bold shadow-[2px_2px_0_#1b1714]">
-                  {eating ? `${W} is full again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
-                  <span
-                    aria-hidden
-                    className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink bg-card"
-                  />
-                </p>
-              </div>
-              {many && arrow(-1)}
-              {many && arrow(1)}
-            </>
+        {/* The word's card: its scene, and its story on the back (components/cards). The scene
+            holds still while nobody can see it: its back is up, or a sheet covers it (the opened
+            word's own card moves then, and one moving card at a time is the rule). */}
+        <SceneCard
+          word={w}
+          flipped={backOf === W}
+          onFlip={(back) => setBackOf(back ? W : null)}
+          front={
+            <SceneFrame
+              scene={scene}
+              word={W}
+              upper={w.upper}
+              state={face}
+              tone={toneOf(face)}
+              gild={gild}
+              tier={w.tier}
+              enter={enter}
+              animated={backOf !== W && !state.sheet}
+              onWord={open}
+              wordLabel={`Open ${W}`}
+              onSwipe={many ? go : undefined}
+              overlay={
+                <>
+                  {/* Under the valance, over the scene: the star's one line, in a bubble of its own so
+                      it reads on a bright scene as well as a dark one. */}
+                  <div className="pointer-events-none absolute inset-x-0 top-[7%] flex justify-center px-12">
+                    <p key={W} className="scene-fade-in relative max-w-[30ch] rounded-xl border-2 border-ink bg-card px-3 py-1.5 text-center text-sm font-bold shadow-[2px_2px_0_#1b1714]">
+                      {eating ? `${W} is full again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
+                      <span
+                        aria-hidden
+                        className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink bg-card"
+                      />
+                    </p>
+                  </div>
+                  {many && arrow(-1)}
+                  {many && arrow(1)}
+                </>
+              }
+            />
           }
         />
         <div className="flex gap-2 border-t-[3px] border-ink bg-night p-3">
@@ -238,7 +252,7 @@ export function TodayStage() {
             aria-label={`Put ${o.word} on stage`}
             className="cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-card px-2.5 py-2 text-left"
           >
-            <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" tier={o.tier} />
+            <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" tier={o.tier} still />
             <span className="flex w-full min-w-0 items-center gap-1.5">
               <span className="truncate font-display text-sm font-extrabold">{o.word}</span>
               {m === "forSale" ? (

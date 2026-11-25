@@ -318,7 +318,7 @@ export function ClaimScreen() {
               const cases = bag.casesFor(w);
               return (
                 <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-card p-2.5">
-                  <WordTiles word={w} upper={cases} size={26} />
+                  <WordTiles word={w} upper={cases} size={26} tier={wordTier(w)} still />
                   <div className="flex-1">
                     <div className="font-display text-sm font-extrabold">{w}</div>
                     <TierBadge tier={wordTier(w)} />

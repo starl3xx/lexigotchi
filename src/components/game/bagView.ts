@@ -2,7 +2,7 @@
  * The Bag's filters and sorts (starl3xx: "Bag should also have sort/filter ability for words and
  * maybe letters"). Pure, so every rule is tested (tests/bag-view.test.ts).
  */
-import { byBest, TIER_RANK } from "./stagePick";
+import { byBest } from "./stagePick";
 import { wordCase, type Hunger, type OwnedWord } from "./state";
 
 export type WordFilter = "all" | "staked" | "unstaked" | "earning" | "needsFood" | "forSale";

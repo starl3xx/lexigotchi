@@ -29,7 +29,8 @@ const raised = (w: OwnedWord) => w.upper.filter(Boolean).length;
 /**
  * Best first: rarer, then more letters raised (case), then more gilded (ascension), then alphabetical
  * (stable). Rarity leads (starl3xx, 2026-11-25: a lowercase Mythic belongs above a raised Legendary).
- * The Bag's "Best first", the Today stage's star when every word is full, and the Showcase use it.
+ * The Bag's cards come in this order by default, and the Today stage's star is the best word when
+ * every word is full.
  */
 export function byBest(a: OwnedWord, b: OwnedWord): number {
   return TIER_RANK[b.tier] - TIER_RANK[a.tier] || raised(b) - raised(a) || b.prestigeLevel - a.prestigeLevel || a.word.localeCompare(b.word);

@@ -231,14 +231,25 @@ A staked word's care state is a function of days since last fed:
 
 ---
 
-## 12. Showcase, Swap, Dissolution
+## 12. Cards, Sharing, Swap, Dissolution
 
-- **Showcase:** pick one of your own words and its scene, and share it, on X first or as a Farcaster
-  cast. Each share links to `/s/<word>?scene=<scene>`, whose card draws the word standing in that
-  scene (1200×630 for X's large card, 3:2 for the Farcaster embed). The page and card draw
-  dictionary words only, never free text (decisions.md #15). Offchain, read-only vanity — no NFT,
-  no fee. The primary organic growth loop (every showcase is an ad).
-- **Scenes:** each word's home, drawn behind it on the Today stage, in the Showcase, and on the share
+- **Word cards:** every owned word is a card (`src/components/cards/`): the word standing in its
+  scene on the front, and a back in its rarity's material, turned over by the button in the top
+  right corner. The back tells the word's story: its rarity (one of N) and dictionary number, its
+  case and ascension stage, "Yours since" (the day it reached the player's profile; moves between
+  their own wallets keep it), staked and mood, what it has earned, earns a day, and costs to make,
+  its points, "Found by" (the first player ever to claim it, kept through a dissolve and re-spell),
+  whether the jackpot has drawn it, and its token. The two history facts come from the word's own
+  Claimed and Transfer events (`/api/words/story`, `src/lib/cardFacts.ts`); staking's moves aren't
+  changes of hands. The Bag opens on Words, as a grid of still cards; the Today stage and an opened
+  word are the cards that move.
+- **Sharing:** open one of your own words and tap Share under its card, to post it on X first or
+  cast it on Farcaster, or to save its picture. Each share links to `/s/<word>?scene=<scene>`,
+  whose card draws the word standing in that scene (1200×630 for X's large card, 3:2 for the
+  Farcaster embed). The page and card draw dictionary words only, never free text (decisions.md
+  #15). Offchain, read-only vanity: no NFT, no fee. The primary organic growth loop (every shared
+  word is an ad). The Showcase screen that did this folded into the cards.
+- **Scenes:** each word's home, drawn behind it on the Today stage, on its card, and on the share
   card (`src/lib/scenes.ts`, `src/components/scenes/`). The Stage for everyone; Trophy Case, Picture
   Day, Spring, Summer, Fall, and Winter unlock once a player has held 3 words, and stay unlocked.
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick

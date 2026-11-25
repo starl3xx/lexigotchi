@@ -15,7 +15,7 @@
  * When both have a pick for a word, the newer wins (lib/sceneSaves.ts, newestPick), and a save that
  * comes back late never marks an older pick as the current one.
  *
- * One store for the whole page, so the Today stage, the scene sheet, and the Showcase all see a
+ * One store for the whole page, so the Today stage, the scene sheet, and the word's cards all see a
  * change at once; the `storage` event carries a change made in another tab.
  */
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
