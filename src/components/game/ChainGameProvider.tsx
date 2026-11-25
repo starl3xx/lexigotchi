@@ -51,6 +51,7 @@ import {
   readLetterCounts,
   readOpenRolls,
   readWalletBalances,
+  readCaretakers,
   readPity,
   readPendingCommits,
   readDayState,
@@ -80,6 +81,7 @@ import {
   commitWordRollCalls,
   rollRevealCalls,
   commitPrestigeCalls,
+  setCaretakerCalls,
   prestigeRevealCalls,
   dissolveCalls,
   claimCalls,
@@ -143,8 +145,8 @@ interface RollReveal extends OutcomeReveal {
 type RunOpts = { settles?: boolean; sponsored?: boolean };
 type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
 
-/** Chain words → the shape screens already destructure. */
-function toOwnedWord(w: BagWord): OwnedWord {
+/** Chain words → the shape screens already destructure. `careFor`: stakers that named this wallet. */
+function toOwnedWord(w: BagWord, careFor?: ReadonlySet<string>): OwnedWord {
   return {
     word: w.word,
     tier: wordTier(w.word),
@@ -160,6 +162,8 @@ function toOwnedWord(w: BagWord): OwnedWord {
     // with a "held by" note (the contracts act on msg.sender's assets, full stop).
     mine: w.mine,
     holder: w.mine ? undefined : w.holder,
+    // A staked word whose staker named this wallet its caretaker: feed, roll, and ascend from here.
+    care: !w.mine && w.staked && Boolean(careFor?.has(w.holder.toLowerCase())),
   };
 }
 
@@ -227,6 +231,23 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     enabled: !!address && chain.deployed,
     staleTime: 10_000,
   });
+
+  // Caretakers (Staking.setCaretaker): which stakers of words in the bag named THIS wallet, so it
+  // may feed, roll, and ascend those words. One multicall; nothing to ask when every word is mine.
+  const othersStaking = useMemo(
+    () => [...new Set((wordsQ.data?.words ?? []).filter((w) => !w.mine && w.staked).map((w) => w.holder.toLowerCase()))].sort(),
+    [wordsQ.data],
+  );
+  const careQ = useQuery({
+    queryKey: ["careFor", NETWORK.id, address?.toLowerCase(), othersStaking.join(",")],
+    queryFn: async () => {
+      const flags = await readCaretakers(othersStaking.map((staker) => ({ staker, wallet: address!.toLowerCase() })));
+      return othersStaking.filter((_, i) => flags[i]);
+    },
+    enabled: !!address && chain.deployed && othersStaking.length > 0,
+    staleTime: 60_000,
+  });
+  const careFor = useMemo(() => new Set(careQ.data ?? []), [careQ.data]);
 
   // Linked wallets' letter counts (the connected wallet's ride in via chain.player). Display-only:
   // claim/roll spend gates on the connected counts, so a failed read here degrades the union
@@ -426,7 +447,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
-      words: (wordsQ.data?.words ?? []).map(toOwnedWord),
+      words: (wordsQ.data?.words ?? []).map((w) => toOwnedWord(w, careFor)),
       wordsEverHeld: wordsQ.data?.everHeld ?? 0,
       // "No words yet, and a read in flight" is loading: the first read, and a retry after a failed one
       // (TanStack's isLoading stays false when refetching from an error; Bugbot on #164).
@@ -449,7 +470,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotWord: "",
       jackpotRevealed: false,
     }),
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday],
+    // careFor: the caretaker read lands after the words; `care` must follow it (Bugbot on #173).
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -719,11 +741,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
 
   /** Second half of a roll. Distinguishes a real miss from a stale no-op via the pity streak. */
   const finishRoll = useCallback(
-    async (before: readonly bigint[], run: RunFn): Promise<ActionOutcome> => {
+    async (before: readonly bigint[], run: RunFn, owner?: `0x${string}`): Promise<ActionOutcome> => {
       if (!address) return { status: "not-started" };
       toast("Rolling…", "info");
       // Everything past this point follows a PAID commit, so no failure here is "safe to retry".
-      const id = await waitForNewRollCommit(address, before);
+      // A caretaker's word roll is committed in the STAKER's name (Rolls keys it on the owner).
+      const id = await waitForNewRollCommit(owner ?? address, before);
       if (id === null) {
         return { status: "stranded", note: "Roll committed but slow to appear. Reopen to finish it" };
       }
@@ -738,9 +761,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * one instead: it is already paid for, and finishing it is the only way that letter rolls again.
    */
   const resumeOpenRoll = useCallback(
-    async (letterIndex: number, markPaid: () => void, run: RunFn): Promise<ActionOutcome | null> => {
+    async (letterIndex: number, markPaid: () => void, run: RunFn, owner?: `0x${string}`): Promise<ActionOutcome | null> => {
       if (!address) return null;
-      const open = await readOpenRollFor(address, letterIndex);
+      const open = await readOpenRollFor(owner ?? address, letterIndex);
       if (open === null) return null;
       toast("Finishing your unfinished roll on this letter first", "info");
       markPaid(); // paid at its commit; a failure from here leaves it open, never "try again for free"
@@ -939,12 +962,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // No sign-in pre-check: the roll reveal serves any wallet (see /api/roll/reveal), so a
           // wallet-only player can always finish a roll they paid for.
           // The pity key is (owner, letter), so a word slot shares it with the loose letter.
-          const resumed = await resumeOpenRoll(word.toUpperCase().charCodeAt(pos) - 65, markPaid, run);
-          if (resumed) return resumed;
-          const before = await readOpenRollCommits(address);
+          // A caretaker rolls in the staker's name: the open-roll slot and the commit are the staker's.
+          const target = state.words.find((x) => x.word === word);
+          const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
+          // A caretaker's roll moves the STAKER's pity: re-read it after any reveal (a resumed one
+          // too), since the chain lags a fresh reveal (Bugbot on #173).
+          const refreshOwnerPity = () => {
+            if (owner.toLowerCase() === address.toLowerCase()) return;
+            for (const ms of [0, 4_000, 10_000]) setTimeout(() => void qc.invalidateQueries({ queryKey: ["pity", NETWORK.id, owner.toLowerCase()] }), ms);
+          };
+          const resumed = await resumeOpenRoll(word.toUpperCase().charCodeAt(pos) - 65, markPaid, run, owner);
+          if (resumed) {
+            refreshOwnerPity();
+            return resumed;
+          }
+          const before = await readOpenRollCommits(owner);
           if (!(await run("Roll", () => commitWordRollCalls(tokenIdOf(word), pos, chain.params!, chain.player!)))) return { status: "not-started" as const };
           markPaid(); // the fee is taken from here on — no failure past this point is retryable
-          return finishRoll(before, run);
+          const outcome = await finishRoll(before, run, owner);
+          refreshOwnerPity();
+          return outcome;
         }), NOT_STARTED),
 
       prestige: (word: string) =>
@@ -956,11 +993,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             toast("Finishing your unfinished ascension first", "info");
             markPaid(); // paid at its commit
           } else {
-            const before = await readOpenPrestigeCommits(address);
+            // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
+            const target = state.words.find((x) => x.word === word);
+            const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
+            const before = await readOpenPrestigeCommits(owner);
             if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return { status: "not-started" as const };
             markPaid(); // fee + burned snack are gone from here on
             toast("Ascending…", "info");
-            id = await waitForNewPrestigeCommit(address, before);
+            id = await waitForNewPrestigeCommit(owner, before);
             if (id === null) {
               return { status: "stranded", note: "Ascension committed but slow to appear. Reopen to finish it" };
             }
@@ -1053,8 +1093,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         if (!chain.params || !chain.player) return;
         // Only words that are actually hungry — feed() has no on-chain guard, so feeding a fed word
         // burns a snack for nothing and there is no revert to catch.
-        // mine only: feed() is staker-only on-chain, so a linked wallet's word would revert the batch.
-        const hungryWords = state.words.filter((w) => w.mine && w.staked && w.daysUnfed > 0);
+        // Mine, or a staker's word this wallet cares for (Staking.setCaretaker): feed() accepts both.
+        // Any other linked wallet's word would revert the batch.
+        const hungryWords = state.words.filter((w) => (w.mine || w.care) && w.staked && w.daysUnfed > 0);
         const hungry = hungryWords.map((w) => tokenIdOf(w.word));
         if (hungry.length === 0) return void toast("Nobody’s hungry", "info");
         const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
@@ -1072,6 +1113,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       },
 
       reloadWords: () => void wordsQ.refetch(),
+
+      // Any wallet's pity with this browser's fresh reveal notes laid over it (the chain read lags):
+      // the roll sheet reads the STAKER's this way for a word this wallet cares for.
+      pityOf: (wallet: string, chainPity: readonly number[]) =>
+        overlayPity(chainPity, pityNotes[wallet.toLowerCase()] ?? {}, Date.now()),
+
+      setCaretaker: (wallet: string, allowed: boolean) =>
+        track(allowed ? "Adding a caretaker" : "Removing a caretaker", async (run) => {
+          if (!address) return false;
+          const w = wallet.toLowerCase() as `0x${string}`;
+          if (w === address.toLowerCase()) return false;
+          const ok = await run(allowed ? "Let it care for your words" : "Stop it caring for your words", () => setCaretakerCalls(w, allowed));
+          if (ok) for (const key of ["caretakers", "careFor"]) void qc.invalidateQueries({ queryKey: [key] });
+          return ok;
+        }, false),
 
       moveToWallet: (to: string, opts?: { includeWord?: boolean }) =>
         track<MoveOutcome>(`Moving to ${to.slice(0, 6)}…${to.slice(-4)}`, async (run) => {
@@ -1266,7 +1322,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }, undefined);
       },
     }),
-    [state, chain, address, connector, qc, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
+    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, boardQ, sendAndSettle],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

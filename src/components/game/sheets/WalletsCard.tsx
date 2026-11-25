@@ -17,6 +17,8 @@
  * wallet's row just says to switch to it.
  */
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { readCaretakers } from "@/lib/onchain/reads";
 import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { Button, Card } from "../primitives";
 import { Check, CircleNotch, LinkSimple as LinkIcon, Wallet } from "../ui/icons";
@@ -53,7 +55,7 @@ const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en
 
 
 export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
-  const { toast, state, moveToWallet, busy } = useGame();
+  const { toast, state, moveToWallet, setCaretaker, busy } = useGame();
   const viewer = useViewer();
   const { openAccountModal } = useAccountModal();
   const { openConnectModal } = useConnectModal();
@@ -123,6 +125,18 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
   // Letters: one balanceOfBatch per wallet. Words: the bag already reads every bag wallet's words
   // and tags each with its holder (undefined = the connected wallet), so no second log scan.
   const hold = useWalletHoldings();
+  // Caretakers (Staking.setCaretaker): which of the other wallets may feed, roll, and ascend the
+  // words the CONNECTED wallet stakes. Read for this wallet as the staker; each wallet sets its own.
+  const careOthers = (wallets as string[]).filter((w) => w !== address?.toLowerCase());
+  const caretakersQ = useQuery({
+    queryKey: ["caretakers", NETWORK.id, address?.toLowerCase(), careOthers.join(",")],
+    queryFn: async () => {
+      const flags = await readCaretakers(careOthers.map((w) => ({ staker: address!.toLowerCase(), wallet: w })));
+      return Object.fromEntries(careOthers.map((w, i) => [w, flags[i]])) as Record<string, boolean>;
+    },
+    enabled: state.chainBacked && !!address && careOthers.length > 0,
+    staleTime: 30_000,
+  });
   const [moving, setMoving] = useState(false);
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const [movedOnce, setMovedOnce] = useState(false);
@@ -399,6 +413,36 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             <button onClick={() => setMoving(false)} className="text-xs font-bold text-ink/45 underline">
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {state.chainBacked && others.length > 0 && (
+        <div className="mt-3 rounded-xl border-2 border-ink/15 p-3 text-sm">
+          <div className="font-bold text-ink">Care for staked words from any wallet</div>
+          <p className="mt-1 text-xs text-ink/65">
+            Only this wallet can feed the words it stakes, unless you name your other wallets as caretakers. A caretaker can
+            feed, roll, and ascend them, paying from its own wallet. Only this wallet can unstake them.
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {others.map((w) => {
+              const on = caretakersQ.data?.[w] ?? false;
+              return (
+                <div key={w} className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs">
+                    {short(w)}
+                    {on && <span className="ml-1.5 font-sans font-bold text-teal-ink">Caretaker</span>}
+                  </span>
+                  <button
+                    disabled={busy !== null || !caretakersQ.data}
+                    onClick={() => void setCaretaker(w, !on)}
+                    className={`shrink-0 text-xs font-bold underline ${on ? "text-ink/45" : "text-teal-ink"}`}
+                  >
+                    {on ? "Stop" : "Let it care for them"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

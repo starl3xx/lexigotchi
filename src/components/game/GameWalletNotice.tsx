@@ -108,7 +108,13 @@ export function GameWalletNotice() {
           </ul>
           To play with them here, open Lexigotchi {advice.inHost ? "on the web " : ""}with each wallet and move them to this
           one, your game wallet.
-          {staked && <> Staked words stay with the wallet that staked them: feed them from there.</>}
+          {staked && (
+            <>
+              {" "}
+              Staked words stay with the wallet that staked them. Feed them from there, or, in that wallet’s profile, let this
+              one care for them.
+            </>
+          )}
         </>
       );
       break;

@@ -181,6 +181,26 @@ export async function readLetterCounts(player: `0x${string}`): Promise<number[]>
 }
 
 /**
+ * Caretakers (Staking.setCaretaker): pairs (staker, wallet) → did the staker name the wallet? One
+ * multicall. A staker's caretaker may feed, roll, and ascend its staked Words; it pays, and it can
+ * never unstake or receive a Word. False everywhere on a suite without caretakers (reads revert).
+ */
+export async function readCaretakers(pairs: readonly { staker: string; wallet: string }[]): Promise<boolean[]> {
+  if (pairs.length === 0) return [];
+  const staking = addressOf("staking");
+  const r = await getPublicClient().multicall({
+    allowFailure: true,
+    contracts: pairs.map((p) => ({
+      address: staking,
+      abi: stakingAbi,
+      functionName: "isCaretaker" as const,
+      args: [p.staker as `0x${string}`, p.wallet as `0x${string}`],
+    })),
+  });
+  return r.map((x) => x.status === "success" && x.result === true);
+}
+
+/**
  * Each wallet's loose letters (52 counts) and $WORD (raw, 18 decimals), in one multicall: the game
  * wallet's view of where a player's things are (Move here, the game wallet notices).
  */
