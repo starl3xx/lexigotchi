@@ -552,6 +552,9 @@ body {
 .sc.is-back .sc-inner { transform: rotateY(180deg); }
 .sc-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #1b1714; transform: translateZ(0); }
 .sc-back { transform: rotateY(180deg) translateZ(0); }
+/* the face turned away takes no taps: under reduced motion the faces stack, the hidden one only
+   see-through, and an inert face still caught the front's taps and swipes in Chromium (Bugbot #211) */
+.sc:not(.is-back) .sc-back, .sc.is-back .sc-front { pointer-events: none; }
 .sc-framed .sc-face { border: 3px solid #1b1714; border-radius: 16px; }
 .sc-framed.sc-small .sc-face { border-width: 2px; border-radius: 12px; }
 .sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }

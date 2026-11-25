@@ -9,6 +9,7 @@ import {
   caseLabel,
   cardDate,
   dictionaryNumber,
+  earnsStaked,
   foundBy,
   shortTokenId,
   wordPoints,
@@ -16,6 +17,8 @@ import {
   type Custody,
 } from "@/lib/cardFacts";
 import { WORDS } from "@/lib/dictionary";
+import { TIER_WEIGHT, wordTier } from "@/lib/economy";
+import { DEFAULT_PARAMS } from "@/lib/params";
 import { tokenIdHexOf } from "@/lib/onchain/tokenId";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -66,6 +69,31 @@ describe("found by", () => {
   it("is never 'you' when nothing has been read", () => {
     expect(foundBy(undefined, mine)).toEqual({ kind: "unknown" });
     expect(foundBy([], mine)).toEqual({ kind: "unknown" });
+  });
+});
+
+describe("earns staked", () => {
+  const up = [true, true, true, true, true];
+  const crane = { word: "CRANE", upper: up, prestigeLevel: 0, daysUnfed: 0 };
+  const weight = TIER_WEIGHT[wordTier("CRANE")];
+
+  it("counts a staked word once: alone in the pot, it takes all of it", () => {
+    // the pot's weight is this word's own: it is already counted (Bugbot on #211)
+    expect(earnsStaked({ ...crane, staked: true }, { pot: 1000, weight })).toBeCloseTo(1000);
+  });
+
+  it("adds a word not staked yet to the words already sharing", () => {
+    expect(earnsStaked({ ...crane, staked: false }, { pot: 1000, weight })).toBeCloseTo(500);
+  });
+
+  it("estimates a peckish staked word fed again (its half weight comes out, its full weight goes in)", () => {
+    const peckish = { ...crane, staked: true, daysUnfed: DEFAULT_PARAMS.care.peckishAfterDays };
+    const half = weight * DEFAULT_PARAMS.care.peckishYieldFactor;
+    expect(earnsStaked(peckish, { pot: 1000, weight: half + weight })).toBeCloseTo(500);
+  });
+
+  it("says a word not yet UPPERCASE can't earn", () => {
+    expect(earnsStaked({ ...crane, upper: [true, false, true, true, true], staked: true }, { pot: 1000, weight })).toBeNull();
   });
 });
 

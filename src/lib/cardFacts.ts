@@ -13,6 +13,8 @@ import { TIER_COUNTS, scrabbleValue, type Tier } from "./economy";
 import { WORDS, WORD_COUNT } from "./dictionary";
 import { tokenIdHexOf } from "./onchain/tokenId";
 import { stageName } from "./ascension";
+import { dailyEarnEstimate } from "./wordCost";
+import { yieldWeight } from "./keeper/shares";
 
 /** How many words there are, for "No. 2,930 of 4,584". */
 export const DICTIONARY_SIZE = WORD_COUNT;
@@ -103,4 +105,24 @@ export function foundBy(claims: readonly ClaimRecord[] | undefined, wallets: Rea
 /** A day the way the card writes it: 25 Nov 2026 (UTC, so it reads the same everywhere). */
 export function cardDate(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/** The word's shape for an earnings estimate (an OwnedWord fits). */
+export interface EarnShape {
+  word: string;
+  upper: readonly boolean[];
+  staked: boolean;
+  daysUnfed: number;
+  prestigeLevel: number;
+}
+
+/**
+ * About what the word earns a day staked and fed (the back's "Earns staked"), from today's pot and
+ * the weight of the words sharing it: null for a word not yet UPPERCASE. A staked word is already
+ * in that weight (at its current weight, halved if peckish), so it comes out first: estimating it
+ * as a newcomer would count it twice (Bugbot on #211).
+ */
+export function earnsStaked(w: EarnShape, today: { pot: number; weight: number }): number | null {
+  const counted = yieldWeight({ word: w.word, staked: w.staked, upperAll: w.upper.every(Boolean), daysUnfed: w.daysUnfed, prestigeLevel: w.prestigeLevel });
+  return dailyEarnEstimate(w, { pot: today.pot, weight: Math.max(0, today.weight - counted) });
 }

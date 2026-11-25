@@ -11,12 +11,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { Tier } from "@/lib/economy";
-import { dailyEarnEstimate } from "@/lib/wordCost";
 import {
   ascensionLabel,
   caseLabel,
   cardDate,
   dictionaryNumber,
+  earnsStaked,
   foundBy as foundByOf,
   shortTokenId,
   tierCount,
@@ -88,8 +88,9 @@ export function useCardFacts(word: OwnedWord): CardFacts {
       const f = foundByOf(s.claims, mine);
       found = f.kind === "other" ? { ...f, name: world.data?.profiles?.[f.address]?.username } : f;
     }
+    // "Earns staked": staked and fed, among the words sharing today's pot (lib/cardFacts).
     const today = world.data?.yieldToday;
-    const est = today ? dailyEarnEstimate(word, today) : undefined;
+    const est = today ? earnsStaked(word, today) : undefined;
     const drawnMap = world.data?.live ? world.data.drawn : undefined;
     return {
       tier: word.tier,

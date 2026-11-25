@@ -16,7 +16,8 @@ export function OnchainBadges() {
   const wallets = usePlayerWallets();
   const [badges, setBadges] = useState<{ achievement: number; value: number }[]>([]);
   useEffect(() => {
-    if (!state.chainBacked || !address || wallets.length === 0) return;
+    // No wallet now (a Disconnect inside the open profile): the last account's badges go with it.
+    if (!state.chainBacked || !address || wallets.length === 0) return void setBadges([]);
     let dead = false;
     void fetch(`/api/achievements?wallets=${wallets.join(",")}`)
       .then((r) => r.json())
