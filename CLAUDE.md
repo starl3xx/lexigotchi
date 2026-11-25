@@ -345,6 +345,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
+- **A claim may mix cases** (decisions.md #16): `Words.claim(word, uint8 upperMask, proof)` names
+  each letter's case (bit k ⇒ position k UPPERCASE). The app's quick Claim uses UPPERCASE first.
+  **Until the next testnet redeploy the deployed Words still takes `bool uppercase`**, so the app's
+  claim call, `abis.ts`, and the `Claimed` event shape in `reads.ts` switch in that redeploy's PR,
+  never before (a mask sent to the old Words reverts every claim).
 - Snacks 100% burn. The `ROYALTY` FeeSource is the in-house swap fee → 100% Treasury; both token
   contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
   composability, decisions.md "Royalty & marketplace architecture").

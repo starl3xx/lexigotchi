@@ -233,6 +233,26 @@ showed; only the *decisions* changed.
     with no change here. A scene pick never asks to sign in: unsynced picks upload the next time a
     session exists, and the newer pick wins when the browser and the server disagree. No onchain
     ownership check on save: a row only changes what its own wallet's words show.
+16. **Mixed-case claims** (starl3xx, 2026-11-24). Replaces v0.1's "any case, but uniform — Mixed
+    sets cannot initiate a claim": "you should be able to spell a word with a mix of any case
+    letters". A tester with four UPPERCASE letters found the Spell screen's UPPERCASE tab locked and
+    their raised letters missing from the tray, because no five of one case spelled a word.
+    `Words.claim(word, uint8 upperMask, proof)` now names each letter's case (bit k ⇒ position k
+    escrowed UPPERCASE; 0 all lowercase, 0x1F all UPPERCASE), and `Claimed` carries the mask. Nothing
+    else in the contracts changes: the escrow always stored a per-letter mask (raising a letter in a
+    word made Mixed words already), so case stays derived, a staked Mixed word is jackpot-eligible,
+    and yield still needs all five raised. **The app's quick Claim uses UPPERCASE first** where the
+    player holds both cases of a letter ("UPPERCASE first"); picking tiles by hand claims exactly
+    the tiles picked. The sim does the same. **Sim effect** (365 days, 1,500 players, seeds 7/11/23,
+    vs one-case claims): claims still reach the whole dictionary and solvency holds, but year-one
+    all-UPPERCASE words fall about 10–15% (838/820/812 → 712/727/756) and yield-eligible words
+    about 20% (373/382/419 → 325/292/329), because raised letters spread across many Mixed words
+    instead of filling whole UPPERCASE ones. Lowercase first instead keeps a few more (809/733/766),
+    not consistently. **Ships with a redeploy**: Words isn't upgradeable and Staking, Jackpot,
+    Rolls, and Prestige hold its address, so the app's claim call (`claimCalls`, the `Claimed`
+    event shape in `reads.ts`, `abis.ts`) switches in the same change that points the registry at
+    a Words with this signature; until then the deployed Words still takes one case (owner:
+    "Build now, deploy later").
 
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,

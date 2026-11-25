@@ -22,8 +22,9 @@ import {RepegKeeper} from "./RepegKeeper.sol";
  *         unrepresentable here: there is exactly one token per word for its lifetime, and its case is
  *         *derived* from the five escrowed letters (never stored independently).
  *
- *         Claiming escrows five letters of uniform case (verified ERC-1155 transfers) for a word
- *         proven to be in the canonical dictionary via a Merkle proof. Upgrade rolls mutate the
+ *         Claiming escrows five letters, each in the case the claimer names (verified ERC-1155
+ *         transfers), for a word proven to be in the canonical dictionary via a Merkle proof. A word
+ *         may start in any mix of cases (decisions.md, "Mixed-case claims"). Upgrade rolls mutate the
  *         escrow in place (`applyUpgrade`, called by Rolls). Dissolution burns the Word, returns its
  *         five letters in their current case, and frees the name for re-claim (v0.1 §5.4).
  */
@@ -48,7 +49,8 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     address public rolls; // may call applyUpgrade
     address public prestige; // may call bumpPrestige
 
-    event Claimed(uint256 indexed tokenId, address indexed owner, string word, bool uppercase);
+    /// @dev `upperMask` is the case the word was claimed in: bit k set ⇒ position k is uppercase.
+    event Claimed(uint256 indexed tokenId, address indexed owner, string word, uint8 upperMask);
     event Dissolved(uint256 indexed tokenId, address indexed owner, string word);
     event Upgraded(uint256 indexed tokenId, uint8 pos, uint8 letterIndex);
     event PrestigeBumped(uint256 indexed tokenId, uint8 newLevel);
@@ -70,6 +72,7 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     error BadPosition();
     error AlreadyRaised();
     error ZeroAddress();
+    error BadCaseMask();
 
     constructor(
         IERC20 _word,
@@ -86,14 +89,20 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
 
     // --- claim / dissolve -------------------------------------------------------------------------
 
-    /// @notice Claim `word` by escrowing its five letters (all `uppercase` or all lowercase).
-    function claim(string calldata word_, bool uppercase, bytes32[] calldata proof)
+    /// @notice Claim `word` by escrowing its five letters, each in the case `upperMask` names.
+    /// @param upperMask Bit k set ⇒ the letter at position k is escrowed uppercase (ERC-1155 id
+    ///        `letter + 26`), else lowercase (id `letter`). 0 is all lowercase, 0x1F all UPPERCASE,
+    ///        and anything between starts the word Mixed. Any mix is allowed (starl3xx, 2026-11-24,
+    ///        replacing v0.1's "uniform case only"); the case stays derived from the escrow, so a
+    ///        Mixed word is jackpot-eligible when staked and earns yield only once fully raised.
+    function claim(string calldata word_, uint8 upperMask, bytes32[] calldata proof)
         external
         nonReentrant
         returns (uint256 tokenId)
     {
         bytes memory b = bytes(word_);
         if (b.length != 5) revert WrongLength();
+        if (upperMask > FULL_MASK) revert BadCaseMask(); // only five positions
         // tokenId is the word's own hash (v0.2 §2); the dictionary leaf is the OZ StandardMerkleTree
         // double-hash of abi.encode(word) so off-chain proofs from @openzeppelin/merkle-tree verify.
         tokenId = uint256(keccak256(b));
@@ -109,18 +118,17 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
             if (c < 65 || c > 90) revert NotAWord(); // 'A'..'Z'
             uint8 li = uint8(c - 65);
             idx[k] = li;
-            ids[k] = uppercase ? uint256(li) + 26 : uint256(li);
+            ids[k] = (upperMask >> k) & 1 == 1 ? uint256(li) + 26 : uint256(li);
             amounts[k] = 1;
         }
 
-        // Escrow the five letters (reverts if the claimer doesn't own them in the chosen case).
+        // Escrow the five letters (reverts if the claimer doesn't own each one in its chosen case).
         letters.safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
         _collect(msg.sender, claimPrice, FeeSource.CLAIM);
 
-        escrows[tokenId] =
-            Escrow({letters: idx, upperMask: uppercase ? FULL_MASK : 0, exists: true, claimedAt: uint64(block.timestamp)});
+        escrows[tokenId] = Escrow({letters: idx, upperMask: upperMask, exists: true, claimedAt: uint64(block.timestamp)});
         _safeMint(msg.sender, tokenId);
-        emit Claimed(tokenId, msg.sender, word_, uppercase);
+        emit Claimed(tokenId, msg.sender, word_, upperMask);
     }
 
     /// @inheritdoc IWords

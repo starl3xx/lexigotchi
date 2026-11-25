@@ -20,7 +20,7 @@ the on-chain architecture. Written to be fed to an LLM (or a new contributor) as
 |---|---|---|
 | **Mint** | Pull lowercase letters — a free daily single (FID-gated) or packs of 5 | Letter NFTs (ERC-1155), 100% lowercase |
 | **Raise** | Roll a lowercase letter toward UPPERCASE | A capital letter (45% base, pity to 85%); failure is harmless |
-| **Claim** | Spell a dictionary word with 5 uniform-case letters | One Word NFT (ERC-721); the 5 letters are escrowed inside it |
+| **Claim** | Spell a dictionary word with 5 letters, any mix of cases | One Word NFT (ERC-721); the 5 letters are escrowed inside it |
 | **Stake & Snack** | Stake a Word to earn; feed it snacks | UPPERCASE words draw yield; any staked, fed word is a jackpot ticket |
 | **Win** | Hold the day's secret word, staked & fed | The whole jackpot pot |
 
@@ -94,8 +94,9 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
 
 - **One ERC-721 per dictionary word**, for the word's lifetime: `tokenId = uint256(keccak256(word))`.
   The "who owns CRANE if lowercase and UPPERCASE have different owners?" problem is **unrepresentable**.
-- **Claim** by escrowing **exactly 5 letters of uniform case** (all lowercase or all uppercase) that
-  spell a word proven to be in the canonical dictionary (a Merkle proof against the published root).
+- **Claim** by escrowing **exactly 5 letters, each in either case** (any mix: all lowercase, all
+  uppercase, or Mixed; the claim names each letter's case, decisions.md #16) that spell a word
+  proven to be in the canonical dictionary (a Merkle proof against the published root).
 - **Case is derived, never stored:** 5 lowercase = `lowercase`, 5 uppercase = `UPPERCASE`, anything in
   between = `Mixed`. Upgrade rolls mutate the escrow in place, walking a word lowercase → Mixed →
   UPPERCASE.
