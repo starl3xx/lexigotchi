@@ -609,6 +609,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       return `${what} needs a Farcaster sign-in. Tap Connect to sign in`;
     }
     if (code === "rate_limited") return `Too many tries. Give it a moment, then tap ${what} again`;
+    // A server-side hiccup (a database write the free claims need, lib/db/freeClaims.ts): nothing was
+    // spent, and the same tap works once it clears.
+    if (code === "try_again") return `${what} hit a snag on our side. Nothing was spent. Try again in a minute`;
     return `${what} unavailable: ${code ?? "unknown"}`;
   }, []);
 
