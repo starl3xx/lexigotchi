@@ -12,7 +12,7 @@
  * "connect Farcaster" affordance. `environment` is "loading" until the SDK resolves.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useMiniApp } from "@neynar/react";
+import { useMiniApp } from "./MiniAppHost";
 import { clearWebSession, webSession } from "@/lib/auth/siwfWeb";
 import type { FarcasterProfile } from "@/lib/neynar";
 

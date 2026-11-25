@@ -247,8 +247,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
 - `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages).
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
-  reducer + seeded RNG), `Providers.tsx` (Neynar MiniAppProvider + wagmi + RainbowKit; the
-  connect modal is themed in `walletTheme.ts`), `ConnectPanel.tsx` (the web front door: wallet required,
+  reducer + seeded RNG), `Providers.tsx` (`MiniAppHost` + wagmi + RainbowKit; the
+  connect modal is themed in `walletTheme.ts`). **A Farcaster host is one that answers**
+  (`lib/miniAppHost.ts`): React Native wallet browsers (Rainbow, MetaMask Mobile) have the same
+  `window.ReactNativeWebView` the SDK uses to reach the Farcaster and Base apps, but nobody answers
+  there, and Neynar's MiniAppProvider rendered nothing while it waited, so /play was blank
+  (2026-11-25). `MiniAppHost` waits 1 s, then plays as the web; a late answer still switches to the
+  host. It mounts Neynar's provider only in a host, so read `useMiniApp()` from `./MiniAppHost`,
+  never from `@neynar/react` (that one throws on the web). The Farcaster wallet connector has no
+  provider outside a host (`farcasterWhereHosted`), or wagmi's reconnect waits on it forever.
+  `ConnectPanel.tsx` (the web front door: wallet required,
   via the RainbowKit modal or "Sign in with Coinbase Wallet" in `SignInWithCoinbaseWallet.tsx`, our own button for the Base Account connector under Coinbase's new name, decisions.md #13; Farcaster an optional
   link — decisions.md #9), `useViewer.ts` (FID/identity),
   `useShare.ts` (`usePostToX` first, then composeCast), `screens/`, `sheets/` (incl. `BalanceSheet.tsx` and `CheatSheet.tsx`: the core loop on one screen, behind the rail's "Cheat sheet" on desktop and the header's "?" on phones; the docs and the intro replay are one tap inside it). The old in-game FAQ is gone: the player docs at lexigotchi.fun/docs (`docs-site/`) replace it, opened with `useOpenUrl` (`useShare.ts`; `DOCS_URL` in `site.ts`) so a mini-app host keeps the game.
