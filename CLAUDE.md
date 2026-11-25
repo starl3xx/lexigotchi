@@ -420,7 +420,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Farcaster-only until it gets one.
 - **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
   that changes something testers would notice adds a `## Tester note (KIND)` section right after
-  Summary, one or two plain sentences in player language (house copy rules). **KIND says what sort of
+  Summary, one or two plain sentences in player language (house copy rules). Everything up to the next
+  heading, rule, or code fence is posted, so nothing else goes in that section (#208 posted its
+  diagram and file list). **KIND says what sort of
   update it is** (starl3xx, 2026-11-24), and the post opens with it: `new` (🆕 New feature), `fix`
   (🐛 Bug fix), `qol` (✨ Quality of life), `change` (🔄 Change, such as a price or a rule), or
   `heads-up` (⚠️ Heads up, such as a testnet reset). A note without a kind, or with one the formatter
