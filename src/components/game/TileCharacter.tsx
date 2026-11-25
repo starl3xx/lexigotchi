@@ -1186,7 +1186,12 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
           if (!row.matches(":hover")) {
             const dir = all.length === 1 ? (Math.random() < 0.5 ? -1 : 1) : i === 0 ? 1 : i === all.length - 1 ? -1 : Math.random() < 0.5 ? -1 : 1;
             el.style.setProperty("--gx", String(dir * 0.9));
-            later(() => el.style.removeProperty("--gx"), 900 + Math.random() * 1100);
+            // The glance ends by letting go of --gx, unless the pointer arrived meanwhile: then the
+            // eyes are the pointer's (useGaze wrote over the glance), and it lets go when it leaves.
+            // Clearing here would snap them level until the pointer next moved (Bugbot on #215).
+            later(() => {
+              if (!ref.current?.matches(":hover")) el.style.removeProperty("--gx");
+            }, 900 + Math.random() * 1100);
           }
         } else {
           // a rare letter's star, or a gilded tile's, twinkles once
