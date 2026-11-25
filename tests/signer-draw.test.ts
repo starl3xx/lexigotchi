@@ -92,13 +92,13 @@ describe("drawSuccess", () => {
     expect(rolls).not.toEqual(prestige);
   });
 
-  it("tracks the pity curve in aggregate (45% base vs 85% cap)", async () => {
+  it("tracks the pity curve in aggregate (40% base vs 85% cap)", async () => {
     const { drawSuccess } = await load();
     const rate = (p: number) =>
       Array.from({ length: 400 }, (_, i) => drawSuccess("roll", BigInt(i), p)).filter(Boolean).length / 400;
-    expect(rate(0.45)).toBeGreaterThan(0.35);
-    expect(rate(0.45)).toBeLessThan(0.55);
-    expect(rate(0.85)).toBeGreaterThan(rate(0.45));
+    expect(rate(0.4)).toBeGreaterThan(0.3);
+    expect(rate(0.4)).toBeLessThan(0.5);
+    expect(rate(0.85)).toBeGreaterThan(rate(0.4));
   });
 });
 

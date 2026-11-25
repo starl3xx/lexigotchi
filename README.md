@@ -58,7 +58,7 @@ served at `/.well-known/farcaster.json`.
 
 1. **Mint** lowercase letters — a free daily single (1 per Farcaster FID) or packs of 5. Odds
    mirror the dictionary; capitals are never pulled.
-2. **Raise** a letter to UPPERCASE with a roll — 45% base, climbing to 85% on a pity streak. A failed
+2. **Raise** a letter to UPPERCASE with a roll — 40% on the first try, +15 points per miss, up to 85%. A failed
    roll never harms your letter.
 3. **Claim** a word by escrowing 5 uniform-case letters → one ERC-721 per word
    (`tokenId = keccak256(word)`); case is derived from the escrow.

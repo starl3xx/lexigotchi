@@ -74,7 +74,7 @@ Most common → rarest letter order: **S E A … J Q**.
 The single value-bearing upgrade. Capitals are **raised, never pulled**.
 
 - **Odds:** **40% base**, **+15 percentage points** per consecutive failure on that `(owner, letter)`
-  pair, **capped at 85%**, **reset to base on success**. Expected ~**1.9 rolls** per success; the
+  pair, **capped at 85%**, **reset to base on success**. Expected ~**2 rolls** (1.97) per success; the
   worst realistic drought is ~5.
 - **Failure is an explicit no-op** — the letter is never burned or downgraded (hard compliance rule).
   Only the pity streak advances.
