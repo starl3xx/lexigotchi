@@ -64,7 +64,7 @@ export function TestFaucets({ size = "lg" }: { size?: "md" | "lg" }) {
         <p className="mt-1.5 text-center text-xs text-ink/60">You have {usdcLabel(usdcBal.data, true)}, for the Shop.</p>
       )}
       <p className="mt-1.5 text-center text-xs text-ink/55">
-        Free from the testnet faucets{usdcOn ? " (test USDC: 25 a day)" : ""}. If your wallet pays its own gas, it needs a
+        Free from the testnet {usdcOn ? "faucets (test USDC: 25 a day)" : "faucet"}. If your wallet pays its own gas, it needs a
         little {NETWORK.name} ETH.{" "}
         <button onClick={() => void openUrl(BASE_SEPOLIA_FAUCETS_URL)} className="font-bold underline">
           Get some free
