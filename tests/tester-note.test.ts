@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 // The same file the "Beta updates" workflow loads (plain JavaScript, so it runs with nothing installed).
-import { betaPosts, noteHtml, testerNote } from "../.github/scripts/tester-note.mjs";
+import { KINDS, betaPosts, noteHtml, testerNote } from "../.github/scripts/tester-note.mjs";
 
 // #160's note, as it was posted with its asterisks showing.
 const PR_160 =
@@ -11,19 +11,48 @@ describe("finding a PR's tester note", () => {
   const body = (note: string) => `## Summary\n\nStuff.\n\n## Tester note\n\n${note}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n`;
 
   it("takes the section up to the next heading, rule, or the Claude Code line", () => {
-    expect(testerNote(body(PR_160))).toBe(PR_160);
-    expect(testerNote("## Tester note\nOne.\n\n## Test plan\n- x")).toBe("One.");
+    expect(testerNote(body(PR_160))).toEqual({ kind: null, note: PR_160 });
+    expect(testerNote("## Tester note\nOne.\n\n## Test plan\n- x")?.note).toBe("One.");
     for (const rule of ["---", "***", "___", "* * *", "- - -", "_ _ _"]) {
-      expect(testerNote(`### Tester note\nOne.\n${rule}\ninternal notes`)).toBe("One.");
+      expect(testerNote(`### Tester note\nOne.\n${rule}\ninternal notes`)?.note).toBe("One.");
     }
   });
 
-  it("has no note without the section, an empty one, or a “none”", () => {
+  it("has no note without the section, an empty one, or a “none”, whatever kind its heading names", () => {
     expect(testerNote("## Summary\nStuff.")).toBeNull();
     expect(testerNote(null)).toBeNull();
     expect(testerNote(body("None"))).toBeNull();
     expect(testerNote(body("n/a"))).toBeNull();
     expect(testerNote("## Tester note\n<!-- one or two sentences -->\n")).toBeNull();
+    expect(testerNote("## Tester note (fix)\n\nNone")).toBeNull();
+    expect(testerNote("## Tester note (new)\n<!-- one or two sentences -->\n")).toBeNull();
+    expect(testerNote("## Tester notes\n\nOne.")).toBeNull();
+  });
+
+  it("reads the kind of update from the heading, in any of the ways it may be written", () => {
+    const kindOf = (heading: string) => testerNote(`${heading}\n\nOne.`)?.kind;
+    expect(kindOf("## Tester note (new)")).toBe("new");
+    expect(kindOf("## Tester note: New feature")).toBe("new");
+    expect(kindOf("## Tester note (fix)")).toBe("fix");
+    expect(kindOf("## Tester note - Bug fix")).toBe("fix");
+    expect(kindOf("### Tester note — bug-fix")).toBe("fix");
+    expect(kindOf("## Tester note (QOL)")).toBe("qol");
+    expect(kindOf("## Tester note: QOL update")).toBe("qol");
+    expect(kindOf("## Tester note (quality of life)")).toBe("qol");
+    expect(kindOf("## Tester note (balance change)")).toBe("change");
+    expect(kindOf("## Tester note (heads-up)")).toBe("heads-up");
+    expect(kindOf("## TESTER NOTE [Heads up]")).toBe("heads-up");
+    // No kind, or one it doesn't know: still a note, posted as an Update.
+    expect(kindOf("## Tester note")).toBeNull();
+    expect(kindOf("## Tester note (wibble)")).toBeNull();
+    expect(kindOf("## Tester note (update)")).toBeNull();
+  });
+
+  it("knows each kind by its own name and by every word listed for it", () => {
+    for (const [kind, { words }] of KINDS) {
+      expect(words).toContain(kind.replace("-", " "));
+      for (const word of words) expect(testerNote(`## Tester note (${word})\n\nOne.`)?.kind).toBe(kind);
+    }
   });
 });
 
@@ -119,34 +148,57 @@ describe("a note's formatting for Telegram", () => {
 });
 
 describe("the posts", () => {
-  it("is one post for one note, formatted, with the as-typed text kept for a fallback", () => {
-    expect(betaPosts(["**New:** a thing."])).toEqual([
-      { html: `<b>New:</b> a thing.\n\n${FOOTER}`, text: `**New:** a thing.\n\n${FOOTER}`, notes: [0] },
+  it("is one post for one note, opening with its kind, formatted, with the as-typed text kept for a fallback", () => {
+    // #181's note, as it was posted without saying what kind of update it was.
+    const roll = "When a roll misses, tap **Roll again** to roll the same letter straight away.";
+    expect(betaPosts([testerNote(`## Tester note (qol)\n\n${roll}`)!])).toEqual([
+      {
+        html: `✨ <b>Quality of life</b>\nWhen a roll misses, tap <b>Roll again</b> to roll the same letter straight away.\n\n${FOOTER}`,
+        text: `✨ Quality of life\n${roll}\n\n${FOOTER}`,
+        notes: [0],
+      },
     ]);
   });
 
-  it("bullets several notes on one line each, converting each on its own", () => {
+  it("says Update for a note that names no kind, or one it doesn't know", () => {
+    const update = `📣 <b>Update</b>\n<b>New:</b> a thing.\n\n${FOOTER}`;
+    expect(betaPosts(["**New:** a thing."])[0].html).toBe(update);
+    expect(betaPosts([{ kind: null, note: "**New:** a thing." }])[0].html).toBe(update);
+    // Only the kinds it lists: never a name off the object's prototype.
+    for (const kind of ["wibble", "toString", "constructor"]) {
+      expect(betaPosts([{ kind, note: "**New:** a thing." }])[0].html).toBe(update);
+    }
+  });
+
+  it("bullets several notes on one line each, each with its own kind, converting each on its own", () => {
     // A stray ** in the first note must not pair with the second note's.
-    const [post, ...more] = betaPosts(["Odd **star\nhere.", "**Two.**"]);
+    const [post, ...more] = betaPosts([{ kind: "fix", note: "Odd **star\nhere." }, { kind: "new", note: "**Two.**" }, "Three."]);
     expect(more).toEqual([]);
     expect(post).toEqual({
-      html: `• Odd **star here.\n\n• <b>Two.</b>\n\n${FOOTER}`,
-      text: `• Odd **star here.\n\n• **Two.**\n\n${FOOTER}`,
-      notes: [0, 1],
+      html: `• 🐛 <b>Bug fix:</b> Odd **star here.\n\n• 🆕 <b>New feature:</b> <b>Two.</b>\n\n• 📣 <b>Update:</b> Three.\n\n${FOOTER}`,
+      text: `• 🐛 Bug fix: Odd **star here.\n\n• 🆕 New feature: **Two.**\n\n• 📣 Update: Three.\n\n${FOOTER}`,
+      notes: [0, 1, 2],
     });
+  });
+
+  it("gives every kind a label that keeps the house copy rules", () => {
+    for (const { label } of KINDS.values()) {
+      expect(label).not.toMatch(/—|'|[A-Z]{2}/);
+      expect(label[0]).toBe(label[0].toUpperCase());
+    }
   });
 
   it("posts notes one by one when together they'd pass Telegram's 4,096-character limit", () => {
     const long = "word ".repeat(500).trim();
-    const posts = betaPosts([long, long, "**Short.**"]);
+    const posts = betaPosts([long, long, { kind: "fix", note: "**Short.**" }]);
     expect(posts.map((p) => p.notes)).toEqual([[0], [1], [2]]);
-    expect(posts[2].html).toBe(`<b>Short.</b>\n\n${FOOTER}`);
+    expect(posts[2].html).toBe(`🐛 <b>Bug fix</b>\n<b>Short.</b>\n\n${FOOTER}`);
     for (const p of posts) expect(p.text.length).toBeLessThanOrEqual(4096);
   });
 
   it("cuts a note too long for one message, never in the middle of an emoji", () => {
-    const [post] = betaPosts(["🐸".repeat(5000)]);
-    expect(post.text).toBe(`${"🐸".repeat(1750)}…\n\n${FOOTER}`);
+    const [post] = betaPosts([{ kind: "heads-up", note: "🐸".repeat(5000) }]);
+    expect(post.text).toBe(`⚠️ Heads up\n${"🐸".repeat(1750)}…\n\n${FOOTER}`);
     expect(post.text.length).toBeLessThanOrEqual(4096);
   });
 });

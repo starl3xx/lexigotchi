@@ -285,8 +285,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   "@lexigotchi" (on Farcaster that's someone else). A share with no card of its own (Swap) stays
   Farcaster-only until it gets one.
 - **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
-  that changes something testers would notice adds a `## Tester note` section right after Summary,
-  one or two plain sentences in player language (house copy rules). It may use **bold**, `code`, and
+  that changes something testers would notice adds a `## Tester note (KIND)` section right after
+  Summary, one or two plain sentences in player language (house copy rules). **KIND says what sort of
+  update it is** (starl3xx, 2026-11-24), and the post opens with it: `new` (🆕 New feature), `fix`
+  (🐛 Bug fix), `qol` (✨ Quality of life), `change` (🔄 Change, such as a price or a rule), or
+  `heads-up` (⚠️ Heads up, such as a testnet reset). A note without a kind, or with one the formatter
+  doesn't know, still posts, as 📣 Update, so always name one. The label says "New feature", so the
+  note shouldn't open with "New:". It may use **bold**, `code`, and
   [links](https://…), which show as formatting in Telegram (`.github/scripts/tester-note.mjs` turns
   them into Telegram's HTML; anything else shows as typed, and a note Telegram can't read goes out as
   typed; notes too long for one message go out one by one). `.github/workflows/beta-updates.yml`
