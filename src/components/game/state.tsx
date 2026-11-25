@@ -84,6 +84,11 @@ export interface OwnedWord {
   mine: boolean;
   /** Where the word lives when it isn't the connected wallet's (lowercase address; chain only). */
   holder?: string;
+  /**
+   * The connected wallet is a CARETAKER of this word's staker (Staking.setCaretaker): it may feed,
+   * roll, and ascend it, paying its own fees. Only the staker stakes, unstakes, or dissolves.
+   */
+  care?: boolean;
 }
 
 export type View =
@@ -624,6 +629,8 @@ export interface GameApi {
    * account (lib/onchain/move.ts). The destination is re-checked against the account, fresh.
    */
   moveToWallet: (to: string, opts?: { includeWord?: boolean }) => Promise<MoveOutcome>;
+  /** Let `wallet` care for the words the connected wallet stakes (or stop it). Resolves true once sent. */
+  setCaretaker: (wallet: string, allowed: boolean) => Promise<boolean>;
   /** Read the words again after a failed read (the chain store; the practice store has none to fail). */
   reloadWords?: () => void;
   /** null = no draw happened (already revealed); else the outcome. */
@@ -784,6 +791,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const success = r.chance(prestigeSuccessProbability(w.prestigePity));
         dispatch({ t: "prestige", word, success });
         return success;
+      },
+      setCaretaker: async () => {
+        toast("Caretakers work in the onchain game", "info");
+        return false;
       },
       moveToWallet: async () => {
         toast("Moving letters works in the onchain game", "info");

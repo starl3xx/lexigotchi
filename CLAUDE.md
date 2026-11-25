@@ -147,6 +147,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the wallet the player keeps everything in; a stored wallet that left the account reads as none.
   `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
   `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
+  **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
+  staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
+  the free snack is the staker's; commits name the staker; only the staker unstakes). Game words carry
+  `care` (the connected wallet cares for the staker); word rolls and ascensions look up commits by the
+  staker; the Wallets card sets them per wallet (`readCaretakers`, `setCaretakerCalls`).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
