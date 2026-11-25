@@ -152,6 +152,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the free snack is the staker's; commits name the staker; only the staker unstakes). Game words carry
   `care` (the connected wallet cares for the staker); word rolls and ascensions look up commits by the
   staker; the Wallets card sets them per wallet (`readCaretakers`, `setCaretakerCalls`).
+  **Free things, once per PROFILE** (`lib/db/freeClaims.ts`, table `free_claims`, migration 0013;
+  starl3xx: "only one wallet per profile should get a free anything"): the free daily (kind "daily",
+  per chain day) and the free pack (kind "pack", once) record the account and the key they sign
+  under, first key wins, before signing; another key is refused unless the first voucher expired
+  unused; a DB error refuses; no table = the onchain checks alone. daily-status adds the recorded key
+  to its walk. The free snack stays per staking wallet (onchain).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

@@ -166,6 +166,10 @@ showed; only the *decisions* changed.
    (diff A) is in the contracts, plus a guard so Staking refuses a Word sent to it directly (audit
    scan); caretaker unstake (diff B) is NOT taken; opt-in approvals between a player's wallets come
    later in the app; Base Sepolia gets a full redeploy (testers' testnet items reset).
+   Then (same day; starl3xx: "only one wallet per profile should get a free anything"): the free daily
+   letter and the free pack are recorded per PROFILE in the database (free_claims), so a profile's
+   other wallets are refused even when the Farcaster lookups behind the onchain walk fail. The free
+   snack is still per staking wallet onchain; one per profile needs a contract change.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).
