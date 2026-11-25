@@ -25,9 +25,8 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 // Only to tell the testnet faucet apart; the Buy funnel above stays pinned to mainnet on purpose.
 import { NETWORK } from "@/lib/onchain/network";
-import { BASE_SEPOLIA_FAUCETS_URL } from "@/lib/site";
-import { useOpenUrl } from "../useShare";
 import { EarningsLine } from "../EarningsLine";
+import { TestFaucets } from "../TestFaucets";
 
 // "Buy $WORD" (pinned to Base mainnet, Farcaster's swap or Matcha) lives in useBuyWord.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -43,7 +42,6 @@ export function BalanceSheet() {
   const me = resolveIdentity(viewer, profile.profile);
   const daily = useDailyEligibility();
   const { buy, env } = useBuyWord();
-  const openUrl = useOpenUrl();
   // The chain game on Base Sepolia. Its balance is TEST $WORD: a tester holding the real token on
   // Base read "$WORD on Base" under a 0 and asked where theirs went (2026-11-24).
   const testnet = state.chainBacked && NETWORK.isTestnet;
@@ -113,19 +111,13 @@ export function BalanceSheet() {
 
       {testnet ? (
         <>
-          {/* The test game's way to get $WORD, so it is the main action. Buy stays pinned to mainnet
-              on purpose (it buys the real token), and as the main button under "You need X more
-              $WORD" it pointed a tester short of TEST $WORD at spending real money. The faucet is a
-              transaction like any other: a plain wallet pays its gas, a sponsored one doesn't. */}
-          <Button full size="lg" variant="teal" className="mt-3" onClick={g.addDemoBalance}>
-            <Plus weight="bold" /> Get test $WORD
-          </Button>
-          <p className="mt-1.5 text-center text-xs text-ink/55">
-            Free from the testnet faucet. If your wallet pays its own gas, it needs a little {NETWORK.name} ETH.{" "}
-            <button onClick={() => void openUrl(BASE_SEPOLIA_FAUCETS_URL)} className="font-bold underline">
-              Get some free
-            </button>
-          </p>
+          {/* The test game's way to get $WORD (and, for the Shop, test USDC), so it is the main
+              action. Buy stays pinned to mainnet on purpose (it buys the real token), and as the main
+              button under "You need X more $WORD" it pointed a tester short of TEST $WORD at spending
+              real money. */}
+          <div className="mt-3">
+            <TestFaucets />
+          </div>
           <Button full variant="ghost" className="mt-3" disabled={env === "loading"} onClick={buy}>
             <ArrowsLeftRight weight="bold" /> Buy real $WORD
           </Button>

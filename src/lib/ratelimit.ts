@@ -26,7 +26,10 @@ export type RateKind =
   | "scenes"
   | "scenes-read"
   | "free-snack"
-  | "free-snack-ip";
+  | "free-snack-ip"
+  | "usdc-faucet-ip"
+  | "wardrobe-read"
+  | "shop-record";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -80,6 +83,16 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     // for a shared network.
     case "free-snack-ip":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "10 m"), prefix: "rl:free-snack:ip" });
+    // Test USDC vouchers (Base Sepolia), keyed by IP: the contract allows one tap a profile a day, so
+    // this only bounds signing load.
+    case "usdc-faucet-ip":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "10 m"), prefix: "rl:usdc-faucet:ip" });
+    // Wardrobe reads, keyed by IP: one per Shop open, and each may read the chain's new events.
+    case "wardrobe-read":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:wardrobe:read" });
+    // Purchase records, keyed by IP: a buyer's app asks a few times while the transaction lands.
+    case "shop-record":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:shop:record" });
   }
 }
 

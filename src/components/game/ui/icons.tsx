@@ -23,6 +23,7 @@ export {
   MaskHappy,
   ArrowsLeftRight,
   Storefront,
+  ShoppingBag,
   ArrowsDownUp,
   Eye,
   Smiley,

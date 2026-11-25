@@ -13,7 +13,11 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ACTIVE_CHAIN } from "@/lib/onchain/chain";
 import { addressOf, achievementsSchema, deployBlock, wordTokenAddress } from "@/lib/onchain/addresses";
 import { BUILDER_DATA_SUFFIX } from "@/lib/onchain/builderCode";
-import { erc20Abi, jackpotAbi, lettersAbi, rollsAbi, saleFeesAbi, wordsAbi, stakingAbi, prestigeAbi, yieldDistributorAbi } from "@/lib/onchain/abis";
+import { erc20Abi, jackpotAbi, lettersAbi, rollsAbi, saleFeesAbi, shopAbi, wordsAbi, stakingAbi, prestigeAbi, yieldDistributorAbi } from "@/lib/onchain/abis";
+import { shopAddress } from "@/lib/onchain/addresses";
+import { MIN_SWEEP_USDC, holderProfiles, sweepMinWordOut } from "@/lib/keeper/shop";
+import { catchUp as catchUpWardrobe } from "@/lib/shop/indexer";
+import { clearPicksOffLeftWords } from "@/lib/db/wordPicks";
 import { readGameParams } from "@/lib/onchain/reads";
 import { fetchWordPrice } from "@/lib/oracle/wordPrice";
 import { planRepeg, type PricePoint } from "@/lib/keeper/repeg";
@@ -51,7 +55,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import { loadAnswerSchedule, linkToReveal } from "@/lib/keeper/answerSchedule";
 import type { WebPushSubscription } from "@/lib/db/schema";
 import type { KeeperWord } from "@/lib/keeper/shares";
-import { loadLinkMap } from "@/lib/db/walletLinks";
+import { loadLinkMap, loadLinkMapStrict } from "@/lib/db/walletLinks";
 
 
 /** Strip a jackpot word and salt from text in every encoding viem may print them in. */
@@ -758,9 +762,86 @@ export function createKeeper(opts: { dry: boolean }) {
     console.log(`fees: flush ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
   }
 
+  /**
+   * The Shop's daily upkeep (decisions.md #22), in the `fees` job right after SaleFees.flush, so both
+   * reach the pool before `yield` opens the day's epoch. Each step is on its own: a failed sweep never
+   * skips the wardrobe or the picks, and none of them skips the flush.
+   * - sweep: the USDC whose swap waited, at most the Shop's `maxSweepUsdc` a run (the rest waits for
+   *   tomorrow's run, or anyone's sweep), with a minimum from the live price on mainnet. A no-op when
+   *   nothing waits or the Shop isn't deployed.
+   * - the wardrobe: Purchased events it hasn't read (a reader's catch-up does the same).
+   * - picks: scene picks come off words that left their profile (staking and Move keep them).
+   */
+  async function shopUpkeep() {
+    const shop = shopAddress();
+    if (shop) {
+      try {
+        const client = getPublicClient();
+        const [pending, cap] = await Promise.all([
+          client.readContract({ address: shop, abi: shopAbi, functionName: "pendingUsdc" }) as Promise<bigint>,
+          client.readContract({ address: shop, abi: shopAbi, functionName: "maxSweepUsdc" }) as Promise<bigint>,
+        ]);
+        if (pending < MIN_SWEEP_USDC) {
+          console.log("shop: no waiting USDC to sweep");
+        } else {
+          const usdcIn = pending < cap ? pending : cap;
+          const price = await fetchWordPrice();
+          const minWordOut = sweepMinWordOut({
+            usdcIn,
+            wordPerUsd: price.wordPerUsd,
+            live: price.source !== "fallback",
+            isTestnet: NETWORK.isTestnet,
+          });
+          console.log(`shop: sweep ${(Number(usdcIn) / 1e6).toFixed(2)} USDC of ${(Number(pending) / 1e6).toFixed(2)} waiting → the Rewards Pool`);
+          if (!DRY) {
+            const w = wallet();
+            const hash = await w.writeContract({
+              dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the keeper's writes are app writes too
+              address: shop, abi: shopAbi, functionName: "sweep", args: [minWordOut],
+            });
+            const rcpt = await w.waitForTransactionReceipt({ hash });
+            console.log(`shop: sweep ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+          }
+        }
+      } catch (err) {
+        console.error("shop: sweep failed (the USDC keeps waiting):", String((err as Error)?.message ?? err).slice(0, 200));
+      }
+      try {
+        const r = DRY ? null : await catchUpWardrobe();
+        if (r) console.log(`shop: wardrobe recorded ${r.recorded} purchase(s), through block ${r.through}`);
+      } catch (err) {
+        console.error("shop: wardrobe catch-up failed:", String((err as Error)?.message ?? err).slice(0, 200));
+      }
+    } else {
+      console.log("shop: the Shop isn't deployed on this network; skipped");
+    }
+    try {
+      // The STRICT link read: a failed read must skip this step, never read as "no links" (then every
+      // linked wallet's profile would look like another profile, and its picks would all go).
+      const [words, links] = await Promise.all([scanAllWords(), loadLinkMapStrict()]);
+      const held = holderProfiles(words, links.accountOf);
+      if (DRY) return void console.log(`shop: ${held.size} held words checked for picks (dry run)`);
+      const cleared = await clearPicksOffLeftWords(held);
+      console.log(`shop: ${cleared} pick(s) taken off words that left their profile`);
+    } catch (err) {
+      console.error("shop: clearing picks failed:", String((err as Error)?.message ?? err).slice(0, 200));
+    }
+  }
+
+  /** The `fees` job: the word-sale fees, then the Shop. A failed flush never skips the Shop's upkeep. */
+  async function feesJob() {
+    try {
+      await flushSaleFees();
+    } catch (err) {
+      console.error("fees: flush failed:", String((err as Error)?.message ?? err).slice(0, 200));
+    }
+    await shopUpkeep();
+  }
+
   return {
     resolveJackpot,
     flushSaleFees,
+    shopUpkeep,
     openStream,
     payOut,
     attestAchievements,
@@ -773,7 +854,7 @@ export function createKeeper(opts: { dry: boolean }) {
         case "resolve":
           return resolveJackpot();
         case "fees":
-          return flushSaleFees();
+          return feesJob();
         case "yield":
           return openStream("yield");
         case "bounty":

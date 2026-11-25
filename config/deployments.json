@@ -23,5 +23,12 @@
     "yieldDistributor": null,
     "bounty": null,
     "saleFees": null
+  },
+  "shop": {
+    "_comment": "The Shop (decisions.md #22), beside the suite: not in `contracts`, so a network can run the whole game without it (isSuiteDeployed reads `contracts`). `usdc` is Circle's USDC on Base mainnet (from Circle's docs) and MockUSDC on Base Sepolia.",
+    "shop": null,
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "adapter": null,
+    "deployBlock": null
   }
 }

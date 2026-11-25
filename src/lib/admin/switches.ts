@@ -14,6 +14,9 @@ import { xEnabled } from "@/lib/profile/x";
 import { emailEnabled } from "@/lib/notify/email";
 import { telegramConfigured } from "@/lib/telegram";
 import { getRedis } from "@/lib/redis";
+import { shopEnabled } from "@/lib/shop/config";
+import { shopAddress } from "@/lib/onchain/addresses";
+import { NETWORK } from "@/lib/onchain/network";
 
 export interface Switch {
   key: string;
@@ -140,6 +143,17 @@ export function featureSwitches(): Switch[] {
       missing: need([
         [is("NEXT_PUBLIC_PAYMASTER_ENABLED", "1"), "NEXT_PUBLIC_PAYMASTER_ENABLED=1"],
         [set("PAYMASTER_URL"), "PAYMASTER_URL"],
+      ]),
+    },
+    {
+      key: "shop",
+      label: "Shop",
+      on: shopEnabled(),
+      detail: "Cosmetics for USDC (decisions.md #22). Test networks only for now: mainnet stays off whatever the setting says.",
+      missing: need([
+        [is("NEXT_PUBLIC_SHOP_ENABLED", "true"), "NEXT_PUBLIC_SHOP_ENABLED=true"],
+        [NETWORK.isTestnet, "a test network (mainnet is off until real items exist)"],
+        [!!shopAddress(), "the Shop in this network's registry"],
       ]),
     },
     {

@@ -23,6 +23,7 @@ export {
   Stack,
   RocketLaunch,
   Wallet,
+  Storefront,
   Faders,
   Wrench,
   GearSix,

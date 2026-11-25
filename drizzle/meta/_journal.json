@@ -113,6 +113,13 @@
       "when": 1795726476169,
       "tag": "0015_free_letter_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795726536169,
+      "tag": "0016_shop",
+      "breakpoints": true
     }
   ]
 }
