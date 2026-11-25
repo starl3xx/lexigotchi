@@ -20,9 +20,10 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  *         2. A new Prestige, the word ladder: 5 stages (Gilded 1–4 + Holographic), a stage-N attempt
  *            paying N × the base fee. The base defaults to two rolls ($0.50 at the roll's $0.25 peg);
  *            the signer, snack cost, move cap, and price keeper carry over from the old Prestige.
- *         3. The old Prestige stops being a FeeRouter collector FIRST, so an attempt on it from here
- *            on reverts whole (no fee taken) instead of being paid and left unable to reveal. Then the
- *            new one becomes a collector and Words trusts it (setPrestige).
+ *         3. The old Prestige stops being a FeeRouter collector in the FIRST transaction, so an attempt
+ *            on it from then on reverts whole (no fee taken) instead of being paid and left unable to
+ *            reveal. Words trusts the new one (setPrestige) BEFORE it becomes a collector, so no attempt
+ *            can be paid on it before its reveal could land.
  *
  *         Stages already earned live in Words, so none are lost. Ascension PITY lives in Prestige and
  *         does not carry over: every word starts the new ladder at its stage's first-try odds. Until
@@ -51,9 +52,15 @@ contract DeployPrestigeLadder is Script {
 
         address signer = vm.envOr("SIGNER", old.signer());
         uint256 baseFee = vm.envOr("PRESTIGE_FEE", rolls.rollPrice() * 2);
-        uint8 maxLevel = uint8(vm.envOr("PRESTIGE_MAX_LEVEL", uint256(5)));
+        uint256 maxLevelRaw = vm.envOr("PRESTIGE_MAX_LEVEL", uint256(5));
+        require(maxLevelRaw <= type(uint8).max, "PRESTIGE_MAX_LEVEL must fit a uint8");
+        uint8 maxLevel = uint8(maxLevelRaw);
 
         vm.startBroadcast();
+        // First: from this transaction on, no attempt can be paid on the old one (it would revert
+        // whole). An attempt that landed before it is the one case left: check afterwards with
+        // `old.commitCount()` and `old.attemptOpen(tokenId)` (Prestige audit, 2026-11-25).
+        fr.setCollector(address(old), false);
         FeeRouter.Split memory paid = FeeRouter.Split(7500, 1000, 1000, 500);
         fr.setSplit(FeeSource.PACK_MINT, paid);
         fr.setSplit(FeeSource.DAILY_MINT, paid);
@@ -66,9 +73,8 @@ contract DeployPrestigeLadder is Script {
         );
         prestige.setMaxMoveBps(old.maxMoveBps());
         if (old.priceKeeper() != address(0)) prestige.setPriceKeeper(old.priceKeeper());
-        fr.setCollector(address(old), false); // first: no attempt can be paid on the old one from here
+        words.setPrestige(address(prestige)); // before it collects: a paid attempt can always reveal
         fr.setCollector(address(prestige), true);
-        words.setPrestige(address(prestige));
         vm.stopBroadcast();
 
         console2.log("Prestige (ladder)", address(prestige));

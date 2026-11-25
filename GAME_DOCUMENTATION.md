@@ -234,10 +234,10 @@ A staked word's care state is a function of days since last fed:
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
   keyed by the wallet holding the word; decisions.md #15).
-- **Swap:** a direct two-sided letter escrow ("my Q for your two Z's, + N $WORD"), shareable as a
-  Farcaster/X cast. It solves exact-match discovery and doubles as a gifting loop. **Not a
-  marketplace** — open price discovery stays on standard 1155/721 venues; a 2.5% fee on in-house swaps
-  routes to the Treasury.
+- **Swap:** a direct letter-for-letter trade (a Seaport order, `src/lib/onchain/seaport.ts`),
+  shareable as a Farcaster/X cast. It solves exact-match discovery and doubles as a gifting loop, and
+  it carries **no fee**. **Words sell** on the in-game board for $WORD with a **10% fee to the Rewards
+  Pool** (`SaleFees` → the `ROYALTY` split, decisions.md #18); OpenSea stays open.
 - **Dissolution:** see §5.
 
 ---

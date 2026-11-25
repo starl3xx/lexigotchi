@@ -131,7 +131,7 @@ interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; reve
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 /** The ascension reveal also says which stage the attempt was paid at (Prestige commit `level`). */
-interface PrestigeReveal extends OutcomeReveal { level?: number }
+interface PrestigeReveal extends OutcomeReveal { level?: number; owner?: string }
 /** A roll's signed outcome, plus what the UI needs to show the new pity before the chain does. */
 interface RollReveal extends OutcomeReveal {
   pityAtCommit: number;
@@ -1082,15 +1082,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay twice.
           let id = await readOpenPrestigeFor(tokenIdOf(word));
+          const resumed = id !== null;
           // The stage this attempt aims past (the word ladder: price and odds both depend on it).
           const level = state.words.find((x) => x.word === word)?.prestigeLevel ?? 0;
+          // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
+          const target = state.words.find((x) => x.word === word);
+          const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
           if (id !== null) {
             toast("Finishing your unfinished ascension first", "info");
             markPaid(); // paid at its commit
           } else {
-            // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
-            const target = state.words.find((x) => x.word === word);
-            const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
             const before = await readOpenPrestigeCommits(owner);
             if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), level, chain.params!, chain.player!)))) return { status: "not-started" as const };
             markPaid(); // fee + burned snack are gone from here on
@@ -1108,6 +1109,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           }
           if (!(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature)))) {
             return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
+          }
+          // An open attempt can outlive its claim: made before the word changed hands, or before it
+          // was dissolved and claimed again (Prestige keys attempts by token). Prestige then voids it
+          // or raises today's stage, so its outcome isn't this word's to announce.
+          const foreign = resumed &&
+            (draw.reveal.level !== level || (draw.reveal.owner ?? "").toLowerCase() !== owner.toLowerCase());
+          if (foreign) {
+            toast(`Finished an earlier ascension on ${word}. Ascend again for yours`, "info");
+            return { status: "resolved", success: false };
           }
           // Announce it here: WordSheet returns early on a promise, so nothing else reports this.
           const reached = (draw.reveal.level ?? level) + 1;

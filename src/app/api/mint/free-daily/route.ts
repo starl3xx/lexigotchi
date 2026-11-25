@@ -181,7 +181,7 @@ export async function POST(req: Request) {
       const drawKey = `d:${key}:${today}`;
       if (!(await readDraw(NETWORK.id, drawKey))) {
         const { available } = await readLetterSupply();
-        await claimDraw(NETWORK.id, drawKey, drawLetters(dailySeed(key, today), 1, available, "daily"));
+        await claimDraw(NETWORK.id, drawKey, drawLetters(letters, dailySeed(key, today), 1, available, "daily"));
       }
     } catch (err) {
       console.error("[free-daily] couldn't record the X daily, refusing:", String((err as Error)?.message ?? err).slice(0, 120));
@@ -222,7 +222,7 @@ export async function POST(req: Request) {
       key: `d:${key}:${today}`,
       count: 1,
       available,
-      draw: () => drawLetters(dailySeed(key, today), 1, available, "daily"),
+      draw: () => drawLetters(letters, dailySeed(key, today), 1, available, "daily"),
     });
     const revealSignature = await signDigest(
       lettersRevealDigest({ letters, commitId: commitCount, buyer: wallet as `0x${string}`, letterIndexes }),

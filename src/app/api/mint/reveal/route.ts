@@ -116,16 +116,18 @@ export async function POST(req: Request) {
     const daily = commit.count === 1 ? await readDailyIdentity(commitId, letters) : null;
     // Sticky: the first draw served for this pack (or this identity-day) is served again while it
     // can still be minted, so a cap-out can't hand one commit a second valid draw (stickyDraw.ts).
-    // The daily key matches the one /api/mint/free-daily uses when it pre-signs the bundle.
+    // The daily key matches the one /api/mint/free-daily uses when it pre-signs the bundle. A pack's
+    // key names the Letters contract: commit ids restart on a redeploy, and a row stored for the old
+    // contract's commit N must never be served for the new one's (its letters are public onchain).
     letterIndexes = await stickyDraw({
       chainId: NETWORK.id,
-      key: daily ? `d:${daily.key}:${daily.day}` : `c:${commitId}`,
+      key: daily ? `d:${daily.key}:${daily.day}` : `c:${letters.toLowerCase()}:${commitId}`,
       count: commit.count,
       available,
       draw: () =>
         daily
-          ? drawLetters(dailySeed(daily.key, daily.day), 1, available, "daily")
-          : drawLetters(commitId, commit.count, available),
+          ? drawLetters(letters, dailySeed(daily.key, daily.day), 1, available, "daily")
+          : drawLetters(letters, commitId, commit.count, available),
     });
   } catch (err) {
     return NextResponse.json(

@@ -103,6 +103,56 @@ fixed in PR #97: a pack's draw depends on the live supply, so one unrevealed com
 second valid draw when a letter capped out. The reveal routes now keep the first draw while it
 stays valid (`src/lib/onchain/stickyDraw.ts`).
 
+### Third internal pass (2026-11-25): Prestige, the word ladder
+
+`Prestige.sol` changed after the second pass (decisions.md #19, PR #191: a stage-N attempt pays
+`prestigeFee × N`, and each commit records the stage it priced, so the signer draws at that stage's
+odds). Decision #12 makes a pass due before mainnet, so this is it. **It is narrower than the
+second pass:** the `solidity-auditor` skill in its file mode on `Prestige.sol` only (four vector
+scanners, 170 attack vectors between them, and no adversarial reviewer), with its inherited
+mixins, `Words`, `Staking`, the migration script, and the ascension reveal route as read-only
+context. The local skill is version 1, while upstream is 4.1. Each finding was then checked by hand.
+The roll and letter reveal routes were not in scope; the one real finding lives in the signer, and
+its fix covers them too. A DEEP pass (with the adversarial reviewer) has not been run on this change.
+
+- **Medium after any same-chain redeploy, nil at launch:** the signer's outcome draw was an HMAC of
+  (chainId, namespace, commitId) under `SIGNER_DRAW_SECRET`, with no contract address. Commit ids
+  restart at 0 when a contract is redeployed, and the retired contract's outcomes stay public in
+  its events. So a redeployed Prestige or Rolls would repeat the old outcome for every id, and a
+  redeployed Letters the old pack's letters. A contract caller (a staker, or a caretaker named on
+  `Staking`) can pick its slot: `commitId = commits.length`, so it reverts unless the count is the
+  one it wants. Two scanners found it. Their claim that Sepolia outcomes predict mainnet ones is
+  false: the chain id was already in the hash. Fixed: every draw hashes the issuing contract's
+  address (`signer.ts`, now a required, checked argument), and a pack's stored draw is keyed by
+  the Letters address (`c:<letters>:<commitId>`). The daily stays keyed by identity and day.
+  The test is the exploit: `tests/signer-draw.test.ts` "every draw is bound to the contract", which
+  fails on the old hash. Mainnet launch is a first deploy, so there was nothing to replay there.
+  On Sepolia, the deploy of this fix changes the draw for any attempt still open at that moment.
+- **Low, not fixed (the owner's call):** `prestigePity` and `attemptOpen` are keyed by token, and
+  `Words.dissolve` clears only the stage. A word dissolved with an attempt open, then claimed again,
+  keeps that attempt and its pity. Nobody profits: in this path the stage can only fall, and pity
+  only ever rises through paid misses. The open attempt doesn't block anyone, because the reveal is
+  permissionless, the signer route serves any commit, and the game finishes an open attempt it
+  finds on a word before charging for a new one. The game now says "Finished an earlier ascension"
+  when that attempt belonged to another owner or stage, instead of announcing its outcome. Binding
+  the state to `Words.claimedAt` (as `Staking` does) would close it, at the cost of a sixth commit
+  field, a new ABI, and another Sepolia redeploy.
+- **Low, operational:** the migration script (`DeployPrestigeLadder.s.sol`) retired the old Prestige
+  as a collector only after the splits and the new deploy. A commit landing in that gap would be
+  paid but never revealable once Words trusted the new contract. The Sepolia run stranded nothing:
+  the old Prestige has 0 commits. The retirement is now the first transaction, Words trusts the new
+  contract before it collects, and a `PRESTIGE_MAX_LEVEL` above 255 is refused instead of truncated.
+  Mainnet launch uses `Deploy.s.sol`, not this script.
+
+Checked and dropped: signature replay (the digest binds contract, chain, commit, token, owner, and
+outcome, and `revealed` is set first), reentrancy (`nonReentrant`, flags written before every
+external call), the stage fee's arithmetic (checked, and `level < maxLevel` at both commit and
+reveal), and a stage moving between commit and reveal (one open attempt per word, and only its own
+reveal can raise the stage). Noted for the operator: `params.prestige.baseByLevel` has five entries,
+so raising `maxLevel` past 5 also needs a sixth stage's odds, or the signer falls back to 40%.
+On Sepolia, a tester's word has climbed all five stages in 14 signed reveals: every miss raised its
+pity by one, every hit reset it, and each commit recorded the stage it was paid at.
+
 ## Suggested external focus
 
 Commit-reveal + voucher signature surface (digest layouts, replay, the KIND tags); FeeRouter
@@ -112,8 +162,8 @@ accounting + the `route()` surplus/delivered check; Words escrow + case-state; t
 
 ## Status
 
-`forge build` clean; **65 forge tests** (incl. the invariant campaign and a cross-language
+`forge build` clean; **89 forge tests** (2026-11-25; incl. the invariant campaign and a cross-language
 AnswerChain vector — the schedule generator `scripts/generate-answer-chain.ts` and
-`AnswerChain.reveal` share a verified fixture) + **84 vitest** (economy/solvency) green. Known gaps
+`AnswerChain.reveal` share a verified fixture) + **857 vitest** (economy, solvency, signer draws, and the app) green. Known gaps
 for the audit/launch (see `README.md` checklist): the production swap-router adapter (deferred —
 $WORD-only launch), and an external invariant/fuzz campaign beyond the FeeRouter one here.
