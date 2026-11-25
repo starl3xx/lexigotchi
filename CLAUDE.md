@@ -90,7 +90,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`npm run derive:contracts`), and, after a deploy, needs the owner's `Words.setDictionaryRoot`.
   The jackpot schedule does NOT move: it shuffles the frozen `src/lib/answerPool.ts`.
 - `src/lib/economy.ts` → letter slots/odds/caps + rarity tiers. **Derived, never hardcoded.**
-  Formulas: caps = `floor(slots × 2.5)`; tiers = `floor` percentile cuts + alphabetical
+  Formulas: caps = `floor(slots × DEMAND_MULTIPLE)` (3.0 since decisions.md #21 → 68,760; Sepolia's
+  deployed Letters keeps 2.5× → 57,294 until a redeploy); tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast

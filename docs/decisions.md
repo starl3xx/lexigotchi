@@ -366,6 +366,31 @@ setter. All small, riding existing suite patterns.
       repeat (and `setHead` can't replace it mid-stream) instead of drawing a word twice. Sepolia's
       deployed AnswerChain predates the guard and relies on the full-length list.
 
+21. **Letter supply 3.0×, and a free pack plus 10 free daily letters for every verified player**
+    (starl3xx, 2026-11-25). In the owner's words:
+    - "okay yeah let's do 3.0x"
+    - "every verified player (FC, X, or CB-verified) gets a free 5-pack at launch and 10 free daily letters"
+    - "30K budget is good"
+    - On farming: "it would be such a headache to farm this, I feel like, especially since we're giving
+      away letters, not words"
+
+    Background: a supply simulation (letters spread across player bags, no trading, 1,500–6,000
+    players) found the dictionary reaches 99% claimed after 36–55K letters. At 3.0× (68,760) that
+    leaves about 14K letters for latecomers and re-claims. Beyond about 55K, most extra letters never
+    end up in a word.
+    - **Supply:** `DEMAND_MULTIPLE` 2.5 → 3.0 (68,760 letters; Q 115 → 138). Caps are Letters
+      constructor args, so this takes effect at the mainnet deploy; Sepolia keeps 2.5× (57,294) to avoid
+      a testing redeploy (starl3xx: "it's okay if we keep the current cap on Sepolia and change it for
+      mainnet"). The economy sim (365 days, 1,500 players, seeds 7/11/23) at 3.0× against 2.5×: mint-out
+      on day 59 against days 55–56; 99% of the dictionary on day 50–51 either way; solvent either way;
+      about $8.7–9.2K burned against $8.3–9.0K; the Rewards Pool's equilibrium $299–368 against
+      $198–267; about $33K of $WORD bought to play against $28–29K.
+    - **Free letters:** every verified player (Farcaster, an X account older than 90 days, or a
+      Coinbase-verified wallet) gets a free 5-pack and 10 free daily letters (at most one a chain day),
+      once per profile. Amends #1 (one free letter a day, forever) and #2 (the pack only for the
+      campaign). All free letters share a budget of 30,000 (`FREE_LETTER_BUDGET`), and free grants stop
+      when the dictionary is about 95% claimed. Server-side only: no contract changes.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

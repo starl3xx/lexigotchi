@@ -9,6 +9,7 @@ import { dirname, join } from "node:path";
 import { WORD_COUNT } from "../src/lib/dictionary";
 import {
   ALPHABET,
+  DEMAND_MULTIPLE,
   LETTER_SLOTS,
   LETTER_ODDS,
   LETTER_SUPPLY_CAP,
@@ -34,16 +35,17 @@ source of truth. These figures are asserted against spec Appendices A & B in
 
 - **Eligible words:** ${WORD_COUNT.toLocaleString()}
 - **Total letter slots:** ${TOTAL_SLOTS.toLocaleString()} (= ${WORD_COUNT} × 5)
-- **Total minted-letter supply cap:** ${TOTAL_SUPPLY_CAP.toLocaleString()} (Σ floor(slots × 2.5))
-  - Note: the idealized headline is **${Math.round(TOTAL_SLOTS * 2.5).toLocaleString()}** = 2.5 × ${TOTAL_SLOTS.toLocaleString()} *before* per-letter
-    flooring. The deployable per-ID caps sum to **${TOTAL_SUPPLY_CAP.toLocaleString()}**. (The original spec's
-    figures were for the 4,438-word dictionary: 55,475 and 55,467.)
+- **Total minted-letter supply cap:** ${TOTAL_SUPPLY_CAP.toLocaleString()} (Σ floor(slots × ${DEMAND_MULTIPLE}))
+  - Note: the idealized headline is **${Math.round(TOTAL_SLOTS * DEMAND_MULTIPLE).toLocaleString()}** = ${DEMAND_MULTIPLE} × ${TOTAL_SLOTS.toLocaleString()} *before* per-letter
+    flooring. The deployable per-ID caps sum to **${TOTAL_SUPPLY_CAP.toLocaleString()}**. (The multiple is 3.0 since
+    decisions.md #21; at 2.5× the caps summed to 57,294. The original spec's figures were for the
+    4,438-word dictionary at 2.5×: 55,475 and 55,467.)
 
 ## Appendix A — Letter economy
 
-Mint odds = a letter's share of the ${TOTAL_SLOTS.toLocaleString()} slots. Supply cap = floor(slots × 2.5).
+Mint odds = a letter's share of the ${TOTAL_SLOTS.toLocaleString()} slots. Supply cap = floor(slots × ${DEMAND_MULTIPLE}).
 
-| Letter | Slots | Mint odds | Supply cap (2.5×) |
+| Letter | Slots | Mint odds | Supply cap (${DEMAND_MULTIPLE}×) |
 |---|---:|---:|---:|
 `;
 

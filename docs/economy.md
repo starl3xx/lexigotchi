@@ -7,43 +7,44 @@ source of truth. These figures are asserted against spec Appendices A & B in
 
 - **Eligible words:** 4,584
 - **Total letter slots:** 22,920 (= 4584 × 5)
-- **Total minted-letter supply cap:** 57,294 (Σ floor(slots × 2.5))
-  - Note: the idealized headline is **57,300** = 2.5 × 22,920 *before* per-letter
-    flooring. The deployable per-ID caps sum to **57,294**. (The original spec's
-    figures were for the 4,438-word dictionary: 55,475 and 55,467.)
+- **Total minted-letter supply cap:** 68,760 (Σ floor(slots × 3))
+  - Note: the idealized headline is **68,760** = 3 × 22,920 *before* per-letter
+    flooring. The deployable per-ID caps sum to **68,760**. (The multiple is 3.0 since
+    decisions.md #21; at 2.5× the caps summed to 57,294. The original spec's figures were for the
+    4,438-word dictionary at 2.5×: 55,475 and 55,467.)
 
 ## Appendix A — Letter economy
 
-Mint odds = a letter's share of the 22,920 slots. Supply cap = floor(slots × 2.5).
+Mint odds = a letter's share of the 22,920 slots. Supply cap = floor(slots × 3).
 
-| Letter | Slots | Mint odds | Supply cap (2.5×) |
+| Letter | Slots | Mint odds | Supply cap (3×) |
 |---|---:|---:|---:|
-| E | 2,387 | 10.41% | 5,967 |
-| S | 2,378 | 10.38% | 5,945 |
-| A | 1,950 | 8.51% | 4,875 |
-| R | 1,554 | 6.78% | 3,885 |
-| O | 1,532 | 6.68% | 3,830 |
-| T | 1,327 | 5.79% | 3,317 |
-| I | 1,311 | 5.72% | 3,277 |
-| L | 1,269 | 5.54% | 3,172 |
-| N | 1,091 | 4.76% | 2,727 |
-| D | 946 | 4.13% | 2,365 |
-| U | 820 | 3.58% | 2,050 |
-| C | 798 | 3.48% | 1,995 |
-| P | 731 | 3.19% | 1,827 |
-| M | 662 | 2.89% | 1,655 |
-| H | 644 | 2.81% | 1,610 |
-| Y | 614 | 2.68% | 1,535 |
-| B | 536 | 2.34% | 1,340 |
-| G | 531 | 2.32% | 1,327 |
-| K | 473 | 2.06% | 1,182 |
-| F | 417 | 1.82% | 1,042 |
-| W | 355 | 1.55% | 887 |
-| V | 287 | 1.25% | 717 |
-| Z | 100 | 0.44% | 250 |
-| X | 91 | 0.40% | 227 |
-| J | 70 | 0.31% | 175 |
-| Q | 46 | 0.20% | 115 |
+| E | 2,387 | 10.41% | 7,161 |
+| S | 2,378 | 10.38% | 7,134 |
+| A | 1,950 | 8.51% | 5,850 |
+| R | 1,554 | 6.78% | 4,662 |
+| O | 1,532 | 6.68% | 4,596 |
+| T | 1,327 | 5.79% | 3,981 |
+| I | 1,311 | 5.72% | 3,933 |
+| L | 1,269 | 5.54% | 3,807 |
+| N | 1,091 | 4.76% | 3,273 |
+| D | 946 | 4.13% | 2,838 |
+| U | 820 | 3.58% | 2,460 |
+| C | 798 | 3.48% | 2,394 |
+| P | 731 | 3.19% | 2,193 |
+| M | 662 | 2.89% | 1,986 |
+| H | 644 | 2.81% | 1,932 |
+| Y | 614 | 2.68% | 1,842 |
+| B | 536 | 2.34% | 1,608 |
+| G | 531 | 2.32% | 1,593 |
+| K | 473 | 2.06% | 1,419 |
+| F | 417 | 1.82% | 1,251 |
+| W | 355 | 1.55% | 1,065 |
+| V | 287 | 1.25% | 861 |
+| Z | 100 | 0.44% | 300 |
+| X | 91 | 0.40% | 273 |
+| J | 70 | 0.31% | 210 |
+| Q | 46 | 0.20% | 138 |
 
 **Q is the system's Charizard:** 46 slots across the whole dictionary
 (45 Q-words; RAQQA needs two). The doubled-ultra-rare grails:
