@@ -8,6 +8,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
 import { Pill, Segmented, TierBadge } from "../primitives";
+import { TierMark } from "../TierMark";
 import { useGame } from "../state";
 import { PlayerChip } from "../PlayerChip";
 import { MiniTiles } from "../MiniTiles";
@@ -92,8 +93,10 @@ export function DictionaryScreen() {
         {TIERS.map((t) => (
           <button key={t} onClick={() => setTier(t)} className="group round-btn rounded-full">
             <Pill className={tier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
+              {t !== "All" && <TierMark tier={t} size={12} />}
               {t}
-              {t !== "All" && <span className="text-ink/40">·{TIER_COUNTS[t as Tier]}</span>}
+              {/* the count stays readable on the selected (ink) chip, as Spell's does */}
+              {t !== "All" && <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{TIER_COUNTS[t as Tier]}</span>}
             </Pill>
           </button>
         ))}

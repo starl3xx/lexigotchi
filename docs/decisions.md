@@ -645,6 +645,41 @@ setter. All small, riding existing suite patterns.
       gradient is still a loop inside the drawing; a free arm that trails the breath (in the
       review) was dropped, because it would be a moving shape inside the body's layer.
 
+29. **Rarity marks: a bead, then one more corner per tier** (starl3xx, 2026-11-25: "i don't like
+    the cube next to the rarity... like cube mythic, cube common. I feel like each rarity should
+    have its own icon (common shouldn't be 'bad' just common/plain)"; then, of the proposal's
+    three sets: "I like Cuts - let's go with that"). The rarity plate wore one cube in five
+    colours. Each tier now has its own mark (`lib/tierMark.ts`, `components/game/TierMark.tsx`):
+    Common is a round wooden bead, and each tier after it is a cut stone with one more corner:
+    three for Uncommon, four for Rare, five for Legendary, six for Mythic.
+    - **Why a shape per tier** (the research, in the proposal): games mark rarity five ways:
+      one shape recoloured (Hearthstone's gem, Magic's set symbol: what the cube was), a shape
+      per tier (Pokémon cards, Lorcana, Riftbound), counting, a letter, or a whole-card treatment
+      (Marvel Snap). The game already has the treatment (the finishes, #23, and the card backs,
+      #25); the mark is the small backup that reads in one ink, at 12 px, and without colour.
+    - **The rule a player reads it by:** count the corners. Riftbound and Lorcana order theirs
+      the same way. Common is the plainest shape, drawn as well as the rest: plain, not poor.
+    - **Shapes it stays clear of**, because the game already uses them: the star and the tilted
+      diamonds (ascension), the crown (a raised letter, and Gilded 4 and up), the sparkle (Mint).
+      Rare's square stands upright; the ascension pips are tilted. A textbook circle, diamond,
+      star, crown ladder would have collided on the card back itself.
+    - **Drawn for the game, not from Phosphor:** Phosphor's shapes are these without the
+      drawing (one flat colour, no ink line), and it has no gem but the Sketch app's logo. Each
+      mark is three flat paths in a 20×20 box, as the cube was: a base in the tier's colour
+      inside the ink line, a light, a shade. No gradients, filters, or motion, so it costs no
+      frame and Satori draws the same paths on the share loop's back picture.
+    - **Where it shows:** the card back's plate, the Bag card's badge, the back picture, and,
+      new, every rarity pill (`TierBadge`: the Dictionary, the Market, Spell, a word's sheet),
+      the tier filters in the Dictionary and Spell, and the landing page's top-tier fact. The
+      player docs picture all five (`docs-site/images/marks.svg`, from `npm run docs:art`).
+    - **Weighed and passed over:** "Materials" (a wooden tile, a jade ring, a cut sapphire, a
+      sun, amethyst crystals: more character, but an order that can't be counted) and Phosphor
+      alone. Known weak spot of Cuts: five and six corners are close at 12 px, where colour
+      still tells them apart.
+    - **My readings, not starl3xx's words:** the pills and filters get the mark ("everywhere
+      else it needs to be"); Common's colour warms from the cube's grey-beige `#cbbb9c` to wood
+      `#c79c63`, as the proposal drew it.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

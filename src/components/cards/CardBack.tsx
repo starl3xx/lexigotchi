@@ -15,6 +15,8 @@
  * a later step draws it live where a card is in focus).
  */
 import { TileCharacter, useLowPower, usePrefersReducedMotion, type Gild } from "../game/TileCharacter";
+import { TierMark } from "../game/TierMark";
+import type { Tier } from "@/lib/economy";
 import type { ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
 import { ascensionLabel, cardNumber } from "@/lib/cardFacts";
@@ -83,10 +85,11 @@ function Rack({ word }: { word: OwnedWord }) {
   );
 }
 
-function TierPlate({ tier }: { tier: string }) {
+/** The rarity plate: the tier's own mark (lib/tierMark: a bead, then three to six corners) and its name. */
+function TierPlate({ tier }: { tier: Tier }) {
   return (
     <span className="cb-tier cb-plate">
-      <Gem />
+      <TierMark tier={tier} className="cb-gem" />
       {tier}
     </span>
   );
@@ -203,16 +206,6 @@ function Pips({ level }: { level: number }) {
         <i key={i} className={i <= level ? (i === 5 ? "on holo" : "on") : ""} />
       ))}
     </span>
-  );
-}
-
-export function Gem() {
-  return (
-    <svg className="cb-gem" viewBox="0 0 20 20" aria-hidden>
-      <path d="M10 1 L18 6 L18 14 L10 19 L2 14 L2 6 Z" className="g1" />
-      <path d="M10 1 L18 6 L10 9 L2 6 Z" className="g2" />
-      <path d="M10 9 L18 6 L18 14 L10 19 Z" className="g3" />
-    </svg>
   );
 }
 

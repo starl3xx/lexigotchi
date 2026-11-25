@@ -21,6 +21,7 @@ const { TileCharacter } = await import("@/components/game/TileCharacter");
 const { leanFor } = await import("@/components/game/tileShapes");
 const { LINK_OVERLAP } = await import("@/components/scenes/layout");
 const { DEFAULT_PARAMS } = await import("@/lib/params");
+const { TIER_MARK_CORNERS, tierMarkPaths } = await import("@/lib/tierMark");
 const { default: tailwind } = await import("../tailwind.config");
 type TileState = import("@/components/game/TileCharacter").TileState;
 type Gild = import("@/components/game/TileCharacter").Gild;
@@ -171,6 +172,31 @@ function card(W: number, H: number, body: string, title: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"><title>${esc(title)}</title>${STYLE}<rect x="6" y="6" width="${W - 8}" height="${H - 8}" rx="24" fill="${INK}"/><rect x="2" y="2" width="${W - 8}" height="${H - 8}" rx="24" fill="${CARD}" stroke="${INK}" stroke-width="3"/>${body}</svg>`;
 }
 
+/** Each rarity's mark (lib/tierMark, the game's own paths), with its name and how many corners it has. */
+function marksFigure(): string {
+  const tiers: Tier[] = ["Common", "Uncommon", "Rare", "Legendary", "Mythic"];
+  const size = 76, colW = 124, padX = 30, top = 30;
+  const W = padX * 2 + colW * tiers.length;
+  const H = top + size + 76;
+  const scale = size / 20;
+  const body = tiers
+    .map((tier, i) => {
+      const x = padX + colW * i + (colW - size) / 2;
+      const mid = padX + colW * i + colW / 2;
+      const n = TIER_MARK_CORNERS[tier];
+      const paths = tierMarkPaths(tier)
+        .map((p) => `<path d="${p.d}" fill="${p.fill}" opacity="${p.opacity}" stroke="${p.stroke}" stroke-width="${p.strokeWidth}" stroke-linejoin="round"/>`)
+        .join("");
+      return (
+        `<g transform="translate(${x} ${top}) scale(${scale})">${paths}</g>` +
+        `<text x="${mid}" y="${top + size + 30}" text-anchor="middle" font-size="16" font-weight="800">${tier}</text>` +
+        `<text x="${mid}" y="${top + size + 50}" text-anchor="middle" font-size="13" font-weight="600" opacity="0.65">${n === 0 ? "a round bead" : `${n} corners`}</text>`
+      );
+    })
+    .join("");
+  return card(W, H, body, "Each rarity’s mark: Common is a round bead, Uncommon has three corners, Rare four, Legendary five, and Mythic six");
+}
+
 /** Where each fee goes, as one stacked bar per fee, from the game's split table. */
 function feeChart(): string {
   const s = DEFAULT_PARAMS.splits;
@@ -269,6 +295,7 @@ const FIGURES: Record<string, string> = {
     ],
     { gap: 22, title: "The letter a in each tier’s finish: Common plain, Uncommon satin jade, Rare sapphire foil, Legendary polished gold, Mythic cut amethyst" },
   ),
+  "marks.svg": marksFigure(),
   "moods.svg": figure(
     [
       [
