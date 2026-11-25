@@ -1,6 +1,6 @@
 "use client";
 /**
- * The Market (the `swap` view; decisions.md #18 and #28): buy and sell words and letters for $WORD,
+ * The Market (the `swap` view; decisions.md #18 and #29): buy and sell words and letters for $WORD,
  * and see what sold.
  *
  * One page in four parts, behind one switch: **Words** (a list to search, narrow, and sort),

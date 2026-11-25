@@ -1,5 +1,5 @@
 /**
- * The Market's database side (migration 0017; decisions.md #28): letters for sale (`letter_listings`,
+ * The Market's database side (migration 0017; decisions.md #29): letters for sale (`letter_listings`,
  * a bulletin board of signed Seaport orders, never the truth about what can fill) and sales
  * (`market_sales`, a copy of the chain's `OrderFulfilled` history). Every read treats a missing table
  * as "nothing yet", so the app works before the migration runs; writes let the error through, and

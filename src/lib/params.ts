@@ -159,7 +159,7 @@ export interface Params {
     wordSaleFee: number;
     /**
      * The fee on letters sold on the Market, as a fraction of what the buyer pays for each letter
-     * (decisions.md #28: the same 10% as a word, to the Rewards Pool). Its own number, so the two
+     * (decisions.md #29: the same 10% as a word, to the Rewards Pool). Its own number, so the two
      * can be tuned apart.
      */
     letterSaleFee: number;

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Letters for sale (decisions.md #28): Seaport orders offering some of one letter for $WORD each,
+ * Letters for sale (decisions.md #29): Seaport orders offering some of one letter for $WORD each,
  * 10% of each to SaleFees. A buyer takes any number of them.
  *
  * POST `{ order, signature }`: list. The kind comes from the order's content (`checkLetterSaleOrder`:

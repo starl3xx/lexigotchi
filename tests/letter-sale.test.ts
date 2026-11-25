@@ -1,5 +1,5 @@
 /**
- * Selling letters (decisions.md #28): the order the app signs, and the checker the board's server runs
+ * Selling letters (decisions.md #29): the order the app signs, and the checker the board's server runs
  * on every listing. A buyer may take any number of the letters, and Seaport fills a part only when
  * every amount divides, so each payment must be a whole per-letter amount times the quantity. What
  * Seaport itself does with these orders is checked on a fork (scripts/market-fork-check.ts).

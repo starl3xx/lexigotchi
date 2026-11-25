@@ -1,5 +1,5 @@
 /**
- * GET /api/market/sales: what sold on the Market lately (decisions.md #28), newest first, with what
+ * GET /api/market/sales: what sold on the Market lately (decisions.md #29), newest first, with what
  * each letter and each rarity has been going for, which the Market uses to suggest prices.
  * GET `?word=CRANE`: that word's own sales.
  *

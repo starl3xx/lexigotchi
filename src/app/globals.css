@@ -313,38 +313,49 @@ body {
   border-radius: 8px;
 }
 
-/* The word in its scene (SceneFrame). It stands on a floor now, so it doesn't tilt like other
-   tiles: on hover the spotlight finds it (a warm glow, with or without motion) and its letters hop
-   in a wave, one after another; on press they squash into the floor. */
-.scene-word {
-  transition: filter 200ms var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  .scene-word:hover {
-    filter: drop-shadow(0 0 10px rgb(255 238 196 / 0.75)) brightness(1.04);
-  }
-}
+/* ---------------------------------------------------------------------------------------------
+   Letter characters (components/game/TileCharacter.tsx; the letter review, decisions.md #28).
+
+   The loops (the breath, a jump) are the tc-* keyframes in tailwind.config.ts, and they run on the
+   character's LAYERS. What is here happens INSIDE a layer, so each is a moment, never a loop:
+   - a blink: the open eye swapped for its shut drawing for a moment (.tc-blink on the tile);
+   - where the eyes look, -1..1 each way: --gx / --gy on the tile while the pointer has them
+     (useGaze), else --glance (a glance at a neighbour, useWordLife). Two owners, two properties:
+     each clears only its own;
+   - a twinkle: a rare letter's star, or a gilded tile's, once (.tc-spark on the tile);
+   - the word in its scene noticing the pointer (.tc-perks, SceneFrame): one after another its
+     letters rise onto their toes and look at it, and they hold that while it stays. Feet, shadow,
+     and held hands stay put (the arms end under the clasp). A press squashes them.
+   TileCharacter's useWordLife (one timer for a word) and useGaze set the classes and properties.
+   There is no glow on hover: a filter over five moving drawings is redone on every frame, and it
+   took a Legendary word from about 70% of a processor core to 126% in WebKit while the pointer
+   rested on it. The rarity's light pass is the shine, and it plays when the pointer arrives.
+   Under prefers-reduced-motion none of it runs: the hosts never start the timer or follow the
+   pointer, and the rise and the twinkle don't exist.
+   --------------------------------------------------------------------------------------------- */
+.tc-pupil { transform: translate(calc(var(--gx, var(--glance, 0)) * 5.5px), calc(var(--gy, 0) * 4px)); }
+.tc-blink .tc-eye-shut { visibility: visible; }
+.tc-blink .tc-eye-open { visibility: hidden; }
 @media (prefers-reduced-motion: no-preference) {
+  .tc-pupil { transition: transform 180ms var(--ease-out); }
+  /* --i is the letter's place in its word: the rise runs along the word */
+  .tc-perk, .tc-legs-perk, .tc-brow {
+    transition: transform 280ms var(--ease-hop);
+    transition-delay: calc(var(--i, 0) * 40ms);
+  }
+  .tc-perks:active .tc-perk { transform: translateY(3px); transition-duration: 70ms; transition-delay: 0s; }
+  .tc-perks:active .tc-legs-perk { transform: scaleY(0.94); transition-duration: 70ms; transition-delay: 0s; }
+  .tc-spark .tc-star { animation: tc-spark 1.8s ease-in-out; }
   @media (hover: hover) and (pointer: fine) {
-    .scene-word:hover > div > div { animation: scene-hop 560ms var(--ease-hop) both; }
-    .scene-word:hover > div > div:nth-child(2) { animation-delay: 70ms; }
-    .scene-word:hover > div > div:nth-child(3) { animation-delay: 140ms; }
-    .scene-word:hover > div > div:nth-child(4) { animation-delay: 210ms; }
-    .scene-word:hover > div > div:nth-child(5) { animation-delay: 280ms; }
-  }
-  .scene-word > div {
-    transform-origin: 50% 100%;
-    transition: transform 160ms var(--ease-out);
-  }
-  .scene-word:active > div {
-    transform: translateY(2px) scaleY(0.94);
-    transition-duration: 70ms;
+    .tc-perks:hover:not(:active) .tc-perk { transform: translateY(-6px); }
+    .tc-perks:hover:not(:active) .tc-legs-perk { transform: scaleY(1.115); }
+    .tc-perks:hover .tc-brow { transform: translateY(-3px); }
   }
 }
-@keyframes scene-hop {
-  0%, 100% { transform: translateY(0); }
-  35% { transform: translateY(-12%); }
-  65% { transform: translateY(1.5%); }
+@keyframes tc-spark {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  30% { transform: scale(0.5) rotate(0deg); opacity: 0.35; }
+  65% { transform: scale(1.2) rotate(35deg); opacity: 1; }
 }
 
 /* The Today stage's ← and →: the next word fades in, and where motion is welcome it slides a little
@@ -684,7 +695,7 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .sc-small .cb-tier { font-size: 12px; }
 
 /* ---------------------------------------------------------------------------------------------
-   The Market's letter shelf (decisions.md #28; components/game/market/LettersBoard.tsx).
+   The Market's letter shelf (decisions.md #29; components/game/market/LettersBoard.tsx).
    The 26 letters stand on a plank, and a paper price tag hangs under each one that is for sale:
    the lowest price, and how many. 52 kinds of letter hold any number of listings, so the shelf is
    the same size whether three letters are for sale or three thousand.

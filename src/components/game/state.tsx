@@ -137,7 +137,7 @@ export interface WordListing {
 }
 
 /**
- * The Market beyond words for sale (decisions.md #28): letters for sale, what sold lately, and the
+ * The Market beyond words for sale (decisions.md #29): letters for sale, what sold lately, and the
  * player's own listings. Both stores supply it (the practice store from a seeded stall, so the page
  * can be tried with no wallet).
  */
@@ -830,7 +830,7 @@ export interface GameApi {
   claimables: { stream: "yield" | "bounty"; tokenId: string; amount: number }[];
   /** Collect every waiting share in one send. Each pays its own wallet, so this is union-safe. */
   claimEarnings: () => void;
-  /** Letters for sale, recent sales, and the player's own listings (decisions.md #28). */
+  /** Letters for sale, recent sales, and the player's own listings (decisions.md #29). */
   market: MarketApi;
   /** Words for sale (decisions.md #18), each with its state read live. */
   wordBoard: WordListing[];

@@ -1,6 +1,6 @@
 "use client";
 /**
- * Letters for sale (decisions.md #28): the shelf, and the counter under it.
+ * Letters for sale (decisions.md #29): the shelf, and the counter under it.
  *
  * The shelf is the whole alphabet, each letter with a price tag when someone is selling it (the
  * lowest price, and how many). Letters of a kind are alike, so however many listings there are, a
@@ -95,14 +95,15 @@ export function LettersBoard({
           );
         })}
         {/* 26 letters in rows of 7 leave two places: the plank runs on, so the last row is a whole shelf. */}
-        <span className="mk-slot md:hidden" aria-hidden>
-          <span className="block h-[38px]" />
-          <span className="mk-plank" />
-        </span>
-        <span className="mk-slot md:hidden" aria-hidden>
-          <span className="block h-[38px]" />
-          <span className="mk-plank" />
-        </span>
+        {[0, 1].map((k) => (
+          <span key={k} className="mk-slot md:hidden" aria-hidden>
+            {/* An unseen tile, so the plank sits exactly where its neighbors' do. */}
+            <span className="invisible">
+              <LetterTile char="a" size={38} />
+            </span>
+            <span className="mk-plank" />
+          </span>
+        ))}
       </div>
 
       <div ref={counter} className="scroll-mb-24">

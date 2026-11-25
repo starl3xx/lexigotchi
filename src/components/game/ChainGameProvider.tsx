@@ -509,7 +509,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     for (const ms of [4_000, 10_000]) setTimeout(read, ms);
   }, [refetchWords]);
 
-  // Letters for sale, recent sales, and the player's own listings (decisions.md #28).
+  // Letters for sale, recent sales, and the player's own listings (decisions.md #29).
   const market = useChainMarket({ enabled: chain.deployed, onMarket: ui.view === "swap", wallets: bagWallets });
 
   const toast = useCallback(
@@ -1655,7 +1655,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         moreAsks: market.moreAsks,
 
         /**
-         * Sell letters (decisions.md #28). At most one send, then a free signature: the send cancels
+         * Sell letters (decisions.md #29). At most one send, then a free signature: the send cancels
          * this wallet's earlier orders for the letter (the approval covers every letter for good, so
          * an old order would fill at its old price the next time the wallet held one) and approves
          * Letters to Seaport. Either part is skipped when not needed.

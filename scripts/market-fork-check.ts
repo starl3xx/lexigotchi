@@ -1,5 +1,5 @@
 /**
- * Proves the Market's letter listings against Seaport itself, on a local fork (decisions.md #28).
+ * Proves the Market's letter listings against Seaport itself, on a local fork (decisions.md #29).
  * The unit tests check the order's shape; only Seaport can say that a part of it fills.
  *
  *   anvil --fork-url https://sepolia.base.org --port 8599

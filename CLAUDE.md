@@ -209,7 +209,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
   feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
   `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
-  **The Market** (the `swap` view; decisions.md #28; `screens/MarketScreen.tsx`, `components/game/market/`,
+  **The Market** (the `swap` view; decisions.md #29; `screens/MarketScreen.tsx`, `components/game/market/`,
   `lib/market/`): words AND letters sell for $WORD, 10% to `SaleFees`. Four parts behind one switch
   (Words, Letters, Sell, Sold), "Just sold" and the player's picks above. Both stores feed it through
   `g.market` (the practice store from a seeded stall, `market/practiceMarket.ts`).
@@ -328,7 +328,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/lib/rng.ts` → seeded mulberry32 (determinism).
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
-- `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages).
+- `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages); its shapes are numbers in `tileShapes.ts`, which the share card's Satori letter (`src/app/_og/tile.tsx`) draws from too, so change a shape there, once (decisions.md #28).
+  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. `tests/tile-character.test.tsx` holds the rule. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (`MiniAppHost` + wagmi + RainbowKit; the
   connect modal is themed in `walletTheme.ts`). **A Farcaster host is one that answers**
@@ -387,7 +388,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
-  on the game's card. **X's composer shows no card for a link X hasn't read yet** (tested 2026-11-24:
+  on the game's card. **Raise `CARD_LOOK` (lib/showcase.ts) whenever the card picture's look changes**
+  (the letters, a scene, the frame): it is the `v` in every card picture's address, and the picture
+  is cached for a day in browsers, a week at the edge, and for good by X and Farcaster. Without it
+  the share video drew the old letters for a day after #215. **X's composer shows no card for a link X hasn't read yet** (tested 2026-11-24:
   a never-posted link with a fast static image showed none either; a second paste later did). It is
   not our card's speed, so Share (under an opened word's card, `cards/WordSheetCard.tsx`) says "X adds the picture once it reads the link." **Save
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the

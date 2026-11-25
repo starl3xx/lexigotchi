@@ -13,7 +13,7 @@
  * scene in full color, clear. The characters keep their color: their faces already show the mood.
  */
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { TileCharacter, useFinishMoment, type Gild, type TileState } from "../game/TileCharacter";
+import { TileCharacter, leanFor, useFinishMoment, useGaze, usePrefersReducedMotion, useWordLife, type Gild, type TileState } from "../game/TileCharacter";
 import type { Tier } from "@/lib/economy";
 import type { SceneId } from "@/lib/scenes";
 import { SCENE_W, SceneBack, SceneFront } from "./SceneArt";
@@ -151,12 +151,36 @@ export function SceneFrame({
   // useFinishMoment). One timer for the word, not one per tile.
   const [moment, play] = useFinishMoment(tier, animated && !offscreen && !!word && state !== "hungry", word);
 
-  // The characters hold hands (each overlaps the last, as in TileWord), sized in percent of the row.
+  // The word's life (blinks, glances) and, where it can be tapped, its eyes on the pointer, on the
+  // same terms as its finish: animated, on screen, motion welcome (TileCharacter's useWordLife and
+  // useGaze). One timer for the word.
+  const reduced = usePrefersReducedMotion();
+  const wordRow = useRef<HTMLDivElement>(null);
+  const lively = animated && !offscreen && !!word && !reduced;
+  useWordLife(wordRow, lively && (state === "idle" || state === "peckish"));
+  const gaze = useGaze(wordRow, lively && !!onWord);
+
+  // The characters hold hands (each overlaps the last, as in TileWord), sized in percent of the
+  // row, each with its own small lean (leanFor: the same in the app, a still card, and a share).
   const tiles = (
-    <div className={`flex items-end ${moment ? "rf-moment" : ""}`} onPointerEnter={play}>
-      {[...word].map((ch, i) => (
+    <div ref={wordRow} className={`flex items-end ${moment ? "rf-moment" : ""}`} onPointerEnter={play} {...gaze}>
+      {[...word].map((ch, i, all) => (
         <div key={i} style={{ width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0 }}>
-          <TileCharacter char={ch} upper={upper[i] ?? false} state={state} gild={gild} pose="link" size={L.tileW} detail="full" fluid tier={tier} index={i} still={!animated} />
+          <TileCharacter
+            char={ch}
+            upper={upper[i] ?? false}
+            state={state}
+            gild={gild}
+            linkLeft={i > 0}
+            linkRight={i < all.length - 1}
+            lean={leanFor(word, i)}
+            size={L.tileW}
+            detail="full"
+            fluid
+            tier={tier}
+            index={i}
+            still={!animated}
+          />
         </div>
       ))}
     </div>
@@ -182,15 +206,15 @@ export function SceneFrame({
           style={{ left: pct(L.rowLeft, SCENE_W), width: pct(L.rowW, SCENE_W), bottom: pct(L.rowBottom, SCENE_H) }}
         >
           {onWord ? (
-            // No tilt here (the word stands on a floor now): the spotlight finds it and the
-            // letters hop in a wave (globals.css, .scene-word).
+            // The word notices the pointer: its letters rise onto their toes in turn and look at it,
+            // and a press squashes them (globals.css, .tc-perks). Feet and held hands stay put.
             <button
               onClick={() => {
                 if (swiped.current) return void (swiped.current = false);
                 onWord();
               }}
               aria-label={wordLabel}
-              className="scene-word block w-full rounded-2xl"
+              className="tc-perks block w-full rounded-2xl"
             >
               {tiles}
             </button>

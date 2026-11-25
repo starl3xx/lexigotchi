@@ -1,5 +1,5 @@
 /**
- * What the Market's routes hand the game (decisions.md #28). Client and server safe: no imports.
+ * What the Market's routes hand the game (decisions.md #29). Client and server safe: no imports.
  * Amounts are whole $WORD: the app only signs whole-$WORD prices, and the letters route refuses any
  * other, so nothing is lost in the rounding.
  */

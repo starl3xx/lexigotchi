@@ -1,6 +1,6 @@
 "use client";
 /**
- * The chain game's Market data (decisions.md #28): the letters board, the player's own letter
+ * The chain game's Market data (decisions.md #29): the letters board, the player's own letter
  * listings, recent sales, and the retired swap's old offers. Plain reads of the Market's routes,
  * which do the checking against the chain; the actions (list, buy, cancel) live in
  * ChainGameProvider, where the wallet and the action gate are.

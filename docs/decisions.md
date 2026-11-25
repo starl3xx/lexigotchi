@@ -597,7 +597,54 @@ setter. All small, riding existing suite patterns.
     - **Departures:** the back picture's labels are bold, not the semibold the game uses (Satori
       has only Söhne's regular and bold). Untested: an iPhone making and sharing the video, the
       mini-app hosts, X taking the file, and a real GPU's make time (software WebGL: 5–12 s).
-28. **The Market sells letters too, shows what sold, and helps with the price** (starl3xx,
+28. **The letter characters, reviewed** (starl3xx, 2026-11-25, on the "Letter Character Review":
+    "this is fantastic, yes"; picks: "bean", "no brows at rest", "lean looks good", "hover as perk
+    up", "breath as 12 poses doesn't render as well as smooth"). #27 is the share loop (PR #214).
+    - **Shapes.** Shoes are a bean with a round toe (the old toe was 3 px tall on the stage: a
+      point). Hands are mitts: a palm, a thumb, a cuff. Arms are drawn over the ring and under the
+      face, so UPPERCASE and gilded letters have arms (they hid behind the ring). Eyes are tall
+      ovals, wide open at rest, with one highlight (the pie cut). No brows at rest: a brow means a
+      feeling. A shut eye keeps its outline (the eyes are the character's head). A smile pushes
+      the lower lid up (eating, a win).
+    - **Words hold hands.** Each pair's hands meet low between the tiles, the arms a V, drawn once
+      as one clasp; the end letters' outer arms hang at rest. Each letter leans up to 2°, uneven,
+      the same every time for the same word (`leanFor`), in the app, on a still card, and on the
+      share card. A mood still reads: it leans the whole word one way and changes the eyes.
+    - **The roll.** No "?" (the sign for an error). The letter can't look: eyes shut tight, one
+      peeking every few seconds, hands on its top corners, knees knocking, for as long as the
+      chain takes. The pale bar that swept the roll sheet is gone: it parked over the letter's
+      left third after 1.1 s, for the rest of the roll.
+    - **Hover on the Today stage.** No glow and no hop. The letters rise onto their toes one after
+      another and their eyes follow the pointer; feet, shadow, and held hands stay put. The glow
+      was a filter over five moving drawings: a Legendary word went from about 70% of a processor
+      core to 126% in WebKit while the pointer rested on it.
+    - **The breath is smooth, on layers.** The owner chose the smooth breath over one drawn in 12
+      poses. A smooth loop INSIDE an `<svg>` makes WebKit (every iPhone browser and mini-app host)
+      redraw the whole letter on every frame: one Common word at rest measured 47% of a core as
+      the old bounce, and 53% as the smooth breath. So the character is four stacked `<svg>`
+      layers (floor, legs, body, top), and the loops are CSS transforms on the legs and body
+      layers, which a browser slides without redrawing: 6.5%. The 12-pose breath inside one
+      `<svg>` measured 15%, so the layers beat the poses too. Keyframe distances are in the
+      drawing's units through `--ux` / `--uy`, so the motion is the same at every size.
+    - **Life in moments.** One timer for a word (`useWordLife`, never one a tile): a blink (the
+      open eye swapped for its shut drawing for 120 ms), a glance at a neighbour, a twinkle of a
+      rare letter's star or a gilded tile's. Those twinkles were loops inside the drawing; a loop
+      there would undo the layers. A small tile with no legs stands still at rest (the loose
+      letters on Today ran the bounce). A hungry word sleeps: a slow rise and fall.
+    - **One source for the shapes.** `components/game/tileShapes.ts` holds the numbers; the rig and
+      the share card's Satori letter (`app/_og/tile.tsx`) both draw from it. The card's copy had
+      drifted (arms at rest inside a word, simpler eyes).
+    - **How it was measured** (my method, not a standard one): headless WebKit, the processor time
+      of all its processes over 12 to 16 s, one five-letter word on a 650 px stage at 2× pixels,
+      on the owner's Mac; headless Chromium's GPU process for comparison. The scene's art stood
+      still on both sides, so these are the letters alone: on the live Today stage the scene's own
+      loops add to both. Ratios, not absolutes: a real iPhone hasn't been measured. The main-thread figure under a 4× slowdown, used for #23,
+      says nothing here: Chromium already moves these loops off the main thread.
+    - Not done, and worth their own look: the rarity light moments are now the largest cost at
+      rest (a Legendary word measured 33% with them, 7.5% without); the Holographic foil's drifting
+      gradient is still a loop inside the drawing; a free arm that trails the breath (in the
+      review) was dropped, because it would be a moving shape inside the body's layer.
+29. **The Market sells letters too, shows what sold, and helps with the price** (starl3xx,
     2026-11-25, in the owner's words: "Market should have recent sales, and generally be beefed up
     as a marketplace"; "a user should be able to browse/sort for listed letters and words"; "Letters
     shouldn't be “swap” anymore, they should be listable like words (and consider that a user might
@@ -924,7 +971,7 @@ they exist to move (retention, re-acquisition demand) are exactly what this sim 
 - **Secondary letter market** — ✅ now modeled (see the experiment section above). Verdict: weak
   economic lever (~4.5% casual recoup, no reliable velocity gain), strong social case → build the
   swap primitive light. Refinement owed: a rarity-tiered floor (scarce letters should clear higher).
-  (2026-11-25, #28: the swap is retired; letters sell for $WORD on the Market, each at its seller's
+  (2026-11-25, #29: the swap is retired; letters sell for $WORD on the Market, each at its seller's
   price, so the market itself prices scarce letters higher.)
 - **Renewable late-game loop** — ✅ now modeled (prestige + theme bounty; see "Renewable late-game
   loop" above). Verdict: prestige = a modest finite durable sink + mild whale yield-concentration;
