@@ -75,7 +75,7 @@ export function BagScreen() {
                   <BagLetter key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />
                 ))}
               </div>
-              <p className="mt-2 text-xs text-ink/55">Raised letters spell all-UPPERCASE words. Claim them in Spell.</p>
+              <p className="mt-2 text-xs text-ink/55">Raised letters go into any word, with lowercase ones or on their own. Spell one in Spell.</p>
             </div>
           )}
 
