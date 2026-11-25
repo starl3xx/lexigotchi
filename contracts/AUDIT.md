@@ -124,10 +124,14 @@ its fix covers them too. A DEEP pass (with the adversarial reviewer) has not bee
   one it wants. Two scanners found it. Their claim that Sepolia outcomes predict mainnet ones is
   false: the chain id was already in the hash. Fixed: every draw hashes the issuing contract's
   address (`signer.ts`, now a required, checked argument), and a pack's stored draw is keyed by
-  the Letters address (`c:<letters>:<commitId>`). The daily stays keyed by identity and day.
+  the Letters address (`c:<letters>:<commitId>`). The daily's draw hashes the Letters address too,
+  while its stored row stays keyed by identity and day (`d:<key>:<day>`), which the X daily gate reads.
   The test is the exploit: `tests/signer-draw.test.ts` "every draw is bound to the contract", which
   fails on the old hash. Mainnet launch is a first deploy, so there was nothing to replay there.
-  On Sepolia, the deploy of this fix changes the draw for any attempt still open at that moment.
+  On Sepolia, the deploy of this fix changes the draw for whatever is unrevealed at that moment: an
+  open roll or ascension, an unrevealed pack (its stored row sits under the old key, so it gets a
+  second valid draw), and today's daily for anyone without a stored row. It is a testnet, so this is
+  accepted, not engineered around.
 - **Low, not fixed (the owner's call):** `prestigePity` and `attemptOpen` are keyed by token, and
   `Words.dissolve` clears only the stage. A word dissolved with an attempt open, then claimed again,
   keeps that attempt and its pity. Nobody profits: in this path the stage can only fall, and pity

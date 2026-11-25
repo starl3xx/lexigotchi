@@ -294,7 +294,7 @@ export const DEFAULT_PARAMS: Params = {
   prices: {
     pack: 1.0, // ≈ 4.22M $WORD at the current peg (5 letters → $0.20/letter primary)
     dailyMint: 0, // FREE — zero-friction daily habit hook (no $WORD needed); $WORD is for everything else
-    roll: 0.25, // ≈ 1.06M $WORD — the core sink; ~1.9 rolls/success ≈ $0.48 per UPPERCASE letter
+    roll: 0.25, // ≈ 1.06M $WORD — the core sink; ~1.97 rolls/success ≈ $0.49 per UPPERCASE letter
     claim: 0.5, // ≈ 2.11M $WORD — a commitment
     snack: 0.02, // ≈ 84K $WORD — trivial daily care
   },

@@ -176,7 +176,8 @@ export type RewardLeafRow = typeof rewardLeaves.$inferSelect;
  * from. With it, a new draw is made only when the stored one can no longer be minted, and then the
  * old signature can't be used either, so at most one valid draw exists at any time.
  *
- * `drawKey` is `c:<commitId>` for a pack, `d:<identityKey>:<day>` for a daily (the daily is drawn
+ * `drawKey` is `c:<letters>:<commitId>` for a pack (the Letters address, lowercase: commit ids
+ * restart on a redeploy, and an old contract's row must never be served for the new one's commit), `d:<identityKey>:<day>` for a daily (the daily is drawn
  * BEFORE its commit exists, so it can't key on the commit). Not secret: a draw is shown to the
  * player as soon as it is signed.
  */
