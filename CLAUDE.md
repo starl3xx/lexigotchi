@@ -356,7 +356,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
-  on the game's card. **X's composer shows no card for a link X hasn't read yet** (tested 2026-11-24:
+  on the game's card. **Raise `CARD_LOOK` (lib/showcase.ts) whenever the card picture's look changes**
+  (the letters, a scene, the frame): it is the `v` in every card picture's address, and the picture
+  is cached for a day in browsers, a week at the edge, and for good by X and Farcaster. Without it
+  the share video drew the old letters for a day after #215. **X's composer shows no card for a link X hasn't read yet** (tested 2026-11-24:
   a never-posted link with a fast static image showed none either; a second paste later did). It is
   not our card's speed, so Share (under an opened word's card, `cards/WordSheetCard.tsx`) says "X adds the picture once it reads the link." **Save
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the

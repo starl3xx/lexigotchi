@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CARD_LOOK } from "@/lib/showcase";
 import { webhookSecretMatches, welcomeFor, type TgUpdate, type TgUser } from "@/lib/telegram";
 
 const CHAT = "-5000000001";
@@ -115,7 +116,7 @@ describe("the webhook route", () => {
     }
     expect(calls).toEqual([
       // the saved picture: it goes alone, so it carries the game's name in a corner (decisions.md #23)
-      "card /s/HEYOO/card?saved=1",
+      `card /s/HEYOO/card?saved=1&v=${CARD_LOOK}`,
       "telegram sendPhoto HEYOO, @ann_plays! 👋 Welcome to the Lexigotchi beta. The pinned message has everything you need to get set up, then jump in at lexigotchi.fun/play.",
     ]);
   });
