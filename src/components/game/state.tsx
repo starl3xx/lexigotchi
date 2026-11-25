@@ -94,6 +94,22 @@ export interface OwnedWord {
 }
 
 /** A word for sale on the board (GET /api/swap/words), its state read live, not from the listing. */
+/** The player's free letters, as the screens read them (GameApi.freeLetters). */
+export interface FreeLetterView {
+  /** Free daily letters left of `dailyLimit`, or null when the server can't count yet. */
+  dailyLeft: number | null;
+  dailyLimit: number;
+  /** All the free daily letters are taken. */
+  done: boolean;
+  /** The profile took its free pack. */
+  packTaken: boolean;
+  /** Free letters have stopped for everyone: the budget ran out, or the dictionary is nearly full. */
+  stop: "budget" | "dictionary" | null;
+  packStop: "budget" | "dictionary" | null;
+  /** About 95% of the dictionary is claimed: the pack card points at the Market. */
+  dictionaryFull: boolean;
+}
+
 export interface WordListing {
   maker: string;
   word: string;
@@ -656,10 +672,16 @@ export interface GameApi {
    * rather than offer a button the contract would refuse.
    */
   maxPrestigeLevel: number;
+  /**
+   * The player's free letters (decisions.md #21: a free pack of 5 and 10 free daily letters per
+   * verified profile, from one 30K budget, ending near 95% claimed), from /api/mint/daily-status.
+   * Null in the practice game and while unknown: screens then show the offer without counts.
+   */
+  freeLetters: FreeLetterView | null;
   dailyMint: () => number | null | Promise<ActionOutcome>;
   /**
-   * The FREE campaign pack (chain store: the signer-issued voucher for players who added the mini
-   * app and shared a cast). The mock has no campaign, so there it behaves like `buyPack`.
+   * The FREE pack of 5 (chain store: the signer-issued voucher for a verified profile, once). The mock
+   * has no vouchers, so there it behaves like `buyPack`.
    */
   openPack: () => number[];
   /**
@@ -797,6 +819,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       prestigePrice: (level) => mockPrestigeFee(level),
       lettersLeft: null,
       maxPrestigeLevel: PRESTIGE_LEVELS,
+      freeLetters: null,
 
       dailyMint: () => {
         if (state.dailyMinted || state.balance < COST.daily) return null;

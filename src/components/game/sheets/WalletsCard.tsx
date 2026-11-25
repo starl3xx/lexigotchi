@@ -485,7 +485,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
               )}
             </Button>
             <p className="mt-1.5 text-[11px] leading-snug text-ink/55">
-              Linked wallets share one bag, one profile, and one free daily letter, and the links are public. Letters and
+              Linked wallets share one bag, one profile, and one set of free letters, and the links are public. Letters and
               words stay in the wallet that holds them: you play with the connected one, or move them into it.
             </p>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 /**
  * Your profile, opened from the PFP in the header. The accounts linked to this wallet (Farcaster,
- * Coinbase verification, and X once it's switched on), the free daily letter they unlock, and the
+ * Coinbase verification, and X once it's switched on), the free letters they unlock, and the
  * name and picture a linked account gives you. "Your $WORD" (balance, buy, wallet) stays on the
  * balance pill.
  *
@@ -96,20 +96,30 @@ export function ProfileSheet() {
         )}
       </div>
 
-      {/* the free daily letter */}
+      {/* the free letters (decisions.md #21): a pack of 5 plus 10 daily letters per verified profile */}
       <Card className={`mb-3 ${daily.eligible ? "bg-teal/10" : "bg-gold/10"}`}>
         <div className="flex items-center gap-1.5 font-display font-extrabold">
-          <Gift weight="fill" className={daily.eligible ? "text-teal-ink" : "text-gold-ink"} /> Free daily letter
+          <Gift weight="fill" className={daily.eligible ? "text-teal-ink" : "text-gold-ink"} /> Free letters
         </div>
         <p className="mt-1 text-sm text-ink/75">
           {daily.eligible ? (
-            <>You get one free letter every day.</>
+            <>You get a free pack of 5 plus 10 free daily letters, one a day.</>
           ) : checking ? (
             <>Checking your accounts…</>
           ) : (
-            <>Link {dailyWith} to get one free letter every day.</>
-          )}{" "}
-          Claim it each day: a day you skip doesn’t carry over.
+            <>Link {dailyWith} to get a free pack of 5 plus 10 free daily letters.</>
+          )}
+          {daily.eligible && g.freeLetters && (
+            <>
+              {" "}
+              {g.freeLetters.done
+                ? `You’ve had all ${g.freeLetters.dailyLimit} daily letters`
+                : g.freeLetters.dailyLeft != null
+                  ? `${g.freeLetters.dailyLeft} daily letter${g.freeLetters.dailyLeft === 1 ? "" : "s"} left`
+                  : ""}
+              {g.freeLetters.dailyLeft != null || g.freeLetters.done ? (g.freeLetters.packTaken ? ", and your pack is opened." : ", and your pack is waiting in Mint.") : ""}
+            </>
+          )}
         </p>
       </Card>
 
@@ -125,7 +135,7 @@ export function ProfileSheet() {
             }
             iconBg="bg-[#855DCD]"
             name="Farcaster"
-            detail={fcLinked ? (viewer.username && viewer.fid ? `${fcLabel} · FID ${viewer.fid}` : fcLabel) : "Daily letter, name, and picture"}
+            detail={fcLinked ? (viewer.username && viewer.fid ? `${fcLabel} · FID ${viewer.fid}` : fcLabel) : "Free letters, name, and picture"}
           >
             {fcLinked ? (
               // Sign-out exists only on the web: inside a Farcaster host the identity IS the host's.
@@ -159,9 +169,9 @@ export function ProfileSheet() {
                     ? xOldEnough(x.createdAt)
                       ? `@${x.username}`
                       : x.createdAt
-                        ? `@${x.username} · daily letter from ${xEligibleOn(x.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                        ? `@${x.username} · free letters from ${xEligibleOn(x.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
                         : `@${x.username}`
-                    : "Daily letter, name, and picture"
+                    : "Free letters, name, and picture"
                 }
                 flush
               >
@@ -179,7 +189,7 @@ export function ProfileSheet() {
               </Row>
               {!x && p.xEnabled && (
                 <p className="mt-1 pl-[38px] text-[11px] leading-snug text-ink/55">
-                  {!address && "Connect a wallet first: X links to it. "}Your X account will show publicly next to your wallet. The account must be older than 90 days for the daily letter. You can unlink anytime.
+                  {!address && "Connect a wallet first: X links to it. "}Your X account will show publicly next to your wallet. The account must be older than 90 days for the free letters. You can unlink anytime.
                 </p>
               )}
             </div>
@@ -198,7 +208,7 @@ export function ProfileSheet() {
                 : address && verified === null
                   ? "Checking this wallet…"
                   : address
-                    ? "Verify this wallet for the daily letter"
+                    ? "Verify this wallet for the free letters"
                     : "Connect a verified wallet"
             }
           >

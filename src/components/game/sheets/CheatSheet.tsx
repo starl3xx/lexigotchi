@@ -39,9 +39,9 @@ export function CheatSheet() {
       <div className="space-y-3">
         <Step n={1} icon={<Sparkle weight="fill" size={18} />} title="Collect letters">
           <li>
-            <strong>One free letter every day.</strong> To unlock it, tap your picture and link Farcaster
-            {xEnabled ? " or X," : ""} or verify your wallet with Coinbase. Claim it each day: a day you skip
-            doesn’t carry over.
+            <strong>A free pack of 5 plus 10 free daily letters.</strong> To unlock them, tap your picture and
+            link Farcaster{xEnabled ? " or X," : ""} or verify your wallet with Coinbase. Take one daily letter a
+            day until you’ve had 10.
           </li>
           <li>
             <strong>Or buy a pack of 5</strong> anytime: {price("pack")}.
@@ -49,8 +49,8 @@ export function CheatSheet() {
           <li>Every letter arrives lowercase.</li>
           {profilesEnabled && (
             <li>
-              <strong>Play with more than one wallet?</strong> Link them in your profile: one bag and one free
-              letter a day between them. Your letters live onchain in each wallet, so choose one game wallet and
+              <strong>Play with more than one wallet?</strong> Link them in your profile: one bag and one set of
+              free letters between them. Your letters live onchain in each wallet, so choose one game wallet and
               keep everything there.
             </li>
           )}

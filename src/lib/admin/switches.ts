@@ -97,7 +97,7 @@ export function featureSwitches(): Switch[] {
       key: "x",
       label: "Link X",
       on: xEnabled(),
-      detail: "A linked X account names the wallet and, at 90+ days old, unlocks the free daily letter.",
+      detail: "A linked X account names the wallet and, at 90+ days old, unlocks the free letters (a pack of 5 plus 10 daily letters).",
       missing: need([
         [profilesEnabled(), "profiles on (see Profiles)"],
         [set("X_CLIENT_ID"), "X_CLIENT_ID"],

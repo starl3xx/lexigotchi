@@ -82,7 +82,7 @@ const DAILY_TITLES = [
 export function dailyReady(day = epochDay()): Notification {
   return {
     title: rotate(DAILY_TITLES, day),
-    body: "Your free daily pull just reset. One letter, on the house. Go see what you drew.",
+    body: "Your next free daily letter is ready. One letter, on the house. Go see what you draw.",
     notificationId: `daily-${day}`,
   };
 }

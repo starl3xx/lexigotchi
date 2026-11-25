@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Rea
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
+  type FreeLetterView,
   type GameApi,
   type GameState,
   type OwnedWord,
@@ -72,7 +73,7 @@ import {
   readOpenPrestigeFor,
 } from "@/lib/onchain/reads";
 import { dailyKeysFor } from "@/lib/onchain/verifications";
-import { usePublicProfile } from "./useProfile";
+import { useProfileSession, usePublicProfile } from "./useProfile";
 import { unionEverHeld, unionWords, sumLetterCounts, type BagWord } from "@/lib/onchain/unionBag";
 import { SEAPORT, seaportAbi, buildLetterSwapOrder, walletTypedDataJson, fulfillOrderCalls, cancelOrderCalls, type LetterSwapOrder } from "@/lib/onchain/seaport";
 import { operatorApprovalCalls } from "@/lib/onchain/allowances";
@@ -118,6 +119,7 @@ import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
+import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
 import { usePlayerWallets } from "./usePlayerWallets";
 
@@ -305,12 +307,28 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // this wrong shows "Pull" to a player the contract or the server will refuse, and the refusal
   // reads as a bug (it did, on the first live test).
   const pubProfile = usePublicProfile();
-  const { primary: dailyKey, all: dailyKeys } = dailyKeysFor({
-    fid: viewer.fid,
+  // The FID is left out of this browser's own read: it counts only for a profile it belongs to, which
+  // the server decides (lib/onchain/freeIdentity.ts). daily-status walks the FIDs that verified this
+  // profile's wallets and the keys recorded on it, so an owned FID's pull still shows; a Farcaster
+  // account that doesn't own this wallet no longer reads as "pulled today" (Bugbot on #199).
+  const { primary: dailyKey, all: walletDailyKeys } = dailyKeysFor({
+    fid: null,
     xUserId: pubProfile.profile?.x?.id ?? null,
     xCounts: pubProfile.xCounts,
     wallet: address ?? null,
   });
+  // …plus the key the server last signed this wallet's daily under (a FID it decided belongs to this
+  // profile, say), so a pull under it shows at once and a failed send can tell whether it landed
+  // (Bugbot on #199). An unowned FID never gets here: the server never signs under it. Kept with the
+  // wallet it was signed for: the provider stays mounted across account switches, and another
+  // wallet must not read as claimed under this one's key.
+  const [lastVoucher, setLastVoucher] = useState<{ wallet: string; key: bigint } | null>(null);
+  const voucherKey = lastVoucher && address && lastVoucher.wallet === address.toLowerCase() ? lastVoucher.key : null;
+  const dailyKeys = useMemo(
+    () => (voucherKey !== null && !walletDailyKeys.includes(voucherKey) ? [...walletDailyKeys, voucherKey] : walletDailyKeys),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [voucherKey, walletDailyKeys.map(String).join(",")],
+  );
 
   const dayQ = useQuery({
     queryKey: ["dayState", NETWORK.id, dailyKeys.map(String).join(",")],
@@ -363,11 +381,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // account that verified this wallet, or one of its other wallets) also counts, as it does when
   // the daily route refuses. Without it the web shows Pull after a mini-app pull (Bugbot on #138).
   const relatedDayQ = useQuery({
-    queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase(), viewer.fid ?? null],
+    queryKey: ["dailyStatus", NETWORK.id, address?.toLowerCase()],
     queryFn: async () => {
-      const r = await fetch(`/api/mint/daily-status?wallet=${address}${viewer.fid ? `&fid=${viewer.fid}` : ""}`);
-      const d = (await r.json()) as { ok: boolean; claimed?: boolean };
-      return d.ok ? Boolean(d.claimed) : false;
+      const r = await fetch(`/api/mint/daily-status?wallet=${address}`);
+      const d = (await r.json()) as Partial<DailyStatus> & { ok: boolean };
+      if (!d.ok) return null;
+      const view: FreeLetterView = {
+        dailyLeft: d.dailyTaken == null ? null : Math.max(0, (d.dailyLimit ?? 10) - d.dailyTaken),
+        dailyLimit: d.dailyLimit ?? 10,
+        done: Boolean(d.done),
+        packTaken: Boolean(d.packTaken),
+        stop: d.stop ?? null,
+        packStop: d.packStop ?? null,
+        dictionaryFull: Boolean(d.dictionaryFull),
+      };
+      return { claimed: Boolean(d.claimed), view };
     },
     enabled: Boolean(address) && chain.deployed,
     staleTime: 30_000,
@@ -488,7 +516,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           ? "loading"
           : "ready";
 
-  const chainSaysClaimed = (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data ?? false);
+  const chainSaysClaimed = (dayQ.data?.dailyUsed ?? false) || (relatedDayQ.data?.claimed ?? false);
   const dailyClaimed = chainSaysClaimed || (seenToday !== null && Date.now() - seenToday.at < DAILY_SEEN_TRUST_MS);
   const state: GameState = useMemo(
     () => ({
@@ -623,13 +651,17 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * For the two routes that also serve the verified-wallet identity (daily voucher, letter
-   * reveal): token attached when present, plain fetch when not. Everything else stays on
-   * `postJson` — its `not_signed_in` pre-flight is load-bearing for the paid flows.
+   * For the routes that also serve the verified-wallet identity (the free daily and pack vouchers,
+   * the letter reveal): token attached when present, plain fetch when not. The wallet's profile
+   * session rides along too when the player has one: it proves this wallet is theirs, so a Farcaster
+   * sign-in that hasn't verified the wallet still counts (lib/onchain/freeIdentity.ts). Everything
+   * else stays on `postJson` — its `not_signed_in` pre-flight is load-bearing for the paid flows.
    */
+  const { token: profileToken } = useProfileSession();
   const openPostJson = useCallback(
-    <T,>(url: string, body: unknown) => maybeAuthedPostJson<T>(url, body),
-    [],
+    <T,>(url: string, body: unknown) =>
+      maybeAuthedPostJson<T>(url, body, profileToken ? { "x-lexigotchi-session": profileToken } : {}),
+    [profileToken],
   );
 
   /** Server error codes → something a player can act on. */
@@ -684,17 +716,24 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const packError = useCallback(
     (code?: string) => {
       switch (code) {
-        case "add_required":
-          return "Add Lexigotchi first: that’s step one of earning the free pack";
-        case "share_required":
-          return "Share your cast to unlock the free pack";
-        case "eligibility_unavailable":
-          // Configured-but-unreachable campaign DB. Nothing was spent and nothing was lost.
-          return "Can’t check your free pack right now. Try again in a minute";
+        case "verification_required":
+          return "The free pack needs a linked account or a Coinbase-verified wallet. Open your profile";
+        case "farcaster_wallet_unverified":
+          return "Your Farcaster account hasn’t verified this wallet. Verify it in Farcaster, or sign in with this wallet in your profile";
+        case "x_too_young":
+          return "Your X account unlocks the free pack once it’s 90 days old";
+        case "verification_unavailable":
+          return "Can’t check your verification right now. Try again in a minute";
         case "already_claimed":
           return "You’ve already opened your free pack";
         case "campaign_closed":
-          return "The free-pack campaign has ended";
+          return "Free packs have ended";
+        case "free_letters_gone":
+          return "All the free letters have been given out. Packs are still for sale";
+        case "free_letters_closed":
+          return "The dictionary is nearly full, so free letters have ended. Packs are still for sale";
+        case "try_again":
+          return "Can’t open your free pack right now. Try again in a minute";
         default:
           return authError(code, "Pack");
       }
@@ -713,8 +752,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           return "The daily needs a linked account or a Coinbase-verified wallet. Open your profile";
         case "x_too_young":
           return "Your X account unlocks the daily once it’s 90 days old";
+        case "farcaster_wallet_unverified":
+          return "Your Farcaster account hasn’t verified this wallet. Verify it in Farcaster, or sign in with this wallet in your profile";
         case "verification_unavailable":
           return "Can’t check your verification right now. Try again in a minute";
+        case "daily_limit_reached":
+          return "You’ve had all 10 free daily letters. Packs are still for sale";
+        case "free_letters_gone":
+          return "All the free letters have been given out. Packs are still for sale";
+        case "free_letters_closed":
+          return "The dictionary is nearly full, so free letters have ended. Packs are still for sale";
         default:
           return authError(code, "The daily");
       }
@@ -891,6 +938,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // mock table stands in as a label only: canAfford is false without chain.player, and every
       // send builds its calldata from chain.params, never from this number.
       lettersLeft: chain.params?.unreservedSupply ?? null,
+      freeLetters: relatedDayQ.data?.view ?? null,
       // Until params load, assume OFF: better a hidden button for a moment than one that reverts.
       maxPrestigeLevel: chain.params?.maxPrestigeLevel ?? 0,
       price: (item: PriceItem) => (chain.params ? chainPrice(chain.params.word, item) : MOCK_PRICE[item]),
@@ -918,6 +966,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           );
           if (!res?.ok) { toast(dailyError(res?.error), "bad"); return { status: "not-started" as const }; }
           const v = res.voucher;
+          setLastVoucher({ wallet: address.toLowerCase(), key: BigInt(v.fid) });
           const commitCalls = () =>
             commitFreeDailyCalls({ fid: BigInt(v.fid), deadline: BigInt(v.deadline), signature: v.signature });
 
@@ -939,9 +988,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             // The send failed somewhere. On the two-prompt fallback that can mean "commit went
             // out, reveal was declined" — check the chain rather than guess, so a mere cancel at
             // the first prompt isn't reported as money moved.
-            const day = await dayQ.refetch();
+            // Read the exact key this voucher was signed under: whichever identity the server chose.
+            const landed = await readDayState([BigInt(v.fid)]).then((d) => d.dailyUsed).catch(() => false);
+            void dayQ.refetch();
             void pendingQ.refetch();
-            if (day.data?.dailyUsed) {
+            if (landed) {
               markPaid();
               noteDailyRef.current(null);
               return { status: "stranded" as const, note: "Your letter is committed. Tap Open to reveal it" };
@@ -969,7 +1020,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!address) return void toast("Connect a wallet first", "bad");
           if (soldOutFor(5)) return;
 
-          const res = await postJson<{ voucher: PackVoucher }>("/api/mint/free-pack", { wallet: address });
+          // Any verified identity (Farcaster, X, or Coinbase): the token rides along when there is one.
+          const res = await openPostJson<{ voucher: PackVoucher }>("/api/mint/free-pack", { wallet: address });
           if (!res?.ok) return void toast(packError(res?.error), "bad");
 
           // Snapshot what was already outstanding so the new commit can be told apart from a
@@ -1006,6 +1058,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast("Your pack is paid for. Reopen to finish it", "info");
           }
           dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
+          void relatedDayQ.refetch(); // the pack is taken: the Mint card stops offering it
         }, undefined);
         return [];
       },

@@ -83,7 +83,7 @@ export function BalanceSheet() {
               ? "Free daily letter: on"
               : daily.checking && (address || viewer.environment === "loading")
                 ? "Checking your accounts…"
-                : "Link an account for a free daily letter"}
+                : "Link an account for free letters"}
           </span>
         </span>
         <CaretRight weight="bold" className="text-ink/45" />
