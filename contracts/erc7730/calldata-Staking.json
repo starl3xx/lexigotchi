@@ -48,6 +48,25 @@
           "tokenIds"
         ]
       },
+      "feedWithSnack(uint256[],address,address,uint256,bytes)": {
+        "intent": "Feed your words, the first with today’s free snack",
+        "fields": [
+          {
+            "path": "deadline",
+            "label": "Voucher expires",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          }
+        ],
+        "excluded": [
+          "tokenIds",
+          "staker",
+          "profile",
+          "sig"
+        ]
+      },
       "setCaretaker(address,bool)": {
         "intent": "Let a wallet care for your staked words",
         "fields": [

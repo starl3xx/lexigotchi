@@ -90,7 +90,7 @@ contract Deploy is Script {
         a.words = new Words(c.word, a.feeRouter, ILetters(address(a.letters)), c.dictRoot, c.claimPrice, deployer);
         a.rolls = new Rolls(c.word, a.feeRouter, ILetters(address(a.letters)), IWords(address(a.words)), c.rollPrice, c.signer);
         a.staking =
-            new Staking(c.word, a.feeRouter, IWords(address(a.words)), c.snackPrice, c.peckishAfter, c.hungryAfter, deployer);
+            new Staking(c.word, a.feeRouter, IWords(address(a.words)), c.snackPrice, c.peckishAfter, c.hungryAfter, c.signer, deployer);
         a.prestige = new Prestige(
             c.word, a.feeRouter, IWords(address(a.words)), IStaking(address(a.staking)), c.maxLevel, c.prestigeFee, c.snackPrice, c.signer
         );

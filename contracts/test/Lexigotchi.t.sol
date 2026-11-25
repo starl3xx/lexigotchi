@@ -83,7 +83,7 @@ contract LexigotchiTest is Test {
         _buildTree();
         words = new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, address(this));
         rolls = new Rolls(word, feeRouter, ILetters(address(letters)), IWords(address(words)), ROLL, signer);
-        staking = new Staking(word, feeRouter, IWords(address(words)), SNACK, 1 days, 3 days, address(this));
+        staking = new Staking(word, feeRouter, IWords(address(words)), SNACK, 1 days, 3 days, signer, address(this));
         prestige =
             new Prestige(word, feeRouter, IWords(address(words)), IStaking(address(staking)), 4, PRESTIGE_FEE, SNACK, signer);
 
@@ -727,30 +727,139 @@ contract LexigotchiTest is Test {
         assertEq(feeRouter.jackpotBalance(), pot, "pot rolls over intact");
     }
 
-    function test_Staking_firstFeedEachDayIsFree() public {
+    function test_Staking_freeSnackComesOnlyWithAVoucher() public {
         uint256 t1 = _claimLower(alice, 0); // CRANE
         uint256 t2 = _claimLower(alice, 1); // MOTEL
+        _stake(alice, t1);
+        _stake(alice, t2);
         _approveAll(alice);
-        vm.startPrank(alice);
-        words.approve(address(staking), t1);
-        staking.stake(t1);
-        words.approve(address(staking), t2);
-        staking.stake(t2);
-        vm.stopPrank();
 
         uint256 supply0 = word.totalSupply();
         vm.prank(alice);
-        staking.feed(t1); // first feed today → free
-        assertEq(word.totalSupply(), supply0, "first feed of the day is free");
+        staking.feed(t1); // a plain feed always pays, even on the day's first feed
+        assertEq(supply0 - word.totalSupply(), SNACK, "plain feed is paid + burned");
 
-        vm.prank(alice);
-        staking.feed(t2); // second feed today → paid + burned
-        assertEq(supply0 - word.totalSupply(), SNACK, "second feed is paid + burned");
+        _feedFree(alice, alice, alice, _ids(t2)); // the profile's free snack
+        assertEq(supply0 - word.totalSupply(), SNACK, "the voucher's feed is free");
+
+        _feedFree(alice, alice, alice, _ids(t1)); // a second voucher the same day: paid, no revert
+        assertEq(supply0 - word.totalSupply(), 2 * SNACK, "one free snack a day per profile");
 
         vm.warp(block.timestamp + 1 days);
+        _feedFree(alice, alice, alice, _ids(t1)); // new day → free again
+        assertEq(supply0 - word.totalSupply(), 2 * SNACK, "the free snack resets the next day");
+    }
+
+    /// The fix (starl3xx: "only one wallet per profile should get a free anything"): two staking
+    /// wallets in one profile share one free snack. Keyed per wallet, they took two a day.
+    function test_Staking_twoStakingWalletsInOneProfileShareOneFreeSnack() public {
+        address dave = makeAddr("dave"); // alice's second wallet: same profile, named by alice
+        uint256 t1 = _claimLower(alice, 0);
+        uint256 t2 = _claimLower(alice, 1);
+        _stake(alice, t1);
         vm.prank(alice);
-        staking.feed(t1); // new day → free again
-        assertEq(supply0 - word.totalSupply(), SNACK, "free snack resets the next day");
+        words.transferFrom(alice, dave, t2);
+        _stake(dave, t2);
+        word.mint(dave, 1e30);
+        _approveAll(alice);
+        _approveAll(dave);
+
+        uint256 supply0 = word.totalSupply();
+        _feedFree(alice, alice, alice, _ids(t1));
+        _feedFree(dave, dave, alice, _ids(t2)); // dave's voucher names the same profile
+        assertEq(supply0 - word.totalSupply(), SNACK, "one free snack between the profile's wallets");
+        assertEq(staking.freeSnackDayPlusOne(alice), uint32(block.timestamp / 1 days) + 1, "the profile's snack is used");
+        assertEq(staking.freeSnackDayPlusOne(dave), 0, "nothing is keyed on the second wallet");
+    }
+
+    function test_Staking_freeSnackVoucherChecks() public {
+        uint256 t1 = _claimLower(alice, 0);
+        uint256 t2 = _claimLower(bob, 1);
+        _stake(alice, t1);
+        _stake(bob, t2);
+        _approveAll(alice);
+        _approveAll(bob);
+        uint256 dl = block.timestamp + 600;
+        uint32 day = uint32(block.timestamp / 1 days);
+
+        // A voucher for alice's Words can't feed bob's: the staker is named, and checked.
+        bytes memory sig = _signSnack(bob, alice, alice, dl);
+        vm.prank(bob);
+        vm.expectRevert(Staking.WrongStaker.selector);
+        staking.feedWithSnack(_ids(t2), alice, alice, dl, sig);
+        // …and naming bob as the staker doesn't match what was signed.
+        vm.prank(bob);
+        vm.expectRevert(Staking.BadSignature.selector);
+        staking.feedWithSnack(_ids(t2), bob, alice, dl, sig);
+
+        // A voucher is the named caller's only: bob can't spend alice's.
+        sig = _signSnack(alice, alice, alice, dl);
+        vm.prank(bob);
+        vm.expectRevert(Staking.BadSignature.selector);
+        staking.feedWithSnack(_ids(t1), alice, alice, dl, sig);
+
+        // A stranger with a voucher naming alice still can't feed alice's Word (not a caretaker).
+        sig = _signSnack(bob, alice, alice, dl);
+        vm.prank(bob);
+        vm.expectRevert(Staking.NotStaker.selector);
+        staking.feedWithSnack(_ids(t1), alice, alice, dl, sig);
+
+        // Another key's signature, another profile than signed, an expired voucher, nothing to feed.
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(address(staking), block.chainid, keccak256("lexigotchi.staking.freeSnack"), alice, alice, alice, day, dl))
+        );
+        (uint8 v, bytes32 r, bytes32 ss) = vm.sign(0xBEEF, digest);
+        vm.prank(alice);
+        vm.expectRevert(Staking.BadSignature.selector);
+        staking.feedWithSnack(_ids(t1), alice, alice, dl, abi.encodePacked(r, ss, v));
+        sig = _signSnack(alice, alice, alice, dl);
+        vm.prank(alice);
+        vm.expectRevert(Staking.BadSignature.selector);
+        staking.feedWithSnack(_ids(t1), alice, bob, dl, sig);
+        vm.prank(alice);
+        vm.expectRevert(Staking.NothingToFeed.selector);
+        staking.feedWithSnack(new uint256[](0), alice, alice, dl, sig);
+
+        // The voucher is good for the day it names only, even before its deadline.
+        uint256 longDl = block.timestamp + 2 days;
+        bytes memory todays = _signSnack(alice, alice, alice, longDl);
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(alice);
+        vm.expectRevert(Staking.BadSignature.selector);
+        staking.feedWithSnack(_ids(t1), alice, alice, longDl, todays);
+        vm.warp(longDl + 1);
+        sig = _signSnack(alice, alice, alice, longDl);
+        vm.prank(alice);
+        vm.expectRevert(Staking.VoucherExpired.selector);
+        staking.feedWithSnack(_ids(t1), alice, alice, longDl, sig);
+    }
+
+    function test_Staking_freeSnackEventAndToggle() public {
+        uint256 t1 = _claimLower(alice, 0);
+        _stake(alice, t1);
+        _approveAll(alice);
+        vm.expectEmit(true, true, false, true, address(staking));
+        emit Staking.FreeSnackUsed(alice, t1, uint32(block.timestamp / 1 days));
+        _feedFree(alice, alice, alice, _ids(t1));
+
+        staking.setFreeDailySnack(false);
+        vm.warp(block.timestamp + 1 days);
+        uint256 supply0 = word.totalSupply();
+        _feedFree(alice, alice, alice, _ids(t1)); // the toggle off: a voucher pays like any feed
+        assertEq(supply0 - word.totalSupply(), SNACK, "no free snack while the toggle is off");
+        assertEq(staking.freeSnackDayPlusOne(alice), uint32(block.timestamp / 1 days), "and none is spent");
+    }
+
+    function test_Staking_signerIsOwnerSetAndNeverZero() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        staking.setSigner(alice);
+        vm.expectRevert(Staking.ZeroAddress.selector);
+        staking.setSigner(address(0));
+        staking.setSigner(bob);
+        assertEq(staking.signer(), bob);
+        vm.expectRevert(Staking.ZeroAddress.selector);
+        new Staking(word, feeRouter, IWords(address(words)), SNACK, 1 days, 3 days, address(0), address(this));
     }
 
     function test_Staking_feedOnlyByStaker() public {
@@ -1211,6 +1320,42 @@ contract LexigotchiTest is Test {
         return abi.encodePacked(r, s, v);
     }
 
+    function _signSnack(address caller, address staker, address profile, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(
+                abi.encode(
+                    address(staking),
+                    block.chainid,
+                    keccak256("lexigotchi.staking.freeSnack"),
+                    caller,
+                    staker,
+                    profile,
+                    uint32(block.timestamp / 1 days),
+                    deadline
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// `caller` feeds `ids` with a fresh voucher for `staker`'s profile `profile`.
+    function _feedFree(address caller, address staker, address profile, uint256[] memory ids) internal {
+        uint256 dl = block.timestamp + 600;
+        bytes memory sig = _signSnack(caller, staker, profile, dl);
+        vm.prank(caller);
+        staking.feedWithSnack(ids, staker, profile, dl, sig);
+    }
+
+    function _ids(uint256 id) internal pure returns (uint256[] memory a) {
+        a = new uint256[](1);
+        a[0] = id;
+    }
+
     function _signDaily(address buyer, uint256 fid, uint256 deadline) internal view returns (bytes memory) {
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
             keccak256(abi.encode(address(letters), block.chainid, buyer, fid, uint32(block.timestamp / 1 days), deadline))
@@ -1305,8 +1450,7 @@ contract LexigotchiTest is Test {
         assertTrue(staking.isHungry(t), "restaking is not a meal");
 
         uint256 supply0 = word.totalSupply();
-        vm.prank(alice);
-        staking.feed(t); // the free daily snack
+        _feedFree(alice, alice, alice, _ids(t)); // the free daily snack
         vm.prank(alice);
         staking.feed(t); // a second feed today: paid and burned, as before
         assertEq(supply0 - word.totalSupply(), SNACK, "feeding is still the only way back");
@@ -1509,8 +1653,7 @@ contract LexigotchiTest is Test {
 
         uint256 aliceBal = word.balanceOf(alice);
         uint256 bobBal = word.balanceOf(bob);
-        vm.prank(bob);
-        staking.feed(t1); // the staker's free snack
+        _feedFree(bob, alice, alice, _ids(t1)); // the staker's profile's free snack
         assertEq(word.balanceOf(bob), bobBal, "the free snack costs the caretaker nothing");
         assertEq(staking.freeSnackDayPlusOne(alice), uint32(block.timestamp / 1 days) + 1, "alice's free snack is used");
         assertEq(staking.freeSnackDayPlusOne(bob), 0, "bob's own free snack is untouched");
@@ -1534,16 +1677,15 @@ contract LexigotchiTest is Test {
         word.mint(carol, 1e30);
         _approveAll(carol);
 
+        // bob and carol are in profiles of their own, but a voucher names the STAKER's profile.
         uint256 supply0 = word.totalSupply();
-        vm.prank(bob);
-        staking.feed(t1);
-        vm.prank(carol);
-        staking.feed(t2);
+        _feedFree(bob, alice, alice, _ids(t1));
+        _feedFree(carol, alice, alice, _ids(t2));
         assertEq(supply0 - word.totalSupply(), SNACK, "exactly one free snack between them");
     }
 
     /// In one feedMany, each staker's free snack covers one of its own words; the caller pays the rest.
-    function test_Caretaker_feedManyUsesEachStakersFreeSnack() public {
+    function test_Caretaker_feedWithSnackFreesOnlyTheFirst() public {
         uint256 t1 = _claimLower(alice, 0);
         uint256 t2 = _claimLower(alice, 1);
         uint256 t3 = _claimLower(bob, 2);
@@ -1551,15 +1693,21 @@ contract LexigotchiTest is Test {
         _stake(alice, t2);
         _stake(bob, t3);
         _care(alice, bob);
+        _approveAll(bob);
 
         uint256 bobBal = word.balanceOf(bob);
         uint256[] memory ids = new uint256[](3);
-        ids[0] = t1; // alice's free snack
+        ids[0] = t1; // alice's profile's free snack
         ids[1] = t2; // paid by bob
-        ids[2] = t3; // bob's own free snack
+        ids[2] = t3; // paid by bob: its free snack is bob's profile's, on a voucher of its own
+        _feedFree(bob, alice, alice, ids);
+        assertEq(bobBal - word.balanceOf(bob), 2 * SNACK, "one free snack per voucher");
+        _feedFree(bob, bob, bob, _ids(t3));
+        assertEq(bobBal - word.balanceOf(bob), 2 * SNACK, "bob's profile's own free snack");
+
         vm.prank(bob);
-        staking.feedMany(ids);
-        assertEq(bobBal - word.balanceOf(bob), SNACK, "one paid snack for three words across two stakers");
+        staking.feedMany(ids); // plain feedMany pays for all
+        assertEq(bobBal - word.balanceOf(bob), 5 * SNACK, "feedMany always pays");
     }
 
     /// A caretaker's paid snack never touches the staker's standing allowance to Staking.
