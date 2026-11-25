@@ -6,6 +6,8 @@ import {
   assertSplitsValid,
   rollSuccessProbability,
   expectedRollsToSuccess,
+  prestigeSuccessProbability,
+  prestigeStageFeeUsd,
 } from "@/lib/params";
 import { runSim, type SimConfig, DEFAULT_SIM_CONFIG } from "@/lib/sim/simulate";
 
@@ -16,22 +18,42 @@ describe("params", () => {
     expect(() => assertSplitsValid(DEFAULT_PARAMS)).not.toThrow();
   });
 
-  it("jackpot rake on rolls + claims is 10% (launch decision: freed 15pp → burn + pool)", () => {
-    expect(DEFAULT_PARAMS.splits.roll.jackpot).toBeCloseTo(0.1);
-    expect(DEFAULT_PARAMS.splits.claim.jackpot).toBeCloseTo(0.1);
+  it("every paid action splits 75 / 10 / 10 / 5 (rewards first, decisions.md #19)", () => {
+    const { packMint, dailyMint, roll, claim, prestige } = DEFAULT_PARAMS.splits;
+    for (const s of [packMint, dailyMint, roll, claim, prestige!]) {
+      expect(s.pool).toBeCloseTo(0.75);
+      expect(s.jackpot).toBeCloseTo(0.1); // decision #3's jackpot share, unchanged
+      expect(s.burn).toBeCloseTo(0.1);
+      expect(s.treasury).toBeCloseTo(0.05);
+    }
   });
 
-  it("roll odds match the v0.2 decision: 45% base, +10pp pity, cap 85%", () => {
-    expect(rollSuccessProbability(0)).toBeCloseTo(0.45);
+  it("snacks stay 100% burned", () => {
+    expect(DEFAULT_PARAMS.splits.snack).toEqual({ pool: 0, jackpot: 0, burn: 1, treasury: 0 });
+  });
+
+  it("roll odds: 40% first try, +15pp per miss, cap 85% (decisions.md #19)", () => {
+    expect(rollSuccessProbability(0)).toBeCloseTo(0.4);
     expect(rollSuccessProbability(1)).toBeCloseTo(0.55);
-    expect(rollSuccessProbability(4)).toBeCloseTo(0.85); // 0.45 + 4×0.10 = 0.85 (cap)
+    expect(rollSuccessProbability(2)).toBeCloseTo(0.7);
+    expect(rollSuccessProbability(3)).toBeCloseTo(0.85); // 0.40 + 3×0.15 = 0.85 (cap)
     expect(rollSuccessProbability(10)).toBeCloseTo(0.85); // capped
   });
 
-  it("expected rolls per upgrade is ~1.9 (v0.2 §1.4)", () => {
+  it("expected rolls per upgrade stays ~1.97, close to the old ~1.91", () => {
     const e = expectedRollsToSuccess();
-    expect(e).toBeGreaterThan(1.7);
-    expect(e).toBeLessThan(2.1);
+    expect(e).toBeGreaterThan(1.95);
+    expect(e).toBeLessThan(2.0);
+  });
+
+  it("the word ladder: five stages, each harder and pricier than the last", () => {
+    expect(DEFAULT_PARAMS.prestige.levels).toBe(5); // Gilded 1–4 + Holographic
+    const firstTry = [0, 1, 2, 3, 4].map((lvl) => prestigeSuccessProbability(0, lvl));
+    [0.4, 0.35, 0.3, 0.25, 0.2].forEach((want, i) => expect(firstTry[i]).toBeCloseTo(want));
+    expect(prestigeSuccessProbability(1, 4)).toBeCloseTo(0.3); // +10pp per miss on that word
+    expect(prestigeSuccessProbability(9, 4)).toBeCloseTo(0.85); // capped
+    // A stage-N attempt costs N × the base fee (Prestige.sol: prestigeFee × (level + 1)).
+    [0.5, 1, 1.5, 2, 2.5].forEach((usd, lvl) => expect(prestigeStageFeeUsd(lvl)).toBeCloseTo(usd));
   });
 });
 

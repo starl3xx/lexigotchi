@@ -24,6 +24,7 @@ import {
   DEFAULT_PARAMS,
   rollSuccessProbability,
   prestigeSuccessProbability,
+  prestigeStageFeeUsd,
   type Params,
 } from "../params";
 import { Rng } from "../rng";
@@ -728,15 +729,18 @@ function playerTurn(player: Player, world: World, day: number): void {
     // would otherwise hit a null target). Disabled ⇒ prestigeTarget is null ⇒ branch skipped ⇒ the
     // roll loop is byte-identical to baseline (no extra RNG draw).
     const pTarget = cfg.wantsUppercase || cfg.crownHunter ? prestigeTarget(player, p) : null;
-    if (pTarget && canSpend(p.prestige.commitFeeUsd)) {
-      spend(p.prestige.commitFeeUsd);
-      world.ledger.route(p.prestige.commitFeeUsd, p.splits.prestige ?? p.splits.roll);
+    // The word ladder: the attempt costs its stage's price (N × the base) and draws at its stage's
+    // first-try odds plus pity. Both read the word's CURRENT stage, as Prestige.sol and the signer do.
+    const pFee = pTarget ? prestigeStageFeeUsd(pTarget.prestigeLevel, p) : 0;
+    if (pTarget && canSpend(pFee)) {
+      spend(pFee);
+      world.ledger.route(pFee, p.splits.prestige ?? p.splits.roll);
       const prestigeSnack = p.prices.snack * p.prestige.snacksPerAttempt;
       if (canSpend(prestigeSnack)) {
         spend(prestigeSnack);
         world.ledger.route(prestigeSnack, p.splits.snack); // 100% burn
       }
-      if (rng.chance(prestigeSuccessProbability(pTarget.prestigePity, p))) {
+      if (rng.chance(prestigeSuccessProbability(pTarget.prestigePity, pTarget.prestigeLevel, p))) {
         pTarget.prestigeLevel += 1; // success: ascend (monotonic) + reset pity
         pTarget.prestigePity = 0;
       } else {

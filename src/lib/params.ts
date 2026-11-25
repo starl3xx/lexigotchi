@@ -90,10 +90,14 @@ export interface Params {
     royalty: Split; // the in-game sale fee (FeeSource.ROYALTY, SaleFees) → 100% Rewards Pool
     // (decisions.md #18, starl3xx 2026-11-25; was 100% Treasury, because marketplace royalties arrive
     // in ETH. The sale fee is $WORD, so it needs no swap. ERC-2981 royalties still go to Treasury.)
-    prestige?: Split; // optional; the prestige commit fee routes here, else falls back to `roll`
+    prestige?: Split; // the ascension attempt fee (FeeSource.PRESTIGE); falls back to `roll` if unset
   };
 
-  /** Upgrade roll (v0.2 §1.4): 45% base, +10pp per consecutive fail, cap 85%, reset on success. */
+  /**
+   * Upgrade roll: 40% base, +15pp per consecutive fail, cap 85%, reset on success (starl3xx,
+   * 2026-11-25, decisions.md #19; was v0.2 §1.4's 45% / +10pp). +15 keeps the average cost of a raised
+   * letter at ~1.97 rolls, close to the old ~1.91: raising is the step the game wants players to take.
+   */
   roll: {
     baseSuccess: number;
     pityStep: number;
@@ -198,10 +202,12 @@ export interface Params {
   };
 
   /**
-   * Prestige / ascension (renewable late-game loop, sim LEVER — default off). A full-UPPERCASE
-   * staked Word ascends through `levels` Gilded stages (EGGS chicken-level parity). Each attempt
-   * pays `commitFeeUsd` (routed via `splits.prestige ?? splits.roll`) + burns `snacksPerAttempt`
-   * snacks (100% burn), and succeeds on a pity ramp identical in shape to upgrade rolls. SUCCESS
+   * Prestige / ascension: the WORD LADDER (starl3xx, 2026-11-25, decisions.md #19). A full-UPPERCASE
+   * staked Word climbs `levels` stages: Gilded 1–4, then Holographic. Each stage is harder and costs
+   * more than the last: the attempt fee is `commitFeeUsd × (stage number)` (Prestige.sol charges
+   * `prestigeFee × (level + 1)`), and the first-try odds are `baseByLevel[level]`, then the same pity
+   * ramp as everywhere (+`pityStep` per miss on that word, cap `pityCap`). Each attempt also burns
+   * `snacksPerAttempt` snacks (100% burn). Fees route via `splits.prestige ?? splits.roll`. SUCCESS
    * bumps the level (monotonic, never decremented) and resets pity; FAILURE is an explicit no-op —
    * level, case, and escrowed letters untouched (compliance: an upgrade fee with probabilistic
    * timing, never a wager on principal — same stance as rolls). Each level multiplies that word's
@@ -215,12 +221,22 @@ export interface Params {
    * docs/decisions.md "Renewable late-game loop".
    */
   prestige: {
+    /**
+     * SIM lever only (the simulator's ascension model). The game's own switch is the contract's
+     * `Prestige.maxLevel` (0 hides ascension); ascension is ON at launch (decisions.md #19).
+     */
     enabled: boolean;
-    /** Number of Gilded ascension stages above full-UPPERCASE (EGGS parity: 4). */
+    /** Stages above full-UPPERCASE: Gilded 1–4 + Holographic = 5. */
     levels: number;
-    /** USD commit fee per attempt (default = roll fee). Routes via `splits.prestige ?? splits.roll`. */
+    /**
+     * USD fee for a Gilded 1 attempt — the BASE price the contract stores as `prestigeFee` (the
+     * price keeper's target). A stage-N attempt costs N × this (`prestigeStageFeeUsd`).
+     */
     commitFeeUsd: number;
-    baseSuccess: number; // mirrors roll odds (45% base)
+    /** First-try odds when no `baseByLevel` entry exists for a level (the old flat ladder). */
+    baseSuccess: number;
+    /** First-try odds per CURRENT level (index 0 = the attempt at Gilded 1). Falls back to `baseSuccess`. */
+    baseByLevel?: readonly number[];
     pityStep: number; // +10pp per consecutive fail on that word
     pityCap: number; // cap 85%
     /** Snacks burned per attempt (100% burn via `splits.snack`). */
@@ -291,16 +307,21 @@ export const DEFAULT_PARAMS: Params = {
     pool: 240, // ≈ 1.01B $WORD — gives the first UPPERCASE stakers something to earn
   },
   splits: {
-    packMint: { pool: 0.4, jackpot: 0.1, burn: 0.2, treasury: 0.3 },
-    dailyMint: { pool: 0.4, jackpot: 0.1, burn: 0.2, treasury: 0.3 },
-    roll: { pool: 0.475, jackpot: 0.1, burn: 0.275, treasury: 0.15 }, // jackpot rake 10% (freed 15pp → burn+pool)
-    claim: { pool: 0.325, jackpot: 0.1, burn: 0.325, treasury: 0.25 }, // jackpot rake 10% (freed 15pp → burn+pool)
-    snack: { pool: 0, jackpot: 0, burn: 1, treasury: 0 },
+    // Rewards first (starl3xx, 2026-11-25, decisions.md #19): every paid action 75% Rewards Pool /
+    // 10% jackpot / 10% burn / 5% treasury. The pool's daily yield is the one reward that needs the
+    // whole loop (buy, raise, stake, feed); the jackpot stays at decision #3's 10%; the treasury
+    // never sells, so 5% is a reserve for seeding the pool or bounty, not income.
+    packMint: { pool: 0.75, jackpot: 0.1, burn: 0.1, treasury: 0.05 },
+    dailyMint: { pool: 0.75, jackpot: 0.1, burn: 0.1, treasury: 0.05 },
+    roll: { pool: 0.75, jackpot: 0.1, burn: 0.1, treasury: 0.05 },
+    claim: { pool: 0.75, jackpot: 0.1, burn: 0.1, treasury: 0.05 },
+    prestige: { pool: 0.75, jackpot: 0.1, burn: 0.1, treasury: 0.05 },
+    snack: { pool: 0, jackpot: 0, burn: 1, treasury: 0 }, // snacks stay 100% burned
     royalty: { pool: 1, jackpot: 0, burn: 0, treasury: 0 },
   },
   roll: {
-    baseSuccess: 0.45,
-    pityStep: 0.1,
+    baseSuccess: 0.4,
+    pityStep: 0.15,
     pityCap: 0.85,
   },
   staking: {
@@ -341,10 +362,11 @@ export const DEFAULT_PARAMS: Params = {
     maxTierRank: 1, // Common + Uncommon only — crowns are never burned
   },
   prestige: {
-    enabled: false,
-    levels: 4, // EGGS chicken-level parity
-    commitFeeUsd: 0.25, // = roll fee; routes via splits.prestige ?? splits.roll
-    baseSuccess: 0.45,
+    enabled: false, // the SIM lever; the game's switch is Prestige.maxLevel (on at launch)
+    levels: 5, // Gilded 1–4 + Holographic
+    commitFeeUsd: 0.5, // Gilded 1; stage N costs N × this: $0.50, $1, $1.50, $2, $2.50
+    baseSuccess: 0.4,
+    baseByLevel: [0.4, 0.35, 0.3, 0.25, 0.2], // each stage harder than the last
     pityStep: 0.1,
     pityCap: 0.85,
     snacksPerAttempt: 1, // burns one snack per attempt (100% burn)
@@ -359,8 +381,6 @@ export const DEFAULT_PARAMS: Params = {
     chaseProbability: 0.5, // load-bearing behavioral assumption — swept in the experiment
     rarityWeight: 1.0, // tier-proportional (matches yield); 0 = flat. The breadth↔rarity dial.
   },
-  // NB: no `splits.prestige` default — leaving it undefined makes the commit fee fall back to
-  // `splits.roll`, and keeps `assertSplitsValid` from validating a non-existent split.
 };
 
 /** Probability of a successful roll given a pity streak (consecutive prior failures). */
@@ -368,9 +388,21 @@ export function rollSuccessProbability(pityStreak: number, p: Params = DEFAULT_P
   return Math.min(p.roll.pityCap, p.roll.baseSuccess + p.roll.pityStep * pityStreak);
 }
 
-/** Probability of a successful prestige attempt given that word's pity streak (mirrors rolls). */
-export function prestigeSuccessProbability(pityStreak: number, p: Params = DEFAULT_PARAMS): number {
-  return Math.min(p.prestige.pityCap, p.prestige.baseSuccess + p.prestige.pityStep * pityStreak);
+/**
+ * Probability of a successful ascension attempt from `level` (the word's CURRENT stage, 0 = not yet
+ * gilded), given that word's pity streak. The first try is `baseByLevel[level]`, then the pity ramp.
+ */
+export function prestigeSuccessProbability(pityStreak: number, level = 0, p: Params = DEFAULT_PARAMS): number {
+  const base = p.prestige.baseByLevel?.[level] ?? p.prestige.baseSuccess;
+  return Math.min(p.prestige.pityCap, base + p.prestige.pityStep * pityStreak);
+}
+
+/**
+ * USD fee for an ascension attempt from `level` (the word's CURRENT stage). Mirrors Prestige.sol's
+ * `prestigeFee × (level + 1)`, so the stage price is always a whole multiple of the base fee.
+ */
+export function prestigeStageFeeUsd(level: number, p: Params = DEFAULT_PARAMS): number {
+  return p.prestige.commitFeeUsd * (level + 1);
 }
 
 /** Expected rolls to one success at base odds (geometric, ignoring pity ceiling effects). */

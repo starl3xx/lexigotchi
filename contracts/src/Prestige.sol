@@ -14,10 +14,13 @@ import {RepegKeeper} from "./RepegKeeper.sol";
 
 /**
  * @title Prestige
- * @notice Ascension: a full-UPPERCASE staked Word climbs through `maxLevel` Gilded stages (EGGS
- *         chicken-level parity, default 4) — the renewable late-game DEPTH sink for the UPPERCASE
- *         cohort. Each attempt pays a commit fee + burns a snack and resolves on the same
- *         commit→signed-reveal as rolls. SUCCESS bumps the level (monotonic, never decremented);
+ * @notice Ascension, the WORD LADDER: a full-UPPERCASE staked Word climbs through `maxLevel` stages
+ *         (default 5: Gilded 1–4, then Holographic) — the late-game DEPTH sink for the UPPERCASE
+ *         cohort. Each stage costs more than the last: an attempt from level L pays
+ *         `prestigeFee × (L + 1)` (see `stageFee`), so the price keeper still repegs ONE number, the
+ *         base. Each attempt also burns a snack and resolves on the same commit→signed-reveal as
+ *         rolls; the backend signer draws at that stage's odds, read from the stage the commit
+ *         records (`PrestigeCommit.level`). SUCCESS bumps the level (monotonic, never decremented);
  *         FAILURE is an explicit no-op — the level, case, and escrowed letters are untouched (same
  *         compliance stance as rolls). Each level multiplies that word's yield & bounty weight,
  *         applied off-chain by the distributors (a bigger slice of the *same* fixed pool — never
@@ -27,8 +30,8 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     IWords public immutable words;
     IStaking public immutable staking;
 
-    uint8 public maxLevel; // Gilded stages above full-UPPERCASE
-    uint256 public prestigeFee; // $WORD commit fee per attempt
+    uint8 public maxLevel; // stages above full-UPPERCASE (Gilded 1–4 + Holographic = 5)
+    uint256 public prestigeFee; // BASE $WORD fee: the Gilded 1 attempt; level L pays prestigeFee × (L + 1)
     uint256 public snackCost; // $WORD burned per attempt (100% burn)
     address public signer; // backend outcome signer (shared superHen model)
 
@@ -37,6 +40,10 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         address owner;
         bool revealed;
         uint32 pityAtCommit;
+        /// @dev The word's stage when the attempt was paid for (it aims at `level + 1`). The signer
+        ///      draws at this stage's odds; the stage can't move before reveal (one open attempt per
+        ///      word, and only this attempt's reveal bumps it), so it's the stage the fee priced.
+        uint8 level;
     }
 
     mapping(uint256 tokenId => uint32) public prestigePity;
@@ -87,18 +94,19 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
         // staker (address(0)), and nobody can be address(0)'s caretaker, so it still reverts.
         if (bo != msg.sender && !staking.isCaretaker(bo, msg.sender)) revert NotBeneficialOwner();
         if (words.caseOf(tokenId) != CaseState.Uppercase) revert NotFullyRaised();
-        if (words.prestigeLevel(tokenId) >= maxLevel) revert MaxLevel();
+        uint8 level = words.prestigeLevel(tokenId);
+        if (level >= maxLevel) revert MaxLevel();
         if (attemptOpen[tokenId]) revert AttemptOpen(); // finish (reveal) the open attempt first
         attemptOpen[tokenId] = true;
 
-        _collect(msg.sender, prestigeFee, FeeSource.PRESTIGE);
+        _collect(msg.sender, stageFee(level), FeeSource.PRESTIGE);
         _collect(msg.sender, snackCost, FeeSource.SNACK); // the burned snack
 
         uint32 p = prestigePity[tokenId];
         commitId = commits.length;
         // The commit names the STAKER, not the caller: reveal re-checks beneficialOwner == owner, so a
         // caretaker's commit naming itself would turn every signed success into a paid no-op.
-        commits.push(PrestigeCommit({tokenId: tokenId, owner: bo, revealed: false, pityAtCommit: p}));
+        commits.push(PrestigeCommit({tokenId: tokenId, owner: bo, revealed: false, pityAtCommit: p, level: level}));
         emit PrestigeCommitted(commitId, tokenId, bo, p);
     }
 
@@ -136,6 +144,12 @@ contract Prestige is Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
 
     function commitCount() external view returns (uint256) {
         return commits.length;
+    }
+
+    /// @notice The $WORD fee for an attempt from `level` (the word's current stage): the base fee times
+    ///         the stage the attempt aims at. Gilded 1 = 1×, Gilded 2 = 2×, … Holographic = 5×.
+    function stageFee(uint8 level) public view returns (uint256) {
+        return prestigeFee * (uint256(level) + 1);
     }
 
     function setParams(uint8 _maxLevel, uint256 _prestigeFee, uint256 _snackCost) external onlyOwner {
