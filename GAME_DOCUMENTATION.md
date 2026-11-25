@@ -159,8 +159,10 @@ A staked word's care state is a function of days since last fed:
 | Peckish | 1–2 | ×0.5 | yes |
 | Hungry | 3+ | 0 | **no** |
 
-- **Feed** a snack to reset the clock. **Snacks are 100% burned**. One **free snack per day** (a
-  retention hook). Snack price: **$0.02** (~84K $WORD).
+- **Feed** a snack to reset the clock. **Snacks are 100% burned**. One **free snack per day per
+  profile** (a retention hook), however many of the profile's wallets stake: the server signs a
+  voucher for it (`Staking.feedWithSnack`), because only the server knows which wallets share a
+  profile; a plain `feed` always pays. Snack price: **$0.02** (~84K $WORD).
 - **The clock keeps running while a word is unstaked.** Only a word's first stake after it is
   claimed starts fed (`Words.claimedAt`: a word dissolved and claimed again is a new word, but one
   passed to another wallet is not); after that only `feed` resets the clock, so unstake + stake can't stand in for a snack (internal

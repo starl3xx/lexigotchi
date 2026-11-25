@@ -793,6 +793,8 @@ The fix in diff A: key the free snack on the staker (`freeSnackDayPlusOne[staker
 
 What stays the same: there is one free snack per staking wallet per day, exactly as today. A player who stakes from both F and W gets two, as they can today. One per player is not possible onchain without option (b).
 
+**Update (2026-11-24, Sepolia redeploy #4):** starl3xx ruled "only one wallet per profile should get a free anything", so the free snack is now one per PROFILE, without a registry. The server knows the profile, so it signs a voucher: `feedWithSnack(ids, staker, profile, deadline, sig)` names the caller, the staker of `ids[0]`, the staker's profile (its account), and the UTC day, and spends `freeSnackDayPlusOne[profile]`. A profile that already spent today's snack pays, with no revert. Plain `feed` and `feedMany` always pay. The snack stays the STAKER's profile's, whoever feeds, so caretakers in other profiles still can't multiply it. Tests: `test_Staking_twoStakingWalletsInOneProfileShareOneFreeSnack`, `test_Staking_freeSnackVoucherChecks`, `test_Caretaker_cannotMultiplyFreeSnacks`.
+
 One side effect: `feed` has no "already fed" guard. A caretaker can use up the staker's free snack by feeding a Word that was just fed. That is a reason to keep feeding limited to named wallets, not open to anyone.
 
 ### 4.4 Words operator approval also reaches marketplaces. Is that acceptable?
@@ -849,7 +851,7 @@ Offchain, either way: `config/deployments.base-sepolia.json` (addresses and `dep
 1. **Diff B:** may a caretaker unstake (back to the staker)? It is convenient from the web. It ends the rule that a staked Word leaves Staking only by its staker's own transaction.
 2. **Approvals:** should the app offer token approvals between the player's wallets at all? If yes: opt-in per wallet pair, and what cap for $WORD (or $WORD only through Move)?
 3. **Caretaker setup:** offer it automatically for every linked wallet (one prompt per staking wallet per sibling), or only on request?
-4. **Free snack:** confirm "one free snack per staking wallet per day" (today's rule, kept). One per player needs the registry (option b).
+4. **Free snack:** ~~confirm "one free snack per staking wallet per day"~~ Ruled 2026-11-24: one per profile, on a signer voucher (see the update in §4.3).
 5. **Held Words:** diff A limits caretakers to staked Words. Rolling a held Word from another wallet uses the approvals (pull, then roll). Should a caretaker also roll held Words? That would remove one condition in Rolls and one test.
 6. **Unlink:** should Unlink wait until the onchain grants are revoked, or only warn? The database cannot revoke them.
 7. **Base Sepolia:** a full redeploy (recommended) or a partial one?

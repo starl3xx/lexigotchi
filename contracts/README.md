@@ -37,7 +37,7 @@ The whole economy flows through one accounting hub, mirroring the sim's four-buc
 | **Letters** | 52-id ERC-1155 (lowercase `i`=`i`, uppercase `i`=`26+i`). 100%-lowercase demand-mirrored draws with per-letter caps; commit→server-signed reveal (no expiry, so fees are never forfeited). Pack-of-5 + a FREE FID-gated daily single + signer-issued free vouchers (free daily / one-time free-pack airdrop); $WORD-only at launch (an ETH auto-swap path exists, deferred). Clamped `priceKeeper` repeg. EIP-2981 royalty **signal** (2.5% → treasury, unenforced). `upgrade` (Rolls/Words only) burns a lowercase, mints its uppercase — conserving supply. |
 | **Words** | One ERC-721 per dictionary word, `tokenId = keccak256(word)`; membership via Merkle proof. Escrows 5 letters, each in the case the claimer names (`upperMask`; any mix, decisions.md #17); **case is derived from the escrow, never stored**. In-place upgrade rolls; dissolve recovers letters + frees the name. `tokenURI` = owner-set base + decimal id (metadata is dynamic — case lives in escrow); EIP-2981 royalty **signal** (2.5% → treasury, unenforced). |
 | **Rolls** | EGGS commit→**server-signed** reveal. Failure is an explicit no-op (asset untouched). Pity per `(beneficialOwner, letter)` — resolved through staking custody so escrowed-letter pity can't be shared/pumped. |
-| **Staking** | Custodial Word staking + the hunger clock (feed = snack, 100% burned). Owns the eligibility truth (staked + not-hungry) read by Jackpot. |
+| **Staking** | Custodial Word staking + the hunger clock (feed = snack, 100% burned). One free snack per profile per UTC day, on a signer voucher (`feedWithSnack`, keyed `freeSnackDayPlusOne[profile]`); plain `feed`/`feedMany` always pay. Caretakers (`setCaretaker`). Owns the eligibility truth (staked + not-hungry) read by Jackpot. |
 | **Prestige** | Ascension of full-UPPERCASE staked Words (commit→signed reveal, monotonic level, fail = no-op). |
 | **AnswerChain** | Lexigotchi's own pre-committed daily-word reverse hash-chain — the jackpot word is unsteerable and needs no LHAW dependency. |
 | **Jackpot** | One `keccak256(word)` lookup against the day's AnswerChain word: exists + staked + not-hungry → pay the whole pot, else roll over. Case-agnostic. |
@@ -49,7 +49,8 @@ These mirror the EGGS reference (`docs/reference/eggs/PATTERN.md`) and are inten
 
 - **`signer` (rolls/prestige/daily-allowance + free vouchers)** — a backend key decides roll/prestige
   outcomes (EGGS `superHen`), authorizes the FID-gated daily, and signs the FREE daily + one-time
-  free-pack vouchers (zero-cost mints; the Quick-Auth/Sybil gate is off-chain). Trusted for *fairness*,
+  free-pack vouchers (zero-cost mints; the Quick-Auth/Sybil gate is off-chain), and each profile's
+  free snack voucher (`Staking.feedWithSnack`; the profile is the server's knowledge, not the chain's). Trusted for *fairness*,
   never for solvency or for harming an asset (failures are no-ops). Pity binding, single-use commit
   ids, KIND-tagged digests, and per-FID gates (`dailyUsed` / `freePackClaimed`) prevent replay.
 - **`keeper` (AnswerChain / Jackpot / distributors)** — reveals the daily word and posts the

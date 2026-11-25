@@ -169,7 +169,11 @@ showed; only the *decisions* changed.
    Then (same day; starl3xx: "only one wallet per profile should get a free anything"): the free daily
    letter and the free pack are recorded per PROFILE in the database (free_claims), so a profile's
    other wallets are refused even when the Farcaster lookups behind the onchain walk fail. The free
-   snack is still per staking wallet onchain; one per profile needs a contract change.
+   snack becomes one per profile too (starl3xx: "yes you should design and build it", with the
+   mixed-case redeploy): the server signs a voucher naming the caller, the staker, and the staker's
+   profile (its account), and `Staking.feedWithSnack` spends `freeSnackDayPlusOne[profile]`. Plain
+   `feed` always pays. The snack is the STAKER's profile's, whoever feeds, so caretakers in other
+   profiles can't multiply it.
    Open, not yet ruled: whether the game should REMEMBER a link across visits (today the Farcaster
    session is tab-scoped by design, `src/lib/auth/siwfWeb.ts`).
 10. **Chain reads — a custom Neon/Drizzle indexer + viem multicall** (not a subgraph).

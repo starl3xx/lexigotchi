@@ -157,7 +157,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
   **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
   staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
-  the free snack is the staker's; commits name the staker; only the staker unstakes). Game words carry
+  the free snack is the staker's profile's; commits name the staker; only the staker unstakes). Game words carry
   `care` (the connected wallet cares for the staker); word rolls and ascensions look up commits by the
   staker; the Wallets card sets them per wallet (`readCaretakers`, `setCaretakerCalls`).
   **Free things, once per PROFILE** (`lib/db/freeClaims.ts`, table `free_claims`, migration 0013;
@@ -165,7 +165,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   per chain day) and the free pack (kind "pack", once) record the account and the key they sign
   under, first key wins, before signing; another key is refused unless the first voucher expired
   unused; a DB error refuses; no table = the onchain checks alone. daily-status adds the recorded key
-  to its walk. The free snack stays per staking wallet (onchain).
+  to its walk. **The free snack, once per profile** (contracts, ships with Sepolia redeploy #4):
+  `Staking.feedWithSnack(ids, staker, profile, deadline, sig)` frees `ids[0]` when the signer vouched
+  for (caller, staker, profile = the staker's account, UTC day) and `freeSnackDayPlusOne[profile]`
+  isn't today; otherwise it pays, no revert. Plain `feed`/`feedMany` always pay. No database record:
+  the onchain key is the cap.
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and
