@@ -668,7 +668,8 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .sc-more-host { container-type: inline-size; }
 .sc-more { display: grid; margin: 0; padding: 2px 12px; border: 2px solid #1b1714; border-radius: 14px; background: #fbf4e3; font-size: 14px; }
 .sc-more > div + div { border-top: 1px solid rgba(27, 23, 20, 0.1); }
-@container (min-width: 560px) { .sc-more { display: none; } }
+/* the back drops these at max-width 560px, so they show here up to and including 560px (Bugbot #213) */
+@container (min-width: 561px) { .sc-more { display: none; } }
 /* a phone-sized back: four stats, no bottom line */
 @container (max-width: 560px) {
   .cb-more, .cb-foot { display: none; }
