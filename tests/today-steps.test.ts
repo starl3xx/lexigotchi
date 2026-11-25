@@ -1,3 +1,4 @@
+import { rollSuccessProbability } from "@/lib/params";
 /**
  * The Today tab's "Your next steps" (src/components/game/todaySteps.ts): what a player can do now,
  * from their own bag.
@@ -23,7 +24,7 @@ const counts = (letters: string) => {
   for (const ch of letters.toUpperCase()) c[ch.charCodeAt(0) - 65]++;
   return c;
 };
-const odds = (p: number) => Math.min(0.85, 0.45 + 0.1 * p);
+const odds = (p: number) => rollSuccessProbability(p);
 const base = { claimables: [], lower: none, upper: none, pity: Array(26).fill(0), rollProb: odds };
 
 describe("nextSteps", () => {
@@ -40,7 +41,7 @@ describe("nextSteps", () => {
 
   it("rolls the lowercase letter with the best odds in each word, staked words first", () => {
     const pity = Array(26).fill(0);
-    pity["O".charCodeAt(0) - 65] = 3; // O has 75% odds, the other lowercase letters 45%
+    pity["O".charCodeAt(0) - 65] = 3; // O has 85% odds, the other lowercase letters 40%
     const steps = nextSteps({
       ...base,
       pity,
@@ -48,7 +49,7 @@ describe("nextSteps", () => {
     });
     const rolls = steps.filter((s) => s.kind === "roll");
     expect(rolls[0]).toMatchObject({ kind: "roll", word: "AGLOW", letter: "O", pos: 3 });
-    expect(rolls[0].kind === "roll" && Math.round(rolls[0].odds * 100)).toBe(75);
+    expect(rolls[0].kind === "roll" && Math.round(rolls[0].odds * 100)).toBe(85);
     expect(rolls[1]).toMatchObject({ word: "CLAMP" });
   });
 

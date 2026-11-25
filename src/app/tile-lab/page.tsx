@@ -76,10 +76,10 @@ export default function TileLab() {
         </div>
       </Section>
 
-      <Section id="gild" title="The four Gilded stages" hint="UPPERCASE only. Gold accrues around the tile; the blue game piece stays intact underneath.">
+      <Section id="gild" title="The word ladder: four Gilded stages, then Holographic" hint="UPPERCASE only. Gold accrues around the tile, then turns to iridescent foil at the top stage; the blue game piece stays intact underneath.">
         <div className="grid grid-cols-3 gap-x-6 gap-y-8 sm:grid-cols-5">
-          {([0, 1, 2, 3, 4] as const).map((gild) => (
-            <Cell key={gild} label={`gild ${gild} · ×${[1.0, 1.1, 1.21, 1.33, 1.46][gild].toFixed(2)}`}>
+          {([0, 1, 2, 3, 4, 5] as const).map((gild) => (
+            <Cell key={gild} label={`${gild === 5 ? "holographic" : `gild ${gild}`} · ×${(1.1 ** gild).toFixed(2)}`}>
               <TileCharacter char="Q" upper gild={gild} size={132} boil={boil} />
             </Cell>
           ))}

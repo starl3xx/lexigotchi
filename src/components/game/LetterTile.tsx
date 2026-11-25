@@ -8,6 +8,7 @@
 import { TileCharacter, TileWord, type Gild, type TileDetail, type TilePose, type TileState } from "./TileCharacter";
 import { Pill } from "./primitives";
 import { Star } from "./ui/icons";
+import { stageName } from "@/lib/ascension";
 import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
 import { caseBadgeText } from "./careNote";
 
@@ -20,8 +21,8 @@ export function careState(w: OwnedWord): TileState {
   return h === "hungry" ? "hungry" : h === "peckish" ? "peckish" : "idle";
 }
 
-/** Clamp a raw prestige level (game data is a plain number) into the rig's 0–4 gild scale. */
-const asGild = (n: number): Gild => (n <= 0 ? 0 : n >= 4 ? 4 : (Math.round(n) as Gild));
+/** Clamp a raw prestige level (game data is a plain number) into the rig's 0–5 scale (5 = Holographic). */
+const asGild = (n: number): Gild => (n <= 0 ? 0 : n >= 5 ? 5 : (Math.round(n) as Gild));
 
 export function LetterTile({
   char,
@@ -99,7 +100,7 @@ export function CaseBadge({ word }: { word: OwnedWord }) {
 export function PrestigeStars({ level }: { level: number }) {
   if (level <= 0) return null;
   return (
-    <span className="inline-flex text-gold-ink" title={`Gilded L${level}`} aria-label={`Gilded level ${level}`}>
+    <span className="inline-flex text-gold-ink" title={stageName(level)} aria-label={stageName(level)}>
       {Array.from({ length: level }).map((_, i) => (
         <Star key={i} weight="fill" size={11} />
       ))}

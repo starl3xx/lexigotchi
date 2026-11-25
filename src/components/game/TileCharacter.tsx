@@ -24,7 +24,8 @@ import { LETTERS_BY_FREQUENCY, scrabbleValue } from "@/lib/economy";
 export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
 export type TilePose = "rest" | "hero" | "link";
 export type TileDetail = "auto" | "full" | "bust" | "tile";
-export type Gild = 0 | 1 | 2 | 3 | 4;
+/** Ascension stage, UPPERCASE only: 0 plain, 1–4 Gilded, 5 Holographic (the word ladder, decisions.md #19). */
+export type Gild = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface TileCharacterProps {
   /** the printed glyph (a–z); case comes from `upper`, not the glyph's own case */
@@ -74,6 +75,15 @@ const TWINKLE = "#fff6dd";
 const LHAW = "#3b82f6";
 const LHAW_RING = "#bbd1fd";
 const LHAW_INK = "#111827";
+// Holographic (stage 5): an iridescent foil in place of the gold, the stage-4 look reborn. One
+// gradient per tile (id from useId), drifting slowly unless the viewer prefers reduced motion.
+const HOLO_STOPS: [number, string][] = [
+  [0, "#ff9ad5"],
+  [0.25, "#ffe28a"],
+  [0.5, "#8ff0d0"],
+  [0.75, "#8ec5ff"],
+  [1, "#c7a0ff"],
+];
 const CONFETTI = ["#d8463f", "#f0a617", "#2a9d8f", "#3b82f6", "#7b1e26"];
 
 // the 6 rarest letters earn a little glint regardless of state
@@ -276,20 +286,22 @@ function star4(cx: number, cy: number, R = 7, r = 2.6) {
 // Border / ring widths — thick, contiguous frame (design review: no gaps, beefier lines).
 const BORDER_UP = 12; // UPPERCASE blue tile border
 const RING_PB = 10; // pale-blue LHAW outer ring
-const BRASS_W = [0, 8, 10, 12, 12]; // gild main brass ring by stage
+const BRASS_W = [0, 8, 10, 12, 12, 12]; // gild main ring by stage (Holographic keeps stage 4's weight)
 const SHEEN_W = 5; // pale-gold sheen
 const BRASS2_W = 5; // gild-4 second ring
 
 /** Rings stacked OUTSIDE the blue tile border, each abutting the last (no gaps).
  *  gild 0 = the pale-blue LHAW skin; once gilded, GOLD REPLACES that outer blue ring
- *  (design review — stacking both reads too thick). */
-function ringSpecs(gild: Gild): { w: number; color: string }[] {
+ *  (design review — stacking both reads too thick). Holographic paints the gold rings with the
+ *  foil (`holo`, a gradient url) and turns the sheen white so the colors read. */
+function ringSpecs(gild: Gild, holo?: string): { w: number; color: string }[] {
   if (gild <= 0) return [{ w: RING_PB, color: LHAW_RING }];
+  const metal = gild >= 5 && holo ? holo : BRASS;
   const out = [
-    { w: BRASS_W[gild], color: BRASS },
-    { w: SHEEN_W, color: SHEEN },
+    { w: BRASS_W[gild], color: metal },
+    { w: SHEEN_W, color: gild >= 5 ? EYE_WHITE : SHEEN },
   ];
-  if (gild >= 4) out.push({ w: BRASS2_W, color: BRASS });
+  if (gild >= 4) out.push({ w: BRASS2_W, color: metal });
   return out;
 }
 /** Outer extent of the ring stack beyond the tile edge (for twinkle placement). */
@@ -298,11 +310,11 @@ function ringOuter(gild: Gild): number {
 }
 
 /** The pale-blue LHAW skin + any gild brass/sheen rings — drawn back-to-front, contiguous. */
-function Rings({ gild }: { gild: Gild }) {
+function Rings({ gild, holo }: { gild: Gild; holo?: string }) {
   let edge = BORDER_UP / 2; // start at the outer face of the blue tile border
   return (
     <>
-      {ringSpecs(gild).map((r, i) => {
+      {ringSpecs(gild, holo).map((r, i) => {
         const off = edge + r.w / 2;
         edge += r.w;
         return (
@@ -323,7 +335,7 @@ function Rings({ gild }: { gild: Gild }) {
   );
 }
 
-function Twinkles({ gild, reduced }: { gild: Gild; reduced: boolean }) {
+function Twinkles({ gild, reduced, holo }: { gild: Gild; reduced: boolean; holo?: string }) {
   if (gild <= 0) return null;
   const ro = ringOuter(gild);
   const items = [
@@ -340,8 +352,8 @@ function Twinkles({ gild, reduced }: { gild: Gild; reduced: boolean }) {
             key={i}
             d={star4(t.x, t.y, 9, 3)}
             fill={TWINKLE}
-            stroke={GOLD}
-            strokeWidth={1}
+            stroke={gild >= 5 && holo ? holo : GOLD}
+            strokeWidth={gild >= 5 ? 2 : 1}
             className={reduced ? "" : "animate-tc-twinkle"}
             style={reduced ? undefined : ({ animationDelay: `${t.d}s`, ...PLANT } as CSSProperties)}
           />
@@ -350,19 +362,21 @@ function Twinkles({ gild, reduced }: { gild: Gild; reduced: boolean }) {
   );
 }
 
-function Pips({ gild }: { gild: Gild }) {
+/** One pip per stage of the word ladder: four gold, then the Holographic one in foil. */
+function Pips({ gild, holo }: { gild: Gild; holo?: string }) {
   if (gild <= 0) return null;
   const y = BOT - 22;
   return (
     <g>
-      {[0, 1, 2, 3].map((i) => {
-        const cx = CX + (i - 1.5) * 24;
+      {[0, 1, 2, 3, 4].map((i) => {
+        const cx = CX + (i - 2) * 22;
         const filled = i < gild;
+        const paint = i === 4 && holo ? holo : GOLD;
         return (
           <path
             key={i}
             d={diamond(cx, y, 7)}
-            fill={filled ? GOLD : "#ffffff"}
+            fill={filled ? paint : "#ffffff"}
             stroke={filled ? INK : "#c9cfd8"}
             strokeWidth={2}
           />
@@ -372,7 +386,7 @@ function Pips({ gild }: { gild: Gild }) {
   );
 }
 
-function Crown({ base }: { base: number }) {
+function Crown({ base, paint = GOLD }: { base: number; paint?: string }) {
   // 3-point gold crown sitting on the OUTER border edge (passed in), drawn inside the body
   // group so it bounces with the tile. Sits centred between the two eyes.
   const peak = base - 24;
@@ -382,7 +396,7 @@ function Crown({ base }: { base: number }) {
     <g>
       <path
         d={`M ${CX - hw} ${base} L ${CX - hw} ${base - 11} L ${CX - hw * 0.5} ${mid} L ${CX} ${peak} L ${CX + hw * 0.5} ${mid} L ${CX + hw} ${base - 11} L ${CX + hw} ${base} Z`}
-        fill={GOLD}
+        fill={paint}
         stroke={INK}
         strokeWidth={2.6}
         strokeLinejoin="round"
@@ -557,11 +571,13 @@ export function TileCharacter({
 }: TileCharacterProps) {
   const reduced = usePrefersReducedMotion();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
+  const holoPaint = `url(#tc-holo-${uid})`;
 
   const glyph = upper ? char.toUpperCase() : char.toLowerCase();
   const expr = EXPR[state];
   const tilt = TILT[state];
   const g: Gild = upper ? gild : 0; // gild is UPPERCASE-only
+  const holo = g >= 5 ? holoPaint : undefined; // the foil, only on a Holographic tile
 
   // level of detail by rendered size (spec §9) — limbs simplify, glyph never degrades
   const lod: Exclude<TileDetail, "auto"> =
@@ -632,6 +648,20 @@ export function TileCharacter({
         </defs>
       )}
 
+      {/* Holographic foil: one gradient per tile, drifting unless reduced motion (stage 5 only) */}
+      {g >= 5 && (
+        <defs>
+          <linearGradient id={`tc-holo-${uid}`} x1="0" y1="0" x2="0.6" y2="0.6" spreadMethod="reflect">
+            {HOLO_STOPS.map(([o, c]) => (
+              <stop key={o} offset={o} stopColor={c} />
+            ))}
+            {!reduced && (
+              <animateTransform attributeName="gradientTransform" type="translate" values="0 0; 0.6 0.6; 0 0" dur="6s" repeatCount="indefinite" />
+            )}
+          </linearGradient>
+        </defs>
+      )}
+
       {/* gold burst rays (upgrade) — behind everything */}
       {state === "upgrade" && <BurstRays reduced={reduced} />}
 
@@ -667,7 +697,7 @@ export function TileCharacter({
           )}
 
           {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
-          {upper && <Rings gild={g} />}
+          {upper && <Rings gild={g} holo={holo} />}
 
           {/* lowercase 3-D bottom edge (the wooden shelf) */}
           {!upper && <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
@@ -691,10 +721,10 @@ export function TileCharacter({
 
           {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
               still reads via the rings + pips (one crown per letter would clutter / clip) */}
-          {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} />}
+          {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
 
           {/* gild pips on the lower face */}
-          <Pips gild={g} />
+          <Pips gild={g} holo={holo} />
 
           {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
               never collides with the inventory count bubble */}
@@ -747,7 +777,7 @@ export function TileCharacter({
           )}
 
           {/* gild twinkles — riding the rings */}
-          <Twinkles gild={g} reduced={reduced} />
+          <Twinkles gild={g} reduced={reduced} holo={holo} />
         </g>
       </g>
 
@@ -759,7 +789,7 @@ export function TileCharacter({
     </svg>
   );
 
-  const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""}, ${state}${g ? ` · gilded ${g}` : ""}`;
+  const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""}, ${state}${g >= 5 ? " · holographic" : g ? ` · gilded ${g}` : ""}`;
   const Tag = onClick ? "button" : "div";
   return (
     <Tag

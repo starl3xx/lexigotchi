@@ -87,7 +87,7 @@ export function ShowcaseScreen() {
   }
 
   const text = showcaseWordText(w.word, w.upper);
-  const gild = Math.max(0, Math.min(4, Math.round(w.prestigeLevel))) as Gild;
+  const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
 
   return (
     // Desktop (lg): the word in its scene and the share buttons on the left, the choices on the right.

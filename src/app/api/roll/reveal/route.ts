@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "unknown_commit" }, { status: 404 });
   }
 
-  // 45% base, +10pp per prior failure, capped at 85% — from the SNAPSHOT, not live pity.
+  // 40% base, +15pp per prior failure, capped at 85% (params.ts) — from the SNAPSHOT, not live pity.
   const probability = rollSuccessProbability(Number(pityAtCommit));
   const success = drawSuccess("roll", commitId, probability);
   const facts = {

@@ -69,6 +69,8 @@ const WEI = {
   roll: usdToWordWei(P.roll),
   claim: usdToWordWei(P.claim),
   snack: usdToWordWei(P.snack),
+  /** The BASE ascension fee (Gilded 1); Prestige.sol charges a stage-N attempt N × this. */
+  prestige: usdToWordWei(DEFAULT_PARAMS.prestige.commitFeeUsd),
 };
 
 const DAY = 86_400;
@@ -79,19 +81,28 @@ export interface FeeSourceDef {
   id: number;
   key: string;
   label: string;
-  /** v0.2 default split, bps [pool, jackpot, burn, treasury]. */
+  /** Default split, bps [pool, jackpot, burn, treasury] — derived from params.ts `splits`. */
   bps: [number, number, number, number];
   note: string;
 }
 
+/** A params.ts split as FeeRouter basis points, so the console's defaults can't drift from the economy. */
+const bpsOf = (s: { pool: number; jackpot: number; burn: number; treasury: number }): FeeSourceDef["bps"] => [
+  Math.round(s.pool * 10_000),
+  Math.round(s.jackpot * 10_000),
+  Math.round(s.burn * 10_000),
+  Math.round(s.treasury * 10_000),
+];
+const SPLITS = DEFAULT_PARAMS.splits;
+
 export const FEE_SOURCES: FeeSourceDef[] = [
-  { id: 0, key: "PACK_MINT", label: "Pack mint", bps: [4000, 1000, 2000, 3000], note: "pack of 5 letters" },
-  { id: 1, key: "DAILY_MINT", label: "Daily mint", bps: [4000, 1000, 2000, 3000], note: "FID-gated daily single" },
-  { id: 2, key: "ROLL", label: "Roll", bps: [4750, 1000, 2750, 1500], note: "upgrade roll fee" },
-  { id: 3, key: "CLAIM", label: "Claim", bps: [3250, 1000, 3250, 2500], note: "claim a word" },
-  { id: 4, key: "SNACK", label: "Snack", bps: [0, 0, 10000, 0], note: "100% burn" },
-  { id: 5, key: "PRESTIGE", label: "Prestige", bps: [4750, 1000, 2750, 1500], note: "ascension commit fee" },
-  { id: 6, key: "ROYALTY", label: "Word sale fee", bps: [10000, 0, 0, 0], note: "10% of a word sale (SaleFees) → Rewards Pool (decisions.md #18)" },
+  { id: 0, key: "PACK_MINT", label: "Pack mint", bps: bpsOf(SPLITS.packMint), note: "pack of 5 letters" },
+  { id: 1, key: "DAILY_MINT", label: "Daily mint", bps: bpsOf(SPLITS.dailyMint), note: "FID-gated daily single" },
+  { id: 2, key: "ROLL", label: "Roll", bps: bpsOf(SPLITS.roll), note: "upgrade roll fee" },
+  { id: 3, key: "CLAIM", label: "Claim", bps: bpsOf(SPLITS.claim), note: "claim a word" },
+  { id: 4, key: "SNACK", label: "Snack", bps: bpsOf(SPLITS.snack), note: "100% burn" },
+  { id: 5, key: "PRESTIGE", label: "Prestige", bps: bpsOf(SPLITS.prestige ?? SPLITS.roll), note: "ascension attempt fee" },
+  { id: 6, key: "ROYALTY", label: "Word sale fee", bps: bpsOf(SPLITS.royalty), note: "10% of a word sale (SaleFees) → Rewards Pool (decisions.md #18)" },
 ];
 
 /** The three FeeRouter buckets the operator can seed (jackpot deliberately excluded — see Treasury tab). */
@@ -565,14 +576,14 @@ export const CONTRACTS: ContractDef[] = [
     key: "prestige",
     name: "Prestige",
     order: 6,
-    purpose: "Ascension — full-UPPERCASE staked words climb Gilded levels. Commit→signed-reveal; fail = no-op.",
+    purpose: "Ascension, the word ladder — full-UPPERCASE staked words climb Gilded 1–4, then Holographic. A stage-N attempt costs N × prestigeFee. Commit→signed-reveal; fail = no-op.",
     ctor: [
       { name: "word", type: "address" },
       { name: "feeRouter", type: "address" },
       { name: "words", type: "address" },
       { name: "staking", type: "address" },
-      { name: "maxLevel", type: "uint8", default: "4" },
-      { name: "prestigeFee", type: "uint256", default: WEI.roll },
+      { name: "maxLevel", type: "uint8", default: String(DEFAULT_PARAMS.prestige.levels) },
+      { name: "prestigeFee", type: "uint256", default: WEI.prestige },
       { name: "snackCost", type: "uint256", default: WEI.snack },
       { name: "signer", type: "address" },
     ],
@@ -581,12 +592,12 @@ export const CONTRACTS: ContractDef[] = [
         fn: "setParams",
         signature: "setParams(uint8,uint256,uint256)",
         title: "Set prestige params",
-        desc: "Tune max ascension level, the commit fee, and the snack cost burned per attempt.",
+        desc: "Tune the number of stages (0 switches ascension off), the BASE fee (a stage-N attempt costs N × it), and the snack cost burned per attempt.",
         kind: "owner",
         group: "Economics",
         args: [
-          { name: "maxLevel", type: "uint8", default: "4" },
-          { name: "prestigeFee", type: "uint256", help: "$WORD wei", default: WEI.roll },
+          { name: "maxLevel", type: "uint8", default: String(DEFAULT_PARAMS.prestige.levels) },
+          { name: "prestigeFee", type: "uint256", help: "$WORD wei, the Gilded 1 price", default: WEI.prestige },
           { name: "snackCost", type: "uint256", help: "$WORD wei (100% burn)", default: WEI.snack },
         ],
       },
@@ -608,7 +619,7 @@ export const CONTRACTS: ContractDef[] = [
         kind: "keeper",
         group: "Repeg",
         args: [
-          { name: "prestigeFee", type: "uint256", help: "$WORD wei", default: WEI.roll },
+          { name: "prestigeFee", type: "uint256", help: "$WORD wei, the Gilded 1 price", default: WEI.prestige },
           { name: "snackCost", type: "uint256", help: "$WORD wei (100% burn)", default: WEI.snack },
         ],
       },

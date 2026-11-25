@@ -158,14 +158,16 @@ contract Deploy is Script {
         }
     }
 
-    /// @dev v0.2 fee split table (params.ts splits.*), in basis points (sum 10_000 each).
+    /// @dev Fee split table (params.ts splits.*), in basis points (sum 10_000 each): pool, jackpot,
+    ///      burn, treasury. Rewards first (decisions.md #19): every paid action 75 / 10 / 10 / 5.
     function _setSplits(FeeRouter fr) internal {
-        fr.setSplit(FeeSource.PACK_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        fr.setSplit(FeeSource.DAILY_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        fr.setSplit(FeeSource.ROLL, FeeRouter.Split(4750, 1000, 2750, 1500)); // jackpot rake 10% (freed 15pp → burn+pool)
-        fr.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500)); // jackpot rake 10% (freed 15pp → burn+pool)
-        fr.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0)); // snacks 100% burn
-        fr.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500)); // = roll
+        FeeRouter.Split memory paid = FeeRouter.Split(7500, 1000, 1000, 500);
+        fr.setSplit(FeeSource.PACK_MINT, paid);
+        fr.setSplit(FeeSource.DAILY_MINT, paid);
+        fr.setSplit(FeeSource.ROLL, paid);
+        fr.setSplit(FeeSource.CLAIM, paid);
+        fr.setSplit(FeeSource.PRESTIGE, paid);
+        fr.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0)); // snacks stay 100% burned
         // The word-sale fee (10%, SaleFees) → the Rewards Pool (starl3xx, 2026-11-25; was 100% Treasury
         // for an in-house swap fee that never shipped). The bounty carve takes its share of the pool.
         fr.setSplit(FeeSource.ROYALTY, FeeRouter.Split(10000, 0, 0, 0));
@@ -187,10 +189,12 @@ contract Deploy is Script {
         c.rollPrice = vm.envOr("ROLL_PRICE", uint256(1_060_000 ether));
         c.claimPrice = vm.envOr("CLAIM_PRICE", uint256(2_110_000 ether));
         c.snackPrice = vm.envOr("SNACK_PRICE", uint256(84_000 ether));
-        c.prestigeFee = vm.envOr("PRESTIGE_FEE", c.rollPrice);
+        // The BASE ascension fee (Gilded 1, $0.50 = 2 rolls); a stage-N attempt pays N × this.
+        c.prestigeFee = vm.envOr("PRESTIGE_FEE", c.rollPrice * 2);
         c.peckishAfter = uint64(vm.envOr("PECKISH_AFTER", uint256(1 days)));
         c.hungryAfter = uint64(vm.envOr("HUNGRY_AFTER", uint256(3 days)));
-        c.maxLevel = uint8(vm.envOr("PRESTIGE_MAX_LEVEL", uint256(4)));
+        // Gilded 1–4 + Holographic; ascension is ON at launch (decisions.md #19). 0 switches it off.
+        c.maxLevel = uint8(vm.envOr("PRESTIGE_MAX_LEVEL", uint256(5)));
         c.bountyCarveBps = uint16(vm.envOr("BOUNTY_CARVE_BPS", uint256(0)));
         c.priceKeeper = vm.envOr("PRICE_KEEPER", address(0)); // address(0) = auto-repeg disabled
         c.maxMoveBps = uint16(vm.envOr("MAX_MOVE_BPS", uint256(2000))); // ±20% per repeg

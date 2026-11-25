@@ -18,9 +18,10 @@ import {RepegKeeper} from "./RepegKeeper.sol";
  * @notice Upgrade rolls (lowercase → UPPERCASE), the EGGS "Commit To Level Up → Level Up" pattern:
  *         the fee is taken at commit; the outcome is resolved at a backend-signed reveal (the
  *         `superHen` model). A FAILURE is an explicit no-op event — the asset is never burned or
- *         downgraded (hard compliance rule, v0.2 §6). Odds are 45% base, +10pp per consecutive fail
- *         on that (owner, letter), cap 85%, reset on success — the pity curve the backend signer
- *         applies when it decides the outcome.
+ *         downgraded (hard compliance rule, v0.2 §6). Odds are 40% base, +15pp per consecutive fail
+ *         on that (owner, letter), cap 85%, reset on success (decisions.md #19) — the pity curve the
+ *         backend signer applies when it decides the outcome. The odds live off-chain (params.ts);
+ *         this contract only keeps the pity streak.
  *
  *         PITY KEYS ON THE BENEFICIAL OWNER, NEVER THE 1155 HOLDER. When a letter is escrowed inside
  *         a Word, the 1155 is held by `Words` (and, when staked, the Word NFT is held by `Staking`).

@@ -79,13 +79,13 @@ const ENV: EnvField[] = [
   { key: "ROLL_PRICE", label: "Roll price", group: G.prices, required: true, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
   { key: "CLAIM_PRICE", label: "Claim price", group: G.prices, required: true, type: "word", default: peg(P.claim), help: pegHint(P.claim) },
   { key: "SNACK_PRICE", label: "Snack price", group: G.prices, required: true, type: "word", default: peg(P.snack), help: pegHint(P.snack) },
-  { key: "PRESTIGE_FEE", label: "Prestige fee", group: G.prices, required: true, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
+  { key: "PRESTIGE_FEE", label: "Prestige base fee (Gilded 1)", group: G.prices, required: true, type: "word", default: peg(DEFAULT_PARAMS.prestige.commitFeeUsd), help: pegHint(DEFAULT_PARAMS.prestige.commitFeeUsd) },
 
   // --- care --------------------------------------------------------------------------------------
   { key: "PECKISH_AFTER", label: "Peckish after", group: G.care, type: "uint", default: "86400", help: "seconds unfed → ½ yield" },
   { key: "HUNGRY_AFTER", label: "Hungry after", group: G.care, type: "uint", default: "259200", help: "seconds → 0 yield, no jackpot" },
   // 0 = ascension OFF at launch (decisions.md #11); the game hides it while maxLevel is 0.
-  { key: "PRESTIGE_MAX_LEVEL", label: "Prestige max level", group: G.care, type: "uint", default: "0", help: "0 = ascension off (launch); 4 = the designed ladder" },
+  { key: "PRESTIGE_MAX_LEVEL", label: "Prestige max level", group: G.care, type: "uint", default: String(DEFAULT_PARAMS.prestige.levels), help: "5 = the word ladder, Gilded 1–4 + Holographic (on at launch, decisions.md #19); 0 = ascension off" },
 
   // --- repeg -------------------------------------------------------------------------------------
   { key: "PRICE_KEEPER", label: "Price keeper", group: G.repeg, type: "address", help: "blank = auto-repeg disabled (freeze default)" },

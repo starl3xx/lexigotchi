@@ -86,7 +86,7 @@ contract LexigotchiTest is Test {
         rolls = new Rolls(word, feeRouter, ILetters(address(letters)), IWords(address(words)), ROLL, signer);
         staking = new Staking(word, feeRouter, IWords(address(words)), SNACK, 1 days, 3 days, signer, address(this));
         prestige =
-            new Prestige(word, feeRouter, IWords(address(words)), IStaking(address(staking)), 4, PRESTIGE_FEE, SNACK, signer);
+            new Prestige(word, feeRouter, IWords(address(words)), IStaking(address(staking)), 5, PRESTIGE_FEE, SNACK, signer);
 
         bytes32 head = keccak256(abi.encode("CRANE", keccak256("salt1"), bytes32(0)));
         answerChain = new AnswerChain(head, keeper, address(this));
@@ -125,11 +125,11 @@ contract LexigotchiTest is Test {
         vm.prank(alice);
         letters.commitPack();
 
-        // pack split = 40/10/20/30
-        assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool");
+        // pack split = 75/10/10/5 (pool/jackpot/burn/treasury, decisions.md #19)
+        assertEq(feeRouter.poolBalance(), (PACK * 7500) / 10000, "pool");
         assertEq(feeRouter.jackpotBalance(), (PACK * 1000) / 10000, "jackpot");
-        assertEq(word.balanceOf(treasury), (PACK * 3000) / 10000, "treasury");
-        assertEq(supplyBefore - word.totalSupply(), (PACK * 2000) / 10000, "burned (totalSupply drop)");
+        assertEq(word.balanceOf(treasury), (PACK * 500) / 10000, "treasury");
+        assertEq(supplyBefore - word.totalSupply(), (PACK * 1000) / 10000, "burned (totalSupply drop)");
 
         // invariant: held $WORD >= sum of the live buckets
         assertGe(
@@ -172,12 +172,13 @@ contract LexigotchiTest is Test {
     }
 
     function test_FeeRouter_rollAndClaimRakeIs10Pct() public {
-        // Launch decision (2026-06): jackpot rake on ROLL + CLAIM cut 25%->10%, freed 15pp split
-        // evenly to burn + pool (treasury flat). Pin both so the rake can't silently drift back.
+        // The jackpot's share stays 10% (launch decision #3 cut it from 25%), and rewards first
+        // (decisions.md #19) makes every paid action 75 / 10 / 10 / 5. Pin all four legs so neither
+        // the jackpot share nor the split can silently drift.
         feeRouter.setCollector(address(this), true);
         uint256 amt = 1e18;
 
-        // ROLL split = 47.5 / 10 / 27.5 / 15
+        // ROLL split = 75 / 10 / 10 / 5
         word.mint(address(this), amt);
         word.transfer(address(feeRouter), amt);
         uint256 jp = feeRouter.jackpotBalance();
@@ -186,11 +187,11 @@ contract LexigotchiTest is Test {
         uint256 tre = word.balanceOf(treasury);
         feeRouter.route(FeeSource.ROLL, amt);
         assertEq(feeRouter.jackpotBalance() - jp, (amt * 1000) / 10000, "roll jackpot 10%");
-        assertEq(feeRouter.poolBalance() - pool, (amt * 4750) / 10000, "roll pool 47.5%");
-        assertEq(supply - word.totalSupply(), (amt * 2750) / 10000, "roll burn 27.5% (supply drop)");
-        assertEq(word.balanceOf(treasury) - tre, (amt * 1500) / 10000, "roll treasury 15%");
+        assertEq(feeRouter.poolBalance() - pool, (amt * 7500) / 10000, "roll pool 75%");
+        assertEq(supply - word.totalSupply(), (amt * 1000) / 10000, "roll burn 10% (supply drop)");
+        assertEq(word.balanceOf(treasury) - tre, (amt * 500) / 10000, "roll treasury 5%");
 
-        // CLAIM split = 32.5 / 10 / 32.5 / 25
+        // CLAIM split = 75 / 10 / 10 / 5
         word.mint(address(this), amt);
         word.transfer(address(feeRouter), amt);
         jp = feeRouter.jackpotBalance();
@@ -199,9 +200,9 @@ contract LexigotchiTest is Test {
         tre = word.balanceOf(treasury);
         feeRouter.route(FeeSource.CLAIM, amt);
         assertEq(feeRouter.jackpotBalance() - jp, (amt * 1000) / 10000, "claim jackpot 10%");
-        assertEq(feeRouter.poolBalance() - pool, (amt * 3250) / 10000, "claim pool 32.5%");
-        assertEq(supply - word.totalSupply(), (amt * 3250) / 10000, "claim burn 32.5% (supply drop)");
-        assertEq(word.balanceOf(treasury) - tre, (amt * 2500) / 10000, "claim treasury 25%");
+        assertEq(feeRouter.poolBalance() - pool, (amt * 7500) / 10000, "claim pool 75%");
+        assertEq(supply - word.totalSupply(), (amt * 1000) / 10000, "claim burn 10% (supply drop)");
+        assertEq(word.balanceOf(treasury) - tre, (amt * 500) / 10000, "claim treasury 5%");
     }
 
     function test_FeeRouter_payoutsCapAtBucketBalance() public {
@@ -445,12 +446,12 @@ contract LexigotchiTest is Test {
 
         // the swap mints $WORD to the collector; only the surplus over packPrice is refunded
         assertEq(word.balanceOf(alice) - before, out - PACK, "excess $WORD refunded to buyer");
-        // packPrice routed through the PACK_MINT split (40/10/20/30 = pool/jackpot/burn/treasury)
-        assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool");
+        // packPrice routed through the PACK_MINT split (75/10/10/5 = pool/jackpot/burn/treasury)
+        assertEq(feeRouter.poolBalance(), (PACK * 7500) / 10000, "pool");
         assertEq(feeRouter.jackpotBalance(), (PACK * 1000) / 10000, "jackpot");
-        assertEq(word.balanceOf(treasury), (PACK * 3000) / 10000, "treasury");
+        assertEq(word.balanceOf(treasury), (PACK * 500) / 10000, "treasury");
         // burn reduces supply; supply also rose by the swap mint `out`, so isolate the burn
-        assertEq(supplyBefore + out - word.totalSupply(), (PACK * 2000) / 10000, "burned (supply drop)");
+        assertEq(supplyBefore + out - word.totalSupply(), (PACK * 1000) / 10000, "burned (supply drop)");
         // nothing stranded in the collector, and a real pack commit was created
         assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
         assertEq(letters.commitCount(), id + 1, "commit recorded");
@@ -464,7 +465,7 @@ contract LexigotchiTest is Test {
         vm.prank(alice);
         letters.commitPackETH{value: value}(PACK, block.timestamp + 1 hours);
         assertEq(word.balanceOf(alice), before, "no refund on an exact swap");
-        assertEq(feeRouter.poolBalance(), (PACK * 4000) / 10000, "pool funded");
+        assertEq(feeRouter.poolBalance(), (PACK * 7500) / 10000, "pool funded");
         assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
     }
 
@@ -513,7 +514,7 @@ contract LexigotchiTest is Test {
 
         assertEq(letters.dailyUsed(fid), uint32(block.timestamp / 1 days) + 1, "FID marked used today");
         assertEq(word.balanceOf(alice) - before, (value * swap.rate()) - DAILY, "excess $WORD refunded");
-        assertEq(feeRouter.poolBalance(), (DAILY * 4000) / 10000, "pool funded via daily split");
+        assertEq(feeRouter.poolBalance(), (DAILY * 7500) / 10000, "pool funded via daily split");
         assertEq(word.balanceOf(address(letters)), 0, "no residual $WORD held");
 
         // a second ETH daily for the same FID on the same day is still gated
@@ -1058,13 +1059,13 @@ contract LexigotchiTest is Test {
         staking.stake(tokenId);
         vm.stopPrank();
 
-        // ascend to level 3 (maxLevel - 1) sequentially
-        for (uint8 i = 0; i < 3; i++) {
+        // ascend to level 4 (maxLevel - 1) sequentially
+        for (uint8 i = 0; i < 4; i++) {
             vm.prank(alice);
             uint256 id = prestige.commitPrestige(tokenId);
             prestige.reveal(id, true, _signPrestige(id, tokenId, alice, true));
         }
-        assertEq(words.prestigeLevel(tokenId), 3, "at level 3");
+        assertEq(words.prestigeLevel(tokenId), 4, "at level 4");
 
         // a second attempt can't open while the first is unrevealed (the audit fix: no banking
         // signed successes at the capped odds), so parallel commits can't race past maxLevel either
@@ -1074,10 +1075,45 @@ contract LexigotchiTest is Test {
         vm.expectRevert(Prestige.AttemptOpen.selector);
         prestige.commitPrestige(tokenId);
         prestige.reveal(a1, true, _signPrestige(a1, tokenId, alice, true));
-        assertEq(words.prestigeLevel(tokenId), 4, "reached max");
+        assertEq(words.prestigeLevel(tokenId), 5, "reached max: Holographic");
         vm.prank(alice);
         vm.expectRevert(Prestige.MaxLevel.selector);
         prestige.commitPrestige(tokenId);
+    }
+
+    /// The word ladder: an attempt from level L pays prestigeFee × (L + 1) plus the burned snack, and
+    /// the commit records L so the signer draws at that stage's odds. A miss pays the same stage again.
+    function test_Prestige_stageFeeClimbsAndCommitRecordsStage() public {
+        uint256 tokenId = _claimUpper(alice, 0);
+        _approveAll(alice);
+        vm.startPrank(alice);
+        words.approve(address(staking), tokenId);
+        staking.stake(tokenId);
+        vm.stopPrank();
+
+        for (uint8 lvl = 0; lvl < 5; lvl++) {
+            assertEq(prestige.stageFee(lvl), PRESTIGE_FEE * (uint256(lvl) + 1), "stage fee = base x stage");
+            // a miss first: same stage, same price, pity up
+            uint256 before = word.balanceOf(alice);
+            vm.prank(alice);
+            uint256 miss = prestige.commitPrestige(tokenId);
+            assertEq(before - word.balanceOf(alice), prestige.stageFee(lvl) + SNACK, "paid the stage fee + snack");
+            (,,,, uint8 recorded) = prestige.commits(miss);
+            assertEq(recorded, lvl, "commit records the stage");
+            prestige.reveal(miss, false, _signPrestige(miss, tokenId, alice, false));
+            assertEq(words.prestigeLevel(tokenId), lvl, "a miss never moves the stage");
+
+            before = word.balanceOf(alice);
+            vm.prank(alice);
+            uint256 hit = prestige.commitPrestige(tokenId);
+            assertEq(before - word.balanceOf(alice), prestige.stageFee(lvl) + SNACK, "a retry pays the same stage");
+            prestige.reveal(hit, true, _signPrestige(hit, tokenId, alice, true));
+            assertEq(words.prestigeLevel(tokenId), lvl + 1, "a hit moves up one stage");
+            assertEq(prestige.prestigePity(tokenId), 0, "pity resets on a hit");
+        }
+        vm.prank(alice);
+        vm.expectRevert(Prestige.MaxLevel.selector);
+        prestige.commitPrestige(tokenId); // Holographic is the top
     }
 
     function test_Prestige_unstakedRevealIsNoop() public {
@@ -1135,7 +1171,7 @@ contract LexigotchiTest is Test {
         vm.prank(alice);
         letters.commitPack();
 
-        uint256 grossPool = (PACK * 4000) / 10000;
+        uint256 grossPool = (PACK * 7500) / 10000;
         uint256 carve = (grossPool * 1500) / 10000;
         assertEq(feeRouter.bountyBalance(), carve, "carve to bounty");
         assertEq(feeRouter.poolBalance(), grossPool - carve, "pool reduced by carve");
@@ -1169,13 +1205,15 @@ contract LexigotchiTest is Test {
     // helpers
     // ---------------------------------------------------------------------------------------------
 
+    /// @dev Mirrors Deploy.s.sol: every paid action 75 / 10 / 10 / 5 (decisions.md #19), snacks burned.
     function _setSplits() internal {
-        feeRouter.setSplit(FeeSource.PACK_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        feeRouter.setSplit(FeeSource.DAILY_MINT, FeeRouter.Split(4000, 1000, 2000, 3000));
-        feeRouter.setSplit(FeeSource.ROLL, FeeRouter.Split(4750, 1000, 2750, 1500));
-        feeRouter.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500));
+        FeeRouter.Split memory paid = FeeRouter.Split(7500, 1000, 1000, 500);
+        feeRouter.setSplit(FeeSource.PACK_MINT, paid);
+        feeRouter.setSplit(FeeSource.DAILY_MINT, paid);
+        feeRouter.setSplit(FeeSource.ROLL, paid);
+        feeRouter.setSplit(FeeSource.CLAIM, paid);
         feeRouter.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0));
-        feeRouter.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500));
+        feeRouter.setSplit(FeeSource.PRESTIGE, paid);
         feeRouter.setSplit(FeeSource.ROYALTY, FeeRouter.Split(10000, 0, 0, 0)); // word-sale fee → pool
     }
 
@@ -1930,7 +1968,7 @@ contract LexigotchiTest is Test {
         emit Prestige.PrestigeCommitted(0, t, alice, 0); // indexers find the commit by the staker
         vm.prank(bob);
         uint256 id = prestige.commitPrestige(t);
-        (, address owner,,) = prestige.commits(id);
+        (, address owner,,,) = prestige.commits(id);
         assertEq(owner, alice, "the commit names the staker");
         assertEq(bobBal - word.balanceOf(bob), PRESTIGE_FEE + SNACK, "the caretaker pays the fee and the snack");
         prestige.reveal(id, true, _signPrestige(id, t, alice, true));

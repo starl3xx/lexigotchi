@@ -13,6 +13,7 @@ const word = (w: string, tokenId: bigint): ChainWord => ({
   daysUnfed: 0,
   lastFedAt: 0,
   prestigeLevel: 0,
+  prestigePity: 0,
 });
 
 describe("bagWalletsOf — one bag's wallet set", () => {
