@@ -32,6 +32,16 @@ const CONTRACTS = [
   ["saleFees", "SaleFees"],
 ] as const;
 
+/**
+ * Contracts beside the suite, emitted as `<key>Abi` but kept out of `ABIS` (and so out of ContractKey's
+ * suite checks): the Shop (decisions.md #22) and its Base Sepolia test USDC (a test mock, compiled from
+ * contracts/test/mocks). A network may run the whole game without them.
+ */
+const EXTRAS = [
+  ["shop", "Shop"],
+  ["mockUsdc", "MockUSDC"],
+] as const;
+
 /** Only the fragments the app actually calls — a full ERC-20 ABI is dead weight in the bundle. */
 const ERC20_MIN = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -67,6 +77,9 @@ const parts: string[] = [
 for (const [key, name] of CONTRACTS) {
   parts.push(`export const ${key}Abi = ${JSON.stringify(abiOf(name))} as const;`, "");
 }
+for (const [key, name] of EXTRAS) {
+  parts.push(`export const ${key}Abi = ${JSON.stringify(abiOf(name))} as const;`, "");
+}
 parts.push(`export const erc20Abi = ${JSON.stringify(ERC20_MIN)} as const;`, "");
 
 // The two operator approvals the game needs: Letters(1155) → Words, and Words(721) → Staking.
@@ -97,6 +110,7 @@ parts.push(
 const out = resolve(ROOT, "src/lib/onchain/abis.ts");
 writeFileSync(out, parts.join("\n"));
 
-const total = CONTRACTS.reduce((n, [, name]) => n + abiOf(name).length, 0);
+const all = [...CONTRACTS, ...EXTRAS];
+const total = all.reduce((n, [, name]) => n + abiOf(name).length, 0);
 console.log(`✓ src/lib/onchain/abis.ts`);
-console.log(`  ${CONTRACTS.length} contracts, ${total} ABI entries`);
+console.log(`  ${all.length} contracts, ${total} ABI entries`);
