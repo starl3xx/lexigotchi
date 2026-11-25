@@ -394,6 +394,35 @@ setter. All small, riding existing suite patterns.
       once per profile. Amends #1 (one free letter a day, forever) and #2 (the pack only for the
       campaign). All free letters share a budget of 30,000 (`FREE_LETTER_BUDGET`), and free grants stop
       when the dictionary is about 95% claimed. Server-side only: no contract changes.
+22. **Rarity shows on the tiles, and the top two tiers are renamed** (starl3xx, 2026-11-25: "the
+    rarity of the letters is ultra important... it should be delightful and amazing and make people
+    WANT better rarities"; chosen over several rounds of mocks).
+    - **Rename:** Epic becomes **Legendary**, and the old Legendary becomes **Mythic**. Weights,
+      counts, and cuts are unchanged (Legendary 184 words, weight 5; Mythic 46, weight 8). The
+      contracts rank tiers by number, so nothing onchain moves (`npm run derive:contracts` gives no
+      diff). Earlier entries here keep the old names: read their "Epic" as Legendary and their
+      "Legendary" as Mythic.
+    - **Finishes:** each tier above Common wears a subtle, translucent material on its letter
+      tiles (`lib/rarityFinish.ts`, `components/game/TileFinish.tsx`): Uncommon satin jade, Rare
+      sapphire foil, Legendary polished gold with engraved scrollwork, Mythic cut amethyst with
+      spectral fire. Common stays plain. Rainbow belongs to Holographic ascension (#19) and Mythic's
+      fire only. A peckish word's shine dims; a hungry word's goes until it's fed.
+    - **The light moves in moments, not loops** (starl3xx: the mocks were "melting my laptop's GPU…
+      make it as efficient as possible across all devices"). Every tier's period (7–10 s), the word in
+      focus gets one moment: a light crosses it letter by letter, then everything rests. Looping the
+      same effects on every tile kept a 4×-slowed phone's main thread at 99% (a Common word: 37%). In
+      moments, the share page costs 16% (Legendary) and 26% (Mythic) over 12 s at 4× slowed. Only
+      full-size words move, only on screen, never under reduced motion or Save-Data or on a phone
+      with 2 GB or less. Lists draw still tiles. The core count isn't a test: WebKit reports at most
+      2 on iOS, which would have kept every iPhone still.
+    - **Share cards draw each finish as a still** (`app/_og/tile.tsx`, the same geometry). **No name on
+      a link card** (starl3xx: the old pill under the word "looks cheap/misplaced and makes the card
+      look imbalanced"): X prints the site under the card and the post tags @lexigotchi. A picture
+      that travels alone (Save image, the Telegram welcome, later the share video) carries a quiet
+      corner wordmark (`?saved=1`). Cards cache a week at the edge, so a link shared before this
+      keeps its old card until then.
+    - Next, in order: scene cards with backs and the Showcase folded into the Bag; live backs drawn
+      with OGL; the share loop (front, turn, back).
 
 ## Pricing & launch economics (decided June 2026)
 

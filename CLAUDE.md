@@ -341,6 +341,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
   the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
+- **Rarity finishes** (decisions.md #22): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
+  **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
+  material on its tiles (`lib/rarityFinish.ts` = the table; `components/game/TileFinish.tsx` = the
+  layers; pass `tier` to `TileCharacter`/`TileWord`/`WordTiles`/`SceneFrame`). **Motion is moments,
+  never loops** (`useFinishMoment` adds `.rf-moment` to the word's row every tier period; globals.css
+  `rf-*`; `tests/rarity-finish.test.tsx` fails on an `rf-` animation outside `.rf-moment`, on
+  `infinite`, or on a dash-offset animation): only full-size words, on screen, not hungry, not under
+  reduced motion, Save-Data, or 2 GB memory. Never gate motion on `hardwareConcurrency` (iOS reports
+  2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
+  card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
+  from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
+  Telegram welcome). Next steps (not built): scene cards with backs, the Showcase folded into the
+  Bag, live backs with OGL, the share loop.
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
