@@ -15,6 +15,7 @@ import { encodeFunctionData, maxUint256 } from "viem";
 import type { Call } from "./sendCalls";
 import { addressOf, wordTokenAddress } from "./addresses";
 import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, merkleEpochsAbi } from "./abis";
+import { stageFeeMultiple } from "@/lib/ascension";
 import { erc20ApprovalCalls, operatorApprovalCalls, prestigeTotalNeeded, feedManyNeeded } from "./allowances";
 import { NETWORK } from "./network";
 import type { GameParams, PlayerState } from "./reads";
@@ -285,17 +286,20 @@ export function rollRevealCalls(commitId: bigint, success: boolean, signature: `
 }
 
 /**
- * Ascend a word. The allowance must cover prestigeFee + snackCost: commitPrestige collects TWICE in
- * one transaction, so a fee-sized approval succeeds on the first pull and reverts on the second.
+ * Ascend a word from `level` (its CURRENT stage). The allowance must cover the stage's fee + the
+ * snack: commitPrestige collects TWICE in one transaction, so a fee-sized approval succeeds on the
+ * first pull and reverts on the second. The word ladder prices a stage-N attempt at N × the base
+ * `prestigeFee` (Prestige.stageFee), so the approval scales with the stage too.
  */
-export function commitPrestigeCalls(tokenId: bigint, params: GameParams, player: PlayerState): Call[] {
+export function commitPrestigeCalls(tokenId: bigint, level: number, params: GameParams, player: PlayerState): Call[] {
   const prestige = addressOf("prestige");
+  const stageFee = params.wei.prestigeFee * BigInt(stageFeeMultiple(level));
   return [
     ...erc20ApprovalCalls({
       token: wordTokenAddress(),
       spender: prestige,
       current: player.allowance.prestige,
-      needed: prestigeTotalNeeded(params.wei.prestigeFee, params.wei.prestigeSnackCost),
+      needed: prestigeTotalNeeded(stageFee, params.wei.prestigeSnackCost),
     }),
     { to: prestige, data: encodeFunctionData({ abi: prestigeAbi, functionName: "commitPrestige", args: [tokenId] }) },
   ];

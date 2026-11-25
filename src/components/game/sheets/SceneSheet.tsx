@@ -18,7 +18,7 @@ export function SceneSheet({ word }: { word: string }) {
   const w = g.state.words.find((x) => x.word === word);
   const { scene } = useWordScene(word);
   if (!w) return null;
-  const gild = Math.max(0, Math.min(4, Math.round(w.prestigeLevel))) as Gild;
+  const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
   return (
     <Sheet open onClose={g.closeSheet} title={`${word}’s scene`}>
       <div className="space-y-3 pb-2">

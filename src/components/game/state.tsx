@@ -19,6 +19,7 @@ import {
 } from "react";
 import { ALPHABET, LETTER_ODDS, wordTier, type Tier } from "@/lib/economy";
 import { WORDS } from "@/lib/dictionary";
+import { stageFeeMultiple } from "@/lib/ascension";
 import {
   DEFAULT_PARAMS,
   currentWordUsd,
@@ -259,6 +260,8 @@ export const COST = {
   snack: Math.round(priceWord(P.snack)),
   prestige: Math.round(priceWord(DEFAULT_PARAMS.prestige.commitFeeUsd)),
 };
+/** The practice game's ascension fee from `level`: the word ladder's N × base, like Prestige.stageFee. */
+export const mockPrestigeFee = (level: number) => COST.prestige * stageFeeMultiple(level);
 /** Every priced action. `prestigeSnack` is the snack an ascension burns on top of its fee. */
 export type PriceItem = "daily" | "pack" | "roll" | "claim" | "snack" | "prestige" | "prestigeSnack";
 export const MOCK_PRICE: Record<PriceItem, number> = { ...COST, prestigeSnack: COST.snack };
@@ -532,17 +535,18 @@ export function reducer(s: GameState, a: Action): GameState {
         target.prestigeLevel >= PRESTIGE_LEVELS ||
         !target.staked ||
         wordCase(target) !== "UPPERCASE" ||
-        s.balance < COST.prestige + COST.snack
+        s.balance < mockPrestigeFee(target.prestigeLevel) + COST.snack
       ) {
         return s;
       }
+      const fee = mockPrestigeFee(target.prestigeLevel);
       const words = s.words.map((w) => {
         if (w.word !== a.word) return w;
         return a.success
           ? { ...w, prestigeLevel: w.prestigeLevel + 1, prestigePity: 0 }
           : { ...w, prestigePity: w.prestigePity + 1 };
       });
-      return { ...s, words, balance: spend(s, COST.prestige + COST.snack) };
+      return { ...s, words, balance: spend(s, fee + COST.snack) };
     }
     case "dissolve": {
       const w = s.words.find((x) => x.word === a.word);
@@ -626,15 +630,21 @@ export interface GameApi {
    */
   price: (item: PriceItem) => number;
   /**
+   * What an ascension attempt from `level` (the word's CURRENT stage) costs, in whole $WORD, before
+   * its burned snack: the word ladder charges N × the base fee for a stage-N attempt (Prestige.sol
+   * `stageFee`). Same store rule as `price`.
+   */
+  prestigePrice: (level: number) => number;
+  /**
    * Lowercase letters still for sale (chain store: Letters.unreservedSupply). Null = no limit to
    * show: the mock, or a deployment that predates the reservation. Below a pack's 5, packs are
    * sold out; at 0, so is the daily.
    */
   lettersLeft: number | null;
   /**
-   * How many Gilded levels a word can ascend (chain store: Prestige.maxLevel). 0 = ascension is OFF
-   * (decisions.md #11 keeps it off at launch, set by deploying with PRESTIGE_MAX_LEVEL=0), and the
-   * word sheet hides it rather than offer a button the contract would refuse.
+   * How many stages a word can climb (chain store: Prestige.maxLevel): 5 for Gilded 1–4 and
+   * Holographic, ON at launch (decisions.md #19). 0 = ascension is off, and the word sheet hides it
+   * rather than offer a button the contract would refuse.
    */
   maxPrestigeLevel: number;
   dailyMint: () => number | null | Promise<ActionOutcome>;
@@ -735,6 +745,8 @@ export interface GameApi {
   // selectors
   spendable: (word: OwnedWord) => boolean;
   rollProb: (pity: number) => number;
+  /** The odds of an ascension attempt from `level` with `pity` misses on that word (params.ts). */
+  prestigeProb: (level: number, pity: number) => number;
 }
 
 const Ctx = createContext<GameApi | null>(null);
@@ -773,6 +785,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dismissToast,
       canAfford: (amount) => state.balance >= amount,
       price: (item) => MOCK_PRICE[item],
+      prestigePrice: (level) => mockPrestigeFee(level),
       lettersLeft: null,
       maxPrestigeLevel: PRESTIGE_LEVELS,
 
@@ -848,11 +861,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       prestige: (word) => {
         const w = state.words.find((x) => x.word === word);
         if (!w || w.prestigeLevel >= PRESTIGE_LEVELS || !w.staked || wordCase(w) !== "UPPERCASE") return null;
-        if (state.balance < COST.prestige + COST.snack) {
-          needWord(COST.prestige + COST.snack, "an ascension");
+        const fee = mockPrestigeFee(w.prestigeLevel) + COST.snack;
+        if (state.balance < fee) {
+          needWord(fee, "an ascension");
           return null;
         }
-        const success = r.chance(prestigeSuccessProbability(w.prestigePity));
+        const success = r.chance(prestigeSuccessProbability(w.prestigePity, w.prestigeLevel));
         dispatch({ t: "prestige", word, success });
         return success;
       },
@@ -909,6 +923,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),
+      prestigeProb: (level, pity) => prestigeSuccessProbability(pity, level),
     };
   }, [state, dismissToast]);
 

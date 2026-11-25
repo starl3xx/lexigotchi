@@ -48,7 +48,8 @@ import {
   type MoveOutcome,
   type WordListing,
 } from "./state";
-import { rollSuccessProbability } from "@/lib/params";
+import { rollSuccessProbability, prestigeSuccessProbability } from "@/lib/params";
+import { HOLOGRAPHIC_LEVEL, stageFeeMultiple, stageName } from "@/lib/ascension";
 import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
 import {
   readFeeBuckets,
@@ -129,6 +130,8 @@ interface DailyVoucher { fid: string; today: number; deadline: string; signature
 interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; revealSignature: `0x${string}` }
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
+/** The ascension reveal also says which stage the attempt was paid at (Prestige commit `level`). */
+interface PrestigeReveal extends OutcomeReveal { level?: number }
 /** A roll's signed outcome, plus what the UI needs to show the new pity before the chain does. */
 interface RollReveal extends OutcomeReveal {
   pityAtCommit: number;
@@ -169,9 +172,9 @@ function toOwnedWord(w: BagWord, careFor?: ReadonlySet<string>): OwnedWord {
     daysUnfed: w.daysUnfed,
     lastFedAt: w.lastFedAt,
     prestigeLevel: w.prestigeLevel,
-    // Prestige pity is a per-token mapping with no batch getter; not surfaced yet, so the UI shows
-    // base odds rather than an invented streak.
-    prestigePity: 0,
+    // Prestige.prestigePity, read per word with the stage: the word sheet shows the next stage's
+    // real odds (first try + 10 points per miss).
+    prestigePity: w.prestigePity,
     // Union-bag attribution: only the connected wallet's words take actions; the rest display
     // with a "held by" note (the contracts act on msg.sender's assets, full stop).
     mine: w.mine,
@@ -890,6 +893,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Until params load, assume OFF: better a hidden button for a moment than one that reverts.
       maxPrestigeLevel: chain.params?.maxPrestigeLevel ?? 0,
       price: (item: PriceItem) => (chain.params ? chainPrice(chain.params.word, item) : MOCK_PRICE[item]),
+      // The word ladder: a stage-N attempt costs N × Prestige.prestigeFee (the contract's stageFee).
+      prestigePrice: (level: number) =>
+        (chain.params ? chainPrice(chain.params.word, "prestige") : MOCK_PRICE.prestige) * stageFeeMultiple(level),
 
       /**
        * The free daily. Two identities can earn the voucher — a Farcaster FID, or a Coinbase-
@@ -1076,6 +1082,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay twice.
           let id = await readOpenPrestigeFor(tokenIdOf(word));
+          // The stage this attempt aims past (the word ladder: price and odds both depend on it).
+          const level = state.words.find((x) => x.word === word)?.prestigeLevel ?? 0;
           if (id !== null) {
             toast("Finishing your unfinished ascension first", "info");
             markPaid(); // paid at its commit
@@ -1084,7 +1092,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             const target = state.words.find((x) => x.word === word);
             const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
             const before = await readOpenPrestigeCommits(owner);
-            if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), chain.params!, chain.player!)))) return { status: "not-started" as const };
+            if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), level, chain.params!, chain.player!)))) return { status: "not-started" as const };
             markPaid(); // fee + burned snack are gone from here on
             toast("Ascending…", "info");
             id = await waitForNewPrestigeCommit(owner, before);
@@ -1093,7 +1101,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             }
           }
           const commitId = id;
-          const draw = await openPostJson<{ reveal: OutcomeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
+          const draw = await openPostJson<{ reveal: PrestigeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
           if (!draw?.ok) {
             toast(authError(draw?.error, "Ascension"), "bad");
             return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
@@ -1102,7 +1110,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
           }
           // Announce it here: WordSheet returns early on a promise, so nothing else reports this.
-          toast(draw.reveal.success ? `${word} ascended: a gilded glow-up` : `${word} held its ground`,
+          const reached = (draw.reveal.level ?? level) + 1;
+          toast(draw.reveal.success
+                  ? reached >= HOLOGRAPHIC_LEVEL ? `${word} turned Holographic!` : `${word} reached ${stageName(reached)}`
+                  : `${word} held its ground. Next try’s odds are higher`,
                 draw.reveal.success ? "good" : "info");
           return { status: "resolved", success: draw.reveal.success };
         }), NOT_STARTED),
@@ -1462,6 +1473,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       spendable: (w: OwnedWord) =>
         !!chain.params && !!chain.player && chain.player.balance >= chain.params.word.roll && !w.upper.every(Boolean),
       rollProb: (pity: number) => rollSuccessProbability(pity),
+      prestigeProb: (level: number, pity: number) => prestigeSuccessProbability(pity, level),
 
       swapBoard: (boardQ.data ?? []).map(({ maker, giveId, wantId, orderHash, face }) => ({ maker, giveId, wantId, orderHash, face })),
 

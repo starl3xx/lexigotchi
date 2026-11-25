@@ -630,6 +630,8 @@ export interface ChainWord {
   /** Staking.lastFed, unix seconds (0 = never). Lets the word sheet say WHEN it gets peckish. */
   lastFedAt: number;
   prestigeLevel: number;
+  /** Prestige.prestigePity: misses since the word's last ascension hit (the word ladder's pity). */
+  prestigePity: number;
 }
 
 // From the generated ABI, never a hand copy: a copy kept `bool uppercase` after Claimed changed to
@@ -683,6 +685,7 @@ export async function readOwnedWords(player: `0x${string}`): Promise<ChainWord[]
 export async function readWordsHeld(player: `0x${string}`): Promise<{ words: ChainWord[]; everHeld: string[] }> {
   const words = addressOf("words");
   const staking = addressOf("staking");
+  const prestige = addressOf("prestige");
   const client = getPublicClient();
   const from = deployBlock();
 
@@ -740,6 +743,8 @@ export async function readWordsHeld(player: `0x${string}`): Promise<{ words: Cha
       // A re-claimed word (dissolved, then claimed again) keeps the old lastFed, but Staking.stake
       // resets the clock when lastFed < claimedAt: such a word starts full, not starving.
       { address: words, abi: wordsAbi, functionName: "claimedAt" as const, args: [id] },
+      // The ascension pity, so the word sheet shows the next stage's real odds, not the first try's.
+      { address: prestige, abi: prestigeAbi, functionName: "prestigePity" as const, args: [id] },
       ...Array.from({ length: 5 }, (_, pos) => ({
         address: words,
         abi: wordsAbi,
@@ -749,15 +754,16 @@ export async function readWordsHeld(player: `0x${string}`): Promise<{ words: Cha
     ]),
   });
 
-  const PER = 8;
+  const PER = 9;
   const held = owned.map((id, i) => {
     const base = i * PER;
     const prestigeLevel = Number(detail[base]);
     const claimedAt = Number(detail[base + 2]);
     // The clock that staking will honor: none (0) when the last feed predates the current claim.
     const lastFed = Number(detail[base + 1]) < claimedAt ? 0 : Number(detail[base + 1]);
+    const prestigePity = Number(detail[base + 3]);
     const upper = Array.from({ length: 5 }, (_, pos) => {
-      const r = detail[base + 3 + pos] as unknown as readonly [number, boolean];
+      const r = detail[base + 4 + pos] as unknown as readonly [number, boolean];
       return Boolean(r[1]);
     });
     return {
@@ -769,6 +775,7 @@ export async function readWordsHeld(player: `0x${string}`): Promise<{ words: Cha
       daysUnfed: lastFed === 0 ? 0 : Math.max(0, Math.floor((now - lastFed) / 86_400)),
       lastFedAt: lastFed,
       prestigeLevel,
+      prestigePity,
     };
   });
   return { words: held, everHeld };

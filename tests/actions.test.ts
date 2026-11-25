@@ -149,7 +149,7 @@ describe("prestige approves the SUM of both collects", () => {
   // commitPrestige pulls fee then snack in one tx; a fee-sized allowance reverts on the second.
   it("approves at least fee + snackCost", () => {
     const p = params();
-    const calls = A.commitPrestigeCalls(1n, p, { ...barePlayer(), allowance: { ...barePlayer().allowance, prestige: p.wei.prestigeFee } });
+    const calls = A.commitPrestigeCalls(1n, 0, p, { ...barePlayer(), allowance: { ...barePlayer().allowance, prestige: p.wei.prestigeFee } });
     // The fee alone is NOT enough, so an approval must still be emitted.
     expect(calls).toHaveLength(2);
   });
@@ -157,8 +157,19 @@ describe("prestige approves the SUM of both collects", () => {
   it("skips the approval only when it covers fee + snackCost together", () => {
     const p = params();
     const enough = p.wei.prestigeFee + p.wei.prestigeSnackCost;
-    const calls = A.commitPrestigeCalls(1n, p, { ...barePlayer(), allowance: { ...barePlayer().allowance, prestige: enough } });
+    const calls = A.commitPrestigeCalls(1n, 0, p, { ...barePlayer(), allowance: { ...barePlayer().allowance, prestige: enough } });
     expect(calls).toHaveLength(1);
+  });
+
+  it("scales with the stage: the word ladder charges N × the base fee for a stage-N attempt", () => {
+    const p = params();
+    // Enough for Gilded 1 (level 0) is not enough for Holographic (level 4: 5 × the base).
+    const g1 = p.wei.prestigeFee + p.wei.prestigeSnackCost;
+    const holo = 5n * p.wei.prestigeFee + p.wei.prestigeSnackCost;
+    const withAllowance = (a: bigint) => ({ ...barePlayer(), allowance: { ...barePlayer().allowance, prestige: a } });
+    expect(A.commitPrestigeCalls(1n, 0, p, withAllowance(g1))).toHaveLength(1);
+    expect(A.commitPrestigeCalls(1n, 4, p, withAllowance(g1))).toHaveLength(2);
+    expect(A.commitPrestigeCalls(1n, 4, p, withAllowance(holo))).toHaveLength(1);
   });
 });
 

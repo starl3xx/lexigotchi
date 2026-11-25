@@ -5,6 +5,7 @@ import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars, WordTiles, careState } from "../LetterTile";
 import { CaretRight, Check, Coins, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
+import { HOLOGRAPHIC_LEVEL, stageName } from "@/lib/ascension";
 import { useAccount } from "wagmi";
 import { usePublicProfile } from "../useProfile";
 import {
@@ -54,6 +55,10 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const maxLevel = g.maxPrestigeLevel;
   const canPrestige = fullyRaised && word.staked && word.prestigeLevel < maxLevel;
+  // The word ladder: this attempt's price and odds both depend on the stage the word is at now.
+  const atTop = word.prestigeLevel >= maxLevel;
+  const ascendFee = g.prestigePrice(word.prestigeLevel);
+  const ascendOdds = Math.round(g.prestigeProb(word.prestigeLevel, word.prestigePity) * 100);
   const snack = g.price("snack");
   const snackShort =
     word.staked && word.daysUnfed > 0 && state.freeSnackUsed && !g.canAfford(snack)
@@ -202,13 +207,14 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                 Ascend <Star weight="fill" size={14} className="text-gold-ink" />
               </div>
               <div className="text-xs text-ink/55">
-                Gilded L{word.prestigeLevel}
-                {word.prestigeLevel < maxLevel ? ` → L${word.prestigeLevel + 1} · +yield & bounty weight` : " · maxed"}
+                {atTop
+                  ? `${stageName(word.prestigeLevel)} · the top stage`
+                  : `${stageName(word.prestigeLevel)} → ${stageName(word.prestigeLevel + 1)} · ${ascendOdds}% this try`}
               </div>
             </div>
             <Button
               variant="gold"
-              disabled={ascending || !canPrestige || !g.canAfford(g.price("prestige") + g.price("prestigeSnack"))}
+              disabled={ascending || !canPrestige || !g.canAfford(ascendFee + g.price("prestigeSnack"))}
               onClick={() => {
                 const res = g.prestige(word.word);
                 // A promise means it resolves later; announcing success now would celebrate a
@@ -230,12 +236,23 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                   return;
                 }
                 if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
-                g.toast(res ? "Ascended! A gilded glow-up" : "Ascension failed. No harm done", res ? "good" : "info");
+                const reached = word.prestigeLevel + 1;
+                g.toast(
+                  res
+                    ? reached >= HOLOGRAPHIC_LEVEL ? `${word.word} turned Holographic!` : `${word.word} reached ${stageName(reached)}`
+                    : "Missed. No harm done, and the next try’s odds are higher",
+                  res ? "good" : "info",
+                );
               }}
             >
-              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : word.prestigeLevel >= maxLevel ? "Maxed" : `Ascend · ${fmtWord(g.price("prestige"))}`}
+              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : atTop ? "Maxed" : `Ascend · ${fmtWord(ascendFee)}`}
             </Button>
           </div>
+          {!atTop && (
+            <p className="mt-2 text-xs text-ink/55">
+              A hit raises its share of earnings and the bounty 1.1×. A miss never harms it and raises the next try’s odds 10 points.
+            </p>
+          )}
           {strandedNote && <p className="mt-2 text-xs text-gold-ink">{strandedNote}</p>}
           {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
         </Card>

@@ -84,7 +84,7 @@ export function TodayStage() {
   const W = w.word;
   const eating = W === eatingWord;
   const mood = eating ? "full" : item.mood;
-  const gild = Math.max(0, Math.min(4, Math.round(w.prestigeLevel))) as Gild;
+  const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
   const open = () => g.openSheet({ kind: "word", word: W });
   const face = eating ? "eating" : mood === "unstaked" ? "idle" : careState(w);
   const many = items.length > 1;
