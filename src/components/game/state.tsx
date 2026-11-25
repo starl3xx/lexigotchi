@@ -117,8 +117,8 @@ export type View =
   | "bag"
   | "mint"
   | "claim"
+  /** The daily jackpot and, with it, the weekly bounty (screens/JackpotScreen). */
   | "jackpot"
-  | "bounty"
   | "dictionary"
   | "leaderboard"
   /** The real $WORD token: price, supply, burns, the pool (screens/WordScreen). */
@@ -127,6 +127,13 @@ export type View =
   | "lhaw"
   | "showcase"
   | "swap";
+
+/**
+ * A part of a screen a link can land on: GameApp scrolls `main` to the element with this
+ * `data-section` after the screen mounts. Today's bounty card uses it, because on a phone the
+ * bounty sits under the jackpot cards.
+ */
+export type ViewSection = "bounty";
 
 export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: string; pos: number };
 
@@ -211,6 +218,8 @@ export interface GameState {
   jackpotRevealed: boolean;
   bountyTheme: number; // index into THEMES
   view: View;
+  /** Where on `view` the last link pointed; unset means the top. */
+  section?: ViewSection;
   sheet: Sheet;
   toasts: Toast[];
   nextToastId: number;
@@ -363,7 +372,7 @@ export function seedState(): GameState {
 // ---------------------------------------------------------------------------
 
 type Action =
-  | { t: "nav"; view: View }
+  | { t: "nav"; view: View; section?: ViewSection }
   | { t: "sheet"; sheet: Sheet }
   | { t: "toast"; text: string; tone: Toast["tone"]; ms?: number }
   | { t: "untoast"; id: number }
@@ -388,7 +397,7 @@ function spend(s: GameState, amount: number): number {
 export function reducer(s: GameState, a: Action): GameState {
   switch (a.t) {
     case "nav":
-      return { ...s, view: a.view, sheet: null };
+      return { ...s, view: a.view, section: a.section, sheet: null };
     case "sheet":
       return { ...s, sheet: a.sheet };
     case "toast":
@@ -615,7 +624,7 @@ export type MoveOutcome = "sent" | "failed" | "empty" | "open_roll" | "not_linke
 
 export interface GameApi {
   state: GameState;
-  nav: (view: View) => void;
+  nav: (view: View, section?: ViewSection) => void;
   openSheet: (sheet: Sheet) => void;
   closeSheet: () => void;
   toast: (text: string, tone?: Toast["tone"]) => void;
@@ -778,7 +787,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     return {
       state,
-      nav: (view) => dispatch({ t: "nav", view }),
+      nav: (view, section) => dispatch({ t: "nav", view, section }),
       openSheet: (sheet) => dispatch({ t: "sheet", sheet }),
       closeSheet: () => dispatch({ t: "sheet", sheet: null }),
       toast,

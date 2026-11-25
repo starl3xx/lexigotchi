@@ -323,6 +323,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
   newcomer's invitation while their words load (Today, Showcase, Bag).
+- **The Jackpot page carries the bounty** (starl3xx, 2026-11-25): one tab (the phone's "Win", the
+  rail's "Jackpot"), the daily jackpot then the weekly bounty (`screens/BountySection.tsx`), side by
+  side from `lg`. There is no `bounty` view. Today keeps both cards; its bounty card links with
+  `nav("jackpot", "bounty")`, and GameApp scrolls `main` to that `data-section` (a section already
+  near the top, as in the second column, leaves the page at its top). A new link into part of a
+  screen adds a `ViewSection` the same way.
 - **The game's X account is [@lexigotchi](https://x.com/lexigotchi)** (`X_HANDLE`/`X_URL` in `site.ts`): the
   landing footer, the docs footer, More, and `twitter:site` point at it. Posts go out through
   **Typefully social set 372033**, never the X API, and only with starl3xx's go-ahead for each post.

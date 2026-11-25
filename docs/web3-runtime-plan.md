@@ -197,4 +197,4 @@ The docs' pictures (`docs-site/images/*.svg`) are drawn from the game's characte
 splits by `npm run docs:art` (`scripts/docs-art.tsx`). Rerun it after changing either. The
 screenshots (`docs-site/images/screen-*.jpg`) come from `npm run docs:shots` against a practice-mode
 dev server (`scripts/docs-shots.mjs`); retake them after a visible change to Today, Bag, Showcase,
-Bounty, or the $WORD page, and at launch, when practice mode ends.
+the Jackpot page (its bounty half), or the $WORD page, and at launch, when practice mode ends.
