@@ -17,6 +17,14 @@ import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step
  *         to the current commitment and advances to `next`. Because `head` was fixed before any reveal,
  *         no party — not even the operator — can change a future word after the fact. This replaces the
  *         old Phase-3 LHAW-answer hard dependency: the game runs the jackpot on its own clock.
+ *
+ *         A word is drawn at most ONCE, ever (starl3xx, 2026-11-25: "drawn words should be guaranteed not
+ *         to be drawn again"). The off-chain list already holds each pool word once, but a list rotated
+ *         in after exhaustion is a new commitment, so the contract enforces it too: `wasRevealed`
+ *         remembers every revealed word across every chain this contract holds, and `reveal` refuses
+ *         a repeat. A list that repeats an old answer therefore STOPS at that day instead of drawing it
+ *         again (and `setHead` can't replace it mid-stream), so a rotated list must leave out every
+ *         word in `wasRevealed`.
  */
 contract AnswerChain is Ownable2Step {
     bytes32 public currentCommit; // the not-yet-revealed head of the remaining chain
@@ -26,12 +34,17 @@ contract AnswerChain is Ownable2Step {
 
     address public keeper; // may reveal the daily word
 
+    /// @notice Every word ever revealed, keyed `keccak256(bytes(word))` (the same key as its Words
+    ///         tokenId). Never cleared, so no chain, now or rotated in later, can draw a word twice.
+    mapping(bytes32 => bool) public wasRevealed;
+
     event HeadCommitted(bytes32 head);
     event WordRevealed(uint32 indexed day, string word, bytes32 next);
     event KeeperSet(address keeper);
 
     error NotKeeper();
     error BadReveal();
+    error AlreadyRevealed();
     error ChainLive();
     error ZeroAddress();
 
@@ -49,6 +62,9 @@ contract AnswerChain is Ownable2Step {
     /// @notice Reveal the next day's word, advancing the chain.
     function reveal(string calldata word, bytes32 salt, bytes32 next) external onlyKeeper {
         if (keccak256(abi.encode(word, salt, next)) != currentCommit) revert BadReveal();
+        bytes32 key = keccak256(bytes(word));
+        if (wasRevealed[key]) revert AlreadyRevealed();
+        wasRevealed[key] = true;
         currentCommit = next;
         currentWord = word;
         revealedDay += 1;

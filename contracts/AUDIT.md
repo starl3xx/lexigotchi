@@ -56,6 +56,10 @@ suite depends on its `burn()` + `transferFrom` semantics.
    pot is funded only by fee splits (lottery-compliance).
 6. **Repeg is bounded.** A price moves at most `maxMoveBps` per `REPEG_COOLDOWN` window, never off/through
    zero — so a leaked `priceKeeper` can't compound a price in one tx.
+7. **A jackpot word is revealed at most once.** `AnswerChain.wasRevealed` (keyed `keccak256(bytes(word))`,
+   never cleared) makes `reveal` revert `AlreadyRevealed` on any repeat, in one list or a list rotated
+   in after exhaustion (decisions.md #20). A repeating list stalls at that day by design; `setHead`
+   stays closed mid-stream, so the stall can't become a way to rewrite future words.
 
 ## Internal audit (already done)
 

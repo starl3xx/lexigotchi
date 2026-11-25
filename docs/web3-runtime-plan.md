@@ -82,7 +82,7 @@ Still to do on Sepolia:
 | Keeper key | Vercel `KEEPER_PRIVATE_KEY` | Fund it with a little ETH for gas |
 | Price-keeper key | Vercel `PRICE_KEEPER_PRIVATE_KEY` | A third key. Fund it with a little ETH. |
 | Roll relayer key | Vercel `RELAYER_PRIVATE_KEY` | A fourth key. It sends each roll's result, so players confirm once per roll and the wallet never previews the outcome (decisions.md #14). Fund it with a little ETH; each roll costs it under a cent. Never the keeper's key. |
-| Answer seed | Vercel `ANSWER_CHAIN_SEED`, `ANSWER_CHAIN_DAYS` | From `npm run answerchain:generate -- --new-seed`. Back up the file offline and the seed on paper. |
+| Answer seed | Vercel `ANSWER_CHAIN_SEED`, `ANSWER_CHAIN_DAYS` | From `npm run answerchain:generate -- --new-seed`: every pool word once by default (4,584 days; leave `ANSWER_CHAIN_DAYS` empty or set it to 4584). Back up the file offline and the seed on paper. |
 
 The seed is never printed. It is the `seed` field of the generated file. Whoever holds it wins
 every future jackpot, and losing it ends the jackpot (`setHead` reverts once the chain is live).

@@ -353,6 +353,19 @@ setter. All small, riding existing suite patterns.
 
 **Builder code** `bc_bu1cyzms` rides every on-chain action (ERC-8021, `src/lib/onchain/builderCode.ts`).
 
+20. **A jackpot word is drawn at most once, ever** (starl3xx, 2026-11-25: "drawn words should be
+    guaranteed not to be drawn again"). Two layers:
+    - **The list covers the whole pool.** A seeded answer list defaults to every word in the frozen
+      pool, once (`FULL_SCHEDULE_DAYS` = 4,584 days, about 12.5 years). The old 730-day default (the
+      generator's, from #47) would have run out after two years, and the next list could repeat old
+      answers. Sepolia's list was re-committed at full length before its first reveal (block
+      63,523,610); the same seed kept its first 730 answers.
+    - **The contract refuses a repeat (mainnet).** `AnswerChain.wasRevealed` records every revealed
+      word, keyed like its Words tokenId, across every list the contract ever holds, and `reveal`
+      reverts `AlreadyRevealed` on a repeat. Accepted trade-off: a faulty list stops the jackpot at the
+      repeat (and `setHead` can't replace it mid-stream) instead of drawing a word twice. Sepolia's
+      deployed AnswerChain predates the guard and relies on the full-length list.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
