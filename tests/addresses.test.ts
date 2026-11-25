@@ -39,11 +39,11 @@ describe("address resolution on the default (mainnet) build", () => {
 // The Sepolia registry is committed config, so its contents can be asserted directly without
 // needing a second module instance under a different env.
 describe("the committed Sepolia registry", () => {
-  it("carries all ten contracts, the mock token, and the signer role", async () => {
+  it("carries all eleven contracts, the mock token, and the signer role", async () => {
     const sepolia = (await import("../config/deployments.base-sepolia.json")).default;
     expect(sepolia.chainId).toBe(84532);
     const contracts = Object.values(sepolia.contracts);
-    expect(contracts).toHaveLength(10);
+    expect(contracts).toHaveLength(11); // the suite's ten, and SaleFees (decisions.md #18)
     for (const addr of contracts) expect(addr).toMatch(/^0x[a-fA-F0-9]{40}$/);
     // MockERC20, not the mainnet token — approving the mainnet address here would hit empty code.
     expect(sepolia.wordToken.toLowerCase()).toBe("0x4abe1bc87fc508af1a9d2ac31e5ac1af2a1122ea");

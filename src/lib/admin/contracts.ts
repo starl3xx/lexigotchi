@@ -812,6 +812,28 @@ export const CONTRACTS: ContractDef[] = [
       ...ownable(),
     ],
   },
+  {
+    key: "saleFees",
+    name: "SaleFees",
+    order: 11,
+    purpose:
+      "Receives the 10% fee on word sales (Seaport, the in-game board) and routes it via FeeSource.ROYALTY into the Rewards Pool. No owner. Must be a FeeRouter collector (decisions.md #18).",
+    ctor: [
+      { name: "word", type: "address" },
+      { name: "feeRouter", type: "address" },
+    ],
+    fns: [
+      {
+        fn: "flush",
+        signature: "flush()",
+        title: "Flush sale fees",
+        desc: "Route every pending sale fee into the Rewards Pool (less the bounty carve). Anyone may call it; the keeper does each day before the yield epoch opens.",
+        kind: "keeper",
+        group: "Fees",
+        args: [],
+      },
+    ],
+  },
 ];
 
 export const CONTRACT_BY_KEY: Record<ContractKey, ContractDef> = Object.fromEntries(

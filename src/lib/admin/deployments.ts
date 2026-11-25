@@ -28,7 +28,8 @@ export type ContractKey =
   | "answerChain"
   | "jackpot"
   | "yieldDistributor"
-  | "bounty";
+  | "bounty"
+  | "saleFees";
 
 /** `priceKeeper` moves the onchain prices (repeg); a registry written before it existed has none. */
 export type RoleKey = "treasury" | "signer" | "keeper" | "owner" | "priceKeeper";

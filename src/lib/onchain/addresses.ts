@@ -24,7 +24,8 @@ export type ContractKey =
   | "answerChain"
   | "jackpot"
   | "yieldDistributor"
-  | "bounty";
+  | "bounty"
+  | "saleFees";
 
 type Registry = {
   network: string;

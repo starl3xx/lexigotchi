@@ -21,6 +21,7 @@
     "answerChain": null,
     "jackpot": null,
     "yieldDistributor": null,
-    "bounty": null
+    "bounty": null,
+    "saleFees": null
   }
 }

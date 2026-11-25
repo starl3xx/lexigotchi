@@ -87,8 +87,9 @@ export interface Params {
     roll: Split;
     claim: Split;
     snack: Split; // 100% burn
-    royalty: Split; // 2.5% secondary royalty → 100% Treasury (overrides v0.2 §8's pool routing:
-    // marketplace royalties arrive in ETH, and Treasury holds ETH without an ETH→$WORD swap)
+    royalty: Split; // the in-game sale fee (FeeSource.ROYALTY, SaleFees) → 100% Rewards Pool
+    // (decisions.md #18, starl3xx 2026-11-25; was 100% Treasury, because marketplace royalties arrive
+    // in ETH. The sale fee is $WORD, so it needs no swap. ERC-2981 royalties still go to Treasury.)
     prestige?: Split; // optional; the prestige commit fee routes here, else falls back to `roll`
   };
 
@@ -131,11 +132,17 @@ export interface Params {
 
   /** Secondary-market royalty (v0.2 §8, destination overridden — see `splits.royalty`). */
   market: {
-    royaltyRate: number; // e.g., 0.025
+    royaltyRate: number; // e.g., 0.025 (the sim's letter-trading lever, `trading`)
+    /**
+     * The fee on a word sold on the in-game board, as a fraction of the price the buyer pays
+     * (decisions.md #18: 10%, to the Rewards Pool). The seller receives the rest. The app's order
+     * builder and the board's validator both read this one number.
+     */
+    wordSaleFee: number;
     /**
      * Macro abstraction for Phase 0: daily secondary GMV modeled as this fraction of the
      * day's PRIMARY fee GMV (mints+rolls+claims). Royalty on it routes per `splits.royalty`
-     * (now 100% Treasury). This exercises the royalty faucet without a (fragile) per-letter
+     * (now the Rewards Pool). This exercises the royalty faucet without a (fragile) per-letter
      * matching engine; full letter redistribution is modeled via `trading` (see decisions.md).
      */
     secondaryVolumeRatio: number;
@@ -289,7 +296,7 @@ export const DEFAULT_PARAMS: Params = {
     roll: { pool: 0.475, jackpot: 0.1, burn: 0.275, treasury: 0.15 }, // jackpot rake 10% (freed 15pp → burn+pool)
     claim: { pool: 0.325, jackpot: 0.1, burn: 0.325, treasury: 0.25 }, // jackpot rake 10% (freed 15pp → burn+pool)
     snack: { pool: 0, jackpot: 0, burn: 1, treasury: 0 },
-    royalty: { pool: 0, jackpot: 0, burn: 0, treasury: 1 },
+    royalty: { pool: 1, jackpot: 0, burn: 0, treasury: 0 },
   },
   roll: {
     baseSuccess: 0.45,
@@ -312,9 +319,10 @@ export const DEFAULT_PARAMS: Params = {
   },
   market: {
     royaltyRate: 0.025,
+    wordSaleFee: 0.1,
     // Open composability (decision, June 2026) ⇒ external-marketplace royalties are optional and
     // largely uncollected, so external secondary royalty is modeled as 0. The in-house swap fee
-    // (the `trading` lever) is the only ENFORCED royalty → Treasury. Any external royalty that
+    // (the `trading` lever) is the only ENFORCED royalty → splits.royalty. Any external royalty that
     // does get paid is upside. See docs/decisions.md "Royalty & marketplace architecture".
     secondaryVolumeRatio: 0,
   },

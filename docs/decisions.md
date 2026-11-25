@@ -288,6 +288,24 @@ showed; only the *decisions* changed.
     and every claim reverts on the new one and claimed words drop out of the bag and the keeper's
     scan. Until then the deployed Words still takes one case (owner: "Build now, deploy later").
 
+18. **Words sell on the in-game board, in $WORD, with a 10% fee to the Rewards Pool** (starl3xx,
+    2026-11-25: "WORD only", "fee rate should be 10%, to rewards pool", and "no counsel"). This
+    reverses three earlier calls. "Integrate, don't build" for price discovery: the board is now the
+    game's market for words, and OpenSea stays open. The 2.5% in-house fee rate. And ROYALTY → 100%
+    Treasury, which existed because marketplace royalties arrive in ETH; this fee is $WORD, so it
+    needs no swap. Why: once the dictionary is claimed (about day 70), buying a word is the only way
+    a new player gets one, and a unique word is where a price says something (a letter has
+    thousands of copies, and the June sim found letter trading changes little). Mechanics: a Seaport
+    order offers one Word, through a per-token approval (ERC-721 clears it on any transfer or burn,
+    so staking, moving, or dissolving the word kills a stale listing, and a phished signature can't
+    reach other words). Its payment is two $WORD items: the price less 10% to the seller, and 10% to
+    `SaleFees`, whose permissionless `flush()` routes the fee through FeeSource.ROYALTY (pool 100%,
+    less the bounty carve: 85/15 at 1500 bps). The board's server rejects any order that pays less.
+    The buyer approves only the price. Staked words can't be listed. The ERC-2981 signal is
+    unchanged (2.5% → Treasury, paid in ETH on other venues). No counsel: the owner accepted the risk
+    raised at the time, a priced word that earns yield and holds jackpot entries, on a market the
+    game runs and takes a cut of.
+
 **NO MULTISIGS anywhere.** Owner = a single EOA (hardware wallet), used rarely (param ceilings,
 `seed()`, upgrades). Keeper = a separate hot key, `onlyKeeper`-scoped (jackpot resolve, epoch opens,
 AnswerChain reveal, and now the repeg). This drops the Safe / `transferOwnership`-to-multisig step

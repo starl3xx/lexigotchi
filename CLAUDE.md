@@ -421,7 +421,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   first. The `Claimed` event that the bag (`onchain/reads.ts`) and the keeper (`keeper/scan.ts`)
   scan comes from the generated ABI (`getAbiItem`), never a hand copy: a copy kept the old `bool`
   shape, and a log filter on a changed signature silently matches nothing.
-- Snacks 100% burn. The `ROYALTY` FeeSource is the in-house swap fee → 100% Treasury; both token
+- Snacks 100% burn. The `ROYALTY` FeeSource is the word-sale fee (10%, `SaleFees.flush()`) → 100%
+  Rewards Pool (decisions.md #18; the bounty carve applies); both token
   contracts also carry an ERC-2981 royalty **signal** (2.5% → Treasury, unenforced — open
   composability, decisions.md "Royalty & marketplace architecture").
 

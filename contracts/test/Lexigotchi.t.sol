@@ -23,6 +23,7 @@ import {AnswerChain} from "../src/AnswerChain.sol";
 import {Jackpot} from "../src/Jackpot.sol";
 import {YieldDistributor} from "../src/YieldDistributor.sol";
 import {Bounty} from "../src/Bounty.sol";
+import {SaleFees} from "../src/SaleFees.sol";
 import {RepegKeeper} from "../src/RepegKeeper.sol";
 import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
 import {ILetters} from "../src/interfaces/ILetters.sol";
@@ -136,6 +137,38 @@ contract LexigotchiTest is Test {
             feeRouter.poolBalance() + feeRouter.jackpotBalance() + feeRouter.bountyBalance(),
             "solvency"
         );
+    }
+
+    /// The word-sale fee: Seaport pays it to SaleFees as a plain transfer; flush() routes it to the pool.
+    function test_SaleFees_flushRoutesSaleFeesToThePool() public {
+        SaleFees sf = new SaleFees(word, feeRouter);
+        uint256 fee = 5e18;
+        vm.prank(alice);
+        word.transfer(address(sf), fee); // what a Seaport fill does with the fee item
+
+        // Not a collector yet: flush reverts and the fee waits.
+        vm.expectRevert(FeeRouter.NotCollector.selector);
+        sf.flush();
+        assertEq(word.balanceOf(address(sf)), fee, "the fee waits until the router registers SaleFees");
+
+        feeRouter.setCollector(address(sf), true);
+        uint256 pool0 = feeRouter.poolBalance();
+        uint256 treasury0 = word.balanceOf(treasury);
+        vm.prank(bob); // anyone may flush
+        assertEq(sf.flush(), fee);
+        assertEq(feeRouter.poolBalance() - pool0, fee, "all of it reaches the Rewards Pool");
+        assertEq(word.balanceOf(treasury), treasury0, "none to Treasury");
+        assertEq(word.balanceOf(address(sf)), 0, "nothing left behind");
+        assertEq(sf.flush(), 0, "an empty flush is a no-op");
+
+        // With the bounty carve on, the pool share is carved like any other.
+        feeRouter.setBountyCarveBps(1500);
+        vm.prank(alice);
+        word.transfer(address(sf), 1e18);
+        uint256 bounty0 = feeRouter.bountyBalance();
+        sf.flush();
+        assertEq(feeRouter.bountyBalance() - bounty0, 0.15e18, "15% carve to the bounty");
+        assertEq(feeRouter.poolBalance() - pool0 - fee, 0.85e18, "85% to the pool");
     }
 
     function test_FeeRouter_rollAndClaimRakeIs10Pct() public {
@@ -1143,7 +1176,7 @@ contract LexigotchiTest is Test {
         feeRouter.setSplit(FeeSource.CLAIM, FeeRouter.Split(3250, 1000, 3250, 2500));
         feeRouter.setSplit(FeeSource.SNACK, FeeRouter.Split(0, 0, 10000, 0));
         feeRouter.setSplit(FeeSource.PRESTIGE, FeeRouter.Split(4750, 1000, 2750, 1500));
-        feeRouter.setSplit(FeeSource.ROYALTY, FeeRouter.Split(0, 0, 0, 10000));
+        feeRouter.setSplit(FeeSource.ROYALTY, FeeRouter.Split(10000, 0, 0, 0)); // word-sale fee → pool
     }
 
     function _approveAll(address who) internal {
