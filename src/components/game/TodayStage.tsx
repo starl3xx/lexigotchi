@@ -142,6 +142,7 @@ export function TodayStage() {
           word={w}
           flipped={backOf === W}
           onFlip={(back) => setBackOf(back ? W : null)}
+          live={!state.sheet}
           front={
             <SceneFrame
               scene={scene}

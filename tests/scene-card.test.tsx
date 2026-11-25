@@ -14,6 +14,9 @@ vi.mock("@/components/cards/CardBack", () => ({
 }));
 const { SceneCard } = await import("@/components/cards/SceneCard");
 
+// jsdom has no matchMedia; this viewer doesn't ask for reduced motion
+window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+
 afterEach(cleanup);
 
 const word = (w: string): OwnedWord => ({

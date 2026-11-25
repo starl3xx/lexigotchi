@@ -14,7 +14,7 @@
  * Still, always: no tile bounces or shines on the back (the material is drawn once, by CSS here;
  * a later step draws it live where a card is in focus).
  */
-import { TileCharacter, type Gild } from "../game/TileCharacter";
+import { TileCharacter, useLowPower, usePrefersReducedMotion, type Gild } from "../game/TileCharacter";
 import type { ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
 import { DICTIONARY_SIZE, ascensionLabel } from "@/lib/cardFacts";
@@ -22,13 +22,25 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
 import { SCROLL_PATH_CARD, materialOf } from "./material";
-import { useCardFacts } from "./useCardFacts";
+import { useCardFacts, type CardFacts } from "./useCardFacts";
+import dynamic from "next/dynamic";
+import { canDrawLive } from "./live/support";
+
+// The live material loads the first time a back goes live: OGL stays out of the game's first download.
+const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.LiveMaterial), { ssr: false });
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const MOOD: Record<string, string> = { fed: "full", peckish: "peckish", hungry: "hungry" };
 
-export function CardBack({ word, mini = false }: { word: OwnedWord; mini?: boolean }) {
+/**
+ * `live`: the back is showing on the card in focus (the Today stage, an opened word), so its
+ * material is drawn live (./live), unless the player asked for less motion or the device is low-end.
+ */
+export function CardBack({ word, mini = false, live = false }: { word: OwnedWord; mini?: boolean; live?: boolean }) {
   const m = materialOf(word.tier);
+  const reduced = usePrefersReducedMotion();
+  const lowPower = useLowPower();
+  const drawLive = live && !mini && !reduced && !lowPower && canDrawLive();
   return (
     <div className={`cb m-${m}`}>
       <div className="cb-mat">
@@ -36,6 +48,7 @@ export function CardBack({ word, mini = false }: { word: OwnedWord; mini?: boole
         {m === "rare" && <div className="cb-brush" />}
         {m === "legendary" && <div className="cb-glitter" />}
         {m === "mythic" && <Facets />}
+        {drawLive && <LiveMaterial material={m} />}
       </div>
       <div className="cb-frame" />
       {m === "mythic" && <div className="cb-fire" />}
@@ -96,16 +109,30 @@ function MiniBody({ word }: { word: OwnedWord }) {
   );
 }
 
+const DASH = "–";
+
+/** The back's words for its facts: one wording for the back and the rows under an opened card. */
+function says(f: CardFacts) {
+  return {
+    found:
+      f.found.kind === "you" ? "you" : f.found.kind === "other" ? (f.found.name ? `@${f.found.name}` : `${f.found.address.slice(0, 6)}…${f.found.address.slice(-4)}`) : DASH,
+    earned: f.earned === null ? DASH : f.earned > 0 ? `${fmtWord(f.earned)} $WORD` : "None yet",
+    perDay: f.perDay === "upper" ? "Once UPPERCASE" : f.perDay === null ? DASH : `~${fmtWord(f.perDay)} a day`,
+    cost: f.cost === null ? DASH : `~${fmtWord(f.cost)} $WORD`,
+    jackpot: f.drawn === null ? null : f.drawn === "never" ? "Never drawn for the jackpot" : `Drawn for the jackpot (draw ${f.drawn})`,
+  };
+}
+
+/** The token on the explorer, in the chain game only (the practice game has no contracts). */
+function tokenHrefOf(word: string, chain: boolean): string | null {
+  return chain ? `${NETWORK.explorer}/nft/${addressOf("words")}/${tokenIdOf(word).toString()}` : null;
+}
+
 function FullBody({ word }: { word: OwnedWord }) {
   const f = useCardFacts(word);
   const { state } = useGame();
-  const dash = "–";
-  const found =
-    f.found.kind === "you" ? "you" : f.found.kind === "other" ? (f.found.name ? `@${f.found.name}` : `${f.found.address.slice(0, 6)}…${f.found.address.slice(-4)}`) : dash;
-  const jackpot =
-    f.drawn === null ? null : f.drawn === "never" ? "Never drawn for the jackpot" : `Drawn for the jackpot (draw ${f.drawn})`;
-  // The token on the explorer, in the chain game only (the practice game has no contracts).
-  const tokenHref = state.chainBacked ? `${NETWORK.explorer}/nft/${addressOf("words")}/${tokenIdOf(word.word).toString()}` : null;
+  const s = says(f);
+  const tokenHref = tokenHrefOf(word.word, state.chainBacked);
   return (
     <div className="cb-body">
       <div className="cb-top">
@@ -129,16 +156,16 @@ function FullBody({ word }: { word: OwnedWord }) {
           <Stat label="Ascension">
             {f.ascension} <Pips level={f.level} />
           </Stat>
-          <Stat label="Yours since">{f.since ?? dash}</Stat>
+          <Stat label="Yours since">{f.since ?? DASH}</Stat>
           <Stat label="Staked">{f.staked ? `Yes, ${MOOD[f.mood]}` : "No"}</Stat>
           <Stat label="Earned so far" more>
-            {f.earned === null ? dash : f.earned > 0 ? `${fmtWord(f.earned)} $WORD` : "None yet"}
+            {s.earned}
           </Stat>
           <Stat label="Earns staked" more>
-            {f.perDay === "upper" ? "Once UPPERCASE" : f.perDay === null ? dash : `~${fmtWord(f.perDay)} a day`}
+            {s.perDay}
           </Stat>
           <Stat label="Cost to make" more>
-            {f.cost === null ? dash : `~${fmtWord(f.cost)} $WORD`}
+            {s.cost}
           </Stat>
           <Stat label="Points" more>
             {f.points}
@@ -147,9 +174,9 @@ function FullBody({ word }: { word: OwnedWord }) {
       </div>
       <div className="cb-foot cb-plate">
         <span>
-          Found by <b>{found}</b>
+          Found by <b>{s.found}</b>
         </span>
-        {jackpot && <span>{jackpot}</span>}
+        {s.jackpot && <span>{s.jackpot}</span>}
         {tokenHref ? (
           <a className="cb-id" href={tokenHref} target="_blank" rel="noreferrer" aria-label={`${word.word} on the block explorer`}>
             {f.token}
@@ -215,5 +242,46 @@ function Facets() {
       <path d={rays.join(" ")} className="fl" strokeWidth="0.35" fill="none" />
       <path d="M 80 21 L 104 45 L 80 69 L 56 45 Z" className="ft" strokeWidth="0.4" />
     </svg>
+  );
+}
+
+/**
+ * What a phone-sized back leaves out (globals.css: under 560 px it shows four stats), listed under
+ * an opened card while its back is up, so a phone player sees the whole story too: who found it,
+ * what it earns and costs, its points, the jackpot, and its token. Hidden wherever the back is wide
+ * enough to show them itself (the same 560 px, by container query).
+ */
+export function CardMore({ word }: { word: OwnedWord }) {
+  const f = useCardFacts(word);
+  const { state } = useGame();
+  const s = says(f);
+  const tokenHref = tokenHrefOf(word.word, state.chainBacked);
+  return (
+    <dl className="sc-more">
+      <Row label="Found by">{s.found}</Row>
+      <Row label="Earned so far">{s.earned}</Row>
+      <Row label="Earns staked">{s.perDay}</Row>
+      <Row label="Cost to make">{s.cost}</Row>
+      <Row label="Points">{f.points}</Row>
+      <Row label="Jackpot">{s.jackpot ?? DASH}</Row>
+      <Row label="Token">
+        {tokenHref ? (
+          <a href={tokenHref} target="_blank" rel="noreferrer" className="underline underline-offset-2" aria-label={`${word.word} on the block explorer`}>
+            {f.token}
+          </a>
+        ) : (
+          f.token
+        )}
+      </Row>
+    </dl>
+  );
+}
+
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <dt className="shrink-0 font-semibold text-ink/60">{label}</dt>
+      <dd className="min-w-0 text-right">{children}</dd>
+    </div>
   );
 }
