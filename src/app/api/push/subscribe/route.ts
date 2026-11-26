@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { afterResponse } from "@/lib/afterResponse";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
@@ -30,6 +31,26 @@ export const runtime = "nodejs";
  *
  * Dark until configured: without a VAPID public key there is nothing a browser could subscribe with.
  */
+/**
+ * One push to a browser that just opted in: "Reminders are on" (templates `remindersOn`). It proves
+ * the whole path to the player, and to us: no reminder can be sent outside production, so this is
+ * the first real push anyone sees on the day the channel is switched on.
+ *
+ * Only for a browser's FIRST subscribe, only to that browser, and after the answer. The sender is
+ * imported here, inside a catch: it throws at import when armed without its keys, and subscribing
+ * must still work then. While sends are muted the sender declines, and nothing is said.
+ */
+function confirm(sub: { endpoint: string; p256dh: string; auth: string }): void {
+  afterResponse(async () => {
+    try {
+      const [{ sendWebPush }, { remindersOn }] = await Promise.all([import("@/lib/notify/webPush"), import("@/lib/notify/templates")]);
+      await sendWebPush([{ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }], remindersOn());
+    } catch (err) {
+      console.error("[push/subscribe] confirmation not sent:", String((err as Error)?.message ?? err).slice(0, 160));
+    }
+  });
+}
+
 export async function POST(req: Request) {
   if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
     return NextResponse.json({ ok: false, error: "disabled" }, { status: 404 });
@@ -53,6 +74,7 @@ export async function POST(req: Request) {
   try {
     const saved = await saveWebPushSubscription(parsed.sub, await getAuthedFid(req));
     if (saved === "full") return NextResponse.json({ ok: false, error: "too_many_browsers" }, { status: 409 });
+    if (saved === "new") confirm(parsed.sub);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[push/subscribe] error:", err);

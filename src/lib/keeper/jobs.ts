@@ -46,6 +46,7 @@ import {
 import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
+import { notifySold } from "@/lib/notify/sold";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { emailRecipients, markEmailSent, type EmailRecipient } from "@/lib/db/profiles";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
@@ -831,12 +832,15 @@ export function createKeeper(opts: { dry: boolean }) {
 
   /**
    * The Market's recent sales (decisions.md #30): read any sale the table hasn't seen. The Market's
-   * own route does the same on a visit; this covers a day nobody opened it. Reads only.
+   * own route does the same on a visit; this covers a day nobody opened it. Reads, then tells the
+   * sellers of what it found.
    */
   async function marketSales() {
     try {
       const got = await catchUpSales();
       console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed on this network; skipped");
+      // Their sellers hear of them (lib/notify/sold.ts: recent sales only; it never throws).
+      if (got?.fresh.length) await notifySold(got.fresh, { dry: DRY });
     } catch (err) {
       console.error("market: reading sales failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }

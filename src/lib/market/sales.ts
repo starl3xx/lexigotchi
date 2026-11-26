@@ -23,7 +23,7 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { WORDS } from "@/lib/dictionary";
 import { wordTier } from "@/lib/economy";
 import { indexedThrough, markIndexed } from "@/lib/db/shop";
-import { recordSales } from "@/lib/db/market";
+import { recordNewSales, recordSales, type SaleRow } from "@/lib/db/market";
 import type { marketSales } from "@/lib/db/schema";
 
 type SaleInsert = typeof marketSales.$inferInsert;
@@ -129,7 +129,7 @@ const OVERLAP_BLOCKS = 30;
  * it stopped. It asks for the whole span first and halves it while the RPC refuses it as too wide
  * (down to 100 blocks).
  */
-export async function catchUpSales(): Promise<{ recorded: number; through: number } | null> {
+export async function catchUpSales(): Promise<{ recorded: number; through: number; fresh: SaleRow[] } | null> {
   const saleFees = maybeAddressOf("saleFees");
   if (!saleFees) return null;
   const client = getPublicClient();
@@ -137,9 +137,10 @@ export async function catchUpSales(): Promise<{ recorded: number; through: numbe
   const start = Number(deployBlock());
   const last = await indexedThrough(NETWORK.id, saleFees);
   let from = Math.max(last === null ? start : last + 1 - OVERLAP_BLOCKS, start);
-  if (from > latest) return { recorded: 0, through: latest };
+  if (from > latest) return { recorded: 0, through: latest, fresh: [] };
   let span = latest - from + 1;
-  let recorded = 0;
+  // the rows this catch-up was the first to record: whoever calls may tell their sellers (lib/notify/sold.ts)
+  const fresh: SaleRow[] = [];
   let through = from - 1;
   for (let i = 0; i < MAX_RANGES_PER_CATCH_UP && from <= latest; i++) {
     const to = Math.min(latest, from + span - 1);
@@ -155,11 +156,11 @@ export async function catchUpSales(): Promise<{ recorded: number; through: numbe
     for (const hash of hashes) {
       const receipt = await client.getTransactionReceipt({ hash });
       if (receipt.status !== "success") continue;
-      recorded += await recordSales(await rowsOfReceipt(receipt, await blockTime(receipt.blockNumber)));
+      fresh.push(...(await recordNewSales(await rowsOfReceipt(receipt, await blockTime(receipt.blockNumber)))));
     }
     await markIndexed(NETWORK.id, saleFees, to);
     through = to;
     from = to + 1;
   }
-  return { recorded, through };
+  return { recorded: fresh.length, through, fresh };
 }

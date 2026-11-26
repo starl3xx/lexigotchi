@@ -23,7 +23,7 @@ import { fidToStore, mayAddBrowser, type ParsedSubscription } from "@/lib/notify
 export async function saveWebPushSubscription(
   sub: ParsedSubscription,
   fid: number | null,
-): Promise<"saved" | "full"> {
+): Promise<"new" | "saved" | "full"> {
   const db = getDb();
   const now = new Date();
 
@@ -48,7 +48,9 @@ export async function saveWebPushSubscription(
       target: webPushSubscriptions.endpoint,
       set: { address: sub.address, p256dh: sub.p256dh, auth: sub.auth, fid: keptFid, updatedAt: now },
     });
-  return "saved";
+  // "new": this browser had no row. The hook sends the same subscription again whenever the wallet
+  // or the Farcaster account changes (useWebPush), and only the first time is an opt-in.
+  return existing ? "saved" : "new";
 }
 
 /** Forget a browser. Knowing the endpoint is the proof: it is the push service's secret URL for it. */
