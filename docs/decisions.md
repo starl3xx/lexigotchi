@@ -996,6 +996,32 @@ setter. All small, riding existing suite patterns.
       40 points of a core at rest. Fixed beside this change (PR #227: a layer for each z), so a
       hungry word on the new card measures 5% too.
 
+35. **The card's back is relettered, and the game's seal is pressed into it** (step 2 of #34;
+    starl3xx, 2026-11-25, on the same proposal).
+    - **The number is the headline.** "No." small, then the digits large, in the card's serif (Iowan
+      Old Style where the device has it, as on the front). While the number isn't known there is no
+      headline: never a dash that reads as a number.
+    - **The facts are a ledger:** a name, a row of dots, a value. Names in Söhne and as written (the
+      owner: "back word casing can stay as it is"); values in the card's serif. The words stand
+      straight on the material with a soft shadow; the plates are gone from a full back (a Bag
+      thumbnail's two lines keep theirs, to read at a glance).
+    - **The seal** is logo B (the gilded tile's drawing), pressed into the material in one ink,
+      behind the facts, in the material's own line colour. The owner, in order: "I really like the
+      Pressed, one ink version of the back"; "the lines go through the eyes, and they shouldn't";
+      "the eyes of the one-ink seal should also have the triangular cutouts"; "invert the colors
+      of the eyes, so the irises aren't colored". So: everything behind the eyes is cut away where
+      they are, the eyeball is ink, the pupil is clear, and the pupil's pie cut is ink again. It
+      is one picture (`lib/cardArt/seal.ts`), used by the game's back and the server's picture of
+      it, so the share video's back matches. Not on a thumbnail.
+    - **The word is only ever its tiles** (in Söhne, on the rack). "1 of 1" reads "One of one", as
+      on the front's ribbon.
+    - **A phone's back** (under 430 px) drops the ascension pips (the stage's name stays) and the
+      count of words in the rarity, which an opened card then says in the rows under it.
+    - **My readings, not starl3xx's words:** the seal sits right of centre behind the ledger at
+      about a seventh of full strength; a Legendary back's rarity steps clear of its corner
+      scrollwork; the server's picture uses dashes for the ledger's dots (its renderer has no
+      dotted line) and lining figures (it sets no old-style ones).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

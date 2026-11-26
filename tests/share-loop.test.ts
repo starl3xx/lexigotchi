@@ -50,6 +50,14 @@ describe("the back picture", () => {
     const res = await GET(new Request("https://lexigotchi.test/s/zzzzz/back"), { params: Promise.resolve({ text: "zzzzz" }) });
     expect(res.status).toBe(404);
   });
+
+  it("is the card's own shape, the size of the front the video turns over", async () => {
+    const { GET } = await import("@/app/s/[text]/back/route");
+    const res = await GET(new Request("https://lexigotchi.test/s/CRAne/back"), { params: Promise.resolve({ text: "CRAne" }) });
+    expect(res.status).toBe(200);
+    const png = Buffer.from(await res.arrayBuffer());
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 675]);
+  }, 30_000);
 });
 
 describe("videos in the game", () => {

@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import type { OwnedWord } from "@/components/game/state";
 
 // The back reads the game's state and the chain; the card's own behavior is what's under test.
@@ -67,6 +68,23 @@ describe("a word's card", () => {
     expect(screen.getByTestId("back").textContent).toBe("CRANE mini");
     fireEvent.click(open);
     expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a phone's back and the rows under it", () => {
+  // The back drops a line where it has no room; an opened card must then say it in its rows, at
+  // exactly that width, or the line is said nowhere (Bugbot on #230). Both halves are CSS, so the
+  // two widths are held here.
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const back = readFileSync("src/components/cards/CardBack.tsx", "utf8");
+  it("says how many words share the rarity under the card, exactly where the back stops saying it", () => {
+    expect(css).toMatch(/@container \(max-width: 430px\) \{\s*\.cb-pips, \.cb-oneof span \{ display: none; \}/);
+    expect(css).toMatch(/@container \(min-width: 431px\) \{ \.sc-more-phone \{ display: none; \} \}/);
+    expect(back).toMatch(/<Row label="Rarity" phone>\s*One of \{fmt\(f\.ofTier\)\} \{f\.tier\} words/);
+  });
+  it("lists the rest of the story under a back of 560 px or less, where the back shows four facts", () => {
+    expect(css).toMatch(/@container \(max-width: 560px\) \{\s*\.cb-more, \.cb-foot \{ display: none; \}/);
+    expect(css).toMatch(/@container \(min-width: 561px\) \{ \.sc-more \{ display: none; \} \}/);
   });
 });
 

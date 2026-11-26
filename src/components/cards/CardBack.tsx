@@ -1,10 +1,19 @@
 "use client";
 /**
- * The back of a word's card (./SceneCard): the word's story, in its rarity's material. Approved in
- * the "Scene Cards" mock (starl3xx, 2026-11-25): deep backs (a rich material, cream type), a faint
- * card-stock texture, the tiles still on a rack in perspective, and the words on steady plates so
- * they read over any material. Labels semibold and as written (capitals mean a raised letter in
- * this game), the same size as their values; values regular.
+ * The back of a word's card (./SceneCard): the word's story, in its rarity's material. Deep backs
+ * (a rich material, cream type), a faint card-stock texture, and the tiles still on a rack in
+ * perspective (the "Scene Cards" mock, starl3xx, 2026-11-25).
+ *
+ * Relettered with the card's front (decisions.md #35, the "Cards, Scenes, and Logo" proposal):
+ * - **The card's number is the headline,** large, in the card's serif (Iowan Old Style where the
+ *   device has it), with "One of one" under it.
+ * - **The facts are a ledger:** a name, a row of dots, a value. Names in Söhne and as written
+ *   (capitals mean a raised letter in this game; the owner: "back word casing can stay as it is"),
+ *   values in the card's serif, so the two never blur.
+ * - **The game's seal is pressed into the material** in one ink, behind the facts (lib/cardArt/seal;
+ *   the owner: "I really like the Pressed, one ink version of the back").
+ * - **The word itself is only ever its tiles** (in Söhne, on the rack): no line of text names it.
+ * The words stand straight on the material now, with a soft shadow, not on plates.
  *
  * Every size has the same layout, trimmed by the card's width (globals.css, `.cb`, container
  * queries): a phone-sized back shows four stats; a bigger one all eight and the line along the
@@ -19,7 +28,9 @@ import { TierMark } from "../game/TierMark";
 import type { Tier } from "@/lib/economy";
 import type { ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
-import { ascensionLabel, cardNumber } from "@/lib/cardFacts";
+import { ascensionLabel, cardDigits } from "@/lib/cardFacts";
+import { svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
+import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
@@ -32,6 +43,16 @@ import { canDrawLive } from "./live/support";
 const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.LiveMaterial), { ssr: false });
 
 const fmt = (n: number) => n.toLocaleString("en-US");
+
+/** Each material's line colour (globals.css `.m-*`, --cb-line): the seal is pressed in it. */
+const SEAL_INK: Record<string, string> = { common: "#9a8164", uncommon: "#5cc4a9", rare: "#7fb0ef", legendary: "#e9b949", mythic: "#b48cf0" };
+// One picture a material, built the first time a back of that material shows.
+const seals = new Map<string, string>();
+function sealImage(material: string): string {
+  let url = seals.get(material);
+  if (!url) seals.set(material, (url = `url("${svgDataUri(svgDoc(sealInk(SEAL_INK[material] ?? SEAL_INK.common), SEAL, SEAL))}")`));
+  return url;
+}
 const MOOD: Record<string, string> = { fed: "full", peckish: "peckish", hungry: "hungry" };
 
 /**
@@ -53,6 +74,8 @@ export function CardBack({ word, mini = false, live = false }: { word: OwnedWord
         {drawLive && <LiveMaterial material={m} />}
       </div>
       <div className="cb-frame" />
+      {/* the game's seal, pressed into the material behind the facts (not on a thumbnail: too small to read) */}
+      {!mini && <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(m) }} />}
       {m === "mythic" && <div className="cb-fire" />}
       {m === "legendary" && !mini && (["tl", "tr", "bl", "br"] as const).map((k) => <Scroll key={k} corner={k} />)}
       {mini ? <MiniBody word={word} /> : <FullBody word={word} />}
@@ -85,10 +108,11 @@ function Rack({ word }: { word: OwnedWord }) {
   );
 }
 
-/** The rarity plate: the tier's own mark (lib/tierMark: a bead, then three to six corners) and its name. */
-function TierPlate({ tier }: { tier: Tier }) {
+/** The rarity: the tier's own mark (lib/tierMark: a bead, then three to six corners) and its name.
+ *  On a plate on a thumbnail's back, where it must read at a glance; lettered on the material otherwise. */
+function TierPlate({ tier, plate = false }: { tier: Tier; plate?: boolean }) {
   return (
-    <span className="cb-tier cb-plate">
+    <span className={`cb-tier ${plate ? "cb-plate" : "cb-tier-set"}`}>
       <TierMark tier={tier} className="cb-gem" />
       {tier}
     </span>
@@ -100,12 +124,12 @@ function MiniBody({ word }: { word: OwnedWord }) {
   return (
     <div className="cb-body">
       <div className="cb-top">
-        <TierPlate tier={word.tier} />
+        <TierPlate tier={word.tier} plate />
       </div>
       <div className="cb-main">
         <div className="cb-wordcol">
           <Rack word={word} />
-          <p className="cb-mini cb-plate">1 of 1 · {ascensionLabel(word.prestigeLevel)}</p>
+          <p className="cb-mini cb-plate">One of one · {ascensionLabel(word.prestigeLevel)}</p>
         </div>
       </div>
     </div>
@@ -136,23 +160,31 @@ function FullBody({ word }: { word: OwnedWord }) {
   const { state } = useGame();
   const s = says(f);
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
+  const digits = cardDigits(f.number);
   return (
     <div className="cb-body">
       <div className="cb-top">
         <TierPlate tier={f.tier} />
-        <span className="cb-no cb-plate">{cardNumber(f.number)}</span>
       </div>
       <div className="cb-main">
         <div className="cb-wordcol">
-          <Rack word={word} />
-          <div className="cb-oneof cb-plate">
-            <b>1 of 1</b>
+          {/* the card's number, the back's headline; while it isn't known there is none (never a dash that looks like a number) */}
+          {digits && (
+            <p className="cb-no">
+              <small>No.</small>
+              {digits}
+            </p>
+          )}
+          <div className="cb-rule" />
+          <div className="cb-oneof">
+            <b>One of one</b>
             <span>
               One of {fmt(f.ofTier)} {f.tier} words
             </span>
           </div>
+          <Rack word={word} />
         </div>
-        <dl className="cb-stats cb-plate">
+        <dl className="cb-stats">
           <Stat label="Case">{f.caseLabel}</Stat>
           <Stat label="Ascension">
             {f.ascension} <Pips level={f.level} />
@@ -173,7 +205,7 @@ function FullBody({ word }: { word: OwnedWord }) {
           </Stat>
         </dl>
       </div>
-      <div className="cb-foot cb-plate">
+      <div className="cb-foot">
         <span>
           Found by <b>{s.found}</b>
         </span>
@@ -190,10 +222,12 @@ function FullBody({ word }: { word: OwnedWord }) {
   );
 }
 
+/** One line of the ledger: its name, a row of dots, its value. */
 function Stat({ label, more = false, children }: { label: string; more?: boolean; children: ReactNode }) {
   return (
     <div className={`cb-stat ${more ? "cb-more" : ""}`}>
       <dt>{label}</dt>
+      <i aria-hidden />
       <dd>{children}</dd>
     </div>
   );
@@ -237,8 +271,9 @@ function Facets() {
 }
 
 /**
- * What a phone-sized back leaves out (globals.css: under 560 px it shows four stats), listed under
- * an opened card while its back is up, so a phone player sees the whole story too: who found it,
+ * What a phone-sized back leaves out (globals.css: under 560 px it shows four stats; under 430 px
+ * it also drops how many words share the rarity), listed under an opened card while its back is
+ * up, so a phone player sees the whole story too: how many words share its rarity, who found it,
  * what it earns and costs, its points, the jackpot, and its token. Hidden wherever the back is wide
  * enough to show them itself (the same 560 px, by container query).
  */
@@ -249,6 +284,10 @@ export function CardMore({ word }: { word: OwnedWord }) {
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
   return (
     <dl className="sc-more">
+      {/* a phone's back has no room for this line (globals.css, under 430 px), so it is said here */}
+      <Row label="Rarity" phone>
+        One of {fmt(f.ofTier)} {f.tier} words
+      </Row>
       <Row label="Found by">{s.found}</Row>
       <Row label="Earned so far">{s.earned}</Row>
       <Row label="Earns staked">{s.perDay}</Row>
@@ -268,9 +307,10 @@ export function CardMore({ word }: { word: OwnedWord }) {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** `phone`: a row only for a card as narrow as a phone's (it repeats a line a wider back shows itself). */
+function Row({ label, phone = false, children }: { label: string; phone?: boolean; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5">
+    <div className={`flex items-baseline justify-between gap-3 py-1.5 ${phone ? "sc-more-phone" : ""}`}>
       <dt className="shrink-0 font-semibold text-ink/60">{label}</dt>
       <dd className="min-w-0 text-right">{children}</dd>
     </div>
