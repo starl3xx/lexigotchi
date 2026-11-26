@@ -18,11 +18,12 @@ import {
   parseLinkScene,
   parseScene,
   sceneMeta,
+  storedScene,
   scenesUnlocked,
   shownScene,
 } from "@/lib/scenes";
 import { TIERS as TIER_LIST, type Tier } from "@/lib/economy";
-import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
+import { CARD_H, CARD_W, beadRing, beadsOnCurve, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, FEET_Y, WINDOW } from "@/lib/cardArt/looks";
 import { GROUND, cardArt, cardFrame, footingFor, groundOf } from "@/lib/cardArt/scenes";
 import { tierMarkPaths } from "@/lib/tierMark";
@@ -54,7 +55,10 @@ describe("the scene list", () => {
     for (const old of ["portrait", "summer", "fall", "winter"]) {
       expect(isSceneId(old)).toBe(false);
       expect(parseScene(old)).toBe("stock");
+      expect(storedScene(old)).toBe("stock"); // still a pick: the stock card, at its own time
     }
+    expect(storedScene("spring")).toBe("spring");
+    for (const bad of ["nonsense", "", null, undefined, 3]) expect(storedScene(bad)).toBeNull();
   });
 
   it("reads a share link with no scene as the Stage, as it always has, and a retired one as the stock card", () => {
@@ -121,6 +125,21 @@ describe("the card's art (lib/cardArt)", () => {
       const used = [...d.markup.matchAll(/url\(#([^)]+)\)/g), ...d.markup.matchAll(/\bhref="#([^"]+)"/g)].map((m) => m[1]);
       for (const u of used) expect(ids, `${d.name} uses #${u}`).toContain(u);
     }
+  });
+
+  it("draws a row of beads as circles, never as zero-length dashes with round caps (a renderer may drop those without a word)", () => {
+    for (const d of docs) expect(d.markup, d.name).not.toMatch(/stroke-dasharray="0[ ,"]/);
+    // the stock card's medallion, the Stage's valance, and the Trophy Case's rosettes still have their beads
+    expect(cardArt("stock", "Rare")).toContain(`fill="${CARD_LOOKS.Rare.ink}" opacity="0.85"`);
+    expect((cardArt("stage", "Common").match(/fill="#c9a65c"\/>/g) ?? []).length).toBeGreaterThanOrEqual(5); // one row a swag
+  });
+
+  it("spaces beads evenly along a curve, one at each end", () => {
+    const d = beadsOnCurve(0, 0, 50, 0, 100, 0, 10, 2, "#000"); // a straight "curve", 100 long
+    const xs = [...d.matchAll(/M(-?[\d.]+) /g)].map((m) => Number(m[1]) + 2);
+    expect(xs).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+    const ring = beadRing(0, 0, 100, 10, 2, "#000");
+    expect((ring.match(/M/g) ?? []).length).toBe(63); // 2π·100 / 10, to the nearest bead
   });
 
   it("is a still picture: nothing in it moves (starl3xx: only the card itself may)", () => {

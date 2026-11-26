@@ -4,7 +4,7 @@
  * a profile session and only for the session's own profile account.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MAX_PICKS_PER_SAVE, MAX_WALLETS_PER_READ, newestPick, parsePicks, parseStoredPick, parseWallets } from "@/lib/sceneSaves";
+import { MAX_PICKS_PER_SAVE, MAX_WALLETS_PER_READ, newestPick, parsePicks, parseStoredPick, parseWallets, readSavedPicks } from "@/lib/sceneSaves";
 import { BANNED } from "@/lib/dictionary";
 
 // Made-up wallets: never anyone's real address.
@@ -71,14 +71,37 @@ describe("parsePicks (a save)", () => {
 });
 
 describe("a retired scene (Picture Day, Summer, Fall, Winter: decisions.md #33)", () => {
-  it("is not a pick any more: a stored one reads as none, so the word stands on the stock card", () => {
+  it("is still a pick, made when it was, and it shows the stock card", () => {
     for (const old of ["portrait", "summer", "fall", "winter"]) {
-      expect(parseStoredPick(old)).toBeNull();
-      expect(parseStoredPick(JSON.stringify({ scene: old, at: 5, synced: true }))).toBeNull();
+      expect(parseStoredPick(JSON.stringify({ scene: old, at: 5, synced: true }))).toEqual({ scene: "stock", at: 5, synced: true });
+      expect(parseStoredPick(JSON.stringify({ scene: old, at: 7, synced: false }))).toEqual({ scene: "stock", at: 7, synced: false });
     }
   });
 
-  it("can't be saved", () => {
+  it("from the first version (no time) reads as the stock card with nothing to upload", () => {
+    // it can't be ordered against any other pick, and with no other pick the word is on the stock card anyway
+    expect(parseStoredPick("winter")).toEqual({ scene: "stock", at: 0, synced: true });
+  });
+
+  it("never brings back the scene the player left for it (Bugbot on #226)", () => {
+    // the Stage picked here, then Picture Day picked on another device and saved: the newer pick
+    // wins, and it reads as the stock card. Dropping it showed the Stage again.
+    const saved = readSavedPicks([{ wallet: A, word: "CRANE", scene: "portrait", at: 20 }]);
+    expect(saved.get(`${A}:CRANE`)).toEqual({ scene: "stock", at: 20 });
+    expect(newestPick({ scene: "stage", at: 10, synced: true }, saved.get(`${A}:CRANE`) ?? null)).toBe("stock");
+    // and the other way round: a retired pick here, then a newer real one saved elsewhere
+    expect(newestPick(parseStoredPick(JSON.stringify({ scene: "fall", at: 10, synced: true })), { scene: "spring", at: 20 })).toBe("spring");
+  });
+
+  it("leaves out a saved row whose scene is nothing known, and keeps the rest", () => {
+    const saved = readSavedPicks([
+      { wallet: A, word: "CRANE", scene: "nonsense", at: 5 },
+      { wallet: A, word: "VIVID", scene: "trophy", at: 6 },
+    ]);
+    expect([...saved]).toEqual([[`${A}:VIVID`, { scene: "trophy", at: 6 }]]);
+  });
+
+  it("can't be saved again", () => {
     expect(parsePicks({ picks: [{ word: "CRANE", scene: "winter", at: NOW }] }, A, NOW)).toBeNull();
   });
 });

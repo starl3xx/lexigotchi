@@ -23,8 +23,8 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "r
 import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useGame } from "../game/state";
 import { useProfileSession, usePublicProfile } from "../game/useProfile";
-import { DEFAULT_SCENE, FREE_SCENES, SCENE_UNLOCK_WORDS, isSceneId, scenesUnlocked, type SceneId } from "@/lib/scenes";
-import { MAX_PICKS_PER_SAVE, newestPick, parseStoredPick, type StoredPick } from "@/lib/sceneSaves";
+import { DEFAULT_SCENE, FREE_SCENES, SCENE_UNLOCK_WORDS, scenesUnlocked, type SceneId } from "@/lib/scenes";
+import { MAX_PICKS_PER_SAVE, newestPick, parseStoredPick, readSavedPicks, type StoredPick } from "@/lib/sceneSaves";
 
 const PREFIX = "lexigotchi:scene:";
 /** The holder when there is no wallet at all (practice mode, signed out). */
@@ -139,9 +139,8 @@ function useSaved() {
       const r = await fetch(`/api/scenes?wallets=${wallets.join(",")}`);
       if (!r.ok) return null; // switched off, or migration 0011 not run yet: the browser's picks only
       const d = (await r.json()) as { ok: boolean; scenes?: { wallet: string; word: string; scene: string; at: number }[] };
-      const out: SavedMap = new Map();
-      for (const s of d.scenes ?? []) if (isSceneId(s.scene)) out.set(savedKey(s.wallet, s.word), { scene: s.scene, at: s.at });
-      return out;
+      // a saved pick of a retired scene is the stock card, at its own time (lib/scenes, storedScene)
+      return readSavedPicks(d.scenes ?? []);
     },
   });
   // The connected wallet's own words carry no `holder`; a linked wallet's carry theirs.

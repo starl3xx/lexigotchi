@@ -13,7 +13,10 @@
  *   no scripts, nothing fetched (the server's renderer, resvg, draws it as it stands);
  * - every number is finite and rounded (a `NaN` in a path drops the path without a word);
  * - an id is unique inside its own document (each art is its own document, so two scenes may
- *   both call a pattern "wood").
+ *   both call a pattern "wood");
+ * - a row of beads is drawn as circles (`beadRing`, `beadsOnCurve`), never as a dashed stroke with
+ *   zero-length dashes and round caps. Browsers and today's resvg draw that as dots, but it is the
+ *   kind of corner a renderer gets wrong, and a share picture that lost its beads would say nothing.
  */
 export const CARD_W = 1200;
 export const CARD_H = 675;
@@ -60,19 +63,48 @@ export function rule(x: number, y: number, w: number, h: number, r: number, colo
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="none" stroke="${color}" stroke-width="${sw}"/>`;
 }
 
-/**
- * A row of round beads on a circle, as circles (not a dashed stroke with round caps and
- * zero-length dashes: browsers draw that as dots, but a renderer may draw nothing).
- */
-export function beadRing(cx: number, cy: number, r: number, count: number, size: number, color: string, opacity = 1): string {
+/** One round bead of radius `size` at (x, y), as a piece of a path. */
+const bead = (x: number, y: number, size: number) => `M${n1(x - size)} ${n1(y)}a${size} ${size} 0 1 0 ${n1(size * 2)} 0a${size} ${size} 0 1 0 ${n1(-size * 2)} 0Z`;
+
+/** A ring of round beads, `gap` apart along a circle of radius r, as ONE path (the rules above say why not a dashed stroke). */
+export function beadRing(cx: number, cy: number, r: number, gap: number, size: number, color: string, opacity = 1): string {
+  const count = Math.max(1, Math.round((2 * Math.PI * r) / gap));
   let d = "";
   for (let i = 0; i < count; i++) {
     const a = (i / count) * Math.PI * 2;
-    const x = n1(cx + r * Math.cos(a));
-    const y = n1(cy + r * Math.sin(a));
-    d += `M${n1(x - size)} ${y}a${size} ${size} 0 1 0 ${size * 2} 0a${size} ${size} 0 1 0 ${-size * 2} 0Z`;
+    d += bead(cx + r * Math.cos(a), cy + r * Math.sin(a), size);
   }
   return `<path d="${d}" fill="${color}" opacity="${opacity}"/>`;
+}
+
+/**
+ * Round beads `gap` apart along a quadratic curve from (x0, y0) to (x1, y1) with its control point
+ * at (qx, qy), one at each end, as ONE path.
+ */
+export function beadsOnCurve(x0: number, y0: number, qx: number, qy: number, x1: number, y1: number, gap: number, size: number, color: string): string {
+  // the curve as short straight pieces, each with the length walked so far
+  const STEPS = 80;
+  const pts: [number, number, number][] = [];
+  let len = 0;
+  for (let i = 0; i <= STEPS; i++) {
+    const t = i / STEPS;
+    const x = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * qx + t * t * x1;
+    const y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * qy + t * t * y1;
+    if (i) len += Math.hypot(x - pts[i - 1][0], y - pts[i - 1][1]);
+    pts.push([x, y, len]);
+  }
+  const count = Math.max(1, Math.round(len / gap));
+  let d = "";
+  let k = 1;
+  for (let i = 0; i <= count; i++) {
+    const at = (i / count) * len;
+    while (k < STEPS && pts[k][2] < at) k++;
+    const [ax, ay, al] = pts[k - 1];
+    const [bx, by, bl] = pts[k];
+    const f = bl > al ? (at - al) / (bl - al) : 0;
+    d += bead(ax + (bx - ax) * f, ay + (by - ay) * f, size);
+  }
+  return `<path d="${d}" fill="${color}"/>`;
 }
 
 /** A small seeded generator, so a scene is the same picture every time, on the server and in the browser. */

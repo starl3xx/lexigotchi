@@ -13,7 +13,7 @@
  *   transfer scan as the bag, readWordsHeld), linked wallets' words included, because a linked
  *   wallet is the same player (union bag, decisions.md). A dissolved or sold word still counts.
  * - **Retired:** Picture Day, Summer, Fall, and Winter. They were free, so nobody lost a purchase.
- *   A saved pick or a link that names one reads as no pick: the stock card.
+ *   A saved pick or a link that names one reads as the stock card (`storedScene`).
  *
  * A scene is cosmetic and offchain. Each word's choice is saved in the browser at once, and to the
  * player's profile (table word_scenes, /api/scenes) under a profile session they already have, so
@@ -58,6 +58,23 @@ export const SCENES: readonly SceneMeta[] = [
 
 export function isSceneId(raw: unknown): raw is SceneId {
   return typeof raw === "string" && (SCENE_IDS as readonly string[]).includes(raw);
+}
+
+/** The scenes that were retired (decisions.md #33). Kept by name, because picks of them are still stored. */
+export const RETIRED_SCENES: readonly string[] = ["portrait", "summer", "fall", "winter"];
+
+/**
+ * A stored pick's scene, as it reads today: a scene as itself, a retired scene as the stock card,
+ * anything else (a mangled value) as nothing.
+ *
+ * A retired pick is still a PICK, made at its own time: the player chose to leave whatever they
+ * had before it. Dropping it would bring that older scene back (a Stage pick in this browser, then
+ * Picture Day picked on another device, would show the Stage again: Bugbot on #226). So it keeps
+ * its place in time and shows the stock card.
+ */
+export function storedScene(raw: unknown): SceneId | null {
+  if (isSceneId(raw)) return raw;
+  return typeof raw === "string" && RETIRED_SCENES.includes(raw) ? DEFAULT_SCENE : null;
 }
 
 /** A scene from storage. Anything unknown (a retired scene, a mangled value) is the stock card. */

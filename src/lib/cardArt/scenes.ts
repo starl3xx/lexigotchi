@@ -13,7 +13,7 @@
 import type { Tier } from "../economy";
 import type { SceneId } from "../scenes";
 import { tierMarkPaths } from "../tierMark";
-import { CARD_H as H, CARD_W as W, beadRing, chain, guilloche, hatch, n1, rng, rule, sunburst } from "./engrave";
+import { CARD_H as H, CARD_W as W, beadRing, beadsOnCurve, chain, guilloche, hatch, n1, rng, rule, sunburst } from "./engrave";
 import { CARD_LOOKS, CARD_PAPER, FEET_Y, GRAPHITE, NEUTRAL, WINDOW as WIN, type CardLook } from "./looks";
 
 const X0 = WIN.x;
@@ -66,7 +66,7 @@ export function stock(L: CardLook): string {
     ${guilloche("r1", cx, cy, 194, 26, 18, 6, g, 1.1, 0.3)}
     ${guilloche("r2", cx, cy, 136, 32, 12, 5, g, 1.1, 0.22)}
     <circle cx="${cx}" cy="${cy}" r="232" fill="none" stroke="${g}" stroke-width="2" opacity="0.5"/>
-    <circle cx="${cx}" cy="${cy}" r="241" fill="none" stroke="${L.ink}" stroke-width="3.6" stroke-linecap="round" stroke-dasharray="0 10.1" opacity="0.85"/>
+    ${beadRing(cx, cy, 241, 10.1, 1.8, L.ink, 0.85)}
     <circle cx="${cx}" cy="${cy}" r="250" fill="none" stroke="${g}" stroke-width="1" opacity="0.5"/>
     <!-- the floor: far tiles blur into a ruled tone, near tiles are drawn one by one -->
     <rect x="${X0}" y="${yh}" width="${WIN.w}" height="${Y1 - yh}" fill="${NEUTRAL.floor}"/>
@@ -97,7 +97,7 @@ export function stage(): string {
     const a = X0 + k * sw;
     swags += `<path d="M${n1(a)} ${Y0}H${n1(a + sw)}V${Y0 + 38}Q${n1(a + sw / 2)} ${Y0 + 104} ${n1(a)} ${Y0 + 38}Z" fill="${red}" stroke="${ink}" stroke-width="2.6" stroke-linejoin="round"/>
       <path d="M${n1(a + 14)} ${Y0 + 36}Q${n1(a + sw / 2)} ${Y0 + 84} ${n1(a + sw - 14)} ${Y0 + 36}M${n1(a + 34)} ${Y0 + 33}Q${n1(a + sw / 2)} ${Y0 + 64} ${n1(a + sw - 34)} ${Y0 + 33}" fill="none" stroke="${ink}" stroke-width="1.2" opacity="0.55"/>
-      <path d="M${n1(a + 6)} ${Y0 + 42}Q${n1(a + sw / 2)} ${Y0 + 106} ${n1(a + sw - 6)} ${Y0 + 42}" fill="none" stroke="${gold}" stroke-width="4.4" stroke-linecap="round" stroke-dasharray="0 9.5"/>`;
+      ${beadsOnCurve(a + 6, Y0 + 42, a + sw / 2, Y0 + 106, a + sw - 6, Y0 + 42, 9.5, 2.2, gold)}`;
   }
   // The side curtains, drawn well back: they hug the card's edges and leave the stage to the word
   // (starl3xx, 2026-11-25: "too close ... drawn more / closer to the edges").
@@ -186,7 +186,7 @@ export function trophy(): string {
   };
   const rosette = (x: number, b: number, k: number, fill: string) =>
     `<path d="M${n1(x - 10 * k)} ${n1(b - 62 * k)}L${n1(x - 17 * k)} ${n1(b - 4 * k)}L${n1(x - 6 * k)} ${n1(b - 14 * k)}L${n1(x)} ${n1(b - 2 * k)}L${n1(x + 6 * k)} ${n1(b - 14 * k)}L${n1(x + 17 * k)} ${n1(b - 4 * k)}L${n1(x + 10 * k)} ${n1(b - 62 * k)}Z" fill="${fill}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>
-      <circle cx="${n1(x)}" cy="${n1(b - 72 * k)}" r="${n1(27 * k)}" fill="${fill}" stroke="${ink}" stroke-width="2.2"/><circle cx="${n1(x)}" cy="${n1(b - 72 * k)}" r="${n1(27 * k)}" fill="none" stroke="${lite}" stroke-width="${n1(3 * k)}" stroke-dasharray="0 ${n1(8.4 * k)}" stroke-linecap="round"/>
+      <circle cx="${n1(x)}" cy="${n1(b - 72 * k)}" r="${n1(27 * k)}" fill="${fill}" stroke="${ink}" stroke-width="2.2"/>${beadRing(x, b - 72 * k, 27 * k, 8.4 * k, n1(1.5 * k), lite)}
       <circle cx="${n1(x)}" cy="${n1(b - 72 * k)}" r="${n1(15 * k)}" fill="${gold}" stroke="${ink}" stroke-width="1.8"/>`;
   const prizes = `${shield(196, topY, 1)}${cup(338, topY, 0.86)}${starCup(468, topY, 1)}${cup(600, topY, 1.18)}${rosette(736, topY, 0.92, "#7f9f93")}${cup(868, topY, 0.86)}${rosette(1004, topY, 0.92, "#b97a72")}`;
   const over = `<path d="M${X0} ${topY + 16}H${X1}L${X1 - d} ${topY + 30}H${X0 + d}Z" fill="${woodDark}" stroke="${ink}" stroke-width="2"/>
