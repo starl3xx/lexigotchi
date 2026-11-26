@@ -50,6 +50,12 @@ export const FREE_TO_START = FREE_PACK + FREE_DAILIES;
 
 /** The ascension ladder above UPPERCASE: "Gilded 1 through 4, then Holographic". */
 export const LADDER = `${stageName(1)} through ${HOLOGRAPHIC_LEVEL - 1}, then ${stageName(HOLOGRAPHIC_LEVEL)}`;
+/**
+ * What an ascension try changes, for the word sheet and the ascend sheet: a hit multiplies the
+ * word's share of earnings and the bounty ("1.1×"), and a miss adds this many points to its odds (10).
+ */
+export const STAGE_SHARE = `${DEFAULT_PARAMS.prestige.yieldMultPerLevel}×`;
+export const MISS_POINTS = Math.round(DEFAULT_PARAMS.prestige.pityStep * 100);
 
 /** "a day" or "3 days", for the care rules. */
 export const days = (n: number) => (n === 1 ? "a day" : `${n} days`);

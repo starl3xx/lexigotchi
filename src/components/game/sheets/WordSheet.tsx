@@ -9,7 +9,8 @@ import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
 import { WordSheetCard } from "../../cards/WordSheetCard";
 import { CaretRight, Check, Coins, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
-import { HOLOGRAPHIC_LEVEL, stageName } from "@/lib/ascension";
+import { stageName } from "@/lib/ascension";
+import { MISS_POINTS, STAGE_SHARE } from "@/lib/howItWorks";
 import { useAccount } from "wagmi";
 import { usePublicProfile } from "../useProfile";
 import {
@@ -28,6 +29,7 @@ import { careNote } from "../careNote";
 import { useEatingFlash } from "../useEatingFlash";
 import { earningLine, earningStatus, payoutWhen } from "../earnings";
 import { SellWord } from "../market/SellWord";
+import { ascendDoor } from "../ascendFlow";
 
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
@@ -39,9 +41,6 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const offGameWallet = Boolean(gameWallet && address && gameWallet !== address.toLowerCase());
   const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
-  // Guards against a second tap during the async chain flow — each tap is a PAID commit.
-  const [ascending, setAscending] = useState(false);
-  const [strandedNote, setStrandedNote] = useState("");
   // The tiles chew for a moment when a feed lands (useEatingFlash).
   const eating = useEatingFlash(wordKey, word ? hunger(word) : "fed");
 
@@ -59,6 +58,9 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const maxLevel = g.maxPrestigeLevel;
   const canPrestige = fullyRaised && word.staked && word.prestigeLevel < maxLevel;
+  // A try on this word ended paid and unfinished (the chain store remembers it for the session).
+  const unfinishedAscent = g.unfinishedAscents.has(word.word);
+  const door = ascendDoor({ canTry: canPrestige, atTop: word.prestigeLevel >= maxLevel, unfinished: unfinishedAscent });
   // The word ladder: this attempt's price and odds both depend on the stage the word is at now.
   const atTop = word.prestigeLevel >= maxLevel;
   const ascendFee = g.prestigePrice(word.prestigeLevel);
@@ -201,8 +203,9 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/55">tap a lowercase letter to roll it · {fmtWord(g.price("roll"))} $WORD</p>}
       </Card>
 
-      {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0) */}
-      {fullyRaised && maxLevel > 0 && (
+      {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0), except for
+          a word with a paid, unfinished attempt: that one keeps its way to the sheet that finishes it */}
+      {((fullyRaised && maxLevel > 0) || unfinishedAscent) && (
         <Card className={`mb-3 bg-gradient-to-b from-card to-gold/10 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -215,49 +218,30 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                   : `${stageName(word.prestigeLevel)} → ${stageName(word.prestigeLevel + 1)} · ${ascendOdds}% this try`}
               </div>
             </div>
-            <Button
-              variant="gold"
-              disabled={ascending || !canPrestige || !g.canAfford(ascendFee + g.price("prestigeSnack"))}
-              onClick={() => {
-                const res = g.prestige(word.word);
-                // A promise means it resolves later; announcing success now would celebrate a
-                // gilded glow-up before the wallet prompt has even appeared. The chain store toasts
-                // its own outcome, so only the synchronous (mock) result is announced here.
-                if (res instanceof Promise) {
-                  setAscending(true);
-                  void res
-                    .then((r) => {
-                      // Only re-enable when NOTHING was spent. A stranded commit is paid and still
-                      // open, so re-enabling would sell a second ascension on top of it.
-                      if (r.status === "stranded") setStrandedNote(r.note);
-                      else setAscending(false);
-                    })
-                    // A rejection does not say whether the fee was taken, so it must not re-enable
-                    // the button — that would sell a second ascension on top of an open commit.
-                    // Unknown is treated as paid, which is the safe direction.
-                    .catch(() => setStrandedNote("We lost track of this ascension. Reopen to check"));
-                  return;
-                }
-                if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
-                const reached = word.prestigeLevel + 1;
-                g.toast(
-                  res
-                    ? reached >= HOLOGRAPHIC_LEVEL ? `${word.word} turned Holographic!` : `${word.word} reached ${stageName(reached)}`
-                    : "Missed. No harm done, and the next try’s odds are higher",
-                  res ? "good" : "info",
-                );
-              }}
-            >
-              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : atTop ? "Maxed" : `Ascend · ${fmtWord(ascendFee)}`}
+            {/* Opens the ascend sheet (sheets/AscendSheet), where the try is made and its result
+                shows. No price on this button: it spends nothing; the sheet's own button does. It
+                opens for a paid, unfinished attempt whatever else is true of the word (unstaked
+                since, or at the top): the sheet finishes that attempt with no stake check, and this
+                is the only door to it (Bugbot on #229). */}
+            <Button variant="gold" disabled={!door.open} onClick={() => g.openSheet({ kind: "ascend", word: word.word })}>
+              {door.label}
             </Button>
           </div>
           {!atTop && (
             <p className="mt-2 text-xs text-ink/55">
-              A hit raises its share of earnings and the bounty 1.1×. A miss never harms it and raises the next try’s odds 10 points.
+              A try costs {fmtWord(ascendFee + g.price("prestigeSnack"))} $WORD. A hit raises its share of earnings and the bounty{" "}
+              {STAGE_SHARE}. A miss never harms it and raises the next try’s odds {MISS_POINTS} points.
             </p>
           )}
-          {strandedNote && <p className="mt-2 text-xs text-gold-ink">{strandedNote}</p>}
-          {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
+          {/* A try that ended paid and unfinished (the store remembers it for the session): the
+              cue the old inline button's "Unfinished" label gave. */}
+          {unfinishedAscent && (
+            <p className="mt-2 text-xs font-bold text-gold-ink">
+              Your last attempt is paid for and may be unfinished. Tap Finish to finish it: it takes no new fee.
+            </p>
+          )}
+          {/* a new try needs the stake; finishing a paid attempt doesn't, so it isn't asked for there */}
+          {!word.staked && !unfinishedAscent && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
         </Card>
       )}
 
