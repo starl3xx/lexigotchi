@@ -47,6 +47,7 @@ import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
+import type { SaleRow } from "@/lib/db/market";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { emailRecipients, markEmailSent, type EmailRecipient } from "@/lib/db/profiles";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
@@ -836,14 +837,19 @@ export function createKeeper(opts: { dry: boolean }) {
    * sellers of what it found.
    */
   async function marketSales() {
+    // Recording a sale is what makes it "new", once: a dry run that recorded it could only log the
+    // message, and the real run after it would find nothing new to tell the seller of.
+    if (DRY) return void console.log("market: [dry] sales not read (recording one uses up its seller's notification)");
+    const fresh: SaleRow[] = [];
     try {
-      const got = await catchUpSales();
-      console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed on this network; skipped");
-      // Their sellers hear of them (lib/notify/sold.ts: recent sales only; it never throws).
-      if (got?.fresh.length) await notifySold(got.fresh, { dry: DRY });
+      const got = await catchUpSales({ onNew: (rows) => void fresh.push(...rows) });
+      console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed here");
     } catch (err) {
       console.error("market: reading sales failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }
+    // Their sellers hear of them, also after a read that failed part way (lib/notify/sold.ts:
+    // recent sales only; it never throws).
+    if (fresh.length > 0) await notifySold(fresh);
   }
 
   /** The `fees` job: the sale fees, then the Shop, then the Market's sales. A failed step never skips the next. */

@@ -1429,8 +1429,11 @@ setter. All small, riding existing suite patterns.
     - **A sale tells its seller** (#30 left it "not done"; `lib/notify/sold.ts`, templates
       `marketSold`). A receipt: one per fill. It hangs on the sales recorder, which hands a new row
       only to the caller that inserted it, so a seller is told once however many servers read the
-      sale. Recent sales only (six hours): the recorder also runs as a backfill, and a seller must
-      never hear today about last week. One message per seller per pass. The id is the FILL's
+      sale. Recent sales only: thirty hours, wider than the daily keeper's cadence, so a sale only
+      the keeper finds is still told (the rule `triggers.ts` states for hunger); the recorder also runs as
+      a backfill, and a seller must never hear today about last week. The reader hands out each new
+      row AS it records it, because a row is new only once and a pass can fail part way; a dry
+      keeper run reads no sales, for the same reason. One message per seller per pass. The id is the FILL's
       (transaction and log index), never the order's: a letter listing fills in parts, and a
       repeated id is dropped for a day. Farcaster first, else the seller's browsers. **Not by
       email:** email is live, and its players agreed to three named reminders; a fourth waits for
@@ -1438,7 +1441,8 @@ setter. All small, riding existing suite patterns.
       keep 90%).
     - **It can't hurt the Market.** The sales route is public and the Market depends on it, so
       the notifier runs after the answer (`lib/afterResponse.ts`) and is imported at the moment of
-      use, inside a catch. Nothing is loaded while both channels are dark.
+      use, inside a catch. Nothing is loaded while both channels are dark, and when Farcaster is on
+      only the sellers' own wallets are looked up (one cached request), never every player.
     - **One push on opt-in** ("Reminders are on", once per browser, to that browser only). No
       reminder can be sent outside production, so this is the proof the channel works, for the
       player and for the owner on the day it is switched on.

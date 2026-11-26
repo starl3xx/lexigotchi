@@ -39,10 +39,8 @@ async function caughtUp(fresh: boolean): Promise<void> {
   if (Date.now() - lastCatchUp <= (fresh ? FRESH_EVERY_MS : CATCH_UP_EVERY_MS)) return;
   lastCatchUp = Date.now();
   // One catch-up at a time per server; a failed one still answers with what's recorded.
-  running ??= catchUpSales()
-    .then((got) => {
-      if (got?.fresh.length) untold.push(...got.fresh);
-    })
+  // New sales are kept as they are recorded, so a catch-up that fails part way still tells of them.
+  running ??= catchUpSales({ onNew: (rows) => void untold.push(...rows) })
     .catch((err) => console.warn("[sales] catch-up failed:", String(err?.message ?? err).slice(0, 120)))
     .finally(() => {
       running = null;

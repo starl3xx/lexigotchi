@@ -5,7 +5,8 @@
  * It hangs on the sales recorder (lib/db/market `recordNewSales`), which hands back a row only to
  * the one caller that inserted it. So however many servers read the same sale, its seller is told
  * once. Two callers have new rows to tell of: the Market's own sales route, which a buyer's browser
- * asks right after buying, and the keeper's daily pass, for a day nobody opened the Market.
+ * asks right after buying, and the keeper's daily pass, for a day nobody opened the Market (a dry
+ * keeper run reads no sales at all: recording one is what uses up its seller's message).
  *
  * Four rules:
  *   - **Recent sales only** (`SOLD_TELL_WINDOW_MS`). The recorder also runs as a backfill (a new
@@ -25,8 +26,14 @@ import { letterLabel } from "@/lib/market/deals";
 import { marketSold, type Notification, type SoldItem } from "./templates";
 import { webPushWinnerSubs, type FidLookup, type PushSub } from "./triggers";
 
-/** A sale older than this when it is first recorded is history, not news. */
-export const SOLD_TELL_WINDOW_MS = 6 * 3_600_000;
+/**
+ * A sale older than this when it is first recorded is history, not news. WIDER than the longest gap
+ * between passes, on purpose (the rule triggers.ts states for hunger, HUNGER_WARN_HOURS): the keeper
+ * runs once a day, and a sale only it finds, on a day nobody opened the Market, is up to a day old
+ * by then. A window under a day would record that sale and tell nobody, which is the one case the
+ * keeper's pass exists for. Thirty hours leaves six for a late or slow run.
+ */
+export const SOLD_TELL_WINDOW_MS = 30 * 3_600_000;
 
 const WEI = 10n ** 18n;
 const lower = (a: string) => a.toLowerCase();
@@ -66,6 +73,24 @@ export function soldGroups(
   return [...groups.values()];
 }
 
+/**
+ * Wallet → the Farcaster id that reaches its player: the first id any wallet of the account has
+ * (`fidsOf`, from Neynar) that also ADDED the mini app (`added`), since only those can be notified.
+ */
+export function reachableFid(
+  links: { accountOf: (address: string) => string; walletsOf: (account: string) => string[] },
+  fidsOf: ReadonlyMap<string, readonly number[]>,
+  added: ReadonlySet<number>,
+): FidLookup {
+  return (address) => {
+    for (const wallet of links.walletsOf(links.accountOf(address))) {
+      const fid = (fidsOf.get(wallet.toLowerCase()) ?? []).find((f) => added.has(f));
+      if (fid !== undefined) return fid;
+    }
+    return undefined;
+  };
+}
+
 /** Is either channel armed? Read here, never from the senders: importing those is what can throw. */
 export function soldChannels(env: NodeJS.ProcessEnv = process.env): { farcaster: boolean; browser: boolean } {
   const prod = env.NODE_ENV === "production";
@@ -95,7 +120,7 @@ export interface SoldResult {
 export async function tellSold(
   rows: Parameters<typeof soldGroups>[0],
   deps: SoldDeps,
-  opts: { now?: number; dry?: boolean; log?: (line: string) => void } = {},
+  opts: { now?: number; log?: (line: string) => void } = {},
 ): Promise<SoldResult> {
   const log = opts.log ?? (() => {});
   const out: SoldResult = { sellers: 0, farcaster: 0, browsers: 0, unreached: 0 };
@@ -106,8 +131,7 @@ export async function tellSold(
     try {
       const fid = deps.fidOf(g.seller);
       if (fid !== undefined) {
-        if (opts.dry) log(`  [dry] would tell fid ${fid}: ${note.body}`);
-        else if ((await deps.toFarcaster(fid, note)).ok) out.farcaster++;
+        if ((await deps.toFarcaster(fid, note)).ok) out.farcaster++;
         continue;
       }
       const subs = webPushWinnerSubs(g.seller, deps.subs, deps.fidOf, deps.accountOf);
@@ -115,8 +139,7 @@ export async function tellSold(
         out.unreached++;
         continue;
       }
-      if (opts.dry) log(`  [dry] would tell ${subs.length} browser(s): ${note.body}`);
-      else if ((await deps.toBrowsers(subs, note)).ok) out.browsers++;
+      if ((await deps.toBrowsers(subs, note)).ok) out.browsers++;
     } catch (err) {
       log(`sold: telling one seller failed: ${String((err as Error)?.message ?? err).slice(0, 120)}`);
     }
@@ -128,35 +151,38 @@ export async function tellSold(
  * Tell the sellers of these newly recorded sales. Never throws. Returns null when there was nothing
  * to do or nothing armed to do it with.
  */
-export async function notifySold(rows: readonly SaleRow[], opts: { dry?: boolean; log?: (line: string) => void } = {}): Promise<SoldResult | null> {
+export async function notifySold(rows: readonly SaleRow[], opts: { log?: (line: string) => void } = {}): Promise<SoldResult | null> {
   const log = opts.log ?? ((line: string) => console.log(line));
   try {
     const now = Date.now();
     if (!rows.some((r) => now - r.soldAt.getTime() <= SOLD_TELL_WINDOW_MS)) return null;
     const on = soldChannels();
-    // A dry keeper run still says what it WOULD send, so it loads the audiences either way.
-    if (!on.farcaster && !on.browser && !opts.dry) return null;
+    if (!on.farcaster && !on.browser) return null;
 
-    const [{ loadLinkMap }, { notifiableFids }, { lookupProfiles }, { allWebPushSubscriptions }, { accountFidLookup, fidLookupFrom }] = await Promise.all([
+    const [{ loadLinkMap }, { notifiableFids }, { fidsByAddresses }, { allWebPushSubscriptions }] = await Promise.all([
       import("@/lib/db/walletLinks"),
       import("@/lib/db/queries"),
       import("@/lib/neynar"),
       import("@/lib/db/webPush"),
-      import("./triggers"),
     ]);
     const links = await loadLinkMap();
-    // Each audience is read only for a channel that is armed (or for a dry run's report).
-    const fids = on.farcaster || opts.dry ? await notifiableFids().catch(() => [] as number[]) : [];
-    const profiles = fids.length > 0 ? await lookupProfiles(fids) : [];
-    const subs = on.browser || opts.dry ? await allWebPushSubscriptions().catch(() => []) : [];
+    // Each audience is read only for a channel that is armed.
+    // Farcaster reaches a seller through any wallet of their account. Only THESE sellers' wallets
+    // are asked about (one cached request), never every player who added the app: this runs from
+    // a public route, on any pass that finds a sale.
+    const sellers = soldGroups(rows, links.accountOf, now).flatMap((g) => links.walletsOf(g.account));
+    const [added, fidsOf] = on.farcaster
+      ? await Promise.all([notifiableFids().then((f) => new Set(f)).catch(() => new Set<number>()), fidsByAddresses(sellers)])
+      : [new Set<number>(), new Map<string, number[]>()];
+    const subs = on.browser ? await allWebPushSubscriptions().catch(() => []) : [];
     const deps: SoldDeps = {
       accountOf: links.accountOf,
-      fidOf: accountFidLookup(fidLookupFrom(profiles), links),
+      fidOf: reachableFid(links, fidsOf, added),
       subs,
       toFarcaster: async (fid, note) => (await import("./send")).sendNotification({ ...note, targetFids: [fid] }),
       toBrowsers: async (to, note) => (await import("./webPush")).sendWebPush(to, note),
     };
-    const res = await tellSold(rows, deps, { now, dry: opts.dry, log });
+    const res = await tellSold(rows, deps, { now, log });
     log(`sold: ${res.sellers} seller(s): ${res.farcaster} told in Farcaster, ${res.browsers} in a browser, ${res.unreached} with no channel`);
     return res;
   } catch (err) {

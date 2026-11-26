@@ -36,8 +36,19 @@ describe("GET /api/market/sales", () => {
       tierSaleStats: async () => [],
     }));
     vi.doMock("@/lib/market/faces", () => ({ marketFaces: async () => ({}) }));
-    vi.doMock("@/lib/market/sales", () => ({ catchUpSales: async () => ({ recorded: 0, through: 1, fresh: fresh[call++] ?? [] }) }));
+    vi.doMock("@/lib/market/sales", () => ({
+      catchUpSales: async (opts: { onNew?: (rows: unknown[]) => void } = {}) => {
+        const rows = fresh[call++] ?? [];
+        if (rows.length) opts.onNew?.(rows);
+        if (failAfter) throw new Error("the RPC refused a receipt");
+        return { recorded: rows.length, through: 1 };
+      },
+    }));
   }
+  let failAfter = false;
+  beforeEach(() => {
+    failAfter = false;
+  });
   const get = async (q = "") => (await import("@/app/api/market/sales/route")).GET(new Request(`https://lexigotchi.test/api/market/sales${q}`));
 
   it("tells the sellers of the sales its catch-up was first to record, once", async () => {
@@ -51,6 +62,17 @@ describe("GET /api/market/sales", () => {
     expect((await get("?fresh=1")).status).toBe(200);
     await settle();
     expect(told).toHaveLength(1);
+  });
+
+  it("still tells of the sales a catch-up recorded before it failed (a row is only new once)", async () => {
+    mockSales([[row(1)]]);
+    failAfter = true;
+    const told: unknown[][] = [];
+    vi.doMock("@/lib/notify/sold", () => ({ notifySold: async (rows: unknown[]) => void told.push(rows) }));
+    const quiet = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect((await get()).status).toBe(200);
+    await vi.waitFor(() => expect(told).toHaveLength(1), { timeout: 3000 });
+    quiet.mockRestore();
   });
 
   it("tells nobody when the catch-up found nothing new", async () => {

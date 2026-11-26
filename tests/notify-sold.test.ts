@@ -4,7 +4,8 @@
  * that the Market's public route can't be broken or slowed by it.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { SOLD_TELL_WINDOW_MS, soldChannels, soldGroups, soldItem, tellSold, type SoldDeps } from "@/lib/notify/sold";
+import { SOLD_TELL_WINDOW_MS, reachableFid, soldChannels, soldGroups, soldItem, tellSold, type SoldDeps } from "@/lib/notify/sold";
+import { linkMapFrom } from "@/lib/db/walletLinks";
 import type { Notification } from "@/lib/notify/templates";
 import type { SaleRow } from "@/lib/db/market";
 
@@ -48,9 +49,15 @@ describe("soldGroups", () => {
     const old = sale({ soldAt: new Date(NOW - SOLD_TELL_WINDOW_MS - 1) });
     const edge = sale({ seller: B, soldAt: new Date(NOW - SOLD_TELL_WINDOW_MS) });
     expect(soldGroups([old, edge], accountOf, NOW).map((g) => g.account)).toEqual([B]);
-    // a month of sales read at once (a new deployment's first catch-up)
-    const month = Array.from({ length: 300 }, (_, i) => sale({ soldAt: new Date(NOW - (i + 1) * 86_400_000) }));
-    expect(soldGroups(month, accountOf, NOW)).toEqual([]);
+    // a year of sales read at once (a new deployment's first catch-up), the newest two days old
+    const year = Array.from({ length: 300 }, (_, i) => sale({ soldAt: new Date(NOW - (i + 2) * 86_400_000) }));
+    expect(soldGroups(year, accountOf, NOW)).toEqual([]);
+  });
+
+  it("still tells of a sale only the daily keeper found: the window is wider than a day", () => {
+    // sold 20 hours ago, on a day nobody opened the Market; the keeper's pass is the first to record it
+    expect(SOLD_TELL_WINDOW_MS).toBeGreaterThan(24 * 3_600_000);
+    expect(soldGroups([sale({ soldAt: new Date(NOW - 20 * 3_600_000) })], accountOf, NOW)).toHaveLength(1);
   });
 
   it("is no sale to tell of when the player moved it between their own wallets", () => {
@@ -105,14 +112,6 @@ describe("tellSold", () => {
     expect(sent.farcaster.length + sent.browsers.length).toBe(0);
   });
 
-  it("a dry run says what it would send, and sends nothing", async () => {
-    const { d, sent } = deps({ fidOf: () => 77 });
-    const lines: string[] = [];
-    await tellSold([sale()], d, { now: NOW, dry: true, log: (l) => lines.push(l) });
-    expect(sent.farcaster).toEqual([]);
-    expect(lines.join("\n")).toMatch(/\[dry\] would tell fid 77: Your w found a new home/);
-  });
-
   it("one seller’s failed send doesn’t stop the next seller’s", async () => {
     const { d, sent } = deps({
       subs: [browser(A, "https://push.example/a"), browser(B, "https://push.example/b")],
@@ -125,6 +124,20 @@ describe("tellSold", () => {
     const res = await tellSold([sale({ seller: A }), sale({ seller: B })], d, { now: NOW });
     expect(res.browsers).toBe(1);
     expect(sent.browsers.map((s) => s.to)).toEqual([["https://push.example/b"]]);
+  });
+});
+
+describe("reachableFid", () => {
+  const links = linkMapFrom([{ address: A2, account: A }]);
+  it("finds the Farcaster id of any wallet in the account, if that id added the app", () => {
+    const fidOf = reachableFid(links, new Map([[A2, [77]]]), new Set([77]));
+    expect(fidOf(A)).toBe(77); // A sold; the account's Farcaster wallet is A2
+    expect(fidOf(A2)).toBe(77);
+    expect(fidOf(B)).toBeUndefined();
+  });
+  it("skips an id that never added the app: it can’t be notified", () => {
+    expect(reachableFid(links, new Map([[A, [5, 77]]]), new Set([77]))(A)).toBe(77);
+    expect(reachableFid(links, new Map([[A, [5]]]), new Set([77]))(A)).toBeUndefined();
   });
 });
 
