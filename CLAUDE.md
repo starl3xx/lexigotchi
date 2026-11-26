@@ -552,6 +552,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
   twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the corner wordmark on every frame.
+- **A word's status is three marks** (decisions.md #38; `components/game/stageMarks.ts` pure + tested,
+  `StatusMarks.tsx`): **Fed, Jackpot, Earns**, always in that order, each in the colour of its meaning.
+  In full on the Today placard and the word's sheet; as three icons beside the name in the Bag
+  (`compact`). Add a status fact as a mark's wording, never as a new badge or a sentence on the art.
+  **The Today stage is a clean card and a placard under it** (`.tt`, `.tt-plate`): the marks, the one
+  thing to do, the earnings line, and a pager with the arrows. **The placard never names the word**
+  (starl3xx: "seeing JAZZY immediately underneath the card is redundant"); the action's label does.
+  Nothing is drawn over a card's art but its letters. The Jackpot mark says "In the running", never a
+  draw or a ticket (docs/messaging.md).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under

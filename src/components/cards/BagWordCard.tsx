@@ -2,7 +2,8 @@
 /**
  * A word in the Bag, as its card (starl3xx, 2026-11-25: "the bag's words should now show these
  * scene/cards instead of just the raw words"): the word standing in its scene, and under the card
- * its rarity's mark, its name, and its state. Turn it over in place, or tap it to open the word.
+ * its rarity's mark, its name, and its three status marks as small icons (game/stageMarks: Fed,
+ * Jackpot, Earns, the same marks the Today placard spells out; decisions.md #38). Turn it over in place, or tap it to open the word.
  * Nothing sits on the card's art: the frame is printed in the rarity's ink and carries its mark in
  * the corners, and the mark is repeated by the name, where it is large enough to read.
  *
@@ -14,9 +15,12 @@ import { SceneFrame, toneOf } from "../scenes/SceneFrame";
 import { useWordScene } from "../scenes/useWordScene";
 import type { Gild } from "../game/TileCharacter";
 import { careState, PrestigeStars } from "../game/LetterTile";
-import { HungerBadge, Pill } from "../game/primitives";
-import { Coins, Storefront, Ticket } from "../game/ui/icons";
-import { fmtWord, hunger, jackpotEligible, useGame, wordCase, type OwnedWord } from "../game/state";
+import { Pill } from "../game/primitives";
+import { Storefront, Ticket } from "../game/ui/icons";
+import { fmtWord, hunger, jackpotEligible, useGame, type OwnedWord } from "../game/state";
+import { payoutWhen } from "../game/earnings";
+import { StatusMarks } from "../game/StatusMarks";
+import { markInput, moodOfWord, stageMarks } from "../game/stageMarks";
 import { SceneCard } from "./SceneCard";
 import { TierMark } from "../game/TierMark";
 
@@ -49,8 +53,9 @@ export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }
   const face = careState(word);
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   const h = hunger(word);
-  const earning = word.staked && wordCase(word) === "UPPERCASE" && h !== "hungry";
   const latest = g.earnings?.byWord[word.word]?.latest ?? 0;
+  const earned = latest > 0 && g.earnings?.latestAt ? { amount: fmtWord(latest), when: payoutWhen(g.earnings.latestAt) } : undefined;
+  const marks = stageMarks(markInput(word, moodOfWord(word, h, price !== undefined), { earned }));
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const answerReady = isAnswer && jackpotEligible(word);
 
@@ -76,24 +81,13 @@ export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }
         </span>
         <span className="font-display text-sm font-extrabold">{word.word}</span>
         <PrestigeStars level={word.prestigeLevel} />
-        {(earning || latest > 0) && (
-          <span
-            title={latest > 0 ? `earned ${fmtWord(latest)} $WORD at the latest payout` : "earning $WORD"}
-            className="inline-flex items-center gap-0.5 text-xs font-bold text-gold-ink"
-          >
-            <Coins weight="fill" size={13} />
-            {latest > 0 && `+${fmtWord(latest)}`}
-          </span>
-        )}
-        {word.staked ? (
-          <HungerBadge state={h} />
-        ) : price !== undefined ? (
+        {/* a listed word's price is the one thing the marks can't say */}
+        {price !== undefined && (
           <Pill className="bg-gold/25 text-gold-ink">
             <Storefront weight="fill" size={11} /> {fmtWord(price)}
           </Pill>
-        ) : (
-          <Pill className="bg-card text-ink/60">unstaked</Pill>
         )}
+        <StatusMarks marks={marks} compact />
         {answerReady && (
           <Pill className="bg-candy/15 text-candy-ink">
             <Ticket weight="fill" size={11} /> today’s word?
