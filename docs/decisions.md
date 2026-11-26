@@ -1574,6 +1574,21 @@ setter. All small, riding existing suite patterns.
       told never hides a new one. It runs
       in the keeper's `notify` job, after the hunger warnings, and reads the chain only when
       somebody opted in.
+    - **Part 5, one email a week** (`lib/notify/digest.ts`; `reminder_prefs.email_cadence`,
+      "weekly" or null). A player with an email chooses "One email a week" under "What to tell
+      me". It stands in for the EMAILS that can come every day (`DIGESTED_KINDS`: the daily
+      letter, payday, the deal alert); a push is not changed. A word about to go hungry and a
+      jackpot win still come at once (they can't wait a week), and so do a sale and a bounty share
+      (rare, and the player's own business). The digest says the week: what the player's words
+      earned (that week's seven days and that week's bounty, counted as the Earnings sheet counts:
+      paid or still on its way, never a dead share, so a share the payout reaches a day late is
+      not left out of every digest), what they sold, and which staked words are hungry or peckish now. A week with
+      nothing in it sends nothing. A line for a reminder the player turned off (hunger, a sale)
+      stays out. It goes out in the keeper's `notify` job on the first day of the next week,
+      after `payout` (and the day after, for a failed run), once per week under a send-once mark,
+      only to a confirmed address with email on: an unsubscribe stops it. My reading of "in place
+      of daily emails": opt-in, default "each one as it happens", so nobody's email changes
+      until they choose.
     - **One sender for every receipt** (`lib/notify/players.ts` `notifyPlayers`): the kind is asked
       first, Farcaster or else the account's browsers, and email with its send-once mark. A sale,
       a payday, and a bounty each only say who and what.

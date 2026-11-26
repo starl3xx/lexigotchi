@@ -259,6 +259,43 @@ export function dealAlert(d: { letter: string; word: string; more: number; from:
   };
 }
 
+// ── The weekly digest ─────────────────────────────────────────────────────────────────
+/** A player's week, as the digest's facts (lib/notify/digest.ts). */
+export interface WeekFacts {
+  /** What their words were paid this week (earnings and a bounty share), whole $WORD. */
+  earned: number;
+  /**
+   * What they sold on the Market this week: how many sales (a letter listing bought in two parts is
+   * two), and what the buyers paid, the amount a sale's own message calls "For" (`soldFacts`).
+   */
+  sold: { count: number; amount: number };
+  /** Their staked words that are hungry now, and peckish now (the soonest first). */
+  hungry: readonly string[];
+  peckish: readonly string[];
+}
+
+const some = (words: readonly string[]) => (words.length === 1 ? words[0] : `${words[0]} and ${words.length - 1} more`);
+
+/**
+ * The weekly email, for a player who chose it in place of the daily emails. Null when the week had
+ * nothing in it: an email that says "nothing happened" is the one that gets a player to unsubscribe.
+ * It leads with the words, as every message does: what needs care comes first.
+ */
+export function weeklyDigest(w: WeekFacts, period: number): { note: Notification; facts: [string, string][] } | null {
+  const facts: [string, string][] = [];
+  if (w.hungry.length > 0) facts.push(["Hungry now", some(w.hungry)]);
+  if (w.peckish.length > 0) facts.push(["Peckish now", some(w.peckish)]);
+  if (w.earned > 0) facts.push(["Your words earned", wordAmount(w.earned)]);
+  // The count goes in the name: a ledger's value stays short, so its row of dots has room on a phone.
+  if (w.sold.count > 0) facts.push([`${w.sold.count} ${w.sold.count === 1 ? "sale" : "sales"} on the Market`, wordAmount(w.sold.amount)]);
+  if (facts.length === 0) return null;
+  const body =
+    w.hungry.length > 0
+      ? `${some(w.hungry)} ${w.hungry.length === 1 ? "is" : "are"} hungry: a hungry word earns nothing and sits out the jackpot until it’s fed. Here is the rest of your week.`
+      : "Here is how your words did this week.";
+  return { note: { title: "Your week in Lexigotchi", body, notificationId: `week-${period}` }, facts };
+}
+
 // ── Turning reminders on ──────────────────────────────────────────────────────────────
 /**
  * The one push a browser gets for opting in: proof, to the player and to us, that the whole path
@@ -282,6 +319,7 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   paid: PAID_TITLES,
   bounty: BOUNTY_TITLES,
   deal: DEAL_TITLES,
+  digest: ["Your week in Lexigotchi"],
   pity: PITY_TITLES,
   soldLetter: SOLD_LETTER_TITLES,
   soldWord: SOLD_WORD_TITLES,

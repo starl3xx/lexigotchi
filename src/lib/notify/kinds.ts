@@ -36,6 +36,24 @@ export const KIND_INFO: Record<ReminderKind, KindInfo> = {
   deal: { label: "A letter I need is for sale", hint: "When the Market has the one letter that finishes a word nobody owns. Once a day at most. Off unless you turn it on.", on: false },
 };
 
+/**
+ * How email comes. "each": every reminder as it happens. "weekly": one email a week in place of the
+ * ones that can come every day (starl3xx, 2026-11-26: "a weekly email digest in place of daily
+ * emails"). Email only: a push is small, and its channel has its own off switch.
+ */
+export type EmailCadence = "each" | "weekly";
+export const parseCadence = (raw: unknown): EmailCadence | null => (raw === "each" || raw === "weekly" ? raw : null);
+
+/**
+ * The kinds a weekly digest stands in for: the ones that can come every day. The rest still come by
+ * email as they happen, because they can't wait a week (a word about to go hungry, a jackpot win)
+ * or are rare and are the player's own business (a sale, a bounty share).
+ */
+export const DIGESTED_KINDS: readonly ReminderKind[] = ["daily", "payday", "deal"];
+
+/** Is this kind emailed as it happens, at this cadence? */
+export const emailedNow = (cadence: EmailCadence, kind: ReminderKind): boolean => cadence === "each" || !DIGESTED_KINDS.includes(kind);
+
 /** What a player changed from the defaults. */
 export type KindChoices = Partial<Record<ReminderKind, boolean>>;
 
