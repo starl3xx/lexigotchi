@@ -252,7 +252,7 @@ function Pips({ level }: { level: number }) {
   return (
     <span className="cb-pips" aria-hidden>
       {[1, 2, 3, 4, 5].map((i) => (
-        <i key={i} className={i <= level ? (i === 5 ? "on holo" : "on") : ""} />
+        <i key={i} className={i <= level ? "on" : ""} />
       ))}
     </span>
   );
