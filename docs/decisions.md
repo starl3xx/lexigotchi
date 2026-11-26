@@ -1751,6 +1751,12 @@ setter. All small, riding existing suite patterns.
         chain's count for the earning and cost lines, never the link's casing: a link can't make
         a lowercase word look like an earner. Every read has a short wait, and nothing holds the
         picture up.
+      - **A kept world rather than none** (`worldSoon`; Bugbot on #255). The world is scanned at
+        most once a minute, and a scan can take far longer than a picture can wait. A picture that
+        waited for it lost, and was drawn without its facts, though a good world a few minutes
+        old was in hand. So the picture takes a kept world up to a quarter of an hour old at once,
+        and a new scan is started for whoever asks next. Older than that, or none: the scan, for
+        four seconds, then the picture without those facts.
       - **Not changed:** the "Case" line still follows the link's casing, as the front does.
       - **Seen and not seen (part 5):** the back drawn by the real route with stand-in chain
         answers. Not seen against the test game's chain: check GLYPH's video after the merge.

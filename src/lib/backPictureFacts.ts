@@ -9,7 +9,7 @@
 import { yoursSince, type WordStory } from "./cardFacts";
 import { costToMake, dailyEarnEstimate } from "./wordCost";
 import { stageFeeMultiple } from "./ascension";
-import { worldNow, type WorldNow } from "./worldSnapshot";
+import { worldSoon } from "./worldSnapshot";
 import { readGameParams, type GameParams } from "./onchain/reads";
 import { accountWallets } from "./db/walletLinks";
 
@@ -48,7 +48,8 @@ function pricesNow(): Promise<GameParams> {
  * never the link's casing: a link can't make a lowercase word look like an earner.
  */
 export async function readBackFacts(word: string, level: number | null, story: WordStory | null): Promise<{ since: number | null; perDay: number | "upper" | null; cost: number | null; drawn: number | "never" | null }> {
-  const [world, params] = await Promise.all([soon<WorldNow>(worldNow(), WORLD_WAIT_MS), soon<GameParams>(pricesNow(), PRICE_WAIT_MS)]);
+  // the world: a kept one at once (a little old beats none), else a new scan for a few seconds (worldSoon)
+  const [world, params] = await Promise.all([worldSoon(WORLD_WAIT_MS), soon<GameParams>(pricesNow(), PRICE_WAIT_MS)]);
   const holder = world?.body.owners?.[word] ?? null;
   const raised = world?.raised[word];
   let since: number | null = null;

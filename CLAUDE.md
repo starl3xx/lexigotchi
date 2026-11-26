@@ -648,7 +648,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   stats; an opened card lists the rest under it (`CardMore`). **The share loop** (decisions.md #27;
   `cards/loop/`, `cards/ShareVideo.tsx`): Share → "Make a video of the card" draws six seconds of the
   card turning (OGL, the same `materialGlsl` as the live back, over `/s/<word>/back`, a transparent
-  Satori picture of the back's words: no "you", nothing from the query) **The back's picture says what the game's back says about the WORD** (decisions.md #48; `lib/backPicture` words it, `lib/backPictureFacts` reads it from the chain, the prices, and the shared world in `lib/worldSnapshot`): "Held since" for "Yours since", no earned amount, no "Staked", and a fact that can't be read is left out. and encodes it in the
+  Satori picture of the back's words: no "you", nothing from the query) **The back's picture says what the game's back says about the WORD** (decisions.md #48; `lib/backPicture` words it, `lib/backPictureFacts` reads it from the chain, the prices, and the shared world in `lib/worldSnapshot`): "Held since" for "Yours since", no earned amount, no "Staked", and a fact that can't be read is left out. It takes the world with `worldSoon`: a kept one up to a quarter of an hour old at once (a scan takes longer than a picture can wait), never `worldNow`, which waits for the scan. and encodes it in the
   browser (WebCodecs H.264 + `mp4-muxer`, deprecated but 9 kB: swap in `makeLoop.ts` only). It
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays

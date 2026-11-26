@@ -6,8 +6,10 @@
  *
  * The scan reads every event since deploy, so one result serves everyone for a minute on a warm
  * instance (and `/api/world` adds the edge's minute on top). Callers on a cold instance share one
- * scan. A stale world beats none: when a scan fails, the last good one is served.
+ * scan. A stale world beats none: when a scan fails, the last good one is served, and a caller that
+ * can't wait for a scan takes a kept one up to a quarter of an hour old (`worldSoon`).
  */
+import { after } from "next/server";
 import { loadLinkMap } from "@/lib/db/walletLinks";
 import { buildLeaderboards, readYieldPot, scanDrawn, scanWorld, type BoardKey, type BoardRow } from "@/lib/world";
 import { type PublicFace } from "@/lib/profile/rules";
@@ -44,6 +46,8 @@ export interface WorldNow {
 }
 
 const TTL_MS = 60_000;
+/** For a caller that would rather show a slightly old world than none (worldSoon): how old is still worth showing. */
+export const STALE_OK_MS = 15 * 60_000;
 let cached: (WorldNow & { at: number }) | null = null;
 let inflight: Promise<WorldNow> | null = null;
 
@@ -92,6 +96,39 @@ export async function worldNow(): Promise<WorldNow> {
     if (cached) return cached;
     throw err;
   }
+}
+
+/**
+ * The world, for a caller that must answer soon and would rather have a slightly old world than
+ * none: a word's back picture, which leaves out every fact it couldn't read and can't be asked
+ * again (lib/backPictureFacts).
+ *
+ * - **A kept world under a quarter of an hour old is given at once.** If it is over a minute old, a
+ *   new scan is started for whoever asks next, and nobody waits for it. `worldNow` alone made this
+ *   caller wait for that scan, which is built to take far longer than a picture can wait (the route
+ *   allows it 30 s): the still-good world was thrown away and the picture drawn without its facts
+ *   (Bugbot on #255).
+ * - **With nothing kept (or only something older):** the new scan, for at most `ms`, then null.
+ *   The scan carries on, so the next request finds it.
+ *
+ * Never throws. Call it only where the suite is deployed.
+ */
+export function worldSoon(ms: number): Promise<WorldNow | null> {
+  const age = cached ? Date.now() - cached.at : Infinity;
+  const scan = age < TTL_MS ? null : worldNow().catch(() => null);
+  if (scan) {
+    try {
+      after(() => scan);
+    } catch {
+      // not inside a request (a test, a script): there is no instance to keep alive
+    }
+  }
+  if (cached && age < STALE_OK_MS) return Promise.resolve(cached);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  return Promise.race([scan!, late]).finally(() => clearTimeout(timer));
 }
 
 /** Tests only: forget the kept world. */

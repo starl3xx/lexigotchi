@@ -36,8 +36,9 @@ vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberOf: async () => 40 }));
 vi.mock("@/lib/onchain/cardLevel", () => ({ cardLevelOf: async (word: string, hint: number | null) => (chain.seen.push(`level:${word}:${hint}`), chain.level) }));
 vi.mock("@/lib/onchain/wordStory", () => ({ readWordStory: async (word: string) => (chain.seen.push(`story:${word}`), STORY) }));
 vi.mock("@/lib/profile/faces", () => ({ playerFaces: async () => ({ accountFor: new Map(), profiles: { [FINDER]: { username: "starl3xx", pfpUrl: null } } }) }));
+// worldSoon never throws and gives null for a world that didn't come in time (tests/world-snapshot.test.ts holds the real one)
 vi.mock("@/lib/worldSnapshot", () => ({
-  worldNow: () => (chain.worldNever ? new Promise(() => {}) : chain.worldFails ? Promise.reject(new Error("scan failed")) : Promise.resolve(chain.world)),
+  worldSoon: (ms: number) => (chain.worldNever ? new Promise((resolve) => setTimeout(() => resolve(null), ms)) : chain.worldFails ? Promise.resolve(null) : Promise.resolve(chain.world)),
 }));
 vi.mock("@/lib/onchain/reads", () => ({ readGameParams: async () => (chain.paramsFail ? Promise.reject(new Error("rpc")) : chain.params) }));
 vi.mock("@/lib/db/walletLinks", () => ({ accountWallets: async (a: string) => ({ account: a, wallets: chain.wallets }) }));
