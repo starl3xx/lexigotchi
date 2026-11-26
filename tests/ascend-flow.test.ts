@@ -4,7 +4,7 @@
  * result, never after "paid, and we lost track of it".
  */
 import { describe, it, expect } from "vitest";
-import { nextTry, phaseAfter, resultToast, shownStage, stageAfter, strandedToast, waveOf } from "@/components/game/ascendFlow";
+import { ascendDoor, nextTry, phaseAfter, resultToast, shownStage, stageAfter, strandedToast, waveOf } from "@/components/game/ascendFlow";
 
 describe("phaseAfter", () => {
   it("a result is a hit or a miss", () => {
@@ -76,6 +76,24 @@ describe("shownStage", () => {
     const live = { level: 1, pity: 2 };
     expect(shownStage("ready", live, null, null)).toBe(live);
     expect(shownStage("stranded", live, from, { level: 2, pity: 0 })).toBe(live);
+  });
+});
+
+describe("ascendDoor (the word sheet's button into the ascend sheet)", () => {
+  it("opens for a word that can try, and stays shut for one that can't", () => {
+    expect(ascendDoor({ canTry: true, atTop: false, unfinished: false })).toEqual({ label: "Ascend", open: true });
+    expect(ascendDoor({ canTry: false, atTop: false, unfinished: false })).toEqual({ label: "Ascend", open: false });
+  });
+
+  it("is shut and says so at the top of the ladder", () => {
+    expect(ascendDoor({ canTry: false, atTop: true, unfinished: false })).toEqual({ label: "Maxed", open: false });
+  });
+
+  it("a paid, unfinished attempt always has its door: unstaked since, or at the top, it still opens", () => {
+    // the sheet finishes that attempt with no stake check; a shut button locked the only way to it
+    expect(ascendDoor({ canTry: false, atTop: false, unfinished: true })).toEqual({ label: "Finish", open: true });
+    expect(ascendDoor({ canTry: false, atTop: true, unfinished: true })).toEqual({ label: "Finish", open: true });
+    expect(ascendDoor({ canTry: true, atTop: false, unfinished: true })).toEqual({ label: "Finish", open: true });
   });
 });
 

@@ -1066,9 +1066,11 @@ setter. All small, riding existing suite patterns.
       with no price and no wait on the balance (`prestige(word, { finishOnly: true })`: it sends
       the open attempt's reveal and never pays for a new one). A priced try there was a dead end
       for a player who paid with their last $WORD and declined the second wallet prompt: greyed
-      out, asking for $WORD it would not have charged (Bugbot on #229, High). The mark goes when
-      a reveal is read back for the word, or when the words read shows it past the stage it was
-      marked at.
+      out, asking for $WORD it would not have charged (Bugbot on #229, High). Nor does finishing
+      wait on the stake: the word sheet's button into the sheet reads "Finish" and always opens
+      for such a word (`ascendDoor`), where it had stayed shut for a word unstaked since. The
+      mark goes when a reveal is read back for the word, or when the words read shows it past the
+      stage it was marked at.
     - **Still two wallet confirmations** (the paid attempt, then its reveal): the docs said one,
       and now say two. Having the server finish it, as it does for rolls (#14, which names
       ascension as a later case), would make it one and keep the letters nervous without a

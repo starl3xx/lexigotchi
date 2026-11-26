@@ -29,6 +29,7 @@ import { careNote } from "../careNote";
 import { useEatingFlash } from "../useEatingFlash";
 import { earningLine, earningStatus, payoutWhen } from "../earnings";
 import { SellWord } from "../market/SellWord";
+import { ascendDoor } from "../ascendFlow";
 
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
@@ -57,6 +58,9 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const maxLevel = g.maxPrestigeLevel;
   const canPrestige = fullyRaised && word.staked && word.prestigeLevel < maxLevel;
+  // A try on this word ended paid and unfinished (the chain store remembers it for the session).
+  const unfinishedAscent = g.unfinishedAscents.has(word.word);
+  const door = ascendDoor({ canTry: canPrestige, atTop: word.prestigeLevel >= maxLevel, unfinished: unfinishedAscent });
   // The word ladder: this attempt's price and odds both depend on the stage the word is at now.
   const atTop = word.prestigeLevel >= maxLevel;
   const ascendFee = g.prestigePrice(word.prestigeLevel);
@@ -199,8 +203,9 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/55">tap a lowercase letter to roll it · {fmtWord(g.price("roll"))} $WORD</p>}
       </Card>
 
-      {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0) */}
-      {fullyRaised && maxLevel > 0 && (
+      {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0), except for
+          a word with a paid, unfinished attempt: that one keeps its way to the sheet that finishes it */}
+      {((fullyRaised && maxLevel > 0) || unfinishedAscent) && (
         <Card className={`mb-3 bg-gradient-to-b from-card to-gold/10 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -214,9 +219,12 @@ export function WordSheet({ word: wordKey }: { word: string }) {
               </div>
             </div>
             {/* Opens the ascend sheet (sheets/AscendSheet), where the try is made and its result
-                shows. No price on this button: it spends nothing; the sheet's own button does. */}
-            <Button variant="gold" disabled={!canPrestige} onClick={() => g.openSheet({ kind: "ascend", word: word.word })}>
-              {atTop ? "Maxed" : "Ascend"}
+                shows. No price on this button: it spends nothing; the sheet's own button does. It
+                opens for a paid, unfinished attempt whatever else is true of the word (unstaked
+                since, or at the top): the sheet finishes that attempt with no stake check, and this
+                is the only door to it (Bugbot on #229). */}
+            <Button variant="gold" disabled={!door.open} onClick={() => g.openSheet({ kind: "ascend", word: word.word })}>
+              {door.label}
             </Button>
           </div>
           {!atTop && (
@@ -227,12 +235,13 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           )}
           {/* A try that ended paid and unfinished (the store remembers it for the session): the
               cue the old inline button's "Unfinished" label gave. */}
-          {g.unfinishedAscents.has(word.word) && (
+          {unfinishedAscent && (
             <p className="mt-2 text-xs font-bold text-gold-ink">
-              Your last attempt is paid for and may be unfinished. Tap Ascend to finish it.
+              Your last attempt is paid for and may be unfinished. Tap Finish to finish it: it takes no new fee.
             </p>
           )}
-          {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
+          {/* a new try needs the stake; finishing a paid attempt doesn't, so it isn't asked for there */}
+          {!word.staked && !unfinishedAscent && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
         </Card>
       )}
 

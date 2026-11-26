@@ -1406,12 +1406,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             let id = await readOpenPrestigeFor(tokenId, revealedAttempts.current);
             const resumed = id !== null;
             // Asked only to finish a paid attempt, and none is open: it finished on its own (its
-            // reveal landed late). Never pay for a new one from the "finish" button, which showed
-            // no price: clear the mark, and the sheet goes back to its priced try.
+            // reveal landed late), or it never reached the chain. Never pay for a new one from the
+            // "finish" button, which showed no price: clear the mark, and the sheet goes back to
+            // its priced try. The toast says what was read and no more; if an attempt does turn up
+            // later, the next try finishes it first (Prestige allows one open attempt a word).
             if (id === null && opts?.finishOnly) {
               markAscent(word, null);
               for (const delay of [0, 2_000, 6_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
-              toast(`No attempt is open on ${word} now: its last one has finished`, "info");
+              toast(`No attempt is open on ${word} now`, "info");
               return { status: "not-started" as const };
             }
             // A caretaker's ascension is committed in the staker's name (Prestige names the staker).

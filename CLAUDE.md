@@ -724,6 +724,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (the same sheet OBJECT, not any ascend sheet), by a toast (`resultToast`, `strandedToast`); a try
   that ended unfinished also marks its word for the session (`unfinishedAscents`, cleared by
   `pruneUnfinished` or the next reveal read back), which the word sheet and the ascend sheet say.
+  **A paid, unfinished attempt is finished with no price and no gate:** the ascend sheet's button
+  becomes "Finish your attempt" (`prestige(word, { finishOnly: true })`: sends that attempt's
+  reveal, never pays for a new one, and says so when none is open), and it never checks the
+  balance or the stake; the word sheet's button into the sheet always opens for such a word
+  (`ascendDoor`). Any new gate on trying must leave finishing alone.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.

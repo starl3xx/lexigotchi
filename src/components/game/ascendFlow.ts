@@ -63,6 +63,21 @@ export function nextTry(phase: AscendPhase, level: number, maxLevel: number): "a
 }
 
 /**
+ * The word sheet's button into the ascend sheet: what it says, and whether it opens.
+ *
+ * A paid, unfinished attempt always has its door, whatever else is true of the word. The ascend
+ * sheet finishes that attempt with no stake check (the reveal can be sent by anyone), so a button
+ * that stayed shut for an unstaked word locked the only way to it, under a line telling the player
+ * to tap it (Bugbot on #229). Otherwise the door opens for a word that can try: staked, every
+ * letter UPPERCASE, and below the top stage.
+ */
+export function ascendDoor(a: { canTry: boolean; atTop: boolean; unfinished: boolean }): { label: "Ascend" | "Maxed" | "Finish"; open: boolean } {
+  if (a.unfinished) return { label: "Finish", open: true };
+  if (a.atTop) return { label: "Maxed", open: false };
+  return { label: "Ascend", open: a.canTry };
+}
+
+/**
  * A result as a toast, for when the ascend sheet isn't there to show it (closed while the try was
  * out). The sheet shows a result, or a toast says it: once, and always. `level` is the stage the
  * word stands at after the result.
