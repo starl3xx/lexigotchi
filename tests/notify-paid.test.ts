@@ -4,7 +4,7 @@
  * player, and payday goes only to a player who turned it on.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { bountyNotes, paydayNotes, type LandedShare } from "@/lib/notify/paid";
+import { bountyNotes, paydayNotes, settledShares, type EpochShare, type LandedShare } from "@/lib/notify/paid";
 import { linkMapFrom } from "@/lib/db/walletLinks";
 import { prefsBookFrom } from "@/lib/db/reminderPrefs";
 
@@ -14,7 +14,11 @@ const B = "0x00000000000000000000000000000000000000bb";
 const accountOf = (a: string) => (a.toLowerCase() === A2 ? A : a.toLowerCase());
 const WEI = 10n ** 18n;
 const DAY = 20_783;
-const share = (over: Partial<LandedShare> = {}): LandedShare => ({ stream: "yield", epochId: DAY, account: A, amount: 42_000n * WEI, ...over });
+let nextToken = 1;
+/** A share of a word of its own (each call is another word), unless `tokenId` says which. */
+const share = (over: Partial<LandedShare> = {}): LandedShare => ({ stream: "yield", epochId: DAY, tokenId: String(nextToken++), account: A, amount: 42_000n * WEI, ...over });
+/** An epoch in which these shares are all there is, none paid before the run. */
+const epochOf = (shares: readonly LandedShare[], paidBefore = false): EpochShare[] => shares.map((s) => ({ ...s, paidBefore }));
 
 describe("paydayNotes", () => {
   it("adds up what a player’s wallets were paid: linked wallets are one player, one message", () => {
@@ -65,6 +69,46 @@ describe("bountyNotes", () => {
   });
 });
 
+describe("settledShares: a day or a week is told once all of it is paid", () => {
+  const amounts = (shares: readonly LandedShare[]) => shares.map((s) => Number(s.amount / WEI)).sort((a, b) => a - b);
+
+  it("holds back a set the run paid only part of, and the run that finishes it tells of all of it", () => {
+    const [one, two, three] = [share({ amount: 10_000n * WEI }), share({ amount: 20_000n * WEI }), share({ amount: 30_000n * WEI })];
+    // run 1: the time budget ends after two of the player's three shares
+    expect(settledShares(epochOf([one, two, three]), [one, two], accountOf)).toEqual([]);
+    // run 2: the third lands; the first two read as paid before
+    const run2 = settledShares([...epochOf([one, two], true), ...epochOf([three])], [three], accountOf);
+    expect(amounts(run2)).toEqual([10_000, 20_000, 30_000]);
+    expect(paydayNotes(run2, accountOf)[0].note.body).toContain("60.0K $WORD");
+  });
+
+  it("another wallet of the same player still waiting holds the player’s set", () => {
+    const [mine, linked] = [share(), share({ account: A2 })];
+    expect(settledShares(epochOf([mine, linked]), [mine], accountOf)).toEqual([]);
+    expect(settledShares(epochOf([mine, linked]), [mine, linked], accountOf)).toHaveLength(2);
+  });
+
+  it("one player’s waiting share holds nobody else’s, and each day and week is its own set", () => {
+    const [a, aWaiting, b] = [share(), share(), share({ account: B })];
+    const yesterday = share({ epochId: DAY - 1 });
+    const week = share({ stream: "bounty", epochId: 2968 });
+    const told = settledShares(epochOf([a, aWaiting, b, yesterday, week]), [a, b, yesterday, week], accountOf);
+    // A's day is held (one share waits); B's day, A's leftover from yesterday, and A's bounty week are whole
+    expect(told.map((s) => `${s.stream}:${s.epochId}:${s.account}`).sort()).toEqual([`bounty:2968:${A}`, `yield:${DAY - 1}:${A}`, `yield:${DAY}:${B}`].sort());
+  });
+
+  it("is silent about a set with nothing landed in this run: it was told of, or collected by the player", () => {
+    const [old, other] = [share(), share({ account: B })];
+    expect(settledShares([...epochOf([old], true), ...epochOf([other])], [other], accountOf).map((s) => s.account)).toEqual([B]);
+  });
+
+  it("a share the player collected during the run counts as paid, not as waiting", () => {
+    const [kept, collected] = [share(), share()];
+    // the keeper marks it paid-before once the chain says someone else paid it (keeper/jobs payOut)
+    expect(amounts(settledShares([...epochOf([kept]), ...epochOf([collected], true)], [kept], accountOf))).toEqual([42_000, 42_000]);
+  });
+});
+
 describe("notifyPaid, through the shared sender", () => {
   const env = { ...process.env };
   beforeEach(() => {
@@ -92,7 +136,7 @@ describe("notifyPaid, through the shared sender", () => {
     const sent = mockWorld(prefsBookFrom([{ account: A, kinds: { payday: true } }]));
     const { notifyPaid } = await import("@/lib/notify/paid");
     const quiet = vi.spyOn(console, "log").mockImplementation(() => {});
-    const res = await notifyPaid(landed);
+    const res = await notifyPaid(landed, epochOf(landed));
     quiet.mockRestore();
     expect(sent).toEqual([{ fid: 77, id: `paid-${DAY}` }, { fid: 78, id: "bounty-2968" }]);
     expect(res.payday?.farcaster).toBe(1);
@@ -102,15 +146,28 @@ describe("notifyPaid, through the shared sender", () => {
   it("a player who turned the bounty off isn’t told of it", async () => {
     const sent = mockWorld(prefsBookFrom([{ account: B, kinds: { bounty: false } }]));
     const { notifyPaid } = await import("@/lib/notify/paid");
-    expect((await notifyPaid(landed)).bounty).toBeNull();
+    expect((await notifyPaid(landed, epochOf(landed))).bounty).toBeNull();
     expect(sent).toEqual([]);
+  });
+
+  it("tells nobody of a week the run paid only part of", async () => {
+    const sent = mockWorld(prefsBookFrom([]));
+    const { notifyPaid } = await import("@/lib/notify/paid");
+    const [paidNow, waits] = [share({ stream: "bounty", epochId: 2968, account: B }), share({ stream: "bounty", epochId: 2968, account: B })];
+    const quiet = vi.spyOn(console, "log").mockImplementation(() => {});
+    await notifyPaid([paidNow], epochOf([paidNow, waits]));
+    expect(sent).toEqual([]);
+    // the next run pays the rest, and says the whole share once
+    await notifyPaid([waits], [...epochOf([paidNow], true), ...epochOf([waits])]);
+    quiet.mockRestore();
+    expect(sent).toEqual([{ fid: 78, id: "bounty-2968" }]);
   });
 
   it("says nothing when the choices can’t be read, or when nothing landed", async () => {
     const sent = mockWorld(prefsBookFrom([], false));
     const { notifyPaid } = await import("@/lib/notify/paid");
-    expect(await notifyPaid(landed)).toEqual({ payday: null, bounty: null });
-    expect(await notifyPaid([])).toEqual({ payday: null, bounty: null });
+    expect(await notifyPaid(landed, epochOf(landed))).toEqual({ payday: null, bounty: null });
+    expect(await notifyPaid([], [])).toEqual({ payday: null, bounty: null });
     expect(sent).toEqual([]);
   });
 });
