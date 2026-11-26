@@ -1351,6 +1351,11 @@ setter. All small, riding existing suite patterns.
       pixel for pixel the same. While the light moves, at most a few hundred pixels of half a
       million differ by more than 8 levels of 255 (at most 13 by more than 32): the twinkling
       glints and the light's edge, which a layer turns as a picture where the drawing redrew them.
+    - **A glint rises with the tile as a layer outside its own turn** (Bugbot on #237). The
+      hover's rise was inside the glint's layer at first, and the layer's quarter turn swung the
+      risen glint six units to the side of its point. A piece that turns keeps the lean inside
+      its drawing and takes the rise from a layer round it. Checked hovered, against main, at
+      the quarter turn: the glints sit on their points.
     - **What stays one drawing:** a still tile, a hungry one, a small one, reduced motion, a slow
       device, and a picture in a single file. `npm run docs:art` gives no change.
     - **Tried and dropped, with the numbers:** the moving pieces left as shapes inside small
