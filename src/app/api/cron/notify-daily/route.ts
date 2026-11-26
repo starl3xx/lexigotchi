@@ -8,7 +8,7 @@ import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { emailRecipients, markEmailSent } from "@/lib/db/profiles";
 import { loadLinkMap } from "@/lib/db/walletLinks";
 import { loadPrefs } from "@/lib/db/reminderPrefs";
-import { fidsByAddresses } from "@/lib/neynar";
+import { fidsByAddressesDetailed } from "@/lib/neynar";
 import { relatedDailyKeysMany } from "@/lib/onchain/dailyIdentity";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
@@ -106,7 +106,12 @@ export async function GET(req: Request) {
     // Farcaster is reached by FID, a choice is kept by account: the FIDs of the accounts that turned
     // it off are looked up from those accounts' wallets (usually nobody, and then nothing is asked).
     const offWallets = prefs.chose("daily", false).flatMap((account) => links.walletsOf(account));
-    const offFids = new Set(offWallets.length > 0 ? [...(await fidsByAddresses(offWallets)).values()].flat() : []);
+    const off = offWallets.length > 0 ? await fidsByAddressesDetailed(offWallets) : { fids: new Map<string, number[]>(), answered: true };
+    const offFids = new Set([...off.fids.values()].flat());
+    // Farcaster didn't answer in full, so some FID that turned this off can't be told from one that
+    // didn't: nobody is reminded there this run. Browsers and email are keyed by wallet, and go on.
+    const farcasterBlind = !off.answered;
+    if (farcasterBlind) console.error("[cron/notify-daily] couldn't look up who turned the daily letter off: no Farcaster reminders this run");
     // Profiles that took all 10, with every key they took them under, so each channel matches on what
     // it knows: Farcaster by the FID's walked keys, browsers and email by account or keys
     // (lib/freeLetters.ts finishedProfiles; Bugbot on #199). A failed read finishes nobody.
@@ -117,7 +122,7 @@ export async function GET(req: Request) {
     // ── Farcaster ────────────────────────────────────────────────────────────────────────────
     let targets: number[] = [];
     let result: Awaited<ReturnType<typeof sendNotification>> | undefined;
-    if (fids.length > 0) {
+    if (fids.length > 0 && !farcasterBlind) {
       const used = await readDailyUsed(fids.map((fid) => BigInt(fid)));
       const states: DailyState[] = fids.map((fid, i) => ({ fid, lastDailyDayPlusOne: Number(used[i]) }));
       const due = dailyTargets(states, day);

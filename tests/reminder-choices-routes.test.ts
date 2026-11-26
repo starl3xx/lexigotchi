@@ -78,6 +78,10 @@ describe("/api/profile/reminders", () => {
 
 describe("the daily-letter reminder obeys the choices", () => {
   const sub = (address: string, endpoint: string) => ({ address, fid: null, endpoint, p256dh: "k", auth: "a" });
+  let neynarUp = true;
+  beforeEach(() => {
+    neynarUp = true;
+  });
   function mockCron(prefs: ReturnType<typeof prefsBookFrom>) {
     const sent = { fids: [] as number[], browsers: [] as string[], emails: [] as string[] };
     vi.stubEnv("CRON_SECRET", "s3cret");
@@ -102,7 +106,9 @@ describe("the daily-letter reminder obeys the choices", () => {
     vi.doMock("@/lib/db/freeClaims", () => ({ countingDailyGrants: async () => [] }));
     vi.doMock("@/lib/onchain/freeLedger", () => ({ freeGrantStop: async () => null }));
     // A's account is Farcaster id 77 (through its linked wallet); B's is 78
-    vi.doMock("@/lib/neynar", () => ({ fidsByAddresses: async (ws: string[]) => new Map(ws.filter((w) => w === A2).map((w) => [w, [77]])) }));
+    vi.doMock("@/lib/neynar", () => ({
+      fidsByAddressesDetailed: async (ws: string[]) => ({ fids: neynarUp ? new Map(ws.filter((w) => w === A2).map((w) => [w, [77]])) : new Map(), answered: neynarUp }),
+    }));
     vi.doMock("@/lib/notify/send", () => ({ sendNotification: async (n: { targetFids: number[] }) => (sent.fids.push(...n.targetFids), { ok: true }) }));
     vi.doMock("@/lib/notify/webPush", () => ({ sendWebPush: async (to: { endpoint: string }[]) => (sent.browsers.push(...to.map((t) => t.endpoint)), { ok: true }) }));
     vi.doMock("@/lib/notify/email", () => ({
@@ -128,6 +134,24 @@ describe("the daily-letter reminder obeys the choices", () => {
     expect(sent.fids).toEqual([78]); // 77 is A's account, found through its linked wallet
     expect(sent.browsers).toEqual(["https://push.example/b"]); // the browser subscribed on A2
     expect(sent.emails).toEqual(["b@example.test"]);
+  });
+
+  it("sends no Farcaster reminder at all when it can’t look up who turned it off, and still reminds browsers and email", async () => {
+    const sent = mockCron(prefsBookFrom([{ account: A, kinds: { daily: false } }]));
+    neynarUp = false; // an empty answer would read as "nobody turned it off"
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    await run();
+    quiet.mockRestore();
+    expect(sent.fids).toEqual([]);
+    expect(sent.browsers).toEqual(["https://push.example/b"]);
+    expect(sent.emails).toEqual(["b@example.test"]);
+  });
+
+  it("asks Farcaster nothing when nobody turned it off", async () => {
+    const sent = mockCron(prefsBookFrom([]));
+    neynarUp = false; // would blind the run, if it were asked
+    await run();
+    expect(sent.fids.sort()).toEqual([77, 78]);
   });
 
   it("reminds nobody when the choices can’t be read", async () => {

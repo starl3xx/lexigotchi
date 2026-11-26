@@ -307,8 +307,9 @@ export function ProfileSheet() {
         <ReminderToggle />
       </div>
 
-      {/* Which reminders, for every channel (ReminderChoices). With a wallet: a choice is the account's. */}
-      {p.address && <ReminderChoices key={p.address} p={p} />}
+      {/* Which reminders, for every channel (ReminderChoices). With profiles on (the route is theirs)
+          and a wallet: a choice is the account's. */}
+      {p.enabled && p.address && <ReminderChoices key={p.address} p={p} />}
 
       <button
         onClick={() => g.openSheet({ kind: "balance" })}

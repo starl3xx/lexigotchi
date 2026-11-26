@@ -9,7 +9,7 @@
  *     OFF and we can't see it. Sending then would break the one promise a choice makes, so the book
  *     says no to everything (`known: false`), and a sender skips its pass and logs why.
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { reminderPrefs } from "./schema";
 import { isMissingTable } from "./profiles";
@@ -68,7 +68,11 @@ export async function prefsOf(account: string): Promise<KindChoices> {
 export async function savePrefs(account: string, changes: KindChoices): Promise<KindChoices> {
   const a = lower(account);
   return getDb().transaction(async (tx) => {
-    const rows = await tx.select({ kinds: reminderPrefs.kinds }).from(reminderPrefs).where(eq(reminderPrefs.account, a)).for("update").limit(1);
+    // One save at a time per account. A row lock isn't enough for the FIRST save, when there is no
+    // row to lock: two boxes changed together would each read "nothing stored" and the later write
+    // would drop the earlier one's change.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`lexigotchi:reminder_prefs:${a}`}))`);
+    const rows = await tx.select({ kinds: reminderPrefs.kinds }).from(reminderPrefs).where(eq(reminderPrefs.account, a)).limit(1);
     const next = changedFromDefaults({ ...(parseChoices(rows[0]?.kinds) ?? {}), ...changes });
     await tx
       .insert(reminderPrefs)
