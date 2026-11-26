@@ -262,7 +262,9 @@ A staked word's care state is a function of days since last fed:
   and on the share picture (`src/lib/scenes.ts`, `src/lib/cardArt/`, `src/components/scenes/`).
   Every word starts on the stock card (grey, the rarity as an overtone); the Stage is free for
   everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
-  unlocked. Picture Day, Summer, Fall, and Winter are retired. A scene is a still engraving and
+  unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
+  (decisions.md #41): drawn and ready, a player's only once their profile buys one, and not listed yet.
+  A scene is a still engraving and
   never moves; the card in focus catches a faint light and leans a little toward a pointer.
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,

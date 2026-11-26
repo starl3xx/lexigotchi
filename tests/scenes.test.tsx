@@ -13,14 +13,19 @@ import {
   SCENES,
   SCENE_IDS,
   SCENE_UNLOCK_WORDS,
+  SHOP_SCENES,
+  UNLOCK_SCENES,
   canUseScene,
   isSceneId,
+  isShopScene,
   parseLinkScene,
   parseScene,
   sceneMeta,
+  sceneShows,
   storedScene,
   scenesUnlocked,
   shownScene,
+  type SceneId,
 } from "@/lib/scenes";
 import { TIERS as TIER_LIST, type Tier } from "@/lib/economy";
 import { CARD_H, CARD_W, beadRing, beadsOnCurve, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
@@ -37,8 +42,9 @@ window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListene
 afterEach(cleanup);
 
 describe("the scene list", () => {
-  it("is the stock card, the Stage, the Trophy Case, and Spring, each named once", () => {
-    expect([...SCENE_IDS]).toEqual(["stock", "stage", "trophy", "spring"]);
+  it("is the stock card, the Stage, the Trophy Case, Spring, and the Shop's two, each named once", () => {
+    expect([...SCENE_IDS]).toEqual(["stock", "stage", "trophy", "spring", "bookshelf", "space"]);
+    expect([...FREE_SCENES, ...UNLOCK_SCENES, ...SHOP_SCENES].sort()).toEqual([...SCENE_IDS].sort()); // each scene is one kind
     expect(SCENES.map((s) => s.id)).toEqual([...SCENE_IDS]);
     expect(new Set(SCENES.map((s) => s.name)).size).toBe(SCENES.length);
     expect(sceneMeta("trophy").name).toBe("Trophy Case");
@@ -89,6 +95,35 @@ describe("the unlock", () => {
   it("always lets a player use the stock card and the Stage", () => {
     expect([...FREE_SCENES]).toEqual(["stock", "stage"]);
     for (const free of FREE_SCENES) expect(canUseScene(free, 0)).toBe(true);
+  });
+
+  it("opens a Shop scene only to a profile that has bought it, however many words it has held", () => {
+    for (const scene of SHOP_SCENES) {
+      expect(isShopScene(scene)).toBe(true);
+      expect(canUseScene(scene, 0)).toBe(false);
+      expect(canUseScene(scene, 99)).toBe(false);
+      expect(canUseScene(scene, 0, new Set([scene]))).toBe(true);
+    }
+    // buying one doesn't open the other, and a purchase doesn't open the 3-word scenes
+    expect(canUseScene("space", 99, new Set<SceneId>(["bookshelf"]))).toBe(false);
+    expect(canUseScene("trophy", 0, new Set<SceneId>(["space"]))).toBe(false);
+    expect(shownScene("space", 5)).toBe("stock");
+    expect(shownScene("space", 0, new Set<SceneId>(["space"]))).toBe("space");
+    for (const scene of [...FREE_SCENES, ...UNLOCK_SCENES]) expect(isShopScene(scene)).toBe(false);
+  });
+
+  it("keeps showing a saved Shop scene while the purchase isn't known: unknown is not \"no\"", () => {
+    const none = new Set<SceneId>();
+    // a positive "not bought": the stock card shows instead
+    expect(sceneShows("space", { unlocked: true, bought: none, shopKnown: true })).toBe(false);
+    // bought
+    expect(sceneShows("space", { unlocked: false, bought: new Set<SceneId>(["space"]), shopKnown: true })).toBe(true);
+    // loading, a failed read, or the Shop switched off: a buyer's card keeps its scene
+    expect(sceneShows("space", { unlocked: false, bought: none, shopKnown: false })).toBe(true);
+    // the other kinds don't depend on the Shop at all
+    expect(sceneShows("stock", { unlocked: false, bought: none, shopKnown: false })).toBe(true);
+    expect(sceneShows("trophy", { unlocked: false, bought: none, shopKnown: false })).toBe(false);
+    expect(sceneShows("trophy", { unlocked: true, bought: none, shopKnown: true })).toBe(true);
   });
 
   it("draws a saved choice only while it is unlocked, and keeps it for when it is again", () => {
@@ -165,7 +200,7 @@ describe("the card's art (lib/cardArt)", () => {
   it("prints only the stock card in the word's rarity: a place has inks of its own", () => {
     expect(cardArt("stock", "Rare")).not.toBe(cardArt("stock", "Mythic"));
     expect(cardArt("stock", "Rare")).toContain(CARD_LOOKS.Rare.ink);
-    for (const scene of ["stage", "trophy", "spring"] as const) expect(cardArt(scene, "Rare")).toBe(cardArt(scene, "Mythic"));
+    for (const scene of ["stage", "trophy", "spring", "bookshelf", "space"] as const) expect(cardArt(scene, "Rare")).toBe(cardArt(scene, "Mythic"));
   });
 
   it("washes the stock card with the rarity more lightly for a color that reads stronger (the green was too much)", () => {
@@ -215,8 +250,8 @@ describe("where the word stands", () => {
     expect(b.rowLeft / a.rowLeft).toBeCloseTo(0.8, 1);
   });
 
-  it("stands upright on level ground: the stock card, the Stage, the Trophy Case", () => {
-    for (const scene of ["stock", "stage", "trophy"] as const) {
+  it("stands upright on level ground: the stock card, the Stage, the Trophy Case, the Bookshelf", () => {
+    for (const scene of ["stock", "stage", "trophy", "bookshelf"] as const) {
       expect(GROUND[scene]).toBeUndefined();
       for (const f of wordFootings(scene, 5)) expect(f).toEqual({ drop: 0, deg: 0 });
     }
@@ -231,6 +266,15 @@ describe("where the word stands", () => {
     expect(f[0].deg).toBeLessThan(0); // the left end leans left, down the hill
     expect(f[4].deg).toBeCloseTo(-f[0].deg, 5);
     expect(f[4].drop).toBeCloseTo(f[0].drop, 5);
+  });
+
+  it("stands on Outer Space's little planet: a tighter curve than the hill, the same on both sides", () => {
+    const planet = wordFootings("space", 5);
+    const hill = wordFootings("spring", 5);
+    expect(planet[2]).toEqual({ drop: 0, deg: 0 });
+    expect(planet[0].drop).toBeGreaterThan(hill[0].drop);
+    expect(Math.abs(planet[0].deg)).toBeGreaterThan(Math.abs(hill[0].deg));
+    expect(planet[4].deg).toBeCloseTo(-planet[0].deg, 5);
   });
 
   it("keeps any curve gentle enough for held hands: a slope under 12 degrees along a full-width word", () => {

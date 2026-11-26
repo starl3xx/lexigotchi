@@ -15,27 +15,14 @@ import { useState } from "react";
 import { Button, Sheet } from "../primitives";
 import { CircleNotch, Plus, ShoppingBag } from "../ui/icons";
 import { useGame } from "../state";
-import { usePlayerWallets } from "../usePlayerWallets";
+import { useShopRegistry, useWardrobe } from "../useShop";
+import { SceneThumb } from "../../scenes/SceneFrame";
+import { sceneOfItem } from "@/lib/shop/scenes";
 import { erc20Abi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { usdcAddress } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
-import {
-  availability,
-  shopCards,
-  usdcLabel,
-  type Availability,
-  type ItemMeta,
-  type RegistryItem,
-  type ShopCard,
-} from "@/lib/shop/rules";
-
-interface ShopJson {
-  ok: boolean;
-  revenueBps?: number;
-  paused?: boolean;
-  items?: (Omit<RegistryItem, "priceUsdc"> & { priceUsdc: string; meta: ItemMeta | null })[];
-}
+import { availability, shopCards, usdcLabel, type Availability, type ShopCard } from "@/lib/shop/rules";
 
 const STATUS: Record<Exclude<Availability, "on_sale">, string> = {
   not_yet: "Not on sale yet",
@@ -47,34 +34,11 @@ const STATUS: Record<Exclude<Availability, "on_sale">, string> = {
 export function ShopSheet() {
   const g = useGame();
   const { address } = useAccount();
-  const wallets = usePlayerWallets();
   const testnet = NETWORK.isTestnet;
   const [buying, setBuying] = useState<number | null>(null);
 
-  const shopQ = useQuery({
-    queryKey: ["shop", "registry"],
-    staleTime: 15_000,
-    queryFn: async () => {
-      const r = await fetch("/api/shop");
-      const d = (await r.json().catch(() => null)) as ShopJson | null;
-      if (!r.ok || !d?.ok) return null;
-      return {
-        paused: d.paused === true,
-        revenueBps: d.revenueBps ?? 8_000,
-        items: (d.items ?? []).map((it) => ({ ...it, priceUsdc: BigInt(it.priceUsdc) })),
-      };
-    },
-  });
-  const wardrobeQ = useQuery({
-    queryKey: ["shop", "wardrobe", wallets.join(",")],
-    enabled: wallets.length > 0,
-    staleTime: 15_000,
-    queryFn: async () => {
-      const r = await fetch(`/api/shop/wardrobe?wallets=${wallets.join(",")}`);
-      const d = (await r.json().catch(() => null)) as { ok: boolean; items?: { itemId: number; count: number }[] } | null;
-      return new Map((d?.items ?? []).map((i) => [i.itemId, i.count]));
-    },
-  });
+  const shopQ = useShopRegistry();
+  const wardrobeQ = useWardrobe();
   const usdc = usdcAddress();
   const balanceQ = useQuery({
     queryKey: ["shop", "usdc", address],
@@ -142,17 +106,26 @@ export function ShopSheet() {
               const owned = wardrobeQ.data?.get(card.item.id) ?? 0;
               const short = balance !== undefined && balance < card.item.priceUsdc;
               const name = card.kind === "item" ? card.meta.name : card.name;
+              const scene = card.kind === "item" ? sceneOfItem(card.meta) : null;
               return (
                 <li key={card.item.id} className="cel-sm rounded-2xl bg-card p-3">
+                  {/* a scene shows what it is: its card, with no word on it */}
+                  {scene && (
+                    <div className="mb-2 overflow-hidden rounded-xl border-2 border-ink">
+                      <SceneThumb scene={scene} />
+                    </div>
+                  )}
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-display font-extrabold">{name}</div>
                       <div className="text-xs text-ink/60">
                         {card.kind === "placeholder"
                           ? "A placeholder on the test network. It does nothing; it’s here so you can try paying."
-                          : card.meta.kind === "scene"
-                            ? "A scene"
-                            : "A costume"}
+                          : scene
+                            ? "A scene for your words’ cards. Pick it for a word with the palette button under its card."
+                            : card.meta.kind === "scene"
+                              ? "A scene"
+                              : "A costume"}
                       </div>
                       {owned > 0 && (
                         <div className="mt-1 text-xs font-bold text-teal-ink">

@@ -470,7 +470,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   number finite, ids unique), shown as background images in the game and placed as `<img>` on the
   share picture: no shapes in the page (a scene was 1,000 elements; Today at rest with a fed word
   on stage went from about 53% of a core to 8% in WebKit). **The letters stand on `FEET_Y`** (two thirds down), sized by
-  `scenes/layout.ts` (`wordLayout`, shared with the share picture). **Curved ground is one rule:** a
+  `scenes/layout.ts` (`wordLayout`, shared with the share picture). **The Shop's scenes** (decisions.md #41): the Bookshelf and Outer Space (`SHOP_SCENES`) are a
+  player's only when their profile's wardrobe holds an item whose `shop_items` row is kind "scene"
+  with `art` = the scene id (`lib/shop/scenes.ts`; nothing else grants one). `useShopScenes`
+  (`game/useShop.ts`) gives `bought`, `onSale`, and `known`: **unknown is not "no"** (a saved Shop scene
+  keeps showing while the wardrobe is loading, failed, or the Shop is off), and the picker offers one
+  only on a positive answer. `/api/scenes` won't save one for a profile that hasn't bought it. Listing
+  is the owner's (`Shop.addItem`, then the `shop_items` row); none is listed yet. **Curved ground is one rule:** a
   scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
   is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands
   stay joined. **The card's own light** (`cards/useCardLight`, `.sc-sheen`/`.sc-glare`/`.sc-lean`) is

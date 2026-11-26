@@ -720,9 +720,11 @@ body {
   .sc-glare { transition: opacity 260ms ease; }
   .sc-ease .sc-glare { transition: opacity 260ms ease, transform 240ms var(--ease-out); }
   .sc-moment .sc-sheen { animation: sc-sheen 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
-  @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .sc-glare { opacity: 0.3; } }
+  @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .sc-glare { opacity: var(--sc-glare-a, 0.3); } }
 }
-@keyframes sc-sheen { 0% { opacity: 0; transform: translateX(-160%) skewX(-16deg); } 12%, 86% { opacity: 0.34; } 100% { opacity: 0; transform: translateX(440%) skewX(-16deg); } }
+/* over a scene on a dark plate (Outer Space), the same white shows far more: the light is fainter */
+.sc:has(.cf-dark) { --sc-sheen-a: 0.13; --sc-glare-a: 0.12; }
+@keyframes sc-sheen { 0% { opacity: 0; transform: translateX(-160%) skewX(-16deg); } 12%, 86% { opacity: var(--sc-sheen-a, 0.34); } 100% { opacity: 0; transform: translateX(440%) skewX(-16deg); } }
 
 /* A list's word as flat tiles (components/game/MiniTiles.tsx): the rig's colors, the finish baked
    into a background per tier. A lowercase tile sits on its wooden edge; an UPPERCASE one wears the

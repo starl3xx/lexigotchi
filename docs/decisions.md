@@ -1219,6 +1219,35 @@ setter. All small, riding existing suite patterns.
       where else B goes (profile pictures, the saved picture's corner, emails) is listed in
       `docs/brand/README.md` and not built.
 
+41. **The Bookshelf and Outer Space are the Shop's scenes** (step 5 of #34; starl3xx, 2026-11-25:
+    "add bookshelf, outer space (maybe as shop items, but still good to build)").
+    - **Built, not listed.** Both scenes are drawn (`lib/cardArt/scenes.ts`), and the game knows
+      how a player comes to have one. Nobody has one until the Shop lists it, and listing is the
+      owner's: `Shop.addItem` (the admin's Shop tab builds it), then a `shop_items` row with
+      `kind` "scene" and `art` "bookshelf" or "space". Until then the picker doesn't show them.
+    - **What grants a scene** (`lib/shop/scenes.ts`, pure and tested): an item in the profile's
+      wardrobe whose `shop_items` row is kind "scene" and names a Shop scene in `art`. Nothing
+      else: not an item with no row (the test network's "Test item"), not a row that names a free
+      scene, not a typo. Buying one doesn't open the other.
+    - **In the game.** The picker lists a Shop scene only when the player has it (it is picked
+      like any scene) or can buy it now (it shows its price and opens the Shop). The Shop's card
+      for a scene shows the scene. In Outer Space the letters stand on the planet's arc (#34's
+      curved ground), and the card's light is fainter over the dark plate.
+    - **The server won't save a Shop scene for a profile that hasn't bought it** (`/api/scenes`
+      leaves that pick out, names its word in `refused`, and saves the rest). When it can't check,
+      it saves no Shop scene.
+    - **Unknown is not "no".** While the wardrobe is loading, its read failed, or the Shop is
+      switched off, a word's saved Shop scene keeps showing: taking a paid scene off a buyer's
+      card because a read failed would be the worse mistake. The picker offers one only on a
+      positive answer. (The 3-word unlock treats unknown the same way.)
+    - **Left open, the owner's call:** a share link draws whatever scene it names, as it always
+      has (the page doesn't ask who owns a word, #15), so a hand-typed link can picture a word in
+      a Shop scene its owner hasn't bought. It is a picture only. Closing it means the share page
+      asking who owns the word and what their profile bought, on every card.
+    - **My readings, not starl3xx's words:** the Shop scenes are not part of the 3-word unlock;
+      the practice game has no Shop, so it has neither scene; the player docs say nothing of them
+      until one is listed.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
