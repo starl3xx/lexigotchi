@@ -1,6 +1,6 @@
 /**
- * The "Reminders are on" push to a browser that just opted in (the subscribe route sends it after
- * its answer). It is the channel's end-to-end proof, so it must not be the thing that breaks it.
+ * The "Reminders are on" push to a browser that just opted in (the subscribe route sends it and
+ * waits for it). It is the channel's end-to-end proof, so it must not be the thing that breaks it.
  *
  * A push the service calls "gone" (404/410) normally drops the browser's row: that is how dead
  * browsers leave (lib/notify/webPush.ts). But a row made a second ago is not a dead browser, and one

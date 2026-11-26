@@ -72,7 +72,14 @@ async function syncToServer(sub: PushSubscription, address: string): Promise<voi
     },
     body: JSON.stringify({ address, subscription: sub.toJSON() }),
   });
-  if (!res.ok) throw Object.assign(new Error(`subscribe failed: ${res.status}`), { status: res.status });
+  if (!res.ok) {
+    // The route's own word for it ("push_refused", "too_many_browsers"…), when it gave one.
+    const code = await res
+      .json()
+      .then((d: { error?: unknown }) => (typeof d?.error === "string" ? d.error : undefined))
+      .catch(() => undefined);
+    throw Object.assign(new Error(`subscribe failed: ${res.status}`), { status: res.status, code });
+  }
   try {
     localStorage.setItem(SYNCED_KEY, `${address.toLowerCase()}:${session?.fid ?? ""}`);
   } catch {
@@ -173,6 +180,13 @@ export function useWebPush(): {
         // "on" for a wallet that gets nothing. Anything else is transient: the next visit retries.
         if (alive && (err as { status?: number }).status === 409) {
           setSyncWarning("Reminders stay with your previous wallet: this one already gets them in five browsers.");
+        }
+        // The push service refused the test reminder for this browser (twice: the route's rule), and
+        // the server holds no row for it. Say off, and why. The browser's own subscription is left
+        // alone: "Turn on reminders" sends it again.
+        if (alive && (err as { code?: string }).code === "push_refused") {
+          announce("off");
+          setError(enableFailure("save", err).message);
         }
       });
     return () => {
