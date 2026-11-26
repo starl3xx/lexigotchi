@@ -12,6 +12,8 @@ import { render, screen, fireEvent, cleanup, within } from "@testing-library/rea
 // jsdom has no matchMedia; this viewer doesn't ask for reduced motion
 window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
 
+// The reminder button is the browser-push hook's (wallet, service worker): here, only where it stands.
+vi.mock("@/components/game/ReminderToggle", () => ({ ReminderToggle: ({ label }: { label?: string }) => <button>{label}</button> }));
 vi.mock("@/components/game/useWorld", () => ({ useWorld: () => ({ data: undefined }), useMyWallets: () => new Set<string>(), shortAddress: (a: string) => a }));
 
 const { GameProvider } = await import("@/components/game/state");
@@ -33,6 +35,16 @@ const show = (start?: SellKind) =>
 afterEach(cleanup);
 
 describe("the Market's Sell page", () => {
+  it("asks to tell the player when something sells, once something is for sale", () => {
+    show();
+    expect(screen.queryByRole("button", { name: "Tell me when something sells" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sell" }));
+    fireEvent.change(screen.getByLabelText("Price, in $WORD"), { target: { value: "2,000,000" } });
+    fireEvent.click(screen.getByRole("button", { name: "List it" }));
+    return screen.findByRole("button", { name: "Tell me when something sells" });
+  });
+
+
   it("offers the player's words and their letters as two tabs, each with its count", () => {
     show();
     // The practice bag: one unstaked word (MOTEL), and 19 loose letters.

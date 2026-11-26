@@ -23,7 +23,7 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { WORDS } from "@/lib/dictionary";
 import { wordTier } from "@/lib/economy";
 import { indexedThrough, markIndexed } from "@/lib/db/shop";
-import { recordSales } from "@/lib/db/market";
+import { recordNewSales, recordSales, type SaleRow } from "@/lib/db/market";
 import type { marketSales } from "@/lib/db/schema";
 
 type SaleInsert = typeof marketSales.$inferInsert;
@@ -127,9 +127,12 @@ const OVERLAP_BLOCKS = 30;
  * Read every fee transfer since the last indexed block (and a short overlap before it), record its
  * transaction's sales, and move the cursor after each range, so a catch-up cut short resumes where
  * it stopped. It asks for the whole span first and halves it while the RPC refuses it as too wide
- * (down to 100 blocks).
+ * (down to 100 blocks). `onNew` gets each sale this pass was the FIRST to record, as it is recorded
+ * (lib/notify/sold.ts tells their sellers), and is awaited: a caller that wants the seller told
+ * before the pass goes on (the keeper) returns its promise, and one that must not wait (the
+ * Market's route) returns nothing.
  */
-export async function catchUpSales(): Promise<{ recorded: number; through: number } | null> {
+export async function catchUpSales(opts: { onNew?: (rows: SaleRow[]) => void | Promise<void> } = {}): Promise<{ recorded: number; through: number } | null> {
   const saleFees = maybeAddressOf("saleFees");
   if (!saleFees) return null;
   const client = getPublicClient();
@@ -155,7 +158,12 @@ export async function catchUpSales(): Promise<{ recorded: number; through: numbe
     for (const hash of hashes) {
       const receipt = await client.getTransactionReceipt({ hash });
       if (receipt.status !== "success") continue;
-      recorded += await recordSales(await rowsOfReceipt(receipt, await blockTime(receipt.blockNumber)));
+      // Handed out the moment they are recorded, never at the end: a later read that throws ends
+      // this pass, and a row is only ever "new" once, so a list returned at the end would lose
+      // every row recorded before the throw, and its seller would never be told.
+      const fresh = await recordNewSales(await rowsOfReceipt(receipt, await blockTime(receipt.blockNumber)));
+      recorded += fresh.length;
+      if (fresh.length > 0) await opts.onNew?.(fresh);
     }
     await markIndexed(NETWORK.id, saleFees, to);
     through = to;

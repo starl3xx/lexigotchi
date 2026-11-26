@@ -23,6 +23,7 @@ import { fmtWord, idxToChar, mineLower, mineUpper, useGame } from "../state";
 import { shortAddress } from "../useWorld";
 import { byBest } from "../stagePick";
 import { SellWord } from "./SellWord";
+import { ReminderToggle } from "../ReminderToggle";
 import { FormHead, Part, PriceHint, PriceIdeas, PriceInput, Qty, Versus, priceOf, priceText, useAmount } from "./bits";
 
 const LETTER_FEE = DEFAULT_PARAMS.market.letterSaleFee;
@@ -233,6 +234,9 @@ export function SellDesk({
             ))}
           </ul>
         )}
+        {/* Asked where the reason is on screen: something is for sale. It renders nothing where
+            browser reminders can't exist, or once they are on (ReminderToggle). */}
+        {!nothingListed && <ReminderToggle compact label="Tell me when something sells" />}
       </Part>
     </div>
   );

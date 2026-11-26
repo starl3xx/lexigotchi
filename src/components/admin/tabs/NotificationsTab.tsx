@@ -21,7 +21,8 @@ import {
   jackpotRollover,
   earningsPaid,
   pityCapped,
-  listingFilled,
+  marketSold,
+  remindersOn,
   type Notification,
 } from "@/lib/notify/templates";
 import { clamp, LIMITS } from "@/lib/notify/limits"; // NOT ./send — see limits.ts
@@ -57,7 +58,9 @@ function gallery(day: number): { kind: "nudge" | "receipt"; when: string; note: 
     { kind: "nudge", when: "not yet wired — pot crossed a threshold", note: jackpotRollover("4,800,000 $WORD", day) },
     { kind: "receipt", when: "not yet wired — a payout paid the player’s words", note: earningsPaid("42,000 $WORD", day) },
     { kind: "nudge", when: "not yet wired — pity hit the 85% cap", note: pityCapped("q", day) },
-    { kind: "receipt", when: "not yet wired — a Seaport listing filled", note: listingFilled("w", SAMPLE_HASH, day) },
+    { kind: "receipt", when: "the Market’s sales reader — a word sold (Farcaster or browser, not email)", note: marketSold([{ kind: "word", name: "CABIN", qty: 1, amount: 2_400_000, txHash: SAMPLE_HASH, logIndex: 7 }], day)! },
+    { kind: "receipt", when: "the Market’s sales reader — part of a letter listing sold", note: marketSold([{ kind: "letter", name: "w", qty: 3, amount: 3_900_000, txHash: SAMPLE_HASH, logIndex: 9 }], day)! },
+    { kind: "receipt", when: "a browser turned reminders on — once, to that browser", note: remindersOn() },
   ];
 }
 

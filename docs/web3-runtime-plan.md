@@ -204,6 +204,23 @@ Two more notes come out when a switch flips, not with the launch PR:
   the FAQ's hunger answer say email reminders are on and the Farcaster and browser ones aren't.
   They come out once web push (`WEB_PUSH_ENABLED`, the VAPID keys) and Farcaster notifications
   (`NOTIFICATIONS_ENABLED`) are on in production.
+
+  **Switching them on (the owner's steps, in this order).** Both senders stop the build's server
+  code at import when their flag is on and a key is missing, and the daily keeper imports both, so
+  a flag set before its keys fails the keeper before it resolves the jackpot. Keys first, flag last.
+  1. *Browser push.* Make the pair once, on your own machine: `npx web-push generate-vapid-keys`.
+     Keep it: a new pair orphans every browser that subscribed. In Vercel (Production) set
+     `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (and `VAPID_SUBJECT`, a `mailto:` or
+     `https:` contact, if you want one other than the site), then `WEB_PUSH_ENABLED=true`.
+  2. *Farcaster.* Check `NEYNAR_API_KEY` is set (System lists it under "Farcaster notifications"
+     when it is missing), then set `NOTIFICATIONS_ENABLED=true`.
+  3. Merge a PR (the public key is read at build time, and the dashboard's Redeploy hasn't worked):
+     the one that removes the two docs notes above does it.
+  4. Check `/admin` → System: "Browser push" and "Farcaster notifications" read on, with nothing
+     missing. Then open the game in a browser, tap **Turn on reminders** (More, or your profile):
+     a "Reminders are on" notification arrives within seconds. That is the end-to-end proof, since
+     no reminder can be sent outside production.
+  To silence either channel again without a deploy, set its flag to anything but `true`.
 - **Profiles, X linking, and email reminders: switched on 2026-11-24.** Migrations 0003–0007 ran in
   production that day, and the docs PR added `docs-site/profile.mdx` and X and email to the letters,
   FAQ, quickstart, and reminders pages. The landing page follows the switches on its own

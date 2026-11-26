@@ -158,11 +158,20 @@ export async function deleteLetterRows(ids: readonly number[]): Promise<void> {
 
 // ── sales ──────────────────────────────────────────────────────────────────────────────────────
 
-/** Record sales. Idempotent on (chain, transaction, log index): reading a log twice is a no-op. */
+/**
+ * Record sales, and hand back the rows that were NEW. Idempotent on (chain, transaction, log
+ * index): reading a log twice is a no-op, and gives nothing back the second time. That is what
+ * makes "tell the seller" safe to hang on it (lib/notify/sold.ts): however many servers read the
+ * same sale, one of them inserts it, and only that one hears of it.
+ */
+export async function recordNewSales(rows: readonly (typeof marketSales.$inferInsert)[]): Promise<SaleRow[]> {
+  if (rows.length === 0) return [];
+  return getDb().insert(marketSales).values([...rows]).onConflictDoNothing().returning();
+}
+
+/** Record sales; how many were new. */
 export async function recordSales(rows: readonly (typeof marketSales.$inferInsert)[]): Promise<number> {
-  if (rows.length === 0) return 0;
-  const res = await getDb().insert(marketSales).values([...rows]).onConflictDoNothing().returning({ txHash: marketSales.txHash });
-  return res.length;
+  return (await recordNewSales(rows)).length;
 }
 
 /** The latest sales, newest first; `word` narrows to one word's history. */

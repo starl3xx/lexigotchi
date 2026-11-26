@@ -112,6 +112,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends until
   `NOTIFICATIONS_ENABLED=true` in production.
+  **A sale tells its seller** (decisions.md #45; `lib/notify/sold.ts`): a receipt hung on the sales
+  recorder (`recordNewSales` hands a new row to the one caller that inserted it), sent by the
+  Market's sales route after it answers (`lib/afterResponse.ts`) and by the keeper's `fees` job, to
+  Farcaster or else the seller's browsers, NOT by email (email players agreed to three named
+  reminders). Recent sales only (`SOLD_TELL_WINDOW_MS`, 30 h: a backfill tells nobody, and it must
+  stay wider than the keeper's daily cadence), one message per seller for a transaction's sales,
+  the id per FILL (`sold-<tx>-<log index>`: a letter listing fills in parts). A row is new only
+  ONCE: the reader hands rows out as it records them (`catchUpSales({ onNew })`), its callers
+  start the send at once (never at the end of a pass), and a dry keeper run reads none.
+  **A public route never imports a sender at its top** (each throws at import when armed without
+  its keys): import it at the moment of use, inside a catch, as the sales and subscribe routes do.
+  A browser's first subscribe gets one "Reminders are on" push (`remindersOn`), the channel's
+  end-to-end proof. The switch-on order is in `docs/web3-runtime-plan.md` (keys first, flag last).
   **Browser push** reaches wallet-only web players: `webPush.ts` (VAPID sender, its OWN switch
   `WEB_PUSH_ENABLED`, same three guards; prunes 404/410 endpoints), `webPushSubscription.ts`
   (validation: the endpoint must be a known push-service host, or the route is an SSRF hole),
