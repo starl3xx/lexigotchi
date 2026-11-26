@@ -10,7 +10,7 @@ import { Button } from "./primitives";
 import { Bell, BellSlash, CircleNotch } from "./ui/icons";
 
 export function ReminderToggle({ compact = false, label = "Remind me before a word goes hungry" }: { compact?: boolean; /** The compact button's words: the reason on screen (hunger on Home, a listing on Sell). */ label?: string }) {
-  const { state, error, enable, disable } = useWebPush();
+  const { state, error, errorDetail, enable, disable } = useWebPush();
   if (state === "unavailable" || state === "no-wallet") return null;
 
   if (compact) {
@@ -18,14 +18,22 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
     // (on, blocked, unsupported) lives in More, where there is room to explain it.
     if (state !== "off" && state !== "working") return null;
     return (
-      <button
-        onClick={enable}
-        disabled={state === "working"}
-        className="mt-2 flex items-center gap-1.5 text-xs font-bold text-ink/60 underline disabled:opacity-50"
-      >
-        {state === "working" ? <CircleNotch className="animate-spin" /> : <Bell weight="bold" />}
-        {state === "working" ? "One moment…" : label}
-      </button>
+      <>
+        <button
+          onClick={enable}
+          disabled={state === "working"}
+          className="mt-2 flex items-center gap-1.5 text-xs font-bold text-ink/60 underline disabled:opacity-50"
+        >
+          {state === "working" ? <CircleNotch className="animate-spin" /> : <Bell weight="bold" />}
+          {state === "working" ? "One moment…" : label}
+        </button>
+        {/* A tap that failed must not look ignored: say why here too (More has the browser's own words). */}
+        {error && (
+          <p role="alert" className="mt-1 text-xs font-bold text-candy-ink">
+            {error}
+          </p>
+        )}
+      </>
     );
   }
 
@@ -69,7 +77,13 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
           Turn off
         </button>
       )}
-      {error && <p className="mt-2 text-xs font-bold text-candy-ink">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-xs font-bold text-candy-ink">
+          {error}
+        </p>
+      )}
+      {/* The browser's own words, so a report can name the cause. */}
+      {error && errorDetail && <p className="mt-1 break-words text-xs text-ink/55">What the browser said: {errorDetail}</p>}
     </div>
   );
 }

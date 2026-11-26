@@ -1,12 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  parseSubscriptionBody,
-  isPushServiceHost,
-  mayAddBrowser,
-  MAX_SUBSCRIPTIONS_PER_ADDRESS,
-  fidToStore,
-  iosNeedsHomeScreen,
-} from "@/lib/notify/webPushSubscription";
+import { parseSubscriptionBody, isPushServiceHost, mayAddBrowser, MAX_SUBSCRIPTIONS_PER_ADDRESS, fidToStore, iosNeedsHomeScreen, enableFailure } from "@/lib/notify/webPushSubscription";
 import { sendWebPush, buildWebPushPayload, webPushIsActive } from "@/lib/notify/webPush";
 import {
   hungerTargetsByAddress,
@@ -267,5 +260,59 @@ describe("arming without keys", () => {
     vi.stubEnv("WEB_PUSH_ENABLED", "true");
     vi.stubEnv("VAPID_PRIVATE_KEY", "");
     await expect(import("@/lib/notify/webPush")).rejects.toThrow(/VAPID/);
+  });
+});
+
+describe("enableFailure: a failed turn-on says what failed and what to try", () => {
+  const err = (name: string, message: string, more: object = {}) => Object.assign(new Error(message), { name }, more);
+
+  it("the browser’s own subscribe: its notification service couldn’t be reached", () => {
+    const why = enableFailure("subscribe", err("AbortError", "Registration failed - push service error"));
+    expect(why.message).toMatch(/couldn’t reach its notification service/);
+    expect(why.message).toMatch(/Brave/);
+    expect(why.detail).toBe("AbortError: Registration failed - push service error");
+    expect(enableFailure("subscribe", err("AbortError", "Registration failed - push service not available")).message).toMatch(/notification service/);
+  });
+
+  it("the browser’s own subscribe: notifications are not allowed", () => {
+    for (const e of [err("NotAllowedError", "Registration failed - permission denied"), err("AbortError", "Registration failed - permission denied")]) {
+      expect(enableFailure("subscribe", e).message).toMatch(/won’t allow notifications here/);
+    }
+  });
+
+  it("anything else from the browser still names the browser, with its words", () => {
+    const why = enableFailure("subscribe", err("InvalidStateError", "Registration failed - a subscription with a different key already exists"));
+    expect(why.message).toMatch(/This browser couldn’t turn on notifications/);
+    expect(why.detail).toMatch(/^InvalidStateError: /);
+  });
+
+  it("saving with the server: full, refused, and unreachable are three different things", () => {
+    expect(enableFailure("save", err("Error", "subscribe failed: 409", { status: 409 }))).toEqual({
+      message: "This wallet already gets reminders in five browsers. Turn them off in one of those first.",
+      detail: null,
+    });
+    expect(enableFailure("save", err("Error", "subscribe failed: 503", { status: 503 })).message).toMatch(/the server answered 503/);
+    expect(enableFailure("save", err("TypeError", "Failed to fetch")).message).toMatch(/Couldn’t reach Lexigotchi/);
+  });
+
+  it("the helper that wouldn’t install", () => {
+    expect(enableFailure("worker", err("SecurityError", "The operation is insecure.")).message).toMatch(/Reload the page/);
+  });
+
+  it("never shows an address in the browser’s words, and keeps them short", () => {
+    const why = enableFailure("subscribe", err("AbortError", `could not reach https://fcm.googleapis.com/fcm/send/abc123secret ${"x".repeat(300)}`));
+    expect(why.detail).not.toMatch(/fcm\.googleapis|abc123secret/);
+    expect(why.detail!.length).toBeLessThanOrEqual(140);
+  });
+
+  it("an error with nothing in it has no detail line, and never throws", () => {
+    expect(enableFailure("subscribe", null).detail).toBeNull();
+    expect(enableFailure("save", "boom").message).toMatch(/Couldn’t reach Lexigotchi/);
+    // every message is house copy: no straight apostrophe, no em dash
+    for (const step of ["worker", "subscribe", "save"] as const) {
+      for (const e of [null, err("AbortError", "Registration failed - push service error"), err("NotAllowedError", "x"), err("Error", "y", { status: 500 })]) {
+        expect(enableFailure(step, e).message).not.toMatch(/'|—/);
+      }
+    }
   });
 });
