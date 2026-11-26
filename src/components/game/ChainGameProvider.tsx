@@ -659,6 +659,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Real pots + the keeper's actual theme rotation for the current weekly period.
       jackpotPot: bucketsQ.data?.jackpot ?? 0,
       bountyPool: bucketsQ.data?.bounty ?? 0,
+      rewardsPool: bucketsQ.data?.pool ?? 0,
+      // The 0s above are placeholders until FeeRouter answers: Today shows a dash, never "0".
+      potsKnown: !!bucketsQ.data,
       // The chain's day when it's been read, else the clock's (chainDayNow): the daily read runs only for
       // a wallet with a daily key, and without this a visitor or an unverified wallet saw theme 0
       // ("contains a rare letter") whatever the week was.

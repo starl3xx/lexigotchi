@@ -311,6 +311,13 @@ export interface GameState {
   jackpotPot: number;
   /** The bounty bucket, whole $WORD — real on chain, seeded in the mock. */
   bountyPool: number;
+  /** The Rewards Pool (FeeRouter's pool bucket, which pays the daily earnings), whole $WORD. */
+  rewardsPool: number;
+  /**
+   * Whether the three pots above were read. False in the chain game until FeeRouter answers (and
+   * after a failed read), when the pots are 0 placeholders: Today shows a dash, never "0".
+   */
+  potsKnown: boolean;
   jackpotRevealed: boolean;
   bountyTheme: number; // index into THEMES
   view: View;
@@ -458,6 +465,8 @@ export function seedState(): GameState {
     jackpotWord: "TEASE", // the player holds it, staked & fed → a winnable reveal
     jackpotPot: 18_500_000,
     bountyPool: 9_400_000,
+    rewardsPool: 64_000_000,
+    potsKnown: true,
     jackpotRevealed: false,
     bountyTheme: 1, // "has a repeated letter"
     market: seedPracticeMarket(Date.now()),

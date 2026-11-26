@@ -1460,6 +1460,36 @@ setter. All small, riding existing suite patterns.
     - **Seen and not seen:** every rule by test, with injected senders. No real push has been
       seen: none can be sent until the owner sets the keys.
 
+46. **Today's pots: three equal tiles across the bottom** (starl3xx, 2026-11-26: "jackpot,
+    Bounty, and (new) Rewards pool should be 3 equal sized tiles across the bottom. Bounty should
+    show WORD amount (all 3 should), and all 3 should show appx. USD as well").
+    - **Where.** One row under both columns, above "Do something", three across at every width
+      (`TodayPots` in `screens/HomeScreen.tsx`, the rules in `components/game/todayPots.ts`, pure
+      and tested). The jackpot left the column under the words and the bounty left the column
+      under next steps. On a desktop a tall right column can now leave room under the words.
+    - **What each tile says.** Its name, its $WORD amount, "about $X", and one line of its own:
+      the jackpot's countdown and the player's place in it (the old card's cases, in its order:
+      "how to get in" always says staked and fed, and nothing is said while the words load), the
+      bounty's theme, and the Rewards Pool's daily share (`dailyDistributionRate`, the keeper's
+      own rate). Each tile is one button: the Jackpot page, its bounty half, and the Earnings
+      sheet (which explains earning to a player who has earned nothing).
+    - **The Rewards Pool amount** is FeeRouter's pool bucket, already read with the other two
+      (`readFeeBuckets`). A pot not read yet shows a dash, never 0 (`potsKnown`).
+    - **Dollars, an exception to #24.** The messaging guide said never a dollar figure for
+      $WORD or the jackpot; the owner asked for one here. The exception is these three tiles
+      only: share text, reminders, the landing page, the docs, and bot posts keep the rule. The
+      figure is "about", in the $WORD page's short format (`fmtUsdShort`, now shared).
+    - **Still no dollars for test $WORD** (`showsUsd`, #172: a dollar figure beside test $WORD
+      made a tester expect their real $WORD to count). So the live test game shows three amounts
+      in "test $WORD" and no dollars; practice mode and mainnet show the dollars.
+    - **Seen:** practice mode in Chromium and WebKit at 360, 390, 768, 820, 1024, and 1280 px,
+      also with the longest likely text ("888.88M", "about $888.8K", the longest theme; the test
+      game's Rewards Pool read 776.74M that day): equal tiles, nothing under 12 px, nothing
+      overflowing, the three amounts level. For that, the amount is 18 px under 380 px, 20 px on
+      phones, 24 px from md, and 30 px from lg, and the icon sits above the name until lg. **Not
+      seen:** the chain game's Today in a browser (its pots were read from Base Sepolia by a
+      script, and the tiles were drawn from fake state in jsdom).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
