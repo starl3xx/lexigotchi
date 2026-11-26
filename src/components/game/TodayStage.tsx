@@ -30,6 +30,8 @@ import { useEmptyStageCase } from "./useTodayPlan";
 import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
 import { SceneCard } from "../cards/SceneCard";
+import { CardCase } from "../cards/CardCase";
+import { useWordCases } from "./useShop";
 import { useWordScene } from "../scenes/useWordScene";
 import { useCardNumber } from "../cards/useCardNumber";
 import { StatusMarks } from "./StatusMarks";
@@ -98,8 +100,14 @@ export function TodayStage() {
   // The featured word stands in its own scene (scenes/useWordScene: the player's pick, else the stock card).
   const { scene } = useWordScene(item?.word.word);
   const number = useCardNumber(item?.word.word);
+  // A word in a case shows in it (cards/CardCase; decisions.md #42).
+  const cases = useWordCases();
+  const casedNow = item ? cases.cased.has(item.word.word) : false;
   // The card turned over, remembered with its word: the next word opens on its scene.
   const [backOf, setBackOf] = useState<string | null>(null);
+  // The case and the bare card are two components: one that takes the other's place starts on its
+  // front, so "turned over" starts again with it.
+  useEffect(() => setBackOf(null), [casedNow]);
 
   if (!item) return state.status === "ready" ? <EmptyStage /> : null;
   const w = item.word;
@@ -110,6 +118,7 @@ export function TodayStage() {
   const open = () => g.openSheet({ kind: "word", word: W });
   const face = eating ? "eating" : mood === "unstaked" || mood === "forSale" ? "idle" : careState(w);
   const many = items.length > 1;
+  const cased = casedNow;
   // What the star earned at the latest payout, for its line (only when it earned something).
   const mineEarned = g.earnings?.byWord[W];
   const earnedLatest =
@@ -143,37 +152,38 @@ export function TodayStage() {
     );
   };
 
+  const stageFront = (
+    <SceneFrame
+      scene={scene}
+      word={W}
+      upper={w.upper}
+      state={face}
+      tone={toneOf(face)}
+      gild={gild}
+      tier={w.tier}
+      number={number}
+      enter={enter}
+      animated={backOf !== W && !state.sheet}
+      onWord={open}
+      wordLabel={`Open ${W}`}
+      onSwipe={many ? go : undefined}
+    />
+      
+  );
+
   return (
     <section aria-label={`${W} on stage`} className="space-y-3" onKeyDown={onKeyDown}>
       <div className="tt">
         {/* The word's card: its front, and its story on the back (components/cards). The card
             holds still while nobody can see it: its back is up, or a sheet covers it (the opened
             word's own card moves then, and one moving card at a time is the rule). */}
-        <SceneCard
-          word={w}
-          framed
-          className="tt-card"
-          flipped={backOf === W}
-          onFlip={(back) => setBackOf(back ? W : null)}
-          live={!state.sheet}
-          front={
-            <SceneFrame
-              scene={scene}
-              word={W}
-              upper={w.upper}
-              state={face}
-              tone={toneOf(face)}
-              gild={gild}
-              tier={w.tier}
-              number={number}
-              enter={enter}
-              animated={backOf !== W && !state.sheet}
-              onWord={open}
-              wordLabel={`Open ${W}`}
-              onSwipe={many ? go : undefined}
-            />
-          }
-        />
+        {cased ? (
+          // in its case (cards/CardCase): turned with its corner button here, since a drag on the
+          // stage is the swipe to the next word
+          <CardCase key={W} word={w} className="tt-case" since={cases.cased.get(W)} onFlip={(back) => setBackOf(back ? W : null)} front={stageFront} />
+        ) : (
+          <SceneCard word={w} framed className="tt-card" flipped={backOf === W} onFlip={(back) => setBackOf(back ? W : null)} live={!state.sheet} front={stageFront} />
+        )}
         {/* The placard: how the word stands, the one thing to do, and which of your words this is. */}
         <div className="tt-plate">
           {/* the same status as one sentence, for a screen reader, said again when it changes */}

@@ -113,7 +113,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
         {listing && " Your old listing is cancelled in the same step."}
         {/* The Customization Spec: taste stays with the player (decisions.md #22). Said only once
             there's a Shop to buy taste in. */}
-        {shopEnabled() && " Scenes and costumes stay with the seller."}
+        {shopEnabled() && " Scenes, cases, and costumes stay with the seller."}
       </p>
       {/* Against the rounded figure the first idea offers, so taking it never reads as too low. */}
       {cost && price > 0 && price < roundPrice(cost.total) && (

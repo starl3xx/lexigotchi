@@ -263,7 +263,9 @@ A staked word's care state is a function of days since last fed:
   Every word starts on the stock card (grey, the rarity as an overtone); the Stage is free for
   everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
   unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
-  (decisions.md #41): drawn and ready, a player's only once their profile buys one, and not listed yet.
+  (decisions.md #41): drawn and ready, a player's only once their profile buys one, and not listed yet. The Shop can
+  also sell a plastic case for a word's card (decisions.md #42): one case holds one word, the word
+  shows in it on Today and when opened, and it turns with a drag. Not listed yet either.
   A scene is a still engraving and
   never moves; the card in focus catches a faint light and leans a little toward a pointer.
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick

@@ -16,6 +16,7 @@ import { WordsPending, wordsUnknown } from "../WordsPending";
 import { EarningsLine } from "../EarningsLine";
 import { LETTER_SORTS, WORD_FILTERS, WORD_FILTER_LABEL, WORD_SORTS, WORD_SORT_LABEL, matchesWord, sortLetters, sortWords, wordFilterCounts, type LetterSort, type WordFilter, type WordSort } from "../bagView";
 import { useForSale } from "../useForSale";
+import { useWordCases } from "../useShop";
 import { useStoredChoice } from "../useStoredChoice";
 
 export function BagScreen() {
@@ -29,6 +30,7 @@ export function BagScreen() {
   const [wordFilter, setWordFilter] = useStoredChoice<WordFilter>("lexi:bag:words:filter", WORD_FILTERS, "all");
   const [wordSort, setWordSort] = useStoredChoice<WordSort>("lexi:bag:words:sort", WORD_SORTS, "best");
   const forSale = useForSale();
+  const cases = useWordCases();
   const ctx = { hungerOf: (w: OwnedWord) => hunger(w), forSale: new Set(forSale.keys()) };
   const counts = wordFilterCounts(state.words, ctx);
   // A filter whose words all left (sold, staked, fed) shows everything rather than an empty list.
@@ -204,7 +206,7 @@ export function BagScreen() {
           ) : (
             <div className="grid grid-cols-2 gap-x-2.5 gap-y-3.5 lg:col-span-2 lg:grid-cols-3">
               {shown.map((w) => (
-                <BagWordCard key={w.word} word={w} price={forSale.get(w.word)} />
+                <BagWordCard key={w.word} word={w} price={forSale.get(w.word)} cased={cases.cased.has(w.word)} />
               ))}
             </div>
           )}

@@ -70,8 +70,11 @@ export function stalePicks(
 /** Rows one profile may hold per kind: far more words than a player owns, and a cap on filling the table. */
 export const MAX_PICKS_PER_PROFILE = 400;
 
-/** The kinds stored. Only scenes exist in play; "costume" is the slot the Customization Spec names. */
-export type PickKind = "scene";
+/**
+ * The kinds stored: a word's scene, and whether it is in a case (lib/db/wordCases.ts; its value is
+ * the case's style). "costume" is the slot the Customization Spec names. The cap above is per kind.
+ */
+export type PickKind = "scene" | "case";
 
 /**
  * The scene picks of these wallets' profiles, one row per requested wallet (a profile's picks repeat

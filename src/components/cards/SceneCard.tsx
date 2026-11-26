@@ -127,7 +127,7 @@ export function SceneCard({
   );
 }
 
-function FlipIcon() {
+export function FlipIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
       <path d="M4 12a8 8 0 0 1 13.7-5.6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
