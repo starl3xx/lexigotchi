@@ -1093,7 +1093,7 @@ setter. All small, riding existing suite patterns.
       letter by letter; the practice game's 1.4 s of nerves; a hungry word standing bright in
       this sheet, as a letter does in the roll sheet.
 
-37. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
+38. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
     should be sharable in the same way words are... share to X, FC, download image... think through
     how to best visualize it in a 16:9 image"). The sheet has a Share button: Post on X, Cast, Save
     image, with the picture shown first.
