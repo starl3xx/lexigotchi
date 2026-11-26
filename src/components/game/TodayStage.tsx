@@ -31,6 +31,7 @@ import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
 import { SceneCard } from "../cards/SceneCard";
 import { CardCase } from "../cards/CardCase";
+import { flipKey, useFlipOf } from "../cards/useFlipOf";
 import { useWordCases } from "./useShop";
 import { useWordScene } from "../scenes/useWordScene";
 import { useCardNumber } from "../cards/useCardNumber";
@@ -103,11 +104,9 @@ export function TodayStage() {
   // A word in a case shows in it (cards/CardCase; decisions.md #42).
   const cases = useWordCases();
   const casedNow = item ? cases.cased.has(item.word.word) : false;
-  // The card turned over, remembered with its word: the next word opens on its scene.
-  const [backOf, setBackOf] = useState<string | null>(null);
-  // The case and the bare card are two components: one that takes the other's place starts on its
-  // front, so "turned over" starts again with it.
-  useEffect(() => setBackOf(null), [casedNow]);
+  // The card turned over, remembered with its word and how it is shown (bare, or in its case): the
+  // next word opens on its scene, and so does a card that has just gone into a case or come out.
+  const [isBack, setIsBack] = useFlipOf(item ? flipKey(item.word.word, casedNow) : null);
 
   if (!item) return state.status === "ready" ? <EmptyStage /> : null;
   const w = item.word;
@@ -163,7 +162,7 @@ export function TodayStage() {
       tier={w.tier}
       number={number}
       enter={enter}
-      animated={backOf !== W && !state.sheet}
+      animated={!isBack && !state.sheet}
       onWord={open}
       wordLabel={`Open ${W}`}
       onSwipe={many ? go : undefined}
@@ -180,9 +179,9 @@ export function TodayStage() {
         {cased ? (
           // in its case (cards/CardCase): turned with its corner button here, since a drag on the
           // stage is the swipe to the next word
-          <CardCase key={W} word={w} className="tt-case" since={cases.cased.get(W)} onFlip={(back) => setBackOf(back ? W : null)} front={stageFront} />
+          <CardCase key={W} word={w} className="tt-case" since={cases.cased.get(W)} onFlip={setIsBack} front={stageFront} />
         ) : (
-          <SceneCard word={w} framed className="tt-card" flipped={backOf === W} onFlip={(back) => setBackOf(back ? W : null)} live={!state.sheet} front={stageFront} />
+          <SceneCard word={w} framed className="tt-card" flipped={isBack} onFlip={setIsBack} live={!state.sheet} front={stageFront} />
         )}
         {/* The placard: how the word stands, the one thing to do, and which of your words this is. */}
         <div className="tt-plate">

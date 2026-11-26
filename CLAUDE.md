@@ -490,7 +490,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   shows for at most that many words, the oldest first (`casesShown`). `scripts/case-db-check.ts`
   proves the SQL on a throwaway local Postgres (rerun it after touching `wordCases.ts`). The case stands in for
   `SceneCard` on an opened word (turned by a drag too) and on Today (the button only), and it is
-  the card's one turn. **Every angle is written straight to the element, a frame at a time, and
+  the card's one turn (a host keeps "turned over" with `cards/useFlipOf`, derived while rendering,
+  never reset in an effect: that showed a back for a frame). **Every angle is written straight to the element, a frame at a time, and
   the side that shows is chosen from the angle, never by `backface-visibility`** (WebKit drew the
   back mirrored); `tests/card-case.test.tsx` holds it, and that the label never names the word. Not
   listed yet (the owner's: `Shop.addItem`, then a `shop_items` row of kind "case"). **Curved ground is one rule:** a

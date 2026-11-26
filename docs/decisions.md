@@ -1299,7 +1299,13 @@ setter. All small, riding existing suite patterns.
       button under an opened card puts the word in or takes it out, and lists every case in use
       with a way to free it, so a case is never stuck on a word the player can't open.
     - **The case is the card's one turn.** The case turns over and the card's back is in its
-      other side: there is no second flip inside it.
+      other side: there is no second flip inside it. A host remembers "turned over" for what it
+      shows now (`cards/useFlipOf`: the word, and bare or cased), decided while rendering, so a
+      card that goes into a case or comes out mounts on its front (Bugbot on #236: a reset in an
+      effect ran after the paint, and the bare card mounted on its back, then turned). On Today
+      this also means a word shows its scene when the player comes back to it.
+    - **Reduced motion:** the sides swap at once, with no turn, and the focus moves to the new
+      side's button a frame later, once that side can take it (Bugbot on #236).
     - **A finger turns it only with a move more sideways than up-and-down;** the other is the
       page scrolling. A mouse also tilts it. A press on its button, or a mouse that comes back
       with no button held, turns nothing.

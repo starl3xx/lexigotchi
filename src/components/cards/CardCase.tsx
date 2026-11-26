@@ -143,12 +143,22 @@ export function CardCase({
     cancelAnimationFrame(frame.current);
     const start = { ...at.current };
     const end = restAngle(next);
-    const done = () => {
-      draw(end, CASE_REST.x);
-      // the button that was pressed is on the side now hidden: its twin takes the focus
+    // the button that was pressed is on the side now hidden: its twin takes the focus
+    const handFocus = () => {
       if (refocus) (nowBack ? backBtn : frontBtn).current?.focus({ preventScroll: true });
     };
-    if (reduced) return done();
+    const done = () => {
+      draw(end, CASE_REST.x);
+      handFocus();
+    };
+    if (reduced) {
+      // The sides swap at once. The focus waits a frame: this runs inside the press, before the
+      // render that lets the new side be reached (it is `inert` until then, and a focus on an
+      // inert button is refused, which left the focus on the side just hidden: Bugbot on #236).
+      draw(end, CASE_REST.x);
+      frame.current = requestAnimationFrame(handFocus);
+      return;
+    }
     const t0 = performance.now();
     const step = (now: number) => {
       const t = Math.min(1, (now - t0) / CASE_TURN_MS);

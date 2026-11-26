@@ -5,7 +5,7 @@
  * rules its styles keep (no loop, no transition on the turn).
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import type { OwnedWord } from "@/components/game/state";
 
@@ -20,11 +20,16 @@ vi.mock("@/components/cards/CardBack", () => ({
 vi.mock("@/components/cards/useCardNumber", () => ({ useCardNumber: () => number }));
 vi.mock("@/components/cards/useCardFacts", () => ({ useCardFacts: () => ({ found }) }));
 const { CardCase, CaseThumb, CASE_REST, isBackSide, nearestSide, restAngle, showsBack } = await import("@/components/cards/CardCase");
+const { flipKey, useFlipOf } = await import("@/components/cards/useFlipOf");
 
-window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+// jsdom has no matchMedia. This viewer doesn't ask for reduced motion, unless a test says so.
+let reducedMotion = false;
+window.matchMedia = ((q: string) => ({ matches: reducedMotion && q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
 
 afterEach(() => {
   cleanup();
+  reducedMotion = false;
+  vi.restoreAllMocks();
   number = 20;
   found = { kind: "you" };
 });
@@ -146,6 +151,29 @@ describe("a card in its case", () => {
     expect((side(".cc-frontface") as HTMLElement).style.visibility).toBe("visible");
     // no flip of the card inside the case
     expect(container.querySelector(".sc-inner")).toBeNull();
+  });
+
+  it("under reduced motion swaps its sides at once, and hands the focus over only once the new side can take it", async () => {
+    reducedMotion = true;
+    const { container } = render(<CardCase word={word("JAZZY")} front={<p>scene</p>} />);
+    const slab = container.querySelector(".cc-slab") as HTMLElement;
+    // whether the button was reachable when the focus was sent to it (an inert one refuses a focus)
+    const sent: { label: string | null; inert: boolean }[] = [];
+    const focus = HTMLElement.prototype.focus;
+    vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (this: HTMLElement, ...args) {
+      sent.push({ label: this.getAttribute("aria-label"), inert: !!this.closest("[inert]") });
+      return focus.apply(this, args);
+    });
+    const turn = screen.getByRole("button", { name: "Turn JAZZY over" });
+    turn.focus();
+    sent.length = 0;
+    fireEvent.click(turn);
+    // no turn is drawn: the back is up in the same instant
+    expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(1).toFixed(1)}deg)`);
+    expect((container.querySelector(".cc-backface") as HTMLElement).style.visibility).toBe("visible");
+    const home = screen.getByRole("button", { name: "Show JAZZY’s scene" });
+    await waitFor(() => expect(document.activeElement).toBe(home), { timeout: 3000 });
+    expect(sent).toEqual([{ label: "Show JAZZY’s scene", inert: false }]);
   });
 
   it("turns with a drag only where its host says so", () => {
@@ -297,5 +325,45 @@ describe("the case's styles", () => {
 
   it("give the third button its own row where three don't fit side by side", () => {
     expect(css).toMatch(/@container \(max-width: 339px\) \{\s*\.sc-actions-3 \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}\s*\.sc-actions-3 > :last-child \{ grid-column: 1 \/ -1; \}/);
+  });
+});
+
+describe("whether a card is turned over, for what is shown now", () => {
+  it("is \"not turned\" on the very first render with something else, never a frame late", () => {
+    const seen: [string | null, boolean][] = [];
+    const { result, rerender } = renderHook(
+      ({ k }: { k: string | null }) => {
+        const r = useFlipOf(k);
+        seen.push([k, r[0]]);
+        return r;
+      },
+      { initialProps: { k: flipKey("JAZZY", true) as string | null } },
+    );
+    act(() => result.current[1](true));
+    expect(result.current[0]).toBe(true);
+    // the word comes out of its case: the bare card takes the case's place, on its front
+    rerender({ k: flipKey("JAZZY", false) });
+    expect(result.current[0]).toBe(false);
+    expect(seen.filter(([k, back]) => k === flipKey("JAZZY", false) && back)).toEqual([]);
+    // back in a case: a new case, on its front (the old one's turn is forgotten)
+    rerender({ k: flipKey("JAZZY", true) });
+    expect(result.current[0]).toBe(false);
+    expect(seen.filter(([k]) => k === flipKey("JAZZY", true)).at(-1)).toEqual([flipKey("JAZZY", true), false]);
+  });
+
+  it("follows the card it is asked about, and nothing is turned with no card", () => {
+    const { result, rerender } = renderHook(({ k }: { k: string | null }) => useFlipOf(k), { initialProps: { k: flipKey("CRANE", false) as string | null } });
+    act(() => result.current[1](true));
+    expect(result.current[0]).toBe(true);
+    act(() => result.current[1](false));
+    expect(result.current[0]).toBe(false);
+    rerender({ k: null });
+    act(() => result.current[1](true));
+    expect(result.current[0]).toBe(false);
+  });
+
+  it("tells a word's bare card from its case, and one word from another", () => {
+    expect(flipKey("JAZZY", true)).not.toBe(flipKey("JAZZY", false));
+    expect(flipKey("JAZZY", false)).not.toBe(flipKey("CRANE", false));
   });
 });

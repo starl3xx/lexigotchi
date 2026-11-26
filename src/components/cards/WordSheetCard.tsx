@@ -6,7 +6,7 @@
  * word's scene, and share it. A word in a case (./CardCase, decisions.md #42) shows in it, and the
  * Case button puts a word in a case or takes it out.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NETWORK } from "@/lib/onchain/network";
 import { caseOffer, type CaseOffer } from "@/lib/shop/cases";
 import { usdcLabel } from "@/lib/shop/rules";
@@ -26,12 +26,12 @@ import { SceneCard } from "./SceneCard";
 import { CardMore } from "./CardBack";
 import { ShareVideo } from "./ShareVideo";
 import { useCardNumber } from "./useCardNumber";
+import { flipKey, useFlipOf } from "./useFlipOf";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();
   const { scene } = useWordScene(word.word);
   const number = useCardNumber(word.word);
-  const [back, setBack] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [casing, setCasing] = useState(false);
   const cases = useWordCases();
@@ -40,9 +40,9 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
   // Never on a guess (lib/shop/cases, caseOffer): while what they have isn't known, no button.
   const offer = caseOffer(word.word, cases);
   const caseDoor = offer.kind !== "none";
-  // The case and the bare card are two components: one that takes the other's place starts on its
-  // front, so "turned over" starts again with it.
-  useEffect(() => setBack(false), [cased]);
+  // Turned over, remembered with how the card is shown: the case and the bare card are two
+  // components, and one that takes the other's place starts on its front, from its first render.
+  const [back, setBack] = useFlipOf(flipKey(word.word, cased));
   // while the share loop is made, it holds the one WebGL context: the live back waits
   const [making, setMaking] = useState(false);
   const face = eating ? "eating" : careState(word);
