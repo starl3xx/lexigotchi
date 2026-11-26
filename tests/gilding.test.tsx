@@ -173,6 +173,21 @@ describe("the share letter wears the gilding too (the server's pictures)", () =>
     expect(lower).not.toContain("rf-holo-");
   });
 
+  it("the pips are painted last, over a rarity's glints, as the rig paints them", () => {
+    for (const tier of ["Legendary", "Mythic"] as const) {
+      for (const index of [0, 1]) {
+        const html = draw({ gild: 3, tier, index });
+        const firstPip = html.indexOf(pipPath(0));
+        expect(firstPip, tier).toBeGreaterThan(-1);
+        // nothing of the letter's light comes after the pips: they are the last drawing in the markup
+        const after = html.slice(html.lastIndexOf(pipPath(4)));
+        expect(after, `${tier} ${index}`).not.toMatch(/<circle|<ellipse|<path[^>]*d="M (?!\d+ \d+(\.\d+)? L)/);
+        // and the printed letter (a div of text) is under them
+        expect(html.indexOf(">Q<")).toBeLessThan(firstPip);
+      }
+    }
+  });
+
   it("the legs come over the rings and under the face, as in the game", () => {
     const html = draw({ gild: 4 });
     const ring = html.indexOf(`stroke="#c8962b"`);

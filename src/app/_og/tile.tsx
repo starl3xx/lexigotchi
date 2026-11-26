@@ -401,9 +401,8 @@ export function OgTile({
           {fin && finishSurface(fin, u, bw)}
           {fin && border}
 
-          {/* the laurels of a Gilded 4 or Holographic letter (a whole character only), then the stage's pips */}
+          {/* the laurels of a Gilded 4 or Holographic letter (a whole character only); the stage's pips are drawn last, over the glints */}
           {limbs && g >= 4 ? laurels(holo ?? GOLD) : null}
-          {g >= 1 ? [0, 1, 2, 3, 4].map((i) => (i < g ? <path key={`pip-${i}`} d={pipPath(i)} fill={INK} stroke={INK} strokeWidth={2.1} strokeLinejoin="round" /> : <path key={`pip-${i}`} d={pipPath(i)} fill="none" stroke={INK} strokeOpacity={0.26} strokeWidth={1.9} strokeLinejoin="round" />)) : null}
 
           {/* pie-eyes on the top edge, wide open */}
           {eye("eye-l", CX - eyes.dx, eyes.y, eyes.rx, eyes.ry, -1)}
@@ -439,10 +438,15 @@ export function OgTile({
         {glyph}
       </div>
 
-      {/* the glints, over the letter as in the app */}
-      {glints.length > 0 && (
+      {/* The glints, over the letter as in the app, and then the stage's pips OVER the glints, as the
+          rig paints them (its pips come after its shine): a Mythic word's glint sits on the lower
+          face, and drawn the other way round it covered a pip (Bugbot on #247). */}
+      {(glints.length > 0 || g >= 1) && (
         <svg width={w} height={h} viewBox={`${vb.x} ${vb.y} ${vb.W} ${vb.H}`} style={{ position: "absolute", left: 0, top: 0 }}>
-          <g transform={tilt}>{glints}</g>
+          <g transform={tilt}>
+            {glints}
+            {g >= 1 ? [0, 1, 2, 3, 4].map((i) => (i < g ? <path key={`pip-${i}`} d={pipPath(i)} fill={INK} stroke={INK} strokeWidth={2.1} strokeLinejoin="round" /> : <path key={`pip-${i}`} d={pipPath(i)} fill="none" stroke={INK} strokeOpacity={0.26} strokeWidth={1.9} strokeLinejoin="round" />)) : null}
+          </g>
         </svg>
       )}
     </div>
