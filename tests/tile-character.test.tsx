@@ -21,13 +21,15 @@ beforeEach(() => {
 
 const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
 /** The loops: each may only ever be on a layer (a whole <svg>). */
-const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock|zzz)\b/;
+const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock|zzz|sweat)\b/;
 /**
- * What may run inside a layer: short, or one letter in a sheet. Never a sleeping word's zzz: a
- * hungry word sleeps on the Today stage for as long as it is hungry, and its z's looping inside
- * the top layer cost 44% of a processor core at rest in WebKit (5% with them still).
+ * What may run inside a layer: short, or one letter in a sheet, or a swap in steps (the peek, which
+ * redraws nothing between its two halves). Never a sleeping word's zzz: a hungry word sleeps on the
+ * Today stage for as long as it is hungry, and its z's looping inside the top layer cost 44% of a
+ * processor core at rest in WebKit (5% with them still). And never a nervous letter's sweat: five
+ * letters wait together in the ascend sheet, and their beads inside the top layers cost 27 points.
  */
-const INSIDE = new Set(["animate-tc-sweat", "animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
+const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
 const animated = (root: Element) => [...root.querySelectorAll("[class*='animate-tc-']")];
 const tcClasses = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("animate-tc-"));
 
@@ -112,6 +114,66 @@ describe("a word holds hands", () => {
   it("small word rows have no limbs, so no hands to hold", () => {
     const row = renderToStaticMarkup(<TileWord word="crane" upper={[]} size={44} />);
     expect(row).not.toContain(`d="${LINK_L}"`);
+  });
+});
+
+describe("a word that can't look (the ascend sheet)", () => {
+  const UP = [true, true, true, true, true];
+  const delaysOf = (els: Element[]) => els.map((el) => (el as HTMLElement).style.animationDelay);
+
+  it("trembles out of step: each letter's body and legs start a part of a shake behind the last", () => {
+    const { container } = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} />);
+    const bodies = [...container.querySelectorAll("svg.animate-tc-brace")];
+    expect(bodies).toHaveLength(5);
+    const delays = delaysOf(bodies);
+    expect(delays[0]).toBe(""); // the first letter is the beat the rest are behind
+    expect(new Set(delays).size).toBe(5);
+    // and the loops are still on layers, never inside one (the rule at the top of this file)
+    for (const el of container.querySelectorAll(".animate-tc-brace, .animate-tc-knock")) expect(el.tagName.toLowerCase()).toBe("svg");
+  });
+
+  it("peeks one letter at a time: the five eyes open at five points of the cycle, both halves of each together", () => {
+    const { container } = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} />);
+    const open = delaysOf([...container.querySelectorAll(".animate-tc-peek-open")]);
+    const shut = delaysOf([...container.querySelectorAll(".animate-tc-peek-shut")]);
+    expect(open).toHaveLength(5);
+    expect(new Set(open).size).toBe(5);
+    expect(shut).toEqual(open);
+  });
+
+  it("sweats on layers: each bead is a whole <svg> that flies along its own turn, at its own time", () => {
+    const { container } = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} />);
+    const beads = [...container.querySelectorAll(".animate-tc-sweat")] as HTMLElement[];
+    expect(beads).toHaveLength(10);
+    for (const b of beads) {
+      expect(b.tagName.toLowerCase()).toBe("svg");
+      expect(b.style.opacity).toBe("0"); // unseen until its turn comes
+      expect(Math.hypot(Number(b.style.getPropertyValue("--fx")), Number(b.style.getPropertyValue("--fy")))).toBeCloseTo(1, 2);
+    }
+    expect(new Set(beads.map((b) => b.style.animationDelay)).size).toBe(10);
+    // a still frame shows none: a bead frozen in the air reads as an ear
+    const still = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} still />);
+    expect(still.container.querySelectorAll(".animate-tc-sweat")).toHaveLength(0);
+  });
+
+  it("one letter alone is as it was: nothing is delayed", () => {
+    const { container } = render(<TileCharacter char="q" state="rolling" size={140} />);
+    expect((container.querySelector("svg.animate-tc-brace") as HTMLElement).style.animationDelay).toBe("");
+    expect((container.querySelector(".animate-tc-peek-open") as HTMLElement).style.animationDelay).toBe("");
+  });
+
+  it("takes a state and a stage per letter, so a result can pass along the word", () => {
+    const { container } = render(
+      <TileWord word="vivid" upper={UP} state="rolling" gild={1} states={["celebrate", "celebrate"]} gilds={[2, 2]} size={110} />,
+    );
+    const labels = [...container.querySelectorAll("[aria-label*='tile']")].map((el) => el.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "V tile (UPPERCASE), celebrate · gilded 2",
+      "I tile (UPPERCASE), celebrate · gilded 2",
+      "V tile (UPPERCASE), rolling · gilded 1",
+      "I tile (UPPERCASE), rolling · gilded 1",
+      "D tile (UPPERCASE), rolling · gilded 1",
+    ]);
   });
 });
 
