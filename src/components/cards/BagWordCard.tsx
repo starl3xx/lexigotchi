@@ -1,8 +1,10 @@
 "use client";
 /**
  * A word in the Bag, as its card (starl3xx, 2026-11-25: "the bag's words should now show these
- * scene/cards instead of just the raw words"): the word standing in its scene, its rarity in the
- * corner, and its name and state underneath. Turn it over in place, or tap it to open the word.
+ * scene/cards instead of just the raw words"): the word standing in its scene, and under the card
+ * its rarity's mark, its name, and its state. Turn it over in place, or tap it to open the word.
+ * Nothing sits on the card's art: the frame is printed in the rarity's ink and carries its mark in
+ * the corners, and the mark is repeated by the name, where it is large enough to read.
  *
  * Still, always (a grid of moving scenes is the cost the GPU rules forbid): no scene motion, no
  * bounce, no light. Only the card in focus moves (the Today stage, an opened word).
@@ -20,9 +22,8 @@ import { TierMark } from "../game/TierMark";
 
 /**
  * Whether the element has come near the screen (within a screen's height), once: then it stays true.
- * A scene is about a thousand drawn elements, so a Bag of 32 words drew 32,000 on opening and kept a
- * 4×-slowed phone busy for seconds; drawing each card's scene as it comes near costs only the ones
- * in view.
+ * A card's art is two pictures now, not a thousand shapes, but its letters are still full
+ * characters (four layers each), so a long Bag draws each card only as it comes near.
  */
 function useNear(ref: RefObject<Element | null>): boolean {
   const [near, setNear] = useState(false);
@@ -61,20 +62,18 @@ export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }
         framed
         onOpen={() => g.openSheet({ kind: "word", word: word.word })}
         front={
-          <>
-            {near ? (
-              <SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} animated={false} />
-            ) : (
-              <div className="aspect-[16/9] w-full bg-night" />
-            )}
-            <span className="sc-badge">
-              <TierMark tier={word.tier} className="cb-gem" />
-              {word.tier}
-            </span>
-          </>
+          near ? (
+            <SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} animated={false} small />
+          ) : (
+            <div className="aspect-[16/9] w-full bg-[#fcf7ea]" />
+          )
         }
       />
       <div className="flex min-w-0 flex-wrap items-center gap-1 px-0.5">
+        <span title={word.tier} className="inline-flex">
+          <TierMark tier={word.tier} size={14} />
+          <span className="sr-only">{word.tier}</span>
+        </span>
         <span className="font-display text-sm font-extrabold">{word.word}</span>
         <PrestigeStars level={word.prestigeLevel} />
         {(earning || latest > 0) && (

@@ -7,7 +7,7 @@
  */
 import { isAddress } from "viem";
 import { isWord } from "./dictionary";
-import { isSceneId, type SceneId } from "./scenes";
+import { DEFAULT_SCENE, isSceneId, storedScene, type SceneId } from "./scenes";
 
 /** Picks in one save: the local uploads after a sign-in, batched. */
 export const MAX_PICKS_PER_SAVE = 50;
@@ -33,16 +33,37 @@ export interface StoredPick {
   synced: boolean;
 }
 
-/** A stored pick from its saved text. The first version saved the bare scene id: that reads as an old, unsynced pick. */
+/**
+ * A stored pick from its saved text. The first version saved the bare scene id: that reads as an
+ * old, unsynced pick. A pick of a retired scene reads as the stock card, picked when it was
+ * (lib/scenes, storedScene).
+ */
 export function parseStoredPick(raw: string | null): StoredPick | null {
   if (!raw) return null;
   if (isSceneId(raw)) return { scene: raw, at: 0, synced: false };
+  // A first-version pick of a retired scene has no time, so it can't be ordered against anything,
+  // and with no other pick the word stands on the stock card anyway: there is nothing to upload.
+  if (storedScene(raw)) return { scene: DEFAULT_SCENE, at: 0, synced: true };
   try {
     const p = JSON.parse(raw) as Partial<StoredPick>;
-    return isSceneId(p.scene) ? { scene: p.scene, at: Number(p.at) || 0, synced: p.synced === true } : null;
+    const scene = storedScene(p.scene);
+    return scene ? { scene, at: Number(p.at) || 0, synced: p.synced === true } : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * The server's saved picks as the browser reads them: `wallet:word` → the scene (a retired one as
+ * the stock card) and when it was picked. A row whose scene is nothing known is left out.
+ */
+export function readSavedPicks(rows: readonly { wallet: string; word: string; scene: string; at: number }[]): Map<string, { scene: SceneId; at: number }> {
+  const out = new Map<string, { scene: SceneId; at: number }>();
+  for (const r of rows) {
+    const scene = storedScene(r.scene);
+    if (scene) out.set(`${r.wallet}:${r.word}`, { scene, at: r.at });
+  }
+  return out;
 }
 
 /**

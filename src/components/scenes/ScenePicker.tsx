@@ -1,15 +1,17 @@
 "use client";
 /**
- * Pick a word's scene: every scene as a still thumbnail, the word's own one marked, and the locked
- * ones shown with what opens them (lib/scenes: own SCENE_UNLOCK_WORDS words). Used by the scene
- * sheet (from the Today stage, or from an opened word's card).
+ * Pick a word's scene: every scene as a still thumbnail (the card's art in its frame, in the
+ * word's rarity), the word's own one marked, and the locked ones shown with what opens them
+ * (lib/scenes: own SCENE_UNLOCK_WORDS words). Used by the scene sheet (from the Today stage, or
+ * from an opened word's card).
  */
-import { DEFAULT_SCENE, SCENES } from "@/lib/scenes";
+import type { Tier } from "@/lib/economy";
+import { FREE_SCENES, SCENES } from "@/lib/scenes";
 import { Lock } from "../game/ui/icons";
 import { SceneThumb } from "./SceneFrame";
 import { useSceneUnlock, useWordScene } from "./useWordScene";
 
-export function ScenePicker({ word }: { word: string }) {
+export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
   const { scene, set } = useWordScene(word);
   const { unlocked, count, need } = useSceneUnlock();
   return (
@@ -22,9 +24,9 @@ export function ScenePicker({ word }: { word: string }) {
           </span>
         </p>
       )}
-      <div role="radiogroup" aria-label={`${word}’s scene`} className="grid grid-cols-3 gap-2 md:grid-cols-4">
+      <div role="radiogroup" aria-label={`${word}’s scene`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {SCENES.map((s) => {
-          const open = s.id === DEFAULT_SCENE || unlocked;
+          const open = FREE_SCENES.includes(s.id) || unlocked;
           const on = scene === s.id;
           return (
             <button
@@ -37,7 +39,7 @@ export function ScenePicker({ word }: { word: string }) {
               className={`cel-sm press relative flex flex-col gap-1 rounded-xl p-1 text-left disabled:cursor-not-allowed ${on ? "bg-ink text-paper" : "bg-card"}`}
             >
               <span className={`block overflow-hidden rounded-lg border-2 border-ink ${open ? "" : "opacity-45 grayscale"}`}>
-                <SceneThumb scene={s.id} />
+                <SceneThumb scene={s.id} tier={tier} />
               </span>
               <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
                 {!open && <Lock weight="fill" size={11} className="shrink-0" aria-label="locked" />}
