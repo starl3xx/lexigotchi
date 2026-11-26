@@ -18,6 +18,9 @@ const R = 17;
 let drawLetters: typeof import("@/lib/onchain/signer").drawLetters;
 beforeAll(async () => {
   process.env.SIGNER_DRAW_SECRET = "pinned-draw-test-secret";
+  // A draw's bytes name the network (signer.ts outcomeBytes), so the pins hold on Base only: fixed
+  // here, or a shell with NEXT_PUBLIC_CHAIN_ID set to the testnet would fail them for no reason.
+  process.env.NEXT_PUBLIC_CHAIN_ID = "8453";
   ({ drawLetters } = await import("@/lib/onchain/signer"));
 });
 

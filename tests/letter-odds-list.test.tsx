@@ -33,6 +33,17 @@ describe("the Mint tab’s letter odds", () => {
     expect(screen.queryByText(/Checking|Couldn’t check/)).toBeNull();
   });
 
+  it("says “pull”, the Mint tab’s word, and never “draw” (docs/messaging.md)", () => {
+    const supply = plenty.map((n, i) => (i === idx("q") ? 0 : n));
+    for (const props of [{}, { available: supply, caps }, { status: "checking" as const }, { status: "failed" as const }]) {
+      const { container, unmount } = render(<LetterOdds {...props} />);
+      expect(container.textContent).not.toMatch(/\bdraw(s|n)?\b/i);
+      unmount();
+    }
+    render(<LetterOdds />);
+    expect(screen.getByText("A pack is 5 pulls")).toBeTruthy();
+  });
+
   it("is not a card, and nothing in it moves", () => {
     const { container } = render(<LetterOdds />);
     expect(container.querySelector(".cel, .cel-sm")).toBeNull();
@@ -46,7 +57,7 @@ describe("the Mint tab’s letter odds", () => {
     expect(within(row("e")).queryByText(/%/)).toBeNull();
     // a was 8.5% with e in the draw
     expect(within(row("a")).getByText("9.5%")).toBeTruthy();
-    expect(screen.getByText(/^e is sold out and no longer drawn, so every other letter comes up more often\./)).toBeTruthy();
+    expect(screen.getByText(/^e is sold out and can’t be pulled, so every other letter comes up more often\./)).toBeTruthy();
   });
 
   it("only a letter running low says how many are left", () => {
@@ -77,11 +88,11 @@ describe("the Mint tab’s letter odds", () => {
 
   it("says what the odds are while the supply read loads, and after it fails", () => {
     const { unmount } = render(<LetterOdds status="checking" />);
-    expect(screen.getByText("Checking which letters are still in the draw…")).toBeTruthy();
+    expect(screen.getByText("Checking which letters can still be pulled…")).toBeTruthy();
     expect(within(row("e")).getByText("10.4%")).toBeTruthy();
     unmount();
     render(<LetterOdds status="failed" />);
-    expect(screen.getByText(/^Couldn’t check which letters have sold out\. These are the odds with every letter in the draw/)).toBeTruthy();
+    expect(screen.getByText(/^Couldn’t check which letters have sold out\. These are the odds with none sold out/)).toBeTruthy();
   });
 });
 

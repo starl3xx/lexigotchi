@@ -49,6 +49,7 @@ describe("what the screen shows is what a draw does", () => {
   let drawLetters: typeof import("@/lib/onchain/signer").drawLetters;
   beforeAll(async () => {
     process.env.SIGNER_DRAW_SECRET = "letter-odds-test-secret";
+    process.env.NEXT_PUBLIC_CHAIN_ID = "8453"; // a draw's bytes name the network: one fixed sample
     ({ drawLetters } = await import("@/lib/onchain/signer"));
   });
   const LETTERS = "0x00000000000000000000000000000000000000c1" as const;

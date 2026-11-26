@@ -10,12 +10,18 @@ import { readLetterSupply } from "@/lib/onchain/reads";
 import { NETWORK } from "@/lib/onchain/network";
 import { useGame } from "./state";
 
-export function useLetterSupply(enabled = true) {
+/**
+ * `fresh`: the Mint tab shows odds and "N left" FROM this read, so it reads again every minute while
+ * it is open (and on each visit after 30 s). The lookup only asks "can it still be minted?", and
+ * keeps an answer for five minutes.
+ */
+export function useLetterSupply(enabled = true, fresh = false) {
   const { state } = useGame();
   return useQuery({
     queryKey: ["letterSupply", NETWORK.id],
     enabled: enabled && state.chainBacked,
-    staleTime: 5 * 60_000,
+    staleTime: fresh ? 30_000 : 5 * 60_000,
+    refetchInterval: fresh ? 60_000 : false,
     queryFn: readLetterSupply,
   });
 }

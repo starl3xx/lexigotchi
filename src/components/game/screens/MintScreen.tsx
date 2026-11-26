@@ -26,7 +26,7 @@ export function MintScreen() {
   // Every letter in the game is minted or promised to an open pack: the contract would refuse.
   const soldOut = g.lettersLeft !== null && g.lettersLeft < 5;
   // Each letter's supply (chain game only): a sold-out letter leaves the draw, and the odds say so.
-  const supply = useLetterSupply();
+  const supply = useLetterSupply(true, true);
 
   return (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">

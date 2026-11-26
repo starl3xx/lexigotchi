@@ -912,8 +912,14 @@ setter. All small, riding existing suite patterns.
     - **Plain words for the rarest:** "About 1 pack in 100 has a q", computed for the rarest letter
       still in the draw (five independent draws). The player docs carry the same table
       (`docs-site/letters.mdx`), pinned to the code by `tests/letter-odds.test.ts`.
+    - **The copy says "pull", never "draw"** (#24 keeps "draw" from the player, where it reads as
+      a lottery; "pull" is the Mint tab's own word). The supply is read again every minute while
+      the Mint tab is open, so "Sold out" and "N left" can be up to a minute old.
     - The old card's caption named a Pokémon character, against #24; it went with the card, and
       the copy-rules test now refuses the name.
+    - **Seen and not seen:** the list in practice mode at 390 and 1200 px. The sold-out and low
+      rows only with a made-up supply (the test network has no low letter): the live supply path
+      is held by tests.
 
 ## Pricing & launch economics (decided June 2026)
 

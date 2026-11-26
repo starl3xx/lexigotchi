@@ -13,6 +13,8 @@
  *   supply (the owner: "only for the low ones").
  * - **It says what it knows.** `status` is the chain game's supply read: while it loads or after it
  *   fails the list shows the odds with every letter in the draw, and says that is what they are.
+ * - **The copy says "pull", never "draw"** (the Mint tab's own word; docs/messaging.md keeps "draw"
+ *   away from the player, where it reads as a lottery). The code keeps the draw's name.
  * - **Not a card:** a ruled heading and dashed rows (the Market's `Part`). The bars are gold, the
  *   game's color for chance. Still: 26 tiles, none of them moving (a list never does).
  */
@@ -61,10 +63,10 @@ export function LetterOdds({
   });
 
   return (
-    <Part title="Letter odds" aside={`A pack is ${PACK_DRAWS} draws`} className={className}>
+    <Part title="Letter odds" aside={`A pack is ${PACK_DRAWS} pulls`} className={className}>
       <p className="text-sm text-ink/70">
-        Each letter you pull is one draw at these odds. A letter’s odds are its share of the {TOTAL_SLOTS.toLocaleString("en-US")} letters in
-        the dictionary’s words.
+        Every pull gets one letter, at these odds. A letter’s odds are its share of the {TOTAL_SLOTS.toLocaleString("en-US")} letters in the
+        dictionary’s words.
       </p>
 
       {/* A to Z, read DOWN each column: two columns on a phone, three from lg. */}
@@ -105,12 +107,12 @@ export function LetterOdds({
         )}
         {soldOut.length > 0 && (
           <p>
-            {soldOut.length > 4 ? `${soldOut.length} letters` : allOf(soldOut)} {soldOut.length === 1 ? "is" : "are"} sold out and no longer drawn, so
+            {soldOut.length > 4 ? `${soldOut.length} letters` : allOf(soldOut)} {soldOut.length === 1 ? "is" : "are"} sold out and can’t be pulled, so
             every other letter comes up more often. The odds above already count that.
           </p>
         )}
-        {status === "checking" && <p aria-live="polite">Checking which letters are still in the draw…</p>}
-        {status === "failed" && <p>Couldn’t check which letters have sold out. These are the odds with every letter in the draw; a sold-out letter is skipped.</p>}
+        {status === "checking" && <p aria-live="polite">Checking which letters can still be pulled…</p>}
+        {status === "failed" && <p>Couldn’t check which letters have sold out. These are the odds with none sold out; a sold-out letter is never pulled.</p>}
       </div>
     </Part>
   );
