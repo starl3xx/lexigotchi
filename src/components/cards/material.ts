@@ -14,6 +14,9 @@ const MATERIAL: Record<Tier, CardMaterial> = {
   Mythic: "mythic",
 };
 
+/** Each material's line colour (globals.css `.m-*`, --cb-line): the back's frame, the pressed seal, and the holder's stamp are in it. */
+export const MATERIAL_LINE: Record<CardMaterial, string> = { common: "#9a8164", uncommon: "#5cc4a9", rare: "#7fb0ef", legendary: "#e9b949", mythic: "#b48cf0" };
+
 export function materialOf(tier: Tier): CardMaterial {
   return MATERIAL[tier];
 }

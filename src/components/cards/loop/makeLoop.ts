@@ -14,6 +14,8 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import type { CardMaterial } from "../material";
 import { releaseLive } from "../live/liveSurface";
 import { LOOP_SECONDS, attachLoop } from "./loopRenderer";
+import { svgDataUri } from "@/lib/cardArt/engrave";
+import { STAMP_FACE, STAMP_TURN, inkRgb, oneInk, stampBox, stampRingSvg } from "../stamp";
 import { VIDEO } from "../live/support";
 
 // The frame, rate, and H.264 profiles (the plainest first: every browser that encodes H.264 takes
@@ -36,10 +38,11 @@ async function pickCodec(): Promise<string | null> {
   return null;
 }
 
-/** An image from this site (same origin, or WebGL refuses it as a texture). */
-function loadImage(src: string): Promise<HTMLImageElement> {
+/** An image from this site (same origin, or WebGL refuses it as a texture); `open`: one from another site, asked for in a way that lets a canvas keep its pixels (the site must allow it, or it doesn't load). */
+function loadImage(src: string, open = false): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    if (open) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`could not load ${src}`));
     img.src = src;
@@ -60,6 +63,68 @@ function drawMark(g: CanvasRenderingContext2D) {
   g.restore();
 }
 
+/** The holder's stamp for the video's back: their picture, the back's ink, and whether the card has a number to sit beside. */
+export interface LoopStamp {
+  src: string;
+  ink: string;
+  numbered: boolean;
+}
+
+/**
+ * The back's picture with the holder's stamp drawn on it (../stamp: one ink, an engraved ring,
+ * turned a little), as the game's back shows it. The picture comes from another site (Farcaster's
+ * or X's), so it is asked for openly: if that site doesn't allow its pixels to be read, the picture
+ * doesn't load and the back is used as it is. Nothing here can stop a video from being made.
+ */
+async function stampedBack(back: HTMLImageElement, stamp: LoopStamp): Promise<TexImageSource> {
+  try {
+    const [face, ring] = await Promise.all([loadImage(stamp.src, true), loadImage(svgDataUri(stampRingSvg(stamp.ink)))]);
+    const W = back.naturalWidth || 1200;
+    const H = back.naturalHeight || 675;
+    const box = stampBox(stamp.numbered);
+    const size = box.size * W;
+    const d = Math.round(size * STAMP_FACE);
+    // the picture, cut square from its middle, in one ink
+    const one = document.createElement("canvas");
+    one.width = d;
+    one.height = d;
+    const og = one.getContext("2d")!;
+    const side = Math.min(face.naturalWidth, face.naturalHeight);
+    og.drawImage(face, (face.naturalWidth - side) / 2, (face.naturalHeight - side) / 2, side, side, 0, 0, d, d);
+    const px = og.getImageData(0, 0, d, d); // throws if the site didn't allow it
+    oneInk(px.data, inkRgb(stamp.ink));
+    og.putImageData(px, 0, 0);
+
+    const out = document.createElement("canvas");
+    out.width = W;
+    out.height = H;
+    const g = out.getContext("2d")!;
+    g.drawImage(back, 0, 0, W, H);
+    g.translate(box.cx * W, box.cy * W);
+    g.rotate((STAMP_TURN * Math.PI) / 180);
+    // a soft shadow under the stamp, as on the game's back
+    g.save();
+    g.shadowColor = "rgba(0, 0, 0, 0.4)";
+    g.shadowBlur = 3;
+    g.shadowOffsetY = 2;
+    g.fillStyle = stamp.ink;
+    g.beginPath();
+    g.arc(0, 0, d / 2, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    g.save();
+    g.beginPath();
+    g.arc(0, 0, d / 2, 0, Math.PI * 2);
+    g.clip();
+    g.drawImage(one, -d / 2, -d / 2);
+    g.restore();
+    g.drawImage(ring, -size / 2, -size / 2, size, size);
+    return out;
+  } catch {
+    return back;
+  }
+}
+
 export class LoopCancelled extends Error {}
 
 /**
@@ -70,12 +135,15 @@ export async function makeLoop({
   front,
   back,
   material,
+  stamp,
   signal,
   onProgress,
 }: {
   front: string;
   back: string;
   material: CardMaterial;
+  /** The holder's stamp for the back, where they show one. */
+  stamp?: LoopStamp;
   signal?: AbortSignal;
   onProgress?: (done: number) => void;
 }): Promise<Blob> {
@@ -87,7 +155,9 @@ export async function makeLoop({
   // the one WebGL context is the video's while it's made
   releaseLive();
   const glCanvas = document.createElement("canvas");
-  const loop = attachLoop(glCanvas, { front: frontImg, back: backImg, material, width: VIDEO_WIDTH, height: VIDEO_HEIGHT });
+  const backFace = stamp ? await stampedBack(backImg, stamp) : backImg;
+  if (signal?.aborted) throw new LoopCancelled();
+  const loop = attachLoop(glCanvas, { front: frontImg, back: backFace, material, width: VIDEO_WIDTH, height: VIDEO_HEIGHT });
   // each frame: the turning card, then the name over it, on a plain canvas the encoder reads
   const out = document.createElement("canvas");
   out.width = VIDEO_WIDTH;
