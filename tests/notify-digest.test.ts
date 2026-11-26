@@ -49,14 +49,18 @@ describe("weeklyDigest", () => {
       ["Hungry now", "CRANE and 1 more"],
       ["Peckish now", "VIVID"],
       ["Your words earned", "84.0K $WORD"],
-      ["Sold on the Market", "2, for 3.40M $WORD"],
+      ["2 sales on the Market", "3.40M $WORD"],
     ]);
     expect(d.note.notificationId).toBe(`week-${PERIOD}`);
   });
 
   it("says only what happened", () => {
-    expect(weeklyDigest(week({ earned: 0 }), PERIOD)!.facts).toEqual([["Sold on the Market", "2, for 3.40M $WORD"]]);
+    expect(weeklyDigest(week({ earned: 0 }), PERIOD)!.facts).toEqual([["2 sales on the Market", "3.40M $WORD"]]);
     expect(weeklyDigest(week({ sold: { count: 0, amount: 0 } }), PERIOD)!.note.body).toBe("Here is how your words did this week.");
+  });
+
+  it("counts one sale as one", () => {
+    expect(weeklyDigest(week({ earned: 0, sold: { count: 1, amount: 900_000 } }), PERIOD)!.facts).toEqual([["1 sale on the Market", "900.0K $WORD"]]);
   });
 
   it("is nothing at all for a week with nothing in it", () => {

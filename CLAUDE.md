@@ -123,7 +123,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   else the account's browsers, and emails under a send-once mark. A sale (`sold.ts`), a payday and
   a bounty share (`paid.ts`, fed the payout's `RewardClaimed` events: only what LANDED is "paid")
   use it, and the deal alert (`deals.ts`, in the keeper's `notify` job: the Market's own
-  `oneLetterShort`, one alert a day, the same deal once a week). Payday and the deal alert are
+  `oneLetterShort`, one alert a day, the same letter and word once a rolling week:
+  `claimMarkEvery`). Payday and the deal alert are
   opt-in (`KIND_INFO[kind].on` is false). **One email a week** (`digest.ts`,
   `reminder_prefs.email_cadence`): a player's choice, in place of the EMAILS of `DIGESTED_KINDS`
   (daily, payday, deal); every email sender asks `prefs.emailsNow(account, kind)`, and a new kind

@@ -241,11 +241,11 @@ export function soldFacts(items: readonly SoldItem[]): [string, string][] {
 }
 
 // ── A letter that finishes a word ─────────────────────────────────────────────────────
-// NUDGE, and one a player asked for. Keyed on the letter, the word, and the WEEK: the same deal is
-// said once a week at most, however long the letter stays for sale (lib/notify/deals.ts).
+// NUDGE, and one a player asked for. Day-keyed, as every nudge is; what keeps the same letter and
+// word to once a week is the sender's mark (lib/notify/deals.ts), not this id.
 const DEAL_TITLES = ["One letter from a new word", "A letter you need is for sale", "The Market has your letter"] as const;
 
-export function dealAlert(d: { letter: string; word: string; more: number; from: number }, week: number, day = epochDay()): Notification {
+export function dealAlert(d: { letter: string; word: string; more: number; from: number }, day = epochDay()): Notification {
   const l = d.letter.toLowerCase();
   // "An x", "A q": the article a letter's NAME takes when said aloud (lib/wordNeed `article`).
   const a = "aefhilmnorsx".includes(l) ? "An" : "A";
@@ -253,7 +253,7 @@ export function dealAlert(d: { letter: string; word: string; more: number; from:
   return {
     title: rotate(DEAL_TITLES, day),
     body: `${a} ${l} is for sale on the Market, from ${wordAmount(d.from)}. It finishes ${d.word.toUpperCase()}, a word nobody owns${also}.`,
-    notificationId: `deal-${l}-${d.word.toLowerCase()}-${week}`,
+    notificationId: `deal-${l}-${d.word.toLowerCase()}-${day}`,
   };
 }
 
@@ -262,7 +262,10 @@ export function dealAlert(d: { letter: string; word: string; more: number; from:
 export interface WeekFacts {
   /** What their words were paid this week (earnings and a bounty share), whole $WORD. */
   earned: number;
-  /** What they sold on the Market this week: how many sales, and what the buyers paid. */
+  /**
+   * What they sold on the Market this week: how many sales (a letter listing bought in two parts is
+   * two), and what the buyers paid, the amount a sale's own message calls "For" (`soldFacts`).
+   */
   sold: { count: number; amount: number };
   /** Their staked words that are hungry now, and peckish now (the soonest first). */
   hungry: readonly string[];
@@ -281,7 +284,8 @@ export function weeklyDigest(w: WeekFacts, period: number): { note: Notification
   if (w.hungry.length > 0) facts.push(["Hungry now", some(w.hungry)]);
   if (w.peckish.length > 0) facts.push(["Peckish now", some(w.peckish)]);
   if (w.earned > 0) facts.push(["Your words earned", wordAmount(w.earned)]);
-  if (w.sold.count > 0) facts.push(["Sold on the Market", `${w.sold.count}, for ${wordAmount(w.sold.amount)}`]);
+  // The count goes in the name: a ledger's value stays short, so its row of dots has room on a phone.
+  if (w.sold.count > 0) facts.push([`${w.sold.count} ${w.sold.count === 1 ? "sale" : "sales"} on the Market`, wordAmount(w.sold.amount)]);
   if (facts.length === 0) return null;
   const body =
     w.hungry.length > 0

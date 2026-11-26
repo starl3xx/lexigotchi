@@ -170,14 +170,14 @@ export function reminderEmail(to: string, address: string, note: { title: string
   if (!unsub) return null; // never send a reminder without a working way out
   const play = `${SITE}/play`;
   const body = `${paragraph(note.body)}${ledger(facts)}${button(play, "Open Lexigotchi")}`;
-  const footer = `You get this because you turned on email reminders in your Lexigotchi profile. Choose which ones there, under “What to tell me”, or ${footLink(unsub, "unsubscribe")} from all of them.`;
+  const footer = `You get this because you turned on email reminders in your Lexigotchi profile. Choose which ones, and how often, there, under “What to tell me”, or ${footLink(unsub, "unsubscribe")} from all of them.`;
   const factLines = facts.map(([name, value]) => `${name}: ${value}`).join("\n");
   return {
     address: a,
     to,
     subject: note.title,
     html: layout({ title: note.title, preview: note.body, body, footer }),
-    text: `${note.title}\n\n${note.body}\n\n${factLines ? `${factLines}\n\n` : ""}Open Lexigotchi: ${play}\n\nChoose which reminders you get in your profile, under “What to tell me”.\nUnsubscribe from all of them: ${unsub}`,
+    text: `${note.title}\n\n${note.body}\n\n${factLines ? `${factLines}\n\n` : ""}Open Lexigotchi: ${play}\n\nChoose which reminders you get, and how often, in your profile, under “What to tell me”.\nUnsubscribe from all of them: ${unsub}`,
     headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
   };
 }

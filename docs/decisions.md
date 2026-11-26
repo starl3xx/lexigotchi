@@ -1541,7 +1541,11 @@ setter. All small, riding existing suite patterns.
       `payout` job, which already runs (a new job name would never run where `KEEPER_JOBS` is
       set), and both say "paid" only of what LANDED: they are fed the `RewardClaimed` events of
       the keeper's own transactions, never the shares it meant to pay (the payout has a time
-      budget, and a player may have collected a share themselves). **Payday is OFF unless a player
+      budget, and a player may have collected a share themselves). **A day or a week is told once
+      ALL of it is paid** (`settledShares`; Bugbot on #244): the run that pays a player's last
+      share of it says the whole amount, the shares paid earlier too. A message's id is the day or
+      the week, so a first message about part of it would state a part as the whole and the rest
+      could never be said. **Payday is OFF unless a player
       turns it on,** because it comes every day a word earns; its message doesn't say "today's
       payout", since a run also pays an earlier day's leftovers. **The bounty result is on** (once
       a week at most), and says the player's words' SHARE with the week's theme, never "the
@@ -1553,8 +1557,10 @@ setter. All small, riding existing suite patterns.
       arrives and names the Market's word: one wallet's letters (a claim spends from one wallet),
       never a letter the player holds in another wallet (a move, not a purchase), only a word
       nobody owns, only a letter the checked book says can be bought now from someone else. One
-      alert a day at most, the best deal only (the rarest word, then the lowest ask), and the same
-      letter and word once a week at most, kept in `reminder_marks` (no table, no alert). It runs
+      alert a day at most, and the same letter and word once a week at most: a rolling week, kept
+      in `reminder_marks` (`claimMarkEvery`; no table, no alert). The alert is the best deal the
+      player wasn't told of this week (the rarest word, then the lowest ask), so a deal already
+      told never hides a new one. It runs
       in the keeper's `notify` job, after the hunger warnings, and reads the chain only when
       somebody opted in.
     - **Part 5, one email a week** (`lib/notify/digest.ts`; `reminder_prefs.email_cadence`,

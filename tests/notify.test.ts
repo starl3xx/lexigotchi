@@ -144,7 +144,7 @@ describe("length limits", () => {
         jackpotRollover(hugeAmount, day),
         earningsPaid(hugeAmount, day),
         bountyPaid("999.99B $WORD", "double letters", 2968, day),
-        dealAlert({ letter: "w", word: "WHIZZ", more: 4583, from: 999_990_000_000 }, 2968, day),
+        dealAlert({ letter: "w", word: "WHIZZ", more: 4583, from: 999_990_000_000 }, day),
         pityCapped("q", day),
         marketSold([fill({ kind: "word", name: "QUICK", amount: 999_990_000_000 })], day)!,
         marketSold([fill({ name: "Q", qty: 10_000, amount: 999_990_000_000 })], day)!,

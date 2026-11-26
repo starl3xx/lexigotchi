@@ -49,9 +49,9 @@ import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
 import { notifyPaid, type LandedShare } from "@/lib/notify/paid";
-import { dealNotes } from "@/lib/notify/deals";
+import { DEAL_AGAIN_SECONDS, dealNotes } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
-import { claimMark, releaseMark } from "@/lib/db/reminderMarks";
+import { claimMark, claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
 import { sendDigests, weekEarned, wordsNeedingCare } from "@/lib/notify/digest";
 import { loadShares } from "@/lib/rewards/load";
 import { salesBySellers } from "@/lib/db/market";
@@ -370,27 +370,50 @@ export function createKeeper(opts: { dry: boolean }) {
         landed += 1;
         landedWei += ev.args.amount;
         // The two streams share the event; the contract that emitted it says which this is.
-        landedShares.push({ stream: ev.address.toLowerCase() === bountyAddr ? "bounty" : "yield", epochId: Number(ev.args.epochId), account: ev.args.account, amount: ev.args.amount });
+        landedShares.push({
+          stream: ev.address.toLowerCase() === bountyAddr ? "bounty" : "yield", epochId: Number(ev.args.epochId),
+          tokenId: ev.args.tokenId.toString(), account: ev.args.account, amount: ev.args.amount,
+        });
       }
       console.log(`payout: batch of ${batch.length} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
     }
     console.log(`payout: paid ${landed} of ${sentShares.length} share(s) sent, ${landedWei} wei`);
-    // Players who asked hear what was paid, before anything below can end the job with an error:
-    // the money has moved either way (lib/notify/paid.ts; it never throws).
-    await notifyPaid(landedShares);
-    if (landed === sentShares.length) return;
     // A call that didn't pay is only a failure if its share is STILL unpaid: a player who collected it
     // a moment earlier made this run's claim revert harmlessly (AlreadyClaimed).
-    const nowPaid = (await client.multicall({
-      allowFailure: false,
-      contracts: sentShares.map((c) => ({
-        address: streamAddr(c.stream), abi: yieldDistributorAbi, functionName: "hasClaimed" as const,
-        args: [BigInt(c.epochId), BigInt(c.tokenId)],
+    const shareKey = (c: { stream: string; epochId: string | number; tokenId: string }) => `${c.stream}:${Number(c.epochId)}:${BigInt(c.tokenId)}`;
+    const landedKeys = new Set(landedShares.map(shareKey));
+    const missed = sentShares.filter((c) => !landedKeys.has(shareKey(c)));
+    const paidByOthers = new Set<string>();
+    let stillUnpaid = 0;
+    let recheckFailed: unknown;
+    if (missed.length > 0) {
+      try {
+        const nowPaid = (await client.multicall({
+          allowFailure: false,
+          contracts: missed.map((c) => ({
+            address: streamAddr(c.stream), abi: yieldDistributorAbi, functionName: "hasClaimed" as const,
+            args: [BigInt(c.epochId), BigInt(c.tokenId)],
+          })),
+        })) as unknown as boolean[];
+        missed.forEach((c, i) => (nowPaid[i] ? paidByOthers.add(shareKey(c)) : stillUnpaid++));
+      } catch (err) {
+        recheckFailed = err; // said below, after the players are told
+      }
+    }
+    // Players who asked hear what was paid, before anything below can end the job with an error:
+    // the money has moved either way (lib/notify/paid.ts; it never throws). It gets every share of
+    // the epochs this run worked through, so a player hears of a day or a week once ALL of it is paid.
+    await notifyPaid(
+      landedShares,
+      rows.map((r, i) => ({
+        stream: r.stream as "yield" | "bounty", epochId: Number(r.epochId), tokenId: BigInt(r.tokenId).toString(),
+        account: r.account, amount: BigInt(r.amount), paidBefore: paid[i] || paidByOthers.has(shareKey(r)),
       })),
-    })) as unknown as boolean[];
-    const stillUnpaid = nowPaid.filter((p) => !p).length;
+    );
+    if (recheckFailed) throw recheckFailed;
+    if (missed.length === 0) return;
     if (stillUnpaid > 0) throw new Error(`payout: ${stillUnpaid} share(s) sent but still unpaid — they're retried next run`);
-    console.log(`payout: the other ${sentShares.length - landed} were already paid by someone else`);
+    console.log(`payout: the other ${missed.length} were already paid by someone else`);
   }
 
   const EAS = "0x4200000000000000000000000000000000000021" as const;
@@ -602,7 +625,7 @@ export function createKeeper(opts: { dry: boolean }) {
       if (accounts.length === 0) return void console.log("deals: nobody turned the deal alert on");
       const [links, words, book, now] = await Promise.all([loadLinkMap(), scanAllWords(), readLetterBook(), readChainTime()]);
       const claimed = new Set(words.map((w) => w.word.toUpperCase()));
-      const week = Math.floor(now / 86_400 / 7);
+      const day = Math.floor(now / 86_400);
       const build = (accountOf: (address: string) => string) =>
         dealNotes(
           {
@@ -615,9 +638,9 @@ export function createKeeper(opts: { dry: boolean }) {
             },
             unclaimed: WORDS.filter((w) => !claimed.has(w)),
             book,
-            claim: (account, mark) => claimMark(account, "deal-seen", mark),
+            claim: (account, mark) => claimMarkEvery(account, "deal-seen", mark, DEAL_AGAIN_SECONDS),
           },
-          week,
+          day,
           { dry: DRY },
         );
       const notes = await build(links.accountOf);
