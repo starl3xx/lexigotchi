@@ -127,6 +127,66 @@ describe("a relayed ascension reveal", () => {
   });
 });
 
+/**
+ * Two real roll reveals on Base Sepolia (Rolls 0x5BA5…8440), both sent by the relayer
+ * (0x51E2…1E3), copied from their receipts on 2026-11-26.
+ */
+const ROLLS = "0x5ba540b19f3572a852f640beb30c1b0e93728440";
+/** tx 0xc2f6f30d…d5ca60: commit 135 missed, and its letter's pity became 2. */
+const ROLL_MISS_LOGS = [
+  {
+    address: ROLLS,
+    topics: ["0x0ef831ff1075bd3977c013d508a4a8b0083212c6715dfea107b919f8c9e832fd", "0x0000000000000000000000000000000000000000000000000000000000000087", "0x0000000000000000000000000fc0f78fc939606db65f5bbf2f3715262c0b2f6e"],
+    data: "0x000000000000000000000000000000000000000000000000000000000000000b0000000000000000000000000000000000000000000000000000000000000002",
+  },
+];
+/** tx 0x6031dd8f…cfaa88: commit 137 hit. Four other contracts' logs come before Rolls' own. */
+const ROLL_HIT_LOGS = [
+  { address: "0xb6e3b233ff7ceb709f20a36fa947a53e47e600cc", topics: ["0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62", "0x000000000000000000000000c1b4e6625e1b1588aeea70913526c4418f390f91", "0x000000000000000000000000c1b4e6625e1b1588aeea70913526c4418f390f91", "0x0000000000000000000000000000000000000000000000000000000000000000"], data: "0x00000000000000000000000000000000000000000000000000000000000000170000000000000000000000000000000000000000000000000000000000000001" },
+  { address: "0xb6e3b233ff7ceb709f20a36fa947a53e47e600cc", topics: ["0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62", "0x000000000000000000000000c1b4e6625e1b1588aeea70913526c4418f390f91", "0x0000000000000000000000000000000000000000000000000000000000000000", "0x000000000000000000000000c1b4e6625e1b1588aeea70913526c4418f390f91"], data: "0x00000000000000000000000000000000000000000000000000000000000000310000000000000000000000000000000000000000000000000000000000000001" },
+  { address: "0xc1b4e6625e1b1588aeea70913526c4418f390f91", topics: ["0xe1bb1745426d461ddc0424f57bab3bcb4a468247fc2013b8f1d1c2fc944929ce", "0xe57df55a9a044dadb27a82cab24f4ebc0cb94e0cf6d1aabe46a5b1f14d5ce7f4"], data: "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000017" },
+  { address: "0xc1b4e6625e1b1588aeea70913526c4418f390f91", topics: ["0xf8e1a15aba9398e019f0b49df1a4fde98ee17ae345cb5f6b5e2c27f5033e8ce7"], data: "0xe57df55a9a044dadb27a82cab24f4ebc0cb94e0cf6d1aabe46a5b1f14d5ce7f4" },
+  { address: ROLLS, topics: ["0x9c7a20ef9da5947c3f7f1e0d51163b5d987af21f254496bb3d1385e6db51d38a", "0x0000000000000000000000000000000000000000000000000000000000000089", "0x000000000000000000000000b8980ff66aaad42c1e46ea9dd2dc1c75a7a54039"], data: "0x0000000000000000000000000000000000000000000000000000000000000017" },
+];
+
+describe("a relayed roll reveal (live for every roll: it must read as it did before ascension joined it)", () => {
+  it("sends Rolls.reveal with the builder code", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: ROLL_MISS_LOGS });
+    const id = next();
+    await relayRollReveal(id, false, SIG);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ functionName: "reveal", args: [id, false, SIG], dataSuffix: BUILDER_DATA_SUFFIX });
+    expect(writes[0].address.toLowerCase()).toBe(addressOf("rolls").toLowerCase());
+  });
+
+  it("a miss: mined, with the pity its RollFailed event carries", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: ROLL_MISS_LOGS });
+    expect(await relayRollReveal(next(), false, SIG)).toMatchObject({ kind: "mined", success: false, pity: 2 });
+  });
+
+  it("a hit: mined, read from RollSucceeded past the other contracts' logs, with a clean pity", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: ROLL_HIT_LOGS });
+    expect(await relayRollReveal(next(), true, SIG)).toMatchObject({ kind: "mined", success: true, pity: 0 });
+  });
+
+  it("the chain's word, not the signed one, and nothing of the word ladder is read for a roll", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: ROLL_MISS_LOGS });
+    expect(await relayRollReveal(next(), true, SIG)).toMatchObject({ kind: "mined", success: false, pity: 2 });
+    expect(reads).toHaveLength(0);
+  });
+
+  it("reverted, not mined in the wait, and a refused send are what they were", async () => {
+    receipt = () => ({ status: "reverted", blockNumber: BLOCK, logs: [] });
+    expect((await relayRollReveal(next(), true, SIG)).kind).toBe("reverted");
+    receipt = () => {
+      throw new Error("timed out");
+    };
+    expect((await relayRollReveal(next(), true, SIG)).kind).toBe("pending");
+    writeError = new Error("insufficient funds for gas");
+    expect(await relayRollReveal(next(), true, SIG)).toEqual({ kind: "unavailable", reason: "relayer_unfunded" });
+  });
+});
+
 describe("rolls and ascensions count their commits separately", () => {
   it("roll 7 and ascension 7 are two sends with two answers; a repeat of either reuses its own", async () => {
     // Under one key for both, the ascension would be answered with the roll's result for a minute.
