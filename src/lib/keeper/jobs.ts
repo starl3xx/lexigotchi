@@ -48,7 +48,7 @@ import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
-import { notifyPaid, type LandedShare } from "@/lib/notify/paid";
+import { notifyPaid, shareKey, type LandedShare } from "@/lib/notify/paid";
 import { DEAL_AGAIN_SECONDS, dealNotes } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
 import { claimMarkEvery } from "@/lib/db/reminderMarks";
@@ -350,66 +350,79 @@ export function createKeeper(opts: { dry: boolean }) {
     const landedShares: LandedShare[] = [];
     const bountyAddr = streamAddr("bounty").toLowerCase();
     let landed = 0, landedWei = 0n;
-    for (const batch of payoutBatches(unpaid)) {
-      if (Date.now() - started > PAYOUT_BUDGET_MS) {
-        console.log(`payout: out of time — ${unpaid.length - sentShares.length} share(s) wait for the next run`);
-        break;
-      }
-      const hash = await w.writeContract({
-        dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the keeper's writes are app writes too
-        address: MULTICALL3, abi: multicall3Abi, functionName: "aggregate3",
-        args: [payoutCalls(batch, streamAddr)],
-      });
-      const rcpt = await w.waitForTransactionReceipt({ hash });
-      sentShares.push(...batch);
-      // What this run paid: RewardClaimed events, not the batch size (a call may fail on its own).
-      for (const ev of parseEventLogs({ abi: yieldDistributorAbi, eventName: "RewardClaimed", logs: rcpt.logs })) {
-        landed += 1;
-        landedWei += ev.args.amount;
-        // The two streams share the event; the contract that emitted it says which this is.
-        landedShares.push({
-          stream: ev.address.toLowerCase() === bountyAddr ? "bounty" : "yield", epochId: Number(ev.args.epochId),
-          tokenId: ev.args.tokenId.toString(), account: ev.args.account, amount: ev.args.amount,
+    // A batch that fails (a refused send, a receipt that never comes) ends the sending, not the run:
+    // the batches before it paid, and their players are told below before the error is thrown.
+    let sendFailed: unknown;
+    try {
+      for (const batch of payoutBatches(unpaid)) {
+        if (Date.now() - started > PAYOUT_BUDGET_MS) {
+          console.log(`payout: out of time — ${unpaid.length - sentShares.length} share(s) wait for the next run`);
+          break;
+        }
+        const hash = await w.writeContract({
+          dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the keeper's writes are app writes too
+          address: MULTICALL3, abi: multicall3Abi, functionName: "aggregate3",
+          args: [payoutCalls(batch, streamAddr)],
         });
+        const rcpt = await w.waitForTransactionReceipt({ hash });
+        sentShares.push(...batch);
+        // What this run paid: RewardClaimed events, not the batch size (a call may fail on its own).
+        for (const ev of parseEventLogs({ abi: yieldDistributorAbi, eventName: "RewardClaimed", logs: rcpt.logs })) {
+          landed += 1;
+          landedWei += ev.args.amount;
+          // The two streams share the event; the contract that emitted it says which this is.
+          landedShares.push({
+            stream: ev.address.toLowerCase() === bountyAddr ? "bounty" : "yield", epochId: Number(ev.args.epochId),
+            tokenId: ev.args.tokenId.toString(), account: ev.args.account, amount: ev.args.amount,
+          });
+        }
+        console.log(`payout: batch of ${batch.length} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
       }
-      console.log(`payout: batch of ${batch.length} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
+    } catch (err) {
+      sendFailed = err;
+      console.error(`payout: a batch failed, the rest wait for the next run: ${String((err as Error)?.message ?? err).slice(0, 160)}`);
     }
     console.log(`payout: paid ${landed} of ${sentShares.length} share(s) sent, ${landedWei} wei`);
-    // A call that didn't pay is only a failure if its share is STILL unpaid: a player who collected it
-    // a moment earlier made this run's claim revert harmlessly (AlreadyClaimed).
-    const shareKey = (c: { stream: string; epochId: string | number; tokenId: string }) => `${c.stream}:${Number(c.epochId)}:${BigInt(c.tokenId)}`;
+
+    // What became of every share this run did not see land, the ones it never reached too: one read.
+    // A player may have collected one a moment earlier (the keeper's claim then reverts harmlessly,
+    // AlreadyClaimed), and a transaction whose receipt never came may have landed all the same.
     const landedKeys = new Set(landedShares.map(shareKey));
-    const missed = sentShares.filter((c) => !landedKeys.has(shareKey(c)));
-    const paidByOthers = new Set<string>();
-    let stillUnpaid = 0;
+    const notLanded = unpaid.filter((c) => !landedKeys.has(shareKey(c)));
+    const paidMeanwhile = new Set<string>();
     let recheckFailed: unknown;
-    if (missed.length > 0) {
+    if (notLanded.length > 0) {
       try {
         const nowPaid = (await client.multicall({
           allowFailure: false,
-          contracts: missed.map((c) => ({
+          contracts: notLanded.map((c) => ({
             address: streamAddr(c.stream), abi: yieldDistributorAbi, functionName: "hasClaimed" as const,
             args: [BigInt(c.epochId), BigInt(c.tokenId)],
           })),
         })) as unknown as boolean[];
-        missed.forEach((c, i) => (nowPaid[i] ? paidByOthers.add(shareKey(c)) : stillUnpaid++));
+        notLanded.forEach((c, i) => void (nowPaid[i] && paidMeanwhile.add(shareKey(c))));
       } catch (err) {
         recheckFailed = err; // said below, after the players are told
+        console.warn(`payout: couldn't re-read the unpaid shares: ${String((err as Error)?.message ?? err).slice(0, 160)}`);
       }
     }
     // Players who asked hear what was paid, before anything below can end the job with an error:
     // the money has moved either way (lib/notify/paid.ts; it never throws). It gets every share of
     // the epochs this run worked through, so a message states a player's whole share of a day or a
-    // week, and says "paid" of all of it only when all of it landed.
+    // week, and says "paid" of all of it only when all of it is.
     await notifyPaid(
       landedShares,
       rows.map((r, i) => ({
         stream: r.stream as "yield" | "bounty", epochId: Number(r.epochId), tokenId: BigInt(r.tokenId).toString(),
-        account: r.account, amount: BigInt(r.amount), paidBefore: paid[i], paidNow: paidByOthers.has(shareKey(r)),
+        account: r.account, amount: BigInt(r.amount), paidBefore: paid[i], paidNow: paidMeanwhile.has(shareKey(r)),
       })),
     );
-    if (recheckFailed) throw recheckFailed;
+    if (sendFailed) throw sendFailed;
+    // A sent call that didn't pay is only a failure if its share is STILL unpaid.
+    const missed = sentShares.filter((c) => !landedKeys.has(shareKey(c)));
     if (missed.length === 0) return;
+    if (recheckFailed) throw recheckFailed;
+    const stillUnpaid = missed.filter((c) => !paidMeanwhile.has(shareKey(c))).length;
     if (stillUnpaid > 0) throw new Error(`payout: ${stillUnpaid} share(s) sent but still unpaid — they're retried next run`);
     console.log(`payout: the other ${missed.length} were already paid by someone else`);
   }

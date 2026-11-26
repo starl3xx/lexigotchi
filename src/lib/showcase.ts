@@ -86,8 +86,10 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
  *    version in its address until now, so the share video kept drawing the old back from a cached
  *    copy after #35 shipped (starl3xx, 2026-11-26: "the back of the card isn't in the share video
  *    yet"). Every picture of a card, front or back, carries this number.
+ * 5: the letters' ground shadow as ruled lines (decisions.md #48).
+ * 6: an UPPERCASE letter's legs come over its ring (decisions.md #48, part 2).
  */
-export const CARD_LOOK = 4;
+export const CARD_LOOK = 6;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {

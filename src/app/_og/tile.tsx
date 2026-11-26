@@ -21,7 +21,8 @@ import {
   MID,
   MITT,
   PITCH,
-  SHADOW,
+  SHADOW_LINES,
+  SHADOW_LINE_OPACITY,
   SHINE_FROM,
   SHOE,
   SHOE_SHINE,
@@ -313,7 +314,10 @@ export function OgTile({
         {fin && finishDefs(fin, u, bw)}
         {limbs && (
           <g>
-            <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />
+            {/* the ground shadow as ruled lines (tileShapes, SHADOW_LINES): every attribute given, for Satori */}
+            {SHADOW_LINES.map((l) => (
+              <path key={l.y} d={`M ${l.x0} ${l.y} H ${l.x1}`} fill="none" stroke={INK} strokeOpacity={SHADOW_LINE_OPACITY} strokeWidth={l.w} strokeLinecap="round" />
+            ))}
             <path d={SHOE} transform={foot(FOOT_LX, -1)} fill={INK} />
             <path d={SHOE} transform={foot(FOOT_RX, 1)} fill={INK} />
             {w >= SHINE_FROM ? <path d={SHOE_SHINE} transform={foot(FOOT_LX, -1)} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none" /> : null}
@@ -321,16 +325,14 @@ export function OgTile({
           </g>
         )}
 
-        {/* behind the arms: the legs, the rarity's aura, and the case's ring or wooden edge */}
+        {/* behind the arms: the rarity's aura, the case's ring or wooden edge, and the legs. The legs
+            come over an UPPERCASE letter's ring and under its face, as the arms do (decisions.md #48). */}
         <g transform={tilt}>
+          {fin && finishAura(fin, u)}
+          {upper ? <rect x={T.x - 11} y={T.y - 11} width={T.w + 22} height={T.h + 22} rx={T.r + 11} fill="none" stroke={LHAW_RING} strokeWidth="10" /> : null}
           {limbs ? limb("leg-l", LEG_L) : null}
           {limbs ? limb("leg-r", LEG_R) : null}
-          {fin && finishAura(fin, u)}
-          {upper ? (
-            <rect x={T.x - 11} y={T.y - 11} width={T.w + 22} height={T.h + 22} rx={T.r + 11} fill="none" stroke={LHAW_RING} strokeWidth="10" />
-          ) : (
-            <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />
-          )}
+          {upper ? null : <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
         </g>
 
         {/* the arms that reach for a neighbour's hand: upright, over the ring and under the face */}

@@ -15,7 +15,7 @@ export function PackReveal({ letters }: { letters: number[] }) {
     <Sheet open onClose={g.closeSheet} title={<span className="inline-flex items-center gap-1.5">Fresh pull <Package weight="fill" /></span>}>
       <div className="flex flex-wrap items-center justify-center gap-3 py-4">
         {letters.map((i, k) => (
-          <div key={k} className="animate-pop" style={{ animationDelay: `${k * 0.11}s` }}>
+          <div key={k} className="animate-drop" style={{ animationDelay: `${k * 0.11}s` }}>
             <LetterTile char={idxToChar(i)} size={64} />
           </div>
         ))}

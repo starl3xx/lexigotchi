@@ -98,9 +98,10 @@ body {
      grows two pixels downward); pressing pushes it down into its own shadow, the game's tactile "click". --sh is the
      element's shadow size, set by .cel / .cel-sm / the Button.
    - .press-icon: an icon inside a .press that wiggles on hover.
-   - .tile-press: a tappable letter character. It hops on hover and squashes on press.
+   - .tile-press: a tappable letter character. It hops on hover and pushes down on press. It never
+     squashes: a tile's size does not change in any animation (decisions.md #48).
    - .word-press: a whole word that opens (a Market listing, a sold word). It lifts on hover and
-     squashes on press, without the single letter's tilt, which swings a five-letter row's ends.
+     pushes down on press, without the single letter's tilt, which swings a five-letter row's ends.
    - .round-btn: the header's round icon buttons and pills.
    Hover only where a mouse hovers (a tap on a phone isn't a hover). The movement lives in a
    prefers-reduced-motion: no-preference block below; under reduce, shadows and colors still answer.
@@ -277,11 +278,11 @@ body {
     transform: translate(var(--sh, 3px), var(--sh, 3px));
   }
   .tile-press:active {
-    transform: translateY(1px) scale(0.94);
+    transform: translateY(2px);
     transition-duration: 70ms;
   }
   .word-press:active {
-    transform: translateY(1px) scale(0.97);
+    transform: translateY(2px);
     transition-duration: 70ms;
   }
   .round-btn:active {
@@ -858,10 +859,12 @@ body {
 .cb-stat dt { font-weight: 600; color: var(--cb-sub); white-space: nowrap; }
 .cb-stat > i { flex: 1; min-width: 0.6em; border-bottom: max(1.5px, 0.22cqw) dotted rgba(247, 239, 220, 0.4); transform: translateY(-0.22em); }
 .cb-stat dd { margin: 0; display: flex; align-items: center; gap: 6px; font-family: var(--font-card); font-weight: 700; font-variant-numeric: oldstyle-nums; white-space: nowrap; }
-.cb-pips { display: inline-flex; gap: 2px; }
-.cb-pips i { width: 7px; height: 7px; transform: rotate(45deg); border: 1.2px solid rgba(201, 207, 216, 0.8); background: rgba(255, 255, 255, 0.85); display: block; }
-.cb-pips i.on { border-color: #231a14; background: #f0a617; }
-.cb-pips i.holo { background: linear-gradient(135deg, #ff9ad5, #ffe28a, #8ff0d0, #8ec5ff, #c7a0ff); }
+/* The stage's pips, as on the tile (tileShapes, pipPath: black diamonds, decisions.md #48), in the
+   back's own ink: solid in the material's line colour where earned, an outline in it where not.
+   Black would not show on a dark back. No gold, no foil, no white squares. */
+.cb-pips { display: inline-flex; gap: 3px; padding: 0 2px; }
+.cb-pips i { width: 6px; height: 6px; transform: rotate(45deg); border: 1.2px solid color-mix(in srgb, var(--cb-line) 55%, transparent); background: transparent; display: block; }
+.cb-pips i.on { border-color: var(--cb-line); background: var(--cb-line); }
 /* the line along the bottom, inside the frame: its parts in a row, a middle dot before each but the first */
 .cb-foot { left: 5.5cqw; right: 5.5cqw; bottom: 2.9cqw; font-size: 12px; line-height: 1.15; color: var(--cb-sub); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
 .cb-foot > * + *::before { content: " · "; white-space: pre; }

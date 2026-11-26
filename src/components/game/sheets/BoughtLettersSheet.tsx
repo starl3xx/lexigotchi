@@ -84,12 +84,12 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
       <div className="flex flex-col items-center gap-3 pb-2 text-center">
         <div className="flex flex-wrap items-center justify-center gap-2 pt-3">
           {Array.from({ length: shown }, (_, k) => (
-            <div key={k} className="animate-pop" style={{ animationDelay: `${k * 0.11}s` }}>
+            <div key={k} className="animate-drop" style={{ animationDelay: `${k * 0.11}s` }}>
               <LetterTile char={letterOf(letterId)} upper={isUpperId(letterId)} size={tileSize(shown)} state="celebrate" />
             </div>
           ))}
           {count > shown && (
-            <span className="animate-pop font-display text-xl font-extrabold text-ink/70" style={{ animationDelay: `${shown * 0.11}s` }}>
+            <span className="animate-drop font-display text-xl font-extrabold text-ink/70" style={{ animationDelay: `${shown * 0.11}s` }}>
               +{(count - shown).toLocaleString("en-US")}
             </span>
           )}
