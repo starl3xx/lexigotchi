@@ -1380,7 +1380,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           return outcome;
         }), NOT_STARTED),
 
-      prestige: (word: string) =>
+      prestige: (word: string, opts?: { finishOnly?: boolean }) =>
         // "Attempting", never "Ascending" (starl3xx, 2026-11-25): a try may miss, and the status
         // must not read as if the word were on its way up.
         track(`Attempting ascension: ${word}`, async (run) => {
@@ -1405,10 +1405,20 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             // call one open seconds later).
             let id = await readOpenPrestigeFor(tokenId, revealedAttempts.current);
             const resumed = id !== null;
+            // Asked only to finish a paid attempt, and none is open: it finished on its own (its
+            // reveal landed late). Never pay for a new one from the "finish" button, which showed
+            // no price: clear the mark, and the sheet goes back to its priced try.
+            if (id === null && opts?.finishOnly) {
+              markAscent(word, null);
+              for (const delay of [0, 2_000, 6_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
+              toast(`No attempt is open on ${word} now: its last one has finished`, "info");
+              return { status: "not-started" as const };
+            }
             // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
             const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
             if (id !== null) {
-              toast("Finishing your unfinished attempt first", "info");
+              // The "finish" button asked for exactly this, so there is nothing to explain.
+              if (!opts?.finishOnly) toast("Finishing your unfinished attempt first", "info");
               markPaid(); // paid at its commit
             } else {
               const before = await readOpenPrestigeCommits(owner);
@@ -2212,7 +2222,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, unfinishedAscents, markAscent, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, settleAscension, unfinishedAscents, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

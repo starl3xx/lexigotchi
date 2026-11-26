@@ -1036,9 +1036,13 @@ setter. All small, riding existing suite patterns.
       second half missing). The sheet the try was made in shows how it ends. If that sheet has
       gone, a toast says it: the result, or "paid, and not finished" over the note. And the store
       marks a word whose try ended unfinished, for the session (`unfinishedAscents`): the word
-      sheet's Ascend card says so, and the ascend sheet says the next try finishes it first and
-      takes no new fee, which is what the store does. The mark goes when a reveal is read back
-      for the word, or when the words read shows it past the stage it was marked at.
+      sheet's Ascend card says so, and the ascend sheet's button becomes "Finish your attempt",
+      with no price and no wait on the balance (`prestige(word, { finishOnly: true })`: it sends
+      the open attempt's reveal and never pays for a new one). A priced try there was a dead end
+      for a player who paid with their last $WORD and declined the second wallet prompt: greyed
+      out, asking for $WORD it would not have charged (Bugbot on #229, High). The mark goes when
+      a reveal is read back for the word, or when the words read shows it past the stage it was
+      marked at.
     - **Still two wallet confirmations** (the paid attempt, then its reveal): the docs said one,
       and now say two. Having the server finish it, as it does for rolls (#14, which names
       ascension as a later case), would make it one and keep the letters nervous without a

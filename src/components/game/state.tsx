@@ -831,7 +831,12 @@ export interface GameApi {
   feed: (word: string) => void;
   feedAll: () => void;
   /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
-  prestige: (word: string) => boolean | null | Promise<ActionOutcome>;
+  /**
+   * `finishOnly`: finish the attempt that is already paid for and open on this word, and never
+   * pay for a new one (the chain store, for a word in `unfinishedAscents`). It takes no fee, so
+   * the sheet offers it whatever the balance. If no attempt is open any more, nothing is sent.
+   */
+  prestige: (word: string, opts?: { finishOnly?: boolean }) => boolean | null | Promise<ActionOutcome>;
   dissolve: (word: string) => void;
   /**
    * Move here: send the CONNECTED wallet's letters and held words to `to`, another wallet in its

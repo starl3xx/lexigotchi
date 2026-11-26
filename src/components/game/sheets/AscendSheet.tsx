@@ -149,7 +149,8 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
     setPhase(next);
   };
 
-  const attempt = () => {
+  // `finishOnly`: finish the attempt that is already paid for, and never pay for a new one.
+  const attempt = (finishOnly = false) => {
     if (waiting) return;
     clearTimers();
     const at = shown; // the stage this try is paid at
@@ -158,7 +159,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
     setReached(0);
     setMood("idle");
     setPhase("trying");
-    const res = g.prestige(word.word);
+    const res = g.prestige(word.word, finishOnly ? { finishOnly: true } : undefined);
     if (res instanceof Promise) {
       void res
         .then((outcome) => finish(outcome, at))
@@ -183,9 +184,13 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
   const tryLabel = `${fmtWord(total)} $WORD`;
   // A try is on offer, or out: the line under the buttons says what its price includes.
   const offered = !atTop && (phase === "ready" || waiting || again !== null);
-  // An earlier try on this word ended paid and unfinished. The store finishes an open attempt
-  // before it pays for a new one, so the line says exactly that, and no more than it knows.
+  // An earlier try on this word ended paid and unfinished. Finishing it takes no fee, so its
+  // button has no price and never waits on the balance: a player who paid with their last $WORD
+  // and then declined the second wallet prompt could not finish the attempt they had paid for,
+  // behind a priced, greyed-out try (Bugbot on #229). The reveal can be sent by anyone, so it
+  // doesn't wait on the word still being staked either.
   const unfinished = phase === "ready" && g.unfinishedAscents.has(word.word);
+  const canFinish = word.mine || word.care === true;
 
   return (
     <Sheet open onClose={close} title={`Ascend ${word.word}`}>
@@ -273,12 +278,17 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
           reason as the box above. */}
       <div className="mt-3">
         <div className="flex min-h-[58px] gap-2">
-          {phase === "ready" && !atTop && (
-            <Button full size="lg" variant="gold" disabled={!canAct || short} onClick={attempt}>
+          {unfinished && (
+            <Button full size="lg" variant="gold" disabled={!canFinish} onClick={() => attempt(true)}>
+              Finish your attempt
+            </Button>
+          )}
+          {phase === "ready" && !atTop && !unfinished && (
+            <Button full size="lg" variant="gold" disabled={!canAct || short} onClick={() => attempt()}>
               Try for {stageName(goal)} · {tryLabel}
             </Button>
           )}
-          {phase === "ready" && atTop && (
+          {phase === "ready" && atTop && !unfinished && (
             <Button full size="lg" variant="ghost" onClick={close}>
               Done
             </Button>
@@ -302,7 +312,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
                 Done
               </Button>
               {again && (
-                <Button variant="gold" className="flex-1" disabled={!canAct || short} onClick={attempt}>
+                <Button variant="gold" className="flex-1" disabled={!canAct || short} onClick={() => attempt()}>
                   {again === "again" ? "Try again" : `Try for ${stageName(goal)}`} · {tryLabel}
                 </Button>
               )}
@@ -310,15 +320,15 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
           )}
         </div>
         <p className="mt-2 min-h-4 text-center text-xs text-ink/55">
-          {!offered
-            ? ""
-            : !word.staked
-              ? "Stake it first to ascend."
-              : unfinished
-                ? "Your last attempt is paid for. If it is still open, this try finishes it first and takes no new fee."
+          {unfinished
+            ? "Your last attempt is already paid for. Finishing it takes no new fee."
+            : !offered
+              ? ""
+              : !word.staked
+                ? "Stake it first to ascend."
                 : `The price includes a ${fmtWord(g.price("prestigeSnack"))} $WORD snack, burned with each try.`}
         </p>
-        {offered && !waiting && word.staked && short && <GetMore amount={total} />}
+        {offered && !waiting && !unfinished && word.staked && short && <GetMore amount={total} />}
       </div>
     </Sheet>
   );

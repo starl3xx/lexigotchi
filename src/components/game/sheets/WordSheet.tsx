@@ -229,7 +229,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
               cue the old inline button's "Unfinished" label gave. */}
           {g.unfinishedAscents.has(word.word) && (
             <p className="mt-2 text-xs font-bold text-gold-ink">
-              Your last attempt is paid for and may be unfinished. Tap Ascend: the next try finishes it first.
+              Your last attempt is paid for and may be unfinished. Tap Ascend to finish it.
             </p>
           )}
           {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}

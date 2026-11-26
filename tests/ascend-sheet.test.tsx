@@ -99,13 +99,52 @@ describe("before a try", () => {
     expect(g.openSheet).toHaveBeenCalledWith({ kind: "balance", need: { amount: 202, action: "an ascension try" } });
   });
 
-  it("after a try that ended paid and unfinished, says the next try finishes it first and takes no new fee", () => {
+  it("after a try that ended paid and unfinished, offers to finish it: no price, and no new try beside it", () => {
     // the store remembers such a word for the session; the sheet that showed it may be long gone
-    show(fakeGame(vivid(), { unfinishedAscents: new Set(["VIVID"]) }).api);
-    expect(sheet().textContent).toContain("Your last attempt is paid for. If it is still open, this try finishes it first and takes no new fee.");
+    const g = fakeGame(vivid(), { unfinishedAscents: new Set(["VIVID"]) });
+    show(g.api);
+    expect(sheet().textContent).toContain("Your last attempt is already paid for. Finishing it takes no new fee.");
     expect(sheet().textContent).not.toContain("snack, burned with each try");
-    // the try itself is still there: an open attempt is finished by trying
-    expect((tryButton() as HTMLButtonElement).disabled).toBe(false);
+    expect(tryButton()).toBeNull();
+    const finishIt = screen.getByRole("button", { name: "Finish your attempt" }) as HTMLButtonElement;
+    expect(finishIt.textContent).not.toContain("$WORD");
+    fireEvent.click(finishIt);
+    // asked only to finish: the store never pays for a new attempt from this button
+    expect(g.prestige).toHaveBeenCalledWith("VIVID", { finishOnly: true });
+    expect(screen.getByRole("button", { name: "Attempting ascension…" })).toBeTruthy();
+  });
+
+  it("finishing never waits on the balance: the attempt is paid for, whatever is left", () => {
+    // paid with the last $WORD, then declined the second wallet prompt: a priced, greyed-out try
+    // was the only way to finish, and it asked for $WORD it would never have charged (Bugbot on #229)
+    const g = fakeGame(vivid(), { unfinishedAscents: new Set(["VIVID"]), canAfford: () => false });
+    show(g.api);
+    expect((screen.getByRole("button", { name: "Finish your attempt" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole("button", { name: "Get more" })).toBeNull();
+    expect(sheet().textContent).not.toContain("You don’t have enough");
+  });
+
+  it("finishing doesn't wait on the word still being staked: the reveal can be sent by anyone", () => {
+    const g = fakeGame(vivid({ staked: false }), { unfinishedAscents: new Set(["VIVID"]) });
+    show(g.api);
+    expect((screen.getByRole("button", { name: "Finish your attempt" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("a finished attempt gives its result like any other, and the next try is priced again", async () => {
+    const g = fakeGame(vivid(), { unfinishedAscents: new Set(["VIVID"]) });
+    show(g.api);
+    fireEvent.click(screen.getByRole("button", { name: "Finish your attempt" }));
+    g.settle({ status: "resolved", success: false, stage: { level: 1, pity: 1 } });
+    await pass(700);
+    expect(sheet().textContent).toContain("Held its ground");
+    expect(sheet().textContent).toContain("45%");
+  });
+
+  it("an ordinary try asks the store for an ordinary try", () => {
+    const g = fakeGame(vivid());
+    show(g.api);
+    fireEvent.click(tryButton()!);
+    expect(g.prestige).toHaveBeenCalledWith("VIVID", undefined);
   });
 
   it("at the top of the ladder there is nothing to try", () => {
