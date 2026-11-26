@@ -1,5 +1,5 @@
 /**
- * The Dictionary's hand-off to Spell (components/game/spellHandoff; decisions.md #30): a word waits
+ * The Dictionary's hand-off to Spell (components/game/spellHandoff; decisions.md #31): a word waits
  * between the tap and Spell mounting, and is taken exactly once. And the Dictionary itself must not
  * grow a claim path: one place claims.
  */

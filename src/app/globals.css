@@ -598,7 +598,7 @@ body {
    pale blue ring. */
 .mini-tile { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #2a1e1a; background-color: #f8efdd; box-shadow: 0 2px 0 #c7ae84; font-size: 12px; font-weight: 800; line-height: 1; color: #2a1e1a; }
 .mini-tile.is-up { background-color: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 2px #bbd1fd; color: #111827; }
-/* The Dictionary's tile (decisions.md #30): a size up, and the two letters a player doesn't hold
+/* The Dictionary's tile (decisions.md #31): a size up, and the two letters a player doesn't hold
    here (lib/wordNeed). A missing letter is an empty dashed slot, as on Spell's rack; a letter in
    another of the player's wallets keeps its finish under a dashed teal edge. Borders only: a list
    of these costs what a list of tiles costs. */

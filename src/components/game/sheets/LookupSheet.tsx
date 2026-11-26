@@ -1,6 +1,6 @@
 "use client";
 /**
- * A word opened from the Dictionary (decisions.md #30): what the player needs to spell it ("You
+ * A word opened from the Dictionary (decisions.md #31): what the player needs to spell it ("You
  * only need a q."), or who has it. The game's letter characters stand at the top, still, with an
  * empty slot for each letter the player doesn't hold; then the ways to get what's missing, and the
  * word's facts.
@@ -140,7 +140,17 @@ export function LookupSheet({ word }: { word: string }) {
   const packsOut = g.lettersLeft !== null && g.lettersLeft < 5;
   const allSoldOut = parts.length > 0 && (packsOut || parts.every((p) => soldOut(p.letter)));
   const capOf = (letter: string) => (state.chainBacked ? supply.data?.caps[idx(letter)] : LETTER_SUPPLY_CAP[letter.toUpperCase()]);
-  const offers = the ? g.swapBoard.filter((o) => o.giveId % 26 === idx(the.letter)).length : 0;
+  // "Only 115 q’s will ever exist" is worth saying for a scarce letter, and silly for an o.
+  const SCARCE = 1000;
+  const cap = the ? capOf(the.letter) : undefined;
+  const scarce = cap && cap <= SCARCE ? cap : null;
+  // The letter for sale in the Market right now (decisions.md #30), in either case, since a claim
+  // takes either; the player's own listings aside. How many, and the least one costs.
+  const asks = the
+    ? [idx(the.letter), idx(the.letter) + 26].flatMap((id) => g.market.letterBook[id]?.asks ?? []).filter((a) => a.available > 0 && !g.market.isMine(a.maker))
+    : [];
+  const forSale = asks.reduce((n, a) => n + a.available, 0);
+  const least = asks.reduce((m, a) => Math.min(m, a.unitPrice), Infinity);
   const go = (view: "mint" | "swap" | "claim") => g.nav(view); // a nav closes the sheet
 
   return (
@@ -198,7 +208,7 @@ export function LookupSheet({ word }: { word: string }) {
           </Action>
         )}
         {counting && parts.length > 0 && !allSoldOut && (
-          <Action hint={the && capOf(the.letter) ? `Only ${capOf(the.letter)!.toLocaleString("en-US")} ${the.letter}’s will ever exist.` : "Every pack holds five letters."}>
+          <Action hint={scarce ? `Only ${scarce.toLocaleString("en-US")} ${the!.letter}’s will ever exist.` : "Every pack holds five letters."}>
             <Button full variant="primary" onClick={() => go("mint")}>
               Mint a pack
             </Button>
@@ -213,13 +223,15 @@ export function LookupSheet({ word }: { word: string }) {
                   : the
                     ? `Every ${the.letter} has been minted, so the Market is the only place to find one.`
                     : "These letters have all been minted, so the Market is the only place to find them."
-                : offers > 0
-                  ? `${offers === 1 ? "1 player is" : `${offers} players are`} offering one now.`
-                  : "Offer a letter you can spare."
+                : !the
+                  ? "Letters are for sale there, from other players."
+                  : forSale > 0
+                    ? `${forSale.toLocaleString("en-US")} for sale now, from ${fmtWord(least)} $WORD.`
+                    : "None for sale right now."
             }
           >
-            <Button full variant="ghost" onClick={() => go("swap")}>
-              {the ? `Swap for ${article(the.letter)} ${the.letter} in the Market` : "Swap letters in the Market"}
+            <Button full variant={allSoldOut ? "primary" : "ghost"} onClick={() => go("swap")}>
+              {the ? `Find ${article(the.letter)} ${the.letter} in the Market` : "Find letters in the Market"}
             </Button>
           </Action>
         )}

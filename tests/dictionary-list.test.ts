@@ -1,5 +1,5 @@
 /**
- * The Dictionary's list (lib/dictionaryList; decisions.md #30): "Closest first" and the quick
+ * The Dictionary's list (lib/dictionaryList; decisions.md #31): "Closest first" and the quick
  * filters. "Can spell" must be exactly Spell's list, and nothing may be sorted or counted by
  * distance when there is nothing to count.
  */

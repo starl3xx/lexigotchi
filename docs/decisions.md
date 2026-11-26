@@ -759,7 +759,7 @@ setter. All small, riding existing suite patterns.
       word sales made before this existed showed at once, with their rarities). Still wanted: one
       pass with a real wallet (list a letter, buy part of a listing, cancel).
 
-30. **The Dictionary shows what you hold, and a tap shows what you need** (starl3xx, 2026-11-25:
+31. **The Dictionary shows what you hold, and a tap shows what you need** (starl3xx, 2026-11-25:
     "the dictionary entries / tiles look poorly designed and spaced... would be nice if i click a
     tile to see like 'you only need an X to make this word' and other cool stuff like that"; on
     the proposal: "this is fantastic. i prefer the card, tbh. yes to closest first and the quick
@@ -781,7 +781,7 @@ setter. All small, riding existing suite patterns.
       visitor sees who has a word, not "Needs 5 letters").
     - **The word view** (`sheets/LookupSheet`): the game's letter characters stand at the top,
       still, with a slot for each missing letter; the first line says what's needed; then the ways
-      to get it (Mint a pack, Swap in the Market, Move it here) and the word's facts (rarity and
+      to get it (Mint a pack, Find it in the Market, Move it here) and the word's facts (rarity and
       rank among all words, points, owner, card number, whether it has been the daily word, cost
       to make, what it would earn, whether it fits the week's bounty, whether it's for sale). It
       names other unclaimed words the same letter would finish.
@@ -807,7 +807,9 @@ setter. All small, riding existing suite patterns.
       whatever the week. It now falls back to the clock's day (`chainDayNow`).
     - **My readings, not starl3xx's words:** "Closest first" is the default; an Unclaimed filter
       stays beside the new ones; a word of the player's in a linked wallet opens this view, saying
-      to connect that wallet.
+      to connect that wallet; the proposal's "Swap for a q in the Market" became "Find a q in the
+      Market", with how many are for sale and from how much, because #30 retired letter swaps
+      while this was being built.
 
 ## Pricing & launch economics (decided June 2026)
 

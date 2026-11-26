@@ -369,7 +369,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).
   It, the Leaderboard, the Dictionary, and More are `PUBLIC_VIEWS` in GameApp: no wallet needed.
-- **The Dictionary** (decisions.md #30; `screens/DictionaryScreen.tsx`, `useDictionary.ts`): each
+- **The Dictionary** (decisions.md #31; `screens/DictionaryScreen.tsx`, `useDictionary.ts`): each
   word is a card (flat `MiniTiles`, never the rig: 80 words a page) showing the word as it would
   be claimed, with a dashed slot for a letter the player lacks, and one line: "You can spell it",
   "Needs a q", or who has it. **That line is a promise** (`lib/wordNeed.ts`, pure, tested against

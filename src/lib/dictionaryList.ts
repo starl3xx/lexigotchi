@@ -1,5 +1,5 @@
 /**
- * The Dictionary's list (decisions.md #30): which words show, and in what order. Pure, so the
+ * The Dictionary's list (decisions.md #31): which words show, and in what order. Pure, so the
  * screen and the tests agree.
  *
  * - **Closest first** puts the words the player can spell on top, then one letter away, then two,

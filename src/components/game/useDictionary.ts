@@ -1,6 +1,6 @@
 "use client";
 /**
- * What the Dictionary knows about a word, for its list and its word view (decisions.md #30): who
+ * What the Dictionary knows about a word, for its list and its word view (decisions.md #31): who
  * has it, and the player's letters to count against it (lib/wordNeed).
  *
  * - **Owners are known only once the world read succeeds** (always, in the practice game, which has

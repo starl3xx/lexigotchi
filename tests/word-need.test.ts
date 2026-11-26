@@ -1,5 +1,5 @@
 /**
- * What a player needs to spell a word (lib/wordNeed; decisions.md #30): the Dictionary's "Needs a q"
+ * What a player needs to spell a word (lib/wordNeed; decisions.md #31): the Dictionary's "Needs a q"
  * is a promise, so these hold when it is true: only the connected wallet's letters spell, doubles
  * are counted, a letter in another wallet is a move, and the wording is right for each case.
  */

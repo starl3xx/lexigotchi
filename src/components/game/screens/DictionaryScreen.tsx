@@ -1,7 +1,7 @@
 "use client";
 /**
  * Dictionary: every claimable word (WORD_COUNT), who has it, and how close the player is to
- * spelling it (decisions.md #30).
+ * spelling it (decisions.md #31).
  *
  * - **An entry shows what the player holds.** Its tiles are the word as it would be claimed: a
  *   letter the player doesn't hold is an empty dashed slot, and the line under the name says where

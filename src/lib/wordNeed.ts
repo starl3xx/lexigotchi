@@ -1,6 +1,6 @@
 /**
  * What a player still needs to spell a word: the Dictionary's entries ("Needs a q") and its word
- * view ("You only need a q."). Pure, so the list, the sheet, and the tests agree (decisions.md #30).
+ * view ("You only need a q."). Pure, so the list, the sheet, and the tests agree (decisions.md #31).
  *
  * The line is a promise, so the rules are strict:
  * - **Only the connected wallet's letters spell.** `Words.claim` takes letters from the caller, so a
