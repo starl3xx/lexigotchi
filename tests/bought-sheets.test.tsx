@@ -19,7 +19,7 @@ vi.mock("@/components/game/useWorld", () => ({ useWorld: () => ({ data: world })
 vi.mock("@/components/scenes/useWordScene", () => ({ useWordScene: () => ({ scene: "stage" }) }));
 
 const { GameProvider, useGame, mineLower, mineUpper } = await import("@/components/game/state");
-const { CelebrateSheet } = await import("@/components/game/sheets/CelebrateSheet");
+const { CelebrateSheet, stakeStep } = await import("@/components/game/sheets/CelebrateSheet");
 const { BoughtLettersSheet, newlySpellable } = await import("@/components/game/sheets/BoughtLettersSheet");
 type GameApi = ReturnType<typeof useGame>;
 
@@ -156,9 +156,21 @@ describe("letters bought on the Market", () => {
     const e = ask(E);
     await act(async () => void (await g.market.buyLetters(e, 4)));
     act(() => g.closeSheet());
-    // 2 left of that listing; the board the player tapped still said 6
-    await act(async () => void (await g.market.buyLetters({ ...e, available: 2 }, 2)));
+    // 2 are left of that listing; the row the player tapped is older and still says 6
+    await act(async () => void (await g.market.buyLetters(e, 6)));
     expect(g.state.sheet).toMatchObject({ kind: "boughtLetters", count: 2 });
+    expect(screen.getByText("2 × e are yours.")).toBeTruthy();
+  });
+
+  it("celebrate nothing when the listing is gone", async () => {
+    play();
+    const e = ask(E);
+    await act(async () => void (await g.market.buyLetters(e, 6)));
+    act(() => g.closeSheet());
+    let ok = true;
+    await act(async () => void (ok = await g.market.buyLetters(e, 1)));
+    expect(ok).toBe(false);
+    expect(g.state.sheet).toBeNull();
   });
 
   it("an UPPERCASE letter is drawn and named in its case", async () => {
@@ -166,6 +178,32 @@ describe("letters bought on the Market", () => {
     const E_UP = E + 26;
     await act(async () => void (await g.market.buyLetters(ask(E_UP), 1)));
     expect(screen.getByText("E is yours.")).toBeTruthy();
+  });
+});
+
+describe("stakeStep", () => {
+  type Word = Parameters<typeof stakeStep>[0];
+  const word = (over: Partial<Word> = {}): Word => ({
+    word: "OCEAN", tier: "Common", upper: [false, false, false, false, false], staked: false, daysUnfed: 0, prestigeLevel: 0, prestigePity: 0, mine: true, ...over,
+  });
+  const UP = [true, true, true, true, true];
+
+  it("a bought word that arrives hungry is told to feed too: staking alone wouldn’t put it in the running", () => {
+    // The hunger clock keeps running while a word is unstaked and for sale (Staking.stake).
+    expect(stakeStep(word({ daysUnfed: 5 }), false, true)).toEqual({ line: "It arrives hungry: stake it and feed it to enter it in the daily jackpot.", offer: true });
+    expect(stakeStep(word({ daysUnfed: 5, upper: UP }), false, true).line).toBe("It arrives hungry: stake it and feed it to enter it in the daily jackpot and start earning $WORD.");
+    expect(stakeStep(word({ daysUnfed: 5, upper: UP }), true, true).line).toMatch(/^It arrives hungry: stake it and feed it to start earning \$WORD\./);
+    // fed, or only peckish (still in the running): the plain line
+    expect(stakeStep(word({ daysUnfed: 1 }), false, true).line).toBe("Stake it to enter it in the daily jackpot.");
+  });
+
+  it("a claimed word’s first stake starts fed, so a claim never says hungry", () => {
+    expect(stakeStep(word({ daysUnfed: 5 }), false).line).toBe("Stake it to enter it in the daily jackpot.");
+  });
+
+  it("a staked word is never offered the stake again (it would unstake it)", () => {
+    expect(stakeStep(word({ staked: true }), false).offer).toBe(false);
+    expect(stakeStep(word({ staked: true, upper: UP }), true)).toEqual({ line: "It’s staked and earning $WORD.", offer: false });
   });
 });
 

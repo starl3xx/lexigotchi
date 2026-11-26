@@ -1069,9 +1069,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
             needWord(ask.unitPrice * count, "these letters");
             return false;
           }
-          // The reducer takes what the listing still has, so celebrate that many.
-          const take = Math.min(Math.floor(count), ask.available);
-          if (take < 1) return false;
+          // The reducer takes what the listing has NOW (the tapped row may be older), and refuses
+          // a listing that is gone or the player's own: celebrate what it will hand over, or nothing.
+          const live = state.market?.asks.find((x) => x.orderHash === ask.orderHash);
+          const take = live && live.maker !== PRACTICE_ME ? Math.min(Math.floor(count), live.available) : 0;
+          if (take < 1 || state.balance < ask.unitPrice * take) return false;
           dispatch({ t: "marketBuyLetters", orderHash: ask.orderHash, count, at: Date.now() });
           const ch = ALPHABET[ask.letterId % 26];
           dispatch({

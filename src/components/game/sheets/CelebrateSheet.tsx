@@ -14,7 +14,7 @@ import { useWordScene } from "../../scenes/useWordScene";
 import { TileWord, type Gild } from "../TileCharacter";
 import { Button, Sheet } from "../primitives";
 import { Eye, Ticket } from "../ui/icons";
-import { useGame, type OwnedWord } from "../state";
+import { hunger, useGame, type OwnedWord } from "../state";
 import { useWorld } from "../useWorld";
 import { useCostToMake } from "../WordValue";
 import { Versus, useAmount } from "../market/bits";
@@ -29,18 +29,26 @@ export function CelebrateSheet({ word, bought }: { word: string; bought?: { pric
 /**
  * What staking does for this word, as far as it's true. The jackpot's locked order never repeats a
  * word (WordValue says the same on a listing), so a word it already drew isn't promised the jackpot;
- * and only a word with every letter UPPERCASE earns.
+ * only a word with every letter UPPERCASE earns; and a BOUGHT word can arrive hungry, because the
+ * hunger clock keeps running while a word is unstaked and for sale (Staking.stake starts only a
+ * word's first stake fed), so staking alone wouldn't put it in the running. Pure, so it's tested.
  */
-function useStakeStep(w: OwnedWord): { line: string; offer: boolean } {
-  const drawn = useWorld().data?.drawn?.[w.word] !== undefined;
+export function stakeStep(w: OwnedWord, drawn: boolean, bought = false): { line: string; offer: boolean } {
   const allUpper = w.upper.every(Boolean);
   if (w.staked) {
     if (drawn) return { line: allUpper ? "It’s staked and earning $WORD." : "It’s staked.", offer: false };
     return { line: `It’s staked and in the daily jackpot${allUpper ? ", earning $WORD" : ""}.`, offer: false };
   }
-  if (!drawn) return { line: `Stake it to enter it in the daily jackpot${allUpper ? " and start earning $WORD" : ""}.`, offer: true };
-  if (allUpper) return { line: "Stake it to start earning $WORD. The jackpot already drew it, so it won’t be drawn again.", offer: true };
+  const hungry = bought && hunger(w) === "hungry";
+  const stake = hungry ? "It arrives hungry: stake it and feed it" : "Stake it";
+  if (!drawn) return { line: `${stake} to enter it in the daily jackpot${allUpper ? " and start earning $WORD" : ""}.`, offer: true };
+  if (allUpper) return { line: `${stake} to start earning $WORD. The jackpot already drew it, so it won’t be drawn again.`, offer: true };
   return { line: "The jackpot already drew it, so it won’t be drawn again. It earns $WORD once every letter is UPPERCASE and it’s staked.", offer: false };
+}
+
+function useStakeStep(w: OwnedWord, bought = false) {
+  const drawn = useWorld().data?.drawn?.[w.word] !== undefined;
+  return stakeStep(w, drawn, bought);
 }
 
 function StakeButton({ w, className = "" }: { w: OwnedWord; className?: string }) {
@@ -94,7 +102,7 @@ function BoughtWord({ w, price }: { w: OwnedWord; price: number }) {
   const amount = useAmount();
   const { scene } = useWordScene(w.word);
   const cost = useCostToMake(w);
-  const step = useStakeStep(w);
+  const step = useStakeStep(w, true);
   const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild;
   const seeCard = () => g.openSheet({ kind: "word", word: w.word });
   return (

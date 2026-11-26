@@ -1777,7 +1777,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               heldNow(),
             ]);
             if (!(await run(`Buy ${take} × ${name}`, () => buyLettersCalls(row.order, row.signature, take, allowance), { settles: true }))) return false;
-            const seen = await readUntil(heldNow, (held) => held > before);
+            let held = before;
+            const seen = await readUntil(async () => (held = await heldNow()), (now) => now > before);
             void market.refresh(true);
             if (!seen) {
               toast(`Sent. Your ${name} will show in your bag once the chain confirms it.`, "info");
@@ -1787,10 +1788,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             // The bag first, then the sheet: it says what these letters now spell, from the bag
             // (sheets/BoughtLettersSheet). A refresh that fails still celebrates what the chain showed.
             await chain.refresh().catch(() => {});
+            // What ARRIVED, never what was asked for: Seaport trims a fill when another buyer took
+            // part of the listing first, and the wallet then gets (and pays for) fewer.
+            const got = Math.min(take, Number(held - before));
             dispatch({
               t: "arrive",
-              sheet: { kind: "boughtLetters", letterId: ask.letterId, count: take, unitPrice: ask.unitPrice },
-              text: `${take} × ${name} in your bag`,
+              sheet: { kind: "boughtLetters", letterId: ask.letterId, count: got, unitPrice: ask.unitPrice },
+              text: `${got} × ${name} in your bag`,
             });
             return true;
           }, false);
