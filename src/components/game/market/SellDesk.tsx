@@ -20,7 +20,7 @@ import { fmtWord, idxToChar, mineLower, mineUpper, useGame } from "../state";
 import { shortAddress } from "../useWorld";
 import { byBest } from "../stagePick";
 import { SellWord } from "./SellWord";
-import { Part, PriceIdeas, PriceInput, Qty, Versus, priceOf, priceText, useAmount } from "./bits";
+import { Part, PriceHint, PriceIdeas, PriceInput, Qty, Versus, priceOf, priceText, useAmount } from "./bits";
 
 const LETTER_FEE = DEFAULT_PARAMS.market.letterSaleFee;
 
@@ -232,6 +232,7 @@ function SellLetters({ letterId, onDone }: { letterId: number; onDone: () => voi
           {current ? "Set it" : `List ${count} × ${name}`}
         </Button>
       </div>
+      <PriceHint text={text} />
       {price > 0 && (
         <p className="mt-2 flex flex-wrap gap-x-2 text-xs">
           {lowest !== undefined && <Versus price={price} reference={lowest} what={`the lowest ${name} for sale`} />}

@@ -18,7 +18,7 @@ import { Button } from "../primitives";
 import { Coins } from "../ui/icons";
 import { fmtWord, useGame, type OwnedWord } from "../state";
 import { WordValue, useCostToMake } from "../WordValue";
-import { PriceIdeas, PriceInput, priceOf, priceText, useAmount } from "./bits";
+import { PriceHint, PriceIdeas, PriceInput, priceOf, priceText, useAmount } from "./bits";
 
 /** The Market's fee on a word (params `market.wordSaleFee`, 10%), the same number the order builder uses. */
 const SALE_FEE = DEFAULT_PARAMS.market.wordSaleFee;
@@ -103,6 +103,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
           {listing ? "Set it" : "List it"}
         </Button>
       </div>
+      <PriceHint text={text} />
       <p className="mt-2 text-xs text-ink/60">
         {price > 0
           ? `The buyer pays ${amount(price)}. You get ${fmtWord(price - fee)} $WORD, and ${fmtWord(fee)} goes to the Rewards Pool.`

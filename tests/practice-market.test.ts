@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { reducer, seedState } from "@/components/game/state";
-import { PRACTICE_ME, practiceLetterBook, practiceMyLetters, practiceStats } from "@/components/game/market/practiceMarket";
+import { PRACTICE_ME, practiceLetterBook, practiceMyLetters, practiceStats, practiceWords } from "@/components/game/market/practiceMarket";
 
 const AT = 1_795_000_000_000;
 const E = 4;
@@ -84,6 +84,17 @@ describe("the practice Market", () => {
     // The player can't buy their own listing.
     expect(reducer(listed, { t: "marketBuyWord", orderHash: mine.orderHash, at: AT })).toBe(listed);
     expect(reducer(listed, { t: "marketCancel", orderHash: mine.orderHash }).market!.words.some((l) => l.maker === PRACTICE_ME)).toBe(false);
+  });
+
+  it("a listed word that is dissolved or staked is no longer for sale", () => {
+    const s = seedState();
+    const loose = s.words.find((w) => !w.staked)!;
+    const listed = reducer(s, { t: "marketListWord", word: loose.word, price: 5_000_000, at: AT });
+    expect(practiceWords(listed).some((l) => l.maker === PRACTICE_ME)).toBe(true);
+    expect(practiceWords(reducer(listed, { t: "dissolve", word: loose.word })).some((l) => l.maker === PRACTICE_ME)).toBe(false);
+    expect(practiceWords(reducer(listed, { t: "stake", word: loose.word })).some((l) => l.maker === PRACTICE_ME)).toBe(false);
+    // Other players' words are untouched.
+    expect(practiceWords(reducer(listed, { t: "dissolve", word: loose.word })).length).toBe(s.market!.words.length);
   });
 
   it("sums sales up the way the sales route does", () => {

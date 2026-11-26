@@ -196,3 +196,22 @@ describe("picks for this player", () => {
     expect(lower.kind === "word" && lower.earns).toBeNull();
   });
 });
+
+describe("a typed price", () => {
+  it("reads whole numbers, with commas or spaces", async () => {
+    const { priceOf, priceUnclear } = await import("@/components/game/market/bits");
+    expect(priceOf("250000")).toBe(250_000);
+    expect(priceOf("2,000,000")).toBe(2_000_000);
+    expect(priceOf(" 2 000 000 ")).toBe(2_000_000);
+    expect(priceUnclear("2,000,000")).toBe(false);
+    expect(priceUnclear("")).toBe(false);
+  });
+
+  it("never turns a decimal, or anything else, into a bigger price", async () => {
+    const { priceOf, priceUnclear } = await import("@/components/game/market/bits");
+    for (const typed of ["1000.00", "10.50", "1.000.000", "5m", "-5", "1e6", ",", "abc"]) {
+      expect(priceOf(typed)).toBe(0);
+      expect(priceUnclear(typed)).toBe(true);
+    }
+  });
+});

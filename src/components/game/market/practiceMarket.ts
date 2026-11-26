@@ -160,6 +160,14 @@ export function practiceMarketStep(s: GameState, a: MarketAction): GameState {
   }
 }
 
+/**
+ * The words for sale. The player's own listing shows only while the word is still in the bag and
+ * unstaked: dissolving or staking it ends the listing, as it does onchain (Bugbot on #219).
+ */
+export function practiceWords(s: GameState): WordListing[] {
+  return (s.market?.words ?? []).filter((l) => l.maker !== PRACTICE_ME || s.words.some((w) => w.word === l.word && !w.staked));
+}
+
 /** The player's own listings can only offer what the bag still holds (they may have spelled the letters since). */
 function live(s: GameState, a: PracticeAsk): PracticeAsk {
   return a.maker === PRACTICE_ME ? { ...a, available: Math.min(a.available, heldOf(s, a.letterId)) } : a;

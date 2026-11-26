@@ -93,8 +93,31 @@ export function PriceInput({ id, value, onChange, placeholder }: { id: string; v
     />
   );
 }
-export const priceOf = (text: string) => Number(text.replace(/[^0-9]/g, ""));
+/**
+ * The price a player typed: digits, with commas or spaces between the thousands. Anything else is no
+ * price at all (0). It used to drop every non-digit, so "1000.00" listed at 100,000 and "10.50" at
+ * 1,050: a hundred times what the player meant, under a field that still showed what they typed
+ * (Bugbot on #219).
+ */
+export function priceOf(text: string): number {
+  const t = text.trim();
+  if (!/^\d[\d,\s]*$/.test(t)) return 0;
+  const n = Number(t.replace(/[,\s]/g, ""));
+  return Number.isSafeInteger(n) ? n : 0;
+}
+/** Something is typed, and it isn't a whole number: the form says so instead of guessing. */
+export const priceUnclear = (text: string) => text.trim() !== "" && priceOf(text) === 0;
 export const priceText = (n: number) => n.toLocaleString("en-US");
+
+/** Shown under a price field while what's typed isn't a whole number. */
+export function PriceHint({ text }: { text: string }) {
+  if (!priceUnclear(text)) return null;
+  return (
+    <p role="alert" className="mt-1 text-xs font-bold text-candy-ink">
+      Type a whole number of $WORD, such as 250,000. No decimals.
+    </p>
+  );
+}
 
 /** A part of a Market page: a heading on a ruled line, never a box. */
 export function Part({ title, aside, children, className = "" }: { title: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {

@@ -703,7 +703,7 @@ import type { GameParams } from "@/lib/onchain/reads";
 import type { PublicFace } from "@/lib/profile/rules";
 import type { LetterAsk, LetterBook, LetterSaleStat, MarketSale, MyLetterListing, TierSaleStat } from "@/lib/market/types";
 import {
-  PRACTICE_FACES, PRACTICE_ME, practiceLetterBook, practiceMarketStep, practiceMyLetters, practiceStats, seedPracticeMarket,
+  PRACTICE_FACES, PRACTICE_ME, practiceLetterBook, practiceMarketStep, practiceMyLetters, practiceStats, practiceWords, seedPracticeMarket,
   type MarketAction, type PracticeMarket,
 } from "./market/practiceMarket";
 import { addPracticeDay, practiceEarnings, practicePayout, type PlayerEarnings, type PracticeEarned } from "./earnings";
@@ -1021,7 +1021,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       claimables: [],
       claimEarnings: () => {},
       // The practice Market: a seeded stall (market/practiceMarket.ts). Buying moves practice $WORD.
-      wordBoard: state.market?.words ?? [],
+      wordBoard: practiceWords(state),
       listWord: async (word, price) => {
         const w = state.words.find((x) => x.word === word);
         if (!w || w.staked || !(price > 0)) return false;
@@ -1070,7 +1070,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return false;
       },
       buyWord: (orderHash) => {
-        const l = state.market?.words.find((x) => x.orderHash === orderHash);
+        const l = practiceWords(state).find((x) => x.orderHash === orderHash);
         if (!l) return;
         if (state.balance < l.price) return needWord(l.price, l.word);
         dispatch({ t: "marketBuyWord", orderHash, at: Date.now() });
