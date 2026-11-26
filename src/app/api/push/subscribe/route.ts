@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { afterResponse } from "@/lib/afterResponse";
 import { getAuthedFid } from "@/lib/auth/quickAuth";
 import { clientIp } from "@/lib/auth/clientIp";
 import { allow } from "@/lib/ratelimit";
 import { isCampaignConfigured } from "@/lib/db/client";
+import type { ConfirmOutcome } from "@/lib/notify/confirmPush";
 import { saveWebPushSubscription } from "@/lib/db/webPush";
 import { parseSubscriptionBody } from "@/lib/notify/webPushSubscription";
 
@@ -33,33 +33,35 @@ export const runtime = "nodejs";
  */
 /**
  * One push to a browser that just opted in: "Reminders are on" (templates `remindersOn`). It proves
- * the whole path to the player, and to us: no reminder can be sent outside production, so this is
- * the first real push anyone sees on the day the channel is switched on.
+ * the whole path to the player, and to us, and **the answer waits for it**: "on" has to mean a
+ * reminder can arrive. The owner's first opt-in (Brave, 2026-11-26) was stored and answered 200,
+ * then Google's push service answered 410 to the confirmation, twice, four seconds apart; the row
+ * was dropped and his screen went on saying "Reminders are on". The same day a real Firefox
+ * subscription got this push from production, so the sender works: a refusal is the browser's
+ * push service speaking, and the player has to hear it.
  *
- * Only for a browser's FIRST subscribe, only to that browser, and after the answer. A first "gone"
- * from the push service is tried once more before the row is dropped (lib/notify/confirmPush.ts). The sender is
- * imported here, inside a catch: it throws at import when armed without its keys, and subscribing
- * must still work then. While sends are muted the sender declines, and nothing is said.
+ * Only for a browser's FIRST subscribe, and only to that browser. A first "gone" is tried once more
+ * before the row is dropped (lib/notify/confirmPush.ts). The sender is imported here, inside a
+ * catch: it throws at import when armed without its keys, and subscribing must still work then
+ * ("unsent"). While sends are muted the sender declines, and nothing is said.
  */
-function confirm(sub: { endpoint: string; p256dh: string; auth: string }): void {
-  afterResponse(async () => {
-    try {
-      const [{ sendWebPush }, { remindersOn }, { confirmSubscription }] = await Promise.all([
-        import("@/lib/notify/webPush"),
-        import("@/lib/notify/templates"),
-        import("@/lib/notify/confirmPush"),
-      ]);
-      const to = [{ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }];
-      // One "gone" answer must not drop a row made a second ago: confirmSubscription tries twice.
-      await confirmSubscription({
-        send: ({ prune }) => sendWebPush(to, remindersOn(), prune ? {} : { onGone: async () => {} }),
-        wait: (ms) => new Promise((done) => setTimeout(done, ms)),
-        log: (line) => console.warn(`[push/subscribe] ${line}`),
-      });
-    } catch (err) {
-      console.error("[push/subscribe] confirmation not sent:", String((err as Error)?.message ?? err).slice(0, 160));
-    }
-  });
+async function confirmNow(sub: { endpoint: string; p256dh: string; auth: string }): Promise<ConfirmOutcome | "unsent"> {
+  try {
+    const [{ sendWebPush }, { remindersOn }, { confirmSubscription }] = await Promise.all([
+      import("@/lib/notify/webPush"),
+      import("@/lib/notify/templates"),
+      import("@/lib/notify/confirmPush"),
+    ]);
+    const to = [{ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }];
+    return await confirmSubscription({
+      send: ({ prune }) => sendWebPush(to, remindersOn(), prune ? {} : { onGone: async () => {} }),
+      wait: (ms) => new Promise((done) => setTimeout(done, ms)),
+      log: (line) => console.warn(`[push/subscribe] ${line}`),
+    });
+  } catch (err) {
+    console.error("[push/subscribe] confirmation not sent:", String((err as Error)?.message ?? err).slice(0, 160));
+    return "unsent";
+  }
 }
 
 export async function POST(req: Request) {
@@ -85,7 +87,11 @@ export async function POST(req: Request) {
   try {
     const saved = await saveWebPushSubscription(parsed.sub, await getAuthedFid(req));
     if (saved === "full") return NextResponse.json({ ok: false, error: "too_many_browsers" }, { status: 409 });
-    if (saved === "new") confirm(parsed.sub);
+    // The push service refused the test reminder twice: the row is gone, so "on" would be untrue.
+    // 502: the refusal is the push service's, not ours and not the request's.
+    if (saved === "new" && (await confirmNow(parsed.sub)) === "gone") {
+      return NextResponse.json({ ok: false, error: "push_refused" }, { status: 502 });
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[push/subscribe] error:", err);

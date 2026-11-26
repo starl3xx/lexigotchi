@@ -176,13 +176,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the browser's own `pushManager.subscribe`, before any request to us, behind a generic "try
   again". Headless Chrome can't reproduce it (it refuses every push subscription); the request log
   (`npx vercel logs requests`) shows whether a POST to `/api/push/subscribe` ever arrived.
-  **No real push had been seen as of 2026-11-26:** the owner's first opt-in (Brave, after turning
-  on "Use Google services for push messaging") was stored, answered 200, and was gone from
-  `web_push_subscriptions` half a minute later, while his screen said "Reminders are on": the
-  confirmation push must have come back 404/410, which was unlogged. So the sender now logs the
-  status and the HOST of every push that didn't go out (never the endpoint), and the confirmation
-  (`lib/notify/confirmPush.ts`) drops a new row only after a second "gone". A browser the server
-  dropped still says "on": nothing reconciles the two yet, and that fix waits for the status. The VAPID pair's only copy outside Vercel is the gitignored
+  **Proven end to end on 2026-11-26:** a real Firefox subscription on the live origin, stored
+  through the live route under a made-up wallet, got production's "Reminders are on" and the live
+  service worker showed it (headless Firefox with `dom.push.connection.enabled` and
+  `dom.push.serverURL` set does real pushes; headless Chrome does none). The same day the owner's
+  Brave failed twice over: `pushManager.subscribe` threw "push service error" until he turned on
+  "Use Google services for push messaging", and then Google's push service answered **410** to the
+  confirmation, twice, four seconds apart, for a subscription Brave had just made. So: the sender
+  logs the status and the HOST of every push that didn't go out (never the endpoint); the
+  confirmation (`lib/notify/confirmPush.ts`) drops a new row only after a second "gone"; and **the
+  subscribe route WAITS for the confirmation** and answers 502 `push_refused` when it is refused,
+  so "Reminders are on" means a reminder reached that browser. A browser whose row a LATER send
+  drops still says "on" until its own subscription ends: nothing reconciles that yet. The VAPID pair's only copy outside Vercel is the gitignored
   `.env.vapid.local` in the owner's checkout: never make a new pair, which orphans every subscribed
   browser.
   **Profile** (`sheets/ProfileSheet.tsx`, opened by the header picture; the balance pill keeps
