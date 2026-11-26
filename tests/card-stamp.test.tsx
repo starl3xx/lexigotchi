@@ -5,9 +5,10 @@
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, renderHook } from "@testing-library/react";
-import { LEDGER_LEFT, STAMP_FACE, inkRgb, oneInk, stampBox, stampRingSvg } from "@/components/cards/stamp";
+import { LEDGER_LEFT, NUMBERED_HEADER, STAMP_FACE, inkRgb, numberedFrom, oneInk, stampBox, stampRingSvg } from "@/components/cards/stamp";
+import { LoopCancelled, loadImage } from "@/components/cards/loop/loadImage";
 
 const me = vi.hoisted(() => ({ pfpUrl: "https://pics.example/me.png" as string | null }));
 vi.mock("@/components/game/useViewer", () => ({ useViewer: () => ({ isAuthed: true, username: "marlowe", pfpUrl: me.pfpUrl, environment: "web" }) }));
@@ -115,5 +116,69 @@ describe("the stamp on a back", () => {
       expect(rule(`.cb-stamp-${place}`), place).toMatch(/width: [\d.]+cqw/);
       expect(rule(`.cb-stamp-${place}`), place).toContain("rotate(-8deg)");
     }
+  });
+});
+
+describe("the stamp in the share video", () => {
+  const source = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+
+  it("is placed by what the back's picture says of itself, never by what the game knows", () => {
+    expect(numberedFrom(new Headers({ [NUMBERED_HEADER]: "1" }))).toBe(true);
+    expect(numberedFrom(new Headers({ [NUMBERED_HEADER]: "0" }))).toBe(false);
+    // a picture that doesn't say (one kept from before the header) gets no stamp: null, not a guess
+    expect(numberedFrom(new Headers())).toBeNull();
+    expect(numberedFrom(new Headers({ [NUMBERED_HEADER]: "yes" }))).toBeNull();
+    const maker = source("src/components/cards/loop/makeLoop.ts");
+    expect(maker).toContain("const numbered = numberedFrom(res.headers);");
+    expect(maker).toContain("stamp && numbered !== null ? await stampedBack(backImg, stamp, await stampFace, numbered) : backImg");
+    expect(maker).toContain("const box = stampBox(numbered);");
+    // the game hands the video no opinion about the number
+    expect(maker).not.toMatch(/numbered:\s*boolean;\s*\n\}/);
+    expect(source("src/components/cards/ShareVideo.tsx")).not.toMatch(/numbered|useCardNumber/);
+    // and the picture's route says it, from the very digits it draws
+    expect(source("src/app/s/[text]/back/route.tsx")).toContain('[NUMBERED_HEADER]: digits ? "1" : "0"');
+  });
+
+  it("the holder's picture has a limit of its own and is asked for beside the card's faces, not after them", () => {
+    const maker = source("src/components/cards/loop/makeLoop.ts");
+    expect(maker).toContain("loadImage(stamp.src, { open: true, signal, ms: STAMP_WAIT_MS }).catch(() => null)");
+    expect(maker.indexOf("const stampFace =")).toBeLessThan(maker.indexOf("loadBack(back, signal)"));
+    expect(maker).toMatch(/const STAMP_WAIT_MS = \d{4};/);
+  });
+});
+
+describe("a picture loaded for the video", () => {
+  // jsdom never loads a picture: every load here is one that never answers
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("gives up after its limit, and stops asking", async () => {
+    const seen: HTMLImageElement[] = [];
+    const Real = window.Image;
+    vi.stubGlobal("Image", function (this: HTMLImageElement) {
+      const img = new Real();
+      seen.push(img);
+      return img;
+    } as unknown as typeof Image);
+    const load = loadImage("https://slow.example/me.png", { open: true, ms: 4000 });
+    const failed = expect(load).rejects.toThrow(/took too long/);
+    await vi.advanceTimersByTimeAsync(3999);
+    expect(seen[0].getAttribute("src")).toBe("https://slow.example/me.png");
+    expect(seen[0].crossOrigin).toBe("anonymous");
+    await vi.advanceTimersByTimeAsync(2);
+    await failed;
+    expect(seen[0].getAttribute("src")).toBe("");
+    vi.unstubAllGlobals();
+  });
+
+  it("stops the moment the video is called off, and never starts for one already called off", async () => {
+    const off = new AbortController();
+    const load = loadImage("https://slow.example/me.png", { signal: off.signal, ms: 60_000 });
+    const failed = expect(load).rejects.toBeInstanceOf(LoopCancelled);
+    off.abort();
+    await failed;
+    await expect(loadImage("https://slow.example/me.png", { signal: off.signal })).rejects.toBeInstanceOf(LoopCancelled);
+    // nothing is left waiting
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

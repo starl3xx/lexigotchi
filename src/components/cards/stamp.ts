@@ -35,6 +35,19 @@ export function stampRingSvg(ink: string): string {
 export function stampBox(numbered: boolean): { cx: number; cy: number; size: number } {
   return numbered ? { cx: 0.4008, cy: 0.196, size: 0.102 } : { cx: 0.133, cy: 0.075, size: 0.086 };
 }
+/**
+ * The back's picture says in a header whether it drew the card's number, and the share video places
+ * the stamp by THAT, never by what the game knows: the picture reads the number itself (the chain,
+ * with a wait, kept for minutes; none where there is no chain), so the game and the picture can
+ * differ, and a stamp placed by the game's answer sat beside a number that wasn't there, or in the
+ * corner of a numbered back (Bugbot on #257).
+ */
+export const NUMBERED_HEADER = "x-card-numbered";
+/** What the header says: true, false, or null for a picture that doesn't say (one kept from before the header: no stamp is drawn on it). */
+export function numberedFrom(headers: { get(name: string): string | null }): boolean | null {
+  const v = headers.get(NUMBERED_HEADER);
+  return v === "1" ? true : v === "0" ? false : null;
+}
 /** The left edge of the picture's ledger, as a share of the width: the stamp must stay left of it. */
 export const LEDGER_LEFT = 0.499;
 

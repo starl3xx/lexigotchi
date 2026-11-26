@@ -15,7 +15,8 @@ import type { CardMaterial } from "../material";
 import { releaseLive } from "../live/liveSurface";
 import { LOOP_SECONDS, attachLoop } from "./loopRenderer";
 import { svgDataUri } from "@/lib/cardArt/engrave";
-import { STAMP_FACE, STAMP_TURN, inkRgb, oneInk, stampBox, stampRingSvg } from "../stamp";
+import { STAMP_FACE, STAMP_TURN, inkRgb, numberedFrom, oneInk, stampBox, stampRingSvg } from "../stamp";
+import { LoopCancelled, loadImage } from "./loadImage";
 import { VIDEO } from "../live/support";
 
 // The frame, rate, and H.264 profiles (the plainest first: every browser that encodes H.264 takes
@@ -38,15 +39,24 @@ async function pickCodec(): Promise<string | null> {
   return null;
 }
 
-/** An image from this site (same origin, or WebGL refuses it as a texture); `open`: one from another site, asked for in a way that lets a canvas keep its pixels (the site must allow it, or it doesn't load). */
-function loadImage(src: string, open = false): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    if (open) img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`could not load ${src}`));
-    img.src = src;
-  });
+/** How long the holder's picture may take before the video is made without the stamp. */
+const STAMP_WAIT_MS = 4000;
+
+/**
+ * The back's picture, and what it says of itself: whether the card's number is on it (../stamp,
+ * NUMBERED_HEADER). Fetched, not set as an image's address, because only a fetch can read the
+ * header; the picture is then made from the bytes that came with it.
+ */
+async function loadBack(src: string, signal?: AbortSignal): Promise<{ img: HTMLImageElement; numbered: boolean | null }> {
+  const res = await fetch(src, { signal });
+  if (!res.ok) throw new Error(`could not load ${src}`);
+  const numbered = numberedFrom(res.headers);
+  const url = URL.createObjectURL(await res.blob());
+  try {
+    return { img: await loadImage(url, { signal }), numbered };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /**
@@ -63,25 +73,27 @@ function drawMark(g: CanvasRenderingContext2D) {
   g.restore();
 }
 
-/** The holder's stamp for the video's back: their picture, the back's ink, and whether the card has a number to sit beside. */
+/** The holder's stamp for the video's back: their picture and the back's ink. Where it sits is the back's picture's to say (loadBack). */
 export interface LoopStamp {
   src: string;
   ink: string;
-  numbered: boolean;
 }
 
 /**
  * The back's picture with the holder's stamp drawn on it (../stamp: one ink, an engraved ring,
- * turned a little), as the game's back shows it. The picture comes from another site (Farcaster's
- * or X's), so it is asked for openly: if that site doesn't allow its pixels to be read, the picture
- * doesn't load and the back is used as it is. Nothing here can stop a video from being made.
+ * turned a little), as the game's back shows it. `face` is the holder's picture, already loaded
+ * (or null: it didn't come). It is from another site (Farcaster's or X's), asked for openly: if
+ * that site doesn't allow its pixels to be read, it doesn't load, or reading it here throws, and
+ * the back is used as it is. `numbered` is what the back's picture said of itself. Nothing here
+ * can stop a video from being made, or hold it up: the only wait is the ring, which is the page's own.
  */
-async function stampedBack(back: HTMLImageElement, stamp: LoopStamp): Promise<TexImageSource> {
+async function stampedBack(back: HTMLImageElement, stamp: LoopStamp, face: HTMLImageElement | null, numbered: boolean): Promise<TexImageSource> {
+  if (!face) return back;
   try {
-    const [face, ring] = await Promise.all([loadImage(stamp.src, true), loadImage(svgDataUri(stampRingSvg(stamp.ink)))]);
+    const ring = await loadImage(svgDataUri(stampRingSvg(stamp.ink)), { ms: STAMP_WAIT_MS });
     const W = back.naturalWidth || 1200;
     const H = back.naturalHeight || 675;
-    const box = stampBox(stamp.numbered);
+    const box = stampBox(numbered);
     const size = box.size * W;
     const d = Math.round(size * STAMP_FACE);
     // the picture, cut square from its middle, in one ink
@@ -125,7 +137,7 @@ async function stampedBack(back: HTMLImageElement, stamp: LoopStamp): Promise<Te
   }
 }
 
-export class LoopCancelled extends Error {}
+export { LoopCancelled };
 
 /**
  * The video for one word: `front` and `back` are the same-origin paths of its share card and its
@@ -149,13 +161,19 @@ export async function makeLoop({
 }): Promise<Blob> {
   const codec = await pickCodec();
   if (!codec) throw new Error("no H.264 encoder");
-  const [frontImg, backImg] = await Promise.all([loadImage(front), loadImage(back), document.fonts.load('800 30px "Soehne"').catch(() => [])]);
+  // The holder's picture is asked for beside the card's two faces, with a limit of its own: it is
+  // from another site, and a slow or silent one must not hold the video up. Late or refused: no stamp.
+  const stampFace = stamp ? loadImage(stamp.src, { open: true, signal, ms: STAMP_WAIT_MS }).catch(() => null) : Promise.resolve(null);
+  const [frontImg, { img: backImg, numbered }] = await Promise.all([loadImage(front, { signal }), loadBack(back, signal), document.fonts.load('800 30px "Soehne"').catch(() => [])]).catch((err) => {
+    throw signal?.aborted ? new LoopCancelled() : err;
+  });
   if (signal?.aborted) throw new LoopCancelled();
 
   // the one WebGL context is the video's while it's made
   releaseLive();
   const glCanvas = document.createElement("canvas");
-  const backFace = stamp ? await stampedBack(backImg, stamp) : backImg;
+  // the stamp sits where the back's picture says its number is; a picture that doesn't say gets none
+  const backFace = stamp && numbered !== null ? await stampedBack(backImg, stamp, await stampFace, numbered) : backImg;
   if (signal?.aborted) throw new LoopCancelled();
   const loop = attachLoop(glCanvas, { front: frontImg, back: backFace, material, width: VIDEO_WIDTH, height: VIDEO_HEIGHT });
   // each frame: the turning card, then the name over it, on a plain canvas the encoder reads

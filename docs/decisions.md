@@ -1786,6 +1786,14 @@ setter. All small, riding existing suite patterns.
         picture.** The review page said the video would need a guarded server fetch; it doesn't:
         the picture is asked for openly from the player's browser, and a site that doesn't allow
         its pixels to be read gives no stamp in the video (the game's back still shows it).
+      - **The video's stamp sits where the back's PICTURE says its number is** (Bugbot on #257).
+        The picture reads the card's number itself (the chain, with a wait, kept for minutes; none
+        where there is no chain), so the game and the picture can differ. The picture says in a
+        header whether the number is on it (`x-card-numbered`), and the video reads that with the
+        picture's bytes. A picture that doesn't say gets no stamp.
+      - **The holder's picture can't hold a video up** (the same review). It is asked for beside the
+        card's two faces, for at most four seconds, and stops when the sheet closes
+        (`loop/loadImage`). Late, refused, or unreadable: the video is made without the stamp.
       - **Not built:** a "Held by" line on the video's back. The owner approved the back without it.
       - **Seen and not seen (part 6):** the stamp at every size on the review page, in the same
         styles. Not seen in the game with a real picture (the practice game has no linked account),

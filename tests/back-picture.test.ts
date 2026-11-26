@@ -165,12 +165,17 @@ describe("the back's picture", () => {
     // the only part of the query that went anywhere is the stage, and only as a reason to read again
     expect(chain.seen).toEqual(expect.arrayContaining(["level:GLYPH:2", "story:GLYPH"]));
     expect(chain.seen.join(" ")).not.toContain("nobody");
+    // it says of itself that the card's number is on it: the share video places the holder's stamp by this
+    expect(res.headers.get("x-card-numbered")).toBe("1");
     if (process.env.BACK_PNG_OUT) writeFileSync(process.env.BACK_PNG_OUT, png);
   }, 60_000);
 
   it("is still drawn where there is no chain, with the facts a word has anyway", async () => {
     chain.deployed = false;
-    expect((await get("CRAne")).status).toBe(200);
+    const plain = await get("CRAne");
+    expect(plain.status).toBe(200);
+    // no chain, no number on the picture, and it says so
+    expect(plain.headers.get("x-card-numbered")).toBe("0");
     expect((await get("zzzzz")).status).toBe(404);
   }, 60_000);
 });
