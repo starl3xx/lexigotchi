@@ -149,6 +149,15 @@ export function showcaseFacePath(text: string, scene?: SceneId, stage?: number |
 }
 
 /**
+ * The card's front WITHOUT its letters: the stage the share video's living letters stand on (the
+ * scene, the frame, the ribbon). The player's browser draws the letters over it, a frame at a time,
+ * so that they breathe and blink (components/cards/loop/liveFront; decisions.md #48, part 7).
+ */
+export function showcaseStagePath(text: string, scene?: SceneId, stage?: number | null): string {
+  return `/s/${text}/card${sceneQuery(scene, { face: "1", letters: "0", v: String(CARD_LOOK), ...stageQuery(stage) })}`;
+}
+
+/**
  * The back of the word's card, for the share loop's turning card (`/s/<word>/back`, same origin).
  * Its look is in its address too (CARD_LOOK): the picture is kept for minutes by browsers and the
  * edge, and a redrawn back must not be served from an old copy.

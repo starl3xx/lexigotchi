@@ -117,6 +117,8 @@ export function loopLight(t: number): [number, number] {
 export interface LoopRenderer {
   /** Draw the frame at time t (seconds). */
   render(t: number): void;
+  /** A new picture for the front: the video's living letters are drawn again for each frame (./liveFront). */
+  setFront(image: TexImageSource): void;
   /** Let the context go. */
   destroy(): void;
 }
@@ -180,6 +182,10 @@ export function attachLoop(
       program.uniforms.uGlare.value = p.glare;
       program.uniforms.uGlareX.value = p.glareX;
       renderer.render({ scene, camera });
+    },
+    setFront(image) {
+      tFront.image = image as HTMLImageElement;
+      tFront.needsUpdate = true;
     },
     destroy() {
       gl.getExtension("WEBGL_lose_context")?.loseContext();

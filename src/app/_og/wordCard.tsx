@@ -20,7 +20,9 @@ import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
  *
  * `cardW` is the card's width in pixels (it is always 16:9). `no` is its number as the ribbon
  * prints it, or null; the caller reads it from the chain or leaves it out. `gild` is the word's
- * ascension stage, which its letters wear; the caller reads that from the chain too. `bare` is the card's
+ * ascension stage, which its letters wear; the caller reads that from the chain too. `letters: false`
+ * leaves the letters out: the card as a stage, for the share video, whose letters are drawn by the
+ * player's browser so that they can breathe and blink (cards/loop/liveFront). `bare` is the card's
  * face alone, with no outline or shadow (the share loop turns it over). The ribbon's lettering is
  * the "Pagella" font: a picture that draws a card loads it (public/fonts/texgyrepagella-bold.otf).
  */
@@ -37,7 +39,7 @@ export function cardTier(tiles: readonly ShowcaseTile[]): Tier | undefined {
   return isWord(word) ? wordTier(word) : undefined;
 }
 
-export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = false }: { tiles: readonly ShowcaseTile[]; scene: SceneId; cardW: number; no?: string | null; gild?: number; bare?: boolean }): ReactElement {
+export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = false, letters = true }: { tiles: readonly ShowcaseTile[]; scene: SceneId; cardW: number; no?: string | null; gild?: number; bare?: boolean; letters?: boolean }): ReactElement {
   const k = cardW / CARD_W; // pixels per card unit
   const cardH = Math.round(CARD_H * k);
   const word = tiles.map((t) => t.char).join("");
@@ -82,7 +84,7 @@ export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = fals
     >
       <img src={image(cardArt(scene, tier ?? PLAIN))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
       <div style={{ position: "absolute", left: L.rowLeft, top: L.rowTop, display: "flex", alignItems: "flex-end" }}>
-        {tiles.map((t, i) => {
+        {(letters ? tiles : []).map((t, i) => {
           const f = footings[i];
           return (
             <div

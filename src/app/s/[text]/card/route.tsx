@@ -19,6 +19,8 @@ import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
  * - **The card lies on a dark table.** Default 1200×630, X's large-card shape (1.91:1).
  *   `?ratio=3x2` gives 1200×800 for the Farcaster embed, whose spec requires 3:2. The card itself
  *   is always 16:9, as in the game.
+ * - **`?face=1&letters=0` is that front without its letters:** the stage the share video's living
+ *   letters stand on (cards/loop/liveFront draws them in the player's browser).
  * - **`?face=1` is the card's front alone,** 1200×675, edge to edge with no table: the share loop
  *   turns it over (components/cards/loop), beside the back's picture.
  * - **The card is drawn by `_og/wordCard`,** which the earnings share's picture draws too.
@@ -81,7 +83,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   ]);
   const no = cardNo(number);
 
-  const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face });
+  // The front without its letters (`letters=0`, only with `face=1`): the share video draws them itself.
+  const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face, letters: !(face && url.searchParams.get("letters") === "0") });
 
   // A known number is for good, and so is a card with none to wait for: a day in browsers, a week
   // at the edge (CARD_LOOK in the address starts every cache again when the look changes). A word

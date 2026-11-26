@@ -1798,6 +1798,42 @@ setter. All small, riding existing suite patterns.
       - **Seen and not seen (part 6):** the stamp at every size on the review page, in the same
         styles. Not seen in the game with a real picture (the practice game has no linked account),
         and no video was made with one.
+    - **Part 7, the letters live in the video.** "The eyes and blinking and subtle movement is
+      *chef's kiss* BUT: this doesn't come across in the downloaded video, which I feel robs a
+      little bit of the 'life' of the cards... can you fix that?" Then: "yes", and "i like 'a
+      little deeper' for the videos".
+      - **Why it was still.** The video turned two pictures, the front and the back, each drawn
+        once by the server. A picture can't blink.
+      - **Now the front is put together again for every frame** (`cards/loop/liveFront`): the
+        server's picture of the card without its letters (`?face=1&letters=0`, the scene, the frame,
+        the ribbon), and over it the letters, drawn by the game's own rig. The rig draws each
+        letter once as one drawing (`flat`, held still); that drawing is cut into its layers by
+        name (`data-layer`: floor, rings, legs, body, top), each kept as a picture, the body once
+        for each thing its eyes can do. A frame only places pictures. So the video's letters are the
+        game's, not the server's copy of them: a gilded word wears its gilding, a rarity its
+        material.
+      - **The life is written, not random** (`cards/loop/score`). The game's runs off a timer and
+        a random number; a video must be the same on every device and must lead from its last frame
+        into its first. Every motion takes a time that divides the six seconds: a breath takes 3 s
+        (the game's 3.6 s doesn't fit). A letter blinks and the next one catches it; the last
+        letter glances along the word; the card turns; and as the front comes home the word blinks
+        along its length, a letter at a time. Nothing is scored for the time the front faces away.
+      - **The breath is deeper than the game's** (4.8 units for 3): the video is small and gets
+        compressed, and at its size the game's breath is under two pixels.
+      - **A video is always made.** If the living front can't be drawn (a piece doesn't load, a
+        browser can't read one back), the still picture of the front is used, as before.
+      - **Three things a picture of a drawing needs.** It can't see the page's fonts, so Söhne is
+        put inside each piece (and checked: a piece drawn with no font inside must come out
+        different, or every piece is drawn again a moment later). Every piece comes from this site
+        or the page, so the frames can be read back and encoded. And the rig is drawn into a
+        node that is never in the page, with the game's own React, not a server renderer.
+      - **Measured in the review's test** (headless, this Mac): 34 pieces drawn in 0.3 s (WebKit)
+        and 0.4 s (Chrome); encoding 1.0 s in Chrome either way, 2.0 s still and 2.7 s living in
+        WebKit; files about the same size. The step from the last frame to the first changes as
+        many pixels as the step from the first to the second.
+      - **Seen and not seen (part 7):** a real video made in the practice game in Chrome (VIVID,
+        Gilded 1: a letter mid-blink at 0.54 s, the gilding on its letters, no error, and the
+        still front never asked for). Not made in real Safari or on a phone.
 
 ## Pricing & launch economics (decided June 2026)
 
