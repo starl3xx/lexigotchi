@@ -52,7 +52,7 @@ describe("buildLeaderboards", () => {
     ],
     letters: { [A]: { lower: 3, upper: 0 }, [B]: { lower: 20, upper: 2 } },
     wins: { [B]: { count: 1, amount: 500 }, [A]: { count: 1, amount: 900 } },
-    yieldWeight: 0,
+    yieldWeight: 0, weights: {},
   };
   const boards = buildLeaderboards(snap);
 
@@ -92,7 +92,7 @@ describe("buildLeaderboards with linked wallets", () => {
     ],
     letters: { [B]: { lower: 3, upper: 2 }, [C]: { lower: 1, upper: 0 } },
     wins: { [B]: { count: 1, amount: 100 }, [A]: { count: 1, amount: 50 } },
-    yieldWeight: 0,
+    yieldWeight: 0, weights: {},
   };
 
   it("sums every wallet in an account into one row, named by the account", () => {

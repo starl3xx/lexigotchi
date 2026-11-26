@@ -7,7 +7,10 @@ import { cardLevelOf } from "@/lib/onchain/cardLevel";
 import { wordTier, type Tier } from "@/lib/economy";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
-import { ascensionLabel, cardDigits, caseLabel, tierCount, wordPoints } from "@/lib/cardFacts";
+import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
+import { backFoot, backLedger } from "@/lib/backPicture";
+import { readBackFacts } from "@/lib/backPictureFacts";
+import { SCROLL_PATH_CARD } from "@/components/cards/material";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { CARD_CORNER } from "@/lib/cardArt/looks";
@@ -26,11 +29,16 @@ import { playerFaces } from "@/lib/profile/faces";
  * paints the back's material under it (cards/live/materialGlsl), the same material the game's live
  * back draws, so the video and the game match.
  *
- * The video travels to strangers, so the back speaks of the word, never of "you": its rarity, its
- * case (from the link, like the share card's front), its points, and from the chain when the game
- * is live, its card number (its place in the order words were first made), its ascension, and who
- * first found it. Nothing comes from the query string. The facts can change (an ascension, a first finder's name), so it caches for minutes,
+ * The video travels to strangers, so the back speaks of the word, never of "you" (lib/backPicture
+ * says which of the game's lines it keeps, rewords, and leaves out; decisions.md #48, part 5): its
+ * rarity, its case (from the link, like the share card's front), its points, and from the chain
+ * when the game is live, its card number, its ascension and pips, the day it reached its holder,
+ * about what it earns a day and costs to make, who first found it, whether the jackpot drew it, and
+ * its token. Nothing comes from the query string. The facts can change, so it caches for minutes,
  * not the share card's week.
+ *
+ * Every read has a short wait, and a fact that doesn't arrive in time is left out: the picture is
+ * drawn with what is known, never held up and never guessed.
  */
 
 // Söhne TTFs: Satori (next/og) can't read the app's woff2. Labels are bold here: Satori has no
@@ -64,7 +72,8 @@ function mix(a: string, b: string, share: number): string {
 /** The seal, pressed in the material's line colour, as an address Satori's `<img>` takes. */
 const seal = (ink: string) => `data:image/svg+xml;base64,${Buffer.from(svgDoc(sealInk(ink), SEAL, SEAL)).toString("base64")}`;
 
-type ChainFacts = { number: number | null; finder: string | null };
+type ChainFacts = { number: number | null; finder: string | null; story: WordStory | null };
+
 
 // Kept per word, not per link: a word's 32 casings are one word's facts. A few minutes on a warm
 // instance, and one read for callers that arrive together.
@@ -89,7 +98,7 @@ function chainFactsOf(word: string): Promise<ChainFacts> {
 
 /** Card number, ascension, and first finder, from the chain, when the game is live; nothing otherwise. */
 async function chainFacts(word: string): Promise<ChainFacts> {
-  if (!isSuiteDeployed()) return { number: null, finder: null };
+  if (!isSuiteDeployed()) return { number: null, finder: null, story: null };
   const [number, story] = await Promise.all([cardNumberOf(word), readWordStory(word).catch(() => null)]);
   const first = story?.claims[0]?.owner ?? null;
   let finder: string | null = null;
@@ -98,7 +107,7 @@ async function chainFacts(word: string): Promise<ChainFacts> {
     const name = faces?.profiles[first]?.username;
     finder = name ? `@${name}` : `${first.slice(0, 6)}…${first.slice(-4)}`;
   }
-  return { number, finder };
+  return { number, finder, story };
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ text: string }> }) {
@@ -109,14 +118,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const look = LOOK[tier];
   // The stage has its own read (lib/onchain/cardLevel), which the stage this address names can ask
   // to be read again: a video made the moment after an ascension must not draw the stage before it.
-  const [{ number, finder }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
-
-  const stats: [string, string][] = [
-    ["Case", caseLabel(tiles.map((t) => t.upper))],
-    ...(level !== null ? ([["Ascension", ascensionLabel(level)]] as [string, string][]) : []),
-    ["Points", String(wordPoints(word))],
-    ...(finder ? ([["Found by", finder]] as [string, string][]) : []),
-  ];
+  const [{ number, finder, story }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
+  const live = isSuiteDeployed();
+  const more = live ? await readBackFacts(word, level, story) : { since: null, perDay: null, cost: null, drawn: null };
+  const facts = { word, upper: tiles.map((t) => t.upper), level, finder, ...more, token: live ? shortTokenId(word) : null };
+  const stats = backLedger(facts);
+  const foot = backFoot(facts);
 
   const digits = cardDigits(number);
   // The game's back at its full size (globals.css, `.cb`), in the same measures: a share of the
@@ -132,6 +139,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
           <rect x="13" y="13" width={W - 26} height={H - 26} rx={CARD_CORNER * W - 13} fill="none" stroke={look.line} strokeWidth="3.4" strokeDasharray="3.4 5" />
           <rect x="21.5" y="21.5" width={W - 43} height={H - 43} rx={CARD_CORNER * W - 21.5} fill="none" stroke={look.line} strokeWidth="3.6" />
         </svg>
+        {/* Legendary's engraved scrollwork, in each corner (the game's back draws it: CardBack, Scroll) */}
+        {tier === "Legendary" &&
+          ([
+            ["tl", {}],
+            ["tr", { transform: "scaleX(-1)" }],
+            ["bl", { transform: "scaleY(-1)" }],
+            ["br", { transform: "scale(-1, -1)" }],
+          ] as const).map(([k, flip]) => (
+            <svg key={k} width={6 * U} height={6 * U} viewBox="0 0 40 40" style={{ position: "absolute", ...(k[1] === "l" ? { left: 2.6 * U } : { right: 2.6 * U }), ...(k[0] === "t" ? { top: 2.6 * U } : { bottom: 2.6 * U }), ...flip }}>
+              <path d={SCROLL_PATH_CARD} fill="none" stroke="rgba(255, 244, 200, 0.55)" strokeWidth="2.4" strokeLinecap="round" transform="translate(1 1)" />
+              <path d={SCROLL_PATH_CARD} fill="none" stroke="#e9b949" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ))}
         {/* the game's seal, pressed into the material behind the facts */}
         <img src={seal(look.line)} width={42 * U} height={42 * U} style={{ position: "absolute", right: 4 * U, top: (H - 42 * U) / 2, opacity: 0.14 }} />
         <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", alignItems: "center", padding: `${6.5 * U}px ${5.5 * U}px ${5.5 * U}px`, gap: 4 * U }}>
@@ -200,6 +220,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
             ))}
           </div>
         </div>
+        {/* the line along the bottom, inside the frame: the jackpot, then the token */}
+        {foot.length > 0 && (
+          <div style={{ position: "absolute", left: 5.5 * U, right: 5.5 * U, bottom: 2.9 * U, display: "flex", justifyContent: "center", fontSize: 1.75 * U, lineHeight: 1.15, color: SUB }}>{foot.join("  ·  ")}</div>
+        )}
       </div>
     ),
     {

@@ -1734,6 +1734,26 @@ setter. All small, riding existing suite patterns.
         value, each rule that takes it, the wrappers, the pictures, and the shader.
       - **Seen and not seen (part 4):** the game measured and looked at in headless Chromium at
         1280 and 390 px. No real phone. The pictures and the video were not drawn again here.
+    - **Part 5, the video's back says what the card says.** "The downloaded video cards also
+      don't include all the info that's on the card on the screen... is that intentional?" Partly.
+      Then, of the back the review page proposed: "I like your proposed back."
+      - **What was left out on purpose** (a stranger watches the video, so the back never says
+        "you"): "Yours since" is now there as "Held since", the day the word reached its holder's
+        profile. "Earned so far" stays out: an amount a player earned is only ever shown from a
+        signed record (#38). "Staked" stays out: it changes by the day, and a posted video stays.
+      - **What was missing for no reason is there:** about what it earns a day, what it costs to
+        make, whether the jackpot drew it, its token, the stage's pips, and Legendary's corner
+        scrollwork (and the gilding, part 3). `lib/backPicture` words them; a fact that couldn't be
+        read is left out, never a dash: a picture can't be asked again.
+      - **All of it is the chain's** (`lib/backPictureFacts`): the word's story, the game's prices,
+        and the shared world. The world moved out of `/api/world` into `lib/worldSnapshot`, so the
+        route and the picture share one minute-old scan. How many letters are UPPERCASE is the
+        chain's count for the earning and cost lines, never the link's casing: a link can't make
+        a lowercase word look like an earner. Every read has a short wait, and nothing holds the
+        picture up.
+      - **Not changed:** the "Case" line still follows the link's casing, as the front does.
+      - **Seen and not seen (part 5):** the back drawn by the real route with stand-in chain
+        answers. Not seen against the test game's chain: check GLYPH's video after the merge.
 
 ## Pricing & launch economics (decided June 2026)
 
