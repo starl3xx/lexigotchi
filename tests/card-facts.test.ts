@@ -5,6 +5,8 @@
 import { describe, it, expect } from "vitest";
 import {
   ascensionLabel,
+  cardDigits,
+  cardNo,
   cardNumber,
   caseLabel,
   cardDate,
@@ -116,6 +118,14 @@ describe("the word's own facts", () => {
     expect(cardNumber(4584)).toBe("#4584");
     expect(cardNumber(null)).toBe("#–");
     expect(cardNumber(0)).toBe("#–");
+    // as the card letters it: "No. 0042" on the front's ribbon, the digits alone as the back's
+    // headline; and nothing at all while the number isn't known (never a dash that reads as a number)
+    expect(cardNo(42)).toBe("No. 0042");
+    expect(cardDigits(42)).toBe("0042");
+    for (const unknown of [null, undefined, 0]) {
+      expect(cardNo(unknown)).toBeNull();
+      expect(cardDigits(unknown)).toBeNull();
+    }
   });
 
   it("numbers words in the order they were first made, not A to Z or by rarity", () => {

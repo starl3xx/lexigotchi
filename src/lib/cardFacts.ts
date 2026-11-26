@@ -35,7 +35,12 @@ export function cardNumber(n: number | null | undefined): string {
  * it never shows a dash or a guess.
  */
 export function cardNo(n: number | null | undefined): string | null {
-  return n ? `No. ${cardNumber(n).slice(1)}` : null;
+  return n ? `No. ${cardDigits(n)}` : null;
+}
+
+/** The number's digits alone, "0001" (the back sets "No." small beside them), or null while unknown. */
+export function cardDigits(n: number | null | undefined): string | null {
+  return n ? cardNumber(n).slice(1) : null;
 }
 
 /** One `Claimed` event: the word, and where it sits in the chain. */
