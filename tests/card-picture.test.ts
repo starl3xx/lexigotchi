@@ -78,9 +78,12 @@ describe("a word's share picture", () => {
   it("asks the chain for the word's stage, by the word alone: nothing in the link can gild a card", async () => {
     chain.deployed = true;
     chain.numberOf.mockResolvedValue(20);
-    await get("CRAne", "?g=5&gild=5&level=5");
+    const res = await get("CRAne", "?g=5&gild=5&level=5");
     expect(chain.levelOf).toHaveBeenCalledTimes(1);
-    expect(chain.levelOf).toHaveBeenCalledWith("CRANE");
+    // the stage the address names goes along only as a reason to read the chain again (cardLevel)
+    expect(chain.levelOf).toHaveBeenCalledWith("CRANE", 5);
+    // what is drawn is the chain's stage (none here), so this address does not name it: kept for minutes
+    expect(res.headers.get("cache-control")).toMatch(SHORT);
     // a house card has no stage, and before the game is deployed there is none to read
     chain.levelOf.mockClear();
     await get("HEYOO", "?g=5");

@@ -2,17 +2,15 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { OgTile } from "../../../_og/tile";
-import { parseShowcase } from "@/lib/showcase";
+import { parseLinkStage, parseShowcase } from "@/lib/showcase";
+import { cardLevelOf } from "@/lib/onchain/cardLevel";
 import { wordTier, type Tier } from "@/lib/economy";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { ascensionLabel, cardDigits, caseLabel, tierCount, wordPoints } from "@/lib/cardFacts";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
-import { isSuiteDeployed, addressOf } from "@/lib/onchain/addresses";
-import { getPublicClient } from "@/lib/onchain/reads";
-import { wordsAbi } from "@/lib/onchain/abis";
-import { tokenIdOf } from "@/lib/onchain/tokenId";
+import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { readWordStory } from "@/lib/onchain/wordStory";
 import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { playerFaces } from "@/lib/profile/faces";
@@ -65,7 +63,7 @@ function mix(a: string, b: string, share: number): string {
 /** The seal, pressed in the material's line colour, as an address Satori's `<img>` takes. */
 const seal = (ink: string) => `data:image/svg+xml;base64,${Buffer.from(svgDoc(sealInk(ink), SEAL, SEAL)).toString("base64")}`;
 
-type ChainFacts = { number: number | null; level: number | null; finder: string | null };
+type ChainFacts = { number: number | null; finder: string | null };
 
 // Kept per word, not per link: a word's 32 casings are one word's facts. A few minutes on a warm
 // instance, and one read for callers that arrive together.
@@ -90,15 +88,8 @@ function chainFactsOf(word: string): Promise<ChainFacts> {
 
 /** Card number, ascension, and first finder, from the chain, when the game is live; nothing otherwise. */
 async function chainFacts(word: string): Promise<ChainFacts> {
-  if (!isSuiteDeployed()) return { number: null, level: null, finder: null };
-  const [number, level, story] = await Promise.all([
-    cardNumberOf(word),
-    getPublicClient()
-      .readContract({ address: addressOf("words"), abi: wordsAbi, functionName: "prestigeLevel", args: [tokenIdOf(word)] })
-      .then((l) => Number(l))
-      .catch(() => null),
-    readWordStory(word).catch(() => null),
-  ]);
+  if (!isSuiteDeployed()) return { number: null, finder: null };
+  const [number, story] = await Promise.all([cardNumberOf(word), readWordStory(word).catch(() => null)]);
   const first = story?.claims[0]?.owner ?? null;
   let finder: string | null = null;
   if (first) {
@@ -106,16 +97,18 @@ async function chainFacts(word: string): Promise<ChainFacts> {
     const name = faces?.profiles[first]?.username;
     finder = name ? `@${name}` : `${first.slice(0, 6)}…${first.slice(-4)}`;
   }
-  return { number, level, finder };
+  return { number, finder };
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ text: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ text: string }> }) {
   const tiles = parseShowcase((await params).text);
   if (!tiles) return new Response("Not a showcase", { status: 404 });
   const word = tiles.map((t) => t.char).join("");
   const tier = wordTier(word);
   const look = LOOK[tier];
-  const { number, level, finder } = await chainFactsOf(word);
+  // The stage has its own read (lib/onchain/cardLevel), which the stage this address names can ask
+  // to be read again: a video made the moment after an ascension must not draw the stage before it.
+  const [{ number, finder }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
 
   const stats: [string, string][] = [
     ["Case", caseLabel(tiles.map((t) => t.upper))],

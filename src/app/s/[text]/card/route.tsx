@@ -68,7 +68,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // Not for long: a crawler is waiting for this picture (cardNumberSoon). A picture drawn without
   // its number is kept for minutes only, below.
   // The stage the same way. A house card has none; before the game is deployed there is none to read.
-  const [number, level] = await Promise.all([tier ? cardNumberSoon(word) : null, tier && isSuiteDeployed() ? cardLevelSoon(word) : 0]);
+  // The stage the address names is passed along only as a reason to read again (cardLevel says why).
+  const hint = parseLinkStage(url.searchParams.get("g"));
+  const [number, level] = await Promise.all([tier ? cardNumberSoon(word) : null, tier && isSuiteDeployed() ? cardLevelSoon(word, hint) : 0]);
   const no = cardNo(number);
 
   const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face });
@@ -107,7 +109,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
         { name: "Pagella", data: pagellaBold, weight: 700, style: "normal" },
       ],
-      headers: { "cache-control": cardPictureCache({ waiting, level, hint: parseLinkStage(url.searchParams.get("g")) }) },
+      headers: { "cache-control": cardPictureCache({ waiting, level, hint }) },
     },
   );
 }

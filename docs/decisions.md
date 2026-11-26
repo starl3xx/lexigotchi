@@ -1633,6 +1633,13 @@ setter. All small, riding existing suite patterns.
         (`cardPictureCache`). An old link to a word that has since ascended, an address that names
         a stage the word isn't at, and a stage that couldn't be read are asked again in five
         minutes, so nobody can park a wrong picture at an address for a week.
+      - **An address that names another stage is a reason to read the chain again** (Bugbot on
+        #247). The stage is kept in memory for five minutes; a word shared the moment after it
+        ascended arrived with its new stage in its address, and drawing the kept stage would have
+        put the OLD gilding at the NEW address, for good. A stage in the address that differs from
+        the kept one now reads again, at most every ten seconds for a word, so a made-up address
+        can't turn every request into a chain read. The share page passes its own link's stage
+        the same way. The address is still never drawn.
       - **The share page** draws the word with its gilding too.
       - **Not yet:** the earnings share picture reads no chain by design (#38), so the card on it
         shows no gilding. The stage would have to ride in its signed snapshot.

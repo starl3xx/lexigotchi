@@ -6,6 +6,13 @@
  *
  * Nothing here trusts a caller. A picture's address may carry a stage (`g`, lib/showcase), but only
  * so that a word's picture gets a new address when its stage changes: what is DRAWN is the chain's.
+ *
+ * **An address that names another stage than the one kept here is a reason to read again.** A word
+ * shared the moment after it ascends arrives with its new stage in its address; drawing the stage
+ * kept from before would put the OLD gilding at the NEW address, and X and Farcaster keep a picture
+ * by its address for good (Bugbot on #247). So a `hint` that differs from the kept stage reads the
+ * chain again, at most every RECHECK_MS for a word, so a made-up address can't turn every request
+ * into a chain read. The hint is still never drawn: only the chain's answer is.
  */
 import { after } from "next/server";
 import { addressOf, isSuiteDeployed } from "./addresses";
@@ -14,17 +21,27 @@ import { getPublicClient } from "./reads";
 import { tokenIdOf } from "./tokenId";
 
 const LEVEL_TTL_MS = 5 * 60_000;
+/** How soon a kept stage may be read again because an address names another one. */
+export const RECHECK_MS = 10_000;
 /** How long a picture or a page waits for the stage before it is drawn without one: as long as it waits for the number (cardNumbers, NUMBER_WAIT_MS). */
 export const LEVEL_WAIT_MS = 1500;
 const known = new Map<string, { at: number; level: number }>();
 const reading = new Map<string, Promise<number>>();
 
-/** One word's stage (0 to 5), or null when the game isn't deployed or the read failed. */
-export async function cardLevelOf(word: string): Promise<number | null> {
+/**
+ * One word's stage (0 to 5), or null when the game isn't deployed or the read failed. `hint` is the
+ * stage the caller's address names (none means "not ascended"): pass it wherever there is one.
+ */
+export async function cardLevelOf(word: string, hint?: number | null): Promise<number | null> {
   if (!isSuiteDeployed()) return null;
   const w = word.toUpperCase();
   const hit = known.get(w);
-  if (hit && Date.now() - hit.at < LEVEL_TTL_MS) return hit.level;
+  if (hit) {
+    const age = Date.now() - hit.at;
+    // kept, unless the address says the stage has moved on and the kept one isn't brand new
+    const disputed = hint !== undefined && (hint ?? 0) !== hit.level;
+    if (age < LEVEL_TTL_MS && !(disputed && age >= RECHECK_MS)) return hit.level;
+  }
   let read = reading.get(w);
   if (!read) {
     read = getPublicClient()
@@ -45,12 +62,12 @@ export async function cardLevelOf(word: string): Promise<number | null> {
  * share picture, the share page), as `cardNumberSoon` is for the number. The read carries on, so
  * the next request finds it. Never throws.
  */
-export function cardLevelSoon(word: string, ms = LEVEL_WAIT_MS): Promise<number | null> {
+export function cardLevelSoon(word: string, hint?: number | null, ms = LEVEL_WAIT_MS): Promise<number | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), ms);
   });
-  const read = cardLevelOf(word).catch(() => null);
+  const read = cardLevelOf(word, hint).catch(() => null);
   try {
     after(() => read);
   } catch {
