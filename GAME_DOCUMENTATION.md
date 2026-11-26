@@ -154,8 +154,9 @@ the apex crown — the only word combining two distinct ultra-rares with a doubl
   from the link.
 - **Shown everywhere a word is** (`/api/rewards/earnings`, `components/game/earnings.ts`): the
   Earnings sheet (each word's total and latest payout, and what would make it earn more), a line
-  under the Today stage and the Bag's words, the featured word's bubble, the word sheet, the Bag
-  card's coin, the balance sheet, and a toast once per payout.
+  under the Today stage and the Bag's words, the featured word's Earns mark (its three status marks
+  are Fed, Jackpot, Earns: `components/game/stageMarks.ts`), the word sheet, the Bag card's marks, the
+  balance sheet, and a toast once per payout.
 - Separately, **any staked word of any case** (as long as it's not hungry) is a **jackpot ticket**.
 - Early on, with few UPPERCASE words, payouts are tiny and the pool grows; as upgrades accumulate,
   outflow rises and the pool settles. This is intended — no "top-ups."

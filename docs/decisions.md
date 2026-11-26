@@ -1172,6 +1172,33 @@ setter. All small, riding existing suite patterns.
       game through a temporary hook, removed. Not seen: a real wallet's token, and how X crops and
       shows the card.
 
+39. **A word's status is three marks on a placard, not a sentence in a bubble** (step 3 of #34;
+    starl3xx, 2026-11-25, on the proposal: the status popup "doesn't look right... we need to think
+    through where and how this info is displayed so it's both easy to find at a glance when needed
+    (i.e. not buried on the back of the card) and beautiful"; then "placard looks great").
+    - **Three marks, always in the same order and place: Fed, Jackpot, Earns**
+      (`components/game/stageMarks.ts`, pure and tested). Each is an icon, a small label, and a few
+      words, in the colour of its meaning: teal (care, earning), gold (chance, or "soon"), candy (it
+      needs you now), quiet (nothing to say yet). The old line was three facts in one sentence
+      ("TEASE is full, in the jackpot, and earning $WORD."), in a bubble that covered the art.
+    - **The Today stage is a card and a placard.** The card is clean: no bubble, no arrows on the
+      art. The placard under it holds the marks, the one thing to do (Feed, Stake, Open, or See it
+      in the Market) with Feed all and the scene picker beside it, the earnings line, and a pager
+      ("Word 2 of 4", with the arrows). A swipe on the card and the arrow keys still change the word.
+    - **The placard never names the word** (the owner: "seeing JAZZY immediately underneath the card
+      is redundant (especially with Open JAZZY)"). The button's label does, in Söhne.
+    - **The same marks follow the word:** in full on the word's sheet (in place of the hunger badge
+      and "jackpot-eligible"), and as three small icons beside its name in the Bag, each with its
+      words on hover and for a screen reader.
+    - **The empty stage** is a blank stock card with its line and its one button on the placard.
+    - The old sentence is still said, to a screen reader only, and announced when it changes.
+    - **My readings, not starl3xx's words:** the Jackpot mark says "In the running" (the messaging
+      guide's words; the proposal's mock said "In today's draw", and the guide rules out "draw" as a
+      noun); the Earns mark shows the latest payout ("+40.2K today") where the mock showed a rate,
+      because the game shows what was earned, not a forecast; a full word's button reads "Open
+      TEASE" (it was "See TEASE"); a listed word's price stays a pill in the Bag, since no mark
+      says a price; the pager draws dots up to 8 words, then the count alone.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
