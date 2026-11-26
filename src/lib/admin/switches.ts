@@ -77,7 +77,7 @@ export function emailSwitch(): Switch {
     key: "email",
     label: "Email reminders",
     on: emailEnabled(),
-    detail: "A confirmed email gets the reminders its player keeps on: hunger, the daily letter, a jackpot win, a sale (Resend), with one-click unsubscribe.",
+    detail: "A confirmed email gets the reminders its player keeps on: hunger, the daily letter, a jackpot win, a sale, a bounty share, payday, a letter alert, or one email a week in place of the daily ones (Resend), with one-click unsubscribe.",
     missing,
   };
 }

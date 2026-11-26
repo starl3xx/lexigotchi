@@ -51,7 +51,10 @@ import { notifySold } from "@/lib/notify/sold";
 import { notifyPaid, shareKey, type LandedShare } from "@/lib/notify/paid";
 import { DEAL_AGAIN_SECONDS, DEAL_DAILY_SECONDS, tellDeals } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
-import { claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
+import { claimMark, claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
+import { sendDigests, weekEarned, weekSold, wordsNeedingCare } from "@/lib/notify/digest";
+import { loadShares } from "@/lib/rewards/load";
+import { salesBySellers } from "@/lib/db/market";
 import { readLetterBook } from "@/lib/market/letterBoard";
 import { loadPrefs } from "@/lib/db/reminderPrefs";
 import type { SaleRow } from "@/lib/db/market";
@@ -568,6 +571,61 @@ export function createKeeper(opts: { dry: boolean }) {
       await notifyHunger();
     } finally {
       await notifyDeals();
+      await notifyDigest();
+    }
+  }
+
+  /**
+   * The weekly email digest (lib/notify/digest.ts), for players who chose it in place of the daily
+   * emails. Sent on the first day of a week, for the week that just ended (the day its bounty is
+   * settled). Part of the `notify` job, which already runs daily; it reads the chain only on that
+   * day and only when somebody chose it. Never throws.
+   */
+  async function notifyDigest() {
+    try {
+      if (!emailEnabled()) return;
+      const days = DEFAULT_PARAMS.bounty.periodDays;
+      const day = Math.floor((await readChainTime()) / 86_400);
+      // The first day of a week, and the day after it: a run that failed on the first day is made
+      // up on the second, and the send-once mark keeps a week to one email.
+      if (day % days > 1) return void console.log(`digest: a week's email goes out on the first day of the next; next in ${days - (day % days)} day(s)`);
+      const prefs = await loadPrefs();
+      // Unreadable choices send nothing (and take no mark): tomorrow's run is the second chance.
+      if (!prefs.known) return void console.log("digest: the choices couldn't be read, nothing sent");
+      const accounts = prefs.weekly();
+      if (accounts.length === 0) return void console.log("digest: nobody chose the weekly email");
+      // A line the player turned off as a reminder stays out of their digest too.
+      const noHunger = new Set(prefs.chose("hunger", false));
+      const noSold = new Set(prefs.chose("sold", false));
+      const period = Math.floor(day / days) - 1;
+      const [since, until] = [new Date(period * days * 86_400_000), new Date((period + 1) * days * 86_400_000)];
+      const [links, words] = await Promise.all([loadLinkMap(), scanAllWords()]);
+      const res = await sendDigests(
+        {
+          accounts,
+          walletsOf: links.walletsOf,
+          recipients: (list) => emailRecipients(list),
+          weekOf: async (account, wallets) => {
+            const [shares, sales] = await Promise.all([loadShares(wallets), noSold.has(account) ? [] : salesBySellers(NETWORK.id, wallets, since, until)]);
+            return {
+              earned: weekEarned(shares, period, days),
+              sold: weekSold(sales, account, links.accountOf),
+              ...(noHunger.has(account) ? { hungry: [], peckish: [] } : wordsNeedingCare(words, wallets, DEFAULT_PARAMS.care)),
+            };
+          },
+          claim: (account, mark) => claimMark(account, "digest", mark),
+          release: (account, mark) => releaseMark(account, "digest", mark),
+          send: async (to, account, note, facts, id) => {
+            const message = reminderEmail(to, account, note, facts);
+            return !!message && (await sendEmails([message], { idempotency: id })).sent === 1;
+          },
+        },
+        period,
+        { dry: DRY, log: (line) => console.log(line) },
+      );
+      console.log(`digest: week ${period}: ${res.sent} sent, ${res.empty} with nothing to say, ${res.skipped} sent before`);
+    } catch (err) {
+      console.error("digest: the weekly email failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }
   }
 

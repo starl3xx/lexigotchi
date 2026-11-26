@@ -171,7 +171,8 @@ export async function GET(req: Request) {
     let emailResult: { sent: number; failed: number } | undefined;
     if (emailEnabled()) {
       try {
-        const recips = (await emailRecipients()).filter((r) => wantsDaily(r.address));
+        // Not to a player who gets the weekly digest in place of the daily emails (lib/notify/kinds.ts).
+        const recips = (await emailRecipients()).filter((r) => wantsDaily(r.address) && prefs.emailsNow(links.accountOf(r.address), "daily"));
         // Every slot the player could pull on, across the account (an email row is keyed by the
         // account): the FIDs that verified any of its wallets, those FIDs' wallets, every Coinbase
         // key, and the X keys (Bugbot on #139: without the FID, a Farcaster-only player never got

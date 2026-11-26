@@ -30,10 +30,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const show = (p: Partial<ReminderChoicesProfile> = {}) =>
+const show = (p: Partial<ReminderChoicesProfile> = {}, hasEmail = false) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <ReminderChoices p={{ address: A, sessionToken: "tok", ensureToken: async () => "tok", ...p }} />
+      <ReminderChoices p={{ address: A, sessionToken: "tok", ensureToken: async () => "tok", ...p }} hasEmail={hasEmail} />
     </QueryClientProvider>,
   );
 const box = (name: RegExp) => screen.getByRole("checkbox", { name }) as HTMLInputElement;
@@ -56,6 +56,22 @@ describe("What to tell me", () => {
     fireEvent.click(box(/Something of mine sold/));
     await waitFor(() => expect(box(/Something of mine sold/).checked).toBe(false));
     expect(calls[1]).toMatchObject({ method: "PUT", body: { kinds: { sold: false } }, token: "tok" });
+  });
+
+  it("offers how often email comes only to a player with an email, and saves the choice", async () => {
+    answer = (method, body) => ({ json: { ok: true, kinds: ALL_ON, emailCadence: method === "PUT" ? (body as unknown as { emailCadence: string }).emailCadence : "each" } });
+    const { unmount } = show();
+    expect(screen.queryByRole("radio")).toBeNull();
+    unmount();
+    show({}, true);
+    await waitFor(() => expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThan(0));
+    // a labelled group (a fieldset's floated legend once pushed the first choice out of the card)
+    expect(screen.getByRole("radiogroup", { name: "How often by email" }).querySelectorAll("input[type=radio]")).toHaveLength(2);
+    const weekly = screen.getByRole("radio", { name: /One email a week/ }) as HTMLInputElement;
+    expect((screen.getByRole("radio", { name: /Each one as it happens/ }) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(weekly);
+    await waitFor(() => expect(weekly.checked).toBe(true));
+    expect(calls.at(-1)).toMatchObject({ method: "PUT", body: { emailCadence: "weekly" } });
   });
 
   it("shows the defaults with no session, and asks for the sign-in on a change", async () => {

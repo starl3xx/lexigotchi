@@ -215,7 +215,8 @@ export async function notifyPlayers(
     if (email) {
       try {
         const [{ emailRecipients }, marks] = await Promise.all([import("@/lib/db/profiles"), import("@/lib/db/reminderMarks")]);
-        const mailed = await emailNotes(notes, {
+        // A player who takes the weekly digest gets the daily kinds there, not one by one.
+        const mailed = await emailNotes(notes.filter((n) => prefs.emailsNow(n.account, kind)), {
           recipients: (accounts) => emailRecipients(accounts),
           claim: (account, mark) => marks.claimMark(account, kind, mark),
           release: (account, mark) => marks.releaseMark(account, kind, mark),

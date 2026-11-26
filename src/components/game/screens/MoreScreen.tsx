@@ -37,7 +37,8 @@ export function MoreScreen() {
           </div>
           <p className="mt-1 text-xs leading-relaxed text-ink/60">
             Before a word goes hungry, when your daily letter is ready, when something of yours sells, and when your
-            words win the jackpot or a share of the bounty. Your email is never shown to anyone.
+            words win the jackpot or a share of the bounty. Each one as it happens, or one email a week. Your email is
+            never shown to anyone.
           </p>
           <Button size="sm" variant="ghost" className="mt-3" onClick={() => openSheet({ kind: "profile" })}>
             Set up in your profile

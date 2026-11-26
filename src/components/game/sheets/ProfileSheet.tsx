@@ -309,7 +309,7 @@ export function ProfileSheet() {
 
       {/* Which reminders, for every channel (ReminderChoices). With profiles on (the route is theirs)
           and a wallet: a choice is the account's. */}
-      {p.enabled && p.address && <ReminderChoices key={p.address} p={p} />}
+      {p.enabled && p.address && <ReminderChoices key={p.address} p={p} hasEmail={Boolean(p.profile?.email)} />}
 
       <button
         onClick={() => g.openSheet({ kind: "balance" })}

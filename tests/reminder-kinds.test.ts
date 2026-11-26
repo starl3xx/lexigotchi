@@ -5,7 +5,7 @@
  * nothing, where a table that doesn't exist yet sends the defaults.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { KIND_INFO, REMINDER_KINDS, changedFromDefaults, effectiveKinds, mergeStored, parseChoices, wantsKind } from "@/lib/notify/kinds";
+import { DIGESTED_KINDS, KIND_INFO, REMINDER_KINDS, changedFromDefaults, effectiveKinds, emailedNow, mergeStored, parseCadence, parseChoices, wantsKind } from "@/lib/notify/kinds";
 import { prefsBookFrom } from "@/lib/db/reminderPrefs";
 
 const A = "0x00000000000000000000000000000000000000aa";
@@ -101,6 +101,38 @@ describe("the book of everyone’s choices", () => {
     expect(blind.known).toBe(false);
     for (const k of REMINDER_KINDS) expect(blind.wants(A, k)).toBe(false);
     expect(blind.chose("daily", false)).toEqual([]);
+  });
+});
+
+describe("how often email comes", () => {
+  it("a weekly digest stands in for the kinds that can come every day, and only those", () => {
+    expect([...DIGESTED_KINDS].sort()).toEqual(["daily", "deal", "payday"]);
+    for (const k of REMINDER_KINDS) expect(emailedNow("each", k)).toBe(true);
+    // these can't wait a week, or are rare and the player's own business
+    for (const k of ["hunger", "jackpot", "sold", "bounty"] as const) expect(emailedNow("weekly", k)).toBe(true);
+    for (const k of DIGESTED_KINDS) expect(emailedNow("weekly", k)).toBe(false);
+  });
+
+  it("takes only the two cadences from outside", () => {
+    expect(parseCadence("weekly")).toBe("weekly");
+    expect(parseCadence("each")).toBe("each");
+    for (const bad of [null, undefined, "", "monthly", true, 7]) expect(parseCadence(bad)).toBeNull();
+  });
+
+  it("the book knows who takes the digest, and reads a null column as each one as it happens", () => {
+    const book = prefsBookFrom([
+      { account: A, kinds: {}, emailCadence: "weekly" },
+      { account: B, kinds: { daily: false }, emailCadence: null },
+    ]);
+    expect(book.weekly()).toEqual([A]);
+    expect(book.emailsNow(A, "daily")).toBe(false);
+    expect(book.emailsNow(A, "hunger")).toBe(true);
+    expect(book.emailsNow(B, "daily")).toBe(true);
+    expect(book.emailsNow("0x00000000000000000000000000000000000000cc", "payday")).toBe(true);
+    // unreadable: nothing is emailed, and nobody is on the digest's list
+    const blind = prefsBookFrom([], false);
+    expect(blind.emailsNow(A, "hunger")).toBe(false);
+    expect(blind.weekly()).toEqual([]);
   });
 });
 

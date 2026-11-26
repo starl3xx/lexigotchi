@@ -11,9 +11,9 @@
  * Until the player's own choices load, the boxes show the defaults, which is what they get.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Card } from "./primitives";
-import { KIND_INFO, REMINDER_KINDS, effectiveKinds, type ReminderKind } from "@/lib/notify/kinds";
+import { KIND_INFO, REMINDER_KINDS, effectiveKinds, type EmailCadence, type ReminderKind } from "@/lib/notify/kinds";
 
 const SESSION_HEADER = "x-lexigotchi-session";
 const ERRORS: Record<string, string> = {
@@ -28,37 +28,46 @@ export interface ReminderChoicesProfile {
   ensureToken: () => Promise<string | null>;
 }
 
-export function ReminderChoices({ p }: { p: ReminderChoicesProfile }) {
+interface Stored {
+  kinds: Record<ReminderKind, boolean>;
+  emailCadence: EmailCadence;
+}
+
+/** `hasEmail`: the player has an email saved, so how often it comes is theirs to choose too. */
+export function ReminderChoices({ p, hasEmail = false }: { p: ReminderChoicesProfile; hasEmail?: boolean }) {
   const qc = useQueryClient();
   const key = ["reminderKinds", p.address, p.sessionToken];
   const [note, setNote] = useState<string | null>(null);
-  const [saving, setSaving] = useState<ReminderKind | null>(null);
+  const [saving, setSaving] = useState<ReminderKind | "cadence" | null>(null);
+  const cadenceLabel = useId();
   const q = useQuery({
     queryKey: key,
     enabled: Boolean(p.address && p.sessionToken),
     staleTime: 60_000,
     queryFn: async () => {
       const r = await fetch("/api/profile/reminders", { headers: { [SESSION_HEADER]: p.sessionToken! } });
-      const d = (await r.json().catch(() => null)) as { ok?: boolean; kinds?: Record<ReminderKind, boolean> } | null;
+      const d = (await r.json().catch(() => null)) as ({ ok?: boolean } & Partial<Stored>) | null;
       if (!d?.ok || !d.kinds) throw new Error("reminder choices unavailable");
-      return d.kinds;
+      return { kinds: d.kinds, emailCadence: d.emailCadence ?? "each" } satisfies Stored;
     },
   });
-  const kinds = q.data ?? effectiveKinds(null);
+  const kinds = q.data?.kinds ?? effectiveKinds(null);
+  const cadence = q.data?.emailCadence ?? "each";
 
-  const set = async (kind: ReminderKind, on: boolean) => {
+  /** One change, saved at once: a kind's box, or how often email comes. */
+  const save = async (what: ReminderKind | "cadence", body: { kinds?: Partial<Record<ReminderKind, boolean>>; emailCadence?: EmailCadence }) => {
     setNote(null);
     const token = await p.ensureToken();
     if (!token) return void setNote(ERRORS.no_session);
-    setSaving(kind);
+    setSaving(what);
     try {
       const r = await fetch("/api/profile/reminders", {
         method: "PUT",
         headers: { "content-type": "application/json", [SESSION_HEADER]: token },
-        body: JSON.stringify({ kinds: { [kind]: on } }),
+        body: JSON.stringify(body),
       });
-      const d = (await r.json().catch(() => null)) as { ok?: boolean; kinds?: Record<ReminderKind, boolean>; error?: string } | null;
-      if (d?.ok && d.kinds) qc.setQueryData(["reminderKinds", p.address, token], d.kinds);
+      const d = (await r.json().catch(() => null)) as ({ ok?: boolean; error?: string } & Partial<Stored>) | null;
+      if (d?.ok && d.kinds) qc.setQueryData(["reminderKinds", p.address, token], { kinds: d.kinds, emailCadence: d.emailCadence ?? "each" } satisfies Stored);
       else setNote(ERRORS[d?.error ?? ""] ?? "Couldn’t save that. Try again.");
     } catch {
       setNote("Couldn’t save that. Try again.");
@@ -79,7 +88,7 @@ export function ReminderChoices({ p }: { p: ReminderChoicesProfile }) {
                 type="checkbox"
                 checked={kinds[kind]}
                 disabled={saving !== null}
-                onChange={(e) => void set(kind, e.target.checked)}
+                onChange={(e) => void save(kind, { kinds: { [kind]: e.target.checked } })}
                 className="mt-0.5 h-4 w-4 shrink-0 accent-[#2a9d8f]"
               />
               <span className="min-w-0">
@@ -90,6 +99,35 @@ export function ReminderChoices({ p }: { p: ReminderChoicesProfile }) {
           </li>
         ))}
       </ul>
+      {hasEmail && (
+        // A labelled group, not a fieldset: a floated legend pushed the first choice out of the card.
+        <div role="radiogroup" aria-labelledby={cadenceLabel} className="mt-3 space-y-2 border-t-2 border-dashed border-ink/15 pt-3">
+          <div id={cadenceLabel} className="font-display font-extrabold">
+            How often by email
+          </div>
+          {(
+            [
+              ["each", "Each one as it happens", null],
+              ["weekly", "One email a week", "In place of the ones that can come every day. A word about to go hungry, a win, a sale, and a bounty share still come at once."],
+            ] as const
+          ).map(([value, label, hint]) => (
+            <label key={value} className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="email-cadence"
+                checked={cadence === value}
+                disabled={saving !== null}
+                onChange={() => void save("cadence", { emailCadence: value })}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#2a9d8f]"
+              />
+              <span className="min-w-0">
+                <span className="block font-bold leading-tight">{label}</span>
+                {hint && <span className="block text-xs text-ink/60">{hint}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
       {q.isError && <p className="mt-2 text-xs text-ink/55">Couldn’t load your choices. These are the usual ones.</p>}
       {note && (
         <p role="alert" className="mt-2 text-xs font-bold text-candy-ink">
