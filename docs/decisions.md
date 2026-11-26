@@ -1578,6 +1578,44 @@ setter. All small, riding existing suite patterns.
         glances, twinkles) is most of what it costs at rest: 2% with it off, 6% to 17% with it on.
       - **Seen and not seen (part 1):** the tile lab in headless WebKit, against the review page;
         the docs' pictures rebuilt. No real iPhone, and no real graphics chip.
+    - **Part 2, the gilding** (the owner's four picks; the shapes are in `tileShapes`, for the rig
+      and the share letter).
+      - **Slim.** "The gilded and holographic borders look good visually, but they're too thick."
+        Gold outside the blue border is 8, 9, 10, 13.5, 13.5 units by stage, where it was 13, 15,
+        17, 22, 22 (`GILD`, `ringParts`). The ring stopped trying to count: stages 1 to 3 differed
+        by 2 units, which nobody could read. It says gilded, doubled from Gilded 4, and foil at
+        Holographic. Thinner rings also bring the eyes down (they ride the ring's outer edge) and
+        part the letters of a word (at Gilded 4 each was as wide as the step to the next).
+      - **Legs in front of the ring, as a layer.** "In the same way that arms come out in front of
+        gilding, could we do the same for legs?" The ring was part of the body, and the body is
+        over the legs, so at Gilded 4 only 16 of a leg's 52 units showed and the tile sat on its
+        shoes. Where a letter has legs, its rings (and the glow behind them) are a layer of their
+        own under the legs: floor, rings, legs, body. A shortcut (the top of each leg drawn again
+        inside the body) was ruled out by the owner: "legs in front has to be a layer in front of
+        the gilding... otherwise it doesn't work", for "every uppercase", so a plain UPPERCASE
+        letter's legs come over its pale ring too.
+      - **What the layer costs,** measured on its own (a five-letter Gilded 4 word with the random
+        blinks and twinkles off; headless; share of one core): WebKit 1.9% and 2.2% before, 2.0%
+        and 3.3% after; Chrome at full speed 38% both ways; Chrome slowed four times 91% before,
+        95% and 96% after (it draws every layer on the processor and is at full load already). If
+        a real phone shows a cost: give the layer to gilded letters only, or cut it to the ring's
+        own size.
+      - **Black diamond pips.** "Black diamonds... let's make all of them like that, including
+        holographic." An earned pip is solid ink at every stage; one not yet reached is a faint
+        outline, which reads on white, gold, and purple, so the white plate under them is gone.
+        They were gold squares, grey-lined white ones, and one foil. On the card's back they are
+        the same diamonds in the back's own ink (the material's line colour): black would not show
+        on a dark back. That last part is my reading, not the owner's word.
+      - **Laurels, for now.** "The crown on gilded/holographic letters looks bad, small, and
+        cheesy." It was 36 units wide and sat between the eyes, which hid all but its peak. From
+        Gilded 4 a whole character wears two laurel sprigs arching over its head from the top
+        corners (gold, foil at Holographic), in place of the twinkle that sat there. The owner
+        picked them over a halo, a worn crown, and a tipped crown, "for now". Worn by the letter,
+        so flat and outlined like the rest of it.
+      - **The share letter** draws an UPPERCASE letter's legs over its ring too (`CARD_LOOK` 6). It
+        still draws no gilding at all, in any picture: that is the next part.
+      - **Seen and not seen (part 2):** the tile lab's ladder in headless WebKit, against the
+        review page. No real iPhone.
 
 ## Pricing & launch economics (decided June 2026)
 

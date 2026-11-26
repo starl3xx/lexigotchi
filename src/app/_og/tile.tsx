@@ -325,16 +325,14 @@ export function OgTile({
           </g>
         )}
 
-        {/* behind the arms: the legs, the rarity's aura, and the case's ring or wooden edge */}
+        {/* behind the arms: the rarity's aura, the case's ring or wooden edge, and the legs. The legs
+            come over an UPPERCASE letter's ring and under its face, as the arms do (decisions.md #48). */}
         <g transform={tilt}>
+          {fin && finishAura(fin, u)}
+          {upper ? <rect x={T.x - 11} y={T.y - 11} width={T.w + 22} height={T.h + 22} rx={T.r + 11} fill="none" stroke={LHAW_RING} strokeWidth="10" /> : null}
           {limbs ? limb("leg-l", LEG_L) : null}
           {limbs ? limb("leg-r", LEG_R) : null}
-          {fin && finishAura(fin, u)}
-          {upper ? (
-            <rect x={T.x - 11} y={T.y - 11} width={T.w + 22} height={T.h + 22} rx={T.r + 11} fill="none" stroke={LHAW_RING} strokeWidth="10" />
-          ) : (
-            <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />
-          )}
+          {upper ? null : <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
         </g>
 
         {/* the arms that reach for a neighbour's hand: upright, over the ring and under the face */}
