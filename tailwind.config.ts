@@ -191,10 +191,12 @@ const config: Config = {
           "100%": { opacity: "0", transform: "translateY(var(--tc-fall, 82px)) rotate(360deg)" },
         },
         tcRay: { to: { transform: "rotate(360deg)" } },
+        // a sleeping letter's z, on a layer of its own (TileCharacter, ZS): it rises 16 of the drawing's
+        // units and fades. The distance is in units (--uy), so it is the same at every size.
         tcZzz: {
-          "0%": { opacity: "0", transform: "translateY(2px) scale(0.8)" },
+          "0%": { opacity: "0", transform: "translateY(calc(var(--uy) * 2)) scale(0.8)" },
           "30%": { opacity: "1" },
-          "100%": { opacity: "0", transform: "translateY(-14px) scale(1.1)" },
+          "100%": { opacity: "0", transform: "translateY(calc(var(--uy) * -14)) scale(1.1)" },
         },
       },
       animation: {

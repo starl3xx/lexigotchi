@@ -721,27 +721,25 @@ function Confetti({
   );
 }
 
-function Zzz({ reduced }: { reduced: boolean }) {
-  const zs = [
-    { x: T.x + T.w + 4, y: TOP + 6, s: 14 },
-    { x: T.x + T.w + 16, y: TOP - 8, s: 18 },
-    { x: T.x + T.w + 30, y: TOP - 24, s: 22 },
-  ];
+/**
+ * A sleeping letter's three z's, rising from its top right corner, each larger than the last.
+ *
+ * Each z is a LAYER of its own (TileCharacter draws them), and its loop runs on the layer. They
+ * were three shapes looping inside the top layer, and a loop inside a layer makes WebKit redraw
+ * the whole layer on every frame: a hungry word on the Today stage, which Today shows first and
+ * which may sleep there for days, cost 44% of a processor core at rest, and 5% with the z's held
+ * still (headless WebKit, the real Today screen). On layers they slide and fade without a redraw.
+ */
+const ZS = [
+  { x: T.x + T.w + 4, y: TOP + 6, s: 14 },
+  { x: T.x + T.w + 16, y: TOP - 8, s: 18 },
+  { x: T.x + T.w + 30, y: TOP - 24, s: 22 },
+];
+function Z({ z }: { z: (typeof ZS)[number] }) {
   return (
-    <g fill={INK} fontFamily="var(--font-body)" fontWeight={800}>
-      {zs.map((z, i) => (
-        <text
-          key={i}
-          x={z.x}
-          y={z.y}
-          fontSize={z.s}
-          className={reduced ? "" : "animate-tc-zzz"}
-          style={reduced ? undefined : { animationDelay: `${i * 0.5}s` }}
-        >
-          z
-        </text>
-      ))}
-    </g>
+    <text x={z.x} y={z.y} fontSize={z.s} fill={INK} fontFamily="var(--font-body)" fontWeight={800}>
+      z
+    </text>
   );
 }
 
@@ -922,20 +920,22 @@ export function TileCharacter({
   const vb = `${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`;
   const units = { "--ux": `${(100 / VIEW.w).toFixed(4)}%`, "--uy": `${(100 / VIEW.h).toFixed(4)}%` } as CSSProperties;
   const originAt = (x: number, y: number) => `${(((x - VIEW.x) / VIEW.w) * 100).toFixed(3)}% ${(((y - VIEW.y) / VIEW.h) * 100).toFixed(3)}%`;
-  const layer = (key: string, children: ReactNode, anim = "", origin?: string) =>
+  // `timing` is a layer's own delay, in place of the letter's phase in its word (a z's turn among the three).
+  const layer = (key: string, children: ReactNode, anim = "", origin?: string, timing: CSSProperties | undefined = phase) =>
     flat ? (
-      <g key={key} className={anim || undefined} style={origin ? ({ transformBox: "view-box", transformOrigin: origin, ...phase } as CSSProperties) : undefined}>
+      <g key={key} className={anim || undefined} style={origin ? ({ transformBox: "view-box", transformOrigin: origin, ...timing } as CSSProperties) : undefined}>
         {children}
       </g>
     ) : (
-      <svg key={key} viewBox={vb} aria-hidden className={`overflow-visible ${anim}`} style={origin ? { ...LAYER, transformOrigin: origin, ...phase } : LAYER}>
+      <svg key={key} viewBox={vb} aria-hidden className={`overflow-visible ${anim}`} style={origin ? { ...LAYER, transformOrigin: origin, ...timing } : LAYER}>
         {children}
       </svg>
     );
 
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
   const hasFloor = showLimbs || state === "upgrade";
-  const hasTop = (showLimbs && linkLeft) || (showFace && (state === "hungry" || state === "rolling" || state === "eating")) || state === "celebrate";
+  const hasTop = (showLimbs && linkLeft) || (showFace && (state === "rolling" || state === "eating")) || state === "celebrate";
+  const asleep = showFace && state === "hungry";
   const layers = [
     // the floor: what never moves
     hasFloor &&
@@ -1117,12 +1117,14 @@ export function TileCharacter({
           {/* the hands this letter and its left neighbour hold */}
           {showLimbs && linkLeft && <Clasp darts={darts} />}
           {/* per-state extras anchored to the scene */}
-          {showFace && state === "hungry" && <Zzz reduced={reduced} />}
           {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} index={index} />}
           {showFace && state === "eating" && <Snack />}
           {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
         </>,
       ),
+
+    // a sleeping letter's z's: a layer each, so each can rise and fade without a redraw (ZS says why)
+    ...(asleep ? ZS.map((z, i) => layer(`z${i}`, <Z z={z} />, reduced ? "" : "animate-tc-zzz", originAt(z.x + z.s * 0.28, z.y - z.s * 0.3), reduced ? undefined : { animationDelay: `${i * 0.5}s` })) : []),
   ];
 
   const label = `${glyph} tile${upper ? " (UPPERCASE)" : ""}, ${state}${g >= 5 ? " · holographic" : g ? ` · gilded ${g}` : ""}`;
