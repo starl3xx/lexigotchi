@@ -172,6 +172,8 @@ export interface SoldItem {
   qty: number;
   /** What the buyer paid, whole $WORD. */
   amount: number;
+  /** What the seller keeps of it (the sale less the Market's fee), whole $WORD, when it is known. */
+  share?: number;
   /** The fill's own identity: its transaction and its place in it. */
   txHash: string;
   logIndex: number;
@@ -208,6 +210,19 @@ export function marketSold(items: readonly SoldItem[], day = epochDay()): Notifi
         : `${first.qty} of your ${first.name} found new homes, for ${wordAmount(first.amount)}. ${share}`,
     notificationId,
   };
+}
+
+/**
+ * The same sale as an email's ledger (lib/notify/email.ts `reminderEmail` facts): what sold, what
+ * the buyer paid, and the seller's share when it is known for every item.
+ */
+export function soldFacts(items: readonly SoldItem[]): [string, string][] {
+  if (items.length === 0) return [];
+  const one = items.length === 1 ? items[0] : null;
+  const what = one ? (one.kind === "word" ? one.name.toUpperCase() : one.qty === 1 ? one.name : `${one.qty} × ${one.name}`) : `${items.length} listings`;
+  const facts: [string, string][] = [["Sold", what], ["For", wordAmount(items.reduce((a, i) => a + i.amount, 0))]];
+  if (items.every((i) => i.share !== undefined)) facts.push(["Your share", wordAmount(items.reduce((a, i) => a + (i.share ?? 0), 0))]);
+  return facts;
 }
 
 // ── Turning reminders on ──────────────────────────────────────────────────────────────
