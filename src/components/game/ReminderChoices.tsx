@@ -11,7 +11,7 @@
  * Until the player's own choices load, the boxes show the defaults, which is what they get.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Card } from "./primitives";
 import { KIND_INFO, REMINDER_KINDS, effectiveKinds, type EmailCadence, type ReminderKind } from "@/lib/notify/kinds";
 
@@ -39,6 +39,7 @@ export function ReminderChoices({ p, hasEmail = false }: { p: ReminderChoicesPro
   const key = ["reminderKinds", p.address, p.sessionToken];
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState<ReminderKind | "cadence" | null>(null);
+  const cadenceLabel = useId();
   const q = useQuery({
     queryKey: key,
     enabled: Boolean(p.address && p.sessionToken),
@@ -99,15 +100,18 @@ export function ReminderChoices({ p, hasEmail = false }: { p: ReminderChoicesPro
         ))}
       </ul>
       {hasEmail && (
-        <fieldset className="mt-3 border-t-2 border-dashed border-ink/15 pt-3">
-          <legend className="float-left mb-1.5 w-full text-sm font-bold">How often by email</legend>
+        // A labelled group, not a fieldset: a floated legend pushed the first choice out of the card.
+        <div role="radiogroup" aria-labelledby={cadenceLabel} className="mt-3 space-y-2 border-t-2 border-dashed border-ink/15 pt-3">
+          <div id={cadenceLabel} className="font-display font-extrabold">
+            How often by email
+          </div>
           {(
             [
               ["each", "Each one as it happens", null],
               ["weekly", "One email a week", "In place of the ones that can come every day. A word about to go hungry, a win, a sale, and a bounty share still come at once."],
             ] as const
           ).map(([value, label, hint]) => (
-            <label key={value} className="flex items-start gap-2 py-0.5 text-sm">
+            <label key={value} className="flex items-start gap-2 text-sm">
               <input
                 type="radio"
                 name="email-cadence"
@@ -117,12 +121,12 @@ export function ReminderChoices({ p, hasEmail = false }: { p: ReminderChoicesPro
                 className="mt-0.5 h-4 w-4 shrink-0 accent-[#2a9d8f]"
               />
               <span className="min-w-0">
-                <span className="block leading-tight">{label}</span>
+                <span className="block font-bold leading-tight">{label}</span>
                 {hint && <span className="block text-xs text-ink/60">{hint}</span>}
               </span>
             </label>
           ))}
-        </fieldset>
+        </div>
       )}
       {q.isError && <p className="mt-2 text-xs text-ink/55">Couldn’t load your choices. These are the usual ones.</p>}
       {note && (

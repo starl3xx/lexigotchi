@@ -65,6 +65,8 @@ describe("What to tell me", () => {
     unmount();
     show({}, true);
     await waitFor(() => expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThan(0));
+    // a labelled group (a fieldset's floated legend once pushed the first choice out of the card)
+    expect(screen.getByRole("radiogroup", { name: "How often by email" }).querySelectorAll("input[type=radio]")).toHaveLength(2);
     const weekly = screen.getByRole("radio", { name: /One email a week/ }) as HTMLInputElement;
     expect((screen.getByRole("radio", { name: /Each one as it happens/ }) as HTMLInputElement).checked).toBe(true);
     fireEvent.click(weekly);
