@@ -13,7 +13,12 @@ const nextConfig = {
   // The Showcase card (src/app/s/[text]/card) is the one route that reads the Söhne TTFs at REQUEST
   // time (/embed-image and /icon-image are static, so they read them at build). A serverless
   // function only ships the files the build traced, so name them rather than trust the tracer.
-  outputFileTracingIncludes: { "/s/[text]/card": ["./public/fonts/soehne-*.ttf"] },
+  // The earnings share's picture (src/app/e/[token]/card) reads them the same way, and both read
+  // the card ribbon's Pagella (Bugbot on #231: a function ships only the files named or traced).
+  outputFileTracingIncludes: {
+    "/s/[text]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/texgyrepagella-bold.otf"],
+    "/e/[token]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/texgyrepagella-bold.otf"],
+  },
   // The vendored dictionary lives in /data and is imported by the economy lib.
   webpack: (config) => {
     // `wagmi/connectors` is a barrel: importing ANY connector pulls in `baseAccount`, which reaches
