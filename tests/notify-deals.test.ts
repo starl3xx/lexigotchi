@@ -297,6 +297,26 @@ describe("the shared sender says whom it reached (lib/notify/players.ts)", () =>
     expect(reached).toEqual([A]);
   });
 
+  it("a browser push counts when a browser took it: not when every subscription was gone, and also when one of two failed", async () => {
+    const reached: string[] = [];
+    const sub = (wallet: string) => ({ address: wallet, fid: null, endpoint: `https://push.example/${wallet.slice(-2)}`, p256dh: "k", auth: "a" });
+    const res = await pushNotes([note(A), note(B), note(C)], {
+      accountOf: (a) => a,
+      fidOf: () => undefined,
+      subs: [sub(A), sub(B), sub(C)],
+      toFarcaster: async () => ({ ok: false }),
+      toBrowsers: async (subs) => {
+        const who = subs[0].endpoint.slice(-2);
+        if (who === "aa") return { ok: true, delivered: 0 }; // both of A's browsers were gone: pruned, nothing sent
+        if (who === "bb") return { ok: false, delivered: 1 }; // one of B's got it, one failed
+        return { ok: true, delivered: 1 };
+      },
+      onReached: (a) => reached.push(a),
+    });
+    expect(reached).toEqual([B, C]);
+    expect(res.browsers).toBe(2);
+  });
+
   it("an email that went out counts; one the mail service refused doesn’t", async () => {
     const reached: string[] = [];
     await emailNotes([note(A), note(B)], {
