@@ -1139,10 +1139,24 @@ export function TileCharacter({
     const [top, right, bottom, left] = [(f.y - VIEW.y) / VIEW.h, (VIEW.x + VIEW.w - f.x - f.width) / VIEW.w, (VIEW.y + VIEW.h - f.y - f.height) / VIEW.h, (f.x - VIEW.x) / VIEW.w];
     return <div style={{ ...LAYER, clipPath: `inset(${pct(top)} ${pct(right)} ${pct(bottom)} ${pct(left)} round ${pct(f.rx / VIEW.w)} / ${pct(f.rx / VIEW.h)})` }}>{children}</div>;
   };
+  // The hover's rise alone as a layer, for a piece that carries the lean inside its own drawing:
+  // along the leaned tile's own up, as `leaned` rises (the lean, the rise, the lean undone, which
+  // together leave the piece exactly where it was until the tile rises).
+  const riseLayer = (children: ReactNode) => {
+    const turn = (deg: number): CSSProperties => (tilt ? { ...LAYER, transform: `rotate(${deg}deg)`, transformOrigin: originAt(CX, BOT) } : LAYER);
+    return (
+      <div style={turn(tilt)}>
+        <div className="tc-perk-layer" style={LAYER}>
+          <div style={turn(-tilt)}>{children}</div>
+        </div>
+      </div>
+    );
+  };
   // A moving piece of the light: a layer, its moment on the layer (never on a shape inside it).
   // TileFinish's MomentPiece says what each `frame` is.
   const momentLayer = (m: MomentPiece) => {
-    const origin = m.origin && (m.frame === "leaned" ? leanedPoint(m.origin[0], m.origin[1]) : m.origin);
+    const inside = m.frame === "leaned" || m.frame === "point";
+    const origin = m.origin && (inside ? leanedPoint(m.origin[0], m.origin[1]) : m.origin);
     const svg = (
       <svg
         key={m.key}
@@ -1152,11 +1166,11 @@ export function TileCharacter({
         data-piece={m.key}
         style={{ ...LAYER, ...(origin ? { transformOrigin: originAt(origin[0], origin[1]) } : null), ...(m.waits ? { opacity: 0 } : null), animationDelay: `${m.delay.toFixed(2)}s` }}
       >
-        {m.frame === "leaned" ? leaned(m.children) : m.children}
+        {m.frame === "leaned" ? leaned(m.children) : m.frame === "point" ? <g transform={tiltT}>{m.children}</g> : m.children}
       </svg>
     );
     if (m.frame === "leaned") return svg;
-    return <Fragment key={m.key}>{leanedLayers(m.frame === "cut" ? faceCut(svg) : svg)}</Fragment>;
+    return <Fragment key={m.key}>{m.frame === "point" ? riseLayer(svg) : leanedLayers(m.frame === "cut" ? faceCut(svg) : svg)}</Fragment>;
   };
   // Moving pieces together under one opacity (a peckish word's dimmed light), as the single body
   // gives a group: where two pieces overlap, a piece-by-piece opacity would come out brighter.

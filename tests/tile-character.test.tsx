@@ -106,10 +106,30 @@ describe("a finished tile's light runs on layers, in WebKit", () => {
       expect(rise.classList.contains("tc-perk-layer")).toBe(true);
       expect((rise.parentElement as HTMLElement).style.transform).toBe("rotate(2deg)");
     }
-    // a piece that fades or turns in place keeps the lean inside its own drawing, as the tile does
-    const glint = container.querySelector('svg[data-piece="glint0"]')!;
-    expect(glint.querySelector("g")!.getAttribute("transform")).toBe(`rotate(2 ${CX} ${BOT})`);
-    expect(glint.parentElement!.getAttribute("data-piece")).toBe("body");
+    // a piece that only fades keeps the lean AND the hover's rise inside its own drawing, as the tile does
+    const fade = container.querySelector('svg[data-piece="catch"]')!;
+    expect(fade.querySelector("g")!.getAttribute("transform")).toBe(`rotate(2 ${CX} ${BOT})`);
+    expect(fade.querySelector(".tc-perk")).not.toBeNull();
+    expect(fade.parentElement!.getAttribute("data-piece")).toBe("body");
+  });
+
+  it("lifts a turning glint as a layer OUTSIDE its turn: inside, the turn would swing the risen glint off its point", () => {
+    // Bugbot on #237: with the hover's rise inside the layer, the layer's own quarter turn put a
+    // hovered glint six units to the side of where it belongs, until the moment ended.
+    const { container } = render(<TileCharacter char="q" upper tier="Mythic" size={140} index={0} lean={2} />);
+    for (const name of ["edge", "glint0", "glint1"]) {
+      const layer = container.querySelector(`svg[data-piece="${name}"]`)!;
+      // the lean is inside its drawing (a glint is seen at rest, so it must be drawn as the tile is)
+      expect(layer.querySelector("g")!.getAttribute("transform"), name).toBe(`rotate(2 ${CX} ${BOT})`);
+      // the rise is not
+      expect(layer.querySelector(".tc-perk"), name).toBeNull();
+      const [undo, rise, lean] = [layer.parentElement as HTMLElement, layer.parentElement!.parentElement as HTMLElement, layer.parentElement!.parentElement!.parentElement as HTMLElement];
+      expect(rise.classList.contains("tc-perk-layer"), name).toBe(true);
+      // the rise runs along the leaned tile's own up; the two turns round it leave the glint where it was
+      expect(lean.style.transform, name).toBe("rotate(2deg)");
+      expect(undo.style.transform, name).toBe("rotate(-2deg)");
+      expect(undo.style.transformOrigin, name).toBe(lean.style.transformOrigin);
+    }
   });
 
   it("dims a peckish word's light as one group, not piece by piece (overlapping pieces would come out brighter)", () => {

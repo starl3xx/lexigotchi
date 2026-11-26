@@ -493,14 +493,18 @@ export interface MomentPiece {
    */
   cls: "rf-catch" | "rf-passing" | "rf-facet" | "rf-fire" | "rf-edge" | "rf-glint" | "rf-rising";
   /**
-   * How the layer sits on a leaning tile:
-   * - "leaned": the lean is inside its drawing, as it is in the tile's own (exact, and what a piece
-   *   seen at rest needs). It fades, or turns and grows about `origin`, a point of the leaned tile.
+   * How the layer sits on a leaning tile, and how it rises with it on a hover:
+   * - "leaned": it only fades. The lean and the hover's rise are inside its drawing, as they are
+   *   in the tile's own.
+   * - "point": it turns and grows about `origin`. The lean is inside its drawing (exact, and a
+   *   glint is seen at rest), and `origin` is that point on the leaned tile. The hover's rise is
+   *   a layer OUTSIDE it: inside, the layer's own turn would swing the risen glint round a point
+   *   that had not risen (a quarter turn puts it six units to the side: Bugbot on #237).
    * - "cut": it travels across the face and is cut at the face's edge by a shape that stays put,
    *   so the lean, the cut, and the piece are layers one inside the next (the light passing).
    * - "upright": it travels in the tile's leaned frame with no cut (a mote rising).
    */
-  frame: "leaned" | "cut" | "upright";
+  frame: "leaned" | "point" | "cut" | "upright";
   /** The point the layer turns and grows about, in the rig's upright units (none: it only fades). */
   origin?: readonly [number, number];
   /** When it starts within the moment, in seconds. */
@@ -569,9 +573,9 @@ export function momentPieces({ tier, uid, bw, dim, seed, index }: { tier?: Tier;
   }
   if (fin.material !== "satin" && !dim) {
     const [x, y, sc] = EDGE_GLINT;
-    over.push({ key: "edge", cls: "rf-edge", frame: "leaned", origin: [x, y], delay: at(), waits: true, children: glintShapes(x, y, sc, fin.glow) });
+    over.push({ key: "edge", cls: "rf-edge", frame: "point", origin: [x, y], delay: at(), waits: true, children: glintShapes(x, y, sc, fin.glow) });
   }
-  if (rich && !dim) glintSpots(fin, index).forEach((g, i) => over.push({ key: `glint${i}`, cls: "rf-glint", frame: "leaned", origin: [g.x, g.y], delay: g.delay, waits: false, children: glintShapes(g.x, g.y, g.s, g.color) }));
+  if (rich && !dim) glintSpots(fin, index).forEach((g, i) => over.push({ key: `glint${i}`, cls: "rf-glint", frame: "point", origin: [g.x, g.y], delay: g.delay, waits: false, children: glintShapes(g.x, g.y, g.s, g.color) }));
   const motes: MomentPiece[] = finishHasMotes(tier, "on", dim, index)
     ? moteSpots(fin).map((m, i) => ({
         key: `mote${i}`,
