@@ -1021,7 +1021,7 @@ setter. All small, riding existing suite patterns.
       about a seventh of full strength; a Legendary back's rarity steps clear of its corner
       scrollwork; the server's picture uses dashes for the ledger's dots (its renderer has no
       dotted line) and lining figures (it sets no old-style ones).
-36. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
+37. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
     should be sharable in the same way words are... share to X, FC, download image... think through
     how to best visualize it in a 16:9 image"). The sheet has a Share button: Post on X, Cast, Save
     image, with the picture shown first.

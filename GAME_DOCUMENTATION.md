@@ -148,7 +148,7 @@ the apex crown — the only word combining two distinct ultra-rares with a doubl
   `claim` itself, batched through Multicall3. `claim` is permissionless and always pays the share's
   baked-in account, so players never sign, pay gas, or race the 90-day claim window. A share the
   keeper misses waits for the next run, and the player can collect it from the Earnings sheet.
-- **Shared like a word** (decisions.md #36): the Earnings sheet's Share posts `/e/<token>`, a
+- **Shared like a word** (decisions.md #37): the Earnings sheet's Share posts `/e/<token>`, a
   picture of the player's top word's card beside a tag with what their words have earned. The
   amounts come from a snapshot the earnings route signs (`src/lib/earningsShareToken.ts`), never
   from the link.

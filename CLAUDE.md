@@ -554,7 +554,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
   newcomer's invitation while their words load (Today, Bag).
-- **"Your earnings" shares like a word** (decisions.md #36; `lib/earningsShare.ts` pure,
+- **"Your earnings" shares like a word** (decisions.md #37; `lib/earningsShare.ts` pure,
   `lib/earningsShareToken.ts` server, `lib/rewards/share.ts`, `app/e/[token]/`): the Earnings sheet's
   Share posts `/e/<token>`, whose picture is the player's top word's card beside a tag with what
   their words have earned. **Every amount on that picture comes from the token,** a snapshot
