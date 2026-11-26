@@ -34,7 +34,7 @@ import { TileCharacter, TileWord, type Gild } from "../TileCharacter";
 import { PlayerChip } from "../PlayerChip";
 import { NeedText } from "../NeedText";
 import { WordValue, useCostToMake } from "../WordValue";
-import { versus, versusLabel } from "@/lib/market/deals";
+import { rarestFirst, versus, versusLabel } from "@/lib/market/deals";
 import { timeAgo } from "../market/bits";
 import { useWorld } from "../useWorld";
 import { useDictionary } from "../useDictionary";
@@ -79,7 +79,6 @@ export function LookupSheet({ word }: { word: string }) {
 
   // unclaimed words the same letter would also finish, rarest first (one pass over the dictionary)
   const skip = (w: string) => w === word || d.statusOf(w) !== "open";
-  const rarestFirst = (a: string, b: string) => (RAREST.get(a) ?? 0) - (RAREST.get(b) ?? 0);
   const also = useMemo(() => {
     if (!counting || parts.length !== 1 || parts[0].count !== 1) return [];
     return finishedBy(parts[0].letter, WORDS, d.here, skip, d.all).sort(rarestFirst);

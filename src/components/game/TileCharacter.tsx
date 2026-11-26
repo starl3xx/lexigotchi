@@ -1212,8 +1212,8 @@ export function useWordLife(ref: RefObject<HTMLElement | null>, active: boolean)
           if (Math.random() < 0.3 && all[i + 1]) later(() => flash(all[i + 1], "tc-blink", BLINK_MS), 150); // a neighbour catches it
         } else if (r < 0.88) {
           // A glance: at a neighbour, or (an end letter) out at the world. It has a property of its
-          // own, --glance, and the pointer has --gx / --gy (useGaze); the pupil reads the pointer's
-          // first (globals.css, .tc-pupil). Each sets and clears only its own, so neither can take
+          // own, --glance, and the pointer writes each pupil's place itself (useGaze), which wins
+          // while it is there (globals.css, .tc-pupil). Each sets and clears only its own, so neither can take
           // the eyes off the other: sharing one property did both ways (Bugbot on #215, twice).
           const dir = all.length === 1 ? (Math.random() < 0.5 ? -1 : 1) : i === 0 ? 1 : i === all.length - 1 ? -1 : Math.random() < 0.5 ? -1 : 1;
           hold(
@@ -1248,10 +1248,24 @@ const BLINK_MS = 120;
 /** One twinkle (globals.css, tc-spark). */
 const SPARK_MS = 2900; // 1.8 s, and the last of a gilded tile's three stars starts a second in
 
+/** How far a pupil travels at full look, in the drawing's units: the same as a glance's (globals.css, .tc-pupil). */
+const PUPIL_X = 5.5;
+const PUPIL_Y = 4;
+
 /**
- * While the pointer is over a word, its letters look at it: two custom properties a tile (--gx,
- * --gy, each -1..1), set at most once a frame. Returns the handlers for the word's row; none when
- * `active` is false.
+ * While the pointer is over a word, its letters look at it. At most once a frame, each pupil's
+ * place is written straight onto it (its `transform`, with no transition while it follows), and
+ * taken off again when the pointer leaves, so the pupil eases back to where a glance or nothing
+ * puts it (globals.css, .tc-pupil). Returns the handlers for the word's row; none when `active`
+ * is false. Only a mouse has a pointer to follow: a phone never runs this.
+ *
+ * Why not custom properties on the tile (as this was first built, --gx / --gy): a custom property
+ * is inherited, so every shape in all four of the letter's layers had its style worked out again
+ * on each frame. Measured in headless WebKit with the pointer moving non-stop over a five-letter
+ * word, the two taken in turn, three rounds: about 35% of a processor core that way, 23% this way,
+ * 10% with the eyes off. What is left is the pupil being redrawn inside the letter's top layer
+ * (the layer rule: only a layer of their own would end it). A pointer at rest costs nothing
+ * either way.
  */
 export function useGaze(ref: RefObject<HTMLElement | null>, active: boolean) {
   const frame = useRef(0);
@@ -1261,21 +1275,27 @@ export function useGaze(ref: RefObject<HTMLElement | null>, active: boolean) {
     const row = ref.current;
     const p = at.current;
     if (!row || !p) return;
-    row.querySelectorAll<HTMLElement>("[data-tc]").forEach((el) => {
-      const r = el.getBoundingClientRect();
+    const tiles = Array.from(row.querySelectorAll<HTMLElement>("[data-tc]"));
+    // every read before any write: a write between two reads makes the browser lay the page out again
+    const rects = tiles.map((el) => el.getBoundingClientRect());
+    tiles.forEach((el, i) => {
+      const r = rects[i];
       const dx = p.x - (r.left + r.width / 2);
       const dy = p.y - (r.top + r.height * 0.3); // the eyes sit near the top of the box
       const d = Math.hypot(dx, dy) || 1;
       const k = Math.min(1, d / (r.width * 0.6));
-      el.style.setProperty("--gx", ((dx / d) * k).toFixed(2));
-      el.style.setProperty("--gy", ((dy / d) * k).toFixed(2));
+      const to = `translate(${((dx / d) * k * PUPIL_X).toFixed(2)}px, ${((dy / d) * k * PUPIL_Y).toFixed(2)}px)`;
+      el.querySelectorAll<SVGElement>(".tc-pupil").forEach((pupil) => {
+        pupil.style.transition = "none";
+        pupil.style.transform = to;
+      });
     });
   }, [ref]);
   const clear = useCallback(() => {
     at.current = null;
-    ref.current?.querySelectorAll<HTMLElement>("[data-tc]").forEach((el) => {
-      el.style.removeProperty("--gx");
-      el.style.removeProperty("--gy");
+    ref.current?.querySelectorAll<SVGElement>(".tc-pupil").forEach((pupil) => {
+      pupil.style.removeProperty("transition");
+      pupil.style.removeProperty("transform");
     });
   }, [ref]);
   useEffect(() => () => window.cancelAnimationFrame(frame.current), []);

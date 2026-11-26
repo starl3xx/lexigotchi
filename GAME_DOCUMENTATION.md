@@ -260,7 +260,9 @@ A staked word's care state is a function of days since last fed:
   (`SaleFees` → the `ROYALTY` split); OpenSea stays open. A letter listing holds several of one letter
   at a price each, and a buyer takes any number of them. The old one-for-one letter swap is retired.
   Recent sales are read from the chain (`src/lib/market/sales.ts`). The Market suggests prices and
-  picks listings for each player (`src/lib/market/deals.ts`). The sell form and
+  picks listings for each player (`src/lib/market/deals.ts`). A purchase celebrates once it shows: a
+  bought word in its scene (`sheets/CelebrateSheet`), bought letters over the word they newly finish
+  (`sheets/BoughtLettersSheet`). The sell form and
   each listing show the word's **cost to make** (`src/lib/wordCost.ts`: letters at
   `pack ÷ 5 ÷ (26 × odds)`, the expected rolls for each UPPERCASE letter, the claim, and the expected
   attempts at each ascension stage reached, at the live prices), what it would earn a day staked from

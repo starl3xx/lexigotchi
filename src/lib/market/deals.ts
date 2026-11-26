@@ -131,6 +131,14 @@ export function lowestOtherAsk(book: Readonly<Record<number, LetterBook>>, lette
 const RARITY = new Map(RANKED_WORDS.map((r) => [r.word, r.rank]));
 
 /**
+ * Rarest first, word by word, then A to Z. ONE order for every list that names "the word this
+ * letter finishes": the Market's pick, the bought-letters sheet that follows the purchase
+ * (sheets/BoughtLettersSheet), the Dictionary's "Only needs" filter, and the word view's "would
+ * also finish". A list that sorted another way would name another word for the same letter.
+ */
+export const rarestFirst = (a: string, b: string): number => (RARITY.get(b) ?? 0) - (RARITY.get(a) ?? 0) || a.localeCompare(b);
+
+/**
  * The words the player is exactly ONE letter short of, by the letter that finishes them (0-25), each
  * list rarest first. `unclaimed` is every dictionary word nobody owns. A letter of either case fills
  * the gap (a claim may mix cases), so the bag counts both.
@@ -151,7 +159,7 @@ export function oneLetterShort(here: LetterBag, all: LetterBag, unclaimed: Itera
     if (letter >= 0) (out.get(letter) ?? out.set(letter, []).get(letter)!).push(word);
   }
   // Word by word, as the word view's "would also finish" sorts, so both name the same word first.
-  for (const words of out.values()) words.sort((a, b) => (RARITY.get(b) ?? 0) - (RARITY.get(a) ?? 0) || a.localeCompare(b));
+  for (const words of out.values()) words.sort(rarestFirst);
   return out;
 }
 

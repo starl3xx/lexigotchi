@@ -333,21 +333,24 @@ body {
    The loops (the breath, a jump) are the tc-* keyframes in tailwind.config.ts, and they run on the
    character's LAYERS. What is here happens INSIDE a layer, so each is a moment, never a loop:
    - a blink: the open eye swapped for its shut drawing for a moment (.tc-blink on the tile);
-   - where the eyes look, -1..1 each way: --gx / --gy on the tile while the pointer has them
-     (useGaze), else --glance (a glance at a neighbour, useWordLife). Two owners, two properties:
-     each clears only its own;
+   - where the eyes look: a glance at a neighbour is --glance on the tile (-1..1, useWordLife);
+     while the pointer is on the word, useGaze writes each pupil's place straight onto it, which
+     wins over the glance, and takes it off when the pointer leaves. Two owners, two places: each
+     clears only its own. (The pointer's look was two custom properties on the tile at first. A
+     custom property is inherited, so every shape in the letter had its style worked out again on
+     each frame: TileCharacter's useGaze has the numbers.);
    - a twinkle: a rare letter's star, or a gilded tile's, once (.tc-spark on the tile);
    - the word in its scene noticing the pointer (.tc-perks, SceneFrame): one after another its
      letters rise onto their toes and look at it, and they hold that while it stays. Feet, shadow,
      and held hands stay put (the arms end under the clasp). A press squashes them.
-   TileCharacter's useWordLife (one timer for a word) and useGaze set the classes and properties.
+   TileCharacter's useWordLife (one timer for a word) and useGaze set the classes and styles.
    There is no glow on hover: a filter over five moving drawings is redone on every frame, and it
    took a Legendary word from about 70% of a processor core to 126% in WebKit while the pointer
    rested on it. The rarity's light pass is the shine, and it plays when the pointer arrives.
    Under prefers-reduced-motion none of it runs: the hosts never start the timer or follow the
    pointer, and the rise and the twinkle don't exist.
    --------------------------------------------------------------------------------------------- */
-.tc-pupil { transform: translate(calc(var(--gx, var(--glance, 0)) * 5.5px), calc(var(--gy, 0) * 4px)); }
+.tc-pupil { transform: translate(calc(var(--glance, 0) * 5.5px), 0); }
 .tc-blink .tc-eye-shut { visibility: visible; }
 .tc-blink .tc-eye-open { visibility: hidden; }
 @media (prefers-reduced-motion: no-preference) {

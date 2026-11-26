@@ -750,6 +750,17 @@ setter. All small, riding existing suite patterns.
       (`scripts/market-fork-check.ts`: buy 2 of 5, ask for more than is left, sold out, cancelled,
       uneven payments), and the routes against that fork and a throwaway database
       (`scripts/market-routes-check.ts`).
+    - **A purchase celebrates** (starl3xx, 2026-11-25: "we need an animation or popup with a toast or
+      something when a user purchases a word or letter ... (ie "Congrats, it's yours!" +
+      scene/card)"). It used to end with a toast. A bought word opens the claim's own "is yours"
+      sheet (`sheets/CelebrateSheet`, `bought`) standing in its scene, over what was paid and how
+      that compares with making it, with Stake and "See its card". Bought letters hop in the way a
+      pack's do (`sheets/BoughtLettersSheet`) over the word they newly finish, with its claim right
+      there: most letters are bought to finish a word, and it is the word the pick named
+      (`newlySpellable` keeps `oneLetterShort`'s order). Both stores open it only once the purchase
+      shows (the chain store after the read-back), through the reducer's `arrive`: if another sheet
+      is open by then, a toast says it and that sheet stays. A word the jackpot already drew is not
+      promised the jackpot, on a claim either.
     - **Not done:** a reminder to the seller when something sells (the template exists, unwired);
       buying one letter from several sellers in one send; an X card for a listing; offers (a
       buyer naming a price). Migration 0017 adds `letter_listings` and `market_sales`; until it
@@ -831,6 +842,8 @@ setter. All small, riding existing suite patterns.
       listed again inside that minute read as its previous owner's, and one the player had just
       sold as "yours, in a linked wallet" (Bugbot on #224). The word view takes the seller and
       the seller's face together (`holderOf`), never one's address with the other's face.
+      Today's next steps and the bought-letters sheet take the board's words as taken as well
+      (`useTakenWords`), so "Now you can spell" never names a word that is for sale.
       **Spell asks the same question** (`isTaken(statusOf(w))`), so #31's rule still holds: the
       Dictionary's "Can spell" is exactly Spell's list (1,010 words for the practice bag on both,
       1,012 before), and neither offers a claim that would revert.
@@ -840,8 +853,9 @@ setter. All small, riding existing suite patterns.
       it. The Market had its own count, of the connected wallet alone: it offered to sell a
       player a letter they held in a linked wallet (the Dictionary says "move it here"), and
       called a word finished by a purchase when another letter still had to be moved. Both are
-      tests now. Its lists are rarest first word by word (they were by tier, then A to Z), so the
-      Market and the word view name the same word first.
+      tests now. Its lists are rarest first word by word (they were by tier, then A to Z), by one
+      comparator (`lib/market/deals` `rarestFirst`) that the word view and the bought-letters
+      sheet (#30, #223) use too, so all three name the same word first.
     - **One wording.** "One more x finishes UNBOX" said "one more" to a player holding no x. Now
       "An x finishes UNBOX", and "One more o finishes BLOOD" only when one is held
       (`finishTokens`), beside the Dictionary's "Needs an x" and "Needs one more o".

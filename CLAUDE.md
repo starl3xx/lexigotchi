@@ -237,6 +237,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `oneLetterShort` (words nobody owns that the player is one letter short of, counted by the
   Dictionary's rule: see "The Market and the Dictionary" below), and `pickDeals` (a
   letter that finishes a word first; one place always kept for a price ≥10% under its cost).
+  **A purchase celebrates** (`sheets/CelebrateSheet` with `bought`: the word in its scene, what was
+  paid, Stake, "See its card"; `sheets/BoughtLettersSheet`: the letters, and the claim of the word
+  they newly finish, `newlySpellable`, in `oneLetterShort`'s order so a pick ends on its own word;
+  "newly" is measured from `had`, what the wallet held before, and nothing is named until the bag
+  shows `had + count`, nor while the world's owners load).
+  Both stores open it with the reducer's `arrive` action, only once the purchase shows: a sheet
+  already open stays, and a toast says it instead. Send any new "it arrived" moment through `arrive`.
   **The letter swap is retired**: `/api/swap/orders` POST answers 410, and its GET serves only a
   maker's own old offers, for Sell's Cancel. Proofs to rerun after touching any of this:
   `scripts/market-fork-check.ts` (the order against Seaport on an Anvil fork) and
@@ -398,6 +405,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `useDictionary` `statusOf`): the board is live and the world read is a minute old, and the
   practice stall's sellers are in no world read. Spell filters with the same `statusOf`
   (`isTaken`), which is what keeps "Can spell" exactly Spell's list: never test `owners[w]` alone.
+  Today's next steps and the bought-letters sheet read `useTakenWords`, which counts the board's
+  words too. Every list that names "the word a letter finishes" sorts with `rarestFirst`
+  (lib/market/deals), or two screens name different words for one letter.
   (5) *Links are state*: `nav(view, section)` with `letter:q` (the Market's Letters shelf, q's
   sellers open), `needs:q` (the Dictionary on the words a q finishes), `words`, `letters`; read
   the letter with `sectionLetter` (state.tsx). Not a take-once handoff like `spellHandoff`: the
