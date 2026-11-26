@@ -14,11 +14,12 @@ const B = "0x00000000000000000000000000000000000000bb";
 describe("the kinds", () => {
   it("every kind that existed before choices did is on by default: nothing changes for a player who changes nothing", () => {
     for (const k of ["hunger", "daily", "jackpot", "sold"] as const) expect(wantsKind(undefined, k)).toBe(true);
-    expect(effectiveKinds(null)).toEqual({ hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false });
+    expect(effectiveKinds(null)).toEqual({ hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false, deal: false });
   });
 
   it("a kind that comes every day starts OFF: a second daily message nobody chose gets the first one switched off", () => {
     expect(wantsKind(undefined, "payday")).toBe(false);
+    expect(wantsKind(undefined, "deal")).toBe(false); // up to once a day, too
     expect(wantsKind({ payday: true }, "payday")).toBe(true);
     // a weekly one at most starts on
     expect(wantsKind(undefined, "bounty")).toBe(true);
@@ -36,7 +37,7 @@ describe("the kinds", () => {
   it("a choice wins over the default, kind by kind", () => {
     expect(wantsKind({ daily: false }, "daily")).toBe(false);
     expect(wantsKind({ daily: false }, "hunger")).toBe(true);
-    expect(effectiveKinds({ daily: false, sold: false })).toEqual({ hunger: true, daily: false, jackpot: true, sold: false, bounty: true, payday: false });
+    expect(effectiveKinds({ daily: false, sold: false })).toEqual({ hunger: true, daily: false, jackpot: true, sold: false, bounty: true, payday: false, deal: false });
   });
 
   it("takes only known kinds with true or false from outside", () => {
