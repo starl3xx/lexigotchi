@@ -79,15 +79,19 @@ describe("/api/profile/reminders", () => {
 describe("the daily-letter reminder obeys the choices", () => {
   const sub = (address: string, endpoint: string) => ({ address, fid: null, endpoint, p256dh: "k", auth: "a" });
   let neynarUp = true;
+  let extraSubs: ReturnType<typeof sub>[] = [];
   beforeEach(() => {
     neynarUp = true;
+    extraSubs = [];
   });
   function mockCron(prefs: ReturnType<typeof prefsBookFrom>) {
     const sent = { fids: [] as number[], browsers: [] as string[], emails: [] as string[] };
     vi.stubEnv("CRON_SECRET", "s3cret");
     vi.doMock("@/lib/db/reminderPrefs", () => ({ loadPrefs: async () => prefs }));
     vi.doMock("@/lib/db/queries", () => ({ notifiableFids: async () => [77, 78] }));
-    vi.doMock("@/lib/db/webPush", () => ({ allWebPushSubscriptions: async () => [sub(A2, "https://push.example/a2"), sub(B, "https://push.example/b")] }));
+    vi.doMock("@/lib/db/webPush", () => ({
+      allWebPushSubscriptions: async () => [sub(A2, "https://push.example/a2"), sub(B, "https://push.example/b"), ...extraSubs],
+    }));
     vi.doMock("@/lib/db/profiles", () => ({
       emailRecipients: async () => [
         { address: A, email: "a@example.test", emailDailyDay: null, emailHungerDay: null },
@@ -145,6 +149,26 @@ describe("the daily-letter reminder obeys the choices", () => {
     expect(sent.fids).toEqual([]);
     expect(sent.browsers).toEqual(["https://push.example/b"]);
     expect(sent.emails).toEqual(["b@example.test"]);
+  });
+
+  it("a blind Farcaster run doesn’t skip the browser of a player Farcaster would have reminded", async () => {
+    const C = "0x00000000000000000000000000000000000000cc";
+    extraSubs = [{ ...sub(C, "https://push.example/c"), fid: 78 as unknown as null }]; // a mini-app player's browser
+    // every channel up: Farcaster reminds 78, so the browser is skipped
+    let sent = mockCron(prefsBookFrom([{ account: A, kinds: { daily: false } }]));
+    await run();
+    expect(sent.fids).toEqual([78]);
+    expect(sent.browsers).not.toContain("https://push.example/c");
+    // Farcaster blind: it reminds nobody, so that browser is reminded
+    vi.resetModules();
+    vi.doMock("@/lib/ratelimit", () => ({ allow: async () => true }));
+    sent = mockCron(prefsBookFrom([{ account: A, kinds: { daily: false } }]));
+    neynarUp = false;
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    await run();
+    quiet.mockRestore();
+    expect(sent.fids).toEqual([]);
+    expect(sent.browsers).toContain("https://push.example/c");
   });
 
   it("asks Farcaster nothing when nobody turned it off", async () => {

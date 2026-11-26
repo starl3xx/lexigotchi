@@ -5,7 +5,7 @@
  * nothing, where a table that doesn't exist yet sends the defaults.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { KIND_INFO, REMINDER_KINDS, changedFromDefaults, effectiveKinds, parseChoices, wantsKind } from "@/lib/notify/kinds";
+import { KIND_INFO, REMINDER_KINDS, changedFromDefaults, effectiveKinds, mergeStored, parseChoices, wantsKind } from "@/lib/notify/kinds";
 import { prefsBookFrom } from "@/lib/db/reminderPrefs";
 
 const A = "0x00000000000000000000000000000000000000aa";
@@ -40,6 +40,25 @@ describe("the kinds", () => {
   it("stores only what differs from the defaults", () => {
     expect(changedFromDefaults({ daily: false, hunger: true, sold: true })).toEqual({ daily: false });
     expect(changedFromDefaults({ daily: true })).toEqual({});
+  });
+});
+
+describe("mergeStored: what a save writes", () => {
+  it("lays the change over the row, and keeps only what differs from the defaults", () => {
+    expect(mergeStored({ sold: false }, { daily: false })).toEqual({ sold: false, daily: false });
+    expect(mergeStored({ sold: false, daily: false }, { daily: true })).toEqual({ sold: false });
+    expect(mergeStored(undefined, { hunger: true })).toEqual({});
+  });
+
+  it("keeps a kind this build doesn’t know exactly as a newer build stored it", () => {
+    // mid-deploy: a newer server stored `payday`, and this older one saves another box
+    expect(mergeStored({ payday: true, daily: false }, { sold: false })).toEqual({ payday: true, daily: false, sold: false });
+    expect(mergeStored({ payday: false }, { daily: true })).toEqual({ payday: false });
+  });
+
+  it("drops what was never a choice", () => {
+    expect(mergeStored({ payday: "yes", daily: false }, {})).toEqual({ daily: false });
+    expect(mergeStored("broken", { daily: false })).toEqual({ daily: false });
   });
 });
 
