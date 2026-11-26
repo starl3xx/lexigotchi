@@ -1538,6 +1538,47 @@ setter. All small, riding existing suite patterns.
     - **Seen and not seen (part 2):** the three emails as pictures at phone and desktop widths. No
       real mail client was seen, and no test email was sent.
 
+48. **Letters and cards, round two: nine notes, built in parts** (starl3xx, 2026-11-26, on the
+    review page "Card and Letter Review", which runs the game's own letter and card code beside a
+    changed copy; every point was decided there, then: "you can build your way through all of
+    this"). One entry: each part is added here as it ships.
+    - **Two rules, in the owner's words.** "However the tiles are animated, their *size* should
+      never change in animation; it breaks the character illusion in a weird way." And: "anything
+      on the letter/body should be its existing colorful / flat design; anything NOT on the
+      letter/body should be in the card style", the engraved line of the cards (#34).
+    - **Part 1, the rules in the letter.**
+      - **No size change.** A raised letter pulsed 13% bigger every 0.9 s: it now hops twice and
+        stands in the hero pose (a hand on the hip, a wave), which the rig had and nothing used. A
+        letter arriving (an opened pack, bought letters), the card of a bought word, and a step of
+        the intro grew in from 40% to 112%: they drop in (`drop`; `pop` stays for a toast and an
+        icon). The breath swelled the body by under 1% and sleep by 1.2%: the breath only rises,
+        and sleep is a slow rock about the feet. A pressed letter or word row squashed to 94% and
+        97%: it pushes down 2 px.
+      - **What may still change size,** by the owner's word ("the tile size stays consistent"):
+        the legs, whose stretch keeps the feet down while the body rises; a whole card's 3.5% lift
+        as it turns; and what flies off a letter (sweat, a z, a twinkle, confetti).
+      - **`tests/tile-size.test.tsx` holds it.** Every `tc*` loop must be listed there as body,
+        legs, or off the tile, so a new loop can't be added unsorted; a body loop with a scale
+        fails; `animate-pop` may be used only in the two files with no letter in them; a `.tile-
+        press` or `.word-press` rule with a scale fails.
+      - **The ground shadow is ruled lines** in the shape of the shadow, heavier toward the middle
+        (`tileShapes`, `SHADOW_LINES`, typed out so the server and the browser can't differ in a
+        digit), in the rig and in the share letter. It was a grey oval. The owner: "ruled lines
+        for shadows is fantastic." `CARD_LOOK` is 5.
+      - **A raised letter's rays are engraved, and a layer.** A "glory", as engravers draw light:
+        fine ruled rays of three lengths, twelve wedges with pale light inside, a ring of beads, in
+        the game's bright gold (the owner, of a first version in dark gold ink: "lighter, sunnier
+        color"). A box that stands still cuts them off just above the ground ("the rays shouldn't
+        be visible behind the lined shadow"), and only the drawing inside it turns. The flat star
+        they replace turned inside the floor's drawing, which the rig's own rule forbids: a raised
+        letter cost 11% to 20% of a processor core in WebKit for it (three runs), and under 2% now.
+        Headless Chrome is about the same either way (20% to 24% before, 23% to 26% after).
+      - **Measured on the way, not changed here.** A cheering word costs 48% of a core in WebKit
+        and 3% with its confetti hidden (it loops inside a drawing). A word's random life (blinks,
+        glances, twinkles) is most of what it costs at rest: 2% with it off, 6% to 17% with it on.
+      - **Seen and not seen (part 1):** the tile lab in headless WebKit, against the review page;
+        the docs' pictures rebuilt. No real iPhone, and no real graphics chip.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

@@ -20,8 +20,27 @@ export const MID = T.y + T.h / 2; // 175
 export const FOOT_Y = 300;
 export const FOOT_LX = CX - 30; // 90
 export const FOOT_RX = CX + 30; // 150
-/** The ground shadow under the shoes. */
-export const SHADOW = { cx: CX, cy: FOOT_Y + 3, rx: 76, ry: 10, opacity: 0.17 };
+/** The ground shadow under the shoes: its place and size. */
+export const SHADOW = { cx: CX, cy: FOOT_Y + 3, rx: 76, ry: 10 };
+/**
+ * The shadow as it is drawn (decisions.md #48): ruled lines in the shape of the shadow, heavier
+ * toward its middle, the way an engraving makes tone. What is on a letter is flat and colourful;
+ * what is around a letter is drawn like the cards, and the shadow is the one such thing under every
+ * letter. It was a grey oval. One list for the rig and the share card's still, typed out (not
+ * computed with a square root at run time) so the server and the browser can't differ in a digit.
+ */
+export const SHADOW_LINES: readonly { y: number; x0: number; x1: number; w: number }[] = [
+  { y: 295.2, x0: 72.4, x1: 167.6, w: 1.15 },
+  { y: 297.8, x0: 55.1, x1: 184.9, w: 1.34 },
+  { y: 300.4, x0: 46.6, x1: 193.4, w: 1.52 },
+  { y: 303, x0: 44, x1: 196, w: 1.7 },
+  { y: 305.6, x0: 46.6, x1: 193.4, w: 1.52 },
+  { y: 308.2, x0: 55.1, x1: 184.9, w: 1.34 },
+  { y: 310.8, x0: 72.4, x1: 167.6, w: 1.15 },
+];
+export const SHADOW_LINE_OPACITY = 0.62;
+/** Where the ground starts, a little above the shadow's top line: what stands behind a letter (the rays of a raised one) ends here. */
+export const GROUND_Y = FOOT_Y - 8;
 /**
  * The shoe (local: ankle at 0,-6, toe toward +x, sole on y = 3): a bean. A round heel, a dip at the
  * instep, a taller round toe. (The old shoe was a small heel with a long, low toe, 3 px tall on the

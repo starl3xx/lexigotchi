@@ -21,7 +21,8 @@ import {
   MID,
   MITT,
   PITCH,
-  SHADOW,
+  SHADOW_LINES,
+  SHADOW_LINE_OPACITY,
   SHINE_FROM,
   SHOE,
   SHOE_SHINE,
@@ -313,7 +314,10 @@ export function OgTile({
         {fin && finishDefs(fin, u, bw)}
         {limbs && (
           <g>
-            <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />
+            {/* the ground shadow as ruled lines (tileShapes, SHADOW_LINES): every attribute given, for Satori */}
+            {SHADOW_LINES.map((l) => (
+              <path key={l.y} d={`M ${l.x0} ${l.y} H ${l.x1}`} fill="none" stroke={INK} strokeOpacity={SHADOW_LINE_OPACITY} strokeWidth={l.w} strokeLinecap="round" />
+            ))}
             <path d={SHOE} transform={foot(FOOT_LX, -1)} fill={INK} />
             <path d={SHOE} transform={foot(FOOT_RX, 1)} fill={INK} />
             {w >= SHINE_FROM ? <path d={SHOE_SHINE} transform={foot(FOOT_LX, -1)} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={2.2} strokeLinecap="round" fill="none" /> : null}

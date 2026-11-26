@@ -102,7 +102,15 @@ const config: Config = {
           "30%": { transform: "translateY(-12px) scaleY(1.06)" },
           "60%": { transform: "translateY(0) scaleY(0.94)" },
         },
-        // reveal pop for pack/roll outcomes
+        // A letter, or a card with letters on it, arriving: it drops in and settles. It never grows:
+        // a tile's size does not change in any animation (decisions.md #48). `pop` below is for
+        // things that are not letters (a toast, an icon).
+        drop: {
+          "0%": { transform: "translateY(-16px) rotate(-6deg)", opacity: "0" },
+          "70%": { transform: "translateY(2px) rotate(1.5deg)", opacity: "1" },
+          "100%": { transform: "translateY(0) rotate(0deg)", opacity: "1" },
+        },
+        // a pop for what is not a letter (a toast, an icon); never on a tile or on a box around one
         pop: {
           "0%": { transform: "scale(0.4) rotate(-12deg)", opacity: "0" },
           "70%": { transform: "scale(1.12) rotate(4deg)", opacity: "1" },
@@ -115,10 +123,15 @@ const config: Config = {
         // units through --ux / --uy (one unit as a percent of the layer's box, set by the tile), so
         // the motion is the same at every size. Feet stay planted: the legs layer stretches from
         // the feet while the body layer rises.
+        // A TILE'S SIZE NEVER CHANGES (decisions.md #48; starl3xx: "however the tiles are animated,
+        // their size should never change in animation; it breaks the character illusion"): a body
+        // loop moves and turns the tile, and never scales it. The legs may stretch: that is what
+        // keeps the feet down, and the tile itself stays the size it is. tests/tile-size.test.ts
+        // holds it.
         // idle: a breath (it used to bounce 7 units every 1.5 s, in step, like a metronome)
         tcBreathe: {
-          "0%,100%": { transform: "translateY(0) scale(1.004, 0.996)" },
-          "50%": { transform: "translateY(calc(var(--uy) * -3)) scale(0.995, 1.008)" },
+          "0%,100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(calc(var(--uy) * -3))" },
         },
         tcLegBreathe: {
           "0%,100%": { transform: "scaleY(1)" },
@@ -133,19 +146,30 @@ const config: Config = {
           "0%,100%": { transform: "scaleY(0.98)" },
           "45%": { transform: "scaleY(1.03)" },
         },
-        // hungry: asleep, a slow rise and fall
+        // hungry: asleep, a slow rock about the feet (it used to swell and shrink)
         tcSleep: {
-          "0%,100%": { transform: "scale(1, 1)" },
-          "50%": { transform: "scale(1.012, 0.984)" },
+          "0%,100%": { transform: "rotate(0deg)" },
+          "50%": { transform: "rotate(-0.7deg) translateY(calc(var(--uy) * 0.8))" },
         },
         tcEat: {
           "0%,100%": { transform: "rotate(-3deg)" },
           "50%": { transform: "rotate(3deg)" },
         },
-        tcPop: {
-          "0%,100%": { transform: "scale(1)" },
-          "45%": { transform: "scale(1.13)" },
-          "70%": { transform: "scale(0.97)" },
+        // a raised letter: two hops, then it stands in its pose (it used to pulse 13% bigger). The
+        // legs stretch by the body's rise over their own length (52 units), so the feet stay down.
+        tcHop: {
+          "0%": { transform: "translateY(0) rotate(0deg)", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" },
+          "14%": { transform: "translateY(calc(var(--uy) * -12)) rotate(-2deg)", animationTimingFunction: "cubic-bezier(0.6, 0, 0.8, 0.4)" },
+          "28%": { transform: "translateY(0) rotate(0deg)", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" },
+          "38%": { transform: "translateY(calc(var(--uy) * -5)) rotate(1.5deg)", animationTimingFunction: "cubic-bezier(0.6, 0, 0.8, 0.4)" },
+          "48%,100%": { transform: "translateY(0) rotate(0deg)" },
+        },
+        tcLegHop: {
+          "0%": { transform: "scaleY(1)", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" },
+          "14%": { transform: "scaleY(1.23)", animationTimingFunction: "cubic-bezier(0.6, 0, 0.8, 0.4)" },
+          "28%": { transform: "scaleY(1)", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" },
+          "38%": { transform: "scaleY(1.096)", animationTimingFunction: "cubic-bezier(0.6, 0, 0.8, 0.4)" },
+          "48%,100%": { transform: "scaleY(1)" },
         },
         tcJump: {
           "0%,100%": { transform: "translateY(0) rotate(-1.5deg)" },
@@ -210,13 +234,15 @@ const config: Config = {
         shuffle: "shuffle 1.6s ease-in-out infinite",
         kick: "kick 0.9s ease-in-out infinite",
         pop: "pop 0.45s ease-out both",
+        drop: "drop 0.45s ease-out both",
         "tc-breathe": "tcBreathe 3.6s ease-in-out infinite",
         "tc-legbreathe": "tcLegBreathe 3.6s ease-in-out infinite",
         "tc-sigh": "tcSigh 5.2s ease-in-out infinite",
         "tc-legsigh": "tcLegSigh 5.2s ease-in-out infinite",
         "tc-sleep": "tcSleep 5.6s ease-in-out infinite",
         "tc-eat": "tcEat 0.5s ease-in-out infinite",
-        "tc-pop": "tcPop 0.9s ease-in-out infinite",
+        "tc-hop": "tcHop 1.7s linear infinite",
+        "tc-leghop": "tcLegHop 1.7s linear infinite",
         "tc-jump": "tcJump 0.75s ease-in-out infinite",
         "tc-legjump": "tcLegJump 0.75s ease-in-out infinite",
         "tc-brace": "tcBrace 0.17s linear infinite",
@@ -225,7 +251,7 @@ const config: Config = {
         "tc-peek-open": "tcPeekOpen 3.2s step-end infinite",
         "tc-peek-shut": "tcPeekShut 3.2s step-end infinite",
         "tc-confetti": "tcConfetti 1.5s linear infinite",
-        "tc-ray": "tcRay 7s linear infinite",
+        "tc-ray": "tcRay 18s linear infinite",
         "tc-zzz": "tcZzz 2.4s ease-in-out infinite",
       },
     },

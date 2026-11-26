@@ -16,7 +16,8 @@
  * dense-grid / word-row form). Auto-selected by size, overridable via `detail`.
  *
  * THE DRAWING IS UP TO FOUR STACKED LAYERS, each its own <svg>: the floor (shadow, shoes), the legs,
- * the body (rings, arms, tile, face), and the top (held hands, zzz, confetti); an empty one isn't
+ * the body (rings, arms, tile, face), and the top (held hands, zzz, confetti), with a raised
+ * letter's rays as a layer of their own behind them; an empty one isn't
  * drawn, so a small tile in a grid is the body alone. The loops (the breath,
  * a jump) are CSS transforms on the legs and body LAYERS, never on a shape inside one. A browser
  * slides a finished layer without redrawing it; a transform inside an <svg> makes WebKit (every
@@ -48,6 +49,7 @@ import {
   FOOT_LX,
   FOOT_RX,
   FOOT_Y,
+  GROUND_Y,
   LEG_L,
   LEG_R,
   LIMB_W,
@@ -55,7 +57,8 @@ import {
   LINK_R,
   MID,
   MITT,
-  SHADOW,
+  SHADOW_LINES,
+  SHADOW_LINE_OPACITY,
   SHINE_FROM,
   SHOE,
   SHOE_SHINE,
@@ -192,7 +195,7 @@ const BODY_ANIM: Record<TileState, string> = {
   hungry: "animate-tc-sleep",
   eating: "animate-tc-eat",
   rolling: "animate-tc-brace",
-  upgrade: "animate-tc-pop",
+  upgrade: "animate-tc-hop",
   celebrate: "animate-tc-jump",
 };
 // The legs layer keeps the feet planted while the body moves: each body loop has its leg loop.
@@ -202,7 +205,7 @@ const LEG_ANIM: Record<TileState, string> = {
   hungry: "",
   eating: "",
   rolling: "animate-tc-knock",
-  upgrade: "",
+  upgrade: "animate-tc-leghop",
   celebrate: "animate-tc-legjump",
 };
 const TILT: Record<TileState, number> = {
@@ -678,25 +681,48 @@ function Crown({ base, paint = GOLD }: { base: number; paint?: string }) {
 // ===========================================================================
 // State extras (zzz / ? / snack / burst rays / confetti).
 // ===========================================================================
-function BurstRays({ reduced }: { reduced: boolean }) {
-  const rays = Array.from({ length: 12 }, (_, i) => {
-    const a = (Math.PI / 6) * i;
-    const r1 = 70;
-    const r2 = 120;
-    const wsp = 0.16;
-    // rounded, as star4's points are: a raw sine differs in its last digit between the server and
-    // WebKit, and every page with a newly raised letter on it logged a hydration mismatch there
-    const at = (r: number, t: number) => `${(CX + r * Math.cos(t)).toFixed(2)} ${(MID + r * Math.sin(t)).toFixed(2)}`;
-    const p = `M ${at(r1, a - wsp)} L ${at(r2, a)} L ${at(r1, a + wsp)} Z`;
-    return <path key={i} d={p} fill={GOLD} />;
-  });
+/**
+ * The rays behind a raised letter, engraved (decisions.md #48): a "glory", as engravers draw
+ * light: fine ruled rays of three lengths, twelve wedges with pale light inside them, and a ring of
+ * beads, in the game's bright gold. It is not part of the letter, so it is drawn like the cards and
+ * not like the letter.
+ *
+ * ONE STILL DRAWING. TileCharacter turns it as a whole layer, never as a loop inside a drawing:
+ * the flat star it replaces turned inside the floor's drawing, and a raised letter cost 11% to 20%
+ * of a processor core in WebKit for it (under 2% as a layer; headless, three runs).
+ *
+ * Every number is rounded: the server draws this too, and engines differ in a sine's last digit.
+ */
+const GLORY = (() => {
+  const at = (r: number, t: number) => `${(CX + r * Math.cos(t)).toFixed(2)} ${(MID + r * Math.sin(t)).toFixed(2)}`;
+  let fine = "";
+  const N = 120;
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    // a wedge stands at every tenth ray; between them, three lengths
+    const r1 = i % 10 === 0 ? 0 : i % 5 === 0 ? 126 : i % 2 === 0 ? 112 : 104;
+    if (r1) fine += `M ${at(84, t)} L ${at(r1, t)}`;
+  }
+  let wedges = "";
+  for (let i = 0; i < 12; i++) {
+    const t = (i / 12) * Math.PI * 2;
+    wedges += `M ${at(84, t - 0.07)} L ${at(140, t)} L ${at(84, t + 0.07)}`;
+  }
+  let beads = "";
+  for (let i = 0; i < 48; i++) {
+    const t = ((i + 0.5) / 48) * Math.PI * 2;
+    const x = (CX + 78 * Math.cos(t) - 1.5).toFixed(2);
+    const y = (MID + 78 * Math.sin(t)).toFixed(2);
+    beads += `M ${x} ${y} a 1.5 1.5 0 1 0 3 0 a 1.5 1.5 0 1 0 -3 0 Z`;
+  }
+  return { fine, wedges, beads };
+})();
+function Glory() {
   return (
-    <g
-      className={reduced ? "" : "animate-tc-ray"}
-      style={reduced ? undefined : ({ transformBox: "fill-box", transformOrigin: "center", opacity: 0.55 } as CSSProperties)}
-      opacity={0.55}
-    >
-      {rays}
+    <g>
+      <path d={GLORY.fine} fill="none" stroke={GOLD} strokeWidth={1.25} strokeLinecap="round" opacity={0.95} />
+      <path d={GLORY.wedges} fill={SHEEN} fillOpacity={0.6} stroke={GOLD} strokeWidth={1.7} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={GLORY.beads} fill={GOLD} />
     </g>
   );
 }
@@ -931,8 +957,10 @@ export function TileCharacter({
 
   // The arms. A side that holds a neighbour's hand reaches for the clasp; a free side hangs at
   // rest, holds on to the tile's corner when rolling, or strikes the hero pose.
-  const armL: Arm | null = !showLimbs || linkLeft ? null : state === "rolling" ? ARM_BRACE : pose === "hero" ? ARM_HIP : ARM_REST;
-  const armR: Arm | null = !showLimbs || linkRight ? null : state === "rolling" ? ARM_BRACE_R : pose === "hero" ? ARM_WAVE : ARM_REST_R;
+  // A raised letter strikes the hero pose too: a hand on the hip, a wave (decisions.md #48).
+  const hero = pose === "hero" || state === "upgrade";
+  const armL: Arm | null = !showLimbs || linkLeft ? null : state === "rolling" ? ARM_BRACE : hero ? ARM_HIP : ARM_REST;
+  const armR: Arm | null = !showLimbs || linkRight ? null : state === "rolling" ? ARM_BRACE_R : hero ? ARM_WAVE : ARM_REST_R;
   const darts = size >= DARTS_FROM; // the mitt's two stitches: only where they are more than a speck
   const limb = (d: string) => <path d={d} stroke={INK} strokeWidth={LIMB_W} fill="none" strokeLinecap="round" />;
   const freeArm = (a: Arm | null) =>
@@ -1184,12 +1212,35 @@ export function TileCharacter({
     );
 
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
-  const hasFloor = showLimbs || state === "upgrade";
+  const hasFloor = showLimbs;
   const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating") || state === "celebrate";
   // A still frame shows no sweat: a bead frozen in the air reads as an ear.
   const sweating = showFace && state === "rolling" && !reduced;
   const asleep = showFace && state === "hungry";
   const layers = [
+    // a raised letter's rays, behind everything: a layer that turns as a whole (Glory says why)
+    state === "upgrade" &&
+      (flat ? (
+        // one file (the docs' pictures): the same cut as a clip path, the same turn on a group
+        <g key="rays" clipPath={showLimbs ? `url(#tc-ground-${uid})` : undefined}>
+          {showLimbs && (
+            <defs>
+              <clipPath id={`tc-ground-${uid}`}>
+                <rect x={VIEW.x - 200} y={VIEW.y - 200} width={VIEW.w + 400} height={GROUND_Y - VIEW.y + 200} />
+              </clipPath>
+            </defs>
+          )}
+          {layer("rays-turn", <Glory />, reduced ? "" : "animate-tc-ray", originAt(CX, MID), {})}
+        </g>
+      ) : (
+        // The box stands still and cuts the rays off at the ground, so none shows between the
+        // shadow's ruled lines (the light rises from behind the ground); only the drawing turns.
+        <div key="rays" data-piece="rays" style={showLimbs ? { ...LAYER, clipPath: `inset(-40% -40% ${(((VIEW.y + VIEW.h - GROUND_Y) / VIEW.h) * 100).toFixed(2)}% -40%)` } : LAYER}>
+          <svg viewBox={vb} aria-hidden className={`overflow-visible ${reduced ? "" : "animate-tc-ray"}`} style={{ ...LAYER, transformOrigin: originAt(CX, MID) }}>
+            <Glory />
+          </svg>
+        </div>
+      )),
     // the floor: what never moves
     hasFloor &&
       layer(
@@ -1203,10 +1254,14 @@ export function TileCharacter({
               </filter>
             </defs>
           )}
-          {/* gold burst rays (upgrade) — behind everything */}
-          {state === "upgrade" && <BurstRays reduced={reduced} />}
-          {/* ground shadow: on the floor, whatever the figure does */}
-          {showLimbs && <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />}
+          {/* ground shadow: on the floor, whatever the figure does. Ruled lines, as the cards make tone (tileShapes, SHADOW_LINES). */}
+          {showLimbs && (
+            <g fill="none" stroke={INK} strokeLinecap="round" opacity={SHADOW_LINE_OPACITY}>
+              {SHADOW_LINES.map((l) => (
+                <path key={l.y} d={`M ${l.x0} ${l.y} H ${l.x1}`} strokeWidth={l.w} />
+              ))}
+            </g>
+          )}
           {/* shoes — planted */}
           {showLimbs && (
             <g filter={boilFilter}>
