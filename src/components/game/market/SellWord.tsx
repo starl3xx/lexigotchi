@@ -18,7 +18,7 @@ import { Button } from "../primitives";
 import { Coins } from "../ui/icons";
 import { fmtWord, useGame, type OwnedWord } from "../state";
 import { WordValue, useCostToMake } from "../WordValue";
-import { PriceHint, PriceIdeas, PriceInput, priceOf, priceText, useAmount } from "./bits";
+import { FormHead, PriceHint, PriceIdeas, PriceInput, priceOf, priceText, useAmount } from "./bits";
 
 /** The Market's fee on a word (params `market.wordSaleFee`, 10%), the same number the order builder uses. */
 const SALE_FEE = DEFAULT_PARAMS.market.wordSaleFee;
@@ -92,6 +92,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
         if (ok) close();
       }}
     >
+      <FormHead title={listing ? `Change the price of ${word.word}` : `Sell ${word.word}`} onClose={close} />
       <WordValue word={word} cost={cost} />
       <PriceIdeas ideas={ideas} current={price} onPick={(n) => setText(priceText(n))} />
       <label className="mt-3 block text-xs font-bold text-ink/60" htmlFor={`sell-${word.word}`}>
@@ -118,9 +119,9 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
       {cost && price > 0 && price < roundPrice(cost.total) && (
         <p className="mt-1 text-xs font-bold text-gold-ink">That’s less than it costs to make, about {fmtWord(cost.total)} $WORD. It’s your call.</p>
       )}
-      <button type="button" onClick={close} className="mt-1 text-xs font-bold text-ink/45 underline">
-        Not now
-      </button>
+      <Button type="button" size="sm" variant="ghost" className="mt-2" onClick={close}>
+        Cancel
+      </Button>
     </form>
   );
 }

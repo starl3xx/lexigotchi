@@ -78,6 +78,26 @@ export function PriceIdeas({ ideas, current, onPick }: { ideas: readonly PriceId
   );
 }
 
+/**
+ * The top of a sell form: what is being sold, and a way out. A tester opened the form and found no
+ * way to close it: the only one was a faint "Not now" under everything (starl3xx, 2026-11-25).
+ */
+export function FormHead({ title, onClose }: { title: ReactNode; onClose: () => void }) {
+  return (
+    <div className="mb-2 flex items-start justify-between gap-3">
+      <h3 className="min-w-0 font-display text-sm font-extrabold">{title}</h3>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="press -mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-ink bg-card text-base font-extrabold leading-none"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 /** A whole-number $WORD price, typed with or without commas. */
 export function PriceInput({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (text: string) => void; placeholder: string }) {
   return (

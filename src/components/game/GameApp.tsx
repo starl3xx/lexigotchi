@@ -176,7 +176,9 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
           <main ref={mainRef} className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3 md:px-8 md:pb-12 md:pt-6">
             {/* Phones: the full width (as before). Desktop: a readable column the screens fill
                 with their own grids. Tablets in portrait get a centered phone-width column. */}
-            <div className="mx-auto w-full max-w-[560px] md:max-w-5xl">
+            {/* A column at least as tall as the page, so the $WORD line sits at the bottom of a short
+                screen and under the content of a long one (starl3xx, 2026-11-25). */}
+            <div className="mx-auto flex min-h-full w-full max-w-[560px] flex-col md:max-w-5xl">
               {/* A wallet on a network this screen can't use: say so, with Switch and Disconnect
                   (the game's network, or Base on the $WORD page, whose swap is on Base mainnet). */}
               <WalletNetworkNotice />
@@ -195,8 +197,9 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
                   )}
                 </div>
               </ScreenErrorBoundary>
-              {/* The $WORD line at the foot of every screen: contract, link, market cap. */}
-              <WordStripLive className="mt-10" />
+              {/* The $WORD line at the foot of every screen: contract, link, market cap. `mt-auto` takes
+                  the spare height above it; the padding keeps it off the content when there is none. */}
+              <WordStripLive className="mt-auto pt-10" />
             </div>
           </main>
           <BottomNav />

@@ -14,7 +14,7 @@
  * Both stores feed it (`g.market`): the chain game from the Market's routes, the practice game from
  * a seeded stall (market/practiceMarket.ts).
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { shopEnabled } from "@/lib/shop/config";
 import { WORDS } from "@/lib/dictionary";
 import { wordTier } from "@/lib/economy";
@@ -25,7 +25,7 @@ import { fmtWord, mineLower, mineUpper, useGame } from "../state";
 import { useStoredChoice } from "../useStoredChoice";
 import { useWorld } from "../useWorld";
 import { LettersBoard } from "../market/LettersBoard";
-import { SellDesk } from "../market/SellDesk";
+import { SellDesk, type SellKind } from "../market/SellDesk";
 import { SoldList, SoldThing } from "../market/SoldList";
 import { WordsBoard, useCostPrices } from "../market/WordsBoard";
 import { timeAgo } from "../market/bits";
@@ -41,6 +41,15 @@ export function MarketScreen() {
   const [tab, setTab] = useStoredChoice<Tab>("lexi:market:tab", TABS, "words");
   const [openLetter, setOpenLetter] = useState<number | null>(null);
   const [sellLetter, setSellLetter] = useState<number | null>(null);
+  const [sellKind, setSellKind] = useState<SellKind>("words");
+  // The Bag's "Sell letters" lands here (`nav("swap", "sellLetters")`): Sell, on the player's letters.
+  // After useStoredChoice's own effect, so the link wins over the remembered part.
+  const section = state.section;
+  useEffect(() => {
+    if (section !== "sellLetters") return;
+    setTab("sell");
+    setSellKind("letters");
+  }, [section, setTab]);
 
   // Words the connected wallet's letters are one short of. Until the chain game knows who owns what,
   // it can't say a word is free, so it says nothing.
@@ -81,7 +90,7 @@ export function MarketScreen() {
       )}
 
       {g.market.sales.length > 0 && (
-        <div className="-mx-1 flex items-center gap-3 overflow-x-auto px-1 pb-1" aria-label="Just sold">
+        <div className="-mx-1 flex items-center gap-3 overflow-x-auto overflow-y-hidden px-1 pb-1" aria-label="Just sold">
           <button type="button" onClick={() => setTab("sold")} className="shrink-0 font-display text-sm font-extrabold underline decoration-2 underline-offset-2">
             Just sold
           </button>
@@ -132,11 +141,12 @@ export function MarketScreen() {
           flagged={new Set(deals.flatMap((d) => (d.kind === "finish" ? [d.ask.letterId % 26] : [])))}
           onSell={(letterId) => {
             setSellLetter(letterId);
+            setSellKind("letters");
             setTab("sell");
           }}
         />
       )}
-      {tab === "sell" && <SellDesk letter={sellLetter} setLetter={setSellLetter} />}
+      {tab === "sell" && <SellDesk kind={sellKind} setKind={setSellKind} letter={sellLetter} setLetter={setSellLetter} />}
       {tab === "sold" && <SoldList />}
 
       <p className="border-t-2 border-ink/15 pt-3 text-xs text-ink/55">

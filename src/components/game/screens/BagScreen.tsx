@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { BagWordCard } from "../../cards/BagWordCard";
-import { Basket, Cookie, Sparkle, TextAa } from "../ui/icons";
+import { Basket, Cookie, Sparkle, Storefront, TextAa } from "../ui/icons";
 import { feedAllLabel, wordsToFeed } from "../feedAll";
 import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
@@ -126,6 +126,12 @@ export function BagScreen() {
           <Button full variant="ghost" onClick={() => g.nav("mint")}>
             <Sparkle weight="fill" /> Mint more letters
           </Button>
+          {/* Loose letters sell on the Market (decisions.md #30): this opens its Sell page on them. */}
+          {lowerCount + upperCount > 0 && (
+            <Button full variant="ghost" onClick={() => g.nav("swap", "sellLetters")}>
+              <Storefront weight="fill" /> Sell letters on the Market
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
@@ -152,7 +158,9 @@ export function BagScreen() {
             </div>
             {state.words.length > 1 && (
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Show">
+                {/* Room above and below for the chips' hover lift and shadow, and no vertical scrolling: a
+                    box that scrolls sideways clips up and down too (the Market's row showed it). */}
+                <div className="-my-1 -ml-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto overflow-y-hidden px-1 py-2" role="group" aria-label="Show">
                   {WORD_FILTERS.filter((f) => f === "all" || counts[f] > 0).map((f) => (
                     <button
                       key={f}

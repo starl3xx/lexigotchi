@@ -107,7 +107,11 @@ export function WordsBoard() {
           </select>
         </label>
       </div>
-      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Show">
+      {/* The chips lift on hover and deepen their shadow (.press), and a box that scrolls sideways clips
+          up and down too: the row cut the lifted chip off and grew a scrollbar (starl3xx, 2026-11-25).
+          So: room above and below the chips, no vertical scrolling, and from md the chips wrap in a
+          plain row that clips nothing. */}
+      <div className="-mx-1 mt-1 flex gap-1.5 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-1 md:flex-wrap md:overflow-visible" role="group" aria-label="Show">
         <button type="button" aria-pressed={tier === "all"} onClick={() => setTier("all")} className={chip(tier === "all")}>
           All {listings.length}
         </button>
