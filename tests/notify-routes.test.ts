@@ -143,6 +143,55 @@ describe("POST /api/push/subscribe", () => {
     expect(sent[0].title).toBe("Reminders are on");
   });
 
+  /** The real confirmation rule, without its four-second wait. */
+  function noWait() {
+    vi.doMock("@/lib/notify/confirmPush", async () => {
+      const real = await vi.importActual<typeof import("@/lib/notify/confirmPush")>("@/lib/notify/confirmPush");
+      return { ...real, confirmSubscription: (deps: Parameters<typeof real.confirmSubscription>[0]) => real.confirmSubscription({ ...deps, wait: async () => {} }) };
+    });
+  }
+
+  it("answers only once the test reminder went out: the push was sent before the answer", async () => {
+    mockSubscribe("new");
+    let sent = 0;
+    vi.doMock("@/lib/notify/webPush", () => ({ sendWebPush: async () => (sent++, { ok: true, delivered: 1, gone: 0, failed: 0 }) }));
+    const res = await post();
+    expect(sent).toBe(1); // no waiting for an after-response step
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
+  it("refuses the opt-in when the push service calls the new browser gone twice: “on” would be untrue", async () => {
+    mockSubscribe("new");
+    noWait();
+    const prunes: boolean[] = [];
+    vi.doMock("@/lib/notify/webPush", () => ({
+      sendWebPush: async (_to: unknown, _note: unknown, deps: { onGone?: unknown } = {}) => (prunes.push(deps.onGone === undefined), { ok: true, delivered: 0, gone: 1, failed: 0 }),
+    }));
+    const quiet = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await post();
+    quiet.mockRestore();
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ ok: false, error: "push_refused" });
+    // the first try may not drop the row; the second may
+    expect(prunes).toEqual([false, true]);
+  });
+
+  it("keeps the opt-in when the second try is delivered, or when the push merely failed", async () => {
+    mockSubscribe("new");
+    noWait();
+    let n = 0;
+    vi.doMock("@/lib/notify/webPush", () => ({ sendWebPush: async () => (++n === 1 ? { ok: true, delivered: 0, gone: 1, failed: 0 } : { ok: true, delivered: 1, gone: 0, failed: 0 }) }));
+    const quiet = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await (await post()).json()).toEqual({ ok: true });
+    expect(n).toBe(2);
+    vi.resetModules();
+    mockSubscribe("new");
+    noWait();
+    vi.doMock("@/lib/notify/webPush", () => ({ sendWebPush: async () => ({ ok: false, delivered: 0, gone: 0, failed: 1 }) }));
+    expect(await (await post()).json()).toEqual({ ok: true }); // a 5xx from the push service is not a refusal of this browser
+    quiet.mockRestore();
+  });
+
   it("sends nothing when the browser was already subscribed (the hook re-sends on a wallet change)", async () => {
     mockSubscribe("saved");
     const send = vi.fn();

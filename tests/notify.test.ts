@@ -12,6 +12,7 @@ import {
   pityCapped,
   marketSold,
   remindersOn,
+  REMINDERS_ON_MAX,
   bountyPaid,
   dealAlert,
 } from "@/lib/notify/templates";
@@ -167,6 +168,9 @@ describe("length limits", () => {
     expect(withinLimits(dailyReady())).toBe(true);
     expect(withinLimits(jackpotWon("cabin", "1,250,000 $WORD"))).toBe(true);
     expect(withinLimits(earningsPaid("42,000 $WORD"))).toBe(true);
+    // the opt-in's own reminder shows how one looks, so it must fit a banner whole
+    expect(remindersOn().body.length).toBeLessThanOrEqual(REMINDERS_ON_MAX);
+    expect(remindersOn().body).toBe("This is how a reminder looks. Your profile chooses which ones you get.");
   });
 });
 

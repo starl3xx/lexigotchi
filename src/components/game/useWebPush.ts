@@ -72,11 +72,34 @@ async function syncToServer(sub: PushSubscription, address: string): Promise<voi
     },
     body: JSON.stringify({ address, subscription: sub.toJSON() }),
   });
-  if (!res.ok) throw Object.assign(new Error(`subscribe failed: ${res.status}`), { status: res.status });
+  if (!res.ok) {
+    // The route's own word for it ("push_refused", "too_many_browsers"…), when it gave one.
+    const code = await res
+      .json()
+      .then((d: { error?: unknown }) => (typeof d?.error === "string" ? d.error : undefined))
+      .catch(() => undefined);
+    throw Object.assign(new Error(`subscribe failed: ${res.status}`), { status: res.status, code });
+  }
   try {
     localStorage.setItem(SYNCED_KEY, `${address.toLowerCase()}:${session?.fid ?? ""}`);
   } catch {
     /* storage unavailable — we'll just re-sync next time */
+  }
+}
+
+/**
+ * End this browser's own subscription and forget that the server had it: the server holds no row
+ * for it. Without this a page load would read the browser's subscription and the matching sync key
+ * and say "on". Never throws.
+ */
+async function forgetLocally(): Promise<void> {
+  await currentSubscription()
+    .then((sub) => sub?.unsubscribe())
+    .catch(() => {});
+  try {
+    localStorage.removeItem(SYNCED_KEY);
+  } catch {
+    /* storage unavailable: there was no sync key to remove */
   }
 }
 
@@ -167,7 +190,18 @@ export function useWebPush(): {
         await syncToServer(sub, address);
         if (alive) setSyncWarning(null);
       })
-      .catch((err) => {
+      .catch(async (err) => {
+        // The push service refused the test reminder for this browser, twice (the route's rule): its
+        // subscription is dead, and the server holds no row for it. End it here too, whichever
+        // wallet is connected now, so nothing can say "on": not this copy, not another copy whose
+        // own request was answered first (it found the row still there and wrote the sync key;
+        // Bugbot on #256), and not the next page load, which reads the browser's subscription.
+        if ((err as { code?: string }).code === "push_refused") {
+          await forgetLocally();
+          announce("off");
+          if (alive) setError(enableFailure("save", err).message);
+          return;
+        }
         // A full wallet refuses this browser (409): the server keeps it on the PREVIOUS wallet, so
         // the toggle's "on" is still true, but for that wallet. Say so; silence here would show
         // "on" for a wallet that gets nothing. Anything else is transient: the next visit retries.
@@ -210,8 +244,9 @@ export function useWebPush(): {
         try {
           await syncToServer(sub, address);
         } catch (err) {
-          // The server never stored it, so nothing would ever arrive. Undo, and say so.
-          await sub.unsubscribe().catch(() => {});
+          // The server never stored it (or dropped it: push_refused), so nothing would ever arrive.
+          // Undo, and say so.
+          await forgetLocally();
           throw err;
         }
         announce("on");

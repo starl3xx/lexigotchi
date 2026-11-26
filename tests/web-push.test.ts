@@ -295,6 +295,15 @@ describe("enableFailure: a failed turn-on says what failed and what to try", () 
     expect(enableFailure("save", err("TypeError", "Failed to fetch")).message).toMatch(/Couldn’t reach Lexigotchi/);
   });
 
+  it("the test reminder the notification service refused: reminders are not on, and it says so", () => {
+    const why = enableFailure("save", err("Error", "subscribe failed: 502", { status: 502, code: "push_refused" }));
+    expect(why.message).toMatch(/refused our test reminder, so reminders are not on here/);
+    expect(why.message).toMatch(/another browser, or reminders by email/);
+    expect(why.detail).toBeNull();
+    // any other 502 is the server's
+    expect(enableFailure("save", err("Error", "subscribe failed: 502", { status: 502 })).message).toMatch(/the server answered 502/);
+  });
+
   it("the helper that wouldn’t install", () => {
     expect(enableFailure("worker", err("SecurityError", "The operation is insecure.")).message).toMatch(/Reload the page/);
   });

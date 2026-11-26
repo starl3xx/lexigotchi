@@ -129,7 +129,7 @@ export type EnableStep = "worker" | "subscribe" | "save";
  * Pure, so the wording is tested.
  */
 export function enableFailure(step: EnableStep, err: unknown): { message: string; detail: string | null } {
-  const e = (err ?? {}) as { name?: unknown; message?: unknown; status?: unknown };
+  const e = (err ?? {}) as { name?: unknown; message?: unknown; status?: unknown; code?: unknown };
   const name = typeof e.name === "string" ? e.name : "";
   const text = typeof e.message === "string" ? e.message : "";
   const status = typeof e.status === "number" ? e.status : undefined;
@@ -138,6 +138,16 @@ export function enableFailure(step: EnableStep, err: unknown): { message: string
   const detail = said || null;
 
   if (step === "save") {
+    // The server stored the browser, sent its test reminder, and the browser's own notification
+    // service refused it twice (the subscribe route's `push_refused`). Seen with Brave, whose
+    // subscription Google's service called gone a second after making it.
+    if (e.code === "push_refused") {
+      return {
+        message:
+          "This browser’s notification service refused our test reminder, so reminders are not on here. Quit the browser fully, open it again, and try once more. If it still refuses, use another browser, or reminders by email.",
+        detail: null,
+      };
+    }
     if (status === 409) return { message: "This wallet already gets reminders in five browsers. Turn them off in one of those first.", detail: null };
     if (status !== undefined) return { message: `Lexigotchi couldn’t save your reminders (the server answered ${status}). Try again in a moment.`, detail };
     return { message: "Couldn’t reach Lexigotchi to save your reminders. Check your connection, or a content blocker, then try again.", detail };

@@ -301,11 +301,18 @@ export function weeklyDigest(w: WeekFacts, period: number): { note: Notification
  * The one push a browser gets for opting in: proof, to the player and to us, that the whole path
  * works (permission, the service worker, the push service, the keys). Sent once, to that browser
  * only, when it first subscribes (api/push/subscribe).
+ *
+ * SHORT (`REMINDERS_ON_MAX`): its job is to show how a reminder looks, and a banner on a Mac shows
+ * about three short lines under the site's name. The first real one listed every kind and was cut
+ * off mid-sentence ("…and when…": starl3xx's screenshot, 2026-11-26). The list also went stale
+ * each time a kind was added; the profile is where the kinds are.
  */
+export const REMINDERS_ON_MAX = 80;
+
 export function remindersOn(): Notification {
   return {
     title: "Reminders are on",
-    body: "This is how a reminder looks. You’ll get one before a word goes hungry, when your letter is ready, and when something sells.",
+    body: "This is how a reminder looks. Your profile chooses which ones you get.",
     notificationId: "reminders-on",
   };
 }
