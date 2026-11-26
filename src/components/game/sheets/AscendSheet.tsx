@@ -62,7 +62,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
   // The practice store applies a result at the tap, and the sheet shows it a beat later. If the
   // sheet is closed inside that beat, the result is said in a toast on the way out, as the chain
   // store says one that lands after its sheet has gone: a result is shown or said, once, always.
-  const unsaid = useRef<{ hit: boolean; level: number } | null>(null);
+  const unsaid = useRef<{ hit: boolean; level: number; oddsRose: boolean } | null>(null);
   const toast = useRef(g.toast);
   toast.current = g.toast;
   useEffect(
@@ -70,7 +70,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
       clearTimers();
       const left = unsaid.current;
       if (!left) return;
-      const said = resultToast(wordKey, left.hit, left.level);
+      const said = resultToast(wordKey, left.hit, left.level, left.oddsRose);
       toast.current(said.text, said.tone);
     },
     [wordKey],
@@ -169,7 +169,8 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
     }
     // The practice store answers at once (null: it never tried, and said why in a toast).
     if (res === null) return finish({ status: "not-started" }, at);
-    unsaid.current = { hit: res, level: stageAfter(at, res).level };
+    const left = stageAfter(at, res);
+    unsaid.current = { hit: res, level: left.level, oddsRose: g.prestigeProb(left.level, left.pity) > g.prestigeProb(at.level, at.pity) };
     later(() => finish({ status: "resolved", success: res }, at), PRACTICE_BEAT_MS);
   };
 
@@ -182,6 +183,9 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
   const tryLabel = `${fmtWord(total)} $WORD`;
   // A try is on offer, or out: the line under the buttons says what its price includes.
   const offered = !atTop && (phase === "ready" || waiting || again !== null);
+  // An earlier try on this word ended paid and unfinished. The store finishes an open attempt
+  // before it pays for a new one, so the line says exactly that, and no more than it knows.
+  const unfinished = phase === "ready" && g.unfinishedAscents.has(word.word);
 
   return (
     <Sheet open onClose={close} title={`Ascend ${word.word}`}>
@@ -310,7 +314,9 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
             ? ""
             : !word.staked
               ? "Stake it first to ascend."
-              : `The price includes a ${fmtWord(g.price("prestigeSnack"))} $WORD snack, burned with each try.`}
+              : unfinished
+                ? "Your last attempt is paid for. If it is still open, this try finishes it first and takes no new fee."
+                : `The price includes a ${fmtWord(g.price("prestigeSnack"))} $WORD snack, burned with each try.`}
         </p>
         {offered && !waiting && word.staked && short && <GetMore amount={total} />}
       </div>

@@ -4,7 +4,7 @@
  * result, never after "paid, and we lost track of it".
  */
 import { describe, it, expect } from "vitest";
-import { nextTry, phaseAfter, resultToast, shownStage, stageAfter, waveOf } from "@/components/game/ascendFlow";
+import { nextTry, phaseAfter, resultToast, shownStage, stageAfter, strandedToast, waveOf } from "@/components/game/ascendFlow";
 
 describe("phaseAfter", () => {
   it("a result is a hit or a miss", () => {
@@ -81,12 +81,22 @@ describe("shownStage", () => {
 
 describe("resultToast", () => {
   it("names the stage a hit reached, and Holographic by its own line", () => {
-    expect(resultToast("VIVID", true, 2)).toEqual({ text: "VIVID reached Gilded 2", tone: "good" });
-    expect(resultToast("VIVID", true, 5)).toEqual({ text: "VIVID turned Holographic!", tone: "good" });
+    expect(resultToast("VIVID", true, 2, false)).toEqual({ text: "VIVID reached Gilded 2", tone: "good" });
+    expect(resultToast("VIVID", true, 5, false)).toEqual({ text: "VIVID turned Holographic!", tone: "good" });
   });
 
   it("a miss is not bad news in red: the word is untouched and its odds rose", () => {
-    expect(resultToast("VIVID", false, 1)).toEqual({ text: "VIVID held its ground. Next try’s odds are higher", tone: "info" });
+    expect(resultToast("VIVID", false, 1, true)).toEqual({ text: "VIVID held its ground. Next try’s odds are higher", tone: "info" });
+  });
+
+  it("claims higher odds only when they are: not for a signed success that no longer counted, nor at the cap", () => {
+    expect(resultToast("VIVID", false, 1, false)).toEqual({ text: "VIVID held its ground", tone: "info" });
+  });
+});
+
+describe("strandedToast", () => {
+  it("names the word over the note, for a try that ended unfinished after its sheet had gone", () => {
+    expect(strandedToast("VIVID", "Your attempt is paid for. Reopen to finish it")).toBe("VIVID: Your attempt is paid for. Reopen to finish it");
   });
 });
 

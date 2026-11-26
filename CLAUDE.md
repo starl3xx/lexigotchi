@@ -712,7 +712,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   decides what that is (a result, a "foreign" earlier attempt → ready again, or unfinished →
   stranded, no try offered), and `lib/onchain/stageOverlay.ts` shows the new stage over the slower
   words read (60 s at most). Attempts read as revealed are skipped by every later search for an
-  open one (`revealedAttempts`), as `revealedRolls` are.
+  open one (`revealedAttempts`), as `revealedRolls` are. The outcome carries the chain's own
+  `stage` (level, pity), and the sheet shows that, never one worked out from hit or miss. **How a
+  try ends is said once, and always:** by the sheet it was made in, or, if that sheet has gone
+  (the same sheet OBJECT, not any ascend sheet), by a toast (`resultToast`, `strandedToast`); a try
+  that ended unfinished also marks its word for the session (`unfinishedAscents`, cleared by
+  `pruneUnfinished` or the next reveal read back), which the word sheet and the ascend sheet say.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.

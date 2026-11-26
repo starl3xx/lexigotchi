@@ -53,7 +53,7 @@ import {
 } from "./state";
 import { rollSuccessProbability, prestigeSuccessProbability } from "@/lib/params";
 import { stageFeeMultiple } from "@/lib/ascension";
-import { resultToast } from "./ascendFlow";
+import { resultToast, strandedToast } from "./ascendFlow";
 import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
 import {
   readFeeBuckets,
@@ -126,7 +126,7 @@ import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls"
 import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from "@/lib/onchain/traceSend";
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
-import { overlayStage, pruneStageNotes, type StageNote } from "@/lib/onchain/stageOverlay";
+import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageNote } from "@/lib/onchain/stageOverlay";
 import { ascendResult } from "@/lib/onchain/ascendResult";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
@@ -329,11 +329,32 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // priced and sized its approval from the stage before. Filed by word: a stage belongs to the
   // word, whichever of the player's wallets is connected.
   const [stageNotes, setStageNotes] = useState<Readonly<Record<string, StageNote>>>({});
+  /**
+   * Words with an attempt this browser knows is PAID and not known to be finished (a try that
+   * ended stranded), each with the stage it stood at when that try was made. The word sheet and
+   * the ascend sheet say so, so a spent, open attempt never sits with no cue (Bugbot on #229: the
+   * old inline button kept an "Unfinished" mark; a sheet that has been closed keeps nothing). A
+   * mark goes when a reveal is read back for the word, or when the words read shows the word past
+   * the stage it was marked at (the reveal landed on its own: pruneUnfinished). For this session
+   * only: after a reload the next try still finishes an open attempt first.
+   */
+  const [unfinishedMarks, setUnfinishedMarks] = useState<Readonly<Record<string, Stage>>>({});
+  const unfinishedAscents = useMemo(() => new Set(Object.keys(unfinishedMarks)), [unfinishedMarks]);
+  /** Mark `word` as having an unfinished attempt made at `at`, or clear its mark (null). */
+  const markAscent = useCallback((word: string, at: Stage | null) => {
+    setUnfinishedMarks((all) => {
+      if (at) return { ...all, [word]: at };
+      if (!(word in all)) return all;
+      const { [word]: _gone, ...rest } = all;
+      return rest;
+    });
+  }, []);
   useEffect(() => {
     const read = wordsQ.data?.words;
     if (!read) return;
     const chainStages = Object.fromEntries(read.map((w) => [w.word, { level: w.prestigeLevel, pity: w.prestigePity }]));
     setStageNotes((notes) => pruneStageNotes(chainStages, notes, Date.now()));
+    setUnfinishedMarks((marks) => pruneUnfinished(chainStages, marks));
   }, [wordsQ.data]);
 
   // The identity today's daily would be issued under, and every other key the player could claim
@@ -911,9 +932,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       const { level, pity } = got.attempt;
       revealedAttempts.current.add(String(commitId));
       setStageNotes((notes) => ({ ...notes, [word]: { level, pity, at: Date.now() } }));
+      markAscent(word, null); // a reveal on this word has landed: nothing of it is left open
       return got.attempt;
     },
-    [wordsQ],
+    [wordsQ, markAscent],
   );
 
   /**
@@ -1167,6 +1189,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       freeLetters: relatedDayQ.data?.view ?? null,
       // Until params load, assume OFF: better a hidden button for a moment than one that reverts.
       maxPrestigeLevel: chain.params?.maxPrestigeLevel ?? 0,
+      unfinishedAscents,
       price: (item: PriceItem) => (chain.params ? chainPrice(chain.params.word, item) : MOCK_PRICE[item]),
       // The word ladder: a stage-N attempt costs N × Prestige.prestigeFee (the contract's stageFee).
       prestigePrice: (level: number) =>
@@ -1360,70 +1383,85 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       prestige: (word: string) =>
         // "Attempting", never "Ascending" (starl3xx, 2026-11-25): a try may miss, and the status
         // must not read as if the word were on its way up.
-        track(`Attempting ascension: ${word}`, (run) => guarded(async (markPaid) => {
-          if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
-          const tokenId = tokenIdOf(word);
-          // The sheet this try was made in: only that one is waiting for its result (see the end).
+        track(`Attempting ascension: ${word}`, async (run) => {
+          // The sheet this try was made in: only that one is waiting to show how it ends. "That
+          // sheet" is the same sheet object, not any ascend sheet on this word: one closed and
+          // opened again mid-try is a new sheet with no try of its own to hear from.
           const sheetAtTap = sheetNow.current;
-          // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay
-          // twice. Attempts this browser has read as revealed are skipped (a lagging node can still
-          // call one open seconds later).
-          let id = await readOpenPrestigeFor(tokenId, revealedAttempts.current);
-          const resumed = id !== null;
+          const sheetShows = () => {
+            const open = sheetNow.current;
+            return open === sheetAtTap && open?.kind === "ascend" && open.word === word;
+          };
           // The stage this attempt aims past (the word ladder: price and odds both depend on it).
           const target = state.words.find((x) => x.word === word);
           const level = target?.prestigeLevel ?? 0;
-          // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
-          const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
-          if (id !== null) {
-            toast("Finishing your unfinished attempt first", "info");
-            markPaid(); // paid at its commit
-          } else {
-            const before = await readOpenPrestigeCommits(owner);
-            // `settles`: no generic "sent" toast. A green "sent" over a try that may miss reads as
-            // a result, and the sheet (or the toast below) says what is happening.
-            if (!(await run("Ascension attempt", () => commitPrestigeCalls(tokenId, level, chain.params!, chain.player!), { settles: true }))) return { status: "not-started" as const };
-            markPaid(); // fee + burned snack are gone from here on
-            toast("Attempting ascension…", "info");
-            id = await waitForNewPrestigeCommit(owner, [...before, ...[...revealedAttempts.current].map(BigInt)]);
-            if (id === null) {
-              return { status: "stranded", note: "Your attempt is paid for but slow to appear. Reopen to finish it" };
+          const pityAtTap = target?.prestigePity ?? 0;
+          const oddsAtTap = prestigeSuccessProbability(pityAtTap, level);
+          const outcome = await guarded(async (markPaid) => {
+            if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
+            const tokenId = tokenIdOf(word);
+            // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay
+            // twice. Attempts this browser has read as revealed are skipped (a lagging node can still
+            // call one open seconds later).
+            let id = await readOpenPrestigeFor(tokenId, revealedAttempts.current);
+            const resumed = id !== null;
+            // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
+            const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
+            if (id !== null) {
+              toast("Finishing your unfinished attempt first", "info");
+              markPaid(); // paid at its commit
+            } else {
+              const before = await readOpenPrestigeCommits(owner);
+              // `settles`: no generic "sent" toast. A green "sent" over a try that may miss reads as
+              // a result, and the sheet (or the toast below) says what is happening.
+              if (!(await run("Ascension attempt", () => commitPrestigeCalls(tokenId, level, chain.params!, chain.player!), { settles: true }))) return { status: "not-started" as const };
+              markPaid(); // fee + burned snack are gone from here on
+              toast("Attempting ascension…", "info");
+              id = await waitForNewPrestigeCommit(owner, [...before, ...[...revealedAttempts.current].map(BigInt)]);
+              if (id === null) {
+                return { status: "stranded", note: "Your attempt is paid for but slow to appear. Reopen to finish it" };
+              }
             }
+            const commitId = id;
+            const draw = await openPostJson<{ reveal: PrestigeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
+            // `already_revealed`: the attempt is finished on chain (another tab sent its reveal, or a
+            // lagging read called a finished attempt open). There is nothing to send: read where it
+            // left the word, below, as after a reveal of our own.
+            if (!draw?.ok && draw?.error !== "already_revealed") {
+              toast(authError(draw?.error, "Ascension"), "bad");
+              return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
+            }
+            if (draw.ok && !(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature), { settles: true }))) {
+              return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
+            }
+            // The result is what the CHAIN did with the reveal, read once it has landed. Never the
+            // signed outcome at the moment the wallet took the send: see settleAscension.
+            const after = await settleAscension(word, commitId);
+            // lib/onchain/ascendResult says what each of these is, and why none of them is a guess.
+            const came = ascendResult({ level, owner, resumed, commit: draw.ok ? draw.reveal : null, after });
+            if (came.kind === "unfinished") return { status: "stranded", note: "Your attempt is finishing onchain. It’ll show in a moment." };
+            if (came.kind === "foreign") {
+              // Nothing was spent by this tap and nothing is left open: ready again, never "missed".
+              toast(`Finished an earlier attempt on ${word}. Try again for yours`, "info");
+              return { status: "not-started" as const };
+            }
+            // The ascend sheet the try was made in shows the result. Say it here when that sheet is
+            // gone, so the outcome is said once, and always said.
+            if (!sheetShows()) {
+              const said = resultToast(word, came.hit, came.level, prestigeSuccessProbability(came.pity, came.level) > oddsAtTap);
+              toast(said.text, said.tone);
+            }
+            return { status: "resolved", success: came.hit, stage: { level: came.level, pity: came.pity } };
+          });
+          // Paid, and not known to be finished. The sheet says so if it is still there; if not,
+          // say it here, or the last word on a spent fee is the wallet's own "Cancelled". Either
+          // way the word carries the mark until a reveal is read back for it.
+          if (outcome.status === "stranded") {
+            markAscent(word, { level, pity: pityAtTap });
+            if (!sheetShows()) toast(strandedToast(word, outcome.note), "info");
           }
-          const commitId = id;
-          const draw = await openPostJson<{ reveal: PrestigeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
-          // `already_revealed`: the attempt is finished on chain (another tab sent its reveal, or a
-          // lagging read called a finished attempt open). There is nothing to send: read where it
-          // left the word, below, as after a reveal of our own.
-          if (!draw?.ok && draw?.error !== "already_revealed") {
-            toast(authError(draw?.error, "Ascension"), "bad");
-            return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
-          }
-          if (draw.ok && !(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature), { settles: true }))) {
-            return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
-          }
-          // The result is what the CHAIN did with the reveal, read once it has landed. Never the
-          // signed outcome at the moment the wallet took the send: see settleAscension.
-          const after = await settleAscension(word, commitId);
-          // lib/onchain/ascendResult says what each of these is, and why none of them is a guess.
-          const came = ascendResult({ level, owner, resumed, commit: draw.ok ? draw.reveal : null, after });
-          if (came.kind === "unfinished") return { status: "stranded", note: "Your attempt is finishing onchain. It’ll show in a moment." };
-          if (came.kind === "foreign") {
-            // Nothing was spent by this tap and nothing is left open: ready again, never "missed".
-            toast(`Finished an earlier attempt on ${word}. Try again for yours`, "info");
-            return { status: "not-started" as const };
-          }
-          // The ascend sheet the try was made in shows the result. Say it here when that sheet is
-          // gone, so the outcome is said once, and always said. "That sheet" is the same sheet
-          // object, not any ascend sheet on this word: one closed and opened again mid-try is a
-          // new sheet with no try of its own to hear from.
-          const open = sheetNow.current;
-          if (!(open === sheetAtTap && open?.kind === "ascend" && open.word === word)) {
-            const said = resultToast(word, came.hit, came.level);
-            toast(said.text, said.tone);
-          }
-          return { status: "resolved", success: came.hit, stage: { level: came.level, pity: came.pity } };
-        }), NOT_STARTED),
+          return outcome;
+        }, NOT_STARTED),
 
       claim: (word: string, cases: boolean[]) => {
         void track(`Claiming ${word}`, async (run) => {
@@ -2174,7 +2212,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, settleAscension, unfinishedAscents, markAscent, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

@@ -4,7 +4,7 @@
  * and "try again" from the old stage would show the wrong price and odds.
  */
 import { describe, it, expect } from "vitest";
-import { HOLD_MS, caughtUp, overlayStage, pruneStageNotes } from "@/lib/onchain/stageOverlay";
+import { HOLD_MS, caughtUp, overlayStage, pruneStageNotes, pruneUnfinished } from "@/lib/onchain/stageOverlay";
 
 describe("caughtUp", () => {
   it("is the stage first, then the misses at that stage", () => {
@@ -38,6 +38,29 @@ describe("overlayStage", () => {
 
   it("trusts the chain again once the note is older than the hold", () => {
     expect(overlayStage(stale, { level: 2, pity: 0, at: 0 }, HOLD_MS + 1)).toBe(stale);
+  });
+});
+
+describe("pruneUnfinished", () => {
+  const marks = { vivid: { level: 1, pity: 2 } };
+
+  it("keeps the mark while the word stands where it did when the try was made", () => {
+    expect(pruneUnfinished({ vivid: { level: 1, pity: 2 } }, marks)).toBe(marks);
+  });
+
+  it("drops it once the read shows the word past that: the reveal landed on its own", () => {
+    expect(pruneUnfinished({ vivid: { level: 1, pity: 3 } }, marks)).toEqual({}); // a late miss
+    expect(pruneUnfinished({ vivid: { level: 2, pity: 0 } }, marks)).toEqual({}); // a late hit
+  });
+
+  it("keeps it when the read is only behind the mark: the read lags, the attempt hasn't moved", () => {
+    // the try was made from a stage the store had just read back (level 2), before the words read caught up
+    const fresh = { vivid: { level: 2, pity: 0 } };
+    expect(pruneUnfinished({ vivid: { level: 1, pity: 4 } }, fresh)).toBe(fresh);
+  });
+
+  it("drops the mark of a word that left the bag", () => {
+    expect(pruneUnfinished({}, marks)).toEqual({});
   });
 });
 

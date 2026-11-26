@@ -225,6 +225,13 @@ export function WordSheet({ word: wordKey }: { word: string }) {
               {STAGE_SHARE}. A miss never harms it and raises the next try’s odds {MISS_POINTS} points.
             </p>
           )}
+          {/* A try that ended paid and unfinished (the store remembers it for the session): the
+              cue the old inline button's "Unfinished" label gave. */}
+          {g.unfinishedAscents.has(word.word) && (
+            <p className="mt-2 text-xs font-bold text-gold-ink">
+              Your last attempt is paid for and may be unfinished. Tap Ascend: the next try finishes it first.
+            </p>
+          )}
           {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
         </Card>
       )}

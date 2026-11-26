@@ -63,7 +63,7 @@ export interface GuardOptions {
  */
 export async function guardedAction(
   flow: (markPaid: () => void) => Promise<ActionOutcome>,
-  { onError, strandedNote = "Paid, but we lost track of it — reopen to finish it" }: GuardOptions = {},
+  { onError, strandedNote = "Paid, but we lost track of it. Reopen to finish it" }: GuardOptions = {},
 ): Promise<ActionOutcome> {
   let paid = false;
   try {

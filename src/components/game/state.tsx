@@ -56,6 +56,7 @@ export const idxToChar = (i: number) => ALPHABET[i];
 export const charToIdx = (c: string) => c.toUpperCase().charCodeAt(0) - A;
 
 export const PRESTIGE_LEVELS = DEFAULT_PARAMS.prestige.levels;
+const NO_WORDS: ReadonlySet<string> = new Set();
 
 // ---------------------------------------------------------------------------
 // Types
@@ -787,6 +788,12 @@ export interface GameApi {
    */
   maxPrestigeLevel: number;
   /**
+   * Words with an ascension attempt that is paid and not known to be finished (a try that ended
+   * "still finishing"), in this session. The next try on such a word finishes the open attempt
+   * first and takes no new fee. Always empty in the practice game: its tries end at once.
+   */
+  unfinishedAscents: ReadonlySet<string>;
+  /**
    * The player's free letters (decisions.md #21: a free pack of 5 and 10 free daily letters per
    * verified profile, from one 30K budget, ending near 95% claimed), from /api/mint/daily-status.
    * Null in the practice game and while unknown: screens then show the offer without counts.
@@ -936,6 +943,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       prestigePrice: (level) => mockPrestigeFee(level),
       lettersLeft: null,
       maxPrestigeLevel: PRESTIGE_LEVELS,
+      unfinishedAscents: NO_WORDS,
       freeLetters: null,
 
       dailyMint: () => {

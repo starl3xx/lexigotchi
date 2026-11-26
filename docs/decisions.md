@@ -1032,6 +1032,13 @@ setter. All small, riding existing suite patterns.
       stage and pity the store read back, never ones it works out from "hit" or "miss": a signed
       success that no longer counts (the word was unstaked or moved first) is no hit and adds no
       miss, and the first build showed such a word odds 10 points too high (Bugbot on #229).
+    - **A result or an unfinished try is said once, and always** (Bugbot on #229 found the
+      second half missing). The sheet the try was made in shows how it ends. If that sheet has
+      gone, a toast says it: the result, or "paid, and not finished" over the note. And the store
+      marks a word whose try ended unfinished, for the session (`unfinishedAscents`): the word
+      sheet's Ascend card says so, and the ascend sheet says the next try finishes it first and
+      takes no new fee, which is what the store does. The mark goes when a reveal is read back
+      for the word, or when the words read shows it past the stage it was marked at.
     - **Still two wallet confirmations** (the paid attempt, then its reveal): the docs said one,
       and now say two. Having the server finish it, as it does for rolls (#14, which names
       ascension as a later case), would make it one and keep the letters nervous without a

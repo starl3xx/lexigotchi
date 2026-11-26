@@ -37,6 +37,7 @@ function fakeGame(word: Word, over: Partial<GameApi> = {}) {
   const api = {
     state: { words: [word], sheet: { kind: "ascend", word: word.word } },
     maxPrestigeLevel: 5,
+    unfinishedAscents: new Set<string>(),
     prestigeProb: (level: number, pity: number) => prestigeSuccessProbability(pity, level),
     prestigePrice: (level: number) => 100 * (level + 1),
     price: () => 2,
@@ -96,6 +97,15 @@ describe("before a try", () => {
     expect((tryButton() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Get more" }));
     expect(g.openSheet).toHaveBeenCalledWith({ kind: "balance", need: { amount: 202, action: "an ascension try" } });
+  });
+
+  it("after a try that ended paid and unfinished, says the next try finishes it first and takes no new fee", () => {
+    // the store remembers such a word for the session; the sheet that showed it may be long gone
+    show(fakeGame(vivid(), { unfinishedAscents: new Set(["VIVID"]) }).api);
+    expect(sheet().textContent).toContain("Your last attempt is paid for. If it is still open, this try finishes it first and takes no new fee.");
+    expect(sheet().textContent).not.toContain("snack, burned with each try");
+    // the try itself is still there: an open attempt is finished by trying
+    expect((tryButton() as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("at the top of the ladder there is nothing to try", () => {

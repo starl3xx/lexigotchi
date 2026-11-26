@@ -66,10 +66,22 @@ export function nextTry(phase: AscendPhase, level: number, maxLevel: number): "a
  * A result as a toast, for when the ascend sheet isn't there to show it (closed while the try was
  * out). The sheet shows a result, or a toast says it: once, and always. `level` is the stage the
  * word stands at after the result.
+ *
+ * `oddsRose`: the next try's odds are higher than this one's were. Usually true of a miss, but not
+ * always: a signed success that no longer counted adds no miss, and at the cap a miss adds nothing
+ * either. The toast claims it only when it is so (Bugbot on #229).
  */
-export function resultToast(word: string, hit: boolean, level: number): { text: string; tone: "good" | "info" } {
-  if (!hit) return { text: `${word} held its ground. Next try’s odds are higher`, tone: "info" };
+export function resultToast(word: string, hit: boolean, level: number, oddsRose: boolean): { text: string; tone: "good" | "info" } {
+  if (!hit) return { text: oddsRose ? `${word} held its ground. Next try’s odds are higher` : `${word} held its ground`, tone: "info" };
   return { text: level >= HOLOGRAPHIC_LEVEL ? `${word} turned Holographic!` : `${word} reached ${stageName(level)}`, tone: "good" };
+}
+
+/**
+ * A try that ended paid and not known to be finished, said in a toast when its sheet has gone.
+ * Without it the only word was the wallet's own "Cancelled", over a fee already spent.
+ */
+export function strandedToast(word: string, note: string): string {
+  return `${word}: ${note}`;
 }
 
 /**

@@ -37,6 +37,29 @@ export function caughtUp(chain: Stage, note: Stage): boolean {
   return chain.level > note.level || (chain.level === note.level && chain.pity >= note.pity);
 }
 
+/**
+ * The words still marked "an attempt is paid for and not known to be finished" (a try that ended
+ * stranded), given the words read now. A mark holds the stage the word stood at when the try was
+ * made. Once the read shows the word PAST that (a late hit raised its stage, a late miss its
+ * pity), the reveal has landed on its own and the mark goes; a word that left the bag loses its
+ * mark too. A read that is merely behind the mark keeps it: the read lags, the attempt hasn't moved.
+ * Returns the same object when nothing changes.
+ */
+export function pruneUnfinished(chain: Readonly<Record<string, Stage>>, marks: Readonly<Record<string, Stage>>): Readonly<Record<string, Stage>> {
+  let changed = false;
+  const kept: Record<string, Stage> = {};
+  for (const [word, mark] of Object.entries(marks)) {
+    const at = chain[word];
+    const past = at && caughtUp(at, mark) && (at.level !== mark.level || at.pity !== mark.pity);
+    if (!at || past) {
+      changed = true;
+      continue;
+    }
+    kept[word] = mark;
+  }
+  return changed ? kept : marks;
+}
+
 /** The stage to show for a word: its fresh note while the words read is still behind it. */
 export function overlayStage(chain: Stage, note: StageNote | undefined, now: number): Stage {
   if (!note || now - note.at > HOLD_MS || caughtUp(chain, note)) return chain;
