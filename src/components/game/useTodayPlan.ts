@@ -10,14 +10,22 @@ import { useWorld } from "./useWorld";
 import { emptyStageCase, type EmptyStageCase } from "./stagePick";
 
 /**
- * Words the player can't claim: their own, and every word another player owns (the world read; the
- * Spell screen filters the same way, since a claim of an owned word reverts). Until the world read
- * lands, only their own.
+ * Words the player can't claim: their own, every word another player owns (the world read), and
+ * every word on the Market's board, which is its seller's whatever the minute-old world read says
+ * (decisions.md #32; lib/dictionaryList `entryStatus`). Spell, the Dictionary, and the Market count
+ * the same way, since a claim of an owned word reverts. Until the world read lands, only their own
+ * and the board's.
  */
 export function useTakenWords(): Set<string> {
-  const { state } = useGame();
+  const g = useGame();
+  const { state } = g;
   const owners = useWorld().data?.owners;
-  return useMemo(() => new Set([...state.words.map((w) => w.word), ...Object.keys(owners ?? {})]), [state.words, owners]);
+  // the practice store rebuilds its board with every state change: keep the set by its contents
+  const listed = g.wordBoard.map((l) => l.word).join();
+  return useMemo(
+    () => new Set([...state.words.map((w) => w.word), ...Object.keys(owners ?? {}), ...(listed ? listed.split(",") : [])]),
+    [state.words, owners, listed],
+  );
 }
 
 /** Do the connected wallet's loose letters spell a word nobody owns yet (in any mix of cases)? */

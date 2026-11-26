@@ -13,16 +13,19 @@
  *   already lists what the letters spell; this screen's new ground is one letter away.
  * - **Nothing is promised before the owners are known** (useDictionary): until the world read
  *   answers, entries say "Checking who owns it…", and the distance sort and filters wait.
+ * - **The Market links in** (decisions.md #32): its "A q finishes QUINT, and 45 more words" lands
+ *   here on those words (`nav("dictionary", "needs:q")`), under a chip that says "Only needs a q".
+ *   The count is the Market's own, because both read lib/wordNeed's `finishingLetter`.
  */
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
-import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
+import { ALPHABET, TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
 import { cardNumber } from "@/lib/cardFacts";
 import { DICT_SORTS, listDictionary, type DictFilter, type DictSort, type EntryStatus } from "@/lib/dictionaryList";
-import { bagTotals, distanceOf, elsewhereTotals, needTokens, wordNeed } from "@/lib/wordNeed";
+import { article, bagTotals, distanceOf, elsewhereTotals, needTokens, wordNeed } from "@/lib/wordNeed";
 import { Button, Pill, Segmented, TierBadge } from "../primitives";
 import { TierMark } from "../TierMark";
-import { fmtWord, useGame } from "../state";
+import { fmtWord, sectionLetter, useGame } from "../state";
 import { PlayerChip } from "../PlayerChip";
 import { MiniTiles } from "../MiniTiles";
 import { NeedText } from "../NeedText";
@@ -30,7 +33,8 @@ import { Check } from "../ui/icons";
 import { useDictionary } from "../useDictionary";
 import { useStoredChoice } from "../useStoredChoice";
 
-const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Legendary", "Mythic"];
+/** Rarest first, as Spell and the Market list them. */
+const TIERS: (Tier | "All")[] = ["All", "Mythic", "Legendary", "Rare", "Uncommon", "Common"];
 const LOWER = [false, false, false, false, false];
 /** A page of the list: 80 words is 400 tiles, the most a slow phone draws without lagging the search. */
 const PAGE = 80;
@@ -40,7 +44,19 @@ export function DictionaryScreen() {
   const d = useDictionary();
   const [q, setQ] = useState("");
   const [tier, setTier] = useState<Tier | "All">("All");
-  const [filter, setFilter] = useState<DictFilter>("all");
+  // The Market's link (`needs:q`): the words one more q finishes. The letter's chip stays for the
+  // visit, so the player can step out to another filter and back. An effect as well as the first
+  // state, because the link can arrive while this screen is already showing; keyed on the
+  // navigation too, so the same link followed again lands again.
+  const linked = sectionLetter(g.state.section, "needs");
+  const { navSeq } = g.state;
+  const [letter, setLetter] = useState<number | null>(linked);
+  const [filter, setFilter] = useState<DictFilter>(linked === null ? "all" : "letter");
+  useEffect(() => {
+    if (linked === null) return;
+    setLetter(linked);
+    setFilter("letter");
+  }, [linked, navSeq]);
   const [sort, setSort] = useStoredChoice<DictSort>("lexigotchi:dictionary:sort", DICT_SORTS, "closest");
 
   // There is something to count once the player holds a letter and the owners are known. Before
@@ -55,22 +71,24 @@ export function DictionaryScreen() {
   }, [counting, d.here, d.all]);
 
   // A filter that can't be answered yet shows everything, rather than an empty list.
-  const needsCount = filter === "can" || filter === "one" || filter === "two";
-  const activeFilter: DictFilter = (needsCount && !counting) || (!d.ownersKnown && filter !== "all") ? "all" : filter;
+  const needsCount = filter === "can" || filter === "one" || filter === "two" || filter === "letter";
+  const activeFilter: DictFilter =
+    (needsCount && !counting) || (!d.ownersKnown && filter !== "all") || (filter === "letter" && letter === null) ? "all" : filter;
   // The list draws each word in its tiles: typing updates the box at once and the list a moment
   // later, so a slow phone never lags behind the keys.
   const query = useDeferredValue(q);
   const list = useMemo(
-    () => listDictionary({ query, tier, filter: activeFilter, sort: counting ? sort : "az" }, d.statusOf, distances),
-    [query, tier, activeFilter, sort, counting, d.statusOf, distances],
+    () => listDictionary({ query, tier, filter: activeFilter, sort: counting ? sort : "az", letter }, d.statusOf, distances),
+    [query, tier, activeFilter, sort, counting, letter, d.statusOf, distances],
   );
   const [shown, setShown] = useState(PAGE);
-  useEffect(() => setShown(PAGE), [query, tier, activeFilter, sort]);
+  useEffect(() => setShown(PAGE), [query, tier, activeFilter, sort, letter]);
+  const linkedLetter = letter === null ? null : ALPHABET[letter].toLowerCase();
 
   const open = (word: string, status: EntryStatus) =>
     status === "mine" ? g.openSheet({ kind: "word", word }) : g.openSheet({ kind: "lookup", word });
 
-  const chip = (value: DictFilter, label: string, count?: number, off = false) => (
+  const chip = (value: DictFilter, label: ReactNode, count?: number, off = false) => (
     <button key={value} onClick={() => setFilter(value)} disabled={off} className="group round-btn rounded-full disabled:opacity-40">
       <Pill className={activeFilter === value ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
         {label}
@@ -112,6 +130,15 @@ export function DictionaryScreen() {
         {chip("all", "All")}
         {counting && chip("can", "Can spell", list.counts.can)}
         {counting && chip("one", "One away", list.counts.one)}
+        {counting &&
+          linkedLetter &&
+          chip(
+            "letter",
+            <>
+              Only needs {article(linkedLetter)} <b className="need-letter">{linkedLetter}</b>
+            </>,
+            list.counts.letter,
+          )}
         {counting && chip("two", "Two away", list.counts.two)}
         {chip("unclaimed", "Unclaimed", undefined, !d.ownersKnown)}
         {chip("claimed", "Claimed", undefined, !d.ownersKnown)}
@@ -134,7 +161,7 @@ export function DictionaryScreen() {
         {list.words.slice(0, shown).map((w) => {
           const status = d.statusOf(w);
           const wTier = wordTier(w);
-          const owner = d.owners?.[w];
+          const holder = d.holderOf(w);
           const number = d.numbers?.[w];
           const listing = d.listings.get(w);
           // the player's letters are counted only against a word nobody has
@@ -167,10 +194,10 @@ export function DictionaryScreen() {
                   <span className="font-extrabold text-teal-ink">{status === "mine" ? "Yours" : "Yours, in another wallet"}</span>
                 ) : status === "sale" && listing ? (
                   <span className="font-bold text-gold-ink">For sale · {fmtWord(listing.price)} $WORD</span>
-                ) : (status === "taken" || status === "sale") && owner ? (
+                ) : (status === "taken" || status === "sale") && holder ? (
                   // a flex box, so a long name is cut short before it reaches the card number
                   <span className="flex min-w-0 text-ink/70">
-                    <PlayerChip address={owner} profile={d.profiles?.[owner]} size={16} />
+                    <PlayerChip address={holder.address} profile={holder.profile} size={16} />
                   </span>
                 ) : status === "unknown" ? (
                   <span className="text-ink/55">{d.checkFailed ? "Can’t check the owner yet" : "Checking who owns it…"}</span>

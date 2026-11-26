@@ -8,18 +8,25 @@
  * Each row shows the word as it is NOW (case, ascension, hunger), read live by the board's route, and
  * its price against what it costs to make. "Yours" is the player, not the wallet: only the wallet
  * that listed a word can take it off sale.
+ *
+ * A row's word opens the word view the Dictionary opens (decisions.md #32; `useOpenWord`), with its
+ * card number beside it: the order words were first claimed, which collectors look for. The rarity
+ * chips wear each rarity's mark, rarest first, as Spell's do.
  */
 import { useMemo, useState } from "react";
 import { TIERS, wordTier, type Tier } from "@/lib/economy";
+import { cardNumber } from "@/lib/cardFacts";
 import { costToMake, type CostPrices } from "@/lib/wordCost";
 import { filterWords, sortWords, type CaseFilter, type WordSort } from "@/lib/market/deals";
-import { Button, TierBadge } from "../primitives";
+import { Button, Pill, TierBadge } from "../primitives";
 import { PrestigeStars, WordTiles } from "../LetterTile";
 import { PlayerChip } from "../PlayerChip";
+import { TierMark } from "../TierMark";
+import { useOpenWord } from "../useDictionary";
 import { fmtWord, useGame, type WordListing } from "../state";
 import { useStoredChoice } from "../useStoredChoice";
 import { WordValue } from "../WordValue";
-import { shortAddress } from "../useWorld";
+import { shortAddress, useWorld } from "../useWorld";
 import { Versus, timeAgo, useAmount } from "./bits";
 
 const SORTS: readonly WordSort[] = ["deal", "low", "high", "new", "rare"];
@@ -33,7 +40,9 @@ const SORT_LABEL: Record<WordSort, string> = {
 const PAGE = 20;
 
 const chip = (on: boolean) =>
-  `press min-h-8 shrink-0 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-bold ${on ? "bg-ink text-paper" : "bg-card text-ink/75"}`;
+  `press inline-flex min-h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-bold ${on ? "bg-ink text-paper" : "bg-card text-ink/75"}`;
+/** A chip's count, stepped back from its name (as the Dictionary's and Spell's are). */
+const count = (on: boolean) => (on ? "text-paper/60" : "text-ink/40");
 
 export function useCostPrices(): CostPrices {
   const g = useGame();
@@ -54,6 +63,9 @@ export function WordsBoard() {
   const [sort, setSort] = useStoredChoice<WordSort>("lexi:market:words:sort", SORTS, "deal");
   const [limit, setLimit] = useState(PAGE);
   const prices = useCostPrices();
+  // each word's card number: the order words were first claimed (lib/cardFacts), once the world is read
+  const world = useWorld().data;
+  const numbers = world?.live ? world.numbers : undefined;
 
   const listings = g.wordBoard;
   const makeCost = (l: WordListing) => {
@@ -113,11 +125,12 @@ export function WordsBoard() {
           plain row that clips nothing. */}
       <div className="-mx-1 mt-1 flex gap-1.5 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-1 md:flex-wrap md:overflow-visible" role="group" aria-label="Show">
         <button type="button" aria-pressed={tier === "all"} onClick={() => setTier("all")} className={chip(tier === "all")}>
-          All {listings.length}
+          All <span className={count(tier === "all")}>·{listings.length}</span>
         </button>
         {[...TIERS].reverse().filter((t) => tierCounts.has(t.name)).map((t) => (
           <button key={t.name} type="button" aria-pressed={tier === t.name} onClick={() => { setTier(tier === t.name ? "all" : t.name); setLimit(PAGE); }} className={chip(tier === t.name)}>
-            {t.name} {tierCounts.get(t.name)}
+            <TierMark tier={t.name} size={12} />
+            {t.name} <span className={count(tier === t.name)}>·{tierCounts.get(t.name)}</span>
           </button>
         ))}
         <span aria-hidden className="mx-0.5 w-px shrink-0 self-stretch bg-ink/20" />
@@ -139,7 +152,7 @@ export function WordsBoard() {
       ) : (
         <ul className="mt-1 lg:grid lg:grid-cols-2 lg:gap-x-8">
           {shown.map((l) => (
-            <WordRow key={l.orderHash} listing={l} cost={makeCost(l)} prices={prices} />
+            <WordRow key={l.orderHash} listing={l} cost={makeCost(l)} prices={prices} number={numbers?.[l.word]} />
           ))}
         </ul>
       )}
@@ -159,9 +172,10 @@ export function WordsBoard() {
   );
 }
 
-function WordRow({ listing: l, cost, prices }: { listing: WordListing; cost: number | null; prices: CostPrices }) {
+function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; cost: number | null; prices: CostPrices; number?: number }) {
   const g = useGame();
   const amount = useAmount();
+  const openWord = useOpenWord();
   const mine = g.market.isMine(l.maker);
   const here = g.market.isHere(l.maker);
   const unfed = l.lastFedAt > 0 ? Math.floor((Date.now() / 1000 - l.lastFedAt) / 86_400) : 0;
@@ -172,10 +186,14 @@ function WordRow({ listing: l, cost, prices }: { listing: WordListing; cost: num
     <li className={`flex items-start justify-between gap-3 border-b-2 border-dashed border-ink/15 py-3 ${mine ? "bg-gold/10 -mx-2 px-2 rounded-lg" : ""}`}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <WordTiles word={l.word} upper={l.upper} size={26} tier={tier} still />
+          {/* the word opens its view (the Dictionary's): who has it, its card, its price, and Buy */}
+          <button type="button" className="word-press" aria-label={`Open ${l.word}`} onClick={() => openWord(l.word)}>
+            <WordTiles word={l.word} upper={l.upper} size={26} tier={tier} still />
+          </button>
           <TierBadge tier={tier} />
           <PrestigeStars level={l.prestigeLevel} />
-          {mine && <span className="rounded-full border-2 border-ink bg-card px-1.5 py-0.5 text-[10px] font-bold">Yours</span>}
+          {number ? <span className="text-xs font-bold tabular-nums text-ink/60">{cardNumber(number)}</span> : null}
+          {mine && <Pill className="bg-card">Yours</Pill>}
         </div>
         <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-ink/60">
           <Versus price={l.price} reference={cost} />
@@ -194,7 +212,7 @@ function WordRow({ listing: l, cost, prices }: { listing: WordListing; cost: num
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <div className="text-right" title={amount(l.price)}>
           <div className="font-display text-lg font-extrabold leading-none tabular-nums">{fmtWord(l.price)}</div>
-          <div className="text-[11px] text-ink/55">$WORD</div>
+          <div className="text-xs text-ink/55">$WORD</div>
         </div>
         {mine ? (
           here ? (
@@ -202,7 +220,7 @@ function WordRow({ listing: l, cost, prices }: { listing: WordListing; cost: num
               Take off sale
             </button>
           ) : (
-            <span className="max-w-28 text-right text-[11px] leading-tight text-ink/50">From {shortAddress(l.maker)}. Switch to it to take it off sale.</span>
+            <span className="max-w-28 text-right text-xs leading-tight text-ink/55">From {shortAddress(l.maker)}. Switch to it to take it off sale.</span>
           )
         ) : (
           <Button size="sm" variant="teal" onClick={() => g.buyWord(l.orderHash)}>

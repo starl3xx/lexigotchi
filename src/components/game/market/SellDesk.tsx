@@ -170,7 +170,7 @@ export function SellDesk({
                     Take off sale
                   </button>
                 ) : (
-                  <span className="shrink-0 text-right text-[11px] leading-tight text-ink/50">From {shortAddress(l.maker)}. Switch to it to change it.</span>
+                  <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From {shortAddress(l.maker)}. Switch to it to change it.</span>
                 )}
               </li>
             ))}
@@ -210,7 +210,7 @@ export function SellDesk({
                     </button>
                   </span>
                 ) : (
-                  <span className="shrink-0 text-right text-[11px] leading-tight text-ink/50">From {shortAddress(l.maker)}. Switch to it to change it.</span>
+                  <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From {shortAddress(l.maker)}. Switch to it to change it.</span>
                 )}
               </li>
             ))}
@@ -227,7 +227,7 @@ export function SellDesk({
                     Cancel
                   </button>
                 ) : (
-                  <span className="shrink-0 text-right text-[11px] leading-tight text-ink/50">From {shortAddress(o.maker)}. Switch to it to cancel.</span>
+                  <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From {shortAddress(o.maker)}. Switch to it to cancel.</span>
                 )}
               </li>
             ))}

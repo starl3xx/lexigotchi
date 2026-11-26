@@ -5,7 +5,10 @@
  */
 import { describe, it, expect } from "vitest";
 import { WORDS } from "@/lib/dictionary";
-import { article, bagTotals, distanceOf, elsewhereTotals, nameList, needNote, needParts, needTokens, tokensText, wordNeed, type LetterBag } from "@/lib/wordNeed";
+import {
+  article, bagTotals, distanceOf, elsewhereTotals, finishTokens, finishedBy, finishingLetter, nameList, needNote, needParts, needTokens, tokensText, wordNeed,
+  type LetterBag,
+} from "@/lib/wordNeed";
 import { canSpell, claimCase } from "@/components/game/state";
 
 const bag = (lower: string, upper = ""): LetterBag => {
@@ -79,11 +82,11 @@ describe("the dictionary-wide distances", () => {
     const here = bagTotals(PRACTICE);
     for (const w of ["QUINT", "BLOOD", "ABUZZ", "BINGO", "JAZZY"]) {
       const n = wordNeed(w, PRACTICE);
-      expect(distanceOf(w, here, null), w).toEqual({ missing: n.missing.length, away: n.away.length });
+      expect(distanceOf(w, here, null), w).toMatchObject({ missing: n.missing.length, away: n.away.length });
     }
     const h = bag("DEPT");
     const all = bag("DEPTH");
-    expect(distanceOf("DEPTH", bagTotals(h), elsewhereTotals(h, all))).toEqual({ missing: 0, away: 1 });
+    expect(distanceOf("DEPTH", bagTotals(h), elsewhereTotals(h, all))).toEqual({ missing: 0, away: 1, letter: -1 });
     expect(elsewhereTotals(PRACTICE, PRACTICE)).toBeNull();
   });
 
@@ -98,6 +101,59 @@ describe("the dictionary-wide distances", () => {
     }
     expect(by[0]).toBeGreaterThan(0);
     expect(by[1]).toBeGreaterThan(by[0]); // more words are one letter away than spellable now
+  });
+});
+
+describe("the one letter that finishes a word", () => {
+  const z = (ch: string) => ch.toUpperCase().charCodeAt(0) - 65;
+  const letterOf = (word: string, here: LetterBag, all: LetterBag = here) =>
+    finishingLetter(distanceOf(word, bagTotals(here), elsewhereTotals(here, all)));
+
+  it("names the letter when it is all the word needs", () => {
+    expect(distanceOf("QUINT", bagTotals(PRACTICE), null)).toEqual({ missing: 1, away: 0, letter: z("q") });
+    expect(letterOf("QUINT", PRACTICE)).toBe(z("q"));
+    expect(letterOf("BLOOD", PRACTICE)).toBe(z("o")); // one o held: one more finishes it
+    expect(letterOf("BINGO", PRACTICE)).toBe(-1); // it can be spelled already
+    expect(letterOf("ABUZZ", PRACTICE)).toBe(-1); // two z's short
+    expect(letterOf("ABYSS", PRACTICE)).toBe(-1); // a y and an s
+  });
+
+  it("never names a letter the player holds in another wallet: that is a move, not a letter to find", () => {
+    // the h is in the other wallet
+    expect(letterOf("DEPTH", bag("DEPT"), bag("DEPTH"))).toBe(-1);
+    // the same bag with no other wallet: the h is all it needs
+    expect(letterOf("DEPTH", bag("DEPT"))).toBe(z("h"));
+  });
+
+  it("never names a letter when another must be moved here too: the letter alone does not finish it", () => {
+    // q is held nowhere, and the h is in the other wallet
+    expect(letterOf("QUOTH", bag("UOT"), bag("UOTH"))).toBe(-1);
+    expect(letterOf("QUOTH", bag("UOTH"))).toBe(z("q"));
+  });
+
+  it("agrees with wordNeed on every word in the dictionary, with a linked wallet", () => {
+    const here = bag("AABCDEEGINOLRSTTU", "RE");
+    const all = bag("AABCDEEGINOLRSTTUHQZ", "RE"); // an h, a q, and a z wait in another wallet
+    let named = 0;
+    for (const w of WORDS) {
+      const n = wordNeed(w, here, all);
+      const want = n.missing.length === 1 && n.away.length === 0 ? z(n.missing[0]) : -1;
+      expect(letterOf(w, here, all), w).toBe(want);
+      if (want >= 0) named++;
+    }
+    expect(named).toBeGreaterThan(0);
+  });
+
+  it("lists the words a letter finishes, by the same rule", () => {
+    const none = () => false;
+    const q = finishedBy("q", WORDS, PRACTICE, none);
+    expect(q).toContain("QUINT");
+    for (const w of q) expect(letterOf(w, PRACTICE), w).toBe(z("q"));
+    expect(q).toHaveLength(WORDS.filter((w) => letterOf(w, PRACTICE) === z("q")).length);
+    // a skipped word (claimed, or the one being looked at) is left out
+    expect(finishedBy("q", WORDS, PRACTICE, (w) => w === "QUINT")).not.toContain("QUINT");
+    // with the q waiting in another wallet, a q finishes nothing: those words want a move
+    expect(finishedBy("q", WORDS, PRACTICE, none, bag("AABCDEEGINOLRSTTUQ", "RE"))).toEqual([]);
   });
 });
 
@@ -171,6 +227,18 @@ describe("the wording", () => {
     expect(note("BINGO", PRACTICE)).toBe("");
     expect(note("DEPTH", bag("DEPT"), bag("DEPTH"))).toBe("");
     for (const w of ["QUINT", "QUOTH", "JAZZY", "ABUZZ"]) expect(note(w, bag("UOT"), bag("UOTH"))).not.toMatch(/You hold \./);
+  });
+
+  it("writes the Market's line for a letter that finishes a word", () => {
+    expect(tokensText(finishTokens("q", false, "QUINT"))).toBe("A q finishes QUINT");
+    expect(tokensText(finishTokens("x", false, "UNBOX"))).toBe("An x finishes UNBOX");
+    // "one more" only when the player already holds one
+    expect(tokensText(finishTokens("o", true, "BLOOD"))).toBe("One more o finishes BLOOD");
+    // an UPPERCASE letter for sale reads in its case
+    expect(finishTokens("Z", false, "BLAZE")).toEqual(["A ", { letter: "Z" }, " finishes BLAZE"]);
+    // the same words the Dictionary's line uses for the same word
+    expect(line("BLOOD", PRACTICE)).toBe("Needs one more o");
+    expect(line("QUINT", PRACTICE)).toBe("Needs a q");
   });
 
   it("lists up to two names, then a count", () => {

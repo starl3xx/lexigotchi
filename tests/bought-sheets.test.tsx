@@ -113,9 +113,11 @@ describe("a word bought on the Market", () => {
 describe("letters bought on the Market", () => {
   it("hop in over the word they finish, the same word the Market’s pick named", async () => {
     play();
-    // What the Market's "For you" says an x finishes, before the purchase.
-    const taken = new Set(g.state.words.map((w) => w.word));
-    const picked = oneLetterShort(mineLower(g.state), mineUpper(g.state), WORDS.filter((w) => !taken.has(w))).get(X)!;
+    // What the Market's "For you" says an x finishes, before the purchase: nobody's words (a word on
+    // the board is its seller's), counted against the one practice bag (decisions.md #32).
+    const taken = new Set([...g.state.words.map((w) => w.word), ...g.wordBoard.map((l) => l.word)]);
+    const bag = { lower: mineLower(g.state), upper: mineUpper(g.state) };
+    const picked = oneLetterShort(bag, bag, WORDS.filter((w) => !taken.has(w))).get(X)!;
     expect(picked.length).toBeGreaterThan(1);
     const x = ask(X);
     await act(async () => void (await g.market.buyLetters(x, 1)));

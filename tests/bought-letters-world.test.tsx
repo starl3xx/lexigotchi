@@ -4,6 +4,7 @@
  * else owns can't be claimed, and who owns what comes from the world read. While that read loads,
  * the sheet says it is checking and names nothing; if it failed, the sheet does what Spell does
  * (only the player's own words are taken), so the claim is never hidden for good (Bugbot on #223).
+ * A word on the Market's board is its seller's whatever the world read says (decisions.md #32).
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
@@ -11,6 +12,8 @@ import { render, screen, cleanup } from "@testing-library/react";
 window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
 
 let world: { data?: { owners: Record<string, string> }; isPending: boolean };
+/** The words for sale on the Market's board. */
+let board: { word: string }[] = [];
 vi.mock("@/components/game/useWorld", () => ({ useWorld: () => world }));
 
 const bag = (letters: string) => {
@@ -26,6 +29,7 @@ vi.mock("@/components/game/state", async (orig) => {
     useGame: () => ({
       // "unbo" held, and the x that was just bought
       state: { chainBacked: true, lower: bag("unbox"), upper: bag(""), words: [] },
+      wordBoard: board,
       price: () => 2_000_000,
       canAfford: () => true,
       closeSheet() {},
@@ -40,7 +44,10 @@ const { BoughtLettersSheet } = await import("@/components/game/sheets/BoughtLett
 const X = "X".charCodeAt(0) - 65;
 const show = () => render(<BoughtLettersSheet letterId={X} count={1} unitPrice={9_800_000} had={0} />);
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  board = [];
+});
 
 describe("the bought-letters sheet, in the chain game", () => {
   it("says it is checking while the world’s owners load, and names no word yet", () => {
@@ -59,6 +66,15 @@ describe("the bought-letters sheet, in the chain game", () => {
 
   it("never offers a word another player owns", () => {
     world = { data: { owners: { UNBOX: "0x0000000000000000000000000000000000000001" } }, isPending: false };
+    show();
+    expect(screen.queryByRole("button", { name: /^Claim / })).toBeNull();
+    expect(screen.getByText("It’s in your bag, ready to spell with.")).toBeTruthy();
+  });
+
+  it("never offers a word that is for sale on the Market, though the world read has no owner for it yet", () => {
+    // claimed and listed inside the minute the world read is old by: the board is the live read
+    world = { data: { owners: {} }, isPending: false };
+    board = [{ word: "UNBOX" }];
     show();
     expect(screen.queryByRole("button", { name: /^Claim / })).toBeNull();
     expect(screen.getByText("It’s in your bag, ready to spell with.")).toBeTruthy();

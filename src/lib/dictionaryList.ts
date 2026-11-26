@@ -8,12 +8,15 @@
  *   which is closer than a mint, so those words sit between "can spell" and "one away". Words that
  *   can't be spelled at all (someone has them) come after, the ones for sale first.
  * - **The quick filters count only unclaimed words:** "Can spell" is exactly Spell's list.
+ * - **"Only needs a q"** (the `letter` filter) is the Market's link: the words one more of that
+ *   letter finishes, by lib/wordNeed's `finishingLetter`, the rule the Market counted them with
+ *   (decisions.md #32). So "and 45 more words" in the Market lands on those 46 cards.
  * - Distances are null when there is nothing to count (no letters, or the owners aren't known):
  *   then the list is A to Z and the distance filters match nothing.
  */
 import { WORDS } from "./dictionary";
 import { RANKED_WORDS, wordTier, type Tier } from "./economy";
-import type { Distance } from "./wordNeed";
+import { finishingLetter, type Distance } from "./wordNeed";
 
 /**
  * - `mine`: in the player's bag (its card opens). `mineAway`: theirs, in a linked wallet the bag
@@ -21,8 +24,45 @@ import type { Distance } from "./wordNeed";
  * - `open`: nobody's. `unknown`: the owners aren't known yet.
  */
 export type EntryStatus = "mine" | "mineAway" | "sale" | "taken" | "open" | "unknown";
+/** What is known about who has the words, when a word's status is worked out. */
+export interface WordHolders {
+  /** the words in the player's bag */
+  owned: ReadonlySet<string>;
+  /** each claimed word's owner, from the world read (absent until it answers) */
+  owners?: Readonly<Record<string, string>>;
+  /** the player's wallets, as the world read writes them */
+  wallets: ReadonlySet<string>;
+  /** every word on the Market's board, and whether its seller is the player */
+  listed: ReadonlyMap<string, boolean>;
+  /** the world read has answered: an absent owner means nobody, not "not known yet" */
+  ownersKnown: boolean;
+}
+
+/**
+ * Who has a word. **A word on the Market's board belongs to its seller, whatever the world read
+ * says** (decisions.md #32): the board is read live, and a listing shows only while its seller
+ * holds the word, while the world is a minute old. So the board is asked first:
+ * - a word claimed and listed in the last minute would read as unclaimed, with a price on it in the
+ *   Market, and Spell would offer a claim that reverts;
+ * - a word that changed hands and was listed again would read as its previous owner's: one the
+ *   player just sold, as "theirs, in a linked wallet" (Bugbot on #224);
+ * - the practice stall's sellers are in no world read at all.
+ * A word of unknown owner is never `open`: nothing is promised until the owners are known.
+ */
+export function entryStatus(word: string, k: WordHolders): EntryStatus {
+  if (k.owned.has(word)) return "mine";
+  const sellerIsPlayer = k.listed.get(word);
+  if (sellerIsPlayer !== undefined) return sellerIsPlayer ? "mineAway" : "sale";
+  const owner = k.owners?.[word];
+  if (owner) return k.wallets.has(owner) ? "mineAway" : "taken";
+  return k.ownersKnown ? "open" : "unknown";
+}
+
+/** Someone has this word, so a claim of it reverts: another player, a seller, or another wallet of the player's. */
+export const isTaken = (status: EntryStatus): boolean => status === "taken" || status === "sale" || status === "mineAway";
+
 export type DictSort = "closest" | "az";
-export type DictFilter = "all" | "can" | "one" | "two" | "unclaimed" | "claimed";
+export type DictFilter = "all" | "can" | "one" | "two" | "letter" | "unclaimed" | "claimed";
 
 export const DICT_SORTS: readonly DictSort[] = ["closest", "az"];
 
@@ -32,13 +72,15 @@ export interface DictQuery {
   tier: Tier | "All";
   filter: DictFilter;
   sort: DictSort;
+  /** The letter (0-25) the `letter` filter asks about; counted whenever it is set. */
+  letter?: number | null;
 }
 
 export interface DictList {
   /** every word that matches, in order (the screen shows a page at a time) */
   words: string[];
-  /** unclaimed words under the search and the rarity, by distance: the quick filters' counts */
-  counts: { can: number; one: number; two: number };
+  /** unclaimed words under the search and the rarity, by distance: the quick filters' counts (`letter`: the words `q.letter` finishes) */
+  counts: { can: number; one: number; two: number; letter: number };
 }
 
 /** Higher = rarer. */
@@ -58,7 +100,8 @@ export function closeness(status: EntryStatus, d: Distance | undefined): number 
  */
 export function listDictionary(q: DictQuery, statusOf: (word: string) => EntryStatus, distances: readonly Distance[] | null): DictList {
   const needle = q.query.trim().toUpperCase();
-  const counts = { can: 0, one: 0, two: 0 };
+  const counts = { can: 0, one: 0, two: 0, letter: 0 };
+  const letter = q.letter ?? -1;
   const rows: { word: string; key: number }[] = [];
   for (let i = 0; i < WORDS.length; i++) {
     const w = WORDS[i];
@@ -71,10 +114,14 @@ export function listDictionary(q: DictQuery, statusOf: (word: string) => EntrySt
     if (spellable) counts.can++;
     else if (open && d && d.missing === 1) counts.one++;
     else if (open && d && d.missing === 2) counts.two++;
+    // a word this letter finishes is also "one away": it is counted under both
+    const finished = open && !!d && letter >= 0 && finishingLetter(d) === letter;
+    if (finished) counts.letter++;
 
     if (q.filter === "can" && !spellable) continue;
     if (q.filter === "one" && !(open && d && d.missing === 1)) continue;
     if (q.filter === "two" && !(open && d && d.missing === 2)) continue;
+    if (q.filter === "letter" && !finished) continue;
     if (q.filter === "unclaimed" && !open) continue;
     if (q.filter === "claimed" && !CLAIMED.has(status)) continue;
     rows.push({ word: w, key: closeness(status, d) });

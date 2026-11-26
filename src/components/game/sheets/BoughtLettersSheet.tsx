@@ -10,7 +10,7 @@
  */
 import { useMemo } from "react";
 import { wordTier } from "@/lib/economy";
-import { TIER_RANK, isUpperId, letterLabel, letterOf } from "@/lib/market/deals";
+import { isUpperId, letterLabel, letterOf, rarestFirst } from "@/lib/market/deals";
 import { Button, Sheet, TierBadge } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { claimCase, fmtWord, mineLower, mineUpper, spellableNow, useGame } from "../state";
@@ -27,9 +27,9 @@ const ROW = 5;
 const tileSize = (shown: number) => (shown === 1 ? 104 : shown <= 3 ? 72 : 60);
 
 /**
- * The words these letters newly finish, rarest first, then A to Z: the order of the Market's own
- * `oneLetterShort`, so a "One more x finishes UNBOX" pick ends on UNBOX here. Pure, so the rule is
- * tested. `lower`/`upper` are the bag as it reads now, and `had` is how many of the letter the
+ * The words these letters newly finish, rarest first: the order of the Market's own
+ * `oneLetterShort` (lib/market/deals `rarestFirst`, the one comparator both use), so an "An x
+ * finishes UNBOX" pick ends on UNBOX here. Pure, so the rule is tested. `lower`/`upper` are the bag as it reads now, and `had` is how many of the letter the
  * wallet held before the purchase.
  *
  * "Before" is the bag with that letter set back to `had`, never "now minus `count`": a bag that
@@ -53,7 +53,7 @@ export function newlySpellable(
   const was = new Set(spellableNow(before.lower, before.upper, taken, Infinity));
   return spellableNow(lower, upper, taken, Infinity)
     .filter((w) => !was.has(w))
-    .sort((a, b) => TIER_RANK[wordTier(b)] - TIER_RANK[wordTier(a)] || a.localeCompare(b))
+    .sort(rarestFirst)
     .map((word) => ({ word, cases: claimCase(word, upper) }));
 }
 
