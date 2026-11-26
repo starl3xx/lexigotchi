@@ -21,7 +21,7 @@ import { cardNumber, wordPoints } from "@/lib/cardFacts";
 import { dailyEarnEstimate } from "@/lib/wordCost";
 import { readLetterSupply } from "@/lib/onchain/reads";
 import { NETWORK } from "@/lib/onchain/network";
-import { article, finishedBy, heldList, nameList, needParts, needTokens, ordinal, wordNeed } from "@/lib/wordNeed";
+import { article, finishedBy, nameList, needNote, needParts, needTokens, ordinal, wordNeed } from "@/lib/wordNeed";
 import { Button, Sheet, TierBadge } from "../primitives";
 import { TileCharacter, TileWord } from "../TileCharacter";
 import { PlayerChip } from "../PlayerChip";
@@ -96,7 +96,6 @@ export function LookupSheet({ word }: { word: string }) {
   const rarest = RAREST.get(word);
 
   // ── the first line, and the line under it ────────────────────────────────────────────────────
-  const held = [...word].filter((_, k) => need.letters[k] === "here").map((ch) => ch.toLowerCase());
   const the = parts.length === 1 ? parts[0] : null;
   let lead: ReactNode;
   let sub: string | null = null;
@@ -114,14 +113,8 @@ export function LookupSheet({ word }: { word: string }) {
     sub = "Five letters make a word, and this one could be yours alone.";
   } else {
     lead = <NeedText tokens={needTokens(need, word, "lead")} />;
-    if (canSpell) sub = `Nobody owns ${word}. Spell it and it’s yours alone.`;
-    else if (the && the.count === 1 && !the.more) {
-      sub = `You hold ${heldList(held)}.`;
-      if (also.length) sub += ` ${article(the.letter) === "an" ? "An" : "A"} ${the.letter} would also finish ${nameList(also)}.`;
-    } else if (parts.length > 0) {
-      sub = held.length ? `You hold ${held.length} of its five letters.` : "You hold none of its letters yet.";
-      if (need.away.length) sub += ` ${need.away.length === 1 ? `Your ${need.away[0]} is` : `${need.away.length} more are`} in your other wallet: move ${need.away.length === 1 ? "it" : "them"} here too.`;
-    }
+    // what's held, what else the letter would finish, and any letter to move (lib/wordNeed needNote)
+    sub = canSpell ? `Nobody owns ${word}. Spell it and it’s yours alone.` : needNote(need, word, also) || null;
   }
   if (consolation && (status === "taken" || status === "sale")) {
     const { letter, words } = consolation;

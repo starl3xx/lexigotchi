@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { WORDS } from "@/lib/dictionary";
-import { article, bagTotals, distanceOf, elsewhereTotals, nameList, needParts, needTokens, tokensText, wordNeed, type LetterBag } from "@/lib/wordNeed";
+import { article, bagTotals, distanceOf, elsewhereTotals, nameList, needNote, needParts, needTokens, tokensText, wordNeed, type LetterBag } from "@/lib/wordNeed";
 import { canSpell, claimCase } from "@/components/game/state";
 
 const bag = (lower: string, upper = ""): LetterBag => {
@@ -140,6 +140,37 @@ describe("the wording", () => {
   it("puts the missing letter first when a word needs a mint and a move", () => {
     // q is missing, h is in the other wallet: the line names what must be found
     expect(line("QUOTH", bag("UOT"), bag("UOTH"))).toBe("Needs a q");
+  });
+
+  it("never says “only” when a letter must be moved here too (Bugbot on #222)", () => {
+    // q must be found AND the h moved: the q is not all it takes
+    expect(lead("QUOTH", bag("UOT"), bag("UOTH"))).toBe("You need a q.");
+    // with the h here, it is
+    expect(lead("QUOTH", bag("UOTH"))).toBe("You only need a q.");
+  });
+
+  it("says “one more” for a letter the player has in another wallet, and says to move it", () => {
+    // one o in the other wallet, the second o held nowhere
+    const need = wordNeed("BLOOD", bag("BLD"), bag("BLOD"));
+    expect(need.letters).toEqual(["here", "here", "away", "missing", "here"]);
+    expect(tokensText(needTokens(need, "BLOOD", "lead"))).toBe("You need one more o.");
+    expect(needNote(need, "BLOOD")).toBe("You hold 3 of its five letters here. Your o is in your other wallet: move it here too.");
+  });
+
+  it("writes the line under the first one", () => {
+    const note = (word: string, here: LetterBag, all?: LetterBag, also: string[] = []) => needNote(wordNeed(word, here, all), word, also);
+    // one letter short, nothing to move: what's held, and what else the letter would finish
+    expect(note("QUINT", PRACTICE, PRACTICE, ["BURQA", "NIQAB"])).toBe("You hold the u, the i, the n, and the t. A q would also finish BURQA and NIQAB.");
+    expect(note("ABHOR", PRACTICE)).toBe("You hold the a, the b, the o, and the r.");
+    // a mint and a move: the move is always said, and "You hold" never comes out empty
+    expect(note("QUOTH", bag("UOT"), bag("UOTH"))).toBe("You hold 3 of its five letters here. Your h is in your other wallet: move it here too.");
+    expect(note("QUOTH", bag(""), bag("UOTH"))).toBe("None of its letters are here yet. 4 more are in your other wallet: move them here too.");
+    expect(note("JAZZY", bag("BC"))).toBe("You hold none of its letters yet.");
+    expect(note("ABUZZ", PRACTICE)).toBe("You hold 3 of its five letters.");
+    // nothing to add when the first line says it all
+    expect(note("BINGO", PRACTICE)).toBe("");
+    expect(note("DEPTH", bag("DEPT"), bag("DEPTH"))).toBe("");
+    for (const w of ["QUINT", "QUOTH", "JAZZY", "ABUZZ"]) expect(note(w, bag("UOT"), bag("UOTH"))).not.toMatch(/You hold \./);
   });
 
   it("lists up to two names, then a count", () => {

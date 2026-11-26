@@ -108,11 +108,14 @@ export function article(letter: string): "a" | "an" {
   return "aefhilmnorsx".includes(letter.toLowerCase()) ? "an" : "a";
 }
 
-/** One distinct letter still needed: how many, and whether the player already holds one here. */
+/** One distinct letter still needed: how many, and whether the player already has one. */
 export interface NeedPart {
   letter: string;
   count: number;
-  /** the player holds at least one of this letter here, so the word needs MORE of it */
+  /**
+   * The player already has this letter, here or in another of their wallets, so the word needs MORE
+   * of it ("one more o"). One in another wallet still has to be moved, and `needNote` says so.
+   */
   more: boolean;
 }
 
@@ -160,7 +163,8 @@ export function needTokens(need: WordNeed, word: string, form: "line" | "lead"):
   }
   if (parts.length === 1) {
     const p = parts[0];
-    const only = p.count === 1 && !p.more;
+    // "only" promises this letter is all it takes: never when another must be moved here too
+    const only = p.count === 1 && !p.more && need.away.length === 0;
     return lead ? [only ? "You only need " : "You need ", ...one(p), "."] : ["Needs ", ...one(p)];
   }
   if (parts.length === 2 && parts.every((p) => p.count === 1)) {
@@ -196,6 +200,35 @@ export function heldList(letters: readonly string[]): string {
   if (named.length <= 1) return named.join("");
   if (named.length === 2) return `${named[0]} and ${named[1]}`;
   return `${named.slice(0, -1).join(", ")}, and ${named[named.length - 1]}`;
+}
+
+/**
+ * The line under the word view's first line: what the player holds, what else the same letter
+ * would finish (`also`, the caller's list), and any letter that must be moved here too. Empty when
+ * the first line says it all (the word can be spelled, or only a move is needed).
+ *
+ * The move is always said when there is one: a word that needs a mint AND a move must never read
+ * as though the mint were all it takes (Bugbot on #222).
+ */
+export function needNote(need: WordNeed, word: string, also: readonly string[] = []): string {
+  const parts = needParts(need, word);
+  if (parts.length === 0) return "";
+  const held = [...word].filter((_, k) => need.letters[k] === "here").map((ch) => ch.toLowerCase());
+  const moving = need.away.length > 0;
+  const out: string[] = [];
+  const p = parts[0];
+  if (parts.length === 1 && p.count === 1 && !p.more && !moving) {
+    // exactly one letter short, and nothing to move: name what's held, and what else it would finish
+    out.push(`You hold ${heldList(held)}.`);
+    if (also.length) out.push(`${article(p.letter) === "an" ? "An" : "A"} ${p.letter} would also finish ${nameList(also)}.`);
+  } else if (held.length === 0) {
+    out.push(moving ? "None of its letters are here yet." : "You hold none of its letters yet.");
+  } else {
+    out.push(`You hold ${held.length} of its five letters${moving ? " here" : ""}.`);
+  }
+  if (need.away.length === 1) out.push(`Your ${need.away[0]} is in your other wallet: move it here too.`);
+  else if (need.away.length > 1) out.push(`${need.away.length} more are in your other wallet: move them here too.`);
+  return out.join(" ");
 }
 
 /**
