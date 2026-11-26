@@ -77,8 +77,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the clock, so when `generate` stamps an earlier time, set `when` by hand just past the last entry.
   `tests/migrations.test.ts` fails on it. After a merge that renumbers one, check the table exists.
 - **Redeploying production after a Vercel setting changes:** merge a PR to main (every merge builds;
-  `vercel.json` skips nothing). The dashboard's Redeploy hasn't worked for the owner, and this Mac
-  has no Vercel CLI. Check the result at `/api/profile/config` and similar switch endpoints.
+  `vercel.json` skips nothing). The dashboard's Redeploy hasn't worked for the owner. A setting
+  takes effect only in the NEXT build, so turning a switch off needs a merge too (or a rollback to
+  a deployment built without it: `npx vercel rollback <deployment>`). **This Mac reaches Vercel
+  through `npx vercel`** (no installed binary; a stored login as starl3xx, and `.vercel/project.json`
+  links the repo): `npx vercel env ls production` lists setting NAMES, and a value is added on
+  standard input, never `--value` (`printf %s "$v" | npx vercel env add NAME production`).
+  Production only: a Preview build also runs with `NODE_ENV=production`, so a flag set there would
+  send from a preview. Check the result at `/api/profile/config` and similar switch endpoints.
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
@@ -110,8 +116,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (copy — titles never interpolate so the 32-char cap is provable; variants rotate by epoch-day;
   ids are day-keyed for NUDGES and event-keyed for RECEIPTS), `triggers.ts` (pure targeting).
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
-  Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends until
-  `NOTIFICATIONS_ENABLED=true` in production.
+  Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends without
+  `NOTIFICATIONS_ENABLED=true` in production: **set 2026-11-26, with the owner's word**.
   **A sale tells its seller** (decisions.md #45; `lib/notify/sold.ts`): a receipt hung on the sales
   recorder (`recordNewSales` hands a new row to the one caller that inserted it), sent by the
   Market's sales route after it answers (`lib/afterResponse.ts`) and by the keeper's `fees` job, to
@@ -132,8 +138,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   ≤5 per wallet; a full wallet REFUSES a new browser, never evicts, since subscribing is unsigned), `/api/push/{subscribe,unsubscribe}`, `public/sw.js` (push + click only, no
   `fetch` handler), `useWebPush.ts` + `ReminderToggle.tsx` (More, and Home's hunger card). The
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
-  Screen app (`src/app/manifest.ts`). Dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set (no toggle
+  Screen app (`src/app/manifest.ts`). Dark without `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (no toggle
   without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
+  **Both set 2026-11-26.** The VAPID pair's only copy outside Vercel is the gitignored
+  `.env.vapid.local` in the owner's checkout: never make a new pair, which orphans every subscribed
+  browser.
   **Profile** (`sheets/ProfileSheet.tsx`, opened by the header picture; the balance pill keeps
   "Your $WORD"): linked accounts (Farcaster, Coinbase verification, X once switched on), the free
   daily letter, and the name and picture, which come ONLY from a linked account (`useProfile`'s

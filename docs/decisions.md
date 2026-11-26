@@ -1459,6 +1459,13 @@ setter. All small, riding existing suite patterns.
       QUICK"); a bounty result; a weekly digest by email in place of daily ones.
     - **Seen and not seen:** every rule by test, with injected senders. No real push has been
       seen: none can be sent until the owner sets the keys.
+    - **Switched on 2026-11-26** (starl3xx, the same day: "I'm pretty sure you can do 1-4 for
+      me", the switch-on steps). The VAPID pair was made on the owner's machine and piped to
+      Vercel without being shown (its backup is the gitignored `.env.vapid.local`); the two flags
+      went in after the keys, Production only; the docs' "aren't switched on yet" notes came out
+      in the PR that deployed them. First sends: "Reminders are on" to a browser that opts in,
+      then the keeper's hunger warnings (00:05 UTC) and the daily-letter reminder (13:00 UTC) to
+      players who added the mini app.
 
 ## Pricing & launch economics (decided June 2026)
 
