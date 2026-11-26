@@ -7,6 +7,8 @@ import { sendWebPush, type WebPushResult } from "@/lib/notify/webPush";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
 import { emailRecipients, markEmailSent } from "@/lib/db/profiles";
 import { loadLinkMap } from "@/lib/db/walletLinks";
+import { loadPrefs } from "@/lib/db/reminderPrefs";
+import { fidsByAddressesDetailed } from "@/lib/neynar";
 import { relatedDailyKeysMany } from "@/lib/onchain/dailyIdentity";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
@@ -96,6 +98,20 @@ export async function GET(req: Request) {
     // walk the daily route refuses on (relatedDailyKeysMany), so a pull under another linked
     // wallet's Coinbase key, FID, or X counts as today's. loadLinkMap never throws.
     const links = await loadLinkMap();
+    // A player may have turned this reminder off (lib/notify/kinds.ts). Choices that couldn't be
+    // read are no licence to send: nobody is reminded this run (loadPrefs has logged why).
+    const prefs = await loadPrefs();
+    if (!prefs.known) return NextResponse.json({ ok: true, skipped: "choices_unreadable", audience: fids.length });
+    const wantsDaily = (address: string) => prefs.wants(links.accountOf(address), "daily");
+    // Farcaster is reached by FID, a choice is kept by account: the FIDs of the accounts that turned
+    // it off are looked up from those accounts' wallets (usually nobody, and then nothing is asked).
+    const offWallets = prefs.chose("daily", false).flatMap((account) => links.walletsOf(account));
+    const off = offWallets.length > 0 ? await fidsByAddressesDetailed(offWallets) : { fids: new Map<string, number[]>(), answered: true };
+    const offFids = new Set([...off.fids.values()].flat());
+    // Farcaster didn't answer in full, so some FID that turned this off can't be told from one that
+    // didn't: nobody is reminded there this run. Browsers and email are keyed by wallet, and go on.
+    const farcasterBlind = !off.answered;
+    if (farcasterBlind) console.error("[cron/notify-daily] couldn't look up who turned the daily letter off: no Farcaster reminders this run");
     // Profiles that took all 10, with every key they took them under, so each channel matches on what
     // it knows: Farcaster by the FID's walked keys, browsers and email by account or keys
     // (lib/freeLetters.ts finishedProfiles; Bugbot on #199). A failed read finishes nobody.
@@ -106,13 +122,13 @@ export async function GET(req: Request) {
     // ── Farcaster ────────────────────────────────────────────────────────────────────────────
     let targets: number[] = [];
     let result: Awaited<ReturnType<typeof sendNotification>> | undefined;
-    if (fids.length > 0) {
+    if (fids.length > 0 && !farcasterBlind) {
       const used = await readDailyUsed(fids.map((fid) => BigInt(fid)));
       const states: DailyState[] = fids.map((fid, i) => ({ fid, lastDailyDayPlusOne: Number(used[i]) }));
       const due = dailyTargets(states, day);
       // A FID's finished profile may have claimed under a Coinbase or X key: walk the FID's keys.
       const dueKeys = finished.keys.size > 0 ? await relatedDailyKeysMany(due.map((f) => ({ fid: f, wallets: [] }))) : due.map(() => []);
-      targets = due.filter((f, i) => !isFinished([], [BigInt(f), ...dueKeys[i]]));
+      targets = due.filter((f, i) => !offFids.has(f) && !isFinished([], [BigInt(f), ...dueKeys[i]]));
       // An empty target list is a legitimate outcome (everyone already played), NOT a reason to
       // broadcast. sendNotification refuses an empty audience; skipping the call says so plainly.
       if (targets.length > 0) result = await sendNotification({ ...dailyReady(day), targetFids: targets });
@@ -123,8 +139,10 @@ export async function GET(req: Request) {
     // are skipped. A failed lookup adds fewer keys: at worst one extra reminder, never a missed one.
     let browserTargets = 0;
     let browserResult: WebPushResult | undefined;
-    const farcasterFids = new Set(fids);
-    const open = subs.filter((sub) => !(sub.fid !== null && farcasterFids.has(sub.fid)));
+    // A browser is skipped only for a player Farcaster reminds THIS run: with Farcaster blind, it
+    // reminds nobody, so those players' browsers are not skipped (Bugbot on #242).
+    const farcasterFids = new Set(farcasterBlind ? [] : fids);
+    const open = subs.filter((sub) => wantsDaily(sub.address) && !(sub.fid !== null && farcasterFids.has(sub.fid)));
     const subKeys = await relatedDailyKeysMany(
       open.map((sub) => ({ fid: sub.fid, wallets: links.walletsOf(links.accountOf(sub.address)) })),
     );
@@ -153,7 +171,7 @@ export async function GET(req: Request) {
     let emailResult: { sent: number; failed: number } | undefined;
     if (emailEnabled()) {
       try {
-        const recips = await emailRecipients();
+        const recips = (await emailRecipients()).filter((r) => wantsDaily(r.address));
         // Every slot the player could pull on, across the account (an email row is keyed by the
         // account): the FIDs that verified any of its wallets, those FIDs' wallets, every Coinbase
         // key, and the X keys (Bugbot on #139: without the FID, a Farcaster-only player never got

@@ -327,6 +327,39 @@ export const gameWallets = pgTable("game_wallets", {
 });
 
 /**
+ * A player's choice of reminders (lib/notify/kinds.ts; migration 0018): which kinds they changed
+ * from the defaults, keyed by ACCOUNT (linked wallets are one player). A table of its own, never
+ * columns on `profiles`: `getProfile` selects every profiles column, so a column the database
+ * doesn't have yet would break every profile read until the migration ran (as for `game_wallets`).
+ * A missing table reads as "nobody changed anything".
+ */
+export const reminderPrefs = pgTable("reminder_prefs", {
+  account: text("account").primaryKey(),
+  /** Only the kinds the player changed: `{ "daily": false }`. A kind not here follows its default. */
+  kinds: jsonb("kinds").$type<Record<string, boolean>>().notNull().default({}),
+  /** How email comes: null for each reminder as it happens. (A weekly digest is planned.) */
+  emailCadence: text("email_cadence"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Send-once marks for reminders that have no column of their own (migration 0018): one row says
+ * "this account was sent this kind for this thing" (`mark`: a sale's fill, a payout day, a deal).
+ * The two oldest email reminders keep their columns on `profiles` (`emailDailyDay`,
+ * `emailHungerDay`); every later kind marks here, so a new kind never needs a new column.
+ */
+export const reminderMarks = pgTable(
+  "reminder_marks",
+  {
+    account: text("account").notNull(),
+    kind: text("kind").notNull(),
+    mark: text("mark").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.account, t.kind, t.mark] })],
+);
+
+/**
  * One "Link another wallet" attempt: a code made under the account's session, then signed (inside a
  * Sign-In with Ethereum message that names the account) by the wallet joining. Kept on the server so
  * the second wallet can sign anywhere: the same browser after a wallet switch, another device, or a

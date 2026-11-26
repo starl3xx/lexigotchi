@@ -47,6 +47,7 @@ import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
+import { loadPrefs } from "@/lib/db/reminderPrefs";
 import type { SaleRow } from "@/lib/db/market";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { emailRecipients, markEmailSent, type EmailRecipient } from "@/lib/db/profiles";
@@ -182,6 +183,10 @@ export function createKeeper(opts: { dry: boolean }) {
       // The winner's account (linked wallets): its email row, its Farcaster, and every browser it
       // subscribed on. loadLinkMap never throws; with no links the account is the winner itself.
       const links = await loadLinkMap();
+      // The winner may have turned this one off (lib/notify/kinds.ts); unreadable choices send nothing.
+      if (!(await loadPrefs()).wants(links.accountOf(winner), "jackpot")) {
+        return void console.log(`resolve: winner ${winner.slice(0, 10)} isn't told (turned off, or choices unreadable)`);
+      }
       // Email first and independently: a player who opted in hears about a win however else we reach them.
       await notifyWinnerEmail(links.accountOf(winner), jackpotWon(word, `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`));
 
@@ -491,7 +496,13 @@ export function createKeeper(opts: { dry: boolean }) {
    * so --dry and every local run report the audience and stay silent.
    */
   async function notifyHunger() {
-    const [words, fids, subs, links] = await Promise.all([scanAllWords(), notifiableFids(), webPushSubscriptions(), loadLinkMap()]);
+    const [all, fids, subs, links, prefs] = await Promise.all([scanAllWords(), notifiableFids(), webPushSubscriptions(), loadLinkMap(), loadPrefs()]);
+    // A player may have turned hunger warnings off (lib/notify/kinds.ts). Choices that couldn't be
+    // read are no licence to send: the pass is skipped, and loadPrefs has logged why.
+    if (!prefs.known) return void console.error("notify: reminder choices unreadable — no hunger warnings this pass");
+    // Their words leave the pass HERE, before any channel groups them: one filter for all three.
+    const words = all.filter((w) => prefs.wants(links.accountOf(w.owner), "hunger"));
+    if (words.length < all.length) console.log(`notify: ${all.length - words.length} word(s) belong to players who turned hunger warnings off`);
     // One warning per PLAYER: a linked wallet's words reach its account's Farcaster, browsers, and email.
     const fidOf = accountFidLookup(fidLookupFrom(fids.length > 0 ? await lookupProfiles(fids) : []), links);
     console.log(`notify: ${links.size} linked wallet(s)`);
