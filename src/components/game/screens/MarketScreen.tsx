@@ -57,8 +57,9 @@ export function MarketScreen() {
   const [sellKind, setSellKind] = useState<SellKind>("words");
   // A link lands on the part it names (state.tsx ViewSection): the Bag's "Sell letters" on Sell, on
   // the player's letters; the word view's "Find a q in the Market" on the shelf, with q's sellers
-  // showing. After useStoredChoice's own effect, so the link wins over the remembered part.
-  const section = state.section;
+  // showing. After useStoredChoice's own effect, so the link wins over the remembered part. Keyed
+  // on the navigation as well as the section: the same link followed again must land again.
+  const { section, navSeq } = state;
   useEffect(() => {
     if (section === "sellLetters") {
       setTab("sell");
@@ -71,7 +72,7 @@ export function MarketScreen() {
       setTab("letters");
       setOpenLetter(letter);
     }
-  }, [section, setTab]);
+  }, [section, navSeq, setTab]);
 
   // Words the player is one letter short of, counted as the Dictionary counts them (lib/wordNeed):
   // nobody's words only (a word on the board has an owner), the connected wallet's letters, and a

@@ -46,15 +46,17 @@ export function DictionaryScreen() {
   const [tier, setTier] = useState<Tier | "All">("All");
   // The Market's link (`needs:q`): the words one more q finishes. The letter's chip stays for the
   // visit, so the player can step out to another filter and back. An effect as well as the first
-  // state, because the link can arrive while this screen is already showing.
+  // state, because the link can arrive while this screen is already showing; keyed on the
+  // navigation too, so the same link followed again lands again.
   const linked = sectionLetter(g.state.section, "needs");
+  const { navSeq } = g.state;
   const [letter, setLetter] = useState<number | null>(linked);
   const [filter, setFilter] = useState<DictFilter>(linked === null ? "all" : "letter");
   useEffect(() => {
     if (linked === null) return;
     setLetter(linked);
     setFilter("letter");
-  }, [linked]);
+  }, [linked, navSeq]);
   const [sort, setSort] = useStoredChoice<DictSort>("lexigotchi:dictionary:sort", DICT_SORTS, "closest");
 
   // There is something to count once the player holds a letter and the owners are known. Before

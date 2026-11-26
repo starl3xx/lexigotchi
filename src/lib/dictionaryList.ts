@@ -24,6 +24,39 @@ import { finishingLetter, type Distance } from "./wordNeed";
  * - `open`: nobody's. `unknown`: the owners aren't known yet.
  */
 export type EntryStatus = "mine" | "mineAway" | "sale" | "taken" | "open" | "unknown";
+/** What is known about who has the words, when a word's status is worked out. */
+export interface WordHolders {
+  /** the words in the player's bag */
+  owned: ReadonlySet<string>;
+  /** each claimed word's owner, from the world read (absent until it answers) */
+  owners?: Readonly<Record<string, string>>;
+  /** the player's wallets, as the world read writes them */
+  wallets: ReadonlySet<string>;
+  /** every word on the Market's board, and whether its seller is the player */
+  listed: ReadonlyMap<string, boolean>;
+  /** the world read has answered: an absent owner means nobody, not "not known yet" */
+  ownersKnown: boolean;
+}
+
+/**
+ * Who has a word. **A word on the Market's board has an owner, its seller, whatever the world read
+ * says** (decisions.md #32): the board is read live and the world is a minute old, so a word
+ * claimed and listed since then would read as unclaimed, with a price on it in the Market, and
+ * Spell would offer a claim that reverts. The practice stall's sellers are in no world read at all.
+ * A word of unknown owner is never `open`: nothing is promised until the owners are known.
+ */
+export function entryStatus(word: string, k: WordHolders): EntryStatus {
+  if (k.owned.has(word)) return "mine";
+  const owner = k.owners?.[word];
+  const forSale = k.listed.has(word);
+  if ((owner && k.wallets.has(owner)) || k.listed.get(word)) return "mineAway";
+  if (owner || forSale) return forSale ? "sale" : "taken";
+  return k.ownersKnown ? "open" : "unknown";
+}
+
+/** Someone has this word, so a claim of it reverts: another player, a seller, or another wallet of the player's. */
+export const isTaken = (status: EntryStatus): boolean => status === "taken" || status === "sale" || status === "mineAway";
+
 export type DictSort = "closest" | "az";
 export type DictFilter = "all" | "can" | "one" | "two" | "letter" | "unclaimed" | "claimed";
 

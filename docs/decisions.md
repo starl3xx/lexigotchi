@@ -822,11 +822,14 @@ setter. All small, riding existing suite patterns.
       what it costs to make as it is, and **Buy**, which closes the view: the word is the
       player's from then on. No Buy without a connected wallet (the Dictionary is public), nor on
       the player's own listing. Listings show the card number (#25: the order of first claims).
-    - **A listed word has an owner: its seller** (`useDictionary` `statusOf`). The Market's board
-      is read live and the world read is a minute old, so a word claimed and listed since then
-      was "unclaimed" in the Dictionary with a price tag on it in the Market; the practice stall's
-      words always were (its sellers are in no world read), and two of them, TIGER and OCEAN,
-      read "You can spell it".
+    - **A listed word has an owner: its seller** (`lib/dictionaryList` `entryStatus`, pure,
+      tested; read through `useDictionary` `statusOf`). The Market's board is read live and the
+      world read is a minute old, so a word claimed and listed since then was "unclaimed" in the
+      Dictionary with a price tag on it in the Market; the practice stall's words always were (its
+      sellers are in no world read), and two of them, TIGER and OCEAN, read "You can spell it".
+      **Spell asks the same question** (`isTaken(statusOf(w))`), so #31's rule still holds: the
+      Dictionary's "Can spell" is exactly Spell's list (1,010 words for the practice bag on both,
+      1,012 before), and neither offers a claim that would revert.
     - **One rule for "this letter finishes this word"** (`lib/wordNeed` `finishingLetter`: exactly
       one letter held nowhere, and nothing to move). The Market's picks (`oneLetterShort`), the
       Dictionary's new "Only needs a q" filter, and the word view's "would also finish" all read
@@ -846,18 +849,24 @@ setter. All small, riding existing suite patterns.
       opens the Dictionary on those 46 words, under a chip "Only needs an x". The number and the
       cards come from the same function, and a test holds them equal for every letter. A link is
       state, not a value handed over once (as `spellHandoff` is), because the word view can be
-      open on the Market itself.
+      open on the Market itself. And the same link must land twice: a screen keys its effect on
+      `navSeq` (a count of navigations, in the one reducer both stores use) as well as the
+      section, because following "Find an x in the Market" again, after closing x's sellers, left
+      the section unchanged and did nothing (found in review, before the first push).
     - **Marks and order.** The Market's rarity chips wear each rarity's mark (#29) and a
       stepped-back count, and "Just sold" marks its words. Rarity chips read rarest first on all
       three screens: the Dictionary's ran Common first and was the odd one, not the Market's,
       which matched Spell.
-    - **The 12 px floor.** "Yours" and "Lowest" tags and the Market's small captions were 10 and
-      11 px. The shelf's price tags stay: they are compact chips, 26 across a phone.
+    - **The 12 px floor.** "Yours" and "Lowest" tags and the Market's small captions (Words,
+      Letters, Sell, Sold) were 10 and 11 px. The shelf's price tags and its "!" stay: they are
+      compact chips, 26 across a phone.
     - **Left alone, and why:** the Market's chip shape (taller, with a press) is also the Bag's,
       so it is one of two chip shapes in the game, not a one-off. Making the four screens one
       chip is its own change. The Market's look (the shelf, ruled lists) is its own.
     - **Seen and not seen:** all of it in practice mode at 1280 and 424 px. Card numbers on
       listings and the linked-wallet cases need a wallet on the chain; they are held by tests.
+      A visitor's view of a word for sale (no Buy, only "See it in the Market") needs the chain
+      game with no wallet: checked on the live test game after the deploy.
     - **My readings, not starl3xx's words:** "Only needs an x" as the chip's name; a sold word
       opens its view only in the chain game (or when it is the player's), since practice has no
       other owners; the Dictionary's rarity chips flipped rather than the Market's.

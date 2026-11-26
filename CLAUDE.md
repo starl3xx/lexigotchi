@@ -394,12 +394,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   more o…" only when one is held). (3) *One word view*: any word in a list opens with
   `useOpenWord` (the player's own → its card, any other → `LookupSheet`), and a word for sale is
   bought there (Buy closes the sheet; no Buy without a wallet or on the player's own listing).
-  (4) *A listed word has an owner, its seller* (`useDictionary` `statusOf`): the board is live and
-  the world read is a minute old, and the practice stall's sellers are in no world read.
+  (4) *A listed word has an owner, its seller* (`lib/dictionaryList` `entryStatus`, pure, tested;
+  `useDictionary` `statusOf`): the board is live and the world read is a minute old, and the
+  practice stall's sellers are in no world read. Spell filters with the same `statusOf`
+  (`isTaken`), which is what keeps "Can spell" exactly Spell's list: never test `owners[w]` alone.
   (5) *Links are state*: `nav(view, section)` with `letter:q` (the Market's Letters shelf, q's
   sellers open), `needs:q` (the Dictionary on the words a q finishes), `words`, `letters`; read
   the letter with `sectionLetter` (state.tsx). Not a take-once handoff like `spellHandoff`: the
-  word view can be open on the screen the link points at. Rarity chips read rarest first on Spell,
+  word view can be open on the screen the link points at. A screen that acts on a section keys
+  its effect on `state.navSeq` too, or the same link followed twice does nothing. Rarity chips read rarest first on Spell,
   the Dictionary, and the Market. Two chip shapes remain (the Dictionary's and Spell's pill; the
   Bag's and the Market's taller press chip): one chip for all four is its own change.
 - `src/lib/world.ts` + `/api/world` → **the shared world** for the Leaderboard and the Dictionary's

@@ -205,7 +205,8 @@ export type View =
  * "letters" open that part, and `letter:q` opens the Letters shelf with q's sellers showing (the
  * word view's "Find a q in the Market"); on the Dictionary, `needs:q` shows the words one more q
  * finishes (the Market's "and 45 more words"). Read the letter with `sectionLetter`. A link is
- * state, not a value handed over once, so it also works when the screen is already showing.
+ * state, not a value handed over once, so it also works when the screen is already showing: a
+ * screen keys its effect on `navSeq` as well as the section, so the same link lands twice.
  */
 export type ViewSection = "bounty" | "letters" | "sellLetters" | "words" | `letter:${string}` | `needs:${string}`;
 
@@ -307,6 +308,12 @@ export interface GameState {
   view: View;
   /** Where on `view` the last link pointed; unset means the top. */
   section?: ViewSection;
+  /**
+   * How many navigations there have been. A screen that acts on `section` keys its effect on this
+   * too: the same link followed twice leaves `section` as it was, and the second tap must still
+   * land (the word view's "Find a q in the Market", tapped again after closing q's sellers).
+   */
+  navSeq: number;
   sheet: Sheet;
   toasts: Toast[];
   nextToastId: number;
@@ -451,6 +458,7 @@ export function seedState(): GameState {
     bountyTheme: 1, // "has a repeated letter"
     market: seedPracticeMarket(Date.now()),
     view: "home",
+    navSeq: 0,
     sheet: null,
     toasts: [],
     status: "ready" as ChainStatus,
@@ -490,7 +498,7 @@ function spend(s: GameState, amount: number): number {
 export function reducer(s: GameState, a: Action): GameState {
   switch (a.t) {
     case "nav":
-      return { ...s, view: a.view, section: a.section, sheet: null };
+      return { ...s, view: a.view, section: a.section, navSeq: s.navSeq + 1, sheet: null };
     case "sheet":
       return { ...s, sheet: a.sheet };
     case "toast":

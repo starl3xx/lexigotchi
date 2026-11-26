@@ -8,16 +8,18 @@
  *   no other players). Until then a word's status is `unknown`: never "unclaimed", and never a
  *   promise that the player can spell it. Telling a player to spell a word someone owns sends them
  *   into an AlreadyClaimed revert (Bugbot on #120).
- * - **A word on the Market's board has an owner, whatever the world read says:** its seller. The
- *   board is read live and the world is a minute old, so a word claimed and listed since then is
- *   for sale before the world knows it has an owner; and the practice stall's sellers are in no
- *   world read at all (JAZZY read as unclaimed there, with a price tag on it).
+ * - **A word on the Market's board has an owner, whatever the world read says:** its seller
+ *   (lib/dictionaryList `entryStatus`, pure, tested). The board is read live and the world is a
+ *   minute old, so a word claimed and listed since then is for sale before the world knows it has
+ *   an owner; and the practice stall's sellers are in no world read at all (JAZZY read as
+ *   unclaimed there, with a price tag on it). Spell asks the same question here (`statusOf`), so
+ *   the Dictionary's "Can spell" stays exactly Spell's list.
  * - **`here` is the connected wallet's letters,** the only ones a claim can spend; `all` is every
  *   wallet of the player. Spell counts the same way.
  */
 import { useCallback, useMemo } from "react";
 import type { LetterBag } from "@/lib/wordNeed";
-import type { EntryStatus } from "@/lib/dictionaryList";
+import { entryStatus, type EntryStatus } from "@/lib/dictionaryList";
 import { mineLower, mineUpper, useGame, type WordListing } from "./state";
 import { useMyWallets, useWorld } from "./useWorld";
 
@@ -60,14 +62,7 @@ export function useDictionary() {
   );
 
   const statusOf = useCallback(
-    (word: string): EntryStatus => {
-      if (ownedSet.has(word)) return "mine";
-      const owner = owners?.[word];
-      const forSale = listed.has(word);
-      if ((owner && mine.has(owner)) || listed.get(word)) return "mineAway";
-      if (owner || forSale) return forSale ? "sale" : "taken";
-      return ownersKnown ? "open" : "unknown";
-    },
+    (word: string): EntryStatus => entryStatus(word, { owned: ownedSet, owners, wallets: mine, listed, ownersKnown }),
     [ownedSet, owners, mine, listed, ownersKnown],
   );
 

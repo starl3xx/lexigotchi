@@ -5,7 +5,26 @@
  * or a screen would open on a letter nobody asked for.
  */
 import { describe, it, expect } from "vitest";
-import { sectionLetter, type ViewSection } from "@/components/game/state";
+import { reducer, sectionLetter, seedState, type ViewSection } from "@/components/game/state";
+
+describe("following a link", () => {
+  it("counts every navigation, so the same link followed twice is still two links", () => {
+    // A screen keys its effect on `navSeq` as well as the section. Without it, "Find a q in the
+    // Market" tapped again (after closing q's sellers) left `section` unchanged and did nothing.
+    const a = reducer(seedState(), { t: "nav", view: "swap", section: "letter:q" });
+    const b = reducer(a, { t: "nav", view: "swap", section: "letter:q" });
+    expect(b.section).toBe(a.section);
+    expect(b.navSeq).toBe(a.navSeq + 1);
+    expect(a.navSeq).toBe(seedState().navSeq + 1);
+  });
+
+  it("names the part, closes any sheet, and forgets the part on the next plain navigation", () => {
+    const open = reducer(seedState(), { t: "sheet", sheet: { kind: "lookup", word: "QUINT" } });
+    const linked = reducer(open, { t: "nav", view: "dictionary", section: "needs:x" });
+    expect(linked).toMatchObject({ view: "dictionary", section: "needs:x", sheet: null });
+    expect(reducer(linked, { t: "nav", view: "dictionary" }).section).toBeUndefined();
+  });
+});
 
 describe("the letter a link names", () => {
   it("reads the letter of its own kind of link", () => {

@@ -54,11 +54,11 @@ export function SoldList() {
               {s.kind === "letter" && s.qty > 1 ? `${fmtWord(s.unitPrice)} each` : "$WORD"}
             </div>
             {/^0x[0-9a-f]{64}$/.test(s.tx) ? (
-              <button type="button" onClick={() => openUrl(explorerTx(s.tx))} className="text-[11px] text-ink/50 underline">
+              <button type="button" onClick={() => openUrl(explorerTx(s.tx))} className="text-xs text-ink/55 underline">
                 {timeAgo(s.at)}
               </button>
             ) : (
-              <div className="text-[11px] text-ink/50">{timeAgo(s.at)}</div>
+              <div className="text-xs text-ink/55">{timeAgo(s.at)}</div>
             )}
           </div>
         </li>
