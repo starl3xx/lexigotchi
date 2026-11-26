@@ -1616,6 +1616,30 @@ setter. All small, riding existing suite patterns.
         still draws no gilding at all, in any picture: that is the next part.
       - **Seen and not seen (part 2):** the tile lab's ladder in headless WebKit, against the
         review page. No real iPhone.
+    - **Part 3, the gilding in the server's pictures.** No link picture, saved picture, or share
+      video ever showed a word's gilding: the server's letter (`app/_og/tile.tsx`) had no gilding
+      code at all.
+      - **The share letter wears it:** the rings, the pips, the laurels, and the foil, from the
+        same shapes as the rig (`tileShapes`), on the card's front and on the back's rack; the
+        back's Ascension row shows the pips. `CARD_LOOK` is 7.
+      - **The stage is the chain's, as the number is** (`lib/onchain/cardLevel`: `Words.
+        prestigeLevel`, kept five minutes, waited for a second and a half at most). Nothing in the
+        query is drawn.
+      - **The address names the stage** (`g`, 1 to 5, in the link and in every picture's address),
+        only so that a word's link and pictures get NEW addresses when its stage changes: X and
+        Farcaster keep a picture by its address, for good. The game passes the stage it knows; the
+        share page reads it from the chain.
+      - **A picture is kept for a week only when its address names the stage it shows**
+        (`cardPictureCache`). An old link to a word that has since ascended, an address that names
+        a stage the word isn't at, and a stage that couldn't be read are asked again in five
+        minutes, so nobody can park a wrong picture at an address for a week.
+      - **The share page** draws the word with its gilding too.
+      - **Not yet:** the earnings share picture reads no chain by design (#38), so the card on it
+        shows no gilding. The stage would have to ride in its signed snapshot.
+      - **Seen and not seen (part 3):** VIVID at Gilded 4 and JAZZY at Holographic, drawn by the
+        server's own drawing code from a script. The routes were not run against a chain here (the
+        practice game has none), and no word on the test game is ascended yet, so the first real
+        one is the first real test.
 
 ## Pricing & launch economics (decided June 2026)
 

@@ -5,8 +5,10 @@
  */
 import { beforeEach, describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { OgTile } from "@/app/_og/tile";
 import { TileCharacter, type Gild } from "@/components/game/TileCharacter";
-import { GILD, LAUREL_LEAF, RING_PLAIN, laurel, pipPath, ringOuter, ringParts, ringRects, T } from "@/components/game/tileShapes";
+import { GILD, LAUREL_LEAF, LEG_L, RING_PLAIN, laurel, pipPath, ringOuter, ringParts, ringRects, T } from "@/components/game/tileShapes";
 
 beforeEach(() => {
   // jsdom has no matchMedia; this viewer does not ask for reduced motion
@@ -136,5 +138,48 @@ describe("laurels", () => {
     expect(stars(4, 150)).toBe(2); // with laurels: the two on the ring
     expect(stars(3, 150)).toBe(2);
     expect(stars(4, 48)).toBe(3); // a small tile wears no laurels, so it keeps the third
+  });
+});
+
+describe("the share letter wears the gilding too (the server's pictures)", () => {
+  const draw = (props: Record<string, unknown>) => renderToStaticMarkup(OgTile({ char: "q", upper: true, uid: "x", ...props } as Parameters<typeof OgTile>[0]));
+  const count = (html: string, needle: string) => html.split(needle).length - 1;
+
+  it.each(STAGES)("stage %s: the slim rings, that many black pips, and the letter lifted over them", (gild) => {
+    const html = draw({ gild });
+    for (const r of ringRects(gild)) expect(html, `ring ${r.sw}`).toContain(`stroke-width="${r.sw}"`);
+    expect(html).not.toContain("#bbd1fd"); // the pale ring gives way to the gold
+    expect(count(html, `fill="${INK}" stroke="${INK}" stroke-width="2.1"`)).toBe(gild);
+    expect(count(html, `stroke-opacity="0.26"`)).toBe(5 - gild);
+    expect(html).toMatch(/padding-bottom:\s*[\d.]+px/);
+  });
+
+  it("laurels from Gilded 4 on a whole character, gold and then foil; none on a tile without its limbs", () => {
+    expect(count(draw({ gild: 4 }), LAUREL_LEAF)).toBe(16);
+    expect(draw({ gild: 4 })).toContain(`fill="#f0a617"`);
+    expect(count(draw({ gild: 5 }), LAUREL_LEAF)).toBe(16);
+    expect(draw({ gild: 5 })).toContain(`fill="url(#rf-holo-x)"`);
+    expect(draw({ gild: 5 })).toContain(`id="rf-holo-x"`);
+    expect(count(draw({ gild: 3 }), LAUREL_LEAF)).toBe(0);
+    expect(count(draw({ gild: 5, limbs: false }), LAUREL_LEAF)).toBe(0);
+  });
+
+  it("a letter that is not gilded is drawn as before, and a lowercase letter never wears a stage", () => {
+    const plain = draw({ gild: 0 });
+    expect(plain).toContain("#bbd1fd");
+    expect(plain).not.toContain(pipPath(0));
+    const lower = draw({ upper: false, gild: 5 });
+    expect(lower).not.toContain(pipPath(0));
+    expect(lower).not.toContain("rf-holo-");
+  });
+
+  it("the legs come over the rings and under the face, as in the game", () => {
+    const html = draw({ gild: 4 });
+    const ring = html.indexOf(`stroke="#c8962b"`);
+    const leg = html.indexOf(LEG_L);
+    const face = html.indexOf(`fill="#ffffff" stroke="#3b82f6"`);
+    expect(ring).toBeGreaterThan(-1);
+    expect(leg).toBeGreaterThan(ring);
+    expect(face).toBeGreaterThan(leg);
   });
 });

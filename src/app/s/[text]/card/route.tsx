@@ -2,12 +2,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { cardTier, wordCard } from "../../../_og/wordCard";
-import { parseShowcase } from "@/lib/showcase";
+import { cardPictureCache, parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
+import { cardLevelSoon } from "@/lib/onchain/cardLevel";
 
 /**
  * A word's share picture: its card (decisions.md #34), as the game draws it. The card's own paper,
@@ -30,6 +31,12 @@ import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
  * - **The card's number is the chain's,** never the link's: nothing in the query can put a number
  *   on a card. A word with no number yet, and a house card, have none on the ribbon. The picture
  *   waits a second and a half for the number at most, then is drawn without it.
+ *
+ * - **The letters' gilding is the chain's too** (decisions.md #48): the word's ascension stage is
+ *   read as its number is, and its letters wear it as they do in the game. The address may name a
+ *   stage (`g`), but only so that a word's picture gets a new address when its stage changes:
+ *   nothing in the query is drawn. A picture whose address doesn't name the stage it shows is kept
+ *   for minutes, not a week (lib/showcase, cardPictureCache).
  *
  * No name on a link card (decisions.md #23): X prints the site under the card and the post names
  * @lexigotchi; Farcaster's card carries the game's button. `?saved=1` is the picture that travels
@@ -60,10 +67,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const tier = cardTier(tiles);
   // Not for long: a crawler is waiting for this picture (cardNumberSoon). A picture drawn without
   // its number is kept for minutes only, below.
-  const number = tier ? await cardNumberSoon(word) : null;
+  // The stage the same way. A house card has none; before the game is deployed there is none to read.
+  const [number, level] = await Promise.all([tier ? cardNumberSoon(word) : null, tier && isSuiteDeployed() ? cardLevelSoon(word) : 0]);
   const no = cardNo(number);
 
-  const card = wordCard({ tiles, scene, cardW, no, bare: face });
+  const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face });
 
   // A known number is for good, and so is a card with none to wait for: a day in browsers, a week
   // at the edge (CARD_LOOK in the address starts every cache again when the look changes). A word
@@ -99,7 +107,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
         { name: "Pagella", data: pagellaBold, weight: 700, style: "normal" },
       ],
-      headers: { "cache-control": waiting ? "public, max-age=300, s-maxage=300" : "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400" },
+      headers: { "cache-control": cardPictureCache({ waiting, level, hint: parseLinkStage(url.searchParams.get("g")) }) },
     },
   );
 }

@@ -101,17 +101,17 @@ function ShareWord({ word, onMaking }: { word: OwnedWord; onMaking: (making: boo
   const postToX = usePostToX();
   const { scene } = useWordScene(word.word);
   const text = showcaseWordText(word.word, word.upper);
-  const saveImage = useSaveImage(showcaseCardPath(text, "x", scene, true), `lexigotchi-${word.word.toLowerCase()}-${scene}.png`);
+  const saveImage = useSaveImage(showcaseCardPath(text, "x", scene, true, word.prestigeLevel), `lexigotchi-${word.word.toLowerCase()}-${scene}.png`);
   return (
     <div className="space-y-2 rounded-2xl border-2 border-ink bg-card p-2.5">
-      <Button full variant="primary" onClick={() => postToX({ text: showcaseXText(text), url: showcaseUrl(text, scene) })}>
+      <Button full variant="primary" onClick={() => postToX({ text: showcaseXText(text), url: showcaseUrl(text, scene, word.prestigeLevel) })}>
         <XLogo weight="bold" /> Post {word.word} on X
       </Button>
       {/* X's composer shows no card for a link it hasn't read yet, and each new word or scene is a
           new link: the card comes once X has read it (tested 2026-11-24, even with a fast image). */}
       <p className="text-center text-xs text-ink/55">X adds the picture once it reads the link.</p>
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="ghost" onClick={() => share({ text: showcasePostText(text), embed: showcaseUrl(text, scene) })}>
+        <Button variant="ghost" onClick={() => share({ text: showcasePostText(text), embed: showcaseUrl(text, scene, word.prestigeLevel) })}>
           <ShareNetwork weight="fill" /> Cast
         </Button>
         <Button variant="ghost" onClick={() => void saveImage()}>

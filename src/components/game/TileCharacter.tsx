@@ -51,6 +51,7 @@ import {
   FOOT_RX,
   FOOT_Y,
   GROUND_Y,
+  HOLO_STOPS,
   LAUREL_LEAF,
   LEG_L,
   LEG_R,
@@ -155,14 +156,8 @@ const LHAW = "#3b82f6";
 const LHAW_RING = "#bbd1fd";
 const LHAW_INK = "#111827";
 // Holographic (stage 5): an iridescent foil in place of the gold, the stage-4 look reborn. One
-// gradient per tile (id from useId), drifting slowly unless the viewer prefers reduced motion.
-const HOLO_STOPS: [number, string][] = [
-  [0, "#ff9ad5"],
-  [0.25, "#ffe28a"],
-  [0.5, "#8ff0d0"],
-  [0.75, "#8ec5ff"],
-  [1, "#c7a0ff"],
-];
+// gradient per tile (id from useId; its colours are tileShapes' HOLO_STOPS), drifting slowly unless
+// the viewer prefers reduced motion.
 const CONFETTI = ["#d8463f", "#f0a617", "#2a9d8f", "#3b82f6", "#7b1e26"];
 
 // the 6 rarest letters earn a little glint regardless of state

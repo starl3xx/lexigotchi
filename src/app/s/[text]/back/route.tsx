@@ -5,6 +5,7 @@ import { OgTile } from "../../../_og/tile";
 import { parseShowcase } from "@/lib/showcase";
 import { wordTier, type Tier } from "@/lib/economy";
 import { tierMarkPaths } from "@/lib/tierMark";
+import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { ascensionLabel, cardDigits, caseLabel, tierCount, wordPoints } from "@/lib/cardFacts";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
@@ -177,7 +178,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ text: s
               <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
                 {tiles.map((t, i) => (
                   <div key={i} style={{ display: "flex" }}>
-                    <OgTile char={t.char} upper={t.upper} w={74} limbs={false} tier={tier} index={i} uid={`b${i}`} />
+                    <OgTile char={t.char} upper={t.upper} w={74} limbs={false} tier={tier} gild={level ?? 0} index={i} uid={`b${i}`} />
                   </div>
                 ))}
               </div>
@@ -189,7 +190,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ text: s
               <div key={label} style={{ display: "flex", alignItems: "flex-end", gap: 12, fontSize: 2.05 * U, lineHeight: 1.15 }}>
                 <div style={{ display: "flex", fontWeight: 800, color: SUB }}>{label}</div>
                 <div style={{ display: "flex", flex: 1, height: 0, marginBottom: 8, borderBottom: "3px dashed rgba(247, 239, 220, 0.4)" }} />
-                <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700 }}>{value}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: SERIF, fontWeight: 700 }}>
+                  {value}
+                  {/* the stage's pips, as on the tile (tileShapes, pipPath), in the back's own ink: solid where earned, an outline where not */}
+                  {label === "Ascension" && level ? (
+                    <svg width={5.9 * U} height={1.45 * U} viewBox={`69 ${PIP_Y - 9} 102 18`}>
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <path key={i} d={pipPath(i)} fill={i < level ? look.line : "none"} stroke={look.line} strokeOpacity={i < level ? 1 : 0.55} strokeWidth={1.6} strokeLinejoin="round" />
+                      ))}
+                    </svg>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>

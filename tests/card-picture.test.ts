@@ -5,9 +5,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const chain = vi.hoisted(() => ({ deployed: false, numberOf: vi.fn(async (_word: string): Promise<number | null> => null) }));
+const chain = vi.hoisted(() => ({ deployed: false, numberOf: vi.fn(async (_word: string): Promise<number | null> => null), levelOf: vi.fn(async (_word: string): Promise<number | null> => 0) }));
 vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), isSuiteDeployed: () => chain.deployed }));
 vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: chain.numberOf }));
+vi.mock("@/lib/onchain/cardLevel", () => ({ cardLevelSoon: chain.levelOf }));
 
 const { GET } = await import("@/app/s/[text]/card/route");
 
@@ -25,6 +26,8 @@ beforeEach(() => {
   chain.deployed = false;
   chain.numberOf.mockReset();
   chain.numberOf.mockResolvedValue(null);
+  chain.levelOf.mockReset();
+  chain.levelOf.mockResolvedValue(0);
 });
 
 describe("a word's share picture", () => {
@@ -70,5 +73,35 @@ describe("a word's share picture", () => {
     expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
     // a house card has no number to wait for
     expect((await get("HEYOO")).headers.get("cache-control")).toMatch(LONG);
+  }, 60_000);
+
+  it("asks the chain for the word's stage, by the word alone: nothing in the link can gild a card", async () => {
+    chain.deployed = true;
+    chain.numberOf.mockResolvedValue(20);
+    await get("CRAne", "?g=5&gild=5&level=5");
+    expect(chain.levelOf).toHaveBeenCalledTimes(1);
+    expect(chain.levelOf).toHaveBeenCalledWith("CRANE");
+    // a house card has no stage, and before the game is deployed there is none to read
+    chain.levelOf.mockClear();
+    await get("HEYOO", "?g=5");
+    chain.deployed = false;
+    await get("CRAne", "?g=5");
+    expect(chain.levelOf).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it("keeps a gilded picture for a week only at the address that names its stage", async () => {
+    chain.deployed = true;
+    chain.numberOf.mockResolvedValue(20);
+    chain.levelOf.mockResolvedValue(4);
+    expect((await get("CRAne", "?g=4")).headers.get("cache-control")).toMatch(LONG);
+    // an old link to a word that has since ascended, and an address that names another stage
+    expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
+    expect((await get("CRAne", "?g=5")).headers.get("cache-control")).toMatch(SHORT);
+    // a word that is not ascended, at an address that says it is
+    chain.levelOf.mockResolvedValue(0);
+    expect((await get("CRAne", "?g=3")).headers.get("cache-control")).toMatch(SHORT);
+    // the stage could not be read in time: drawn without gilding, and asked again soon
+    chain.levelOf.mockResolvedValue(null);
+    expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
   }, 60_000);
 });
