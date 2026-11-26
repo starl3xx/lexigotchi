@@ -696,16 +696,33 @@ body {
 /* card stock: a faint linen weave and grain */
 .cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 3px); }
 
-/* the words and tiles, on steady plates */
-.cb-body { inset: 0; padding: clamp(12px, 4cqw, 30px) clamp(14px, 4.4cqw, 34px); display: grid; grid-template-rows: auto 1fr auto; gap: clamp(4px, 1.5cqw, 12px); }
-.cb-plate { background: var(--cb-plate); border: 1px solid var(--cb-plate-line); border-radius: clamp(6px, 1.4cqw, 10px); }
+/* The game's seal, pressed into the material in one ink, behind the facts (lib/cardArt/seal): one
+   picture in the material's own line colour. Faint: it is a mark in the stock, not a picture on it. */
+.cb-seal { right: 3.5cqw; top: 50%; width: 43cqw; aspect-ratio: 1; transform: translateY(-50%); background-size: 100% 100%; opacity: 0.14; pointer-events: none; }
+
+/* The words and tiles (CardBack; decisions.md #35), lettered straight on the material with a soft
+   shadow. --font-card is the card's serif: for what the card says about the word (its number, its
+   rarity, its facts' values), never for the word. A thumbnail's two lines keep their plates. */
+.cb-body { inset: 0; padding: clamp(12px, 4cqw, 30px) clamp(14px, 4.6cqw, 36px) clamp(10px, 3cqw, 22px); display: grid; grid-template-rows: auto 1fr auto; gap: clamp(3px, 1.2cqw, 10px); text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
+.cb-plate { background: var(--cb-plate); border: 1px solid var(--cb-plate-line); border-radius: clamp(6px, 1.4cqw, 10px); text-shadow: none; }
 .cb-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: clamp(40px, 9cqw, 58px); }
+/* Legendary's corner scrollwork curls where the rarity is lettered: the lettering steps clear of it */
+.m-legendary .cb-top { padding-left: clamp(12px, 4.4cqw, 30px); }
+.sc-small .m-legendary .cb-top { padding-left: 0; }
 .cb-tier { display: inline-flex; align-items: center; gap: 0.4em; font-weight: 800; font-size: clamp(13px, 2.8cqw, 21px); padding: 0.25em 0.6em 0.25em 0.4em; border-radius: 999px; }
-.cb-no { font-size: clamp(12px, 1.8cqw, 14px); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--cb-sub); white-space: nowrap; padding: 0.3em 0.6em; border-radius: 999px; }
-.cb-main { display: grid; grid-template-columns: 0.92fr 1.08fr; gap: clamp(10px, 2.6cqw, 22px); align-items: center; min-height: 0; }
-.cb-wordcol { display: grid; gap: clamp(5px, 1.3cqw, 10px); align-content: center; }
+/* the rarity lettered on the material: the card's serif, in the material's line colour */
+.cb-tier-set { padding: 0; border-radius: 0; font-family: var(--font-card); font-weight: 700; font-size: clamp(12px, 2.4cqw, 19px); color: var(--cb-line); }
+.cb-main { display: grid; grid-template-columns: 0.94fr 1.06fr; gap: clamp(12px, 4cqw, 34px); align-items: center; min-height: 0; }
+.cb-wordcol { display: grid; gap: clamp(3px, 1cqw, 9px); align-content: center; justify-items: start; min-width: 0; }
+/* the card's number, the back's headline */
+.cb-no { margin: 0; display: flex; align-items: baseline; gap: 0.14em; font-family: var(--font-card); font-weight: 700; font-size: clamp(26px, 10.2cqw, 84px); line-height: 0.92; letter-spacing: -0.01em; font-variant-numeric: oldstyle-nums; white-space: nowrap; }
+.cb-no small { font-size: 0.34em; font-style: italic; color: var(--cb-line); }
+.cb-rule { width: 100%; height: max(2px, 0.3cqw); background: linear-gradient(90deg, var(--cb-line), transparent); }
+.cb-oneof { display: grid; gap: 0.15em; font-size: clamp(12px, 1.9cqw, 14px); }
+.cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; }
+.cb-oneof span { color: var(--cb-sub); }
 /* the rack: its top recedes behind the tiles (lit), its lip stands in front (in shadow) */
-.cb-rackwrap { position: relative; --rh: 6.4cqw; padding: 0 3cqw calc(var(--rh) * 0.33); }
+.cb-rackwrap { position: relative; --rh: 5.2cqw; width: 82%; margin-top: 0.4cqw; padding: 0 2.4cqw calc(var(--rh) * 0.33); }
 .cb-rack { position: absolute; left: 0; bottom: 0; width: 100%; height: var(--rh); display: block; overflow: visible; }
 .cb-rack-back { z-index: 0; }
 .cb-rack-front { z-index: 2; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)); }
@@ -716,20 +733,19 @@ body {
 .rk-lip { fill: rgba(255, 255, 255, 0.3); }
 .cb-tiles { position: relative; z-index: 1; display: flex; gap: 0.7cqw; }
 .cb-tile { flex: 1 1 0; min-width: 0; filter: drop-shadow(0 2px 1.5px rgba(0, 0, 0, 0.45)); }
-.cb-oneof { display: grid; gap: 2px; font-size: clamp(12px, 1.8cqw, 14px); padding: 0.5em 0.7em; justify-self: start; }
-.cb-oneof b { font-size: clamp(16px, 3.6cqw, 28px); line-height: 1; letter-spacing: -0.01em; }
-.cb-oneof span { color: var(--cb-sub); }
-.cb-stats { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(6px, 1.5cqw, 12px) clamp(8px, 2cqw, 16px); margin: 0; padding: clamp(8px, 1.8cqw, 14px); }
-/* labels: semibold, the values' size, a quieter color; values: regular */
-.cb-stat dt { font-size: clamp(12px, 2cqw, 16px); font-weight: 600; line-height: 1.2; color: var(--cb-sub); }
-.cb-stat dd { margin: 0; font-size: clamp(12px, 2cqw, 16px); font-weight: 400; line-height: 1.2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* the ledger: a name (Söhne, as written), a row of dots, a value (the card's serif) */
+.cb-stats { display: grid; gap: clamp(4px, 1.45cqw, 12px); margin: 0; min-width: 0; }
+.cb-stat { display: flex; align-items: baseline; gap: 0.5em; min-width: 0; font-size: clamp(12px, 2.05cqw, 16px); line-height: 1.15; }
+.cb-stat dt { font-weight: 600; color: var(--cb-sub); white-space: nowrap; }
+.cb-stat > i { flex: 1; min-width: 0.6em; border-bottom: max(1.5px, 0.22cqw) dotted rgba(247, 239, 220, 0.4); transform: translateY(-0.22em); }
+.cb-stat dd { margin: 0; display: flex; align-items: center; gap: 6px; font-family: var(--font-card); font-weight: 700; font-variant-numeric: oldstyle-nums; white-space: nowrap; }
 .cb-pips { display: inline-flex; gap: 2px; }
 .cb-pips i { width: 7px; height: 7px; transform: rotate(45deg); border: 1.2px solid rgba(201, 207, 216, 0.8); background: rgba(255, 255, 255, 0.85); display: block; }
 .cb-pips i.on { border-color: #231a14; background: #f0a617; }
 .cb-pips i.holo { background: linear-gradient(135deg, #ff9ad5, #ffe28a, #8ff0d0, #8ec5ff, #c7a0ff); }
-.cb-foot { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12px; padding: 0.45em 0.8em; color: var(--cb-sub); }
+.cb-foot { display: flex; justify-content: center; gap: 4px 14px; flex-wrap: wrap; font-size: 12px; color: var(--cb-sub); }
 .cb-foot b { color: var(--cb-text); font-weight: 400; }
-.cb-id { font-variant-numeric: tabular-nums; margin-left: auto; color: var(--cb-sub); }
+.cb-id { font-variant-numeric: tabular-nums; color: var(--cb-sub); }
 a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .cb-mini { display: block; justify-self: start; font-size: 12px; font-weight: 400; line-height: 1.2; padding: 3px 7px; }
 /* under an opened card, the rows a phone-sized back leaves out (CardBack's CardMore), only where the
@@ -737,6 +753,8 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .sc-more-host { container-type: inline-size; }
 .sc-more { display: grid; margin: 0; padding: 2px 12px; border: 2px solid #1b1714; border-radius: 14px; background: #fbf4e3; font-size: 14px; }
 .sc-more > div + div { border-top: 1px solid rgba(27, 23, 20, 0.1); }
+/* with the phone-only first row hidden, the next row is the first shown: no rule above it */
+@container (min-width: 431px) { .sc-more > .sc-more-phone + div { border-top: 0; } }
 /* the back drops these at max-width 560px, so they show here up to and including 560px (Bugbot #213) */
 @container (min-width: 561px) { .sc-more { display: none; } }
 /* a phone-sized back: four stats, no bottom line */
@@ -744,10 +762,18 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
   .cb-more, .cb-foot { display: none; }
   .cb-body { grid-template-rows: auto 1fr; }
 }
+/* A phone's back. The ledger's values have no room for the ascension pips, so the stage's name
+   stands alone ("Gilded 1" says what the pips draw). The left column has no room for how many words
+   share the rarity, so an opened card says it in the rows under it (CardBack's CardMore, the
+   `.sc-more-phone` row, which shows only at this width: Bugbot on #230 found the line said nowhere). */
+@container (max-width: 430px) {
+  .cb-pips, .cb-oneof span { display: none; }
+}
+@container (min-width: 431px) { .sc-more-phone { display: none; } }
 /* a thumbnail's back (CardBack mini): the rarity, the tiles on their rack, one line */
 .sc-small .cb-main { grid-template-columns: 1fr; gap: 4px; align-content: center; }
-.sc-small .cb-rackwrap { max-width: 78%; }
-.sc-small .cb-wordcol { gap: 5px; }
+.sc-small .cb-rackwrap { --rh: 6.4cqw; width: auto; max-width: 78%; margin-top: 0; padding: 0 3cqw calc(var(--rh) * 0.33); }
+.sc-small .cb-wordcol { gap: 5px; justify-items: stretch; }
 .sc-small .cb-body { padding: 8px 10px; gap: 2px; grid-template-rows: auto 1fr; }
 .sc-small .cb-top { padding-right: 34px; }
 .sc-small .cb-tier { font-size: 12px; }
