@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512"><defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b69c72"/><stop offset="1" stop-color="#a1865c"/></linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdddfe"/><stop offset="1" stop-color="#a9c1f6"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f95ff"/><stop offset="1" stop-color="#2e6fdd"/></linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eef1f6"/></linearGradient></defs>
+  <rect width="512" height="512" fill="#f4ead2"/>
+  <path d="M 436.9 122.2 L 441.9 132.2 A 101.5 101.5 0 0 1 452.6 177.6 L 452.6 362.8 A 101.5 101.5 0 0 1 351.1 464.3 L 165.9 464.3 A 101.5 101.5 0 0 1 75.1 408.2 L 70.1 398.2 A 101.5 101.5 0 0 1 59.4 352.8 L 59.4 167.6 A 101.5 101.5 0 0 1 160.9 66.1 L 346.1 66.1 A 101.5 101.5 0 0 1 436.9 122.2 Z" fill="url(#wood)"/>
+  <rect x="59.4" y="66.1" width="388.2" height="388.2" rx="101.5" fill="url(#ring)"/>
+  <rect x="80.4" y="87.1" width="346.2" height="346.2" rx="80.5" fill="url(#blue)"/>
+  <rect x="106.4" y="113.1" width="294.2" height="294.2" rx="54.5" fill="url(#face)"/>
+  <path d="M203 327.8L203 184.2L242.2 184.2L242.2 294.6L304 294.6L304 327.8Z" fill="#111827"/>
+  <ellipse cx="200.5" cy="106" rx="44" ry="51" fill="#ffffff" stroke="#2a1e1a" stroke-width="7.3"/><ellipse cx="202.1" cy="112.1" rx="22" ry="28.6" fill="#2a1e1a"/><path d="M 202.1 112.12 L 228.5 103.552 A 27.5 35.7 0 0 0 213.1 79.27600000000001 Z" fill="#ffffff"/><ellipse cx="306.5" cy="106" rx="44" ry="51" fill="#ffffff" stroke="#2a1e1a" stroke-width="7.3"/><ellipse cx="304.9" cy="112.1" rx="22" ry="28.6" fill="#2a1e1a"/><path d="M 304.9 112.12 L 331.29999999999995 103.552 A 27.5 35.7 0 0 0 315.9 79.27600000000001 Z" fill="#ffffff"/></svg>

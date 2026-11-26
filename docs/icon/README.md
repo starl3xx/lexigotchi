@@ -1,40 +1,43 @@
 # The app icon
 
-`public/icon.png` (1024×1024, served at `/icon-image`) is a **pre-rendered** asset, not a
-Satori render — the grain mask and per-band gradients are beyond `next/og`. This directory
-is its canonical source. The design was iterated in Paper and locked on 2026-08-12.
+`public/icon.png` (1024×1024, served at `/icon-image`), `public/icon-512.png`,
+`public/icon-192.png`, and `docs-site/favicon.png` are **pre-rendered** pictures, not Satori
+renders: the grain mask and the gradients in each band are beyond `next/og`. They are logo A, the
+primary logo (docs/brand has both logos as files).
+
+The design was iterated in Paper and locked on 2026-08-12. On 2026-11-26 it got the eyes the
+letters have had since the letter review (decisions.md #28): tall ovals, one big pupil each with
+its pie cut, and no brows at rest. Nothing else moved.
 
 ## Recipe
 
 The glow-up tile as an enamel-pin-style character on ticket-stub paper:
 
-- **Field** — flat cream `#f4ead2`, no gradient.
-- **Tile skin** — the two non-negotiable blue borders: pale ring `#bbd1fd` outside LHAW blue
-  `#3b82f6`, white face inside; each band gets its own top-lit vertical gradient. No ink
+- **Field:** flat cream `#f4ead2`, no gradient.
+- **Tile skin:** the two blue borders that are not up for change: a pale ring `#bbd1fd` outside
+  LHAW blue `#3b82f6`, a white face inside; each band has its own top-lit vertical gradient. No ink
   outline, no spec highlight.
-- **Edge** — wood extrusion `#b69c72 → #a1865c`, offset (5, 10), drawn as a swept hull with
+- **Edge:** a wood extrusion `#b69c72 → #a1865c`, offset (5, 10), drawn as a swept hull with
   straight diagonal connector edges at the silhouette tangents (thickness, not shadow).
-- **Grain** — two-scale paper noise, 7% opacity, native 1024, masked in the texture's alpha to
-  the cream field and white face only. Blue borders, wood edge, eyes, and brows stay clean.
-- **Character** — pie-cut eyes overlap the frame; left brow arched 4.5 units higher; pupils
-  glancing 3 units right (deliberate asymmetry). Letter is Söhne Fett (800) `#111827`,
-  optically centered 7 units high. Whole character mass centered brows-to-edge, then raised
-  8 units; every corner clears a circle crop.
+- **Grain:** two-scale paper noise, 7% opacity, native 1024, masked in the texture's alpha to the
+  cream field and the white face only. The blue borders, the wood edge, and the eyes stay clean.
+- **Character:** the letters' own eyes, overlapping the frame. The letter is Söhne Fett's "L",
+  `#111827`, drawn as its own outline (in that face it is a plain polygon), so no font is needed.
+  Every corner clears a circle crop.
+
+## Where the drawing lives
+
+- `src/lib/cardArt/logo.ts` is the source: `logoA()` (and `LOGO_A`, its measures), `logoB()`.
+- `make_grain.py` (here) makes the masked paper texture. Its mask repeats `LOGO_A`'s numbers: if the
+  tile or the eyes move in `logo.ts`, move them there too (`tests/logo.test.ts` compares the two).
 
 ## Regenerating
 
-Deterministic (the grain is seeded). Requires Söhne Fett installed locally and Chrome.
+Deterministic (the grain is seeded). Needs Python 3 and the project's Playwright Chromium.
 
 ```sh
-python3 make_grain.py       # → grain.png   (masked paper texture, ~1.2 MB)
-python3 build_source.py     # → source.html (self-contained icon source)
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless=new --disable-gpu --hide-scrollbars \
-  --force-device-scale-factor=2 --window-size=512,512 \
-  --screenshot=icon-1024.png "file://$PWD/source.html"
-cp icon-1024.png ../../public/icon.png
+npm run brand:art     # makes grain.png if it is missing, then every icon and export
 ```
 
-Geometry lives in 512-space in `build_source.py` (the SVG) and `make_grain.py` (the grain
-mask must match it — if you move the tile, move both). Outputs are gitignored; only
-`public/icon.png` is tracked.
+To remake the grain itself (after the mask changes): `python3 make_grain.py` in this folder, then
+`npm run brand:art`. `grain.png` is gitignored (about 1.2 MB); the icons made from it are tracked.

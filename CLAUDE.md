@@ -629,6 +629,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `TELEGRAM_WEBHOOK_SECRET` (dark without them; the secret header is checked in constant time); the
   "Telegram webhook" workflow registers the URL and secret with Telegram. Rerun it after the token or
   secret changes. A basic group upgraded to a supergroup gets a new id; the route logs it.
+- **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
+  with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
+  into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
+  `seal.ts`. **`npm run brand:art`** (`scripts/brand-art.tsx`) makes `public/icon*.png`,
+  `docs-site/favicon.png`, and the exports in `docs/brand/` from it. Never edit those files by hand:
+  change the source and run the script (`tests/logo.test.ts` fails when they differ, and holds the
+  grain mask in `docs/icon/make_grain.py` to the logo's measures). The letter is Söhne Fett's "L" as
+  an outline, so no font is needed.
 - `src/lib/site.ts` → mini-app manifest + `fc:miniapp` embed (served at `/.well-known/farcaster.json`,
   `/embed-image`, `/icon-image`). Identity/keys via env (`NEXT_PUBLIC_NEYNAR_CLIENT_ID`, `NEYNAR_API_KEY`).
 - `contracts/` → Foundry suite mirroring the sim's 4-bucket ledger: `FeeRouter` (solvency hub),
