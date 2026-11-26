@@ -52,7 +52,8 @@ export interface PushDeps {
   /** Every stored browser. */
   subs: readonly (PushSub & { endpoint: string; p256dh: string; auth: string })[];
   toFarcaster: (fid: number, note: Notification) => Promise<{ ok: boolean; skipped?: string }>;
-  toBrowsers: (subs: readonly { endpoint: string; p256dh: string; auth: string }[], note: Notification) => Promise<{ ok: boolean; skipped?: string }>;
+  /** `delivered`: how many browsers took it (lib/notify/webPush.ts). `ok` says only that none FAILED. */
+  toBrowsers: (subs: readonly { endpoint: string; p256dh: string; auth: string }[], note: Notification) => Promise<{ ok: boolean; skipped?: string; delivered?: number }>;
   /** Called with each account a push went out to. */
   onReached?: (account: string) => void;
 }
@@ -77,7 +78,11 @@ export async function pushNotes(notes: readonly PlayerNote[], deps: PushDeps, lo
         out.unreached++;
         continue;
       }
-      if ((await deps.toBrowsers(subs, n.note)).ok) {
+      // Told in a browser = at least one browser took it. Not `ok`, which is wrong both ways: it is
+      // true when every subscription was gone (pruned, nothing delivered), and false when one
+      // browser got the push and another failed (Bugbot on #248).
+      const sent = await deps.toBrowsers(subs, n.note);
+      if ((sent.delivered ?? (sent.ok ? 1 : 0)) > 0) {
         out.browsers++;
         deps.onReached?.(n.account);
       }
