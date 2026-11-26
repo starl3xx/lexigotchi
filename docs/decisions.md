@@ -1580,8 +1580,9 @@ setter. All small, riding existing suite patterns.
       letter, payday, the deal alert); a push is not changed. A word about to go hungry and a
       jackpot win still come at once (they can't wait a week), and so do a sale and a bounty share
       (rare, and the player's own business). The digest says the week: what the player's words
-      were paid (only shares the chain says are paid: that week's seven days and that week's
-      bounty), what they sold, and which staked words are hungry or peckish now. A week with
+      earned (that week's seven days and that week's bounty, counted as the Earnings sheet counts:
+      paid or still on its way, never a dead share, so a share the payout reaches a day late is
+      not left out of every digest), what they sold, and which staked words are hungry or peckish now. A week with
       nothing in it sends nothing. A line for a reminder the player turned off (hunger, a sale)
       stays out. It goes out in the keeper's `notify` job on the first day of the next week,
       after `payout` (and the day after, for a failed run), once per week under a send-once mark,

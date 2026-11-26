@@ -15,8 +15,8 @@ const DAY1 = PERIOD * 7;
 const week = (over: Partial<WeekFacts> = {}): WeekFacts => ({ earned: 84_000, sold: { count: 2, amount: 3_400_000 }, hungry: [], peckish: [], ...over });
 
 describe("weekEarned", () => {
-  const share = (stream: "yield" | "bounty", epochId: number, whole: bigint, paid = true) => ({ stream, epochId: String(epochId), amount: String(whole * WEI), paid });
-  it("adds the week’s days and the week’s own bounty, and only what the chain says is paid", () => {
+  const share = (stream: "yield" | "bounty", epochId: number, whole: bigint, over: { paid?: boolean; dead?: boolean } = {}) => ({ stream, epochId: String(epochId), amount: String(whole * WEI), paid: true, ...over });
+  it("adds the week’s days and the week’s own bounty", () => {
     const shares = [
       share("yield", DAY1, 10_000n),
       share("yield", DAY1 + 6, 20_000n),
@@ -24,10 +24,18 @@ describe("weekEarned", () => {
       share("yield", DAY1 + 7, 99_000n), // next week's first day
       share("yield", DAY1 - 1, 99_000n), // the week before
       share("bounty", PERIOD - 1, 99_000n),
-      share("yield", DAY1 + 2, 99_000n, false), // opened, not paid yet
     ];
     expect(weekEarned(shares, PERIOD, 7)).toBe(35_000);
     expect(weekEarned([], PERIOD, 7)).toBe(0);
+  });
+
+  it("counts a share the payout hasn’t reached yet, as the Earnings sheet does, and never a dead one", () => {
+    const shares = [
+      share("yield", DAY1, 10_000n),
+      share("bounty", PERIOD, 5_000n, { paid: false }), // opened today, the payout ran out of time
+      share("yield", DAY1 + 2, 99_000n, { paid: false, dead: true }), // its epoch has nothing left
+    ];
+    expect(weekEarned(shares, PERIOD, 7)).toBe(15_000);
   });
 });
 

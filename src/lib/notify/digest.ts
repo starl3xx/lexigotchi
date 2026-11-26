@@ -5,8 +5,9 @@
  * gets one email a week in their place. A word about to go hungry, a jackpot win, a sale, and a
  * bounty share still come as they happen: the first two can't wait a week.
  *
- * What it says is the player's week: what their words were PAID (only shares the chain says are
- * paid, in that week's days and that week's bounty), what they sold, and which staked words need a
+ * What it says is the player's week: what their words EARNED (that week's days and that week's
+ * bounty, counted as the Earnings sheet counts: a share is earned once its epoch opens, paid or
+ * still on its way, and a dead share counts nowhere), what they sold, and which staked words need a
  * snack now. A week with nothing in it sends nothing.
  *
  * Email only, to an account with a confirmed address and email on (so an unsubscribe stops it too),
@@ -24,20 +25,26 @@ const WEI = 10n ** 18n;
 const DAY = 86_400;
 const lower = (a: string) => a.toLowerCase();
 
-/** One paid-or-not share, as lib/rewards/load `loadShares` gives it. */
+/** One share, as lib/rewards/load `loadShares` gives it. */
 export interface DigestShare {
   stream: "yield" | "bounty";
   epochId: string;
   amount: string;
-  paid: boolean;
+  /** Its epoch has nothing left to pay though this share wasn't paid: it never will be, and counts nowhere. */
+  dead?: boolean;
 }
 
-/** What a week's shares paid: the yield of its days and its own bounty, paid ones only, whole $WORD down. */
+/**
+ * What a week's words earned: the yield of its days and its own bounty, whole $WORD down. Paid or
+ * waiting, as the Earnings sheet counts (lib/rewards/earnings.ts): the payout has a time budget,
+ * and a share it reaches a day late was still earned that week. Counting only paid shares would
+ * leave such a share out of every digest.
+ */
 export function weekEarned(shares: readonly DigestShare[], period: number, periodDays: number): number {
   const first = period * periodDays;
   let wei = 0n;
   for (const s of shares) {
-    if (!s.paid) continue;
+    if (s.dead) continue;
     const id = Number(s.epochId);
     if (s.stream === "yield" ? id >= first && id < first + periodDays : id === period) wei += BigInt(s.amount);
   }
