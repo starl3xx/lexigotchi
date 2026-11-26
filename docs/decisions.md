@@ -1094,6 +1094,36 @@ setter. All small, riding existing suite patterns.
       letter by letter; the practice game's 1.4 s of nerves; a hungry word standing bright in
       this sheet, as a letter does in the roll sheet.
 
+37. **The back, as proposed, at every size** (starl3xx, 2026-11-26, on the live backs of #35: "the
+    new card backs in prod don't quite match your proposal", "the backs need to be redesigned for
+    all sizes / display locations", "the back of the card isn't in the share video yet").
+    - **What #35 got wrong.** It kept the old back's skeleton (a top row, then two columns, four
+      facts under 560 px) and relettered inside it, so at Today's size on a computer the rarity
+      sat in the corner, four facts showed in place of the whole ledger, and the bottom line and
+      the frame's dotted line were missing. The proposal's own measures are used now.
+    - **One back, sized by the card's width.** Two columns, centred: on the left the rarity, the
+      number, a rule, "One of one", how many words share the rarity, the rack; on the right the
+      ledger; a line along the bottom (found by, the jackpot, the token, with a middle dot between);
+      a dotted line just outside the frame's line.
+      - **470 px and wider** (Today on a computer, an opened word): all of it.
+      - **Under 470 px** (a phone): the first four facts; no count, pips, or bottom line. An
+        opened card lists what is left out, the count first.
+      - **A thumbnail** (the Bag's grid): the left column alone (the rarity, the number, one line,
+        the rack) with the seal beside it, and no plates; on a phone's grid (about 175 px), the
+        rarity, the number, and the tiles.
+      - **The server's picture** (the share video's back) is laid out the same way.
+    - **The share video drew the old back** because the back's picture had no version in its
+      address, so a browser and the edge served the copy they had (the same miss as #217, on the
+      other face). Its address carries `CARD_LOOK` now, which is 4.
+    - **"No."** is never under the 12 px text floor, and the lettering in the material's line
+      colour is lifted a little toward cream, so Common's reads on its dark back.
+    - **A process note, mine:** the game's back is now built from the proposal's own CSS and was
+      compared with it at each size before merging. #35 was checked against itself.
+    - **Not settled:** the owner's picture of the proposal shows old-style figures (round zeros).
+      On this Mac, Iowan Old Style draws lining figures in Chrome and WebKit whatever CSS asks, so
+      the owner's browser may be showing another serif there (Georgia's figures are old-style).
+      Asked; the stack is unchanged.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

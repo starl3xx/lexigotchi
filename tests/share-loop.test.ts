@@ -7,7 +7,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { LOOP_SECONDS, loopLight, loopPose } from "@/components/cards/loop/loopRenderer";
-import { showcaseBackPath } from "@/lib/showcase";
+import { showcaseBackPath, CARD_LOOK } from "@/lib/showcase";
 
 describe("the card's turn", () => {
   it("shows the scene, turns over, shows the back, and comes home", () => {
@@ -42,7 +42,8 @@ describe("the card's turn", () => {
 
 describe("the back picture", () => {
   it("lives beside the share card", () => {
-    expect(showcaseBackPath("CRAne")).toBe("/s/CRAne/back");
+    // with the card's look in its address, so a redrawn back escapes every cached copy
+    expect(showcaseBackPath("CRAne")).toBe(`/s/CRAne/back?v=${CARD_LOOK}`);
   });
 
   it("draws only dictionary words (and the house cards), like the card", async () => {

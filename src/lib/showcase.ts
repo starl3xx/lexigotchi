@@ -82,8 +82,12 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
  *
  * 2: the letter review (decisions.md #28).
  * 3: the card as an object: its frame, its ribbon, the engraved scenes (decisions.md #34).
+ * 4: the back relettered, with the game's seal (decisions.md #35, #37). The back's picture had no
+ *    version in its address until now, so the share video kept drawing the old back from a cached
+ *    copy after #35 shipped (starl3xx, 2026-11-26: "the back of the card isn't in the share video
+ *    yet"). Every picture of a card, front or back, carries this number.
  */
-export const CARD_LOOK = 3;
+export const CARD_LOOK = 4;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
@@ -110,9 +114,13 @@ export function showcaseFacePath(text: string, scene?: SceneId): string {
   return `/s/${text}/card${sceneQuery(scene, { face: "1", v: String(CARD_LOOK) })}`;
 }
 
-/** The back of the word's card, for the share loop's turning card (`/s/<word>/back`, same origin). */
+/**
+ * The back of the word's card, for the share loop's turning card (`/s/<word>/back`, same origin).
+ * Its look is in its address too (CARD_LOOK): the picture is kept for minutes by browsers and the
+ * edge, and a redrawn back must not be served from an old copy.
+ */
 export function showcaseBackPath(text: string): string {
-  return `/s/${text}/back`;
+  return `/s/${text}/back?v=${CARD_LOOK}`;
 }
 
 /** The cast's words. The link goes separately as the cast's embed. */
