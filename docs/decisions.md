@@ -1547,7 +1547,13 @@ setter. All small, riding existing suite patterns.
       be only one: it says the whole share, which the epoch's tree fixes, and "paid" of all of it
       only when all of it landed; when part still waits it says "part is paid, the rest follows".
       Stating only what landed made a part read as the whole; holding the message until all of it
-      landed never told a player who collected the rest themselves. **Payday is OFF unless a player
+      landed never told a player who collected the rest themselves. A failed batch doesn't skip
+      the message for the batches before it, and the run re-reads every share it didn't see land
+      (the player may have collected it meanwhile). **The rule's limit:** "told" is read from the
+      chain (a share already paid when a run begins), so a set whose first payment no run saw
+      before its message (a transaction that lands after the run's last read, a share claimed by
+      someone before the keeper's first payment) is never told. Rare, and one courtesy message;
+      the full answer is a recorded "told" mark, not built. **Payday is OFF unless a player
       turns it on,** because it comes every day a word earns; its message doesn't say "today's
       payout", since a run also pays an earlier day's leftovers. **The bounty result is on** (once
       a week at most), and says the player's words' SHARE with the week's theme, never "the

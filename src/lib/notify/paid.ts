@@ -16,6 +16,14 @@
  * read as the whole, and the later run's message was dropped as a repeat; holding the message
  * until all of it landed never told a player who collected the rest themselves.
  *
+ * **The limit of this rule.** "Told" is read from the chain: a set with a share already paid when a
+ * run begins is taken as told. So a set is never told when its first payment was not seen by a run
+ * that got as far as the message: a transaction that lands after the run stopped waiting for it and
+ * after its last read, or a share somebody claimed before the keeper's first payment (`claim` is
+ * permissionless). Both are rare and cost one courtesy message. Do not close them with another
+ * reading of the chain: the answer for the whole family is a recorded "told" mark per player and
+ * epoch (lib/db/reminderMarks), and it is not built.
+ *
  * One message per player per kind for a run: every wallet of an account is one player (the notes
  * are grouped by account), and the amounts are whole $WORD rounded DOWN.
  */
@@ -41,7 +49,10 @@ export interface LandedShare {
 export interface EpochShare extends LandedShare {
   /** The chain said it was paid when this run began (an earlier run, or the player's own Collect). */
   paidBefore: boolean;
-  /** Paid during this run by someone else: the player collected it a moment before the keeper's claim. */
+  /**
+   * Unpaid when the run began, not among its events, and paid at its end: the player collected it
+   * meanwhile, or a transaction the run gave up waiting for landed after all.
+   */
   paidNow?: boolean;
 }
 
@@ -50,14 +61,19 @@ export interface ToldShare extends LandedShare {
   waits?: boolean;
 }
 
-const shareKey = (s: Pick<LandedShare, "stream" | "epochId" | "tokenId">) => `${s.stream}:${s.epochId}:${s.tokenId}`;
+/**
+ * One share's name, the same whoever writes it: the epoch as a number and the token id as an
+ * integer, since the database keeps both as text and an event gives them as bigints.
+ */
+export const shareKey = (s: { stream: string; epochId: string | number | bigint; tokenId: string | bigint }): string =>
+  `${s.stream}:${Number(s.epochId)}:${BigInt(s.tokenId)}`;
 
 /**
- * The shares to tell players of: EVERY share of each (player, day or week) whose FIRST share this
- * run paid. None of it was paid when the run began, and the run paid some of it, so this is the one
- * run that tells of it; a share of it that still waits is marked, and the message says the rest
- * follows. A set with a share paid before this run was told of then (or the player collected it),
- * and a set this run paid nothing of is not news yet.
+ * The shares to tell players of: EVERY share of each (player, day or week) whose FIRST share was
+ * paid during this run. None of it was paid when the run began and some of it is paid at its end,
+ * so this is the one run that tells of it; a share of it that still waits is marked, and the
+ * message says the rest follows. A set with a share paid before this run was told of then (or the
+ * player collected it), and a set nothing of which was paid in this run is not news yet.
  */
 export function toldShares(epoch: readonly EpochShare[], landed: readonly LandedShare[], accountOf: (address: string) => string): ToldShare[] {
   const landedNow = new Set(landed.map(shareKey));
@@ -67,7 +83,7 @@ export function toldShares(epoch: readonly EpochShare[], landed: readonly Landed
     let set = sets.get(key);
     if (!set) sets.set(key, (set = { shares: [], landed: false, begun: false }));
     set.shares.push(s);
-    set.landed ||= !s.paidBefore && landedNow.has(shareKey(s));
+    set.landed ||= !s.paidBefore && (landedNow.has(shareKey(s)) || Boolean(s.paidNow));
     set.begun ||= s.paidBefore;
   }
   return [...sets.values()]
@@ -139,7 +155,7 @@ export async function notifyPaid(
   epoch: readonly EpochShare[],
   opts: { log?: (line: string) => void } = {},
 ): Promise<{ payday: TellResult | null; bounty: TellResult | null }> {
-  if (landed.length === 0) return { payday: null, bounty: null };
+  if (landed.length === 0 && !epoch.some((s) => s.paidNow)) return { payday: null, bounty: null };
   // One after the other: a bounty week and a payday can be for the same player, and each is its own message.
   const payday = await notifyPlayers("payday", (accountOf) => paydayNotes(toldShares(epoch, landed, accountOf), accountOf), opts);
   const bounty = await notifyPlayers("bounty", (accountOf) => bountyNotes(toldShares(epoch, landed, accountOf), accountOf), opts);

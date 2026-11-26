@@ -4,7 +4,7 @@
  * player, and payday goes only to a player who turned it on.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { bountyNotes, paydayNotes, toldShares, type EpochShare, type LandedShare } from "@/lib/notify/paid";
+import { bountyNotes, paydayNotes, shareKey, toldShares, type EpochShare, type LandedShare } from "@/lib/notify/paid";
 import { linkMapFrom } from "@/lib/db/walletLinks";
 import { prefsBookFrom } from "@/lib/db/reminderPrefs";
 
@@ -114,6 +114,25 @@ describe("toldShares: a day or a week is told once, by the run that pays the fir
     // the budget ended before any of A's shares: not news yet, and the next run tells of it
     expect(toldShares(epochOf([untouched, other]), [other], accountOf).map((s) => s.account)).toEqual([B]);
     expect(toldShares([...epochOf([other], true), ...epochOf([untouched])], [untouched], accountOf).map((s) => s.account)).toEqual([A]);
+  });
+
+  it("a share the run never reached, collected by the player meanwhile, is paid: the message doesn’t say it waits", () => {
+    const [reached, neverReached] = [share(), share()];
+    const told = toldShares([...epochOf([reached]), { ...neverReached, paidBefore: false, paidNow: true }], [reached], accountOf);
+    expect(paydayNotes(told, accountOf)[0].note.body).toBe("Your words earned 84.0K $WORD. It’s paid, straight to the wallets that hold them.");
+  });
+
+  it("a payment the run saw only in its last read still begins the set (a receipt that never came)", () => {
+    const [late, waiting] = [share(), share()];
+    const told = toldShares([{ ...late, paidBefore: false, paidNow: true }, ...epochOf([waiting])], [], accountOf);
+    expect(paydayNotes(told, accountOf)[0].note.body).toContain("Part is paid");
+  });
+
+  it("names a share the same from an event and from the database", () => {
+    // the database keeps both as text (a token id may be hex); an event gives bigints
+    expect(shareKey({ stream: "yield", epochId: "20783", tokenId: "0xff" })).toBe(shareKey({ stream: "yield", epochId: 20783n, tokenId: 255n }));
+    expect(shareKey({ stream: "yield", epochId: 20783, tokenId: "255" })).toBe("yield:20783:255");
+    expect(shareKey({ stream: "bounty", epochId: 20783, tokenId: "255" })).not.toBe(shareKey({ stream: "yield", epochId: 20783, tokenId: "255" }));
   });
 
   it("a share the player collected during the run is paid, not waiting, and doesn’t hide the day", () => {

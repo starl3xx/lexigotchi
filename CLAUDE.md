@@ -121,7 +121,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **A receipt to a player goes through `notifyPlayers`** (`lib/notify/players.ts`): a kind, and a
   `PlayerNote` per account (who, what, an email ledger). It asks the choices, sends to Farcaster or
   else the account's browsers, and emails under a send-once mark. A sale (`sold.ts`), a payday and
-  a bounty share (`paid.ts`, fed the payout's `RewardClaimed` events: only what LANDED is "paid")
+  a bounty share (`paid.ts`, fed the payout's `RewardClaimed` events and every share of the epochs
+  it worked through: `toldShares` tells of a day or a week ONCE, in the run that pays the first of
+  it, with the player's whole share, and says "paid" of all of it only when all of it is; its
+  header names the rule's limit and the two rules dropped before it)
   use it. Payday is opt-in (`KIND_INFO.payday.on` is false). New sends hang on keeper jobs that
   already run: a new job name never runs where `KEEPER_JOBS` is set.
   **A choice per kind** (decisions.md #47; `lib/notify/kinds.ts` pure, `lib/db/reminderPrefs.ts`, table
