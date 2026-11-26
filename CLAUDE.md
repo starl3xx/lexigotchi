@@ -240,7 +240,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   maker's own old offers, for Sell's Cancel. Proofs to rerun after touching any of this:
   `scripts/market-fork-check.ts` (the order against Seaport on an Anvil fork) and
   `scripts/market-routes-check.ts` (the routes against that fork and a throwaway local database;
-  it refuses any database or RPC not on this machine).
+  it refuses any database or RPC not on this machine). Each needs a fresh fork. Migration 0017 ran in
+  production (the Sepolia build) on 2026-11-25; before it, `/api/market/letters` answers `open: false`
+  and Sell says letters open shortly (`marketTables`, asked again every 30 s while a table is missing).
   **Words for sale** (decisions.md #18; `lib/onchain/wordSale.ts`, `/api/swap/words`, table
   `word_listings`, migration 0014): Seaport orders offering one Word for $WORD, 90% to the seller and
   10% (`params.market.wordSaleFee`, rounded up) to `SaleFees`, which the keeper's `fees` job flushes

@@ -754,6 +754,10 @@ setter. All small, riding existing suite patterns.
       buying one letter from several sellers in one send; an X card for a listing; offers (a
       buyer naming a price). Migration 0017 adds `letter_listings` and `market_sales`; until it
       runs, letters can't be listed and recent sales are empty, and words sell as before.
+    - **Open on the test build since 2026-11-25**: the owner ran 0017 in production, the letters
+      board answered `open: true`, and the sales reader caught up from the chain by itself (the two
+      word sales made before this existed showed at once, with their rarities). Still wanted: one
+      pass with a real wallet (list a letter, buy part of a listing, cancel).
 
 ## Pricing & launch economics (decided June 2026)
 
