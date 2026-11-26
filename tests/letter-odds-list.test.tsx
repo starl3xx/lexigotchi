@@ -84,6 +84,9 @@ describe("the Mint tab’s letter odds", () => {
     render(<LetterOdds available={caps.map(() => 0)} caps={caps} />);
     expect(screen.getAllByText("Sold out")).toHaveLength(26);
     expect(screen.queryByText(/About 1 pack/)).toBeNull();
+    // nothing "comes up more often" when nothing can be pulled (Bugbot on #228)
+    expect(screen.queryByText(/comes up more often|already count/)).toBeNull();
+    expect(screen.getByText("Every letter is sold out, so nothing is left to pull. Letters still change hands in the Market.")).toBeTruthy();
   });
 
   it("says what the odds are while the supply read loads, and after it fails", () => {

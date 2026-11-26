@@ -105,11 +105,16 @@ export function LetterOdds({
             About 1 pack in {Math.round(packsPer(odds[rarest])).toLocaleString("en-US")} has {article(ALPHABET[rarest])} {ALPHABET[rarest].toLowerCase()}.
           </p>
         )}
-        {soldOut.length > 0 && (
-          <p>
-            {soldOut.length > 4 ? `${soldOut.length} letters` : allOf(soldOut)} {soldOut.length === 1 ? "is" : "are"} sold out and can’t be pulled, so
-            every other letter comes up more often. The odds above already count that.
-          </p>
+        {soldOut.length === ALPHABET.length ? (
+          // Nothing is left to pull, so nothing "comes up more often" (Bugbot on #228).
+          <p>Every letter is sold out, so nothing is left to pull. Letters still change hands in the Market.</p>
+        ) : (
+          soldOut.length > 0 && (
+            <p>
+              {soldOut.length > 4 ? `${soldOut.length} letters` : allOf(soldOut)} {soldOut.length === 1 ? "is" : "are"} sold out and can’t be pulled,
+              so every other letter comes up more often. The odds above already count that.
+            </p>
+          )
         )}
         {status === "checking" && <p aria-live="polite">Checking which letters can still be pulled…</p>}
         {status === "failed" && <p>Couldn’t check which letters have sold out. These are the odds with none sold out; a sold-out letter is never pulled.</p>}
