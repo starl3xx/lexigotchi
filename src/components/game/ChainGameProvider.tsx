@@ -1363,6 +1363,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         track(`Attempting ascension: ${word}`, (run) => guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
           const tokenId = tokenIdOf(word);
+          // The sheet this try was made in: only that one is waiting for its result (see the end).
+          const sheetAtTap = sheetNow.current;
           // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay
           // twice. Attempts this browser has read as revealed are skipped (a lagging node can still
           // call one open seconds later).
@@ -1411,10 +1413,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             toast(`Finished an earlier attempt on ${word}. Try again for yours`, "info");
             return { status: "not-started" as const };
           }
-          // The ascend sheet shows the result. Say it here only when that sheet is gone (closed
-          // while the attempt was out), so the outcome is said once, and always said.
+          // The ascend sheet the try was made in shows the result. Say it here when that sheet is
+          // gone, so the outcome is said once, and always said. "That sheet" is the same sheet
+          // object, not any ascend sheet on this word: one closed and opened again mid-try is a
+          // new sheet with no try of its own to hear from.
           const open = sheetNow.current;
-          if (!(open?.kind === "ascend" && open.word === word)) {
+          if (!(open === sheetAtTap && open?.kind === "ascend" && open.word === word)) {
             const said = resultToast(word, came.hit, came.level);
             toast(said.text, said.tone);
           }

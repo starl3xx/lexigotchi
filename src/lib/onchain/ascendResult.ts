@@ -17,8 +17,10 @@ export type AscendResult =
   /**
    * An earlier attempt was finished instead of a new one, and it wasn't this try's: made before
    * the word changed hands, or at another stage (before it was dissolved and claimed again;
-   * Prestige keys attempts by token). Prestige voids it or raises today's stage. Nothing was spent
-   * by this tap and nothing is left open, so the sheet is ready again: never "you missed".
+   * Prestige keys attempts by token), or already revealed by the time the game asked (another tab
+   * sent it, or a lagging read called a finished attempt open). Prestige voids it or raises
+   * today's stage. Nothing was spent by this tap and nothing is left open, so the sheet is ready
+   * again: never "you missed".
    */
   | { kind: "foreign" }
   /** This try's result: `hit` is the word standing a stage higher than at the tap, now at `level`. */
@@ -37,8 +39,12 @@ export function ascendResult(a: {
   after: { level: number } | null;
 }): AscendResult {
   if (!a.after) return { kind: "unfinished" };
+  // A resumed attempt that turned out to be finished already (no commit facts: the server said
+  // "already revealed") is not this tap's either. The tap paid for nothing, and whatever that
+  // attempt did was done before it: reporting the word's stage against the tap's would show
+  // "held its ground" for a try the player never made.
   const foreign =
-    a.resumed && a.commit !== null && (a.commit.level !== a.level || (a.commit.owner ?? "").toLowerCase() !== a.owner.toLowerCase());
+    a.resumed && (a.commit === null || a.commit.level !== a.level || (a.commit.owner ?? "").toLowerCase() !== a.owner.toLowerCase());
   if (foreign) return { kind: "foreign" };
   // The chain's own answer, never the signed one: a signed success no longer counts if the word
   // was unstaked or changed hands before the reveal (Prestige.reveal), and then it stands where it did.

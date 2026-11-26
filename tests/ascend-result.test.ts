@@ -46,7 +46,14 @@ describe("ascendResult", () => {
     expect(ascendResult({ ...base, resumed: false, commit: { level: 3, owner: "0x0" }, after: { level: 1 } })).toMatchObject({ kind: "result" });
   });
 
-  it("already revealed when asked (no commit facts): the chain's stage still gives the result", () => {
-    expect(ascendResult({ ...base, resumed: true, commit: null, after: { level: 2 } })).toEqual({ kind: "result", hit: true, level: 2 });
+  it("a resumed attempt that was already revealed when asked isn't this tap's: ready again, never a miss it didn't make", () => {
+    // another tab finished it, or a lagging read called a finished attempt open: the tap paid nothing
+    expect(ascendResult({ ...base, resumed: true, commit: null, after: { level: 1 } })).toEqual({ kind: "foreign" });
+    expect(ascendResult({ ...base, resumed: true, commit: null, after: { level: 2 } })).toEqual({ kind: "foreign" });
+  });
+
+  it("a NEW attempt already revealed when asked is still this tap's: it paid, and the chain's stage gives the result", () => {
+    expect(ascendResult({ ...base, resumed: false, commit: null, after: { level: 2 } })).toEqual({ kind: "result", hit: true, level: 2 });
+    expect(ascendResult({ ...base, resumed: false, commit: null, after: { level: 1 } })).toEqual({ kind: "result", hit: false, level: 1 });
   });
 });
