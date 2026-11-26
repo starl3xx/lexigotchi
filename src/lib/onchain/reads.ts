@@ -518,17 +518,54 @@ export async function readOpenRollFor(
   return null;
 }
 
-/** The unrevealed ascension on a Word, by anyone (Prestige.attemptOpen is per token). */
-export async function readOpenPrestigeFor(tokenId: bigint): Promise<bigint | null> {
+/**
+ * The unrevealed ascension on a Word, by anyone (Prestige.attemptOpen is per token).
+ *
+ * `skip`: commits the caller KNOWS are revealed (it read `revealed` itself). "Try again" commits
+ * seconds after a reveal, and a node a block behind can still read that commit as open: taken for
+ * "your unfinished ascension", it would ask the server to reveal a finished commit and strand a
+ * sheet with nothing stranded. The scan passes over them and keeps looking, as `readOpenRollFor` does.
+ */
+export async function readOpenPrestigeFor(tokenId: bigint, skip?: ReadonlySet<string>): Promise<bigint | null> {
   const prestige = addressOf("prestige");
   const client = getPublicClient();
   const logs = await client.getLogs({ address: prestige, event: PRESTIGE_COMMITTED, args: { tokenId }, fromBlock: deployBlock(), toBlock: "latest" });
   for (const l of logs) {
     const id = l.args.commitId as bigint;
+    if (skip?.has(String(id))) continue;
     const c = (await client.readContract({ address: prestige, abi: prestigeAbi, functionName: "commits", args: [id] })) as unknown as readonly [bigint, string, boolean, number];
     if (!c[2]) return id;
   }
   return null;
+}
+
+/** An ascension attempt as the chain has it, with its word's stage and pity from the same block. */
+export interface PrestigeAttempt {
+  /** The reveal is on chain. Until it is, `level` and `pity` are the word's state before it. */
+  revealed: boolean;
+  /** The word's stage now (Words.prestigeLevel). */
+  level: number;
+  /** The word's misses in a row now (Prestige.prestigePity). */
+  pity: number;
+}
+
+/**
+ * Has this attempt been revealed, and where did it leave the word? One multicall, so the three
+ * answers are from one block: once `revealed` is true, `level` and `pity` are what that reveal set.
+ * That makes this the attempt's result as the chain applied it. The signed outcome isn't: a signed
+ * success no longer counts if the word was unstaked or changed hands first (Prestige.reveal).
+ */
+export async function readPrestigeAttempt(commitId: bigint, tokenId: bigint): Promise<PrestigeAttempt> {
+  const prestige = addressOf("prestige");
+  const [commit, level, pity] = await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: [
+      { address: prestige, abi: prestigeAbi, functionName: "commits" as const, args: [commitId] },
+      { address: addressOf("words"), abi: wordsAbi, functionName: "prestigeLevel" as const, args: [tokenId] },
+      { address: prestige, abi: prestigeAbi, functionName: "prestigePity" as const, args: [tokenId] },
+    ],
+  });
+  return { revealed: Boolean((commit as unknown as readonly unknown[])[2]), level: Number(level), pity: Number(pity) };
 }
 
 /** Open (unrevealed) prestige commit ids for a player. */

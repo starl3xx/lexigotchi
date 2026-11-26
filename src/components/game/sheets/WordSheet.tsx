@@ -9,7 +9,8 @@ import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
 import { WordSheetCard } from "../../cards/WordSheetCard";
 import { CaretRight, Check, Coins, Cookie, Crown, Star, Ticket } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
-import { HOLOGRAPHIC_LEVEL, stageName } from "@/lib/ascension";
+import { stageName } from "@/lib/ascension";
+import { MISS_POINTS, STAGE_SHARE } from "@/lib/howItWorks";
 import { useAccount } from "wagmi";
 import { usePublicProfile } from "../useProfile";
 import {
@@ -39,9 +40,6 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const offGameWallet = Boolean(gameWallet && address && gameWallet !== address.toLowerCase());
   const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
-  // Guards against a second tap during the async chain flow — each tap is a PAID commit.
-  const [ascending, setAscending] = useState(false);
-  const [strandedNote, setStrandedNote] = useState("");
   // The tiles chew for a moment when a feed lands (useEatingFlash).
   const eating = useEatingFlash(wordKey, word ? hunger(word) : "fed");
 
@@ -215,48 +213,18 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                   : `${stageName(word.prestigeLevel)} → ${stageName(word.prestigeLevel + 1)} · ${ascendOdds}% this try`}
               </div>
             </div>
-            <Button
-              variant="gold"
-              disabled={ascending || !canPrestige || !g.canAfford(ascendFee + g.price("prestigeSnack"))}
-              onClick={() => {
-                const res = g.prestige(word.word);
-                // A promise means it resolves later; announcing success now would celebrate a
-                // gilded glow-up before the wallet prompt has even appeared. The chain store toasts
-                // its own outcome, so only the synchronous (mock) result is announced here.
-                if (res instanceof Promise) {
-                  setAscending(true);
-                  void res
-                    .then((r) => {
-                      // Only re-enable when NOTHING was spent. A stranded commit is paid and still
-                      // open, so re-enabling would sell a second ascension on top of it.
-                      if (r.status === "stranded") setStrandedNote(r.note);
-                      else setAscending(false);
-                    })
-                    // A rejection does not say whether the fee was taken, so it must not re-enable
-                    // the button — that would sell a second ascension on top of an open commit.
-                    // Unknown is treated as paid, which is the safe direction.
-                    .catch(() => setStrandedNote("We lost track of this ascension. Reopen to check"));
-                  return;
-                }
-                if (res === null) return; // didn't attempt (ineligible / unaffordable — api toasted)
-                const reached = word.prestigeLevel + 1;
-                g.toast(
-                  res
-                    ? reached >= HOLOGRAPHIC_LEVEL ? `${word.word} turned Holographic!` : `${word.word} reached ${stageName(reached)}`
-                    : "Missed. No harm done, and the next try’s odds are higher",
-                  res ? "good" : "info",
-                );
-              }}
-            >
-              {strandedNote ? "Unfinished" : ascending ? "Ascending…" : atTop ? "Maxed" : `Ascend · ${fmtWord(ascendFee)}`}
+            {/* Opens the ascend sheet (sheets/AscendSheet), where the try is made and its result
+                shows. No price on this button: it spends nothing; the sheet's own button does. */}
+            <Button variant="gold" disabled={!canPrestige} onClick={() => g.openSheet({ kind: "ascend", word: word.word })}>
+              {atTop ? "Maxed" : "Ascend"}
             </Button>
           </div>
           {!atTop && (
             <p className="mt-2 text-xs text-ink/55">
-              A hit raises its share of earnings and the bounty 1.1×. A miss never harms it and raises the next try’s odds 10 points.
+              A try costs {fmtWord(ascendFee + g.price("prestigeSnack"))} $WORD. A hit raises its share of earnings and the bounty{" "}
+              {STAGE_SHARE}. A miss never harms it and raises the next try’s odds {MISS_POINTS} points.
             </p>
           )}
-          {strandedNote && <p className="mt-2 text-xs text-gold-ink">{strandedNote}</p>}
           {!word.staked && <p className="mt-2 text-xs text-candy-ink">Stake it first to ascend.</p>}
         </Card>
       )}

@@ -215,6 +215,14 @@ const TILT: Record<TileState, number> = {
   celebrate: 0,
 };
 
+// A word that can't look (the ascend sheet): how far each letter runs behind the one before it.
+// The tremble's step is a part of its 0.17 s shake that never lands two letters in step; the peek's
+// spreads five letters over its 3.2 s cycle out of order, so they peek one at a time, not in a wave.
+const BRACE_STEP_S = 0.07;
+const SWEAT_STEP_S = 0.37;
+const PEEK_CYCLE_S = 3.2; // tailwind.config.ts, tc-peek-open / tc-peek-shut
+const PEEK_STEP_S = 1.28;
+
 // origin = the element's own bottom, so scale/rotate keep the feet down
 const PLANT: CSSProperties = { transformBox: "fill-box", transformOrigin: "center bottom" };
 
@@ -362,6 +370,7 @@ function Eye({
   face,
   id,
   peek = false,
+  peekDelay = 0,
 }: {
   ex: number;
   ey: number;
@@ -374,6 +383,8 @@ function Eye({
   id: string;
   /** rolling: this eye opens for a moment now and then */
   peek?: boolean;
+  /** How far into the peek's cycle this eye starts, in seconds (a word's letters peek in turn). */
+  peekDelay?: number;
 }) {
   const ball = (fill: string) => <ellipse cx={ex} cy={ey} rx={rx} ry={ry} fill={fill} stroke={INK} strokeWidth={3.2} />;
   const line = (d: string, w = 3.6) => <path d={d} stroke={INK} strokeWidth={w} fill="none" strokeLinecap="round" strokeLinejoin="round" />;
@@ -427,14 +438,16 @@ function Eye({
     </>
   );
   if (expr.eyes !== "open") {
+    // both halves of the swap start at the same point of the cycle, or the eye would show twice
+    const at = peek && peekDelay ? { animationDelay: `${(-peekDelay).toFixed(2)}s` } : undefined;
     return (
       <g>
-        <g className={peek ? "animate-tc-peek-shut" : undefined}>
+        <g className={peek ? "animate-tc-peek-shut" : undefined} style={at}>
           {ball(face)}
           {line(shut[expr.eyes])}
         </g>
         {peek && (
-          <g className="animate-tc-peek-open" opacity={0}>
+          <g className="animate-tc-peek-open" opacity={0} style={at}>
             {open(true)}
           </g>
         )}
@@ -733,7 +746,7 @@ function Zzz({ reduced }: { reduced: boolean }) {
 }
 
 /** Rolling: beads of sweat flicking off the top corners (white, like the mitts: no red, no "?"). */
-function Sweat({ reduced, eyeY }: { reduced: boolean; eyeY: number }) {
+function Sweat({ reduced, eyeY, index = 0 }: { reduced: boolean; eyeY: number; index?: number }) {
   // A still frame shows none: a bead frozen in the air reads as an ear.
   if (reduced) return null;
   const drop = "M 0 -7 C 4 -1 5 3 0 5 C -5 3 -4 -1 0 -7 Z";
@@ -753,7 +766,8 @@ function Sweat({ reduced, eyeY }: { reduced: boolean; eyeY: number }) {
             strokeWidth={2}
             opacity={0}
             className="animate-tc-sweat"
-            style={{ animationDelay: `${s.d}s`, transformBox: "fill-box", transformOrigin: "center" } as CSSProperties}
+            // a word's letters don't sweat in step: each starts its beads a little before the last
+            style={{ animationDelay: `${(s.d - index * SWEAT_STEP_S).toFixed(2)}s`, transformBox: "fill-box", transformOrigin: "center" } as CSSProperties}
           />
         </g>
       ))}
@@ -864,7 +878,10 @@ export function TileCharacter({
   // The loops. A word's letters breathe each a little behind the last, like five creatures and not
   // one machine; the clasps stand still and the arms end under them, so that can't part hands.
   const calm = state === "idle" || state === "peckish";
-  const phase: CSSProperties | undefined = !reduced && calm && index ? { animationDelay: `${(-index * 0.6).toFixed(2)}s` } : undefined;
+  // A word waiting on a result trembles the same way: each letter a part of a shake behind the
+  // last (the ascend sheet), where five in step read as one machine.
+  const step = calm ? 0.6 : state === "rolling" ? BRACE_STEP_S : 0;
+  const phase: CSSProperties | undefined = !reduced && step && index ? { animationDelay: `${(-index * step).toFixed(2)}s` } : undefined;
   // A small tile with no legs stands still at rest: a tile bobbing in the air isn't breathing, and a
   // grid of them (the loose letters on Today, the Bag) was a dozen loops for nothing.
   const restsStill = calm && !showLimbs;
@@ -1059,7 +1076,7 @@ export function TileCharacter({
             {showFace && (
               <g>
                 <Eye ex={CX - eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={-1} face={lidFill} id={`${uid}l`} />
-                <Eye ex={CX + eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={1} face={lidFill} id={`${uid}r`} peek={state === "rolling" && !reduced} />
+                <Eye ex={CX + eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={1} face={lidFill} id={`${uid}r`} peek={state === "rolling" && !reduced} peekDelay={(index * PEEK_STEP_S) % PEEK_CYCLE_S} />
                 {expr.brow !== "none" && (
                   <g className="tc-brow" stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round">
                     <path d={browPath(CX - eyeDx, eyeY - eyeRy - 5, expr.brow, -1)} />
@@ -1101,7 +1118,7 @@ export function TileCharacter({
           {showLimbs && linkLeft && <Clasp darts={darts} />}
           {/* per-state extras anchored to the scene */}
           {showFace && state === "hungry" && <Zzz reduced={reduced} />}
-          {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} />}
+          {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} index={index} />}
           {showFace && state === "eating" && <Snack />}
           {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
         </>,
@@ -1345,6 +1362,8 @@ export function TileWord({
   className = "",
   tier,
   still,
+  states,
+  gilds,
 }: {
   word: string;
   upper: boolean[];
@@ -1357,8 +1376,18 @@ export function TileWord({
   tier?: Tier;
   /** The finish without its motion. */
   still?: boolean;
+  /**
+   * A state or a stage for single letters, where one is given: letter i takes `states[i]` and
+   * `gilds[i]`, and the rest keep `state` and `gild`. For a change that passes along the word
+   * letter by letter (the ascend sheet's result).
+   */
+  states?: readonly (TileState | undefined)[];
+  gilds?: readonly (Gild | undefined)[];
 }) {
   const letters = [...word];
+  const stateAt = (i: number) => states?.[i] ?? state;
+  // the word blinks and glances only while every letter is at rest
+  const calm = letters.every((_, i) => stateAt(i) === "idle" || stateAt(i) === "peckish");
   // full-size words show characters holding hands (arms meet between the tiles); smaller word
   // rows have no limbs, so they sit in a neat row with a small positive gap instead.
   const full = detail === "full" || (detail === "auto" && size >= 100);
@@ -1369,7 +1398,7 @@ export function TileWord({
   const alive = full && !still;
   const onScreen = useOnScreen(row, alive);
   const [moment, play] = useFinishMoment(tier, alive && onScreen && state !== "hungry" && !!finishFor(tier), word);
-  useWordLife(row, alive && onScreen && !reduced && (state === "idle" || state === "peckish"));
+  useWordLife(row, alive && onScreen && !reduced && calm);
   return (
     <div
       ref={row}
@@ -1382,8 +1411,8 @@ export function TileWord({
           <TileCharacter
             char={ch}
             upper={upper[i] ?? false}
-            state={state}
-            gild={gild}
+            state={stateAt(i)}
+            gild={gilds?.[i] ?? gild}
             size={size}
             detail={detail}
             tier={tier}

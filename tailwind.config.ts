@@ -164,7 +164,9 @@ const config: Config = {
           "0%,100%": { transform: "skewX(-5deg)" },
           "50%": { transform: "skewX(5deg)" },
         },
-        // These three run INSIDE a layer: one letter in the roll sheet, for as long as a roll takes.
+        // These three run INSIDE a layer: one letter in the roll sheet, or a word's five in the
+        // ascend sheet, for as long as a try takes. Measured in WebKit for the five (a Legendary
+        // word, 2026-11-25): 45% of a core against 38% for the same word at rest.
         // a bead of sweat flicks off the brow (its group's turn points it; px are drawing units)
         tcSweat: {
           "0%": { opacity: "0", transform: "translateY(3px) scale(0.5)" },

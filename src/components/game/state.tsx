@@ -222,6 +222,8 @@ export type Sheet =
   | { kind: "word"; word: string }
   | { kind: "pack"; letters: number[] }
   | { kind: "roll"; target: RollTarget }
+  /** Try to ascend a staked, all-UPPERCASE word a stage (sheets/AscendSheet), from its word sheet. */
+  | { kind: "ascend"; word: string }
   // `need` = the action the player just got price-blocked on; BalanceSheet renders the shortfall
   // banner so every "not enough $WORD" moment lands on the Buy path instead of a dead toast.
   | { kind: "balance"; need?: { amount: number; action: string } }

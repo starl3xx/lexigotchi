@@ -52,7 +52,8 @@ import {
   type WordListing,
 } from "./state";
 import { rollSuccessProbability, prestigeSuccessProbability } from "@/lib/params";
-import { HOLOGRAPHIC_LEVEL, stageFeeMultiple, stageName } from "@/lib/ascension";
+import { stageFeeMultiple } from "@/lib/ascension";
+import { resultToast } from "./ascendFlow";
 import { REFRESH_RETRIES, useOnchain } from "./useOnchain";
 import {
   readFeeBuckets,
@@ -72,6 +73,8 @@ import {
   waitForNewPrestigeCommit,
   readOpenRollFor,
   readOpenPrestigeFor,
+  readPrestigeAttempt,
+  type PrestigeAttempt,
 } from "@/lib/onchain/reads";
 import { dailyKeysFor } from "@/lib/onchain/verifications";
 import { useProfileSession, usePublicProfile } from "./useProfile";
@@ -123,6 +126,8 @@ import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls"
 import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from "@/lib/onchain/traceSend";
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
+import { overlayStage, pruneStageNotes, type StageNote } from "@/lib/onchain/stageOverlay";
+import { ascendResult } from "@/lib/onchain/ascendResult";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
@@ -130,6 +135,13 @@ import { usePlayerWallets } from "./usePlayerWallets";
 import { wordsToFeed } from "./feedAll";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
+
+/**
+ * When to ask the chain whether an ascension's reveal has landed, from the moment the wallet took
+ * it. Tighter than SETTLE_OFFSETS_MS: the word's letters are standing there with their eyes shut,
+ * the read is one small multicall, and Base makes a block every 2 s.
+ */
+const ASCEND_SETTLE_MS: readonly number[] = [0, 1_000, 2_000, 3_500, 5_000, 7_500, 10_000, 15_000, 20_000, 30_000];
 
 /** Signing-route response shapes. */
 // The two vouchers differ: the free pack is nonce-scoped, the daily is UTC-day-scoped.
@@ -228,6 +240,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // The same reducer still owns nav/sheet/toast; the economy fields it computes are overridden
   // below by chain reads, so its money actions are simply never dispatched here.
   const [ui, dispatch] = useReducer(reducer, undefined, seedState);
+  // The open sheet as it is NOW, for an action that finishes long after its tap: an ascension says
+  // its result in a toast only when its own sheet is no longer there to show it.
+  const sheetNow = useRef(ui.sheet);
+  sheetNow.current = ui.sheet;
   const chain = useOnchain();
   const { address, connector } = useAccount();
   const qc = useQueryClient();
@@ -306,6 +322,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     const pruned = pruneNotes(pityQ.data, myPityNotes, Date.now());
     if (pruned !== myPityNotes) setPityNotes((all) => ({ ...all, [walletKey]: pruned }));
   }, [pityQ.data, myPityNotes, walletKey]);
+
+  // The stage and pity an ascension attempt just left on a word, read from the chain with the
+  // reveal (readPrestigeAttempt) and shown until the slower words read agrees. See
+  // lib/onchain/stageOverlay: without it a word that just hit kept its old gold, and "try again"
+  // priced and sized its approval from the stage before. Filed by word: a stage belongs to the
+  // word, whichever of the player's wallets is connected.
+  const [stageNotes, setStageNotes] = useState<Readonly<Record<string, StageNote>>>({});
+  useEffect(() => {
+    const read = wordsQ.data?.words;
+    if (!read) return;
+    const chainStages = Object.fromEntries(read.map((w) => [w.word, { level: w.prestigeLevel, pity: w.prestigePity }]));
+    setStageNotes((notes) => pruneStageNotes(chainStages, notes, Date.now()));
+  }, [wordsQ.data]);
 
   // The identity today's daily would be issued under, and every other key the player could claim
   // under — mirrors the server (free-daily route): the Farcaster fid, then an X account old enough
@@ -546,7 +575,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       lowerMine: chain.player ? chain.player.letters.slice(0, 26) : EMPTY_26,
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
-      words: (wordsQ.data?.words ?? []).map((w) => toOwnedWord(w, careFor)),
+      words: (wordsQ.data?.words ?? []).map((w) => {
+        const owned = toOwnedWord(w, careFor);
+        const note = stageNotes[w.word];
+        if (!note) return owned;
+        const shown = overlayStage({ level: owned.prestigeLevel, pity: owned.prestigePity }, note, Date.now());
+        return { ...owned, prestigeLevel: shown.level, prestigePity: shown.pity };
+      }),
       wordsEverHeld: wordsQ.data?.everHeld ?? 0,
       // "No words yet, and a read in flight" is loading: the first read, and a retry after a failed one
       // (TanStack's isLoading stays false when refetching from an error; Bugbot on #164).
@@ -573,7 +608,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotRevealed: false,
     }),
     // careFor: the caretaker read lands after the words; `care` must follow it (Bugbot on #173).
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, chainDayNow, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, stageNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, chainDayNow, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -842,6 +877,44 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * roll open. These ids are never open again, so every search for an open roll skips them.
    */
   const revealedRolls = useRef(new Set<string>());
+
+  /**
+   * Ascension attempts this browser has READ as revealed (`settleAscension`). "Try again" commits
+   * seconds after a reveal, and a node a block behind can still read the finished attempt as open:
+   * taken for "your unfinished attempt", it would ask for a reveal that already happened. These ids
+   * are never open again, so every search for an open attempt skips them.
+   */
+  const revealedAttempts = useRef(new Set<string>());
+
+  /**
+   * Wait for an ascension's reveal to be ON CHAIN, then show where it left the word: its stage and
+   * pity, read in one block with the commit's `revealed` flag (readPrestigeAttempt), laid over the
+   * slower words read (`stageNotes`). Null when the reveal never showed in the wait: that is
+   * "unknown", so the caller must not offer another try.
+   *
+   * It waits because the reveal is sent by the player's wallet, and a send returns when the wallet
+   * accepts. Reporting the signed outcome at that moment let "try again" find the finished attempt
+   * still open, show a miss's old odds, and price the next stage from the stage before.
+   */
+  const settleAscension = useCallback(
+    async (word: string, commitId: bigint): Promise<PrestigeAttempt | null> => {
+      const got: { attempt: PrestigeAttempt | null } = { attempt: null };
+      const seen = await readUntil(
+        // Capped: the action gate waits on this, and a read that never answers must not hold it.
+        async () => (got.attempt = await orThrowAfter(readPrestigeAttempt(commitId, tokenIdOf(word)), 5_000)),
+        (attempt) => attempt.revealed,
+        ASCEND_SETTLE_MS,
+      );
+      // The words read catches up on its own time; the note below covers the gap.
+      for (const delay of [0, 2_000, 6_000, 15_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
+      if (!seen || !got.attempt) return null;
+      const { level, pity } = got.attempt;
+      revealedAttempts.current.add(String(commitId));
+      setStageNotes((notes) => ({ ...notes, [word]: { level, pity, at: Date.now() } }));
+      return got.attempt;
+    },
+    [wordsQ],
+  );
 
   /**
    * Reveal a KNOWN, already-paid roll commit. The server finishes it (sends the reveal from its
@@ -1285,54 +1358,67 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }), NOT_STARTED),
 
       prestige: (word: string) =>
-        track(`Ascending ${word}`, (run) => guarded(async (markPaid) => {
+        // "Attempting", never "Ascending" (starl3xx, 2026-11-25): a try may miss, and the status
+        // must not read as if the word were on its way up.
+        track(`Attempting ascension: ${word}`, (run) => guarded(async (markPaid) => {
           if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
-          // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay twice.
-          let id = await readOpenPrestigeFor(tokenIdOf(word));
+          const tokenId = tokenIdOf(word);
+          // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay
+          // twice. Attempts this browser has read as revealed are skipped (a lagging node can still
+          // call one open seconds later).
+          let id = await readOpenPrestigeFor(tokenId, revealedAttempts.current);
           const resumed = id !== null;
           // The stage this attempt aims past (the word ladder: price and odds both depend on it).
-          const level = state.words.find((x) => x.word === word)?.prestigeLevel ?? 0;
-          // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
           const target = state.words.find((x) => x.word === word);
+          const level = target?.prestigeLevel ?? 0;
+          // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
           const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
           if (id !== null) {
-            toast("Finishing your unfinished ascension first", "info");
+            toast("Finishing your unfinished attempt first", "info");
             markPaid(); // paid at its commit
           } else {
             const before = await readOpenPrestigeCommits(owner);
-            if (!(await run("Ascension", () => commitPrestigeCalls(tokenIdOf(word), level, chain.params!, chain.player!)))) return { status: "not-started" as const };
+            // `settles`: no generic "sent" toast. A green "sent" over a try that may miss reads as
+            // a result, and the sheet (or the toast below) says what is happening.
+            if (!(await run("Ascension attempt", () => commitPrestigeCalls(tokenId, level, chain.params!, chain.player!), { settles: true }))) return { status: "not-started" as const };
             markPaid(); // fee + burned snack are gone from here on
-            toast("Ascending…", "info");
-            id = await waitForNewPrestigeCommit(owner, before);
+            toast("Attempting ascension…", "info");
+            id = await waitForNewPrestigeCommit(owner, [...before, ...[...revealedAttempts.current].map(BigInt)]);
             if (id === null) {
-              return { status: "stranded", note: "Ascension committed but slow to appear. Reopen to finish it" };
+              return { status: "stranded", note: "Your attempt is paid for but slow to appear. Reopen to finish it" };
             }
           }
           const commitId = id;
           const draw = await openPostJson<{ reveal: PrestigeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
-          if (!draw?.ok) {
+          // `already_revealed`: the attempt is finished on chain (another tab sent its reveal, or a
+          // lagging read called a finished attempt open). There is nothing to send: read where it
+          // left the word, below, as after a reveal of our own.
+          if (!draw?.ok && draw?.error !== "already_revealed") {
             toast(authError(draw?.error, "Ascension"), "bad");
-            return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
+            return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
           }
-          if (!(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature)))) {
-            return { status: "stranded", note: "Ascension is paid for. Reopen to finish it" };
+          if (draw.ok && !(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature), { settles: true }))) {
+            return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
           }
-          // An open attempt can outlive its claim: made before the word changed hands, or before it
-          // was dissolved and claimed again (Prestige keys attempts by token). Prestige then voids it
-          // or raises today's stage, so its outcome isn't this word's to announce.
-          const foreign = resumed &&
-            (draw.reveal.level !== level || (draw.reveal.owner ?? "").toLowerCase() !== owner.toLowerCase());
-          if (foreign) {
-            toast(`Finished an earlier ascension on ${word}. Ascend again for yours`, "info");
-            return { status: "resolved", success: false };
+          // The result is what the CHAIN did with the reveal, read once it has landed. Never the
+          // signed outcome at the moment the wallet took the send: see settleAscension.
+          const after = await settleAscension(word, commitId);
+          // lib/onchain/ascendResult says what each of these is, and why none of them is a guess.
+          const came = ascendResult({ level, owner, resumed, commit: draw.ok ? draw.reveal : null, after });
+          if (came.kind === "unfinished") return { status: "stranded", note: "Your attempt is finishing onchain. It’ll show in a moment." };
+          if (came.kind === "foreign") {
+            // Nothing was spent by this tap and nothing is left open: ready again, never "missed".
+            toast(`Finished an earlier attempt on ${word}. Try again for yours`, "info");
+            return { status: "not-started" as const };
           }
-          // Announce it here: WordSheet returns early on a promise, so nothing else reports this.
-          const reached = (draw.reveal.level ?? level) + 1;
-          toast(draw.reveal.success
-                  ? reached >= HOLOGRAPHIC_LEVEL ? `${word} turned Holographic!` : `${word} reached ${stageName(reached)}`
-                  : `${word} held its ground. Next try’s odds are higher`,
-                draw.reveal.success ? "good" : "info");
-          return { status: "resolved", success: draw.reveal.success };
+          // The ascend sheet shows the result. Say it here only when that sheet is gone (closed
+          // while the attempt was out), so the outcome is said once, and always said.
+          const open = sheetNow.current;
+          if (!(open?.kind === "ascend" && open.word === word)) {
+            const said = resultToast(word, came.hit, came.level);
+            toast(said.text, said.tone);
+          }
+          return { status: "resolved", success: came.hit };
         }), NOT_STARTED),
 
       claim: (word: string, cases: boolean[]) => {
@@ -2084,7 +2170,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, settleAscension, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

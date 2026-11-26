@@ -668,6 +668,21 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `params.prestigeStageFeeUsd`) and draws at `prestige.baseByLevel[level]` (40/35/30/25/20%) + 10pp
   per miss; each commit records its `level`, which `/api/prestige/reveal` reads. Stage names and the
   fee multiple live in `src/lib/ascension.ts`; never write "Gilded L4"-style copy by hand.
+  **A try is made in the ascend sheet** (decisions.md #33; `sheets/AscendSheet.tsx`, sheet kind
+  `ascend`, rules in `components/game/ascendFlow.ts`, pure, tested): the word at full size, its
+  letters nervous while a try is out (the rig's `rolling` state, out of step), then the result
+  passing along the word letter by letter (`TileWord`'s `states` / `gilds`), and "Try again" or
+  "Try for" the next stage on the result. **A try in flight is "Attempting ascension", never
+  "Ascending"** (starl3xx, 2026-11-25: it may miss), and the act is a "try"; `tests/ascend-sheet.test.tsx`
+  holds it. The button's price is the stage's fee plus the snack the try burns: what the wallet pays.
+  **The result is the chain's, not the signature's:** the wallet sends the reveal (two
+  confirmations: the relay that finishes rolls doesn't cover ascension yet), and a send returns
+  when the wallet accepts, so `settleAscension` waits for `commits(id).revealed` and reads the
+  word's stage and pity in the same multicall (`readPrestigeAttempt`), `lib/onchain/ascendResult.ts`
+  decides what that is (a result, a "foreign" earlier attempt → ready again, or unfinished →
+  stranded, no try offered), and `lib/onchain/stageOverlay.ts` shows the new stage over the slower
+  words read (60 s at most). Attempts read as revealed are skipped by every later search for an
+  open one (`revealedAttempts`), as `revealedRolls` are.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.

@@ -889,6 +889,54 @@ setter. All small, riding existing suite patterns.
       opens its view only in the chain game (or when it is the player's), since practice has no
       other owners; the Dictionary's rarity chips flipped rather than the Market's.
 
+33. **Ascending has its own sheet, and a try is never called "ascending"** (starl3xx, 2026-11-25:
+    "ascend need its own animation like roll does for letters... like where the word's letters
+    get nervous, etc... and a similar modal to roll's roll (and then roll again) screen"; and,
+    while it was being built: "the toast / popup shouldn't say “Ascending” it should say
+    “Attempting ascension” so as not to mislead the player"). Ascension was one button inside the
+    word sheet, and its result was a toast.
+    - **The sheet** (`sheets/AscendSheet.tsx`, sheet kind `ascend`, opened by the word sheet's
+      Ascend button; closing returns to the word). The word stands at full size holding hands,
+      over the ladder as five stars (a ring on the stage this try is for), this try's odds, and
+      one priced button: "Try for Gilded 2 · N $WORD". The price is the whole of what the wallet
+      pays, the stage's fee plus the snack the try burns; the word sheet's button showed the fee
+      alone. After a result, "Try again" (a miss) or "Try for" the next stage (a hit) tries at
+      once, so climbing a word never means closing and reopening. Its rules are
+      `components/game/ascendFlow.ts` (pure, tested).
+    - **The animation.** While a try is out the letters can't look: the rig's `rolling` state,
+      each letter a part of a shake behind the last, sweating and peeking in turn (five in step
+      read as one machine). Then the result passes along the word, a letter every 110 ms: on a
+      hit each opens its eyes in its new gold, the word cheers for 2.6 s over turning rays (gold;
+      the foil's colors for Holographic), and stands at rest; on a miss each droops, and the word
+      settles beside its new odds. `TileWord` takes a state and a stage per letter for this. The
+      stars, the odds, and the price hold at the tap's stage until the last letter has the result.
+    - **The wording.** "Attempting ascension" wherever a try is in flight (the status pill, the
+      toast, the sheet's button), and "try" for the act: a button that says "Ascend" over a 35%
+      chance promises what it can't. The word sheet's button still says "Ascend": it opens the
+      sheet and spends nothing.
+    - **A result is the chain's, not the signature's.** The reveal is sent by the player's
+      wallet, and a send returns when the wallet accepts. So the store now waits for the reveal to
+      land and reads the word's stage in the same block (`readPrestigeAttempt`,
+      `lib/onchain/ascendResult.ts`), then shows that stage at once over the slower words read
+      (`lib/onchain/stageOverlay.ts`). Before this, "try again" could find the finished attempt
+      still open, a miss kept its old odds, and the next stage was priced from the stage before.
+      A resumed attempt that wasn't this word's own puts the sheet back to ready, never "missed".
+      A reveal that never shows is "still finishing", with no try offered.
+    - **Still two wallet confirmations** (the paid attempt, then its reveal): the docs said one,
+      and now say two. Having the server finish it, as it does for rolls (#14, which names
+      ascension as a later case), would make it one and keep the letters nervous without a
+      second prompt in the middle. Not built here: it is a new server write path.
+    - **Measured** (headless WebKit, this Mac, a Legendary word, phone width): the sheet at rest
+      38% of a core (the word's own light moments), a try out 45%, against 50% for the word's own
+      sheet behind it. The rays turn as one HTML element, so the letters aren't redrawn for them.
+    - **Seen and not seen:** the whole flow in the practice game, in Chromium and WebKit, at
+      phone and desktop widths. The chain game's path (two confirmations, the wait for the
+      reveal, a stranded try) is held by tests of its rules, and was not driven against Base
+      Sepolia.
+    - **My readings, not starl3xx's words:** "Try for <stage>" as the button; the result passing
+      letter by letter; the practice game's 1.4 s of nerves; a hungry word standing bright in
+      this sheet, as a letter does in the roll sheet.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

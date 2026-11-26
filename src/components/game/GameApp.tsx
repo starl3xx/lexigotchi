@@ -41,6 +41,7 @@ import { MarketScreen } from "./screens/MarketScreen";
 import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
+import { AscendSheet } from "./sheets/AscendSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
 import { ProfileSheet } from "./sheets/ProfileSheet";
 import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writePendingLink } from "./useProfile";
@@ -354,6 +355,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
+  if (state.sheet?.kind === "ascend") return <AscendSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;
   if (state.sheet?.kind === "profile") return <ProfileSheet />;
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
