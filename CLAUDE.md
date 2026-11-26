@@ -118,6 +118,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends without
   `NOTIFICATIONS_ENABLED=true` in production: **set 2026-11-26, with the owner's word**.
+  **A choice per kind** (decisions.md #47; `lib/notify/kinds.ts` pure, `lib/db/reminderPrefs.ts`, table
+  `reminder_prefs`, migration 0018, `/api/profile/reminders`, the profile's "What to tell me"
+  card): a player's ACCOUNT chooses which kinds it gets, for every channel at once. Only what was
+  CHANGED is stored; the rest follows `KIND_INFO[kind].on`, so a player who changes nothing gets
+  what they got before. **Every sender asks `loadPrefs()` first**: a missing table is the defaults
+  (the migration hasn't run), but a FAILED read is `known: false` and that pass sends nothing,
+  because someone may have turned the kind off. A new kind is added to `REMINDER_KINDS` with its
+  default (off, if it would be another daily message) and its sender asks the book. `reminder_marks`
+  (same migration) is the send-once mark for any kind that has no column of its own.
   **A sale tells its seller** (decisions.md #45; `lib/notify/sold.ts`): a receipt hung on the sales
   recorder (`recordNewSales` hands a new row to the one caller that inserted it), sent by the
   Market's sales route after it answers (`lib/afterResponse.ts`) and by the keeper's `fees` job, to

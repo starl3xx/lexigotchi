@@ -1497,6 +1497,32 @@ setter. All small, riding existing suite patterns.
       seen:** the chain game's Today in a browser (its pots were read from Base Sepolia by a
       script, and the tiles were drawn from fake state in jsdom).
 
+47. **Reminders: a choice per kind, then the kinds a choice makes room for** (starl3xx,
+    2026-11-26, agreeing to five suggestions made under #45: "A choice per kind of reminder,
+    stored with the profile. One switch for everything gets switched off"; "The sold message by
+    email"; "Payday"; "A deal alert"; "A bounty result, and a weekly email digest in place of
+    daily emails"; and "just make sure the email design is minimal and follows our most recent
+    design language"). One entry: each part is added here as it ships.
+    - **Part 1, the choices** (`lib/notify/kinds.ts`, `lib/db/reminderPrefs.ts`, migration 0018).
+      A player's ACCOUNT chooses which kinds of reminder it gets, in the profile ("What to tell
+      me"), for email, browsers, and Farcaster at once: how a player is reached stays each
+      channel's own switch. Only what a player CHANGED is stored, so a player who changes nothing
+      gets exactly what they got before, and a kind added later starts at its own default for
+      everyone. The four kinds that exist (hunger, the daily letter, a jackpot win, a sale) start
+      on; a kind that would add a daily message will start off.
+    - **Two kinds of "couldn't read", never confused.** No table (the migration hasn't run):
+      nobody has chosen, everybody gets the defaults. A read that FAILED: somebody may have turned
+      a kind off and we can't see it, so that pass sends nothing. A choice is a promise.
+    - **Every sender asks first:** the keeper's hunger pass (the words of a player who turned it
+      off leave before any channel groups them), the jackpot winner's, a sale's seller, and the
+      daily-letter cron. Farcaster is reached by FID and a choice is kept by account, so the cron
+      looks up the FIDs of the accounts that turned the daily letter OFF (usually nobody), never
+      every player's.
+    - **A table of its own** (`reminder_prefs`), not columns on `profiles`: `getProfile` selects
+      every profiles column, so a column the database lacked would break every profile read until
+      the migration ran. The same migration adds `reminder_marks`, the send-once mark for every
+      later kind, so those need no new column each.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

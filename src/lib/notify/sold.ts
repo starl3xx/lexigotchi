@@ -107,6 +107,8 @@ export interface SoldDeps {
   accountOf: (address: string) => string;
   /** Wallet → a Farcaster id notifications reach, across the account. */
   fidOf: FidLookup;
+  /** Does this account want to hear of a sale (lib/notify/kinds.ts)? Absent: everybody does. */
+  wants?: (account: string) => boolean;
   /** Every stored browser. */
   subs: readonly (PushSub & { endpoint: string; p256dh: string; auth: string })[];
   toFarcaster: (fid: number, note: Notification) => Promise<{ ok: boolean; skipped?: string }>;
@@ -130,6 +132,7 @@ export async function tellSold(
   const log = opts.log ?? (() => {});
   const out: SoldResult = { sellers: 0, farcaster: 0, browsers: 0, unreached: 0 };
   for (const g of soldGroups(rows, deps.accountOf, opts.now ?? Date.now())) {
+    if (deps.wants && !deps.wants(g.account)) continue; // the seller turned this kind off
     const note = marketSold(g.items);
     if (!note) continue;
     out.sellers++;
@@ -164,13 +167,16 @@ export async function notifySold(rows: readonly SaleRow[], opts: { log?: (line: 
     const on = soldChannels();
     if (!on.farcaster && !on.browser) return null;
 
-    const [{ loadLinkMap }, { notifiableFids }, { fidsByAddresses }, { allWebPushSubscriptions }] = await Promise.all([
+    const [{ loadLinkMap }, { notifiableFids }, { fidsByAddresses }, { allWebPushSubscriptions }, { loadPrefs }] = await Promise.all([
       import("@/lib/db/walletLinks"),
       import("@/lib/db/queries"),
       import("@/lib/neynar"),
       import("@/lib/db/webPush"),
+      import("@/lib/db/reminderPrefs"),
     ]);
-    const links = await loadLinkMap();
+    const [links, prefs] = await Promise.all([loadLinkMap(), loadPrefs()]);
+    // Choices that couldn't be read send nothing (loadPrefs has logged why): a seller may have turned this off.
+    if (!prefs.known) return null;
     // Each audience is read only for a channel that is armed.
     // Farcaster reaches a seller through any wallet of their account. Only THESE sellers' wallets
     // are asked about (one cached request), never every player who added the app: this runs from
@@ -182,6 +188,7 @@ export async function notifySold(rows: readonly SaleRow[], opts: { log?: (line: 
     const subs = on.browser ? await allWebPushSubscriptions().catch(() => []) : [];
     const deps: SoldDeps = {
       accountOf: links.accountOf,
+      wants: (account) => prefs.wants(account, "sold"),
       fidOf: reachableFid(links, fidsOf, added),
       subs,
       toFarcaster: async (fid, note) => (await import("./send")).sendNotification({ ...note, targetFids: [fid] }),

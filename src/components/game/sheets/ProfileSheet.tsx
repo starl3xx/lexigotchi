@@ -20,6 +20,7 @@ import { useVerifiedWallet } from "../useVerifiedWallet";
 import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 import { ReminderToggle } from "../ReminderToggle";
+import { ReminderChoices } from "../ReminderChoices";
 import { WalletsCard } from "./WalletsCard";
 import { OnchainBadges } from "../OnchainBadges";
 import { useOpenUrl } from "../useShare";
@@ -306,6 +307,9 @@ export function ProfileSheet() {
         <ReminderToggle />
       </div>
 
+      {/* Which reminders, for every channel (ReminderChoices). With a wallet: a choice is the account's. */}
+      {p.address && <ReminderChoices key={p.address} p={p} />}
+
       <button
         onClick={() => g.openSheet({ kind: "balance" })}
         className="mx-auto flex items-center gap-1.5 text-sm font-bold text-ink/60 underline"
@@ -380,7 +384,7 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
     <Card className="mb-3">
       <div className="font-display font-extrabold">Email reminders</div>
       <p className="mt-0.5 text-xs text-ink/60">
-        Before a word goes hungry, when your daily letter is ready, and if you win the jackpot. Your email is never shown to anyone.
+        Before a word goes hungry, when your daily letter is ready, and if you win the jackpot: the ones you keep on under “What to tell me”. Your email is never shown to anyone.
       </p>
 
       {p.signedIn && !p.ownLoaded ? (

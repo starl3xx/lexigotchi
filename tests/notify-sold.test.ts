@@ -106,6 +106,13 @@ describe("tellSold", () => {
     expect(new Set(ids).size).toBe(2);
   });
 
+  it("tells no seller who turned “something of mine sold” off", async () => {
+    const { d, sent } = deps({ fidOf: () => 77, wants: (account) => account !== A });
+    const res = await tellSold([sale({ seller: A2 }), sale({ seller: B })], d, { now: NOW });
+    expect(sent.farcaster).toHaveLength(1); // B only: A2 is A's account
+    expect(res.sellers).toBe(1);
+  });
+
   it("counts a seller no channel reaches, and sends nothing", async () => {
     const { d, sent } = deps();
     expect(await tellSold([sale()], d, { now: NOW })).toEqual({ sellers: 1, farcaster: 0, browsers: 0, unreached: 1 });

@@ -36,8 +36,8 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
         Reminders {state === "on" ? "are on" : ""}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-ink/60">
-        A browser notification before a staked word goes hungry. You’ll also hear when your free daily
-        letter is ready, when something of yours sells on the Market, and if you win the jackpot.
+        Notifications in this browser: before a staked word goes hungry, when your free daily letter is
+        ready, when something of yours sells, and if you win the jackpot. Your profile says which.
       </p>
 
       {state === "needs-home-screen" && (
