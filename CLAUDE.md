@@ -516,7 +516,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   WebKit kept drawing the back, mirrored, over the front after a turn home. `TileCharacter`'s `still` stops the whole
   character (idle bounce too), and a still `SceneFrame` stops its fog; lists pass `still`
   (`WordTiles still`), and the Dictionary's 80 rows use flat `MiniTiles` (the rig there made each
-  keystroke 2–4× slower). The back's facts are `lib/cardFacts.ts` (pure, tested) via
+  keystroke 2–4× slower). **The back's lettering** (decisions.md #35): the card's number is the
+  headline in the card's serif (`cardDigits`; none while unknown), the facts are a ledger (a name in
+  Söhne, a row of dots, a value in the serif), and **the game's seal is pressed into the material in
+  one ink** behind them (`lib/cardArt/seal.ts`, one picture for the game's back and the server's; its
+  lines stop at the eyes, and in one ink the eyeball is ink and the pupil clear with its pie cut:
+  the owner's three notes, held by `tests/card-seal.test.ts`). A thumbnail's back keeps its plates and
+  has no seal. The back's facts are `lib/cardFacts.ts` (pure, tested) via
   `useCardFacts`: unknown is a dash, never "you" or "never"; the card number (`#0001`) is the order
   words were first claimed (`madeOrder`, served as `/api/world`'s `numbers`), never A to Z; "Found by" and "Yours since" read
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
@@ -698,7 +704,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `params.prestigeStageFeeUsd`) and draws at `prestige.baseByLevel[level]` (40/35/30/25/20%) + 10pp
   per miss; each commit records its `level`, which `/api/prestige/reveal` reads. Stage names and the
   fee multiple live in `src/lib/ascension.ts`; never write "Gilded L4"-style copy by hand.
-  **A try is made in the ascend sheet** (decisions.md #35; `sheets/AscendSheet.tsx`, sheet kind
+  **A try is made in the ascend sheet** (decisions.md #36; `sheets/AscendSheet.tsx`, sheet kind
   `ascend`, rules in `components/game/ascendFlow.ts`, pure, tested): the word at full size, its
   letters nervous while a try is out (the rig's `rolling` state, out of step), then the result
   passing along the word letter by letter (`TileWord`'s `states` / `gilds`), and "Try again" or
