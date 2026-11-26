@@ -398,13 +398,9 @@ export function chainPrice(word: GameParams["word"], item: PriceItem): number {
 export const usdOf = (word: number) => word * currentWordUsd();
 
 /** Compact $WORD formatter: 4_240_000 → "4.24M". */
-export function fmtWord(n: number): string {
-  const a = Math.abs(n);
-  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return `${Math.round(n)}`;
-}
+// The formatter lives in lib (lib/wordAmount), so the server's share cards format amounts the same way.
+import { fmtWord } from "@/lib/wordAmount";
+export { fmtWord };
 export const fmtUsd = (word: number) => `$${usdOf(word).toFixed(2)}`;
 /**
  * Whether $WORD amounts get a dollar figure. Not in the chain game on a testnet: test $WORD has no
@@ -875,6 +871,12 @@ export interface GameApi {
    */
   earnings: PlayerEarnings | null;
   /**
+   * The server's signed snapshot of those earnings, for the share card (lib/earningsShare.ts), or
+   * null: nothing earned yet, the wallets aren't one account, or sharing isn't configured. Always
+   * null in practice, whose numbers are invented.
+   */
+  earningsShare: string | null;
+  /**
    * Shares not paid out yet across the union bag (the keeper's published epochs minus what the
    * chain says is paid). The keeper pays them each morning (decisions.md #16), so this is usually
    * empty. Whole-$WORD amounts for display; the provider holds the raw proofs.
@@ -1071,6 +1073,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       openPending: () => {},
       // Practice pays its words when a day passes (skipDay), at once, so nothing ever waits.
       earnings: practiceEarnings(state.earned),
+      earningsShare: null,
       claimables: [],
       claimEarnings: () => {},
       // The practice Market: a seeded stall (market/practiceMarket.ts). Buying moves practice $WORD.

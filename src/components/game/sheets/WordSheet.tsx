@@ -4,10 +4,13 @@
  * feed, raise letters to UPPERCASE, ascend (prestige), sell, or dissolve.
  */
 import { useState } from "react";
-import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
+import { Button, Card, Sheet, TierBadge } from "../primitives";
+import { StatusMarks } from "../StatusMarks";
+import { markInput, moodOfWord, stageMarks } from "../stageMarks";
+import { useForSale } from "../useForSale";
 import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
 import { WordSheetCard } from "../../cards/WordSheetCard";
-import { CaretRight, Check, Coins, Cookie, Crown, Star, Ticket } from "../ui/icons";
+import { CaretRight, Check, Coins, Cookie, Crown, Star } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
 import { stageName } from "@/lib/ascension";
 import { MISS_POINTS, STAGE_SHARE } from "@/lib/howItWorks";
@@ -43,6 +46,10 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const [confirmDissolve, setConfirmDissolve] = useState(false);
   // The tiles chew for a moment when a feed lands (useEatingFlash).
   const eating = useEatingFlash(wordKey, word ? hunger(word) : "fed");
+  // Every hook stands above the early return below: a word can leave the bag while its sheet is
+  // open (sold, dissolved, moved), and a hook that ran only while the word was there would change
+  // the hook count and crash the sheet in place of showing its fallback (Bugbot on #233).
+  const forSale = useForSale();
 
   if (!word) {
     return (
@@ -54,6 +61,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
 
   const c = wordCase(word);
   const h = hunger(word);
+  const earnedNow = g.earnings?.byWord[word.word];
+  const earnedLatest = earnedNow && earnedNow.latest > 0 && g.earnings?.latestAt ? { amount: fmtWord(earnedNow.latest), when: payoutWhen(g.earnings.latestAt) } : undefined;
   const fullyRaised = c === "UPPERCASE";
   const isAnswer = state.jackpotWord === word.word && !state.jackpotRevealed;
   const maxLevel = g.maxPrestigeLevel;
@@ -90,12 +99,10 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <TierBadge tier={word.tier} />
         <CaseBadge word={word} />
-        {word.staked ? <HungerBadge state={h} /> : null}
-        {word.staked && jackpotEligible(word) && (
-          <span className="inline-flex items-center gap-0.5 text-xs text-teal-ink">
-            <Ticket weight="fill" size={12} /> jackpot-eligible
-          </span>
-        )}
+      </div>
+      {/* how it stands: the same three marks as the Today placard and the Bag (game/stageMarks) */}
+      <div className="tm-host mb-3">
+        <StatusMarks marks={stageMarks(markInput(word, moodOfWord(word, h, forSale.has(word.word)), { justFed: eating, earned: earnedLatest }))} />
       </div>
 
       {/* earnings: what this word has earned for the player, and what would make it earn */}

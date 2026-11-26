@@ -1021,7 +1021,6 @@ setter. All small, riding existing suite patterns.
       about a seventh of full strength; a Legendary back's rarity steps clear of its corner
       scrollwork; the server's picture uses dashes for the ledger's dots (its renderer has no
       dotted line) and lining figures (it sets no old-style ones).
-
 36. **Ascending has its own sheet, and a try is never called "ascending"** (starl3xx, 2026-11-25:
     "ascend need its own animation like roll does for letters... like where the word's letters
     get nervous, etc... and a similar modal to roll's roll (and then roll again) screen"; and,
@@ -1123,6 +1122,82 @@ setter. All small, riding existing suite patterns.
       On this Mac, Iowan Old Style draws lining figures in Chrome and WebKit whatever CSS asks, so
       the owner's browser may be showing another serif there (Georgia's figures are old-style).
       Asked; the stack is unchanged.
+38. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
+    should be sharable in the same way words are... share to X, FC, download image... think through
+    how to best visualize it in a 16:9 image"). The sheet has a Share button: Post on X, Cast, Save
+    image, with the picture shown first.
+    - **The numbers on the card are the server's, never the link's.** A word's card can be drawn
+      from its link because the dictionary is the guard (#15). An amount has no such guard: a link
+      that could carry one would put any number on the game's card. So `/api/rewards/earnings`
+      signs a SNAPSHOT of what it computed (`lib/earningsShareToken.ts`: the totals in whole $WORD
+      and the top five earning words, HMAC-SHA256), the link is `/e/<token>`, and the picture
+      (`app/e/[token]/card`) draws only from a token whose signature holds. It reads no chain and no
+      database, because X's crawler won't wait, and a token is one picture for good, which is right
+      for a post made on a given day.
+    - **One player's numbers.** The earnings route adds up any list of wallets it is given, so the
+      snapshot covers ONE account only: the first wallet's (`accountWalletsOf`, the wallet links;
+      the game sends the connected wallet first). A wallet the game counts as the player's but the
+      links don't (a Farcaster wallet that hasn't joined the account) is left out of the picture,
+      so the picture's amount can be under the sheet's; the Share panel shows the picture before
+      anything is posted. When the links can't be read, the snapshot is the first wallet's alone.
+      A token proves the numbers are some account's real ones, not that the sharer is that
+      account: the route is public, like the chain it reads.
+    - **The key** is `EARNINGS_SHARE_SECRET`, else one DERIVED from `PROFILE_SESSION_SECRET` under
+      its own label (my choice, so the share works wherever profiles are configured without a new
+      setting; a share token can't stand in for a session). Never the signer's draw secret. With
+      neither, nothing is signed and there is no Share. A read accepts either key, so giving the
+      share its own secret later keeps every posted link alive; ROTATING the session secret ends
+      the links signed under it. A token names its network and is refused on another: test $WORD
+      must never draw as the real one.
+    - **The picture** (my design): two things on the card's dark table (#34). The player's top
+      word as its own CARD, the same drawing as its share picture (`app/_og/wordCard.tsx`, moved out
+      of the word's route; that route's pictures are byte for byte the same), and beside it a paper
+      tag: "My words have earned", the amount in the sheet's gold, "$WORD" or "test $WORD", what the
+      latest payout brought with its DATE (never "today": the picture is kept for good), and what
+      the pictured word itself has earned. Side by side at 1200×630 (X) and 1200×675 (the 16:9 the
+      owner asked for: Save image); the card over a wide tag at 1200×800 (Farcaster's 3:2).
+    - **The word leads** (#24): it is first in the picture, the tag says "My words have earned",
+      and the post says "CRANE and my other words have earned…". No dollars, ever, on mainnet
+      either, though the sheet shows them there. No name, handle, or wallet in the link or the
+      picture.
+    - **No bars, no breakdown.** The sheet's rows don't add up to its total (words since sold and
+      bounties are in the total), so the picture never reads as a sum. An amount stands beside the
+      pictured word only when the TOKEN names that word; the word, its scene, and the clock offset
+      for the date are the link's and cosmetic, as on `/s/`.
+    - **The date is the sharer's.** The payout is 00:05 UTC, the evening before in the Americas, so
+      the link carries the clock offset (`tz`, bounded) and the picture prints that calendar's date.
+    - **Never in practice,** whose numbers are invented, and not until something is earned.
+    - **Seen and not seen:** the picture in every case with tokens signed by a local key (large
+      amounts, one word, a quiet day, a bounty only, each scene); the Share panel in the practice
+      game through a temporary hook, removed. Not seen: a real wallet's token, and how X crops and
+      shows the card.
+
+39. **A word's status is three marks on a placard, not a sentence in a bubble** (step 3 of #34;
+    starl3xx, 2026-11-25, on the proposal: the status popup "doesn't look right... we need to think
+    through where and how this info is displayed so it's both easy to find at a glance when needed
+    (i.e. not buried on the back of the card) and beautiful"; then "placard looks great").
+    - **Three marks, always in the same order and place: Fed, Jackpot, Earns**
+      (`components/game/stageMarks.ts`, pure and tested). Each is an icon, a small label, and a few
+      words, in the colour of its meaning: teal (care, earning), gold (chance, or "soon"), candy (it
+      needs you now), quiet (nothing to say yet). The old line was three facts in one sentence
+      ("TEASE is full, in the jackpot, and earning $WORD."), in a bubble that covered the art.
+    - **The Today stage is a card and a placard.** The card is clean: no bubble, no arrows on the
+      art. The placard under it holds the marks, the one thing to do (Feed, Stake, Open, or See it
+      in the Market) with Feed all and the scene picker beside it, the earnings line, and a pager
+      ("Word 2 of 4", with the arrows). A swipe on the card and the arrow keys still change the word.
+    - **The placard never names the word** (the owner: "seeing JAZZY immediately underneath the card
+      is redundant (especially with Open JAZZY)"). The button's label does, in Söhne.
+    - **The same marks follow the word:** in full on the word's sheet (in place of the hunger badge
+      and "jackpot-eligible"), and as three small icons beside its name in the Bag, each with its
+      words on hover and for a screen reader.
+    - **The empty stage** is a blank stock card with its line and its one button on the placard.
+    - The old sentence is still said, to a screen reader only, and announced when it changes.
+    - **My readings, not starl3xx's words:** the Jackpot mark says "In the running" (the messaging
+      guide's words; the proposal's mock said "In today's draw", and the guide rules out "draw" as a
+      noun); the Earns mark shows the latest payout ("+40.2K today") where the mock showed a rate,
+      because the game shows what was earned, not a forecast; a full word's button reads "Open
+      TEASE" (it was "See TEASE"); a listed word's price stays a pill in the Bag, since no mark
+      says a price; the pager draws dots up to 8 words, then the count alone.
 
 40. **The logo: A with the letters' eyes, B as the seal, and both as files** (step 4 of #34;
     starl3xx, 2026-11-25: "I still like A as the primary logo", "I LOVE B as a logo... it could be

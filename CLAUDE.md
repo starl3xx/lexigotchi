@@ -552,6 +552,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
   twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the corner wordmark on every frame.
+- **A word's status is three marks** (decisions.md #39; `components/game/stageMarks.ts` pure + tested,
+  `StatusMarks.tsx`): **Fed, Jackpot, Earns**, always in that order, each in the colour of its meaning.
+  In full on the Today placard and the word's sheet; as three icons beside the name in the Bag
+  (`compact`). Add a status fact as a mark's wording, never as a new badge or a sentence on the art.
+  **The Today stage is a clean card and a placard under it** (`.tt`, `.tt-plate`): the marks, the one
+  thing to do, the earnings line, and a pager with the arrows. **The placard never names the word**
+  (starl3xx: "seeing JAZZY immediately underneath the card is redundant"); the action's label does.
+  Nothing is drawn over a card's art but its letters. The Jackpot mark says "In the running", never a
+  draw or a ticket (docs/messaging.md).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
@@ -561,6 +570,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
   newcomer's invitation while their words load (Today, Bag).
+- **"Your earnings" shares like a word** (decisions.md #38; `lib/earningsShare.ts` pure,
+  `lib/earningsShareToken.ts` server, `lib/rewards/share.ts`, `app/e/[token]/`): the Earnings sheet's
+  Share posts `/e/<token>`, whose picture is the player's top word's card beside a tag with what
+  their words have earned. **Every amount on that picture comes from the token,** a snapshot
+  `/api/rewards/earnings` signs (for the first wallet's account only, and only above zero). Never add an
+  amount, a name, or free text to that link's query: the word (`w`), its scene, and `tz` are the only
+  unsigned parts, and cosmetic. The picture route reads no chain and no database. The key is
+  `EARNINGS_SHARE_SECRET`, else derived from `PROFILE_SESSION_SECRET` (a read accepts either, so a
+  posted link outlives the first; rotating the session secret ends the links it signed); with
+  neither there is no Share. No dollars on it, "test $WORD" on a test network, no Share in practice. Raise
+  `EARNINGS_CARD_LOOK` when the picture's own look changes (its address also carries `CARD_LOOK`). A word's card is drawn by
+  `app/_og/wordCard.tsx` for both pictures: change the card there, once.
 - **The Mint tab lists every letter's actual odds** (decisions.md #33; `components/game/LetterOdds.tsx`,
   `lib/letterOdds.ts`): the whole alphabet, A to Z, not a card. `letterWeights` is the ONE weight: the
   signer's `drawLetters` draws by it and the list shows it normalized, so never give the draw or the
