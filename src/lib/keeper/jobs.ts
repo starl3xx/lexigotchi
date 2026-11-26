@@ -590,6 +590,8 @@ export function createKeeper(opts: { dry: boolean }) {
       // up on the second, and the send-once mark keeps a week to one email.
       if (day % days > 1) return void console.log(`digest: a week's email goes out on the first day of the next; next in ${days - (day % days)} day(s)`);
       const prefs = await loadPrefs();
+      // Unreadable choices send nothing (and take no mark): tomorrow's run is the second chance.
+      if (!prefs.known) return void console.log("digest: the choices couldn't be read, nothing sent");
       const accounts = prefs.weekly();
       if (accounts.length === 0) return void console.log("digest: nobody chose the weekly email");
       // A line the player turned off as a reminder stays out of their digest too.
