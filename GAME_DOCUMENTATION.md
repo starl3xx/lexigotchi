@@ -39,7 +39,9 @@ Two renewable late-game loops sit on top: a **weekly theme bounty** (broad, casu
   total per-letter supply.
 - **Mint odds are demand-mirrored** (spec Appendix A): a letter's probability of being pulled equals
   its share of all letter slots in the dictionary. The dictionary has **22,920 slots** (= 5 × 4,584
-  words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails.
+  words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails. A letter that has
+  sold out leaves the draw, and the others rise. The Mint tab lists every letter's odds, A to Z, from
+  the weights the draw itself uses (`src/lib/letterOdds.ts`, decisions.md #33).
 - **Per-letter supply caps** = `floor(slots × 3.0)` (the demand multiple, 3.0 since decisions.md #21;
   Sepolia's deployed Letters keeps 2.5×). They sum to a global cap of **68,760 letters**. The sim
   (1,500 players, a year) shows 99% of the dictionary claimed around day 50 and all letters minted

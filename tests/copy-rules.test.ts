@@ -132,6 +132,8 @@ const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: 
   { term: "Tamagotchi", re: /tamagotchi/i, sample: "A tamagotchi-style game.", everywhere: true },
   { term: "Pokémon", re: /pok[eé]mon/i, sample: "Like Pokemon, but letters.", everywhere: true },
   { term: "Pokédex", re: /pok[eé]dex/i, sample: "Complete your Pokédex.", everywhere: true },
+  // A character of theirs is the same comparison: the Mint tab's old odds card ended on this one.
+  { term: "Charizard", re: /charizard/i, sample: "Q is the Charizard.", everywhere: true },
 ];
 
 /** Player-facing code: wider than the copy-rule roots, because a description or a reminder is copy too. */
