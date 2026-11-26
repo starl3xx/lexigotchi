@@ -52,8 +52,19 @@ describe("the card's corner is 2.6% of its width", () => {
     expect(rule(".sc-framed.sc-small .sc-face")).not.toContain("border-radius");
   });
 
-  it("the back's frame line runs parallel to it: the corner less the line's inset", () => {
-    expect(rule(".cb")).toContain(`--cb-frame-r: max(2px, calc(${CARD_CORNER * 100}cqw - clamp(5px, 1.8cqw, 12px)))`);
+  it("the back's frame line runs parallel to it: the corner, less the ink border the back sits inside, less the line's inset", () => {
+    // The back is narrower than the card by the border on each side, so the card's corner is
+    // 2.6cqw plus 5.2% of the border, and the border counts 100% - 5.2%.
+    const counts = +(1 - 2 * CARD_CORNER).toFixed(3);
+    expect(rule(".cb")).toContain(`--cb-frame-r: max(2px, calc(${CARD_CORNER * 100}cqw - ${counts} * var(--cb-edge, 0px) - clamp(5px, 1.8cqw, 12px)))`);
+    // --cb-edge is the face's own border, at both of its widths; a cased card has none (its ink is an overlay)
+    const framed = rule(".sc-framed .sc-face").match(/border:\s*(\d+px)/)?.[1];
+    const small = rule(".sc-framed.sc-small .sc-face").match(/border-width:\s*(\d+px)/)?.[1];
+    expect(framed).toBe("3px");
+    expect(small).toBe("2px");
+    expect(rule(".sc-framed .cb")).toContain(`--cb-edge: ${framed}`);
+    expect(rule(".sc-framed.sc-small .cb")).toContain(`--cb-edge: ${small}`);
+    expect(css).not.toMatch(/\.cc-card[^{]*\.cb\s*\{[^}]*--cb-edge/);
     for (const selector of [".cb-frame", ".cb-fire"]) {
       const body = rule(selector);
       expect(body).toContain("inset: clamp(5px, 1.8cqw, 12px)");

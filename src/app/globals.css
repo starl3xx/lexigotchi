@@ -724,6 +724,9 @@ body {
 .sc:not(.is-flipping):not(.is-back) .sc-back, .sc.is-back:not(.is-flipping) .sc-front { visibility: hidden; }
 .sc-framed .sc-face { border: 3px solid #1b1714; border-radius: var(--card-r); }
 .sc-framed.sc-small .sc-face { border-width: 2px; }
+/* the same two widths, for the back's frame line (below, --cb-frame-r) */
+.sc-framed .cb { --cb-edge: 3px; }
+.sc-framed.sc-small .cb { --cb-edge: 2px; }
 .sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }
 @keyframes sc-lift { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-2%) scale(1.035); } }
 /* the scene nobody can see holds still */
@@ -788,9 +791,14 @@ body {
 .need-letter { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 0.15em; border-radius: 0.3em; border: 1.5px solid #2a1e1a; background: #f8efdd; box-shadow: 0 1.5px 0 #c7ae84; font-weight: 800; line-height: 1; vertical-align: -0.12em; color: #2a1e1a; }
 
 /* ---- the back ---- */
-/* The back's frame line runs parallel to the card's corner: the card's 2.6% less the line's own
-   inset (it was a radius of its own, which stopped following the card under 364 px and over 636). */
-.cb { --cb-frame-r: max(2px, calc(2.6cqw - clamp(5px, 1.8cqw, 12px))); --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
+/* The back's frame line runs parallel to the card's corner: the card's 2.6%, less the ink border
+   that lies between the card's edge and the back, less the line's own inset (it was a radius of its
+   own, which stopped following the card under 364 px and over 636).
+   --cb-edge is that ink border: 3 px on a framed card and 2 px on a thumbnail (.sc-framed .sc-face,
+   whose border the back sits inside), and none in a plastic case, whose ink is drawn over the card.
+   It counts 94.8%, not 100: the back is narrower than the card by the border on each side, so
+   2.6cqw here is already 5.2% of the border short of the card's corner (Bugbot on #252). */
+.cb { --cb-frame-r: max(2px, calc(2.6cqw - 0.948 * var(--cb-edge, 0px) - clamp(5px, 1.8cqw, 12px))); --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
 .cb > * { position: absolute; }
 .cb-mat { inset: 0; background: var(--cb-mat); }
 .cb-mat > * { position: absolute; inset: 0; }
