@@ -49,7 +49,7 @@ import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
 import { notifyPaid, shareKey, type LandedShare } from "@/lib/notify/paid";
-import { DEAL_AGAIN_SECONDS, dealNotes } from "@/lib/notify/deals";
+import { DEAL_AGAIN_SECONDS, DEAL_DAILY_SECONDS, tellDeals } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
 import { claimMark, claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
 import { sendDigests, weekEarned, wordsNeedingCare } from "@/lib/notify/digest";
@@ -640,27 +640,35 @@ export function createKeeper(opts: { dry: boolean }) {
       const [links, words, book, now] = await Promise.all([loadLinkMap(), scanAllWords(), readLetterBook(), readChainTime()]);
       const claimed = new Set(words.map((w) => w.word.toUpperCase()));
       const day = Math.floor(now / 86_400);
-      const build = (accountOf: (address: string) => string) =>
-        dealNotes(
-          {
-            accounts,
-            walletsOf: links.walletsOf,
-            accountOf,
-            lettersOf: async (wallets) => {
-              const balances = await readWalletBalances(wallets as `0x${string}`[]);
-              return Object.fromEntries(Object.entries(balances).map(([w, b]) => [w, b.letters]));
-            },
-            unclaimed: WORDS.filter((w) => !claimed.has(w)),
-            book,
-            claim: (account, mark) => claimMarkEvery(account, "deal-seen", mark, DEAL_AGAIN_SECONDS),
+      const { notes, told } = await tellDeals(
+        {
+          accounts,
+          walletsOf: links.walletsOf,
+          accountOf: links.accountOf,
+          lettersOf: async (wallets) => {
+            const balances = await readWalletBalances(wallets as `0x${string}`[]);
+            return Object.fromEntries(Object.entries(balances).map(([w, b]) => [w, b.letters]));
           },
-          day,
-          { dry: DRY },
-        );
-      const notes = await build(links.accountOf);
-      console.log(`deals: ${accounts.length} player(s) asked, ${notes.length} deal(s) to tell of`);
-      if (DRY) return void notes.forEach((n) => console.log(`  [dry] would tell ${n.account.slice(0, 10)}: ${n.note.body}`));
-      if (notes.length > 0) await notifyPlayers("deal", () => notes);
+          unclaimed: WORDS.filter((w) => !claimed.has(w)),
+          book,
+          marks: {
+            claimDay: (account) => claimMarkEvery(account, "deal-day", "last", DEAL_DAILY_SECONDS),
+            releaseDay: (account) => releaseMark(account, "deal-day", "last"),
+            claimDeal: (account, mark) => claimMarkEvery(account, "deal-seen", mark, DEAL_AGAIN_SECONDS),
+            releaseDeal: (account, mark) => releaseMark(account, "deal-seen", mark),
+          },
+          // The accounts a message went out to; a mark for anyone else is given back (lib/notify/deals.ts).
+          tell: async (toTell) => {
+            const reached = new Set<string>();
+            await notifyPlayers("deal", () => toTell, { onReached: (account) => reached.add(account.toLowerCase()) });
+            return reached;
+          },
+        },
+        day,
+        { dry: DRY },
+      );
+      console.log(`deals: ${accounts.length} player(s) asked, ${notes.length} deal(s) to tell of${DRY ? "" : `, ${told} told`}`);
+      if (DRY) notes.forEach((n) => console.log(`  [dry] would tell ${n.account.slice(0, 10)}: ${n.note.body}`));
     } catch (err) {
       console.error("deals: the deal alert failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }
