@@ -13,6 +13,10 @@
  * it passes, and (Rare and up) the edge catches a glint as it leaves. It runs along the word, one
  * letter after the next (`index`).
  *
+ * In WebKit, a tile whose light moves is drawn another way: the pieces of the light that move are
+ * layers of their own (`momentPieces`, at the end of this file, says why), and the still ones here
+ * are drawn between them. The picture is the same.
+ *
  * Motion comes in MOMENTS (globals.css, `.rf-moment`): the light waits unseen, and the glints sit
  * lit, until the word's row carries .rf-moment (TileCharacter's useFinishMoment, every tier's
  * `period` seconds and when the pointer comes onto the word); then the light passes and the
@@ -23,7 +27,7 @@
  * --rf-ly (0–1, set by whoever hosts the word). No blend modes: WebKit and Chromium blend inside a
  * clip differently.
  */
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { Tier } from "@/lib/economy";
 import { finishFor, type Finish } from "@/lib/rarityFinish";
 
@@ -355,6 +359,34 @@ const BAND = `M ${T.x - 70} ${T.y - 40} L ${T.x + 30} ${T.y - 40} L ${T.x - 30} 
 const STREAK = `M ${T.x - 14} ${T.y - 40} L ${T.x + 8} ${T.y - 40} L ${T.x - 52} ${BOT + 40} L ${T.x - 74} ${BOT + 40} Z`;
 const PIVOT: CSSProperties = { transformBox: "view-box", transformOrigin: `${CX}px ${MID}px` };
 
+/** The amethyst's facets in the order the light reaches them, each with when it lights (a fraction of the run). */
+const FACET_RUN = [
+  ["left", 0.12],
+  ["top", 0.35],
+  ["bottom", 0.4],
+  ["right", FACET_AT],
+] as const;
+/** The edge catching the light as it leaves: where, and how big. */
+const EDGE_GLINT = [T.x + T.w - 16, T.y + 18, 0.7] as const;
+/** The soft glints that come and go: one a tile (two on Mythic), placed by the tile's place in the word. */
+function glintSpots(fin: Finish, index: number): { x: number; y: number; s: number; color: string; delay: number }[] {
+  const even = index % 2 === 0;
+  const out = [even ? { x: T.x + 26, y: T.y + 40, s: 0.9, color: fin.glow, delay: 0.8 + index * STAGGER } : { x: T.x + T.w - 24, y: MID + 40, s: 0.7, color: fin.glow, delay: 1.1 + index * STAGGER }];
+  if (fin.material === "amethyst") out.push(even ? { x: T.x + 30, y: BOT - 26, s: 0.6, color: "#8ff2ff", delay: 1.3 + index * STAGGER } : { x: CX + 30, y: T.y + 30, s: 0.55, color: "#ff9be3", delay: GLINT_AT + index * STAGGER });
+  return out;
+}
+/** Where a tile's motes start: three on Mythic, two on Legendary. */
+function moteSpots(fin: Finish): { x: number; y: number; r: number }[] {
+  return [
+    { x: T.x - 6, y: MID + 30, r: 4.5 },
+    { x: T.x + T.w + 8, y: MID + 10, r: 3.5 },
+    { x: T.x + 22, y: BOT - 4, r: 3 },
+    { x: T.x + T.w - 18, y: BOT - 8, r: 4 },
+    { x: CX + 6, y: T.y + 30, r: 3 },
+    { x: T.x - 10, y: T.y + 40, r: 3.5 },
+  ].slice(0, fin.material === "amethyst" ? 3 : 2);
+}
+
 /** Light under the letter: the face brightening and the broad glow of the light passing. */
 export function FinishLight({ tier, uid, bw, motion, dim, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; dim: boolean; index: number }) {
   const fin = finishFor(tier);
@@ -385,13 +417,8 @@ export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier
         {/* the light running across the amethyst's facets, left to right as the pass goes by */}
         {fin.material === "amethyst" && anim && !small && (
           <g fill="#ffffff">
-            {[
-              [fc.left, 0.12],
-              [fc.top, 0.35],
-              [fc.bottom, 0.4],
-              [fc.right, FACET_AT],
-            ].map(([d, at], i) => (
-              <path key={i} d={d as string} className="rf-facet" style={timing(index, at as number)} opacity={0} />
+            {FACET_RUN.map(([side, at], i) => (
+              <path key={i} d={fc[side]} className="rf-facet" style={timing(index, at)} opacity={0} />
             ))}
           </g>
         )}
@@ -407,41 +434,31 @@ export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier
           and on a 4×-slowed CPU it alone took a Legendary word's moment from 62% to 97%.) */}
       {/* the edge catching the light as it leaves (Rare and up) */}
       {fin.material !== "satin" && !small && anim && !dim && (
-        <Glint x={T.x + T.w - 16} y={T.y + 18} s={0.7} color={fin.glow} delay={0} anim cls="rf-edge" style={timing(index, 0)} waits />
+        <Glint x={EDGE_GLINT[0]} y={EDGE_GLINT[1]} s={EDGE_GLINT[2]} color={fin.glow} delay={0} anim cls="rf-edge" style={timing(index, 0)} waits />
       )}
       {/* soft glints that come and go: one a tile (two on Mythic), placed by the tile's place in the word */}
       {rich && !small && !dim && (
         <>
-          {index % 2 === 0 ? (
-            <Glint x={T.x + 26} y={T.y + 40} s={0.9} color={fin.glow} delay={0.8 + index * STAGGER} anim={anim} />
-          ) : (
-            <Glint x={T.x + T.w - 24} y={MID + 40} s={0.7} color={fin.glow} delay={1.1 + index * STAGGER} anim={anim} />
-          )}
-          {fin.material === "amethyst" &&
-            (index % 2 === 0 ? (
-              <Glint x={T.x + 30} y={BOT - 26} s={0.6} color="#8ff2ff" delay={1.3 + index * STAGGER} anim={anim} />
-            ) : (
-              <Glint x={CX + 30} y={T.y + 30} s={0.55} color="#ff9be3" delay={GLINT_AT + index * STAGGER} anim={anim} />
-            ))}
+          {glintSpots(fin, index).map((g, i) => (
+            <Glint key={i} x={g.x} y={g.y} s={g.s} color={g.color} delay={g.delay} anim={anim} />
+          ))}
         </>
       )}
     </g>
   );
 }
 
+/** Whether a tile has motes: a moving Legendary or Mythic one, not peckish, on every other tile. */
+export function finishHasMotes(tier: Tier | undefined, motion: FinishMotion, dim: boolean, index: number): boolean {
+  const fin = finishFor(tier);
+  return !!fin && motion === "on" && !dim && index % 2 === 0 && (fin.material === "amethyst" || fin.material === "gold");
+}
+
 /** Glowing motes drifting up around the word: on every other tile only, a few each. */
 export function FinishMotes({ tier, uid, motion, dim, seed, index }: { tier?: Tier; uid: string; motion: FinishMotion; dim: boolean; seed: number; index: number }) {
   const fin = finishFor(tier);
-  if (!fin || motion !== "on" || dim || index % 2 === 1 || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
-  const many = fin.material === "amethyst";
-  const spots = [
-    { x: T.x - 6, y: MID + 30, r: 4.5 },
-    { x: T.x + T.w + 8, y: MID + 10, r: 3.5 },
-    { x: T.x + 22, y: BOT - 4, r: 3 },
-    { x: T.x + T.w - 18, y: BOT - 8, r: 4 },
-    { x: CX + 6, y: T.y + 30, r: 3 },
-    { x: T.x - 10, y: T.y + 40, r: 3.5 },
-  ].slice(0, many ? 3 : 2);
+  if (!fin || !finishHasMotes(tier, motion, dim, index)) return null;
+  const spots = moteSpots(fin);
   // they rise after the light has passed, staggered along the word (moteDelay; MOMENT_END_S counts it)
   return (
     <g pointerEvents="none">
@@ -455,4 +472,125 @@ export function FinishMotes({ tier, uid, motion, dim, seed, index }: { tier?: Ti
   );
 }
 
+// ── A moment, as layers ─────────────────────────────────────────────────────────────────────────
+// The same light as FinishLight, FinishShine and FinishMotes draw, one LAYER a piece (TileCharacter
+// draws each as its own <svg>, and the moment's animation runs on that <svg>). WebKit needs it this
+// way: a shape that moves INSIDE an <svg> costs it the same however little that <svg> holds (two
+// motes alone, in a drawing of their own, took a Legendary word from 10% of a processor core to
+// 28%), and far less when the <svg> itself moves. The components above still draw the light inside
+// the one drawing: for every other engine (TileCharacter's useWebKit has the numbers), and for a
+// picture in a single file. tests/tile-character.test.tsx holds the two in step: the same pieces,
+// at the same times.
 
+/** One moving piece of a moment: still shapes, and how its layer moves. */
+export interface MomentPiece {
+  key: string;
+  /**
+   * Its keyframes (globals.css, `.rf-moment .rf-*`), run on the layer. A piece that only fades or
+   * turns shares the single drawing's keyframes. One that travels has its own (`rf-passing` for
+   * `rf-pass`, `rf-rising` for `rf-mote`): the same move, with its distances in the drawing's
+   * units, because a px on a layer is the screen's and a px on a shape is the drawing's.
+   */
+  cls: "rf-catch" | "rf-passing" | "rf-facet" | "rf-fire" | "rf-edge" | "rf-glint" | "rf-rising";
+  /**
+   * How the layer sits on a leaning tile, and how it rises with it on a hover:
+   * - "leaned": it only fades. The lean and the hover's rise are inside its drawing, as they are
+   *   in the tile's own.
+   * - "point": it turns and grows about `origin`. The lean is inside its drawing (exact, and a
+   *   glint is seen at rest), and `origin` is that point on the leaned tile. The hover's rise is
+   *   a layer OUTSIDE it: inside, the layer's own turn would swing the risen glint round a point
+   *   that had not risen (a quarter turn puts it six units to the side: Bugbot on #237).
+   * - "cut": it travels across the face and is cut at the face's edge by a shape that stays put,
+   *   so the lean, the cut, and the piece are layers one inside the next (the light passing).
+   * - "upright": it travels in the tile's leaned frame with no cut (a mote rising).
+   */
+  frame: "leaned" | "point" | "cut" | "upright";
+  /** The point the layer turns and grows about, in the rig's upright units (none: it only fades). */
+  origin?: readonly [number, number];
+  /** When it starts within the moment, in seconds. */
+  delay: number;
+  /** Unseen between moments. (A glint is lit at rest: it twinkles in a moment.) */
+  waits: boolean;
+  children: ReactNode;
+}
+
+/** A tile's moment, piece by piece, in the order the body is painted. */
+export interface Moment {
+  /** Under the letter: the face brightening, the broad glow passing. */
+  under: MomentPiece[];
+  /** Over the letter and under the eyes: the streak, the facets, the fire, the edge's glint, the glints. */
+  over: MomentPiece[];
+  /** Over everything: the motes. */
+  motes: MomentPiece[];
+  /** How strongly the two lights show, as one group each (a peckish word's shine is dimmed). */
+  opacity: number;
+}
+
+/** The face inside the border, in the rig's units: what cuts the passing light. */
+export function finishFace(bw: number) {
+  return inner(bw);
+}
+
+/** A moving tile's moment as layers (`motion` "on" only: a still tile has no moment). */
+export function momentPieces({ tier, uid, bw, dim, seed, index }: { tier?: Tier; uid: string; bw: number; dim: boolean; seed: number; index: number }): Moment | null {
+  const fin = finishFor(tier);
+  if (!fin) return null;
+  const f = id(uid);
+  const fc = facets();
+  const rich = fin.material === "gold" || fin.material === "amethyst";
+  const at = (frac = 0) => index * STAGGER + frac * MOMENT_S;
+  // a piece that only fades is cut at the face's edge inside its own drawing, as the single body cuts it
+  const cut = (children: ReactNode) => <g clipPath={`url(#${f("clip")})`}>{children}</g>;
+  const glintShapes = (x: number, y: number, s: number, color: string) => (
+    <>
+      <circle cx={x} cy={y} r={9 * s} fill={color} opacity={0.35} />
+      <circle cx={x} cy={y} r={5 * s} fill="#ffffff" opacity={0.55} />
+      <path d={glintFlare(x, y, s)} fill="#ffffff" />
+      <circle cx={x} cy={y} r={2 * s} fill="#ffffff" />
+    </>
+  );
+
+  const under: MomentPiece[] = [
+    { key: "catch", cls: "rf-catch", frame: "leaned", delay: at(), waits: true, children: cut(<rect {...inner(bw)} fill="#ffffff" fillOpacity={rich ? 0.22 : 0.16} />) },
+    { key: "band", cls: "rf-passing", frame: "cut", origin: [CX, MID], delay: at(), waits: true, children: <path d={BAND} fill={`url(#${f("band")})`} /> },
+  ];
+  const over: MomentPiece[] = [{ key: "streak", cls: "rf-passing", frame: "cut", origin: [CX, MID], delay: at(), waits: true, children: <path d={STREAK} fill={`url(#${f("streak")})`} /> }];
+  if (fin.material === "amethyst") {
+    FACET_RUN.forEach(([side, frac]) => over.push({ key: `facet-${side}`, cls: "rf-facet", frame: "leaned", delay: at(frac), waits: true, children: cut(<path d={fc[side]} fill="#ffffff" />) }));
+    over.push({
+      key: "fire",
+      cls: "rf-fire",
+      frame: "leaned",
+      delay: at(0.5),
+      waits: true,
+      children: cut(
+        <g fill="none" stroke={`url(#${f("fire")})`} strokeWidth={2.2} strokeLinecap="round">
+          <path d={fc.edges} />
+          <rect {...fc.table} />
+        </g>,
+      ),
+    });
+  }
+  if (fin.material !== "satin" && !dim) {
+    const [x, y, sc] = EDGE_GLINT;
+    over.push({ key: "edge", cls: "rf-edge", frame: "point", origin: [x, y], delay: at(), waits: true, children: glintShapes(x, y, sc, fin.glow) });
+  }
+  if (rich && !dim) glintSpots(fin, index).forEach((g, i) => over.push({ key: `glint${i}`, cls: "rf-glint", frame: "point", origin: [g.x, g.y], delay: g.delay, waits: false, children: glintShapes(g.x, g.y, g.s, g.color) }));
+  const motes: MomentPiece[] = finishHasMotes(tier, "on", dim, index)
+    ? moteSpots(fin).map((m, i) => ({
+        key: `mote${i}`,
+        cls: "rf-rising" as const,
+        frame: "upright" as const,
+        origin: [m.x, m.y] as const,
+        delay: moteDelay(i, index, seed),
+        waits: true,
+        children: (
+          <>
+            <circle cx={m.x} cy={m.y} r={m.r * 2.4} fill={`url(#${id(uid)("mote")})`} />
+            <circle cx={m.x} cy={m.y} r={m.r * 0.45} fill="#ffffff" />
+          </>
+        ),
+      }))
+    : [];
+  return { under, over, motes, opacity: dim ? 0.45 : 1 };
+}

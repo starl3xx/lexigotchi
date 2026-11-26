@@ -7,10 +7,11 @@
  * the whole letter on every frame (measured: 47% of a processor core for one word at rest, against
  * 6.5% with the loops on layers), and nothing on screen tells you it happened.
  */
+import type { ReactElement } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, renderHook } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TileCharacter, TileWord, useGaze, useWordLife, type TileState } from "@/components/game/TileCharacter";
+import { TileCharacter, TileWord, forgetWebKit, useGaze, useWordLife, type TileState } from "@/components/game/TileCharacter";
 import { ARM_REST, ARM_REST_R, BOT, CLASP, CX, LINK_L, LINK_R, PITCH, WORD_LEAN, leanFor } from "@/components/game/tileShapes";
 import { OgTile } from "@/app/_og/tile";
 
@@ -32,6 +33,196 @@ const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|leg
 const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
 const animated = (root: Element) => [...root.querySelectorAll("[class*='animate-tc-']")];
 const tcClasses = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("animate-tc-"));
+
+/** The moving pieces of a rarity's light (globals.css, .rf-moment .rf-*). */
+const MOMENT = /^rf-(pass|passing|catch|edge|facet|fire|glint|mote|rising)$/;
+const isMoment = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).some((c) => MOMENT.test(c));
+const momentEls = (root: Element) => [...root.querySelectorAll("*")].filter(isMoment);
+
+describe("a finished tile's light runs on layers, in WebKit", () => {
+  // jsdom says its maker is Apple, as Safari and every iPhone browser do: these run as WebKit.
+  afterEach(() => {
+    vi.restoreAllMocks();
+    forgetWebKit();
+  });
+
+  // Measured in WebKit over 40 s, one word: with the light inside the letter's drawing, a Legendary
+  // word cost 35% of a processor core and a Rare one 23%; with every moving piece a layer of its
+  // own, 17% and 11% (a Common word: about 9%). One glint moving inside the drawing cost 27% alone.
+  const cases = (["Uncommon", "Rare", "Legendary", "Mythic"] as const).flatMap((tier) =>
+    [0, 1].flatMap((index) => (["idle", "peckish"] as const).map((state) => ({ tier, index, state }))),
+  );
+
+  it.each(cases)("$tier, tile $index, $state: every moving piece is a whole <svg>, and none shares a drawing with the letter", ({ tier, index, state }) => {
+    const { container } = render(<TileCharacter char="q" upper={index === 0} tier={tier} state={state} size={140} index={index} lean={2} />);
+    const moving = momentEls(container);
+    expect(moving.length).toBeGreaterThan(2);
+    for (const el of moving) {
+      expect(el.tagName.toLowerCase(), `${el.getAttribute("class")} on <${el.tagName}>`).toBe("svg");
+      // and nothing moves inside a moving layer
+      expect(momentEls(el)).toHaveLength(0);
+    }
+    // the letter's own drawing holds no moving piece, nor does any other still piece of the body
+    const letter = container.querySelector("text")!.closest("svg")!;
+    expect(letter.getAttribute("data-piece")).toBe("mid");
+    for (const still of ["base", "mid", "over"]) {
+      const piece = container.querySelector(`svg[data-piece="${still}"]`)!;
+      expect(isMoment(piece), still).toBe(false);
+      expect(momentEls(piece), still).toHaveLength(0);
+    }
+  });
+
+  it("keeps the body's loop on the one wrapper that holds the pieces, in the order the body is painted", () => {
+    const { container } = render(<TileCharacter char="q" upper tier="Mythic" size={140} index={0} />);
+    const body = container.querySelector('[data-piece="body"]')!;
+    expect(body.tagName.toLowerCase()).toBe("div");
+    expect(tcClasses(body).some((c) => LOOP.test(c))).toBe(true);
+    // no other loop inside it: a piece can't carry the loop and its own moment
+    expect(animated(body)).toHaveLength(0);
+    const piece = (name: string) => body.querySelector(`[data-piece="${name}"]`)!;
+    const before = (a: string, b: string) => expect(piece(a).compareDocumentPosition(piece(b)) & Node.DOCUMENT_POSITION_FOLLOWING, `${a} is painted before ${b}`).toBeTruthy();
+    // the glow under the letter; the streak, the facets, the glints over it and under the eyes; the motes over all
+    before("base", "catch");
+    before("catch", "band");
+    before("band", "mid");
+    before("mid", "streak");
+    before("streak", "facet-left");
+    before("facet-right", "fire");
+    before("fire", "edge");
+    before("edge", "glint0");
+    before("glint1", "over");
+    before("over", "mote0");
+  });
+
+  it("cuts the travelling light at the face's edge with a shape that stays put, and leans it as a layer", () => {
+    const { container } = render(<TileCharacter char="q" upper tier="Legendary" size={140} index={0} lean={2} />);
+    for (const name of ["band", "streak"]) {
+      const layer = container.querySelector(`svg[data-piece="${name}"]`)!;
+      const cut = layer.parentElement as HTMLElement;
+      expect(cut.style.clipPath, name).toMatch(/^inset\(.* round /);
+      // the cut itself never moves
+      expect(isMoment(cut)).toBe(false);
+      const rise = cut.parentElement as HTMLElement;
+      expect(rise.classList.contains("tc-perk-layer")).toBe(true);
+      expect((rise.parentElement as HTMLElement).style.transform).toBe("rotate(2deg)");
+    }
+    // a piece that only fades keeps the lean AND the hover's rise inside its own drawing, as the tile does
+    const fade = container.querySelector('svg[data-piece="catch"]')!;
+    expect(fade.querySelector("g")!.getAttribute("transform")).toBe(`rotate(2 ${CX} ${BOT})`);
+    expect(fade.querySelector(".tc-perk")).not.toBeNull();
+    expect(fade.parentElement!.getAttribute("data-piece")).toBe("body");
+  });
+
+  it("lifts a turning glint as a layer OUTSIDE its turn: inside, the turn would swing the risen glint off its point", () => {
+    // Bugbot on #237: with the hover's rise inside the layer, the layer's own quarter turn put a
+    // hovered glint six units to the side of where it belongs, until the moment ended.
+    const { container } = render(<TileCharacter char="q" upper tier="Mythic" size={140} index={0} lean={2} />);
+    for (const name of ["edge", "glint0", "glint1"]) {
+      const layer = container.querySelector(`svg[data-piece="${name}"]`)!;
+      // the lean is inside its drawing (a glint is seen at rest, so it must be drawn as the tile is)
+      expect(layer.querySelector("g")!.getAttribute("transform"), name).toBe(`rotate(2 ${CX} ${BOT})`);
+      // the rise is not
+      expect(layer.querySelector(".tc-perk"), name).toBeNull();
+      const [undo, rise, lean] = [layer.parentElement as HTMLElement, layer.parentElement!.parentElement as HTMLElement, layer.parentElement!.parentElement!.parentElement as HTMLElement];
+      expect(rise.classList.contains("tc-perk-layer"), name).toBe(true);
+      // the rise runs along the leaned tile's own up; the two turns round it leave the glint where it was
+      expect(lean.style.transform, name).toBe("rotate(2deg)");
+      expect(undo.style.transform, name).toBe("rotate(-2deg)");
+      expect(undo.style.transformOrigin, name).toBe(lean.style.transformOrigin);
+    }
+  });
+
+  it("dims a peckish word's light as one group, not piece by piece (overlapping pieces would come out brighter)", () => {
+    const { container } = render(<TileCharacter char="q" upper tier="Mythic" state="peckish" size={140} index={0} />);
+    for (const group of ["light", "shine"]) {
+      const g = container.querySelector(`div[data-piece="${group}"]`) as HTMLElement;
+      expect(g.style.opacity, group).toBe("0.45");
+      expect(momentEls(g).length, group).toBeGreaterThan(1);
+    }
+    // a peckish word has no glints and no motes
+    expect(container.querySelector('[data-piece^="glint"], [data-piece="edge"], [data-piece^="mote"]')).toBeNull();
+  });
+
+  it("in any other engine is the one drawing it always was, the light moving inside it", () => {
+    // Headless Chrome, slowed four times, paid for each layer: 106% of a core for a Legendary word
+    // as layers against 99% in one drawing. So only WebKit, which redraws the whole drawing, is cut.
+    vi.spyOn(navigator, "vendor", "get").mockReturnValue("Google Inc.");
+    forgetWebKit();
+    const { container } = render(<TileCharacter char="q" upper tier="Mythic" size={140} index={0} />);
+    expect(container.querySelector("[data-piece]")).toBeNull();
+    const moving = momentEls(container);
+    expect(moving.length).toBeGreaterThan(4);
+    const body = container.querySelector("text")!.closest("svg")!;
+    for (const el of moving) {
+      expect(el.tagName.toLowerCase()).not.toBe("svg");
+      expect(body.contains(el)).toBe(true);
+      // the shapes' own keyframes, in px: never the layers'
+      expect(el.getAttribute("class")).not.toMatch(/rf-(passing|rising)/);
+    }
+  });
+
+  it("draws the same pieces at the same times either way (the layers, and the one drawing)", () => {
+    const pieces = (root: Element) =>
+      momentEls(root)
+        .map((el) => `${el.getAttribute("class")!.split(/\s+/).find((c) => MOMENT.test(c))!.replace("rf-passing", "rf-pass").replace("rf-rising", "rf-mote")}@${parseFloat((el as HTMLElement).style.animationDelay).toFixed(2)}`)
+        .sort();
+    for (const tier of ["Uncommon", "Rare", "Legendary", "Mythic"] as const) {
+      for (const index of [0, 1, 4]) {
+        for (const state of ["idle", "peckish"] as const) {
+          const tile = <TileCharacter char="q" upper tier={tier} state={state} size={140} index={index} />;
+          forgetWebKit();
+          const layers = render(tile);
+          expect(layers.container.querySelector("[data-piece]"), "cut into pieces").not.toBeNull();
+          const asLayers = pieces(layers.container);
+          layers.unmount();
+          vi.spyOn(navigator, "vendor", "get").mockReturnValue("Google Inc.");
+          forgetWebKit();
+          const one = render(tile);
+          expect(one.container.querySelector("[data-piece]"), "one drawing").toBeNull();
+          expect(asLayers, `${tier} ${index} ${state}`).toEqual(pieces(one.container));
+          expect(asLayers.length).toBeGreaterThan(2);
+          one.unmount();
+          vi.restoreAllMocks();
+        }
+      }
+    }
+  });
+
+  it("asks which engine this is only for a tile that could be cut (the answer costs a second render)", () => {
+    const vendor = vi.spyOn(navigator, "vendor", "get");
+    const asks = (el: ReactElement) => {
+      forgetWebKit();
+      vendor.mockClear();
+      render(el).unmount();
+      return vendor.mock.calls.length > 0;
+    };
+    // no finish, or a light that holds still: never
+    expect(asks(<TileCharacter char="q" upper size={140} />)).toBe(false);
+    expect(asks(<TileCharacter char="q" size={52} />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} still />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} state="hungry" />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={52} />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} detail="full" flat />)).toBe(false);
+    // a finished tile whose light moves: yes
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} />)).toBe(true);
+  });
+
+  it("is one body, as it was, wherever the light doesn't move", () => {
+    const one = (el: ReactElement) => {
+      const { container } = render(el);
+      expect(container.querySelector("[data-piece]"), "no pieces").toBeNull();
+      expect(momentEls(container), "nothing moves").toHaveLength(0);
+    };
+    one(<TileCharacter char="q" upper tier="Mythic" size={140} still />);
+    one(<TileCharacter char="q" upper tier="Mythic" size={140} state="hungry" />);
+    one(<TileCharacter char="q" upper tier="Mythic" size={52} />);
+    one(<TileCharacter char="q" upper size={140} />);
+    // a picture in a single file is one <svg>, whatever its rarity
+    const html = renderToStaticMarkup(<TileCharacter char="q" upper tier="Mythic" size={140} detail="full" flat />);
+    expect(html.match(/<svg/g)).toHaveLength(1);
+    expect(html).not.toContain("data-piece");
+  });
+});
 
 describe("the loops run on layers", () => {
   it.each(STATES)("%s: a loop is only ever on a whole <svg>, and only the allowed moments run inside one", (state) => {

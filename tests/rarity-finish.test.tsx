@@ -156,6 +156,43 @@ describe("the game's name on a share picture", () => {
 
 describe("the moving light stays cheap", () => {
   const css = readFileSync(join(__dirname, "../src/app/globals.css"), "utf8");
+
+  it("measures a travelling LAYER's move in the drawing's units, and a travelling shape's in px (a px on a layer is the screen's)", () => {
+    // each rf- keyframes block, read to its closing brace
+    const frames = new Map(
+      css
+        .split("@keyframes ")
+        .slice(1)
+        .filter((part) => part.startsWith("rf-"))
+        .map((part) => {
+          let depth = 0;
+          let end = part.indexOf("{");
+          do depth += part[end] === "{" ? 1 : part[end] === "}" ? -1 : 0;
+          while (depth > 0 && ++end < part.length);
+          return [part.slice(0, part.indexOf(" ")), part.slice(part.indexOf("{"), end + 1).replace(/\s+/g, " ")] as const;
+        }),
+    );
+    expect([...frames.keys()].sort()).toEqual(["rf-catch", "rf-edge", "rf-facet", "rf-fire", "rf-glint", "rf-mote", "rf-pass", "rf-passing", "rf-rising"]);
+    // the layers' two are the shapes' two, with each distance in units: nothing else may differ
+    const inUnits = (body: string, axis: "x" | "y") => body.replace(/(-?\d+)px/g, (_, n) => `calc(var(--u${axis}) * ${n})`);
+    expect(frames.get("rf-passing")).toBe(inUnits(frames.get("rf-pass")!, "x"));
+    expect(frames.get("rf-rising")).toBe(inUnits(frames.get("rf-mote")!, "y"));
+    expect(frames.get("rf-passing")).not.toMatch(/\dpx/);
+    expect(frames.get("rf-rising")).not.toMatch(/\dpx/);
+    // and they run for as long, with the same easing
+    const rule = (cls: string) => new RegExp(`\\.rf-moment \\.${cls} \\{ animation: rf-[a-z]+ ([^;]+); \\}`).exec(css)![1];
+    expect(rule("rf-passing")).toBe(rule("rf-pass"));
+    expect(rule("rf-rising")).toBe(rule("rf-mote"));
+  });
+
+  it("lifts the layered light with the tile on a hover, by the same six units and at the same pace", () => {
+    const rise = (cls: string) => new RegExp(`\\.tc-perks:hover:not\\(:active\\) \\.${cls} \\{ transform: translateY\\(([^;]+)\\); \\}`).exec(css)![1];
+    expect(rise("tc-perk")).toBe("-6px");
+    expect(rise("tc-perk-layer")).toBe("calc(var(--uy) * -6)");
+    const pace = (cls: string) => new RegExp(`\\.${cls}[^{]*\\{\\s*transition: transform ([^;]+);\\s*transition-delay: ([^;]+);`).exec(css)!.slice(1);
+    expect(pace("tc-perk-layer")).toEqual(pace("tc-perk"));
+  });
+
   const finishRules = css.split("\n").filter((l) => /\.rf-[a-z]+\s*\{[^}]*animation\s*:/.test(l));
 
   it("moves only in a moment, never in a loop (looping it on every tile filled a slow phone's main thread)", () => {
