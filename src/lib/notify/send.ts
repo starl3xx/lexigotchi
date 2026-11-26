@@ -13,7 +13,8 @@
  * un-push a notification to every player.
  *   1. NODE_ENV !== "production"  → hard stop. Dev and preview can NEVER send. Not a flag, not
  *      overridable; the first check in the function.
- *   2. NOTIFICATIONS_ENABLED !== "true" → muted. Lets production be silenced without a deploy.
+ *   2. NOTIFICATIONS_ENABLED !== "true" → muted. Lets production be silenced by a setting (which
+ *      takes effect in the next build, so by a merge or a rollback: CLAUDE.md, redeploying).
  *   3. Missing NEYNAR_API_KEY in production with the flag on → THROWS AT IMPORT. A misconfigured
  *      notifier that fails quietly looks exactly like a notifier with nothing to say.
  *

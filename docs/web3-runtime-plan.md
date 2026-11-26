@@ -200,10 +200,12 @@ remove both docs notes, and replace the Base Sepolia table in `docs-site/contrac
 
 Two more notes come out when a switch flips, not with the launch PR:
 
-- **Reminders.** The note under "Reminders" in `docs-site/care.mdx` and the matching sentence in
-  the FAQ's hunger answer say email reminders are on and the Farcaster and browser ones aren't.
-  They come out once web push (`WEB_PUSH_ENABLED`, the VAPID keys) and Farcaster notifications
-  (`NOTIFICATIONS_ENABLED`) are on in production.
+- **Reminders: browser push and Farcaster notifications switched on 2026-11-26.** The four
+  settings went into Vercel Production that day (the VAPID pair, `WEB_PUSH_ENABLED`,
+  `NOTIFICATIONS_ENABLED`; `NEYNAR_API_KEY` was already there), and the same PR took the "aren't
+  switched on yet" notes out of `docs-site/care.mdx` and the FAQ. The pair's backup is the
+  gitignored `.env.vapid.local` in the owner's checkout. What follows is how it was done, kept
+  for a new deployment (mainnet keeps this pair: the keys belong to the site, not to a chain).
 
   **Switching them on (the owner's steps, in this order).** Both senders stop the build's server
   code at import when their flag is on and a key is missing, and the daily keeper imports both, so
@@ -220,7 +222,9 @@ Two more notes come out when a switch flips, not with the launch PR:
      missing. Then open the game in a browser, tap **Turn on reminders** (More, or your profile):
      a "Reminders are on" notification arrives within seconds. That is the end-to-end proof, since
      no reminder can be sent outside production.
-  To silence either channel again without a deploy, set its flag to anything but `true`.
+  To silence a channel again: a setting takes effect only in the next build, so remove its flag
+  (`npx vercel env rm WEB_PUSH_ENABLED production`) and merge a PR, or, to go dark at once, roll
+  production back to a deployment built before the flags (`npx vercel rollback <deployment>`).
 - **Profiles, X linking, and email reminders: switched on 2026-11-24.** Migrations 0003–0007 ran in
   production that day, and the docs PR added `docs-site/profile.mdx` and X and email to the letters,
   FAQ, quickstart, and reminders pages. The landing page follows the switches on its own
