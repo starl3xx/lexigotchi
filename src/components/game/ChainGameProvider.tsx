@@ -433,11 +433,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   // 00:05 UTC (decisions.md #16), so a few minutes' staleness is fine; a refocus reads it again.
   const earningsQ = useQuery({
     queryKey: ["earnings", NETWORK.id, bagKey],
-    queryFn: async (): Promise<EarningsJson | null> => {
+    queryFn: async (): Promise<{ earnings: EarningsJson; share: string | null } | null> => {
       const res = await fetch(`/api/rewards/earnings?wallets=${bagWallets.join(",")}`);
       const data = await res.json().catch(() => null);
-      // A failed read is "unknown" (null), never "earned nothing".
-      return data?.ok ? (data.earnings as EarningsJson) : null;
+      // A failed read is "unknown" (null), never "earned nothing". `share` is the server's signed
+      // snapshot of these same numbers, for the share card (lib/earningsShare.ts).
+      return data?.ok ? { earnings: data.earnings as EarningsJson, share: typeof data.share === "string" ? data.share : null } : null;
     },
     enabled: !!address && chain.deployed,
     staleTime: 60_000,
@@ -1599,8 +1600,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
 
+      earningsShare: earningsQ.data?.share ?? null,
       earnings: earningsQ.data
-        ? earningsFromJson(earningsQ.data, (id) => state.words.find((w) => tokenIdOf(w.word).toString() === id)?.word)
+        ? earningsFromJson(earningsQ.data.earnings, (id) => state.words.find((w) => tokenIdOf(w.word).toString() === id)?.word)
         : null,
       claimables: (claimablesQ.data ?? []).map((c) => ({
         stream: c.stream,

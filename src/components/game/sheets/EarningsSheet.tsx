@@ -7,12 +7,18 @@
  * total, the latest payout, each word's share and what would make it earn more. "Collect" shows
  * only when a share wasn't paid out by itself (the payout failed or is late).
  */
+import { useMemo, useState } from "react";
 import { Button, Card, Pill, Sheet, TweenNumber } from "../primitives";
 import { WordTiles, careState } from "../LetterTile";
-import { Coins } from "../ui/icons";
+import { Coins, DownloadSimple, ShareNetwork, XLogo } from "../ui/icons";
 import { fmtUsd, fmtWord, hunger, showsUsd, useGame, type OwnedWord } from "../state";
 import { earningStatus, payoutPhrase, payoutTimeLocal, payoutWhen, type EarningStatus } from "../earnings";
+import { usePostToX, useSaveImage, useShare } from "../useShare";
+import { useWordScene } from "../../scenes/useWordScene";
 import { DEFAULT_PARAMS } from "@/lib/params";
+import { NETWORK } from "@/lib/onchain/network";
+import { showcaseWordText } from "@/lib/showcase";
+import { decodeSnapshot, earningsCardPath, earningsPostText, earningsShareUrl, type EarningsShareLook } from "@/lib/earningsShare";
 
 const STATUS: Record<EarningStatus["kind"], { label: (s: EarningStatus) => string; tone: string }> = {
   earning: { label: () => "earning", tone: "bg-gold/20 text-gold-ink" },
@@ -42,6 +48,10 @@ export function EarningsSheet() {
   const when = e?.latestAt ? payoutWhen(e.latestAt) : null;
   const waiting = g.claimables.reduce((a, c) => a + c.amount, 0);
   const half = Math.round(DEFAULT_PARAMS.care.peckishYieldFactor * 100);
+  // Share (lib/earningsShare.ts): only with the server's signed snapshot, and a word whose card lies
+  // beside the tag. The list's first word is the one pictured: the player's top earner.
+  const [sharing, setSharing] = useState(false);
+  const hero = rows[0]?.w;
 
   return (
     <Sheet open onClose={g.closeSheet} title="Your earnings">
@@ -82,6 +92,16 @@ export function EarningsSheet() {
           : "In practice, your words are paid each time you skip to the next day."}
       </p>
 
+      {g.earningsShare && hero && (
+        <>
+          <Button full variant={sharing ? "primary" : "ghost"} className="mt-3" aria-expanded={sharing} onClick={() => setSharing((on) => !on)}>
+            <ShareNetwork weight="fill" /> Share
+          </Button>
+          {/* Mounted only when asked for: it draws the card, and saving fetches it ahead on phones. */}
+          {sharing && <ShareEarnings token={g.earningsShare} hero={hero} />}
+        </>
+      )}
+
       {/* the rare share that didn't go out by itself */}
       {waiting > 0 && (
         <Card className="mt-3 text-sm">
@@ -120,6 +140,51 @@ export function EarningsSheet() {
         </ul>
       </div>
     </Sheet>
+  );
+}
+
+/**
+ * Share the earnings as a word shares itself (cards/WordSheetCard): X first, Farcaster second, or
+ * keep the picture. The link's card is drawn by the server from ITS numbers (the signed token), so
+ * the post's words read the token too, never this screen's fresher sums: the picture and the
+ * sentence always say the same amount. The player's top word's card lies beside the tag.
+ */
+function ShareEarnings({ token, hero }: { token: string; hero: OwnedWord }) {
+  const share = useShare();
+  const postToX = usePostToX();
+  const { scene } = useWordScene(hero.word);
+  const snapshot = useMemo(() => decodeSnapshot(token.slice(0, token.lastIndexOf("."))), [token]);
+  const look: EarningsShareLook = { hero: showcaseWordText(hero.word, hero.upper), scene, tz: -new Date().getTimezoneOffset() };
+  // The picture that travels alone is 16:9 and carries the game's name in a corner.
+  const picture = earningsCardPath(token, "wide", look, true);
+  const saveImage = useSaveImage(picture, "lexigotchi-earnings.png");
+  if (!snapshot) return null;
+  const words = (on: "x" | "fc") => earningsPostText(snapshot, { testnet: NETWORK.isTestnet, hero: hero.word, on });
+  const url = earningsShareUrl(token, look);
+  return (
+    <div className="mt-2 space-y-2 rounded-2xl border-2 border-ink bg-card p-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={picture}
+        width={1200}
+        height={675}
+        alt={`${hero.word}’s card, beside a tag that says what your words have earned`}
+        className="block h-auto w-full rounded-xl border-2 border-ink bg-paper-dark/40"
+      />
+      <Button full variant="primary" onClick={() => postToX({ text: words("x"), url })}>
+        <XLogo weight="bold" /> Post my earnings on X
+      </Button>
+      {/* The same wait as a word's card: X reads a new link before it shows the picture. */}
+      <p className="text-center text-xs text-ink/55">X adds the picture once it reads the link.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="ghost" onClick={() => share({ text: words("fc"), embed: url })}>
+          <ShareNetwork weight="fill" /> Cast
+        </Button>
+        <Button variant="ghost" onClick={() => void saveImage()}>
+          <DownloadSimple weight="bold" /> Save image
+        </Button>
+      </div>
+    </div>
   );
 }
 

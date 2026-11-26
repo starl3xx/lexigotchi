@@ -996,6 +996,56 @@ setter. All small, riding existing suite patterns.
       40 points of a core at rest. Fixed beside this change (PR #227: a layer for each z), so a
       hungry word on the new card measures 5% too.
 
+35. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
+    should be sharable in the same way words are... share to X, FC, download image... think through
+    how to best visualize it in a 16:9 image"). The sheet has a Share button: Post on X, Cast, Save
+    image, with the picture shown first.
+    - **The numbers on the card are the server's, never the link's.** A word's card can be drawn
+      from its link because the dictionary is the guard (#15). An amount has no such guard: a link
+      that could carry one would put any number on the game's card. So `/api/rewards/earnings`
+      signs a SNAPSHOT of what it computed (`lib/earningsShareToken.ts`: the totals in whole $WORD
+      and the top five earning words, HMAC-SHA256), the link is `/e/<token>`, and the picture
+      (`app/e/[token]/card`) draws only from a token whose signature holds. It reads no chain and no
+      database, because X's crawler won't wait, and a token is one picture for good, which is right
+      for a post made on a given day.
+    - **One player's numbers.** The earnings route adds up any list of wallets it is given, so the
+      snapshot covers ONE account only: the first wallet's (`accountWalletsOf`, the wallet links;
+      the game sends the connected wallet first). A wallet the game counts as the player's but the
+      links don't (a Farcaster wallet that hasn't joined the account) is left out of the picture,
+      so the picture's amount can be under the sheet's; the Share panel shows the picture before
+      anything is posted. When the links can't be read, the snapshot is the first wallet's alone.
+      A token proves the numbers are some account's real ones, not that the sharer is that
+      account: the route is public, like the chain it reads.
+    - **The key** is `EARNINGS_SHARE_SECRET`, else one DERIVED from `PROFILE_SESSION_SECRET` under
+      its own label (my choice, so the share works wherever profiles are configured without a new
+      setting; a share token can't stand in for a session). Never the signer's draw secret. With
+      neither, nothing is signed and there is no Share. A read accepts either key, so giving the
+      share its own secret later keeps every posted link alive; ROTATING the session secret ends
+      the links signed under it. A token names its network and is refused on another: test $WORD
+      must never draw as the real one.
+    - **The picture** (my design): two things on the card's dark table (#34). The player's top
+      word as its own CARD, the same drawing as its share picture (`app/_og/wordCard.tsx`, moved out
+      of the word's route; that route's pictures are byte for byte the same), and beside it a paper
+      tag: "My words have earned", the amount in the sheet's gold, "$WORD" or "test $WORD", what the
+      latest payout brought with its DATE (never "today": the picture is kept for good), and what
+      the pictured word itself has earned. Side by side at 1200×630 (X) and 1200×675 (the 16:9 the
+      owner asked for: Save image); the card over a wide tag at 1200×800 (Farcaster's 3:2).
+    - **The word leads** (#24): it is first in the picture, the tag says "My words have earned",
+      and the post says "CRANE and my other words have earned…". No dollars, ever, on mainnet
+      either, though the sheet shows them there. No name, handle, or wallet in the link or the
+      picture.
+    - **No bars, no breakdown.** The sheet's rows don't add up to its total (words since sold and
+      bounties are in the total), so the picture never reads as a sum. An amount stands beside the
+      pictured word only when the TOKEN names that word; the word, its scene, and the clock offset
+      for the date are the link's and cosmetic, as on `/s/`.
+    - **The date is the sharer's.** The payout is 00:05 UTC, the evening before in the Americas, so
+      the link carries the clock offset (`tz`, bounded) and the picture prints that calendar's date.
+    - **Never in practice,** whose numbers are invented, and not until something is earned.
+    - **Seen and not seen:** the picture in every case with tokens signed by a local key (large
+      amounts, one word, a quiet day, a bounty only, each scene); the Share panel in the practice
+      game through a temporary hook, removed. Not seen: a real wallet's token, and how X crops and
+      shows the card.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
