@@ -47,6 +47,7 @@ import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
+import { notifyPaid, type LandedShare } from "@/lib/notify/paid";
 import { loadPrefs } from "@/lib/db/reminderPrefs";
 import type { SaleRow } from "@/lib/db/market";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
@@ -340,6 +341,9 @@ export function createKeeper(opts: { dry: boolean }) {
     const w = wallet();
     const started = Date.now();
     const sentShares: Claimable[] = [];
+    // Each share this run PAID, from its event: what players are told of (lib/notify/paid.ts).
+    const landedShares: LandedShare[] = [];
+    const bountyAddr = streamAddr("bounty").toLowerCase();
     let landed = 0, landedWei = 0n;
     for (const batch of payoutBatches(unpaid)) {
       if (Date.now() - started > PAYOUT_BUDGET_MS) {
@@ -357,10 +361,15 @@ export function createKeeper(opts: { dry: boolean }) {
       for (const ev of parseEventLogs({ abi: yieldDistributorAbi, eventName: "RewardClaimed", logs: rcpt.logs })) {
         landed += 1;
         landedWei += ev.args.amount;
+        // The two streams share the event; the contract that emitted it says which this is.
+        landedShares.push({ stream: ev.address.toLowerCase() === bountyAddr ? "bounty" : "yield", epochId: Number(ev.args.epochId), account: ev.args.account, amount: ev.args.amount });
       }
       console.log(`payout: batch of ${batch.length} ${rcpt.status} in block ${rcpt.blockNumber} (${hash})`);
     }
     console.log(`payout: paid ${landed} of ${sentShares.length} share(s) sent, ${landedWei} wei`);
+    // Players who asked hear what was paid, before anything below can end the job with an error:
+    // the money has moved either way (lib/notify/paid.ts; it never throws).
+    await notifyPaid(landedShares);
     if (landed === sentShares.length) return;
     // A call that didn't pay is only a failure if its share is STILL unpaid: a player who collected it
     // a moment earlier made this run's claim revert harmlessly (AlreadyClaimed).

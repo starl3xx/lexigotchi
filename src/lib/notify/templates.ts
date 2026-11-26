@@ -138,8 +138,23 @@ const PAID_TITLES = ["Payday for your words", "Your words got paid", "Fresh $WOR
 export function earningsPaid(amount: string, day = epochDay()): Notification {
   return {
     title: rotate(PAID_TITLES, day),
-    body: `Your words earned ${amount} at today’s payout, paid straight to the wallets that hold them.`,
+    // Not "today's payout": a share the payout ran out of time for is paid by the next run, with
+    // that day's. What is true of every message: it is paid.
+    body: `Your words earned ${amount}. It’s paid, straight to the wallets that hold them.`,
     notificationId: `paid-${day}`,
+  };
+}
+
+// ── The weekly bounty ─────────────────────────────────────────────────────────────────
+// RECEIPT. A week's bounty is shared between the words that fit its theme, so a player is told of
+// THEIR share, never "the bounty is yours". One per week (the period is the event).
+const BOUNTY_TITLES = ["A share of the bounty is yours", "Your words fit the theme", "Bounty day for your words"] as const;
+
+export function bountyPaid(amount: string, theme: string, period: number, day = epochDay()): Notification {
+  return {
+    title: rotate(BOUNTY_TITLES, day),
+    body: `Your words fit the week’s theme, ${theme}. Their share of the bounty is ${amount}, and it’s in your wallet.`,
+    notificationId: `bounty-${period}`,
   };
 }
 
@@ -246,6 +261,7 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   won: WON_TITLES,
   rollover: ROLLOVER_TITLES,
   paid: PAID_TITLES,
+  bounty: BOUNTY_TITLES,
   pity: PITY_TITLES,
   soldLetter: SOLD_LETTER_TITLES,
   soldWord: SOLD_WORD_TITLES,

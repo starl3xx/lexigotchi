@@ -51,12 +51,12 @@ describe("/api/profile/reminders", () => {
 
   it("answers every kind, on or off: the defaults for a player who changed nothing", async () => {
     mockProfile();
-    expect(await (await get()).json()).toEqual({ ok: true, kinds: { hunger: true, daily: true, jackpot: true, sold: true } });
+    expect(await (await get()).json()).toEqual({ ok: true, kinds: { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false } });
   });
 
   it("changes the kinds named, and leaves the rest", async () => {
     const stored = mockProfile({ stored: { sold: false } });
-    expect(await (await put({ kinds: { daily: false } })).json()).toEqual({ ok: true, kinds: { hunger: true, daily: false, jackpot: true, sold: false } });
+    expect(await (await put({ kinds: { daily: false } })).json()).toEqual({ ok: true, kinds: { hunger: true, daily: false, jackpot: true, sold: false, bounty: true, payday: false } });
     expect(stored).toEqual({ sold: false, daily: false });
   });
 

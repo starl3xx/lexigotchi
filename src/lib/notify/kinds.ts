@@ -12,7 +12,7 @@
  *
  * Pure: the profile sheet, the route, and every sender read this file.
  */
-export const REMINDER_KINDS = ["hunger", "daily", "jackpot", "sold"] as const;
+export const REMINDER_KINDS = ["hunger", "daily", "jackpot", "sold", "bounty", "payday"] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
 
 export interface KindInfo {
@@ -29,6 +29,10 @@ export const KIND_INFO: Record<ReminderKind, KindInfo> = {
   daily: { label: "My free daily letter is ready", hint: "Once a day, only on a day you haven’t taken it.", on: true },
   jackpot: { label: "I won the jackpot", hint: "When your word is the day’s word.", on: true },
   sold: { label: "Something of mine sold", hint: "When a word or letters of yours sell on the Market.", on: true },
+  bounty: { label: "My words won a share of the bounty", hint: "Once a week at most, when your words fit the week’s theme.", on: true },
+  // Off unless asked for: it comes every day a word earns, and a second daily message nobody chose
+  // is how the first one gets switched off.
+  payday: { label: "My words were paid", hint: "Every day your words earn $WORD: what they earned. Off unless you turn it on.", on: false },
 };
 
 /** What a player changed from the defaults. */

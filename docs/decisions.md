@@ -1537,6 +1537,19 @@ setter. All small, riding existing suite patterns.
       addresses. The footer says where to choose kinds, and how to stop them all.
     - **Seen and not seen (part 2):** the three emails as pictures at phone and desktop widths. No
       real mail client was seen, and no test email was sent.
+    - **Part 3, payday and the bounty result** (`lib/notify/paid.ts`). Both hang on the keeper's
+      `payout` job, which already runs (a new job name would never run where `KEEPER_JOBS` is
+      set), and both say "paid" only of what LANDED: they are fed the `RewardClaimed` events of
+      the keeper's own transactions, never the shares it meant to pay (the payout has a time
+      budget, and a player may have collected a share themselves). **Payday is OFF unless a player
+      turns it on,** because it comes every day a word earns; its message doesn't say "today's
+      payout", since a run also pays an earlier day's leftovers. **The bounty result is on** (once
+      a week at most), and says the player's words' SHARE with the week's theme, never "the
+      bounty is yours". One message per player per kind for a run, linked wallets as one player,
+      whole $WORD rounded down, nothing under one.
+    - **One sender for every receipt** (`lib/notify/players.ts` `notifyPlayers`): the kind is asked
+      first, Farcaster or else the account's browsers, and email with its send-once mark. A sale,
+      a payday, and a bounty each only say who and what.
 
 ## Pricing & launch economics (decided June 2026)
 
