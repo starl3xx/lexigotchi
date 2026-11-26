@@ -77,11 +77,13 @@ export async function POST(req: Request) {
 /**
  * Commands are answered in THE beta group and in a private chat with the bot, from a person. Not
  * in any other group the bot is added to, and never to a bot (two bots could answer each other
- * for ever).
+ * for ever). One exception: a group admin who posts anonymously arrives as Telegram's stand-in bot
+ * with the group itself as `sender_chat`, and is a person.
  */
 function commandAllowedIn(m: TgMessage, chatId: string): boolean {
-  if (!m.from || m.from.is_bot) return false;
-  return String(m.chat.id) === chatId || m.chat.type === "private";
+  const inGroup = String(m.chat.id) === chatId;
+  const person = Boolean(m.from && !m.from.is_bot) || (inGroup && m.sender_chat?.id === m.chat.id);
+  return person && (inGroup || m.chat.type === "private");
 }
 
 /** How long an update's number is remembered: Telegram gives up on an update long before a day. */
@@ -111,7 +113,7 @@ async function answerCommand(updateId: number | undefined, m: TgMessage, cmd: { 
     if (!(await firstTime(updateId))) return;
     // One person asking faster than they can read gets no answer, quietly: a "slow down" in the
     // group for each try would be the flood.
-    if (!(await allow("telegram", m.from!.id))) return;
+    if (!(await allow("telegram", m.from?.id ?? m.chat.id))) return;
     const reply = await answer(cmd, { private: m.chat.type === "private" });
     if (!reply) return;
     const to = { replyTo: m.message_id };

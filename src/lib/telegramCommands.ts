@@ -98,6 +98,18 @@ export interface StatusFacts {
 /** How long after midnight UTC the daily run (00:05) may take before "due any minute" becomes "behind". */
 const DRAW_GRACE_S = 20 * 60;
 
+/**
+ * Where the daily draw stands, from the chain's clock and the jackpot's last resolved day (a draw
+ * can only happen for the current UTC day, so "done" is the two being equal; 0 is "never"). One rule
+ * for /status and /jackpot, so the two can't disagree in the minutes after midnight.
+ */
+export function drawState(chainTime: number, lastDrawDay: number): { state: "never" | "done" | "due" | "behind"; behind: number } {
+  const behind = Math.floor(chainTime / DAY) - lastDrawDay;
+  if (lastDrawDay === 0) return { state: "never", behind: 0 };
+  if (behind <= 0) return { state: "done", behind: 0 };
+  return { state: behind === 1 && chainTime % DAY < DRAW_GRACE_S ? "due" : "behind", behind };
+}
+
 export function statusText(f: StatusFacts): string {
   if (!f.chainBacked) return "Lexigotchi is in practice mode here: nothing is onchain yet.";
   const lines = [`Lexigotchi is running on ${f.network}${f.testnet ? " (a test network)" : ""}.`];
@@ -107,10 +119,10 @@ export function statusText(f: StatusFacts): string {
   }
   lines.push("The chain is answering.");
   if (f.lastDrawDay === null) return lines.join("\n");
-  const behind = Math.floor(f.chainTime / DAY) - f.lastDrawDay;
-  if (f.lastDrawDay === 0) lines.push("The jackpot hasn’t had its first draw yet.");
-  else if (behind <= 0) lines.push("Today’s jackpot draw is done.");
-  else if (behind === 1 && f.chainTime % DAY < DRAW_GRACE_S) lines.push("Today’s jackpot draw is due any minute.");
+  const { state, behind } = drawState(f.chainTime, f.lastDrawDay);
+  if (state === "never") lines.push("The jackpot hasn’t had its first draw yet.");
+  else if (state === "done") lines.push("Today’s jackpot draw is done.");
+  else if (state === "due") lines.push("Today’s jackpot draw is due any minute.");
   else lines.push(`The daily run is behind: the last jackpot draw was ${behind} ${behind === 1 ? "day" : "days"} ago.`);
   return lines.join("\n");
 }
@@ -129,11 +141,18 @@ export interface JackpotFacts {
   pot: number | null;
   /** Null: there has never been a draw. Undefined: unread. */
   last: LastDraw | null | undefined;
+  /** The UTC day of the last draw, as /status reads it (0: never), or null when unread. */
+  lastDrawDay: number | null;
 }
 
+/** `nowSeconds` is the chain's clock where it could be read, else this server's. */
 export function jackpotText(f: JackpotFacts, nowSeconds: number): string {
   const lines = [f.pot === null ? "I can’t read the pot right now." : `The jackpot is ${fmtWord(f.pot)} $WORD.`];
-  lines.push(`The next secret word is revealed just after midnight UTC, in about ${spanText(DAY - (nowSeconds % DAY))}.`);
+  // After midnight and before the day's draw, the next word is today's, not tomorrow's.
+  const draw = f.lastDrawDay === null ? null : drawState(nowSeconds, f.lastDrawDay).state;
+  if (draw === "due") lines.push("Today’s secret word is due any minute.");
+  else if (draw === "behind") lines.push("Today’s draw is late: the daily run is behind.");
+  else lines.push(`The next secret word is revealed just after midnight UTC, in about ${spanText(DAY - (nowSeconds % DAY))}.`);
   if (f.last === null) lines.push("There hasn’t been a draw yet.");
   else if (f.last) {
     const word = f.last.word ? `Last draw: ${f.last.word}. ` : "Last draw: ";
@@ -207,8 +226,11 @@ export function wordText(word: string, held: HeldWord | null | undefined, chainB
   if (held.level) lines.push(`It has ascended to ${stageName(held.level)}.`);
   if (held.staked && held.daysUnfed !== null) {
     const care = DEFAULT_PARAMS.care;
-    if (held.daysUnfed >= care.hungryAfterDays) lines.push("It is hungry: it earns nothing and sits out the jackpot until it is fed.");
-    else if (held.daysUnfed >= care.peckishAfterDays) lines.push("It is peckish: it earns half until it is fed.");
+    // Only a word whose every letter is UPPERCASE earns, so only that one is told what hunger does
+    // to its earnings. Any staked word is in the jackpot until it is hungry.
+    const earns = held.upper !== null && held.upper.every(Boolean);
+    if (held.daysUnfed >= care.hungryAfterDays) lines.push(`It is hungry: it ${earns ? "earns nothing and " : ""}sits out the jackpot until it is fed.`);
+    else if (held.daysUnfed >= care.peckishAfterDays) lines.push(earns ? "It is peckish: it earns half until it is fed." : "It is peckish: feed it before it gets hungry.");
   }
   if (held.number) lines.push(`Card ${cardNumber(held.number)}.`);
   return lines.join("\n");
@@ -231,10 +253,7 @@ async function nameOf(address: string): Promise<string> {
 async function readStatus(): Promise<StatusFacts> {
   const base = { network: NETWORK.name, testnet: NETWORK.isTestnet, chainBacked: isChainBacked() };
   if (!base.chainBacked) return { ...base, chainTime: null, lastDrawDay: null };
-  const [chainTime, lastDraw] = await Promise.all([
-    soon(readChainTime()),
-    soon(getPublicClient().readContract({ address: addressOf("jackpot"), abi: jackpotAbi, functionName: "lastResolvedDay" })),
-  ]);
+  const [chainTime, lastDraw] = await Promise.all([soon(readChainTime()), soon(readLastDrawDay())]);
   return { ...base, chainTime, lastDrawDay: lastDraw === null ? null : Number(lastDraw) };
 }
 
@@ -289,9 +308,20 @@ async function readLastDraw(): Promise<LastDraw | null> {
   return { word: last.word, winner: { name: await nameOf(last.winner), amount: toWholeWord(last.amount ?? 0n) } };
 }
 
-async function readJackpot(): Promise<JackpotFacts> {
-  const [buckets, last] = await Promise.all([soon(readFeeBuckets()), soon(readLastDraw().then((d) => ({ d })))]);
-  return { pot: buckets?.jackpot ?? null, last: last === null ? undefined : last.d };
+const readLastDrawDay = () => getPublicClient().readContract({ address: addressOf("jackpot"), abi: jackpotAbi, functionName: "lastResolvedDay" });
+
+/** The jackpot's facts, and the clock to say them by: the chain's, else this server's. */
+async function readJackpot(): Promise<{ facts: JackpotFacts; now: number }> {
+  const [buckets, last, chainTime, lastDrawDay] = await Promise.all([
+    soon(readFeeBuckets()),
+    soon(readLastDraw().then((d) => ({ d }))),
+    soon(readChainTime()),
+    soon(readLastDrawDay()),
+  ]);
+  return {
+    facts: { pot: buckets?.jackpot ?? null, last: last === null ? undefined : last.d, lastDrawDay: lastDrawDay === null ? null : Number(lastDrawDay) },
+    now: chainTime ?? Math.floor(Date.now() / 1000),
+  };
 }
 
 /** Who holds `word` and in what state: null when nobody does. Throws when the chain can't be read. */
@@ -362,8 +392,11 @@ export async function answer(cmd: { name: string; args: string }, where: { priva
       return where.private ? { text: `HEYOO! I’m the Lexigotchi bot.\n\n${helpText()}` } : null;
     case "status":
       return { text: statusText(await readStatus()) };
-    case "jackpot":
-      return { text: isChainBacked() ? jackpotText(await readJackpot(), now) : "The jackpot starts when the game is onchain. This is practice mode." };
+    case "jackpot": {
+      if (!isChainBacked()) return { text: "The jackpot starts when the game is onchain. This is practice mode." };
+      const jackpot = await readJackpot();
+      return { text: jackpotText(jackpot.facts, jackpot.now) };
+    }
     case "bounty":
       return { text: bountyText(isChainBacked() ? ((await soon(readFeeBuckets()))?.bounty ?? null) : null, now) };
     case "word":

@@ -30,7 +30,9 @@ export interface TgEntity {
 
 export interface TgMessage {
   message_id?: number;
+  /** For a group admin who posts anonymously this is Telegram's own stand-in bot, and `sender_chat` is the group. */
   from?: TgUser;
+  sender_chat?: { id: number };
   /** `type` is "private" for a chat with one person; a group is "group" or "supergroup". */
   chat: { id: number; type?: string; title?: string };
   text?: string;

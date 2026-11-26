@@ -3,6 +3,7 @@ import { commandOf, type TgMessage } from "@/lib/telegram";
 import {
   COMMANDS,
   bountyText,
+  drawState,
   helpText,
   jackpotText,
   lastDrawOf,
@@ -120,10 +121,12 @@ describe("/status", () => {
 });
 
 describe("/jackpot", () => {
-  const now = 20_800 * DAY + 20 * 3600 + 48 * 60; // 20:48 UTC
+  const today = 20_800;
+  const now = today * DAY + 20 * 3600 + 48 * 60; // 20:48 UTC
+  const drawn = { lastDrawDay: today };
 
   it("says the pot, when the next word comes, and how the last draw went", () => {
-    expect(jackpotText({ pot: 1_204_000, last: { word: "CRANE", winner: null } }, now)).toBe(
+    expect(jackpotText({ pot: 1_204_000, last: { word: "CRANE", winner: null }, ...drawn }, now)).toBe(
       [
         "The jackpot is 1.20M $WORD.",
         "The next secret word is revealed just after midnight UTC, in about 3 h 12 min.",
@@ -131,21 +134,36 @@ describe("/jackpot", () => {
         "Every word you keep staked and fed is in the running.",
       ].join("\n"),
     );
-    expect(jackpotText({ pot: 512, last: { word: "CRANE", winner: { name: "ann", amount: 96_300 } } }, now)).toContain("Last draw: CRANE. ann held it and won 96.3K $WORD.");
+    expect(jackpotText({ pot: 512, last: { word: "CRANE", winner: { name: "ann", amount: 96_300 } }, ...drawn }, now)).toContain("Last draw: CRANE. ann held it and won 96.3K $WORD.");
+  });
+
+  it("agrees with /status in the minutes after midnight: the next word is today's until the draw has run", () => {
+    const justAfter = (today + 1) * DAY + 2 * 60; // 00:02 UTC, yesterday's draw still the last
+    const facts = { pot: 5, last: { word: "CRANE", winner: null }, lastDrawDay: today };
+    expect(drawState(justAfter, today)).toEqual({ state: "due", behind: 1 });
+    expect(jackpotText(facts, justAfter)).toContain("Today’s secret word is due any minute.");
+    expect(jackpotText(facts, justAfter)).not.toMatch(/in about/);
+    // an hour on with no draw, both say the run is behind
+    expect(drawState(justAfter + 3600, today).state).toBe("behind");
+    expect(jackpotText(facts, justAfter + 3600)).toContain("Today’s draw is late: the daily run is behind.");
+    // and once it has run, the countdown is to tomorrow's
+    expect(jackpotText({ ...facts, lastDrawDay: today + 1 }, justAfter)).toContain("in about 23 h 58 min.");
+    // an unread draw day guesses nothing: the plain countdown
+    expect(jackpotText({ ...facts, lastDrawDay: null }, justAfter)).toContain("in about 23 h 58 min.");
   });
 
   it("names no word it couldn't match to the draw", () => {
-    expect(jackpotText({ pot: 1, last: { word: null, winner: null } }, now)).toContain("Last draw: nobody held the word staked and fed, so the pot rolled over.");
-    expect(jackpotText({ pot: 1, last: { word: null, winner: { name: "0x12ab…cdef", amount: 5 } } }, now)).toContain("Last draw: 0x12ab…cdef held the word and won 5 $WORD.");
+    expect(jackpotText({ pot: 1, last: { word: null, winner: null }, ...drawn }, now)).toContain("Last draw: nobody held the word staked and fed, so the pot rolled over.");
+    expect(jackpotText({ pot: 1, last: { word: null, winner: { name: "0x12ab…cdef", amount: 5 } }, ...drawn }, now)).toContain("Last draw: 0x12ab…cdef held the word and won 5 $WORD.");
   });
 
   it("says there has been no draw, and leaves out what it couldn't read", () => {
-    expect(jackpotText({ pot: 0, last: null }, now)).toContain("There hasn’t been a draw yet.");
-    const unread = jackpotText({ pot: null, last: undefined }, now);
+    expect(jackpotText({ pot: 0, last: null, lastDrawDay: 0 }, now)).toContain("There hasn’t been a draw yet.");
+    const unread = jackpotText({ pot: null, last: undefined, lastDrawDay: null }, now);
     expect(unread).toContain("I can’t read the pot right now.");
     expect(unread).not.toMatch(/Last draw|hasn’t been a draw/);
     // an empty pot is a fact, not a failed read
-    expect(jackpotText({ pot: 0, last: undefined }, now)).toContain("The jackpot is 0 $WORD.");
+    expect(jackpotText({ pot: 0, last: undefined, ...drawn }, now)).toContain("The jackpot is 0 $WORD.");
   });
 });
 
@@ -210,9 +228,19 @@ describe("/word", () => {
   });
 
   it("says when a staked word is peckish or hungry, and never for one that isn't staked", () => {
-    expect(wordText("CRANE", { ...held, daysUnfed: 1 })).toContain("It is peckish: it earns half until it is fed.");
-    expect(wordText("CRANE", { ...held, daysUnfed: 3 })).toContain("It is hungry: it earns nothing and sits out the jackpot until it is fed.");
+    const all = [true, true, true, true, true];
+    expect(wordText("CRANE", { ...held, upper: all, daysUnfed: 1 })).toContain("It is peckish: it earns half until it is fed.");
+    expect(wordText("CRANE", { ...held, upper: all, daysUnfed: 3 })).toContain("It is hungry: it earns nothing and sits out the jackpot until it is fed.");
     expect(wordText("CRANE", { ...held, staked: false, daysUnfed: 9 })).not.toMatch(/hungry|peckish/);
+  });
+
+  it("tells only an all-UPPERCASE word what hunger does to its earnings: no other word earns", () => {
+    // 3 of 5 raised, and a word whose case couldn't be read
+    for (const upper of [held.upper, null]) {
+      expect(wordText("CRANE", { ...held, upper, daysUnfed: 1 })).toContain("It is peckish: feed it before it gets hungry.");
+      expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).toContain("It is hungry: it sits out the jackpot until it is fed.");
+      expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).not.toMatch(/earns/);
+    }
   });
 
   it("leaves out what it couldn't read, and tells nobody apart from not knowing", () => {
@@ -299,6 +327,15 @@ describe("the webhook route answers commands", () => {
     });
   });
 
+  it("answers a group admin who posts anonymously (Telegram's stand-in bot, with the group as the sender)", async () => {
+    const { POST } = await import("@/app/api/telegram/webhook/route");
+    await withTelegram(async (sent) => {
+      await POST(post(typed("/help", { from: { id: 1087968824, is_bot: true }, sender_chat: { id: Number(CHAT) } }), 6));
+      await vi.waitFor(() => expect(sent.length).toBe(1));
+      expect(sent[0][1].text).toBe(helpText());
+    });
+  });
+
   it("stays silent for ordinary talk, an unknown command in the group, another group, another bot's command, and a bot", async () => {
     const { POST } = await import("@/app/api/telegram/webhook/route");
     await withTelegram(async (sent) => {
@@ -309,6 +346,9 @@ describe("the webhook route answers commands", () => {
         typed("/help", { chat: { id: -42, type: "supergroup" } }),
         typed("/help@other_bot"),
         typed("/help", { from: { id: 9, is_bot: true } }),
+        // a channel's post, or an anonymous admin of some other chat
+        typed("/help", { from: { id: 136817688, is_bot: true }, sender_chat: { id: -1001 } }),
+        typed("/help", { chat: { id: 5, type: "private" }, from: { id: 9, is_bot: true }, sender_chat: { id: 5 } }),
         typed("/help", { from: undefined }),
       ];
       for (const [i, m] of quiet.entries()) expect((await POST(post(m, 100 + i))).status).toBe(200);
@@ -330,12 +370,15 @@ describe("the bot's words follow the house copy rules", () => {
       statusText({ network: "Base Sepolia", testnet: true, chainBacked: true, chainTime: now, lastDrawDay: 0 }),
       statusText({ network: "Base Sepolia", testnet: true, chainBacked: true, chainTime: now, lastDrawDay: 20_800 }),
       statusText({ network: "Base Sepolia", testnet: true, chainBacked: true, chainTime: now, lastDrawDay: 20_700 }),
-      jackpotText({ pot: null, last: null }, now),
-      jackpotText({ pot: 5, last: { word: "CRANE", winner: { name: "ann", amount: 5 } } }, now),
-      jackpotText({ pot: 5, last: { word: null, winner: null } }, now),
+      jackpotText({ pot: null, last: null, lastDrawDay: 0 }, now),
+      jackpotText({ pot: 5, last: { word: "CRANE", winner: { name: "ann", amount: 5 } }, lastDrawDay: 20_800 }, now),
+      jackpotText({ pot: 5, last: { word: null, winner: null }, lastDrawDay: 20_799 }, 20_800 * DAY + 60),
+      jackpotText({ pot: 5, last: { word: null, winner: null }, lastDrawDay: 20_700 }, now),
       bountyText(5, now),
       wordText("CRANE", held),
       wordText("CRANE", { ...held, daysUnfed: 1 }),
+      wordText("CRANE", { ...held, upper: [true, true, true, true, true], daysUnfed: 1 }),
+      wordText("CRANE", { ...held, upper: [true, true, true, true, true] }),
       wordText("CRANE", null),
       wordText("CRANE", undefined),
     ].join("\n");
