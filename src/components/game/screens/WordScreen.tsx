@@ -20,6 +20,7 @@ import { useOpenUrl } from "../useShare";
 import { fmtMarketCap } from "@/components/WordStrip";
 import { DOCS_URL } from "@/lib/site";
 import { DEFAULT_PARAMS } from "@/lib/params";
+import { fmtUsdShort } from "@/lib/wordAmount";
 import { WORD_TOKEN } from "@/lib/wordStats";
 import type { WordSummary } from "@/app/api/word/route";
 import { usePlayerWallets } from "../usePlayerWallets";
@@ -32,8 +33,6 @@ function fmtPrice(usd: number): string {
   const decimals = Math.min(14, Math.max(2, -Math.floor(Math.log10(usd)) + 2));
   return `$${usd.toFixed(decimals)}`;
 }
-const fmtUsd0 = (usd: number | null | undefined) =>
-  usd == null ? "–" : usd >= 1000 ? `$${(usd / 1000).toFixed(1)}K` : `$${usd.toFixed(usd < 10 ? 2 : 0)}`;
 const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
 
 export function WordScreen() {
@@ -109,7 +108,7 @@ export function WordScreen() {
           <p className="mt-3 text-sm">
             You hold <strong className="tabular-nums">{fmtWord(holder.balance)} $WORD</strong>
             {(holder.wallets ?? 0) > 1 && <> across {holder.wallets} wallets</>}
-            {d && d.price.usd > 0 && <span className="text-ink/60"> (about {fmtUsd0(holder.balance * d.price.usd)})</span>}.
+            {d && d.price.usd > 0 && <span className="text-ink/60"> (about {fmtUsdShort(holder.balance * d.price.usd)})</span>}.
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
@@ -182,8 +181,8 @@ export function WordScreen() {
           <div className="space-y-2.5">
             <Rows
               rows={[
-                ["Pool liquidity (both sides)", fmtUsd0(d.pool.liquidityUsd)],
-                ["Traded in 24 hours", fmtUsd0(d.pool.volume24hUsd)],
+                ["Pool liquidity (both sides)", fmtUsdShort(d.pool.liquidityUsd)],
+                ["Traded in 24 hours", fmtUsdShort(d.pool.volume24hUsd)],
                 ["Where it trades", "Uniswap v4 on Base"],
               ]}
             />

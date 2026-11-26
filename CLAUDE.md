@@ -594,9 +594,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   draw or a ticket (docs/messaging.md).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
-  UPPERCASE first to a limit, Spell, Mint) top right, the jackpot under the words, next steps under
-  the letters, then the bounty and quick actions. Two free-flowing columns on lg; a phone stacks them
-  in that order (`display: contents` column wrappers + `order`). Every card speaks to the player in
+  UPPERCASE first to a limit, Spell, Mint) top right, next steps under the letters, then **the three
+  pots** in one row of equal tiles across both columns (decisions.md #45; `TodayPots`, rules in
+  `todayPots.ts`): the jackpot, the bounty, and the Rewards Pool, each its $WORD amount, "about $X"
+  (only where `showsUsd`: never for test $WORD), and a line of its own; a pot not read yet is a dash
+  (`potsKnown`). Then the quick actions. Two free-flowing columns on lg; a phone stacks them in that
+  order, the pots still three across (two layouts picked by `useWide`, each in reading order). Every card speaks to the player in
   front of it: the empty stage per `emptyStageCase` (loading, words only in a linked wallet, can
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
@@ -846,7 +849,9 @@ bot posts). The hard rules:
   Dictionary (not Lexidex); the Market (not marketplace, exchange).
 - **Never write:** price, pump, moon, invest, investment, "number go up", or a dollar figure for
   $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
-  functional uses: a word's sale price on the Market and the $WORD page's own data.
+  functional uses: a word's sale price on the Market and the $WORD page's own data. One exception
+  (decisions.md #45): Today's three pot tiles show "about $X" beside each pot, never for test
+  $WORD; nowhere else (share text, reminders, landing, docs, bot posts) gets a jackpot dollar figure.
 - **The jackpot always carries "staked and fed".**
 - **Lead with a pet, a word, or a rare letter, never with earning.** Letters are characters, written
   in their case ("your q is hungry"); a reminder names the letter or word ("FUNKY is peckish").
