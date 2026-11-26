@@ -5,10 +5,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const chain = vi.hoisted(() => ({ deployed: false, numberOf: vi.fn(async (_word: string): Promise<number | null> => null), levelOf: vi.fn(async (_word: string): Promise<number | null> => 0) }));
+const chain = vi.hoisted(() => ({ deployed: false, waited: [] as string[], numberOf: vi.fn(async (_word: string): Promise<number | null> => null), levelOf: vi.fn(async (_word: string, _hint?: number | null): Promise<number | null> => 0) }));
 vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), isSuiteDeployed: () => chain.deployed }));
-vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: chain.numberOf }));
-vi.mock("@/lib/onchain/cardLevel", () => ({ cardLevelSoon: chain.levelOf }));
+// "soon" answers within a moment or not at all (a crawler waits); the plain reads wait for the chain
+vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: chain.numberOf, cardNumberOf: async (word: string) => (chain.waited.push(`number:${word}`), chain.numberOf(word)) }));
+vi.mock("@/lib/onchain/cardLevel", () => ({ cardLevelSoon: chain.levelOf, cardLevelOf: async (word: string, hint: number | null) => (chain.waited.push(`level:${word}`), chain.levelOf(word, hint)) }));
 
 const { GET } = await import("@/app/s/[text]/card/route");
 
@@ -28,6 +29,7 @@ beforeEach(() => {
   chain.numberOf.mockResolvedValue(null);
   chain.levelOf.mockReset();
   chain.levelOf.mockResolvedValue(0);
+  chain.waited = [];
 });
 
 describe("a word's share picture", () => {
@@ -90,6 +92,18 @@ describe("a word's share picture", () => {
     chain.deployed = false;
     await get("CRAne", "?g=5");
     expect(chain.levelOf).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it("the video's front waits for the chain as its back does, so the two faces of one video can't disagree; a crawler's picture doesn't wait", async () => {
+    chain.deployed = true;
+    chain.numberOf.mockResolvedValue(20);
+    chain.levelOf.mockResolvedValue(3);
+    await get("CRAne", "?face=1&g=3");
+    expect(chain.waited).toEqual(["number:CRANE", "level:CRANE"]);
+    chain.waited = [];
+    await get("CRAne", "?g=3");
+    await get("CRAne", "?ratio=3x2&saved=1");
+    expect(chain.waited).toEqual([]);
   }, 60_000);
 
   it("keeps a gilded picture for a week only at the address that names its stage", async () => {

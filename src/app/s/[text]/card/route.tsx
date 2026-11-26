@@ -7,8 +7,8 @@ import { parseLinkScene } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
-import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
-import { cardLevelSoon } from "@/lib/onchain/cardLevel";
+import { cardNumberOf, cardNumberSoon } from "@/lib/onchain/cardNumbers";
+import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
 
 /**
  * A word's share picture: its card (decisions.md #34), as the game draws it. The card's own paper,
@@ -70,7 +70,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // The stage the same way. A house card has none; before the game is deployed there is none to read.
   // The stage the address names is passed along only as a reason to read again (cardLevel says why).
   const hint = parseLinkStage(url.searchParams.get("g"));
-  const [number, level] = await Promise.all([tier ? cardNumberSoon(word) : null, tier && isSuiteDeployed() ? cardLevelSoon(word, hint) : 0]);
+  // A crawler is waiting for a link picture, so its reads have a short wait and it is drawn with
+  // what is known. The video's front (`face`) is asked for by the player's own browser, beside the
+  // back's picture (app/s/[text]/back), which waits for its reads: the front waits for the same
+  // ones, so the two faces of one video can never disagree about the word's number or its
+  // gilding (Bugbot on #247: a slow read gave an ungilded front and a gilded back).
+  const [number, level] = await Promise.all([
+    tier ? (face ? cardNumberOf(word).catch(() => null) : cardNumberSoon(word)) : null,
+    tier && isSuiteDeployed() ? (face ? cardLevelOf(word, hint) : cardLevelSoon(word, hint)) : 0,
+  ]);
   const no = cardNo(number);
 
   const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face });
