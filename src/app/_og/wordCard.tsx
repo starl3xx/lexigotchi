@@ -8,7 +8,7 @@ import { isWord } from "@/lib/dictionary";
 import { wordTier, type Tier } from "@/lib/economy";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
-import { CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
+import { CARD_CORNER, CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
 import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
 
 /**
@@ -77,7 +77,7 @@ export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = fals
         height: cardH,
         overflow: "hidden",
         background: CARD_PAPER,
-        ...(bare ? {} : { borderRadius: Math.round(28 * k), border: `${Math.round(4 * k)}px solid ${INK}`, boxShadow: `${Math.round(7 * k)}px ${Math.round(9 * k)}px 0 rgba(0, 0, 0, 0.42)` }),
+        ...(bare ? {} : { borderRadius: Math.round(CARD_CORNER * cardW), border: `${Math.round(4 * k)}px solid ${INK}`, boxShadow: `${Math.round(7 * k)}px ${Math.round(9 * k)}px 0 rgba(0, 0, 0, 0.42)` }),
       }}
     >
       <img src={image(cardArt(scene, tier ?? PLAIN))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />

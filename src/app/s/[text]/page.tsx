@@ -76,7 +76,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
       <p className="rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider shadow-[2px_2px_0_#1b1714]">
         A Lexigotchi showcase
       </p>
-      <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
+      <div className="card-corner w-full max-w-3xl overflow-hidden border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
         <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} />
       </div>
       <h1 className="sr-only">{text}</h1>

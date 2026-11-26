@@ -532,8 +532,19 @@ body {
      a mark stacks its icon over its words. `.tm-compact` is the Bag's: three small icons.
    Still: nothing here moves by itself.
    --------------------------------------------------------------------------------------------- */
+/* ONE CORNER FOR EVERY CARD (decisions.md #48): 2.6% of the card's width, wherever a card is
+   pictured and at every size (lib/cardArt/looks, CARD_CORNER, says where the number comes from).
+   A corner used to be a fixed 16, 12, or 8 px, so a small card was far rounder than a big one: 2.1%
+   of the width on the share page, 6.9% on a phone's Bag card, 7.1% in the scene picker.
+   Written as two percentages (of the box's own width, then of its height) so it needs no container:
+   a card is 16:9, and 2.6% of its width is 4.6222% of its height. Anything that clips a card takes
+   .card-corner, or this value: never a pixel radius, and never a Tailwind rounded-* class
+   (tests/card-corner.test.ts). The ink outline stays the game's own line weight (3 px, 2 px on a
+   thumbnail): it is the same line as the placard's and the buttons'. */
+:root { --card-r: 2.6% / 4.6222%; }
+.card-corner { border-radius: var(--card-r); }
 .tt { display: grid; width: 100%; min-width: 0; container: tt / inline-size; }
-.tt-card { position: relative; z-index: 1; border-radius: 16px; box-shadow: 4px 5px 0 #1b1714; }
+.tt-card { position: relative; z-index: 1; border-radius: var(--card-r); box-shadow: 4px 5px 0 #1b1714; }
 /* the blank card of a player with no word yet: the same edge, without a card to turn */
 .tt-blank { overflow: hidden; border: 3px solid #1b1714; }
 .tt-plate { position: relative; z-index: 0; display: grid; gap: 12px; margin: -10px 14px 0; padding: 24px 14px 12px; border: 3px solid #1b1714; border-top: 0; border-radius: 0 0 16px 16px; background: #fbf4e3; box-shadow: 4px 5px 0 #1b1714; }
@@ -711,8 +722,11 @@ body {
    home, WebKit (seen headless) kept drawing the back, mirrored, over the front. While the card is
    turning (.is-flipping) both faces are there, and backface-visibility picks one. */
 .sc:not(.is-flipping):not(.is-back) .sc-back, .sc.is-back:not(.is-flipping) .sc-front { visibility: hidden; }
-.sc-framed .sc-face { border: 3px solid #1b1714; border-radius: 16px; }
-.sc-framed.sc-small .sc-face { border-width: 2px; border-radius: 12px; }
+.sc-framed .sc-face { border: 3px solid #1b1714; border-radius: var(--card-r); }
+.sc-framed.sc-small .sc-face { border-width: 2px; }
+/* the same two widths, for the back's frame line (below, --cb-frame-r) */
+.sc-framed .cb { --cb-edge: 3px; }
+.sc-framed.sc-small .cb { --cb-edge: 2px; }
 .sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }
 @keyframes sc-lift { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-2%) scale(1.035); } }
 /* the scene nobody can see holds still */
@@ -728,7 +742,7 @@ body {
 .sc-flip { position: absolute; top: clamp(6px, 2.4cqw, 14px); right: clamp(6px, 2.4cqw, 14px); z-index: 6; width: clamp(36px, 7cqw, 44px); height: clamp(36px, 7cqw, 44px); display: grid; place-items: center; border-radius: 999px; border: 2px solid #1b1714; background: rgba(251, 244, 227, 0.94); color: #1b1714; box-shadow: 2px 2px 0 #1b1714; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .sc-small .sc-flip { width: 30px; height: 30px; top: 6px; right: 6px; }
 /* a card that opens its word: the whole card, under the flip button */
-.sc-open { position: absolute; inset: 0; z-index: 5; border-radius: 12px; cursor: pointer; }
+.sc-open { position: absolute; inset: 0; z-index: 5; border-radius: var(--card-r); cursor: pointer; }
 .sc-open:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
 .sc-flip svg { width: 58%; height: 58%; }
 .sc-flip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #1b1714; }
@@ -777,7 +791,14 @@ body {
 .need-letter { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 0.15em; border-radius: 0.3em; border: 1.5px solid #2a1e1a; background: #f8efdd; box-shadow: 0 1.5px 0 #c7ae84; font-weight: 800; line-height: 1; vertical-align: -0.12em; color: #2a1e1a; }
 
 /* ---- the back ---- */
-.cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
+/* The back's frame line runs parallel to the card's corner: the card's 2.6%, less the ink border
+   that lies between the card's edge and the back, less the line's own inset (it was a radius of its
+   own, which stopped following the card under 364 px and over 636).
+   --cb-edge is that ink border: 3 px on a framed card and 2 px on a thumbnail (.sc-framed .sc-face,
+   whose border the back sits inside), and none in a plastic case, whose ink is drawn over the card.
+   It counts 94.8%, not 100: the back is narrower than the card by the border on each side, so
+   2.6cqw here is already 5.2% of the border short of the card's corner (Bugbot on #252). */
+.cb { --cb-frame-r: max(2px, calc(2.6cqw - 0.948 * var(--cb-edge, 0px) - clamp(5px, 1.8cqw, 12px))); --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
 .cb > * { position: absolute; }
 .cb-mat { inset: 0; background: var(--cb-mat); }
 .cb-mat > * { position: absolute; inset: 0; }
@@ -788,7 +809,7 @@ body {
 .sc-back { touch-action: pan-y; }
 /* the frame: a line in the material's colour, with a dotted line just outside it (the front's
    chain border, said quietly) */
-.cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); border: max(1.5px, 0.3cqw) solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); outline: max(1.5px, 0.28cqw) dotted var(--cb-line); outline-offset: max(1.5px, 0.42cqw); pointer-events: none; }
+.cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: var(--cb-frame-r); border: max(1.5px, 0.3cqw) solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); outline: max(1.5px, 0.28cqw) dotted var(--cb-line); outline-offset: max(1.5px, 0.42cqw); pointer-events: none; }
 /* the materials, deep */
 .m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-top: #54402d; --rk-front: #2a1e15; }
 .m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-top: #22705e; --rk-front: #0c3028; }
@@ -801,7 +822,7 @@ body {
 .cb-facets .fl { stroke: rgba(255, 255, 255, 0.22); }
 .cb-facets .ft { fill: rgba(255, 255, 255, 0.07); stroke: rgba(255, 255, 255, 0.3); }
 /* Mythic's fire: a spectral line inside the frame, still (a looping hue shift repaints every frame) */
-.cb-fire { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); padding: 2.5px; background: linear-gradient(135deg, #ff7ad9, #ffd84d, #6ff2ff, #8f9bff, #ff7ad9); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0.38; pointer-events: none; }
+.cb-fire { inset: clamp(5px, 1.8cqw, 12px); border-radius: var(--cb-frame-r); padding: 2.5px; background: linear-gradient(135deg, #ff7ad9, #ffd84d, #6ff2ff, #8f9bff, #ff7ad9); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0.38; pointer-events: none; }
 .cb-corner { width: clamp(16px, 6cqw, 38px); height: clamp(16px, 6cqw, 38px); pointer-events: none; }
 .cb-corner svg { width: 100%; height: 100%; display: block; }
 .cb-corner .sc1 { stroke: rgba(255, 244, 200, 0.55); }
@@ -912,7 +933,7 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 @container (max-width: 459px) { .cc-sealed > span { display: none; } .cc-label-back { grid-template-columns: 1fr auto auto; } }
 .cc-well { position: relative; padding: 1.1cqw; border-radius: 2.4cqw; background: rgb(27 23 20 / 0.1); box-shadow: inset 0 max(2px, 0.4cqw) 0 rgb(27 23 20 / 0.22), 0 max(1px, 0.25cqw) 0 rgb(255 255 255 / 0.7); }
 /* the card in the well: its own container, so the card's faces size themselves by the card */
-.cc-card { position: relative; aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; border-radius: 1.6cqw; background: #1b1714; }
+.cc-card { position: relative; aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; border-radius: var(--card-r); background: #1b1714; }
 .cc-card::after { content: ""; position: absolute; inset: 0; z-index: 7; border: 2px solid #1b1714; border-radius: inherit; pointer-events: none; }
 /* the case's four edges: strips turned on end, between the two sides */
 .cc-edge { position: absolute; background: linear-gradient(rgb(232 242 250 / 0.9), rgb(190 212 228 / 0.9)); border: 2px solid #1b1714; }

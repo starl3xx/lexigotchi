@@ -517,7 +517,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - **Scenes and the card's front** (decisions.md #15 and #34; `src/lib/scenes.ts` = the list and the
   unlock; `src/lib/cardArt/` = the pictures; `src/components/scenes/`): a word's card front is
   `SceneFrame` (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9; also the Bag, the scene sheet, the
-  purchase celebration, the share page). **The card is an object:** its own paper, the scene's art in
+  purchase celebration, the share page). **A card's corner is 2.6% of its width, everywhere** (decisions.md #48; `lib/cardArt/looks` `CARD_CORNER` says where the number comes from): in the game, `--card-r` / `.card-corner` (two percentages of the box itself, so no container is needed); in the server's pictures and the video's shader, `CARD_CORNER`. Anything that clips a card takes it, never a pixel radius or a `rounded-*` class, and the back's frame lines run parallel to it (`tests/card-corner.test.ts`). The ink outline stays the game's own 3 px (2 px on a thumbnail). **The card is an object:** its own paper, the scene's art in
   a window, a frame in the rarity's ink with the rarity's mark in its corners, and a ribbon ("one of
   one", the card's number from `cards/useCardNumber` and `/api/words/numbers`, the rarity; no ribbon
   on a `small` card). **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the card's serif

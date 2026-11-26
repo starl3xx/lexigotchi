@@ -104,8 +104,10 @@ export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null
  * 6: an UPPERCASE letter's legs come over its ring (decisions.md #48, part 2).
  * 7: the letters wear the word's gilding, on the front and on the back's rack, and the back shows
  *    the stage's pips (decisions.md #48, part 3). No picture drew gilding before.
+ * 8: one corner for every card, 2.6% of its width (decisions.md #48, part 4): the pictures' corner
+ *    and the back's frame lines.
  */
-export const CARD_LOOK = 7;
+export const CARD_LOOK = 8;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null): string {

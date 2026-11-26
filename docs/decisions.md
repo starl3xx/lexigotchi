@@ -1702,6 +1702,38 @@ setter. All small, riding existing suite patterns.
         server's own drawing code from a script. The routes were not run against a chain here (the
         practice game has none), and no word on the test game is ascended yet, so the first real
         one is the first real test.
+    - **Part 4, one corner for every card.** "Everywhere the cards are pictured in the app and
+      downloads and *anywhere*, we need to make sure they have consistent round corner sizes...
+      find the ideal corner radius for every size we use." Then: "2.6% is the way to go."
+      - **What it was.** A fixed 16, 12, or 8 px, set by whatever box happened to clip the card, so
+        a small card was far rounder than a big one. Measured in the running game, as a share of
+        the card's width: 2.1% on the share page (computer), 2.3% in the scene sheet's preview,
+        3.1% for an opened word, 3.3% on Today, 3.8% in the Bag, 4.5% on a phone's Today, 6.9% in a
+        phone's Bag, 7.1% in the scene picker. The server's pictures drew 2.3%, the video 2.5%, a
+        cased card 1.7%. No shared value existed anywhere.
+      - **Why 2.6%.** The frame's own shapes give it (`lib/cardArt/looks`, `CARD_CORNER`). Its
+        outer line is 13 units in from the edge with a corner of 18, on a card 1,200 wide: it runs
+        parallel to an outer corner of 31 units, 2.6%. Its corner pieces (a corner of 8 at the same
+        13) need 21 units, 1.75%. Between the two, everything in the frame keeps its room; above
+        about 3% the corner crowds the pieces, and at 6.9% it cut into them.
+      - **How.** In the game, `--card-r: 2.6% / 4.6222%` and `.card-corner`: two percentages of the
+        box itself (its width, then its height; a card is 16:9), so it needs no container. Every
+        box that clips a card takes it, never a pixel radius or a `rounded-*` class. The server's
+        pictures and the video's shader read `CARD_CORNER`. The back's frame lines run parallel to
+        the corner (the corner less each line's inset), in the game and on the back's picture;
+        they had radii of their own, which stopped following the card under 364 px and over 636.
+        `CARD_LOOK` is 8.
+      - **Measured after,** in the running game on a computer and a phone: 2.6% in all eleven
+        places (13.6 px on a 522 px card, 4.5 px on a 174 px one, 2.9 px on a 113 px one).
+      - **The ink outline stays** 3 px (2 px on a thumbnail). The review page said it should
+        scale too; it shouldn't: it is the game's own line weight, the same line as the placard
+        under Today's card and the buttons'.
+      - **Not cards, so not changed:** the placard, the ring round the Bag's "today's word" card
+        and its caption, the video preview's box, the earnings picture's preview.
+      - **`tests/card-corner.test.ts` holds it:** the number against the frame's shapes, the CSS
+        value, each rule that takes it, the wrappers, the pictures, and the shader.
+      - **Seen and not seen (part 4):** the game measured and looked at in headless Chromium at
+        1280 and 390 px. No real phone. The pictures and the video were not drawn again here.
 
 ## Pricing & launch economics (decided June 2026)
 
