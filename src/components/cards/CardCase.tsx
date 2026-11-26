@@ -164,16 +164,23 @@ export function CardCase({
     if (!drag || reduced || e.button !== 0 || (e.target as Element).closest("button")) return;
     from.current = { px: e.clientX, py: e.clientY, y: at.current.y, tilt: e.pointerType === "mouse", started: false };
   };
+  const up = () => {
+    const f = from.current;
+    from.current = null;
+    if (!f?.started) return;
+    setDragging(false);
+    settle(nearestSide(at.current.y), false);
+  };
+
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     const f = from.current;
     if (!f) return;
     const dx = e.clientX - f.px;
     const dy = e.clientY - f.py;
-    // a press let go somewhere else leaves no drag behind: a mouse moving with no button turns nothing
-    if (!f.started && e.pointerType === "mouse" && e.buttons === 0) {
-      from.current = null;
-      return;
-    }
+    // A mouse moving with no button held turns nothing: a press let go somewhere else leaves no
+    // drag behind, and a turn whose release was never seen (the pointer couldn't be held, and it
+    // was let go outside the case) ends here, on the side that is showing.
+    if (e.pointerType === "mouse" && e.buttons === 0) return up();
     if (!f.started) {
       if (Math.abs(dx) < DRAG_START && (!f.tilt || Math.abs(dy) < DRAG_START)) return;
       // A finger turns the case only with a move that is more sideways than up-and-down: the
@@ -200,14 +207,6 @@ export function CardCase({
     }
     draw(f.y + dx * TURN_PER_PX, f.tilt ? Math.max(-TILT_MAX, Math.min(TILT_MAX, CASE_REST.x - dy * TILT_PER_PX)) : CASE_REST.x);
   };
-  const up = () => {
-    const f = from.current;
-    from.current = null;
-    if (!f?.started) return;
-    setDragging(false);
-    settle(nearestSide(at.current.y), false);
-  };
-
   const look = CARD_LOOKS[word.tier];
   const digits = cardDigits(number);
   const W = word.word;

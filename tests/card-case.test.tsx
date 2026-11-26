@@ -217,6 +217,24 @@ describe("a card in its case", () => {
     expect(slab.style.transform).toBe(before);
   });
 
+  it("ends a turn whose release it never saw: a mouse that comes back with no button held", async () => {
+    const { container } = render(<CardCase word={word("JAZZY")} front={<p>scene</p>} drag />);
+    const stage = container.querySelector(".cc")!;
+    const slab = container.querySelector(".cc-slab") as HTMLElement;
+    pointer(stage, "pointerdown", { x: 300, y: 200 }, "mouse");
+    pointer(stage, "pointermove", { x: 290, y: 200 }, "mouse");
+    pointer(stage, "pointermove", { x: 240, y: 200 }, "mouse"); // turning
+    expect(angleOf(slab)).toBeLessThan(restAngle(0) - 20);
+    await waitFor(() => expect(container.querySelector(".cc")!.classList.contains("is-dragging")).toBe(true));
+    // let go outside the case (no release reaches it), then the mouse passes over again
+    pointer(stage, "pointermove", { x: 100, y: 200 }, "mouse", 0);
+    await waitFor(() => expect(container.querySelector(".cc")!.classList.contains("is-dragging")).toBe(false));
+    await waitFor(() => expect(angleOf(slab)).toBe(restAngle(0)), { timeout: 3000 });
+    const rested = slab.style.transform;
+    pointer(stage, "pointermove", { x: 40, y: 200 }, "mouse", 0);
+    expect(slab.style.transform).toBe(rested);
+  });
+
   it("is shown with nothing in it on the Shop's card, with no word and no number", () => {
     const { container } = render(
       <CaseThumb>
