@@ -179,6 +179,8 @@ export type Sheet =
   /** The Shop (decisions.md #22), behind SHOP_ENABLED (sheets/ShopSheet). */
   | { kind: "shop" }
   | { kind: "earnings" }
+  /** A word opened from the Dictionary (sheets/LookupSheet): what the player needs to spell it, or who has it. */
+  | { kind: "lookup"; word: string }
   | null;
 
 export interface Toast {

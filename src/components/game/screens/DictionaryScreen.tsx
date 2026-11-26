@@ -1,72 +1,91 @@
 "use client";
 /**
- * Dictionary: browse every claimable word (WORD_COUNT), its tier, and who owns it. Your own words
- * are marked and open their sheet; a word someone else owns shows their Farcaster picture and name
- * (or a short address), from the shared world read (/api/world).
+ * Dictionary: every claimable word (WORD_COUNT), who has it, and how close the player is to
+ * spelling it (decisions.md #30).
+ *
+ * - **An entry shows what the player holds.** Its tiles are the word as it would be claimed: a
+ *   letter the player doesn't hold is an empty dashed slot, and the line under the name says where
+ *   they stand ("You can spell it", "Needs a q", lib/wordNeed). A word someone else has steps back
+ *   (faded tiles); one that is for sale, or the player's own, stays at full strength.
+ * - **A tap opens the word** (sheets/LookupSheet): what's needed and how to get it. The player's
+ *   own words open their card, as before.
+ * - **Closest first** and the quick filters find the near misses (lib/dictionaryList). Spell
+ *   already lists what the letters spell; this screen's new ground is one letter away.
+ * - **Nothing is promised before the owners are known** (useDictionary): until the world read
+ *   answers, entries say "Checking who owns it…", and the distance sort and filters wait.
  */
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
-import { Pill, Segmented, TierBadge } from "../primitives";
+import { cardNumber } from "@/lib/cardFacts";
+import { DICT_SORTS, listDictionary, type DictFilter, type DictSort, type EntryStatus } from "@/lib/dictionaryList";
+import { bagTotals, distanceOf, elsewhereTotals, needTokens, wordNeed } from "@/lib/wordNeed";
+import { Button, Pill, Segmented, TierBadge } from "../primitives";
 import { TierMark } from "../TierMark";
-import { useGame } from "../state";
+import { fmtWord, useGame } from "../state";
 import { PlayerChip } from "../PlayerChip";
 import { MiniTiles } from "../MiniTiles";
-import { useMyWallets, useWorld } from "../useWorld";
+import { NeedText } from "../NeedText";
+import { Check } from "../ui/icons";
+import { useDictionary } from "../useDictionary";
+import { useStoredChoice } from "../useStoredChoice";
 
 const TIERS: (Tier | "All")[] = ["All", "Common", "Uncommon", "Rare", "Legendary", "Mythic"];
 const LOWER = [false, false, false, false, false];
+/** A page of the list: 80 words is 400 tiles, the most a slow phone draws without lagging the search. */
+const PAGE = 80;
 
 export function DictionaryScreen() {
   const g = useGame();
-  const { state } = g;
+  const d = useDictionary();
   const [q, setQ] = useState("");
   const [tier, setTier] = useState<Tier | "All">("All");
-  const [claim, setClaim] = useState<"all" | "unclaimed" | "claimed">("all");
+  const [filter, setFilter] = useState<DictFilter>("all");
+  const [sort, setSort] = useStoredChoice<DictSort>("lexigotchi:dictionary:sort", DICT_SORTS, "closest");
 
-  const ownedSet = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
-  // Your words in their case; anyone else's (and the unclaimed) in the dictionary's lowercase.
-  const caseOf = useMemo(() => new Map(state.words.map((w) => [w.word, w.upper])), [state.words]);
-  const world = useWorld();
-  const mine = useMyWallets();
-  const owners = world.data?.owners ?? {};
-  const profiles = world.data?.profiles ?? {};
-  const claimedCount = Object.keys(owners).length;
-  // Owners are KNOWN only once the world read succeeds (always, in the practice game, which has no
-  // other players). While it loads or after it fails, an absent owner means "unknown", never
-  // "unclaimed": telling a player to spell a word someone owns sends them into an AlreadyClaimed
-  // revert (Bugbot on #120).
-  const ownersKnown = !state.chainBacked || world.data?.live === true;
+  // There is something to count once the player holds a letter and the owners are known. Before
+  // that an absent owner means "unknown", and a distance would be a promise the game can't keep.
+  const counting = d.hasLetters && d.ownersKnown;
+  const distances = useMemo(() => {
+    if (!counting) return null;
+    const here = bagTotals(d.here);
+    const elsewhere = elsewhereTotals(d.here, d.all);
+    // every word's distance, once per bag: half a millisecond for the whole dictionary
+    return WORDS.map((w) => distanceOf(w, here, elsewhere));
+  }, [counting, d.here, d.all]);
 
-  // Claimed = anyone's (yours included). Only filterable once the owners are known: before that an
-  // absent owner means "unknown", and "Unclaimed" would list words someone owns.
-  const claimFilter = ownersKnown ? claim : "all";
-  // The list draws each word in its tiles (80 words, 400 tiles): typing updates the box at once and
-  // the list a moment later, so a slow phone never lags behind the keys.
+  // A filter that can't be answered yet shows everything, rather than an empty list.
+  const needsCount = filter === "can" || filter === "one" || filter === "two";
+  const activeFilter: DictFilter = (needsCount && !counting) || (!d.ownersKnown && filter !== "all") ? "all" : filter;
+  // The list draws each word in its tiles: typing updates the box at once and the list a moment
+  // later, so a slow phone never lags behind the keys.
   const query = useDeferredValue(q);
-  const results = useMemo(() => {
-    const needle = query.trim().toUpperCase();
-    const out: string[] = [];
-    for (const w of WORDS) {
-      if (needle && !w.includes(needle)) continue;
-      if (tier !== "All" && wordTier(w) !== tier) continue;
-      if (claimFilter !== "all") {
-        const claimed = ownedSet.has(w) || !!owners[w];
-        if ((claimFilter === "claimed") !== claimed) continue;
-      }
-      out.push(w);
-      if (out.length >= 80) break;
-    }
-    return out;
-  }, [query, tier, claimFilter, owners, ownedSet]);
+  const list = useMemo(
+    () => listDictionary({ query, tier, filter: activeFilter, sort: counting ? sort : "az" }, d.statusOf, distances),
+    [query, tier, activeFilter, sort, counting, d.statusOf, distances],
+  );
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => setShown(PAGE), [query, tier, activeFilter, sort]);
+
+  const open = (word: string, status: EntryStatus) =>
+    status === "mine" ? g.openSheet({ kind: "word", word }) : g.openSheet({ kind: "lookup", word });
+
+  const chip = (value: DictFilter, label: string, count?: number, off = false) => (
+    <button key={value} onClick={() => setFilter(value)} disabled={off} className="group round-btn rounded-full disabled:opacity-40">
+      <Pill className={activeFilter === value ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
+        {label}
+        {count !== undefined && <span className={activeFilter === value ? "text-paper/60" : "text-ink/40"}>·{count.toLocaleString("en-US")}</span>}
+      </Pill>
+    </button>
+  );
 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between md:justify-end">
         <h1 className="font-display text-2xl font-extrabold md:hidden">Dictionary</h1>
         <span className="text-xs text-ink/55">
-          you own {ownedSet.size}
-          {claimedCount > 0 && <> · {claimedCount.toLocaleString("en-US")} claimed</>} · {WORD_COUNT.toLocaleString("en-US")} words
+          you own {d.ownedSet.size}
+          {d.claimedCount > 0 && <> · {d.claimedCount.toLocaleString("en-US")} claimed</>} · {WORD_COUNT.toLocaleString("en-US")} words
         </span>
       </div>
 
@@ -77,17 +96,26 @@ export function DictionaryScreen() {
         className="w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 font-display text-sm font-bold placeholder:font-body placeholder:font-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
       />
 
-      <Segmented
-        className="w-full sm:w-96"
-        value={claimFilter}
-        onChange={setClaim}
-        options={[
-          { value: "all", label: "All" },
-          // No counts here: they wrap on a phone, and the line above already counts the claimed.
-          { value: "unclaimed", label: "Unclaimed", disabled: !ownersKnown },
-          { value: "claimed", label: "Claimed", disabled: !ownersKnown },
-        ]}
-      />
+      {counting && (
+        <Segmented
+          className="w-full sm:w-80"
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: "closest", label: "Closest first" },
+            { value: "az", label: "A to Z" },
+          ]}
+        />
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        {chip("all", "All")}
+        {counting && chip("can", "Can spell", list.counts.can)}
+        {counting && chip("one", "One away", list.counts.one)}
+        {counting && chip("two", "Two away", list.counts.two)}
+        {chip("unclaimed", "Unclaimed", undefined, !d.ownersKnown)}
+        {chip("claimed", "Claimed", undefined, !d.ownersKnown)}
+      </div>
 
       <div className="flex flex-wrap gap-1.5">
         {TIERS.map((t) => (
@@ -103,61 +131,73 @@ export function DictionaryScreen() {
       </div>
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
-        {results.map((w) => {
-          // Yours: in your bag (the union bag covers linked wallets) or owned by one of your wallets.
-          const owner = owners[w];
-          const owned = ownedSet.has(w) || (!!owner && mine.has(owner));
-          const theirs = !owned && !!owner;
-          const ownerName = owner ? (profiles[owner] ? `@${profiles[owner].username}` : `${owner.slice(0, 6)}…${owner.slice(-4)}`) : "";
+        {list.words.slice(0, shown).map((w) => {
+          const status = d.statusOf(w);
+          const wTier = wordTier(w);
+          const owner = d.owners?.[w];
+          const number = d.numbers?.[w];
+          const listing = d.listings.get(w);
+          // the player's letters are counted only against a word nobody has
+          const need = status === "open" && counting ? wordNeed(w, d.here, d.all) : null;
+          const spellable = !!need && need.missing.length === 0 && need.away.length === 0;
+          const yours = status === "mine" || status === "mineAway";
           return (
             <button
               key={w}
-              onClick={() =>
-                owned && ownedSet.has(w)
-                  ? g.openSheet({ kind: "word", word: w })
-                  : theirs
-                    ? g.toast(`${w} belongs to ${ownerName}.`, "info")
-                    : owned
-                      ? g.toast(`${w} is yours, in a linked wallet.`, "info")
-                      : ownersKnown
-                        ? g.toast(`${w} is unclaimed. Spell it to own it.`, "info")
-                        : g.toast(
-                            world.isError ? `Couldn’t check who owns ${w}. Try again in a moment.` : `Checking who owns ${w}…`,
-                            "info",
-                          )
-              }
-              className={`${owned ? "cel" : "cel-sm"} flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left press ${
-                owned ? "bg-teal/10 ring-2 ring-teal ring-offset-1 ring-offset-paper" : "bg-card"
-              }`}
+              onClick={() => open(w, status)}
+              className={`press flex min-w-0 flex-col items-start gap-2 rounded-xl p-3 text-left ${yours ? "cel bg-teal/10" : "cel-sm bg-card"}`}
             >
-              <div className="min-w-0">
-                {/* the word in its tiles, in its finish, still; an unclaimed word faded, so the ones
-                    you could own stand apart (the scene cards mock, 2026-11-25) */}
-                <span className="sr-only">{w}</span>
-                <div aria-hidden className={ownersKnown && !owner && !owned ? "opacity-60" : ""}>
-                  <MiniTiles word={w} upper={caseOf.get(w) ?? LOWER} tier={wordTier(w)} />
-                </div>
-                {theirs ? (
-                  <div className="mt-0.5 text-xs text-ink/70">
-                    <PlayerChip address={owner} profile={profiles[owner]} size={16} />
-                  </div>
+              {/* the word in flat tiles, still: as it would be claimed (a dashed slot for a letter
+                  the player lacks), in its owner's case when it's the player's or for sale, and
+                  stepped back when someone else has it and isn't selling */}
+              <MiniTiles
+                large
+                word={w}
+                upper={need ? need.upper : (d.caseOf.get(w) ?? listing?.upper ?? LOWER)}
+                letters={need?.letters}
+                tier={status === "unknown" ? undefined : wTier}
+                className={status === "taken" ? "opacity-50" : ""}
+              />
+              <span className="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="font-display text-[15px] font-extrabold leading-tight">{w}</span>
+                <TierBadge tier={wTier} />
+              </span>
+              <span className="flex w-full min-w-0 items-center gap-1.5 text-[13px] leading-snug">
+                {status === "mine" || status === "mineAway" ? (
+                  <span className="font-extrabold text-teal-ink">{status === "mine" ? "Yours" : "Yours, in another wallet"}</span>
+                ) : status === "sale" && listing ? (
+                  <span className="font-bold text-gold-ink">For sale · {fmtWord(listing.price)} $WORD</span>
+                ) : (status === "taken" || status === "sale") && owner ? (
+                  <span className="min-w-0 text-ink/70">
+                    <PlayerChip address={owner} profile={d.profiles?.[owner]} size={16} />
+                  </span>
+                ) : status === "unknown" ? (
+                  <span className="text-ink/55">{d.checkFailed ? "Can’t check the owner yet" : "Checking who owns it…"}</span>
+                ) : !need ? (
+                  <span className="text-ink/60">Unclaimed</span>
+                ) : spellable ? (
+                  <span className="inline-flex items-center gap-1 font-extrabold text-teal-ink">
+                    <Check weight="bold" size={13} /> You can spell it
+                  </span>
                 ) : (
-                  <TierBadge tier={wordTier(w)} />
+                  <span className="min-w-0 text-ink">
+                    <NeedText tokens={needTokens(need, w, "line")} />
+                  </span>
                 )}
-              </div>
-              {owned ? (
-                <span className="shrink-0 rounded-full bg-teal px-1.5 py-0.5 text-[10px] font-extrabold text-ink">yours</span>
-              ) : theirs ? (
-                <TierBadge tier={wordTier(w)} />
-              ) : ownersKnown ? null : (
-                <span className="text-ink/20" title="checking the owner">…</span>
-              )}
+                {number && status !== "open" && status !== "unknown" ? (
+                  <span className="shrink-0 font-bold tabular-nums text-ink/60">{cardNumber(number)}</span>
+                ) : null}
+              </span>
             </button>
           );
         })}
       </div>
-      {results.length >= 80 && <p className="text-center text-xs text-ink/45">showing the first 80. Keep typing to narrow.</p>}
-      {results.length === 0 && <p className="py-8 text-center text-sm text-ink/55">no words match.</p>}
+      {list.words.length > shown && (
+        <Button full variant="ghost" onClick={() => setShown((n) => n + PAGE)}>
+          Show {Math.min(PAGE, list.words.length - shown)} more · {(list.words.length - shown).toLocaleString("en-US")} left
+        </Button>
+      )}
+      {list.words.length === 0 && <p className="py-8 text-center text-sm text-ink/55">no words match.</p>}
     </div>
   );
 }

@@ -598,6 +598,19 @@ body {
    pale blue ring. */
 .mini-tile { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #2a1e1a; background-color: #f8efdd; box-shadow: 0 2px 0 #c7ae84; font-size: 12px; font-weight: 800; line-height: 1; color: #2a1e1a; }
 .mini-tile.is-up { background-color: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 2px #bbd1fd; color: #111827; }
+/* The Dictionary's tile (decisions.md #30): a size up, and the two letters a player doesn't hold
+   here (lib/wordNeed). A missing letter is an empty dashed slot, as on Spell's rack; a letter in
+   another of the player's wallets keeps its finish under a dashed teal edge. Borders only: a list
+   of these costs what a list of tiles costs. */
+.mini-tile.is-large { width: 24px; height: 24px; border-radius: 6px; font-size: 14px; }
+.mini-tile.is-missing { background: transparent; border: 1.5px dashed rgba(27, 23, 20, 0.5); box-shadow: none; color: rgba(27, 23, 20, 0.5); font-weight: 600; }
+.mini-tile.is-away { border-style: dashed; border-color: #1a5e56; box-shadow: none; }
+/* the word view's stage (sheets/LookupSheet): the letter characters stand shoulder to shoulder, and
+   a letter the player doesn't hold is an empty slot the size of a tile, as on Spell's rack */
+.lk-letter { display: block; flex: none; line-height: 0; }
+.lk-slot { display: grid; place-items: center; flex: none; margin-left: 4px; margin-right: 4px; border: 2px dashed rgba(27, 23, 20, 0.5); border-radius: 10px; font-size: 20px; font-weight: 600; line-height: 1; color: rgba(27, 23, 20, 0.5); }
+/* a letter named inside a line of text ("Needs a q"), drawn as a tiny tile (game/NeedText) */
+.need-letter { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 0.15em; border-radius: 0.3em; border: 1.5px solid #2a1e1a; background: #f8efdd; box-shadow: 0 1.5px 0 #c7ae84; font-weight: 800; line-height: 1; vertical-align: -0.12em; color: #2a1e1a; }
 
 /* ---- the back ---- */
 .cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); --cb-plate: rgba(14, 10, 8, 0.52); --cb-plate-line: rgba(255, 255, 255, 0.14); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }

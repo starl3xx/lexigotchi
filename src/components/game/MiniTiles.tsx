@@ -9,6 +9,7 @@
 import type { CSSProperties } from "react";
 import type { Tier } from "@/lib/economy";
 import { FINISH, finishFor } from "@/lib/rarityFinish";
+import type { LetterState } from "@/lib/wordNeed";
 
 /** "#rrggbb" at `a` opacity. */
 function rgba(hex: string, a: number): string {
@@ -29,16 +30,46 @@ const BAKED: Partial<Record<Tier, string>> = Object.fromEntries(
   }),
 );
 
-export function MiniTiles({ word, upper, tier, className = "" }: { word: string; upper: readonly boolean[]; tier?: Tier; className?: string }) {
+/**
+ * `letters` (the Dictionary, lib/wordNeed) marks the letters the player doesn't hold here: a
+ * `missing` one is an empty dashed slot, as on Spell's rack, and an `away` one (in another of the
+ * player's wallets) keeps its finish under a dashed teal edge. Both are borders, so they cost what a
+ * tile costs. `large` is the Dictionary's 24 px tile.
+ */
+export function MiniTiles({
+  word,
+  upper,
+  tier,
+  letters,
+  large = false,
+  className = "",
+}: {
+  word: string;
+  upper: readonly boolean[];
+  tier?: Tier;
+  letters?: readonly LetterState[];
+  large?: boolean;
+  className?: string;
+}) {
   const bg = tier ? BAKED[tier] : undefined;
   const style: CSSProperties | undefined = bg ? { backgroundImage: bg } : undefined;
   return (
     <span className={`inline-flex gap-[3px] ${className}`} aria-hidden>
-      {[...word].map((ch, i) => (
-        <span key={i} className={`mini-tile ${upper[i] ? "is-up" : ""}`} style={style}>
-          {upper[i] ? ch.toUpperCase() : ch.toLowerCase()}
-        </span>
-      ))}
+      {[...word].map((ch, i) => {
+        const held = letters?.[i] ?? "here";
+        if (held === "missing") {
+          return (
+            <span key={i} className={`mini-tile is-missing ${large ? "is-large" : ""}`}>
+              {ch.toLowerCase()}
+            </span>
+          );
+        }
+        return (
+          <span key={i} className={`mini-tile ${upper[i] ? "is-up" : ""} ${held === "away" ? "is-away" : ""} ${large ? "is-large" : ""}`} style={style}>
+            {upper[i] ? ch.toUpperCase() : ch.toLowerCase()}
+          </span>
+        );
+      })}
     </span>
   );
 }
