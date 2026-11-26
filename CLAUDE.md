@@ -521,8 +521,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Söhne, a row of dots, a value in the serif), and **the game's seal is pressed into the material in
   one ink** behind them (`lib/cardArt/seal.ts`, one picture for the game's back and the server's; its
   lines stop at the eyes, and in one ink the eyeball is ink and the pupil clear with its pie cut:
-  the owner's three notes, held by `tests/card-seal.test.ts`). A thumbnail's back keeps its plates and
-  has no seal. The back's facts are `lib/cardFacts.ts` (pure, tested) via
+  the owner's three notes, held by `tests/card-seal.test.ts`). **One back at every size**
+  (decisions.md #37; globals.css `.cb`, by container width): two columns (the rarity over the
+  number, "One of one", the count, the rack; the ledger) with a line along the bottom, all of it from
+  470 px; the first four facts under 470 px (an opened card's `CardMore` lists the rest: keep the two
+  widths equal, `tests/scene-card.test.tsx`); a thumbnail (`mini`) is the left column alone. The
+  server's back picture is laid out the same. **Both pictures of a card carry `CARD_LOOK` in their
+  address** (`showcaseBackPath` too: the video drew a cached old back without it). **When a proposal
+  is approved, build from its own CSS and compare the two at every size before merging** (#35 kept the
+  old skeleton and didn't match). The back's facts are `lib/cardFacts.ts` (pure, tested) via
   `useCardFacts`: unknown is a dash, never "you" or "never"; the card number (`#0001`) is the order
   words were first claimed (`madeOrder`, served as `/api/world`'s `numbers`), never A to Z; "Found by" and "Yours since" read
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
@@ -536,7 +543,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   flip tap, `askForTilt`, only when that back will draw live). A held phone tilts all the time:
   `makeTiltFilter` draws only real moves (about a degree, ~30 a second), never off screen. The Today
   stage passes `live={!state.sheet}`, and an evicted back steps aside (`onEvicted`). CSS is the
-  fallback everywhere else. A back under 560 px shows four
+  fallback everywhere else. A back under 470 px shows four
   stats; an opened card lists the rest under it (`CardMore`). **The share loop** (decisions.md #27;
   `cards/loop/`, `cards/ShareVideo.tsx`): Share → "Make a video of the card" draws six seconds of the
   card turning (OGL, the same `materialGlsl` as the live back, over `/s/<word>/back`, a transparent

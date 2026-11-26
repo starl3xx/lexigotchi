@@ -707,7 +707,7 @@ body {
 .need-letter { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 0.15em; border-radius: 0.3em; border: 1.5px solid #2a1e1a; background: #f8efdd; box-shadow: 0 1.5px 0 #c7ae84; font-weight: 800; line-height: 1; vertical-align: -0.12em; color: #2a1e1a; }
 
 /* ---- the back ---- */
-.cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); --cb-plate: rgba(14, 10, 8, 0.52); --cb-plate-line: rgba(255, 255, 255, 0.14); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
+.cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
 .cb > * { position: absolute; }
 .cb-mat { inset: 0; background: var(--cb-mat); }
 .cb-mat > * { position: absolute; inset: 0; }
@@ -716,7 +716,9 @@ body {
 .cb-gl.is-ready { opacity: 1; }
 /* a finger dragging sideways across a back moves its light; up and down still scrolls the page */
 .sc-back { touch-action: pan-y; }
-.cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); border: 2px solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); pointer-events: none; }
+/* the frame: a line in the material's colour, with a dotted line just outside it (the front's
+   chain border, said quietly) */
+.cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: clamp(8px, 2.2cqw, 14px); border: max(1.5px, 0.3cqw) solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); outline: max(1.5px, 0.28cqw) dotted var(--cb-line); outline-offset: max(1.5px, 0.42cqw); pointer-events: none; }
 /* the materials, deep */
 .m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-top: #54402d; --rk-front: #2a1e15; }
 .m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-top: #22705e; --rk-front: #0c3028; }
@@ -744,31 +746,33 @@ body {
 
 /* The game's seal, pressed into the material in one ink, behind the facts (lib/cardArt/seal): one
    picture in the material's own line colour. Faint: it is a mark in the stock, not a picture on it. */
-.cb-seal { right: 3.5cqw; top: 50%; width: 43cqw; aspect-ratio: 1; transform: translateY(-50%); background-size: 100% 100%; opacity: 0.14; pointer-events: none; }
+.cb-seal { right: 4cqw; top: 50%; width: 42cqw; aspect-ratio: 1; transform: translateY(-50%); background-size: 100% 100%; opacity: 0.14; pointer-events: none; }
 
-/* The words and tiles (CardBack; decisions.md #35), lettered straight on the material with a soft
-   shadow. --font-card is the card's serif: for what the card says about the word (its number, its
-   rarity, its facts' values), never for the word. A thumbnail's two lines keep their plates. */
-.cb-body { inset: 0; padding: clamp(12px, 4cqw, 30px) clamp(14px, 4.6cqw, 36px) clamp(10px, 3cqw, 22px); display: grid; grid-template-rows: auto 1fr auto; gap: clamp(3px, 1.2cqw, 10px); text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
-.cb-plate { background: var(--cb-plate); border: 1px solid var(--cb-plate-line); border-radius: clamp(6px, 1.4cqw, 10px); text-shadow: none; }
-.cb-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: clamp(40px, 9cqw, 58px); }
-/* Legendary's corner scrollwork curls where the rarity is lettered: the lettering steps clear of it */
-.m-legendary .cb-top { padding-left: clamp(12px, 4.4cqw, 30px); }
-.sc-small .m-legendary .cb-top { padding-left: 0; }
-.cb-tier { display: inline-flex; align-items: center; gap: 0.4em; font-weight: 800; font-size: clamp(13px, 2.8cqw, 21px); padding: 0.25em 0.6em 0.25em 0.4em; border-radius: 999px; }
-/* the rarity lettered on the material: the card's serif, in the material's line colour */
-.cb-tier-set { padding: 0; border-radius: 0; font-family: var(--font-card); font-weight: 700; font-size: clamp(12px, 2.4cqw, 19px); color: var(--cb-line); }
-.cb-main { display: grid; grid-template-columns: 0.94fr 1.06fr; gap: clamp(12px, 4cqw, 34px); align-items: center; min-height: 0; }
-.cb-wordcol { display: grid; gap: clamp(3px, 1cqw, 9px); align-content: center; justify-items: start; min-width: 0; }
+/* The words and tiles (CardBack; decisions.md #35, #37), lettered straight on the material with a
+   soft shadow. One design at every size, measured in the card's own width (cqw), so a back on a
+   phone is the same back, smaller, with less on it:
+   - two columns, centred top to bottom: on the left the rarity, the number (the headline), a rule,
+     "One of one", how many words share the rarity, and the tiles on their rack; on the right the
+     ledger (a name, a row of dots, a value); and a line along the bottom;
+   - under 470 px: the first four facts, and no count, no pips, no bottom line (CardMore lists them);
+   - a thumbnail (.sc-small): the left column alone, with the seal beside it.
+   --font-card is the card's serif: for what the card says about the word (its number, its rarity,
+   its facts' values), never for the word, which is only ever its tiles. */
+.cb-body { inset: 6.5cqw 5.5cqw 5.5cqw; display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 4cqw; align-items: center; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
+.cb-wordcol { display: grid; gap: 1.1cqw; align-content: center; justify-items: start; min-width: 0; }
+/* lettering in the material's line colour, lifted a little toward the text's cream so it reads on
+   the darkest back (Common's line is a muted tan) */
+.cb-tier, .cb-no small { color: color-mix(in srgb, var(--cb-line) 74%, var(--cb-text)); }
+.cb-tier { display: flex; align-items: center; gap: 0.45em; font-family: var(--font-card); font-weight: 700; font-size: clamp(12px, 2.3cqw, 18px); line-height: 1.15; }
 /* the card's number, the back's headline */
-.cb-no { margin: 0; display: flex; align-items: baseline; gap: 0.14em; font-family: var(--font-card); font-weight: 700; font-size: clamp(26px, 10.2cqw, 84px); line-height: 0.92; letter-spacing: -0.01em; font-variant-numeric: oldstyle-nums; white-space: nowrap; }
-.cb-no small { font-size: 0.34em; font-style: italic; color: var(--cb-line); }
+.cb-no { margin: 0; display: flex; align-items: baseline; gap: 0.16em; font-family: var(--font-card); font-weight: 700; font-size: clamp(30px, 10.5cqw, 84px); line-height: 0.9; letter-spacing: -0.01em; font-variant-numeric: oldstyle-nums; white-space: nowrap; }
+/* "No." beside the digits: a third of their size, and never under the 12 px text floor (a thumbnail's digits are small) */
+.cb-no small { font-size: max(12px, 0.34em); font-style: italic; }
 .cb-rule { width: 100%; height: max(2px, 0.3cqw); background: linear-gradient(90deg, var(--cb-line), transparent); }
-.cb-oneof { display: grid; gap: 0.15em; font-size: clamp(12px, 1.9cqw, 14px); }
-.cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; }
-.cb-oneof span { color: var(--cb-sub); }
+.cb-oneof { display: grid; gap: 0.2em; font-size: clamp(12px, 1.9cqw, 14px); line-height: 1.2; color: var(--cb-sub); }
+.cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; color: var(--cb-text); }
 /* the rack: its top recedes behind the tiles (lit), its lip stands in front (in shadow) */
-.cb-rackwrap { position: relative; --rh: 5.2cqw; width: 82%; margin-top: 0.4cqw; padding: 0 2.4cqw calc(var(--rh) * 0.33); }
+.cb-rackwrap { position: relative; --rh: 5.2cqw; width: 84%; margin-top: 0.6cqw; padding: 0 1.2cqw calc(var(--rh) * 0.33); }
 .cb-rack { position: absolute; left: 0; bottom: 0; width: 100%; height: var(--rh); display: block; overflow: visible; }
 .cb-rack-back { z-index: 0; }
 .cb-rack-front { z-index: 2; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)); }
@@ -780,7 +784,7 @@ body {
 .cb-tiles { position: relative; z-index: 1; display: flex; gap: 0.7cqw; }
 .cb-tile { flex: 1 1 0; min-width: 0; filter: drop-shadow(0 2px 1.5px rgba(0, 0, 0, 0.45)); }
 /* the ledger: a name (Söhne, as written), a row of dots, a value (the card's serif) */
-.cb-stats { display: grid; gap: clamp(4px, 1.45cqw, 12px); margin: 0; min-width: 0; }
+.cb-stats { display: grid; gap: clamp(5px, 1.5cqw, 12px); margin: 0; min-width: 0; }
 .cb-stat { display: flex; align-items: baseline; gap: 0.5em; min-width: 0; font-size: clamp(12px, 2.05cqw, 16px); line-height: 1.15; }
 .cb-stat dt { font-weight: 600; color: var(--cb-sub); white-space: nowrap; }
 .cb-stat > i { flex: 1; min-width: 0.6em; border-bottom: max(1.5px, 0.22cqw) dotted rgba(247, 239, 220, 0.4); transform: translateY(-0.22em); }
@@ -789,40 +793,38 @@ body {
 .cb-pips i { width: 7px; height: 7px; transform: rotate(45deg); border: 1.2px solid rgba(201, 207, 216, 0.8); background: rgba(255, 255, 255, 0.85); display: block; }
 .cb-pips i.on { border-color: #231a14; background: #f0a617; }
 .cb-pips i.holo { background: linear-gradient(135deg, #ff9ad5, #ffe28a, #8ff0d0, #8ec5ff, #c7a0ff); }
-.cb-foot { display: flex; justify-content: center; gap: 4px 14px; flex-wrap: wrap; font-size: 12px; color: var(--cb-sub); }
+/* the line along the bottom, inside the frame: its parts in a row, a middle dot before each but the first */
+.cb-foot { left: 5.5cqw; right: 5.5cqw; bottom: 2.9cqw; font-size: 12px; line-height: 1.15; color: var(--cb-sub); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
+.cb-foot > * + *::before { content: " · "; white-space: pre; }
 .cb-foot b { color: var(--cb-text); font-weight: 400; }
 .cb-id { font-variant-numeric: tabular-nums; color: var(--cb-sub); }
 a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
-.cb-mini { display: block; justify-self: start; font-size: 12px; font-weight: 400; line-height: 1.2; padding: 3px 7px; }
+/* a thumbnail's one line */
+.cb-mini { margin: 0; font-size: 12px; line-height: 1.2; color: var(--cb-sub); white-space: nowrap; }
 /* under an opened card, the rows a phone-sized back leaves out (CardBack's CardMore), only where the
-   card is narrow enough to leave them out (the same 560 px as below) */
+   card is narrow enough to leave them out (the same 470 px as below) */
 .sc-more-host { container-type: inline-size; }
 .sc-more { display: grid; margin: 0; padding: 2px 12px; border: 2px solid #1b1714; border-radius: 14px; background: #fbf4e3; font-size: 14px; }
 .sc-more > div + div { border-top: 1px solid rgba(27, 23, 20, 0.1); }
-/* with the phone-only first row hidden, the next row is the first shown: no rule above it */
-@container (min-width: 431px) { .sc-more > .sc-more-phone + div { border-top: 0; } }
-/* the back drops these at max-width 560px, so they show here up to and including 560px (Bugbot #213) */
-@container (min-width: 561px) { .sc-more { display: none; } }
-/* a phone-sized back: four stats, no bottom line */
-@container (max-width: 560px) {
-  .cb-more, .cb-foot { display: none; }
-  .cb-body { grid-template-rows: auto 1fr; }
+/* the back drops these under 470 px, so they show here up to 469 px (the two must agree: Bugbot on
+   #213 and #230; tests/scene-card.test.tsx holds them together) */
+@container (min-width: 470px) { .sc-more { display: none; } }
+/* a phone-sized back: the first four facts. No count of the rarity's words, no ascension pips (the
+   stage's name says what they draw), and no line along the bottom: an opened card lists them. */
+@container (max-width: 469px) {
+  .cb-more, .cb-foot, .cb-pips, .cb-oneof span { display: none; }
 }
-/* A phone's back. The ledger's values have no room for the ascension pips, so the stage's name
-   stands alone ("Gilded 1" says what the pips draw). The left column has no room for how many words
-   share the rarity, so an opened card says it in the rows under it (CardBack's CardMore, the
-   `.sc-more-phone` row, which shows only at this width: Bugbot on #230 found the line said nowhere). */
-@container (max-width: 430px) {
-  .cb-pips, .cb-oneof span { display: none; }
+/* a thumbnail's back (CardBack mini, the Bag's grid): the left column alone, the seal beside it */
+.sc-small .cb-body { grid-template-columns: 1fr; inset: 6cqw 5.5cqw 5cqw; }
+.sc-small .cb-wordcol { gap: 1.2cqw; }
+.sc-small .cb-no { font-size: clamp(18px, 10.5cqw, 40px); }
+.sc-small .cb-rackwrap { width: 58%; }
+.sc-small .cb-seal { right: 3cqw; width: 47cqw; }
+/* the Bag's grid on a phone (about 175 px): the rarity, the number, and the tiles */
+@container (max-width: 239px) {
+  .sc-small .cb-mini, .sc-small .cb-rule { display: none; }
+  .sc-small .cb-rackwrap { width: 74%; }
 }
-@container (min-width: 431px) { .sc-more-phone { display: none; } }
-/* a thumbnail's back (CardBack mini): the rarity, the tiles on their rack, one line */
-.sc-small .cb-main { grid-template-columns: 1fr; gap: 4px; align-content: center; }
-.sc-small .cb-rackwrap { --rh: 6.4cqw; width: auto; max-width: 78%; margin-top: 0; padding: 0 3cqw calc(var(--rh) * 0.33); }
-.sc-small .cb-wordcol { gap: 5px; justify-items: stretch; }
-.sc-small .cb-body { padding: 8px 10px; gap: 2px; grid-template-rows: auto 1fr; }
-.sc-small .cb-top { padding-right: 34px; }
-.sc-small .cb-tier { font-size: 12px; }
 
 /* ---------------------------------------------------------------------------------------------
    The Market's letter shelf (decisions.md #30; components/game/market/LettersBoard.tsx).

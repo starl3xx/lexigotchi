@@ -15,10 +15,18 @@
  * - **The word itself is only ever its tiles** (in Söhne, on the rack): no line of text names it.
  * The words stand straight on the material now, with a soft shadow, not on plates.
  *
- * Every size has the same layout, trimmed by the card's width (globals.css, `.cb`, container
- * queries): a phone-sized back shows four stats; a bigger one all eight and the line along the
- * bottom. A Bag thumbnail passes `mini`: the rarity, the tiles on their rack, and one line, with no
- * reads at all.
+ * One design at every size and in every place a back shows (starl3xx, 2026-11-26: "the backs need
+ * to be redesigned for all sizes / display locations"), sized by the card's own width (globals.css,
+ * `.cb`, container queries):
+ * - **470 px and wider** (the Today stage on a computer, an opened word): the left column (rarity,
+ *   number, "One of one", how many words share the rarity, the rack), the whole ledger, and the
+ *   line along the bottom. This is the proposal's back.
+ * - **Under 470 px** (a phone's Today stage and opened word): the same two columns with the first
+ *   four facts; the rest are listed under an opened card (CardMore).
+ * - **A thumbnail** (`mini`: the Bag's grid, about 315 px on a computer and 175 px on a phone): one
+ *   column: the rarity, the number, one line, and the rack, with the seal beside them. It reads
+ *   only the card's number, which every card on the page shares one request for.
+ * The server draws the same back for the share video (app/s/[text]/back).
  *
  * Still, always: no tile bounces or shines on the back (the material is drawn once, by CSS here;
  * a later step draws it live where a card is in focus).
@@ -36,6 +44,7 @@ import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
 import { SCROLL_PATH_CARD, materialOf } from "./material";
 import { useCardFacts, type CardFacts } from "./useCardFacts";
+import { useCardNumber } from "./useCardNumber";
 import dynamic from "next/dynamic";
 import { canDrawLive } from "./live/support";
 
@@ -74,8 +83,8 @@ export function CardBack({ word, mini = false, live = false }: { word: OwnedWord
         {drawLive && <LiveMaterial material={m} />}
       </div>
       <div className="cb-frame" />
-      {/* the game's seal, pressed into the material behind the facts (not on a thumbnail: too small to read) */}
-      {!mini && <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(m) }} />}
+      {/* the game's seal, pressed into the material behind the facts */}
+      <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(m) }} />
       {m === "mythic" && <div className="cb-fire" />}
       {m === "legendary" && !mini && (["tl", "tr", "bl", "br"] as const).map((k) => <Scroll key={k} corner={k} />)}
       {mini ? <MiniBody word={word} /> : <FullBody word={word} />}
@@ -108,29 +117,39 @@ function Rack({ word }: { word: OwnedWord }) {
   );
 }
 
-/** The rarity: the tier's own mark (lib/tierMark: a bead, then three to six corners) and its name.
- *  On a plate on a thumbnail's back, where it must read at a glance; lettered on the material otherwise. */
-function TierPlate({ tier, plate = false }: { tier: Tier; plate?: boolean }) {
+/** The rarity, lettered on the material at the head of the left column: the tier's own mark
+ *  (lib/tierMark: a bead, then three to six corners) and its name, in the card's serif. */
+function TierLine({ tier }: { tier: Tier }) {
   return (
-    <span className={`cb-tier ${plate ? "cb-plate" : "cb-tier-set"}`}>
+    <span className="cb-tier">
       <TierMark tier={tier} className="cb-gem" />
       {tier}
     </span>
   );
 }
 
-/** A thumbnail's back (a Bag card): the rarity, the tiles, and one line. Reads nothing. */
+/** The card's number, the back's headline. None while it isn't known (never a dash that looks like a number). */
+function Number({ n }: { n: number | null }) {
+  const digits = cardDigits(n);
+  return digits ? (
+    <p className="cb-no">
+      <small>No.</small>
+      {digits}
+    </p>
+  ) : null;
+}
+
+/** A thumbnail's back (a Bag card): the rarity, the number, one line, and the tiles on their rack. */
 function MiniBody({ word }: { word: OwnedWord }) {
+  const number = useCardNumber(word.word);
   return (
     <div className="cb-body">
-      <div className="cb-top">
-        <TierPlate tier={word.tier} plate />
-      </div>
-      <div className="cb-main">
-        <div className="cb-wordcol">
-          <Rack word={word} />
-          <p className="cb-mini cb-plate">One of one · {ascensionLabel(word.prestigeLevel)}</p>
-        </div>
+      <div className="cb-wordcol">
+        <TierLine tier={word.tier} />
+        <Number n={number} />
+        <div className="cb-rule" />
+        <p className="cb-mini">One of one · {ascensionLabel(word.prestigeLevel)}</p>
+        <Rack word={word} />
       </div>
     </div>
   );
@@ -160,21 +179,12 @@ function FullBody({ word }: { word: OwnedWord }) {
   const { state } = useGame();
   const s = says(f);
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
-  const digits = cardDigits(f.number);
   return (
-    <div className="cb-body">
-      <div className="cb-top">
-        <TierPlate tier={f.tier} />
-      </div>
-      <div className="cb-main">
+    <>
+      <div className="cb-body">
         <div className="cb-wordcol">
-          {/* the card's number, the back's headline; while it isn't known there is none (never a dash that looks like a number) */}
-          {digits && (
-            <p className="cb-no">
-              <small>No.</small>
-              {digits}
-            </p>
-          )}
+          <TierLine tier={f.tier} />
+          <Number n={f.number} />
           <div className="cb-rule" />
           <div className="cb-oneof">
             <b>One of one</b>
@@ -205,6 +215,7 @@ function FullBody({ word }: { word: OwnedWord }) {
           </Stat>
         </dl>
       </div>
+      {/* the line along the bottom: who found it, the jackpot, its token (each after a middle dot) */}
       <div className="cb-foot">
         <span>
           Found by <b>{s.found}</b>
@@ -218,7 +229,7 @@ function FullBody({ word }: { word: OwnedWord }) {
           <span className="cb-id">{f.token}</span>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -271,11 +282,11 @@ function Facets() {
 }
 
 /**
- * What a phone-sized back leaves out (globals.css: under 560 px it shows four stats; under 430 px
- * it also drops how many words share the rarity), listed under an opened card while its back is
- * up, so a phone player sees the whole story too: how many words share its rarity, who found it,
- * what it earns and costs, its points, the jackpot, and its token. Hidden wherever the back is wide
- * enough to show them itself (the same 560 px, by container query).
+ * What a phone-sized back leaves out (globals.css: under 470 px it shows four facts, and has no
+ * room for how many words share the rarity or the line along the bottom), listed under an opened
+ * card while its back is up, so a phone player sees the whole story too: how many words share its
+ * rarity, who found it, what it earns and costs, its points, the jackpot, and its token. Hidden
+ * wherever the back is wide enough to show them itself (the same 470 px, by container query).
  */
 export function CardMore({ word }: { word: OwnedWord }) {
   const f = useCardFacts(word);
@@ -284,8 +295,7 @@ export function CardMore({ word }: { word: OwnedWord }) {
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
   return (
     <dl className="sc-more">
-      {/* a phone's back has no room for this line (globals.css, under 430 px), so it is said here */}
-      <Row label="Rarity" phone>
+      <Row label="Rarity">
         One of {fmt(f.ofTier)} {f.tier} words
       </Row>
       <Row label="Found by">{s.found}</Row>
@@ -307,10 +317,9 @@ export function CardMore({ word }: { word: OwnedWord }) {
   );
 }
 
-/** `phone`: a row only for a card as narrow as a phone's (it repeats a line a wider back shows itself). */
-function Row({ label, phone = false, children }: { label: string; phone?: boolean; children: ReactNode }) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className={`flex items-baseline justify-between gap-3 py-1.5 ${phone ? "sc-more-phone" : ""}`}>
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
       <dt className="shrink-0 font-semibold text-ink/60">{label}</dt>
       <dd className="min-w-0 text-right">{children}</dd>
     </div>
