@@ -1,9 +1,9 @@
 "use client";
 /**
- * A word opened from the Dictionary (decisions.md #31): what the player needs to spell it ("You
- * only need a q."), or who has it. The game's letter characters stand at the top, still, with an
- * empty slot for each letter the player doesn't hold; then the ways to get what's missing, and the
- * word's facts.
+ * A word opened from the Dictionary or the Market (decisions.md #31, #32): what the player needs to
+ * spell it ("You only need a q."), or who has it, and, when it is for sale, its price and a Buy.
+ * The game's letter characters stand at the top, still, with an empty slot for each letter the
+ * player doesn't hold; then the ways to get what's missing, and the word's facts.
  *
  * - **A promise, so it follows lib/wordNeed's rules:** only the connected wallet's letters count,
  *   and nothing is promised until the owners are known (useDictionary).
@@ -11,6 +11,12 @@
  *   the Claim button, the owner check, and the fee line already live.
  * - **"Mint a pack" is offered only while the letter can still be minted** (the chain game reads
  *   each letter's supply here; a sold-out letter points at the Market).
+ * - **A word for sale is bought here** (one word view for both screens): the listing as it is now
+ *   (case, ascension, hunger), its price against what it costs to make, and Buy, which closes the
+ *   sheet, because the word is the player's from then on and opens as its card. No Buy without a
+ *   connected wallet (the Dictionary is public), nor on the player's own listing.
+ * - **Its links land on the thing they name:** "Find a q in the Market" opens the Letters shelf at
+ *   q, and a word for sale opens the Market on Words (`nav` with a section, state.tsx).
  * The player's own words never open here: they open their card (sheets/WordSheet).
  */
 import { useMemo, type ReactNode } from "react";
@@ -18,15 +24,18 @@ import { useQuery } from "@tanstack/react-query";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { LETTER_ODDS, LETTER_SUPPLY_CAP, RANKED_WORDS, wordTier } from "@/lib/economy";
 import { cardNumber, wordPoints } from "@/lib/cardFacts";
+import { stageName } from "@/lib/ascension";
 import { dailyEarnEstimate } from "@/lib/wordCost";
 import { readLetterSupply } from "@/lib/onchain/reads";
 import { NETWORK } from "@/lib/onchain/network";
 import { article, finishedBy, nameList, needNote, needParts, needTokens, ordinal, wordNeed } from "@/lib/wordNeed";
 import { Button, Sheet, TierBadge } from "../primitives";
-import { TileCharacter, TileWord } from "../TileCharacter";
+import { TileCharacter, TileWord, type Gild } from "../TileCharacter";
 import { PlayerChip } from "../PlayerChip";
 import { NeedText } from "../NeedText";
-import { useCostToMake } from "../WordValue";
+import { WordValue, useCostToMake } from "../WordValue";
+import { versus, versusLabel } from "@/lib/market/deals";
+import { timeAgo } from "../market/bits";
 import { useWorld } from "../useWorld";
 import { useDictionary } from "../useDictionary";
 import { queueSpell } from "../spellHandoff";
@@ -57,8 +66,9 @@ export function LookupSheet({ word }: { word: string }) {
   const d = useDictionary();
   const tier = wordTier(word);
   const status = d.statusOf(word);
-  const owner = d.owners?.[word];
   const listing = d.listings.get(word);
+  // a word the world read hasn't caught up with is still its seller's (useDictionary)
+  const owner = d.owners?.[word] ?? listing?.maker;
   const open = status === "open";
 
   const need = useMemo(() => wordNeed(word, d.here, d.all), [word, d.here, d.all]);
@@ -72,22 +82,28 @@ export function LookupSheet({ word }: { word: string }) {
   const rarestFirst = (a: string, b: string) => (RAREST.get(a) ?? 0) - (RAREST.get(b) ?? 0);
   const also = useMemo(() => {
     if (!counting || parts.length !== 1 || parts[0].count !== 1) return [];
-    return finishedBy(parts[0].letter, WORDS, d.here, skip).sort(rarestFirst);
+    return finishedBy(parts[0].letter, WORDS, d.here, skip, d.all).sort(rarestFirst);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counting, parts, d.here, d.statusOf, word]);
+  }, [counting, parts, d.here, d.all, d.statusOf, word]);
   // for a word someone has: unclaimed words one of ITS letters would finish, the rarest letter first
   const consolation = useMemo(() => {
     if ((status !== "taken" && status !== "sale") || !d.hasLetters) return null;
     const lacking = [...new Set(need.missing)].sort((a, b) => LETTER_ODDS[a.toUpperCase()] - LETTER_ODDS[b.toUpperCase()]);
     for (const letter of lacking) {
-      const words = finishedBy(letter, WORDS, d.here, skip).sort(rarestFirst);
+      const words = finishedBy(letter, WORDS, d.here, skip, d.all).sort(rarestFirst);
       if (words.length) return { letter, words };
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, d.hasLetters, need, d.here, d.statusOf, word]);
+  }, [status, d.hasLetters, need, d.here, d.all, d.statusOf, word]);
 
   const cost = useCostToMake({ word, upper: LOWER, prestigeLevel: 0 });
+  // A word for sale is priced against what IT costs to make: its own case and ascension stage.
+  const listed = { word, upper: listing?.upper ?? LOWER, prestigeLevel: listing?.prestigeLevel ?? 0 };
+  const listedCost = useCostToMake(listed);
+  const unfed = listing && listing.lastFedAt > 0 ? Math.floor((Date.now() / 1000 - listing.lastFedAt) / 86_400) : 0;
+  // Buying needs a wallet that can pay (the Dictionary is public, and the stores ignore a Buy without one).
+  const canBuy = status === "sale" && !!listing && state.status === "ready";
   const today = world.data?.live ? world.data.yieldToday : undefined;
   const earns = today ? dailyEarnEstimate({ word, upper: ALL_UPPER, prestigeLevel: 0 }, today) : null;
   const drawn = !state.chainBacked ? "never" : world.data?.live && world.data.drawn ? (world.data.drawn[word] ?? "never") : null;
@@ -98,13 +114,26 @@ export function LookupSheet({ word }: { word: string }) {
   // ── the first line, and the line under it ────────────────────────────────────────────────────
   const the = parts.length === 1 ? parts[0] : null;
   let lead: ReactNode;
-  let sub: string | null = null;
+  let sub: ReactNode = null;
   if (status === "unknown") {
     lead = d.checkFailed ? "Can’t check who owns it yet." : "Checking who owns it…";
     sub = d.checkFailed ? "Try again in a moment." : null;
   } else if (status === "sale") {
     lead = `${word} is for sale.`;
-    sub = listing ? `Its owner is asking ${fmtWord(listing.price)} $WORD.` : null;
+    // the price, beside what this word costs to make as it is (under is the news, as on the Market's rows)
+    const v = listing ? versus(listing.price, listedCost?.total) : null;
+    const beside = versusLabel(v);
+    sub = listing ? (
+      <>
+        Its owner is asking {fmtWord(listing.price)} $WORD
+        {beside && (
+          <>
+            , <span className={v !== null && v <= -0.03 ? "font-bold text-teal-ink" : undefined}>{beside} what it costs to make</span>
+          </>
+        )}
+        .
+      </>
+    ) : null;
   } else if (status === "taken" || status === "mineAway") {
     lead = status === "mineAway" ? `${word} is yours, in a linked wallet.` : `${word} has an owner.`;
     sub = status === "mineAway" ? "Connect that wallet to open its card." : "There’s only one of each word.";
@@ -116,13 +145,14 @@ export function LookupSheet({ word }: { word: string }) {
     // what's held, what else the letter would finish, and any letter to move (lib/wordNeed needNote)
     sub = canSpell ? `Nobody owns ${word}. Spell it and it’s yours alone.` : needNote(need, word, also) || null;
   }
+  // For a word someone has: what the player could spell instead. Its own line, after the price.
+  let instead: string | null = null;
   if (consolation && (status === "taken" || status === "sale")) {
     const { letter, words } = consolation;
-    sub = `${sub ?? ""} ${
+    instead =
       words.length === 1
         ? `${words[0]} is still unclaimed, and you’re one ${letter} away.`
-        : `${nameList(words)} are still unclaimed, and each needs only ${article(letter)} ${letter}.`
-    }`.trim();
+        : `${nameList(words)} are still unclaimed, and each needs only ${article(letter)} ${letter}.`;
   }
 
   // ── what to do about it ──────────────────────────────────────────────────────────────────────
@@ -144,7 +174,7 @@ export function LookupSheet({ word }: { word: string }) {
     : [];
   const forSale = asks.reduce((n, a) => n + a.available, 0);
   const least = asks.reduce((m, a) => Math.min(m, a.unitPrice), Infinity);
-  const go = (view: "mint" | "swap" | "claim") => g.nav(view); // a nav closes the sheet
+  const go = g.nav; // a nav closes the sheet
 
   return (
     <Sheet
@@ -174,6 +204,7 @@ export function LookupSheet({ word }: { word: string }) {
           <TileWord
             word={word}
             upper={status === "sale" && listing ? listing.upper : canSpell ? need.upper : LOWER}
+            gild={status === "sale" && listing ? (Math.min(5, Math.max(0, listing.prestigeLevel)) as Gild) : 0}
             size={STAGE}
             detail="full"
             tier={tier}
@@ -184,6 +215,7 @@ export function LookupSheet({ word }: { word: string }) {
 
       <p className="font-display text-xl font-extrabold leading-tight">{lead}</p>
       {sub && <p className="mt-1 text-sm leading-snug text-ink/70">{sub}</p>}
+      {instead && <p className="mt-1 text-sm leading-snug text-ink/70">{instead}</p>}
 
       <div className="mt-3 space-y-3">
         {canSpell && (
@@ -223,7 +255,8 @@ export function LookupSheet({ word }: { word: string }) {
                     : "None for sale right now."
             }
           >
-            <Button full variant={allSoldOut ? "primary" : "ghost"} onClick={() => go("swap")}>
+            {/* the shelf, at this letter's sellers when there is one letter to find */}
+            <Button full variant={allSoldOut ? "primary" : "ghost"} onClick={() => go("swap", the ? `letter:${the.letter}` : "letters")}>
               {the ? `Find ${article(the.letter)} ${the.letter} in the Market` : "Find letters in the Market"}
             </Button>
           </Action>
@@ -240,17 +273,35 @@ export function LookupSheet({ word }: { word: string }) {
             Get letters
           </Button>
         )}
-        {status === "sale" && (
-          <Button full variant="ghost" onClick={() => go("swap")}>
+        {canBuy && listing && (
+          <Action hint={`${word} arrives with its letters, their case, and its ascension.`}>
+            <Button
+              full
+              variant="teal"
+              onClick={() => {
+                // the word is the player's from here on, and opens as its card: this view is done
+                g.closeSheet();
+                g.buyWord(listing.orderHash);
+              }}
+            >
+              Buy for {fmtWord(listing.price)} $WORD
+            </Button>
+          </Action>
+        )}
+        {/* From the Dictionary, the way to the other words for sale. On the Market it would lead nowhere. */}
+        {status === "sale" && state.view !== "swap" && (
+          <Button full variant="ghost" onClick={() => go("swap", "words")}>
             See it in the Market
           </Button>
         )}
       </div>
 
+      {status === "sale" && listing && <WordValue word={listed} cost={listedCost} compact />}
+
       <dl className="mt-4">
         {(status === "taken" || status === "sale" || status === "mineAway") && owner && (
           <Fact label="Owner">
-            <PlayerChip address={owner} profile={d.profiles?.[owner]} size={18} />
+            <PlayerChip address={owner} profile={d.profiles?.[owner] ?? listing?.face} size={18} />
           </Fact>
         )}
         {number ? <Fact label="Card">{cardNumber(number)}</Fact> : null}
@@ -266,7 +317,25 @@ export function LookupSheet({ word }: { word: string }) {
         {open && earns ? <Fact label="Earns staked">~{fmtWord(earns)} $WORD a day, once all UPPERCASE</Fact> : null}
         {open && theme.test(word) && <Fact label="Fits this week’s bounty">{theme.name}</Fact>}
         {status === "taken" && <Fact label="In the Market">Not for sale</Fact>}
-        {status === "sale" && listing && <Fact label="In the Market">{fmtWord(listing.price)} $WORD</Fact>}
+        {status === "sale" && listing && (
+          <Fact label="In the Market">
+            {fmtWord(listing.price)} $WORD{listing.listedAt ? `, listed ${timeAgo(Date.parse(listing.listedAt))}` : ""}
+          </Fact>
+        )}
+        {status === "sale" && listing && listing.prestigeLevel > 0 && <Fact label="Ascension">{stageName(listing.prestigeLevel)}</Fact>}
+        {status === "sale" && listing && listing.prestigePity > 0 && (
+          <Fact label="Failed ascensions">{listing.prestigePity}, so better odds next time</Fact>
+        )}
+        {status === "sale" && listing && unfed > 0 && (
+          <Fact label="Unfed">
+            {unfed} day{unfed === 1 ? "" : "s"}
+          </Fact>
+        )}
+        {status === "sale" && listing?.lastSale && (
+          <Fact label="Last sold for">
+            {fmtWord(listing.lastSale.price)} $WORD, {timeAgo(listing.lastSale.at)}
+          </Fact>
+        )}
       </dl>
     </Sheet>
   );

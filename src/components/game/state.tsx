@@ -200,8 +200,20 @@ export type View =
  * bounty sits under the jackpot cards. "letters" opens the Bag on its Letters side (Today's "+N more
  * letters"), since the Bag opens on Words. "sellLetters" opens the Market on Sell, on the player's
  * letters (the Bag's "Sell letters").
+ *
+ * The Market and the Dictionary link into each other (decisions.md #32): on the Market, "words" and
+ * "letters" open that part, and `letter:q` opens the Letters shelf with q's sellers showing (the
+ * word view's "Find a q in the Market"); on the Dictionary, `needs:q` shows the words one more q
+ * finishes (the Market's "and 45 more words"). Read the letter with `sectionLetter`. A link is
+ * state, not a value handed over once, so it also works when the screen is already showing.
  */
-export type ViewSection = "bounty" | "letters" | "sellLetters";
+export type ViewSection = "bounty" | "letters" | "sellLetters" | "words" | `letter:${string}` | `needs:${string}`;
+
+/** The letter (0-25) a `letter:q` or `needs:q` link names, or null when the link isn't one. */
+export function sectionLetter(section: ViewSection | undefined, kind: "letter" | "needs"): number | null {
+  const m = section ? /^(letter|needs):([a-z])$/i.exec(section) : null;
+  return m && m[1] === kind ? m[2].toUpperCase().charCodeAt(0) - 65 : null;
+}
 
 export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: string; pos: number };
 

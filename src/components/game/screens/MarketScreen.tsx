@@ -11,6 +11,13 @@
  * short of, or anything listed under what it costs to make.
  *
  * It is drawn as a market, not as a stack of cards: ruled headings, dashed dividers, and the shelf.
+ *
+ * It shares the Dictionary's thinking (decisions.md #32): which words are nobody's and what the
+ * player's letters are one short of come from `useDictionary` and lib/wordNeed, so the two screens
+ * never disagree; a word opens the same word view from both (`useOpenWord`); and each links into
+ * the other (`nav` with a section: the word view's "Find a q in the Market" lands on the shelf at
+ * q, and a pick's "and 45 more words" lands on those words in the Dictionary).
+ *
  * Both stores feed it (`g.market`): the chain game from the Market's routes, the practice game from
  * a seeded stall (market/practiceMarket.ts).
  */
@@ -18,10 +25,16 @@ import { useEffect, useMemo, useState } from "react";
 import { shopEnabled } from "@/lib/shop/config";
 import { WORDS } from "@/lib/dictionary";
 import { wordTier } from "@/lib/economy";
+import { cardNumber } from "@/lib/cardFacts";
 import { isUpperId, letterLabel, letterMakeCost, oneLetterShort, pickDeals, type Deal } from "@/lib/market/deals";
+import { finishTokens, needParts, wordNeed, type LetterBag } from "@/lib/wordNeed";
 import { Button, Segmented, TierBadge } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
-import { fmtWord, mineLower, mineUpper, useGame } from "../state";
+import { MiniTiles } from "../MiniTiles";
+import { NeedText } from "../NeedText";
+import { TierMark } from "../TierMark";
+import { fmtWord, sectionLetter, useGame } from "../state";
+import { useDictionary, useOpenWord } from "../useDictionary";
 import { useStoredChoice } from "../useStoredChoice";
 import { useWorld } from "../useWorld";
 import { LettersBoard } from "../market/LettersBoard";
@@ -42,25 +55,33 @@ export function MarketScreen() {
   const [openLetter, setOpenLetter] = useState<number | null>(null);
   const [sellLetter, setSellLetter] = useState<number | null>(null);
   const [sellKind, setSellKind] = useState<SellKind>("words");
-  // The Bag's "Sell letters" lands here (`nav("swap", "sellLetters")`): Sell, on the player's letters.
-  // After useStoredChoice's own effect, so the link wins over the remembered part.
+  // A link lands on the part it names (state.tsx ViewSection): the Bag's "Sell letters" on Sell, on
+  // the player's letters; the word view's "Find a q in the Market" on the shelf, with q's sellers
+  // showing. After useStoredChoice's own effect, so the link wins over the remembered part.
   const section = state.section;
   useEffect(() => {
-    if (section !== "sellLetters") return;
-    setTab("sell");
-    setSellKind("letters");
+    if (section === "sellLetters") {
+      setTab("sell");
+      setSellKind("letters");
+    } else if (section === "words" || section === "letters") {
+      setTab(section);
+    } else {
+      const letter = sectionLetter(section, "letter");
+      if (letter === null) return;
+      setTab("letters");
+      setOpenLetter(letter);
+    }
   }, [section, setTab]);
 
-  // Words the connected wallet's letters are one short of. Until the chain game knows who owns what,
-  // it can't say a word is free, so it says nothing.
-  const lower = mineLower(state);
-  const upper = mineUpper(state);
-  const owners = world?.owners;
+  // Words the player is one letter short of, counted as the Dictionary counts them (lib/wordNeed):
+  // nobody's words only (a word on the board has an owner), the connected wallet's letters, and a
+  // letter in another of the player's wallets is a move, never a letter to buy. Until the game
+  // knows who owns what, it can't say a word is free, so it says nothing.
+  const { ownersKnown, hasLetters, here, all, statusOf, numbers } = useDictionary();
   const short = useMemo(() => {
-    if (state.chainBacked && !owners) return new Map<number, string[]>();
-    const taken = new Set([...Object.keys(owners ?? {}), ...state.words.map((w) => w.word)]);
-    return oneLetterShort(lower, upper, WORDS.filter((w) => !taken.has(w)));
-  }, [state.chainBacked, state.words, owners, lower, upper]);
+    if (!ownersKnown || !hasLetters) return new Map<number, string[]>();
+    return oneLetterShort(here, all, WORDS.filter((w) => statusOf(w) === "open"));
+  }, [ownersKnown, hasLetters, here, all, statusOf]);
 
   const deals = pickDeals({
     book: g.market.letterBook,
@@ -102,6 +123,8 @@ export function MarketScreen() {
               title={timeAgo(s.at)}
               className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-ink/70"
             >
+              {/* a word wears its rarity's mark, as it does everywhere it is named */}
+              {s.kind === "word" && s.word && <TierMark tier={wordTier(s.word)} size={12} />}
               <SoldThing sale={s} size={24} />
               {s.kind === "letter" && s.qty > 1 && <span>×{s.qty}</span>}
               <strong className="font-display text-ink tabular-nums">{fmtWord(s.kind === "letter" ? s.unitPrice : s.price)}</strong>
@@ -126,7 +149,14 @@ export function MarketScreen() {
           <h2 className="sr-only">For you</h2>
           <ul className="divide-y-2 divide-dashed divide-ink/15">
             {deals.map((d) => (
-              <DealRow key={d.kind === "word" ? d.listing.orderHash : d.ask.orderHash} deal={d} onLetter={showLetter} />
+              <DealRow
+                key={d.kind === "word" ? d.listing.orderHash : d.ask.orderHash}
+                deal={d}
+                here={here}
+                all={all}
+                number={d.kind === "word" ? numbers?.[d.listing.word] : undefined}
+                onLetter={showLetter}
+              />
             ))}
           </ul>
         </section>
@@ -138,6 +168,8 @@ export function MarketScreen() {
           open={openLetter}
           setOpen={setOpenLetter}
           short={short}
+          here={here}
+          all={all}
           flagged={new Set(deals.flatMap((d) => (d.kind === "finish" ? [d.ask.letterId % 26] : [])))}
           onSell={(letterId) => {
             setSellLetter(letterId);
@@ -160,8 +192,23 @@ export function MarketScreen() {
 }
 
 /** One listing picked for this player, said as a sentence, with its price and a Buy. */
-function DealRow({ deal: d, onLetter }: { deal: Deal; onLetter: (letterId: number) => void }) {
+function DealRow({
+  deal: d,
+  here,
+  all,
+  number,
+  onLetter,
+}: {
+  deal: Deal;
+  /** The player's letters, to draw the word a letter finishes with its gap. */
+  here: LetterBag;
+  all: LetterBag;
+  /** A picked word's card number, when it is known. */
+  number?: number;
+  onLetter: (letterId: number) => void;
+}) {
   const g = useGame();
+  const openWord = useOpenWord();
   const [busy, setBusy] = useState(false);
   const pct = (under: number) => `${Math.round(under * 100)}% under what it costs to make`;
   if (d.kind === "word") {
@@ -170,8 +217,11 @@ function DealRow({ deal: d, onLetter }: { deal: Deal; onLetter: (letterId: numbe
       <li className="flex items-center justify-between gap-3 py-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <WordTiles word={l.word} upper={[...l.upper]} size={22} tier={wordTier(l.word)} still />
+            <button type="button" className="word-press" aria-label={`Open ${l.word}`} onClick={() => openWord(l.word)}>
+              <WordTiles word={l.word} upper={[...l.upper]} size={22} tier={wordTier(l.word)} still />
+            </button>
             <TierBadge tier={wordTier(l.word)} />
+            {number ? <span className="text-xs font-bold tabular-nums text-ink/60">{cardNumber(number)}</span> : null}
           </div>
           <p className="mt-0.5 text-xs text-ink/70">
             <strong className="text-teal-ink">{pct(d.under)[0].toUpperCase() + pct(d.under).slice(1)}</strong>
@@ -187,41 +237,64 @@ function DealRow({ deal: d, onLetter }: { deal: Deal; onLetter: (letterId: numbe
   const a = d.ask;
   const name = letterLabel(a.letterId);
   const make = letterMakeCost(a.letterId, { pack: g.price("pack"), roll: g.price("roll") });
+  const buy = (
+    <Button
+      size="sm"
+      variant="teal"
+      className="shrink-0"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        await g.market.buyLetters(a, 1);
+        setBusy(false);
+      }}
+    >
+      Buy for {fmtWord(a.unitPrice)}
+    </Button>
+  );
+  if (d.kind === "finish") {
+    // The word as the Dictionary draws it: the player's letters, and a dashed slot where this one goes.
+    const need = wordNeed(d.word, here, all);
+    const more = needParts(need, d.word)[0]?.more ?? false;
+    return (
+      <li className="flex items-center justify-between gap-3 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* the letter's tile opens its sellers too; the sentence beside it is the one a keyboard reaches */}
+          <button type="button" tabIndex={-1} aria-hidden className="shrink-0" onClick={() => onLetter(a.letterId)}>
+            <LetterTile char={name} upper={isUpperId(a.letterId)} size={34} />
+          </button>
+          <div className="min-w-0 text-xs text-ink/70">
+            <button type="button" className="block text-left font-display text-sm font-extrabold leading-tight text-ink" onClick={() => onLetter(a.letterId)}>
+              <NeedText tokens={finishTokens(name, more, d.word)} />
+            </button>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <button type="button" className="word-press" aria-label={`Open ${d.word}`} onClick={() => openWord(d.word)}>
+                <MiniTiles word={d.word} upper={need.upper} letters={need.letters} tier={wordTier(d.word)} />
+              </button>
+              {d.alsoFinishes > 0 && (
+                <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${name.toLowerCase()}`)}>
+                  and {d.alsoFinishes.toLocaleString("en-US")} more word{d.alsoFinishes === 1 ? "" : "s"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        {buy}
+      </li>
+    );
+  }
   return (
     <li className="flex items-center justify-between gap-3 py-2">
       <button type="button" className="flex min-w-0 items-center gap-2.5 text-left" onClick={() => onLetter(a.letterId)}>
         <LetterTile char={name} upper={isUpperId(a.letterId)} size={34} />
         <span className="min-w-0 text-xs text-ink/70">
-          {d.kind === "finish" ? (
-            <>
-              <strong className="block font-display text-sm leading-tight text-ink">
-                One more {name} finishes {d.word}
-              </strong>
-              {d.alsoFinishes > 0 ? `and ${d.alsoFinishes} more word${d.alsoFinishes === 1 ? "" : "s"} you’re one letter short of` : "a word you’re one letter short of"}
-            </>
-          ) : (
-            <>
-              <strong className="block font-display text-sm leading-tight text-ink">
-                {isUpperId(a.letterId) ? `An UPPERCASE ${name}` : `A lowercase ${name}`} for less
-              </strong>
-              <span className="font-bold text-teal-ink">{pct(d.under)}</span>, about {fmtWord(make)}
-            </>
-          )}
+          <strong className="block font-display text-sm leading-tight text-ink">
+            {isUpperId(a.letterId) ? `An UPPERCASE ${name}` : `A lowercase ${name}`} for less
+          </strong>
+          <span className="font-bold text-teal-ink">{pct(d.under)}</span>, about {fmtWord(make)}
         </span>
       </button>
-      <Button
-        size="sm"
-        variant="teal"
-        className="shrink-0"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          await g.market.buyLetters(a, 1);
-          setBusy(false);
-        }}
-      >
-        Buy for {fmtWord(a.unitPrice)}
-      </Button>
+      {buy}
     </li>
   );
 }

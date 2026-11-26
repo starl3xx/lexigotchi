@@ -3,7 +3,9 @@
  * sell form offers, how the words list narrows and sorts, and which listings a player sees first.
  */
 import { describe, it, expect } from "vitest";
-import { wordTier } from "@/lib/economy";
+import { RANKED_WORDS, wordTier } from "@/lib/economy";
+import { WORDS } from "@/lib/dictionary";
+import { finishedBy, type LetterBag } from "@/lib/wordNeed";
 import { costToMake, letterCost, rollsPerRaise, type CostPrices } from "@/lib/wordCost";
 import {
   filterWords, justUnder, letterMakeCost, letterPriceIdeas, letterStalls, lowestOtherAsk, oneLetterShort, pickDeals, sortWords, tierLowest,
@@ -20,12 +22,13 @@ const bookOf = (...asks: LetterAsk[]): Record<number, LetterBook> => {
 };
 const word = (w: string, price: number, upper = [false, false, false, false, false], maker = "0xseller", listedAt = "2026-11-25T00:00:00.000Z"): WordForSale => ({ word: w, maker, price, upper, prestigeLevel: 0, orderHash: `w-${w}`, listedAt });
 const nobody = () => false;
-const bag = (letters: string) => {
-  const lower = new Array<number>(26).fill(0);
-  for (const ch of letters.toUpperCase()) lower[ch.charCodeAt(0) - 65]++;
-  return lower;
+const count = (letters: string) => {
+  const n = new Array<number>(26).fill(0);
+  for (const ch of letters.toUpperCase()) n[ch.charCodeAt(0) - 65]++;
+  return n;
 };
-const NONE = new Array<number>(26).fill(0);
+/** A wallet's letters: lowercase, then UPPERCASE. */
+const bag = (lower: string, upper = ""): LetterBag => ({ lower: count(lower), upper: count(upper) });
 
 describe("what stands beside a price", () => {
   it("a letter costs its share of a pack to make, and an UPPERCASE one adds the average rolls", () => {
@@ -95,25 +98,57 @@ describe("the letters board", () => {
 });
 
 describe("one letter short", () => {
+  // one wallet: every letter the player has is in the connected wallet
+  const short1 = (b: LetterBag, words: Iterable<string>) => oneLetterShort(b, b, words);
+
   it("finds the words a bag is exactly one letter short of, by the letter that finishes them", () => {
-    const short = oneLetterShort(bag("blae"), NONE, ["BLAZE", "GLAZE", "CRANE", "TABLE"]);
+    const short = short1(bag("blae"), ["BLAZE", "GLAZE", "CRANE", "TABLE"]);
     expect(short.get(25)).toEqual(["BLAZE"]); // needs a z
     expect(short.get(19)).toEqual(["TABLE"]); // needs a t
     expect(short.has(6)).toBe(false); // GLAZE needs g and z: two short
   });
 
   it("counts both cases, and a doubled letter the bag has once", () => {
-    const lower = bag("jay");
-    const upper = bag("z"); // an UPPERCASE Z counts too
-    expect(oneLetterShort(lower, upper, ["JAZZY"]).get(25)).toEqual(["JAZZY"]); // one more z
-    expect(oneLetterShort(bag("jazzy"), NONE, ["JAZZY"]).size).toBe(0); // it can be spelled: nothing is short
+    // an UPPERCASE Z counts too
+    expect(short1(bag("jay", "z"), ["JAZZY"]).get(25)).toEqual(["JAZZY"]); // one more z
+    expect(short1(bag("jazzy"), ["JAZZY"]).size).toBe(0); // it can be spelled: nothing is short
   });
 
-  it("lists the rarest word first", () => {
-    const words = oneLetterShort(bag("blaegcrn"), NONE, ["BLAZE", "GLAZE", "CRAZE"]).get(25)!;
+  it("lists the rarest word first, word by word, as the word view does", () => {
+    const words = short1(bag("blaegcrn"), ["BLAZE", "GLAZE", "CRAZE"]).get(25)!;
     expect(words).toHaveLength(3);
-    const ranks = words.map((w) => ["Common", "Uncommon", "Rare", "Legendary", "Mythic"].indexOf(wordTier(w)));
+    const rank = new Map(RANKED_WORDS.map((r) => [r.word, r.rank]));
+    const ranks = words.map((w) => rank.get(w)!);
     expect([...ranks].sort((a, b) => b - a)).toEqual(ranks);
+    const tiers = words.map((w) => ["Common", "Uncommon", "Rare", "Legendary", "Mythic"].indexOf(wordTier(w)));
+    expect([...tiers].sort((a, b) => b - a)).toEqual(tiers);
+  });
+
+  it("never offers a letter the player already holds in another wallet (decisions.md #32)", () => {
+    // The h is in a linked wallet: DEPTH wants a move, not a purchase. Counting the connected wallet
+    // alone, as this did before, offered to sell the player an h.
+    const here = bag("dept");
+    expect(oneLetterShort(here, bag("depth"), ["DEPTH"]).size).toBe(0);
+    expect(oneLetterShort(here, here, ["DEPTH"]).get(7)).toEqual(["DEPTH"]);
+  });
+
+  it("never says a letter finishes a word that needs another letter moved here too", () => {
+    // q is held nowhere and the h is elsewhere: buying a q does not finish QUOTH
+    expect(oneLetterShort(bag("uot"), bag("uoth"), ["QUOTH"]).size).toBe(0);
+    expect(oneLetterShort(bag("uoth"), bag("uoth"), ["QUOTH"]).get(16)).toEqual(["QUOTH"]);
+  });
+
+  it("counts the same words the Dictionary's word view does, for every letter", () => {
+    // The Market says "and N more words"; its link and the word view's "would also finish" must agree.
+    const here = bag("aabcdeeginolrsttu", "re");
+    const all = bag("aabcdeeginolrsttuhz", "re"); // an h and a z wait in another wallet
+    const short = oneLetterShort(here, all, WORDS);
+    for (let i = 0; i < 26; i++) {
+      const letter = String.fromCharCode(97 + i);
+      expect([...(short.get(i) ?? [])].sort(), letter).toEqual(finishedBy(letter, WORDS, here, () => false, all).sort());
+    }
+    expect(short.has(7)).toBe(false); // the h is the player's already
+    expect(short.get(16)).toContain("QUINT");
   });
 });
 

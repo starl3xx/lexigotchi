@@ -1,12 +1,17 @@
 "use client";
 /**
  * What the Dictionary knows about a word, for its list and its word view (decisions.md #31): who
- * has it, and the player's letters to count against it (lib/wordNeed).
+ * has it, and the player's letters to count against it (lib/wordNeed). The Market reads the same
+ * (decisions.md #32), so a word is never "one letter away" on one screen and for sale on the other.
  *
  * - **Owners are known only once the world read succeeds** (always, in the practice game, which has
  *   no other players). Until then a word's status is `unknown`: never "unclaimed", and never a
  *   promise that the player can spell it. Telling a player to spell a word someone owns sends them
  *   into an AlreadyClaimed revert (Bugbot on #120).
+ * - **A word on the Market's board has an owner, whatever the world read says:** its seller. The
+ *   board is read live and the world is a minute old, so a word claimed and listed since then is
+ *   for sale before the world knows it has an owner; and the practice stall's sellers are in no
+ *   world read at all (JAZZY read as unclaimed there, with a price tag on it).
  * - **`here` is the connected wallet's letters,** the only ones a claim can spend; `all` is every
  *   wallet of the player. Spell counts the same way.
  */
@@ -15,7 +20,6 @@ import type { LetterBag } from "@/lib/wordNeed";
 import type { EntryStatus } from "@/lib/dictionaryList";
 import { mineLower, mineUpper, useGame, type WordListing } from "./state";
 import { useMyWallets, useWorld } from "./useWorld";
-
 
 export function useDictionary() {
   const g = useGame();
@@ -33,9 +37,9 @@ export function useDictionary() {
 
   const lowerHere = mineLower(state);
   const upperHere = mineUpper(state);
-  // The chain store rebuilds these arrays whenever any UI state changes (a sheet opening), so the
-  // bags are kept by their CONTENTS: the list and its distances recompute when a letter changes,
-  // not when a sheet opens.
+  // The stores rebuild these arrays (and the practice store its board) whenever any UI state
+  // changes (a sheet opening), so the bags and the listed words are kept by their CONTENTS: the
+  // list and its distances recompute when a letter or a listing changes, not when a sheet opens.
   const hereKey = `${lowerHere.join()}|${upperHere.join()}`;
   const allKey = `${state.lower.join()}|${state.upper.join()}`;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -45,15 +49,26 @@ export function useDictionary() {
   /** With no letters at all (a visitor, a brand-new player) there is nothing to count: entries say who has a word, not what it needs. */
   const hasLetters = useMemo(() => all.lower.some((n) => n > 0) || all.upper.some((n) => n > 0), [all]);
 
+  /** Every word on the Market's board, and whether its seller is the player (any wallet of theirs). */
+  const isMine = g.market.isMine;
+  const listedKey = g.wordBoard.map((l) => `${l.word}:${l.maker}`).join();
+  const listed = useMemo(
+    () => new Map(g.wordBoard.map((l) => [l.word, isMine(l.maker)])),
+    // `isMine` is rebuilt with the store; it answers from the player's wallets, which `mine` follows
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listedKey, mine],
+  );
+
   const statusOf = useCallback(
     (word: string): EntryStatus => {
       if (ownedSet.has(word)) return "mine";
       const owner = owners?.[word];
-      if (owner && mine.has(owner)) return "mineAway";
-      if (owner) return listings.has(word) ? "sale" : "taken";
+      const forSale = listed.has(word);
+      if ((owner && mine.has(owner)) || listed.get(word)) return "mineAway";
+      if (owner || forSale) return forSale ? "sale" : "taken";
       return ownersKnown ? "open" : "unknown";
     },
-    [ownedSet, owners, mine, listings, ownersKnown],
+    [ownedSet, owners, mine, listed, ownersKnown],
   );
 
   return {
@@ -71,4 +86,19 @@ export function useDictionary() {
     hasLetters,
     statusOf,
   };
+}
+
+/**
+ * Open a word, from any list (decisions.md #32): the player's own, in the bag, opens its card;
+ * any other opens the word view (sheets/LookupSheet), which says who has it, what it needs, and,
+ * when it is for sale, what it costs.
+ */
+export function useOpenWord(): (word: string) => void {
+  const g = useGame();
+  const { openSheet } = g;
+  const words = g.state.words;
+  return useCallback(
+    (word: string) => openSheet(words.some((w) => w.word === word) ? { kind: "word", word } : { kind: "lookup", word }),
+    [openSheet, words],
+  );
 }

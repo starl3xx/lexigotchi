@@ -811,6 +811,57 @@ setter. All small, riding existing suite patterns.
       Market", with how many are for sale and from how much, because #30 retired letter swaps
       while this was being built.
 
+32. **The Market and the Dictionary think alike, and link into each other** (starl3xx,
+    2026-11-25: "take a look at the Market and see if anything we designed/decided would be good
+    to integrate into the Market as well, design-wise"; on the five findings: "okay build all 5 as
+    one PR"). The Market (#30) and the Dictionary (#31) were built the same day by two sessions,
+    and each answered "what is this player one letter away from?" on its own.
+    - **One word view.** A word on the Market (a listing, a pick, a sold word) opens the word view
+      the Dictionary opens (`useOpenWord`; the player's own word opens its card). For a word for
+      sale the view shows the listing as it is now (case, ascension, hunger), its price beside
+      what it costs to make as it is, and **Buy**, which closes the view: the word is the
+      player's from then on. No Buy without a connected wallet (the Dictionary is public), nor on
+      the player's own listing. Listings show the card number (#25: the order of first claims).
+    - **A listed word has an owner: its seller** (`useDictionary` `statusOf`). The Market's board
+      is read live and the world read is a minute old, so a word claimed and listed since then
+      was "unclaimed" in the Dictionary with a price tag on it in the Market; the practice stall's
+      words always were (its sellers are in no world read), and two of them, TIGER and OCEAN,
+      read "You can spell it".
+    - **One rule for "this letter finishes this word"** (`lib/wordNeed` `finishingLetter`: exactly
+      one letter held nowhere, and nothing to move). The Market's picks (`oneLetterShort`), the
+      Dictionary's new "Only needs a q" filter, and the word view's "would also finish" all read
+      it. The Market had its own count, of the connected wallet alone: it offered to sell a
+      player a letter they held in a linked wallet (the Dictionary says "move it here"), and
+      called a word finished by a purchase when another letter still had to be moved. Both are
+      tests now. Its lists are rarest first word by word (they were by tier, then A to Z), so the
+      Market and the word view name the same word first.
+    - **One wording.** "One more x finishes UNBOX" said "one more" to a player holding no x. Now
+      "An x finishes UNBOX", and "One more o finishes BLOOD" only when one is held
+      (`finishTokens`), beside the Dictionary's "Needs an x" and "Needs one more o".
+    - **The gap is drawn.** A pick, and a letter's sellers, show the word in the Dictionary's
+      flat tiles with a dashed slot where the letter goes.
+    - **Links both ways, as state** (`ViewSection`: `letter:q`, `needs:q`, `words`, `letters`;
+      `sectionLetter`). The word view's "Find a q in the Market" opens the Letters shelf with q's
+      sellers showing (it opened whichever part was last used). The Market's "and 45 more words"
+      opens the Dictionary on those 46 words, under a chip "Only needs an x". The number and the
+      cards come from the same function, and a test holds them equal for every letter. A link is
+      state, not a value handed over once (as `spellHandoff` is), because the word view can be
+      open on the Market itself.
+    - **Marks and order.** The Market's rarity chips wear each rarity's mark (#29) and a
+      stepped-back count, and "Just sold" marks its words. Rarity chips read rarest first on all
+      three screens: the Dictionary's ran Common first and was the odd one, not the Market's,
+      which matched Spell.
+    - **The 12 px floor.** "Yours" and "Lowest" tags and the Market's small captions were 10 and
+      11 px. The shelf's price tags stay: they are compact chips, 26 across a phone.
+    - **Left alone, and why:** the Market's chip shape (taller, with a press) is also the Bag's,
+      so it is one of two chip shapes in the game, not a one-off. Making the four screens one
+      chip is its own change. The Market's look (the shelf, ruled lists) is its own.
+    - **Seen and not seen:** all of it in practice mode at 1280 and 424 px. Card numbers on
+      listings and the linked-wallet cases need a wallet on the chain; they are held by tests.
+    - **My readings, not starl3xx's words:** "Only needs an x" as the chip's name; a sold word
+      opens its view only in the chain game (or when it is the player's), since practice has no
+      other owners; the Dictionary's rarity chips flipped rather than the Market's.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

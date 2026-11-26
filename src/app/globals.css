@@ -94,13 +94,15 @@ body {
      element's shadow size, set by .cel / .cel-sm / the Button.
    - .press-icon: an icon inside a .press that wiggles on hover.
    - .tile-press: a tappable letter character. It hops on hover and squashes on press.
+   - .word-press: a whole word that opens (a Market listing, a sold word). It lifts on hover and
+     squashes on press, without the single letter's tilt, which swings a five-letter row's ends.
    - .round-btn: the header's round icon buttons and pills.
    Hover only where a mouse hovers (a tap on a phone isn't a hover). The movement lives in a
    prefers-reduced-motion: no-preference block below; under reduce, shadows and colors still answer.
    --------------------------------------------------------------------------------------------- */
 /* The positioning context for the hover strip below. Zero specificity (:where), so a Tailwind
    absolute / fixed / sticky on the same element always wins. */
-:where(.press, .tile-press) {
+:where(.press, .tile-press, .word-press) {
   position: relative;
 }
 .press {
@@ -118,6 +120,10 @@ body {
 }
 .tile-press {
   transition: transform 220ms var(--ease-hop);
+}
+.word-press {
+  border-radius: 8px;
+  transition: transform 200ms var(--ease-hop);
 }
 .round-btn {
   transition:
@@ -269,6 +275,10 @@ body {
     transform: translateY(1px) scale(0.94);
     transition-duration: 70ms;
   }
+  .word-press:active {
+    transform: translateY(1px) scale(0.97);
+    transition-duration: 70ms;
+  }
   .round-btn:active {
     transform: scale(0.92);
   }
@@ -282,6 +292,9 @@ body {
     .tile-press:hover:not(:active) {
       transform: translateY(-4px) rotate(-3deg);
     }
+    .word-press:hover:not(:active) {
+      transform: translateY(-3px);
+    }
     /* The lift moves the element off a pointer resting on its lower or right edge: hover ends, the
        element drops back under the pointer, hover starts again, and it stutters (starl3xx,
        2026-11-24). While hovered, an invisible strip covers the ground it left, so the pointer
@@ -293,7 +306,8 @@ body {
       position: absolute;
       inset: -3px -3px -9px -3px;
     }
-    .tile-press:hover::before {
+    .tile-press:hover::before,
+    .word-press:hover::before {
       content: "";
       position: absolute;
       inset: -3px -4px -10px -4px;

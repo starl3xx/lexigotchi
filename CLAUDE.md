@@ -234,7 +234,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   most every 20 s (`?fresh=1` after a purchase: 3 s), and the keeper's `fees` job does too.
   **Prices and picks** (`lib/market/deals.ts`, pure, tested): `letterMakeCost` (a pack's share,
   plus the average rolls for UPPERCASE), `letterPriceIdeas`/`wordPriceIdeas` for the sell forms,
-  `oneLetterShort` (words nobody owns that the bag is one letter short of), and `pickDeals` (a
+  `oneLetterShort` (words nobody owns that the player is one letter short of, counted by the
+  Dictionary's rule: see "The Market and the Dictionary" below), and `pickDeals` (a
   letter that finishes a word first; one place always kept for a price ≥10% under its cost).
   **The letter swap is retired**: `/api/swap/orders` POST answers 410, and its GET serves only a
   maker's own old offers, for Sell's Cancel. Proofs to rerun after touching any of this:
@@ -383,6 +384,24 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   navigates to Spell, which loads it on the rack. "Mint a pack" hides when the chain says the
   letter is minted out (`readLetterSupply`, read by the sheet). "Closest first" and the quick
   filters are `lib/dictionaryList.ts` (pure, tested; "Can spell" is exactly Spell's list).
+  **The Market and the Dictionary think alike** (decisions.md #32). (1) *One rule* for "this
+  letter finishes this word": `lib/wordNeed` `finishingLetter` (exactly one letter held nowhere,
+  nothing to move). The Market's picks (`oneLetterShort`), the Dictionary's "Only needs a q" filter
+  (`listDictionary`'s `letter`), and the word view's "would also finish" (`finishedBy`) all read
+  it, so the Market's "and 45 more words" is the number of cards its link shows; tests hold them
+  equal. Never count the connected wallet alone: a letter in a linked wallet is a move, and the
+  Market once offered to sell it. (2) *One wording*: `finishTokens` ("An x finishes UNBOX"; "One
+  more o…" only when one is held). (3) *One word view*: any word in a list opens with
+  `useOpenWord` (the player's own → its card, any other → `LookupSheet`), and a word for sale is
+  bought there (Buy closes the sheet; no Buy without a wallet or on the player's own listing).
+  (4) *A listed word has an owner, its seller* (`useDictionary` `statusOf`): the board is live and
+  the world read is a minute old, and the practice stall's sellers are in no world read.
+  (5) *Links are state*: `nav(view, section)` with `letter:q` (the Market's Letters shelf, q's
+  sellers open), `needs:q` (the Dictionary on the words a q finishes), `words`, `letters`; read
+  the letter with `sectionLetter` (state.tsx). Not a take-once handoff like `spellHandoff`: the
+  word view can be open on the screen the link points at. Rarity chips read rarest first on Spell,
+  the Dictionary, and the Market. Two chip shapes remain (the Dictionary's and Spell's pill; the
+  Bag's and the Market's taller press chip): one chip for all four is its own change.
 - `src/lib/world.ts` + `/api/world` → **the shared world** for the Leaderboard and the Dictionary's
   owners: every claimed word's beneficial owner (the keeper's scan), each wallet's loose letters
   rebuilt from the Letters transfer events (the game's own contracts excluded), jackpot wins

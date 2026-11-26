@@ -9,21 +9,31 @@
  *
  * Beside each price stands what the letter costs to make (its share of a pack; an UPPERCASE letter
  * adds the average rolls) and what one last sold for, so a price has something to be read against.
+ *
+ * A letter that finishes a word says so as the Dictionary would (decisions.md #32; lib/wordNeed
+ * `finishTokens`: "A q finishes QUINT", or "One more o finishes BLOOD" when one is held), draws the
+ * word with its gap, and links to every word that letter finishes, in the Dictionary.
  */
 import { useEffect, useRef, useState } from "react";
-import { ALPHABET } from "@/lib/economy";
+import { ALPHABET, wordTier } from "@/lib/economy";
 import { isUpperId, letterLabel, letterMakeCost, letterStalls } from "@/lib/market/deals";
 import type { LetterAsk, LetterBook } from "@/lib/market/types";
-import { Button } from "../primitives";
+import { finishTokens, wordNeed, type LetterBag } from "@/lib/wordNeed";
+import { Button, Pill } from "../primitives";
 import { LetterTile } from "../LetterTile";
+import { MiniTiles } from "../MiniTiles";
+import { NeedText } from "../NeedText";
 import { PlayerChip } from "../PlayerChip";
 import { fmtWord, mineLower, mineUpper, useGame } from "../state";
+import { useOpenWord } from "../useDictionary";
 import { Qty, Versus, timeAgo, useAmount } from "./bits";
 
 export function LettersBoard({
   open,
   setOpen,
   short,
+  here,
+  all,
   flagged,
   onSell,
 }: {
@@ -32,6 +42,9 @@ export function LettersBoard({
   setOpen: (index: number | null) => void;
   /** Words the bag is one letter short of, by the letter that finishes them. */
   short: ReadonlyMap<number, string[]>;
+  /** The player's letters (the connected wallet's, and every wallet's), to draw a word with its gap. */
+  here: LetterBag;
+  all: LetterBag;
   /** The letters among the player's picks (0-25): the only ones the shelf flags, or every tag would carry one. */
   flagged: ReadonlySet<number>;
   /** Go sell this letter id instead. */
@@ -107,7 +120,9 @@ export function LettersBoard({
       </div>
 
       <div ref={counter} className="scroll-mb-24">
-        {open !== null && <Counter index={open} lower={stalls[open].lower} upper={stalls[open].upper} finishes={short.get(open)} onSell={onSell} onClose={() => setOpen(null)} />}
+        {open !== null && (
+          <Counter index={open} lower={stalls[open].lower} upper={stalls[open].upper} finishes={short.get(open)} here={here} all={all} onSell={onSell} onClose={() => setOpen(null)} />
+        )}
       </div>
     </div>
   );
@@ -119,6 +134,8 @@ function Counter({
   lower,
   upper,
   finishes,
+  here,
+  all,
   onSell,
   onClose,
 }: {
@@ -126,6 +143,8 @@ function Counter({
   lower?: LetterBook;
   upper?: LetterBook;
   finishes?: string[];
+  here: LetterBag;
+  all: LetterBag;
   onSell: (letterId: number) => void;
   onClose: () => void;
 }) {
@@ -134,6 +153,10 @@ function Counter({
   const heldLower = mineLower(g.state)[index] ?? 0;
   const heldUpper = mineUpper(g.state)[index] ?? 0;
   const none = !lower && !upper;
+  const openWord = useOpenWord();
+  // The rarest word this letter finishes, as the Dictionary draws it: a dashed slot where the letter goes.
+  const first = finishes?.[0];
+  const need = first ? wordNeed(first, here, all) : null;
   return (
     <div className="mt-4 rounded-2xl border-[3px] border-ink bg-card px-3 py-3 [box-shadow:4px_4px_0_#1b1714]">
       <div className="flex items-start justify-between gap-3">
@@ -143,11 +166,21 @@ function Counter({
             <h3 className="font-display text-lg font-extrabold leading-tight">
               {none ? `No ${ch.toLowerCase()} for sale` : `Who’s selling ${ch.toLowerCase()}`}
             </h3>
-            {finishes && finishes.length > 0 && (
-              <p className="text-xs font-bold text-candy-ink">
-                One more {ch.toLowerCase()} finishes {finishes[0]}
-                {finishes.length > 1 ? ` and ${finishes.length - 1} more word${finishes.length === 2 ? "" : "s"} you’re one letter short of` : ", a word you’re one letter short of"}.
-              </p>
+            {first && need && finishes && (
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <span className="font-bold text-candy-ink">
+                  {/* "one more" only when the player holds one already (a doubled letter) */}
+                  <NeedText tokens={finishTokens(ch.toLowerCase(), heldLower + heldUpper > 0, first)} />
+                </span>
+                <button type="button" className="word-press" aria-label={`Open ${first}`} onClick={() => openWord(first)}>
+                  <MiniTiles word={first} upper={need.upper} letters={need.letters} tier={wordTier(first)} />
+                </button>
+                {finishes.length > 1 && (
+                  <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${ch.toLowerCase()}`)}>
+                    and {(finishes.length - 1).toLocaleString("en-US")} more word{finishes.length === 2 ? "" : "s"}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -230,8 +263,8 @@ function AskRow({ ask, make, best, amount }: { ask: LetterAsk; make: number; bes
         <div className="flex flex-wrap items-baseline gap-x-2">
           <strong className="font-display text-base tabular-nums">{fmtWord(ask.unitPrice)}</strong>
           <span className="text-xs text-ink/60">$WORD each</span>
-          {best && <span className="rounded-full bg-teal/25 px-1.5 py-0.5 text-[10px] font-extrabold text-teal-ink">Lowest</span>}
-          {mine && <span className="rounded-full border-2 border-ink bg-gold/30 px-1.5 text-[10px] font-extrabold">Yours</span>}
+          {best && <span className="rounded-full bg-teal/25 px-2 py-0.5 text-xs font-extrabold text-teal-ink">Lowest</span>}
+          {mine && <Pill className="bg-gold/30">Yours</Pill>}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink/60">
           <span>{ask.available} for sale</span>
@@ -249,7 +282,7 @@ function AskRow({ ask, make, best, amount }: { ask: LetterAsk; make: number; bes
             Take off sale
           </button>
         ) : (
-          <span className="shrink-0 text-right text-[11px] leading-tight text-ink/50">From another of your wallets.</span>
+          <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From another of your wallets.</span>
         )
       ) : (
         <div className="flex shrink-0 items-center gap-2">

@@ -75,6 +75,8 @@ export function wordNeed(word: string, here: LetterBag, all: LetterBag = here): 
 export interface Distance {
   missing: number;
   away: number;
+  /** The last letter found missing (0-25), or -1 when none is: with exactly one missing, THE letter the word needs. */
+  letter: number;
 }
 
 /** `wordNeed`'s counts alone, for the whole dictionary at once (the sort and the filters). */
@@ -83,16 +85,31 @@ export function distanceOf(word: string, hereTotal: readonly number[], elsewhere
   const other = elsewhere ? elsewhere.slice() : null;
   let missing = 0;
   let away = 0;
+  let letter = -1;
   for (let k = 0; k < word.length; k++) {
     const i = word.charCodeAt(k) - 65;
     if (left[i] > 0) left[i]--;
     else if (other && other[i] > 0) {
       other[i]--;
       away++;
-    } else missing++;
+    } else {
+      missing++;
+      letter = i;
+    }
   }
-  return { missing, away };
+  return { missing, away, letter };
 }
+
+/**
+ * The one letter (0-25) that finishes a word: it is ALL the word still needs, so nothing has to be
+ * moved here either. -1 otherwise.
+ *
+ * "A q finishes QUINT" is a promise (the Market sells the letter on it), so there is one rule, read
+ * here by the Market's picks (lib/market/deals `oneLetterShort`), the Dictionary's "Only needs"
+ * filter (lib/dictionaryList), and the word view's "would also finish" (`finishedBy`): the number
+ * in the Market's sentence is the number of cards its link lands on (decisions.md #32).
+ */
+export const finishingLetter = (d: Distance): number => (d.missing === 1 && d.away === 0 ? d.letter : -1);
 
 /** Each letter's count in both cases together. */
 export const bagTotals = (bag: LetterBag): number[] => bag.lower.map((n, i) => n + bag.upper[i]);
@@ -232,17 +249,30 @@ export function needNote(need: WordNeed, word: string, also: readonly string[] =
 }
 
 /**
- * The words one more `letter` would finish: each needs that letter, once, and nothing else. `skip`
- * leaves out words that can't be spelled anyway (claimed ones, and the word being looked at).
- * Dictionary order; the caller sorts.
+ * The words one more `letter` would finish: each needs that letter, once, and nothing else
+ * (`finishingLetter`, so a letter waiting in another of the player's wallets finishes nothing: it
+ * is a move). `skip` leaves out words that can't be spelled anyway (claimed ones, and the word
+ * being looked at). Dictionary order; the caller sorts.
  */
-export function finishedBy(letter: string, words: readonly string[], here: LetterBag, skip: (word: string) => boolean): string[] {
+export function finishedBy(letter: string, words: readonly string[], here: LetterBag, skip: (word: string) => boolean, all: LetterBag = here): string[] {
   const L = letter.toUpperCase();
+  const want = idx(letter);
+  const hereTotal = bagTotals(here);
+  const elsewhere = elsewhereTotals(here, all);
   const out: string[] = [];
   for (const w of words) {
     if (!w.includes(L) || skip(w)) continue;
-    const m = wordNeed(w, here).missing;
-    if (m.length === 1 && m[0] === letter.toLowerCase()) out.push(w);
+    if (finishingLetter(distanceOf(w, hereTotal, elsewhere)) === want) out.push(w);
   }
   return out;
+}
+
+/**
+ * The Market's line for a letter that is all a word still needs: "A q finishes QUINT", or "One
+ * more o finishes BLOOD" when the player already holds one (`more`). The Dictionary says "Needs a
+ * q" and "Needs one more o" of the same words. `letter` is written as given, so an UPPERCASE
+ * letter for sale reads in its case.
+ */
+export function finishTokens(letter: string, more: boolean, word: string): Token[] {
+  return [more ? "One more " : article(letter) === "an" ? "An " : "A ", { letter }, ` finishes ${word}`];
 }

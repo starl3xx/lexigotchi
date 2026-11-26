@@ -13,8 +13,9 @@
  * A pick is a listing worth showing THIS player first: a letter that finishes a word their bag is one
  * letter short of, or something listed under what it costs to make.
  */
-import { ALPHABET, TIERS, wordTier, type Tier } from "@/lib/economy";
+import { ALPHABET, RANKED_WORDS, TIERS, wordTier, type Tier } from "@/lib/economy";
 import { costToMake, dailyEarnEstimate, letterCost, rollsPerRaise, roundPrice, type CostPrices } from "@/lib/wordCost";
+import { bagTotals, distanceOf, elsewhereTotals, finishingLetter, type LetterBag } from "@/lib/wordNeed";
 import type { LetterAsk, LetterBook, LetterSaleStat, TierSaleStat } from "./types";
 
 export const TIER_RANK: Record<Tier, number> = Object.fromEntries(TIERS.map((t, i) => [t.name, i])) as Record<Tier, number>;
@@ -126,30 +127,31 @@ export function lowestOtherAsk(book: Readonly<Record<number, LetterBook>>, lette
 
 // ── one letter short ───────────────────────────────────────────────────────────────────────────
 
+/** Higher = rarer: the word-by-word order the Dictionary and the word view use. */
+const RARITY = new Map(RANKED_WORDS.map((r) => [r.word, r.rank]));
+
 /**
- * The words the bag is exactly ONE letter short of, by the letter that finishes them (0-25), each
+ * The words the player is exactly ONE letter short of, by the letter that finishes them (0-25), each
  * list rarest first. `unclaimed` is every dictionary word nobody owns. A letter of either case fills
  * the gap (a claim may mix cases), so the bag counts both.
+ *
+ * The counting is the Dictionary's (lib/wordNeed `finishingLetter`; decisions.md #32), so the two
+ * screens never disagree about a word: `here` is the connected wallet, the only one a claim spends
+ * from, and `all` is every wallet of the player. A letter the player holds in another wallet is a
+ * move, never a letter to buy, so it finishes nothing here; and a word that needs a letter bought
+ * AND another moved is not finished by the purchase. This used to count the connected wallet alone,
+ * and offered to sell a player a letter they already held.
  */
-export function oneLetterShort(lower: readonly number[], upper: readonly number[], unclaimed: Iterable<string>): Map<number, string[]> {
-  const have = lower.map((n, i) => n + (upper[i] ?? 0));
+export function oneLetterShort(here: LetterBag, all: LetterBag, unclaimed: Iterable<string>): Map<number, string[]> {
+  const hereTotal = bagTotals(here);
+  const elsewhere = elsewhereTotals(here, all);
   const out = new Map<number, string[]>();
-  const need = new Array<number>(26);
   for (const word of unclaimed) {
-    need.fill(0);
-    for (let k = 0; k < word.length; k++) need[word.charCodeAt(k) - 65]++;
-    let short = 0;
-    let missing = -1;
-    for (let i = 0; i < 26 && short <= 1; i++) {
-      const gap = need[i] - (have[i] ?? 0);
-      if (gap > 0) {
-        short += gap;
-        missing = i;
-      }
-    }
-    if (short === 1) (out.get(missing) ?? out.set(missing, []).get(missing)!).push(word);
+    const letter = finishingLetter(distanceOf(word, hereTotal, elsewhere));
+    if (letter >= 0) (out.get(letter) ?? out.set(letter, []).get(letter)!).push(word);
   }
-  for (const words of out.values()) words.sort((a, b) => TIER_RANK[wordTier(b)] - TIER_RANK[wordTier(a)] || a.localeCompare(b));
+  // Word by word, as the word view's "would also finish" sorts, so both name the same word first.
+  for (const words of out.values()) words.sort((a, b) => (RARITY.get(b) ?? 0) - (RARITY.get(a) ?? 0) || a.localeCompare(b));
   return out;
 }
 
