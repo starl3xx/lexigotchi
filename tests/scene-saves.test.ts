@@ -27,62 +27,75 @@ describe("parseWallets (a read)", () => {
 
 describe("parsePicks (a save)", () => {
   it("reads a pick, defaulting the wallet to the session's and the word to UPPERCASE", () => {
-    expect(parsePicks({ picks: [{ word: "crane", scene: "winter", at: NOW - 1000 }] }, A, NOW)).toEqual([
-      { wallet: A, word: "CRANE", scene: "winter", at: new Date(NOW - 1000) },
+    expect(parsePicks({ picks: [{ word: "crane", scene: "trophy", at: NOW - 1000 }] }, A, NOW)).toEqual([
+      { wallet: A, word: "CRANE", scene: "trophy", at: new Date(NOW - 1000) },
     ]);
-    expect(parsePicks({ picks: [{ word: "CRANE", scene: "fall", at: NOW, wallet: B.toUpperCase().replace("0X", "0x") }] }, A, NOW)?.[0].wallet).toBe(B);
+    expect(parsePicks({ picks: [{ word: "CRANE", scene: "stage", at: NOW, wallet: B.toUpperCase().replace("0X", "0x") }] }, A, NOW)?.[0].wallet).toBe(B);
   });
 
   it("keeps a pick's time within the last 30 days and never in the future", () => {
-    expect(parsePicks({ picks: [{ word: "CRANE", scene: "fall", at: 0 }] }, A, NOW)?.[0].at.getTime()).toBe(NOW - 30 * DAY);
-    expect(parsePicks({ picks: [{ word: "CRANE", scene: "fall", at: NOW + DAY }] }, A, NOW)?.[0].at.getTime()).toBe(NOW + 60_000);
-    expect(parsePicks({ picks: [{ word: "CRANE", scene: "fall" }] }, A, NOW)?.[0].at.getTime()).toBe(NOW);
+    expect(parsePicks({ picks: [{ word: "CRANE", scene: "stage", at: 0 }] }, A, NOW)?.[0].at.getTime()).toBe(NOW - 30 * DAY);
+    expect(parsePicks({ picks: [{ word: "CRANE", scene: "stage", at: NOW + DAY }] }, A, NOW)?.[0].at.getTime()).toBe(NOW + 60_000);
+    expect(parsePicks({ picks: [{ word: "CRANE", scene: "stage" }] }, A, NOW)?.[0].at.getTime()).toBe(NOW);
   });
 
   it("collapses two picks for one wallet and word to the newer (Postgres can't upsert a row twice)", () => {
     const picks = parsePicks(
       {
         picks: [
-          { word: "CRANE", scene: "fall", at: NOW - 5000 },
-          { word: "crane", scene: "winter", at: NOW - 1000 },
+          { word: "CRANE", scene: "stage", at: NOW - 5000 },
+          { word: "crane", scene: "trophy", at: NOW - 1000 },
           { word: "CRANE", scene: "spring", at: NOW - 3000, wallet: B },
-          { word: "CRANE", scene: "summer", at: NOW - 9000 },
+          { word: "CRANE", scene: "stock", at: NOW - 9000 },
         ],
       },
       A,
       NOW,
     );
     expect(picks?.map((p) => [p.wallet, p.word, p.scene])).toEqual([
-      [A, "CRANE", "winter"],
+      [A, "CRANE", "trophy"],
       [B, "CRANE", "spring"],
     ]);
   });
 
   it("refuses free text, banned words, unknown scenes, bad wallets, and empty or oversized saves", () => {
-    const one = (p: Record<string, unknown>) => parsePicks({ picks: [{ word: "CRANE", scene: "fall", at: NOW, ...p }] }, A, NOW);
+    const one = (p: Record<string, unknown>) => parsePicks({ picks: [{ word: "CRANE", scene: "stage", at: NOW, ...p }] }, A, NOW);
     expect(one({ word: "XQZPW" })).toBeNull();
     expect(one({ word: BANNED[0] })).toBeNull();
     expect(one({ scene: "space" })).toBeNull();
     expect(one({ wallet: "nope" })).toBeNull();
     expect(parsePicks({ picks: [] }, A, NOW)).toBeNull();
     expect(parsePicks(null, A, NOW)).toBeNull();
-    expect(parsePicks({ picks: Array.from({ length: MAX_PICKS_PER_SAVE + 1 }, () => ({ word: "CRANE", scene: "fall" })) }, A, NOW)).toBeNull();
+    expect(parsePicks({ picks: Array.from({ length: MAX_PICKS_PER_SAVE + 1 }, () => ({ word: "CRANE", scene: "stage" })) }, A, NOW)).toBeNull();
+  });
+});
+
+describe("a retired scene (Picture Day, Summer, Fall, Winter: decisions.md #33)", () => {
+  it("is not a pick any more: a stored one reads as none, so the word stands on the stock card", () => {
+    for (const old of ["portrait", "summer", "fall", "winter"]) {
+      expect(parseStoredPick(old)).toBeNull();
+      expect(parseStoredPick(JSON.stringify({ scene: old, at: 5, synced: true }))).toBeNull();
+    }
+  });
+
+  it("can't be saved", () => {
+    expect(parsePicks({ picks: [{ word: "CRANE", scene: "winter", at: NOW }] }, A, NOW)).toBeNull();
   });
 });
 
 describe("which pick shows", () => {
   it("reads this browser's picks, including the first version's bare scene ids", () => {
-    expect(parseStoredPick("winter")).toEqual({ scene: "winter", at: 0, synced: false });
-    expect(parseStoredPick(JSON.stringify({ scene: "fall", at: 5, synced: true }))).toEqual({ scene: "fall", at: 5, synced: true });
+    expect(parseStoredPick("trophy")).toEqual({ scene: "trophy", at: 0, synced: false });
+    expect(parseStoredPick(JSON.stringify({ scene: "stage", at: 5, synced: true }))).toEqual({ scene: "stage", at: 5, synced: true });
     for (const junk of [null, "", "space", "{", JSON.stringify({ scene: "space" })]) expect(parseStoredPick(junk)).toBeNull();
   });
 
   it("shows the newer of the browser's pick and the saved one", () => {
     // A pick made here before sign-in beats an older saved one; a newer pick from another device wins.
-    expect(newestPick({ scene: "fall", at: 20, synced: false }, { scene: "winter", at: 10 })).toBe("fall");
-    expect(newestPick({ scene: "fall", at: 10, synced: true }, { scene: "winter", at: 20 })).toBe("winter");
-    expect(newestPick(null, { scene: "winter", at: 1 })).toBe("winter");
-    expect(newestPick({ scene: "fall", at: 1, synced: false }, null)).toBe("fall");
+    expect(newestPick({ scene: "stage", at: 20, synced: false }, { scene: "trophy", at: 10 })).toBe("stage");
+    expect(newestPick({ scene: "stage", at: 10, synced: true }, { scene: "trophy", at: 20 })).toBe("trophy");
+    expect(newestPick(null, { scene: "trophy", at: 1 })).toBe("trophy");
+    expect(newestPick({ scene: "stage", at: 1, synced: false }, null)).toBe("stage");
     expect(newestPick(null, null)).toBeNull();
   });
 });
@@ -106,7 +119,7 @@ vi.mock("@/lib/ratelimit", () => ({ allow: async () => true }));
 vi.mock("@/lib/db/wordPicks", () => ({
   scenePicksFor: async (wallets: string[]) => {
     if (missingTable) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
-    return wallets.includes(A) ? [{ wallet: A, word: "CRANE", scene: "winter", updatedAt: new Date(NOW) }] : [];
+    return wallets.includes(A) ? [{ wallet: A, word: "CRANE", scene: "trophy", updatedAt: new Date(NOW) }] : [];
   },
   saveScenePicks: async (profile: string, picks: unknown[]) => {
     if (missingTable) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
@@ -133,7 +146,7 @@ describe("/api/scenes", () => {
     const { GET } = await import("@/app/api/scenes/route");
     const res = await GET(new Request(`http://localhost/api/scenes?wallets=${A},${B}`));
     expect(res.status).toBe(200);
-    expect((await res.json()).scenes).toEqual([{ wallet: A, word: "CRANE", scene: "winter", at: NOW }]);
+    expect((await res.json()).scenes).toEqual([{ wallet: A, word: "CRANE", scene: "trophy", at: NOW }]);
     expect((await GET(new Request("http://localhost/api/scenes?wallets=nope"))).status).toBe(400);
   });
 
@@ -141,14 +154,14 @@ describe("/api/scenes", () => {
     const { PUT } = await import("@/app/api/scenes/route");
     session = null;
     account = null;
-    expect((await PUT(put({ picks: [{ word: "CRANE", scene: "fall", at: NOW }] }))).status).toBe(401);
+    expect((await PUT(put({ picks: [{ word: "CRANE", scene: "stage", at: NOW }] }))).status).toBe(401);
     expect(saved).toEqual([]);
   });
 
   it("saves picks for any wallet of the session's profile, under the PROFILE (decisions.md #22)", async () => {
     const { PUT } = await import("@/app/api/scenes/route");
     accountWallets = [A, B];
-    const res = await PUT(put({ picks: [{ word: "CRANE", scene: "fall", at: NOW }, { word: "VIVID", scene: "spring", at: NOW, wallet: B }] }));
+    const res = await PUT(put({ picks: [{ word: "CRANE", scene: "stage", at: NOW }, { word: "VIVID", scene: "spring", at: NOW, wallet: B }] }));
     expect(res.status).toBe(200);
     // One save, keyed by the profile (the account A heads), holding both wallets' words.
     expect(saved.map((s) => s.wallet)).toEqual([A]);
@@ -157,19 +170,19 @@ describe("/api/scenes", () => {
 
   it("refuses a wallet outside the session's profile, saving nothing", async () => {
     const { PUT } = await import("@/app/api/scenes/route");
-    const res = await PUT(put({ picks: [{ word: "CRANE", scene: "fall", at: NOW }, { word: "VIVID", scene: "spring", at: NOW, wallet: C }] }));
+    const res = await PUT(put({ picks: [{ word: "CRANE", scene: "stage", at: NOW }, { word: "VIVID", scene: "spring", at: NOW, wallet: C }] }));
     expect(res.status).toBe(403);
     expect(saved).toEqual([]);
   });
 
   it("refuses a bad save, a full profile, and says so plainly before migration 0011", async () => {
     const { GET, PUT } = await import("@/app/api/scenes/route");
-    expect((await PUT(put({ picks: [{ word: "XQZPW", scene: "fall" }] }))).status).toBe(400);
+    expect((await PUT(put({ picks: [{ word: "XQZPW", scene: "stage" }] }))).status).toBe(400);
     full = true;
-    expect((await PUT(put({ picks: [{ word: "CRANE", scene: "fall" }] }))).status).toBe(409);
+    expect((await PUT(put({ picks: [{ word: "CRANE", scene: "stage" }] }))).status).toBe(409);
     full = false;
     missingTable = true;
-    expect((await PUT(put({ picks: [{ word: "CRANE", scene: "fall" }] }))).status).toBe(503);
+    expect((await PUT(put({ picks: [{ word: "CRANE", scene: "stage" }] }))).status).toBe(503);
     expect((await GET(new Request(`http://localhost/api/scenes?wallets=${A}`))).status).toBe(503);
   });
 });
@@ -182,21 +195,21 @@ describe("picks belong to the profile", async () => {
 
   it("every wallet of a profile sees the profile's picks; a stranger sees none", () => {
     const accounts = new Map([[A, P], [B, P], [C, C]]);
-    const rows = [{ profile: P, word: "CRANE", value: "winter", updatedAt: at }];
+    const rows = [{ profile: P, word: "CRANE", value: "trophy", updatedAt: at }];
     const seen = picksForWallets([A, B, C], accounts, rows);
     expect(seen.map((r) => r.wallet)).toEqual([A, B]);
-    expect(seen.every((r) => r.word === "CRANE" && r.scene === "winter")).toBe(true);
+    expect(seen.every((r) => r.word === "CRANE" && r.scene === "trophy")).toBe(true);
   });
 
   it("a pick a wallet saved under its own key before joining stays its profile's; the newest per word wins", () => {
     const accounts = new Map([[A, P], [B, P]]); // B joined P after saving picks as itself
     const rows = [
-      { profile: B, word: "VIVID", value: "fall", updatedAt: at }, // saved by B before it joined
-      { profile: P, word: "CRANE", value: "winter", updatedAt: new Date(NOW - 1_000) },
+      { profile: B, word: "VIVID", value: "stage", updatedAt: at }, // saved by B before it joined
+      { profile: P, word: "CRANE", value: "trophy", updatedAt: new Date(NOW - 1_000) },
       { profile: B, word: "CRANE", value: "spring", updatedAt: at }, // newer: wins
     ];
     const seen = picksForWallets([A], accounts, rows);
-    expect(seen.map((r) => `${r.word}:${r.scene}`).sort()).toEqual(["CRANE:spring", "VIVID:fall"]);
+    expect(seen.map((r) => `${r.word}:${r.scene}`).sort()).toEqual(["CRANE:spring", "VIVID:stage"]);
   });
 
   it("the keeper keeps a joined wallet's old picks (their effective profile is the account)", () => {

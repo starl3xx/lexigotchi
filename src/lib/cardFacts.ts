@@ -29,6 +29,15 @@ export function cardNumber(n: number | null | undefined): string {
   return n ? `#${String(n).padStart(Math.max(4, String(WORD_COUNT).length), "0")}` : "#–";
 }
 
+/**
+ * The same number as the card's front letters it on its ribbon: "No. 0001". (The card's serif,
+ * Iowan Old Style, has no "№" sign.) Null while the number is unknown: the ribbon leaves it out,
+ * it never shows a dash or a guess.
+ */
+export function cardNo(n: number | null | undefined): string | null {
+  return n ? `No. ${cardNumber(n).slice(1)}` : null;
+}
+
 /** One `Claimed` event: the word, and where it sits in the chain. */
 export interface ClaimAt {
   word: string;

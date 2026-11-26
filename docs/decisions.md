@@ -889,6 +889,73 @@ setter. All small, riding existing suite patterns.
       opens its view only in the chain game (or when it is the player's), since practice has no
       other owners; the Dictionary's rarity chips flipped rather than the Market's.
 
+33. **A card is an object, and its scene is a still engraving** (starl3xx, 2026-11-25, on the
+    "Cards, Scenes, and Logo" proposal, six versions: "this is ABSOLUTELY the right direction for
+    the cards"; then "After these are fixed, you're free to start building"). The owner pointed at
+    Peter Voth's engraved cards and labels for the manner, and asked that the letters "retain their
+    current style but ... live on top of" such card scenes. Nothing of his is copied.
+    - **The card.** Its own paper, a shade lighter than the page, with a grain and a linen weave;
+      the scene's art in a window; a frame in the rarity's ink (an edge rule, a chain of engraved
+      links, the window's rule) with the rarity's mark in its four corners; and a ribbon set into
+      the frame's lower edge. The rarity has no box of its own (the owner: it "looks out of place
+      ... it should be incorporated into the card design").
+    - **The ribbon reads "one of one", the card's number, the rarity,** in that order (the
+      owner's), in capitals ("I like capitals for the front info"). Its tails are drawn shapes, so
+      the notch carries the ink line; its paper has a grain and fine ruled lines. A phone-sized
+      card drops "one of one". A thumbnail has no ribbon.
+    - **Words are only ever set in Söhne** (the owner: "as a rule, the letters/words should only
+      ever be in Sohne"). The card's serif letters what a card says ABOUT a word (its rarity, its
+      number), never the word. It is **Iowan Old Style only where the device has it** (Macs and
+      iPhones; "only use Iowan where the device has it"): no font is licensed or shipped for the
+      app, and other devices use their own old-style serif. The share picture is drawn on a server,
+      which has no fonts, so it ships **TeX Gyre Pagella**, an open look-alike of Palatino ("let's
+      ship an open-licensed Palatino look-alike for the share card"; GUST Font License, the text
+      beside the file).
+    - **The scenes.** Every word starts on **the stock card**: no place, the card's own engraving
+      in grey with the rarity as an overtone ("grayscale with rarity color overtones"; each
+      rarity's wash has its own strength, because a green reads stronger than a brown or a gold),
+      on a tiled floor in perspective ("I still want it to look like letters are standing on
+      something other than a flat line"). **The Stage** is free for everyone, its colors at about
+      two thirds of their strength and its curtains drawn back to the edges. **The Trophy Case**
+      and **Spring** open at 3 words ever held, as before. **Picture Day, Summer, Fall, and Winter
+      are retired**; a saved pick or a link that names one reads as the stock card. The Bookshelf
+      and Outer Space are drawn (in the proposal) and wait for the Shop.
+    - **The letters stand two thirds of the way down the card** (they stood three quarters down:
+      "it looks too low in every scene"). **On curved ground each letter stands on the curve:**
+      a scene gives one thing, its ground's height across the card, and each letter is lowered to
+      it and turned to its slope, about its own feet (`lib/cardArt/scenes`, GROUND; the owner, of
+      the proposal's planet: "the outer space curve is perfect... we should make sure it's
+      replicable for future scenes"). Spring's hill uses it. Hands stay joined while the curve is
+      gentle (a slope under about 12°).
+    - **A scene never moves. The card does** (the owner: "the only animation for still scenes
+      should be something that makes the card itself look cool, not the objects in the scene",
+      then "much more subtle/transparent"): on the card in focus, a faint band of light crosses
+      the front every 7 to 11 seconds and when the pointer arrives, and the card leans up to 3.5°
+      toward a mouse pointer, with a faint glare. Never in a grid, never for a hungry word.
+    - **How it is built.** A scene's art and the frame are two SVG documents made as strings
+      (`lib/cardArt`), shown as background images in the game and placed as images on the share
+      picture: no shapes in the page. A scene was about 1,000 elements; the art is 50 to 260
+      shapes in one picture. One source draws the game's card and the server's.
+    - **What it measured** (headless WebKit on the owner's Mac, the real Today screen in practice
+      mode at 2× pixels, the pointer away, two runs each; a real iPhone hasn't been measured): with
+      a fed Common word on stage, 50% and 57% of a processor core before, 8% and 9% after. The old
+      scene's own loops were nearly all of it. The card's light adds nothing measurable: the lean
+      follows the pointer by writing its transform directly, with no transition (a transition
+      restarted on every frame cost a third of a core).
+    - **The share picture** is the card on a dark table, in X's shape (1.91:1) and Farcaster's
+      (3:2); `?face=1` is the card's front alone, 16:9, which the share video turns over. The
+      number on a share picture is the chain's, never the link's. `CARD_LOOK` is 3.
+    - **The turn.** At rest the face turned away is hidden outright. Headless WebKit kept drawing
+      the back, mirrored, over the front after a turn home (it did before this change too).
+    - **My readings, not starl3xx's words:** a share link with no scene keeps meaning the Stage
+      (such links are posted for good), so the stock card is named in its link; the 3-word unlock
+      now opens two scenes; the front does not lean with a phone's tilt; the Bag's rarity badge
+      moved off the art to the line under the card, where the mark is large enough to read.
+    - **Not in this step:** the back's new lettering and the game's seal (logo B), the status
+      placard under the Today card, the logo's new eyes and the exports of both marks, and the
+      Shop's scenes and plastic case. Found on the way, and not this change's: a hungry word's
+      "Zzz" loops inside each letter's top layer, and costs about half a core at rest.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

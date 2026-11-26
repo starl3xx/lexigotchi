@@ -6,18 +6,7 @@
  * card draw dictionary words only. These tests are that guard.
  */
 import { describe, it, expect } from "vitest";
-import {
-  HOUSE_CARDS,
-  parseShowcase,
-  CARD_LOOK,
-  showcaseCardUrl,
-  showcasePostText,
-  showcaseText,
-  showcaseUrl,
-  showcaseWordText,
-  xIntentUrl,
-  showcaseXText,
-} from "@/lib/showcase";
+import { HOUSE_CARDS, parseShowcase, CARD_LOOK, showcaseCardUrl, showcasePostText, showcaseText, showcaseUrl, showcaseWordText, xIntentUrl, showcaseXText, showcaseFacePath } from "@/lib/showcase";
 import { BANNED, isWord } from "@/lib/dictionary";
 
 describe("parseShowcase", () => {
@@ -83,10 +72,22 @@ describe("share links", () => {
   });
 
   it("carry the scene, and leave it off for the Stage, so a link made before scenes is a Stage link", () => {
-    expect(showcaseUrl("CRAne", "winter")).toMatch(/\/s\/CRAne\?scene=winter$/);
+    expect(showcaseUrl("CRAne", "trophy")).toMatch(/\/s\/CRAne\?scene=trophy$/);
     expect(showcaseUrl("CRAne", "stage")).toMatch(/\/s\/CRAne$/);
-    expect(showcaseCardUrl("CRAne", "x", "fall")).toMatch(new RegExp(`/s/CRAne/card\\?v=${CARD_LOOK}&scene=fall$`));
-    expect(showcaseCardUrl("CRAne", "fc", "fall")).toMatch(new RegExp(`/s/CRAne/card\\?ratio=3x2&v=${CARD_LOOK}&scene=fall$`));
+    expect(showcaseCardUrl("CRAne", "x", "spring")).toMatch(new RegExp(`/s/CRAne/card\\?v=${CARD_LOOK}&scene=spring$`));
+    expect(showcaseCardUrl("CRAne", "fc", "spring")).toMatch(new RegExp(`/s/CRAne/card\\?ratio=3x2&v=${CARD_LOOK}&scene=spring$`));
+  });
+
+  it("name the stock card in its link, though it is where a word starts: no scene in a link means the Stage", () => {
+    // A word nobody picked a scene for stands on the stock card. Its link must say so, because a
+    // link with no scene was made when the Stage was the default, and keeps meaning the Stage.
+    expect(showcaseUrl("CRAne", "stock")).toMatch(/\/s\/CRAne\?scene=stock$/);
+    expect(showcaseCardUrl("CRAne", "x", "stock")).toMatch(new RegExp(`/s/CRAne/card\\?v=${CARD_LOOK}&scene=stock$`));
+  });
+
+  it("give the share video the card's front alone, in the card's own shape", () => {
+    expect(showcaseFacePath("CRAne", "spring")).toBe(`/s/CRAne/card?face=1&v=${CARD_LOOK}&scene=spring`);
+    expect(showcaseFacePath("CRAne", "stage")).toBe(`/s/CRAne/card?face=1&v=${CARD_LOOK}`);
   });
 
   it("prefill X's composer with the words and the link, tagging @lexigotchi once", () => {

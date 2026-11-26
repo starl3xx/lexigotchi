@@ -145,12 +145,12 @@ describe("a word's mood on its finish", () => {
 describe("the game's name on a share picture", () => {
   it("is left off a link card (X and Farcaster name the game around it)", () => {
     expect(showcaseCardUrl("CRAne")).not.toMatch(/saved/);
-    expect(showcaseCardUrl("CRAne", "fc", "fall")).not.toMatch(/saved/);
+    expect(showcaseCardUrl("CRAne", "fc", "spring")).not.toMatch(/saved/);
   });
 
   it("is asked for by a saved picture, which travels alone", () => {
     expect(showcaseCardPath("CRAne", "x", undefined, true)).toBe(`/s/CRAne/card?saved=1&v=${CARD_LOOK}`);
-    expect(showcaseCardPath("CRAne", "fc", "fall", true)).toBe(`/s/CRAne/card?ratio=3x2&saved=1&v=${CARD_LOOK}&scene=fall`);
+    expect(showcaseCardPath("CRAne", "fc", "spring", true)).toBe(`/s/CRAne/card?ratio=3x2&saved=1&v=${CARD_LOOK}&scene=spring`);
   });
 });
 

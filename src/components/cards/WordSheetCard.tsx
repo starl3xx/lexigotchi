@@ -18,10 +18,12 @@ import { showcaseCardPath, showcasePostText, showcaseUrl, showcaseWordText, show
 import { SceneCard } from "./SceneCard";
 import { CardMore } from "./CardBack";
 import { ShareVideo } from "./ShareVideo";
+import { useCardNumber } from "./useCardNumber";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();
   const { scene } = useWordScene(word.word);
+  const number = useCardNumber(word.word);
   const [back, setBack] = useState(false);
   const [sharing, setSharing] = useState(false);
   // while the share loop is made, it holds the one WebGL context: the live back waits
@@ -38,7 +40,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
         flipped={back}
         live={!making}
         onFlip={setBack}
-        front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} animated={!back} />}
+        front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} number={number} animated={!back} />}
       />
       {back && <CardMore word={word} />}
       <div className="grid grid-cols-2 gap-2">

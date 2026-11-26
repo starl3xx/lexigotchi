@@ -21,6 +21,11 @@
      lean on the heavier weights (700–900) via Tailwind's font-extrabold etc. */
   --font-display: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* The card's serif, for what a card says ABOUT a word (its rarity, its number), never for the
+     word itself: words are only ever set in Söhne (starl3xx, 2026-11-25). Iowan Old Style where
+     the device has it (Macs, iPhones), else the device's own old-style serif. No font file is
+     shipped for it; the share picture, drawn on the server, uses an open look-alike. */
+  --font-card: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "Noto Serif", Georgia, serif;
 }
 
 /* Accessibility: respect reduced-motion for the cel-animation rigs (spec §7 — every
@@ -397,8 +402,8 @@ body {
 .scene-peckish { filter: grayscale(0.55) brightness(0.97); }
 .scene-hungry { filter: grayscale(0.92) brightness(0.86) contrast(0.95); }
 
-/* Fog rolls in as a word gets hungry (SceneFrame), over the whole scene and the word, under the
-   speech bubble and the arrows. Thin when peckish, thick when hungry, gone when fed.
+/* Fog rolls in as a word gets hungry (SceneFrame), over the scene and the word inside the card's
+   window, under the ribbon, the speech bubble, and the arrows. Thin when peckish, thick when hungry, gone when fed.
    How it's built (starl3xx asked for fog that is "much more foggy", 2026-11-24):
    - Fog is mostly lost contrast, thicker toward the ground: a haze veil underneath, densest at
      the floor.
@@ -456,60 +461,61 @@ body {
   .scene-fog-2 { animation: scene-fog 76s linear infinite -20s, scene-fog-breathe 8s ease-in-out infinite alternate -3s; }
   .scene-fog-3 { animation: scene-fog 46s linear infinite -9s, scene-fog-breathe 6.5s ease-in-out infinite alternate -1s; }
 }
-/* a still scene (a card in a grid, a thumbnail) keeps its fog but doesn't drift it */
+/* a still card (a card in a grid, a thumbnail) keeps its fog but doesn't drift it */
 .scene-still .scene-fog-bank { animation: none !important; }
 @keyframes scene-fog { to { transform: translateX(-50%); } }
 @keyframes scene-fog-breathe { from { opacity: 0.6; } }
 
-/* Scenes (components/scenes/SceneArt.tsx): slow ambient motion in a word's home. These are the
-   one exception to "nothing runs longer than ~300 ms": they are scenery, not responses, and loop
-   for many seconds. Each element brings its own duration and delay inline, plus any distance its
-   keyframes read (--dx, --dy, --y0, --y1). Only where motion is welcome: under reduce, these
-   rules don't exist and a scene is a still picture, every particle where the card draws it.
-   On an SVG element, CSS px are the scene's own units, so the distances scale with the scene. */
-@media (prefers-reduced-motion: no-preference) {
-  .scn-sway { animation: scn-sway ease-in-out infinite alternate; }
-  .scn-breathe { animation: scn-breathe ease-in-out infinite alternate; }
-  .scn-flicker { animation: scn-flicker ease-in-out infinite alternate; }
-  .scn-mote { animation: scn-mote linear infinite; }
-  .scn-fall { animation: scn-fall linear infinite; }
-  .scn-swing { animation: scn-swing ease-in-out infinite alternate; }
-  .scn-spin { transform-box: fill-box; transform-origin: center; animation: scn-spin linear infinite; }
-  .scn-drift { animation: scn-drift ease-in-out infinite alternate; }
-  .scn-bob { animation: scn-bob ease-in-out infinite alternate; }
-  .scn-twinkle { transform-box: fill-box; transform-origin: center; animation: scn-twinkle ease-in-out infinite alternate; }
-  .scn-glint { animation: scn-glint ease-in-out infinite; }
-  .scn-sweep { transform-box: view-box; transform-origin: var(--ox) var(--oy); animation: scn-sweep ease-in-out infinite alternate; }
-  /* the same swing, pivoting on the bottom right of the element's own box (a waving arm's shoulder) */
-  .scn-wave { transform-box: fill-box; transform-origin: 100% 100%; animation: scn-sweep ease-in-out infinite alternate; }
-  .scn-flutter { transform-box: fill-box; transform-origin: center; animation: scn-flutter ease-in-out infinite alternate; }
+/* ---------------------------------------------------------------------------------------------
+   The front of a word's card (components/scenes/SceneFrame.tsx; decisions.md #33). The card is an
+   object: its own paper, a shade lighter than the page; the scene's art in the frame's window; the
+   frame in the rarity's ink; a grain and a linen weave pressed over the print; and a ribbon set
+   into the frame's lower edge. The art and the frame are still pictures (lib/cardArt), each one
+   background image: no shapes in the page, and nothing here loops. Sizes follow the card's own
+   width (cqw).
+   --------------------------------------------------------------------------------------------- */
+.cf { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; container-type: inline-size; background: #fcf7ea; }
+.cf > * { position: absolute; }
+.cf-art, .cf-frame, .cf-tex { inset: 0; background-size: 100% 100%; pointer-events: none; }
+/* card stock: a fine grain and a faint linen weave */
+.cf-tex {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.24 -0.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.1) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgb(70 45 20 / 0.035) 0 1px, transparent 1px 4px);
+  background-size: 240px 240px, auto, auto;
 }
-/* a curtain or a branch, swinging from its top corner */
-@keyframes scn-sway { from { transform: rotate(-0.35deg); } to { transform: rotate(0.45deg); } }
-@keyframes scn-breathe { from { opacity: 0.78; } to { opacity: 1; } }
-@keyframes scn-flicker { from { opacity: 0.68; } to { opacity: 1; } }
-/* dust in a beam: drifts and fades */
-@keyframes scn-mote {
-  0% { transform: translate(0, 0); opacity: 0; }
-  20%, 75% { opacity: 0.85; }
-  100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
-}
-/* snow, petals, leaves: from above the scene to below it. The delay starts each one where the
-   still picture draws it. */
-@keyframes scn-fall { from { transform: translateY(var(--y0)); } to { transform: translateY(var(--y1)); } }
-@keyframes scn-swing { from { transform: translateX(calc(var(--dx) * -1)) rotate(-14deg); } to { transform: translateX(var(--dx)) rotate(14deg); } }
-@keyframes scn-spin { to { transform: rotate(360deg); } }
-@keyframes scn-drift { from { transform: translateX(calc(var(--dx) * -1)); } to { transform: translateX(var(--dx)); } }
-@keyframes scn-bob { from { transform: translateY(0); } to { transform: translateY(var(--dy)); } }
-@keyframes scn-twinkle { from { opacity: 0.35; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
-/* a gleam crossing the glass, then a long rest */
-@keyframes scn-glint { 0% { transform: translateX(-700px); } 45%, 100% { transform: translateX(1900px); } }
-/* a fan of laser beams sweeping back and forth about its own center (--ox, --oy, by --deg) */
-@keyframes scn-sweep { from { transform: rotate(calc(var(--deg) * -1)); } to { transform: rotate(var(--deg)); } }
-@keyframes scn-flutter { from { transform: scaleX(1); } to { transform: scaleX(0.35); } }
+/* The fog a hungry word's scene fills with stays inside the frame's window (the window is 42 of
+   1200 units in from the sides and 42 of 675 from the top and bottom): the card keeps its paper
+   and its ink. While the word is fed there is no fog to see, so its banks don't drift. */
+.cf-fog { left: 3.5%; right: 3.5%; top: 6.22%; bottom: 6.22%; border-radius: 1cqw; overflow: hidden; pointer-events: none; }
+.cf-fog.is-fed .scene-fog-bank { animation-play-state: paused; }
+/* The ribbon: "one of one", the card's number, the rarity, in the card's serif. It sizes to its
+   words. Its paper has a grain and fine ruled lines in the rarity's ink, and a second hairline
+   inside its edge. Its two folded tails are drawn shapes (SceneFrame), so the notch carries the
+   ink line too. */
+.cf-ribbon { left: 50%; bottom: max(3px, 1.05cqw); transform: translateX(-50%); font-family: var(--font-card); font-weight: 700; color: var(--cf-ink); line-height: 1; white-space: nowrap; pointer-events: none; font-size: clamp(12px, 2.05cqw, 16px); }
+.cf-ribbon-in { position: relative; display: flex; align-items: center; gap: 0.55em; padding: 0.45em 1.1em; border: max(1.5px, 0.22cqw) solid var(--cf-ink); border-radius: 2px; background-color: #fcf7ea;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.5 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, color-mix(in srgb, var(--cf-ink) 11%, transparent) 0 1px, transparent 1px 3px);
+  background-size: 120px 120px, auto;
+  box-shadow: inset 0 0 0 1.5px #fcf7ea, inset 0 0 0 2.5px color-mix(in srgb, var(--cf-ink) 34%, transparent); }
+.cf-rarity { display: flex; align-items: center; gap: 0.4em; }
+.cf-mark { width: 1.15em; height: 1.15em; }
+.cf-tail { position: absolute; top: 15%; height: 100%; width: 1.5em; overflow: visible; }
+.cf-tail-l { right: calc(100% - 0.6em); }
+.cf-tail-r { left: calc(100% - 0.6em); }
+.cf-tail polygon { fill: var(--cf-ground); stroke: var(--cf-ink); stroke-width: max(1.5px, 0.22cqw); stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.cf-tail polygon.cf-tail-shade { stroke: none; }
+/* the small diamonds between the ribbon's words */
+.cf-ribbon-in > i { width: 0.3em; height: 0.3em; background: var(--cf-accent); transform: rotate(45deg); flex: none; }
+/* Capitals here are an engraver's lettering on the card's frame, never a game letter (in the game,
+   a capital on a tile means a raised letter; nothing on the ribbon is a tile). */
+.cf-caps { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.86em; }
+/* a phone-sized card: the number and the rarity */
+@container (max-width: 470px) { .cf-ribbon .cf-oneof { display: none; } }
 
-/* A scene off screen holds still: its art, its word, and the word's finish (SceneFrame). */
-.scene-offscreen [class*="scn-"], .scene-offscreen [class*="animate-"], .scene-offscreen [class*="rf-"] { animation-play-state: paused !important; }
+/* A card off screen holds still: its word and the word's finish (SceneFrame). */
+.scene-offscreen [class*="animate-"], .scene-offscreen [class*="rf-"] { animation-play-state: paused !important; }
 
 /* ---------------------------------------------------------------------------------------------
    Rarity finishes on the letter tiles (decisions.md #23; components/game/TileFinish.tsx).
@@ -576,6 +582,10 @@ body {
    and no part of it loops. Sizes come from the card's own width (container queries, cqw units).
    --------------------------------------------------------------------------------------------- */
 .sc { position: relative; aspect-ratio: 16 / 9; width: 100%; perspective: 1800px; container-type: inline-size; }
+/* Everything that turns with the card: its two faces and its buttons. The card's lean toward the
+   pointer is written onto this (SceneCard), outside the flip, so the two turns never share a
+   transform. */
+.sc-lean { position: absolute; inset: 0; transform-style: preserve-3d; }
 .sc-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.25, 1.12); }
 .sc.is-back .sc-inner { transform: rotateY(180deg); }
 .sc-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #1b1714; transform: translateZ(0); }
@@ -583,12 +593,16 @@ body {
 /* the face turned away takes no taps: under reduced motion the faces stack, the hidden one only
    see-through, and an inert face still caught the front's taps and swipes in Chromium (Bugbot #211) */
 .sc:not(.is-back) .sc-back, .sc.is-back .sc-front { pointer-events: none; }
+/* At rest, the face turned away is hidden outright, not left to backface-visibility: after a turn
+   home, WebKit (seen headless) kept drawing the back, mirrored, over the front. While the card is
+   turning (.is-flipping) both faces are there, and backface-visibility picks one. */
+.sc:not(.is-flipping):not(.is-back) .sc-back, .sc.is-back:not(.is-flipping) .sc-front { visibility: hidden; }
 .sc-framed .sc-face { border: 3px solid #1b1714; border-radius: 16px; }
 .sc-framed.sc-small .sc-face { border-width: 2px; border-radius: 12px; }
 .sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }
 @keyframes sc-lift { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-2%) scale(1.035); } }
 /* the scene nobody can see holds still */
-.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"], .sc.is-back .sc-front [class*="scn-"], .sc.is-back .sc-front .scene-fog-bank { animation-play-state: paused !important; }
+.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"], .sc.is-back .sc-front .scene-fog-bank { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
   .sc-inner { transition: none; transform: none !important; }
   .sc-face { backface-visibility: visible; -webkit-backface-visibility: visible; transition: opacity 0.25s; }
@@ -606,9 +620,26 @@ body {
 .sc-flip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #1b1714; }
 .sc-flip:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) { .sc-flip:hover { transform: translate(-1px, -1px) rotate(-18deg); box-shadow: 3px 3px 0 #1b1714; } }
-/* a card's rarity, on its front in a grid */
-.sc-badge { position: absolute; left: 6px; top: 6px; z-index: 3; display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px 3px 4px; border-radius: 999px; border: 1.5px solid #1b1714; background: rgba(251, 244, 227, 0.94); font-size: 12px; font-weight: 700; line-height: 1; color: #1b1714; pointer-events: none; }
-.sc-badge .cb-gem { width: 14px; height: 14px; }
+/* ---- the card's own light (SceneCard; decisions.md #33): the only motion a still scene has ----
+   - the lean: the card turns a few degrees toward the pointer (.sc-lean's transform, written by
+     SceneCard with no transition while it follows: a transition restarted on every frame cost a
+     third of a processor core in WebKit; it eases only as the pointer arrives and leaves, .sc-ease);
+   - the glare: a faint round light that follows the pointer across the front;
+   - the sheen: a faint band of light that crosses the front in a moment (.sc-moment), then rests
+     unseen. White for most cards, warm for Legendary, a spectrum for Mythic (--sc-sheen).
+   Each is one element sliding or turning: a transform, so the scene and the letters are not
+   redrawn. No loop. Kept faint on purpose (starl3xx, 2026-11-25: "much more subtle/transparent"). */
+.sc-glare, .sc-sheen { position: absolute; pointer-events: none; z-index: 2; }
+.sc-glare { left: 50%; top: 50%; width: 76%; aspect-ratio: 1; margin: -38% 0 0 -38%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.16) 55%, transparent); opacity: 0; }
+.sc-sheen { top: -20%; bottom: -20%; left: 0; width: 30%; background: var(--sc-sheen); opacity: 0; transform: translateX(-160%) skewX(-16deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .sc-ease { transition: transform 240ms var(--ease-out); }
+  .sc-glare { transition: opacity 260ms ease; }
+  .sc-ease .sc-glare { transition: opacity 260ms ease, transform 240ms var(--ease-out); }
+  .sc-moment .sc-sheen { animation: sc-sheen 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
+  @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .sc-glare { opacity: 0.3; } }
+}
+@keyframes sc-sheen { 0% { opacity: 0; transform: translateX(-160%) skewX(-16deg); } 12%, 86% { opacity: 0.34; } 100% { opacity: 0; transform: translateX(440%) skewX(-16deg); } }
 
 /* A list's word as flat tiles (components/game/MiniTiles.tsx): the rig's colors, the finish baked
    into a background per tier. A lowercase tile sits on its wooden edge; an UPPERCASE one wears the

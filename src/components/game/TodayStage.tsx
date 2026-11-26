@@ -27,6 +27,7 @@ import { WORDS_READ_FAILED } from "./WordsPending";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
 import { SceneCard } from "../cards/SceneCard";
 import { useWordScene } from "../scenes/useWordScene";
+import { useCardNumber } from "../cards/useCardNumber";
 
 /** How long a fed word chews on stage before the next word takes its place. */
 const EAT_MS = 1800;
@@ -83,8 +84,9 @@ export function TodayStage() {
   const featured = indexOf(chosen) >= 0 ? chosen : indexOf(eatingWord) >= 0 ? eatingWord : (items[0]?.word.word ?? null);
   const idx = indexOf(featured);
   const item = idx >= 0 ? items[idx] : null;
-  // The featured word stands in its own scene (scenes/useWordScene: the player's pick, else the Stage).
+  // The featured word stands in its own scene (scenes/useWordScene: the player's pick, else the stock card).
   const { scene } = useWordScene(item?.word.word);
+  const number = useCardNumber(item?.word.word);
   // The card turned over, remembered with its word: the next word opens on its scene.
   const [backOf, setBackOf] = useState<string | null>(null);
 
@@ -152,6 +154,7 @@ export function TodayStage() {
               tone={toneOf(face)}
               gild={gild}
               tier={w.tier}
+              number={number}
               enter={enter}
               animated={backOf !== W && !state.sheet}
               onWord={open}
@@ -159,7 +162,7 @@ export function TodayStage() {
               onSwipe={many ? go : undefined}
               overlay={
                 <>
-                  {/* Under the valance, over the scene: the star's one line, in a bubble of its own so
+                  {/* Near the top of the card, over the scene: the star's one line, in a bubble of its own so
                       it reads on a bright scene as well as a dark one. */}
                   <div className="pointer-events-none absolute inset-x-0 top-[7%] flex justify-center px-12">
                     <p key={W} className="scene-fade-in relative max-w-[30ch] rounded-xl border-2 border-ink bg-card px-3 py-1.5 text-center text-sm font-bold shadow-[2px_2px_0_#1b1714]">
@@ -284,8 +287,8 @@ export function TodayStage() {
 }
 
 /**
- * No word of the connected wallet's to stand on the stage: the stage waits, curtains up, and says
- * what to do for this player (emptyStageCase). The top left of Today is the player's words, so it is
+ * No word of the connected wallet's to stand on the stage: a blank stock card waits, and says what
+ * to do for this player (emptyStageCase). The top left of Today is the player's words, so it is
  * never blank: it shows where their words will live and the one step toward the first.
  */
 function EmptyStage() {
@@ -302,7 +305,7 @@ function EmptyStage() {
   return (
     <section aria-label="Your stage" aria-busy={shape === "loading"} className="cel overflow-hidden rounded-2xl bg-night">
       <SceneFrame
-        scene="stage"
+        scene="stock"
         word=""
         upper={[]}
         overlay={

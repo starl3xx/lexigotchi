@@ -18,7 +18,7 @@ import { Button } from "../game/primitives";
 import { DownloadSimple, FilmStrip, ShareNetwork } from "../game/ui/icons";
 import { useGame, type OwnedWord } from "../game/state";
 import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
-import { showcaseBackPath, showcaseCardPath, showcasePostText, showcaseUrl } from "@/lib/showcase";
+import { showcaseBackPath, showcaseFacePath, showcasePostText, showcaseUrl } from "@/lib/showcase";
 import type { SceneId } from "@/lib/scenes";
 import { canMakeLoop } from "./live/support";
 import { materialOf } from "./material";
@@ -111,7 +111,7 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
     try {
       const { makeLoop } = await import("./loop/makeLoop");
       const blob = await makeLoop({
-        front: showcaseCardPath(text, "x", scene),
+        front: showcaseFacePath(text, scene),
         back: showcaseBackPath(text),
         material: materialOf(word.tier),
         signal: ctl.signal,

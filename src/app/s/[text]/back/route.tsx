@@ -11,12 +11,12 @@ import { getPublicClient } from "@/lib/onchain/reads";
 import { wordsAbi } from "@/lib/onchain/abis";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { readWordStory } from "@/lib/onchain/wordStory";
-import { readMadeOrder } from "@/lib/keeper/scan";
+import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { playerFaces } from "@/lib/profile/faces";
 
 /**
  * The back of a word's card for the share loop (components/cards/loop): its words and tiles on
- * their steady plates over a transparent ground, 1200×630, the share card's size. The loop's shader
+ * their steady plates over a transparent ground, 1200×675, the card's own shape (16:9). The loop's shader
  * paints the back's material under it (cards/live/materialGlsl), the same material the game's live
  * back draws, so the video and the game match.
  *
@@ -33,7 +33,7 @@ const soehneBold = readFileSync(join(process.cwd(), "public/fonts/soehne-fett.tt
 const soehneBook = readFileSync(join(process.cwd(), "public/fonts/soehne-buch.ttf"));
 
 const W = 1200;
-const H = 630;
+const H = 675;
 const fmt = (n: number) => n.toLocaleString("en-US");
 
 /** Each material’s frame line and rack (globals.css `.cb.m-*`, the same colors). */
@@ -51,26 +51,6 @@ const PLATE = { background: "rgba(14, 10, 8, 0.52)", border: "1px solid rgba(255
 
 type ChainFacts = { number: number | null; level: number | null; finder: string | null };
 
-// Every word's card number, shared by all words. A number never changes once given, so a known one
-// is kept; a word not numbered yet (claimed a moment ago) reads them again, at most once a minute.
-const ORDER_TTL_MS = 60_000;
-let order: { at: number; map: Record<string, number> } | null = null;
-let orderRead: Promise<Record<string, number>> | null = null;
-async function numberOf(word: string): Promise<number | null> {
-  const known = order?.map[word];
-  if (known) return known;
-  if (order && Date.now() - order.at < ORDER_TTL_MS) return null;
-  orderRead ??= readMadeOrder()
-    .then((map) => {
-      order = { at: Date.now(), map };
-      return map;
-    })
-    .finally(() => {
-      orderRead = null;
-    });
-  const map = await orderRead.catch(() => null);
-  return map?.[word] ?? null;
-}
 // Kept per word, not per link: a word's 32 casings are one word's facts. A few minutes on a warm
 // instance, and one read for callers that arrive together.
 const FACTS_TTL_MS = 5 * 60_000;
@@ -96,7 +76,7 @@ function chainFactsOf(word: string): Promise<ChainFacts> {
 async function chainFacts(word: string): Promise<ChainFacts> {
   if (!isSuiteDeployed()) return { number: null, level: null, finder: null };
   const [number, level, story] = await Promise.all([
-    numberOf(word),
+    cardNumberOf(word),
     getPublicClient()
       .readContract({ address: addressOf("words"), abi: wordsAbi, functionName: "prestigeLevel", args: [tokenIdOf(word)] })
       .then((l) => Number(l))

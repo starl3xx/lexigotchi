@@ -1,5 +1,5 @@
 /**
- * The share loop's turning card (decisions.md #27), on OGL: the word's share card on
+ * The share loop's turning card (decisions.md #27), on OGL: the word's card face on
  * its front, its back (the `/s/<word>/back` picture over the material, drawn by the same shader as
  * the live back: ../live/materialGlsl), turning over and home again in six seconds. `render(t)`
  * draws the frame at time t, the same frame every time, so the video is the same however fast the
@@ -16,8 +16,9 @@ import type { CardMaterial } from "../material";
 export const LOOP_SECONDS = 6;
 /** One turn of a sine per loop, in radians a second. */
 const ONCE = (2 * Math.PI) / LOOP_SECONDS;
-/** The share card's shape (1200×630): the card that turns. */
-const CARD_ASPECT = 1200 / 630;
+/** The card's shape (1200×675, the game's 16:9 card): the card that turns. Its front is the card's
+ *  face alone (`/s/<word>/card?face=1`), its back the back's picture, both this size. */
+const CARD_ASPECT = 1200 / 675;
 /** The game's paper, behind the card. */
 const PAPER: [number, number, number] = [0.957, 0.918, 0.824];
 
@@ -55,7 +56,7 @@ void main() {
   } else {
     // the back: its material, with its words and tiles over it
     vec2 buv = vec2(1.0 - vUv.x, vUv.y);
-    vec3 m = material(buv, uLight, uTime, uMat, uAspect, 1.0 / 630.0);
+    vec3 m = material(buv, uLight, uTime, uMat, uAspect, 1.0 / 675.0);
     vec4 c = texture2D(tBack, buv);
     col = mix(m, c.rgb, c.a);
   }

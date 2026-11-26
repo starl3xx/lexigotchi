@@ -4,15 +4,16 @@ import { notFound } from "next/navigation";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { WordStripLive } from "@/components/WordStrip";
 import { wordTier } from "@/lib/economy";
+import { isWord } from "@/lib/dictionary";
 import { parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
-import { parseScene, sceneMeta } from "@/lib/scenes";
+import { parseLinkScene, sceneMeta } from "@/lib/scenes";
+import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { BASE_APP_ID, embedsWithImage } from "@/lib/site";
 
 /**
  * A shared Showcase (lib/showcase): the page an X or Farcaster link opens. Its metadata is the
- * point: X reads `og:image` (the word in its scene, 1.91:1) and Farcaster reads `fc:miniapp` (the
- * same, 3:2, with the launch button). A person who taps through sees the word in its scene and a
- * way in. Only dictionary words (and the game's own house cards) draw; anything else is a 404.
+ * point: X reads `og:image` (the word's card, 1.91:1) and Farcaster reads `fc:miniapp` (the same,
+ * 3:2, with the launch button). A person who taps through sees the word's card and a way in. Only dictionary words (and the game's own house cards) draw; anything else is a 404.
  */
 type Props = {
   params: Promise<{ text: string }>;
@@ -22,7 +23,7 @@ type Props = {
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const tiles = parseShowcase((await params).text);
   if (!tiles) return {};
-  const scene = parseScene((await searchParams).scene);
+  const scene = parseLinkScene((await searchParams).scene);
   const text = showcaseText(tiles);
   const title = `${text} · a Lexigotchi showcase`;
   const description = "Lexigotchi is a word-pet game on Base. Collect letters, raise them, and spell words only you can own.";
@@ -45,10 +46,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function ShowcasePage({ params, searchParams }: Props) {
   const tiles = parseShowcase((await params).text);
   if (!tiles) notFound();
-  const scene = parseScene((await searchParams).scene);
+  const scene = parseLinkScene((await searchParams).scene);
   const text = showcaseText(tiles);
   const word = tiles.map((t) => t.char).join("");
   const upper = tiles.map((t) => t.upper);
+  // A house card (HEYOO) is no dictionary word: it has no rarity and no number, and its card says so
+  // by carrying no ribbon. A word's number is the chain's, never the link's.
+  const tier = isWord(word) ? wordTier(word) : undefined;
+  const number = tier ? await cardNumberOf(word).catch(() => null) : null;
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-8 bg-paper px-4 py-12 text-ink">
@@ -56,7 +61,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
         A Lexigotchi showcase
       </p>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
-        <SceneFrame scene={scene} word={word} upper={upper} tier={wordTier(word)} />
+        <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} />
       </div>
       <h1 className="sr-only">{text}</h1>
       <p className="max-w-md text-center text-lg font-semibold text-ink/75">
