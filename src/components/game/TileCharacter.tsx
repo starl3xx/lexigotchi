@@ -16,7 +16,8 @@
  * dense-grid / word-row form). Auto-selected by size, overridable via `detail`.
  *
  * THE DRAWING IS UP TO FOUR STACKED LAYERS, each its own <svg>: the floor (shadow, shoes), the legs,
- * the body (rings, arms, tile, face), and the top (held hands, zzz, confetti); an empty one isn't
+ * the body (rings, arms, tile, face), and the top (held hands, zzz, confetti), with a raised
+ * letter's rays as a layer of their own behind them; an empty one isn't
  * drawn, so a small tile in a grid is the body alone. The loops (the breath,
  * a jump) are CSS transforms on the legs and body LAYERS, never on a shape inside one. A browser
  * slides a finished layer without redrawing it; a transform inside an <svg> makes WebKit (every
@@ -41,6 +42,7 @@ import {
   ARM_REST,
   ARM_REST_R,
   ARM_WAVE,
+  BORDER_UP,
   BOT,
   CLASP,
   CX,
@@ -48,6 +50,8 @@ import {
   FOOT_LX,
   FOOT_RX,
   FOOT_Y,
+  GROUND_Y,
+  LAUREL_LEAF,
   LEG_L,
   LEG_R,
   LIMB_W,
@@ -55,7 +59,9 @@ import {
   LINK_R,
   MID,
   MITT,
-  SHADOW,
+  PIP_NUDGE,
+  SHADOW_LINES,
+  SHADOW_LINE_OPACITY,
   SHINE_FROM,
   SHOE,
   SHOE_SHINE,
@@ -63,11 +69,16 @@ import {
   TOP,
   VB,
   eyeBox,
+  laurel,
   leanFor,
   mittAt,
+  pipPath,
   pupilOf,
+  ringOuter,
+  ringRects,
   type Arm,
   type Hand,
+  type RingPart,
 } from "./tileShapes";
 
 export { WORD_LEAN, leanFor } from "./tileShapes";
@@ -192,7 +203,7 @@ const BODY_ANIM: Record<TileState, string> = {
   hungry: "animate-tc-sleep",
   eating: "animate-tc-eat",
   rolling: "animate-tc-brace",
-  upgrade: "animate-tc-pop",
+  upgrade: "animate-tc-hop",
   celebrate: "animate-tc-jump",
 };
 // The legs layer keeps the feet planted while the body moves: each body loop has its leg loop.
@@ -202,7 +213,7 @@ const LEG_ANIM: Record<TileState, string> = {
   hungry: "",
   eating: "",
   rolling: "animate-tc-knock",
-  upgrade: "",
+  upgrade: "animate-tc-leghop",
   celebrate: "animate-tc-legjump",
 };
 const TILT: Record<TileState, number> = {
@@ -519,11 +530,8 @@ function browPath(ex: number, y: number, brow: Brow, side: -1 | 1): string {
 }
 
 // ===========================================================================
-// Gild layers (UPPERCASE only, spec §6) — pips + brass ring + sheen + twinkles + crown.
+// Gild layers (UPPERCASE only, spec §6; decisions.md #48): slim rings, twinkles, black pips, laurels.
 // ===========================================================================
-function diamond(cx: number, cy: number, s = 3.8) {
-  return `M ${cx} ${cy - s} L ${cx + s} ${cy} L ${cx} ${cy + s} L ${cx - s} ${cy} Z`;
-}
 function star4(cx: number, cy: number, R = 7, r = 2.6) {
   const p: string[] = [];
   for (let i = 0; i < 8; i++) {
@@ -536,65 +544,28 @@ function star4(cx: number, cy: number, R = 7, r = 2.6) {
   return `M ${p.join(" L ")} Z`;
 }
 
-// Border / ring widths — thick, contiguous frame (design review: no gaps, beefier lines).
-const BORDER_UP = 12; // UPPERCASE blue tile border
-const RING_PB = 10; // pale-blue LHAW outer ring
-const BRASS_W = [0, 8, 10, 12, 12, 12]; // gild main ring by stage (Holographic keeps stage 4's weight)
-const SHEEN_W = 5; // pale-gold sheen
-const BRASS2_W = 5; // gild-4 second ring
-
-/** Rings stacked OUTSIDE the blue tile border, each abutting the last (no gaps).
- *  gild 0 = the pale-blue LHAW skin; once gilded, GOLD REPLACES that outer blue ring
- *  (design review — stacking both reads too thick). Holographic paints the gold rings with the
- *  foil (`holo`, a gradient url) and turns the sheen white so the colors read. */
-function ringSpecs(gild: Gild, holo?: string): { w: number; color: string }[] {
-  if (gild <= 0) return [{ w: RING_PB, color: LHAW_RING }];
-  const metal = gild >= 5 && holo ? holo : BRASS;
-  const out = [
-    { w: BRASS_W[gild], color: metal },
-    { w: SHEEN_W, color: gild >= 5 ? EYE_WHITE : SHEEN },
-  ];
-  if (gild >= 4) out.push({ w: BRASS2_W, color: metal });
-  return out;
-}
-/** Outer extent of the ring stack beyond the tile edge (for twinkle placement). */
-function ringOuter(gild: Gild): number {
-  return ringSpecs(gild).reduce((e, r) => e + r.w, BORDER_UP / 2);
-}
-
-/** The pale-blue LHAW skin + any gild brass/sheen rings — drawn back-to-front, contiguous. */
+/** The rings outside the blue tile border (tileShapes, ringRects): the pale-blue LHAW skin at
+ *  gild 0; once gilded, GOLD REPLACES it. Holographic paints the gold rings with the foil (`holo`,
+ *  a gradient url) and turns the pale line white so the colours read. */
 function Rings({ gild, holo }: { gild: Gild; holo?: string }) {
-  let edge = BORDER_UP / 2; // start at the outer face of the blue tile border
+  const paint = (part: RingPart) => (part === "plain" ? LHAW_RING : part === "gold" ? (gild >= 5 && holo ? holo : BRASS) : gild >= 5 ? EYE_WHITE : SHEEN);
   return (
     <>
-      {ringSpecs(gild, holo).map((r, i) => {
-        const off = edge + r.w / 2;
-        edge += r.w;
-        return (
-          <rect
-            key={i}
-            x={T.x - off}
-            y={T.y - off}
-            width={T.w + 2 * off}
-            height={T.h + 2 * off}
-            rx={T.r + off}
-            fill="none"
-            stroke={r.color}
-            strokeWidth={r.w}
-          />
-        );
-      })}
+      {ringRects(gild).map((r, i) => (
+        <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill="none" stroke={paint(r.part)} strokeWidth={r.sw} />
+      ))}
     </>
   );
 }
 
-function Twinkles({ gild, holo, soft }: { gild: Gild; holo?: string; soft?: string }) {
+function Twinkles({ gild, holo, soft, crowned = false }: { gild: Gild; holo?: string; soft?: string; crowned?: boolean }) {
   if (gild <= 0) return null;
   const ro = ringOuter(gild);
   const items = [
     { x: T.x + T.w + ro - 4, y: T.y - ro + 10, show: true, d: 0 },
     { x: T.x - ro + 4, y: MID + 14, show: gild >= 2, d: 0.5 },
-    { x: CX + 34, y: T.y - ro - 2, show: gild >= 4, d: 1 },
+    // over the head, where the laurels are when the letter wears them
+    { x: CX + 34, y: T.y - ro - 2, show: gild >= 4 && !crowned, d: 1 },
   ];
   // on a finished tile (below Holographic), the same twinkles as soft glints with no outline
   if (soft && gild < 5)
@@ -626,51 +597,35 @@ function Twinkles({ gild, holo, soft }: { gild: Gild; holo?: string; soft?: stri
   );
 }
 
-/** One pip per stage of the word ladder: four gold, then the Holographic one in foil. */
-function Pips({ gild, holo, plate = false }: { gild: Gild; holo?: string; plate?: boolean }) {
+/** One pip per stage of the word ladder (tileShapes, pipPath): black diamonds. An earned pip is
+ *  solid ink at every stage, Holographic too; one not yet reached is a faint outline. */
+function Pips({ gild }: { gild: Gild }) {
   if (gild <= 0) return null;
-  const y = BOT - 22;
   return (
     <g>
-      {/* on a rarity face (gold, say), the pips sit on a white plate, or the gold ones
-          (earned) vanish into the face while the white ones (still to come) stand out */}
-      {plate && <rect x={CX - 60} y={y - 12} width={120} height={24} rx={12} fill="#ffffff" stroke={INK} strokeWidth={2} />}
-      {[0, 1, 2, 3, 4].map((i) => {
-        const cx = CX + (i - 2) * 22;
-        const filled = i < gild;
-        const paint = i === 4 && holo ? holo : GOLD;
-        return (
-          <path
-            key={i}
-            d={diamond(cx, y, 7)}
-            fill={filled ? paint : "#ffffff"}
-            stroke={filled ? INK : "#c9cfd8"}
-            strokeWidth={2}
-          />
-        );
-      })}
+      {[0, 1, 2, 3, 4].map((i) =>
+        i < gild ? <path key={i} d={pipPath(i)} fill={INK} stroke={INK} strokeWidth={2.1} strokeLinejoin="round" /> : <path key={i} d={pipPath(i)} fill="none" stroke={INK} strokeOpacity={0.26} strokeWidth={1.9} strokeLinejoin="round" />,
+      )}
     </g>
   );
 }
 
-function Crown({ base, paint = GOLD }: { base: number; paint?: string }) {
-  // 3-point gold crown sitting on the OUTER border edge (passed in), drawn inside the body
-  // group so it bounces with the tile. Sits centred between the two eyes.
-  const peak = base - 24;
-  const mid = base - 9;
-  const hw = 18;
+/** The laurels a letter wears from Gilded 4 (tileShapes, laurel): gold, or the foil at Holographic.
+ *  Drawn in the body, so they move with the tile. */
+function Laurels({ ro, paint = GOLD }: { ro: number; paint?: string }) {
+  const l = laurel(ro);
+  const sprig = (
+    <>
+      <path d={l.stem} fill="none" stroke={INK} strokeWidth={2.6} strokeLinecap="round" />
+      {l.leaves.map((t, i) => (
+        <path key={i} d={LAUREL_LEAF} transform={t} fill={paint} stroke={INK} strokeWidth={2.2} strokeLinejoin="round" />
+      ))}
+    </>
+  );
   return (
     <g>
-      <path
-        d={`M ${CX - hw} ${base} L ${CX - hw} ${base - 11} L ${CX - hw * 0.5} ${mid} L ${CX} ${peak} L ${CX + hw * 0.5} ${mid} L ${CX + hw} ${base - 11} L ${CX + hw} ${base} Z`}
-        fill={paint}
-        stroke={INK}
-        strokeWidth={2.6}
-        strokeLinejoin="round"
-      />
-      <circle cx={CX} cy={base - 7} r={2.6} fill={CURTAIN} />
-      <circle cx={CX - 10} cy={base - 5} r={2} fill={CURTAIN} />
-      <circle cx={CX + 10} cy={base - 5} r={2} fill={CURTAIN} />
+      {sprig}
+      <g transform={`translate(${VB.w} 0) scale(-1 1)`}>{sprig}</g>
     </g>
   );
 }
@@ -678,25 +633,48 @@ function Crown({ base, paint = GOLD }: { base: number; paint?: string }) {
 // ===========================================================================
 // State extras (zzz / ? / snack / burst rays / confetti).
 // ===========================================================================
-function BurstRays({ reduced }: { reduced: boolean }) {
-  const rays = Array.from({ length: 12 }, (_, i) => {
-    const a = (Math.PI / 6) * i;
-    const r1 = 70;
-    const r2 = 120;
-    const wsp = 0.16;
-    // rounded, as star4's points are: a raw sine differs in its last digit between the server and
-    // WebKit, and every page with a newly raised letter on it logged a hydration mismatch there
-    const at = (r: number, t: number) => `${(CX + r * Math.cos(t)).toFixed(2)} ${(MID + r * Math.sin(t)).toFixed(2)}`;
-    const p = `M ${at(r1, a - wsp)} L ${at(r2, a)} L ${at(r1, a + wsp)} Z`;
-    return <path key={i} d={p} fill={GOLD} />;
-  });
+/**
+ * The rays behind a raised letter, engraved (decisions.md #48): a "glory", as engravers draw
+ * light: fine ruled rays of three lengths, twelve wedges with pale light inside them, and a ring of
+ * beads, in the game's bright gold. It is not part of the letter, so it is drawn like the cards and
+ * not like the letter.
+ *
+ * ONE STILL DRAWING. TileCharacter turns it as a whole layer, never as a loop inside a drawing:
+ * the flat star it replaces turned inside the floor's drawing, and a raised letter cost 11% to 20%
+ * of a processor core in WebKit for it (under 2% as a layer; headless, three runs).
+ *
+ * Every number is rounded: the server draws this too, and engines differ in a sine's last digit.
+ */
+const GLORY = (() => {
+  const at = (r: number, t: number) => `${(CX + r * Math.cos(t)).toFixed(2)} ${(MID + r * Math.sin(t)).toFixed(2)}`;
+  let fine = "";
+  const N = 120;
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    // a wedge stands at every tenth ray; between them, three lengths
+    const r1 = i % 10 === 0 ? 0 : i % 5 === 0 ? 126 : i % 2 === 0 ? 112 : 104;
+    if (r1) fine += `M ${at(84, t)} L ${at(r1, t)}`;
+  }
+  let wedges = "";
+  for (let i = 0; i < 12; i++) {
+    const t = (i / 12) * Math.PI * 2;
+    wedges += `M ${at(84, t - 0.07)} L ${at(140, t)} L ${at(84, t + 0.07)}`;
+  }
+  let beads = "";
+  for (let i = 0; i < 48; i++) {
+    const t = ((i + 0.5) / 48) * Math.PI * 2;
+    const x = (CX + 78 * Math.cos(t) - 1.5).toFixed(2);
+    const y = (MID + 78 * Math.sin(t)).toFixed(2);
+    beads += `M ${x} ${y} a 1.5 1.5 0 1 0 3 0 a 1.5 1.5 0 1 0 -3 0 Z`;
+  }
+  return { fine, wedges, beads };
+})();
+function Glory() {
   return (
-    <g
-      className={reduced ? "" : "animate-tc-ray"}
-      style={reduced ? undefined : ({ transformBox: "fill-box", transformOrigin: "center", opacity: 0.55 } as CSSProperties)}
-      opacity={0.55}
-    >
-      {rays}
+    <g>
+      <path d={GLORY.fine} fill="none" stroke={GOLD} strokeWidth={1.25} strokeLinecap="round" opacity={0.95} />
+      <path d={GLORY.wedges} fill={SHEEN} fillOpacity={0.6} stroke={GOLD} strokeWidth={1.7} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={GLORY.beads} fill={GOLD} />
     </g>
   );
 }
@@ -871,6 +849,13 @@ export function TileCharacter({
     detail !== "auto" ? detail : size >= 100 ? "full" : size >= 60 ? "bust" : "tile";
   const showLimbs = lod === "full";
   const showFace = lod !== "tile";
+  // LEGS IN FRONT OF THE RING (decisions.md #48; starl3xx: "in the same way that arms come out in
+  // front of gilding, could we do the same for legs?", then "has to be a layer in front of the
+  // gilding... otherwise it doesn't work", for "every uppercase"). The ring was part of the body,
+  // and the body is over the legs, so the gold hid most of each leg (at Gilded 4, 16 of its 52
+  // units showed). Where a letter has legs, its rings (and the glow behind them) are a layer of
+  // their own UNDER the legs: floor, rings, legs, body. A leg stays one unbroken line.
+  const ringsApart = upper && showLimbs;
   // each LOD crops to what it draws, so the rendered box stays tight (no empty limb space in
   // grids). Gilded tiles widen the crop symmetrically so the brass ring stack never clips.
   const baseView =
@@ -900,7 +885,7 @@ export function TileCharacter({
   // the eyes, riding the ring's outer edge on an UPPERCASE tile (tileShapes, eyeBox)
   const { rx: eyeRx, ry: eyeRy, dx: eyeDx, y: eyeY } = eyeBox(upper, ringOuter(g));
   // when pips are present, nudge the printed letter up so the two never collide
-  const letterY = MID + 4 - (g >= 1 ? 12 : 0);
+  const letterY = MID + 4 - (g >= 1 ? PIP_NUDGE : 0);
   const seed = char.toUpperCase().charCodeAt(0);
   const boilFilter = boil && showLimbs ? `url(#tc-boil-${uid})` : undefined;
 
@@ -931,8 +916,10 @@ export function TileCharacter({
 
   // The arms. A side that holds a neighbour's hand reaches for the clasp; a free side hangs at
   // rest, holds on to the tile's corner when rolling, or strikes the hero pose.
-  const armL: Arm | null = !showLimbs || linkLeft ? null : state === "rolling" ? ARM_BRACE : pose === "hero" ? ARM_HIP : ARM_REST;
-  const armR: Arm | null = !showLimbs || linkRight ? null : state === "rolling" ? ARM_BRACE_R : pose === "hero" ? ARM_WAVE : ARM_REST_R;
+  // A raised letter strikes the hero pose too: a hand on the hip, a wave (decisions.md #48).
+  const hero = pose === "hero" || state === "upgrade";
+  const armL: Arm | null = !showLimbs || linkLeft ? null : state === "rolling" ? ARM_BRACE : hero ? ARM_HIP : ARM_REST;
+  const armR: Arm | null = !showLimbs || linkRight ? null : state === "rolling" ? ARM_BRACE_R : hero ? ARM_WAVE : ARM_REST_R;
   const darts = size >= DARTS_FROM; // the mitt's two stitches: only where they are more than a speck
   const limb = (d: string) => <path d={d} stroke={INK} strokeWidth={LIMB_W} fill="none" strokeLinecap="round" />;
   const freeArm = (a: Arm | null) =>
@@ -1000,10 +987,11 @@ export function TileCharacter({
   const bodyBase = (
     <>
       {/* the rarity's aura, behind the tile */}
-      {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
+      {!ringsApart && lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
 
-      {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
-      {upper && <Rings gild={g} holo={holo} />}
+      {/* UPPERCASE ring stack — pale-blue LHAW skin, or the gilding. A letter with legs draws it on
+          a layer of its own, under the legs (ringsApart). */}
+      {upper && !ringsApart && <Rings gild={g} holo={holo} />}
 
       {/* The arms go over the rings and under the face, so an UPPERCASE letter's arms show
           (they used to hide behind its ring). An arm that holds a neighbour's hand is drawn
@@ -1046,12 +1034,12 @@ export function TileCharacter({
   // over the light: the crown, the pips, the value, the mitts, the eyes
   const bodyOver = (
     <>
-      {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
-          still reads via the rings + pips (one crown per letter would clutter / clip) */}
-      {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
+      {/* the laurels (Gilded 4 and Holographic), on a whole character; in compact word rows the gild
+          still reads via the rings + pips */}
+      {showLimbs && g >= 4 && <Laurels ro={ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
 
-      {/* gild pips on the lower face */}
-      <Pips gild={g} holo={holo} plate={!!fin} />
+      {/* the stage's pips on the lower face */}
+      <Pips gild={g} />
 
       {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
           never collides with the inventory count bubble */}
@@ -1100,7 +1088,7 @@ export function TileCharacter({
       )}
 
       {/* gild twinkles — riding the rings */}
-      <Twinkles gild={g} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
+      <Twinkles gild={g} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} crowned={showLimbs && g >= 4} />
     </>
   );
   // the rarity's motes, drifting up (a moment)
@@ -1184,12 +1172,35 @@ export function TileCharacter({
     );
 
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
-  const hasFloor = showLimbs || state === "upgrade";
+  const hasFloor = showLimbs;
   const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating") || state === "celebrate";
   // A still frame shows no sweat: a bead frozen in the air reads as an ear.
   const sweating = showFace && state === "rolling" && !reduced;
   const asleep = showFace && state === "hungry";
   const layers = [
+    // a raised letter's rays, behind everything: a layer that turns as a whole (Glory says why)
+    state === "upgrade" &&
+      (flat ? (
+        // one file (the docs' pictures): the same cut as a clip path, the same turn on a group
+        <g key="rays" clipPath={showLimbs ? `url(#tc-ground-${uid})` : undefined}>
+          {showLimbs && (
+            <defs>
+              <clipPath id={`tc-ground-${uid}`}>
+                <rect x={VIEW.x - 200} y={VIEW.y - 200} width={VIEW.w + 400} height={GROUND_Y - VIEW.y + 200} />
+              </clipPath>
+            </defs>
+          )}
+          {layer("rays-turn", <Glory />, reduced ? "" : "animate-tc-ray", originAt(CX, MID), {})}
+        </g>
+      ) : (
+        // The box stands still and cuts the rays off at the ground, so none shows between the
+        // shadow's ruled lines (the light rises from behind the ground); only the drawing turns.
+        <div key="rays" data-piece="rays" style={showLimbs ? { ...LAYER, clipPath: `inset(-40% -40% ${(((VIEW.y + VIEW.h - GROUND_Y) / VIEW.h) * 100).toFixed(2)}% -40%)` } : LAYER}>
+          <svg viewBox={vb} aria-hidden className={`overflow-visible ${reduced ? "" : "animate-tc-ray"}`} style={{ ...LAYER, transformOrigin: originAt(CX, MID) }}>
+            <Glory />
+          </svg>
+        </div>
+      )),
     // the floor: what never moves
     hasFloor &&
       layer(
@@ -1203,10 +1214,14 @@ export function TileCharacter({
               </filter>
             </defs>
           )}
-          {/* gold burst rays (upgrade) — behind everything */}
-          {state === "upgrade" && <BurstRays reduced={reduced} />}
-          {/* ground shadow: on the floor, whatever the figure does */}
-          {showLimbs && <ellipse cx={SHADOW.cx} cy={SHADOW.cy} rx={SHADOW.rx} ry={SHADOW.ry} fill={INK} opacity={SHADOW.opacity} />}
+          {/* ground shadow: on the floor, whatever the figure does. Ruled lines, as the cards make tone (tileShapes, SHADOW_LINES). */}
+          {showLimbs && (
+            <g fill="none" stroke={INK} strokeLinecap="round" opacity={SHADOW_LINE_OPACITY}>
+              {SHADOW_LINES.map((l) => (
+                <path key={l.y} d={`M ${l.x0} ${l.y} H ${l.x1}`} strokeWidth={l.w} />
+              ))}
+            </g>
+          )}
           {/* shoes — planted */}
           {showLimbs && (
             <g filter={boilFilter}>
@@ -1221,6 +1236,21 @@ export function TileCharacter({
             </g>
           )}
         </>,
+      ),
+
+    // the rings of a letter with legs, and the glow behind them: under the legs, moving with the body
+    // (the same loop, the same turn). The body's own paints (the foil, the glow) are found by id.
+    ringsApart &&
+      layer(
+        "rings",
+        leaned(
+          <>
+            <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />
+            <Rings gild={g} holo={holo} />
+          </>,
+        ),
+        bodyAnim,
+        originAt(CX, BOT),
       ),
 
     // the legs: the layer stretches from the feet, so they stay planted while the body rises

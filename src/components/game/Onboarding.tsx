@@ -75,7 +75,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         )}
       </div>
 
-      <div key={step} className="relative flex flex-1 flex-col items-center justify-center gap-7 px-6 text-center animate-pop">
+      <div key={step} className="relative flex flex-1 flex-col items-center justify-center gap-7 px-6 text-center animate-drop">
         <div className="flex min-h-[180px] items-center justify-center">{s.visual}</div>
         <div>
           <div className="mb-2 inline-flex items-center gap-2">
