@@ -1537,6 +1537,31 @@ setter. All small, riding existing suite patterns.
       addresses. The footer says where to choose kinds, and how to stop them all.
     - **Seen and not seen (part 2):** the three emails as pictures at phone and desktop widths. No
       real mail client was seen, and no test email was sent.
+    - **Part 3, payday and the bounty result** (`lib/notify/paid.ts`). Both hang on the keeper's
+      `payout` job, which already runs (a new job name would never run where `KEEPER_JOBS` is
+      set), and both say "paid" only of what LANDED: they are fed the `RewardClaimed` events of
+      the keeper's own transactions, never the shares it meant to pay (the payout has a time
+      budget, and a player may have collected a share themselves). **A day or a week is told
+      ONCE, by the run that pays the first of it, and it states the player's whole share**
+      (`toldShares`; Bugbot on #244, twice). A message's id is the day or the week, so there can
+      be only one: it says the whole share, which the epoch's tree fixes, and "paid" of all of it
+      only when all of it landed; when part still waits it says "part is paid, the rest follows".
+      Stating only what landed made a part read as the whole; holding the message until all of it
+      landed never told a player who collected the rest themselves. A failed batch doesn't skip
+      the message for the batches before it, and the run re-reads every share it didn't see land
+      (the player may have collected it meanwhile). **The rule's limit:** "told" is read from the
+      chain (a share already paid when a run begins), so a set whose first payment no run saw
+      before its message (a transaction that lands after the run's last read, a share claimed by
+      someone before the keeper's first payment) is never told. Rare, and one courtesy message;
+      the full answer is a recorded "told" mark, not built. **Payday is OFF unless a player
+      turns it on,** because it comes every day a word earns; its message doesn't say "today's
+      payout", since a run also pays an earlier day's leftovers. **The bounty result is on** (once
+      a week at most), and says the player's words' SHARE with the week's theme, never "the
+      bounty is yours". One message per player per kind for a run, linked wallets as one player,
+      whole $WORD rounded down, nothing under one.
+    - **One sender for every receipt** (`lib/notify/players.ts` `notifyPlayers`): the kind is asked
+      first, Farcaster or else the account's browsers, and email with its send-once mark. A sale,
+      a payday, and a bounty each only say who and what.
 
 48. **Letters and cards, round two: nine notes, built in parts** (starl3xx, 2026-11-26, on the
     review page "Card and Letter Review", which runs the game's own letter and card code beside a
