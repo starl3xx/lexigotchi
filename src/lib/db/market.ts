@@ -186,6 +186,25 @@ export function recentSales(chainId: number, limit: number, word?: string): Prom
   );
 }
 
+/** What these sellers sold between two moments (the weekly digest: lib/notify/digest.ts). */
+export function salesBySellers(chainId: number, sellers: readonly string[], since: Date, until: Date): Promise<Pick<SaleRow, "seller" | "kind" | "qty" | "priceWei" | "feeWei" | "soldAt">[]> {
+  if (sellers.length === 0) return Promise.resolve([]);
+  return orEmpty(() =>
+    getDb()
+      .select({ seller: marketSales.seller, kind: marketSales.kind, qty: marketSales.qty, priceWei: marketSales.priceWei, feeWei: marketSales.feeWei, soldAt: marketSales.soldAt })
+      .from(marketSales)
+      .where(
+        and(
+          eq(marketSales.chainId, chainId),
+          inArray(marketSales.seller, sellers.map((s) => s.toLowerCase())),
+          // ISO strings, never JS Dates: a Date parameter in raw SQL shifts by the server's offset.
+          gte(marketSales.soldAt, sql`${since.toISOString()}::timestamptz`),
+          sql`${marketSales.soldAt} < ${until.toISOString()}::timestamptz`,
+        ),
+      ),
+  );
+}
+
 export interface LetterSaleStat {
   letterId: number;
   /** What one letter went for in the latest sale, wei. */

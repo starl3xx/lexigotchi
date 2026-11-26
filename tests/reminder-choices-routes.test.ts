@@ -26,14 +26,16 @@ afterEach(() => {
 describe("/api/profile/reminders", () => {
   function mockProfile(opts: { account?: string | null; stored?: Record<string, boolean>; missingTable?: boolean } = {}) {
     const stored = { ...(opts.stored ?? {}) };
+    const kept = { cadence: "each" as "each" | "weekly" };
     vi.doMock("@/lib/profile/session", () => ({ profilesEnabled: () => true }));
     vi.doMock("@/lib/profile/account", () => ({ sessionAccountOf: async () => (opts.account === undefined ? A : opts.account) }));
     vi.doMock("@/lib/db/reminderPrefs", () => ({
-      prefsOf: async () => (opts.missingTable ? {} : stored),
-      savePrefs: async (_account: string, changes: Record<string, boolean>) => {
+      prefsOf: async () => ({ choices: opts.missingTable ? {} : stored, cadence: kept.cadence }),
+      savePrefs: async (_account: string, changes: { kinds?: Record<string, boolean>; cadence?: "each" | "weekly" }) => {
         if (opts.missingTable) throw Object.assign(new Error("no table"), { code: "42P01" });
-        Object.assign(stored, changes);
-        return stored;
+        Object.assign(stored, changes.kinds ?? {});
+        if (changes.cadence) kept.cadence = changes.cadence;
+        return { choices: stored, cadence: kept.cadence };
       },
     }));
     return stored;
@@ -51,13 +53,23 @@ describe("/api/profile/reminders", () => {
 
   it("answers every kind, on or off: the defaults for a player who changed nothing", async () => {
     mockProfile();
-    expect(await (await get()).json()).toEqual({ ok: true, kinds: { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false, deal: false } });
+    expect(await (await get()).json()).toEqual({ ok: true, kinds: { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false, deal: false }, emailCadence: "each" });
   });
 
   it("changes the kinds named, and leaves the rest", async () => {
     const stored = mockProfile({ stored: { sold: false } });
-    expect(await (await put({ kinds: { daily: false } })).json()).toEqual({ ok: true, kinds: { hunger: true, daily: false, jackpot: true, sold: false, bounty: true, payday: false, deal: false } });
+    expect(await (await put({ kinds: { daily: false } })).json()).toEqual({ ok: true, kinds: { hunger: true, daily: false, jackpot: true, sold: false, bounty: true, payday: false, deal: false }, emailCadence: "each" });
     expect(stored).toEqual({ sold: false, daily: false });
+  });
+
+  it("changes how often email comes, with or without a kind", async () => {
+    mockProfile();
+    expect((await (await put({ emailCadence: "weekly" })).json()).emailCadence).toBe("weekly");
+    expect((await (await get()).json()).emailCadence).toBe("weekly");
+    const both = await (await put({ kinds: { payday: true }, emailCadence: "each" })).json();
+    expect(both).toMatchObject({ ok: true, emailCadence: "each" });
+    expect(both.kinds.payday).toBe(true);
+    for (const bad of ["monthly", true, 7]) expect((await put({ emailCadence: bad })).status).toBe(400);
   });
 
   it("refuses a body that names no kind it knows, or a value that isn’t yes or no", async () => {
@@ -175,6 +187,14 @@ describe("the daily-letter reminder obeys the choices", () => {
     const sent = mockCron(prefsBookFrom([]));
     neynarUp = false; // would blind the run, if it were asked
     await run();
+    expect(sent.fids.sort()).toEqual([77, 78]);
+  });
+
+  it("doesn’t email the daily letter to a player who takes the weekly digest, and still reminds their browser", async () => {
+    const sent = mockCron(prefsBookFrom([{ account: A, kinds: {}, emailCadence: "weekly" }]));
+    await run();
+    expect(sent.emails).toEqual(["b@example.test"]);
+    expect(sent.browsers.sort()).toEqual(["https://push.example/a2", "https://push.example/b"]);
     expect(sent.fids.sort()).toEqual([77, 78]);
   });
 
