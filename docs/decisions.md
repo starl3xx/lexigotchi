@@ -1369,6 +1369,51 @@ setter. All small, riding existing suite patterns.
       say. A still tile doesn't run it.
     - **Not checked:** a real iPhone or a real GPU. Every number here is headless.
 
+44. **The server finishes ascension attempts, as it does rolls** (starl3xx, 2026-11-26: "yes,
+    have the server finish ascension like rolls"; #14 named it as a later case, and #36 as its
+    follow-up). An attempt was two wallet confirmations, and the second arrived while the word's
+    letters stood with their eyes shut. Now the player confirms the paid attempt only.
+    - **How.** The game posts `{ commitId, relay: true }` to `/api/prestige/reveal`. The route
+      signs the outcome as before, sends `Prestige.reveal` from the relayer key (the same
+      `RELAYER_PRIVATE_KEY` as rolls, builder code on the write), waits up to 20 s for the
+      block, and answers with what the chain did. `Prestige.reveal` is permissionless, so no
+      contract change. Without the key, or when nothing was broadcast, the answer is the
+      signature and the player's wallet sends it, as before. Without the flag the route answers
+      exactly as it always did, so a client bundle from before this keeps working.
+    - **The answer is the chain's, never the signed outcome.** A signed success no longer counts
+      if the word was unstaked or moved before the reveal, and Prestige then emits "failed" with
+      the pity unchanged. So the result is read from the reveal's own event
+      (`lib/onchain/relayOutcome.ts`): a hit names the new level; a miss names the pity but not
+      the level, which the relayer reads at the reveal's own block. That pin matters: the real
+      miss used as a test fixture left its word at stage 3, and the same word stands at 5 now. A
+      level that can't be read is null, and the game reads the chain itself; nothing is filled
+      in. An attempt that was already revealed, or broadcast and not seen to land, claims no
+      outcome at all: the game reads it from the chain.
+    - **One send a commit, by contract.** The relayer remembers a commit's send for a minute so
+      a repeat request gets the first answer. Rolls and Prestige each count their own commits,
+      so the memory is keyed `roll:7` and `prestige:7`: under one key an ascension would have
+      been answered with a roll's result.
+    - **Only "nothing broadcast" reaches the wallet** (`revealPlan`). Once the server has
+      broadcast a reveal, a second one from the wallet would revert when the first lands, for a
+      prompt and a fee that bought nothing.
+    - **A lost answer.** The route holds the request while the reveal mines, so "the server
+      finished it and the game never heard" becomes the usual way a try ends unfinished. Three
+      things answer it. On a failed fetch or a 5xx the game asks the chain before it calls
+      anything unfinished (`answerLost`). The unfinished mark keeps the attempt's commit id, so
+      "Finish your attempt" asks the server about that commit and says its result, measured
+      from the stage the try was made at, where it could only have said "nothing is open". And a
+      marked attempt whose reveal lands later on its own has its result said in a toast when the
+      words read shows it, where the mark used to vanish without a word.
+    - **Cost.** One more transaction from the relayer per attempt: under a cent on Base, free on
+      the test network. Bounded by paid attempts: each needs a fee paid to exist, and can be
+      revealed once.
+    - **Not changed:** packs and the daily letter still reveal from the wallet (#14).
+    - **Seen and not seen.** The log reader was run on two real Base Sepolia reveals (a hit and a
+      miss) and is tested on those logs; the pinned level read was run against the test network;
+      the route's own handler was called against it for a finished attempt (it answers
+      "already", and 409 without the flag). **No attempt was driven end to end with a wallet**:
+      the first relayed reveal on the test game is the real test of the send.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

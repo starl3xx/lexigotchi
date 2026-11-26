@@ -127,7 +127,7 @@ import { orThrowAfter, settleSend, shortHash, withTimeout, type SendTrace } from
 import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageNote } from "@/lib/onchain/stageOverlay";
-import { ascendResult } from "@/lib/onchain/ascendResult";
+import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
@@ -151,8 +151,19 @@ interface DailyVoucher { fid: string; today: number; deadline: string; signature
 interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; revealSignature: `0x${string}` }
 interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
-/** The ascension reveal also says which stage the attempt was paid at (Prestige commit `level`). */
-interface PrestigeReveal extends OutcomeReveal { level?: number; owner?: string }
+/**
+ * /api/prestige/reveal's answer. `level` and `owner` are the COMMIT's (the stage the attempt was
+ * paid at, and who it is for). `relayed`: the server sent the reveal itself, or found it done:
+ * - "mined": on chain. `success`, `stage` (the word's level now, or null if it couldn't be read at
+ *   the reveal's block) and `pity` are what the chain did.
+ * - "already": revealed before the game asked. "pending" / "reverted": broadcast, not seen to land.
+ *   None of the three claims an outcome: the game reads it from the chain.
+ * Absent: nothing was broadcast, and `success` + `signature` are for the player's wallet to send.
+ */
+interface PrestigeReveal extends RevealAnswer {
+  level?: number;
+  owner?: string;
+}
 /** A roll's signed outcome, plus what the UI needs to show the new pity before the chain does. */
 interface RollReveal extends OutcomeReveal {
   pityAtCommit: number;
@@ -182,6 +193,9 @@ interface RollReveal extends OutcomeReveal {
 /** `sponsored`: ask the paymaster to pay the gas (only calls the CDP policy allows: see sendCalls). */
 type RunOpts = { settles?: boolean; sponsored?: boolean; onSent?: (result: SendResult) => void };
 type RunFn = (label: string, build: () => Call[], opts?: RunOpts) => Promise<boolean>;
+
+/** A word's unfinished ascension attempt: the stage it was made at, and its commit when known. */
+type UnfinishedMark = Stage & { commitId?: string };
 
 /** Chain words → the shape screens already destructure. `careFor`: stakers that named this wallet. */
 function toOwnedWord(w: BagWord, careFor?: ReadonlySet<string>): OwnedWord {
@@ -337,11 +351,18 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * mark goes when a reveal is read back for the word, or when the words read shows the word past
    * the stage it was marked at (the reveal landed on its own: pruneUnfinished). For this session
    * only: after a reload the next try still finishes an open attempt first.
+   *
+   * A mark also keeps the attempt's commit id when it is known. The server finishes attempts now,
+   * and holds the request while it does, so "finished, and the answer never arrived" is the usual
+   * way a try ends unfinished: with the commit id, "Finish your attempt" can read that attempt's
+   * own result from the chain and say it, where it could only have said "nothing is open".
    */
-  const [unfinishedMarks, setUnfinishedMarks] = useState<Readonly<Record<string, Stage>>>({});
+  const [unfinishedMarks, setUnfinishedMarks] = useState<Readonly<Record<string, UnfinishedMark>>>({});
+  /** Words with an ascension action in flight: that action will say how its attempt ends, so nothing else does. */
+  const ascending = useRef(new Set<string>());
   const unfinishedAscents = useMemo(() => new Set(Object.keys(unfinishedMarks)), [unfinishedMarks]);
   /** Mark `word` as having an unfinished attempt made at `at`, or clear its mark (null). */
-  const markAscent = useCallback((word: string, at: Stage | null) => {
+  const markAscent = useCallback((word: string, at: UnfinishedMark | null) => {
     setUnfinishedMarks((all) => {
       if (at) return { ...all, [word]: at };
       if (!(word in all)) return all;
@@ -354,8 +375,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     if (!read) return;
     const chainStages = Object.fromEntries(read.map((w) => [w.word, { level: w.prestigeLevel, pity: w.prestigePity }]));
     setStageNotes((notes) => pruneStageNotes(chainStages, notes, Date.now()));
-    setUnfinishedMarks((marks) => pruneUnfinished(chainStages, marks));
-  }, [wordsQ.data]);
+    // An unfinished attempt whose reveal has since landed on its own (the server finished it and
+    // its answer was lost, or a slow transaction arrived): the words read shows the word past the
+    // stage it was marked at. Its result was never said, so say it now, and drop the mark. A word
+    // with an action in flight is left alone: that action says its own ending.
+    const idle = Object.fromEntries(Object.entries(unfinishedMarks).filter(([word]) => !ascending.current.has(word)));
+    const kept = pruneUnfinished(chainStages, idle);
+    if (kept === idle) return;
+    for (const [word, mark] of Object.entries(idle)) {
+      const now = chainStages[word];
+      if (word in kept || !now) continue; // still unfinished, or the word left the bag
+      const rose = prestigeSuccessProbability(now.pity, now.level) > prestigeSuccessProbability(mark.pity, mark.level);
+      const said = resultToast(word, now.level > mark.level, now.level, rose);
+      dispatch({ t: "toast", text: said.text, tone: said.tone });
+    }
+    setUnfinishedMarks((marks) => {
+      const next = { ...marks };
+      for (const word of Object.keys(idle)) if (!(word in kept)) delete next[word];
+      return next;
+    });
+  }, [wordsQ.data, unfinishedMarks]);
 
   // The identity today's daily would be issued under, and every other key the player could claim
   // under — mirrors the server (free-daily route): the Farcaster fid, then an X account old enough
@@ -909,6 +948,25 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const revealedAttempts = useRef(new Set<string>());
 
   /**
+   * A reveal of `commitId` is KNOWN to have landed, and left the word at `stage`. The bookkeeping
+   * every such moment owes, in one place, so no path can skip a part of it (the server's relayed
+   * reveal and the game's own chain read both end here):
+   * - the attempt is never open again, so later searches for an open one skip it;
+   * - the stage shows at once, over the slower words read (stageNotes);
+   * - the word has nothing unfinished any more;
+   * - the words are read again on a stagger, to replace the note with the read itself.
+   */
+  const noteAscension = useCallback(
+    (word: string, commitId: bigint, stage: Stage) => {
+      revealedAttempts.current.add(String(commitId));
+      setStageNotes((notes) => ({ ...notes, [word]: { level: stage.level, pity: stage.pity, at: Date.now() } }));
+      markAscent(word, null);
+      for (const delay of [0, 2_000, 6_000, 15_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
+    },
+    [wordsQ, markAscent],
+  );
+
+  /**
    * Wait for an ascension's reveal to be ON CHAIN, then show where it left the word: its stage and
    * pity, read in one block with the commit's `revealed` flag (readPrestigeAttempt), laid over the
    * slower words read (`stageNotes`). Null when the reveal never showed in the wait: that is
@@ -927,16 +985,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         (attempt) => attempt.revealed,
         ASCEND_SETTLE_MS,
       );
-      // The words read catches up on its own time; the note below covers the gap.
-      for (const delay of [0, 2_000, 6_000, 15_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
-      if (!seen || !got.attempt) return null;
-      const { level, pity } = got.attempt;
-      revealedAttempts.current.add(String(commitId));
-      setStageNotes((notes) => ({ ...notes, [word]: { level, pity, at: Date.now() } }));
-      markAscent(word, null); // a reveal on this word has landed: nothing of it is left open
+      if (!seen || !got.attempt) {
+        // The words read may still show something of it later; nothing is noted for a reveal not seen.
+        for (const delay of [0, 2_000, 6_000, 15_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
+        return null;
+      }
+      noteAscension(word, commitId, got.attempt);
       return got.attempt;
     },
-    [wordsQ, markAscent],
+    [wordsQ, noteAscension],
   );
 
   /**
@@ -1395,30 +1452,61 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           };
           // The stage this attempt aims past (the word ladder: price and odds both depend on it).
           const target = state.words.find((x) => x.word === word);
-          const level = target?.prestigeLevel ?? 0;
-          const pityAtTap = target?.prestigePity ?? 0;
-          const oddsAtTap = prestigeSuccessProbability(pityAtTap, level);
+          const tap: Stage = { level: target?.prestigeLevel ?? 0, pity: target?.prestigePity ?? 0 };
+          // An earlier try on this word that ended paid and unfinished, if this browser knows of one.
+          const mark = unfinishedMarks[word];
+          // What a stranded end must remember: the stage the attempt was made at, and its commit.
+          const left: { at: Stage; commitId?: string } = { at: tap };
+
+          // How the attempt ended, said to the sheet (and in a toast when that sheet has gone).
+          // `from` is the stage the attempt was made at: the result is measured from there.
+          const tell = (came: ReturnType<typeof ascendResult>, from: Stage): ActionOutcome => {
+            if (came.kind === "unfinished") return { status: "stranded", note: "Your attempt is finishing onchain. It’ll show in a moment." };
+            if (came.kind === "foreign") {
+              // Nothing was spent by this tap and nothing is left open: ready again, never "missed".
+              toast(`Finished an earlier attempt on ${word}. Try again for yours`, "info");
+              return { status: "not-started" };
+            }
+            // The ascend sheet the try was made in shows the result. Say it here when that sheet is
+            // gone, so the outcome is said once, and always said.
+            if (!sheetShows()) {
+              const rose = prestigeSuccessProbability(came.pity, came.level) > prestigeSuccessProbability(from.pity, from.level);
+              const said = resultToast(word, came.hit, came.level, rose);
+              toast(said.text, said.tone);
+            }
+            return { status: "resolved", success: came.hit, stage: { level: came.level, pity: came.pity } };
+          };
+
+          // While this runs, it alone says how the attempt ends (the words effect stays quiet).
+          ascending.current.add(word);
           const outcome = await guarded(async (markPaid) => {
             if (!chain.params || !chain.player || !address) return { status: "not-started" as const };
             const tokenId = tokenIdOf(word);
+            // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
+            const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
             // One unrevealed ascension per Word (Prestige.attemptOpen): finish an open one, never pay
             // twice. Attempts this browser has read as revealed are skipped (a lagging node can still
             // call one open seconds later).
             let id = await readOpenPrestigeFor(tokenId, revealedAttempts.current);
+            // Asked to finish the attempt this browser marked, and the search finds nothing open.
+            // The usual reason: the server finished it and its answer never arrived. The mark knows
+            // the commit, so go by that: the server says what became of it ("already"), and its
+            // result, which was never said, is read and said. (If the search was only behind, the
+            // attempt is open after all, and the server finishes it.)
+            if (id === null && opts?.finishOnly && mark?.commitId) id = BigInt(mark.commitId);
             const resumed = id !== null;
-            // Asked only to finish a paid attempt, and none is open: it finished on its own (its
-            // reveal landed late), or it never reached the chain. Never pay for a new one from the
-            // "finish" button, which showed no price: clear the mark, and the sheet goes back to
-            // its priced try. The toast says what was read and no more; if an attempt does turn up
-            // later, the next try finishes it first (Prestige allows one open attempt a word).
+            // Asked only to finish a paid attempt, and there is none to go by. Never pay for a new
+            // one from the "finish" button, which showed no price.
             if (id === null && opts?.finishOnly) {
+              // Nothing is open and nothing is known of it: it finished some other way, or never
+              // reached the chain. Clear the mark; the sheet goes back to its priced try. The toast
+              // says what was read and no more. If an attempt does turn up later, the next try
+              // finishes it first (Prestige allows one open attempt a word).
               markAscent(word, null);
               for (const delay of [0, 2_000, 6_000]) setTimeout(() => void wordsQ.refetch({ cancelRefetch: false }), delay);
               toast(`No attempt is open on ${word} now`, "info");
               return { status: "not-started" as const };
             }
-            // A caretaker's ascension is committed in the staker's name (Prestige names the staker).
-            const owner = (target?.care && target.holder ? target.holder : address) as `0x${string}`;
             if (id !== null) {
               // The "finish" button asked for exactly this, so there is nothing to explain.
               if (!opts?.finishOnly) toast("Finishing your unfinished attempt first", "info");
@@ -1427,7 +1515,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               const before = await readOpenPrestigeCommits(owner);
               // `settles`: no generic "sent" toast. A green "sent" over a try that may miss reads as
               // a result, and the sheet (or the toast below) says what is happening.
-              if (!(await run("Ascension attempt", () => commitPrestigeCalls(tokenId, level, chain.params!, chain.player!), { settles: true }))) return { status: "not-started" as const };
+              if (!(await run("Ascension attempt", () => commitPrestigeCalls(tokenId, tap.level, chain.params!, chain.player!), { settles: true }))) return { status: "not-started" as const };
               markPaid(); // fee + burned snack are gone from here on
               toast("Attempting ascension…", "info");
               id = await waitForNewPrestigeCommit(owner, [...before, ...[...revealedAttempts.current].map(BigInt)]);
@@ -1436,41 +1524,68 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               }
             }
             const commitId = id;
-            const draw = await openPostJson<{ reveal: PrestigeReveal }>("/api/prestige/reveal", { commitId: String(commitId) });
-            // `already_revealed`: the attempt is finished on chain (another tab sent its reveal, or a
-            // lagging read called a finished attempt open). There is nothing to send: read where it
-            // left the word, below, as after a reveal of our own.
-            if (!draw?.ok && draw?.error !== "already_revealed") {
-              toast(authError(draw?.error, "Ascension"), "bad");
+            left.commitId = String(commitId);
+            // The open attempt is the one this browser marked: its result is owed whatever the
+            // server finds, and it is measured from the stage it was made at.
+            const own = resumed && mark !== undefined && (mark.commitId === undefined || mark.commitId === String(commitId));
+            const from: Stage = own ? mark : tap;
+            if (own) left.at = mark;
+
+            // The server finishes it (decisions.md #14): it sends the reveal from its relayer key
+            // and answers with what the chain did, so the only wallet prompt is the paid attempt.
+            const draw = await openPostJson<{ reveal: PrestigeReveal }>("/api/prestige/reveal", { commitId: String(commitId), relay: true });
+            let after: Stage | null;
+            let already = false;
+            if (draw.ok) {
+              // lib/onchain/ascendResult, revealPlan: what each answer means, and why only an
+              // answer with nothing broadcast ever reaches the wallet.
+              const plan = revealPlan(draw.reveal);
+              if (plan.do === "use") {
+                // On chain, and the server read where it left the word from the reveal itself.
+                after = plan.stage;
+                noteAscension(word, commitId, after);
+              } else if (plan.do === "read") {
+                // The reveal is broadcast, or was done before we asked. Read the chain.
+                already = plan.already;
+                after = await settleAscension(word, commitId);
+              } else if (plan.do === "wallet") {
+                // Nothing was broadcast (no relayer key, or its send was refused): the wallet sends
+                // the reveal, as before the server could.
+                if (!(await run("Reveal", () => prestigeRevealCalls(commitId, plan.success, plan.signature), { settles: true }))) {
+                  return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
+                }
+                // What the CHAIN did with it, read once it has landed. Never the signed outcome at
+                // the moment the wallet took the send: see settleAscension.
+                after = await settleAscension(word, commitId);
+              } else {
+                return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
+              }
+            } else if (draw.error === "already_revealed") {
+              // A server from before the relay answers a finished attempt this way.
+              already = true;
+              after = await settleAscension(word, commitId);
+            } else if (answerLost(draw.error)) {
+              // No answer came back, which says nothing about whether the server acted: it holds
+              // the request while it sends the reveal and waits for its block. Ask the chain
+              // before calling the attempt unfinished (lib/onchain/ascendResult, answerLost).
+              after = await settleAscension(word, commitId);
+              // Not on chain after the wait: the request most likely never arrived, and the attempt
+              // is open. "Finishing onchain" would promise a result nobody has sent for.
+              if (!after) return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
+            } else {
+              // The server said no before sending anything (rate limit, an unknown commit).
+              toast(authError(draw.error, "Ascension"), "bad");
               return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
             }
-            if (draw.ok && !(await run("Reveal", () => prestigeRevealCalls(commitId, draw.reveal.success, draw.reveal.signature), { settles: true }))) {
-              return { status: "stranded", note: "Your attempt is paid for. Reopen to finish it" };
-            }
-            // The result is what the CHAIN did with the reveal, read once it has landed. Never the
-            // signed outcome at the moment the wallet took the send: see settleAscension.
-            const after = await settleAscension(word, commitId);
             // lib/onchain/ascendResult says what each of these is, and why none of them is a guess.
-            const came = ascendResult({ level, owner, resumed, commit: draw.ok ? draw.reveal : null, after });
-            if (came.kind === "unfinished") return { status: "stranded", note: "Your attempt is finishing onchain. It’ll show in a moment." };
-            if (came.kind === "foreign") {
-              // Nothing was spent by this tap and nothing is left open: ready again, never "missed".
-              toast(`Finished an earlier attempt on ${word}. Try again for yours`, "info");
-              return { status: "not-started" as const };
-            }
-            // The ascend sheet the try was made in shows the result. Say it here when that sheet is
-            // gone, so the outcome is said once, and always said.
-            if (!sheetShows()) {
-              const said = resultToast(word, came.hit, came.level, prestigeSuccessProbability(came.pity, came.level) > oddsAtTap);
-              toast(said.text, said.tone);
-            }
-            return { status: "resolved", success: came.hit, stage: { level: came.level, pity: came.pity } };
+            return tell(ascendResult({ level: from.level, owner, resumed, own, already, commit: draw.ok ? draw.reveal : null, after }), from);
           });
+          ascending.current.delete(word);
           // Paid, and not known to be finished. The sheet says so if it is still there; if not,
-          // say it here, or the last word on a spent fee is the wallet's own "Cancelled". Either
-          // way the word carries the mark until a reveal is read back for it.
+          // say it here, or the last word on a spent fee is silence. Either way the word carries
+          // the mark, with the attempt's commit when it is known, until a reveal is read back.
           if (outcome.status === "stranded") {
-            markAscent(word, { level, pity: pityAtTap });
+            markAscent(word, { ...left.at, commitId: left.commitId });
             if (!sheetShows()) toast(strandedToast(word, outcome.note), "info");
           }
           return outcome;
@@ -2226,7 +2341,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, unfinishedAscents, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

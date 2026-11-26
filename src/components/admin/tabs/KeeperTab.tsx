@@ -17,7 +17,7 @@ import { NETWORK } from "@/lib/onchain/network";
 const SIGNER_DUTIES = [
   ["Letter draws", "Draw a fair, demand-mirrored letter set under the per-letter caps, then sign the reveal so Letters.reveal can mint. The first draw for a commit is kept (letter_draws), so a commit never has two valid draws."],
   ["Roll outcomes", "Decide each roll's success on the pity-adjusted odds and sign it. The server's relayer key then sends Rolls.reveal itself, so the wallet never previews the result."],
-  ["Prestige outcomes", "Decide each ascension attempt and sign so Prestige.reveal can bump the level (re-validated on-chain)."],
+  ["Prestige outcomes", "Decide each ascension attempt and sign so Prestige.reveal can bump the level (re-validated on-chain). The relayer key then sends Prestige.reveal itself, so the player confirms once and the result isn't interrupted by a second prompt."],
   ["Daily letter", "Check the player's identity (a Farcaster FID, an X account older than 90 days, or a Coinbase-verified wallet), refuse if any of them took today's letter, then sign the free daily voucher."],
 ];
 
@@ -65,7 +65,7 @@ export function KeeperTab() {
       <AdminCard title="Server duties (signed or sent by the server, not from here)">
         <p className="mb-2 text-xs text-ink/60">
           The backend signer (<span className="font-mono">{shortAddr(d?.roles.signer)}</span>) signs these so the
-          on-chain reveal functions can verify them. Only roll reveals are sent by the server (the relayer key).
+          on-chain reveal functions can verify them. Roll and ascension reveals are also sent by the server (the relayer key); letter reveals are sent by the player's wallet.
         </p>
         {SIGNER_DUTIES.map(([k, v]) => (
           <KeyVal key={k} k={<span className="font-bold">{k}</span>} v={<span className="max-w-[60%] text-right text-xs font-normal text-ink/60">{v}</span>} />

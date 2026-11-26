@@ -3,7 +3,7 @@
  * Each rule here was a way to tell a player the wrong thing about a try they paid for.
  */
 import { describe, it, expect } from "vitest";
-import { ascendResult } from "@/lib/onchain/ascendResult";
+import { answerLost, ascendResult, revealPlan } from "@/lib/onchain/ascendResult";
 
 const OWNER = "0xAbC0000000000000000000000000000000000001";
 const base = { level: 1, owner: OWNER, resumed: false, commit: { level: 1, owner: OWNER } };
@@ -50,14 +50,95 @@ describe("ascendResult", () => {
     expect(ascendResult({ ...base, resumed: false, commit: { level: 3, owner: "0x0" }, after: at(1) })).toMatchObject({ kind: "result" });
   });
 
-  it("a resumed attempt that was already revealed when asked isn't this tap's: ready again, never a miss it didn't make", () => {
-    // another tab finished it, or a lagging read called a finished attempt open: the tap paid nothing
-    expect(ascendResult({ ...base, resumed: true, commit: null, after: at(1) })).toEqual({ kind: "foreign" });
-    expect(ascendResult({ ...base, resumed: true, commit: null, after: at(2) })).toEqual({ kind: "foreign" });
+  it("a NEW attempt already revealed when asked is still this tap's: it paid, and the chain's stage gives the result", () => {
+    expect(ascendResult({ ...base, resumed: false, already: true, commit: null, after: at(2) })).toEqual({ kind: "result", hit: true, level: 2, pity: 0 });
+    expect(ascendResult({ ...base, resumed: false, already: true, commit: null, after: at(1, 1) })).toEqual({ kind: "result", hit: false, level: 1, pity: 1 });
+  });
+});
+
+describe("ascendResult: a resumed attempt that was already revealed", () => {
+  it("with nothing to say it was this player's own, isn't this tap's: ready again, never a miss it didn't make", () => {
+    // a lagging read called a finished attempt open: the tap paid nothing
+    expect(ascendResult({ ...base, resumed: true, already: true, commit: null, after: at(1) })).toEqual({ kind: "foreign" });
+    expect(ascendResult({ ...base, resumed: true, already: true, commit: null, after: at(2) })).toEqual({ kind: "foreign" });
   });
 
-  it("a NEW attempt already revealed when asked is still this tap's: it paid, and the chain's stage gives the result", () => {
-    expect(ascendResult({ ...base, resumed: false, commit: null, after: at(2) })).toEqual({ kind: "result", hit: true, level: 2, pity: 0 });
-    expect(ascendResult({ ...base, resumed: false, commit: null, after: at(1, 1) })).toEqual({ kind: "result", hit: false, level: 1, pity: 1 });
+  it("stays foreign when the server names the commit: the relay's “already” answer carries its facts", () => {
+    // Under relay the answer is ok:true with the commit's stage and owner, where it used to be a
+    // 409 with nothing. Matching facts must not turn "already revealed, not ours" into a miss.
+    expect(ascendResult({ ...base, resumed: true, already: true, commit: { level: 1, owner: OWNER }, after: at(1, 1) })).toEqual({ kind: "foreign" });
+  });
+
+  it("is owed its result when it is the player's own unfinished attempt: the server finished it and the answer was lost", () => {
+    // `level` is the stage the attempt was MARKED at, so a hit that landed while nobody was told is still a hit
+    expect(ascendResult({ ...base, resumed: true, own: true, already: true, commit: { level: 1, owner: OWNER }, after: at(2) })).toEqual({
+      kind: "result",
+      hit: true,
+      level: 2,
+      pity: 0,
+    });
+    expect(ascendResult({ ...base, resumed: true, own: true, already: true, commit: null, after: at(1, 4) })).toEqual({
+      kind: "result",
+      hit: false,
+      level: 1,
+      pity: 4,
+    });
+  });
+
+  it("an own attempt whose commit turns out to be another stage's is still foreign", () => {
+    expect(ascendResult({ ...base, resumed: true, own: true, already: true, commit: { level: 0, owner: OWNER }, after: at(1) })).toEqual({ kind: "foreign" });
+  });
+
+  it("a resumed attempt with nothing known of its commit (the answer was lost) is foreign unless it is the player's own", () => {
+    expect(ascendResult({ ...base, resumed: true, commit: null, after: at(1, 1) })).toEqual({ kind: "foreign" });
+    expect(ascendResult({ ...base, resumed: true, own: true, commit: null, after: at(1, 1) })).toMatchObject({ kind: "result", hit: false });
+  });
+});
+
+describe("revealPlan (what the game does with the server's answer)", () => {
+  const SIG = `0x${"ab".repeat(65)}` as const;
+
+  it("mined, with where it left the word: show that", () => {
+    expect(revealPlan({ relayed: "mined", success: true, stage: 2, pity: 0 })).toEqual({ do: "use", stage: { level: 2, pity: 0 } });
+    expect(revealPlan({ relayed: "mined", success: false, stage: 1, pity: 3 })).toEqual({ do: "use", stage: { level: 1, pity: 3 } });
+  });
+
+  it("mined, but the server couldn't read the level: read the chain, never fill it in", () => {
+    expect(revealPlan({ relayed: "mined", success: false, stage: null, pity: 3 })).toEqual({ do: "read", already: false });
+  });
+
+  it("pending, reverted, already: a reveal is out or done, so read the chain", () => {
+    expect(revealPlan({ relayed: "pending" })).toEqual({ do: "read", already: false });
+    expect(revealPlan({ relayed: "reverted" })).toEqual({ do: "read", already: false });
+    expect(revealPlan({ relayed: "already" })).toEqual({ do: "read", already: true });
+  });
+
+  it("only an answer with NOTHING broadcast reaches the wallet", () => {
+    expect(revealPlan({ success: true, signature: SIG })).toEqual({ do: "wallet", success: true, signature: SIG });
+    // a second reveal from the wallet would revert when the server's lands: `relayed` wins, even
+    // beside a signature
+    for (const relayed of ["mined", "pending", "reverted", "already"] as const) {
+      expect(revealPlan({ relayed, success: true, signature: SIG }).do).not.toBe("wallet");
+    }
+  });
+
+  it("an answer it can't act on is none of these: the attempt stays unfinished, and nothing is sent", () => {
+    expect(revealPlan({})).toEqual({ do: "none" });
+    expect(revealPlan({ success: true })).toEqual({ do: "none" });
+    expect(revealPlan({ signature: SIG })).toEqual({ do: "none" });
+  });
+});
+
+describe("answerLost", () => {
+  it("a failed fetch, or a 5xx with no JSON, says nothing about whether the server finished the attempt", () => {
+    expect(answerLost("request_failed")).toBe(true);
+    expect(answerLost("http_504")).toBe(true);
+    expect(answerLost("http_502")).toBe(true);
+  });
+
+  it("an error the server stated means it refused before sending anything", () => {
+    for (const e of ["rate_limited", "unknown_commit", "bad_commit_id", "already_revealed", "http_404", "http_429", undefined]) {
+      expect(answerLost(e)).toBe(false);
+    }
   });
 });

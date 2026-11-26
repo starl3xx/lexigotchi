@@ -736,7 +736,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   network, reverted, or pending. The balance is only the fallback for a send nobody can trace, from a
   fresh read (a cached baseline both missed real mints and passed off earlier ones). Every read is
   capped, since the action gate waits on them. "Sent" proved nothing: a tester's wallet said sent
-  and broadcast nothing (2026-11-24). **Rolls are
+  and broadcast nothing (2026-11-24). **Rolls (and ascension attempts, see the word ladder below) are
   finished by the server** (decisions.md #14): `revealRoll` posts `{ relay: true }` and
   `/api/roll/reveal` sends `Rolls.reveal` from `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`),
   so the wallet never previews the result; the answer's `relayed` field says what happened, and only
@@ -778,13 +778,31 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   "Try for" the next stage on the result. **A try in flight is "Attempting ascension", never
   "Ascending"** (starl3xx, 2026-11-25: it may miss), and the act is a "try"; `tests/ascend-sheet.test.tsx`
   holds it. The button's price is the stage's fee plus the snack the try burns: what the wallet pays.
-  **The result is the chain's, not the signature's:** the wallet sends the reveal (two
-  confirmations: the relay that finishes rolls doesn't cover ascension yet), and a send returns
-  when the wallet accepts, so `settleAscension` waits for `commits(id).revealed` and reads the
-  word's stage and pity in the same multicall (`readPrestigeAttempt`), `lib/onchain/ascendResult.ts`
-  decides what that is (a result, a "foreign" earlier attempt → ready again, or unfinished →
-  stranded, no try offered), and `lib/onchain/stageOverlay.ts` shows the new stage over the slower
-  words read (60 s at most). Attempts read as revealed are skipped by every later search for an
+  **The server finishes the attempt** (decisions.md #44, as it does rolls, #14): the game posts
+  `{ commitId, relay: true }` to `/api/prestige/reveal`, which sends `Prestige.reveal` from
+  `RELAYER_PRIVATE_KEY` (`lib/onchain/relayer.ts`, `relayPrestigeReveal`) and answers with what
+  the CHAIN did, read from the reveal's own event (`lib/onchain/relayOutcome.ts`, tested on real
+  Sepolia logs): a hit's new level, or a miss's pity plus the level read AT the reveal's block (the
+  event doesn't carry it; the same word may stand stages higher later). One wallet confirmation an
+  attempt. `revealPlan` (`lib/onchain/ascendResult.ts`) says what the game does with each answer:
+  **only an answer with no `relayed` field ever reaches the wallet** (no relayer key, or its send
+  was refused); once anything is broadcast (`pending`, `reverted`), or was done already
+  (`already`), the game reads the chain and never sends a second reveal. The route without
+  `relay: true` answers exactly as before (an old client bundle keeps working through a deploy).
+  The relayer's in-flight sends are keyed by contract AND commit (`roll:7`, `prestige:7`): each
+  contract counts its own commits. **A lost answer is the usual way to end unfinished now** (the
+  route holds the request up to 20 s for the block): on a failed fetch or a 5xx the game asks the
+  chain before calling anything unfinished (`answerLost`), the unfinished mark keeps its commit
+  id so "Finish your attempt" asks the server about THAT commit and says its result, and a mark
+  whose reveal lands later on its own is dropped with its result said in a toast (the words
+  effect; a word with an action in flight is left to that action).
+  **The result is the chain's, not the signature's:** when the game reads it itself,
+  `settleAscension` waits for `commits(id).revealed` and reads the word's stage and pity in the
+  same multicall (`readPrestigeAttempt`); `lib/onchain/ascendResult.ts` decides what that is (a
+  result, a "foreign" earlier attempt → ready again, or unfinished → stranded, no try offered);
+  and `lib/onchain/stageOverlay.ts` shows the new stage over the slower words read (60 s at most).
+  Every path that learns a reveal landed ends in `noteAscension` (never open again, stage noted,
+  mark cleared, words re-read). Attempts read as revealed are skipped by every later search for an
   open one (`revealedAttempts`), as `revealedRolls` are. The outcome carries the chain's own
   `stage` (level, pity), and the sheet shows that, never one worked out from hit or miss. **How a
   try ends is said once, and always:** by the sheet it was made in, or, if that sheet has gone
