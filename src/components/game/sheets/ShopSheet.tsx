@@ -15,9 +15,9 @@ import { useState } from "react";
 import { Button, Sheet } from "../primitives";
 import { CircleNotch, Plus, ShoppingBag } from "../ui/icons";
 import { useGame } from "../state";
-import { useShopRegistry, useWardrobe } from "../useShop";
+import { useShopRegistry, useShopScenes, useWardrobe } from "../useShop";
 import { SceneThumb } from "../../scenes/SceneFrame";
-import { sceneOfItem } from "@/lib/shop/scenes";
+import { sceneOfItem, sceneSale } from "@/lib/shop/scenes";
 import { erc20Abi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { usdcAddress } from "@/lib/onchain/addresses";
@@ -39,6 +39,7 @@ export function ShopSheet() {
 
   const shopQ = useShopRegistry();
   const wardrobeQ = useWardrobe();
+  const scenes = useShopScenes();
   const usdc = usdcAddress();
   const balanceQ = useQuery({
     queryKey: ["shop", "usdc", address],
@@ -91,7 +92,9 @@ export function ShopSheet() {
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/60">
             <CircleNotch className="animate-spin" /> Opening the Shop…
           </div>
-        ) : !shopQ.data ? (
+        ) : !shopQ.data || !shopQ.data.metaKnown ? (
+          // No answer, or one that couldn't say what the items are: listing them then would show a
+          // real item as the test network's placeholder, and sell a scene to someone who has it.
           <p className="py-6 text-center text-sm text-ink/60">The Shop didn’t load. Close it and try again.</p>
         ) : cards.length === 0 ? (
           <div className="cel rounded-2xl bg-card p-5 text-center">
@@ -107,6 +110,10 @@ export function ShopSheet() {
               const short = balance !== undefined && balance < card.item.priceUsdc;
               const name = card.kind === "item" ? card.meta.name : card.name;
               const scene = card.kind === "item" ? sceneOfItem(card.meta) : null;
+              // A scene is bought once: a second one gets the player nothing. So it is sold only on
+              // a positive "you don't have it" (lib/shop/scenes, sceneSale), from the wardrobe AND
+              // from every item that sells this scene, not this item alone.
+              const sale = scene ? sceneSale({ known: scenes.known, bought: scenes.bought.has(scene), checking: wardrobeQ.isLoading || shopQ.isLoading }) : "sell";
               return (
                 <li key={card.item.id} className="cel-sm rounded-2xl bg-card p-3">
                   {/* a scene shows what it is: its card, with no word on it */}
@@ -127,15 +134,19 @@ export function ShopSheet() {
                               ? "A scene"
                               : "A costume"}
                       </div>
-                      {owned > 0 && (
+                      {(owned > 0 || sale === "have") && (
                         <div className="mt-1 text-xs font-bold text-teal-ink">
-                          {owned === 1 ? "You have it" : `You have ${owned}`}
+                          {owned > 1 ? `You have ${owned}` : "You have it"}
                         </div>
                       )}
                     </div>
                     <div className="shrink-0 text-right text-sm font-bold">{usdcLabel(card.item.priceUsdc, testnet)}</div>
                   </div>
-                  {status === "on_sale" ? (
+                  {sale === "have" ? null : sale !== "sell" ? (
+                    <div className="mt-2 text-center text-xs font-bold text-ink/55">
+                      {sale === "checking" ? "Checking what you have…" : "Couldn’t check what you have. Close the Shop and try again."}
+                    </div>
+                  ) : status === "on_sale" ? (
                     <Button
                       full
                       size="sm"

@@ -9,6 +9,7 @@
 import type { Tier } from "@/lib/economy";
 import { FREE_SCENES, SCENES, isShopScene } from "@/lib/scenes";
 import { usdcLabel } from "@/lib/shop/rules";
+import { shopSceneOffer } from "@/lib/shop/scenes";
 import { NETWORK } from "@/lib/onchain/network";
 import { Lock, ShoppingBag } from "../game/ui/icons";
 import { useGame } from "../game/state";
@@ -22,8 +23,11 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
   const { unlocked, count, need } = useSceneUnlock();
   const shop = useShopScenes();
   // A Shop scene is listed only when the player has it, or can buy it now: one that nobody can get
-  // (the Shop hasn't listed it, or is switched off) isn't shown at all.
-  const scenes = SCENES.filter((s) => !isShopScene(s.id) || shop.bought.has(s.id) || shop.onSale.has(s.id));
+  // (the Shop hasn't listed it, or is switched off) isn't shown at all. Until what they have is
+  // known, none is offered for sale (lib/shop/scenes, shopSceneOffer).
+  const offerOf = (id: (typeof SCENES)[number]["id"]) =>
+    shopSceneOffer({ bought: shop.bought.has(id), known: shop.known, onSale: shop.onSale.has(id), showing: scene === id });
+  const scenes = SCENES.filter((s) => !isShopScene(s.id) || offerOf(s.id) !== null);
   return (
     <div className="space-y-2">
       {!unlocked && (
@@ -38,7 +42,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
         {scenes.map((s) => {
           const on = scene === s.id;
           // In the Shop, not bought: the tile opens the Shop, where the scene is for sale.
-          const forSale = isShopScene(s.id) && !shop.bought.has(s.id) ? shop.onSale.get(s.id) : undefined;
+          const forSale = isShopScene(s.id) && offerOf(s.id) === "buy" ? shop.onSale.get(s.id) : undefined;
           if (forSale) {
             const price = usdcLabel(forSale.priceUsdc, NETWORK.isTestnet);
             return (

@@ -20,12 +20,16 @@ interface ShopJson {
   ok: boolean;
   revenueBps?: number;
   paused?: boolean;
+  metaKnown?: boolean;
   items?: (Omit<RegistryItem, "priceUsdc"> & { priceUsdc: string; meta: ItemMeta | null })[];
 }
 export type ShopItem = RegistryItem & { meta: ItemMeta | null };
 export interface ShopRegistry {
   paused: boolean;
   revenueBps: number;
+  /** False when the server couldn't read what the items are (every `meta` is null then): what an
+   *  item is, and so what the player owns, is not known. */
+  metaKnown: boolean;
   items: ShopItem[];
 }
 
@@ -43,6 +47,7 @@ export function useShopRegistry() {
       return {
         paused: d.paused === true,
         revenueBps: d.revenueBps ?? 8_000,
+        metaKnown: d.metaKnown !== false,
         items: (d.items ?? []).map((it) => ({ ...it, priceUsdc: BigInt(it.priceUsdc) })),
       };
     },
@@ -67,6 +72,7 @@ export function useWardrobe() {
 }
 
 const NO_SCENES: ReadonlySet<SceneId> = new Set();
+const NOTHING_BOUGHT: ReadonlyMap<number, number> = new Map();
 const NONE_ON_SALE: ReadonlyMap<SceneId, ShopItem> = new Map();
 
 /**
@@ -75,17 +81,24 @@ const NONE_ON_SALE: ReadonlyMap<SceneId, ShopItem> = new Map();
  * - `known`: whether that answer is in. While it isn't (still loading, a failed read, the Shop
  *   switched off), a word's saved pick of a Shop scene keeps showing: taking a paid scene off a
  *   buyer's card because a read failed would be the worse mistake (the 3-word unlock treats
- *   "unknown" the same way). The picker offers a Shop scene only on a positive answer.
+ *   "unknown" the same way). The picker offers a Shop scene only on a positive answer, and offers
+ *   one FOR SALE only when `known` (lib/shop/scenes, shopSceneOffer): `onSale` can be in before
+ *   the wardrobe is, and a scene the player owns must never be sold to them again.
  * - `onSale`: the Shop scenes that can be bought now, each with its item.
  * The practice game has no Shop: nothing bought, nothing on sale, and that is known.
  */
 export function useShopScenes(): { bought: ReadonlySet<SceneId>; known: boolean; onSale: ReadonlyMap<SceneId, ShopItem> } {
   const { state } = useGame();
   const registry = useShopRegistry().data;
-  const wardrobe = useWardrobe().data;
+  const read = useWardrobe().data;
+  // With no wallet there is no wardrobe to read, and nothing bought: that is an answer.
+  const noWallet = usePlayerWallets().length === 0;
+  const wardrobe = noWallet ? NOTHING_BOUGHT : read;
   return useMemo(() => {
     if (!state.chainBacked) return { bought: NO_SCENES, known: true, onSale: NONE_ON_SALE };
-    if (!registry) return { bought: NO_SCENES, known: false, onSale: NONE_ON_SALE };
+    // No registry, or one that couldn't say what its items are: nothing is known, and nothing is
+    // offered (an item whose row couldn't be read looks like "not a scene").
+    if (!registry || !registry.metaKnown) return { bought: NO_SCENES, known: false, onSale: NONE_ON_SALE };
     const metaOf = (id: number) => registry.items.find((it) => it.id === id)?.meta ?? null;
     const onSale = registry.paused ? NONE_ON_SALE : (scenesOnSale(registry.items, metaOf, Math.floor(Date.now() / 1000)) as Map<SceneId, ShopItem>);
     if (!wardrobe) return { bought: NO_SCENES, known: false, onSale };

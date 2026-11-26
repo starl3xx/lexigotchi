@@ -29,6 +29,37 @@ export function boughtScenes(owned: ReadonlyMap<number, number>, metaOf: (itemId
 }
 
 /**
+ * What the scene picker does with one Shop scene, for one player:
+ * - "pick": it is theirs, so it is picked like any scene;
+ * - "buy": they don't have it (a positive answer) and it can be bought now, so its tile shows the
+ *   price and opens the Shop;
+ * - null: it isn't listed.
+ * While what they have isn't known (`known` false: the wardrobe is loading, a read failed), a scene
+ * is never offered for sale: they may own it, and paying twice for a scene gets them nothing. The
+ * one their word is showing then (lib/scenes, sceneShows) stays in the list, as picked.
+ */
+export function shopSceneOffer(a: { bought: boolean; known: boolean; onSale: boolean; showing: boolean }): "pick" | "buy" | null {
+  if (a.bought) return "pick";
+  if (!a.known) return a.showing ? "pick" : null;
+  return a.onSale ? "buy" : null;
+}
+
+/**
+ * Whether the Shop sells a scene to one player now:
+ * - "have": their profile has it. A scene is bought once (a second purchase gets them nothing),
+ *   so there is no Buy;
+ * - "sell": a positive answer that they don't have it;
+ * - "checking": what they have is still being read;
+ * - "unknown": it couldn't be read. No Buy either: selling a scene to someone who may own it is
+ *   the mistake to avoid, and a purchase couldn't be shown to them anyway.
+ */
+export function sceneSale(a: { known: boolean; bought: boolean; checking: boolean }): "have" | "sell" | "checking" | "unknown" {
+  if (a.bought) return "have";
+  if (a.known) return "sell";
+  return a.checking ? "checking" : "unknown";
+}
+
+/**
  * The Shop scenes that can be bought right now, each with its item (the cheapest, when two items
  * sell the same scene): what the scene picker offers a player who doesn't have the scene.
  */

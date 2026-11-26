@@ -3,7 +3,7 @@
  * sale. Money rides on the first rule, so every way to NOT be granted one is held here.
  */
 import { describe, it, expect } from "vitest";
-import { boughtScenes, sceneOfItem, scenesOnSale } from "@/lib/shop/scenes";
+import { boughtScenes, sceneOfItem, sceneSale, scenesOnSale, shopSceneOffer } from "@/lib/shop/scenes";
 import type { ItemMeta, RegistryItem } from "@/lib/shop/rules";
 
 const meta = (kind: string, art: string | null, name = "x"): ItemMeta => ({ name, kind: kind as ItemMeta["kind"], art });
@@ -70,5 +70,38 @@ describe("the Shop scenes on sale", () => {
     const gone = [item(1, { end: NOW - 1 }), item(3, { maxSupply: 10, sold: 10 })];
     expect(scenesOnSale(gone, metaOf, NOW).size).toBe(0);
     expect(scenesOnSale([item(7)], metaOf, NOW).size).toBe(0);
+  });
+});
+
+describe("what the scene picker offers", () => {
+  it("lets a player pick a scene they have, on sale or not", () => {
+    expect(shopSceneOffer({ bought: true, known: true, onSale: true, showing: false })).toBe("pick");
+    expect(shopSceneOffer({ bought: true, known: true, onSale: false, showing: false })).toBe("pick");
+  });
+
+  it("offers one for sale only on a positive answer that they don't have it", () => {
+    expect(shopSceneOffer({ bought: false, known: true, onSale: true, showing: false })).toBe("buy");
+    expect(shopSceneOffer({ bought: false, known: true, onSale: false, showing: false })).toBeNull();
+  });
+
+  it("never offers one for sale while what they have isn't known (Bugbot on #235: the Shop answers before the wardrobe)", () => {
+    expect(shopSceneOffer({ bought: false, known: false, onSale: true, showing: false })).toBeNull();
+    // the one their word is showing stays in the list, as picked
+    expect(shopSceneOffer({ bought: false, known: false, onSale: true, showing: true })).toBe("pick");
+  });
+});
+
+describe("whether the Shop sells a scene to a player", () => {
+  it("sells it once: no Buy for a scene they have", () => {
+    expect(sceneSale({ known: true, bought: true, checking: false })).toBe("have");
+  });
+
+  it("sells it on a positive answer that they don't have it", () => {
+    expect(sceneSale({ known: true, bought: false, checking: false })).toBe("sell");
+  });
+
+  it("doesn't sell it while that is being read, or couldn't be", () => {
+    expect(sceneSale({ known: false, bought: false, checking: true })).toBe("checking");
+    expect(sceneSale({ known: false, bought: false, checking: false })).toBe("unknown");
   });
 });

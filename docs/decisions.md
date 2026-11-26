@@ -1239,7 +1239,14 @@ setter. All small, riding existing suite patterns.
     - **Unknown is not "no".** While the wardrobe is loading, its read failed, or the Shop is
       switched off, a word's saved Shop scene keeps showing: taking a paid scene off a buyer's
       card because a read failed would be the worse mistake. The picker offers one only on a
-      positive answer. (The 3-word unlock treats unknown the same way.)
+      positive answer. (The 3-word unlock treats unknown the same way.) "Unknown" includes a
+      Shop answer that couldn't say what its items are: `/api/shop` sets `metaKnown: false`
+      when the database read failed, and the Shop sheet lists nothing then (Bugbot on #235: every
+      `meta` null read as "no item is a scene", and a buyer's scene came off their card).
+    - **A scene is sold once, and never on a guess** (Bugbot on #235: the Shop answers before the
+      wardrobe does). The picker offers a scene for sale only when it is known the player doesn't
+      have it (`shopSceneOffer`), and the Shop sheet shows Buy for a scene only then
+      (`sceneSale`): "You have it" with no Buy for one they own, by any item that sells it.
     - **Left open, the owner's call:** a share link draws whatever scene it names, as it always
       has (the page doesn't ask who owns a word, #15), so a hand-typed link can picture a word in
       a Shop scene its owner hasn't bought. It is a picture only. Closing it means the share page

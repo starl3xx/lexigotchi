@@ -475,7 +475,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   with `art` = the scene id (`lib/shop/scenes.ts`; nothing else grants one). `useShopScenes`
   (`game/useShop.ts`) gives `bought`, `onSale`, and `known`: **unknown is not "no"** (a saved Shop scene
   keeps showing while the wardrobe is loading, failed, or the Shop is off), and the picker offers one
-  only on a positive answer. `/api/scenes` won't save one for a profile that hasn't bought it. Listing
+  only on a positive answer, and for sale only when `known` (`shopSceneOffer`; the Shop sheet's Buy
+  for a scene the same, `sceneSale`: a scene is bought once). `/api/shop`'s `metaKnown: false` (the
+  database couldn't say what the items are) is "unknown" too, and the Shop sheet lists nothing then.
+  `/api/scenes` won't save one for a profile that hasn't bought it. Listing
   is the owner's (`Shop.addItem`, then the `shop_items` row); none is listed yet. **Curved ground is one rule:** a
   scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
   is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands
