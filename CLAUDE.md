@@ -433,7 +433,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
 - `src/lib/showcase.ts` + `src/app/s/[text]/` → **Word shares, X first** (decisions.md #13; still named "showcase" in the code, though the Showcase screen folded into the word cards): a
   share links to `/s/<word>?scene=<id>` (the case in the path is each tile's case), whose `og:image`
-  is `/s/<word>/card` (1200×630 for X; `?ratio=3x2` for the `fc:miniapp` embed). **Only the player's
+  is `/s/<word>/card`: the word's card on a dark table (1200×630 for X; `?ratio=3x2` for the
+  `fc:miniapp` embed; `?face=1` is the card's front alone, 1200×675, which the share video turns
+  over). **A link with no `scene` means the Stage** (`LINK_DEFAULT_SCENE`: links made before the stock
+  card existed are posted for good), so every other scene is named in its link, the stock card too
+  (`parseLinkScene`). The ribbon's number on the picture is the chain's (`lib/onchain/cardNumbers`),
+  never the link's. Its lettering is TeX Gyre Pagella (`public/fonts`, GUST Font License beside it):
+  the server has no fonts, and the app ships none for the card's serif. **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
   on the game's card. **Raise `CARD_LOOK` (lib/showcase.ts) whenever the card picture's look changes**
@@ -445,22 +451,37 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
-- **Scenes** (decisions.md #15; `src/lib/scenes.ts` = the list and the unlock, `SCENE_UNLOCK_WORDS`
-  = 3 words ever held, so it stays open after a dissolve: `state.wordsEverHeld`, from
-  `readWordsHeld`'s transfer scan; `src/components/scenes/`): each word's home on the Today stage
-  (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9), on its card in the Bag, in the scene sheet (`sheets/SceneSheet`, the
-  palette button under the stage, or Scene under an opened card), and on the share card. The Today stage walks the player's words
-  with ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with
-  the next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry
-  (`toneOf`, `.scene-tone`/`.scene-fog` in globals.css: feTurbulence fog images drifting in three
-  layers, over the word, under the bubble and arrows). One drawing per scene (`art/*.tsx`) serves
-  the browser and Satori, so it keeps Satori's rules (`kit.tsx` says them; `tests/scenes.test.tsx`
-  holds them): plain SVG elements only, called as functions (a component or fragment inside the
-  `<svg>` crashes the card), no attribute left undefined (Satori writes "undefined", and a bad
-  `transform` drops the group), no `<text>`. The feet stand `SCENE_FLOOR` units above the bottom in
-  every scene and size (`layout.ts`, shared with the card). Motion is the `scn-` classes in
-  globals.css, behind prefers-reduced-motion, only when `animated` (never on the card or
-  thumbnails). **A pick is saved** in the browser always, and in table `word_scenes` (migration
+- **Scenes and the card's front** (decisions.md #15 and #34; `src/lib/scenes.ts` = the list and the
+  unlock; `src/lib/cardArt/` = the pictures; `src/components/scenes/`): a word's card front is
+  `SceneFrame` (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9; also the Bag, the scene sheet, the
+  purchase celebration, the share page). **The card is an object:** its own paper, the scene's art in
+  a window, a frame in the rarity's ink with the rarity's mark in its corners, and a ribbon ("one of
+  one", the card's number from `cards/useCardNumber` and `/api/words/numbers`, the rarity; no ribbon
+  on a `small` card). **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the card's serif
+  (`--font-card`: Iowan Old Style where the device has it, no file shipped) letters what a card says
+  ABOUT a word, never the word. **Scenes:** every word starts on the stock card (`DEFAULT_SCENE`:
+  grey, the rarity as an overtone); the Stage is free too (`FREE_SCENES`); the Trophy Case and Spring
+  open at `SCENE_UNLOCK_WORDS` = 3 words ever held (`state.wordsEverHeld`, so it stays open after a
+  dissolve). Picture Day, Summer, Fall, and Winter are retired: a pick or link that names one reads
+  as the stock card. **A scene is a still picture and never moves** (starl3xx: "the only animation
+  for still scenes should be something that makes the card itself look cool"). Its art and the frame
+  are SVG documents built as strings (`lib/cardArt/engrave.ts` = the kit and its rules,
+  `scenes.ts` = the art; `tests/scenes.test.tsx` holds the rules: no text, filters, or fetches, every
+  number finite, ids unique), shown as background images in the game and placed as `<img>` on the
+  share picture: no shapes in the page (a scene was 1,000 elements; Today at rest with a fed word
+  on stage went from about 53% of a core to 8% in WebKit). **The letters stand on `FEET_Y`** (two thirds down), sized by
+  `scenes/layout.ts` (`wordLayout`, shared with the share picture). **Curved ground is one rule:** a
+  scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
+  is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands
+  stay joined. **The card's own light** (`cards/useCardLight`, `.sc-sheen`/`.sc-glare`/`.sc-lean`) is
+  the only motion: a faint band of light in moments, and a lean toward a mouse pointer, on the card in
+  focus only, never for a hungry word; the lean's transform is written directly with no transition
+  while it follows (a transition restarted each frame cost a third of a core). Keep such effects
+  faint (the owner: "much more subtle/transparent"). The Today stage walks the player's words with
+  ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with the
+  next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry (`toneOf`,
+  `.scene-tone`/`.scene-fog` in globals.css), inside the window only: the frame keeps its ink.
+  **A pick is saved** in the browser always, and in table `word_scenes` (migration
   0011, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
@@ -485,13 +506,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   attribute given, for Satori). Three flat paths, no motion. A new mark must not be a star, a tilted
   diamond, a crown, or a sparkle: those mean ascension, a raised letter, and Mint. The player docs'
   picture is `marks.svg` (`npm run docs:art`).
-- **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its scene on the
-  front (`SceneFrame`) and its story on the back (`CardBack`, deep materials per tier in globals.css
+- **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its
+  front (`SceneFrame`: the word in its scene, in the card's frame) and its story on the back (`CardBack`, deep materials per tier in globals.css
   `.cb.m-*`), turned by the corner button. The flip belongs to the word (a host showing another word
   gets its scene), the back mounts on the first turn, and a host holds its scene still while the
   back is up or a sheet covers it. **Only the card in focus moves** (the Today stage, an opened
-  word: `WordSheetCard`); the Bag's grid (`BagWordCard`) is still and draws each scene only as it
-  nears the screen (32 cards drew 32,000 elements). `TileCharacter`'s `still` stops the whole
+  word: `WordSheetCard`); the Bag's grid (`BagWordCard`) is still and draws each card only as it
+  nears the screen. **At rest the face turned away is `visibility: hidden`** (`.sc:not(.is-flipping)`):
+  WebKit kept drawing the back, mirrored, over the front after a turn home. `TileCharacter`'s `still` stops the whole
   character (idle bounce too), and a still `SceneFrame` stops its fog; lists pass `still`
   (`WordTiles still`), and the Dictionary's 80 rows use flat `MiniTiles` (the rig there made each
   keystroke 2–4× slower). The back's facts are `lib/cardFacts.ts` (pure, tested) via
@@ -526,6 +548,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
   newcomer's invitation while their words load (Today, Bag).
+- **The Mint tab lists every letter's actual odds** (decisions.md #33; `components/game/LetterOdds.tsx`,
+  `lib/letterOdds.ts`): the whole alphabet, A to Z, not a card. `letterWeights` is the ONE weight: the
+  signer's `drawLetters` draws by it and the list shows it normalized, so never give the draw or the
+  screen its own copy, and never change the draw's arithmetic (`tests/draw-pinned.test.ts` holds its
+  letters for fixed seeds; a paid commit's letters depend on them). The chain game reads supply
+  (`useLetterSupply`, shared with the lookup sheet): a sold-out letter shows "Sold out" and the rest
+  rise; "N left" shows only at a tenth of the chain's cap or less (`LOW_SHARE`). The docs' odds table
+  (`docs-site/letters.mdx`) is pinned to the code by `tests/letter-odds.test.ts`.
 - **The Jackpot page carries the bounty** (starl3xx, 2026-11-25): one tab (the phone's "Win", the
   rail's "Jackpot"), the daily jackpot then the weekly bounty (`screens/BountySection.tsx`), side by
   side from `lg`. There is no `bounty` view. Today keeps both cards; its bounty card links with
@@ -668,7 +698,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `params.prestigeStageFeeUsd`) and draws at `prestige.baseByLevel[level]` (40/35/30/25/20%) + 10pp
   per miss; each commit records its `level`, which `/api/prestige/reveal` reads. Stage names and the
   fee multiple live in `src/lib/ascension.ts`; never write "Gilded L4"-style copy by hand.
-  **A try is made in the ascend sheet** (decisions.md #33; `sheets/AscendSheet.tsx`, sheet kind
+  **A try is made in the ascend sheet** (decisions.md #35; `sheets/AscendSheet.tsx`, sheet kind
   `ascend`, rules in `components/game/ascendFlow.ts`, pure, tested): the word at full size, its
   letters nervous while a try is out (the rig's `rolling` state, out of step), then the result
   passing along the word letter by letter (`TileWord`'s `states` / `gilds`), and "Try again" or

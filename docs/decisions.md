@@ -889,7 +889,114 @@ setter. All small, riding existing suite patterns.
       opens its view only in the chain game (or when it is the player's), since practice has no
       other owners; the Dictionary's rarity chips flipped rather than the Market's.
 
-33. **Ascending has its own sheet, and a try is never called "ascending"** (starl3xx, 2026-11-25:
+33. **The Mint tab shows every letter's actual odds** (starl3xx, 2026-11-25: "mint letter odds
+    should show the whole alphabet in Mint tab, not styled as a card... like the actual odds % per
+    letter"; then "order should be A-Z", and how many are left "only for the low ones"). It replaces
+    a card that pictured the five most common letters and the five rarest, with no numbers.
+    - **The numbers are the draw's own.** `lib/letterOdds.ts` `letterWeights` is the weight the
+      signer's `drawLetters` uses (a letter's dictionary share, or 0 once none can be minted), and
+      the list shows it normalized (`letterOdds`). One function, so the screen can't drift from a
+      pack. The draw's arithmetic did not change: `tests/draw-pinned.test.ts` holds the letters it
+      gave for fixed seeds, recorded before the weights moved, because a paid commit's letters are a
+      function of its id and the supply.
+    - **Actual, not nominal.** In the chain game the list reads each letter's supply
+      (`useLetterSupply`, the lookup sheet's read, now shared): a sold-out letter says "Sold out"
+      with no odds, and every other letter shows the higher odds it has without it. While that read
+      loads, or after it fails, the list shows the odds with every letter in the draw and says so.
+    - **"Left" only for a letter running low:** a tenth of its supply or less (`LOW_SHARE`), a share
+      of the CHAIN's cap, because q's cap is in the hundreds and e's in the thousands, and a
+      deployed Letters can hold older caps than `economy.ts`.
+    - **A to Z, read down the columns** (two on a phone, three on desktop), with no sort switch: the
+      bars show which letters are common. Not a card: a ruled heading and dashed rows. Bars are
+      gold (chance). 26 still tiles.
+    - **Plain words for the rarest:** "About 1 pack in 100 has a q", computed for the rarest letter
+      still in the draw (five independent draws). The player docs carry the same table
+      (`docs-site/letters.mdx`), pinned to the code by `tests/letter-odds.test.ts`.
+    - **The copy says "pull", never "draw"** (#24 keeps "draw" from the player, where it reads as
+      a lottery; "pull" is the Mint tab's own word). The supply is read again every minute while
+      the Mint tab is open, so "Sold out" and "N left" can be up to a minute old.
+    - The old card's caption named a Pokémon character, against #24; it went with the card, and
+      the copy-rules test now refuses the name.
+    - **Seen and not seen:** the list in practice mode at 390 and 1200 px. The sold-out and low
+      rows only with a made-up supply (the test network has no low letter): the live supply path
+      is held by tests.
+
+34. **A card is an object, and its scene is a still engraving** (starl3xx, 2026-11-25, on the
+    "Cards, Scenes, and Logo" proposal, six versions: "this is ABSOLUTELY the right direction for
+    the cards"; then "After these are fixed, you're free to start building"). The owner pointed at
+    Peter Voth's engraved cards and labels for the manner, and asked that the letters "retain their
+    current style but ... live on top of" such card scenes. Nothing of his is copied.
+    - **The card.** Its own paper, a shade lighter than the page, with a grain and a linen weave;
+      the scene's art in a window; a frame in the rarity's ink (an edge rule, a chain of engraved
+      links, the window's rule) with the rarity's mark in its four corners; and a ribbon set into
+      the frame's lower edge. The rarity has no box of its own (the owner: it "looks out of place
+      ... it should be incorporated into the card design").
+    - **The ribbon reads "one of one", the card's number, the rarity,** in that order (the
+      owner's), in capitals ("I like capitals for the front info"). Its tails are drawn shapes, so
+      the notch carries the ink line; its paper has a grain and fine ruled lines. A phone-sized
+      card drops "one of one". A thumbnail has no ribbon.
+    - **Words are only ever set in Söhne** (the owner: "as a rule, the letters/words should only
+      ever be in Sohne"). The card's serif letters what a card says ABOUT a word (its rarity, its
+      number), never the word. It is **Iowan Old Style only where the device has it** (Macs and
+      iPhones; "only use Iowan where the device has it"): no font is licensed or shipped for the
+      app, and other devices use their own old-style serif. The share picture is drawn on a server,
+      which has no fonts, so it ships **TeX Gyre Pagella**, an open look-alike of Palatino ("let's
+      ship an open-licensed Palatino look-alike for the share card"; GUST Font License, the text
+      beside the file).
+    - **The scenes.** Every word starts on **the stock card**: no place, the card's own engraving
+      in grey with the rarity as an overtone ("grayscale with rarity color overtones"; each
+      rarity's wash has its own strength, because a green reads stronger than a brown or a gold),
+      on a tiled floor in perspective ("I still want it to look like letters are standing on
+      something other than a flat line"). **The Stage** is free for everyone, its colors at about
+      two thirds of their strength and its curtains drawn back to the edges. **The Trophy Case**
+      and **Spring** open at 3 words ever held, as before. **Picture Day, Summer, Fall, and Winter
+      are retired**; a saved pick or a link that names one reads as the stock card. The Bookshelf
+      and Outer Space are drawn (in the proposal) and wait for the Shop.
+    - **The letters stand two thirds of the way down the card** (they stood three quarters down:
+      "it looks too low in every scene"). **On curved ground each letter stands on the curve:**
+      a scene gives one thing, its ground's height across the card, and each letter is lowered to
+      it and turned to its slope, about its own feet (`lib/cardArt/scenes`, GROUND; the owner, of
+      the proposal's planet: "the outer space curve is perfect... we should make sure it's
+      replicable for future scenes"). Spring's hill uses it. Hands stay joined while the curve is
+      gentle (a slope under about 12°).
+    - **A scene never moves. The card does** (the owner: "the only animation for still scenes
+      should be something that makes the card itself look cool, not the objects in the scene",
+      then "much more subtle/transparent"): on the card in focus, a faint band of light crosses
+      the front every 7 to 11 seconds and when the pointer arrives, and the card leans up to 3.5°
+      toward a mouse pointer, with a faint glare. Never in a grid, never for a hungry word.
+    - **How it is built.** A scene's art and the frame are two SVG documents made as strings
+      (`lib/cardArt`), shown as background images in the game and placed as images on the share
+      picture: no shapes in the page. A scene was about 1,000 elements; the art is 50 to 260
+      shapes in one picture. One source draws the game's card and the server's.
+    - **What it measured** (headless WebKit on the owner's Mac, the real Today screen in practice
+      mode at 2× pixels, the pointer away, two runs each; a real iPhone hasn't been measured): with
+      a fed Common word on stage, 50% and 57% of a processor core before, 8% and 9% after. The old
+      scene's own loops were nearly all of it. **That is a fed word only.** With a hungry word on
+      stage, which Today shows first, it was 54% before and 47% after: the sleeping letters' "Zzz"
+      was nearly all of that (44% with it, 5% with it held still, measured the same way), and it was
+      the letters', not the scene's (PR #227 put each z on a layer of its own). The card's light adds nothing measurable: the lean
+      follows the pointer by writing its transform directly, with no transition (a transition
+      restarted on every frame cost a third of a core).
+    - **The share picture** is the card on a dark table, in X's shape (1.91:1) and Farcaster's
+      (3:2); `?face=1` is the card's front alone, 16:9, which the share video turns over. The
+      number on a share picture is the chain's, never the link's, and the picture waits a second
+      and a half for it at most (a crawler is waiting), then is drawn without it and kept for
+      minutes only. `CARD_LOOK` is 3.
+    - **The turn.** At rest the face turned away is hidden outright. Headless WebKit kept drawing
+      the back, mirrored, over the front after a turn home (it did before this change too).
+    - **My readings, not starl3xx's words:** a share link with no scene keeps meaning the Stage
+      (such links are posted for good), so the stock card is named in its link; the 3-word unlock
+      now opens two scenes; the front does not lean with a phone's tilt; the Bag's rarity badge
+      moved off the art to the line under the card, where the mark is large enough to read.
+    - **Not in this step:** the back's new lettering and the game's seal (logo B), so until
+      then the front letters its number "No. 0003" and the back "#0003"; the status
+      placard under the Today card, the logo's new eyes and the exports of both marks, and the
+      Shop's scenes and plastic case. Found on the way, and not this change's: a hungry word's
+      "Zzz" looped inside each letter's top layer (the layer rule of #28, broken), and cost about
+      40 points of a core at rest. Fixed beside this change (PR #227: a layer for each z), so a
+      hungry word on the new card measures 5% too.
+
+35. **Ascending has its own sheet, and a try is never called "ascending"** (starl3xx, 2026-11-25:
     "ascend need its own animation like roll does for letters... like where the word's letters
     get nervous, etc... and a similar modal to roll's roll (and then roll again) screen"; and,
     while it was being built: "the toast / popup shouldn't say “Ascending” it should say
@@ -921,7 +1028,10 @@ setter. All small, riding existing suite patterns.
       (`lib/onchain/stageOverlay.ts`). Before this, "try again" could find the finished attempt
       still open, a miss kept its old odds, and the next stage was priced from the stage before.
       A resumed attempt that wasn't this word's own puts the sheet back to ready, never "missed".
-      A reveal that never shows is "still finishing", with no try offered.
+      A reveal that never shows is "still finishing", with no try offered. The sheet shows the
+      stage and pity the store read back, never ones it works out from "hit" or "miss": a signed
+      success that no longer counts (the word was unstaked or moved first) is no hit and adds no
+      miss, and the first build showed such a word odds 10 points too high (Bugbot on #229).
     - **Still two wallet confirmations** (the paid attempt, then its reveal): the docs said one,
       and now say two. Having the server finish it, as it does for rolls (#14, which names
       ascension as a later case), would make it one and keep the letters nervous without a
@@ -938,8 +1048,9 @@ setter. All small, riding existing suite patterns.
       a plain word.
     - **Seen and not seen:** the whole flow in the practice game, in Chromium and WebKit, at
       phone and desktop widths. The chain game's path (two confirmations, the wait for the
-      reveal, a stranded try) is held by tests of its rules, and was not driven against Base
-      Sepolia.
+      reveal, a stranded try) is held by tests of its rules. Its one new chain read
+      (`readPrestigeAttempt`) was run, read-only, against the 80 attempts on Base Sepolia; the
+      flow itself was not driven with a wallet.
     - **My readings, not starl3xx's words:** "Try for <stage>" as the button; the result passing
       letter by letter; the practice game's 1.4 s of nerves; a hungry word standing bright in
       this sheet, as a letter does in the roll sheet.

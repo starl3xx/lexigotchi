@@ -18,7 +18,7 @@
  * the sender doesn't own, in any case and scene. That is the limit, and it is harmless.
  */
 import { isWord } from "./dictionary";
-import { DEFAULT_SCENE, type SceneId } from "./scenes";
+import { LINK_DEFAULT_SCENE, type SceneId } from "./scenes";
 import { SITE_URL, X_HANDLE } from "./site";
 
 /**
@@ -56,10 +56,14 @@ export function showcaseWordText(word: string, upper: readonly boolean[]): strin
   return [...word].map((c, i) => (upper[i] ? c.toUpperCase() : c.toLowerCase())).join("");
 }
 
-/** The Stage takes no parameter, so a link made before scenes existed is a Stage link. */
+/**
+ * The Stage takes no parameter: a link made before the other scenes existed is a Stage link, and
+ * such links are posted for good (lib/scenes, LINK_DEFAULT_SCENE). Every other scene is named,
+ * the stock card too, though it is where a word starts.
+ */
 function sceneQuery(scene: SceneId | undefined, more: Record<string, string> = {}): string {
   const q = new URLSearchParams(more);
-  if (scene && scene !== DEFAULT_SCENE) q.set("scene", scene);
+  if (scene && scene !== LINK_DEFAULT_SCENE) q.set("scene", scene);
   const s = q.toString();
   return s ? `?${s}` : "";
 }
@@ -77,8 +81,9 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
  * changes (the letters, a scene, the frame), and every cache starts again.
  *
  * 2: the letter review (decisions.md #28).
+ * 3: the card as an object: its frame, its ribbon, the engraved scenes (decisions.md #34).
  */
-export const CARD_LOOK = 2;
+export const CARD_LOOK = 3;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
@@ -95,6 +100,14 @@ export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: S
  */
 export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
   return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}), v: String(CARD_LOOK) })}`;
+}
+
+/**
+ * The card's front alone, 1200×675 with clear corners: no table under it. The share loop turns it
+ * over (components/cards/loop), so it wants the card itself, the size of the back's picture.
+ */
+export function showcaseFacePath(text: string, scene?: SceneId): string {
+  return `/s/${text}/card${sceneQuery(scene, { face: "1", v: String(CARD_LOOK) })}`;
 }
 
 /** The back of the word's card, for the share loop's turning card (`/s/<word>/back`, same origin). */
