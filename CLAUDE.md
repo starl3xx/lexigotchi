@@ -171,7 +171,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `triggers.ts` `webPush*` helpers skip anyone Farcaster already reaches. iPhone needs the Home
   Screen app (`src/app/manifest.ts`). Dark without `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (no toggle
   without it, nor in the mock game) and `WEB_PUSH_ENABLED=true` in production (no sends without it).
-  **Both set 2026-11-26.** The VAPID pair's only copy outside Vercel is the gitignored
+  **Both set 2026-11-26.** A failed turn-on says which step failed and shows the browser's own
+  words (`enableFailure` in `webPushSubscription.ts`, pure, tested): the first real tap failed in
+  the browser's own `pushManager.subscribe`, before any request to us, behind a generic "try
+  again". Headless Chrome can't reproduce it (it refuses every push subscription); the request log
+  (`npx vercel logs requests`) shows whether a POST to `/api/push/subscribe` ever arrived. The VAPID pair's only copy outside Vercel is the gitignored
   `.env.vapid.local` in the owner's checkout: never make a new pair, which orphans every subscribed
   browser.
   **Profile** (`sheets/ProfileSheet.tsx`, opened by the header picture; the balance pill keeps

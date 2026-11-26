@@ -116,3 +116,47 @@ export function parseSubscriptionBody(body: unknown): ParseResult {
     sub: { address: b.address.toLowerCase(), endpoint, p256dh: p256dh as string, auth: auth as string },
   };
 }
+
+// ── Why turning reminders on failed ──────────────────────────────────────────────────────────────
+/** The three things "Turn on reminders" does after the permission: each can fail by itself. */
+export type EnableStep = "worker" | "subscribe" | "save";
+
+/**
+ * What to tell a player when "Turn on reminders" fails: the cause and what to try, and the
+ * browser's own words (`detail`) so a report can name it. One sentence for every failure hid the
+ * cause: the first real tap in production failed inside the browser's own subscribe step, before
+ * any request to us, and the screen said only "try again in a moment" (starl3xx, 2026-11-26).
+ * Pure, so the wording is tested.
+ */
+export function enableFailure(step: EnableStep, err: unknown): { message: string; detail: string | null } {
+  const e = (err ?? {}) as { name?: unknown; message?: unknown; status?: unknown };
+  const name = typeof e.name === "string" ? e.name : "";
+  const text = typeof e.message === "string" ? e.message : "";
+  const status = typeof e.status === "number" ? e.status : undefined;
+  // The browser's words, short, and never an address: a push endpoint is a secret of the browser.
+  const said = [name, text].filter(Boolean).join(": ").replace(/https?:\/\/\S+/g, "[address]").slice(0, 140);
+  const detail = said || null;
+
+  if (step === "save") {
+    if (status === 409) return { message: "This wallet already gets reminders in five browsers. Turn them off in one of those first.", detail: null };
+    if (status !== undefined) return { message: `Lexigotchi couldn’t save your reminders (the server answered ${status}). Try again in a moment.`, detail };
+    return { message: "Couldn’t reach Lexigotchi to save your reminders. Check your connection, or a content blocker, then try again.", detail };
+  }
+  if (step === "worker") return { message: "This browser couldn’t set up reminders. Reload the page and try again.", detail };
+
+  // The browser's own subscribe. Chrome words all of these "Registration failed - …".
+  if (name === "NotAllowedError" || /permission denied/i.test(text)) {
+    return {
+      message: "This browser won’t allow notifications here. Check that they are allowed for this site, and for the browser itself in your system settings, and that this isn’t a private window.",
+      detail,
+    };
+  }
+  if (/push service|gcm|network/i.test(text)) {
+    return {
+      message:
+        "This browser couldn’t reach its notification service. A VPN, a firewall, or a content blocker can stop it. In Brave, turn on “Use Google services for push messaging” in Settings. Then try again.",
+      detail,
+    };
+  }
+  return { message: "This browser couldn’t turn on notifications for Lexigotchi. Restart the browser and try again.", detail };
+}

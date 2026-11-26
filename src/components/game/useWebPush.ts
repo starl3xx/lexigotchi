@@ -21,7 +21,7 @@ import { useAccount } from "wagmi";
 import { useViewer } from "./useViewer";
 import { webSession } from "@/lib/auth/siwfWeb";
 import { isChainBacked } from "@/lib/onchain/gameMode";
-import { iosNeedsHomeScreen } from "@/lib/notify/webPushSubscription";
+import { enableFailure, iosNeedsHomeScreen, type EnableStep } from "@/lib/notify/webPushSubscription";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 /** What the server last stored for this browser: `${address}:${fid}`. Re-sent when it changes. */
@@ -92,12 +92,20 @@ function announce(next: Base) {
   window.dispatchEvent(new CustomEvent<Base>(PUSH_CHANGED, { detail: next }));
 }
 
-export function useWebPush(): { state: PushState; error: string | null; enable: () => void; disable: () => void } {
+export function useWebPush(): {
+  state: PushState;
+  error: string | null;
+  /** The browser's own words for a failed turn-on, for a report. Null when there are none. */
+  errorDetail: string | null;
+  enable: () => void;
+  disable: () => void;
+} {
   const viewer = useViewer();
   const { address } = useAccount();
   const [base, setBase] = useState<Base>("detecting");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   /** The resync's own warning, kept apart from `error` so a wallet switch can clear just this one. */
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
@@ -175,11 +183,14 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   const enable = useCallback(() => {
     if (!address) return;
     setError(null);
+    setErrorDetail(null);
     setSyncWarning(null); // a fresh turn-on stores THIS wallet; any old switch warning is moot
     // FIRST, inside the tap: Safari drops a permission request that follows an await.
     const asked = Notification.requestPermission();
     setWorking(true);
     void (async () => {
+      // Which of the three steps is running, so a failure can say what failed (enableFailure).
+      let step: EnableStep = "worker";
       try {
         const permission = await asked;
         if (permission !== "granted") {
@@ -188,12 +199,14 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
         }
         const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         await navigator.serviceWorker.ready;
+        step = "subscribe";
         const sub =
           (await reg.pushManager.getSubscription()) ??
           (await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
           }));
+        step = "save";
         try {
           await syncToServer(sub, address);
         } catch (err) {
@@ -203,12 +216,10 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
         }
         announce("on");
       } catch (err) {
-        console.error("[push] enable failed:", err);
-        setError(
-          (err as { status?: number }).status === 409
-            ? "This wallet already gets reminders in five browsers. Turn them off in one of those first."
-            : "Couldn’t turn on reminders. Try again in a moment.",
-        );
+        console.error(`[push] enable failed at "${step}":`, err);
+        const why = enableFailure(step, err);
+        setError(why.message);
+        setErrorDetail(why.detail);
       } finally {
         setWorking(false);
       }
@@ -217,6 +228,7 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
 
   const disable = useCallback(() => {
     setError(null);
+    setErrorDetail(null);
     setSyncWarning(null);
     setWorking(true);
     void (async () => {
@@ -251,5 +263,5 @@ export function useWebPush(): { state: PushState; error: string | null; enable: 
   else if (!address && base !== "on") state = "no-wallet";
   else state = base;
 
-  return { state, error: error ?? (state === "on" ? syncWarning : null), enable, disable };
+  return { state, error: error ?? (state === "on" ? syncWarning : null), errorDetail: error ? errorDetail : null, enable, disable };
 }
