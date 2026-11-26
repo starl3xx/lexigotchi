@@ -25,13 +25,17 @@ export const runtime = "nodejs";
  * This route adds up whatever wallets it is given, so the snapshot covers only the first wallet's
  * account (`accountWalletsOf`): the whole answer when every wallet is in it, else the sums of that
  * account's own leaves. `accountsOf` reads a wallet as its own account when the links can't be
- * read, and the snapshot is then the first wallet's alone. Nothing earned, or no key: no token.
+ * read, and the snapshot is then the first wallet's alone. Under one whole $WORD earned, or no key:
+ * no token.
  */
 async function shareOf(leaves: readonly LeafStatus[], latestDay: number | null, whole: EarningsSummary, wallets: readonly string[]): Promise<string | null> {
   if (whole.total <= 0n || !earningsShareOn()) return null;
   const mine = new Set(accountWalletsOf(wallets, await accountsOf(wallets)));
   const part = mine.size === new Set(wallets.map((w) => w.toLowerCase())).size ? whole : summarizeEarnings(leaves.filter((l) => mine.has(l.account.toLowerCase())), latestDay);
-  return part.total > 0n ? signEarningsShare(snapshotOf(part)) : null;
+  // The picture speaks in whole $WORD, rounded down: under one whole $WORD it would say "0"
+  // (Bugbot on #231), so there is nothing to share yet.
+  const snapshot = snapshotOf(part);
+  return snapshot.total > 0 ? signEarningsShare(snapshot) : null;
 }
 
 export async function GET(req: Request) {

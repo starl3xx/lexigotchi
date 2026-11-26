@@ -232,6 +232,16 @@ describe("the earnings route’s `share`", () => {
     expect((await ask(`${A},${B}`)).share).toBeNull();
   });
 
+  it("gives no token under one whole $WORD: the picture would say “0”", async () => {
+    shares.rows = [paid("CRANE", A, 10n ** 18n - 1n)];
+    const res = await ask(A);
+    expect(res.earnings.total).toBe(String(10n ** 18n - 1n));
+    expect(res.share).toBeNull();
+    // one whole $WORD is something to share
+    shares.rows = [paid("CRANE", A, 10n ** 18n)];
+    expect(token.readEarningsShare((await ask(A)).share)).toMatchObject({ total: 1, words: [["CRANE", 1]] });
+  });
+
   it("gives no token for nothing earned, or without a key, and still answers the earnings", async () => {
     shares.rows = [];
     expect(await ask(A)).toMatchObject({ ok: true, share: null });
