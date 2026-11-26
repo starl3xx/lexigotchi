@@ -4,7 +4,6 @@
  * feed, raise letters to UPPERCASE, ascend (prestige), sell, or dissolve.
  */
 import { useState } from "react";
-import { shopEnabled } from "@/lib/shop/config";
 import { Button, Card, HungerBadge, Sheet, TierBadge } from "../primitives";
 import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
 import { WordSheetCard } from "../../cards/WordSheetCard";
@@ -26,11 +25,9 @@ import {
   type OwnedWord,
 } from "../state";
 import { careNote } from "../careNote";
-import { DEFAULT_PARAMS } from "@/lib/params";
 import { useEatingFlash } from "../useEatingFlash";
 import { earningLine, earningStatus, payoutWhen } from "../earnings";
-import { WordValue, useCostToMake } from "../WordValue";
-import { roundPrice } from "@/lib/wordCost";
+import { SellWord } from "../market/SellWord";
 
 export function WordSheet({ word: wordKey }: { word: string }) {
   const g = useGame();
@@ -264,7 +261,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </Card>
       )}
 
-      {word.mine && state.chainBacked && <SellCard word={word} />}
+      {/* Sell it on the Market (market/SellWord.tsx; the practice game has a practice Market). */}
+      {word.mine && <SellWord word={word} />}
 
       {/* dissolve — hidden entirely for a linked wallet's word (msg.sender-only, like the rest) */}
       <div className={`pt-1 ${word.mine ? "" : "hidden"}`}>
@@ -332,105 +330,3 @@ function EarningsRow({ word, h }: { word: OwnedWord; h: Hunger }) {
   );
 }
 
-/**
- * Sell this word on the board (decisions.md #18): a price in $WORD, a free signature, and 10% of the
- * sale goes to the Rewards Pool. A staked word can't be listed (Seaport needs the seller to hold it),
- * and a word for sale earns nothing and has no jackpot entry, so the card says so.
- */
-/** The board's sale fee (params `market.wordSaleFee`, 10%), the same number the order builder uses. */
-const SALE_FEE = DEFAULT_PARAMS.market.wordSaleFee;
-
-function SellCard({ word }: { word: OwnedWord }) {
-  const g = useGame();
-  const { state } = g;
-  const { address } = useAccount();
-  const me = address?.toLowerCase();
-  const listing = g.wordBoard.find((l) => l.word === word.word && l.maker === me);
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const price = Number(text.replace(/[^0-9]/g, ""));
-  const fee = Math.ceil(price * SALE_FEE);
-  const cost = useCostToMake(word);
-  const worth = (n: number) => (showsUsd(state) ? `${fmtWord(n)} $WORD (${fmtUsd(n)})` : `${fmtWord(n)} $WORD`);
-
-  if (listing) {
-    return (
-      <Card className="mb-3">
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="min-w-0">
-            For sale at <strong className="font-display">{worth(listing.price)}</strong>
-          </span>
-          <button onClick={() => g.cancelWordListing(listing.orderHash)} className="shrink-0 text-xs font-bold text-ink/45 underline">
-            Take off sale
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-ink/60">It sells the moment someone buys it. You get {fmtWord(listing.price - Math.ceil(listing.price * SALE_FEE))} $WORD.</p>
-        <WordValue word={word} cost={cost} compact />
-      </Card>
-    );
-  }
-  if (word.staked) {
-    return <p className="mb-3 text-center text-xs text-ink/55">To sell {word.word}, unstake it first.</p>;
-  }
-  if (!open) {
-    return (
-      <Button full variant="ghost" className="mb-3" onClick={() => setOpen(true)}>
-        <Coins weight="fill" /> Sell {word.word}
-      </Button>
-    );
-  }
-  return (
-    <Card className="mb-3">
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (busy) return;
-          setBusy(true);
-          const ok = await g.listWord(word.word, price);
-          setBusy(false);
-          if (ok) {
-            setOpen(false);
-            setText("");
-          }
-        }}
-      >
-        <WordValue word={word} cost={cost} onUse={(n) => setText(n.toLocaleString("en-US"))} />
-        <label className="block text-xs font-bold text-ink/60" htmlFor={`sell-${word.word}`}>
-          Price, in $WORD
-        </label>
-        <div className="mt-1 flex gap-2">
-          <input
-            id={`sell-${word.word}`}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="2,000,000"
-            className="min-w-0 flex-1 rounded-xl border-2 border-ink bg-card px-3 py-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-candy"
-          />
-          <Button size="sm" variant="teal" type="submit" disabled={busy || price <= 0}>
-            List it
-          </Button>
-        </div>
-        <p className="mt-2 text-xs text-ink/60">
-          {price > 0
-            ? `The buyer pays ${worth(price)}. You get ${fmtWord(price - fee)} $WORD, and ${fmtWord(fee)} goes to the Rewards Pool.`
-            : `The buyer pays your price. You get ${100 - SALE_FEE * 100}%, and ${SALE_FEE * 100}% goes to the Rewards Pool.`}{" "}
-          Listing is a free signature. While it’s for sale, {word.word} earns nothing and has no jackpot entry.
-          {/* The Customization Spec: taste stays with the player (decisions.md #22). Said only once
-              there's a Shop to buy taste in. */}
-          {shopEnabled() && " Scenes and costumes stay with the seller."}
-        </p>
-        {/* Against the rounded figure "Use this price" offers, so taking it never reads as too low. */}
-        {cost && price > 0 && price < roundPrice(cost.total) && (
-          <p className="mt-1 text-xs font-bold text-gold-ink">That’s less than it costs to make, about {fmtWord(cost.total)} $WORD. It’s your call.</p>
-        )}
-        <button type="button" onClick={() => setOpen(false)} className="mt-1 text-xs font-bold text-ink/45 underline">
-          Not now
-        </button>
-      </form>
-    </Card>
-  );
-}

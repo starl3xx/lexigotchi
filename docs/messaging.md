@@ -8,7 +8,7 @@ That makes "word pets" the category, and Lexigotchi the first game in it. The li
 - Collecting and raising: rarity, chasing the rare one, a glow-up you earn. "Every letter starts lowercase. The rare ones are really rare."
 - Words: a finite dictionary everyone already knows. "4,584 words. One owner each."
 
-Being onchain is the fourth ingredient, but it's proof, not the pitch. It's why "yours" means yours: you can sell a word, swap a letter, or keep the whole set, and nobody can take it back. Lead with the pet and the word, and let ownership answer "so what?"
+Being onchain is the fourth ingredient, but it's proof, not the pitch. It's why "yours" means yours: you can sell a word, sell a letter, or keep the whole set, and nobody can take it back. Lead with the pet and the word, and let ownership answer "so what?"
 
 Tagline (unchanged): Raise your letters. Spell your words. Own the dictionary.
 
@@ -56,7 +56,7 @@ Never write: price, pump, moon, invest, investment, "number go up", or any dolla
 | Main button | Get your free letters |
 | Fact strip | 4,584 words, one owner each · 46 Mythic words · 138 q's, ever · 15 free letters to start |
 | How it works | From one letter to a word that's yours. (keep the four steps) |
-| Ownership | Every word has one owner. Your letters and words live in your wallet, not on our server. Sell a word on the Market, swap a letter for the one you're missing, or keep the whole set. |
+| Ownership | Every word has one owner. Your letters and words live in your wallet, not on our server. Sell a word on the Market, buy the one letter you're missing, or keep the whole set. |
 | Care | They get hungry. A fed word bounces. Miss a day and it's peckish; miss three and it's hungry, and it sits out the jackpot until you feed it. The first snack every day is free. |
 | The ladder | Every letter starts lowercase. Raise it to UPPERCASE, then take a finished word up the ladder: Gilded 1 through 4, then Holographic. A miss never hurts it. |
 | Jackpot and bounty | Each day one word is drawn. If you hold it, staked and fed, the pot is yours. |

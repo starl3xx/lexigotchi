@@ -23,7 +23,7 @@ const ZERO_ADDR = "0x0000000000000000000000000000000000000000" as const;
 const ERC1155 = 3; // ItemType.ERC1155
 const FULL_OPEN = 0; // OrderType.FULL_OPEN
 
-export interface LetterSwapOrder {
+export interface SeaportOrder {
   offerer: `0x${string}`;
   zone: `0x${string}`;
   offer: { itemType: number; token: `0x${string}`; identifierOrCriteria: string; startAmount: string; endAmount: string }[];
@@ -36,6 +36,8 @@ export interface LetterSwapOrder {
   conduitKey: `0x${string}`;
   counter: string;
 }
+/** The old name, from when the letter swap was the only order (seaport.ts began with it). */
+export type LetterSwapOrder = SeaportOrder;
 
 /** 30 days — long enough to sit on the board, short enough that stale boards clear themselves. */
 const ORDER_TTL_SECONDS = 30 * 24 * 3600;
@@ -122,6 +124,45 @@ const seaportAbi = [
         { name: "signature", type: "bytes" }] },
       { name: "fulfillerConduitKey", type: "bytes32" }],
     outputs: [{ type: "bool" }] },
+  { type: "function", name: "fulfillAdvancedOrder", stateMutability: "payable",
+    inputs: [
+      { name: "advancedOrder", type: "tuple", components: [
+        { name: "parameters", type: "tuple", components: [
+          { name: "offerer", type: "address" }, { name: "zone", type: "address" },
+          { name: "offer", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" }, { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" }] },
+          { name: "consideration", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" }, { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" }, { name: "recipient", type: "address" }] },
+          { name: "orderType", type: "uint8" }, { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" }, { name: "zoneHash", type: "bytes32" },
+          { name: "salt", type: "uint256" }, { name: "conduitKey", type: "bytes32" },
+          { name: "totalOriginalConsiderationItems", type: "uint256" }] },
+        { name: "numerator", type: "uint120" }, { name: "denominator", type: "uint120" },
+        { name: "signature", type: "bytes" }, { name: "extraData", type: "bytes" }] },
+      { name: "criteriaResolvers", type: "tuple[]", components: [
+        { name: "orderIndex", type: "uint256" }, { name: "side", type: "uint8" },
+        { name: "index", type: "uint256" }, { name: "identifier", type: "uint256" },
+        { name: "criteriaProof", type: "bytes32[]" }] },
+      { name: "fulfillerConduitKey", type: "bytes32" },
+      { name: "recipient", type: "address" }],
+    outputs: [{ name: "fulfilled", type: "bool" }] },
+  { type: "event", name: "OrderFulfilled", anonymous: false,
+    inputs: [
+      { name: "orderHash", type: "bytes32", indexed: false },
+      { name: "offerer", type: "address", indexed: true },
+      { name: "zone", type: "address", indexed: true },
+      { name: "recipient", type: "address", indexed: false },
+      { name: "offer", type: "tuple[]", indexed: false, components: [
+        { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+        { name: "identifier", type: "uint256" }, { name: "amount", type: "uint256" }] },
+      { name: "consideration", type: "tuple[]", indexed: false, components: [
+        { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+        { name: "identifier", type: "uint256" }, { name: "amount", type: "uint256" },
+        { name: "recipient", type: "address" }] }] },
   { type: "function", name: "cancel", stateMutability: "nonpayable",
     inputs: [{ name: "orders", type: "tuple[]", components: [
       { name: "offerer", type: "address" }, { name: "zone", type: "address" },
@@ -211,6 +252,23 @@ export function fulfillOrderCalls(order: LetterSwapOrder, signature: `0x${string
     data: encodeFunctionData({
       abi: seaportAbi, functionName: "fulfillOrder",
       args: [{ parameters: toParameters(order), signature }, ZERO32],
+    }),
+  }];
+}
+
+/**
+ * Fill PART of an order that allows it (OrderType PARTIAL_OPEN: the letter listings, lib/onchain/
+ * letterSale.ts): `numerator` of `denominator` of everything in it. Seaport takes that share of each
+ * item, and reverts when a share isn't a whole amount, so the caller's order must divide evenly.
+ * Asking for more than is left fills what is left (Seaport trims the fraction), never more.
+ * The signature and the shapes are Seaport 1.6's ConsiderationInterface, read from its source.
+ */
+export function fulfillPartCalls(order: SeaportOrder, signature: `0x${string}`, numerator: bigint, denominator: bigint): Call[] {
+  return [{
+    to: SEAPORT,
+    data: encodeFunctionData({
+      abi: seaportAbi, functionName: "fulfillAdvancedOrder",
+      args: [{ parameters: toParameters(order), numerator, denominator, signature, extraData: "0x" }, [], ZERO32, ZERO_ADDR],
     }),
   }];
 }

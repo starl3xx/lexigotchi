@@ -73,8 +73,8 @@ served at `/.well-known/farcaster.json`.
    staked and fed and you take the whole pot.
 
 Two renewable late-game loops sit on top: a **weekly theme bounty** (broad) and **prestige/ascension**
-(deep). Plus **showcases** (share a word you own, X first), the **Market** (two-sided letter swaps,
-and words listed for sale in $WORD: 90% to the seller, 10% to the Rewards Pool), and **dissolution**
+(deep). Plus **showcases** (share a word you own, X first), the **Market** (words and letters
+listed for sale in $WORD: 90% to the seller, 10% to the Rewards Pool), and **dissolution**
 (recover a word's letters, free the name).
 
 ---

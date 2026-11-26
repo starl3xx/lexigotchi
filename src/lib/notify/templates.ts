@@ -158,7 +158,7 @@ export function pityCapped(letter: string, day = epochDay()): Notification {
 }
 
 // ── Market ────────────────────────────────────────────────────────────────────────────
-const SOLD_TITLES = ["Your letter sold", "Someone took your offer", "Swap filled"] as const;
+const SOLD_TITLES = ["Your letter sold", "Someone bought your letter", "Sold on the Market"] as const;
 
 /**
  * RECEIPT — keyed on the Seaport order hash, which is the canonical identity of a fill. Day-keying
@@ -169,7 +169,7 @@ const SOLD_TITLES = ["Your letter sold", "Someone took your offer", "Swap filled
 export function listingFilled(letter: string, orderHash: string, day = epochDay()): Notification {
   return {
     title: rotate(SOLD_TITLES, day),
-    body: `Your ${letter} found a new home: the trade settled onchain. Check your bag.`,
+    body: `Your ${letter} found a new home: the sale settled onchain, and the $WORD is yours.`,
     // Trimmed to fit the 128-char id budget; a 32-byte hash prefix is still collision-free here.
     notificationId: `filled-${orderHash.toLowerCase().replace(/^0x/, "").slice(0, 32)}`,
   };
