@@ -1124,6 +1124,26 @@ setter. All small, riding existing suite patterns.
       the owner's browser may be showing another serif there (Georgia's figures are old-style).
       Asked; the stack is unchanged.
 
+40. **The logo: A with the letters' eyes, B as the seal, and both as files** (step 4 of #34;
+    starl3xx, 2026-11-25: "I still like A as the primary logo", "I LOVE B as a logo... it could be
+    a seal on the back somewhere maybe? I would want exports of both A and B for various places").
+    - **A, the primary logo,** is the icon as it was (the glow-up tile on paper, its wooden edge,
+      its grain) with the eyes the letters have had since #28: tall ovals, one big pupil each with
+      its pie cut, no brows. Nothing else moved. It is the app icon, the tab's icon, the mini
+      app's icon, and the docs' favicon.
+    - **B, the seal,** is the gilded tile on engraved blue. Pressed in one ink it is on every
+      card's back (#35).
+    - **One source:** `src/lib/cardArt/logo.ts` draws A and B, `seal.ts` draws B in one ink, and
+      `npm run brand:art` makes the app's icons and the exports in `docs/brand` from them: each
+      mark as SVG and as pictures at 1024, 512, 192, 180, 64, 32, and 16 px, B round on a clear
+      ground, and B in one ink. A test fails if the files and the source differ.
+    - **The letter is an outline, not type.** Söhne Fett's "L" is a plain polygon, so the marks
+      need no font: the icon no longer needs Söhne installed on the machine that makes it.
+    - **My readings, not starl3xx's words:** A's SVG has no paper grain (a grain is pixels; the
+      pictures have it); the old icon's Python page builder is gone, and its grain script stays;
+      where else B goes (profile pictures, the saved picture's corner, emails) is listed in
+      `docs/brand/README.md` and not built.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

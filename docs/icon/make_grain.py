@@ -1,8 +1,10 @@
 """Final masked paper grain, 1024 native.
 
 Grain remains ONLY on the cream field and the white tile face (incl. the printed L).
-Excluded: the full tile hull outside the face (pale ring + blue frame + wood edge),
-the eyes, and the (asymmetric) brows. Geometry = 512-space v6 layout x2.
+Excluded: the full tile hull outside the face (pale ring + blue frame + wood edge) and
+the eyes. Geometry = the logo's 512 space x2: the numbers below are LOGO_A's
+(src/lib/cardArt/logo.ts). If the tile or the eyes move there, move them here
+(tests/logo.test.ts compares the two).
 """
 import zlib, struct, random
 
@@ -45,24 +47,11 @@ def in_hull(px, py):
             return True
     return False
 
-def quad_points(p0, c, p1, n=40):
-    pts = []
-    for i in range(n + 1):
-        t = i / n
-        mt = 1 - t
-        pts.append((mt * mt * p0[0] + 2 * t * mt * c[0] + t * t * p1[0],
-                    mt * mt * p0[1] + 2 * t * mt * c[1] + t * t * p1[1]))
-    return pts
-
-brows = (quad_points((177.5 * S, 45.5 * S), (198.5 * S, 30.5 * S), (219.6 * S, 45.5 * S))
-         + quad_points((287.5 * S, 50 * S), (308.5 * S, 36 * S), (329.6 * S, 50 * S)))
-BROW_R2 = (7.0 * S) ** 2
-EYES = ((198.5 * S, 108.0 * S), (308.5 * S, 108.0 * S))
-EYE_R2 = (49.0 * S) ** 2
+# the eyes: tall ovals (the letters' own, since the letter review), cleared a little past their line
+EYES = ((200.5 * S, 106.0 * S), (306.5 * S, 106.0 * S))
+EYE_RX, EYE_RY = 48.0 * S, 55.0 * S
 
 alpha = bytearray(255 for _ in range(W * H))
-bx0, bx1 = 168 * S, 340 * S
-by0, by1 = 24 * S, 60 * S
 for py in range(H):
     fy = py + 0.5
     for px in range(W):
@@ -72,12 +61,7 @@ for py in range(H):
             excl = True
         if not excl:
             for ex, ey in EYES:
-                if (fx - ex) ** 2 + (fy - ey) ** 2 <= EYE_R2:
-                    excl = True
-                    break
-        if not excl and bx0 <= fx <= bx1 and by0 <= fy <= by1:
-            for bpx, bpy in brows:
-                if (fx - bpx) ** 2 + (fy - bpy) ** 2 <= BROW_R2:
+                if ((fx - ex) / EYE_RX) ** 2 + ((fy - ey) / EYE_RY) ** 2 <= 1.0:
                     excl = True
                     break
         if excl:
