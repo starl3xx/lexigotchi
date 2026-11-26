@@ -238,7 +238,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   letter that finishes a word first; one place always kept for a price ≥10% under its cost).
   **A purchase celebrates** (`sheets/CelebrateSheet` with `bought`: the word in its scene, what was
   paid, Stake, "See its card"; `sheets/BoughtLettersSheet`: the letters, and the claim of the word
-  they newly finish, `newlySpellable`, in `oneLetterShort`'s order so a pick ends on its own word).
+  they newly finish, `newlySpellable`, in `oneLetterShort`'s order so a pick ends on its own word;
+  "newly" is measured from `had`, what the wallet held before, and nothing is named until the bag
+  shows `had + count`, nor while the world's owners load).
   Both stores open it with the reducer's `arrive` action, only once the purchase shows: a sheet
   already open stays, and a toast says it instead. Send any new "it arrived" moment through `arrive`.
   **The letter swap is retired**: `/api/swap/orders` POST answers 410, and its GET serves only a

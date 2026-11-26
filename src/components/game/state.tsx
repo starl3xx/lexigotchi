@@ -222,8 +222,9 @@ export type Sheet =
    *  the Market instead, for this many $WORD, so the sheet shows it in its scene with what was paid. */
   | { kind: "celebrate"; word: string; bought?: { price: number } }
   /** Letters bought on the Market just arrived (sheets/BoughtLettersSheet): `count` of one letter id
-   *  (0-25 lowercase, 26-51 UPPERCASE), at `unitPrice` $WORD each. */
-  | { kind: "boughtLetters"; letterId: number; count: number; unitPrice: number }
+   *  (0-25 lowercase, 26-51 UPPERCASE), at `unitPrice` $WORD each. `had`: how many of that letter
+   *  the buying wallet held BEFORE, so "now you can spell" is measured from there. */
+  | { kind: "boughtLetters"; letterId: number; count: number; unitPrice: number; had: number }
   /** Pick a word's scene, from the Today stage or an opened word (sheets/SceneSheet). `fromWord`:
    *  opened from the word's own sheet, so closing it goes back there. */
   | { kind: "scene"; word: string; fromWord?: boolean }
@@ -1076,9 +1077,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
           if (take < 1 || state.balance < ask.unitPrice * take) return false;
           dispatch({ t: "marketBuyLetters", orderHash: ask.orderHash, count, at: Date.now() });
           const ch = ALPHABET[ask.letterId % 26];
+          const had = (ask.letterId >= 26 ? state.upper[ask.letterId - 26] : state.lower[ask.letterId]) ?? 0;
           dispatch({
             t: "arrive",
-            sheet: { kind: "boughtLetters", letterId: ask.letterId, count: take, unitPrice: ask.unitPrice },
+            sheet: { kind: "boughtLetters", letterId: ask.letterId, count: take, unitPrice: ask.unitPrice, had },
             text: `${take} × ${ask.letterId >= 26 ? ch : ch.toLowerCase()} in your bag`,
           });
           return true;

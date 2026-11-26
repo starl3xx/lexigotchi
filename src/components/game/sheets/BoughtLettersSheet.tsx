@@ -29,19 +29,27 @@ const tileSize = (shown: number) => (shown === 1 ? 104 : shown <= 3 ? 72 : 60);
 /**
  * The words these letters newly finish, rarest first, then A to Z: the order of the Market's own
  * `oneLetterShort`, so a "One more x finishes UNBOX" pick ends on UNBOX here. Pure, so the rule is
- * tested: `lower`/`upper` are the bag WITH the bought letters in it.
+ * tested. `lower`/`upper` are the bag as it reads now, and `had` is how many of the letter the
+ * wallet held before the purchase.
+ *
+ * "Before" is the bag with that letter set back to `had`, never "now minus `count`": a bag that
+ * hasn't caught up with the chain still holds only the old copies, and taking `count` off THOSE
+ * called words the player could already spell new (Bugbot on #223). Until the bag shows
+ * `had + count` of the letter, nothing is named: the sheet draws again when the bag lands.
  */
 export function newlySpellable(
   lower: readonly number[],
   upper: readonly number[],
   letterId: number,
   count: number,
+  had: number,
   taken: ReadonlySet<string>,
 ): { word: string; cases: boolean[] }[] {
   const i = letterId % 26;
   const before = { lower: lower.slice(), upper: upper.slice() };
   const side = isUpperId(letterId) ? before.upper : before.lower;
-  side[i] = Math.max(0, (side[i] ?? 0) - count);
+  if ((side[i] ?? 0) < had + count) return [];
+  side[i] = had;
   const was = new Set(spellableNow(before.lower, before.upper, taken, Infinity));
   return spellableNow(lower, upper, taken, Infinity)
     .filter((w) => !was.has(w))
@@ -49,17 +57,23 @@ export function newlySpellable(
     .map((word) => ({ word, cases: claimCase(word, upper) }));
 }
 
-export function BoughtLettersSheet({ letterId, count, unitPrice }: { letterId: number; count: number; unitPrice: number }) {
+export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letterId: number; count: number; unitPrice: number; had: number }) {
   const g = useGame();
   const { state } = g;
   const amount = useAmount();
   const taken = useTakenWords();
-  const owners = useWorld().data?.owners;
+  const world = useWorld();
   const lower = mineLower(state);
   const upper = mineUpper(state);
-  // In the chain game, wait for the world's owners: a word someone else owns can't be claimed.
-  const known = !state.chainBacked || !!owners;
-  const fresh = useMemo(() => (known ? newlySpellable(lower, upper, letterId, count, taken) : []), [known, lower, upper, letterId, count, taken]);
+  // In the chain game a word someone else owns can't be claimed, so while the world's owners are
+  // still loading the sheet says it is checking, and names nothing. If that read FAILED, it does
+  // what Spell does (useTakenWords: only the player's own words are taken), so the claim is never
+  // hidden for good (Bugbot on #223).
+  const checking = state.chainBacked && !world.data?.owners && world.isPending === true;
+  const fresh = useMemo(
+    () => (checking ? [] : newlySpellable(lower, upper, letterId, count, had, taken)),
+    [checking, lower, upper, letterId, count, had, taken],
+  );
   const first = fresh[0];
   const name = letterLabel(letterId);
   const shown = count <= ROW ? count : ROW - 1;
@@ -130,7 +144,9 @@ export function BoughtLettersSheet({ letterId, count, unitPrice }: { letterId: n
           </div>
         ) : (
           <>
-            <p className="max-w-[30ch] text-balance text-sm text-ink/70">{count === 1 ? "It’s" : "They’re"} in your bag, ready to spell with.</p>
+            <p className="max-w-[30ch] text-balance text-sm text-ink/70" aria-live="polite">
+              {checking ? "Checking what you can spell now…" : `${count === 1 ? "It’s" : "They’re"} in your bag, ready to spell with.`}
+            </p>
             <Button variant="ghost" full onClick={g.closeSheet}>
               Done
             </Button>

@@ -29,7 +29,7 @@ function Host() {
   g = useGame();
   const s = g.state.sheet;
   if (s?.kind === "celebrate") return <CelebrateSheet word={s.word} bought={s.bought} />;
-  if (s?.kind === "boughtLetters") return <BoughtLettersSheet letterId={s.letterId} count={s.count} unitPrice={s.unitPrice} />;
+  if (s?.kind === "boughtLetters") return <BoughtLettersSheet letterId={s.letterId} count={s.count} unitPrice={s.unitPrice} had={s.had} />;
   return null;
 }
 const play = () =>
@@ -119,7 +119,7 @@ describe("letters bought on the Market", () => {
     expect(picked.length).toBeGreaterThan(1);
     const x = ask(X);
     await act(async () => void (await g.market.buyLetters(x, 1)));
-    expect(g.state.sheet).toEqual({ kind: "boughtLetters", letterId: X, count: 1, unitPrice: x.unitPrice });
+    expect(g.state.sheet).toEqual({ kind: "boughtLetters", letterId: X, count: 1, unitPrice: x.unitPrice, had: 0 });
     expect(screen.getByText("x is yours.")).toBeTruthy();
     expect(screen.getByText(/Bought for/).textContent).toContain("9.80M $WORD");
     expect(screen.getByText("Now you can spell")).toBeTruthy();
@@ -217,21 +217,32 @@ describe("newlySpellable", () => {
 
   it("names only the words the bag could not spell before the letters came", () => {
     // "unbo" + the bought x spells UNBOX; nothing else is new.
-    expect(newlySpellable(bag("unbox"), none, X, 1, new Set()).map((s) => s.word)).toEqual(["UNBOX"]);
-    // The bag already held an x: a second x finishes nothing new.
-    expect(newlySpellable(bag("unboxx"), none, X, 1, new Set())).toEqual([]);
+    expect(newlySpellable(bag("unbox"), none, X, 1, 0, new Set()).map((s) => s.word)).toEqual(["UNBOX"]);
+    // The wallet already held an x: a second x finishes nothing new.
+    expect(newlySpellable(bag("unboxx"), none, X, 1, 1, new Set())).toEqual([]);
   });
 
   it("leaves out a word someone owns", () => {
-    expect(newlySpellable(bag("unbox"), none, X, 1, new Set(["UNBOX"]))).toEqual([]);
+    expect(newlySpellable(bag("unbox"), none, X, 1, 0, new Set(["UNBOX"]))).toEqual([]);
   });
 
   it("claims with the bought letter UPPERCASE when that is what was bought", () => {
     const upper = bag("x");
-    expect(newlySpellable(bag("unbo"), upper, X + 26, 1, new Set())).toEqual([{ word: "UNBOX", cases: [false, false, false, false, true] }]);
+    expect(newlySpellable(bag("unbo"), upper, X + 26, 1, 0, new Set())).toEqual([{ word: "UNBOX", cases: [false, false, false, false, true] }]);
   });
 
-  it("says nothing new while the bag doesn’t show the letters yet (a slow read)", () => {
-    expect(newlySpellable(bag("unbo"), none, X, 1, new Set())).toEqual([]);
+  it("names nothing while the bag doesn’t show the letters yet (a slow or failed read)", () => {
+    // Nothing held before, and the bag hasn't caught up.
+    expect(newlySpellable(bag("unbo"), none, X, 1, 0, new Set())).toEqual([]);
+    // One x held before, one bought, and the bag still shows the old one: UNBOX was spellable
+    // already, so it must not be called new (it was, when "before" was the bag minus the count).
+    expect(newlySpellable(bag("unbox"), none, X, 1, 1, new Set())).toEqual([]);
+  });
+
+  it("measures from what the wallet held, however many the bag shows now", () => {
+    // Held one e, bought two: "geese" needs three, so it is new; "unbox" was there all along.
+    const now = bag("geeseunbox");
+    expect(newlySpellable(now, none, E, 2, 1, new Set()).map((s) => s.word)).toContain("GEESE");
+    expect(newlySpellable(now, none, E, 2, 1, new Set()).map((s) => s.word)).not.toContain("UNBOX");
   });
 });

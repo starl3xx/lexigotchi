@@ -1786,14 +1786,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               return false;
             }
             // The bag first, then the sheet: it says what these letters now spell, from the bag
-            // (sheets/BoughtLettersSheet). A refresh that fails still celebrates what the chain showed.
+            // (sheets/BoughtLettersSheet). A refresh that fails still celebrates what the chain
+            // showed; the sheet names no word until the bag shows `had` + `count` (Bugbot on #223).
             await chain.refresh().catch(() => {});
             // What ARRIVED, never what was asked for: Seaport trims a fill when another buyer took
             // part of the listing first, and the wallet then gets (and pays for) fewer.
             const got = Math.min(take, Number(held - before));
             dispatch({
               t: "arrive",
-              sheet: { kind: "boughtLetters", letterId: ask.letterId, count: got, unitPrice: ask.unitPrice },
+              sheet: { kind: "boughtLetters", letterId: ask.letterId, count: got, unitPrice: ask.unitPrice, had: Number(before) },
               text: `${got} × ${name} in your bag`,
             });
             return true;
