@@ -827,6 +827,10 @@ setter. All small, riding existing suite patterns.
       world read is a minute old, so a word claimed and listed since then was "unclaimed" in the
       Dictionary with a price tag on it in the Market; the practice stall's words always were (its
       sellers are in no world read), and two of them, TIGER and OCEAN, read "You can spell it".
+      The board is asked FIRST, before the world's owner: a word that changed hands and was
+      listed again inside that minute read as its previous owner's, and one the player had just
+      sold as "yours, in a linked wallet" (Bugbot on #224). The word view takes the seller and
+      the seller's face together (`holderOf`), never one's address with the other's face.
       **Spell asks the same question** (`isTaken(statusOf(w))`), so #31's rule still holds: the
       Dictionary's "Can spell" is exactly Spell's list (1,010 words for the practice bag on both,
       1,012 before), and neither offers a claim that would revert.

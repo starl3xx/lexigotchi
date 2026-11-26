@@ -163,6 +163,18 @@ describe("who has a word", () => {
     expect(entryStatus("CRANE", known({ listed: new Map([["CRANE", true]]) }))).toBe("mine");
   });
 
+  it("asks the live board before the minute-old world read (Bugbot on #224)", () => {
+    // The player sold ABODE and its buyer listed it again: the world read still names the player.
+    const sold = known({ owners: { ABODE: ME }, listed: new Map([["ABODE", false]]) });
+    expect(entryStatus("ABODE", sold)).toBe("sale"); // not "theirs, in a linked wallet"
+    // Another wallet of the player's bought ABOUT and listed it: the world read still names the seller.
+    const bought = known({ owners: { ABOUT: OTHER }, listed: new Map([["ABOUT", true]]) });
+    expect(entryStatus("ABOUT", bought)).toBe("mineAway"); // not someone else's word for sale
+    // off the board, the world read is all there is
+    expect(entryStatus("ABODE", known({ owners: { ABODE: ME }, listed: new Map() }))).toBe("mineAway");
+    expect(entryStatus("ABOUT", known({ owners: { ABOUT: OTHER }, listed: new Map() }))).toBe("taken");
+  });
+
   it("never calls a word unclaimed before the owners are known, but a listed one is known to be for sale", () => {
     const waiting = known({ owners: undefined, ownersKnown: false, listed: new Map([["ABODE", false]]) });
     expect(entryStatus("QUINT", waiting)).toBe("unknown");

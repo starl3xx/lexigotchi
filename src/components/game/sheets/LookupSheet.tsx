@@ -67,8 +67,8 @@ export function LookupSheet({ word }: { word: string }) {
   const tier = wordTier(word);
   const status = d.statusOf(word);
   const listing = d.listings.get(word);
-  // a word the world read hasn't caught up with is still its seller's (useDictionary)
-  const owner = d.owners?.[word] ?? listing?.maker;
+  // a word on the board is its seller's, whatever the minute-old world read says (useDictionary)
+  const holder = d.holderOf(word);
   const open = status === "open";
 
   const need = useMemo(() => wordNeed(word, d.here, d.all), [word, d.here, d.all]);
@@ -299,9 +299,9 @@ export function LookupSheet({ word }: { word: string }) {
       {status === "sale" && listing && <WordValue word={listed} cost={listedCost} compact />}
 
       <dl className="mt-4">
-        {(status === "taken" || status === "sale" || status === "mineAway") && owner && (
+        {(status === "taken" || status === "sale" || status === "mineAway") && holder && (
           <Fact label="Owner">
-            <PlayerChip address={owner} profile={d.profiles?.[owner] ?? listing?.face} size={18} />
+            <PlayerChip address={holder.address} profile={holder.profile} size={18} />
           </Fact>
         )}
         {number ? <Fact label="Card">{cardNumber(number)}</Fact> : null}

@@ -39,18 +39,22 @@ export interface WordHolders {
 }
 
 /**
- * Who has a word. **A word on the Market's board has an owner, its seller, whatever the world read
- * says** (decisions.md #32): the board is read live and the world is a minute old, so a word
- * claimed and listed since then would read as unclaimed, with a price on it in the Market, and
- * Spell would offer a claim that reverts. The practice stall's sellers are in no world read at all.
+ * Who has a word. **A word on the Market's board belongs to its seller, whatever the world read
+ * says** (decisions.md #32): the board is read live, and a listing shows only while its seller
+ * holds the word, while the world is a minute old. So the board is asked first:
+ * - a word claimed and listed in the last minute would read as unclaimed, with a price on it in the
+ *   Market, and Spell would offer a claim that reverts;
+ * - a word that changed hands and was listed again would read as its previous owner's: one the
+ *   player just sold, as "theirs, in a linked wallet" (Bugbot on #224);
+ * - the practice stall's sellers are in no world read at all.
  * A word of unknown owner is never `open`: nothing is promised until the owners are known.
  */
 export function entryStatus(word: string, k: WordHolders): EntryStatus {
   if (k.owned.has(word)) return "mine";
+  const sellerIsPlayer = k.listed.get(word);
+  if (sellerIsPlayer !== undefined) return sellerIsPlayer ? "mineAway" : "sale";
   const owner = k.owners?.[word];
-  const forSale = k.listed.has(word);
-  if ((owner && k.wallets.has(owner)) || k.listed.get(word)) return "mineAway";
-  if (owner || forSale) return forSale ? "sale" : "taken";
+  if (owner) return k.wallets.has(owner) ? "mineAway" : "taken";
   return k.ownersKnown ? "open" : "unknown";
 }
 

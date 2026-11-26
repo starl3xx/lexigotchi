@@ -161,7 +161,7 @@ export function DictionaryScreen() {
         {list.words.slice(0, shown).map((w) => {
           const status = d.statusOf(w);
           const wTier = wordTier(w);
-          const owner = d.owners?.[w];
+          const holder = d.holderOf(w);
           const number = d.numbers?.[w];
           const listing = d.listings.get(w);
           // the player's letters are counted only against a word nobody has
@@ -194,10 +194,10 @@ export function DictionaryScreen() {
                   <span className="font-extrabold text-teal-ink">{status === "mine" ? "Yours" : "Yours, in another wallet"}</span>
                 ) : status === "sale" && listing ? (
                   <span className="font-bold text-gold-ink">For sale · {fmtWord(listing.price)} $WORD</span>
-                ) : (status === "taken" || status === "sale") && owner ? (
+                ) : (status === "taken" || status === "sale") && holder ? (
                   // a flex box, so a long name is cut short before it reaches the card number
                   <span className="flex min-w-0 text-ink/70">
-                    <PlayerChip address={owner} profile={d.profiles?.[owner]} size={16} />
+                    <PlayerChip address={holder.address} profile={holder.profile} size={16} />
                   </span>
                 ) : status === "unknown" ? (
                   <span className="text-ink/55">{d.checkFailed ? "Can’t check the owner yet" : "Checking who owns it…"}</span>

@@ -66,11 +66,27 @@ export function useDictionary() {
     [ownedSet, owners, mine, listed, ownersKnown],
   );
 
+  /**
+   * Who has a word, and their face: the seller of a word on the board (the live read, with the
+   * face its listing carries), else the world's owner. Never one's address with the other's face.
+   */
+  const profiles = world.data?.profiles;
+  const holderOf = useCallback(
+    (word: string) => {
+      const listing = listings.get(word);
+      if (listing) return { address: listing.maker, profile: listing.face ?? profiles?.[listing.maker] };
+      const owner = owners?.[word];
+      return owner ? { address: owner, profile: profiles?.[owner] } : undefined;
+    },
+    [listings, owners, profiles],
+  );
+
   return {
     ownersKnown,
     checkFailed,
     owners,
-    profiles: world.data?.profiles,
+    holderOf,
+    profiles,
     numbers: world.data?.live ? world.data.numbers : undefined,
     claimedCount: owners ? Object.keys(owners).length : 0,
     ownedSet,
