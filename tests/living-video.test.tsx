@@ -7,7 +7,8 @@ import { beforeEach, describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { TileCharacter } from "@/components/game/TileCharacter";
 import { LOOP_SECONDS, loopPose } from "@/components/cards/loop/loopRenderer";
-import { BLINK_S, BREATH_S, BREATH_UNITS, FRONT_AWAY, LEG_STRETCH, breathAt, eyesAt } from "@/components/cards/loop/score";
+import { BLINK_S, BREATH_S, BREATH_UNITS, FRONT_AWAY, GLANCE_UNITS, LEG_STRETCH, breathAt, eyesAt } from "@/components/cards/loop/score";
+import { pieceOf, withEyes } from "@/components/cards/loop/liveFront";
 import { CARD_LOOK, showcaseStagePath } from "@/lib/showcase";
 
 beforeEach(() => {
@@ -103,5 +104,84 @@ describe("what the video reads from the rig", () => {
   it("the card's front without its letters has an address of its own, with the look and the stage in it", () => {
     expect(showcaseStagePath("VIVID", "spring", 2)).toBe(`/s/VIVID/card?face=1&letters=0&v=${CARD_LOOK}&g=2&scene=spring`);
     expect(showcaseStagePath("CRAne")).toBe(`/s/CRAne/card?face=1&letters=0&v=${CARD_LOOK}`);
+  });
+});
+
+/**
+ * A piece of a letter becomes a picture of its own: no page around it, none of the drawing's other
+ * layers. Whatever it needs must be inside it, or the video's letter silently loses it (a paint
+ * that points at nothing draws nothing). Checked for every rarity, the stages that change the
+ * drawing, and both cases.
+ */
+describe("each piece of a letter stands alone", () => {
+  const TIERS_ALL = [undefined, "Common", "Uncommon", "Rare", "Legendary", "Mythic"] as const;
+  const GILDS = [0, 1, 4, 5] as const;
+  const LAYERS = ["floor", "rings", "legs", "body", "top"];
+  /** Classes a piece may carry: each only MOVES its element in the game (a moment, a press), so without a page it is the letter at rest. */
+  const HARMLESS = new Set(["tc-pupil", "tc-eye-open", "tc-eye-shut", "tc-star", "tc-perk", "tc-legs-perk", "tc-brow"]);
+  const parse = (piece: string) => new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${piece}</svg>`, "image/svg+xml");
+  const drawing = (tier: (typeof TIERS_ALL)[number], gild: (typeof GILDS)[number], upper: boolean) =>
+    render(<TileCharacter char="q" upper={upper} gild={gild} tier={tier} index={1} linkLeft linkRight lean={1.4} size={180} detail="full" flat still />).container.querySelector("svg") as SVGSVGElement;
+
+  it("everything a piece points at is inside it, nothing in it waits for a page's styles, and nothing runs on a clock", () => {
+    let pieces = 0;
+    for (const tier of TIERS_ALL) {
+      for (const gild of GILDS) {
+        for (const upper of [false, true]) {
+          const svg = drawing(tier, gild, upper);
+          const where = `${tier ?? "no tier"}, stage ${gild}, ${upper ? "UPPERCASE" : "lowercase"}`;
+          for (const layer of LAYERS) {
+            for (const eyes of layer === "body" ? (["open", "shut", "left", "right"] as const) : ([null] as const)) {
+              const piece = pieceOf(svg, layer, eyes ? withEyes(eyes) : undefined);
+              if (piece === null) continue;
+              pieces++;
+              const doc = parse(piece);
+              expect(doc.querySelector("parsererror"), `${where}, ${layer}: reads as a drawing`).toBeNull();
+              // every paint, clip, and filter it names is defined inside it
+              const ids = new Set([...doc.querySelectorAll("[id]")].map((el) => el.getAttribute("id")));
+              for (const ref of piece.matchAll(/url\(#([^)]+)\)/g)) expect(ids.has(ref[1]), `${where}, ${layer}: #${ref[1]} is defined in the piece`).toBe(true);
+              for (const ref of piece.matchAll(/href="#([^"]+)"/g)) expect(ids.has(ref[1]), `${where}, ${layer}: #${ref[1]} is defined in the piece`).toBe(true);
+              // nothing takes a value from the page: a variable must carry its own fallback, and no colour is the page's
+              expect(piece, `${where}, ${layer}`).not.toMatch(/var\(--[\w-]+\)/);
+              expect(piece, `${where}, ${layer}`).not.toContain("currentColor");
+              for (const el of doc.querySelectorAll("[class]")) for (const c of (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean)) expect(HARMLESS.has(c), `${where}, ${layer}: class "${c}" must not need the page's styles`).toBe(true);
+              // nothing moves by itself, and nothing that the page would show is left hidden (or the reverse)
+              expect(doc.querySelectorAll("animate, animateTransform, animateMotion, set"), `${where}, ${layer}`).toHaveLength(0);
+              expect(doc.querySelectorAll('[visibility="hidden"]'), `${where}, ${layer}`).toHaveLength(0);
+              expect(doc.querySelectorAll('[opacity="0"]'), `${where}, ${layer}: nothing waits, unseen, for a moment`).toHaveLength(0);
+              for (const t of doc.querySelectorAll("text")) expect(t.getAttribute("font-family")).toBe("Soehne, sans-serif");
+            }
+          }
+        }
+      }
+    }
+    // 6 rarities × 4 stages × 2 cases, each at least a floor, legs, and four bodies
+    expect(pieces).toBeGreaterThan(6 * 4 * 2 * 6);
+  });
+
+  it("the rings of a Holographic UPPERCASE letter bring the foil with them (it is defined in the body's layer)", () => {
+    const svg = drawing("Mythic", 5, true);
+    const rings = pieceOf(svg, "rings")!;
+    expect(rings).toMatch(/url\(#tc-holo-/);
+    expect(rings).toMatch(/<linearGradient[^>]*id="tc-holo-/);
+    // and a rarity's glow, drawn under the rings, brings its own paint
+    const glow = [...rings.matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]).filter((id) => !id.startsWith("tc-holo-"));
+    for (const id of glow) expect(rings).toContain(`id="${id}"`);
+  });
+
+  it("the eyes: open has no shut drawing, shut has no open one, and a glance moves both pupils", () => {
+    const svg = drawing("Rare", 0, false);
+    const count = (piece: string, cls: string) => parse(piece).querySelectorAll(`.${cls}`).length;
+    const open = pieceOf(svg, "body", withEyes("open"))!;
+    expect([count(open, "tc-eye-open"), count(open, "tc-eye-shut")]).toEqual([2, 0]);
+    const shut = pieceOf(svg, "body", withEyes("shut"))!;
+    expect([count(shut, "tc-eye-open"), count(shut, "tc-eye-shut")]).toEqual([0, 2]);
+    for (const [eyes, sign] of [["left", -1], ["right", 1]] as const) {
+      const pupils = [...parse(pieceOf(svg, "body", withEyes(eyes))!).querySelectorAll(".tc-pupil")];
+      expect(pupils).toHaveLength(2);
+      for (const p of pupils) expect(p.getAttribute("transform")).toBe(`translate(${sign * GLANCE_UNITS} 0)`);
+    }
+    // cutting pieces never changes the drawing they are cut from
+    expect(svg.querySelectorAll(".tc-eye-shut")).toHaveLength(2);
   });
 });

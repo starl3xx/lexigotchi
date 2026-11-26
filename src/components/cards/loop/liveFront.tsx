@@ -62,17 +62,32 @@ function drawLetter(el: ReactElement): SVGSVGElement {
   return copy;
 }
 
-/** One layer of a letter's drawing, as markup that stands alone. The printed letter names its font outright: no page is there to say what --font-body is. */
-function pieceOf(svg: SVGSVGElement, layer: string, change?: (g: Element) => void): string | null {
-  const g = svg.querySelector(`:scope > [data-layer="${layer}"]`);
+/**
+ * One layer of a letter's drawing, as markup that STANDS ALONE: it becomes a picture of its own,
+ * with no page around it and none of the drawing's other layers. So:
+ * - **It brings the drawing's definitions with it.** A layer may point at a gradient or a clip that
+ *   another layer defines (the Holographic foil's gradient and a rarity's glow are defined in the
+ *   body, and the rings point at them). In the page that works, since an id is the page's. Alone,
+ *   a paint that points at nothing draws nothing: the foil rings would be missing.
+ * - **The printed letter names its font outright:** no page is there to say what --font-body is.
+ * - **Nothing in it runs on its own clock** (a drifting foil would be drawn wherever it had got to).
+ * `tests/living-video.test.tsx` holds all three, for every rarity, stage, and case.
+ */
+export function pieceOf(svg: SVGSVGElement, layer: string, change?: (g: Element) => void): string | null {
+  const g = [...svg.children].find((c) => c.getAttribute("data-layer") === layer);
   if (!g) return null;
   const copy = g.cloneNode(true) as Element;
-  copy.querySelectorAll("text").forEach((t) => t.setAttribute("font-family", "Soehne, sans-serif"));
+  const others = [...svg.querySelectorAll("defs")].filter((d) => !g.contains(d)).map((d) => d.cloneNode(true) as Element);
+  for (const part of [copy, ...others]) part.querySelectorAll("animate, animateTransform, animateMotion, set").forEach((el) => el.remove());
+  copy.querySelectorAll("text").forEach((t) => t.setAttribute("font-family", PIECE_FONT));
   change?.(copy);
-  return new XMLSerializer().serializeToString(copy);
+  const xml = new XMLSerializer();
+  return others.map((d) => xml.serializeToString(d)).join("") + xml.serializeToString(copy);
 }
+/** The font a piece's letter is printed in: the family the piece's own @font-face names. */
+const PIECE_FONT = "Soehne, sans-serif";
 /** The body, with the eyes one way: open (the shut drawing taken out), shut, or open and glancing. */
-const withEyes = (eyes: Eyes) => (g: Element) => {
+export const withEyes = (eyes: Eyes) => (g: Element) => {
   g.querySelectorAll(eyes === "shut" ? ".tc-eye-open" : ".tc-eye-shut").forEach((el) => el.remove());
   g.querySelectorAll(".tc-eye-shut").forEach((el) => el.removeAttribute("visibility"));
   if (eyes === "left" || eyes === "right") g.querySelectorAll(".tc-pupil").forEach((el) => el.setAttribute("transform", `translate(${eyes === "left" ? -GLANCE_UNITS : GLANCE_UNITS} 0)`));
@@ -123,12 +138,17 @@ export async function makeLiveFront(spec: LiveFrontSpec): Promise<LiveFront> {
     c.getContext("2d")!.drawImage(img, 0, 0, px, py);
     return c;
   };
-  const same = (a: HTMLCanvasElement, b: HTMLCanvasElement) => {
-    const x = a.getContext("2d")!.getImageData(0, 0, px, py).data;
-    const y = b.getContext("2d")!.getImageData(0, 0, px, py).data;
+  // Is a piece's letter really printed in Söhne? A line of text is drawn twice, with the font
+  // inside it and without: in Söhne the two must differ. (The same line for every word, so the
+  // answer never hangs on which letter a word starts with.)
+  const PROBE = `<text x="8" y="${VB.h * 0.6}" font-family="${PIECE_FONT}" font-weight="800" font-size="${VB.h * 0.34}">RaQg</text>`;
+  const inSoehne = async () => {
+    const [a, b] = await Promise.all([raster(PROBE), raster(PROBE, "")]);
+    const x = a!.getContext("2d")!.getImageData(0, 0, px, py).data;
+    const y = b!.getContext("2d")!.getImageData(0, 0, px, py).data;
     let diff = 0;
-    for (let k = 0; k < x.length; k += 16) if (Math.abs(x[k] - y[k]) > 40 || Math.abs(x[k + 3] - y[k + 3]) > 40) diff++;
-    return diff < 20;
+    for (let k = 3; k < x.length; k += 4) if (Math.abs(x[k] - y[k]) > 60) diff++;
+    return diff > px * py * 0.004;
   };
 
   const drawings = [...spec.word].map((ch, i) =>
@@ -152,15 +172,16 @@ export async function makeLiveFront(spec: LiveFrontSpec): Promise<LiveFront> {
     }
     return sprites;
   };
-  let sprites = await build();
-  // Is the printed letter really in Söhne? A piece drawn with no font inside must come out
-  // different. If it doesn't, the browser drew the piece before the font inside it was ready (older
-  // Safari did): wait a moment and draw every piece again.
-  const plain = await raster(pieceOf(drawings[0], "body", withEyes("open")), "");
-  if (plain && same(sprites[0].body.open as HTMLCanvasElement, plain)) {
+  // A browser may draw a piece before the font inside it is ready (older Safari did). So the font
+  // is asked for first, a few times; and if it never comes, there is no living front: a letter in
+  // the wrong font is worse than a still one (the caller keeps the server's picture).
+  let ready = await inSoehne();
+  for (let tries = 0; !ready && tries < 4; tries++) {
     await new Promise((r) => setTimeout(r, 120));
-    sprites = await build();
+    ready = await inSoehne();
   }
+  if (!ready) throw new Error("the letters' font did not load inside their pictures");
+  const sprites = await build();
 
   const canvas = document.createElement("canvas");
   canvas.width = CARD_W;

@@ -1822,18 +1822,49 @@ setter. All small, riding existing suite patterns.
         compressed, and at its size the game's breath is under two pixels.
       - **A video is always made.** If the living front can't be drawn (a piece doesn't load, a
         browser can't read one back), the still picture of the front is used, as before.
-      - **Three things a picture of a drawing needs.** It can't see the page's fonts, so Söhne is
-        put inside each piece (and checked: a piece drawn with no font inside must come out
-        different, or every piece is drawn again a moment later). Every piece comes from this site
-        or the page, so the frames can be read back and encoded. And the rig is drawn into a
-        node that is never in the page, with the game's own React, not a server renderer.
-      - **Measured in the review's test** (headless, this Mac): 34 pieces drawn in 0.3 s (WebKit)
-        and 0.4 s (Chrome); encoding 1.0 s in Chrome either way, 2.0 s still and 2.7 s living in
-        WebKit; files about the same size. The step from the last frame to the first changes as
-        many pixels as the step from the first to the second.
-      - **Seen and not seen (part 7):** a real video made in the practice game in Chrome (VIVID,
-        Gilded 1: a letter mid-blink at 0.54 s, the gilding on its letters, no error, and the
-        still front never asked for). Not made in real Safari or on a phone.
+      - **A piece stands alone, so it brings what it points at** (`pieceOf`). A piece is a
+        picture of its own: no page around it, none of the drawing's other layers. In the page a
+        layer may point at a gradient another layer defines (the Holographic foil and a rarity's
+        glow are defined in the body's layer, and the rings point at them), because an id is the
+        page's. Alone, a paint that points at nothing draws nothing: a Holographic UPPERCASE
+        letter would have had no rings in the video. So every piece carries the drawing's
+        definitions, names its font outright, and has nothing in it that runs on a clock.
+        `tests/living-video.test.tsx` holds this for six rarities, four stages, and both cases:
+        every paint, clip, and filter a piece names is inside it; no value comes from the page;
+        every class it carries only MOVES things in the game (a list in the test: a new class in
+        the rig's drawing must be sorted there).
+      - **The font is asked for first.** A picture of a drawing can't see the page's fonts, so
+        Söhne is put inside each piece. Before any letter is drawn, a line of text is drawn with
+        the font and without: they must differ. It is asked a few times (older Safari drew a
+        piece before its font was ready); if the font never comes there is no living front, and
+        the still picture is used. A letter in the wrong font is worse than a still one.
+      - **The front's letters wear the stage the GAME shows; the back's picture reads the chain.**
+        The living letters are the ones on the player's card, so they take the word's stage from
+        the game, which reads it from the chain. The server reads the same chain for the back
+        (and the address names the stage, so a kept answer is read again). So the two faces agree
+        in the real game. Two cases where the back says LESS than the front, never something
+        else: the practice game (the server knows no chain, so a practice video's back has no
+        ascension line and a plain rack), and a chain read that fails (a fact that couldn't be
+        read is left out). Nothing a link says is drawn, as before: the letters come from the
+        player's own game, and the file is the player's own.
+      - **Is the video's letter the game's letter?** Drawn side by side at the same place and
+        size (one letter at rest; the game's rig held still in a page with the game's styles),
+        in Chromium and WebKit: a Mythic Holographic UPPERCASE letter, Legendary Gilded 4, Rare
+        Gilded 1, Uncommon Holographic lowercase, a plain Common, a plain Mythic. Under 1.4% of
+        the drawn pixels differ, all at soft edges (the piece is drawn at twice the size and
+        scaled down); at most 0.08% differ strongly.
+      - **Measured in the real game** (practice mode, this Mac, headless, the dev server's
+        pictures warm): Chrome 3.3 s living and 3.9 s still; Chrome slowed four times, 3.8 to
+        5.1 s living and 4.1 s still; WebKit 4.9 to 5.4 s living and 4.3 s still. Files: the
+        same size in Chrome (3.1 MB), 2.2 MB against 1.7 MB in WebKit (moving letters take more
+        bits). A five-letter word's pieces are drawn in under 0.1 s.
+      - **Seen and not seen (part 7):** real videos made in the practice game in Chrome and in
+        WebKit (VIVID, Gilded 1): a letter mid-blink at 0.54 s, the last letter glancing at
+        1.2 s, the word blinking along its length at 5.4 s, the gilding and pips on its letters,
+        no error, and the still front never asked for. With the letterless picture refused, the
+        still front was asked for and the video was made. Not made in real Safari or on a
+        phone, and not for a Holographic word in the game itself (the practice game has none):
+        that one was compared letter by letter, above.
 
 ## Pricing & launch economics (decided June 2026)
 
