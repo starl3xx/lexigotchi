@@ -17,7 +17,7 @@ import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
 
 /**
- * A word's share picture: its card (decisions.md #33), as the game draws it. The card's own paper,
+ * A word's share picture: its card (decisions.md #34), as the game draws it. The card's own paper,
  * the scene's art in the frame's window (`?scene=`, lib/scenes; the Stage when a link names none),
  * the word's tile characters standing in it in the finish of the word's rarity (lib/rarityFinish,
  * still: a picture has no light passing), the frame in the rarity's ink, and the ribbon.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Scenes and the front of a word's card (decisions.md #33): the scene list and its unlock, the card
+ * Scenes and the front of a word's card (decisions.md #34): the scene list and its unlock, the card
  * art's rules, where the word stands, and what the card's front shows.
  */
 import { describe, it, expect, afterEach } from "vitest";

@@ -70,7 +70,7 @@ describe("parsePicks (a save)", () => {
   });
 });
 
-describe("a retired scene (Picture Day, Summer, Fall, Winter: decisions.md #33)", () => {
+describe("a retired scene (Picture Day, Summer, Fall, Winter: decisions.md #34)", () => {
   it("is still a pick, made when it was, and it shows the stock card", () => {
     for (const old of ["portrait", "summer", "fall", "winter"]) {
       expect(parseStoredPick(JSON.stringify({ scene: old, at: 5, synced: true }))).toEqual({ scene: "stock", at: 5, synced: true });

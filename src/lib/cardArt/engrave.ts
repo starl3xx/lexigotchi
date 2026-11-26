@@ -1,7 +1,7 @@
 /**
  * An engraver's kit: the pieces a card's art is drawn from, as SVG markup (strings).
  *
- * A card's art is a still picture (decisions.md #33), so it is built once as one SVG document and
+ * A card's art is a still picture (decisions.md #34), so it is built once as one SVG document and
  * shown as an image: a CSS background in the game, an `<img>` on the share picture. No elements in
  * the page, nothing to redraw. Tone comes from line patterns, the way an engraving makes grey out
  * of black, so a whole scene is a few dozen to a few hundred shapes, not the thousand a scene was.

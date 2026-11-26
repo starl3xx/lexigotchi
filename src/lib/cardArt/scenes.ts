@@ -1,5 +1,5 @@
 /**
- * The card scenes, as still pictures (./engrave says how; decisions.md #33), and the frame every
+ * The card scenes, as still pictures (./engrave says how; decisions.md #34), and the frame every
  * card wears. Each scene returns the art for the card's window; the frame is its own picture, drawn
  * over it.
  *

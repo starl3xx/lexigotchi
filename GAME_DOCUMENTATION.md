@@ -39,7 +39,9 @@ Two renewable late-game loops sit on top: a **weekly theme bounty** (broad, casu
   total per-letter supply.
 - **Mint odds are demand-mirrored** (spec Appendix A): a letter's probability of being pulled equals
   its share of all letter slots in the dictionary. The dictionary has **22,920 slots** (= 5 × 4,584
-  words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails.
+  words). Common letters (S, E, A, …) are frequent; **Q, Z, X, J** are the grails. A letter that has
+  sold out leaves the draw, and the others rise. The Mint tab lists every letter's odds, A to Z, from
+  the weights the draw itself uses (`src/lib/letterOdds.ts`, decisions.md #33).
 - **Per-letter supply caps** = `floor(slots × 3.0)` (the demand multiple, 3.0 since decisions.md #21;
   Sepolia's deployed Letters keeps 2.5×). They sum to a global cap of **68,760 letters**. The sim
   (1,500 players, a year) shows 99% of the dictionary claimed around day 50 and all letters minted
@@ -249,7 +251,7 @@ A staked word's care state is a function of days since last fed:
   3:2 for the Farcaster embed). The page and card draw dictionary words only, never free text (decisions.md
   #15). Offchain, read-only vanity: no NFT, no fee. The primary organic growth loop (every shared
   word is an ad). The Showcase screen that did this folded into the cards.
-- **Scenes and the card's front** (decisions.md #33): a word's card is an object: its own paper,
+- **Scenes and the card's front** (decisions.md #34): a word's card is an object: its own paper,
   its scene in a window, a frame in the rarity's ink with the rarity's mark in its corners, and a
   ribbon ("one of one", the card's number, the rarity). It shows on the Today stage, in the Bag,
   and on the share picture (`src/lib/scenes.ts`, `src/lib/cardArt/`, `src/components/scenes/`).

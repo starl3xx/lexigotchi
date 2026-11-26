@@ -1,6 +1,6 @@
 "use client";
 /**
- * The card's own light (decisions.md #33): the only motion a card with a still scene has, and only
+ * The card's own light (decisions.md #34): the only motion a card with a still scene has, and only
  * on the card in focus (the Today stage, an opened word). starl3xx, 2026-11-25: "the only
  * animation for still scenes should be something that makes the card itself look cool, not the
  * objects in the scene", and then, of the first version: "much more subtle/transparent".

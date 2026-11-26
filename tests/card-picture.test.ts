@@ -1,5 +1,5 @@
 /**
- * A word's share picture (`/s/<word>/card`, decisions.md #33): the card on a table in X's and
+ * A word's share picture (`/s/<word>/card`, decisions.md #34): the card on a table in X's and
  * Farcaster's shapes, the card's front alone for the share video, and a number that only the chain
  * can put on it.
  */

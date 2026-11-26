@@ -451,7 +451,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
-- **Scenes and the card's front** (decisions.md #15 and #33; `src/lib/scenes.ts` = the list and the
+- **Scenes and the card's front** (decisions.md #15 and #34; `src/lib/scenes.ts` = the list and the
   unlock; `src/lib/cardArt/` = the pictures; `src/components/scenes/`): a word's card front is
   `SceneFrame` (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9; also the Bag, the scene sheet, the
   purchase celebration, the share page). **The card is an object:** its own paper, the scene's art in
@@ -548,6 +548,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   spell, needs more letters, brand new), one loud "get letters" button at a time, the jackpot saying
   how to get in, and `state.wordsLoading` (chain store) so a returning player never sees the
   newcomer's invitation while their words load (Today, Bag).
+- **The Mint tab lists every letter's actual odds** (decisions.md #33; `components/game/LetterOdds.tsx`,
+  `lib/letterOdds.ts`): the whole alphabet, A to Z, not a card. `letterWeights` is the ONE weight: the
+  signer's `drawLetters` draws by it and the list shows it normalized, so never give the draw or the
+  screen its own copy, and never change the draw's arithmetic (`tests/draw-pinned.test.ts` holds its
+  letters for fixed seeds; a paid commit's letters depend on them). The chain game reads supply
+  (`useLetterSupply`, shared with the lookup sheet): a sold-out letter shows "Sold out" and the rest
+  rise; "N left" shows only at a tenth of the chain's cap or less (`LOW_SHARE`). The docs' odds table
+  (`docs-site/letters.mdx`) is pinned to the code by `tests/letter-odds.test.ts`.
 - **The Jackpot page carries the bounty** (starl3xx, 2026-11-25): one tab (the phone's "Win", the
   rail's "Jackpot"), the daily jackpot then the weekly bounty (`screens/BountySection.tsx`), side by
   side from `lg`. There is no `bounty` view. Today keeps both cards; its bounty card links with

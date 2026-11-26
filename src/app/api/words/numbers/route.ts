@@ -6,7 +6,7 @@ import { cardNumbersOf } from "@/lib/onchain/cardNumbers";
 /**
  * Card numbers for a few words: `GET /api/words/numbers?words=CRANE,PLUMB` → `{ numbers: { CRANE: 12 } }`.
  *
- * The front of a word's card letters its number on the ribbon (decisions.md #33), and the front
+ * The front of a word's card letters its number on the ribbon (decisions.md #34), and the front
  * shows on Today, so this is asked for on every visit. `/api/world` carries every word's number,
  * with every owner, letter, and face beside it: far too much to fetch for a handful of numbers.
  * This answers from the same scan (lib/onchain/cardNumbers), with only what was asked for.

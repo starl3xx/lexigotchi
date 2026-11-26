@@ -2,7 +2,7 @@
  * Scenes: what a word's card shows behind it. A word stands in its scene on the Today stage, on
  * its card in the Bag, and on the picture a share links to (`/s/<word>?scene=<id>`).
  *
- * The line-up (decisions.md #33; starl3xx, 2026-11-25):
+ * The line-up (decisions.md #34; starl3xx, 2026-11-25):
  * - **The stock card** is where every word starts: no place at all, the card's own engraving in
  *   grey with the word's rarity as an overtone. Every player has it.
  * - **The Stage** is free for everyone too.
@@ -60,7 +60,7 @@ export function isSceneId(raw: unknown): raw is SceneId {
   return typeof raw === "string" && (SCENE_IDS as readonly string[]).includes(raw);
 }
 
-/** The scenes that were retired (decisions.md #33). Kept by name, because picks of them are still stored. */
+/** The scenes that were retired (decisions.md #34). Kept by name, because picks of them are still stored. */
 export const RETIRED_SCENES: readonly string[] = ["portrait", "summer", "fall", "winter"];
 
 /**

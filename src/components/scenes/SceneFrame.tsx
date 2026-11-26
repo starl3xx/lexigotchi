@@ -1,6 +1,6 @@
 "use client";
 /**
- * The front of a word's card (decisions.md #33): the card's own paper, the scene's art in the
+ * The front of a word's card (decisions.md #34): the card's own paper, the scene's art in the
  * frame's window, the word's characters standing in it, the frame in the rarity's ink, and a ribbon
  * set into the frame's lower edge ("one of one", the card's number, the rarity). A 16:9 box at any
  * width; the share picture draws the same card (scenes/layout.ts and lib/cardArt keep the two in

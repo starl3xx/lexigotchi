@@ -70,7 +70,7 @@ describe("a word's card", () => {
   });
 });
 
-describe("the card's own light (decisions.md #33)", () => {
+describe("the card's own light (decisions.md #34)", () => {
   // One frame at a time: the card asks for a frame, and the test runs it.
   let frames: FrameRequestCallback[] = [];
   const frame = () => act(() => void frames.splice(0).forEach((cb) => cb(0)));

@@ -1,5 +1,5 @@
 /**
- * A card's look by rarity, and the card's own measures (decisions.md #33).
+ * A card's look by rarity, and the card's own measures (decisions.md #34).
  *
  * The rarity is an overtone, not the whole card: the frame's border and lettering are printed in
  * its ink, and the stock card's grey engraving carries a wash of its tint. The tile finishes

@@ -889,7 +889,39 @@ setter. All small, riding existing suite patterns.
       opens its view only in the chain game (or when it is the player's), since practice has no
       other owners; the Dictionary's rarity chips flipped rather than the Market's.
 
-33. **A card is an object, and its scene is a still engraving** (starl3xx, 2026-11-25, on the
+33. **The Mint tab shows every letter's actual odds** (starl3xx, 2026-11-25: "mint letter odds
+    should show the whole alphabet in Mint tab, not styled as a card... like the actual odds % per
+    letter"; then "order should be A-Z", and how many are left "only for the low ones"). It replaces
+    a card that pictured the five most common letters and the five rarest, with no numbers.
+    - **The numbers are the draw's own.** `lib/letterOdds.ts` `letterWeights` is the weight the
+      signer's `drawLetters` uses (a letter's dictionary share, or 0 once none can be minted), and
+      the list shows it normalized (`letterOdds`). One function, so the screen can't drift from a
+      pack. The draw's arithmetic did not change: `tests/draw-pinned.test.ts` holds the letters it
+      gave for fixed seeds, recorded before the weights moved, because a paid commit's letters are a
+      function of its id and the supply.
+    - **Actual, not nominal.** In the chain game the list reads each letter's supply
+      (`useLetterSupply`, the lookup sheet's read, now shared): a sold-out letter says "Sold out"
+      with no odds, and every other letter shows the higher odds it has without it. While that read
+      loads, or after it fails, the list shows the odds with every letter in the draw and says so.
+    - **"Left" only for a letter running low:** a tenth of its supply or less (`LOW_SHARE`), a share
+      of the CHAIN's cap, because q's cap is in the hundreds and e's in the thousands, and a
+      deployed Letters can hold older caps than `economy.ts`.
+    - **A to Z, read down the columns** (two on a phone, three on desktop), with no sort switch: the
+      bars show which letters are common. Not a card: a ruled heading and dashed rows. Bars are
+      gold (chance). 26 still tiles.
+    - **Plain words for the rarest:** "About 1 pack in 100 has a q", computed for the rarest letter
+      still in the draw (five independent draws). The player docs carry the same table
+      (`docs-site/letters.mdx`), pinned to the code by `tests/letter-odds.test.ts`.
+    - **The copy says "pull", never "draw"** (#24 keeps "draw" from the player, where it reads as
+      a lottery; "pull" is the Mint tab's own word). The supply is read again every minute while
+      the Mint tab is open, so "Sold out" and "N left" can be up to a minute old.
+    - The old card's caption named a Pokémon character, against #24; it went with the card, and
+      the copy-rules test now refuses the name.
+    - **Seen and not seen:** the list in practice mode at 390 and 1200 px. The sold-out and low
+      rows only with a made-up supply (the test network has no low letter): the live supply path
+      is held by tests.
+
+34. **A card is an object, and its scene is a still engraving** (starl3xx, 2026-11-25, on the
     "Cards, Scenes, and Logo" proposal, six versions: "this is ABSOLUTELY the right direction for
     the cards"; then "After these are fixed, you're free to start building"). The owner pointed at
     Peter Voth's engraved cards and labels for the manner, and asked that the letters "retain their

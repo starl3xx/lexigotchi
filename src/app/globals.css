@@ -467,7 +467,7 @@ body {
 @keyframes scene-fog-breathe { from { opacity: 0.6; } }
 
 /* ---------------------------------------------------------------------------------------------
-   The front of a word's card (components/scenes/SceneFrame.tsx; decisions.md #33). The card is an
+   The front of a word's card (components/scenes/SceneFrame.tsx; decisions.md #34). The card is an
    object: its own paper, a shade lighter than the page; the scene's art in the frame's window; the
    frame in the rarity's ink; a grain and a linen weave pressed over the print; and a ribbon set
    into the frame's lower edge. The art and the frame are still pictures (lib/cardArt), each one
@@ -620,7 +620,7 @@ body {
 .sc-flip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #1b1714; }
 .sc-flip:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) { .sc-flip:hover { transform: translate(-1px, -1px) rotate(-18deg); box-shadow: 3px 3px 0 #1b1714; } }
-/* ---- the card's own light (SceneCard; decisions.md #33): the only motion a still scene has ----
+/* ---- the card's own light (SceneCard; decisions.md #34): the only motion a still scene has ----
    - the lean: the card turns a few degrees toward the pointer (.sc-lean's transform, written by
      SceneCard with no transition while it follows: a transition restarted on every frame cost a
      third of a processor core in WebKit; it eases only as the pointer arrives and leaves, .sc-ease);

@@ -81,7 +81,7 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
  * changes (the letters, a scene, the frame), and every cache starts again.
  *
  * 2: the letter review (decisions.md #28).
- * 3: the card as an object: its frame, its ribbon, the engraved scenes (decisions.md #33).
+ * 3: the card as an object: its frame, its ribbon, the engraved scenes (decisions.md #34).
  */
 export const CARD_LOOK = 3;
 
