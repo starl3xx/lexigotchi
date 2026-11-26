@@ -926,9 +926,16 @@ setter. All small, riding existing suite patterns.
       and now say two. Having the server finish it, as it does for rolls (#14, which names
       ascension as a later case), would make it one and keep the letters nervous without a
       second prompt in the middle. Not built here: it is a new server write path.
-    - **Measured** (headless WebKit, this Mac, a Legendary word, phone width): the sheet at rest
-      38% of a core (the word's own light moments), a try out 45%, against 50% for the word's own
-      sheet behind it. The rays turn as one HTML element, so the letters aren't redrawn for them.
+    - **Measured, and one thing fixed for it** (headless WebKit, this Mac, one plain word
+      alone at the sheet's size): nervous, it cost 45% of a processor core against 3 to 9% at
+      rest. 27 points of that were the sweat: two beads a letter, looping inside the letter's top
+      layer, which WebKit redraws every frame (the cost #227 took off sleeping letters' z's the
+      same day). Each bead is now a layer of its own, and a nervous word costs about 20%; the
+      roll sheet's one letter gets the same. The peeking eye swaps in steps and costs nothing.
+      The rays turn as one HTML element, so the letters aren't redrawn for them. A Legendary
+      word's own light moments keep running in the sheet, as they do on Today. A first reading on
+      a Legendary word (38% at rest, 45% nervous) hid all of this behind those moments: measure
+      a plain word.
     - **Seen and not seen:** the whole flow in the practice game, in Chromium and WebKit, at
       phone and desktop widths. The chain game's path (two confirmations, the wait for the
       reveal, a stranded try) is held by tests of its rules, and was not driven against Base

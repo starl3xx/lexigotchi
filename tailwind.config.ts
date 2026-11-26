@@ -164,15 +164,16 @@ const config: Config = {
           "0%,100%": { transform: "skewX(-5deg)" },
           "50%": { transform: "skewX(5deg)" },
         },
-        // These three run INSIDE a layer: one letter in the roll sheet, or a word's five in the
-        // ascend sheet, for as long as a try takes. Measured in WebKit for the five (a Legendary
-        // word, 2026-11-25): 45% of a core against 38% for the same word at rest.
-        // a bead of sweat flicks off the brow (its group's turn points it; px are drawing units)
+        // a bead of sweat flicks off the brow, on a layer of its own (TileCharacter, SWEAT): it flies
+        // 21 of the drawing's units along its own direction (--fx, --fy) and grows as it goes. The
+        // distance is in units (--ux, --uy), so it is the same at every size.
         tcSweat: {
-          "0%": { opacity: "0", transform: "translateY(3px) scale(0.5)" },
+          "0%": { opacity: "0", transform: "translate(calc(var(--ux) * var(--fx) * -3), calc(var(--uy) * var(--fy) * -3)) scale(0.5)" },
           "18%,62%": { opacity: "1" },
-          "100%": { opacity: "0", transform: "translateY(-18px) scale(1)" },
+          "100%": { opacity: "0", transform: "translate(calc(var(--ux) * var(--fx) * 18), calc(var(--uy) * var(--fy) * 18)) scale(1)" },
         },
+        // The peek runs INSIDE the body layer, for as long as a roll or an ascension try takes: its
+        // two halves swap in steps, so nothing is redrawn between them (measured: no cost).
         // one eye peeks open for a moment, then screws shut again (the two swap, step-end)
         tcPeekOpen: {
           "0%": { opacity: "0" },

@@ -743,34 +743,27 @@ function Z({ z }: { z: (typeof ZS)[number] }) {
   );
 }
 
-/** Rolling: beads of sweat flicking off the top corners (white, like the mitts: no red, no "?"). */
-function Sweat({ reduced, eyeY, index = 0 }: { reduced: boolean; eyeY: number; index?: number }) {
-  // A still frame shows none: a bead frozen in the air reads as an ear.
-  if (reduced) return null;
-  const drop = "M 0 -7 C 4 -1 5 3 0 5 C -5 3 -4 -1 0 -7 Z";
-  // each bead flies along its own "up" (its group's turn), so one keyframe serves both
-  const drops = [
-    { x: CX - 58, y: eyeY - 24, rot: -40, d: 0 },
-    { x: CX + 58, y: eyeY - 24, rot: 40, d: 0.7 },
-  ];
-  return (
-    <g>
-      {drops.map((s, i) => (
-        <g key={i} transform={`translate(${s.x} ${s.y}) rotate(${s.rot})`}>
-          <path
-            d={drop}
-            fill={EYE_WHITE}
-            stroke={INK}
-            strokeWidth={2}
-            opacity={0}
-            className="animate-tc-sweat"
-            // a word's letters don't sweat in step: each starts its beads a little before the last
-            style={{ animationDelay: `${(s.d - index * SWEAT_STEP_S).toFixed(2)}s`, transformBox: "fill-box", transformOrigin: "center" } as CSSProperties}
-          />
-        </g>
-      ))}
-    </g>
-  );
+/**
+ * Rolling: beads of sweat flicking off the top corners (white, like the mitts: no red, no "?").
+ *
+ * Each bead is a LAYER of its own (TileCharacter draws them), as a sleeping letter's z's are, and
+ * for the same reason: they were two shapes looping inside the top layer, which makes WebKit redraw
+ * that layer on every frame. A word of five nervous letters (the ascend sheet) cost 45% of a
+ * processor core that way, 27 points of it the beads (headless WebKit, a Common word alone,
+ * 2026-11-25). On layers they fly and fade without a redraw.
+ *
+ * A bead flies along its own turn: `fx`, `fy` are that direction (the turn's sine, and minus its
+ * cosine, typed so the server and the browser can't disagree in a last digit), which tcSweat reads
+ * as --fx / --fy. `d` is the second bead's wait, so the two don't fly together.
+ */
+const BEAD = "M 0 -7 C 4 -1 5 3 0 5 C -5 3 -4 -1 0 -7 Z";
+const SWEAT = [
+  { dx: -58, turn: -40, fx: -0.643, fy: -0.766, d: 0 },
+  { dx: 58, turn: 40, fx: 0.643, fy: -0.766, d: 0.7 },
+];
+const SWEAT_DY = -24; // above the eye line
+function Bead({ x, y, turn }: { x: number; y: number; turn: number }) {
+  return <path d={BEAD} fill={EYE_WHITE} stroke={INK} strokeWidth={2} transform={`translate(${x} ${y}) rotate(${turn})`} />;
 }
 
 function Snack() {
@@ -934,7 +927,9 @@ export function TileCharacter({
 
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
   const hasFloor = showLimbs || state === "upgrade";
-  const hasTop = (showLimbs && linkLeft) || (showFace && (state === "rolling" || state === "eating")) || state === "celebrate";
+  const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating") || state === "celebrate";
+  // A still frame shows no sweat: a bead frozen in the air reads as an ear.
+  const sweating = showFace && state === "rolling" && !reduced;
   const asleep = showFace && state === "hungry";
   const layers = [
     // the floor: what never moves
@@ -1117,11 +1112,24 @@ export function TileCharacter({
           {/* the hands this letter and its left neighbour hold */}
           {showLimbs && linkLeft && <Clasp darts={darts} />}
           {/* per-state extras anchored to the scene */}
-          {showFace && state === "rolling" && <Sweat reduced={reduced} eyeY={eyeY} index={index} />}
           {showFace && state === "eating" && <Snack />}
           {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
         </>,
       ),
+
+    // a nervous letter's beads of sweat: a layer each, flying off along its own turn (SWEAT says
+    // why). Unseen until its turn comes; a word's letters don't sweat in step, so each letter
+    // starts its beads a little before the last.
+    ...(sweating
+      ? SWEAT.map((b, i) =>
+          layer(`sweat${i}`, <Bead x={CX + b.dx} y={eyeY + SWEAT_DY} turn={b.turn} />, "animate-tc-sweat", originAt(CX + b.dx, eyeY + SWEAT_DY), {
+            opacity: 0,
+            animationDelay: `${(b.d - index * SWEAT_STEP_S).toFixed(2)}s`,
+            "--fx": b.fx,
+            "--fy": b.fy,
+          } as CSSProperties),
+        )
+      : []),
 
     // a sleeping letter's z's: a layer each, so each can rise and fade without a redraw (ZS says why)
     ...(asleep ? ZS.map((z, i) => layer(`z${i}`, <Z z={z} />, reduced ? "" : "animate-tc-zzz", originAt(z.x + z.s * 0.28, z.y - z.s * 0.3), reduced ? undefined : { animationDelay: `${i * 0.5}s` })) : []),

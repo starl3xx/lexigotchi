@@ -21,14 +21,15 @@ beforeEach(() => {
 
 const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
 /** The loops: each may only ever be on a layer (a whole <svg>). */
-const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock|zzz)\b/;
+const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock|zzz|sweat)\b/;
 /**
- * What may run inside a layer: short, or the letters of one sheet (a roll, an ascension try: for
- * as long as the try takes). Never a sleeping word's zzz: a hungry word sleeps on the Today stage
- * for as long as it is hungry, and its z's looping inside the top layer cost 44% of a processor
- * core at rest in WebKit (5% with them still).
+ * What may run inside a layer: short, or one letter in a sheet, or a swap in steps (the peek, which
+ * redraws nothing between its two halves). Never a sleeping word's zzz: a hungry word sleeps on the
+ * Today stage for as long as it is hungry, and its z's looping inside the top layer cost 44% of a
+ * processor core at rest in WebKit (5% with them still). And never a nervous letter's sweat: five
+ * letters wait together in the ascend sheet, and their beads inside the top layers cost 27 points.
  */
-const INSIDE = new Set(["animate-tc-sweat", "animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
+const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
 const animated = (root: Element) => [...root.querySelectorAll("[class*='animate-tc-']")];
 const tcClasses = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("animate-tc-"));
 
@@ -138,6 +139,21 @@ describe("a word that can't look (the ascend sheet)", () => {
     expect(open).toHaveLength(5);
     expect(new Set(open).size).toBe(5);
     expect(shut).toEqual(open);
+  });
+
+  it("sweats on layers: each bead is a whole <svg> that flies along its own turn, at its own time", () => {
+    const { container } = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} />);
+    const beads = [...container.querySelectorAll(".animate-tc-sweat")] as HTMLElement[];
+    expect(beads).toHaveLength(10);
+    for (const b of beads) {
+      expect(b.tagName.toLowerCase()).toBe("svg");
+      expect(b.style.opacity).toBe("0"); // unseen until its turn comes
+      expect(Math.hypot(Number(b.style.getPropertyValue("--fx")), Number(b.style.getPropertyValue("--fy")))).toBeCloseTo(1, 2);
+    }
+    expect(new Set(beads.map((b) => b.style.animationDelay)).size).toBe(10);
+    // a still frame shows none: a bead frozen in the air reads as an ear
+    const still = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} still />);
+    expect(still.container.querySelectorAll(".animate-tc-sweat")).toHaveLength(0);
   });
 
   it("one letter alone is as it was: nothing is delayed", () => {
