@@ -996,7 +996,7 @@ setter. All small, riding existing suite patterns.
       40 points of a core at rest. Fixed beside this change (PR #227: a layer for each z), so a
       hungry word on the new card measures 5% too.
 
-35. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
+36. **"Your earnings" shares like a word does** (starl3xx, 2026-11-25: "this 'Your earnings' thing
     should be sharable in the same way words are... share to X, FC, download image... think through
     how to best visualize it in a 16:9 image"). The sheet has a Share button: Post on X, Cast, Save
     image, with the picture shown first.
