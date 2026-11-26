@@ -82,7 +82,7 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
  *
  * 2: the letter review (decisions.md #28).
  * 3: the card as an object: its frame, its ribbon, the engraved scenes (decisions.md #34).
- * 4: the back relettered, with the game's seal (decisions.md #35, #36). The back's picture had no
+ * 4: the back relettered, with the game's seal (decisions.md #35, #37). The back's picture had no
  *    version in its address until now, so the share video kept drawing the old back from a cached
  *    copy after #35 shipped (starl3xx, 2026-11-26: "the back of the card isn't in the share video
  *    yet"). Every picture of a card, front or back, carries this number.

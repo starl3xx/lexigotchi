@@ -339,7 +339,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
 - `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages); its shapes are numbers in `tileShapes.ts`, which the share card's Satori letter (`src/app/_og/tile.tsx`) draws from too, so change a shape there, once (decisions.md #28).
-  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. A sleeping (hungry) letter's three z's are a layer each for that reason: looping inside the top layer they cost 44% of a core on Today, where a hungry word shows first, and 5% as layers. `tests/tile-character.test.tsx` holds the rule. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
+  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. A sleeping (hungry) letter's three z's are a layer each for that reason: looping inside the top layer they cost 44% of a core on Today, where a hungry word shows first, and 5% as layers. A nervous (rolling) letter's two beads of sweat are a layer each too: five letters wait together in the ascend sheet, and the beads inside their top layers were 27 of a nervous word's 45 points (about 20% as layers). The peeking eye stays inside the body layer: it swaps in steps and costs nothing. `tests/tile-character.test.tsx` holds the rule. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (`MiniAppHost` + wagmi + RainbowKit; the
   connect modal is themed in `walletTheme.ts`). **A Farcaster host is one that answers**
@@ -522,7 +522,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   one ink** behind them (`lib/cardArt/seal.ts`, one picture for the game's back and the server's; its
   lines stop at the eyes, and in one ink the eyeball is ink and the pupil clear with its pie cut:
   the owner's three notes, held by `tests/card-seal.test.ts`). **One back at every size**
-  (decisions.md #36; globals.css `.cb`, by container width): two columns (the rarity over the
+  (decisions.md #37; globals.css `.cb`, by container width): two columns (the rarity over the
   number, "One of one", the count, the rack; the ledger) with a line along the bottom, all of it from
   470 px; the first four facts under 470 px (an opened card's `CardMore` lists the rest: keep the two
   widths equal, `tests/scene-card.test.tsx`); a thumbnail (`mini`) is the left column alone. The
@@ -711,6 +711,31 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `params.prestigeStageFeeUsd`) and draws at `prestige.baseByLevel[level]` (40/35/30/25/20%) + 10pp
   per miss; each commit records its `level`, which `/api/prestige/reveal` reads. Stage names and the
   fee multiple live in `src/lib/ascension.ts`; never write "Gilded L4"-style copy by hand.
+  **A try is made in the ascend sheet** (decisions.md #36; `sheets/AscendSheet.tsx`, sheet kind
+  `ascend`, rules in `components/game/ascendFlow.ts`, pure, tested): the word at full size, its
+  letters nervous while a try is out (the rig's `rolling` state, out of step), then the result
+  passing along the word letter by letter (`TileWord`'s `states` / `gilds`), and "Try again" or
+  "Try for" the next stage on the result. **A try in flight is "Attempting ascension", never
+  "Ascending"** (starl3xx, 2026-11-25: it may miss), and the act is a "try"; `tests/ascend-sheet.test.tsx`
+  holds it. The button's price is the stage's fee plus the snack the try burns: what the wallet pays.
+  **The result is the chain's, not the signature's:** the wallet sends the reveal (two
+  confirmations: the relay that finishes rolls doesn't cover ascension yet), and a send returns
+  when the wallet accepts, so `settleAscension` waits for `commits(id).revealed` and reads the
+  word's stage and pity in the same multicall (`readPrestigeAttempt`), `lib/onchain/ascendResult.ts`
+  decides what that is (a result, a "foreign" earlier attempt → ready again, or unfinished →
+  stranded, no try offered), and `lib/onchain/stageOverlay.ts` shows the new stage over the slower
+  words read (60 s at most). Attempts read as revealed are skipped by every later search for an
+  open one (`revealedAttempts`), as `revealedRolls` are. The outcome carries the chain's own
+  `stage` (level, pity), and the sheet shows that, never one worked out from hit or miss. **How a
+  try ends is said once, and always:** by the sheet it was made in, or, if that sheet has gone
+  (the same sheet OBJECT, not any ascend sheet), by a toast (`resultToast`, `strandedToast`); a try
+  that ended unfinished also marks its word for the session (`unfinishedAscents`, cleared by
+  `pruneUnfinished` or the next reveal read back), which the word sheet and the ascend sheet say.
+  **A paid, unfinished attempt is finished with no price and no gate:** the ascend sheet's button
+  becomes "Finish your attempt" (`prestige(word, { finishOnly: true })`: sends that attempt's
+  reveal, never pays for a new one, and says so when none is open), and it never checks the
+  balance or the stake; the word sheet's button into the sheet always opens for such a word
+  (`ascendDoor`). Any new gate on trying must leave finishing alone.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.

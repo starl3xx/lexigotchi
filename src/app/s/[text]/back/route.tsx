@@ -19,7 +19,7 @@ import { playerFaces } from "@/lib/profile/faces";
 /**
  * The back of a word's card for the share loop (components/cards/loop): its words and tiles over a
  * transparent ground, 1200×675, the card's own shape (16:9). Laid out as the game's back is at its
- * full size (components/cards/CardBack; decisions.md #35, #36): the rarity over the card's number
+ * full size (components/cards/CardBack; decisions.md #35, #37): the rarity over the card's number
  * (the headline), "One of one", the tiles on their rack, the facts as a ledger, the game's seal
  * pressed in behind them, and the frame's two lines. The card's serif here is TeX Gyre Pagella
  * (the server has no fonts of its own; the share picture's route says more). The loop's shader
