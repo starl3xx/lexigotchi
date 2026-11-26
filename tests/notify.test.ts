@@ -10,7 +10,8 @@ import {
   jackpotRollover,
   earningsPaid,
   pityCapped,
-  listingFilled,
+  marketSold,
+  remindersOn,
 } from "@/lib/notify/templates";
 import { NOTIFICATION_WEBHOOK_URL, farcasterManifest } from "@/lib/site";
 import { HUNGER_WARN_HOURS } from "@/lib/notify/triggers";
@@ -30,6 +31,11 @@ const env = (node: string, enabled?: string, key?: string) => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+});
+
+/** One recorded fill of a listing, as templates read it (a lowercase w, 1.30M, unless said otherwise). */
+const fill = (over: Partial<import("@/lib/notify/templates").SoldItem> = {}): import("@/lib/notify/templates").SoldItem => ({
+  kind: "letter", name: "w", qty: 1, amount: 1_300_000, txHash: `0x${"d".repeat(64)}`, logIndex: 7, ...over,
 });
 
 describe("send guards", () => {
@@ -136,7 +142,10 @@ describe("length limits", () => {
         jackpotRollover(hugeAmount, day),
         earningsPaid(hugeAmount, day),
         pityCapped("q", day),
-        listingFilled("w", "0xabc0000000000000000000000000000000000000000000000000000000000001", day),
+        marketSold([fill({ kind: "word", name: "QUICK", amount: 999_990_000_000 })], day)!,
+        marketSold([fill({ name: "Q", qty: 10_000, amount: 999_990_000_000 })], day)!,
+        marketSold(Array.from({ length: 999 }, (_, i) => fill({ logIndex: i, amount: 999_990_000_000 })), day)!,
+        remindersOn(),
       ];
       for (const n of built) {
         const payload = buildPayload({ ...n });
@@ -192,20 +201,36 @@ describe("idempotency keys match what the message describes", () => {
 
   // The bug Bugbot caught: two fills of the same letter on the same day are two distinct trades.
   it("RECEIPTS key on the event, so a second sale of the same letter same day still notifies", () => {
-    const a = listingFilled("q", "0xaaaa000000000000000000000000000000000000000000000000000000000001");
-    const b = listingFilled("q", "0xbbbb000000000000000000000000000000000000000000000000000000000002");
+    const a = marketSold([fill({ txHash: `0x${"a".repeat(64)}` })])!;
+    const b = marketSold([fill({ txHash: `0x${"b".repeat(64)}` })])!;
     expect(a.notificationId).not.toBe(b.notificationId);
     expect(a.notificationId).not.toContain("500"); // not day-keyed at all
   });
 
-  it("the same fill re-observed by a re-run of the keeper stays deduped", () => {
-    const hash = "0xdeadbeef00000000000000000000000000000000000000000000000000000001";
-    expect(listingFilled("q", hash, 500).notificationId).toBe(listingFilled("q", hash, 501).notificationId);
+  // A letter order fills in parts (decisions.md #30): the parts share an order hash, and can share a
+  // transaction. Each is its own sale, so each is its own id: the client drops a repeated id for 24 h.
+  it("two parts of ONE letter listing are two sales, each with its own id", () => {
+    const tx = `0x${"c".repeat(64)}`;
+    expect(marketSold([fill({ txHash: tx, logIndex: 4 })])!.notificationId).not.toBe(marketSold([fill({ txHash: tx, logIndex: 9 })])!.notificationId);
   });
 
-  it("every id fits the 128-char budget, including a full 32-byte order hash", () => {
-    const long = `0x${"f".repeat(64)}`;
-    expect(listingFilled("q", long).notificationId!.length).toBeLessThanOrEqual(LIMITS.notificationId);
+  it("the same fill re-observed on another day stays deduped", () => {
+    expect(marketSold([fill()], 500)!.notificationId).toBe(marketSold([fill()], 501)!.notificationId);
+  });
+
+  it("every id fits the 128-char budget, including a full transaction hash", () => {
+    expect(marketSold([fill({ txHash: `0x${"f".repeat(64)}`, logIndex: 99_999 })])!.notificationId!.length).toBeLessThanOrEqual(LIMITS.notificationId);
+  });
+
+  it("a sale says what sold, for how much, and that the seller’s SHARE arrived (they keep 90%)", () => {
+    expect(marketSold([fill({ kind: "word", name: "crane", amount: 2_400_000 })])!.body).toBe("CRANE found a new home, for 2.40M $WORD. Your share is in your wallet.");
+    expect(marketSold([fill({ name: "q", amount: 96_300 })])!.body).toBe("Your q found a new home, for 96.3K $WORD. Your share is in your wallet.");
+    expect(marketSold([fill({ name: "W", qty: 3, amount: 3_900_000 })])!.body).toBe("3 of your W found new homes, for 3.90M $WORD. Your share is in your wallet.");
+    // several sales in one pass: one message, with the total
+    expect(marketSold([fill({ amount: 1_000_000 }), fill({ kind: "word", name: "CRANE", amount: 2_400_000, logIndex: 8 })])!.body).toBe(
+      "2 of your listings sold, for 3.40M $WORD in all. Your share is in your wallet.",
+    );
+    expect(marketSold([])).toBeNull();
   });
 
   it("epochDay agrees with the UTC epoch-day the contracts use", () => {

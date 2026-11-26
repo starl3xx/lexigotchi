@@ -46,6 +46,8 @@ import {
 import { hungerWarning, jackpotWon } from "@/lib/notify/templates";
 import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
+import { notifySold } from "@/lib/notify/sold";
+import type { SaleRow } from "@/lib/db/market";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
 import { emailRecipients, markEmailSent, type EmailRecipient } from "@/lib/db/profiles";
 import { allWebPushSubscriptions } from "@/lib/db/webPush";
@@ -831,12 +833,19 @@ export function createKeeper(opts: { dry: boolean }) {
 
   /**
    * The Market's recent sales (decisions.md #30): read any sale the table hasn't seen. The Market's
-   * own route does the same on a visit; this covers a day nobody opened it. Reads only.
+   * own route does the same on a visit; this covers a day nobody opened it. Reads, then tells the
+   * sellers of what it found.
    */
   async function marketSales() {
+    // Recording a sale is what makes it "new", once: a dry run that recorded it could only log the
+    // message, and the real run after it would find nothing new to tell the seller of.
+    if (DRY) return void console.log("market: [dry] sales not read (recording one uses up its seller's notification)");
     try {
-      const got = await catchUpSales();
-      console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed on this network; skipped");
+      // Each sale's seller is told as it is recorded, before the pass reads on: a sale is new only
+      // once, so a pass stopped part way must already have told what it recorded
+      // (lib/notify/sold.ts: recent sales only; it never throws).
+      const got = await catchUpSales({ onNew: async (rows: SaleRow[]) => void (await notifySold(rows)) });
+      console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed here");
     } catch (err) {
       console.error("market: reading sales failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }

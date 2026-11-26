@@ -112,6 +112,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends until
   `NOTIFICATIONS_ENABLED=true` in production.
+  **A sale tells its seller** (decisions.md #45; `lib/notify/sold.ts`): a receipt hung on the sales
+  recorder (`recordNewSales` hands a new row to the one caller that inserted it), sent by the
+  Market's sales route after it answers (`lib/afterResponse.ts`) and by the keeper's `fees` job, to
+  Farcaster or else the seller's browsers, NOT by email (email players agreed to three named
+  reminders). Recent sales only (`SOLD_TELL_WINDOW_MS`, 30 h: a backfill tells nobody, and it must
+  stay wider than the keeper's daily cadence), one message per seller for a transaction's sales,
+  the id per FILL (`sold-<tx>-<log index>`: a letter listing fills in parts). A row is new only
+  ONCE: the reader hands rows out as it records them (`catchUpSales({ onNew })`), its callers
+  start the send at once (never at the end of a pass), and a dry keeper run reads none.
+  **A public route never imports a sender at its top** (each throws at import when armed without
+  its keys): import it at the moment of use, inside a catch, as the sales and subscribe routes do.
+  A browser's first subscribe gets one "Reminders are on" push (`remindersOn`), the channel's
+  end-to-end proof. The switch-on order is in `docs/web3-runtime-plan.md` (keys first, flag last).
   **Browser push** reaches wallet-only web players: `webPush.ts` (VAPID sender, its OWN switch
   `WEB_PUSH_ENABLED`, same three guards; prunes 404/410 endpoints), `webPushSubscription.ts`
   (validation: the endpoint must be a known push-service host, or the route is an SSRF hole),
@@ -595,7 +608,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
   UPPERCASE first to a limit, Spell, Mint) top right, next steps under the letters, then **the three
-  pots** in one row of equal tiles across both columns (decisions.md #45; `TodayPots`, rules in
+  pots** in one row of equal tiles across both columns (decisions.md #46; `TodayPots`, rules in
   `todayPots.ts`): the jackpot, the bounty, and the Rewards Pool, each its $WORD amount, "about $X"
   (only where `showsUsd`: never for test $WORD), and a line of its own; a pot not read yet is a dash
   (`potsKnown`). Then the quick actions. Two free-flowing columns on lg; a phone stacks them in that
@@ -850,7 +863,7 @@ bot posts). The hard rules:
 - **Never write:** price, pump, moon, invest, investment, "number go up", or a dollar figure for
   $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
   functional uses: a word's sale price on the Market and the $WORD page's own data. One exception
-  (decisions.md #45): Today's three pot tiles show "about $X" beside each pot, never for test
+  (decisions.md #46): Today's three pot tiles show "about $X" beside each pot, never for test
   $WORD; nowhere else (share text, reminders, landing, docs, bot posts) gets a jackpot dollar figure.
 - **The jackpot always carries "staked and fed".**
 - **Lead with a pet, a word, or a rare letter, never with earning.** Letters are characters, written

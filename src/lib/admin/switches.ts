@@ -43,7 +43,7 @@ export function farcasterNotifySwitch(): Switch {
     key: "farcasterNotify",
     label: "Farcaster notifications",
     on: missing.length === 0,
-    detail: "Hunger, daily-letter, and jackpot pushes to players who added the mini app (sent by Neynar).",
+    detail: "Hunger, daily-letter, jackpot, and sold-on-the-Market pushes to players who added the mini app (sent by Neynar).",
     missing,
   };
 }
@@ -61,7 +61,7 @@ export function webPushSwitch(): Switch & { toggleShown: boolean } {
     label: "Browser push",
     on: missing.length === 0,
     toggleShown: set("NEXT_PUBLIC_VAPID_PUBLIC_KEY"),
-    detail: "Reminders for wallet-only web players Farcaster can’t reach. The toggle shows once the public key is set.",
+    detail: "The same reminders for wallet-only web players Farcaster can’t reach, and one confirmation push when a browser opts in. The toggle shows once the public key is set.",
     missing,
   };
 }
@@ -77,7 +77,7 @@ export function emailSwitch(): Switch {
     key: "email",
     label: "Email reminders",
     on: emailEnabled(),
-    detail: "A confirmed email gets hunger, daily-letter, and jackpot reminders (Resend), with one-click unsubscribe.",
+    detail: "A confirmed email gets hunger, daily-letter, and jackpot reminders (Resend), with one-click unsubscribe. Not the sold-on-the-Market one.",
     missing,
   };
 }

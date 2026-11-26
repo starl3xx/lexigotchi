@@ -1,14 +1,15 @@
 "use client";
 /**
  * The "remind me" control for browser push (useWebPush). Two sizes: the full card in More, and a
- * compact one-line button on Home's hunger card, where the reason to want it is on screen.
+ * compact one-line button where the reason to want it is on screen: Home's hunger card, and Sell's
+ * listings ("Tell me when something sells").
  * Renders nothing where reminders can't exist (not configured, inside a host, no wallet).
  */
 import { useWebPush } from "./useWebPush";
 import { Button } from "./primitives";
 import { Bell, BellSlash, CircleNotch } from "./ui/icons";
 
-export function ReminderToggle({ compact = false }: { compact?: boolean }) {
+export function ReminderToggle({ compact = false, label = "Remind me before a word goes hungry" }: { compact?: boolean; /** The compact button's words: the reason on screen (hunger on Home, a listing on Sell). */ label?: string }) {
   const { state, error, enable, disable } = useWebPush();
   if (state === "unavailable" || state === "no-wallet") return null;
 
@@ -23,7 +24,7 @@ export function ReminderToggle({ compact = false }: { compact?: boolean }) {
         className="mt-2 flex items-center gap-1.5 text-xs font-bold text-ink/60 underline disabled:opacity-50"
       >
         {state === "working" ? <CircleNotch className="animate-spin" /> : <Bell weight="bold" />}
-        {state === "working" ? "One moment…" : "Remind me before a word goes hungry"}
+        {state === "working" ? "One moment…" : label}
       </button>
     );
   }
@@ -36,7 +37,7 @@ export function ReminderToggle({ compact = false }: { compact?: boolean }) {
       </div>
       <p className="mt-1 text-xs leading-relaxed text-ink/60">
         A browser notification before a staked word goes hungry. You’ll also hear when your free daily
-        letter is ready and if you win the jackpot.
+        letter is ready, when something of yours sells on the Market, and if you win the jackpot.
       </p>
 
       {state === "needs-home-screen" && (

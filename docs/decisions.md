@@ -1414,7 +1414,53 @@ setter. All small, riding existing suite patterns.
       "already", and 409 without the flag). **No attempt was driven end to end with a wallet**:
       the first relayed reveal on the test game is the real test of the send.
 
-45. **Today's pots: three equal tiles across the bottom** (starl3xx, 2026-11-26: "jackpot,
+45. **A sale tells its seller, and a browser that opts in gets one push at once** (starl3xx,
+    2026-11-26: "can you get started on the plumbing and implementation for opt-in browser
+    notifications? and if possible, push notifications (if saved as a PWA, for example), Farcaster
+    notifications, and any other suggestions you might have").
+    - **The plumbing was already built** (#93 and after): Farcaster notifications through Neynar,
+      browser push with VAPID and a service worker (the Home Screen app on an iPhone), and email,
+      each behind its own switch, with three reminders wired (hunger, the daily letter, a jackpot
+      win). On this day email was on in production, and browser push and Farcaster were dark only
+      for want of settings (the public VAPID key was unset: `/api/push/subscribe` answered
+      "disabled"). So the first deliverable is the switch-on order, in
+      `docs/web3-runtime-plan.md`: keys first, flag last, because each sender stops at import
+      when armed without its keys and the daily keeper imports both.
+    - **A sale tells its seller** (#30 left it "not done"; `lib/notify/sold.ts`, templates
+      `marketSold`). A receipt: one per fill. It hangs on the sales recorder, which hands a new row
+      only to the caller that inserted it, so a seller is told once however many servers read the
+      sale. Recent sales only: thirty hours, wider than the daily keeper's cadence, so a sale only
+      the keeper finds is still told (the rule `triggers.ts` states for hunger); the recorder also runs as
+      a backfill, and a seller must never hear today about last week. The reader hands out each new
+      row AS it records it, and its callers start the send at once, because a row is new only
+      once and a pass can fail, or be stopped, part way (Bugbot on #239); a dry keeper run reads no
+      sales, for the same reason. What is left: a server stopped in the second between recording
+      a sale and sending loses that one message, and closing that needs a stored "told" mark per
+      sale. One message per seller for the sales of one transaction. The id is the FILL's
+      (transaction and log index), never the order's: a letter listing fills in parts, and a
+      repeated id is dropped for a day. Farcaster first, else the seller's browsers. **Not by
+      email:** email is live, and its players agreed to three named reminders; a fourth waits for
+      the owner's word. The body says what it sold for and that the seller's SHARE arrived (they
+      keep 90%).
+    - **It can't hurt the Market.** The sales route is public and the Market depends on it, so
+      the notifier runs after the answer (`lib/afterResponse.ts`) and is imported at the moment of
+      use, inside a catch. Nothing is loaded while both channels are dark, and when Farcaster is on
+      only the sellers' own wallets are looked up (one cached request), never every player.
+    - **One push on opt-in** ("Reminders are on", once per browser, to that browser only). No
+      reminder can be sent outside production, so this is the proof the channel works, for the
+      player and for the owner on the day it is switched on.
+    - **Asked where the reason is:** the Sell page offers "Tell me when something sells" under the
+      player's listings, as Home's hunger card offers its reminder.
+    - **Not built, and my suggestions** (in the order I would do them): a choice per kind of
+      reminder, stored with the profile (one switch for everything gets switched off; it needs a
+      migration); the sold receipt by email, once the profile says which reminders it covers;
+      payday ("your words earned X", the template exists) only after the per-kind choice, because
+      it would be a second daily message; a deal alert ("a q is for sale, and it finishes
+      QUICK"); a bounty result; a weekly digest by email in place of daily ones.
+    - **Seen and not seen:** every rule by test, with injected senders. No real push has been
+      seen: none can be sent until the owner sets the keys.
+
+46. **Today's pots: three equal tiles across the bottom** (starl3xx, 2026-11-26: "jackpot,
     Bounty, and (new) Rewards pool should be 3 equal sized tiles across the bottom. Bounty should
     show WORD amount (all 3 should), and all 3 should show appx. USD as well").
     - **Where.** One row under both columns, above "Do something", three across at every width

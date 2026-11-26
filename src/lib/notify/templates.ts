@@ -35,6 +35,7 @@
 
 import { LIMITS } from "./limits";
 import { DEFAULT_PARAMS } from "@/lib/params";
+import { fmtWord } from "@/lib/wordAmount";
 
 /** The pity cap, as titles and bodies quote it ("85%"): a param, so a static string per build. */
 const PITY_CAP = `${Math.round(DEFAULT_PARAMS.roll.pityCap * 100)}%`;
@@ -158,20 +159,68 @@ export function pityCapped(letter: string, day = epochDay()): Notification {
 }
 
 // ── Market ────────────────────────────────────────────────────────────────────────────
-const SOLD_TITLES = ["Your letter sold", "Someone bought your letter", "Sold on the Market"] as const;
+const SOLD_LETTER_TITLES = ["Your letter sold", "Someone bought your letter", "Sold on the Market"] as const;
+const SOLD_WORD_TITLES = ["Your word sold", "Someone bought your word", "Sold on the Market"] as const;
+const SOLD_MANY_TITLES = ["Sold on the Market", "Your listings sold", "A good day at your stall"] as const;
+
+/** One recorded fill, as the seller is told of it. */
+export interface SoldItem {
+  kind: "word" | "letter";
+  /** The word (UPPERCASE), or the letter in its case ("q", "Q"). */
+  name: string;
+  /** Letters in this fill (1 for a word). */
+  qty: number;
+  /** What the buyer paid, whole $WORD. */
+  amount: number;
+  /** The fill's own identity: its transaction and its place in it. */
+  txHash: string;
+  logIndex: number;
+}
+
+const wordAmount = (n: number) => `${fmtWord(n)} $WORD`;
 
 /**
- * RECEIPT — keyed on the Seaport order hash, which is the canonical identity of a fill. Day-keying
- * this (the obvious-looking `filled-${letter}-${day}`) silently swallows the second sale of the
- * same letter on the same day, which is an ordinary thing for an active trader to do: the trade
- * settles on-chain, the $WORD arrives, and we simply never mention it.
+ * RECEIPT: what a seller sold, one message for everything a catch-up found for them (a buyer can
+ * take several listings in a minute, and a row of pushes for it is how a channel gets muted).
+ *
+ * Keyed on the FILL (its transaction and log index), never on the order or the day. A letter order
+ * fills in parts (decisions.md #30): its second part is another sale under the same order hash, and
+ * the client drops a repeated id for 24 h, so an order-keyed id would swallow it. The seller keeps
+ * 90%, so the body says what it sold for and that their share has arrived, never "X is yours".
  */
-export function listingFilled(letter: string, orderHash: string, day = epochDay()): Notification {
+export function marketSold(items: readonly SoldItem[], day = epochDay()): Notification | null {
+  if (items.length === 0) return null;
+  const first = items[0];
+  const notificationId = `sold-${first.txHash.toLowerCase().replace(/^0x/, "").slice(0, 32)}-${first.logIndex}`;
+  const share = "Your share is in your wallet.";
+  if (items.length > 1) {
+    const total = items.reduce((a, i) => a + i.amount, 0);
+    return { title: rotate(SOLD_MANY_TITLES, day), body: `${items.length} of your listings sold, for ${wordAmount(total)} in all. ${share}`, notificationId };
+  }
+  if (first.kind === "word") {
+    return { title: rotate(SOLD_WORD_TITLES, day), body: `${first.name.toUpperCase()} found a new home, for ${wordAmount(first.amount)}. ${share}`, notificationId };
+  }
   return {
-    title: rotate(SOLD_TITLES, day),
-    body: `Your ${letter} found a new home: the sale settled onchain, and the $WORD is yours.`,
-    // Trimmed to fit the 128-char id budget; a 32-byte hash prefix is still collision-free here.
-    notificationId: `filled-${orderHash.toLowerCase().replace(/^0x/, "").slice(0, 32)}`,
+    title: rotate(SOLD_LETTER_TITLES, day),
+    body:
+      first.qty === 1
+        ? `Your ${first.name} found a new home, for ${wordAmount(first.amount)}. ${share}`
+        : `${first.qty} of your ${first.name} found new homes, for ${wordAmount(first.amount)}. ${share}`,
+    notificationId,
+  };
+}
+
+// ── Turning reminders on ──────────────────────────────────────────────────────────────
+/**
+ * The one push a browser gets for opting in: proof, to the player and to us, that the whole path
+ * works (permission, the service worker, the push service, the keys). Sent once, to that browser
+ * only, when it first subscribes (api/push/subscribe).
+ */
+export function remindersOn(): Notification {
+  return {
+    title: "Reminders are on",
+    body: "This is how a reminder looks. You’ll get one before a word goes hungry, when your letter is ready, and when something sells.",
+    notificationId: "reminders-on",
   };
 }
 
@@ -183,7 +232,10 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   rollover: ROLLOVER_TITLES,
   paid: PAID_TITLES,
   pity: PITY_TITLES,
-  sold: SOLD_TITLES,
+  soldLetter: SOLD_LETTER_TITLES,
+  soldWord: SOLD_WORD_TITLES,
+  soldMany: SOLD_MANY_TITLES,
+  remindersOn: [remindersOn().title],
 };
 
 /** True when a notification is within every published limit before clamping saves it. */
