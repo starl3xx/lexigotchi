@@ -23,7 +23,7 @@ keys, money, a deploy, or a production database. Everything else is code and lan
 
 - **Decisions that shape launch:** $WORD only (no ETH swap). Ascension is ON at launch as the word
   ladder (#19, reversing #11); the weekly bounty is on (#11). The owner is one hardware-wallet EOA, with four separate hot keys
-  (signer, keeper, price keeper, roll relayer) and no multisig.
+  (signer, keeper, price keeper, relayer) and no multisig.
 
 ## 1. Rehearse on Sepolia
 
@@ -55,7 +55,7 @@ first week settles Thursday, 2026-11-26, at 00:05 UTC. Sepolia has no cron, so r
 
 Still to do on Sepolia:
 1. A public test deployment: a Vercel environment with `NEXT_PUBLIC_CHAIN_ID=84532`, the signer key
-   and draw secret, the keeper key, the roll relayer key, and a database with migrations 0003–0005.
+   and draw secret, the keeper key, the relayer key, and a database with migrations 0003–0005.
    It is the only place gas sponsorship can be tested. A wallet can't reach a `localhost`
    paymaster URL, and Coinbase Wallet then fails the whole send ("Something went wrong") instead of
    paying its own gas. Until it's proven, keep `NEXT_PUBLIC_PAYMASTER_ENABLED` off in production.
@@ -81,7 +81,7 @@ Still to do on Sepolia:
 | Draw secret | Vercel `SIGNER_DRAW_SECRET` | Random and permanent. Changing it re-rolls every unrevealed commit. |
 | Keeper key | Vercel `KEEPER_PRIVATE_KEY` | Fund it with a little ETH for gas |
 | Price-keeper key | Vercel `PRICE_KEEPER_PRIVATE_KEY` | A third key. Fund it with a little ETH. |
-| Roll relayer key | Vercel `RELAYER_PRIVATE_KEY` | A fourth key. It sends each roll's result, so players confirm once per roll and the wallet never previews the outcome (decisions.md #14). Fund it with a little ETH; each roll costs it under a cent. Never the keeper's key. |
+| Relayer key | Vercel `RELAYER_PRIVATE_KEY` | A fourth key. It sends each roll's and each ascension attempt's result, so players confirm once per roll or attempt and the wallet never previews or interrupts the outcome (decisions.md #14, #44). Fund it with a little ETH; each reveal costs it under a cent. Never the keeper's key. Without it, or when it is out of gas, both fall back to the player's wallet sending the reveal. |
 | Answer seed | Vercel `ANSWER_CHAIN_SEED`, `ANSWER_CHAIN_DAYS` | From `npm run answerchain:generate -- --new-seed`: every pool word once by default (4,584 days; leave `ANSWER_CHAIN_DAYS` empty or set it to 4584). Back up the file offline and the seed on paper. |
 | Free-letter budget | Vercel `FREE_LETTER_BUDGET` (optional) | Every free pack (5) and daily (1) letter comes out of it; unset = 30,000 (decisions.md #21). Needs migration 0015 (`free_claims` ledger columns). |
 

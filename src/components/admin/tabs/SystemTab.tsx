@@ -18,7 +18,7 @@ const LOW_GAS_ETH = 0.002;
 
 const ROLE_LABEL: Record<KeyStatus["role"], string> = {
   signer: "Signer",
-  relayer: "Roll relayer",
+  relayer: "Relayer (rolls, ascension)",
   keeper: "Keeper",
   priceKeeper: "Price keeper",
 };

@@ -8,9 +8,13 @@ import { signDigest, drawSuccess } from "@/lib/onchain/signer";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { prestigeAbi } from "@/lib/onchain/abis";
 import { prestigeSuccessProbability } from "@/lib/params";
+import { relayPrestigeReveal, relayerConfigured } from "@/lib/onchain/relayer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// A relayed reveal waits up to RELAY_WAIT_MS (20 s) for its block; leave room around it. Without
+// this the function could be cut off after the broadcast, with the answer never sent.
+export const maxDuration = 30;
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -33,6 +37,18 @@ const ZERO = "0x0000000000000000000000000000000000000000";
  * learns nothing it can spend or reroll. Requiring a Farcaster session would shut wallet-only
  * players out of a mechanic they paid for (decisions.md #9). The FID, when present, is only the
  * rate-limit key; anonymous callers are bucketed by IP.
+ *
+ * RELAY (`{ relay: true }`; decisions.md #14, which named ascension as a later case): the server
+ * sends the reveal itself (lib/onchain/relayer), so the player confirms one transaction per attempt
+ * and no wallet prompt lands in the middle of it. The answer then carries what the chain did, read
+ * from the mined reveal (`relayed: "mined"`, with `success`, the word's `stage` level, and its
+ * `pity`), and no signature. Without a relayer key, or when the send is refused before broadcast,
+ * the answer is the signature as before and the player's wallet sends it. An already-revealed
+ * commit answers `relayed: "already"` under relay (a lost response is a normal case there: the
+ * game reads the result from the chain), and 409 otherwise.
+ *
+ * WITHOUT the relay flag this route answers exactly as it always did: a client bundle from before
+ * the relay keeps working through a deploy.
  */
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
@@ -40,8 +56,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let raw: string | undefined;
+  let wantRelay = false;
   try {
-    raw = (await req.json())?.commitId;
+    const body = await req.json();
+    raw = body?.commitId;
+    wantRelay = body?.relay === true;
   } catch {
     /* handled below */
   }
@@ -67,26 +86,56 @@ export async function POST(req: Request) {
   if (!owner || owner === ZERO) {
     return NextResponse.json({ ok: false, error: "unknown_commit" }, { status: 404 });
   }
-  if (revealed) return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
 
   const probability = prestigeSuccessProbability(Number(pityAtCommit), Number(level));
   const success = drawSuccess("prestige", prestige, commitId, probability);
+  // What the commit was: the game checks a resumed attempt is this word's own (`level`, `owner`).
+  const facts = {
+    commitId: String(commitId),
+    tokenId: String(tokenId),
+    pityAtCommit: Number(pityAtCommit),
+    level: Number(level),
+    owner,
+    probability,
+  };
+
+  if (revealed) {
+    if (!wantRelay) return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
+    // Finished already (this server's own relay, whose answer was lost, or another tab). No
+    // outcome is claimed here: the signed one may not be what the chain applied, so the game reads
+    // the word's stage from the chain.
+    return NextResponse.json({ ok: true, reveal: { ...facts, relayed: "already" } });
+  }
 
   const signature = await signDigest(
     prestigeRevealDigest({ prestige, commitId, tokenId, owner: owner as `0x${string}`, success }),
   );
 
+  if (wantRelay && relayerConfigured()) {
+    const r = await relayPrestigeReveal(commitId, success, signature);
+    if (r.kind === "mined") {
+      return NextResponse.json({
+        ok: true,
+        // The outcome as the chain applied it (the reveal's own event): where the word stands now.
+        // `stage` is null when the level after a miss couldn't be read at the reveal's block.
+        reveal: { ...facts, success: r.success, stage: r.level, pity: r.pity, relayed: "mined", txHash: r.txHash },
+      });
+    }
+    if (r.kind === "pending" || r.kind === "reverted") {
+      // Broadcast: the player's wallet must NOT send a second reveal. The chain finishes it, and
+      // the game reads the result from there (no outcome is claimed for a reveal not seen to land).
+      return NextResponse.json({ ok: true, reveal: { ...facts, relayed: r.kind, txHash: r.txHash } });
+    }
+    console.warn(`[prestige/reveal] relay unavailable (${r.reason}); the player's wallet sends commit ${commitId}`);
+    // Nothing was broadcast: fall through to the signature, and the wallet sends it.
+  }
+
   return NextResponse.json({
     ok: true,
     reveal: {
-      commitId: String(commitId),
-      tokenId: String(tokenId),
+      ...facts,
       success,
       signature,
-      pityAtCommit: Number(pityAtCommit),
-      level: Number(level),
-      owner, // the staker the attempt names: the game checks a resumed attempt is this word's own
-      probability,
     },
   });
 }
