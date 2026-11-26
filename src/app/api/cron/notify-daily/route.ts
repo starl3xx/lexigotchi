@@ -139,7 +139,9 @@ export async function GET(req: Request) {
     // are skipped. A failed lookup adds fewer keys: at worst one extra reminder, never a missed one.
     let browserTargets = 0;
     let browserResult: WebPushResult | undefined;
-    const farcasterFids = new Set(fids);
+    // A browser is skipped only for a player Farcaster reminds THIS run: with Farcaster blind, it
+    // reminds nobody, so those players' browsers are not skipped (Bugbot on #242).
+    const farcasterFids = new Set(farcasterBlind ? [] : fids);
     const open = subs.filter((sub) => wantsDaily(sub.address) && !(sub.fid !== null && farcasterFids.has(sub.fid)));
     const subKeys = await relatedDailyKeysMany(
       open.map((sub) => ({ fid: sub.fid, wallets: links.walletsOf(links.accountOf(sub.address)) })),

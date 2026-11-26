@@ -13,7 +13,7 @@ import { eq, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { reminderPrefs } from "./schema";
 import { isMissingTable } from "./profiles";
-import { changedFromDefaults, parseChoices, wantsKind, type KindChoices, type ReminderKind } from "@/lib/notify/kinds";
+import { mergeStored, parseChoices, wantsKind, type KindChoices, type ReminderKind } from "@/lib/notify/kinds";
 
 const lower = (a: string) => a.toLowerCase();
 
@@ -73,11 +73,12 @@ export async function savePrefs(account: string, changes: KindChoices): Promise<
     // would drop the earlier one's change.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`lexigotchi:reminder_prefs:${a}`}))`);
     const rows = await tx.select({ kinds: reminderPrefs.kinds }).from(reminderPrefs).where(eq(reminderPrefs.account, a)).limit(1);
-    const next = changedFromDefaults({ ...(parseChoices(rows[0]?.kinds) ?? {}), ...changes });
+    // Kinds this build doesn't know stay in the row as they are (mergeStored says why).
+    const next = mergeStored(rows[0]?.kinds, changes);
     await tx
       .insert(reminderPrefs)
       .values({ account: a, kinds: next, updatedAt: new Date() })
       .onConflictDoUpdate({ target: reminderPrefs.account, set: { kinds: next, updatedAt: new Date() } });
-    return next;
+    return parseChoices(next) ?? {};
   });
 }

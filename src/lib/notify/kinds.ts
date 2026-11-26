@@ -62,6 +62,18 @@ export function parseChoices(raw: unknown): KindChoices | null {
   return out;
 }
 
+/**
+ * What to store after a change: the stored row with `changes` over it, known kinds kept only where
+ * they differ from their default. A key this build doesn't know is kept EXACTLY as stored: while a
+ * deploy rolls out, an older server can save a box for a player whose row a newer server wrote, and
+ * a write that dropped what it couldn't read would erase the newer kind's choice (Bugbot on #242).
+ */
+export function mergeStored(stored: unknown, changes: KindChoices): Record<string, boolean> {
+  const row = stored && typeof stored === "object" && !Array.isArray(stored) ? (stored as Record<string, unknown>) : {};
+  const unknown = Object.fromEntries(Object.entries(row).filter(([k, v]) => !isKind(k) && typeof v === "boolean")) as Record<string, boolean>;
+  return { ...unknown, ...changedFromDefaults({ ...(parseChoices(row) ?? {}), ...changes }) };
+}
+
 /** Only what differs from the defaults: what is worth storing. */
 export function changedFromDefaults(choices: KindChoices): KindChoices {
   return Object.fromEntries(Object.entries(choices).filter(([k, v]) => isKind(k) && v !== KIND_INFO[k].on)) as KindChoices;
