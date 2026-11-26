@@ -479,7 +479,22 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   for a scene the same, `sceneSale`: a scene is bought once). `/api/shop`'s `metaKnown: false` (the
   database couldn't say what the items are) is "unknown" too, and the Shop sheet lists nothing then.
   `/api/scenes` won't save one for a profile that hasn't bought it. Listing
-  is the owner's (`Shop.addItem`, then the `shop_items` row); none is listed yet. **Curved ground is one rule:** a
+  is the owner's (`Shop.addItem`, then the `shop_items` row); none is listed yet. **The plastic case** (decisions.md #42;
+  `cards/CardCase.tsx`, `lib/shop/cases.ts`, `lib/db/wordCases.ts`, `/api/cases`): a Shop item of
+  kind "case". **One case holds one word** (my reading; the strict one, loosened later at no
+  buyer's cost), and the server is the one place that counts: a cased word is a `word_picks` row of
+  kind "case", written only by `PUT /api/cases` under a profile session after counting the wardrobe.
+  The game shows a case only for a word the server lists (`useWordCases`), and **a read that is
+  missing is never read as zero** (`casesState` / `caseOffer`, pure, tested: an unknown list offers
+  nothing, an unknown count keeps every listed case and offers none); once the count is known a case
+  shows for at most that many words, the oldest first (`casesShown`). `scripts/case-db-check.ts`
+  proves the SQL on a throwaway local Postgres (rerun it after touching `wordCases.ts`). The case stands in for
+  `SceneCard` on an opened word (turned by a drag too) and on Today (the button only), and it is
+  the card's one turn (a host keeps "turned over" with `cards/useFlipOf`, derived while rendering,
+  never reset in an effect: that showed a back for a frame). **Every angle is written straight to the element, a frame at a time, and
+  the side that shows is chosen from the angle, never by `backface-visibility`** (WebKit drew the
+  back mirrored); `tests/card-case.test.tsx` holds it, and that the label never names the word. Not
+  listed yet (the owner's: `Shop.addItem`, then a `shop_items` row of kind "case"). **Curved ground is one rule:** a
   scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
   is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands
   stay joined. **The card's own light** (`cards/useCardLight`, `.sc-sheen`/`.sc-glare`/`.sc-lean`) is

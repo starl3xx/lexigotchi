@@ -467,9 +467,9 @@ export const wordPicks = pgTable(
     profile: text("profile").notNull(),
     /** UPPERCASE dictionary word (its id: tokenId = keccak256(word)). */
     word: text("word").notNull(),
-    /** "scene" today. */
+    /** "scene", or "case" (lib/db/wordCases.ts: the word is in a case). */
     kind: text("kind").notNull(),
-    /** What was picked: a SceneId for kind "scene". */
+    /** What was picked: a SceneId for kind "scene"; the case's style for kind "case". */
     value: text("value").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -1255,6 +1255,76 @@ setter. All small, riding existing suite patterns.
       the practice game has no Shop, so it has neither scene; the player docs say nothing of them
       until one is listed.
 
+42. **The plastic case** (step 5 of #34; starl3xx, 2026-11-25: "a plastic case (like PSA-rated
+    cards)... should be able to rotate like the card does now"; then "the plastic case is SO
+    COOL" and "case looks good for now").
+    - **What it is.** A clear slab around a word's card, with a paper label across the top
+      (`components/cards/CardCase.tsx`). The front label says what the card's ribbon says, in
+      the ribbon's order (one of one, the number, the rarity) and never the word. The back label
+      says who found the word, when it was cased, and "Sealed by Lexigotchi" with the game's
+      seal (logo B), its rim in the label's ink. The number is the chain's, and is left out
+      while unknown.
+    - **Built, not listed.** Nobody has a case until the Shop lists one, and listing is the
+      owner's: `Shop.addItem`, then a `shop_items` row with `kind` "case". Until then no Case
+      button shows anywhere.
+    - **One case holds one word** (`lib/shop/cases.ts`, pure and tested). A profile may have as
+      many words in cases as it has bought cases. Taking a word out frees its case, and a case
+      comes off a word that leaves the profile, as its scene does (the keeper's
+      `clearPicksOffLeftWords`). **This is my reading, not starl3xx's word.** It is the strict
+      one on purpose: it can be loosened later (one purchase for every word) without taking
+      anything from a buyer; the other way round could not.
+    - **The server is the one place that counts.** `PUT /api/cases {word, on}` under a profile
+      session puts one word in or takes it out, counts the profile's cases from the wardrobe,
+      and refuses with `none_left` (or `try_again` when the wardrobe can't be read: no case on
+      a guess). One profile's changes run one at a time. A cased word is a `word_picks` row of
+      kind "case" (no new table, no migration). The game shows a case only for a word the
+      server lists, and reads the list wherever this network has a Shop, even while the Shop is
+      switched off, so a buyer's words keep their cases. `scripts/case-db-check.ts` proves the
+      SQL against a real Postgres on this machine (the unit tests stand a map in for it): a row
+      under a linked wallet's own key counts, and two requests at once can't both take the last
+      free case.
+    - **A read that is missing is never read as zero** (`casesState`, `caseOffer`, pure and
+      tested). Three reads feed the game: the server's list, the Shop's items, the wardrobe.
+      While the list isn't known, no word shows a case and nothing is offered (an unknown list
+      read as "none cased" would offer a case the server then refuses). While the count isn't
+      known, every listed word keeps its case and no word is offered one.
+    - **A case doesn't outlive its purchase** (`casesShown`). Once the count is known, at most
+      that many words show a case, the oldest first. If the wallet that bought a case leaves the
+      profile, the newest cased words stop showing one; their rows still count as cases in use
+      until the player takes a word out. A Shop scene is checked against the purchase the same
+      way.
+    - **Where it shows.** An opened word: in its case, turned with the corner button or a
+      sideways drag. The Today stage: in its case, turned with the button (a drag there is the
+      swipe between words). The Bag: the thumbnail wears the plastic's rim and light. The Case
+      button under an opened card puts the word in or takes it out, and lists every case in use
+      with a way to free it, so a case is never stuck on a word the player can't open.
+    - **The case is the card's one turn.** The case turns over and the card's back is in its
+      other side: there is no second flip inside it. A host remembers "turned over" for what it
+      shows now (`cards/useFlipOf`: the word, and bare or cased), decided while rendering, so a
+      card that goes into a case or comes out mounts on its front (Bugbot on #236: a reset in an
+      effect ran after the paint, and the bare card mounted on its back, then turned). On Today
+      this also means a word shows its scene when the player comes back to it.
+    - **Reduced motion:** the sides swap at once, with no turn, and the focus moves to the new
+      side's button a frame later, once that side can take it (Bugbot on #236).
+    - **A finger turns it only with a move more sideways than up-and-down;** the other is the
+      page scrolling. A mouse also tilts it. A press on its button, or a mouse that comes back
+      with no button held, turns nothing.
+    - **Narrow cards** (found while fitting the case; measured in WebKit at 320 px). A card
+      under 340 px wide, bare or cased, cut its ledger off at the card's edge ("Yours since …
+      20 Nov 20"): a bare card on a 320 px phone is 276 px, and that was so on main. There the
+      ledger now takes the wider share, sits low and clear of the corner button, and a long
+      value breaks onto a second line. The three buttons under an opened card (with Case) put
+      the third on its own row there.
+    - **How it turns** (measured in WebKit). Every angle is written straight to the element, a
+      frame at a time, with no CSS transition and no loop. Which side shows is decided from the
+      angle on every frame, never by `backface-visibility`: WebKit drew the back mirrored over
+      the front mid-turn. A let-go case rests on the side that is showing, so settling never
+      passes edge-on. At rest a cased card costs what a bare one does (7 to 11% of a core on
+      Today, the same four words measured both ways); a continuous drag is about 41%.
+    - **Not built:** the live light on a cased card's back (the back is still under the
+      plastic); the case on the share picture and the share video (they draw the bare card);
+      more than one style of case (the stored value names the style, so another can follow).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

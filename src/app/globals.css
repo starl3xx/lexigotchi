@@ -842,16 +842,112 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .cb-mini { margin: 0; font-size: 12px; line-height: 1.2; color: var(--cb-sub); white-space: nowrap; }
 /* under an opened card, the rows a phone-sized back leaves out (CardBack's CardMore), only where the
    card is narrow enough to leave them out (the same 470 px as below) */
+/* ── A card in its plastic case (components/cards/CardCase.tsx; decisions.md #42) ────────────────
+   A clear slab with a paper label across the top and the card in a well. Sizes are shares of the
+   slab's width (cqw), so one case fits a phone and a desk.
+   - .cc: the stage. Its padding leaves room for the slab's near edge while it is turned.
+   - .cc-slab: the case, in 3D. Its rest angle is here for the first paint; after that the
+     component writes every angle straight to the element, a frame at a time. No transition.
+   - .cc-face: a side. The component shows one side at a time, chosen from the angle (WebKit
+     doesn't hide these from behind, and drew the back mirrored over the front); the back starts
+     hidden here, for the first paint.
+   - Nothing here loops: the case moves only while it is being turned. */
+.cc { position: relative; width: 100%; padding: 2% 2.5%; perspective: 1500px; }
+/* a drag turns the case: it must not select the label's words on the way, and a finger's up-and-down still scrolls the page */
+.cc-drag { touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+.cc-drag.is-dragging { cursor: grabbing; }
+.cc-slab { --cc-t: clamp(10px, 3cqw, 18px); position: relative; container-type: inline-size; transform-style: preserve-3d; transform: rotateX(-5deg) rotateY(-14deg); }
+.cc-face { display: grid; grid-template-rows: auto auto; gap: 2cqw; padding: 2.6cqw; border: 3px solid #1b1714; border-radius: 3.4cqw; overflow: hidden; }
+.cc-frontface { position: relative; transform: translateZ(calc(var(--cc-t) / 2)); }
+.cc-backface { position: absolute; inset: 0; visibility: hidden; transform: rotateY(180deg) translateZ(calc(var(--cc-t) / 2)); }
+.cc-plastic { position: absolute; inset: 0; background: linear-gradient(135deg, rgb(255 255 255 / 0.62), rgb(214 232 244 / 0.42) 38%, rgb(255 255 255 / 0.5) 62%, rgb(200 222 238 / 0.46)); box-shadow: inset 0 0 0 max(3px, 0.7cqw) rgb(255 255 255 / 0.55), inset 0 0 0 max(4px, 0.95cqw) rgb(27 23 20 / 0.16); }
+.cc-gloss { position: absolute; inset: 0; z-index: 8; pointer-events: none; background: linear-gradient(115deg, transparent 0 18%, rgb(255 255 255 / 0.5) 18% 22%, transparent 22% 26%, rgb(255 255 255 / 0.28) 26% 28%, transparent 28% 100%); }
+/* the label: paper, ruled twice in the rarity's ink, lettered in the card's serif (never the word) */
+.cc-label { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2cqw; height: clamp(34px, 8.6cqw, 56px); padding: 0 2.6cqw; border-radius: 1.2cqw; background: #fcf7ea; border: max(1.5px, 0.3cqw) solid var(--cc-ink); box-shadow: inset 0 0 0 max(2px, 0.4cqw) #fcf7ea, inset 0 0 0 max(3px, 0.55cqw) color-mix(in srgb, var(--cc-ink) 40%, transparent); font-family: var(--font-card); color: var(--cc-ink); line-height: 1; min-width: 0; }
+.cc-one { justify-self: start; font-weight: 700; font-size: clamp(12px, 2.4cqw, 15px); white-space: nowrap; }
+.cc-num { font-weight: 700; font-size: clamp(16px, 5cqw, 32px); white-space: nowrap; }
+.cc-num small { font-size: 0.5em; font-style: italic; margin-right: 0.15em; }
+.cc-tier { display: flex; align-items: center; justify-self: end; gap: 0.4em; font-weight: 700; font-size: clamp(12px, 2.6cqw, 17px); white-space: nowrap; }
+.cc-mark { width: 1.15em; height: 1.15em; flex: none; }
+.cc-small { min-width: 0; font-size: clamp(12px, 2.2cqw, 14px); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-mid { justify-self: center; }
+.cc-sealed { justify-self: end; display: flex; align-items: center; gap: 0.6em; overflow: visible; }
+/* the game's seal, its rim in the label's ink so it reads as part of the label */
+.cc-seal { flex: none; width: 2em; height: 2em; border-radius: 50%; border: max(1.5px, 0.3cqw) solid var(--cc-ink); background-size: cover; background-position: center; }
+/* a phone-sized case: the label keeps the number and the rarity, and the seal stands for its words */
+@container (max-width: 399px) { .cc-one { display: none; } .cc-label-front { grid-template-columns: 1fr auto; } }
+@container (max-width: 459px) { .cc-sealed > span { display: none; } .cc-label-back { grid-template-columns: 1fr auto auto; } }
+.cc-well { position: relative; padding: 1.1cqw; border-radius: 2.4cqw; background: rgb(27 23 20 / 0.1); box-shadow: inset 0 max(2px, 0.4cqw) 0 rgb(27 23 20 / 0.22), 0 max(1px, 0.25cqw) 0 rgb(255 255 255 / 0.7); }
+/* the card in the well: its own container, so the card's faces size themselves by the card */
+.cc-card { position: relative; aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; border-radius: 1.6cqw; background: #1b1714; }
+.cc-card::after { content: ""; position: absolute; inset: 0; z-index: 7; border: 2px solid #1b1714; border-radius: inherit; pointer-events: none; }
+/* the case's four edges: strips turned on end, between the two sides */
+.cc-edge { position: absolute; background: linear-gradient(rgb(232 242 250 / 0.9), rgb(190 212 228 / 0.9)); border: 2px solid #1b1714; }
+.cc-edge-l, .cc-edge-r { top: 3.4cqw; bottom: 3.4cqw; width: var(--cc-t); }
+.cc-edge-l { left: 0; transform: translateX(-50%) rotateY(90deg); }
+.cc-edge-r { right: 0; transform: translateX(50%) rotateY(90deg); }
+.cc-edge-t, .cc-edge-b { left: 3.4cqw; right: 3.4cqw; height: var(--cc-t); }
+.cc-edge-t { top: 0; transform: translateY(-50%) rotateX(90deg); }
+.cc-edge-b { bottom: 0; transform: translateY(50%) rotateX(90deg); }
+/* a picture of a case (the Shop's card for it): flat and still */
+.cc-thumb { padding: 0; perspective: none; }
+.cc-thumb .cc-slab { transform: none; }
+.cc-thumb .cc-label-thumb { grid-template-columns: 1fr auto; }
+.cc-thumb .cc-one { display: block; }
+.cc-thumb .cc-seal { font-size: clamp(12px, 2.6cqw, 17px); }
+.cc-thumb .cc-frontface { transform: none; }
+/* reduced motion: the case lies flat and its sides swap (the component shows one or the other) */
+@media (prefers-reduced-motion: reduce) {
+  .cc-slab { transform: none !important; }
+  .cc-frontface, .cc-backface { transform: none; }
+  .cc-edge { display: none; }
+}
+/* a cased word's thumbnail (the Bag): the plastic's rim and its streak of light, still */
+.sc-cased .sc-front::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.6), inset 0 0 0 4px rgb(27 23 20 / 0.18); background: linear-gradient(115deg, transparent 0 16%, rgb(255 255 255 / 0.5) 16% 21%, transparent 21% 25%, rgb(255 255 255 / 0.28) 25% 27.5%, transparent 27.5% 100%); }
+/* on the Today stage the case stands where the card does, with no hard shadow of its own */
+.tt-case { position: relative; z-index: 1; }
+.tt-case + .tt-plate { margin-top: 6px; padding-top: 14px; border-top: 3px solid #1b1714; border-radius: 16px; }
+
 .sc-more-host { container-type: inline-size; }
+/* the buttons under an opened card. Three of them (with Case) don't fit side by side on the
+   narrowest phones: their icons were squeezed to dots at 320 px. There the third takes a row. */
+.sc-actions { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sc-actions-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@container (max-width: 339px) {
+  .sc-actions-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sc-actions-3 > :last-child { grid-column: 1 / -1; }
+}
 .sc-more { display: grid; margin: 0; padding: 2px 12px; border: 2px solid #1b1714; border-radius: 14px; background: #fbf4e3; font-size: 14px; }
 .sc-more > div + div { border-top: 1px solid rgba(27, 23, 20, 0.1); }
 /* the back drops these under 470 px, so they show here up to 469 px (the two must agree: Bugbot on
    #213 and #230; tests/scene-card.test.tsx holds them together) */
 @container (min-width: 470px) { .sc-more { display: none; } }
+/* A card in a case is narrower than its host (.cc's padding, the side's border and padding, the
+   well: 0.8797 of the host, less 6 px), so its back is the short one until the host is 542 px wide:
+   the rows it leaves out stay listed under it until then (tests/card-case.test.tsx holds the number). */
+@container (min-width: 470px) and (max-width: 541px) { .cc-host .sc-more { display: grid; } }
 /* a phone-sized back: the first four facts. No count of the rarity's words, no ascension pips (the
    stage's name says what they draw), and no line along the bottom: an opened card lists them. */
 @container (max-width: 469px) {
   .cb-more, .cb-foot, .cb-pips, .cb-oneof span { display: none; }
+}
+/* A card under 340 px wide (a bare card on a 320 px phone is 276 px; a card in its case on a
+   390 px phone is 297 px): at the measures above, the ledger's values ran past the card's edge
+   ("Yours since … 20 Nov 20", measured in WebKit at 320 px). There the ledger takes the wider
+   share and sits low, clear of the corner button, and a long value ("Mixed · 3 of 5 raised")
+   breaks onto a second line, never off the card. */
+@container (max-width: 339px) {
+  .cb-body { grid-template-columns: 0.72fr 1.28fr; gap: 3cqw; inset: 6cqw 4.5cqw 5cqw; }
+  .cb-stats { align-self: end; gap: 4px; }
+  .cb-stat dd { min-width: 0; white-space: normal; text-align: right; justify-content: flex-end; }
+}
+/* a card in its case on the narrowest phones (about 236 px): the number gives way to the ledger,
+   and the row of dots makes room for the value */
+@container (max-width: 279px) {
+  .cc-card .cb-body { grid-template-columns: 0.66fr 1.34fr; gap: 2.5cqw; inset: 6cqw 3.5cqw 5cqw; }
+  .cc-card .cb-no { font-size: clamp(22px, 9.5cqw, 84px); }
+  .cc-card .cb-stat { justify-content: space-between; gap: 0.3em; }
+  .cc-card .cb-stat > i { display: none; }
 }
 /* a thumbnail's back (CardBack mini, the Bag's grid): the left column alone, the seal beside it */
 .sc-small .cb-body { grid-template-columns: 1fr; inset: 6cqw 5.5cqw 5cqw; }

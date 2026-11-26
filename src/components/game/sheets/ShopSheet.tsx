@@ -18,6 +18,8 @@ import { useGame } from "../state";
 import { useShopRegistry, useShopScenes, useWardrobe } from "../useShop";
 import { SceneThumb } from "../../scenes/SceneFrame";
 import { sceneOfItem, sceneSale } from "@/lib/shop/scenes";
+import { isCaseItem } from "@/lib/shop/cases";
+import { CaseThumb } from "../../cards/CardCase";
 import { erc20Abi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { usdcAddress } from "@/lib/onchain/addresses";
@@ -110,6 +112,7 @@ export function ShopSheet() {
               const short = balance !== undefined && balance < card.item.priceUsdc;
               const name = card.kind === "item" ? card.meta.name : card.name;
               const scene = card.kind === "item" ? sceneOfItem(card.meta) : null;
+              const isCase = card.kind === "item" && isCaseItem(card.meta);
               // A scene is bought once: a second one gets the player nothing. So it is sold only on
               // a positive "you don't have it" (lib/shop/scenes, sceneSale), from the wardrobe AND
               // from every item that sells this scene, not this item alone.
@@ -122,6 +125,14 @@ export function ShopSheet() {
                       <SceneThumb scene={scene} />
                     </div>
                   )}
+                  {/* a case shows what it is too: empty, around a card with no word on it */}
+                  {isCase && (
+                    <div className="mx-auto mb-2 w-4/5">
+                      <CaseThumb>
+                        <SceneThumb scene="stock" tier="Rare" />
+                      </CaseThumb>
+                    </div>
+                  )}
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-display font-extrabold">{name}</div>
@@ -130,9 +141,11 @@ export function ShopSheet() {
                           ? "A placeholder on the test network. It does nothing; it’s here so you can try paying."
                           : scene
                             ? "A scene for your words’ cards. Pick it for a word with the palette button under its card."
-                            : card.meta.kind === "scene"
-                              ? "A scene"
-                              : "A costume"}
+                            : isCase
+                              ? "A clear case for one word’s card, with a label of its own. Put a word in it with the Case button under its card."
+                              : card.meta.kind === "scene"
+                                ? "A scene"
+                                : "A costume"}
                       </div>
                       {(owned > 0 || sale === "have") && (
                         <div className="mt-1 text-xs font-bold text-teal-ink">

@@ -157,11 +157,15 @@ function MiniBody({ word }: { word: OwnedWord }) {
 
 const DASH = "–";
 
+/** Who found a word, in the back's words: "you", their name, their address shortened, or a dash while unknown. */
+export function foundBySays(found: CardFacts["found"]): string {
+  return found.kind === "you" ? "you" : found.kind === "other" ? (found.name ? `@${found.name}` : `${found.address.slice(0, 6)}…${found.address.slice(-4)}`) : DASH;
+}
+
 /** The back's words for its facts: one wording for the back and the rows under an opened card. */
 function says(f: CardFacts) {
   return {
-    found:
-      f.found.kind === "you" ? "you" : f.found.kind === "other" ? (f.found.name ? `@${f.found.name}` : `${f.found.address.slice(0, 6)}…${f.found.address.slice(-4)}`) : DASH,
+    found: foundBySays(f.found),
     earned: f.earned === null ? DASH : f.earned > 0 ? `${fmtWord(f.earned)} $WORD` : "None yet",
     perDay: f.perDay === "upper" ? "Once UPPERCASE" : f.perDay === null ? DASH : `~${fmtWord(f.perDay)} a day`,
     cost: f.cost === null ? DASH : `~${fmtWord(f.cost)} $WORD`,

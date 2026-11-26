@@ -1,14 +1,16 @@
 "use client";
 /**
- * What the Shop sells and what the player has bought (decisions.md #22, #41), read once for the
- * page: the Shop sheet, the scene picker, and every word's scene share these two reads.
+ * What the Shop sells and what the player has bought (decisions.md #22, #41, #42), read once for
+ * the page: the Shop sheet, the scene picker, every word's scene, and the cases share these reads.
  *
  * Both are silent where there is no Shop to ask (the switch is off, or the practice game, which
  * has no chain): their `data` stays undefined, and a caller must treat that as "not known", never
  * as "nothing bought". A wardrobe that answers with an error is `null`, for the same reason.
  */
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { shopAddress } from "@/lib/onchain/addresses";
+import { casesState, type CasesState } from "@/lib/shop/cases";
 import { shopEnabled } from "@/lib/shop/config";
 import type { ItemMeta, RegistryItem } from "@/lib/shop/rules";
 import { boughtScenes, scenesOnSale } from "@/lib/shop/scenes";
@@ -104,4 +106,81 @@ export function useShopScenes(): { bought: ReadonlySet<SceneId>; known: boolean;
     if (!wardrobe) return { bought: NO_SCENES, known: false, onSale };
     return { bought: boughtScenes(wardrobe, metaOf), known: true, onSale };
   }, [state.chainBacked, registry, wardrobe]);
+}
+
+const NO_CASES: ReadonlyMap<string, number> = new Map();
+/** The profile session's header (lib/profile/session.ts, a server module: named again here). */
+const SESSION_HEADER = "x-lexigotchi-session";
+
+export interface WordCases extends CasesState<ShopItem> {
+  /** The words that show a case (`shown`, under the name a card asks by) and when each went in (ms). */
+  cased: ReadonlyMap<string, number>;
+  /** Put a word in a case, or take it out, under the profile session's token. */
+  set: (word: string, on: boolean, token: string) => Promise<"ok" | "none_left" | "no_session" | "failed">;
+}
+
+/**
+ * The player's cases (decisions.md #42; lib/shop/cases says what a case is, that one case holds
+ * one word, and how the three reads here are put together: `casesState`).
+ *
+ * - **Which words are in a case is the server's answer** (`/api/cases`), and nothing here adds to
+ *   it: the server is the one place that counts cases. It is read wherever this network has a
+ *   Shop, even while the Shop is switched off: a buyer's words keep their cases.
+ * - **A read that is missing is never read as zero.** While the list is loading or failed, no word
+ *   shows a case and nothing is offered; while the count isn't known (the wardrobe, or a Shop that
+ *   couldn't say what its items are), every listed word keeps its case and no word is offered one.
+ * The practice game has no Shop: no cases, and that is known.
+ */
+export function useWordCases(): WordCases {
+  const { state } = useGame();
+  const wallets = usePlayerWallets();
+  const qc = useQueryClient();
+  const registry = useShopRegistry().data;
+  const wardrobe = useWardrobe().data;
+  const key = wallets.join(",");
+  const list = useQuery({
+    queryKey: ["shop", "cases", key],
+    enabled: state.chainBacked && !!shopAddress() && wallets.length > 0,
+    staleTime: 60_000,
+    queryFn: async (): Promise<Map<string, number> | null> => {
+      const r = await fetch(`/api/cases?wallets=${key}`);
+      const d = (await r.json().catch(() => null)) as { ok: boolean; cases?: { word: string; since: number }[] } | null;
+      if (!r.ok || !d?.ok) return null;
+      // a profile's cases repeat for each of its wallets named: one entry a word, the oldest
+      const out = new Map<string, number>();
+      for (const c of d.cases ?? []) out.set(c.word, Math.min(c.since, out.get(c.word) ?? Infinity));
+      return out;
+    },
+  });
+  const set = useCallback<WordCases["set"]>(
+    async (word, on, token) => {
+      const r = await fetch("/api/cases", {
+        method: "PUT",
+        headers: { "content-type": "application/json", [SESSION_HEADER]: token },
+        body: JSON.stringify({ word, on }),
+      }).catch(() => null);
+      if (r?.status === 401) return "no_session";
+      if (r?.status === 409) return "none_left";
+      if (!r?.ok) return "failed";
+      // show it at once, then read the server's own list again
+      qc.setQueryData<Map<string, number> | null>(["shop", "cases", key], (had) => {
+        const next = new Map(had ?? []);
+        if (on) next.set(word, next.get(word) ?? Date.now());
+        else next.delete(word);
+        return next;
+      });
+      void qc.invalidateQueries({ queryKey: ["shop", "cases"] });
+      return "ok";
+    },
+    [qc, key],
+  );
+
+  const listed = list.data;
+  return useMemo(() => {
+    // The practice game: no cases, nothing to buy, and all of that known.
+    const known = state.chainBacked
+      ? casesState({ list: listed, shop: registry, wardrobe, nowSec: Math.floor(Date.now() / 1000) })
+      : { held: NO_CASES, shown: NO_CASES, bought: 0, left: 0, onSale: null };
+    return { ...known, cased: known.shown, set };
+  }, [state.chainBacked, registry, wardrobe, listed, set]);
 }

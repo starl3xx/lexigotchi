@@ -81,7 +81,7 @@ export function ShopTab() {
       <Banner tone="ok" icon={<Info weight="bold" size={14} />}>
         Cosmetics for USDC. Each sale sends the studio&apos;s share straight to the revenue wallet and swaps the rest to $WORD for
         the Rewards Pool, in the same transaction. Adding an item is two steps: <strong>addItem</strong> below, then its row in{" "}
-        <code>shop_items</code> (name, kind, art). Without that row the game shows nothing (on a test network, a plain
+        <code>shop_items</code> (name, kind, art; a kind is <code>scene</code> with the scene’s id as its art, or <code>case</code>). Without that row the game shows nothing (on a test network, a plain
         &ldquo;Test item&rdquo; card). Never add a mainnet item before its row exists.
       </Banner>
 

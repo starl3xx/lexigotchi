@@ -10,8 +10,11 @@
  * mainnet item can ever show as a test item.
  */
 
-/** The kinds a wardrobe can hold. Only scenes exist in play today; costumes are a slot for later. */
-export const ITEM_KINDS = ["scene", "costume"] as const;
+/**
+ * The kinds a wardrobe can hold: a scene (lib/shop/scenes), a case for a word's card
+ * (lib/shop/cases), and costumes, a slot for later.
+ */
+export const ITEM_KINDS = ["scene", "costume", "case"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 export function isItemKind(v: unknown): v is ItemKind {

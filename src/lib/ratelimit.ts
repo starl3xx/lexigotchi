@@ -25,6 +25,8 @@ export type RateKind =
   | "seen"
   | "scenes"
   | "scenes-read"
+  | "cases"
+  | "cases-read"
   | "free-snack"
   | "free-snack-ip"
   | "usdc-faucet-ip"
@@ -85,6 +87,12 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     // Scene reads, keyed by IP: one per bag load, cached a minute by the client.
     case "scenes-read":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "1 m"), prefix: "rl:scenes:read" });
+    // Putting a word in a case or taking it out, keyed by the profile account: one tap each.
+    case "cases":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "10 m"), prefix: "rl:cases" });
+    // Case reads, keyed by IP: one per page load, cached by the client.
+    case "cases-read":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "1 m"), prefix: "rl:cases:read" });
     // Free-snack vouchers, keyed by the calling wallet: one per feed tap, and a voucher is useless to
     // anyone but that wallet, so this only bounds signing load.
     case "free-snack":

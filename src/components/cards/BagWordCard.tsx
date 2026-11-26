@@ -44,7 +44,7 @@ function useNear(ref: RefObject<Element | null>): boolean {
   return near;
 }
 
-export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }) {
+export function BagWordCard({ word, price, cased = false }: { word: OwnedWord; price?: number; /** In a case (decisions.md #42): the thumbnail wears the plastic's rim and light. */ cased?: boolean }) {
   const g = useGame();
   const { state } = g;
   const { scene } = useWordScene(word.word);
@@ -65,6 +65,7 @@ export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }
         word={word}
         small
         framed
+        className={cased ? "sc-cased" : ""}
         onOpen={() => g.openSheet({ kind: "word", word: word.word })}
         front={
           near ? (
@@ -80,6 +81,7 @@ export function BagWordCard({ word, price }: { word: OwnedWord; price?: number }
           <span className="sr-only">{word.tier}</span>
         </span>
         <span className="font-display text-sm font-extrabold">{word.word}</span>
+        {cased && <span className="sr-only">In a case</span>}
         <PrestigeStars level={word.prestigeLevel} />
         {/* a listed word's price is the one thing the marks can't say */}
         {price !== undefined && (
