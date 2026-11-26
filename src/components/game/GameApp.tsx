@@ -53,6 +53,7 @@ import { EarningsSheet } from "./sheets/EarningsSheet";
 import { useEarningsNote } from "./useEarningsNote";
 import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
+import { BoughtLettersSheet } from "./sheets/BoughtLettersSheet";
 import { AddAppHost } from "./AddAppHost";
 import { WalletNetworkNotice } from "./WalletNetworkNotice";
 import {
@@ -356,7 +357,8 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "profile") return <ProfileSheet />;
   if (state.sheet?.kind === "cheatsheet") return <CheatSheet />;
   if (state.sheet?.kind === "addapp") return <AddAppSheet />;
-  if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} />;
+  if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} bought={state.sheet.bought} />;
+  if (state.sheet?.kind === "boughtLetters") return <BoughtLettersSheet letterId={state.sheet.letterId} count={state.sheet.count} unitPrice={state.sheet.unitPrice} />;
   if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} fromWord={state.sheet.fromWord} />;
   // Only reachable from entries that already check the chain game and SHOP_ENABLED; checked again here.
   if (state.sheet?.kind === "shop" && shopEnabled()) return <ShopSheet />;

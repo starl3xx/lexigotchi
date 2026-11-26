@@ -635,7 +635,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       label: string,
       build: () => Call[],
       landed: (words: BagWord[]) => boolean,
-      says: { done: (words: BagWord[]) => string; pending: string },
+      // `done` answers null when the caller says it another way (a bought word gets a sheet).
+      says: { done: (words: BagWord[]) => string | null; pending: string },
     ) => {
       if (!(await run(label, build, { settles: true }))) return false;
       let last: BagWord[] = [];
@@ -643,7 +644,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data?.words ?? []),
         landed,
       );
-      toast(seen ? says.done(last) : says.pending, seen ? "good" : "info");
+      const said = seen ? says.done(last) : says.pending;
+      if (said !== null) toast(said, seen ? "good" : "info");
       return seen;
     },
     [wordsQ, toast],
@@ -1776,13 +1778,21 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             ]);
             if (!(await run(`Buy ${take} × ${name}`, () => buyLettersCalls(row.order, row.signature, take, allowance), { settles: true }))) return false;
             const seen = await readUntil(heldNow, (held) => held > before);
-            toast(
-              seen ? `${take} × ${name} in your bag` : `Sent. Your ${name} will show in your bag once the chain confirms it.`,
-              seen ? "good" : "info",
-            );
-            void chain.refresh();
             void market.refresh(true);
-            return seen;
+            if (!seen) {
+              toast(`Sent. Your ${name} will show in your bag once the chain confirms it.`, "info");
+              void chain.refresh();
+              return false;
+            }
+            // The bag first, then the sheet: it says what these letters now spell, from the bag
+            // (sheets/BoughtLettersSheet). A refresh that fails still celebrates what the chain showed.
+            await chain.refresh().catch(() => {});
+            dispatch({
+              t: "arrive",
+              sheet: { kind: "boughtLetters", letterId: ask.letterId, count: take, unitPrice: ask.unitPrice },
+              text: `${take} × ${name} in your bag`,
+            });
+            return true;
           }, false);
           return bought === true;
         },
@@ -1908,10 +1918,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             () => buyWordCalls(signed.order, signed.signature, allowance),
             (ws) => ws.some((x) => x.word === row.word && x.mine),
             {
-              done: () => `${row.word} is yours.`,
+              done: () => null,
               pending: `Sent. ${row.word} will show in your bag once the chain confirms it.`,
             },
           ).then((ok) => {
+            // It read back as this wallet's: the word stands up in its scene (sheets/CelebrateSheet).
+            if (ok) dispatch({ t: "arrive", sheet: { kind: "celebrate", word: row.word, bought: { price: row.price } }, text: `${row.word} is yours.` });
             refreshWords();
             void market.refresh(true);
             return ok;

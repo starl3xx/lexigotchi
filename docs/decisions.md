@@ -750,6 +750,17 @@ setter. All small, riding existing suite patterns.
       (`scripts/market-fork-check.ts`: buy 2 of 5, ask for more than is left, sold out, cancelled,
       uneven payments), and the routes against that fork and a throwaway database
       (`scripts/market-routes-check.ts`).
+    - **A purchase celebrates** (starl3xx, 2026-11-25: "we need an animation or popup with a toast or
+      something when a user purchases a word or letter ... (ie "Congrats, it's yours!" +
+      scene/card)"). It used to end with a toast. A bought word opens the claim's own "is yours"
+      sheet (`sheets/CelebrateSheet`, `bought`) standing in its scene, over what was paid and how
+      that compares with making it, with Stake and "See its card". Bought letters hop in the way a
+      pack's do (`sheets/BoughtLettersSheet`) over the word they newly finish, with its claim right
+      there: most letters are bought to finish a word, and it is the word the pick named
+      (`newlySpellable` keeps `oneLetterShort`'s order). Both stores open it only once the purchase
+      shows (the chain store after the read-back), through the reducer's `arrive`: if another sheet
+      is open by then, a toast says it and that sheet stays. A word the jackpot already drew is not
+      promised the jackpot, on a claim either.
     - **Not done:** a reminder to the seller when something sells (the template exists, unwired);
       buying one letter from several sellers in one send; an X card for a listing; offers (a
       buyer naming a price). Migration 0017 adds `letter_listings` and `market_sales`; until it

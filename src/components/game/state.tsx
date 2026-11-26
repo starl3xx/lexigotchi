@@ -218,8 +218,12 @@ export type Sheet =
   /** The core loop on one screen (sheets/CheatSheet), behind the header's "?". */
   | { kind: "cheatsheet" }
   | { kind: "addapp" }
-  /** A claim just landed: the new word celebrates (sheets/CelebrateSheet). */
-  | { kind: "celebrate"; word: string }
+  /** A claim just landed: the new word celebrates (sheets/CelebrateSheet). `bought`: it came from
+   *  the Market instead, for this many $WORD, so the sheet shows it in its scene with what was paid. */
+  | { kind: "celebrate"; word: string; bought?: { price: number } }
+  /** Letters bought on the Market just arrived (sheets/BoughtLettersSheet): `count` of one letter id
+   *  (0-25 lowercase, 26-51 UPPERCASE), at `unitPrice` $WORD each. */
+  | { kind: "boughtLetters"; letterId: number; count: number; unitPrice: number }
   /** Pick a word's scene, from the Today stage or an opened word (sheets/SceneSheet). `fromWord`:
    *  opened from the word's own sheet, so closing it goes back there. */
   | { kind: "scene"; word: string; fromWord?: boolean }
@@ -452,6 +456,13 @@ export function seedState(): GameState {
 type Action =
   | { t: "nav"; view: View; section?: ViewSection }
   | { t: "sheet"; sheet: Sheet }
+  /**
+   * Something the player bought has arrived: celebrate it with `sheet`, unless another sheet is open
+   * (the chain can take 20 s to show a purchase, and the player may have opened something since),
+   * in which case say it with a toast and leave what they're doing alone. Decided here, in the
+   * reducer, because a store's own copy of `state.sheet` is as old as the tap.
+   */
+  | { t: "arrive"; sheet: NonNullable<Sheet>; text: string }
   | { t: "toast"; text: string; tone: Toast["tone"]; ms?: number }
   | { t: "untoast"; id: number }
   | { t: "dailyMint"; idx: number }
@@ -479,6 +490,9 @@ export function reducer(s: GameState, a: Action): GameState {
       return { ...s, view: a.view, section: a.section, sheet: null };
     case "sheet":
       return { ...s, sheet: a.sheet };
+    case "arrive":
+      if (!s.sheet) return { ...s, sheet: a.sheet };
+      return { ...s, toasts: [...s.toasts, { id: s.nextToastId, text: a.text, tone: "good" }], nextToastId: s.nextToastId + 1 };
     case "toast":
       return {
         ...s,
@@ -1055,9 +1069,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
             needWord(ask.unitPrice * count, "these letters");
             return false;
           }
+          // The reducer takes what the listing still has, so celebrate that many.
+          const take = Math.min(Math.floor(count), ask.available);
+          if (take < 1) return false;
           dispatch({ t: "marketBuyLetters", orderHash: ask.orderHash, count, at: Date.now() });
           const ch = ALPHABET[ask.letterId % 26];
-          toast(`${count} × ${ask.letterId >= 26 ? ch : ch.toLowerCase()} in your bag`, "good");
+          dispatch({
+            t: "arrive",
+            sheet: { kind: "boughtLetters", letterId: ask.letterId, count: take, unitPrice: ask.unitPrice },
+            text: `${take} × ${ask.letterId >= 26 ? ch : ch.toLowerCase()} in your bag`,
+          });
           return true;
         },
         cancelLetterListing: (orderHash) => dispatch({ t: "marketCancel", orderHash }),
@@ -1072,10 +1093,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       buyWord: (orderHash) => {
         const l = practiceWords(state).find((x) => x.orderHash === orderHash);
-        if (!l) return;
+        // The reducer refuses these too; refused here so nothing celebrates a word that didn't arrive.
+        if (!l || l.maker === PRACTICE_ME || state.words.some((w) => w.word === l.word)) return;
         if (state.balance < l.price) return needWord(l.price, l.word);
         dispatch({ t: "marketBuyWord", orderHash, at: Date.now() });
-        toast(`${l.word} is yours.`, "good");
+        dispatch({ t: "arrive", sheet: { kind: "celebrate", word: l.word, bought: { price: l.price } }, text: `${l.word} is yours.` });
       },
       cancelWordListing: (orderHash) => dispatch({ t: "marketCancel", orderHash }),
 
