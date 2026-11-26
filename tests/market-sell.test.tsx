@@ -83,6 +83,13 @@ describe("the Market's Sell page", () => {
     fireEvent.change(within(form).getByRole("textbox"), { target: { value: "250,000" } });
     fireEvent.submit(form);
     expect(await screen.findByText(/left to sell/)).toBeTruthy();
+    // Change opens that letter's form from either tab.
+    fireEvent.click(screen.getByRole("button", { name: /^Your words/ }));
+    expect(container.querySelector("form")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    expect(screen.getByRole("button", { name: /^Your letters/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(container.querySelector("form")!).getByRole("heading", { name: /^Change your . listing$/ })).toBeTruthy();
+    fireEvent.click(within(container.querySelector("form")!).getByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByRole("button", { name: "Take off sale" }));
     expect(screen.getByText("Nothing of yours is for sale yet.")).toBeTruthy();
   });

@@ -90,7 +90,7 @@ export function MarketScreen() {
       )}
 
       {g.market.sales.length > 0 && (
-        <div className="-mx-1 flex items-center gap-3 overflow-x-auto px-1 pb-1" aria-label="Just sold">
+        <div className="-mx-1 flex items-center gap-3 overflow-x-auto overflow-y-hidden px-1 pb-1" aria-label="Just sold">
           <button type="button" onClick={() => setTab("sold")} className="shrink-0 font-display text-sm font-extrabold underline decoration-2 underline-offset-2">
             Just sold
           </button>

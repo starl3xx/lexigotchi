@@ -192,7 +192,16 @@ export function SellDesk({
                 {g.market.isHere(l.maker) ? (
                   <span className="flex shrink-0 flex-col items-end gap-1 text-xs font-bold">
                     {l.state === "live" && (
-                      <button type="button" onClick={() => setLetter(l.letterId)} className="text-teal-ink underline">
+                      <button
+                        type="button"
+                        // The form lives on the letters tab: go there, or Change does nothing from Your words (Bugbot on #221).
+                        onClick={() => {
+                          setKind("letters");
+                          setWord(null);
+                          setLetter(l.letterId);
+                        }}
+                        className="text-teal-ink underline"
+                      >
                         Change
                       </button>
                     )}

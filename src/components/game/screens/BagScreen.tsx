@@ -158,7 +158,9 @@ export function BagScreen() {
             </div>
             {state.words.length > 1 && (
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Show">
+                {/* Room above and below for the chips' hover lift and shadow, and no vertical scrolling: a
+                    box that scrolls sideways clips up and down too (the Market's row showed it). */}
+                <div className="-my-1 -ml-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto overflow-y-hidden px-1 py-2" role="group" aria-label="Show">
                   {WORD_FILTERS.filter((f) => f === "all" || counts[f] > 0).map((f) => (
                     <button
                       key={f}
