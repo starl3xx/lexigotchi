@@ -753,6 +753,8 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 .sc-more-host { container-type: inline-size; }
 .sc-more { display: grid; margin: 0; padding: 2px 12px; border: 2px solid #1b1714; border-radius: 14px; background: #fbf4e3; font-size: 14px; }
 .sc-more > div + div { border-top: 1px solid rgba(27, 23, 20, 0.1); }
+/* with the phone-only first row hidden, the next row is the first shown: no rule above it */
+@container (min-width: 431px) { .sc-more > .sc-more-phone + div { border-top: 0; } }
 /* the back drops these at max-width 560px, so they show here up to and including 560px (Bugbot #213) */
 @container (min-width: 561px) { .sc-more { display: none; } }
 /* a phone-sized back: four stats, no bottom line */
@@ -760,12 +762,14 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
   .cb-more, .cb-foot { display: none; }
   .cb-body { grid-template-rows: auto 1fr; }
 }
-/* a phone's back: the ledger's values have no room for the ascension pips beside the stage's name,
-   nor the left column for how many words share the rarity (both are under the card, in CardMore's
-   rows, or one tap away on a wider back) */
+/* A phone's back. The ledger's values have no room for the ascension pips, so the stage's name
+   stands alone ("Gilded 1" says what the pips draw). The left column has no room for how many words
+   share the rarity, so an opened card says it in the rows under it (CardBack's CardMore, the
+   `.sc-more-phone` row, which shows only at this width: Bugbot on #230 found the line said nowhere). */
 @container (max-width: 430px) {
   .cb-pips, .cb-oneof span { display: none; }
 }
+@container (min-width: 431px) { .sc-more-phone { display: none; } }
 /* a thumbnail's back (CardBack mini): the rarity, the tiles on their rack, one line */
 .sc-small .cb-main { grid-template-columns: 1fr; gap: 4px; align-content: center; }
 .sc-small .cb-rackwrap { --rh: 6.4cqw; width: auto; max-width: 78%; margin-top: 0; padding: 0 3cqw calc(var(--rh) * 0.33); }

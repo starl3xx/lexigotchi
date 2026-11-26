@@ -1015,8 +1015,8 @@ setter. All small, riding existing suite patterns.
       it, so the share video's back matches. Not on a thumbnail.
     - **The word is only ever its tiles** (in Söhne, on the rack). "1 of 1" reads "One of one", as
       on the front's ribbon.
-    - **A phone's back** (under 430 px) drops the ascension pips and the count of words in the
-      rarity; both are in the rows under an opened card.
+    - **A phone's back** (under 430 px) drops the ascension pips (the stage's name stays) and the
+      count of words in the rarity, which an opened card then says in the rows under it.
     - **My readings, not starl3xx's words:** the seal sits right of centre behind the ledger at
       about a seventh of full strength; a Legendary back's rarity steps clear of its corner
       scrollwork; the server's picture uses dashes for the ledger's dots (its renderer has no

@@ -271,8 +271,9 @@ function Facets() {
 }
 
 /**
- * What a phone-sized back leaves out (globals.css: under 560 px it shows four stats), listed under
- * an opened card while its back is up, so a phone player sees the whole story too: who found it,
+ * What a phone-sized back leaves out (globals.css: under 560 px it shows four stats; under 430 px
+ * it also drops how many words share the rarity), listed under an opened card while its back is
+ * up, so a phone player sees the whole story too: how many words share its rarity, who found it,
  * what it earns and costs, its points, the jackpot, and its token. Hidden wherever the back is wide
  * enough to show them itself (the same 560 px, by container query).
  */
@@ -283,6 +284,10 @@ export function CardMore({ word }: { word: OwnedWord }) {
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
   return (
     <dl className="sc-more">
+      {/* a phone's back has no room for this line (globals.css, under 430 px), so it is said here */}
+      <Row label="Rarity" phone>
+        One of {fmt(f.ofTier)} {f.tier} words
+      </Row>
       <Row label="Found by">{s.found}</Row>
       <Row label="Earned so far">{s.earned}</Row>
       <Row label="Earns staked">{s.perDay}</Row>
@@ -302,9 +307,10 @@ export function CardMore({ word }: { word: OwnedWord }) {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** `phone`: a row only for a card as narrow as a phone's (it repeats a line a wider back shows itself). */
+function Row({ label, phone = false, children }: { label: string; phone?: boolean; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5">
+    <div className={`flex items-baseline justify-between gap-3 py-1.5 ${phone ? "sc-more-phone" : ""}`}>
       <dt className="shrink-0 font-semibold text-ink/60">{label}</dt>
       <dd className="min-w-0 text-right">{children}</dd>
     </div>
