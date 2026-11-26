@@ -1563,6 +1563,85 @@ setter. All small, riding existing suite patterns.
       first, Farcaster or else the account's browsers, and email with its send-once mark. A sale,
       a payday, and a bounty each only say who and what.
 
+48. **Letters and cards, round two: nine notes, built in parts** (starl3xx, 2026-11-26, on the
+    review page "Card and Letter Review", which runs the game's own letter and card code beside a
+    changed copy; every point was decided there, then: "you can build your way through all of
+    this"). One entry: each part is added here as it ships.
+    - **Two rules, in the owner's words.** "However the tiles are animated, their *size* should
+      never change in animation; it breaks the character illusion in a weird way." And: "anything
+      on the letter/body should be its existing colorful / flat design; anything NOT on the
+      letter/body should be in the card style", the engraved line of the cards (#34).
+    - **Part 1, the rules in the letter.**
+      - **No size change.** A raised letter pulsed 13% bigger every 0.9 s: it now hops twice and
+        stands in the hero pose (a hand on the hip, a wave), which the rig had and nothing used. A
+        letter arriving (an opened pack, bought letters), the card of a bought word, and a step of
+        the intro grew in from 40% to 112%: they drop in (`drop`; `pop` stays for a toast and an
+        icon). The breath swelled the body by under 1% and sleep by 1.2%: the breath only rises,
+        and sleep is a slow rock about the feet. A pressed letter or word row squashed to 94% and
+        97%: it pushes down 2 px.
+      - **What may still change size,** by the owner's word ("the tile size stays consistent"):
+        the legs, whose stretch keeps the feet down while the body rises; a whole card's 3.5% lift
+        as it turns; and what flies off a letter (sweat, a z, a twinkle, confetti).
+      - **`tests/tile-size.test.tsx` holds it.** Every `tc*` loop must be listed there as body,
+        legs, or off the tile, so a new loop can't be added unsorted; a body loop with a scale
+        fails; `animate-pop` may be used only in the two files with no letter in them; a `.tile-
+        press` or `.word-press` rule with a scale fails.
+      - **The ground shadow is ruled lines** in the shape of the shadow, heavier toward the middle
+        (`tileShapes`, `SHADOW_LINES`, typed out so the server and the browser can't differ in a
+        digit), in the rig and in the share letter. It was a grey oval. The owner: "ruled lines
+        for shadows is fantastic." `CARD_LOOK` is 5.
+      - **A raised letter's rays are engraved, and a layer.** A "glory", as engravers draw light:
+        fine ruled rays of three lengths, twelve wedges with pale light inside, a ring of beads, in
+        the game's bright gold (the owner, of a first version in dark gold ink: "lighter, sunnier
+        color"). A box that stands still cuts them off just above the ground ("the rays shouldn't
+        be visible behind the lined shadow"), and only the drawing inside it turns. The flat star
+        they replace turned inside the floor's drawing, which the rig's own rule forbids: a raised
+        letter cost 11% to 20% of a processor core in WebKit for it (three runs), and under 2% now.
+        Headless Chrome is about the same either way (20% to 24% before, 23% to 26% after).
+      - **Measured on the way, not changed here.** A cheering word costs 48% of a core in WebKit
+        and 3% with its confetti hidden (it loops inside a drawing). A word's random life (blinks,
+        glances, twinkles) is most of what it costs at rest: 2% with it off, 6% to 17% with it on.
+      - **Seen and not seen (part 1):** the tile lab in headless WebKit, against the review page;
+        the docs' pictures rebuilt. No real iPhone, and no real graphics chip.
+    - **Part 2, the gilding** (the owner's four picks; the shapes are in `tileShapes`, for the rig
+      and the share letter).
+      - **Slim.** "The gilded and holographic borders look good visually, but they're too thick."
+        Gold outside the blue border is 8, 9, 10, 13.5, 13.5 units by stage, where it was 13, 15,
+        17, 22, 22 (`GILD`, `ringParts`). The ring stopped trying to count: stages 1 to 3 differed
+        by 2 units, which nobody could read. It says gilded, doubled from Gilded 4, and foil at
+        Holographic. Thinner rings also bring the eyes down (they ride the ring's outer edge) and
+        part the letters of a word (at Gilded 4 each was as wide as the step to the next).
+      - **Legs in front of the ring, as a layer.** "In the same way that arms come out in front of
+        gilding, could we do the same for legs?" The ring was part of the body, and the body is
+        over the legs, so at Gilded 4 only 16 of a leg's 52 units showed and the tile sat on its
+        shoes. Where a letter has legs, its rings (and the glow behind them) are a layer of their
+        own under the legs: floor, rings, legs, body. A shortcut (the top of each leg drawn again
+        inside the body) was ruled out by the owner: "legs in front has to be a layer in front of
+        the gilding... otherwise it doesn't work", for "every uppercase", so a plain UPPERCASE
+        letter's legs come over its pale ring too.
+      - **What the layer costs,** measured on its own (a five-letter Gilded 4 word with the random
+        blinks and twinkles off; headless; share of one core): WebKit 1.9% and 2.2% before, 2.0%
+        and 3.3% after; Chrome at full speed 38% both ways; Chrome slowed four times 91% before,
+        95% and 96% after (it draws every layer on the processor and is at full load already). If
+        a real phone shows a cost: give the layer to gilded letters only, or cut it to the ring's
+        own size.
+      - **Black diamond pips.** "Black diamonds... let's make all of them like that, including
+        holographic." An earned pip is solid ink at every stage; one not yet reached is a faint
+        outline, which reads on white, gold, and purple, so the white plate under them is gone.
+        They were gold squares, grey-lined white ones, and one foil. On the card's back they are
+        the same diamonds in the back's own ink (the material's line colour): black would not show
+        on a dark back. That last part is my reading, not the owner's word.
+      - **Laurels, for now.** "The crown on gilded/holographic letters looks bad, small, and
+        cheesy." It was 36 units wide and sat between the eyes, which hid all but its peak. From
+        Gilded 4 a whole character wears two laurel sprigs arching over its head from the top
+        corners (gold, foil at Holographic), in place of the twinkle that sat there. The owner
+        picked them over a halo, a worn crown, and a tipped crown, "for now". Worn by the letter,
+        so flat and outlined like the rest of it.
+      - **The share letter** draws an UPPERCASE letter's legs over its ring too (`CARD_LOOK` 6). It
+        still draws no gilding at all, in any picture: that is the next part.
+      - **Seen and not seen (part 2):** the tile lab's ladder in headless WebKit, against the
+        review page. No real iPhone.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

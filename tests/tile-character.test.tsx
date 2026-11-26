@@ -22,15 +22,17 @@ beforeEach(() => {
 
 const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
 /** The loops: each may only ever be on a layer (a whole <svg>). */
-const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock|zzz|sweat)\b/;
+const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|hop|leghop|jump|legjump|brace|knock|zzz|sweat|ray)\b/;
 /**
  * What may run inside a layer: short, or one letter in a sheet, or a swap in steps (the peek, which
  * redraws nothing between its two halves). Never a sleeping word's zzz: a hungry word sleeps on the
  * Today stage for as long as it is hungry, and its z's looping inside the top layer cost 44% of a
  * processor core at rest in WebKit (5% with them still). And never a nervous letter's sweat: five
  * letters wait together in the ascend sheet, and their beads inside the top layers cost 27 points.
+ * And never a raised letter's rays: turning inside the floor's drawing they cost 11% to 20% of a
+ * core, and under 2% as a layer of their own (decisions.md #48).
  */
-const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
+const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti"]);
 const animated = (root: Element) => [...root.querySelectorAll("[class*='animate-tc-']")];
 const tcClasses = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("animate-tc-"));
 
@@ -314,11 +316,14 @@ describe("a word that can't look (the ascend sheet)", () => {
 
   it("trembles out of step: each letter's body and legs start a part of a shake behind the last", () => {
     const { container } = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} />);
+    // An UPPERCASE letter with legs trembles as two layers: its rings, under the legs, and its body,
+    // over them (decisions.md #48). The two are one tile, so they shake in step.
     const bodies = [...container.querySelectorAll("svg.animate-tc-brace")];
-    expect(bodies).toHaveLength(5);
+    expect(bodies).toHaveLength(10);
     const delays = delaysOf(bodies);
     expect(delays[0]).toBe(""); // the first letter is the beat the rest are behind
     expect(new Set(delays).size).toBe(5);
+    for (let i = 0; i < bodies.length; i += 2) expect(delays[i + 1], `letter ${i / 2}: rings and body`).toBe(delays[i]);
     // and the loops are still on layers, never inside one (the rule at the top of this file)
     for (const el of container.querySelectorAll(".animate-tc-brace, .animate-tc-knock")) expect(el.tagName.toLowerCase()).toBe("svg");
   });

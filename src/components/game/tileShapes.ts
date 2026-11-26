@@ -20,8 +20,27 @@ export const MID = T.y + T.h / 2; // 175
 export const FOOT_Y = 300;
 export const FOOT_LX = CX - 30; // 90
 export const FOOT_RX = CX + 30; // 150
-/** The ground shadow under the shoes. */
-export const SHADOW = { cx: CX, cy: FOOT_Y + 3, rx: 76, ry: 10, opacity: 0.17 };
+/** The ground shadow under the shoes: its place and size. */
+export const SHADOW = { cx: CX, cy: FOOT_Y + 3, rx: 76, ry: 10 };
+/**
+ * The shadow as it is drawn (decisions.md #48): ruled lines in the shape of the shadow, heavier
+ * toward its middle, the way an engraving makes tone. What is on a letter is flat and colourful;
+ * what is around a letter is drawn like the cards, and the shadow is the one such thing under every
+ * letter. It was a grey oval. One list for the rig and the share card's still, typed out (not
+ * computed with a square root at run time) so the server and the browser can't differ in a digit.
+ */
+export const SHADOW_LINES: readonly { y: number; x0: number; x1: number; w: number }[] = [
+  { y: 295.2, x0: 72.4, x1: 167.6, w: 1.15 },
+  { y: 297.8, x0: 55.1, x1: 184.9, w: 1.34 },
+  { y: 300.4, x0: 46.6, x1: 193.4, w: 1.52 },
+  { y: 303, x0: 44, x1: 196, w: 1.7 },
+  { y: 305.6, x0: 46.6, x1: 193.4, w: 1.52 },
+  { y: 308.2, x0: 55.1, x1: 184.9, w: 1.34 },
+  { y: 310.8, x0: 72.4, x1: 167.6, w: 1.15 },
+];
+export const SHADOW_LINE_OPACITY = 0.62;
+/** Where the ground starts, a little above the shadow's top line: what stands behind a letter (the rays of a raised one) ends here. */
+export const GROUND_Y = FOOT_Y - 8;
 /**
  * The shoe (local: ankle at 0,-6, toe toward +x, sole on y = 3): a bean. A round heel, a dip at the
  * instep, a taller round toe. (The old shoe was a small heel with a long, low toe, 3 px tall on the
@@ -112,6 +131,92 @@ export const CLASP = (() => {
     darts: `M ${ox - 1.5} ${y - 1} L ${ox - 1.5} ${y + 6} M ${ox + 4} ${y - 0.5} L ${ox + 4} ${y + 6.5}`,
   };
 })();
+
+// ── the UPPERCASE ring and the gilding ───────────────────────────────────────────────────────────
+/** An UPPERCASE tile's blue border. */
+export const BORDER_UP = 12;
+/** The pale ring outside it, on a letter that is not gilded. */
+export const RING_PB = 10;
+/**
+ * The gilding, by stage: a gold ring, a pale line outside it, and from Gilded 4 a second gold ring.
+ * Slim (decisions.md #48; starl3xx: "they're too thick", then "slim gilding"): 8, 9, 10, 13.5, 13.5
+ * units outside the blue border, where it was 13, 15, 17, 22, 22. The ring no longer tries to count
+ * the stage (stages 1 to 3 differed by 2 units, which nobody could read): it says gilded, doubled
+ * from Gilded 4, and foil at Holographic. The pips say the stage.
+ */
+export const GILD = { gold: [0, 5, 6, 7, 7, 7], pale: 3, gold2: 3.5 } as const;
+export type RingPart = "plain" | "gold" | "pale";
+/** The rings outside the blue border, from the border outward. */
+export function ringParts(gild: number): { w: number; part: RingPart }[] {
+  if (gild <= 0) return [{ w: RING_PB, part: "plain" }];
+  const out: { w: number; part: RingPart }[] = [
+    { w: GILD.gold[Math.min(5, Math.round(gild))], part: "gold" },
+    { w: GILD.pale, part: "pale" },
+  ];
+  if (gild >= 4) out.push({ w: GILD.gold2, part: "gold" });
+  return out;
+}
+/** How far the rings reach past the tile's edge. */
+export function ringOuter(gild: number): number {
+  return ringParts(gild).reduce((e, r) => e + r.w, BORDER_UP / 2);
+}
+/** Each ring as a rounded rectangle's numbers (a stroke of width `sw`), each abutting the last. */
+export function ringRects(gild: number): { x: number; y: number; w: number; h: number; rx: number; sw: number; part: RingPart }[] {
+  let edge = BORDER_UP / 2; // the outer face of the blue border
+  return ringParts(gild).map((r) => {
+    const off = edge + r.w / 2;
+    edge += r.w;
+    return { x: T.x - off, y: T.y - off, w: T.w + 2 * off, h: T.h + 2 * off, rx: T.r + off, sw: r.w, part: r.part };
+  });
+}
+
+// ── the stage's pips ─────────────────────────────────────────────────────────────────────────────
+/**
+ * One pip a stage, on the tile's lower face: black diamonds (decisions.md #48; starl3xx: "black
+ * diamonds... let's make all of them like that, including holographic"). An earned pip is solid
+ * ink at every stage; one not yet reached is a faint outline, which reads on every rarity's face, so
+ * no white plate sits under them. They were gold on white squares with a grey line, the fifth foil.
+ */
+export const PIP_Y = BOT - 22;
+export const PIP_SIZE = 7.4;
+/** The printed letter rises by this when pips sit under it. */
+export const PIP_NUDGE = 12;
+/** Pip i (0 to 4) as a path. */
+export function pipPath(i: number, s = PIP_SIZE): string {
+  const cx = CX + (i - 2) * 22;
+  return `M ${cx} ${PIP_Y - s} L ${cx + s} ${PIP_Y} L ${cx} ${PIP_Y + s} L ${cx - s} ${PIP_Y} Z`;
+}
+
+// ── the laurels ──────────────────────────────────────────────────────────────────────────────────
+/**
+ * What a letter wears from Gilded 4: two laurel sprigs arching over its head from the top corners,
+ * open at the top (decisions.md #48; starl3xx: "laurels for now"). It replaces a crown 36 units
+ * wide that sat between the eyes, where the eyes hid all of it but the peak. Worn by the letter, so
+ * it is flat and outlined like the rest of it.
+ */
+/** A leaf, pointing along +x from its stem end. */
+export const LAUREL_LEAF = "M 0 0 C 5 -6.5 15 -6.5 22 0 C 15 6.5 5 6.5 0 0 Z";
+/**
+ * The LEFT sprig for a ring that reaches `ro` past the tile: its stem, and where each leaf goes
+ * (a transform for LAUREL_LEAF). The right sprig is its mirror: `translate(${VB.w} 0) scale(-1 1)`.
+ * Rounded: the server draws this too, and engines differ in a sine's last digit.
+ */
+export function laurel(ro: number): { stem: string; leaves: string[] } {
+  const R = T.w / 2 + ro + 25;
+  const at = (deg: number) => `${(CX + R * Math.cos((deg * Math.PI) / 180)).toFixed(2)} ${(MID + R * Math.sin((deg * Math.PI) / 180)).toFixed(2)}`;
+  const leaf = (deg: number, turn: number, scale = 1) => `translate(${at(deg)}) rotate(${deg + turn})${scale === 1 ? "" : ` scale(${scale})`}`;
+  return {
+    stem: `M ${at(-142)} A ${R} ${R} 0 0 1 ${at(-98)}`,
+    leaves: [
+      // outside the stem, leaning out
+      ...[-139, -128, -117, -106].map((d) => leaf(d, 56)),
+      // inside it, leaning in, a little smaller
+      ...[-134, -123, -112].map((d) => leaf(d, 124, 0.86)),
+      // the tip
+      leaf(-98, 90, 0.9),
+    ],
+  };
+}
 
 // ── eyes ─────────────────────────────────────────────────────────────────────────────────────────
 /** How far the plain UPPERCASE ring reaches past the tile (half the blue border + the pale ring). */
