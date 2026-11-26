@@ -68,13 +68,75 @@ export function checkUnsubscribe(address: string, token: string): boolean {
 // ── messages ─────────────────────────────────────────────────────────────────────────────────────
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
-function layout(title: string, bodyHtml: string, footerHtml: string): string {
-  return `<!doctype html><html><body style="margin:0;background:#f4ead2;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1b1714">
-<div style="max-width:480px;margin:0 auto;background:#fbf4e3;border:3px solid #1b1714;border-radius:18px;padding:24px">
-<div style="font-weight:800;font-size:13px;letter-spacing:.5px">LEXIGOTCHI</div>
-<h1 style="font-size:22px;margin:10px 0 8px">${esc(title)}</h1>${bodyHtml}</div>
-<p style="max-width:480px;margin:14px auto 0;font-size:12px;color:#1b1714a6;text-align:center">${footerHtml}</p></body></html>`;
+/**
+ * The email's look: the game's card, as little of it as says "this is from the game" (starl3xx,
+ * 2026-11-26: "make sure the email design is minimal and follows our most recent design language";
+ * decisions.md #34, #35, #37). The card's own paper on the game's page; the frame as two fine lines
+ * in the card's ink, a rule and a dotted line just inside it; the wordmark in the card's serif
+ * capitals; facts as the back's ledger (a name, a row of dots, a value in the serif). Words and
+ * sentences stay in the sans, as words do on a card.
+ *
+ * What an email can't have, it doesn't try for: no picture, no shipped font (stacks only: the
+ * card's serif is Iowan Old Style where the device has it, then Palatino, then Georgia), no dark
+ * variant (it says "light only", so a client that honors it leaves the paper alone). Tables and
+ * inline styles, because mail clients read little else. One button, in ink.
+ */
+const PAGE = "#f4ead2"; // the game's page (tailwind paper)
+const CARD = "#fcf7ea"; // lib/cardArt/looks CARD_PAPER
+const INK = "#1b1714";
+const LINE = "#4a3a2c"; // the Common card's frame ink (lib/cardArt/looks CARD_LOOKS)
+const SOFT = "#5f5549"; // body text: ink at about 70% on the card's paper
+const SERIF = "'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
+const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+/** A fact for the ledger: its name, and its value. */
+export type EmailFact = readonly [name: string, value: string];
+
+function ledger(facts: readonly EmailFact[]): string {
+  if (facts.length === 0) return "";
+  const rows = facts
+    .map(
+      ([name, value]) =>
+        `<tr><td style="padding:5px 0;font:14px/1.3 ${SANS};color:${SOFT};white-space:nowrap">${esc(name)}</td>` +
+        `<td width="100%" style="padding:5px 8px"><div style="border-bottom:1px dotted ${LINE};height:10px;line-height:10px;font-size:1px">&nbsp;</div></td>` +
+        `<td align="right" style="padding:5px 0;font:16px/1.3 ${SERIF};color:${INK};white-space:nowrap">${esc(value)}</td></tr>`,
+    )
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px">${rows}</table>`;
 }
+
+interface Layout {
+  title: string;
+  /** What the inbox shows after the subject. */
+  preview: string;
+  /** The message: trusted HTML, built here. */
+  body: string;
+  /** Under the card: why this came, and the way out. Trusted HTML. */
+  footer: string;
+}
+
+function layout(m: Layout): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"><title>${esc(m.title)}</title></head>
+<body style="margin:0;padding:0;background:${PAGE};color:${INK}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:${PAGE}">${esc(m.preview)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAGE}"><tr><td align="center" style="padding:28px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${CARD};border:1px solid ${LINE};border-radius:10px"><tr><td style="padding:5px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px dotted ${LINE};border-radius:6px"><tr><td style="padding:24px 24px 26px">
+<div style="font:700 12px/1 ${SERIF};letter-spacing:3px;color:${LINE}">LEXIGOTCHI</div>
+<div style="border-top:1px solid ${LINE};opacity:.35;height:1px;line-height:1px;font-size:1px;margin:14px 0 20px">&nbsp;</div>
+<h1 style="margin:0 0 10px;font:800 22px/1.25 ${SANS};color:${INK}">${esc(m.title)}</h1>
+${m.body}
+</td></tr></table>
+</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px"><tr><td align="center" style="padding:14px 8px 0;font:12px/1.5 ${SANS};color:${SOFT}">${m.footer}</td></tr></table>
+</td></tr></table>
+</body></html>`;
+}
+
+const paragraph = (text: string) => `<p style="margin:0 0 20px;font:16px/1.5 ${SANS};color:${SOFT}">${esc(text)}</p>`;
+const button = (href: string, label: string) =>
+  `<a href="${href}" style="display:inline-block;background:${INK};color:${CARD};font:700 15px/1 ${SANS};text-decoration:none;border-radius:8px;padding:12px 20px">${esc(label)}</a>`;
+const footLink = (href: string, label: string) => `<a href="${href}" style="color:${SOFT};text-decoration:underline">${esc(label)}</a>`;
 
 export interface EmailMessage {
   /** The wallet it's for (never sent to Resend): lets a caller mark who was reached. */
@@ -87,30 +149,35 @@ export interface EmailMessage {
 }
 
 export function codeEmail(to: string, code: string): EmailMessage {
-  const body = `<p style="margin:0 0 14px;color:#1b1714cc">Enter this code in Lexigotchi to confirm your email. It works for 10 minutes.</p>
-<div style="font:800 32px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:6px;background:#f4ead2;border-radius:10px;padding:12px 18px;display:inline-block">${code}</div>`;
+  // The code is set as a card sets its number: in the serif, large, inside a ruled box.
+  const body = `${paragraph("Type this code in Lexigotchi to confirm your email. It works for 10 minutes.")}
+<div style="display:inline-block;border:1px solid ${LINE};border-radius:6px;padding:12px 16px 12px 22px;font:700 32px/1 ${SERIF};letter-spacing:6px;color:${INK}">${esc(code)}</div>`;
   return {
     to,
     subject: `Your Lexigotchi code: ${code}`,
-    html: layout("Confirm your email", body, "If you didn’t ask for this, ignore it. Nothing changes."),
+    html: layout({ title: "Confirm your email", preview: `Your code is ${code}. It works for 10 minutes.`, body, footer: "If you didn’t ask for this, ignore it. Nothing changes." }),
     text: `Your Lexigotchi code is ${code}. It works for 10 minutes.\n\nIf you didn’t ask for this, ignore it.`,
   };
 }
 
-/** A reminder, from the same { title, body } the Farcaster and browser channels send. */
-export function reminderEmail(to: string, address: string, note: { title: string; body: string }): EmailMessage | null {
+/**
+ * A reminder, from the same { title, body } the Farcaster and browser channels send. `facts` are a
+ * receipt's ledger (what sold, for how much), shown as the card's back shows its facts.
+ */
+export function reminderEmail(to: string, address: string, note: { title: string; body: string }, facts: readonly EmailFact[] = []): EmailMessage | null {
   const a = address.toLowerCase();
   const unsub = unsubscribeUrl(address);
   if (!unsub) return null; // never send a reminder without a working way out
   const play = `${SITE}/play`;
-  const body = `<p style="margin:0 0 18px;color:#1b1714cc">${esc(note.body)}</p>
-<a href="${play}" style="display:inline-block;background:#bd3d35;color:#fbf4e3;font-weight:800;text-decoration:none;border:3px solid #1b1714;border-radius:14px;padding:10px 18px">Open Lexigotchi</a>`;
+  const body = `${paragraph(note.body)}${ledger(facts)}${button(play, "Open Lexigotchi")}`;
+  const footer = `You get this because you turned on email reminders in your Lexigotchi profile. Choose which ones there, under “What to tell me”, or ${footLink(unsub, "unsubscribe")} from all of them.`;
+  const factLines = facts.map(([name, value]) => `${name}: ${value}`).join("\n");
   return {
     address: a,
     to,
     subject: note.title,
-    html: layout(note.title, body, `You get these because you turned on email reminders in your Lexigotchi profile. <a href="${unsub}" style="color:#1b1714a6">Unsubscribe</a>.`),
-    text: `${note.title}\n\n${note.body}\n\nOpen Lexigotchi: ${play}\n\nUnsubscribe: ${unsub}`,
+    html: layout({ title: note.title, preview: note.body, body, footer }),
+    text: `${note.title}\n\n${note.body}\n\n${factLines ? `${factLines}\n\n` : ""}Open Lexigotchi: ${play}\n\nChoose which reminders you get in your profile, under “What to tell me”.\nUnsubscribe from all of them: ${unsub}`,
     headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
   };
 }

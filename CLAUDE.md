@@ -130,8 +130,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **A sale tells its seller** (decisions.md #45; `lib/notify/sold.ts`): a receipt hung on the sales
   recorder (`recordNewSales` hands a new row to the one caller that inserted it), sent by the
   Market's sales route after it answers (`lib/afterResponse.ts`) and by the keeper's `fees` job, to
-  Farcaster or else the seller's browsers, NOT by email (email players agreed to three named
-  reminders). Recent sales only (`SOLD_TELL_WINDOW_MS`, 30 h: a backfill tells nobody, and it must
+  Farcaster or else the seller's browsers, and by email to a seller who keeps email on
+  (`emailSold`). Recent sales only (`SOLD_TELL_WINDOW_MS`, 30 h: a backfill tells nobody, and it must
   stay wider than the keeper's daily cadence), one message per seller for a transaction's sales,
   the id per FILL (`sold-<tx>-<log index>`: a letter listing fills in parts). A row is new only
   ONCE: the reader hands rows out as it records them (`catchUpSales({ onNew })`), its callers
@@ -336,6 +336,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   date, $WORD to the pool, waiting USDC, sales per item, settings, the transaction builders;
   `/api/admin/shop`) and the System switch list. **Switched on in production (the Sepolia build) by
   #208**, with `NEXT_PUBLIC_SHOP_ENABLED=true` in Vercel Production; unset it and merge to hide it.
+  **The email's look is the card's** (decisions.md #47; `layout` in `lib/notify/email.ts`): the card's
+  paper, a rule and a dotted line for the frame, the serif wordmark, facts as a ledger
+  (`reminderEmail(..., facts)`), one ink button; tables and inline styles, no picture, font stacks
+  only, "light only". A new email kind uses `reminderEmail`, asks the choices, and takes its
+  send-once mark first (`lib/db/reminderMarks.ts` `claimMark`, released if the send fails; no mark
+  table = no send).
   **Email** (`lib/notify/email.ts`, Resend REST, no SDK; a User-Agent is required): a 6-digit code
   (HMAC stored, 10 min, 5 tries, 5 codes an hour per wallet) confirms the address
   (`/api/profile/email{,/verify}`), then hunger (keeper), daily-letter (notify-daily cron), and

@@ -20,15 +20,16 @@
  *     What is left: a server stopped in the second between recording and sending loses that one
  *     message. Closing that needs a stored "told" mark per sale (a small table), not done here.
  *   - **Farcaster first, else the browsers,** as a jackpot win does (triggers `webPushWinnerSubs`):
- *     a player Farcaster reaches doesn't hear it twice. NOT by email: an email goes to players who
- *     agreed to three named reminders, and this would be a fourth (it waits for the owner's word).
+ *     a player Farcaster reaches doesn't hear it twice. **And by email** (`emailSold`), to a seller
+ *     who confirmed an address and kept email on, whatever else reached them: they asked for it
+ *     (the owner, 2026-11-26, once a player could choose kinds: decisions.md #47).
  *   - **It can't hurt its caller.** Nothing is loaded while both channels are dark; the senders are
  *     imported only here, inside a try (each THROWS at import when armed without its keys, which
  *     must never take the Market's public route down); and every failure is logged, not thrown.
  */
 import type { SaleRow } from "@/lib/db/market";
 import { letterLabel } from "@/lib/market/deals";
-import { marketSold, type Notification, type SoldItem } from "./templates";
+import { marketSold, soldFacts, type Notification, type SoldItem } from "./templates";
 import { webPushWinnerSubs, type FidLookup, type PushSub } from "./triggers";
 
 /**
@@ -44,13 +45,14 @@ const WEI = 10n ** 18n;
 const lower = (a: string) => a.toLowerCase();
 
 /** A recorded fill as the template reads it. */
-export function soldItem(r: Pick<SaleRow, "kind" | "word" | "letterId" | "qty" | "priceWei" | "txHash" | "logIndex">): SoldItem {
+export function soldItem(r: Pick<SaleRow, "kind" | "word" | "letterId" | "qty" | "priceWei" | "txHash" | "logIndex"> & { feeWei?: string }): SoldItem {
   const word = r.kind === "word";
   return {
     kind: word ? "word" : "letter",
     name: word ? (r.word ?? "").toUpperCase() : letterLabel(r.letterId ?? 0),
     qty: r.qty,
     amount: Number(BigInt(r.priceWei) / WEI),
+    ...(r.feeWei !== undefined ? { share: Number((BigInt(r.priceWei) - BigInt(r.feeWei)) / WEI) } : {}),
     txHash: r.txHash,
     logIndex: r.logIndex,
   };
@@ -61,7 +63,7 @@ export function soldItem(r: Pick<SaleRow, "kind" | "word" | "letterId" | "qty" |
  * linked wallets are one player), oldest first inside a group. Pure, so the rules are tested.
  */
 export function soldGroups(
-  rows: readonly Pick<SaleRow, "seller" | "buyer" | "soldAt" | "kind" | "word" | "letterId" | "qty" | "priceWei" | "txHash" | "logIndex">[],
+  rows: readonly (Pick<SaleRow, "seller" | "buyer" | "soldAt" | "kind" | "word" | "letterId" | "qty" | "priceWei" | "txHash" | "logIndex"> & { feeWei?: string })[],
   accountOf: (address: string) => string,
   now: number,
 ): { seller: string; account: string; items: SoldItem[] }[] {
@@ -119,8 +121,10 @@ export interface SoldResult {
   sellers: number;
   farcaster: number;
   browsers: number;
-  /** Sellers no channel reaches. */
+  /** Sellers no push channel reaches. */
   unreached: number;
+  /** Sellers told by email (lib/notify/sold `emailSold`). */
+  emailed: number;
 }
 
 /** The sends, over audiences already loaded. Each seller's failure is its own. */
@@ -130,7 +134,7 @@ export async function tellSold(
   opts: { now?: number; log?: (line: string) => void } = {},
 ): Promise<SoldResult> {
   const log = opts.log ?? (() => {});
-  const out: SoldResult = { sellers: 0, farcaster: 0, browsers: 0, unreached: 0 };
+  const out: SoldResult = { sellers: 0, farcaster: 0, browsers: 0, unreached: 0, emailed: 0 };
   for (const g of soldGroups(rows, deps.accountOf, opts.now ?? Date.now())) {
     if (deps.wants && !deps.wants(g.account)) continue; // the seller turned this kind off
     const note = marketSold(g.items);
@@ -155,6 +159,52 @@ export async function tellSold(
   return out;
 }
 
+export interface SoldEmailDeps {
+  accountOf: (address: string) => string;
+  wants?: (account: string) => boolean;
+  /** The confirmed, opted-in address of each of these accounts (lib/db/profiles `emailRecipients`). */
+  recipients: (accounts: readonly string[]) => Promise<{ address: string; email: string }[]>;
+  /** Take the send-once mark for this account's message (lib/db/reminderMarks). */
+  claim: (account: string, mark: string) => Promise<"claimed" | "taken" | "unavailable">;
+  release: (account: string, mark: string) => Promise<void>;
+  /** Send one message; true when the mail service took it. */
+  send: (to: string, account: string, note: Notification, facts: [string, string][], id: string) => Promise<boolean>;
+}
+
+/**
+ * The same receipt by email, to a seller who confirmed an address, kept email reminders on, and
+ * didn't turn this kind off. Whether Farcaster or a browser also reached them doesn't matter: they
+ * asked for email. One message per account for the sales handed over together, marked BEFORE it is
+ * sent (so no second pass can send it too) and unmarked if the send fails. With no mark table (the
+ * migration hasn't run) nothing is sent: a kind that can't keep its mark waits.
+ */
+export async function emailSold(rows: Parameters<typeof soldGroups>[0], deps: SoldEmailDeps, opts: { now?: number } = {}): Promise<{ sent: number; skipped: number }> {
+  const groups = soldGroups(rows, deps.accountOf, opts.now ?? Date.now()).filter((g) => !deps.wants || deps.wants(g.account));
+  const out = { sent: 0, skipped: 0 };
+  if (groups.length === 0) return out;
+  const emailOf = new Map((await deps.recipients(groups.map((g) => g.account))).map((r) => [r.address.toLowerCase(), r.email]));
+  for (const g of groups) {
+    const to = emailOf.get(g.account);
+    const note = marketSold(g.items);
+    if (!to || !note?.notificationId) continue;
+    const mark = note.notificationId;
+    const claim = await deps.claim(g.account, mark);
+    if (claim !== "claimed") {
+      out.skipped++;
+      continue;
+    }
+    let ok = false;
+    try {
+      ok = await deps.send(to, g.account, note, soldFacts(g.items), mark);
+    } catch {
+      ok = false;
+    }
+    if (ok) out.sent++;
+    else await deps.release(g.account, mark);
+  }
+  return out;
+}
+
 /**
  * Tell the sellers of these newly recorded sales. Never throws. Returns null when there was nothing
  * to do or nothing armed to do it with.
@@ -165,7 +215,10 @@ export async function notifySold(rows: readonly SaleRow[], opts: { log?: (line: 
     const now = Date.now();
     if (!rows.some((r) => now - r.soldAt.getTime() <= SOLD_TELL_WINDOW_MS)) return null;
     const on = soldChannels();
-    if (!on.farcaster && !on.browser) return null;
+    // Email has its own switch, and its module is safe to load (it throws at nothing).
+    const mail = await import("./email");
+    const email = mail.emailEnabled();
+    if (!on.farcaster && !on.browser && !email) return null;
 
     const [{ loadLinkMap }, { notifiableFids }, { fidsByAddresses }, { allWebPushSubscriptions }, { loadPrefs }] = await Promise.all([
       import("@/lib/db/walletLinks"),
@@ -177,25 +230,54 @@ export async function notifySold(rows: readonly SaleRow[], opts: { log?: (line: 
     const [links, prefs] = await Promise.all([loadLinkMap(), loadPrefs()]);
     // Choices that couldn't be read send nothing (loadPrefs has logged why): a seller may have turned this off.
     if (!prefs.known) return null;
-    // Each audience is read only for a channel that is armed.
-    // Farcaster reaches a seller through any wallet of their account. Only THESE sellers' wallets
-    // are asked about (one cached request), never every player who added the app: this runs from
-    // a public route, on any pass that finds a sale.
-    const sellers = soldGroups(rows, links.accountOf, now).flatMap((g) => links.walletsOf(g.account));
-    const [added, fidsOf] = on.farcaster
-      ? await Promise.all([notifiableFids().then((f) => new Set(f)).catch(() => new Set<number>()), fidsByAddresses(sellers)])
-      : [new Set<number>(), new Map<string, number[]>()];
-    const subs = on.browser ? await allWebPushSubscriptions().catch(() => []) : [];
-    const deps: SoldDeps = {
-      accountOf: links.accountOf,
-      wants: (account) => prefs.wants(account, "sold"),
-      fidOf: reachableFid(links, fidsOf, added),
-      subs,
-      toFarcaster: async (fid, note) => (await import("./send")).sendNotification({ ...note, targetFids: [fid] }),
-      toBrowsers: async (to, note) => (await import("./webPush")).sendWebPush(to, note),
-    };
-    const res = await tellSold(rows, deps, { now, log });
-    log(`sold: ${res.sellers} seller(s): ${res.farcaster} told in Farcaster, ${res.browsers} in a browser, ${res.unreached} with no channel`);
+    const wants = (account: string) => prefs.wants(account, "sold");
+
+    let res: SoldResult = { sellers: 0, farcaster: 0, browsers: 0, unreached: 0, emailed: 0 };
+    if (on.farcaster || on.browser) {
+      // Each audience is read only for a channel that is armed.
+      // Farcaster reaches a seller through any wallet of their account. Only THESE sellers' wallets
+      // are asked about (one cached request), never every player who added the app: this runs from
+      // a public route, on any pass that finds a sale.
+      const sellers = soldGroups(rows, links.accountOf, now).flatMap((g) => links.walletsOf(g.account));
+      const [added, fidsOf] = on.farcaster
+        ? await Promise.all([notifiableFids().then((f) => new Set(f)).catch(() => new Set<number>()), fidsByAddresses(sellers)])
+        : [new Set<number>(), new Map<string, number[]>()];
+      const subs = on.browser ? await allWebPushSubscriptions().catch(() => []) : [];
+      const deps: SoldDeps = {
+        accountOf: links.accountOf,
+        wants,
+        fidOf: reachableFid(links, fidsOf, added),
+        subs,
+        toFarcaster: async (fid, note) => (await import("./send")).sendNotification({ ...note, targetFids: [fid] }),
+        toBrowsers: async (to, note) => (await import("./webPush")).sendWebPush(to, note),
+      };
+      res = await tellSold(rows, deps, { now, log });
+    }
+    // By email too, for a seller who asked for email: its own pass, and its failure is its own.
+    if (email) {
+      try {
+        const [{ emailRecipients }, marks] = await Promise.all([import("@/lib/db/profiles"), import("@/lib/db/reminderMarks")]);
+        const mailed = await emailSold(
+          rows,
+          {
+            accountOf: links.accountOf,
+            wants,
+            recipients: (accounts) => emailRecipients(accounts),
+            claim: (account, mark) => marks.claimMark(account, "sold", mark),
+            release: (account, mark) => marks.releaseMark(account, "sold", mark),
+            send: async (to, account, note, facts, id) => {
+              const message = mail.reminderEmail(to, account, note, facts);
+              return !!message && (await mail.sendEmails([message], { idempotency: id })).sent === 1;
+            },
+          },
+          { now },
+        );
+        res.emailed = mailed.sent;
+      } catch (err) {
+        console.error("sold: the email pass failed:", String((err as Error)?.message ?? err).slice(0, 160));
+      }
+    }
+    log(`sold: ${res.sellers} seller(s): ${res.farcaster} told in Farcaster, ${res.browsers} in a browser, ${res.emailed} by email, ${res.unreached} with no push channel`);
     return res;
   } catch (err) {
     console.error("sold: telling sellers failed (the sales are recorded):", String((err as Error)?.message ?? err).slice(0, 200));

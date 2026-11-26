@@ -385,7 +385,7 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
     <Card className="mb-3">
       <div className="font-display font-extrabold">Email reminders</div>
       <p className="mt-0.5 text-xs text-ink/60">
-        Before a word goes hungry, when your daily letter is ready, and if you win the jackpot: the ones you keep on under “What to tell me”. Your email is never shown to anyone.
+        The reminders you keep on under “What to tell me”, by email. Your email is never shown to anyone.
       </p>
 
       {p.signedIn && !p.ownLoaded ? (

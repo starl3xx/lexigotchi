@@ -1522,6 +1522,21 @@ setter. All small, riding existing suite patterns.
       every profiles column, so a column the database lacked would break every profile read until
       the migration ran. The same migration adds `reminder_marks`, the send-once mark for every
       later kind, so those need no new column each.
+    - **Part 2, the email's look, and a sale by email.** The email is the card, as little of it
+      as says "this is from the game" (#34, #35, #37): the card's own paper on the game's page;
+      the frame as two fine lines in the card's ink, a rule and a dotted line just inside it; the
+      wordmark in the card's serif capitals; a receipt's facts as the back's ledger (a name, a row
+      of dots, a value in the serif); one button, in ink. Sentences stay in the sans, as words do
+      on a card. No picture and no shipped font (stacks only: Iowan Old Style where the device has
+      it, then Palatino, then Georgia), and it says "light only". The code email shares it.
+    - **A sale is emailed** to a seller who confirmed an address, kept email on, and didn't turn
+      the kind off, whatever else reached them. Marked in `reminder_marks` BEFORE it is sent and
+      unmarked if the send fails; with no mark table nothing is sent (a kind that can't keep its
+      mark waits, the opposite of the choices' missing table, where "nobody chose" is a true
+      reading). Unsubscribe stops this kind with the rest: it reads the same list of opted-in
+      addresses. The footer says where to choose kinds, and how to stop them all.
+    - **Seen and not seen (part 2):** the three emails as pictures at phone and desktop widths. No
+      real mail client was seen, and no test email was sent.
 
 ## Pricing & launch economics (decided June 2026)
 

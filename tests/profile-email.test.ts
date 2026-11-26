@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { checkUnsubscribe, codeMatches, hashCode, newCode, normalizeEmail, reminderEmail, unsubscribeToken, unsubscribeUrl } from "@/lib/notify/email";
+import { checkUnsubscribe, codeEmail, codeMatches, hashCode, newCode, normalizeEmail, reminderEmail, unsubscribeToken, unsubscribeUrl } from "@/lib/notify/email";
 
 const SECRET = "test-secret-that-is-at-least-32-characters-long";
 const A = "0x1111111111111111111111111111111111111111";
@@ -48,10 +48,57 @@ describe("reminder emails", () => {
     expect(m.headers).toEqual({ "List-Unsubscribe": `<${unsubscribeUrl(A)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" });
     expect(m.html).toContain("&lt;soon&gt; &amp; then");
     expect(m.html).toContain("https://lexigotchi.fun/play");
-    expect(m.text).toContain(`Unsubscribe: ${unsubscribeUrl(A)}`);
+    expect(m.text).toContain(`Unsubscribe from all of them: ${unsubscribeUrl(A)}`);
   });
   it("are never built without a working way out", () => {
     delete process.env.PROFILE_SESSION_SECRET;
     expect(reminderEmail("player@example.com", A, { title: "t", body: "b" })).toBeNull();
+  });
+});
+
+describe("the email’s look (decisions.md #47: minimal, in the card’s language)", () => {
+  // built in each test: the unsubscribe link needs the secret that beforeEach sets
+  const sold = () => reminderEmail("p@example.com", A, { title: "Your word sold", body: "CRANE found a new home, for 2.40M $WORD. Your share is in your wallet." }, [["Sold", "CRANE"], ["For", "2.40M $WORD"], ["Your share", "2.16M $WORD"]])!;
+
+  it("is the card’s paper with its two frame lines, the wordmark, and one button", () => {
+    const m = sold();
+    expect(m.html).toContain("#fcf7ea"); // the card's own paper (lib/cardArt/looks CARD_PAPER)
+    expect(m.html).toMatch(/border:1px solid #4a3a2c/);
+    expect(m.html).toMatch(/border:1px dotted #4a3a2c/);
+    expect(m.html).toContain(">LEXIGOTCHI<");
+    expect(m.html.match(/<a [^>]*background:#1b1714/g)).toHaveLength(1);
+  });
+
+  it("carries no picture and no shipped font: stacks only, the card’s serif first where a device has it", () => {
+    const m = sold();
+    expect(m.html).not.toMatch(/<img|@font-face|url\(/i);
+    expect(m.html).toContain("'Iowan Old Style','Palatino Linotype',Palatino");
+    expect(m.html).toContain('content="light only"');
+  });
+
+  it("sets a receipt’s facts as a ledger, and says them in the text part too", () => {
+    const m = sold();
+    for (const [name, value] of [["Sold", "CRANE"], ["For", "2.40M $WORD"], ["Your share", "2.16M $WORD"]]) {
+      expect(m.html).toContain(`>${name}</td>`);
+      expect(m.html).toContain(`>${value}</td>`);
+      expect(m.text).toContain(`${name}: ${value}`);
+    }
+    // a reminder with no facts has no ledger
+    expect(reminderEmail("p@example.com", A, { title: "t", body: "b" })!.html).not.toContain("1px dotted #4a3a2c;height");
+  });
+
+  it("says how to choose which reminders come, and how to stop them all", () => {
+    const m = sold();
+    expect(m.html).toContain("What to tell me");
+    expect(m.html).toContain(unsubscribeUrl(A)!);
+    expect(m.text).toContain("What to tell me");
+    expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+  });
+
+  it("the code email shares the look, and escapes nothing it shouldn’t", () => {
+    const c = codeEmail("p@example.com", "482913");
+    expect(c.html).toContain("#fcf7ea");
+    expect(c.html).toContain(">482913<");
+    expect(c.html).not.toContain("unsubscribe");
   });
 });
