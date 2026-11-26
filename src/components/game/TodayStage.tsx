@@ -1,7 +1,7 @@
 "use client";
 /**
  * The top of the Today tab: one word's card at full size, and under it a placard, as under a
- * picture in a museum (decisions.md #38): the word's three status marks in fixed places (Fed,
+ * picture in a museum (decisions.md #39): the word's three status marks in fixed places (Fed,
  * Jackpot, Earns: ./stageMarks), the one button that does what it needs (rules in stagePick.ts),
  * and a pager. Nothing is drawn over the card's art: the speech bubble and the arrows that sat on
  * it are gone. The placard never names the word; the card above it does (starl3xx, 2026-11-25:

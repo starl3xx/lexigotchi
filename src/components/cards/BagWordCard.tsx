@@ -3,7 +3,7 @@
  * A word in the Bag, as its card (starl3xx, 2026-11-25: "the bag's words should now show these
  * scene/cards instead of just the raw words"): the word standing in its scene, and under the card
  * its rarity's mark, its name, and its three status marks as small icons (game/stageMarks: Fed,
- * Jackpot, Earns, the same marks the Today placard spells out; decisions.md #38). Turn it over in place, or tap it to open the word.
+ * Jackpot, Earns, the same marks the Today placard spells out; decisions.md #39). Turn it over in place, or tap it to open the word.
  * Nothing sits on the card's art: the frame is printed in the rarity's ink and carries its mark in
  * the corners, and the mark is repeated by the name, where it is large enough to read.
  *

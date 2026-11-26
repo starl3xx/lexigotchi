@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A word's three status marks (components/game/stageMarks, decisions.md #38): Fed, Jackpot, Earns,
+ * A word's three status marks (components/game/stageMarks, decisions.md #39): Fed, Jackpot, Earns,
  * always in that order, on the Today placard, the word's sheet, and (as icons) the Bag.
  */
 import { describe, it, expect, afterEach } from "vitest";

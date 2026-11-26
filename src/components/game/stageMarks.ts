@@ -1,5 +1,5 @@
 /**
- * A word's status as three marks, always in the same order and place (decisions.md #38; the
+ * A word's status as three marks, always in the same order and place (decisions.md #39; the
  * "Cards, Scenes, and Logo" proposal, starl3xx, 2026-11-25: "placard looks great"):
  *
  *   Fed · Jackpot · Earns

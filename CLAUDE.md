@@ -552,7 +552,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
   twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the corner wordmark on every frame.
-- **A word's status is three marks** (decisions.md #38; `components/game/stageMarks.ts` pure + tested,
+- **A word's status is three marks** (decisions.md #39; `components/game/stageMarks.ts` pure + tested,
   `StatusMarks.tsx`): **Fed, Jackpot, Earns**, always in that order, each in the colour of its meaning.
   In full on the Today placard and the word's sheet; as three icons beside the name in the Bag
   (`compact`). Add a status fact as a mark's wording, never as a new badge or a sentence on the art.

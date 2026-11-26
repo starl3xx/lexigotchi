@@ -513,7 +513,7 @@ body {
 @keyframes scene-fog-breathe { from { opacity: 0.6; } }
 
 /* ---------------------------------------------------------------------------------------------
-   The Today stage (components/game/TodayStage.tsx; decisions.md #38): a word's card, and a placard
+   The Today stage (components/game/TodayStage.tsx; decisions.md #39): a word's card, and a placard
    tucked under it, as under a picture in a museum.
    - .tt-card: the card, an object on the page: its own ink edge (SceneCard's `framed`) and a hard
      shadow. Nothing is drawn over its art.

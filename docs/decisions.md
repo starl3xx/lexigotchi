@@ -1172,7 +1172,7 @@ setter. All small, riding existing suite patterns.
       game through a temporary hook, removed. Not seen: a real wallet's token, and how X crops and
       shows the card.
 
-38. **A word's status is three marks on a placard, not a sentence in a bubble** (step 3 of #34;
+39. **A word's status is three marks on a placard, not a sentence in a bubble** (step 3 of #34;
     starl3xx, 2026-11-25, on the proposal: the status popup "doesn't look right... we need to think
     through where and how this info is displayed so it's both easy to find at a glance when needed
     (i.e. not buried on the back of the card) and beautiful"; then "placard looks great").
