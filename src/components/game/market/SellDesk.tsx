@@ -1,30 +1,47 @@
 "use client";
 /**
  * Sell, on the Market itself (decisions.md #30; starl3xx, 2026-11-25: "I should be able to list words
- * and letters both from the Market"). Three parts, top to bottom:
- * - what the player has for sale now, from every wallet of theirs, with a way to take each off sale
- *   (a paused letter listing too: it would go back on sale by itself, at its old price);
- * - their words that can be listed (unstaked, in the connected wallet), each opening the sell form;
- * - their loose letters: tap one, say how many and for how much each.
+ * and letters both from the Market"). Two parts:
+ * - **what to sell**: a switch between the player's words and their loose letters, each one tap from
+ *   the other. They used to be stacked, words first, and a player with several words never found
+ *   their letters under them ("where do i see my loose letters to list for sale?", the same day).
+ *   A word opens the sell form; a letter asks how many and for how much each.
+ * - **what they have for sale now**, from every wallet of theirs, with a way to take each off sale
+ *   (a paused letter listing too: it would go back on sale by itself, at its old price).
  *
- * Only the connected wallet signs, so the words and letters offered here are that wallet's.
+ * Only the connected wallet signs, so the words and letters offered here are that wallet's; letters
+ * in the player's other wallets are counted, with the way to bring them here.
  */
 import { useState } from "react";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { MIN_LETTER_PRICE } from "@/lib/onchain/letterSale";
 import { roundPrice } from "@/lib/wordCost";
 import { isUpperId, letterLabel, letterMakeCost, letterPriceIdeas, lowestOtherAsk } from "@/lib/market/deals";
-import { Button } from "../primitives";
+import { Button, Segmented } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { fmtWord, idxToChar, mineLower, mineUpper, useGame } from "../state";
 import { shortAddress } from "../useWorld";
 import { byBest } from "../stagePick";
 import { SellWord } from "./SellWord";
-import { Part, PriceHint, PriceIdeas, PriceInput, Qty, Versus, priceOf, priceText, useAmount } from "./bits";
+import { FormHead, Part, PriceHint, PriceIdeas, PriceInput, Qty, Versus, priceOf, priceText, useAmount } from "./bits";
 
 const LETTER_FEE = DEFAULT_PARAMS.market.letterSaleFee;
 
-export function SellDesk({ letter, setLetter }: { letter: number | null; setLetter: (letterId: number | null) => void }) {
+export type SellKind = "words" | "letters";
+
+export function SellDesk({
+  kind,
+  setKind,
+  letter,
+  setLetter,
+}: {
+  /** Which of the player's things the page shows to sell. */
+  kind: SellKind;
+  setKind: (kind: SellKind) => void;
+  /** The letter id whose form is open, or null. */
+  letter: number | null;
+  setLetter: (letterId: number | null) => void;
+}) {
   const g = useGame();
   const { state } = g;
   const [word, setWord] = useState<string | null>(null);
@@ -37,13 +54,107 @@ export function SellDesk({ letter, setLetter }: { letter: number | null; setLett
     ...mineUpper(state).map((c, i) => ({ id: i + 26, c })),
     ...mineLower(state).map((c, i) => ({ id: i, c })),
   ].filter((x) => x.c > 0);
+  const here = tray.reduce((n, t) => n + t.c, 0);
+  // Letters in the player's other wallets: in the bag, but only their own wallet can list them.
+  const elsewhere = state.lower.reduce((a, b) => a + b, 0) + state.upper.reduce((a, b) => a + b, 0) - here;
   const nothingListed = myWordListings.length === 0 && g.market.myLetters.length === 0 && g.market.oldSwaps.length === 0;
 
   return (
-    <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-x-8 lg:gap-y-6 lg:space-y-0">
-      <Part title="For sale by you" className="lg:col-span-2">
+    <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:space-y-0">
+      <div data-section="sellLetters">
+        <Segmented
+          className="mb-3"
+          value={kind}
+          onChange={(k) => {
+            setKind(k);
+            setWord(null);
+            setLetter(null);
+          }}
+          options={[
+            { value: "words", label: `Your words · ${sellable.length}` },
+            { value: "letters", label: `Your letters · ${here}` },
+          ]}
+        />
+        {kind === "words" && (
+          <div>
+            {sellable.length === 0 ? (
+              <p className="text-sm text-ink/55">
+                {staked > 0
+                  ? "Your words are all staked. Unstake one in your bag to sell it: only a word in your wallet can be sold."
+                  : "No words in this wallet to sell."}
+              </p>
+            ) : (
+              <ul className="divide-y-2 divide-dashed divide-ink/15">
+                {sellable.map((w) => (
+                  <li key={w.word} className="py-2">
+                    {word === w.word ? (
+                      <>
+                        <div className="mb-2 flex justify-start">
+                          <WordTiles word={w.word} upper={w.upper} size={26} tier={w.tier} still />
+                        </div>
+                        <SellWord word={w} startOpen onClose={() => setWord(null)} />
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3">
+                        <WordTiles word={w.word} upper={w.upper} size={26} tier={w.tier} still />
+                        <Button size="sm" variant="ghost" onClick={() => setWord(w.word)}>
+                          Sell
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {sellable.length > 0 && staked > 0 && (
+              <p className="mt-2 text-xs text-ink/55">
+                {staked} more {staked === 1 ? "is" : "are"} staked. Unstake a word to sell it.
+              </p>
+            )}
+          </div>
+        )}
+        {kind === "letters" && (
+          <div>
+            {g.market.lettersClosed ? (
+              <p className="text-sm text-ink/55">Letters open for sale here shortly.</p>
+            ) : tray.length === 0 ? (
+              <p className="text-sm text-ink/55">
+                {elsewhere > 0 ? "No loose letters in this wallet." : "No loose letters to sell. Letters inside a word go with the word."}
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {tray.map(({ id, c }) => (
+                    <LetterTile key={id} char={letterLabel(id)} upper={isUpperId(id)} count={c} size={40} selected={letter === id} onClick={() => setLetter(letter === id ? null : id)} />
+                  ))}
+                </div>
+                {letter !== null && tray.some((t) => t.id === letter) ? (
+                  <SellLetters key={letter} letterId={letter} onDone={() => setLetter(null)} />
+                ) : (
+                  <p className="mt-2 text-xs text-ink/55">
+                    Tap a letter to sell it: one or several, at a price each. They stay in your bag until they sell, and a buyer can take any number
+                    of them.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        {kind === "letters" && elsewhere > 0 && !g.market.lettersClosed && (
+          <p className="mt-2 text-xs text-ink/55">
+            {elsewhere} more {elsewhere === 1 ? "is" : "are"} in your other wallets. Only the wallet that holds a letter can list it: switch to that
+            wallet, or{" "}
+            <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.openSheet({ kind: "profile", focus: "move" })}>
+              move them here
+            </button>
+            .
+          </p>
+        )}
+      </div>
+
+      <Part title="For sale by you">
         {nothingListed ? (
-          <p className="text-sm text-ink/55">Nothing of yours is for sale. Pick a word or a letter below.</p>
+          <p className="text-sm text-ink/55">Nothing of yours is for sale yet.</p>
         ) : (
           <ul className="divide-y-2 divide-dashed divide-ink/15">
             {myWordListings.map((l) => (
@@ -114,66 +225,6 @@ export function SellDesk({ letter, setLetter }: { letter: number | null; setLett
           </ul>
         )}
       </Part>
-
-      <Part title="Sell a word" aside={sellable.length > 0 ? `${sellable.length} you can list` : undefined}>
-        {sellable.length === 0 ? (
-          <p className="text-sm text-ink/55">
-            {staked > 0
-              ? "Your words are all staked. Unstake one in your bag to sell it: only a word in your wallet can be sold."
-              : "No words in this wallet to sell."}
-          </p>
-        ) : (
-          <ul className="divide-y-2 divide-dashed divide-ink/15">
-            {sellable.map((w) => (
-              <li key={w.word} className="py-2">
-                {word === w.word ? (
-                  <>
-                    <div className="mb-2">
-                      <WordTiles word={w.word} upper={w.upper} size={26} tier={w.tier} still />
-                    </div>
-                    <SellWord word={w} startOpen onClose={() => setWord(null)} />
-                  </>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <WordTiles word={w.word} upper={w.upper} size={26} tier={w.tier} still />
-                    <Button size="sm" variant="ghost" onClick={() => setWord(w.word)}>
-                      Sell
-                    </Button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {sellable.length > 0 && staked > 0 && (
-          <p className="mt-2 text-xs text-ink/55">
-            {staked} more {staked === 1 ? "is" : "are"} staked. Unstake a word to sell it.
-          </p>
-        )}
-      </Part>
-
-      <Part title="Sell letters" aside={tray.length > 0 ? "Tap a letter" : undefined}>
-        {g.market.lettersClosed ? (
-          <p className="text-sm text-ink/55">Letters open for sale here shortly.</p>
-        ) : tray.length === 0 ? (
-          <p className="text-sm text-ink/55">No loose letters in this wallet to sell.</p>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-2">
-              {tray.map(({ id, c }) => (
-                <LetterTile key={id} char={letterLabel(id)} upper={isUpperId(id)} count={c} size={40} selected={letter === id} onClick={() => setLetter(letter === id ? null : id)} />
-              ))}
-            </div>
-            {letter !== null && tray.some((t) => t.id === letter) ? (
-              <SellLetters key={letter} letterId={letter} onDone={() => setLetter(null)} />
-            ) : (
-              <p className="mt-2 text-xs text-ink/55">
-                List one letter or several at a price each. They stay in your bag until they sell, and a buyer can take any number of them.
-              </p>
-            )}
-          </>
-        )}
-      </Part>
     </div>
   );
 }
@@ -205,10 +256,10 @@ function SellLetters({ letterId, onDone }: { letterId: number; onDone: () => voi
         if (ok) onDone();
       }}
     >
+      <FormHead title={current ? `Change your ${name} listing` : `Sell ${name}`} onClose={onDone} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="font-display text-sm font-extrabold">
-          How many {name}
-          {held > 1 ? `, of your ${held}` : ""}
+        <span className="text-xs font-bold text-ink/60">
+          How many{held > 1 ? `, of your ${held}` : ""}
         </span>
         <span className="flex items-center gap-2">
           <Qty value={count} max={held} onChange={setQty} label={`How many ${name}`} />
@@ -246,9 +297,9 @@ function SellLetters({ letterId, onDone }: { letterId: number; onDone: () => voi
         Listing is a free signature. Listed letters stay in your bag until they sell: spell or move one, and the listing gets smaller.
         {current && " Your old listing is cancelled in the same step."}
       </p>
-      <button type="button" onClick={onDone} className="mt-1 text-xs font-bold text-ink/45 underline">
-        Not now
-      </button>
+      <Button type="button" size="sm" variant="ghost" className="mt-2" onClick={onDone}>
+        Cancel
+      </Button>
     </form>
   );
 }

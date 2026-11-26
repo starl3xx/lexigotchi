@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { BagWordCard } from "../../cards/BagWordCard";
-import { Basket, Cookie, Sparkle, TextAa } from "../ui/icons";
+import { Basket, Cookie, Sparkle, Storefront, TextAa } from "../ui/icons";
 import { feedAllLabel, wordsToFeed } from "../feedAll";
 import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
@@ -126,6 +126,12 @@ export function BagScreen() {
           <Button full variant="ghost" onClick={() => g.nav("mint")}>
             <Sparkle weight="fill" /> Mint more letters
           </Button>
+          {/* Loose letters sell on the Market (decisions.md #30): this opens its Sell page on them. */}
+          {lowerCount + upperCount > 0 && (
+            <Button full variant="ghost" onClick={() => g.nav("swap", "sellLetters")}>
+              <Storefront weight="fill" /> Sell letters on the Market
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
