@@ -12,6 +12,7 @@ import {
   pityCapped,
   marketSold,
   remindersOn,
+  bountyPaid,
 } from "@/lib/notify/templates";
 import { NOTIFICATION_WEBHOOK_URL, farcasterManifest } from "@/lib/site";
 import { HUNGER_WARN_HOURS } from "@/lib/notify/triggers";
@@ -141,6 +142,10 @@ describe("length limits", () => {
         jackpotWon(longWord, hugeAmount, day),
         jackpotRollover(hugeAmount, day),
         earningsPaid(hugeAmount, day),
+        bountyPaid("999.99B $WORD", "double letters", 2968, day),
+        // the payout ran out of time with part still to pay
+        earningsPaid(hugeAmount, day, true),
+        bountyPaid("999.99B $WORD", "double letters", 2968, day, true),
         pityCapped("q", day),
         marketSold([fill({ kind: "word", name: "QUICK", amount: 999_990_000_000 })], day)!,
         marketSold([fill({ name: "Q", qty: 10_000, amount: 999_990_000_000 })], day)!,

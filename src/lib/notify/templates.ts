@@ -132,14 +132,31 @@ export function jackpotRollover(amount: string, day = epochDay()): Notification 
 
 // ── Earnings ──────────────────────────────────────────────────────────────────────────
 // RECEIPT. Earnings are paid automatically each morning (decisions.md #16), so this tells a player
-// what landed, never asks them to collect. One per payout day.
+// what their words earned, never asks them to collect. One per payout day. `rest`: the payout ran
+// out of time with part of it still to pay (lib/notify/paid.ts), so it doesn't say all of it is paid.
 const PAID_TITLES = ["Payday for your words", "Your words got paid", "Fresh $WORD from your words"] as const;
 
-export function earningsPaid(amount: string, day = epochDay()): Notification {
+export function earningsPaid(amount: string, day = epochDay(), rest = false): Notification {
   return {
     title: rotate(PAID_TITLES, day),
-    body: `Your words earned ${amount} at today’s payout, paid straight to the wallets that hold them.`,
+    // Not "today's payout": a day no run had reached is told of with the next one.
+    body: rest
+      ? `Your words earned ${amount}. Part is paid, and the rest goes out with the next payout.`
+      : `Your words earned ${amount}. It’s paid, straight to the wallets that hold them.`,
     notificationId: `paid-${day}`,
+  };
+}
+
+// ── The weekly bounty ─────────────────────────────────────────────────────────────────
+// RECEIPT. A week's bounty is shared between the words that fit its theme, so a player is told of
+// THEIR share, never "the bounty is yours". One per week (the period is the event).
+const BOUNTY_TITLES = ["A share of the bounty is yours", "Your words fit the theme", "Bounty day for your words"] as const;
+
+export function bountyPaid(amount: string, theme: string, period: number, day = epochDay(), rest = false): Notification {
+  return {
+    title: rotate(BOUNTY_TITLES, day),
+    body: `Your words fit the week’s theme, ${theme}. Their share of the bounty is ${amount}${rest ? ": part is paid, the rest follows." : ", and it’s in your wallet."}`,
+    notificationId: `bounty-${period}`,
   };
 }
 
@@ -246,6 +263,7 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   won: WON_TITLES,
   rollover: ROLLOVER_TITLES,
   paid: PAID_TITLES,
+  bounty: BOUNTY_TITLES,
   pity: PITY_TITLES,
   soldLetter: SOLD_LETTER_TITLES,
   soldWord: SOLD_WORD_TITLES,

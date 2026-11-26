@@ -14,7 +14,16 @@ const B = "0x00000000000000000000000000000000000000bb";
 describe("the kinds", () => {
   it("every kind that existed before choices did is on by default: nothing changes for a player who changes nothing", () => {
     for (const k of ["hunger", "daily", "jackpot", "sold"] as const) expect(wantsKind(undefined, k)).toBe(true);
-    expect(effectiveKinds(null)).toEqual({ hunger: true, daily: true, jackpot: true, sold: true });
+    expect(effectiveKinds(null)).toEqual({ hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false });
+  });
+
+  it("a kind that comes every day starts OFF: a second daily message nobody chose gets the first one switched off", () => {
+    expect(wantsKind(undefined, "payday")).toBe(false);
+    expect(wantsKind({ payday: true }, "payday")).toBe(true);
+    // a weekly one at most starts on
+    expect(wantsKind(undefined, "bounty")).toBe(true);
+    // and an opt-in is what gets stored for it
+    expect(changedFromDefaults({ payday: true, bounty: true })).toEqual({ payday: true });
   });
 
   it("each has words for its checkbox", () => {
@@ -27,7 +36,7 @@ describe("the kinds", () => {
   it("a choice wins over the default, kind by kind", () => {
     expect(wantsKind({ daily: false }, "daily")).toBe(false);
     expect(wantsKind({ daily: false }, "hunger")).toBe(true);
-    expect(effectiveKinds({ daily: false, sold: false })).toEqual({ hunger: true, daily: false, jackpot: true, sold: false });
+    expect(effectiveKinds({ daily: false, sold: false })).toEqual({ hunger: true, daily: false, jackpot: true, sold: false, bounty: true, payday: false });
   });
 
   it("takes only known kinds with true or false from outside", () => {
@@ -51,13 +60,13 @@ describe("mergeStored: what a save writes", () => {
   });
 
   it("keeps a kind this build doesn’t know exactly as a newer build stored it", () => {
-    // mid-deploy: a newer server stored `payday`, and this older one saves another box
-    expect(mergeStored({ payday: true, daily: false }, { sold: false })).toEqual({ payday: true, daily: false, sold: false });
-    expect(mergeStored({ payday: false }, { daily: true })).toEqual({ payday: false });
+    // mid-deploy: a newer server stored a kind this one doesn't know, and this one saves another box
+    expect(mergeStored({ digest: true, daily: false }, { sold: false })).toEqual({ digest: true, daily: false, sold: false });
+    expect(mergeStored({ digest: false }, { daily: true })).toEqual({ digest: false });
   });
 
   it("drops what was never a choice", () => {
-    expect(mergeStored({ payday: "yes", daily: false }, {})).toEqual({ daily: false });
+    expect(mergeStored({ digest: "yes", daily: false }, {})).toEqual({ daily: false });
     expect(mergeStored("broken", { daily: false })).toEqual({ daily: false });
   });
 });

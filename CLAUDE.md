@@ -118,6 +118,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends without
   `NOTIFICATIONS_ENABLED=true` in production: **set 2026-11-26, with the owner's word**.
+  **A receipt to a player goes through `notifyPlayers`** (`lib/notify/players.ts`): a kind, and a
+  `PlayerNote` per account (who, what, an email ledger). It asks the choices, sends to Farcaster or
+  else the account's browsers, and emails under a send-once mark. A sale (`sold.ts`), a payday and
+  a bounty share (`paid.ts`, fed the payout's `RewardClaimed` events and every share of the epochs
+  it worked through: `toldShares` tells of a day or a week ONCE, in the run that pays the first of
+  it, with the player's whole share, and says "paid" of all of it only when all of it is; its
+  header names the rule's limit and the two rules dropped before it)
+  use it. Payday is opt-in (`KIND_INFO.payday.on` is false). New sends hang on keeper jobs that
+  already run: a new job name never runs where `KEEPER_JOBS` is set.
   **A choice per kind** (decisions.md #47; `lib/notify/kinds.ts` pure, `lib/db/reminderPrefs.ts`, table
   `reminder_prefs`, migration 0018, `/api/profile/reminders`, the profile's "What to tell me"
   card): a player's ACCOUNT chooses which kinds it gets, for every channel at once. Only what was
