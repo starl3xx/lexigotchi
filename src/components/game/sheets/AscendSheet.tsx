@@ -122,8 +122,11 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
   const canAct = (word.mine || word.care === true) && word.staked && wordCase(word) === "UPPERCASE" && !atTop;
   const short = !g.canAfford(total);
 
-  const land = (hit: boolean, at: Stage) => {
-    setExpected(stageAfter(at, hit));
+  // `known`: where the chain has the word after this result (the chain store reads it with the
+  // reveal). The practice store has no chain, and its rule is exactly stageAfter's. Never guess
+  // when the chain has said: a signed success that no longer counted is a miss that adds no pity.
+  const land = (hit: boolean, at: Stage, known?: Stage) => {
+    setExpected(known ?? stageAfter(at, hit));
     later(() => setExpected(null), EXPECTED_HOLD_MS);
     setMood(hit ? "celebrate" : "peckish");
     setPhase(hit ? "hit" : "miss");
@@ -140,7 +143,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
   const finish = (outcome: ActionOutcome, at: Stage) => {
     unsaid.current = null; // the sheet is here to show it
     const next = phaseAfter(outcome);
-    if (next === "hit" || next === "miss") return land(next === "hit", at);
+    if (next === "hit" || next === "miss") return land(next === "hit", at, outcome.status === "resolved" ? outcome.stage : undefined);
     if (outcome.status === "stranded") setStranded(outcome.note);
     setFrom(null);
     setPhase(next);

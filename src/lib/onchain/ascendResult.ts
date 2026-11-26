@@ -23,8 +23,12 @@ export type AscendResult =
    * again: never "you missed".
    */
   | { kind: "foreign" }
-  /** This try's result: `hit` is the word standing a stage higher than at the tap, now at `level`. */
-  | { kind: "result"; hit: boolean; level: number };
+  /**
+   * This try's result: `hit` is the word standing a stage higher than at the tap. `level` and
+   * `pity` are where the chain has it now. A miss usually adds one to the pity, but not always: a
+   * signed success that no longer counted leaves the pity as it was, so it is read, never inferred.
+   */
+  | { kind: "result"; hit: boolean; level: number; pity: number };
 
 export function ascendResult(a: {
   /** The word's stage at the tap. */
@@ -36,7 +40,7 @@ export function ascendResult(a: {
   /** What the server said the commit was paid at, when it answered (null: it was already revealed). */
   commit: { level?: number; owner?: string } | null;
   /** The chain after the reveal (readPrestigeAttempt), or null if it never showed. */
-  after: { level: number } | null;
+  after: { level: number; pity: number } | null;
 }): AscendResult {
   if (!a.after) return { kind: "unfinished" };
   // A resumed attempt that turned out to be finished already (no commit facts: the server said
@@ -48,5 +52,5 @@ export function ascendResult(a: {
   if (foreign) return { kind: "foreign" };
   // The chain's own answer, never the signed one: a signed success no longer counts if the word
   // was unstaked or changed hands before the reveal (Prestige.reveal), and then it stands where it did.
-  return { kind: "result", hit: a.after.level > a.level, level: a.after.level };
+  return { kind: "result", hit: a.after.level > a.level, level: a.after.level, pity: a.after.pity };
 }

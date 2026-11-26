@@ -15,7 +15,13 @@
 
 export type ActionOutcome =
   | { status: "not-started" }
-  | { status: "resolved"; success: boolean }
+  /**
+   * `stage`: where an ascension left its word, as the chain has it after the reveal (its stage,
+   * and its misses in a row). Only the chain store's ascension sets it, so its sheet shows what
+   * the chain did and never infers it from `success`: a signed success that no longer counted
+   * (the word was unstaked or moved first) is no hit, and adds no miss either (Bugbot on #229).
+   */
+  | { status: "resolved"; success: boolean; stage?: { level: number; pity: number } }
   | { status: "stranded"; note: string };
 
 export const NOT_STARTED: ActionOutcome = { status: "not-started" };

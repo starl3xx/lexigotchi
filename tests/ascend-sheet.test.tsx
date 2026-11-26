@@ -209,6 +209,31 @@ describe("a result", () => {
     expect(screen.getByRole("button", { name: "Attempting ascension…" })).toBeTruthy();
   });
 
+  it("shows the chain's own numbers when the store hands them over, never a guessed miss", async () => {
+    // A signed success that no longer counted (the word was unstaked or moved before the reveal):
+    // no hit, and no miss added either. The store read the pity with the reveal: still 2. Guessing
+    // "a miss, so one more" showed 65% for a word whose next try is 55% (Bugbot on #229).
+    const g = fakeGame(vivid({ prestigePity: 2 }));
+    show(g.api);
+    fireEvent.click(tryButton()!);
+    g.settle({ status: "resolved", success: false, stage: { level: 1, pity: 2 } });
+    await pass(700);
+    expect(sheet().textContent).toContain("Held its ground");
+    expect(sheet().textContent).toContain("55%");
+    expect(sheet().textContent).not.toContain("65%");
+    expect(sheet().textContent).toContain("+20 points from 2 misses");
+  });
+
+  it("a hit shows the stage the chain read back", async () => {
+    const g = fakeGame(vivid());
+    show(g.api);
+    fireEvent.click(tryButton()!);
+    g.settle({ status: "resolved", success: true, stage: { level: 2, pity: 0 } });
+    await pass(700);
+    expect(sheet().textContent).toContain("Gilded 2!");
+    expect(screen.getByRole("button", { name: "Try for Gilded 3 · 302 $WORD" })).toBeTruthy();
+  });
+
   it("nothing spent (a cancelled prompt, or an earlier attempt finished instead) is ready again, never a miss", async () => {
     const g = fakeGame(vivid());
     show(g.api);

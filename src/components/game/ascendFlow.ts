@@ -26,7 +26,12 @@ export function phaseAfter(outcome: ActionOutcome): AscendPhase {
   return outcome.success ? "hit" : "miss";
 }
 
-/** The stage a result is known to leave: a hit starts the next stage fresh, a miss adds one to the pity. */
+/**
+ * The stage a result leaves by the rule: a hit starts the next stage fresh, a miss adds one to the
+ * pity. This is the practice store's own rule. In the chain game the sheet shows what the chain
+ * read back instead (ActionOutcome's `stage`), because one miss there adds nothing: a signed
+ * success that no longer counted.
+ */
 export function stageAfter(from: Stage, hit: boolean): Stage {
   return hit ? { level: from.level + 1, pity: 0 } : { level: from.level, pity: from.pity + 1 };
 }
@@ -36,7 +41,8 @@ export function stageAfter(from: Stage, hit: boolean): Stage {
  * - While a try is out it is the stage at the tap (`from`), whatever the store says: the practice
  *   store applies a result the moment it is drawn, and a words read can land mid-flight; either
  *   would gild the word, or move its odds, before the letters have opened their eyes.
- * - After a result it is what that result leaves (`expected`), until the store has caught up.
+ * - After a result it is what that result leaves (`expected`: the chain's own read where the
+ *   store handed one over, else `stageAfter`), until the store has caught up.
  * - Otherwise it is the store's own (`live`).
  */
 export function shownStage(phase: AscendPhase, live: Stage, from: Stage | null, expected: Stage | null): Stage {

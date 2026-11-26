@@ -1422,7 +1422,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             const said = resultToast(word, came.hit, came.level);
             toast(said.text, said.tone);
           }
-          return { status: "resolved", success: came.hit };
+          return { status: "resolved", success: came.hit, stage: { level: came.level, pity: came.pity } };
         }), NOT_STARTED),
 
       claim: (word: string, cases: boolean[]) => {
