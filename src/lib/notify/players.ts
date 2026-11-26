@@ -53,6 +53,8 @@ export interface PushDeps {
   subs: readonly (PushSub & { endpoint: string; p256dh: string; auth: string })[];
   toFarcaster: (fid: number, note: Notification) => Promise<{ ok: boolean; skipped?: string }>;
   toBrowsers: (subs: readonly { endpoint: string; p256dh: string; auth: string }[], note: Notification) => Promise<{ ok: boolean; skipped?: string }>;
+  /** Called with each account a push went out to. */
+  onReached?: (account: string) => void;
 }
 
 /** The pushes, over audiences already loaded. Each player's failure is its own. */
@@ -64,7 +66,10 @@ export async function pushNotes(notes: readonly PlayerNote[], deps: PushDeps, lo
     try {
       const fid = deps.fidOf(n.wallet);
       if (fid !== undefined) {
-        if ((await deps.toFarcaster(fid, n.note)).ok) out.farcaster++;
+        if ((await deps.toFarcaster(fid, n.note)).ok) {
+          out.farcaster++;
+          deps.onReached?.(n.account);
+        }
         continue;
       }
       const subs = webPushWinnerSubs(n.wallet, deps.subs, deps.fidOf, deps.accountOf);
@@ -72,7 +77,10 @@ export async function pushNotes(notes: readonly PlayerNote[], deps: PushDeps, lo
         out.unreached++;
         continue;
       }
-      if ((await deps.toBrowsers(subs, n.note)).ok) out.browsers++;
+      if ((await deps.toBrowsers(subs, n.note)).ok) {
+        out.browsers++;
+        deps.onReached?.(n.account);
+      }
     } catch (err) {
       log(`telling one player failed: ${String((err as Error)?.message ?? err).slice(0, 120)}`);
     }
@@ -89,6 +97,8 @@ export interface EmailDeps {
   release: (account: string, mark: string) => Promise<void>;
   /** Send one message; true when the mail service took it. */
   send: (to: string, account: string, note: Notification, facts: [string, string][], id: string) => Promise<boolean>;
+  /** Called with each account an email went out to. */
+  onReached?: (account: string) => void;
 }
 
 /** The emails. Marked before each send, unmarked when a send fails; nothing without a mark. */
@@ -111,8 +121,10 @@ export async function emailNotes(notes: readonly PlayerNote[], deps: EmailDeps):
     } catch {
       ok = false;
     }
-    if (ok) out.sent++;
-    else await deps.release(n.account, mark);
+    if (ok) {
+      out.sent++;
+      deps.onReached?.(n.account);
+    } else await deps.release(n.account, mark);
   }
   return out;
 }
@@ -149,7 +161,7 @@ export function reachableFid(
 export async function notifyPlayers(
   kind: ReminderKind,
   build: (accountOf: (address: string) => string) => readonly PlayerNote[],
-  opts: { log?: (line: string) => void } = {},
+  opts: { log?: (line: string) => void; /** Called with each account a message went out to, on any channel. */ onReached?: (account: string) => void } = {},
 ): Promise<TellResult | null> {
   const log = opts.log ?? ((line: string) => console.log(line));
   try {
@@ -189,6 +201,7 @@ export async function notifyPlayers(
           subs,
           toFarcaster: async (fid, note) => (await import("./send")).sendNotification({ ...note, targetFids: [fid] }),
           toBrowsers: async (to, note) => (await import("./webPush")).sendWebPush(to, note),
+          onReached: opts.onReached,
         },
         (line) => log(`${kind}: ${line}`),
       );
@@ -205,6 +218,7 @@ export async function notifyPlayers(
             const message = mail.reminderEmail(to, account, note, facts);
             return !!message && (await mail.sendEmails([message], { idempotency: id })).sent === 1;
           },
+          onReached: opts.onReached,
         });
         res.emailed = mailed.sent;
         res.players = Math.max(res.players, notes.length);

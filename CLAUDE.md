@@ -126,8 +126,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   it, with the player's whole share, and says "paid" of all of it only when all of it is; its
   header names the rule's limit and the two rules dropped before it)
   use it, and the deal alert (`deals.ts`, in the keeper's `notify` job: the Market's own
-  `oneLetterShort`, one alert a day, the same letter and word once a rolling week:
-  `claimMarkEvery`). Payday and the deal alert are
+  `oneLetterShort`; one alert a day and the same letter and word once a rolling week, both marks
+  (`claimMarkEvery`) that `tellDeals` gives back when the alert reached nobody: `notifyPlayers`
+  reports whom it reached through `onReached`). Payday and the deal alert are
   opt-in (`KIND_INFO[kind].on` is false). New sends hang on keeper jobs that
   already run: a new job name never runs where `KEEPER_JOBS` is set.
   **A choice per kind** (decisions.md #47; `lib/notify/kinds.ts` pure, `lib/db/reminderPrefs.ts`, table

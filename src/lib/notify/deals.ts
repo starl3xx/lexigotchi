@@ -16,11 +16,16 @@
  *     (lib/market/letterBoard `readLetterBook`: what each listing can fill at this moment), either
  *     case of the letter (a claim may mix cases), never one of the player's own listings.
  *
- * And it must not nag: one alert a day at most, and the same letter and word once a WEEK at most
- * (a rolling week, kept in `reminder_marks`: `DEAL_AGAIN_SECONDS`). The alert is the best deal the
- * player hasn't been told of this week (the rarest word, then the lowest ask), so a deal already
- * told never hides a new one. With no mark table nothing is sent. Runs in the keeper's `notify`
- * job, once a day, only for players who opted in.
+ * And it must not nag: one alert a day at most, and the same letter and word once a WEEK at most.
+ * Both are marks in `reminder_marks`, so both hold across keeper runs: the player's day
+ * (`DEAL_DAILY_SECONDS`) and the deal's rolling week (`DEAL_AGAIN_SECONDS`). The alert is the best
+ * deal the player hasn't been told of this week (the rarest word, then the lowest ask), so a deal
+ * already told never hides a new one. With no mark table nothing is sent.
+ *
+ * A mark is taken BEFORE the send (two passes must not both send) and **given back when the alert
+ * reached nobody** (`tellDeals`): a player no channel reaches today, a send that failed, choices
+ * that couldn't be read. Otherwise an alert that never went out would stand as told for a week
+ * (Bugbot on #248). Runs in the keeper's `notify` job, once a day, only for players who opted in.
  */
 import { wordTier } from "@/lib/economy";
 import { TIER_RANK, lowestOtherAsk, oneLetterShort } from "@/lib/market/deals";
@@ -48,6 +53,12 @@ export interface DealPick {
  * push the next alert to the eighth.
  */
 export const DEAL_AGAIN_SECONDS = 6.5 * 86_400;
+
+/**
+ * How long after an alert before the same player may get another: under a day, so tomorrow's run
+ * (a day later, give or take a minute) alerts, and a second run today does not.
+ */
+export const DEAL_DAILY_SECONDS = 20 * 3_600;
 
 /**
  * One player's deals, best first: one per letter (the rarest word it finishes; the wallet that can
@@ -89,13 +100,19 @@ export function bestDeal(...args: Parameters<typeof rankedDeals>): DealPick | nu
 /** The deal's throttle mark: this letter and this word. */
 export const dealMark = (pick: Pick<DealPick, "letter" | "word">) => `${pick.letter}:${pick.word}`;
 
+/** A deal's message, with the mark that keeps it to once a week. */
+export interface DealNote extends PlayerNote {
+  mark: string;
+}
+
 /** The message for a pick. */
-export function dealNote(account: string, pick: DealPick, day: number): PlayerNote {
+export function dealNote(account: string, pick: DealPick, day: number): DealNote {
   return {
     account: account.toLowerCase(),
     wallet: pick.wallet,
     note: dealAlert(pick, day),
     facts: [["Letter", pick.letter], ["From", `${fmtWord(pick.from)} $WORD`], ["Finishes", pick.word]],
+    mark: dealMark(pick),
   };
 }
 
@@ -109,32 +126,84 @@ export interface DealDeps {
   /** Every dictionary word nobody owns. */
   unclaimed: readonly string[];
   book: Readonly<Record<number, LetterBook>>;
-  /** Take the throttle mark ("taken": told within the week); "unavailable" (no table) ends the pass. */
-  claim: (account: string, mark: string) => Promise<"claimed" | "taken" | "unavailable">;
+  /** The two throttles (lib/db/reminderMarks). "unavailable" (no table, a failed write) ends the pass. */
+  marks: DealMarks;
+}
+
+type MarkClaim = "claimed" | "taken" | "unavailable";
+
+export interface DealMarks {
+  /** The player's one alert a day. "taken": alerted in the last `DEAL_DAILY_SECONDS`. */
+  claimDay: (account: string) => Promise<MarkClaim>;
+  releaseDay: (account: string) => Promise<void>;
+  /** This letter and word. "taken": told in the last `DEAL_AGAIN_SECONDS`. */
+  claimDeal: (account: string, mark: string) => Promise<MarkClaim>;
+  releaseDeal: (account: string, mark: string) => Promise<void>;
 }
 
 /**
- * Today's notes: for each opted-in player, the best deal they weren't told of this week.
- * `dry` picks without marking (a keeper dry run must not use up a player's alert).
+ * Today's notes: for each opted-in player not alerted today, the best deal they weren't told of
+ * this week. Each note's two marks are held when it returns; `tellDeals` gives them back for an
+ * alert that reaches nobody. `dry` picks without marking (a keeper dry run must not use up a
+ * player's alert).
  */
-export async function dealNotes(deps: DealDeps, day: number, opts: { dry?: boolean } = {}): Promise<PlayerNote[]> {
+export async function dealNotes(deps: DealDeps, day: number, opts: { dry?: boolean } = {}): Promise<DealNote[]> {
   const accounts = [...new Set(deps.accounts.map((a) => a.toLowerCase()))];
   if (accounts.length === 0) return [];
   const letters = await deps.lettersOf(accounts.flatMap((a) => deps.walletsOf(a)));
-  const notes: PlayerNote[] = [];
-  for (const account of accounts) {
+  const notes: DealNote[] = [];
+  players: for (const account of accounts) {
     const wallets = deps.walletsOf(account).flatMap((w) => (letters[w.toLowerCase()] ? [{ wallet: w, letters: letters[w.toLowerCase()] }] : []));
     const ranked = rankedDeals(wallets, deps.unclaimed, deps.book, (maker) => deps.accountOf(maker).toLowerCase() === account);
+    if (ranked.length === 0) continue;
+    if (opts.dry) {
+      notes.push(dealNote(account, ranked[0], day));
+      continue;
+    }
+    const today = await deps.marks.claimDay(account);
+    // No mark table, or a failed write: an alert that can't be throttled isn't sent. What was
+    // marked before this still goes out.
+    if (today === "unavailable") break;
+    if (today === "taken") continue; // alerted today already, by an earlier run
     // Best first, and the first one not told this week is today's. At most 26 tries: one per letter.
     for (const pick of ranked) {
-      if (!opts.dry) {
-        const claim = await deps.claim(account, dealMark(pick));
-        if (claim === "unavailable") return []; // no mark table: an alert that can't be throttled isn't sent
-        if (claim === "taken") continue; // told this week already: the next best
+      const claim = await deps.marks.claimDeal(account, dealMark(pick));
+      if (claim === "taken") continue; // told this week already: the next best
+      if (claim === "unavailable") {
+        await deps.marks.releaseDay(account);
+        break players;
       }
       notes.push(dealNote(account, pick, day));
-      break;
+      continue players;
     }
+    // every deal was told this week: today is not used up
+    await deps.marks.releaseDay(account);
   }
   return notes;
+}
+
+/**
+ * Pick, tell, and settle the marks: `tell` sends the notes and answers with the accounts a message
+ * went out to (on any channel). A note that reached nobody gives both its marks back, so the next
+ * run can tell it. Never throws for a failed send.
+ */
+export async function tellDeals(
+  deps: DealDeps & { tell: (notes: readonly DealNote[]) => Promise<ReadonlySet<string>> },
+  day: number,
+  opts: { dry?: boolean } = {},
+): Promise<{ notes: DealNote[]; told: number }> {
+  const notes = await dealNotes(deps, day, opts);
+  if (opts.dry || notes.length === 0) return { notes, told: 0 };
+  let reached: ReadonlySet<string> = new Set();
+  try {
+    reached = await deps.tell(notes);
+  } catch {
+    // nobody was reached: every mark goes back below
+  }
+  for (const n of notes) {
+    if (reached.has(n.account)) continue;
+    await deps.marks.releaseDeal(n.account, n.mark);
+    await deps.marks.releaseDay(n.account);
+  }
+  return { notes, told: notes.filter((n) => reached.has(n.account)).length };
 }

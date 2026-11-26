@@ -1565,8 +1565,11 @@ setter. All small, riding existing suite patterns.
       arrives and names the Market's word: one wallet's letters (a claim spends from one wallet),
       never a letter the player holds in another wallet (a move, not a purchase), only a word
       nobody owns, only a letter the checked book says can be bought now from someone else. One
-      alert a day at most, and the same letter and word once a week at most: a rolling week, kept
-      in `reminder_marks` (`claimMarkEvery`; no table, no alert). The alert is the best deal the
+      alert a day at most, and the same letter and word once a week at most: both are marks in
+      `reminder_marks` (`claimMarkEvery`; no table, no alert), so both hold across keeper runs. A
+      mark is taken before the send and **given back when the alert reached nobody** (`tellDeals`;
+      Bugbot on #248): no channel reaches the player, the send failed, or the choices couldn't be
+      read. An alert that never went out must not stand as told for a week. The alert is the best deal the
       player wasn't told of this week (the rarest word, then the lowest ask), so a deal already
       told never hides a new one. It runs
       in the keeper's `notify` job, after the hunger warnings, and reads the chain only when
