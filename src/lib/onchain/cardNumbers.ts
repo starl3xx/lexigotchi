@@ -8,6 +8,7 @@
  * (claimed a moment ago) reads them again, at most once a minute, and callers that arrive
  * together share one read. Nothing here trusts a caller: the number is the chain's.
  */
+import { after } from "next/server";
 import { isSuiteDeployed } from "./addresses";
 import { readMadeOrder } from "../keeper/scan";
 
@@ -50,7 +51,9 @@ export async function cardNumbersOf(words: readonly string[]): Promise<Record<st
 /**
  * How long a picture or a page waits for a word's number before it is drawn without one. The read
  * behind it scans the chain's events, and a share picture is fetched by X's and Farcaster's
- * crawlers, which don't wait long. The read carries on, so the next request finds the number.
+ * crawlers, which don't wait long. The read carries on, so the next request finds the number:
+ * the host is asked to keep the instance alive until it lands (`after`), because a serverless
+ * instance may otherwise be frozen the moment its answer is sent.
  */
 export const NUMBER_WAIT_MS = 1500;
 
@@ -63,7 +66,13 @@ export function cardNumberSoon(word: string, ms = NUMBER_WAIT_MS): Promise<numbe
   const late = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), ms);
   });
-  return Promise.race([cardNumberOf(word).catch(() => null), late]).finally(() => clearTimeout(timer));
+  const read = cardNumberOf(word).catch(() => null);
+  try {
+    after(() => read);
+  } catch {
+    // not inside a request (a test, a script): there is no instance to keep alive
+  }
+  return Promise.race([read, late]).finally(() => clearTimeout(timer));
 }
 
 /** Tests only: forget what was read. */
