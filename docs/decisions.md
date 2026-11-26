@@ -1432,8 +1432,11 @@ setter. All small, riding existing suite patterns.
       sale. Recent sales only: thirty hours, wider than the daily keeper's cadence, so a sale only
       the keeper finds is still told (the rule `triggers.ts` states for hunger); the recorder also runs as
       a backfill, and a seller must never hear today about last week. The reader hands out each new
-      row AS it records it, because a row is new only once and a pass can fail part way; a dry
-      keeper run reads no sales, for the same reason. One message per seller per pass. The id is the FILL's
+      row AS it records it, and its callers start the send at once, because a row is new only
+      once and a pass can fail, or be stopped, part way (Bugbot on #239); a dry keeper run reads no
+      sales, for the same reason. What is left: a server stopped in the second between recording
+      a sale and sending loses that one message, and closing that needs a stored "told" mark per
+      sale. One message per seller for the sales of one transaction. The id is the FILL's
       (transaction and log index), never the order's: a letter listing fills in parts, and a
       repeated id is dropped for a day. Farcaster first, else the seller's browsers. **Not by
       email:** email is live, and its players agreed to three named reminders; a fourth waits for

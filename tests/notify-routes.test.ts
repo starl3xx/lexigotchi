@@ -40,14 +40,17 @@ describe("GET /api/market/sales", () => {
       catchUpSales: async (opts: { onNew?: (rows: unknown[]) => void } = {}) => {
         const rows = fresh[call++] ?? [];
         if (rows.length) opts.onNew?.(rows);
+        await gate; // the rest of the pass: more ranges, more receipts
         if (failAfter) throw new Error("the RPC refused a receipt");
         return { recorded: rows.length, through: 1 };
       },
     }));
   }
   let failAfter = false;
+  let gate: Promise<void> = Promise.resolve();
   beforeEach(() => {
     failAfter = false;
+    gate = Promise.resolve();
   });
   const get = async (q = "") => (await import("@/app/api/market/sales/route")).GET(new Request(`https://lexigotchi.test/api/market/sales${q}`));
 
@@ -61,6 +64,20 @@ describe("GET /api/market/sales", () => {
     // a second request finds nothing new, and tells nobody again
     expect((await get("?fresh=1")).status).toBe(200);
     await settle();
+    expect(told).toHaveLength(1);
+  });
+
+  it("starts telling the moment a sale is recorded, while the catch-up is still reading (Bugbot on #239)", async () => {
+    mockSales([[row(1)]]);
+    let open!: () => void;
+    gate = new Promise<void>((r) => (open = r));
+    const told: unknown[][] = [];
+    vi.doMock("@/lib/notify/sold", () => ({ notifySold: async (rows: unknown[]) => void told.push(rows) }));
+    const answer = get();
+    // the pass hasn't finished, and nothing has been answered: the seller is already being told
+    await vi.waitFor(() => expect(told).toHaveLength(1), { timeout: 3000 });
+    open();
+    expect((await answer).status).toBe(200);
     expect(told).toHaveLength(1);
   });
 

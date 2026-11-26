@@ -8,12 +8,17 @@
  * asks right after buying, and the keeper's daily pass, for a day nobody opened the Market (a dry
  * keeper run reads no sales at all: recording one is what uses up its seller's message).
  *
- * Four rules:
+ * Five rules:
  *   - **Recent sales only** (`SOLD_TELL_WINDOW_MS`). The recorder also runs as a backfill (a new
  *     deployment's first read, a reset cursor), and a seller must never be told today about a sale
  *     from last week, let alone hundreds of them at once.
- *   - **One message per seller per pass,** for everything that pass found for them (templates
- *     `marketSold`). A sale between two wallets of one account is no sale to tell of.
+ *   - **One message per seller for the sales handed over together** (one transaction's, as the
+ *     reader records it: a buyer who took three of a seller's listings in one send is one message;
+ *     templates `marketSold`). A sale between two wallets of one account is no sale to tell of.
+ *   - **Told as it is recorded.** A row is new only once, so the callers start the send the moment
+ *     the reader hands the row over, never at the end of a pass that could be stopped first.
+ *     What is left: a server stopped in the second between recording and sending loses that one
+ *     message. Closing that needs a stored "told" mark per sale (a small table), not done here.
  *   - **Farcaster first, else the browsers,** as a jackpot win does (triggers `webPushWinnerSubs`):
  *     a player Farcaster reaches doesn't hear it twice. NOT by email: an email goes to players who
  *     agreed to three named reminders, and this would be a fourth (it waits for the owner's word).

@@ -840,16 +840,15 @@ export function createKeeper(opts: { dry: boolean }) {
     // Recording a sale is what makes it "new", once: a dry run that recorded it could only log the
     // message, and the real run after it would find nothing new to tell the seller of.
     if (DRY) return void console.log("market: [dry] sales not read (recording one uses up its seller's notification)");
-    const fresh: SaleRow[] = [];
     try {
-      const got = await catchUpSales({ onNew: (rows) => void fresh.push(...rows) });
+      // Each sale's seller is told as it is recorded, before the pass reads on: a sale is new only
+      // once, so a pass stopped part way must already have told what it recorded
+      // (lib/notify/sold.ts: recent sales only; it never throws).
+      const got = await catchUpSales({ onNew: async (rows: SaleRow[]) => void (await notifySold(rows)) });
       console.log(got ? `market: ${got.recorded} new sale${got.recorded === 1 ? "" : "s"}, read through block ${got.through}` : "market: SaleFees isn't deployed here");
     } catch (err) {
       console.error("market: reading sales failed:", String((err as Error)?.message ?? err).slice(0, 200));
     }
-    // Their sellers hear of them, also after a read that failed part way (lib/notify/sold.ts:
-    // recent sales only; it never throws).
-    if (fresh.length > 0) await notifySold(fresh);
   }
 
   /** The `fees` job: the sale fees, then the Shop, then the Market's sales. A failed step never skips the next. */

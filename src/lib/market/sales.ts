@@ -128,9 +128,11 @@ const OVERLAP_BLOCKS = 30;
  * transaction's sales, and move the cursor after each range, so a catch-up cut short resumes where
  * it stopped. It asks for the whole span first and halves it while the RPC refuses it as too wide
  * (down to 100 blocks). `onNew` gets each sale this pass was the FIRST to record, as it is recorded
- * (lib/notify/sold.ts tells their sellers).
+ * (lib/notify/sold.ts tells their sellers), and is awaited: a caller that wants the seller told
+ * before the pass goes on (the keeper) returns its promise, and one that must not wait (the
+ * Market's route) returns nothing.
  */
-export async function catchUpSales(opts: { onNew?: (rows: SaleRow[]) => void } = {}): Promise<{ recorded: number; through: number } | null> {
+export async function catchUpSales(opts: { onNew?: (rows: SaleRow[]) => void | Promise<void> } = {}): Promise<{ recorded: number; through: number } | null> {
   const saleFees = maybeAddressOf("saleFees");
   if (!saleFees) return null;
   const client = getPublicClient();
@@ -161,7 +163,7 @@ export async function catchUpSales(opts: { onNew?: (rows: SaleRow[]) => void } =
       // every row recorded before the throw, and its seller would never be told.
       const fresh = await recordNewSales(await rowsOfReceipt(receipt, await blockTime(receipt.blockNumber)));
       recorded += fresh.length;
-      if (fresh.length > 0) opts.onNew?.(fresh);
+      if (fresh.length > 0) await opts.onNew?.(fresh);
     }
     await markIndexed(NETWORK.id, saleFees, to);
     through = to;

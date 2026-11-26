@@ -68,6 +68,19 @@ describe("catchUpSales", () => {
     expect(chain.marked).toEqual([]);
   });
 
+  it("waits for a listener that returns a promise, before it reads on (the keeper tells, then continues)", async () => {
+    for (const i of [1, 2, 3]) chain.receipts.set(tx(i), receipt(i));
+    const order: string[] = [];
+    await catchUpSales({
+      onNew: async (rows) => {
+        order.push(`start ${(rows[0] as { txHash: string }).txHash.slice(-1)}`);
+        await new Promise((r) => setTimeout(r, 5));
+        order.push(`done ${(rows[0] as { txHash: string }).txHash.slice(-1)}`);
+      },
+    });
+    expect(order).toEqual(["start 1", "done 1", "start 2", "done 2", "start 3", "done 3"]);
+  });
+
   it("works with nobody listening", async () => {
     chain.receipts.set(tx(1), receipt(1));
     chain.receipts.set(tx(2), receipt(2));

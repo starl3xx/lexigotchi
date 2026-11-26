@@ -87,7 +87,7 @@ describe("tellSold", () => {
     expect(sent.browsers.map((s) => s.to)).toEqual([["https://push.example/a2"]]);
   });
 
-  it("sends ONE message per seller for everything the pass found, keyed on its first fill", async () => {
+  it("sends ONE message per seller for the sales handed over together, keyed on the first fill", async () => {
     const { d, sent } = deps({ fidOf: () => 77 });
     const first = sale({ txHash: `0x${"1".repeat(64)}`, logIndex: 4, soldAt: new Date(NOW - 50_000) });
     await tellSold([sale({ soldAt: new Date(NOW - 10_000) }), first, sale({ soldAt: new Date(NOW - 20_000) })], d, { now: NOW });

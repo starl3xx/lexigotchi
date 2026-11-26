@@ -117,9 +117,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Market's sales route after it answers (`lib/afterResponse.ts`) and by the keeper's `fees` job, to
   Farcaster or else the seller's browsers, NOT by email (email players agreed to three named
   reminders). Recent sales only (`SOLD_TELL_WINDOW_MS`, 30 h: a backfill tells nobody, and it must
-  stay wider than the keeper's daily cadence), one message per seller per pass, the id per FILL
-  (`sold-<tx>-<log index>`: a letter listing fills in parts). A row is new only ONCE: the reader
-  hands rows out as it records them (`catchUpSales({ onNew })`), and a dry keeper run reads none.
+  stay wider than the keeper's daily cadence), one message per seller for a transaction's sales,
+  the id per FILL (`sold-<tx>-<log index>`: a letter listing fills in parts). A row is new only
+  ONCE: the reader hands rows out as it records them (`catchUpSales({ onNew })`), its callers
+  start the send at once (never at the end of a pass), and a dry keeper run reads none.
   **A public route never imports a sender at its top** (each throws at import when armed without
   its keys): import it at the moment of use, inside a catch, as the sales and subscribe routes do.
   A browser's first subscribe gets one "Reminders are on" push (`remindersOn`), the channel's
