@@ -759,6 +759,58 @@ setter. All small, riding existing suite patterns.
       word sales made before this existed showed at once, with their rarities). Still wanted: one
       pass with a real wallet (list a letter, buy part of a listing, cancel).
 
+31. **The Dictionary shows what you hold, and a tap shows what you need** (starl3xx, 2026-11-25:
+    "the dictionary entries / tiles look poorly designed and spaced... would be nice if i click a
+    tile to see like 'you only need an X to make this word' and other cool stuff like that"; on
+    the proposal: "this is fantastic. i prefer the card, tbh. yes to closest first and the quick
+    filters. i like what you have in the word view"). An entry was five small tiles and a pill in
+    the corner of a card half empty, faded when unclaimed, and a tap showed one line.
+    - **The entry** (cards, two across on a phone): the word's tiles as it would be claimed, its
+      name and rarity, then one line. A letter the player doesn't hold is an empty dashed slot, as
+      on Spell's rack. The line says "You can spell it", "Needs a q", "Needs an h", "Needs one more
+      o", "Needs 2 z's", or who has it.
+    - **The fade moved.** The scene-cards mock (2026-11-25) faded unclaimed words. Now an
+      unclaimed word is at full strength, and the word that steps back is one someone else holds
+      and isn't selling: it is off the table. Dashes appear only on unclaimed words; a claimed
+      word's tiles show the word, not the player's letters.
+    - **"Needs a q" is a promise, so it has rules** (`lib/wordNeed.ts`, pure, tested against
+      Spell's own `canSpell` for every word): only the connected wallet's letters count, because
+      only that wallet can claim; a letter in a linked wallet is "away" (a dashed teal edge, "move
+      it here"), never held and never missing; doubles are counted; nothing is counted until the
+      owners are known ("Checking who owns it…"), nor for a player with no letters at all (a
+      visitor sees who has a word, not "Needs 5 letters").
+    - **The word view** (`sheets/LookupSheet`): the game's letter characters stand at the top,
+      still, with a slot for each missing letter; the first line says what's needed; then the ways
+      to get it (Mint a pack, Find it in the Market, Move it here) and the word's facts (rarity and
+      rank among all words, points, owner, card number, whether it has been the daily word, cost
+      to make, what it would earn, whether it fits the week's bounty, whether it's for sale). It
+      names other unclaimed words the same letter would finish.
+    - **It claims nothing.** A word the player can spell is handed to Spell (`spellHandoff`),
+      which opens with the word on the rack. One place claims, so the owner check, the fee line,
+      and the case rules live once.
+    - **"Mint a pack" is offered only while the letter can still be minted:** the chain game
+      reads each letter's supply when the sheet opens (checked on Sepolia: 26 caps, 115 q's); a
+      sold-out letter, or sold-out packs, points at the Market.
+    - **Closest first** (`lib/dictionaryList.ts`): what the player can spell, then one letter
+      away, then two; the rarest first within a distance; a move counts as closer than a mint.
+      The choice is remembered. Quick filters: Can spell (exactly Spell's list), One away, Two
+      away, Unclaimed, Claimed. Spell already lists what the letters spell; the Dictionary's new
+      ground is the near misses and other players' words.
+    - **What it costs:** the list keeps flat tiles (no letter characters, no motion); one pass
+      over the dictionary per change of letters (half a millisecond); the word view draws one
+      word, still. On a 4×-slowed CPU, production build, practice mode: a keystroke answers in
+      24 ms, a filter or sort tap in 88 ms, opening a word in 56 ms.
+    - **Left for later:** pack odds for the missing letter; another player's word in its real
+      case (the scan knows it, the world read passes on only a count); a wish list.
+    - **Found on the way:** the chain game took the week's bounty theme from a read that runs
+      only for a wallet with a daily key, so a visitor or an unverified wallet saw theme 0
+      whatever the week. It now falls back to the clock's day (`chainDayNow`).
+    - **My readings, not starl3xx's words:** "Closest first" is the default; an Unclaimed filter
+      stays beside the new ones; a word of the player's in a linked wallet opens this view, saying
+      to connect that wallet; the proposal's "Swap for a q in the Market" became "Find a q in the
+      Market", with how many are for sale and from how much, because #30 retired letter swaps
+      while this was being built.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

@@ -50,6 +50,7 @@ import { SceneSheet } from "./sheets/SceneSheet";
 import { ShopSheet } from "./sheets/ShopSheet";
 import { shopEnabled } from "@/lib/shop/config";
 import { EarningsSheet } from "./sheets/EarningsSheet";
+import { LookupSheet } from "./sheets/LookupSheet";
 import { useEarningsNote } from "./useEarningsNote";
 import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
@@ -361,6 +362,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   // Only reachable from entries that already check the chain game and SHOP_ENABLED; checked again here.
   if (state.sheet?.kind === "shop" && shopEnabled()) return <ShopSheet />;
   if (state.sheet?.kind === "earnings") return <EarningsSheet />;
+  if (state.sheet?.kind === "lookup") return <LookupSheet word={state.sheet.word} />;
   return null;
 }
 

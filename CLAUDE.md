@@ -369,6 +369,20 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).
   It, the Leaderboard, the Dictionary, and More are `PUBLIC_VIEWS` in GameApp: no wallet needed.
+- **The Dictionary** (decisions.md #31; `screens/DictionaryScreen.tsx`, `useDictionary.ts`): each
+  word is a card (flat `MiniTiles`, never the rig: 80 words a page) showing the word as it would
+  be claimed, with a dashed slot for a letter the player lacks, and one line: "You can spell it",
+  "Needs a q", or who has it. **That line is a promise** (`lib/wordNeed.ts`, pure, tested against
+  Spell's `canSpell` for every word): only the connected wallet's letters count (`mineLower` /
+  `mineUpper`, as on Spell), a linked wallet's letter is "away" (move it, don't mint it), doubles
+  count, and nothing is counted until the owners are known (`ownersKnown`) or for a player with no
+  letters. A word someone else holds and isn't selling is faded; unclaimed and for-sale words are
+  not. A tap opens `sheets/LookupSheet` (sheet kind `lookup`): the letter characters, still, with a
+  slot per missing letter, what's needed, how to get it, and the word's facts; the player's own
+  words open their card. **It claims nothing:** "Spell X" queues the word (`spellHandoff.ts`) and
+  navigates to Spell, which loads it on the rack. "Mint a pack" hides when the chain says the
+  letter is minted out (`readLetterSupply`, read by the sheet). "Closest first" and the quick
+  filters are `lib/dictionaryList.ts` (pure, tested; "Can spell" is exactly Spell's list).
 - `src/lib/world.ts` + `/api/world` → **the shared world** for the Leaderboard and the Dictionary's
   owners: every claimed word's beneficial owner (the keeper's scan), each wallet's loose letters
   rebuilt from the Letters transfer events (the game's own contracts excluded), jackpot wins

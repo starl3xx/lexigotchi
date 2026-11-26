@@ -563,14 +563,17 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Real pots + the keeper's actual theme rotation for the current weekly period.
       jackpotPot: bucketsQ.data?.jackpot ?? 0,
       bountyPool: bucketsQ.data?.bounty ?? 0,
-      bountyTheme: dayQ.data ? themeForPeriod(Math.floor(dayQ.data.chainDay / 7)) : 0,
+      // The chain's day when it's been read, else the clock's (chainDayNow): the daily read runs only for
+      // a wallet with a daily key, and without this a visitor or an unverified wallet saw theme 0
+      // ("contains a rare letter") whatever the week was.
+      bountyTheme: themeForPeriod(Math.floor(chainDayNow / 7)),
       mintCount: 0,
       freeSnackUsed: false,
       jackpotWord: "",
       jackpotRevealed: false,
     }),
     // careFor: the caretaker read lands after the words; `care` must follow it (Bugbot on #173).
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, chainDayNow, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */

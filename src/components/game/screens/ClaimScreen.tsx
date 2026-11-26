@@ -22,7 +22,8 @@ import { TierMark } from "../TierMark";
 import { useWorld } from "../useWorld";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { Basket, Sparkle } from "../ui/icons";
-import { anagramsOf, charToIdx, claimCase, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, showsUsd, spellableNow, useGame } from "../state";
+import { anagramsOf, canSpell, charToIdx, claimCase, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, showsUsd, spellableNow, useGame } from "../state";
+import { takeQueuedSpell } from "../spellHandoff";
 
 /** A tile in the rack or the tray: a letter (0..25) and its case. */
 type Tile = { i: number; upper: boolean };
@@ -75,6 +76,17 @@ export function ClaimScreen() {
   const upper = mineUpper(state);
   const bag = useMemo(() => filterBag(show, lower, upper), [show, lower, upper]);
   const owned = useMemo(() => new Set(state.words.map((w) => w.word)), [state.words]);
+
+  // A word handed over from the Dictionary's word view (../spellHandoff) starts on the rack, in
+  // the case a quick claim would use (UPPERCASE first), if these letters still spell it. Once, on
+  // arrival: the rack is the player's from then on.
+  useEffect(() => {
+    const w = takeQueuedSpell();
+    if (!w || !canSpell(w, lower, upper)) return;
+    const cases = claimCase(w, upper);
+    setRack([...w].map((ch, k) => ({ i: charToIdx(ch), upper: cases[k] })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const rackCount = (t: Tile) => rack.filter((x) => x.i === t.i && x.upper === t.upper).length;
   const held = (t: Tile) => (t.upper ? upper : lower)[t.i];
