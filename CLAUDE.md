@@ -85,6 +85,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   standard input, never `--value` (`printf %s "$v" | npx vercel env add NAME production`).
   Production only: a Preview build also runs with `NODE_ENV=production`, so a flag set there would
   send from a preview. Check the result at `/api/profile/config` and similar switch endpoints.
+  **To see what a cron run did, read its log, never call the cron route:**
+  `npx vercel logs -e production --since <ISO time> --until <ISO time> --json` (the keeper logs at
+  00:05 UTC, the daily reminder at 13:00 UTC; each line's `data.message` is the text).
 - The operator console is at **`/admin`** (no separate command; part of the app).
 
 ## Architecture
