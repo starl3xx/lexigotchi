@@ -33,7 +33,8 @@ export type RateKind =
   | "wardrobe-read"
   | "shop-record"
   | "market-read"
-  | "market-list";
+  | "market-list"
+  | "telegram";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -110,6 +111,10 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     case "wardrobe-read":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:wardrobe:read" });
     // Purchase records, keyed by IP: a buyer's app asks a few times while the transaction lands.
+    // Commands to the Telegram bot, keyed by the Telegram user: each answer is a few chain reads and
+    // a message in the group, so this bounds one person flooding either.
+    case "telegram":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "rl:telegram" });
     case "shop-record":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:shop:record" });
   }

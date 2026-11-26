@@ -1,9 +1,11 @@
 /**
  * The beta testers' Telegram group and its bot (@lexigotchi_bot).
  *
- * Telegram calls `/api/telegram/webhook` with every update the bot can see. In a group with privacy
- * mode on (the default), that is commands, replies to the bot, and service messages, such as
- * "<name> joined the group". This module decides what to do with one; the route does it.
+ * Telegram calls `/api/telegram/webhook` with every update the bot can see. The bot is an
+ * ADMINISTRATOR of the beta group, and Telegram sends an administrator every message in the group,
+ * whatever its privacy mode. So this module reads only what it acts on: a join (the welcome) and a
+ * command typed to the bot (`commandOf`; lib/telegramCommands answers it). Nothing else in a
+ * message is read, kept, or logged, and nothing here may start to.
  *
  * Dark until all three are set: TELEGRAM_BOT_TOKEN (from @BotFather), TELEGRAM_CHAT_ID (the beta
  * group, "-<id>" for a basic group), and TELEGRAM_WEBHOOK_SECRET (Telegram sends it back in the
@@ -19,13 +21,53 @@ export interface TgUser {
   username?: string;
 }
 
+/** A marked stretch of a message's text. Offsets are UTF-16 code units, as a JS string indexes. */
+export interface TgEntity {
+  type: string;
+  offset: number;
+  length: number;
+}
+
+export interface TgMessage {
+  message_id?: number;
+  from?: TgUser;
+  /** `type` is "private" for a chat with one person; a group is "group" or "supergroup". */
+  chat: { id: number; type?: string; title?: string };
+  text?: string;
+  entities?: TgEntity[];
+  /** A picture's words, and their entities: a command can be typed under a screenshot. */
+  caption?: string;
+  caption_entities?: TgEntity[];
+  new_chat_members?: TgUser[];
+  migrate_to_chat_id?: number;
+}
+
 export interface TgUpdate {
   update_id?: number;
-  message?: {
-    chat: { id: number; title?: string };
-    new_chat_members?: TgUser[];
-    migrate_to_chat_id?: number;
-  };
+  message?: TgMessage;
+}
+
+/** The bot's @username, without the @: how a command names it in a group ("/status@lexigotchi_bot"). */
+export function botUsername(): string {
+  return (process.env.TELEGRAM_BOT_USERNAME ?? "lexigotchi_bot").replace(/^@/, "");
+}
+
+/**
+ * The command a message opens with, or null: "/word CRANE" is `{ name: "word", args: "CRANE" }`.
+ *
+ * Only a command Telegram itself marked (a `bot_command` entity) at the very start of the text, or
+ * of a picture's caption, and never one addressed to another bot ("/status@other_bot"). The name is
+ * lowercased; `args` is the rest, trimmed. This is the ONLY reading of a group message's words in
+ * the app: a message that opens with no command gives null, and its words go nowhere.
+ */
+export function commandOf(m: TgMessage | undefined, bot = botUsername()): { name: string; args: string } | null {
+  if (!m) return null;
+  const [text, entities] = m.text !== undefined ? [m.text, m.entities] : [m.caption ?? "", m.caption_entities];
+  const mark = entities?.find((e) => e.type === "bot_command" && e.offset === 0);
+  if (!mark || text[0] !== "/") return null;
+  const [name, to] = text.slice(1, mark.length).split("@");
+  if (!name || (to !== undefined && to.toLowerCase() !== bot.toLowerCase())) return null;
+  return { name: name.toLowerCase(), args: text.slice(mark.length).trim() };
 }
 
 export function telegramConfigured(): boolean {
@@ -108,23 +150,71 @@ export async function chatMemberCount(
   }
 }
 
+/** How long a send may take: Telegram answers in well under a second when it answers at all. */
+const SEND_TIMEOUT_MS = 10_000;
+
+/** What a send may carry besides its words. */
+export interface SendOptions {
+  /** Mentions in the text (or the caption) of people with no @username. */
+  mentions?: TgMention[];
+  /**
+   * The message this one answers. If that message has been deleted by the time we answer, ours is
+   * sent anyway, as an ordinary message.
+   */
+  replyTo?: number;
+}
+
+const replyTo = (id: number | undefined) => (id ? { message_id: id, allow_sending_without_reply: true } : undefined);
+
+/** Telegram's answer to a call, or a throw carrying its own description (never the URL: it holds the token). */
+async function sent(method: string, res: Response): Promise<void> {
+  const data = (await res.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+  if (!data?.ok) throw new Error(`${method}: ${data?.description ?? res.status}`);
+}
+
 /**
- * Send `png` with `caption` to the chat as a photo, with `mentions` as the caption's entities.
+ * Send `text` to the chat, as typed: no parse mode, so a player's name or a word can't be read as
+ * formatting, and no link preview. Throws with Telegram's own description on failure.
+ */
+export async function sendMessage(
+  chatId: string | number,
+  text: string,
+  opts: SendOptions = {},
+  token = process.env.TELEGRAM_BOT_TOKEN ?? "",
+): Promise<void> {
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      ...(opts.mentions?.length ? { entities: opts.mentions } : {}),
+      link_preview_options: { is_disabled: true },
+      reply_parameters: replyTo(opts.replyTo),
+    }),
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+  });
+  await sent("sendMessage", res);
+}
+
+/**
+ * Send `png` with `caption` to the chat as a photo, with `opts.mentions` as the caption's entities.
  * Throws with Telegram's own description on failure.
  */
 export async function sendPhoto(
-  chatId: string,
+  chatId: string | number,
   png: Blob,
   caption: string,
-  mentions: TgMention[] = [],
+  opts: SendOptions = {},
   token = process.env.TELEGRAM_BOT_TOKEN ?? "",
 ): Promise<void> {
   const form = new FormData();
-  form.set("chat_id", chatId);
+  form.set("chat_id", String(chatId));
   form.set("caption", caption);
-  if (mentions.length > 0) form.set("caption_entities", JSON.stringify(mentions));
-  form.set("photo", png, "heyoo.png");
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
-  const data = (await res.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
-  if (!data?.ok) throw new Error(`sendPhoto: ${data?.description ?? res.status}`);
+  if (opts.mentions?.length) form.set("caption_entities", JSON.stringify(opts.mentions));
+  const reply = replyTo(opts.replyTo);
+  if (reply) form.set("reply_parameters", JSON.stringify(reply));
+  form.set("photo", png, "card.png");
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form, signal: AbortSignal.timeout(SEND_TIMEOUT_MS) });
+  await sent("sendPhoto", res);
 }

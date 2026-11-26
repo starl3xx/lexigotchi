@@ -733,6 +733,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `TELEGRAM_WEBHOOK_SECRET` (dark without them; the secret header is checked in constant time); the
   "Telegram webhook" workflow registers the URL and secret with Telegram. Rerun it after the token or
   secret changes. A basic group upgraded to a supergroup gets a new id; the route logs it.
+  **The bot answers commands** (`src/lib/telegramCommands.ts`; `commandOf` in `lib/telegram.ts`):
+  `/help`, `/status`, `/jackpot`, `/bounty`, and `/word CRANE`, in the beta group or a private chat
+  with the bot, as a reply to the message that asked (after the webhook's 200: Telegram resends a
+  slow update). The list is `config/telegram-commands.json`, which `/help` reads and the "Telegram
+  webhook" workflow sends as the "/" menu: rerun it after adding a command. **The bot is a group
+  administrator, so Telegram sends it every message there.** Only a join and a command are acted
+  on; never read, store, or log a message's words anywhere else. Answers are public game facts only
+  (`/status` is not the System tab), sent with no parse mode, a fact that couldn't be read is left
+  out (never zero or "nobody"), and a player's name is never written with an "@" (in Telegram that
+  mentions someone else). 10 commands a minute per person (`allow("telegram", …)`).
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
