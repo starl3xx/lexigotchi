@@ -175,7 +175,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   words (`enableFailure` in `webPushSubscription.ts`, pure, tested): the first real tap failed in
   the browser's own `pushManager.subscribe`, before any request to us, behind a generic "try
   again". Headless Chrome can't reproduce it (it refuses every push subscription); the request log
-  (`npx vercel logs requests`) shows whether a POST to `/api/push/subscribe` ever arrived. The VAPID pair's only copy outside Vercel is the gitignored
+  (`npx vercel logs requests`) shows whether a POST to `/api/push/subscribe` ever arrived.
+  **No real push had been seen as of 2026-11-26:** the owner's first opt-in (Brave, after turning
+  on "Use Google services for push messaging") was stored, answered 200, and was gone from
+  `web_push_subscriptions` half a minute later, while his screen said "Reminders are on": the
+  confirmation push must have come back 404/410, which was unlogged. So the sender now logs the
+  status and the HOST of every push that didn't go out (never the endpoint), and the confirmation
+  (`lib/notify/confirmPush.ts`) drops a new row only after a second "gone". A browser the server
+  dropped still says "on": nothing reconciles the two yet, and that fix waits for the status. The VAPID pair's only copy outside Vercel is the gitignored
   `.env.vapid.local` in the owner's checkout: never make a new pair, which orphans every subscribed
   browser.
   **Profile** (`sheets/ProfileSheet.tsx`, opened by the header picture; the balance pill keeps

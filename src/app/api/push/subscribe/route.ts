@@ -36,15 +36,26 @@ export const runtime = "nodejs";
  * the whole path to the player, and to us: no reminder can be sent outside production, so this is
  * the first real push anyone sees on the day the channel is switched on.
  *
- * Only for a browser's FIRST subscribe, only to that browser, and after the answer. The sender is
+ * Only for a browser's FIRST subscribe, only to that browser, and after the answer. A first "gone"
+ * from the push service is tried once more before the row is dropped (lib/notify/confirmPush.ts). The sender is
  * imported here, inside a catch: it throws at import when armed without its keys, and subscribing
  * must still work then. While sends are muted the sender declines, and nothing is said.
  */
 function confirm(sub: { endpoint: string; p256dh: string; auth: string }): void {
   afterResponse(async () => {
     try {
-      const [{ sendWebPush }, { remindersOn }] = await Promise.all([import("@/lib/notify/webPush"), import("@/lib/notify/templates")]);
-      await sendWebPush([{ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }], remindersOn());
+      const [{ sendWebPush }, { remindersOn }, { confirmSubscription }] = await Promise.all([
+        import("@/lib/notify/webPush"),
+        import("@/lib/notify/templates"),
+        import("@/lib/notify/confirmPush"),
+      ]);
+      const to = [{ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }];
+      // One "gone" answer must not drop a row made a second ago: confirmSubscription tries twice.
+      await confirmSubscription({
+        send: ({ prune }) => sendWebPush(to, remindersOn(), prune ? {} : { onGone: async () => {} }),
+        wait: (ms) => new Promise((done) => setTimeout(done, ms)),
+        log: (line) => console.warn(`[push/subscribe] ${line}`),
+      });
     } catch (err) {
       console.error("[push/subscribe] confirmation not sent:", String((err as Error)?.message ?? err).slice(0, 160));
     }
