@@ -282,10 +282,17 @@ function readWebKit(): boolean {
   webKitCache = typeof navigator !== "undefined" && /Apple/.test(navigator.vendor ?? "");
   return webKitCache;
 }
-export function useWebKit(): boolean {
+/**
+ * `ask`: only a tile that could be cut asks. The answer is a state set after mount, so asking
+ * renders the tile a second time in WebKit: a tile with no finish, or one that holds still, must
+ * not pay that (a grid of letters would render twice on every iPhone).
+ */
+export function useWebKit(ask: boolean): boolean {
   const [is, setIs] = useState(false);
-  useEffect(() => setIs(readWebKit()), []);
-  return is;
+  useEffect(() => {
+    if (ask) setIs(readWebKit());
+  }, [ask]);
+  return ask && is;
 }
 /** For tests: read the engine again (it is read once, as it can't change mid-session). */
 export function forgetWebKit() {
@@ -848,7 +855,6 @@ export function TileCharacter({
   // A still frame holds the whole character still, not only its finish: a grid of cards would
   // otherwise run each tile's idle loop, hundreds of animations (the Bag's words).
   const reduced = usePrefersReducedMotion() || still;
-  const webKit = useWebKit();
   const lowPower = useLowPower();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
   const holoPaint = `url(#tc-holo-${uid})`;
@@ -1100,8 +1106,8 @@ export function TileCharacter({
   // the rarity's motes, drifting up (a moment)
   const bodyMotes = lod === "full" && finishHasMotes(tier, motion, finDim, index) && <FinishMotes tier={tier} uid={uid} motion={motion} dim={finDim} seed={seed} index={index} />;
   // Cut only where the light moves, only in WebKit (useWebKit says why), and never in a
-  // single-file picture.
-  const splitBody = webKit && !flat && !!fin && motion === "on";
+  // single-file picture. Only such a tile asks which engine this is.
+  const splitBody = useWebKit(!flat && !!fin && motion === "on");
   const moment = splitBody ? momentPieces({ tier, uid, bw: borderW, dim: finDim, seed, index }) : null;
   // a still piece of a cut body
   const piece = (key: string, children: ReactNode) => (

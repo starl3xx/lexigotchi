@@ -168,6 +168,25 @@ describe("a finished tile's light runs on layers, in WebKit", () => {
     }
   });
 
+  it("asks which engine this is only for a tile that could be cut (the answer costs a second render)", () => {
+    const vendor = vi.spyOn(navigator, "vendor", "get");
+    const asks = (el: ReactElement) => {
+      forgetWebKit();
+      vendor.mockClear();
+      render(el).unmount();
+      return vendor.mock.calls.length > 0;
+    };
+    // no finish, or a light that holds still: never
+    expect(asks(<TileCharacter char="q" upper size={140} />)).toBe(false);
+    expect(asks(<TileCharacter char="q" size={52} />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} still />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} state="hungry" />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={52} />)).toBe(false);
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} detail="full" flat />)).toBe(false);
+    // a finished tile whose light moves: yes
+    expect(asks(<TileCharacter char="q" upper tier="Mythic" size={140} />)).toBe(true);
+  });
+
   it("is one body, as it was, wherever the light doesn't move", () => {
     const one = (el: ReactElement) => {
       const { container } = render(el);
