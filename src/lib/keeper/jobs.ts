@@ -49,9 +49,9 @@ import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
 import { notifyPaid, type LandedShare } from "@/lib/notify/paid";
-import { dealNotes } from "@/lib/notify/deals";
+import { DEAL_AGAIN_SECONDS, dealNotes } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
-import { claimMark } from "@/lib/db/reminderMarks";
+import { claimMarkEvery } from "@/lib/db/reminderMarks";
 import { readLetterBook } from "@/lib/market/letterBoard";
 import { loadPrefs } from "@/lib/db/reminderPrefs";
 import type { SaleRow } from "@/lib/db/market";
@@ -569,7 +569,7 @@ export function createKeeper(opts: { dry: boolean }) {
       if (accounts.length === 0) return void console.log("deals: nobody turned the deal alert on");
       const [links, words, book, now] = await Promise.all([loadLinkMap(), scanAllWords(), readLetterBook(), readChainTime()]);
       const claimed = new Set(words.map((w) => w.word.toUpperCase()));
-      const week = Math.floor(now / 86_400 / 7);
+      const day = Math.floor(now / 86_400);
       const build = (accountOf: (address: string) => string) =>
         dealNotes(
           {
@@ -582,9 +582,9 @@ export function createKeeper(opts: { dry: boolean }) {
             },
             unclaimed: WORDS.filter((w) => !claimed.has(w)),
             book,
-            claim: (account, mark) => claimMark(account, "deal-seen", mark),
+            claim: (account, mark) => claimMarkEvery(account, "deal-seen", mark, DEAL_AGAIN_SECONDS),
           },
-          week,
+          day,
           { dry: DRY },
         );
       const notes = await build(links.accountOf);

@@ -16,9 +16,11 @@
  *     (lib/market/letterBoard `readLetterBook`: what each listing can fill at this moment), either
  *     case of the letter (a claim may mix cases), never one of the player's own listings.
  *
- * And it must not nag: one alert a day at most, the best deal only (the rarest word, then the
- * lowest ask), and the same deal once a WEEK at most, kept in `reminder_marks`. With no mark table
- * nothing is sent. Runs in the keeper's `notify` job, once a day, only for players who opted in.
+ * And it must not nag: one alert a day at most, and the same letter and word once a WEEK at most
+ * (a rolling week, kept in `reminder_marks`: `DEAL_AGAIN_SECONDS`). The alert is the best deal the
+ * player hasn't been told of this week (the rarest word, then the lowest ask), so a deal already
+ * told never hides a new one. With no mark table nothing is sent. Runs in the keeper's `notify`
+ * job, once a day, only for players who opted in.
  */
 import { wordTier } from "@/lib/economy";
 import { TIER_RANK, lowestOtherAsk, oneLetterShort } from "@/lib/market/deals";
@@ -41,21 +43,30 @@ export interface DealPick {
 }
 
 /**
- * The best deal for one player, or null. `wallets` are the account's wallets with their 52 letter
- * counts (0-25 lowercase, 26-51 UPPERCASE); `isMine` says a listing is one of the player's own.
+ * How long before the same letter and word may be told again. Just under a week: the keeper runs
+ * once a day at about the same minute, and a mark a few seconds younger than seven days must not
+ * push the next alert to the eighth.
  */
-export function bestDeal(
+export const DEAL_AGAIN_SECONDS = 6.5 * 86_400;
+
+/**
+ * One player's deals, best first: one per letter (the rarest word it finishes; the wallet that can
+ * claim it). `wallets` are the account's wallets with their 52 letter counts (0-25 lowercase, 26-51
+ * UPPERCASE); `isMine` says a listing is one of the player's own.
+ */
+export function rankedDeals(
   wallets: readonly { wallet: string; letters: readonly number[] }[],
   unclaimed: readonly string[],
   book: Readonly<Record<number, LetterBook>>,
   isMine: (maker: string) => boolean,
-): DealPick | null {
-  let best: DealPick | null = null;
-  const better = (a: DealPick, b: DealPick) =>
-    TIER_RANK[wordTier(a.word)] - TIER_RANK[wordTier(b.word)] || b.from - a.from || b.word.localeCompare(a.word) || b.wallet.localeCompare(a.wallet);
+): DealPick[] {
+  // Best first: the rarer word, then the lower ask, then a fixed order so two runs agree.
+  const byBest = (a: DealPick, b: DealPick) =>
+    TIER_RANK[wordTier(b.word)] - TIER_RANK[wordTier(a.word)] || a.from - b.from || a.word.localeCompare(b.word) || a.wallet.localeCompare(b.wallet);
   const bag = (letters: readonly number[]) => ({ lower: letters.slice(0, 26), upper: letters.slice(26, 52) });
   // every wallet of the player, added up: a letter held anywhere is a move, never one to buy
   const all = bag(Array.from({ length: 52 }, (_, i) => wallets.reduce((a, w) => a + (w.letters[i] ?? 0), 0)));
+  const byLetter = new Map<string, DealPick>();
   for (const w of wallets) {
     const short = oneLetterShort(bag(w.letters), all, unclaimed);
     for (const [i, words] of short) {
@@ -63,21 +74,27 @@ export function bestDeal(
       const asks = [lowestOtherAsk(book, i, isMine), lowestOtherAsk(book, i + 26, isMine)].filter((n): n is number => n !== undefined);
       if (asks.length === 0 || words.length === 0) continue;
       const pick: DealPick = { wallet: w.wallet.toLowerCase(), letter: ALPHABET[i].toLowerCase(), word: words[0], more: words.length - 1, from: Math.min(...asks) };
-      if (!best || better(pick, best) > 0) best = pick;
+      const had = byLetter.get(pick.letter);
+      if (!had || byBest(pick, had) < 0) byLetter.set(pick.letter, pick);
     }
   }
-  return best;
+  return [...byLetter.values()].sort(byBest);
 }
 
-/** The deal's throttle mark: this letter and word, this week. */
-export const dealMark = (pick: Pick<DealPick, "letter" | "word">, week: number) => `${pick.letter}:${pick.word}:${week}`;
+/** The best deal for one player, or null. */
+export function bestDeal(...args: Parameters<typeof rankedDeals>): DealPick | null {
+  return rankedDeals(...args)[0] ?? null;
+}
+
+/** The deal's throttle mark: this letter and this word. */
+export const dealMark = (pick: Pick<DealPick, "letter" | "word">) => `${pick.letter}:${pick.word}`;
 
 /** The message for a pick. */
-export function dealNote(account: string, pick: DealPick, week: number): PlayerNote {
+export function dealNote(account: string, pick: DealPick, day: number): PlayerNote {
   return {
     account: account.toLowerCase(),
     wallet: pick.wallet,
-    note: dealAlert(pick, week),
+    note: dealAlert(pick, day),
     facts: [["Letter", pick.letter], ["From", `${fmtWord(pick.from)} $WORD`], ["Finishes", pick.word]],
   };
 }
@@ -92,29 +109,32 @@ export interface DealDeps {
   /** Every dictionary word nobody owns. */
   unclaimed: readonly string[];
   book: Readonly<Record<number, LetterBook>>;
-  /** Take the throttle mark; "unavailable" (no table) ends the pass. */
+  /** Take the throttle mark ("taken": told within the week); "unavailable" (no table) ends the pass. */
   claim: (account: string, mark: string) => Promise<"claimed" | "taken" | "unavailable">;
 }
 
 /**
- * Today's notes: for each opted-in player, their best deal, unless it was already said this week.
+ * Today's notes: for each opted-in player, the best deal they weren't told of this week.
  * `dry` picks without marking (a keeper dry run must not use up a player's alert).
  */
-export async function dealNotes(deps: DealDeps, week: number, opts: { dry?: boolean } = {}): Promise<PlayerNote[]> {
+export async function dealNotes(deps: DealDeps, day: number, opts: { dry?: boolean } = {}): Promise<PlayerNote[]> {
   const accounts = [...new Set(deps.accounts.map((a) => a.toLowerCase()))];
   if (accounts.length === 0) return [];
   const letters = await deps.lettersOf(accounts.flatMap((a) => deps.walletsOf(a)));
   const notes: PlayerNote[] = [];
   for (const account of accounts) {
     const wallets = deps.walletsOf(account).flatMap((w) => (letters[w.toLowerCase()] ? [{ wallet: w, letters: letters[w.toLowerCase()] }] : []));
-    const pick = bestDeal(wallets, deps.unclaimed, deps.book, (maker) => deps.accountOf(maker).toLowerCase() === account);
-    if (!pick) continue;
-    if (!opts.dry) {
-      const claim = await deps.claim(account, dealMark(pick, week));
-      if (claim === "unavailable") return []; // no mark table: an alert that can't be throttled isn't sent
-      if (claim === "taken") continue; // said this week already
+    const ranked = rankedDeals(wallets, deps.unclaimed, deps.book, (maker) => deps.accountOf(maker).toLowerCase() === account);
+    // Best first, and the first one not told this week is today's. At most 26 tries: one per letter.
+    for (const pick of ranked) {
+      if (!opts.dry) {
+        const claim = await deps.claim(account, dealMark(pick));
+        if (claim === "unavailable") return []; // no mark table: an alert that can't be throttled isn't sent
+        if (claim === "taken") continue; // told this week already: the next best
+      }
+      notes.push(dealNote(account, pick, day));
+      break;
     }
-    notes.push(dealNote(account, pick, week));
   }
   return notes;
 }

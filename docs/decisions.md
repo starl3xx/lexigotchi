@@ -1557,8 +1557,10 @@ setter. All small, riding existing suite patterns.
       arrives and names the Market's word: one wallet's letters (a claim spends from one wallet),
       never a letter the player holds in another wallet (a move, not a purchase), only a word
       nobody owns, only a letter the checked book says can be bought now from someone else. One
-      alert a day at most, the best deal only (the rarest word, then the lowest ask), and the same
-      letter and word once a week at most, kept in `reminder_marks` (no table, no alert). It runs
+      alert a day at most, and the same letter and word once a week at most: a rolling week, kept
+      in `reminder_marks` (`claimMarkEvery`; no table, no alert). The alert is the best deal the
+      player wasn't told of this week (the rarest word, then the lowest ask), so a deal already
+      told never hides a new one. It runs
       in the keeper's `notify` job, after the hunger warnings, and reads the chain only when
       somebody opted in.
     - **One sender for every receipt** (`lib/notify/players.ts` `notifyPlayers`): the kind is asked

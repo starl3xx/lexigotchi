@@ -241,11 +241,11 @@ export function soldFacts(items: readonly SoldItem[]): [string, string][] {
 }
 
 // ── A letter that finishes a word ─────────────────────────────────────────────────────
-// NUDGE, and one a player asked for. Keyed on the letter, the word, and the WEEK: the same deal is
-// said once a week at most, however long the letter stays for sale (lib/notify/deals.ts).
+// NUDGE, and one a player asked for. Day-keyed, as every nudge is; what keeps the same letter and
+// word to once a week is the sender's mark (lib/notify/deals.ts), not this id.
 const DEAL_TITLES = ["One letter from a new word", "A letter you need is for sale", "The Market has your letter"] as const;
 
-export function dealAlert(d: { letter: string; word: string; more: number; from: number }, week: number, day = epochDay()): Notification {
+export function dealAlert(d: { letter: string; word: string; more: number; from: number }, day = epochDay()): Notification {
   const l = d.letter.toLowerCase();
   // "An x", "A q": the article a letter's NAME takes when said aloud (lib/wordNeed `article`).
   const a = "aefhilmnorsx".includes(l) ? "An" : "A";
@@ -253,7 +253,7 @@ export function dealAlert(d: { letter: string; word: string; more: number; from:
   return {
     title: rotate(DEAL_TITLES, day),
     body: `${a} ${l} is for sale on the Market, from ${wordAmount(d.from)}. It finishes ${d.word.toUpperCase()}, a word nobody owns${also}.`,
-    notificationId: `deal-${l}-${d.word.toLowerCase()}-${week}`,
+    notificationId: `deal-${l}-${d.word.toLowerCase()}-${day}`,
   };
 }
 
