@@ -168,7 +168,8 @@ export function DictionaryScreen() {
                 ) : status === "sale" && listing ? (
                   <span className="font-bold text-gold-ink">For sale · {fmtWord(listing.price)} $WORD</span>
                 ) : (status === "taken" || status === "sale") && owner ? (
-                  <span className="min-w-0 text-ink/70">
+                  // a flex box, so a long name is cut short before it reaches the card number
+                  <span className="flex min-w-0 text-ink/70">
                     <PlayerChip address={owner} profile={d.profiles?.[owner]} size={16} />
                   </span>
                 ) : status === "unknown" ? (

@@ -710,7 +710,8 @@ setter. All small, riding existing suite patterns.
       which opens with the word on the rack. One place claims, so the owner check, the fee line,
       and the case rules live once.
     - **"Mint a pack" is offered only while the letter can still be minted:** the chain game
-      reads each letter's supply when the sheet opens; a sold-out letter points at the Market.
+      reads each letter's supply when the sheet opens (checked on Sepolia: 26 caps, 115 q's); a
+      sold-out letter, or sold-out packs, points at the Market.
     - **Closest first** (`lib/dictionaryList.ts`): what the player can spell, then one letter
       away, then two; the rarest first within a distance; a move counts as closer than a mint.
       The choice is remembered. Quick filters: Can spell (exactly Spell's list), One away, Two
@@ -718,7 +719,7 @@ setter. All small, riding existing suite patterns.
       ground is the near misses and other players' words.
     - **What it costs:** the list keeps flat tiles (no letter characters, no motion); one pass
       over the dictionary per change of letters (half a millisecond); the word view draws one
-      word, still. On a 4×-slowed CPU, production build: a keystroke in the search answers in
+      word, still. On a 4×-slowed CPU, production build, practice mode: a keystroke answers in
       24 ms, a filter or sort tap in 88 ms, opening a word in 56 ms.
     - **Left for later:** pack odds for the missing letter; another player's word in its real
       case (the scan knows it, the world read passes on only a count); a wish list.

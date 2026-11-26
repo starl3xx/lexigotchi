@@ -33,8 +33,15 @@ export function useDictionary() {
 
   const lowerHere = mineLower(state);
   const upperHere = mineUpper(state);
-  const here: LetterBag = useMemo(() => ({ lower: lowerHere, upper: upperHere }), [lowerHere, upperHere]);
-  const all: LetterBag = useMemo(() => ({ lower: state.lower, upper: state.upper }), [state.lower, state.upper]);
+  // The chain store rebuilds these arrays whenever any UI state changes (a sheet opening), so the
+  // bags are kept by their CONTENTS: the list and its distances recompute when a letter changes,
+  // not when a sheet opens.
+  const hereKey = `${lowerHere.join()}|${upperHere.join()}`;
+  const allKey = `${state.lower.join()}|${state.upper.join()}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const here: LetterBag = useMemo(() => ({ lower: lowerHere, upper: upperHere }), [hereKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const all: LetterBag = useMemo(() => ({ lower: state.lower, upper: state.upper }), [allKey]);
   /** With no letters at all (a visitor, a brand-new player) there is nothing to count: entries say who has a word, not what it needs. */
   const hasLetters = useMemo(() => all.lower.some((n) => n > 0) || all.upper.some((n) => n > 0), [all]);
 

@@ -136,7 +136,9 @@ export function LookupSheet({ word }: { word: string }) {
   // A letter the chain says is minted out can't come from a pack. Unknown (practice, or the read
   // still loading) is not sold out: the button stays, and only the supply line waits.
   const soldOut = (letter: string) => supply.data?.available[idx(letter)] === 0;
-  const allSoldOut = parts.length > 0 && parts.every((p) => soldOut(p.letter));
+  // No pack can be opened once fewer than five letters are left in all (as the Mint screen says).
+  const packsOut = g.lettersLeft !== null && g.lettersLeft < 5;
+  const allSoldOut = parts.length > 0 && (packsOut || parts.every((p) => soldOut(p.letter)));
   const capOf = (letter: string) => (state.chainBacked ? supply.data?.caps[idx(letter)] : LETTER_SUPPLY_CAP[letter.toUpperCase()]);
   const offers = the ? g.swapBoard.filter((o) => o.giveId % 26 === idx(the.letter)).length : 0;
   const go = (view: "mint" | "swap" | "claim") => g.nav(view); // a nav closes the sheet
@@ -206,9 +208,11 @@ export function LookupSheet({ word }: { word: string }) {
           <Action
             hint={
               allSoldOut
-                ? the
-                  ? `Every ${the.letter} has been minted, so the Market is the only place to find one.`
-                  : "These letters have all been minted, so the Market is the only place to find them."
+                ? packsOut
+                  ? "Packs are sold out, so the Market is the only place to find letters."
+                  : the
+                    ? `Every ${the.letter} has been minted, so the Market is the only place to find one.`
+                    : "These letters have all been minted, so the Market is the only place to find them."
                 : offers > 0
                   ? `${offers === 1 ? "1 player is" : `${offers} players are`} offering one now.`
                   : "Offer a letter you can spare."
