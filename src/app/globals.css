@@ -98,9 +98,10 @@ body {
      grows two pixels downward); pressing pushes it down into its own shadow, the game's tactile "click". --sh is the
      element's shadow size, set by .cel / .cel-sm / the Button.
    - .press-icon: an icon inside a .press that wiggles on hover.
-   - .tile-press: a tappable letter character. It hops on hover and squashes on press.
+   - .tile-press: a tappable letter character. It hops on hover and pushes down on press. It never
+     squashes: a tile's size does not change in any animation (decisions.md #48).
    - .word-press: a whole word that opens (a Market listing, a sold word). It lifts on hover and
-     squashes on press, without the single letter's tilt, which swings a five-letter row's ends.
+     pushes down on press, without the single letter's tilt, which swings a five-letter row's ends.
    - .round-btn: the header's round icon buttons and pills.
    Hover only where a mouse hovers (a tap on a phone isn't a hover). The movement lives in a
    prefers-reduced-motion: no-preference block below; under reduce, shadows and colors still answer.
@@ -277,11 +278,11 @@ body {
     transform: translate(var(--sh, 3px), var(--sh, 3px));
   }
   .tile-press:active {
-    transform: translateY(1px) scale(0.94);
+    transform: translateY(2px);
     transition-duration: 70ms;
   }
   .word-press:active {
-    transform: translateY(1px) scale(0.97);
+    transform: translateY(2px);
     transition-duration: 70ms;
   }
   .round-btn:active {
