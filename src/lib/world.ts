@@ -53,6 +53,8 @@ export interface WorldSnapshot {
   wins: Record<string, { count: number; amount: number }>;
   /** The keeper's total yield weight right now (Σ `yieldWeight` over every word). */
   yieldWeight: number;
+  /** Each word's own part of that weight (0 for a word that earns nothing now). */
+  weights: Record<string, number>;
 }
 
 /** One ERC-1155 movement: `ids[i]` moved `values[i]` from `from` to `to`. */
@@ -127,6 +129,7 @@ export async function scanWorld(): Promise<WorldSnapshot> {
     letters: letterTotals(transfers, skip),
     wins,
     yieldWeight: keeperWords.reduce((a, w) => a + yieldWeight(w), 0),
+    weights: Object.fromEntries(keeperWords.map((w) => [w.word, yieldWeight(w)])),
   };
 }
 
