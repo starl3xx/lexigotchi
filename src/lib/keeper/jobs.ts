@@ -26,7 +26,8 @@ import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { scanAllWords } from "@/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "@/lib/keeper/shares";
 import { computeAchievements, type AchievementLeaf } from "@/lib/keeper/achievements";
-import { readLetterCounts } from "@/lib/onchain/reads";
+import { readLetterCounts, readWalletBalances } from "@/lib/onchain/reads";
+import { WORDS } from "@/lib/dictionary";
 import { encodeAbiParameters, parseEventLogs } from "viem";
 import { buildEpochFile, verifyEntry } from "@/lib/keeper/tree";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -48,6 +49,10 @@ import { sendNotification, LIMITS } from "@/lib/notify/send";
 import { sendWebPush } from "@/lib/notify/webPush";
 import { notifySold } from "@/lib/notify/sold";
 import { notifyPaid, shareKey, type LandedShare } from "@/lib/notify/paid";
+import { DEAL_AGAIN_SECONDS, DEAL_DAILY_SECONDS, tellDeals } from "@/lib/notify/deals";
+import { notifyPlayers } from "@/lib/notify/players";
+import { claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
+import { readLetterBook } from "@/lib/market/letterBoard";
 import { loadPrefs } from "@/lib/db/reminderPrefs";
 import type { SaleRow } from "@/lib/db/market";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
@@ -557,6 +562,62 @@ export function createKeeper(opts: { dry: boolean }) {
     await notifyHungerEmail(words, links.accountOf);
   }
 
+  /** The `notify` job: the hunger warnings, which players are owed, then the deal alerts. A failed first step still runs the second. */
+  async function notifyJob() {
+    try {
+      await notifyHunger();
+    } finally {
+      await notifyDeals();
+    }
+  }
+
+  /**
+   * The deal alert (lib/notify/deals.ts): for each player who turned it on, the one letter for sale
+   * that finishes a word nobody owns. Part of the `notify` job, which already runs daily. Reads the
+   * chain only when somebody opted in. Never throws: a courtesy must not fail the job.
+   */
+  async function notifyDeals() {
+    try {
+      const prefs = await loadPrefs();
+      const accounts = prefs.chose("deal", true);
+      if (accounts.length === 0) return void console.log("deals: nobody turned the deal alert on");
+      const [links, words, book, now] = await Promise.all([loadLinkMap(), scanAllWords(), readLetterBook(), readChainTime()]);
+      const claimed = new Set(words.map((w) => w.word.toUpperCase()));
+      const day = Math.floor(now / 86_400);
+      const { notes, told } = await tellDeals(
+        {
+          accounts,
+          walletsOf: links.walletsOf,
+          accountOf: links.accountOf,
+          lettersOf: async (wallets) => {
+            const balances = await readWalletBalances(wallets as `0x${string}`[]);
+            return Object.fromEntries(Object.entries(balances).map(([w, b]) => [w, b.letters]));
+          },
+          unclaimed: WORDS.filter((w) => !claimed.has(w)),
+          book,
+          marks: {
+            claimDay: (account) => claimMarkEvery(account, "deal-day", "last", DEAL_DAILY_SECONDS),
+            releaseDay: (account) => releaseMark(account, "deal-day", "last"),
+            claimDeal: (account, mark) => claimMarkEvery(account, "deal-seen", mark, DEAL_AGAIN_SECONDS),
+            releaseDeal: (account, mark) => releaseMark(account, "deal-seen", mark),
+          },
+          // The accounts a message went out to; a mark for anyone else is given back (lib/notify/deals.ts).
+          tell: async (toTell) => {
+            const reached = new Set<string>();
+            await notifyPlayers("deal", () => toTell, { onReached: (account) => reached.add(account.toLowerCase()) });
+            return reached;
+          },
+        },
+        day,
+        { dry: DRY },
+      );
+      console.log(`deals: ${accounts.length} player(s) asked, ${notes.length} deal(s) to tell of${DRY ? "" : `, ${told} told`}`);
+      if (DRY) notes.forEach((n) => console.log(`  [dry] would tell ${n.account.slice(0, 10)}: ${n.note.body}`));
+    } catch (err) {
+      console.error("deals: the deal alert failed:", String((err as Error)?.message ?? err).slice(0, 200));
+    }
+  }
+
   /**
    * Email recipients among these wallets (confirmed address, reminders on), or none. Never throws:
    * before migration 0006, or with email switched off, the other channels carry on as before.
@@ -947,7 +1008,7 @@ export function createKeeper(opts: { dry: boolean }) {
         case "repeg":
           return repegPrices();
         case "notify":
-          return notifyHunger();
+          return notifyJob();
       }
     },
   };

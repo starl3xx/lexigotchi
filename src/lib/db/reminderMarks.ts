@@ -8,7 +8,7 @@
  * missing table (lib/db/reminderPrefs.ts), on purpose: there, "nobody chose" is a true reading;
  * here, "nobody was sent" would be a guess.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { reminderMarks } from "./schema";
 import { isMissingTable } from "./profiles";
@@ -19,6 +19,31 @@ export type MarkClaim = "claimed" | "taken" | "unavailable";
 export async function claimMark(account: string, kind: string, mark: string): Promise<MarkClaim> {
   try {
     const rows = await getDb().insert(reminderMarks).values({ account: account.toLowerCase(), kind, mark }).onConflictDoNothing().returning({ mark: reminderMarks.mark });
+    return rows.length > 0 ? "claimed" : "taken";
+  } catch (err) {
+    if (!isMissingTable(err)) console.error("[reminders] couldn't keep a send-once mark:", String((err as Error)?.message ?? err).slice(0, 160));
+    return "unavailable";
+  }
+}
+
+/**
+ * Take a mark that may be taken AGAIN once it is old enough: "this account was told this, and not
+ * in the last `everySeconds`". For a nudge that may repeat, but not often (the deal alert:
+ * lib/notify/deals.ts). One statement, so two passes at once can't both take it. "taken": told
+ * within the time. "unavailable": no table yet, or the write failed.
+ */
+export async function claimMarkEvery(account: string, kind: string, mark: string, everySeconds: number): Promise<MarkClaim> {
+  try {
+    const rows = await getDb()
+      .insert(reminderMarks)
+      .values({ account: account.toLowerCase(), kind, mark })
+      .onConflictDoUpdate({
+        target: [reminderMarks.account, reminderMarks.kind, reminderMarks.mark],
+        set: { at: sql`now()` },
+        // The database's own clock on both sides, never a JS Date (a Date parameter shifts by the server's offset).
+        setWhere: sql`${reminderMarks.at} < now() - make_interval(secs => ${everySeconds})`,
+      })
+      .returning({ mark: reminderMarks.mark });
     return rows.length > 0 ? "claimed" : "taken";
   } catch (err) {
     if (!isMissingTable(err)) console.error("[reminders] couldn't keep a send-once mark:", String((err as Error)?.message ?? err).slice(0, 160));

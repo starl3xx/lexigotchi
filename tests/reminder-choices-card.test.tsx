@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReminderChoices, type ReminderChoicesProfile } from "@/components/game/ReminderChoices";
 
 const A = "0x00000000000000000000000000000000000000aa";
-const ALL_ON = { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false };
+const ALL_ON = { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false, deal: false };
 let calls: { method: string; body?: unknown; token?: string }[] = [];
 let answer: (method: string, body?: { kinds: Record<string, boolean> }) => { status?: number; json: unknown };
 
@@ -42,7 +42,7 @@ describe("What to tell me", () => {
   it("lists every kind with its box, and loads the player’s own choices", async () => {
     answer = () => ({ json: { ok: true, kinds: { ...ALL_ON, daily: false } } });
     show();
-    expect(screen.getAllByRole("checkbox")).toHaveLength(6);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(7);
     // the one kind that comes every day starts off
     expect(box(/My words were paid/).checked).toBe(false);
     await waitFor(() => expect(box(/free daily letter/).checked).toBe(false));

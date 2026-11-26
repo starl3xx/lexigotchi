@@ -242,6 +242,23 @@ export function soldFacts(items: readonly SoldItem[]): [string, string][] {
   return facts;
 }
 
+// ── A letter that finishes a word ─────────────────────────────────────────────────────
+// NUDGE, and one a player asked for. Day-keyed, as every nudge is; what keeps the same letter and
+// word to once a week is the sender's mark (lib/notify/deals.ts), not this id.
+const DEAL_TITLES = ["One letter from a new word", "A letter you need is for sale", "The Market has your letter"] as const;
+
+export function dealAlert(d: { letter: string; word: string; more: number; from: number }, day = epochDay()): Notification {
+  const l = d.letter.toLowerCase();
+  // "An x", "A q": the article a letter's NAME takes when said aloud (lib/wordNeed `article`).
+  const a = "aefhilmnorsx".includes(l) ? "An" : "A";
+  const also = d.more > 0 ? `, and ${d.more} more` : "";
+  return {
+    title: rotate(DEAL_TITLES, day),
+    body: `${a} ${l} is for sale on the Market, from ${wordAmount(d.from)}. It finishes ${d.word.toUpperCase()}, a word nobody owns${also}.`,
+    notificationId: `deal-${l}-${d.word.toLowerCase()}-${day}`,
+  };
+}
+
 // ── Turning reminders on ──────────────────────────────────────────────────────────────
 /**
  * The one push a browser gets for opting in: proof, to the player and to us, that the whole path
@@ -264,6 +281,7 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   rollover: ROLLOVER_TITLES,
   paid: PAID_TITLES,
   bounty: BOUNTY_TITLES,
+  deal: DEAL_TITLES,
   pity: PITY_TITLES,
   soldLetter: SOLD_LETTER_TITLES,
   soldWord: SOLD_WORD_TITLES,
