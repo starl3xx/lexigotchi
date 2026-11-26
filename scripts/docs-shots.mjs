@@ -2,7 +2,7 @@
  * Screenshots of the real game for the player docs (docs-site/images/screen-*.jpg).
  *
  *   NEXT_PUBLIC_CHAIN_ID= npm run dev          # practice (mock) mode: seeded bag, no wallet
- *   npm run docs:shots [-- http://localhost:3000/play] [today bag cards share bounty word earnings profile]
+ *   npm run docs:shots [-- http://localhost:3000/play] [today bag cards share market bounty word earnings profile]
  *
  * Names after the URL remake only those shots; with none, it remakes them all. Always practice
  * mode, so no real address or balance is ever pictured. The Next dev badge and the practice-only
@@ -86,6 +86,17 @@ if (want("share")) {
   console.log("wrote docs-site/images/screen-share.jpg");
   await page.keyboard.press("Escape");
   await page.waitForTimeout(600);
+}
+
+// The Market's letters shelf, with what just sold and the picks above it. Before the earnings shot,
+// which changes the practice game.
+if (want("market")) {
+  await page.locator("nav").getByRole("button", { name: "Market", exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  await page.locator("main").getByRole("button", { name: "Letters", exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  await shot("market");
+  console.log("wrote docs-site/images/screen-market.jpg");
 }
 
 // Your earnings: feed the hungry VIVID, let a practice day pass so it earns, and open the sheet from

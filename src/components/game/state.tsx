@@ -129,7 +129,53 @@ export interface WordListing {
   /** Staking.lastFed (0 = fresh): the hunger clock keeps running while it's for sale. */
   lastFedAt: number;
   orderHash: string;
+  /** When it went up for sale (ISO). */
+  listedAt?: string;
+  /** What this word last sold for on the Market, when it has. */
+  lastSale?: { price: number; at: number };
   face?: PublicFace;
+}
+
+/**
+ * The Market beyond words for sale (decisions.md #30): letters for sale, what sold lately, and the
+ * player's own listings. Both stores supply it (the practice store from a seeded stall, so the page
+ * can be tried with no wallet).
+ */
+export interface MarketApi {
+  /** Every letter's open listings, cheapest first, by letter id (0-25 lowercase, 26-51 UPPERCASE). */
+  letterBook: Record<number, LetterBook>;
+  /** The player's own letter listings, from every wallet of theirs, paused ones included. */
+  myLetters: MyLetterListing[];
+  /** What sold lately, newest first. */
+  sales: MarketSale[];
+  /** What each letter id, and each rarity's words, have been selling for. */
+  letterStats: Record<number, LetterSaleStat>;
+  tierStats: Record<string, TierSaleStat>;
+  /** Sellers' and buyers' profile faces, by lowercase address. */
+  faces: Record<string, PublicFace>;
+  /** The boards haven't answered yet: "nothing for sale" isn't known. */
+  loading: boolean;
+  /** A board couldn't be read, and nothing is kept to show: a connection problem, not an empty Market. */
+  unavailable: boolean;
+  /** Letters can't be listed yet (the server isn't ready for them). */
+  lettersClosed: boolean;
+  /** The retired letter swap: the player's old offers that could still fill, to cancel. */
+  oldSwaps: { maker: string; giveId: number; wantId: number; orderHash: string }[];
+  /** Is this seller the player (any wallet of theirs)? And is it the wallet connected now, the only one that can cancel? */
+  isMine: (maker: string) => boolean;
+  isHere: (maker: string) => boolean;
+  /**
+   * List `qty` of one letter id from the connected wallet, at `unitPrice` whole $WORD each (the buyer
+   * pays it; 10% goes to the Rewards Pool). Cancels this wallet's earlier listing of that letter and
+   * approves Letters to Seaport in one send when needed, then a free signature. True once listed.
+   */
+  listLetters: (letterId: number, qty: number, unitPrice: number) => Promise<boolean>;
+  /** Buy `count` letters from one listing. True once they are in the bag. */
+  buyLetters: (ask: LetterAsk, count: number) => Promise<boolean>;
+  cancelLetterListing: (orderHash: string) => void;
+  cancelOldSwap: (orderHash: string) => void;
+  /** More of one letter's listings than the board carries, cheapest first. */
+  moreAsks: (letterId: number, offset: number) => Promise<{ asks: LetterAsk[]; more: boolean; next: number }>;
 }
 
 export type View =
@@ -229,6 +275,8 @@ export interface GameState {
   wordsError?: boolean;
   /** Practice only: what its words have earned (earnings.ts practicePayout). The chain game reads earnings from the server. */
   earned?: PracticeEarned;
+  /** Practice only: the seeded Market (market/practiceMarket.ts). The chain game reads the real one from the server. */
+  market?: PracticeMarket;
   streak: number;
   day: number;
   dailyMinted: boolean;
@@ -388,6 +436,7 @@ export function seedState(): GameState {
     bountyPool: 9_400_000,
     jackpotRevealed: false,
     bountyTheme: 1, // "has a repeated letter"
+    market: seedPracticeMarket(Date.now()),
     view: "home",
     sheet: null,
     toasts: [],
@@ -418,7 +467,8 @@ type Action =
   | { t: "dissolve"; word: string }
   | { t: "revealJackpot"; won: boolean; amount: number }
   | { t: "skipDay"; jackpotWord: string; bountyTheme: number; at: number }
-  | { t: "addDemoBalance" };
+  | { t: "addDemoBalance" }
+  | MarketAction;
 
 function spend(s: GameState, amount: number): number {
   return s.balance - amount;
@@ -602,6 +652,12 @@ export function reducer(s: GameState, a: Action): GameState {
     }
     case "addDemoBalance":
       return { ...s, balance: s.balance + 10_000_000 }; // prototype top-up of the mock balance
+    case "marketBuyWord":
+    case "marketBuyLetters":
+    case "marketListWord":
+    case "marketListLetters":
+    case "marketCancel":
+      return practiceMarketStep(s, a);
     case "revealJackpot":
       if (s.jackpotRevealed) return s; // already drawn today — never pay the pot twice
       return {
@@ -647,6 +703,11 @@ import type { ActionOutcome } from "@/lib/onchain/guardedAction";
 import type { Busy } from "@/lib/onchain/actionGate";
 import type { GameParams } from "@/lib/onchain/reads";
 import type { PublicFace } from "@/lib/profile/rules";
+import type { LetterAsk, LetterBook, LetterSaleStat, MarketSale, MyLetterListing, TierSaleStat } from "@/lib/market/types";
+import {
+  PRACTICE_FACES, PRACTICE_ME, practiceLetterBook, practiceMarketStep, practiceMyLetters, practiceStats, practiceWords, seedPracticeMarket,
+  type MarketAction, type PracticeMarket,
+} from "./market/practiceMarket";
 import { addPracticeDay, practiceEarnings, practicePayout, type PlayerEarnings, type PracticeEarned } from "./earnings";
 export type { ActionOutcome };
 
@@ -771,14 +832,9 @@ export interface GameApi {
   claimables: { stream: "yield" | "bounty"; tokenId: string; amount: number }[];
   /** Collect every waiting share in one send. Each pays its own wallet, so this is union-safe. */
   claimEarnings: () => void;
-  /** The letter-swap board (Seaport orders; chain only — the mock's swap is a share-toy). */
-  /** Open letter offers that can fill now; `face` is the maker's profile face, when it has one. */
-  swapBoard: { maker: string; giveId: number; wantId: number; orderHash: string; face?: PublicFace }[];
-  /** Sign + list a 1⇄1 letter offer (approval batched in when missing). */
-  createSwapOffer: (giveId: number, wantId: number) => void;
-  fillSwapOffer: (orderHash: string) => void;
-  cancelSwapOffer: (orderHash: string) => void;
-  /** Words for sale (decisions.md #18; chain only), each with its state read live. */
+  /** Letters for sale, recent sales, and the player's own listings (decisions.md #30). */
+  market: MarketApi;
+  /** Words for sale (decisions.md #18), each with its state read live. */
   wordBoard: WordListing[];
   /**
    * List a word the connected wallet holds, unstaked, for `price` whole $WORD (the buyer pays it;
@@ -966,21 +1022,63 @@ export function GameProvider({ children }: { children: ReactNode }) {
       earnings: practiceEarnings(state.earned),
       claimables: [],
       claimEarnings: () => {},
-      // The mock's swap is the share-toy above; the real board is chain-only.
-      swapBoard: [],
-      createSwapOffer: () => {},
-      fillSwapOffer: () => {},
-      cancelSwapOffer: () => {},
-      wordBoard: [],
-      listWord: async () => false,
+      // The practice Market: a seeded stall (market/practiceMarket.ts). Buying moves practice $WORD.
+      wordBoard: practiceWords(state),
+      listWord: async (word, price) => {
+        const w = state.words.find((x) => x.word === word);
+        if (!w || w.staked || !(price > 0)) return false;
+        dispatch({ t: "marketListWord", word, price, at: Date.now() });
+        toast(`${word} is for sale. In practice mode nobody else is here to buy it`, "good");
+        return true;
+      },
+      market: {
+        letterBook: practiceLetterBook(state),
+        myLetters: practiceMyLetters(state),
+        sales: state.market?.sales ?? [],
+        letterStats: practiceStats(state.market?.sales ?? []).letters,
+        tierStats: practiceStats(state.market?.sales ?? []).tiers,
+        faces: PRACTICE_FACES,
+        loading: false,
+        unavailable: false,
+        lettersClosed: false,
+        oldSwaps: [],
+        isMine: (maker) => maker === PRACTICE_ME,
+        isHere: (maker) => maker === PRACTICE_ME,
+        listLetters: async (letterId, qty, unitPrice) => {
+          const held = (letterId >= 26 ? state.upper[letterId - 26] : state.lower[letterId]) ?? 0;
+          if (qty < 1 || qty > held || !(unitPrice > 0)) return false;
+          dispatch({ t: "marketListLetters", letterId, qty, unitPrice, at: Date.now() });
+          toast("Listed. In practice mode nobody else is here to buy them", "good");
+          return true;
+        },
+        buyLetters: async (ask, count) => {
+          if (state.balance < ask.unitPrice * count) {
+            needWord(ask.unitPrice * count, "these letters");
+            return false;
+          }
+          dispatch({ t: "marketBuyLetters", orderHash: ask.orderHash, count, at: Date.now() });
+          const ch = ALPHABET[ask.letterId % 26];
+          toast(`${count} × ${ask.letterId >= 26 ? ch : ch.toLowerCase()} in your bag`, "good");
+          return true;
+        },
+        cancelLetterListing: (orderHash) => dispatch({ t: "marketCancel", orderHash }),
+        cancelOldSwap: () => {},
+        moreAsks: async () => ({ asks: [], more: false, next: 0 }),
+      },
       // The practice game has no USDC and no Shop (both are chain only).
       buyShopItem: async () => false,
       getTestUsdc: async () => {
         toast("Test USDC is only in the test game", "info");
         return false;
       },
-      buyWord: () => {},
-      cancelWordListing: () => {},
+      buyWord: (orderHash) => {
+        const l = practiceWords(state).find((x) => x.orderHash === orderHash);
+        if (!l) return;
+        if (state.balance < l.price) return needWord(l.price, l.word);
+        dispatch({ t: "marketBuyWord", orderHash, at: Date.now() });
+        toast(`${l.word} is yours.`, "good");
+      },
+      cancelWordListing: (orderHash) => dispatch({ t: "marketCancel", orderHash }),
 
       spendable: (word) => state.balance >= COST.roll && wordCase(word) !== "UPPERCASE",
       rollProb: (pity) => rollSuccessProbability(pity),

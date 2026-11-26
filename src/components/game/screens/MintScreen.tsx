@@ -150,8 +150,8 @@ export function MintScreen() {
           // About 95% of the words have owners (decisions.md #21): letters still sell, but a new word is
           // more likely to come from the Market than from a pack.
           <p className="mt-2 text-center text-xs text-ink/60">
-            The dictionary is nearly full: most words already have an owner. Packs still sell, and the Market has words for
-            sale.{" "}
+            The dictionary is nearly full: most words already have an owner. Packs still sell, and the Market has words and
+            letters for sale.{" "}
             <button onClick={() => g.nav("swap")} className="font-bold text-teal-ink underline">
               See the Market
             </button>

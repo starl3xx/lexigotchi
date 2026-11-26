@@ -8,7 +8,7 @@
  *
  * Migrations: `npm run db:generate` (writes ./drizzle) → `npm run db:migrate` (applies to Neon).
  */
-import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean, primaryKey, bigint } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, serial, uniqueIndex, index, jsonb, boolean, primaryKey, bigint, numeric } from "drizzle-orm/pg-core";
 
 /**
  * Players, keyed by Farcaster FID (the identity the whole game hangs off).
@@ -546,4 +546,74 @@ export const shopIndex = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.chainId, t.shop] })],
+);
+
+/**
+ * Letters for sale on the Market (decisions.md #30; migration 0017): one Seaport order per row,
+ * offering `qty` of one letter id at a $WORD price each. A buyer takes any number of them, so the
+ * row stays until the order is sold out, cancelled, or expired; how many are left is Seaport's to
+ * say (`getOrderStatus`), never this table's. `unitPriceWei` is numeric so the cheapest of a letter
+ * is one index read, however many are listed.
+ */
+export const letterListings = pgTable(
+  "letter_listings",
+  {
+    id: serial("id").primaryKey(),
+    /** Lowercase seller address (the order's offerer). */
+    maker: text("maker").notNull(),
+    /** 0-51: 26 lowercase, then 26 UPPERCASE. */
+    letterId: integer("letter_id").notNull(),
+    /** How many letters the order offered when it was signed. */
+    qty: integer("qty").notNull(),
+    /** What a buyer pays for one letter, $WORD wei. */
+    unitPriceWei: numeric("unit_price_wei", { precision: 78, scale: 0 }).notNull(),
+    /** The full Seaport OrderComponents, JSON, exactly as signed. */
+    orderJson: text("order_json").notNull(),
+    signature: text("signature").notNull(),
+    orderHash: text("order_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("letter_listings_hash_idx").on(t.orderHash),
+    index("letter_listings_book_idx").on(t.letterId, t.unitPriceWei),
+    index("letter_listings_maker_idx").on(t.maker),
+  ],
+);
+
+/**
+ * Sales on the Market (decisions.md #30; migration 0017): one row per Seaport `OrderFulfilled` that
+ * sold a Word or letters and paid the sale fee. Read from the chain (lib/market/sales.ts), so it is
+ * a copy of public history, idempotent on (chain, transaction, log index). `shop_index` holds how
+ * far it has read, under the SaleFees address.
+ */
+export const marketSales = pgTable(
+  "market_sales",
+  {
+    chainId: integer("chain_id").notNull(),
+    txHash: text("tx_hash").notNull(),
+    logIndex: integer("log_index").notNull(),
+    blockNumber: bigint("block_number", { mode: "number" }).notNull(),
+    soldAt: timestamp("sold_at", { withTimezone: true }).notNull(),
+    /** "word" or "letter". */
+    kind: text("kind").notNull(),
+    orderHash: text("order_hash").notNull(),
+    seller: text("seller").notNull(),
+    buyer: text("buyer").notNull(),
+    /** A word sale: the word, UPPERCASE, and its rarity tier (so recent sales group by tier). */
+    word: text("word"),
+    tier: text("tier"),
+    /** A letter sale: the letter id (0-51). */
+    letterId: integer("letter_id"),
+    /** Letters sold in this fill (1 for a word). */
+    qty: integer("qty").notNull(),
+    /** Everything the buyer paid, $WORD wei, and the part of it that was the fee. */
+    priceWei: numeric("price_wei", { precision: 78, scale: 0 }).notNull(),
+    feeWei: numeric("fee_wei", { precision: 78, scale: 0 }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
+    index("market_sales_recent_idx").on(t.chainId, t.soldAt),
+    index("market_sales_letter_idx").on(t.chainId, t.letterId, t.soldAt),
+    index("market_sales_word_idx").on(t.chainId, t.word, t.soldAt),
+  ],
 );

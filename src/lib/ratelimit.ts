@@ -29,7 +29,9 @@ export type RateKind =
   | "free-snack-ip"
   | "usdc-faucet-ip"
   | "wardrobe-read"
-  | "shop-record";
+  | "shop-record"
+  | "market-read"
+  | "market-list";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -43,6 +45,15 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "rl:campaign:onboarded" });
     case "status":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:campaign:status" });
+    // The Market's reads, keyed by IP. An open Market polls four boards (about 12 reads a minute),
+    // and a purchase or a cancel re-reads them three times over ten seconds; several players may
+    // share an address. Each board is kept in memory for seconds, so a read is cheap. Its own limit,
+    // so a busy Market never uses up the campaign routes' "status" budget, nor they its.
+    case "market-read":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(150, "1 m"), prefix: "rl:market:read" });
+    // Listing a word or letters, keyed by IP: each is a signature check and chain reads.
+    case "market-list":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "1 m"), prefix: "rl:market:list" });
     // Web sign-in, keyed by IP — there is no FID to key on until AFTER auth succeeds. Tighter than
     // the campaign routes because this is the one surface an unauthenticated visitor can reach, and
     // it previously did not exist at all: "you must be inside a Farcaster host" was doing this job.

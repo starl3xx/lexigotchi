@@ -37,7 +37,7 @@ import { DictionaryScreen } from "./screens/DictionaryScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { LhawScreen } from "./screens/LhawScreen";
 import { WordScreen } from "./screens/WordScreen";
-import { SwapScreen } from "./screens/SwapScreen";
+import { MarketScreen } from "./screens/MarketScreen";
 import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
 import { RollSheet } from "./sheets/RollSheet";
@@ -306,7 +306,7 @@ function Screen({ view }: { view: View }) {
     case "leaderboard": return <LeaderboardScreen />;
     case "word": return <WordScreen />;
     case "lhaw": return <LhawScreen />;
-    case "swap": return <SwapScreen />;
+    case "swap": return <MarketScreen />;
     default: return <HomeScreen />;
   }
 }

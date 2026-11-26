@@ -209,7 +209,41 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`accountWalletsStrict` throws; `accountWallets` would read the staker as its own profile). The
   feed flows ask first and feed paid on null; approvals are always sized as if nothing were free.
   `accountClaimedToday` also holds Unlink and the Farcaster prune on a snack day.
-  **Words for sale**, on the **Market** (the `swap` view, renamed for players 2026-11-25; decisions.md #18; `lib/onchain/wordSale.ts`, `/api/swap/words`, table
+  **The Market** (the `swap` view; decisions.md #30; `screens/MarketScreen.tsx`, `components/game/market/`,
+  `lib/market/`): words AND letters sell for $WORD, 10% to `SaleFees`. Four parts behind one switch
+  (Words, Letters, Sell, Sold), "Just sold" and the player's picks above. Both stores feed it through
+  `g.market` (the practice store from a seeded stall, `market/practiceMarket.ts`).
+  **Letters for sale** (`lib/onchain/letterSale.ts`, `/api/market/letters`, table `letter_listings`,
+  migration 0017): one Seaport order offers `qty` of one letter id at a price each, PARTIAL_OPEN,
+  filled k of qty with `fulfillAdvancedOrder` (`fulfillPartCalls`). **Every amount is a per-letter
+  amount × qty** (the fee is split per letter, then multiplied): Seaport reverts a part whose share
+  isn't whole, and the route refuses such an order (`uneven_price`) and any price that isn't whole
+  $WORD. Letters have only approve-for-all, which never clears, so a stale order would fill again at
+  its old price when the seller next held that letter: one live order per seller per letter
+  (`cancel_first`), a relist cancels the old one in the same send (`prepareLetterListingCalls`,
+  `GET ?stale=maker:letterId`), and Sell shows the seller every order of theirs, paused ones too
+  (`GET ?mine=`). What a row offers now = the order's unsold part (`unsoldLetters` from
+  `getOrderStatus`) capped by the seller's balance, shared across that seller's rows cheapest first
+  (`lib/market/letterBoard.ts`). The board reads only the cheapest `BOOK_DEPTH` rows of each letter
+  (`letterBookTops`, a window over the numeric price index), keeps the answer 8 s, and carries no
+  orders: `GET ?order=<hash>` serves one when the player buys or cancels (words the same,
+  `/api/swap/words?order=`). **Recent sales** (`lib/market/sales.ts`, `/api/market/sales`, table
+  `market_sales`): read from the chain, never from a client: $WORD `Transfer`s into SaleFees find
+  each sale's transaction, and Seaport's `OrderFulfilled` in it says what sold (`saleOfFill`, pure,
+  tested). The cursor is a row in `shop_index` under the SaleFees address; the route catches up at
+  most every 20 s (`?fresh=1` after a purchase: 3 s), and the keeper's `fees` job does too.
+  **Prices and picks** (`lib/market/deals.ts`, pure, tested): `letterMakeCost` (a pack's share,
+  plus the average rolls for UPPERCASE), `letterPriceIdeas`/`wordPriceIdeas` for the sell forms,
+  `oneLetterShort` (words nobody owns that the bag is one letter short of), and `pickDeals` (a
+  letter that finishes a word first; one place always kept for a price ≥10% under its cost).
+  **The letter swap is retired**: `/api/swap/orders` POST answers 410, and its GET serves only a
+  maker's own old offers, for Sell's Cancel. Proofs to rerun after touching any of this:
+  `scripts/market-fork-check.ts` (the order against Seaport on an Anvil fork) and
+  `scripts/market-routes-check.ts` (the routes against that fork and a throwaway local database;
+  it refuses any database or RPC not on this machine). Each needs a fresh fork. Migration 0017 ran in
+  production (the Sepolia build) on 2026-11-25; before it, `/api/market/letters` answers `open: false`
+  and Sell says letters open shortly (`marketTables`, asked again every 30 s while a table is missing).
+  **Words for sale** (decisions.md #18; `lib/onchain/wordSale.ts`, `/api/swap/words`, table
   `word_listings`, migration 0014): Seaport orders offering one Word for $WORD, 90% to the seller and
   10% (`params.market.wordSaleFee`, rounded up) to `SaleFees`, which the keeper's `fees` job flushes
   into the pool before `yield`. The route checks the SHAPE (`checkWordSaleOrder`: kind from content,
@@ -225,7 +259,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`useStoredChoice`). **Cost to make** (`lib/wordCost.ts`, pure, tested; `WordValue.tsx`): the sell
   form and every listing show about what the word costs to build now at the live prices and average
   tries (letters at `pack ÷ 5 ÷ (26 × odds)`, so a pack's draws average its price; raises; the claim;
-  each ascension stage reached), "Use this price" (3 significant figures), what it would earn a day
+  each ascension stage reached), price ideas (`market/SellWord.tsx`, the one sell form, under an opened word and on the Market), what it would earn a day
   (`/api/world`'s `yieldToday`: today's pot and the keeper's summed `yieldWeight`, the same weight
   `yieldLeaves` uses), and whether the jackpot already drew it (`drawn`, from `WordRevealed`). **Wallets sign
   `walletTypedDataJson(order)`, never `JSON.stringify(orderTypedData(order))`:** eth-sig-util wallets
@@ -473,7 +507,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   text names `@lexigotchi` (`showcaseXText`; `xIntentUrl` appends it to any text that doesn't, and a
   test holds it), and the shared `url` is a page whose og:image pictures the thing (a showcase's own
   letter card at `/s/<letters>/card`), never just the generic game card. Cast text never says
-  "@lexigotchi" (on Farcaster that's someone else). A share with no card of its own (Swap) stays
+  "@lexigotchi" (on Farcaster that's someone else). A share with no card of its own (a Market listing has none yet) stays
   Farcaster-only until it gets one.
 - **Beta testers' updates** (a private Telegram group; never put its invite link anywhere public): a PR
   that changes something testers would notice adds a `## Tester note (KIND)` section right after
