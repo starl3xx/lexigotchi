@@ -10,6 +10,7 @@ import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { ascensionLabel, cardDigits, caseLabel, tierCount, wordPoints } from "@/lib/cardFacts";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
+import { CARD_CORNER } from "@/lib/cardArt/looks";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { readWordStory } from "@/lib/onchain/wordStory";
 import { cardNumberOf } from "@/lib/onchain/cardNumbers";
@@ -127,8 +128,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
       <div style={{ position: "relative", display: "flex", width: W, height: H, fontFamily: "Soehne", color: TEXT, textShadow: SHADOW }}>
         {/* the frame: a line in the material's colour, and a dotted line just outside it */}
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", left: 0, top: 0 }}>
-          <rect x="13" y="13" width={W - 26} height={H - 26} rx="29" fill="none" stroke={look.line} strokeWidth="3.4" strokeDasharray="3.4 5" />
-          <rect x="21.5" y="21.5" width={W - 43} height={H - 43} rx="24" fill="none" stroke={look.line} strokeWidth="3.6" />
+          {/* each line runs parallel to the card's own corner: the corner (CARD_CORNER of the width) less the line's inset */}
+          <rect x="13" y="13" width={W - 26} height={H - 26} rx={CARD_CORNER * W - 13} fill="none" stroke={look.line} strokeWidth="3.4" strokeDasharray="3.4 5" />
+          <rect x="21.5" y="21.5" width={W - 43} height={H - 43} rx={CARD_CORNER * W - 21.5} fill="none" stroke={look.line} strokeWidth="3.6" />
         </svg>
         {/* the game's seal, pressed into the material behind the facts */}
         <img src={seal(look.line)} width={42 * U} height={42 * U} style={{ position: "absolute", right: 4 * U, top: (H - 42 * U) / 2, opacity: 0.14 }} />

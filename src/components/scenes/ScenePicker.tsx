@@ -54,7 +54,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
                 onClick={() => g.openSheet({ kind: "shop" })}
                 className="cel-sm press relative flex flex-col gap-1 rounded-xl bg-card p-1 text-left"
               >
-                <span className="block overflow-hidden rounded-lg border-2 border-ink">
+                <span className="card-corner block overflow-hidden border-2 border-ink">
                   <SceneThumb scene={s.id} tier={tier} />
                 </span>
                 <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
@@ -76,7 +76,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
               onClick={() => set(s.id)}
               className={`cel-sm press relative flex flex-col gap-1 rounded-xl p-1 text-left disabled:cursor-not-allowed ${on ? "bg-ink text-paper" : "bg-card"}`}
             >
-              <span className={`block overflow-hidden rounded-lg border-2 border-ink ${open ? "" : "opacity-45 grayscale"}`}>
+              <span className={`card-corner block overflow-hidden border-2 border-ink ${open ? "" : "opacity-45 grayscale"}`}>
                 <SceneThumb scene={s.id} tier={tier} />
               </span>
               <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">

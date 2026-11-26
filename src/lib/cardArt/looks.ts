@@ -38,6 +38,20 @@ export const GRAPHITE = "#3a3734";
 export const NEUTRAL = { field: "#f1efea", floor: "#e9e6df" };
 /** The card's own paper, a shade lighter than the game's page. */
 export const CARD_PAPER = "#fcf7ea";
+/**
+ * THE CARD'S CORNER: 2.6% of its width, everywhere a card is pictured (decisions.md #48; starl3xx:
+ * "2.6% is the way to go"). The frame's own shapes give the number. Its outer line is drawn 13
+ * units in from the edge with a corner of 18, on a card 1,200 wide, so it runs parallel to an outer
+ * corner of 13 + 18 = 31 units, which is 2.6%. Its corner pieces (a corner of 8, at the same 13)
+ * sit evenly inside an outer corner of 21 units, 1.75%. Between the two everything in the frame
+ * keeps its room; above about 3% the card's corner crowds the corner pieces, and at 6.9% (the
+ * Bag's cards on a phone, when corners were fixed pixels) it cut into them.
+ *
+ * One number for the game's CSS (globals.css, --card-r), the server's pictures (wordCard), and the
+ * share video (loopRenderer). tests/card-corner.test.ts holds them to it.
+ */
+export const CARD_CORNER = 0.026;
+
 /** The window inside the frame, in card units: where the art and the letters live. */
 export const WINDOW = { x: 42, y: 42, w: 1116, h: 591, r: 12 };
 

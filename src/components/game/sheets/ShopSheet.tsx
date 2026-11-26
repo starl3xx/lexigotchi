@@ -121,7 +121,7 @@ export function ShopSheet() {
                 <li key={card.item.id} className="cel-sm rounded-2xl bg-card p-3">
                   {/* a scene shows what it is: its card, with no word on it */}
                   {scene && (
-                    <div className="mb-2 overflow-hidden rounded-xl border-2 border-ink">
+                    <div className="card-corner mb-2 overflow-hidden border-2 border-ink">
                       <SceneThumb scene={scene} />
                     </div>
                   )}

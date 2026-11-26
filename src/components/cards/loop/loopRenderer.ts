@@ -12,6 +12,7 @@
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
 import { MATERIAL_GLSL, MAT_INDEX } from "../live/materialGlsl";
 import type { CardMaterial } from "../material";
+import { CARD_CORNER } from "@/lib/cardArt/looks";
 
 export const LOOP_SECONDS = 6;
 /** One turn of a sine per loop, in radians a second. */
@@ -19,6 +20,8 @@ const ONCE = (2 * Math.PI) / LOOP_SECONDS;
 /** The card's shape (1200×675, the game's 16:9 card): the card that turns. Its front is the card's
  *  face alone (`/s/<word>/card?face=1`), its back the back's picture, both this size. */
 const CARD_ASPECT = 1200 / 675;
+/** The card's corner (lib/cardArt/looks, CARD_CORNER of its width), in the shader's unit, which is the card's height. */
+export const LOOP_CORNER = (CARD_CORNER * CARD_ASPECT).toFixed(4);
 /** The game's paper, behind the card. */
 const PAPER: [number, number, number] = [0.957, 0.918, 0.824];
 
@@ -48,7 +51,7 @@ float rounded(vec2 uv, float r) {
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 void main() {
-  float sd = rounded(vUv, 0.045);
+  float sd = rounded(vUv, ${LOOP_CORNER});
   if (sd > 0.0) discard;
   vec3 col;
   if (gl_FrontFacing) {

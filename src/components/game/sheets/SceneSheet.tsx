@@ -36,7 +36,7 @@ export function SceneSheet({ word, fromWord = false }: { word: string; fromWord?
           gild={gild}
           tier={w.tier}
           number={number}
-          className="rounded-xl border-[3px] border-ink"
+          className="card-corner border-[3px] border-ink"
         />
         <p className="text-center text-sm text-ink/70">
           <strong className="text-ink">{sceneMeta(scene).name}.</strong> {sceneMeta(scene).blurb}
