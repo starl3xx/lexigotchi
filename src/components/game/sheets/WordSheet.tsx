@@ -46,6 +46,10 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const [confirmDissolve, setConfirmDissolve] = useState(false);
   // The tiles chew for a moment when a feed lands (useEatingFlash).
   const eating = useEatingFlash(wordKey, word ? hunger(word) : "fed");
+  // Every hook stands above the early return below: a word can leave the bag while its sheet is
+  // open (sold, dissolved, moved), and a hook that ran only while the word was there would change
+  // the hook count and crash the sheet in place of showing its fallback (Bugbot on #233).
+  const forSale = useForSale();
 
   if (!word) {
     return (
@@ -57,7 +61,6 @@ export function WordSheet({ word: wordKey }: { word: string }) {
 
   const c = wordCase(word);
   const h = hunger(word);
-  const forSale = useForSale();
   const earnedNow = g.earnings?.byWord[word.word];
   const earnedLatest = earnedNow && earnedNow.latest > 0 && g.earnings?.latestAt ? { amount: fmtWord(earnedNow.latest), when: payoutWhen(g.earnings.latestAt) } : undefined;
   const fullyRaised = c === "UPPERCASE";
