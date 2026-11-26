@@ -144,6 +144,9 @@ describe("length limits", () => {
         jackpotRollover(hugeAmount, day),
         earningsPaid(hugeAmount, day),
         bountyPaid("999.99B $WORD", "double letters", 2968, day),
+        // the payout ran out of time with part still to pay
+        earningsPaid(hugeAmount, day, true),
+        bountyPaid("999.99B $WORD", "double letters", 2968, day, true),
         dealAlert({ letter: "w", word: "WHIZZ", more: 4583, from: 999_990_000_000 }, day),
         pityCapped("q", day),
         marketSold([fill({ kind: "word", name: "QUICK", amount: 999_990_000_000 })], day)!,

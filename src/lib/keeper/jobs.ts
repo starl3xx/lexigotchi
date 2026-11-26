@@ -402,12 +402,13 @@ export function createKeeper(opts: { dry: boolean }) {
     }
     // Players who asked hear what was paid, before anything below can end the job with an error:
     // the money has moved either way (lib/notify/paid.ts; it never throws). It gets every share of
-    // the epochs this run worked through, so a player hears of a day or a week once ALL of it is paid.
+    // the epochs this run worked through, so a message states a player's whole share of a day or a
+    // week, and says "paid" of all of it only when all of it landed.
     await notifyPaid(
       landedShares,
       rows.map((r, i) => ({
         stream: r.stream as "yield" | "bounty", epochId: Number(r.epochId), tokenId: BigInt(r.tokenId).toString(),
-        account: r.account, amount: BigInt(r.amount), paidBefore: paid[i] || paidByOthers.has(shareKey(r)),
+        account: r.account, amount: BigInt(r.amount), paidBefore: paid[i], paidNow: paidByOthers.has(shareKey(r)),
       })),
     );
     if (recheckFailed) throw recheckFailed;
