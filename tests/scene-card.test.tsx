@@ -72,19 +72,22 @@ describe("a word's card", () => {
 });
 
 describe("a phone's back and the rows under it", () => {
-  // The back drops a line where it has no room; an opened card must then say it in its rows, at
-  // exactly that width, or the line is said nowhere (Bugbot on #230). Both halves are CSS, so the
-  // two widths are held here.
+  // Under 470 px the back shows four facts and drops the rest; an opened card must then list them
+  // in its rows, at exactly that width, or they are said nowhere (Bugbot on #213 and #230). Both
+  // halves are CSS, so the two widths are held together here.
   const css = readFileSync("src/app/globals.css", "utf8");
   const back = readFileSync("src/components/cards/CardBack.tsx", "utf8");
-  it("says how many words share the rarity under the card, exactly where the back stops saying it", () => {
-    expect(css).toMatch(/@container \(max-width: 430px\) \{\s*\.cb-pips, \.cb-oneof span \{ display: none; \}/);
-    expect(css).toMatch(/@container \(min-width: 431px\) \{ \.sc-more-phone \{ display: none; \} \}/);
-    expect(back).toMatch(/<Row label="Rarity" phone>\s*One of \{fmt\(f\.ofTier\)\} \{f\.tier\} words/);
+  it("drops the later facts, the rarity's word count, the pips, and the bottom line under 470 px", () => {
+    expect(css).toMatch(/@container \(max-width: 469px\) \{\s*\.cb-more, \.cb-foot, \.cb-pips, \.cb-oneof span \{ display: none; \}/);
   });
-  it("lists the rest of the story under a back of 560 px or less, where the back shows four facts", () => {
-    expect(css).toMatch(/@container \(max-width: 560px\) \{\s*\.cb-more, \.cb-foot \{ display: none; \}/);
-    expect(css).toMatch(/@container \(min-width: 561px\) \{ \.sc-more \{ display: none; \} \}/);
+  it("lists them under an opened card up to that same width, the rarity's word count first", () => {
+    expect(css).toMatch(/@container \(min-width: 470px\) \{ \.sc-more \{ display: none; \} \}/);
+    const rows = [...back.slice(back.indexOf("export function CardMore")).matchAll(/<Row label="([^"]+)"/g)].map((m) => m[1]);
+    expect(rows).toEqual(["Rarity", "Found by", "Earned so far", "Earns staked", "Cost to make", "Points", "Jackpot", "Token"]);
+  });
+  it("keeps every word on the back at 12 px or more, the small \"No.\" beside a thumbnail's digits too", () => {
+    expect(css).toMatch(/\.cb-no small \{ font-size: max\(12px, 0\.34em\);/);
+    for (const m of css.slice(css.indexOf("/* The words and tiles (CardBack")).matchAll(/\.(cb-[a-z-]+)[^{}]*\{[^}]*font-size: clamp\((\d+)px/g)) expect(Number(m[2]), m[1]).toBeGreaterThanOrEqual(m[1] === "cb-no" ? 18 : 12);
   });
 });
 
