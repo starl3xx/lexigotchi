@@ -365,11 +365,19 @@ body {
     transition: transform 280ms var(--ease-hop);
     transition-delay: calc(var(--i, 0) * 40ms);
   }
+  /* the same rise for a finished tile's moving light, whose pieces are layers of their own
+     (TileCharacter, momentGroup): in the drawing's units, so it keeps step with the tile under it */
+  .tc-perk-layer {
+    transition: transform 280ms var(--ease-hop);
+    transition-delay: calc(var(--i, 0) * 40ms);
+  }
+  .tc-perks:active .tc-perk-layer { transform: translateY(calc(var(--uy) * 3)); transition-duration: 70ms; transition-delay: 0s; }
   .tc-perks:active .tc-perk { transform: translateY(3px); transition-duration: 70ms; transition-delay: 0s; }
   .tc-perks:active .tc-legs-perk { transform: scaleY(0.94); transition-duration: 70ms; transition-delay: 0s; }
   .tc-spark .tc-star { animation: tc-spark 1.8s ease-in-out; }
   @media (hover: hover) and (pointer: fine) {
     .tc-perks:hover:not(:active) .tc-perk { transform: translateY(-6px); }
+    .tc-perks:hover:not(:active) .tc-perk-layer { transform: translateY(calc(var(--uy) * -6)); }
     .tc-perks:hover:not(:active) .tc-legs-perk { transform: scaleY(1.115); }
     .tc-perks:hover .tc-brow { transform: translateY(-3px); }
   }
@@ -624,7 +632,17 @@ body {
   .rf-moment .rf-fire { animation: rf-fire 2.4s ease-out both; }
   .rf-moment .rf-glint { animation: rf-glint 2.4s ease-in-out both; }
   .rf-moment .rf-mote { animation: rf-mote 3s ease-out both; }
+  /* the two that travel, when each piece of the light is a layer (below) */
+  .rf-moment .rf-passing { animation: rf-passing 2.4s cubic-bezier(0.37, 0, 0.2, 1) both; }
+  .rf-moment .rf-rising { animation: rf-rising 3s ease-out both; }
 }
+/* In WebKit each piece of the light is a LAYER of its own, an <svg>, and its animation is on that
+   <svg>, never on a shape inside one (TileCharacter: `splitBody`, `momentLayer`, and useWebKit
+   for the numbers; a shape moving inside an <svg> makes WebKit redraw all of it on every frame).
+   A piece that fades or turns in place uses the keyframes below as they are. The two that travel
+   have their own, after them (rf-passing, rf-rising): the same moves with their distances in the
+   drawing's units through --ux / --uy, one unit as a percent of the layer's box, as the letter's
+   loops are (tailwind.config.ts, tc-*). A px on a layer is the screen's, not the drawing's. */
 /* the light passing: in, across the face on a slight curve, out */
 @keyframes rf-pass {
   0% { opacity: 0; transform: translateX(0) rotate(-4deg); }
@@ -656,6 +674,18 @@ body {
   0% { opacity: 0; transform: translateY(6px) scale(0.5); }
   30% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-74px) scale(1); }
+}
+/* rf-pass and rf-mote for a piece that is a layer: the same moves, in the drawing's units */
+@keyframes rf-passing {
+  0% { opacity: 0; transform: translateX(0) rotate(-4deg); }
+  12% { opacity: 1; }
+  88% { opacity: 1; transform: translateX(calc(var(--ux) * 340)) rotate(5deg); }
+  100% { opacity: 0; transform: translateX(calc(var(--ux) * 340)) rotate(5deg); }
+}
+@keyframes rf-rising {
+  0% { opacity: 0; transform: translateY(calc(var(--uy) * 6)) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(calc(var(--uy) * -74)) scale(1); }
 }
 
 /* ---------------------------------------------------------------------------------------------

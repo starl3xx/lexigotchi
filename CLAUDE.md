@@ -517,7 +517,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   never loops** (`useFinishMoment` adds `.rf-moment` to the word's row every tier period; globals.css
   `rf-*`; `tests/rarity-finish.test.tsx` fails on an `rf-` animation outside `.rf-moment`, on
   `infinite`, or on a dash-offset animation): only full-size words, on screen, not hungry, not under
-  reduced motion, Save-Data, or 2 GB memory. Never gate motion on `hardwareConcurrency` (iOS reports
+  reduced motion, Save-Data, or 2 GB memory. **In WebKit a moving tile's light is drawn as layers**
+  (decisions.md #43; `TileCharacter` `splitBody` + `useWebKit`, `TileFinish` `momentPieces`): the
+  body is cut where the light sits and each moving piece is its own `<svg>`, its moment on that
+  `<svg>` (a Legendary word at rest: 35% of a core with the light inside the drawing, 17% as layers).
+  Every other engine keeps the one drawing, because slowed headless Chrome measured the layers
+  dearer: measure BOTH engines before touching either path, and compare pictures at frozen times
+  (the at-rest picture must stay pixel for pixel the same). `tests/tile-character.test.tsx` holds
+  the two paths to the same pieces at the same times. Never gate motion on `hardwareConcurrency` (iOS reports
   2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
   from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the

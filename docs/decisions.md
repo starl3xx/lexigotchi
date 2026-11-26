@@ -1325,6 +1325,45 @@ setter. All small, riding existing suite patterns.
       plastic); the case on the share picture and the share video (they draw the bare card);
       more than one style of case (the stored value names the style, so another can follow).
 
+43. **A finished tile's moving light is drawn as layers, in WebKit only** (the "Built light"
+    section of the cards proposal, #34: "the letters' rarity light moments are the largest cost at
+    rest. Put the passing light on a layer over the tile").
+    - **What was wrong.** WebKit redraws a whole `<svg>` on every frame that anything moves
+      inside it, and a moment's light moved inside the letter's own drawing. Measured in headless
+      WebKit, one five-letter word over 40 s: a Common word about 9% of a processor core, an
+      Uncommon one 21%, Rare 23%, Legendary 35%, Mythic 40%. One glint moving alone cost 27%.
+      A tile is in a moment for about five seconds of every seven to ten.
+    - **What changed.** On a finished tile whose light moves, the body is cut where the light
+      sits (`TileCharacter`, `splitBody`), and every moving piece of the light is its own
+      `<svg>` with the moment's animation on that `<svg>` (`TileFinish`, `momentPieces`). The
+      body's idle loop moves to one wrapper round the pieces. Every piece keeps its place in the
+      paint order: the glow under the letter, the streak over it and under the eyes.
+    - **The result, same measure:** Uncommon 10%, Rare 11 to 12%, Legendary 17 to 18%, Mythic
+      31%. On the real Today screen a fed Legendary word went from 36% to 20%, and from 54% to
+      29% with the pointer moving over it.
+    - **Only in WebKit** (`useWebKit`: by the engine's maker, so Chrome on an iPhone counts).
+      Headless Chrome, slowed four times, measured the other way: it draws only what changed,
+      and pays for each layer. A Legendary word cost 99% in one drawing and 106% as layers, a
+      Mythic one 104% and 119%. So every other engine keeps exactly the drawing it had.
+      Measure BOTH engines before changing either path.
+    - **The picture.** Compared in WebKit at eight frozen times, nineteen cases (every rarity,
+      both cases, gilded, Holographic, peckish, hungry, a phone's size): at rest all nineteen are
+      pixel for pixel the same. While the light moves, at most a few hundred pixels of half a
+      million differ by more than 8 levels of 255 (at most 13 by more than 32): the twinkling
+      glints and the light's edge, which a layer turns as a picture where the drawing redrew them.
+    - **What stays one drawing:** a still tile, a hungry one, a small one, reduced motion, a slow
+      device, and a picture in a single file. `npm run docs:art` gives no change.
+    - **Tried and dropped, with the numbers:** the moving pieces left as shapes inside small
+      drawings of their own (34%: no better than one drawing); layers only as big as their piece
+      (no cheaper, and the glints moved a fraction of a pixel at rest); the animation on a plain
+      element holding the drawing (no cheaper).
+    - **Not done: the Holographic foil.** It drifts by a loop on a gradient inside the drawing,
+      for as long as the tile is in focus: a Holographic Mythic word measured 58%, against 40%
+      at stage 4, and layers don't help it (56%). No layer reproduces a drifting gradient
+      exactly, and whether the foil should drift at all, or only in moments, is the owner's to
+      say. A still tile doesn't run it.
+    - **Not checked:** a real iPhone or a real GPU. Every number here is headless.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

@@ -30,7 +30,7 @@
  * Life comes from one timer for a word (useWordLife), never one a tile: blinks, glances, a
  * twinkle. Reduced-motion (spec §7) drops to the still pose carried by eyes, lids, brows, and lean.
  */
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
 import { finishFor, mixHex } from "@/lib/rarityFinish";
 import { LINK_OVERLAP } from "@/components/scenes/layout";
@@ -71,7 +71,7 @@ import {
 } from "./tileShapes";
 
 export { WORD_LEAN, leanFor } from "./tileShapes";
-import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, type FinishMotion } from "./TileFinish";
+import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, finishFace, finishHasMotes, momentPieces, type FinishMotion, type MomentPiece } from "./TileFinish";
 
 export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
 export type TilePose = "rest" | "hero";
@@ -259,6 +259,37 @@ export function useLowPower(): boolean {
   const [low, setLow] = useState(false);
   useEffect(() => setLow(readLowPower()), []);
   return low;
+}
+
+/**
+ * Whether this browser is WebKit: Safari, and every browser and mini-app host on an iPhone (they
+ * all draw with WebKit). Read once and SSR-safe (false until mounted).
+ *
+ * It decides one thing: how a finished tile's moving light is drawn (below, `splitBody`). The two
+ * engines want opposite things, measured on one word over 30 to 40 s:
+ * - WebKit redraws a whole <svg> on every frame that anything moves inside it. With the light as
+ *   shapes inside the letter's drawing a Legendary word cost 35% of a processor core, and 17% with
+ *   each moving piece a layer of its own (a Rare word 23% and 11%; a Common word about 9%).
+ * - Headless Chrome, slowed four times, draws only what changed and pays for each layer instead:
+ *   the same Legendary word cost 99% with the light inside the drawing and 106% as layers (a Mythic
+ *   one 104% and 119%).
+ * So WebKit gets the layers, and every other engine keeps the single drawing it has always had.
+ * By the engine's maker, not the user agent: Chrome on an iPhone is WebKit and says "Apple" here.
+ */
+let webKitCache: boolean | null = null;
+function readWebKit(): boolean {
+  if (webKitCache !== null) return webKitCache;
+  webKitCache = typeof navigator !== "undefined" && /Apple/.test(navigator.vendor ?? "");
+  return webKitCache;
+}
+export function useWebKit(): boolean {
+  const [is, setIs] = useState(false);
+  useEffect(() => setIs(readWebKit()), []);
+  return is;
+}
+/** For tests: read the engine again (it is read once, as it can't change mid-session). */
+export function forgetWebKit() {
+  webKitCache = null;
 }
 
 /**
@@ -817,6 +848,7 @@ export function TileCharacter({
   // A still frame holds the whole character still, not only its finish: a grid of cards would
   // otherwise run each tile's idle loop, hundreds of animations (the Bag's words).
   const reduced = usePrefersReducedMotion() || still;
+  const webKit = useWebKit();
   const lowPower = useLowPower();
   const uid = useId().replace(/:/g, ""); // unique, SVG-id-safe (avoids clip/filter id collisions)
   const holoPaint = `url(#tc-holo-${uid})`;
@@ -925,6 +957,212 @@ export function TileCharacter({
       </svg>
     );
 
+  // ── The body, in the order it is painted ─────────────────────────────────────────────────────
+  // Three still pieces (base, mid, over) with the rarity's light between them. On most tiles all
+  // of it is one layer (`body`, below). On a finished tile whose light moves, in WebKit, the body
+  // is cut where the light sits, and every moving piece of the light is a layer of its own, its
+  // moment run on that layer (./TileFinish, momentPieces). The header's rule is why, and a moment
+  // is where it bit: measured on Today with a fed Legendary word over 40 s, 36% of a processor
+  // core with the light inside the body (one glint moving alone was 27%), 20% cut this way, and
+  // 10% for the same word with no moments. Every piece keeps its place in the paint order: the
+  // glow under the letter, the streak over it and under the eyes.
+  const leaned = (children: ReactNode) => (
+    // static lean (SVG attr), then the hover's rise (globals.css, .tc-perk)
+    <g transform={tiltT}>
+      <g className="tc-perk">{children}</g>
+    </g>
+  );
+  const bodyDefs = (
+    <>
+      {/* Holographic foil: one gradient per tile, drifting unless reduced motion (stage 5 only) */}
+      {g >= 5 && (
+        <defs>
+          <linearGradient id={`tc-holo-${uid}`} x1="0" y1="0" x2="0.6" y2="0.6" spreadMethod="reflect">
+            {HOLO_STOPS.map(([o, c]) => (
+              <stop key={o} offset={o} stopColor={c} />
+            ))}
+            {!reduced && (
+              <animateTransform attributeName="gradientTransform" type="translate" values="0 0; 0.6 0.6; 0 0" dur="6s" repeatCount="indefinite" />
+            )}
+          </linearGradient>
+        </defs>
+      )}
+      <FinishDefs tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
+    </>
+  );
+  // under the light: the glow behind, the rings, the arms, the tile and its material
+  const bodyBase = (
+    <>
+      {/* the rarity's aura, behind the tile */}
+      {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
+
+      {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
+      {upper && <Rings gild={g} holo={holo} />}
+
+      {/* The arms go over the rings and under the face, so an UPPERCASE letter's arms show
+          (they used to hide behind its ring). An arm that holds a neighbour's hand is drawn
+          upright whatever the lean (the lean undone), toward where the hands meet. */}
+      {showLimbs && (linkLeft || linkRight) && (
+        <g transform={tilt ? `rotate(${-tilt} ${CX} ${BOT})` : undefined} filter={boilFilter}>
+          {linkLeft && limb(LINK_L)}
+          {linkRight && limb(LINK_R)}
+        </g>
+      )}
+      {freeArm(armL)}
+      {freeArm(armR)}
+
+      {/* lowercase 3-D bottom edge (the wooden shelf) */}
+      {!upper && <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
+
+      {/* tile face */}
+      <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill={faceFill} stroke={border} strokeWidth={borderW} />
+      {/* the rarity's material, a translucent tint over the face (facets, foil, glitter,
+          frame), then the light passing under the letter */}
+      <FinishSurface tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
+    </>
+  );
+  // the light passing under the letter (a moment)
+  const bodyLight = <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} index={index} />;
+  // the border and the letter
+  const bodyMid = (
+    <>
+      {/* the border again, over the material's edge */}
+      {fin && <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={border} strokeWidth={borderW} />}
+
+      {/* the printed glyph — real text, razor-sharp at any size (spec §9) */}
+      <text x={CX} y={letterY} textAnchor="middle" dominantBaseline="central" fontFamily={letterFont} fontWeight={letterWeight} fontSize={92} fill={letterFill}>
+        {glyph}
+      </text>
+    </>
+  );
+  // the rarity's light over the letter: the streak, the glints, the fire (a moment)
+  const bodyShine = <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} small={finSmall} index={index} />;
+  // over the light: the crown, the pips, the value, the mitts, the eyes
+  const bodyOver = (
+    <>
+      {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
+          still reads via the rings + pips (one crown per letter would clutter / clip) */}
+      {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
+
+      {/* gild pips on the lower face */}
+      <Pips gild={g} holo={holo} plate={!!fin} />
+
+      {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
+          never collides with the inventory count bubble */}
+      {!upper && lod !== "tile" && (
+        <text
+          x={T.x + T.w - 14}
+          y={BOT - 13}
+          textAnchor="end"
+          fontFamily="var(--font-body)"
+          fontWeight={800}
+          fontSize={20}
+          fill={INK}
+          {...(fin ? { stroke: "#fffaf0", strokeWidth: 4, strokeLinejoin: "round" as const, paintOrder: "stroke" } : {})}
+        >
+          {value ?? scrabbleValue(char)}
+        </text>
+      )}
+
+      {/* a mitt that rests on the tile (holding on, hand on hip) */}
+      {frontMitt(armL)}
+      {frontMitt(armR)}
+
+      {/* eyes + brows perched on the top edge */}
+      {showFace && (
+        <g>
+          <Eye ex={CX - eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={-1} face={lidFill} id={`${uid}l`} />
+          <Eye ex={CX + eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={1} face={lidFill} id={`${uid}r`} peek={state === "rolling" && !reduced} peekDelay={(index * PEEK_STEP_S) % PEEK_CYCLE_S} />
+          {expr.brow !== "none" && (
+            <g className="tc-brow" stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round">
+              <path d={browPath(CX - eyeDx, eyeY - eyeRy - 5, expr.brow, -1)} />
+              <path d={browPath(CX + eyeDx, eyeY - eyeRy - 5, expr.brow, 1)} />
+            </g>
+          )}
+        </g>
+      )}
+
+      {/* rare-letter glint — a corner badge (not part of the face), so show it at every LOD
+          incl. dense grids/word rows, matching the legacy tile. Gilded tiles use twinkles.
+          It twinkles in a moment (.tc-spark, useWordLife), never in a loop. */}
+      {RAREST.has(char.toUpperCase()) && g === 0 && (!fin || finSmall) && (
+        <path d={star4(T.x + T.w - 6, T.y + 6, 6, 2.2)} fill={GOLD} stroke={INK} strokeWidth={0.8} className="tc-star" style={PLANT} />
+      )}
+      {/* on a finished tile, the rare-letter mark is a soft gold glint in the same corner */}
+      {RAREST.has(char.toUpperCase()) && g === 0 && fin && !finSmall && (
+        <Glint x={T.x + T.w - 6} y={T.y + 6} s={0.75} color={GOLD} delay={0} anim={false} />
+      )}
+
+      {/* gild twinkles — riding the rings */}
+      <Twinkles gild={g} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
+    </>
+  );
+  // the rarity's motes, drifting up (a moment)
+  const bodyMotes = lod === "full" && finishHasMotes(tier, motion, finDim, index) && <FinishMotes tier={tier} uid={uid} motion={motion} dim={finDim} seed={seed} index={index} />;
+  // Cut only where the light moves, only in WebKit (useWebKit says why), and never in a
+  // single-file picture.
+  const splitBody = webKit && !flat && !!fin && motion === "on";
+  const moment = splitBody ? momentPieces({ tier, uid, bw: borderW, dim: finDim, seed, index }) : null;
+  // a still piece of a cut body
+  const piece = (key: string, children: ReactNode) => (
+    <svg key={key} viewBox={vb} aria-hidden className="overflow-visible" style={LAYER} data-piece={key}>
+      {children}
+    </svg>
+  );
+  // A point of the upright drawing, where the tile's lean puts it (the lean turns about the feet's
+  // middle, as `leaned` does inside a drawing).
+  const leanedPoint = (x: number, y: number): [number, number] => {
+    if (!tilt) return [x, y];
+    const a = (tilt * Math.PI) / 180;
+    const [dx, dy] = [x - CX, y - BOT];
+    return [CX + dx * Math.cos(a) - dy * Math.sin(a), BOT + dx * Math.sin(a) + dy * Math.cos(a)];
+  };
+  // The lean and the hover's rise as LAYERS, for a piece that travels in the tile's leaned frame.
+  const leanedLayers = (children: ReactNode) => (
+    <div style={tilt ? { ...LAYER, transform: `rotate(${tilt}deg)`, transformOrigin: originAt(CX, BOT) } : LAYER}>
+      <div className="tc-perk-layer" style={LAYER}>
+        {children}
+      </div>
+    </div>
+  );
+  // The face, as a cut that stays put while a light crosses it: the same rounded rectangle the
+  // single body clips to (./TileFinish, finishFace), in shares of the layer's box.
+  const faceCut = (children: ReactNode) => {
+    const f = finishFace(borderW);
+    const pct = (n: number) => `${(n * 100).toFixed(3)}%`;
+    const [top, right, bottom, left] = [(f.y - VIEW.y) / VIEW.h, (VIEW.x + VIEW.w - f.x - f.width) / VIEW.w, (VIEW.y + VIEW.h - f.y - f.height) / VIEW.h, (f.x - VIEW.x) / VIEW.w];
+    return <div style={{ ...LAYER, clipPath: `inset(${pct(top)} ${pct(right)} ${pct(bottom)} ${pct(left)} round ${pct(f.rx / VIEW.w)} / ${pct(f.rx / VIEW.h)})` }}>{children}</div>;
+  };
+  // A moving piece of the light: a layer, its moment on the layer (never on a shape inside it).
+  // TileFinish's MomentPiece says what each `frame` is.
+  const momentLayer = (m: MomentPiece) => {
+    const origin = m.origin && (m.frame === "leaned" ? leanedPoint(m.origin[0], m.origin[1]) : m.origin);
+    const svg = (
+      <svg
+        key={m.key}
+        viewBox={vb}
+        aria-hidden
+        className={`overflow-visible ${m.cls}`}
+        data-piece={m.key}
+        style={{ ...LAYER, ...(origin ? { transformOrigin: originAt(origin[0], origin[1]) } : null), ...(m.waits ? { opacity: 0 } : null), animationDelay: `${m.delay.toFixed(2)}s` }}
+      >
+        {m.frame === "leaned" ? leaned(m.children) : m.children}
+      </svg>
+    );
+    if (m.frame === "leaned") return svg;
+    return <Fragment key={m.key}>{leanedLayers(m.frame === "cut" ? faceCut(svg) : svg)}</Fragment>;
+  };
+  // Moving pieces together under one opacity (a peckish word's dimmed light), as the single body
+  // gives a group: where two pieces overlap, a piece-by-piece opacity would come out brighter.
+  const momentGroup = (key: string, opacity: number, pieces: MomentPiece[]) =>
+    pieces.length === 0 ? null : opacity < 1 ? (
+      <div key={key} data-piece={key} style={{ ...LAYER, opacity }}>
+        {pieces.map(momentLayer)}
+      </div>
+    ) : (
+      <Fragment key={key}>{pieces.map(momentLayer)}</Fragment>
+    );
+
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
   const hasFloor = showLimbs || state === "upgrade";
   const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating") || state === "celebrate";
@@ -979,129 +1217,37 @@ export function TileCharacter({
         originAt(CX, FOOT_Y - 6),
       ),
 
-    // the body: glow, rings, arms, the tile and its face
-    layer(
-      "body",
-      <>
-        {/* Holographic foil: one gradient per tile, drifting unless reduced motion (stage 5 only) */}
-        {g >= 5 && (
-          <defs>
-            <linearGradient id={`tc-holo-${uid}`} x1="0" y1="0" x2="0.6" y2="0.6" spreadMethod="reflect">
-              {HOLO_STOPS.map(([o, c]) => (
-                <stop key={o} offset={o} stopColor={c} />
-              ))}
-              {!reduced && (
-                <animateTransform attributeName="gradientTransform" type="translate" values="0 0; 0.6 0.6; 0 0" dur="6s" repeatCount="indefinite" />
-              )}
-            </linearGradient>
-          </defs>
-        )}
-        <FinishDefs tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
-
-        {/* static lean (SVG attr), then the hover's rise (globals.css, .tc-perk) */}
-        <g transform={tiltT}>
-          <g className="tc-perk">
-            {/* the rarity's aura, behind the tile */}
-            {lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
-
-            {/* UPPERCASE ring stack — pale-blue LHAW skin + any gild brass/sheen, all contiguous */}
-            {upper && <Rings gild={g} holo={holo} />}
-
-            {/* The arms go over the rings and under the face, so an UPPERCASE letter's arms show
-                (they used to hide behind its ring). An arm that holds a neighbour's hand is drawn
-                upright whatever the lean (the lean undone), toward where the hands meet. */}
-            {showLimbs && (linkLeft || linkRight) && (
-              <g transform={tilt ? `rotate(${-tilt} ${CX} ${BOT})` : undefined} filter={boilFilter}>
-                {linkLeft && limb(LINK_L)}
-                {linkRight && limb(LINK_R)}
-              </g>
-            )}
-            {freeArm(armL)}
-            {freeArm(armR)}
-
-            {/* lowercase 3-D bottom edge (the wooden shelf) */}
-            {!upper && <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
-
-            {/* tile face */}
-            <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill={faceFill} stroke={border} strokeWidth={borderW} />
-            {/* the rarity's material, a translucent tint over the face (facets, foil, glitter,
-                frame), then the light passing under the letter */}
-            <FinishSurface tier={tier} uid={uid} bw={borderW} small={finSmall} motion={motion} />
-            <FinishLight tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} index={index} />
-            {/* the border again, over the material's edge */}
-            {fin && <rect x={T.x} y={T.y} width={T.w} height={T.h} rx={T.r} fill="none" stroke={border} strokeWidth={borderW} />}
-
-            {/* the printed glyph — real text, razor-sharp at any size (spec §9) */}
-            <text x={CX} y={letterY} textAnchor="middle" dominantBaseline="central" fontFamily={letterFont} fontWeight={letterWeight} fontSize={92} fill={letterFill}>
-              {glyph}
-            </text>
-
-            {/* the rarity's light over the letter (the streak, the glints, the fire) */}
-            <FinishShine tier={tier} uid={uid} bw={borderW} motion={motion} dim={finDim} small={finSmall} index={index} />
-
-            {/* crown topper (gild 4) — a full-character flourish; in compact word rows the gild
-                still reads via the rings + pips (one crown per letter would clutter / clip) */}
-            {showLimbs && g >= 4 && <Crown base={TOP - ringOuter(g)} paint={g >= 5 ? holo : GOLD} />}
-
-            {/* gild pips on the lower face */}
-            <Pips gild={g} holo={holo} plate={!!fin} />
-
-            {/* point value — lowercase only, bottom-right; hidden in dense (tile) LOD so it
-                never collides with the inventory count bubble */}
-            {!upper && lod !== "tile" && (
-              <text
-                x={T.x + T.w - 14}
-                y={BOT - 13}
-                textAnchor="end"
-                fontFamily="var(--font-body)"
-                fontWeight={800}
-                fontSize={20}
-                fill={INK}
-                {...(fin ? { stroke: "#fffaf0", strokeWidth: 4, strokeLinejoin: "round" as const, paintOrder: "stroke" } : {})}
-              >
-                {value ?? scrabbleValue(char)}
-              </text>
-            )}
-
-            {/* a mitt that rests on the tile (holding on, hand on hip) */}
-            {frontMitt(armL)}
-            {frontMitt(armR)}
-
-            {/* eyes + brows perched on the top edge */}
-            {showFace && (
-              <g>
-                <Eye ex={CX - eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={-1} face={lidFill} id={`${uid}l`} />
-                <Eye ex={CX + eyeDx} ey={eyeY} rx={eyeRx} ry={eyeRy} expr={expr} side={1} face={lidFill} id={`${uid}r`} peek={state === "rolling" && !reduced} peekDelay={(index * PEEK_STEP_S) % PEEK_CYCLE_S} />
-                {expr.brow !== "none" && (
-                  <g className="tc-brow" stroke={INK} strokeWidth={4.6} fill="none" strokeLinecap="round">
-                    <path d={browPath(CX - eyeDx, eyeY - eyeRy - 5, expr.brow, -1)} />
-                    <path d={browPath(CX + eyeDx, eyeY - eyeRy - 5, expr.brow, 1)} />
-                  </g>
-                )}
-              </g>
-            )}
-
-            {/* rare-letter glint — a corner badge (not part of the face), so show it at every LOD
-                incl. dense grids/word rows, matching the legacy tile. Gilded tiles use twinkles.
-                It twinkles in a moment (.tc-spark, useWordLife), never in a loop. */}
-            {RAREST.has(char.toUpperCase()) && g === 0 && (!fin || finSmall) && (
-              <path d={star4(T.x + T.w - 6, T.y + 6, 6, 2.2)} fill={GOLD} stroke={INK} strokeWidth={0.8} className="tc-star" style={PLANT} />
-            )}
-            {/* on a finished tile, the rare-letter mark is a soft gold glint in the same corner */}
-            {RAREST.has(char.toUpperCase()) && g === 0 && fin && !finSmall && (
-              <Glint x={T.x + T.w - 6} y={T.y + 6} s={0.75} color={GOLD} delay={0} anim={false} />
-            )}
-
-            {/* gild twinkles — riding the rings */}
-            <Twinkles gild={g} holo={holo} soft={fin && !finSmall ? fin.glow : undefined} />
-
-            {/* the rarity's motes, drifting up */}
-            {lod === "full" && <FinishMotes tier={tier} uid={uid} motion={motion} dim={finDim} seed={seed} index={index} />}
-          </g>
-        </g>
-      </>,
-      bodyAnim,
-      originAt(CX, BOT),
+    // the body: glow, rings, arms, the tile and its face (above: its pieces, and when they part)
+    splitBody && moment ? (
+      // The idle loop is on this wrapper, as it is on the body layer: a piece can't carry it and
+      // its own moment.
+      <div key="body" data-piece="body" className={bodyAnim} style={{ ...LAYER, transformOrigin: originAt(CX, BOT), ...phase }}>
+        {piece("base", <>{bodyDefs}{leaned(bodyBase)}</>)}
+        {momentGroup("light", moment.opacity, moment.under)}
+        {piece("mid", leaned(bodyMid))}
+        {momentGroup("shine", moment.opacity, moment.over)}
+        {piece("over", leaned(bodyOver))}
+        {momentGroup("motes", 1, moment.motes)}
+      </div>
+    ) : (
+      layer(
+        "body",
+        <>
+          {bodyDefs}
+          {leaned(
+            <>
+              {bodyBase}
+              {bodyLight}
+              {bodyMid}
+              {bodyShine}
+              {bodyOver}
+              {bodyMotes}
+            </>,
+          )}
+        </>,
+        bodyAnim,
+        originAt(CX, BOT),
+      )
     ),
 
     // the top: what stands still in front of the body
