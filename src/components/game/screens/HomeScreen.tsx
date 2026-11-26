@@ -116,14 +116,24 @@ export function TodayPots() {
         </span>
         {standing && (
           <span className={`mt-1 block ${STANDING_TONE[standing.tone]}`}>
-            {standing.text}
+            {standing.secret ? (
+              // the eye stays with the last word, never on a line of its own
+              <>
+                {standing.text.slice(0, standing.text.lastIndexOf(" ") + 1)}
+                <span className="whitespace-nowrap">
+                  {standing.text.slice(standing.text.lastIndexOf(" ") + 1)}
+                  <Eye weight="fill" size={13} className="ml-1 inline align-[-2px]" aria-hidden />
+                </span>
+              </>
+            ) : (
+              standing.text
+            )}
             {standing.word && (
               <>
                 {" "}
                 <strong className="font-display">{standing.word}</strong>
               </>
             )}
-            {standing.secret && <Eye weight="fill" size={13} className="ml-1 inline align-[-2px]" aria-hidden />}
           </span>
         )}
       </PotTile>
@@ -168,14 +178,17 @@ function PotTile({
       onClick={onClick}
       className={`cel-sm press flex min-w-0 flex-col rounded-2xl bg-card bg-gradient-to-b p-3 text-left md:p-4 ${t.tile}`}
     >
-      {/* A phone's tile is ~114 px: the icon goes above the name there, so "Rewards Pool" keeps one
-          line and the three amounts stand level. From md, beside it. */}
-      <span className="flex flex-col-reverse items-start gap-1 md:flex-row md:justify-between">
+      {/* A narrow tile (a phone's ~114 px, a 768 px tablet's ~149 px beside the rail): the icon
+          goes above the name, so "Rewards Pool" keeps one line and the three amounts stand level.
+          From lg, beside it. */}
+      <span className="flex flex-col-reverse items-start gap-1 lg:flex-row lg:justify-between">
         <span className="min-w-0 text-xs font-bold leading-tight text-ink/60 md:text-sm">{label}</span>
         <span className={`press-icon shrink-0 ${t.icon}`}>{icon}</span>
       </span>
-      {/* One size down under 380 px: "123.45M" needs ~85 px, and a 360 px phone's tile has 80. */}
-      <span className={`mt-1 font-display text-lg font-extrabold leading-none min-[380px]:text-xl md:text-3xl ${t.amount}`}>
+      {/* Sized to fit "776.74M" (the test game's Rewards Pool) in every tile: one size down under
+          380 px (a 360 px phone's tile has 80 px), and 24 px from md, where the rail leaves a 768 px
+          screen's tile 117 px inside. The full 30 px from lg. */}
+      <span className={`mt-1 font-display text-lg font-extrabold leading-none min-[380px]:text-xl md:text-2xl lg:text-3xl ${t.amount}`}>
         {known ? <TweenNumber value={word} format={(v) => potLine(v, o).amount} /> : line.amount}
       </span>
       <span className="mt-1 text-xs text-ink/60">{line.unit}</span>

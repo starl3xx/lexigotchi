@@ -1436,9 +1436,13 @@ setter. All small, riding existing suite patterns.
     - **Still no dollars for test $WORD** (`showsUsd`, #172: a dollar figure beside test $WORD
       made a tester expect their real $WORD to count). So the live test game shows three amounts
       in "test $WORD" and no dollars; practice mode and mainnet show the dollars.
-    - **Seen:** Chromium and WebKit at 360 px, 390 px, and 1280 px, also with the longest likely
-      text ("888.88M", "about $888.8K", the longest theme): equal tiles, nothing under 12 px,
-      nothing overflowing (the amount steps down one size under 380 px for that).
+    - **Seen:** practice mode in Chromium and WebKit at 360, 390, 768, 820, 1024, and 1280 px,
+      also with the longest likely text ("888.88M", "about $888.8K", the longest theme; the test
+      game's Rewards Pool read 776.74M that day): equal tiles, nothing under 12 px, nothing
+      overflowing, the three amounts level. For that, the amount is 18 px under 380 px, 20 px on
+      phones, 24 px from md, and 30 px from lg, and the icon sits above the name until lg. **Not
+      seen:** the chain game's Today in a browser (its pots were read from Base Sepolia by a
+      script, and the tiles were drawn from fake state in jsdom).
 
 ## Pricing & launch economics (decided June 2026)
 
