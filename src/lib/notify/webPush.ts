@@ -68,6 +68,15 @@ export function buildWebPushPayload(n: Notification): string {
   });
 }
 
+/** The push service's host, for a log line: an endpoint's path is the browser's secret. */
+function hostOf(endpoint: string): string {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return "an unreadable address";
+  }
+}
+
 const CONCURRENCY = 50;
 /** A reminder that arrives a day late is worse than none: hunger warnings are about the next ~30h. */
 const TTL_SECONDS = 12 * 3600;
@@ -109,10 +118,16 @@ export async function sendWebPush(
     results.forEach((r, j) => {
       if (r.status === "fulfilled") return void delivered++;
       const status = (r.reason as { statusCode?: number } | undefined)?.statusCode;
-      if (status === 404 || status === 410) gone.push(chunk[j].endpoint);
-      else {
+      // Every push that didn't go out is logged with the service's answer and its HOST, never the
+      // endpoint (the browser's secret address). "Gone" used to be silent, and the first real
+      // opt-in vanished that way with nothing to read afterwards (lib/notify/confirmPush.ts).
+      const host = hostOf(chunk[j].endpoint);
+      if (status === 404 || status === 410) {
+        gone.push(chunk[j].endpoint);
+        console.warn(`[web-push] the push service says a subscription is gone: ${status} from ${host}`);
+      } else {
         failed++;
-        console.error("[web-push] send failed:", status ?? (r.reason instanceof Error ? r.reason.message : "unknown"));
+        console.error(`[web-push] send failed: ${status ?? (r.reason instanceof Error ? r.reason.message : "unknown")} from ${host}`);
       }
     });
   }
