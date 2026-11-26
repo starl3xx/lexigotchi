@@ -468,8 +468,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   are SVG documents built as strings (`lib/cardArt/engrave.ts` = the kit and its rules,
   `scenes.ts` = the art; `tests/scenes.test.tsx` holds the rules: no text, filters, or fetches, every
   number finite, ids unique), shown as background images in the game and placed as `<img>` on the
-  share picture: no shapes in the page (a scene was 1,000 elements; Today at rest went from about
-  53% of a core to 8% in WebKit). **The letters stand on `FEET_Y`** (two thirds down), sized by
+  share picture: no shapes in the page (a scene was 1,000 elements; Today at rest with a fed word
+  on stage went from about 53% of a core to 8% in WebKit). **The letters stand on `FEET_Y`** (two thirds down), sized by
   `scenes/layout.ts` (`wordLayout`, shared with the share picture). **Curved ground is one rule:** a
   scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
   is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands

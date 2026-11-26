@@ -14,7 +14,7 @@ import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
 import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
-import { cardNumberOf } from "@/lib/onchain/cardNumbers";
+import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
 
 /**
  * A word's share picture: its card (decisions.md #33), as the game draws it. The card's own paper,
@@ -34,7 +34,8 @@ import { cardNumberOf } from "@/lib/onchain/cardNumbers";
  *   card"). Its license is beside it (public/fonts/texgyrepagella-LICENSE.txt). The picture's
  *   figures are lining ones: this renderer sets no old-style figures.
  * - **The card's number is the chain's,** never the link's: nothing in the query can put a number
- *   on a card. A word with no number yet, and a house card, have none on the ribbon.
+ *   on a card. A word with no number yet, and a house card, have none on the ribbon. The picture
+ *   waits a second and a half for the number at most, then is drawn without it.
  *
  * No name on a link card (decisions.md #23): X prints the site under the card and the post names
  * @lexigotchi; Farcaster's card carries the game's button. `?saved=1` is the picture that travels
@@ -72,7 +73,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const word = tiles.map((t) => t.char).join("");
   const tier = isWord(word) ? wordTier(word) : undefined;
   const look = CARD_LOOKS[tier ?? PLAIN];
-  const number = tier ? await cardNumberOf(word).catch(() => null) : null;
+  // Not for long: a crawler is waiting for this picture (cardNumberSoon). A picture drawn without
+  // its number is kept for minutes only, below.
+  const number = tier ? await cardNumberSoon(word) : null;
   const no = cardNo(number);
 
   // The same layout the game uses (scenes/layout.ts), at this card's scale.

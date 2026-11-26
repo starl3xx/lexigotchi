@@ -47,6 +47,25 @@ export async function cardNumbersOf(words: readonly string[]): Promise<Record<st
   return out;
 }
 
+/**
+ * How long a picture or a page waits for a word's number before it is drawn without one. The read
+ * behind it scans the chain's events, and a share picture is fetched by X's and Farcaster's
+ * crawlers, which don't wait long. The read carries on, so the next request finds the number.
+ */
+export const NUMBER_WAIT_MS = 1500;
+
+/**
+ * One word's number, or null if it isn't known within `ms`: for a caller that must answer soon
+ * (the share picture, the share page). Never throws.
+ */
+export function cardNumberSoon(word: string, ms = NUMBER_WAIT_MS): Promise<number | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  return Promise.race([cardNumberOf(word).catch(() => null), late]).finally(() => clearTimeout(timer));
+}
+
 /** Tests only: forget what was read. */
 export function resetCardNumbers() {
   order = null;

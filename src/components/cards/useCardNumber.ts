@@ -25,15 +25,24 @@ export function useCardNumbers(): Record<string, number> {
     // a word made a moment ago has no number for up to a minute: ask again until every word has one
     refetchInterval: (q) => (names.every((w) => q.state.data?.[w]) ? false : 60_000),
     queryFn: async (): Promise<Record<string, number>> => {
-      const res = await fetch(`/api/words/numbers?words=${names.join(",")}`);
-      if (!res.ok) throw new Error(`numbers ${res.status}`);
-      const d = (await res.json()) as { numbers?: Record<string, number> };
-      return d.numbers ?? {};
+      // the route takes a short list (it answers for any caller): a large bag asks in parts
+      const parts: string[][] = [];
+      for (let i = 0; i < names.length; i += WORDS_PER_ASK) parts.push(names.slice(i, i + WORDS_PER_ASK));
+      const answers = await Promise.all(
+        parts.map(async (part) => {
+          const res = await fetch(`/api/words/numbers?words=${part.join(",")}`);
+          if (!res.ok) throw new Error(`numbers ${res.status}`);
+          return ((await res.json()) as { numbers?: Record<string, number> }).numbers ?? {};
+        }),
+      );
+      return Object.assign({}, ...answers);
     },
   });
   return chain ? (read.data ?? EMPTY) : practice;
 }
 const EMPTY: Record<string, number> = {};
+/** Under the route's own limit (200), with room to spare. */
+export const WORDS_PER_ASK = 150;
 
 export function useCardNumber(word: string | undefined): number | null {
   const numbers = useCardNumbers();

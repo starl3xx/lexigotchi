@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const chain = vi.hoisted(() => ({ deployed: false, numberOf: vi.fn(async (_word: string): Promise<number | null> => null) }));
 vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), isSuiteDeployed: () => chain.deployed }));
-vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberOf: chain.numberOf }));
+vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: chain.numberOf }));
 
 const { GET } = await import("@/app/s/[text]/card/route");
 
@@ -68,10 +68,6 @@ describe("a word's share picture", () => {
     expect((await get("CRAne")).headers.get("cache-control")).toMatch(LONG);
     chain.numberOf.mockResolvedValue(null); // made a moment ago
     expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
-    chain.numberOf.mockRejectedValue(new Error("rpc down"));
-    const res = await get("CRAne");
-    expect(res.status).toBe(200); // the picture is still drawn, without a number
-    expect(res.headers.get("cache-control")).toMatch(SHORT);
     // a house card has no number to wait for
     expect((await get("HEYOO")).headers.get("cache-control")).toMatch(LONG);
   }, 60_000);

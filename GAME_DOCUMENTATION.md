@@ -245,13 +245,18 @@ A staked word's care state is a function of days since last fed:
   word are the cards that move.
 - **Sharing:** open one of your own words and tap Share under its card, to post it on X first or
   cast it on Farcaster, or to save its picture. Each share links to `/s/<word>?scene=<scene>`,
-  whose card draws the word standing in that scene (1200×630 for X's large card, 3:2 for the
-  Farcaster embed). The page and card draw dictionary words only, never free text (decisions.md
+  whose picture is the word's card, in that scene, on a dark table (1200×630 for X's large card,
+  3:2 for the Farcaster embed). The page and card draw dictionary words only, never free text (decisions.md
   #15). Offchain, read-only vanity: no NFT, no fee. The primary organic growth loop (every shared
   word is an ad). The Showcase screen that did this folded into the cards.
-- **Scenes:** each word's home, drawn behind it on the Today stage, on its card, and on the share
-  card (`src/lib/scenes.ts`, `src/components/scenes/`). The Stage for everyone; Trophy Case, Picture
-  Day, Spring, Summer, Fall, and Winter unlock once a player has held 3 words, and stay unlocked.
+- **Scenes and the card's front** (decisions.md #33): a word's card is an object: its own paper,
+  its scene in a window, a frame in the rarity's ink with the rarity's mark in its corners, and a
+  ribbon ("one of one", the card's number, the rarity). It shows on the Today stage, in the Bag,
+  and on the share picture (`src/lib/scenes.ts`, `src/lib/cardArt/`, `src/components/scenes/`).
+  Every word starts on the stock card (grey, the rarity as an overtone); the Stage is free for
+  everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
+  unlocked. Picture Day, Summer, Fall, and Winter are retired. A scene is a still engraving and
+  never moves; the card in focus catches a faint light and leans a little toward a pointer.
   A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
   keyed by the wallet holding the word; decisions.md #15).

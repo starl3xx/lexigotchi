@@ -939,22 +939,29 @@ setter. All small, riding existing suite patterns.
     - **What it measured** (headless WebKit on the owner's Mac, the real Today screen in practice
       mode at 2× pixels, the pointer away, two runs each; a real iPhone hasn't been measured): with
       a fed Common word on stage, 50% and 57% of a processor core before, 8% and 9% after. The old
-      scene's own loops were nearly all of it. The card's light adds nothing measurable: the lean
+      scene's own loops were nearly all of it. **That is a fed word only.** With a hungry word on
+      stage, which Today shows first, it was 54% before and 47% after: the sleeping letters' "Zzz"
+      is nearly all of that (44% with it, 5% with it held still, measured the same way), and it is
+      the letters', not the scene's. The card's light adds nothing measurable: the lean
       follows the pointer by writing its transform directly, with no transition (a transition
       restarted on every frame cost a third of a core).
     - **The share picture** is the card on a dark table, in X's shape (1.91:1) and Farcaster's
       (3:2); `?face=1` is the card's front alone, 16:9, which the share video turns over. The
-      number on a share picture is the chain's, never the link's. `CARD_LOOK` is 3.
+      number on a share picture is the chain's, never the link's, and the picture waits a second
+      and a half for it at most (a crawler is waiting), then is drawn without it and kept for
+      minutes only. `CARD_LOOK` is 3.
     - **The turn.** At rest the face turned away is hidden outright. Headless WebKit kept drawing
       the back, mirrored, over the front after a turn home (it did before this change too).
     - **My readings, not starl3xx's words:** a share link with no scene keeps meaning the Stage
       (such links are posted for good), so the stock card is named in its link; the 3-word unlock
       now opens two scenes; the front does not lean with a phone's tilt; the Bag's rarity badge
       moved off the art to the line under the card, where the mark is large enough to read.
-    - **Not in this step:** the back's new lettering and the game's seal (logo B), the status
+    - **Not in this step:** the back's new lettering and the game's seal (logo B), so until
+      then the front letters its number "No. 0003" and the back "#0003"; the status
       placard under the Today card, the logo's new eyes and the exports of both marks, and the
       Shop's scenes and plastic case. Found on the way, and not this change's: a hungry word's
-      "Zzz" loops inside each letter's top layer, and costs about half a core at rest.
+      "Zzz" loops inside each letter's top layer (the layer rule of #28, broken), and costs about
+      40 points of a core at rest. Its fix is the next change.
 
 ## Pricing & launch economics (decided June 2026)
 

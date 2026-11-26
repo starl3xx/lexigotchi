@@ -7,7 +7,7 @@ import { wordTier } from "@/lib/economy";
 import { isWord } from "@/lib/dictionary";
 import { parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
 import { parseLinkScene, sceneMeta } from "@/lib/scenes";
-import { cardNumberOf } from "@/lib/onchain/cardNumbers";
+import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
 import { BASE_APP_ID, embedsWithImage } from "@/lib/site";
 
 /**
@@ -51,9 +51,10 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
   const word = tiles.map((t) => t.char).join("");
   const upper = tiles.map((t) => t.upper);
   // A house card (HEYOO) is no dictionary word: it has no rarity and no number, and its card says so
-  // by carrying no ribbon. A word's number is the chain's, never the link's.
+  // by carrying no ribbon. A word's number is the chain's, never the link's, and the page waits
+  // for it only a moment (cardNumberSoon).
   const tier = isWord(word) ? wordTier(word) : undefined;
-  const number = tier ? await cardNumberOf(word).catch(() => null) : null;
+  const number = tier ? await cardNumberSoon(word) : null;
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-8 bg-paper px-4 py-12 text-ink">

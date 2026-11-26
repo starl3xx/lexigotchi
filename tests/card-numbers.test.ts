@@ -8,7 +8,7 @@ const chain = vi.hoisted(() => ({ deployed: true, read: vi.fn(async (): Promise<
 vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), isSuiteDeployed: () => chain.deployed }));
 vi.mock("@/lib/keeper/scan", () => ({ readMadeOrder: chain.read }));
 
-const { cardNumberOf, cardNumbersOf, resetCardNumbers } = await import("@/lib/onchain/cardNumbers");
+const { NUMBER_WAIT_MS, cardNumberOf, cardNumberSoon, cardNumbersOf, resetCardNumbers } = await import("@/lib/onchain/cardNumbers");
 const { GET } = await import("@/app/api/words/numbers/route");
 
 beforeEach(() => {
@@ -64,6 +64,24 @@ describe("card numbers on the server", () => {
     expect(await cardNumberOf("CRANE")).toBeNull();
     expect(await cardNumbersOf(["CRANE"])).toEqual({});
     expect(chain.read).not.toHaveBeenCalled();
+  });
+
+  it("answers a caller in a hurry within a second and a half, and has the number for the next one", async () => {
+    // a share picture is fetched by a crawler that won't wait for a slow scan of the chain
+    let land: (map: Record<string, number>) => void = () => {};
+    chain.read.mockReturnValue(new Promise((resolve) => (land = resolve)));
+    const soon = cardNumberSoon("CRANE");
+    await vi.advanceTimersByTimeAsync(NUMBER_WAIT_MS + 10);
+    expect(await soon).toBeNull();
+    land({ CRANE: 3 }); // the read carries on and lands
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await cardNumberSoon("CRANE")).toBe(3);
+    expect(chain.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives a caller in a hurry nothing, and no error, when the read fails", async () => {
+    chain.read.mockRejectedValue(new Error("rpc down"));
+    expect(await cardNumberSoon("CRANE")).toBeNull();
   });
 
   it("leaves out the words that have no number", async () => {
