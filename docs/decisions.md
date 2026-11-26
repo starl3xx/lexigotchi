@@ -941,8 +941,8 @@ setter. All small, riding existing suite patterns.
       a fed Common word on stage, 50% and 57% of a processor core before, 8% and 9% after. The old
       scene's own loops were nearly all of it. **That is a fed word only.** With a hungry word on
       stage, which Today shows first, it was 54% before and 47% after: the sleeping letters' "Zzz"
-      is nearly all of that (44% with it, 5% with it held still, measured the same way), and it is
-      the letters', not the scene's. The card's light adds nothing measurable: the lean
+      was nearly all of that (44% with it, 5% with it held still, measured the same way), and it was
+      the letters', not the scene's (PR #227 put each z on a layer of its own). The card's light adds nothing measurable: the lean
       follows the pointer by writing its transform directly, with no transition (a transition
       restarted on every frame cost a third of a core).
     - **The share picture** is the card on a dark table, in X's shape (1.91:1) and Farcaster's
@@ -960,8 +960,9 @@ setter. All small, riding existing suite patterns.
       then the front letters its number "No. 0003" and the back "#0003"; the status
       placard under the Today card, the logo's new eyes and the exports of both marks, and the
       Shop's scenes and plastic case. Found on the way, and not this change's: a hungry word's
-      "Zzz" loops inside each letter's top layer (the layer rule of #28, broken), and costs about
-      40 points of a core at rest. Its fix is the next change.
+      "Zzz" looped inside each letter's top layer (the layer rule of #28, broken), and cost about
+      40 points of a core at rest. Fixed beside this change (PR #227: a layer for each z), so a
+      hungry word on the new card measures 5% too.
 
 ## Pricing & launch economics (decided June 2026)
 
