@@ -142,7 +142,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `reminder_prefs`, migration 0018, `/api/profile/reminders`, the profile's "What to tell me"
   card): a player's ACCOUNT chooses which kinds it gets, for every channel at once. Only what was
   CHANGED is stored; the rest follows `KIND_INFO[kind].on`, so a player who changes nothing gets
-  what they got before. **Every sender asks `loadPrefs()` first**: a missing table is the defaults
+  what they got before. **Migration 0018 ran in production (the Sepolia build) on 2026-11-26**
+  (both tables checked with a read-only query: `migrate` can say "applied" and skip one), so the
+  choices save, the new email kinds send, and the weekly email can be chosen. **Every sender asks `loadPrefs()` first**: a missing table is the defaults
   (the migration hasn't run), but a FAILED read is `known: false` and that pass sends nothing,
   because someone may have turned the kind off. A new kind is added to `REMINDER_KINDS` with its
   default (off, if it would be another daily message) and its sender asks the book. `reminder_marks`
