@@ -1,16 +1,17 @@
 "use client";
 /**
  * Mint — pull lowercase letters: the free letters for verified players (a pack of 5 plus 10 daily
- * letters, decisions.md #21) and paid packs of 5. Odds mirror the dictionary.
+ * letters, decisions.md #21) and paid packs of 5. Under them, every letter's odds (LetterOdds).
  */
-import { LETTERS_BY_FREQUENCY, TOTAL_SLOTS } from "@/lib/economy";
 import { Button, Card, Countdown, SectionTitle } from "../primitives";
 import { LetterTile } from "../LetterTile";
-import { Check, Diamond, Package, Ticket } from "../ui/icons";
+import { Check, Package, Ticket } from "../ui/icons";
 import { fmtUsd, fmtWord, idxToChar, showsUsd, useGame } from "../state";
 import { DailyUnlock, useDailyEligibility } from "../DailyUnlock";
 import { useState } from "react";
 import { PendingReveal } from "../PendingReveal";
+import { LetterOdds, supplyStatus } from "../LetterOdds";
+import { useLetterSupply } from "../useLetterSupply";
 
 export function MintScreen() {
   const g = useGame();
@@ -24,8 +25,8 @@ export function MintScreen() {
   const packPrice = g.price("pack");
   // Every letter in the game is minted or promised to an open pack: the contract would refuse.
   const soldOut = g.lettersLeft !== null && g.lettersLeft < 5;
-  const common = LETTERS_BY_FREQUENCY.slice(0, 5);
-  const rare = LETTERS_BY_FREQUENCY.slice(-5);
+  // Each letter's supply (chain game only): a sold-out letter leaves the draw, and the odds say so.
+  const supply = useLetterSupply();
 
   return (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
@@ -159,29 +160,13 @@ export function MintScreen() {
         )}
       </Card>
 
-      {/* odds preview */}
-      <Card>
-        <SectionTitle>The odds mirror the dictionary</SectionTitle>
-        <div className="space-y-3">
-          <div>
-            <div className="mb-1 text-xs font-bold text-ink/60">Most common</div>
-            <div className="flex gap-2">
-              {common.map((L) => <LetterTile key={L} char={L} size={38} />)}
-            </div>
-          </div>
-          <div>
-            <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold text-ink/60">
-              Grails <Diamond weight="fill" size={11} className="text-gold-ink" />
-            </div>
-            <div className="flex gap-2">
-              {rare.map((L) => <LetterTile key={L} char={L} size={38} />)}
-            </div>
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-ink/55">
-          A letter’s pull rate = its share of the {TOTAL_SLOTS.toLocaleString("en-US")} dictionary slots. Q is the Charizard.
-        </p>
-      </Card>
+      {/* every letter's odds, the whole alphabet: not a card (components/game/LetterOdds) */}
+      <LetterOdds
+        className="pt-2 lg:col-span-2"
+        available={supply.data?.available}
+        caps={supply.data?.caps}
+        status={supplyStatus(state.chainBacked, !!supply.data, supply.isPending)}
+      />
     </div>
   );
 }

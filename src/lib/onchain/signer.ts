@@ -32,7 +32,7 @@ import { createHmac } from "node:crypto";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import type { Hex } from "viem";
 import { NETWORK } from "./network";
-import { LETTER_ODDS, ALPHABET } from "@/lib/economy";
+import { letterWeights } from "@/lib/letterOdds";
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -109,14 +109,15 @@ export function drawLetters(
   available: readonly number[],
   ns: "letters" | "daily" = "letters",
 ): number[] {
-  const total = ALPHABET.reduce((a, ch, i) => a + ((available[i] ?? 0) > 0 ? (LETTER_ODDS[ch] ?? 0) : 0), 0);
+  // The weights are lib/letterOdds.ts's, the same ones the Mint tab shows as each letter's odds.
+  const total = letterWeights(available).reduce((a, b) => a + b, 0);
   if (total <= 0) throw new Error("No uncapped letters remain — cannot draw.");
 
   // Local copy so a multi-letter draw can't exceed a nearly-exhausted letter's remaining supply.
   const remaining = [...available];
   const out: number[] = [];
   for (let k = 0; k < count; k++) {
-    const live = ALPHABET.map((ch, i) => ((remaining[i] ?? 0) > 0 ? (LETTER_ODDS[ch] ?? 0) : 0));
+    const live = letterWeights(remaining);
     const sum = live.reduce((a, b) => a + b, 0);
     if (sum <= 0) throw new Error("Ran out of uncapped letters mid-draw.");
     let r = unitFloat(ns, contract, commitId, k) * sum;

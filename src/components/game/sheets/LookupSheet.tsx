@@ -20,14 +20,11 @@
  * The player's own words never open here: they open their card (sheets/WordSheet).
  */
 import { useMemo, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
 import { LETTER_ODDS, LETTER_SUPPLY_CAP, RANKED_WORDS, wordTier } from "@/lib/economy";
 import { cardNumber, wordPoints } from "@/lib/cardFacts";
 import { stageName } from "@/lib/ascension";
 import { dailyEarnEstimate } from "@/lib/wordCost";
-import { readLetterSupply } from "@/lib/onchain/reads";
-import { NETWORK } from "@/lib/onchain/network";
 import { article, finishedBy, nameList, needNote, needParts, needTokens, ordinal, wordNeed } from "@/lib/wordNeed";
 import { Button, Sheet, TierBadge } from "../primitives";
 import { TileCharacter, TileWord, type Gild } from "../TileCharacter";
@@ -38,6 +35,7 @@ import { rarestFirst, versus, versusLabel } from "@/lib/market/deals";
 import { timeAgo } from "../market/bits";
 import { useWorld } from "../useWorld";
 import { useDictionary } from "../useDictionary";
+import { useLetterSupply } from "../useLetterSupply";
 import { queueSpell } from "../spellHandoff";
 import { THEMES, fmtWord, useGame } from "../state";
 
@@ -47,17 +45,6 @@ const ALL_UPPER = [true, true, true, true, true];
 const RAREST = new Map(RANKED_WORDS.map((r) => [r.word, WORD_COUNT - r.rank]));
 const STAGE = 54; // a letter character's width on the stage, px
 const idx = (letter: string) => letter.toUpperCase().charCodeAt(0) - 65;
-
-/** Each letter's supply from the chain: how many can ever exist, and how many are left to mint. Chain game only. */
-function useLetterSupply(enabled: boolean) {
-  const { state } = useGame();
-  return useQuery({
-    queryKey: ["letterSupply", NETWORK.id],
-    enabled: enabled && state.chainBacked,
-    staleTime: 5 * 60_000,
-    queryFn: readLetterSupply,
-  });
-}
 
 export function LookupSheet({ word }: { word: string }) {
   const g = useGame();
