@@ -122,7 +122,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `PlayerNote` per account (who, what, an email ledger). It asks the choices, sends to Farcaster or
   else the account's browsers, and emails under a send-once mark. A sale (`sold.ts`), a payday and
   a bounty share (`paid.ts`, fed the payout's `RewardClaimed` events: only what LANDED is "paid")
-  use it. Payday is opt-in (`KIND_INFO.payday.on` is false). New sends hang on keeper jobs that
+  use it, and the deal alert (`deals.ts`, in the keeper's `notify` job: the Market's own
+  `oneLetterShort`, one alert a day, the same deal once a week). Payday and the deal alert are
+  opt-in (`KIND_INFO[kind].on` is false). New sends hang on keeper jobs that
   already run: a new job name never runs where `KEEPER_JOBS` is set.
   **A choice per kind** (decisions.md #47; `lib/notify/kinds.ts` pure, `lib/db/reminderPrefs.ts`, table
   `reminder_prefs`, migration 0018, `/api/profile/reminders`, the profile's "What to tell me"

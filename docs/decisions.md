@@ -1547,6 +1547,16 @@ setter. All small, riding existing suite patterns.
       a week at most), and says the player's words' SHARE with the week's theme, never "the
       bounty is yours". One message per player per kind for a run, linked wallets as one player,
       whole $WORD rounded down, nothing under one.
+    - **Part 4, the deal alert** (`lib/notify/deals.ts`): "A q is for sale on the Market, from
+      2.40M $WORD. It finishes QUICK, a word nobody owns." OFF unless a player turns it on. It is
+      worked out the way the Market's own "For you" is (`oneLetterShort`), so it is true when it
+      arrives and names the Market's word: one wallet's letters (a claim spends from one wallet),
+      never a letter the player holds in another wallet (a move, not a purchase), only a word
+      nobody owns, only a letter the checked book says can be bought now from someone else. One
+      alert a day at most, the best deal only (the rarest word, then the lowest ask), and the same
+      letter and word once a week at most, kept in `reminder_marks` (no table, no alert). It runs
+      in the keeper's `notify` job, after the hunger warnings, and reads the chain only when
+      somebody opted in.
     - **One sender for every receipt** (`lib/notify/players.ts` `notifyPlayers`): the kind is asked
       first, Farcaster or else the account's browsers, and email with its send-once mark. A sale,
       a payday, and a bounty each only say who and what.
