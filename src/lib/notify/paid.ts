@@ -3,10 +3,13 @@
  * player turns ON, because it comes every day a word earns) and their share of a week's bounty
  * (on unless turned off: once a week at most). decisions.md #47, part 3.
  *
- * **Only what LANDED.** The payout has a time budget, and a share it didn't reach waits for the
- * next run; a share a player collected themselves a moment earlier isn't the keeper's to announce.
- * So this is fed the `RewardClaimed` events of the keeper's own transactions (keeper/jobs `payOut`),
- * never the list of shares it meant to pay. A message says "paid" because it is.
+ * **Only what LANDED, and only once it has ALL landed.** The payout has a time budget, and a share
+ * it didn't reach waits for the next run. So this is fed the `RewardClaimed` events of the keeper's
+ * own transactions (keeper/jobs `payOut`), never the list of shares it meant to pay. And a player
+ * is told of a day (or a bounty week) only by the run that FINISHES paying it, with the whole
+ * amount (`settledShares`): a message's id is the day or the week, so a first message about part of
+ * it would state a part as the whole, and the rest could never be said (Bugbot on #244). A message
+ * says "paid" because all of it is.
  *
  * One message per player per kind for a run: every wallet of an account is one player (the notes
  * are grouped by account), and the amounts are whole $WORD rounded DOWN.
@@ -21,10 +24,43 @@ export interface LandedShare {
   stream: "yield" | "bounty";
   /** The yield's UTC day, or the bounty's week (period). */
   epochId: number;
+  /** The word it was paid for, as a decimal string. */
+  tokenId: string;
   /** The wallet it paid. */
   account: string;
   /** $WORD wei. */
   amount: bigint;
+}
+
+/** One share of an epoch the payout is working through: every leaf of its tree, paid already or not. */
+export interface EpochShare extends LandedShare {
+  /** The chain said it was paid before this run could pay it (an earlier run, or the player's own Collect). */
+  paidBefore: boolean;
+}
+
+const shareKey = (s: Pick<LandedShare, "stream" | "epochId" | "tokenId">) => `${s.stream}:${s.epochId}:${s.tokenId}`;
+
+/**
+ * The shares to tell players of: EVERY share of each (player, day or week) that this run finished
+ * paying. A set this run paid only part of is held back whole, and the run that pays its last share
+ * tells of all of it, the shares paid earlier too. A set with nothing landed in this run is not
+ * news (it was told of, or the player collected it themselves).
+ */
+export function settledShares(epoch: readonly EpochShare[], landed: readonly LandedShare[], accountOf: (address: string) => string): LandedShare[] {
+  const landedNow = new Set(landed.map(shareKey));
+  const sets = new Map<string, { shares: EpochShare[]; landed: boolean; waiting: boolean }>();
+  for (const s of epoch) {
+    const key = `${lower(accountOf(s.account))}:${s.stream}:${s.epochId}`;
+    let set = sets.get(key);
+    if (!set) sets.set(key, (set = { shares: [], landed: false, waiting: false }));
+    const now = !s.paidBefore && landedNow.has(shareKey(s));
+    set.shares.push(s);
+    set.landed ||= now;
+    set.waiting ||= !s.paidBefore && !now;
+  }
+  return [...sets.values()]
+    .filter((set) => set.landed && !set.waiting)
+    .flatMap((set) => set.shares.map(({ stream, epochId, tokenId, account, amount }) => ({ stream, epochId, tokenId, account, amount })));
 }
 
 const WEI = 10n ** 18n;
@@ -74,11 +110,19 @@ export function bountyNotes(landed: readonly LandedShare[], accountOf: (address:
   });
 }
 
-/** Tell the players of what this payout run paid. Never throws (notifyPlayers doesn't). */
-export async function notifyPaid(landed: readonly LandedShare[], opts: { log?: (line: string) => void } = {}): Promise<{ payday: TellResult | null; bounty: TellResult | null }> {
+/**
+ * Tell the players of what this payout run FINISHED paying. `landed` is the run's own events;
+ * `epoch` is every share of the epochs it worked through (`settledShares` says why both).
+ * Never throws (notifyPlayers doesn't).
+ */
+export async function notifyPaid(
+  landed: readonly LandedShare[],
+  epoch: readonly EpochShare[],
+  opts: { log?: (line: string) => void } = {},
+): Promise<{ payday: TellResult | null; bounty: TellResult | null }> {
   if (landed.length === 0) return { payday: null, bounty: null };
   // One after the other: a bounty week and a payday can be for the same player, and each is its own message.
-  const payday = await notifyPlayers("payday", (accountOf) => paydayNotes(landed, accountOf), opts);
-  const bounty = await notifyPlayers("bounty", (accountOf) => bountyNotes(landed, accountOf), opts);
+  const payday = await notifyPlayers("payday", (accountOf) => paydayNotes(settledShares(epoch, landed, accountOf), accountOf), opts);
+  const bounty = await notifyPlayers("bounty", (accountOf) => bountyNotes(settledShares(epoch, landed, accountOf), accountOf), opts);
   return { payday, bounty };
 }
