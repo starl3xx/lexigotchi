@@ -13,7 +13,7 @@
 import type { Tier } from "../economy";
 import type { SceneId } from "../scenes";
 import { tierMarkPaths } from "../tierMark";
-import { CARD_H as H, CARD_W as W, beadRing, beadsOnCurve, chain, guilloche, hatch, n1, rng, rule, sunburst } from "./engrave";
+import { CARD_H as H, CARD_W as W, beadRing, beadsOnCurve, chain, guilloche, hatch, n1, rng, rule, star, sunburst } from "./engrave";
 import { CARD_LOOKS, CARD_PAPER, FEET_Y, GRAPHITE, NEUTRAL, WINDOW as WIN, type CardLook } from "./looks";
 
 const X0 = WIN.x;
@@ -298,6 +298,128 @@ export function spring(): string {
 
 
 // ---------------------------------------------------------------------------------------------
+// The Shop's scenes (lib/scenes, SHOP_SCENES): drawn like the rest, and a player's only once their
+// profile has bought the scene in the Shop.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The Bookshelf: a bookcase seen from a little above. Books on the shelf overhead and the one
+ * below; the word's own shelf holds no books at all, and its top is drawn in perspective, so the
+ * letters stand on a board, not on a line.
+ */
+export function bookshelf(): string {
+  const ink = "#2f221a";
+  const paper = "#efe6d2";
+  const wood = "#c9a473";
+  const woodTop = "#dbbf93";
+  const tones = ["#9d6159", "#63826f", "#566b8a", "#c8a85e", "#e6dcc4", "#75607a", "#b28556"];
+  const r = rng(11);
+  const d = 44; // how much narrower a shelf's back is than its front, each side
+  const row = (x0: number, x1: number, base: number, lo: number, hi: number): string => {
+    let out = "";
+    let x = x0;
+    while (x < x1 - 20) {
+      const w = Math.min(x1 - x, 22 + Math.floor(r() * 34));
+      const h = lo + r() * (hi - lo);
+      const fill = tones[Math.floor(r() * tones.length)];
+      const y = base - h;
+      const pale = fill === "#e6dcc4" ? ink : "#f3e6c0";
+      const lean = r() < 0.08 && w < 40 ? ` transform="rotate(${n1(5 + r() * 4)} ${n1(x)} ${base})"` : "";
+      const band = (yy: number) => `<path d="M${n1(x + 3)} ${n1(yy)}H${n1(x + w - 3)}M${n1(x + 3)} ${n1(yy + 5)}H${n1(x + w - 3)}" stroke="${pale}" stroke-width="1.5" opacity="0.85"/>`;
+      const jewel = w > 30 ? `<path d="M${n1(x + w / 2)} ${n1(y + h * 0.5 - 7)}l6 7-6 7-6-7z" fill="${pale}" opacity="0.85"/>` : `<circle cx="${n1(x + w / 2)}" cy="${n1(y + h * 0.5)}" r="2.6" fill="${pale}" opacity="0.85"/>`;
+      out += `<g${lean}><rect x="${n1(x)}" y="${n1(y)}" width="${w}" height="${n1(h)}" rx="2.5" fill="${fill}" stroke="${ink}" stroke-width="2.2"/><rect x="${n1(x + w * 0.62)}" y="${n1(y + 2)}" width="${n1(w * 0.38 - 2)}" height="${n1(h - 4)}" fill="url(#bk)"/>${band(y + 12)}${band(y + h - 20)}${jewel}</g>`;
+      x += w + 1.5;
+    }
+    return out;
+  };
+  const topY = 188;
+  const globe = `<g transform="translate(1004 ${topY - 76})" fill="none" stroke="${ink}" stroke-width="2.2"><circle r="46" fill="#d5e2da"/><ellipse rx="46" ry="16"/><ellipse rx="20" ry="46"/><path d="M-46 0H46M0 -46V46"/><path d="M-58 -30A64 64 0 0 0 30 58" stroke-width="3.6"/><path d="M-16 60h32l8 14h-48z" fill="${wood}"/></g>`;
+  // the shelf overhead: we see its front edge and a little of its underside
+  const over = `<path d="M${X0} ${topY + 18}H${X1}L${X1 - d} ${topY + 34}H${X0 + d}Z" fill="#a5855a" stroke="${ink}" stroke-width="2"/><path d="M${X0} ${topY + 18}H${X1}L${X1 - d} ${topY + 34}H${X0 + d}Z" fill="url(#grain)"/>
+    <rect x="${X0}" y="${topY}" width="${WIN.w}" height="18" fill="${wood}" stroke="${ink}" stroke-width="2.6"/><rect x="${X0}" y="${topY}" width="${WIN.w}" height="18" fill="url(#grain)"/>`;
+  // the word's shelf: its top, seen from above, and its front face
+  const yb = FEET_Y - 30; // the back edge
+  const yf = FEET_Y + 26; // the front edge
+  let planks = "";
+  for (let k = 1; k < 12; k++) planks += `M${n1(X0 + d + (k / 12) * (WIN.w - 2 * d))} ${yb}L${n1(X0 + (k / 12) * WIN.w)} ${yf}`;
+  const shelf = `<path d="M${X0 + d} ${yb}H${X1 - d}L${X1} ${yf}H${X0}Z" fill="${woodTop}" stroke="${ink}" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="${planks}" stroke="${ink}" stroke-width="1" opacity="0.3" fill="none"/>
+    <path d="M${X0 + d} ${yb}H${X1 - d}L${X1} ${yf}H${X0}Z" fill="url(#lit)"/>
+    <rect x="${X0}" y="${yf}" width="${WIN.w}" height="26" fill="${wood}" stroke="${ink}" stroke-width="2.8"/><rect x="${X0}" y="${yf}" width="${WIN.w}" height="26" fill="url(#grain)"/>
+    <line x1="${X0}" y1="${yf + 32}" x2="${X1}" y2="${yf + 32}" stroke="${ink}" stroke-width="1" opacity="0.5"/>`;
+  // the bookcase's inner sides, running back to its wall
+  const sideWall = `<path d="M${X0} ${topY + 18}L${X0 + d} ${topY + 34}V${yb}L${X0} ${yf}Z" fill="#d9ccae" stroke="${ink}" stroke-width="2"/><path d="M${X0} ${topY + 18}L${X0 + d} ${topY + 34}V${yb}L${X0} ${yf}Z" fill="url(#wallh)"/>`;
+  return `<defs>${clip("w")}${hatch("bk", 90, 4, ink, 1, 0.42)}${hatch("grain", 0, 5, ink, 1, 0.3)}${hatch("wall", 45, 9, ink, 1, 0.13)}${hatch("wallh", 0, 6, ink, 1, 0.28)}
+    <linearGradient id="lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ink}" stop-opacity="0.22"/><stop offset="1" stop-color="${ink}" stop-opacity="0"/></linearGradient>
+    <radialGradient id="wglow" cx="0.5" cy="0.6" r="0.6"><stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>
+  <g clip-path="url(#w)">
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="${paper}"/>
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="url(#wall)"/>
+    <rect x="${X0}" y="${topY}" width="${WIN.w}" height="${yb - topY}" fill="url(#wglow)"/>
+    ${row(X0 + 8, 924, topY, 90, 138)}${globe}${row(1074, X1 - 6, topY, 86, 130)}
+    ${over}
+    ${sideWall}<g transform="translate(${W} 0) scale(-1 1)">${sideWall}</g>
+    <!-- the word's shelf holds no books at all: it is the word's -->
+    ${shelf}
+    ${row(X0 + 8, X1 - 6, Y1 + 66, 150, 188)}
+  </g>`;
+}
+
+/** Outer space: a navy plate cut in pale line. A ringed planet, a moon, a comet, and a small
+ *  round world whose curve the word stands on. */
+export function space(): string {
+  const navy = "#1b2442";
+  const line = "#efe5c9";
+  const gold = "#dcb45c";
+  const r = rng(7);
+  let stars = "";
+  for (let k = 0; k < 70; k++) {
+    const x = X0 + 14 + r() * (WIN.w - 28);
+    const y = Y0 + 14 + r() * (FEET_Y - Y0 - 70);
+    const big = r();
+    stars += big > 0.86 ? star(x, y, 8 + r() * 7, big > 0.95 ? gold : line) : `<circle cx="${n1(x)}" cy="${n1(y)}" r="${n1(1 + r() * 1.6)}" fill="${line}" opacity="${n1(0.5 + r() * 0.5)}"/>`;
+  }
+  const px = 944;
+  const py = 148;
+  const ring = (front: boolean) => `<g transform="rotate(-16 ${px} ${py})" fill="none" stroke="${gold}"><path d="M${px - 172} ${py}A172 40 0 0 ${front ? 0 : 1} ${px + 172} ${py}" stroke-width="5"/><path d="M${px - 146} ${py}A146 30 0 0 ${front ? 0 : 1} ${px + 146} ${py}" stroke-width="2"/><path d="M${px - 196} ${py}A196 48 0 0 ${front ? 0 : 1} ${px + 196} ${py}" stroke-width="1.6"/></g>`;
+  let lat = "";
+  for (let k = -4; k <= 4; k++) lat += `<ellipse cx="${px}" cy="${py + k * 19}" rx="${n1(Math.sqrt(Math.max(0, 96 * 96 - (k * 19) ** 2)))}" ry="${n1(7 - Math.abs(k) * 0.8)}"/>`;
+  const planet = `${ring(false)}<circle cx="${px}" cy="${py}" r="96" fill="#2c3b6c" stroke="${line}" stroke-width="3"/><clipPath id="pl"><circle cx="${px}" cy="${py}" r="96"/></clipPath><g clip-path="url(#pl)" fill="none" stroke="${line}" stroke-width="1.5" opacity="0.75" transform="rotate(-16 ${px} ${py})">${lat}</g><path d="M${px + 20} ${py - 92}A96 96 0 0 1 ${px + 20} ${py + 92}A150 150 0 0 0 ${px + 20} ${py - 92}Z" fill="url(#shade)" clip-path="url(#pl)"/>${ring(true)}`;
+  const moon = `<g transform="translate(228 138)"><path d="M0 -54A54 54 0 1 0 38 38A42 42 0 1 1 0 -54Z" fill="${line}" stroke="${line}" stroke-width="2"/><path d="M0 -54A54 54 0 1 0 38 38A42 42 0 1 1 0 -54Z" fill="url(#moonh)"/></g>`;
+  let tail = "";
+  for (let k = 0; k < 7; k++) tail += `M${n1(520 + k * 3)} ${n1(120 + k * 4.5)}L${n1(360 + k * 9)} ${n1(88 + k * 9)}`;
+  const comet = `<path d="${tail}" stroke="${line}" stroke-width="1.6" stroke-linecap="round" opacity="0.75"/>${star(530, 134, 17, gold)}`;
+  // the world underfoot: a circle whose top is the feet line; its contours and craters follow it
+  const cx = W / 2;
+  const cy = FEET_Y + PLANET;
+  const on = (deg: number, depth: number) => {
+    const a = (deg * Math.PI) / 180;
+    return [cx + (PLANET - depth) * Math.sin(a), cy - (PLANET - depth) * Math.cos(a)];
+  };
+  let craters = "";
+  for (const [deg, depth, w] of [[-12.5, 34, 64], [-7.4, 62, 96], [-2.6, 30, 50], [2.2, 70, 88], [6.6, 36, 58], [11.4, 58, 84], [14.6, 26, 44], [-15.4, 70, 60]]) {
+    const [x, y] = on(deg, depth);
+    craters += `<g transform="rotate(${deg} ${n1(x)} ${n1(y)})"><ellipse cx="${n1(x)}" cy="${n1(y)}" rx="${w / 2}" ry="${n1(w / 6.5)}" fill="#111936" stroke="${line}" stroke-width="2"/><path d="M${n1(x - w / 2 + 6)} ${n1(y + 1)}A${w / 2 - 6} ${n1(w / 9)} 0 0 0 ${n1(x + w / 2 - 6)} ${n1(y + 1)}" fill="none" stroke="${line}" stroke-width="1" opacity="0.6"/></g>`;
+  }
+  let contours = "";
+  for (const depth of [14, 30, 50, 74, 102]) contours += `<circle cx="${cx}" cy="${cy}" r="${PLANET - depth}" fill="none" stroke="${line}" stroke-width="1" opacity="${n1(0.34 - depth * 0.002)}" stroke-dasharray="${depth < 40 ? "none" : "14 9"}"/>`;
+  return `<defs>${clip("w")}${hatch("shade", 60, 5, "#0b1128", 2, 0.75)}${hatch("moonh", -40, 4.5, navy, 1.3, 0.45)}
+    <radialGradient id="neb" cx="0.5" cy="0.62" r="0.62"><stop offset="0" stop-color="#40539c" stop-opacity="0.7"/><stop offset="1" stop-color="#40539c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="halo" cx="0.5" cy="1" r="0.75"><stop offset="0.72" stop-color="#8fa4ea" stop-opacity="0.34"/><stop offset="1" stop-color="#8fa4ea" stop-opacity="0"/></radialGradient></defs>
+  <g clip-path="url(#w)">
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="${navy}"/>
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="url(#neb)"/>
+    <path d="${sunburst(cx, FEET_Y + 40, 300, 1000, 40, 0.42)}" fill="${line}" opacity="0.04"/>
+    ${stars}
+    <path d="M228 138L300 92L410 126M300 92L330 44" fill="none" stroke="${line}" stroke-width="1.2" stroke-dasharray="2 7" stroke-linecap="round" opacity="0.6"/>
+    ${moon}${comet}${planet}
+    <rect x="${X0}" y="${FEET_Y - 120}" width="${WIN.w}" height="240" fill="url(#halo)"/>
+    <circle cx="${cx}" cy="${cy}" r="${PLANET}" fill="#33437c" stroke="${line}" stroke-width="3"/>
+    ${contours}${craters}
+  </g>`;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Standing on a curve. A scene whose ground isn't level gives ONE thing: its height under the
 // word, as a function of how far along the card you are (s, from the card's centre; down is
 // positive; 0 is the feet line). Each letter is lowered to the curve under its own feet and turned
@@ -323,12 +445,14 @@ export function groundOf(y: (s: number) => number): Ground {
 /** The top of a circle of radius r: a small world, or a low hill. */
 const dome = (r: number) => (s: number) => r - Math.sqrt(r * r - s * s);
 
-/** Spring's knoll. (Outer Space's little planet and a rope bridge's sag were drawn the same way in
- *  the proposal; they come with their scenes.) */
+/** Spring's knoll, and Outer Space's little planet. (A rope bridge's sag was drawn the same way in
+ *  the proposal, as a proof that a dip works too; it comes with its scene, if it ever does.) */
 const KNOLL = 3300;
+const PLANET = 2000;
 const knollY = dome(KNOLL);
+const planetY = dome(PLANET);
 
-export const GROUND: Partial<Record<SceneId, Ground>> = { spring: groundOf(knollY) };
+export const GROUND: Partial<Record<SceneId, Ground>> = { spring: groundOf(knollY), space: groundOf(planetY) };
 
 
 /**
@@ -364,8 +488,19 @@ export function frame(L: CardLook, tier: Tier): string {
 }
 
 
+/** Scenes printed on a dark plate: the card's own light is shown fainter over them (white shows far
+ *  more on navy than on a pale scene; globals.css, .cf-dark). */
+export const DARK_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["space"]);
+
 /** Each scene's art for the window. Only the stock card takes the rarity: a place has inks of its own. */
-const ART: Record<SceneId, (L: CardLook) => string> = { stock, stage: () => stage(), trophy: () => trophy(), spring: () => spring() };
+const ART: Record<SceneId, (L: CardLook) => string> = {
+  stock,
+  stage: () => stage(),
+  trophy: () => trophy(),
+  spring: () => spring(),
+  bookshelf: () => bookshelf(),
+  space: () => space(),
+};
 
 /** A scene's art (the window's picture) for a word of this rarity, as SVG markup for svgDoc. */
 export function cardArt(scene: SceneId, tier: Tier): string {

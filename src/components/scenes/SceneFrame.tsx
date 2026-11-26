@@ -30,7 +30,7 @@ import type { SceneId } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS } from "@/lib/cardArt/looks";
-import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -243,7 +243,7 @@ export function SceneFrame({
   return (
     <div
       ref={box}
-      className={`cf ${small ? "cf-small" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
+      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
       style={{ "--cf-ink": look.ink, "--cf-accent": look.accent, "--cf-ground": look.ground, ...(onSwipe ? { touchAction: "pan-y" } : {}) } as CSSProperties}
       {...swipe}
     >

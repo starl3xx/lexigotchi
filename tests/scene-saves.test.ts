@@ -62,7 +62,7 @@ describe("parsePicks (a save)", () => {
     const one = (p: Record<string, unknown>) => parsePicks({ picks: [{ word: "CRANE", scene: "stage", at: NOW, ...p }] }, A, NOW);
     expect(one({ word: "XQZPW" })).toBeNull();
     expect(one({ word: BANNED[0] })).toBeNull();
-    expect(one({ scene: "space" })).toBeNull();
+    expect(one({ scene: "moonbase" })).toBeNull();
     expect(one({ wallet: "nope" })).toBeNull();
     expect(parsePicks({ picks: [] }, A, NOW)).toBeNull();
     expect(parsePicks(null, A, NOW)).toBeNull();
@@ -110,7 +110,7 @@ describe("which pick shows", () => {
   it("reads this browser's picks, including the first version's bare scene ids", () => {
     expect(parseStoredPick("trophy")).toEqual({ scene: "trophy", at: 0, synced: false });
     expect(parseStoredPick(JSON.stringify({ scene: "stage", at: 5, synced: true }))).toEqual({ scene: "stage", at: 5, synced: true });
-    for (const junk of [null, "", "space", "{", JSON.stringify({ scene: "space" })]) expect(parseStoredPick(junk)).toBeNull();
+    for (const junk of [null, "", "moonbase", "{", JSON.stringify({ scene: "moonbase" })]) expect(parseStoredPick(junk)).toBeNull();
   });
 
   it("shows the newer of the browser's pick and the saved one", () => {
@@ -139,6 +139,16 @@ vi.mock("@/lib/profile/session", async (orig) => ({
 vi.mock("@/lib/profile/account", () => ({ sessionAccountOf: async () => account }));
 vi.mock("@/lib/db/walletLinks", () => ({ walletsOfAccount: async () => accountWallets }));
 vi.mock("@/lib/ratelimit", () => ({ allow: async () => true }));
+// What the session's profile has bought in the Shop (lib/shop/owned); "down" is a database error.
+let bought: string[] | "down" = [];
+const askedFor: string[][] = [];
+vi.mock("@/lib/shop/owned", () => ({
+  boughtScenesOf: async (wallets: string[]) => {
+    askedFor.push(wallets);
+    if (bought === "down") throw new Error("db down");
+    return new Set(bought);
+  },
+}));
 vi.mock("@/lib/db/wordPicks", () => ({
   scenePicksFor: async (wallets: string[]) => {
     if (missingTable) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
@@ -162,6 +172,8 @@ beforeEach(() => {
   accountWallets = [A];
   full = false;
   missingTable = false;
+  bought = [];
+  askedFor.length = 0;
 });
 
 describe("/api/scenes", () => {
@@ -189,6 +201,45 @@ describe("/api/scenes", () => {
     // One save, keyed by the profile (the account A heads), holding both wallets' words.
     expect(saved.map((s) => s.wallet)).toEqual([A]);
     expect(saved[0].picks).toHaveLength(2);
+  });
+
+  it("saves a Shop scene only for a profile that has bought it (decisions.md #41)", async () => {
+    const { PUT } = await import("@/app/api/scenes/route");
+    accountWallets = [A, B];
+    const picks = { picks: [{ word: "CRANE", scene: "space", at: NOW }, { word: "VIVID", scene: "spring", at: NOW }] };
+    // not bought: the Shop scene's pick is left out and named, and the rest of the save lands
+    let res = await PUT(put(picks));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, refused: ["CRANE"] });
+    expect(saved).toHaveLength(1);
+    expect((saved[0].picks as { word: string }[]).map((p) => p.word)).toEqual(["VIVID"]);
+    // it asked about the whole profile's wallets, not only the session's
+    expect(askedFor[0].sort()).toEqual([A, B].sort());
+    // bought: saved like any pick
+    saved.length = 0;
+    bought = ["space"];
+    res = await PUT(put(picks));
+    expect(await res.json()).toEqual({ ok: true });
+    expect((saved[0].picks as { word: string }[]).map((p) => p.word)).toEqual(["CRANE", "VIVID"]);
+    // buying one Shop scene doesn't grant the other
+    saved.length = 0;
+    res = await PUT(put({ picks: [{ word: "CRANE", scene: "bookshelf", at: NOW }] }));
+    expect(await res.json()).toEqual({ ok: true, refused: ["CRANE"] });
+    expect(saved).toEqual([]);
+  });
+
+  it("when it can't check the purchase, it saves no Shop scene and still saves the rest", async () => {
+    const { PUT } = await import("@/app/api/scenes/route");
+    bought = "down";
+    const res = await PUT(put({ picks: [{ word: "CRANE", scene: "space", at: NOW }, { word: "VIVID", scene: "stage", at: NOW }] }));
+    expect(await res.json()).toEqual({ ok: true, refused: ["CRANE"] });
+    expect((saved[0].picks as { word: string }[]).map((p) => p.word)).toEqual(["VIVID"]);
+  });
+
+  it("doesn't ask about purchases for a save with no Shop scene in it", async () => {
+    const { PUT } = await import("@/app/api/scenes/route");
+    await PUT(put({ picks: [{ word: "CRANE", scene: "trophy", at: NOW }] }));
+    expect(askedFor).toEqual([]);
   });
 
   it("refuses a wallet outside the session's profile, saving nothing", async () => {

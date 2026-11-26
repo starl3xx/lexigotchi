@@ -107,6 +107,12 @@ export function beadsOnCurve(x0: number, y0: number, qx: number, qy: number, x1:
   return `<path d="${d}" fill="${color}"/>`;
 }
 
+/** A small four-point star (a compass point), for a sky or an ornament. */
+export function star(x: number, y: number, r: number, color: string, thin = 0.22): string {
+  const t = r * thin;
+  return `<path d="M${n1(x)} ${n1(y - r)}L${n1(x + t)} ${n1(y - t)}L${n1(x + r)} ${n1(y)}L${n1(x + t)} ${n1(y + t)}L${n1(x)} ${n1(y + r)}L${n1(x - t)} ${n1(y + t)}L${n1(x - r)} ${n1(y)}L${n1(x - t)} ${n1(y - t)}Z" fill="${color}"/>`;
+}
+
 /** A small seeded generator, so a scene is the same picture every time, on the server and in the browser. */
 export function rng(seed: number) {
   let a = seed >>> 0;

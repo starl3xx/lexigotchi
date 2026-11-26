@@ -1,7 +1,8 @@
 "use client";
 /**
  * Each word's scene, and whether the player has unlocked the scenes past the free ones (the stock
- * card and the Stage).
+ * card and the Stage). The Shop's scenes are a third kind: a word shows one when the player's
+ * profile has bought it (game/useShop, useShopScenes).
  *
  * Where a pick lives (decisions.md #15):
  * - In this browser, always, at once: a pick works offline, before sign-in, and in practice mode.
@@ -23,7 +24,8 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "r
 import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useGame } from "../game/state";
 import { useProfileSession, usePublicProfile } from "../game/useProfile";
-import { DEFAULT_SCENE, FREE_SCENES, SCENE_UNLOCK_WORDS, scenesUnlocked, type SceneId } from "@/lib/scenes";
+import { DEFAULT_SCENE, SCENE_UNLOCK_WORDS, sceneShows, scenesUnlocked, type SceneId } from "@/lib/scenes";
+import { useShopScenes } from "../game/useShop";
 import { MAX_PICKS_PER_SAVE, newestPick, parseStoredPick, readSavedPicks, type StoredPick } from "@/lib/sceneSaves";
 
 const PREFIX = "lexigotchi:scene:";
@@ -151,15 +153,22 @@ function useSaved() {
   return { on, session, saved: saved.data ?? null, queryKey, holderOf, canWrite };
 }
 
-/** Upload picks to the server, all for one wallet. Resolves true when they were saved. */
-async function upload(token: string, picks: { word: string; scene: SceneId; at: number; wallet: string }[], forget: () => void): Promise<boolean> {
+/**
+ * Upload picks to the server, all for one wallet. Resolves with the words whose picks were saved
+ * (none when the save failed). The server leaves out a pick of a Shop scene the profile hasn't
+ * bought and names its word in `refused`: that pick stays unsynced here.
+ */
+async function upload(token: string, picks: { word: string; scene: SceneId; at: number; wallet: string }[], forget: () => void): Promise<ReadonlySet<string>> {
   const r = await fetch("/api/scenes", {
     method: "PUT",
     headers: { "content-type": "application/json", [SESSION_HEADER]: token },
     body: JSON.stringify({ picks }),
   }).catch(() => null);
   if (r?.status === 401) forget();
-  return Boolean(r?.ok);
+  if (!r?.ok) return new Set();
+  const d = (await r.json().catch(() => null)) as { refused?: string[] } | null;
+  const refused = new Set(d?.refused ?? []);
+  return new Set(picks.map((p) => p.word).filter((w) => !refused.has(w)));
 }
 
 /**
@@ -199,15 +208,17 @@ export function useWordScene(word: string | undefined) {
       // Saved on the server only under a session the player already has, for a wallet in their
       // profile; otherwise it waits here for useSceneSync.
       if (!on || !session.token || !canWrite.has(holder)) return;
-      void upload(session.token, [{ word: W, scene, at, wallet: holder }], session.forget).then((ok) => {
-        if (ok) landed(qc, queryKey, holder, W, scene, at);
+      void upload(session.token, [{ word: W, scene, at, wallet: holder }], session.forget).then((saved) => {
+        if (saved.has(W)) landed(qc, queryKey, holder, W, scene, at);
       });
     },
     [W, holder, on, session.token, session.forget, canWrite, qc, queryKey],
   );
-  // The pick shows once the scenes are open; `unlocked` also covers words not known yet
-  // (useSceneUnlock), which a bare count would lock.
-  const scene = chosen && (unlocked || FREE_SCENES.includes(chosen)) ? chosen : DEFAULT_SCENE;
+  // The pick shows once the player can use it (lib/scenes, sceneShows): a free scene always, a
+  // 3-word scene once the scenes are open (`unlocked` also covers words not known yet, which a bare
+  // count would lock), a Shop scene when their profile has bought it or while that isn't known.
+  const shop = useShopScenes();
+  const scene = chosen && sceneShows(chosen, { unlocked, bought: shop.bought, shopKnown: shop.known }) ? chosen : DEFAULT_SCENE;
   return { scene, chosen, set };
 }
 
@@ -245,8 +256,8 @@ export function useSceneSync() {
     if (tried.current === sig) return; // one try per set of picks per session
     tried.current = sig;
     for (const [wallet, picks] of byWallet) {
-      void upload(token, picks.map((p) => ({ ...p, wallet })), session.forget).then((ok) => {
-        if (ok) for (const p of picks) landed(qc, queryKey, wallet, p.word, p.scene, p.at);
+      void upload(token, picks.map((p) => ({ ...p, wallet })), session.forget).then((saved) => {
+        for (const p of picks) if (saved.has(p.word)) landed(qc, queryKey, wallet, p.word, p.scene, p.at);
       });
     }
   }, [on, session.token, session.forget, state.words, holderOf, canWrite, qc, queryKey]);
