@@ -3,7 +3,7 @@
  * place of the ones that can come every day, for a player who chose it.
  */
 import { describe, it, expect } from "vitest";
-import { sendDigests, weekEarned, wordsNeedingCare, type DigestDeps } from "@/lib/notify/digest";
+import { sendDigests, weekEarned, weekSold, wordsNeedingCare, type DigestDeps } from "@/lib/notify/digest";
 import { weeklyDigest, type WeekFacts } from "@/lib/notify/templates";
 
 const A = "0x00000000000000000000000000000000000000aa";
@@ -36,6 +36,20 @@ describe("weekEarned", () => {
       share("yield", DAY1 + 2, 99_000n, { paid: false, dead: true }), // its epoch has nothing left
     ];
     expect(weekEarned(shares, PERIOD, 7)).toBe(15_000);
+  });
+});
+
+describe("weekSold", () => {
+  const accountOf = (address: string) => (address.toLowerCase() === A2 ? A : address.toLowerCase());
+  const row = (buyer: string, whole: bigint) => ({ buyer, priceWei: String(whole * WEI) });
+  it("counts what other players bought, and what they paid", () => {
+    expect(weekSold([row(B, 1_000_000n), row(B, 2_400_000n)], A, accountOf)).toEqual({ count: 2, amount: 3_400_000 });
+    expect(weekSold([], A, accountOf)).toEqual({ count: 0, amount: 0 });
+  });
+
+  it("a fill bought by the player’s own other wallet is a move, not a sale", () => {
+    expect(weekSold([row(A2, 9_000_000n), row(B, 1_000_000n)], A, accountOf)).toEqual({ count: 1, amount: 1_000_000 });
+    expect(weekSold([row(A2.toUpperCase().replace("0X", "0x"), 9_000_000n)], A, accountOf)).toEqual({ count: 0, amount: 0 });
   });
 });
 

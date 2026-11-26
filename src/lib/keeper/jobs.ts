@@ -52,7 +52,7 @@ import { notifyPaid, shareKey, type LandedShare } from "@/lib/notify/paid";
 import { DEAL_AGAIN_SECONDS, DEAL_DAILY_SECONDS, tellDeals } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
 import { claimMark, claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
-import { sendDigests, weekEarned, wordsNeedingCare } from "@/lib/notify/digest";
+import { sendDigests, weekEarned, weekSold, wordsNeedingCare } from "@/lib/notify/digest";
 import { loadShares } from "@/lib/rewards/load";
 import { salesBySellers } from "@/lib/db/market";
 import { readLetterBook } from "@/lib/market/letterBoard";
@@ -609,7 +609,7 @@ export function createKeeper(opts: { dry: boolean }) {
             const [shares, sales] = await Promise.all([loadShares(wallets), noSold.has(account) ? [] : salesBySellers(NETWORK.id, wallets, since, until)]);
             return {
               earned: weekEarned(shares, period, days),
-              sold: { count: sales.length, amount: Number(sales.reduce((a, r) => a + BigInt(r.priceWei), 0n) / 10n ** 18n) },
+              sold: weekSold(sales, account, links.accountOf),
               ...(noHunger.has(account) ? { hungry: [], peckish: [] } : wordsNeedingCare(words, wallets, DEFAULT_PARAMS.care)),
             };
           },

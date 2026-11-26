@@ -51,6 +51,16 @@ export function weekEarned(shares: readonly DigestShare[], period: number, perio
   return Number(wei / WEI);
 }
 
+/**
+ * What a player sold in the week: how many sales, and what the buyers paid, whole $WORD down. A
+ * fill bought by another wallet of the SAME player is a move between their own wallets, not a sale
+ * (the sale's own message leaves it out too: lib/notify/sold.ts `soldNotes`).
+ */
+export function weekSold(rows: readonly { buyer: string; priceWei: string }[], account: string, accountOf: (address: string) => string): WeekFacts["sold"] {
+  const sales = rows.filter((r) => lower(accountOf(r.buyer)) !== lower(account));
+  return { count: sales.length, amount: Number(sales.reduce((a, r) => a + BigInt(r.priceWei), 0n) / WEI) };
+}
+
 /** A staked word's care, as the keeper's scan gives it. */
 export interface DigestWord {
   word: string;
