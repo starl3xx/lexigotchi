@@ -21,9 +21,13 @@ beforeEach(() => {
 
 const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
 /** The loops: each may only ever be on a layer (a whole <svg>). */
-const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock)\b/;
-/** What may run inside a layer: short, or one letter in a sheet, or a still word's zzz. */
-const INSIDE = new Set(["animate-tc-sweat", "animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-zzz", "animate-tc-confetti", "animate-tc-ray"]);
+const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|pop|jump|legjump|brace|knock|zzz)\b/;
+/**
+ * What may run inside a layer: short, or one letter in a sheet. Never a sleeping word's zzz: a
+ * hungry word sleeps on the Today stage for as long as it is hungry, and its z's looping inside
+ * the top layer cost 44% of a processor core at rest in WebKit (5% with them still).
+ */
+const INSIDE = new Set(["animate-tc-sweat", "animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti", "animate-tc-ray"]);
 const animated = (root: Element) => [...root.querySelectorAll("[class*='animate-tc-']")];
 const tcClasses = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("animate-tc-"));
 
@@ -37,8 +41,27 @@ describe("the loops run on layers", () => {
         else expect(INSIDE.has(c), `${c} runs inside a layer`).toBe(true);
       }
     }
-    // every state but a sleeping word's moves its body
-    if (state !== "hungry") expect(els.some((el) => el.tagName.toLowerCase() === "svg")).toBe(true);
+    // every state moves a layer
+    expect(els.some((el) => el.tagName.toLowerCase() === "svg")).toBe(true);
+  });
+
+  it("a sleeping letter's three z's are a layer each, rising in turn, and nothing loops inside a layer", () => {
+    const { container } = render(<TileCharacter char="q" state="hungry" size={140} />);
+    const zs = [...container.querySelectorAll("svg.animate-tc-zzz")] as SVGElement[];
+    expect(zs).toHaveLength(3);
+    expect(zs.map((z) => z.textContent)).toEqual(["z", "z", "z"]);
+    expect(zs.map((z) => z.style.animationDelay)).toEqual(["0s", "0.5s", "1s"]);
+    // each turns and grows about its own place, not the letter's
+    expect(new Set(zs.map((z) => z.style.transformOrigin)).size).toBe(3);
+    // the layer that holds the still things (the clasp) has no z in it
+    for (const svg of [...container.querySelectorAll("svg")]) if (!svg.classList.contains("animate-tc-zzz")) expect(svg.querySelector("text")?.textContent ?? "").not.toBe("z");
+    expect(container.querySelector("svg [class*='animate-tc-zzz']")).toBeNull();
+  });
+
+  it("a sleeping letter that holds still (a list, reduced motion) shows its z's and moves none", () => {
+    const { container } = render(<TileCharacter char="q" state="hungry" size={140} still />);
+    expect(animated(container)).toHaveLength(0);
+    expect([...container.querySelectorAll("text")].filter((el) => el.textContent === "z")).toHaveLength(3);
   });
 
   it("is stacked layers (floor, legs, body, top), and draws only the ones that hold something", () => {
