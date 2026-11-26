@@ -495,7 +495,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   over). **A link with no `scene` means the Stage** (`LINK_DEFAULT_SCENE`: links made before the stock
   card existed are posted for good), so every other scene is named in its link, the stock card too
   (`parseLinkScene`). The ribbon's number on the picture is the chain's (`lib/onchain/cardNumbers`),
-  never the link's. Its lettering is TeX Gyre Pagella (`public/fonts`, GUST Font License beside it):
+  never the link's. **The letters on every picture wear the word's gilding, and the stage is the chain's too** (decisions.md #48; `lib/onchain/cardLevel`). A link and every picture's address name the stage (`g`), only so that they change when the stage does (X and Farcaster keep a picture by its address for good): nothing in the query is drawn, and `cardPictureCache` keeps a picture for long only when its address names the stage it shows. Pass the stage to `showcaseUrl` / `showcaseCardPath` / `showcaseFacePath` / `showcaseBackPath` wherever the game knows it. Its lettering is TeX Gyre Pagella (`public/fonts`, GUST Font License beside it):
   the server has no fonts, and the app ships none for the card's serif. **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text

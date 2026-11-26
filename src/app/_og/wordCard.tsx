@@ -19,7 +19,8 @@ import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
  * where the player's top word lies on the table beside what their words have earned.
  *
  * `cardW` is the card's width in pixels (it is always 16:9). `no` is its number as the ribbon
- * prints it, or null; the caller reads it from the chain or leaves it out. `bare` is the card's
+ * prints it, or null; the caller reads it from the chain or leaves it out. `gild` is the word's
+ * ascension stage, which its letters wear; the caller reads that from the chain too. `bare` is the card's
  * face alone, with no outline or shadow (the share loop turns it over). The ribbon's lettering is
  * the "Pagella" font: a picture that draws a card loads it (public/fonts/texgyrepagella-bold.otf).
  */
@@ -36,7 +37,7 @@ export function cardTier(tiles: readonly ShowcaseTile[]): Tier | undefined {
   return isWord(word) ? wordTier(word) : undefined;
 }
 
-export function wordCard({ tiles, scene, cardW, no = null, bare = false }: { tiles: readonly ShowcaseTile[]; scene: SceneId; cardW: number; no?: string | null; bare?: boolean }): ReactElement {
+export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = false }: { tiles: readonly ShowcaseTile[]; scene: SceneId; cardW: number; no?: string | null; gild?: number; bare?: boolean }): ReactElement {
   const k = cardW / CARD_W; // pixels per card unit
   const cardH = Math.round(CARD_H * k);
   const word = tiles.map((t) => t.char).join("");
@@ -93,7 +94,7 @@ export function wordCard({ tiles, scene, cardW, no = null, bare = false }: { til
                 ...(f.drop || f.deg ? { transform: `translateY(${f.drop.toFixed(1)}px) rotate(${f.deg.toFixed(2)}deg)`, transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%` } : {}),
               }}
             >
-              <OgTile char={t.char} upper={t.upper} w={L.tileW} tier={tier} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
+              <OgTile char={t.char} upper={t.upper} w={L.tileW} tier={tier} gild={gild} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
             </div>
           );
         })}

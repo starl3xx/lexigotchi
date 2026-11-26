@@ -68,8 +68,22 @@ function sceneQuery(scene: SceneId | undefined, more: Record<string, string> = {
   return s ? `?${s}` : "";
 }
 
-export function showcaseUrl(text: string, scene?: SceneId): string {
-  return `${SITE_URL}/s/${text}${sceneQuery(scene)}`;
+/**
+ * A word's ascension stage, as an address carries it (`g`, 1 to 5; decisions.md #48). **It is never
+ * what gets drawn:** the pictures and the page read the stage from the chain (lib/onchain/cardLevel).
+ * It is in the address so that a word's link and pictures get a NEW address when its stage changes:
+ * X, Farcaster, the edge, and browsers keep a picture by its address, some of them for good, and a
+ * word shared again after an ascension would otherwise show its old gilding.
+ */
+const stageQuery = (stage?: number | null): Record<string, string> => (stage && stage > 0 ? { g: String(Math.min(5, Math.round(stage))) } : {});
+/** The stage an address names, 1 to 5, or null. Only ever compared with the chain's. */
+export function parseLinkStage(raw: string | string[] | null | undefined): number | null {
+  const s = Array.isArray(raw) ? raw[0] : raw;
+  return s && /^[1-5]$/.test(s) ? Number(s) : null;
+}
+
+export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null): string {
+  return `${SITE_URL}/s/${text}${sceneQuery(scene, stageQuery(stage))}`;
 }
 
 /**
@@ -88,12 +102,14 @@ export function showcaseUrl(text: string, scene?: SceneId): string {
  *    yet"). Every picture of a card, front or back, carries this number.
  * 5: the letters' ground shadow as ruled lines (decisions.md #48).
  * 6: an UPPERCASE letter's legs come over its ring (decisions.md #48, part 2).
+ * 7: the letters wear the word's gilding, on the front and on the back's rack, and the back shows
+ *    the stage's pips (decisions.md #48, part 3). No picture drew gilding before.
  */
-export const CARD_LOOK = 6;
+export const CARD_LOOK = 7;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
-export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
-  return `${SITE_URL}${showcaseCardPath(text, ratio, scene, saved)}`;
+export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null): string {
+  return `${SITE_URL}${showcaseCardPath(text, ratio, scene, saved, stage)}`;
 }
 
 /**
@@ -104,16 +120,30 @@ export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: S
  * quiet wordmark in its corner. A link card carries no name: X shows the site under it and the
  * post names @lexigotchi, and Farcaster's card has the game's button (decisions.md #23).
  */
-export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false): string {
-  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}), v: String(CARD_LOOK) })}`;
+export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null): string {
+  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}), v: String(CARD_LOOK), ...stageQuery(stage) })}`;
+}
+
+/** How long a card's picture is kept: a day in browsers and a week at the edge, or five minutes. */
+export const CARD_CACHE_LONG = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
+export const CARD_CACHE_SHORT = "public, max-age=300, s-maxage=300";
+/**
+ * Which of the two a card's picture gets. Long only when nothing on it can still change under
+ * this address: its number is known (`waiting` is false), its stage was read (`level` is not
+ * null), and the address names the stage it shows (`hint`; none means "not ascended"). So an old
+ * link to a word that has since ascended, and an address that names a stage the word isn't at, are
+ * asked again soon and never kept for a week.
+ */
+export function cardPictureCache({ waiting, level, hint }: { waiting: boolean; level: number | null; hint: number | null }): string {
+  return !waiting && level !== null && (hint ?? 0) === level ? CARD_CACHE_LONG : CARD_CACHE_SHORT;
 }
 
 /**
  * The card's front alone, 1200×675 with clear corners: no table under it. The share loop turns it
  * over (components/cards/loop), so it wants the card itself, the size of the back's picture.
  */
-export function showcaseFacePath(text: string, scene?: SceneId): string {
-  return `/s/${text}/card${sceneQuery(scene, { face: "1", v: String(CARD_LOOK) })}`;
+export function showcaseFacePath(text: string, scene?: SceneId, stage?: number | null): string {
+  return `/s/${text}/card${sceneQuery(scene, { face: "1", v: String(CARD_LOOK), ...stageQuery(stage) })}`;
 }
 
 /**
@@ -121,8 +151,8 @@ export function showcaseFacePath(text: string, scene?: SceneId): string {
  * Its look is in its address too (CARD_LOOK): the picture is kept for minutes by browsers and the
  * edge, and a redrawn back must not be served from an old copy.
  */
-export function showcaseBackPath(text: string): string {
-  return `/s/${text}/back?v=${CARD_LOOK}`;
+export function showcaseBackPath(text: string, stage?: number | null): string {
+  return `/s/${text}/back${sceneQuery(undefined, { v: String(CARD_LOOK), ...stageQuery(stage) })}`;
 }
 
 /** The cast's words. The link goes separately as the cast's embed. */

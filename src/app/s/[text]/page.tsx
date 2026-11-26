@@ -5,7 +5,10 @@ import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { WordStripLive } from "@/components/WordStrip";
 import { wordTier } from "@/lib/economy";
 import { isWord } from "@/lib/dictionary";
-import { parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
+import { parseLinkStage, parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
+import { cardLevelSoon } from "@/lib/onchain/cardLevel";
+import { isSuiteDeployed } from "@/lib/onchain/addresses";
+import type { Gild } from "@/components/game/TileCharacter";
 import { parseLinkScene, sceneMeta } from "@/lib/scenes";
 import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
 import { BASE_APP_ID, embedsWithImage } from "@/lib/site";
@@ -27,8 +30,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const text = showcaseText(tiles);
   const title = `${text} · a Lexigotchi showcase`;
   const description = "Lexigotchi is a word-pet game on Base. Collect letters, raise them, and spell words only you can own.";
-  const card = { url: showcaseCardUrl(text, "x", scene), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
-  const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene));
+  // The pictures' addresses name the word's stage (read from the chain, never from this link), so a
+  // word shared again after an ascension gets pictures at new addresses (lib/showcase, stageQuery).
+  const stage = await stageOf(tiles.map((t) => t.char).join(""), parseLinkStage((await searchParams).g));
+  const card = { url: showcaseCardUrl(text, "x", scene, false, stage), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
+  const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene, false, stage));
   return {
     title,
     description,
@@ -43,6 +49,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
+/**
+ * A dictionary word's ascension stage, from the chain, waited for only a moment; none for a house
+ * card or before the game is deployed. `hint` is the stage this page's own link names: never shown,
+ * only a reason to read the chain again when it differs from the stage kept a moment ago.
+ */
+async function stageOf(word: string, hint: number | null): Promise<number | null> {
+  return isWord(word) && isSuiteDeployed() ? cardLevelSoon(word, hint) : null;
+}
+
 export default async function ShowcasePage({ params, searchParams }: Props) {
   const tiles = parseShowcase((await params).text);
   if (!tiles) notFound();
@@ -54,7 +69,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
   // by carrying no ribbon. A word's number is the chain's, never the link's, and the page waits
   // for it only a moment (cardNumberSoon).
   const tier = isWord(word) ? wordTier(word) : undefined;
-  const number = tier ? await cardNumberSoon(word) : null;
+  const [number, stage] = await Promise.all([tier ? cardNumberSoon(word) : null, stageOf(word, parseLinkStage((await searchParams).g))]);
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-8 bg-paper px-4 py-12 text-ink">
@@ -62,7 +77,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
         A Lexigotchi showcase
       </p>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
-        <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} />
+        <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} />
       </div>
       <h1 className="sr-only">{text}</h1>
       <p className="max-w-md text-center text-lg font-semibold text-ink/75">

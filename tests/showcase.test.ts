@@ -6,7 +6,7 @@
  * card draw dictionary words only. These tests are that guard.
  */
 import { describe, it, expect } from "vitest";
-import { HOUSE_CARDS, parseShowcase, CARD_LOOK, showcaseCardUrl, showcasePostText, showcaseText, showcaseUrl, showcaseWordText, xIntentUrl, showcaseXText, showcaseFacePath } from "@/lib/showcase";
+import { HOUSE_CARDS, parseShowcase, CARD_LOOK, showcaseCardUrl, showcasePostText, showcaseText, showcaseUrl, showcaseWordText, xIntentUrl, showcaseXText, showcaseFacePath, showcaseCardPath, showcaseBackPath, parseLinkStage, cardPictureCache, CARD_CACHE_LONG, CARD_CACHE_SHORT } from "@/lib/showcase";
 import { BANNED, isWord } from "@/lib/dictionary";
 
 describe("parseShowcase", () => {
@@ -109,5 +109,44 @@ describe("share links", () => {
 
   it("post copy has no em dash", () => {
     expect(showcasePostText("CRAne")).not.toMatch(/—/);
+  });
+});
+
+describe("a word's stage in its addresses (decisions.md #48)", () => {
+  it("names the stage in the link and in every picture's address, so a word shared after an ascension gets new ones", () => {
+    expect(showcaseUrl("VIVID", "spring", 3)).toMatch(/\/s\/VIVID\?g=3&scene=spring$/);
+    expect(showcaseCardPath("VIVID", "x", "spring", false, 3)).toBe(`/s/VIVID/card?v=${CARD_LOOK}&g=3&scene=spring`);
+    expect(showcaseCardPath("VIVID", "fc", undefined, true, 5)).toBe(`/s/VIVID/card?ratio=3x2&saved=1&v=${CARD_LOOK}&g=5`);
+    expect(showcaseFacePath("VIVID", "stage", 4)).toBe(`/s/VIVID/card?face=1&v=${CARD_LOOK}&g=4`);
+    expect(showcaseBackPath("VIVID", 4)).toBe(`/s/VIVID/back?v=${CARD_LOOK}&g=4`);
+  });
+
+  it("says nothing for a word that isn't ascended: its addresses are what they were", () => {
+    for (const stage of [0, null, undefined]) {
+      expect(showcaseUrl("CRAne", undefined, stage)).toBe(showcaseUrl("CRAne"));
+      expect(showcaseCardPath("CRAne", "x", undefined, false, stage)).toBe(showcaseCardPath("CRAne"));
+      expect(showcaseBackPath("CRAne", stage)).toBe(showcaseBackPath("CRAne"));
+    }
+  });
+
+  it("reads a stage from an address only as 1 to 5, and nothing else as one", () => {
+    expect([1, 2, 3, 4, 5].map((n) => parseLinkStage(String(n)))).toEqual([1, 2, 3, 4, 5]);
+    for (const raw of ["0", "6", "-1", "3.5", "03", "five", "", null, undefined]) expect(parseLinkStage(raw), String(raw)).toBeNull();
+    expect(parseLinkStage(["4", "5"])).toBe(4);
+  });
+
+  it("keeps a picture for long only when its address names the stage it shows", () => {
+    const long = (o: { waiting: boolean; level: number | null; hint: number | null }) => cardPictureCache(o) === CARD_CACHE_LONG;
+    // a word not ascended, at an address that names no stage; an ascended word at its own stage's address
+    expect(long({ waiting: false, level: 0, hint: null })).toBe(true);
+    expect(long({ waiting: false, level: 4, hint: 4 })).toBe(true);
+    // an old link to a word that has since ascended; an address that names a stage the word isn't at
+    expect(long({ waiting: false, level: 2, hint: null })).toBe(false);
+    expect(long({ waiting: false, level: 2, hint: 5 })).toBe(false);
+    expect(long({ waiting: false, level: 0, hint: 3 })).toBe(false);
+    // the stage couldn't be read, or the number is still to come
+    expect(long({ waiting: false, level: null, hint: null })).toBe(false);
+    expect(long({ waiting: true, level: 0, hint: null })).toBe(false);
+    expect(cardPictureCache({ waiting: true, level: 0, hint: null })).toBe(CARD_CACHE_SHORT);
   });
 });

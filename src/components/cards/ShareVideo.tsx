@@ -111,8 +111,8 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
     try {
       const { makeLoop } = await import("./loop/makeLoop");
       const blob = await makeLoop({
-        front: showcaseFacePath(text, scene),
-        back: showcaseBackPath(text),
+        front: showcaseFacePath(text, scene, word.prestigeLevel),
+        back: showcaseBackPath(text, word.prestigeLevel),
         material: materialOf(word.tier),
         signal: ctl.signal,
         onProgress: (p) => !ctl.signal.aborted && setProgress(p),
@@ -134,7 +134,7 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
     try {
       // The sheet's target is unknown (X, Farcaster, a message), so no @-handle, which names
       // someone else on Farcaster; and the link, since the file carries none.
-      await navigator.share({ files: [file()], text: `${showcasePostText(text)} ${showcaseUrl(text, scene)}` });
+      await navigator.share({ files: [file()], text: `${showcasePostText(text)} ${showcaseUrl(text, scene, word.prestigeLevel)}` });
     } catch (e) {
       // the player closing the sheet isn't a failure
       // only point at Save video where there is one (a host has no download)

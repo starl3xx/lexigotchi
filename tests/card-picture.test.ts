@@ -5,9 +5,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const chain = vi.hoisted(() => ({ deployed: false, numberOf: vi.fn(async (_word: string): Promise<number | null> => null) }));
+const chain = vi.hoisted(() => ({ deployed: false, waited: [] as string[], numberOf: vi.fn(async (_word: string): Promise<number | null> => null), levelOf: vi.fn(async (_word: string, _hint?: number | null): Promise<number | null> => 0) }));
 vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), isSuiteDeployed: () => chain.deployed }));
-vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: chain.numberOf }));
+// "soon" answers within a moment or not at all (a crawler waits); the plain reads wait for the chain
+vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: chain.numberOf, cardNumberOf: async (word: string) => (chain.waited.push(`number:${word}`), chain.numberOf(word)) }));
+vi.mock("@/lib/onchain/cardLevel", () => ({ cardLevelSoon: chain.levelOf, cardLevelOf: async (word: string, hint: number | null) => (chain.waited.push(`level:${word}`), chain.levelOf(word, hint)) }));
 
 const { GET } = await import("@/app/s/[text]/card/route");
 
@@ -25,6 +27,9 @@ beforeEach(() => {
   chain.deployed = false;
   chain.numberOf.mockReset();
   chain.numberOf.mockResolvedValue(null);
+  chain.levelOf.mockReset();
+  chain.levelOf.mockResolvedValue(0);
+  chain.waited = [];
 });
 
 describe("a word's share picture", () => {
@@ -70,5 +75,50 @@ describe("a word's share picture", () => {
     expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
     // a house card has no number to wait for
     expect((await get("HEYOO")).headers.get("cache-control")).toMatch(LONG);
+  }, 60_000);
+
+  it("asks the chain for the word's stage, by the word alone: nothing in the link can gild a card", async () => {
+    chain.deployed = true;
+    chain.numberOf.mockResolvedValue(20);
+    const res = await get("CRAne", "?g=5&gild=5&level=5");
+    expect(chain.levelOf).toHaveBeenCalledTimes(1);
+    // the stage the address names goes along only as a reason to read the chain again (cardLevel)
+    expect(chain.levelOf).toHaveBeenCalledWith("CRANE", 5);
+    // what is drawn is the chain's stage (none here), so this address does not name it: kept for minutes
+    expect(res.headers.get("cache-control")).toMatch(SHORT);
+    // a house card has no stage, and before the game is deployed there is none to read
+    chain.levelOf.mockClear();
+    await get("HEYOO", "?g=5");
+    chain.deployed = false;
+    await get("CRAne", "?g=5");
+    expect(chain.levelOf).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it("the video's front waits for the chain as its back does, so the two faces of one video can't disagree; a crawler's picture doesn't wait", async () => {
+    chain.deployed = true;
+    chain.numberOf.mockResolvedValue(20);
+    chain.levelOf.mockResolvedValue(3);
+    await get("CRAne", "?face=1&g=3");
+    expect(chain.waited).toEqual(["number:CRANE", "level:CRANE"]);
+    chain.waited = [];
+    await get("CRAne", "?g=3");
+    await get("CRAne", "?ratio=3x2&saved=1");
+    expect(chain.waited).toEqual([]);
+  }, 60_000);
+
+  it("keeps a gilded picture for a week only at the address that names its stage", async () => {
+    chain.deployed = true;
+    chain.numberOf.mockResolvedValue(20);
+    chain.levelOf.mockResolvedValue(4);
+    expect((await get("CRAne", "?g=4")).headers.get("cache-control")).toMatch(LONG);
+    // an old link to a word that has since ascended, and an address that names another stage
+    expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
+    expect((await get("CRAne", "?g=5")).headers.get("cache-control")).toMatch(SHORT);
+    // a word that is not ascended, at an address that says it is
+    chain.levelOf.mockResolvedValue(0);
+    expect((await get("CRAne", "?g=3")).headers.get("cache-control")).toMatch(SHORT);
+    // the stage could not be read in time: drawn without gilding, and asked again soon
+    chain.levelOf.mockResolvedValue(null);
+    expect((await get("CRAne")).headers.get("cache-control")).toMatch(SHORT);
   }, 60_000);
 });

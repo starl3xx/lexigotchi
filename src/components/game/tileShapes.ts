@@ -170,6 +170,15 @@ export function ringRects(gild: number): { x: number; y: number; w: number; h: n
   });
 }
 
+/** Holographic's foil (stage 5), in place of the gold: the colours of its gradient, in order. */
+export const HOLO_STOPS: readonly (readonly [number, string])[] = [
+  [0, "#ff9ad5"],
+  [0.25, "#ffe28a"],
+  [0.5, "#8ff0d0"],
+  [0.75, "#8ec5ff"],
+  [1, "#c7a0ff"],
+];
+
 // ── the stage's pips ─────────────────────────────────────────────────────────────────────────────
 /**
  * One pip a stage, on the tile's lower face: black diamonds (decisions.md #48; starl3xx: "black

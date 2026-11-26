@@ -13,6 +13,8 @@ import {
   FOOT_LX,
   FOOT_RX,
   FOOT_Y,
+  HOLO_STOPS,
+  LAUREL_LEAF,
   LEG_L,
   LEG_R,
   LIMB_W,
@@ -20,6 +22,7 @@ import {
   LINK_R,
   MID,
   MITT,
+  PIP_NUDGE,
   PITCH,
   SHADOW_LINES,
   SHADOW_LINE_OPACITY,
@@ -27,10 +30,16 @@ import {
   SHOE,
   SHOE_SHINE,
   T,
+  VB,
   eyeBox,
+  laurel,
   mittAt,
+  pipPath,
   pupilOf,
+  ringOuter,
+  ringRects,
   type Hand,
+  type RingPart,
 } from "@/components/game/tileShapes";
 
 /**
@@ -58,6 +67,10 @@ const EDGE_WOOD = "#c7ae84";
 const LHAW = "#3b82f6";
 const LHAW_RING = "#bbd1fd";
 const LHAW_INK = "#111827";
+// the gilding's paints, as the rig's (TileCharacter)
+const BRASS = "#c8962b";
+const GOLD = "#f0a617";
+const SHEEN = "#fce8a8";
 const EYE_WHITE = "#ffffff";
 
 /** The face inside the border (the border's inner edge). */
@@ -246,6 +259,21 @@ function claspHalf(mine: "under" | "over", darts: boolean): ReactElement {
   );
 }
 
+/** The laurels (tileShapes, laurel): the left sprig, and its mirror. Every attribute given, for Satori. */
+function laurels(paint: string): ReactElement {
+  const l = laurel(ringOuter(4));
+  const sprig = (k: string) => [
+    <path key={`${k}-stem`} d={l.stem} fill="none" stroke={INK} strokeWidth={2.6} strokeLinecap="round" />,
+    ...l.leaves.map((t, i) => <path key={`${k}-${i}`} d={LAUREL_LEAF} transform={t} fill={paint} stroke={INK} strokeWidth={2.2} strokeLinejoin="round" />),
+  ];
+  return (
+    <g key="laurels">
+      {sprig("l")}
+      <g transform={`translate(${VB.w} 0) scale(-1 1)`}>{sprig("r")}</g>
+    </g>
+  );
+}
+
 /** An open eye at rest (tileShapes: eyeBox, pupilOf): a tall oval, one big pupil, its pie cut. */
 function eye(key: string, ex: number, ey: number, rx: number, ry: number, side: -1 | 1): ReactElement {
   const p = pupilOf(ex, ey, rx, ry, side);
@@ -264,6 +292,7 @@ export function OgTile({
   w = 200,
   limbs = true,
   tier,
+  gild = 0,
   index = 0,
   uid = "t",
   linkLeft = false,
@@ -276,6 +305,12 @@ export function OgTile({
   limbs?: boolean;
   /** The word's rarity, worn as the tile's material (lib/rarityFinish), as a still. */
   tier?: Tier;
+  /**
+   * The word's ascension stage, worn by its UPPERCASE letters as in the game (decisions.md #48):
+   * slim rings, black diamond pips, laurels from Gilded 4, the foil at Holographic. The caller
+   * reads it from the chain; a link can't claim one.
+   */
+  gild?: number;
   /** The tile's place in its word: the glints alternate along a word, as in the app. */
   index?: number;
   /** Keeps this tile's gradient and clip ids apart from its neighbours'. */
@@ -297,7 +332,12 @@ export function OgTile({
   const faceLeft = (T.x - vb.x) * sx;
   const faceTop = (T.y - vb.y) * sy;
   const faceSize = T.w * sx;
-  const eyes = eyeBox(upper);
+  // the stage, on UPPERCASE letters only, as in the rig
+  const g = upper ? Math.max(0, Math.min(5, Math.round(gild) || 0)) : 0;
+  const holo = g >= 5 ? `url(#rf-holo-${uid})` : undefined;
+  const ringPaint = (part: RingPart) => (part === "plain" ? LHAW_RING : part === "gold" ? (holo ?? BRASS) : g >= 5 ? "#ffffff" : SHEEN);
+  // the eyes ride the ring's outer edge
+  const eyes = eyeBox(upper, ringOuter(g));
   const fin = finishFor(tier);
   const bw = upper ? 12 : 4; // the face's border
   const u = (n: string) => `rf-${n}-${uid}`;
@@ -312,6 +352,15 @@ export function OgTile({
     <div style={{ position: "relative", display: "flex", width: w, height: h }}>
       <svg width={w} height={h} viewBox={`${vb.x} ${vb.y} ${vb.W} ${vb.H}`} style={{ position: "absolute", left: 0, top: 0 }}>
         {fin && finishDefs(fin, u, bw)}
+        {holo && (
+          <defs>
+            <linearGradient id={`rf-holo-${uid}`} x1="0" y1="0" x2="0.6" y2="0.6" spreadMethod="reflect">
+              {HOLO_STOPS.map(([o, c]) => (
+                <stop key={o} offset={o} stopColor={c} />
+              ))}
+            </linearGradient>
+          </defs>
+        )}
         {limbs && (
           <g>
             {/* the ground shadow as ruled lines (tileShapes, SHADOW_LINES): every attribute given, for Satori */}
@@ -329,7 +378,7 @@ export function OgTile({
             come over an UPPERCASE letter's ring and under its face, as the arms do (decisions.md #48). */}
         <g transform={tilt}>
           {fin && finishAura(fin, u)}
-          {upper ? <rect x={T.x - 11} y={T.y - 11} width={T.w + 22} height={T.h + 22} rx={T.r + 11} fill="none" stroke={LHAW_RING} strokeWidth="10" /> : null}
+          {upper ? ringRects(g).map((r, i) => <rect key={`ring-${i}`} x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill="none" stroke={ringPaint(r.part)} strokeWidth={r.sw} />) : null}
           {limbs ? limb("leg-l", LEG_L) : null}
           {limbs ? limb("leg-r", LEG_R) : null}
           {upper ? null : <rect x={T.x} y={T.y + 7} width={T.w} height={T.h} rx={T.r} fill={EDGE_WOOD} />}
@@ -351,6 +400,9 @@ export function OgTile({
           {/* the rarity's material over the face, then the border again over its edge */}
           {fin && finishSurface(fin, u, bw)}
           {fin && border}
+
+          {/* the laurels of a Gilded 4 or Holographic letter (a whole character only); the stage's pips are drawn last, over the glints */}
+          {limbs && g >= 4 ? laurels(holo ?? GOLD) : null}
 
           {/* pie-eyes on the top edge, wide open */}
           {eye("eye-l", CX - eyes.dx, eyes.y, eyes.rx, eyes.ry, -1)}
@@ -376,6 +428,8 @@ export function OgTile({
           justifyContent: "center",
           fontSize: faceSize * 0.62,
           fontWeight: 800,
+          // the printed letter rises when pips sit under it, as in the rig
+          paddingBottom: g >= 1 ? PIP_NUDGE * 2 * sy : 0,
           color: upper ? LHAW_INK : INK,
           transform: `rotate(${lean}deg)`,
           transformOrigin: "50% 100%",
@@ -384,10 +438,15 @@ export function OgTile({
         {glyph}
       </div>
 
-      {/* the glints, over the letter as in the app */}
-      {glints.length > 0 && (
+      {/* The glints, over the letter as in the app, and then the stage's pips OVER the glints, as the
+          rig paints them (its pips come after its shine): a Mythic word's glint sits on the lower
+          face, and drawn the other way round it covered a pip (Bugbot on #247). */}
+      {(glints.length > 0 || g >= 1) && (
         <svg width={w} height={h} viewBox={`${vb.x} ${vb.y} ${vb.W} ${vb.H}`} style={{ position: "absolute", left: 0, top: 0 }}>
-          <g transform={tilt}>{glints}</g>
+          <g transform={tilt}>
+            {glints}
+            {g >= 1 ? [0, 1, 2, 3, 4].map((i) => (i < g ? <path key={`pip-${i}`} d={pipPath(i)} fill={INK} stroke={INK} strokeWidth={2.1} strokeLinejoin="round" /> : <path key={`pip-${i}`} d={pipPath(i)} fill="none" stroke={INK} strokeOpacity={0.26} strokeWidth={1.9} strokeLinejoin="round" />)) : null}
+          </g>
         </svg>
       )}
     </div>
