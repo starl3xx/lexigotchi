@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, renderHook } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TileCharacter, TileWord, useWordLife, type TileState } from "@/components/game/TileCharacter";
+import { TileCharacter, TileWord, useGaze, useWordLife, type TileState } from "@/components/game/TileCharacter";
 import { ARM_REST, ARM_REST_R, BOT, CLASP, CX, LINK_L, LINK_R, PITCH, WORD_LEAN, leanFor } from "@/components/game/tileShapes";
 import { OgTile } from "@/app/_og/tile";
 
@@ -155,14 +155,16 @@ describe("a word's life", () => {
     const el = row();
     renderHook(() => useWordLife({ current: el }, true));
     const tile = el.children[2] as HTMLElement;
-    // the pointer is on this letter the whole time (useGaze writes --gx)
-    tile.style.setProperty("--gx", "0.4");
+    // the pointer is on this letter the whole time (useGaze writes the pupil's own transform)
+    const pupil = tile.appendChild(document.createElement("b"));
+    pupil.className = "tc-pupil";
+    pupil.style.transform = "translate(2.2px, 0px)";
     at(1200); // the first tick, at 1130 ms
     expect(tile.style.getPropertyValue("--glance")).toBe("-0.9");
-    expect(tile.style.getPropertyValue("--gx")).toBe("0.4");
+    expect(pupil.style.transform).toBe("translate(2.2px, 0px)");
     at(1700); // the glance has ended: it let go of its own property, and only that
     expect(tile.style.getPropertyValue("--glance")).toBe("");
-    expect(tile.style.getPropertyValue("--gx")).toBe("0.4");
+    expect(pupil.style.transform).toBe("translate(2.2px, 0px)");
   });
 
   it("a second glance on a letter mid-glance lasts its own time, not the first one's", () => {
@@ -215,5 +217,95 @@ describe("the share card's letter (Satori)", () => {
     // alone, both arms hang at rest
     expect(html).toContain(`d="${ARM_REST.d}"`);
     expect(html).toContain(`d="${ARM_REST_R.d}"`);
+  });
+});
+
+describe("the eyes follow the pointer (useGaze)", () => {
+  // One frame at a time: the hook asks for a frame, and the test runs it.
+  let frames: FrameRequestCallback[] = [];
+  const frame = () => act(() => void frames.splice(0).forEach((cb) => cb(0)));
+  beforeEach(() => {
+    frames = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => frames.push(cb));
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.body.innerHTML = "";
+  });
+  const row = () => {
+    const el = document.createElement("div");
+    el.innerHTML = `<i data-tc=""><b class="tc-pupil"></b><b class="tc-pupil"></b></i><i data-tc=""><b class="tc-pupil"></b></i>`;
+    document.body.append(el);
+    return el;
+  };
+  const pupils = (el: HTMLElement) => Array.from(el.querySelectorAll<HTMLElement>(".tc-pupil"));
+  const move = (x: number, y: number, pointerType = "mouse") => ({ clientX: x, clientY: y, pointerType });
+
+  it("writes each pupil's place onto the pupil, with no transition while it follows", () => {
+    const el = row();
+    const { result } = renderHook(() => useGaze({ current: el }, true));
+    result.current.onPointerMove?.(move(40, 0));
+    expect(pupils(el)[0].style.transform).toBe(""); // nothing until the frame
+    frame();
+    for (const p of pupils(el)) {
+      expect(p.style.transform).toBe("translate(5.50px, 0.00px)"); // full look to the right
+      expect(p.style.transition).toBe("none");
+    }
+  });
+
+  it("sets no custom property on the tile: one there is inherited by every shape in the letter", () => {
+    const el = row();
+    const { result } = renderHook(() => useGaze({ current: el }, true));
+    result.current.onPointerMove?.(move(0, 40));
+    frame();
+    for (const tile of Array.from(el.children) as HTMLElement[]) expect(tile.getAttribute("style") ?? "").not.toContain("--");
+    expect(pupils(el)[0].style.transform).toBe("translate(0.00px, 4.00px)"); // full look down
+  });
+
+  it("asks for one frame however many times the pointer moves before it", () => {
+    const el = row();
+    const { result } = renderHook(() => useGaze({ current: el }, true));
+    result.current.onPointerMove?.(move(40, 0));
+    result.current.onPointerMove?.(move(-40, 0));
+    expect(frames).toHaveLength(1);
+    frame();
+    expect(pupils(el)[0].style.transform).toBe("translate(-5.50px, 0.00px)"); // the last place wins
+    result.current.onPointerMove?.(move(40, 0));
+    expect(frames).toHaveLength(1); // and the next move asks again
+  });
+
+  it("lets go when the pointer leaves, so the pupil eases back to its glance or its rest", () => {
+    const el = row();
+    const { result } = renderHook(() => useGaze({ current: el }, true));
+    result.current.onPointerMove?.(move(40, 0));
+    frame();
+    result.current.onPointerLeave?.();
+    for (const p of pupils(el)) {
+      expect(p.style.transform).toBe("");
+      expect(p.style.transition).toBe("");
+    }
+  });
+
+  it("a frame that lands after the pointer left writes nothing", () => {
+    const el = row();
+    const { result } = renderHook(() => useGaze({ current: el }, true));
+    result.current.onPointerMove?.(move(40, 0));
+    result.current.onPointerLeave?.();
+    frame();
+    expect(pupils(el)[0].style.transform).toBe("");
+  });
+
+  it("does not follow a touch, and hands back no handlers when the word is not watched", () => {
+    const el = row();
+    const { result, rerender } = renderHook(({ on }) => useGaze({ current: el }, on), { initialProps: { on: true } });
+    result.current.onPointerMove?.(move(40, 0, "touch"));
+    expect(frames).toHaveLength(0);
+    result.current.onPointerMove?.(move(40, 0));
+    frame();
+    expect(pupils(el)[0].style.transform).not.toBe("");
+    rerender({ on: false }); // the word went still, or off screen
+    expect(result.current).toEqual({});
+    expect(pupils(el)[0].style.transform).toBe("");
   });
 });
