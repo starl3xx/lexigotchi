@@ -1,7 +1,8 @@
 "use client";
 /**
  * The sound switch (decisions.md #49, part 4). Off until the player turns it on, kept per browser.
- * Two sizes: the card in More, and a small one under the envelope, where the sounds are.
+ * Two sizes: the card (in More, and in the profile, because the desktop rail has no More), and a
+ * small one under the envelope, where the sounds are.
  * Renders nothing in a build with no sounds (lib/sound `SOUND_READY`).
  */
 import { useSound } from "./useSound";

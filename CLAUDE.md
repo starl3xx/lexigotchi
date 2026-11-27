@@ -1011,12 +1011,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   less** (`Mail.plain`, `hadFor`): a commit that was already revealed when the card opened it, or
   letters that went to a linked wallet, get no tags, no "new", and no word named. **Sound**
   (part 4; `lib/sound.ts`, `mail/mailCues.ts`, `useSound.ts`, `SoundToggle.tsx`): off until the
-  player turns it on (More, or the small switch under an envelope), kept per browser, and off
-  means off (no file fetched, no AudioContext). **Dark without its files:** `SOUND_READY` is
-  worked out at build time (next.config.mjs: `public/sfx/mail/drop.mp3` exists, or
-  `NEXT_PUBLIC_SOUND_BASE` is set), and the eight files are IGNORED BY GIT until the owner says
-  how they ship (the sound-effects terms forbid isolated audio files, and this repository is
-  public). Never commit them without his word. A cue comes from a STEP (`cuesForStep`, pure),
+  player turns it on (More, the profile, since the desktop rail has no More, or the small switch
+  under an envelope), kept per browser, and off
+  means off (no file fetched, no AudioContext). **The eight files are in the repository**
+  (`public/sfx/mail/`; starl3xx, 2026-11-27: "you can incorporate the sounds"), each the take he
+  chose, held to its hash by `tests/sound-files.test.ts`: a changed or new cue changes that test
+  in the same PR. `SOUND_READY` is worked out at build time (next.config.mjs:
+  `public/sfx/mail/drop.mp3` exists, or `NEXT_PUBLIC_SOUND_BASE` is set), so a build without
+  them is dark. **A new sound is the owner's to hear and approve first**, and its terms are read
+  before it is committed (the sound-effects terms forbid making output available as isolated audio
+  files, and this repository is public: he accepted that for these eight). A cue comes from a
+  STEP (`cuesForStep`, pure),
   never from what the envelope shows when it appears, and letters make one cue a step. A new
   sound goes through `play` from a step function like that one. A browser plays only after a
   tap: `useSoundGestures` wakes the context on every tap while sound is on, and anything that
