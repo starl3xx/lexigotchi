@@ -129,7 +129,7 @@ import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageNote } from "@/lib/onchain/stageOverlay";
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
-import { failedAsk, openPacks, packRevealPlan, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
+import { failedAsk, openPacks, packRevealPlan, waitingCommits, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
 import { mailboxKey, readMailbox, withMail, withoutMail, writeMailbox, type UnopenedMail } from "@/lib/mailbox";
 import { bagWithMail, caughtUp, hadWithOwed, mailNumber, type Mail } from "./mail/mailFlow";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -152,6 +152,7 @@ const PACK_SETTLE_MS = ASCEND_SETTLE_MS;
 const PACK_FINISHING = "Your pack is finishing onchain. It’ll show in a moment.";
 /** How long a revealed pack's letters are counted before the bag's own read shows them (its re-reads end at 20 s). */
 const OWED_TRUST_MS = 60_000;
+const NO_IDS: ReadonlySet<string> = new Set();
 /** After a pack ends up waiting: when to look again for its commit, so the card on Today shows it. */
 const WAITING_REREAD_MS = [3_000, 10_000, 25_000, 60_000];
 
@@ -1058,12 +1059,17 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     if (boxKeyNow.current === key) setUntorn(next);
   }, []);
 
+  const [waitingBefore, setWaitingBefore] = useState<{ seq: number; ids: ReadonlySet<string> } | null>(null);
+  const openCommitsNow = useRef(pendingQ.data);
+  openCommitsNow.current = pendingQ.data;
   /** A new piece: the sheet opens on it at once, so the tap is answered by the envelope. */
   const beginMail = useCallback((start: Pick<Mail, "count" | "free" | "phase" | "number" | "mine" | "had">) => {
     const seq = ++mailSeq.current;
     const piece: Mail = { ...start, seq, letters: null, torn: false };
     mailNow.current = piece;
     setMail(piece);
+    // What was already waiting when this piece began: while it is on its way, nothing else counts.
+    setWaitingBefore({ seq, ids: new Set(openPacks(openCommitsNow.current ?? [], revealedPacks.current).map((c) => String(c.commitId))) });
     dispatch({ t: "sheet", sheet: { kind: "mail" } });
     return seq;
   }, []);
@@ -1185,17 +1191,17 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   }, [untorn, mail, ui.sheet]);
   /**
    * Commits the server still has to open: never one this browser has seen revealed (whatever a
-   * lagging node says), and not the one the envelope in hand is on its way with right now ("found":
-   * its flow is still running, and the card's Open could only say "Still working on").
+   * lagging node says), and, while the envelope in hand is on its way, only the ones that were
+   * waiting before it began (lib/onchain/packReveal `waitingCommits`). Its own commit can be in
+   * the list at any step of its flow, and the card's Open could only say "Still working on".
    */
-  const inFlight = mail && mail.phase === "found" && mail.number !== null ? mail.number : null;
   const openCommits = pendingQ.data;
-  const waitingPacks = useMemo(
-    () => openPacks(openCommits ?? [], revealedPacks.current).filter((c) => mailNumber(c.commitId) !== inFlight),
+  const waitingPacks = useMemo(() => {
+    const flying = !!mail && (mail.phase === "wallet" || mail.phase === "paid" || mail.phase === "found");
+    const flight = flying && mail ? { known: waitingBefore?.seq === mail.seq ? waitingBefore.ids : NO_IDS, own: mail.number !== null ? BigInt(mail.number - 1) : null } : null;
+    return waitingCommits(openPacks(openCommits ?? [], revealedPacks.current), flight);
     // `mail` too: a piece that settles changes what `revealedPacks` (a ref) holds
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [openCommits, inFlight, mail],
-  );
+  }, [openCommits, mail, waitingBefore]);
 
   /** Lay a pity value the client KNOWS over the lagging chain read, for that roll's owner. */
   const notePity = useCallback((owner: string, letterIndex: number, value: number) => {

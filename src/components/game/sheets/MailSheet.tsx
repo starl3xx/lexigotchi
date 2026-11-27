@@ -37,7 +37,7 @@ import { useWorld } from "../useWorld";
 import { useLetterSupply } from "../useLetterSupply";
 import { useMyName } from "../useMyName";
 import { newlySpellableWith } from "./BoughtLettersSheet";
-import { bagWithMail, bestLine, countHead, countSub, finishers, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
+import { bagWithMail, bestLine, countHead, countSub, finishers, hadFor, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
 
 // ── measures: one box, 328 wide, drawn larger or smaller as a whole to fit the sheet ─────────────
 const W = 328;
@@ -183,7 +183,7 @@ function MailStage({ mail }: { mail: Mail }) {
       !mail.mine || checking
         ? []
         : newlySpellableWith(bagWithMail(lower, mail.had, letters), upper, added, taken).map((f) => f.word);
-    return revealOrder(letters, mail.had, finishers(words, before));
+    return revealOrder(letters, hadFor(mail), finishers(words, before));
   };
 
   // ── the wait ─────────────────────────────────────────────────────────────────────────────────

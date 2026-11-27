@@ -68,6 +68,17 @@ const rarity = (idx: number): number => LETTERS_BY_FREQUENCY.findIndex((ch) => c
 /** Is this THE rarest letter in the game? */
 export const isRarest = (idx: number): boolean => rarity(idx) === 25;
 
+/** A bag that holds every letter: measured from it, no letter is new. */
+const HELD_ALL: readonly number[] = Array.from({ length: 26 }, () => 1);
+/**
+ * What "new" is measured from for a piece. Its own `had`, unless nothing may be said about its
+ * letters beyond what they are: they went to another wallet of the player's ("away"), so `had`
+ * (the CONNECTED wallet's bag) says nothing about them (Bugbot on #273).
+ */
+export function hadFor(piece: Pick<Mail, "mine" | "had">): readonly number[] {
+  return piece.mine ? piece.had : HELD_ALL;
+}
+
 /** One letter out of a piece of mail, and what it is to the player. */
 export interface Pull {
   /** alphabet index, 0 = a */

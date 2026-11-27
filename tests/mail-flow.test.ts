@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
-import { QUICK_AFTER, bagWithMail, bestLine, caughtUp, countHead, countSub, finishers, hadWithOwed, isRarest, mailNumber, mailNumberText, mailStatus, nextTearIsQuick, resetSitting, revealBeats, revealOrder, tagOf, type Mail } from "@/components/game/mail/mailFlow";
+import { QUICK_AFTER, bagWithMail, bestLine, caughtUp, countHead, countSub, finishers, hadFor, hadWithOwed, isRarest, mailNumber, mailNumberText, mailStatus, nextTearIsQuick, resetSitting, revealBeats, revealOrder, tagOf, type Mail } from "@/components/game/mail/mailFlow";
 
 const idx = (ch: string) => ch.toLowerCase().charCodeAt(0) - 97;
 const bag = (letters: string) => {
@@ -273,5 +273,23 @@ describe("what the bag held before a new piece, when its read is behind the last
     const before = hadWithOwed(spent, owed);
     expect(before[idx("k")]).toBe(1);
     expect(revealOrder(pack("k"), before)[0].isNew).toBe(false);
+  });
+});
+
+// Bugbot on #273: a pack opened for a LINKED wallet mints to that wallet, and "new" was still
+// measured from the connected wallet's bag.
+describe("what “new” is measured from", () => {
+  it("is what the bag held before, for a piece that is this wallet's", () => {
+    const had = bag("esa");
+    expect(hadFor({ mine: true, had })).toBe(had);
+    expect(revealOrder(pack("esard"), hadFor({ mine: true, had })).map((p) => p.isNew)).toEqual([false, false, false, true, true]);
+  });
+
+  it("calls nothing new when the letters went to another wallet, whatever this wallet holds", () => {
+    const pulls = revealOrder(pack("esarq"), hadFor({ mine: false, had: none }));
+    expect(pulls.some((p) => p.isNew)).toBe(false);
+    expect(pulls.map((p) => tagOf(p)?.kind).filter(Boolean)).toEqual(["rare"]);
+    // rare is still rare: that is about the letter, not about the bag
+    expect(pulls[4]).toMatchObject({ rare: true, best: true });
   });
 });
