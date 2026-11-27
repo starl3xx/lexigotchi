@@ -335,6 +335,20 @@ export interface PendingCommit {
  * the player's money stays spent. Anything that lands here and never clears is money owed.
  */
 export async function readPendingCommits(player: `0x${string}`): Promise<PendingCommit[]> {
+  return (await readLetterCommits(player)).filter((c) => !c.revealed).map(({ commitId, count, buyer, blockNumber }) => ({ commitId, count, buyer, blockNumber }));
+}
+
+/** A Letters commit of a player's, opened or not. */
+export interface LetterCommit extends PendingCommit {
+  revealed: boolean;
+}
+
+/**
+ * EVERY Letters commit a player made, with whether it is revealed: the same scan as
+ * `readPendingCommits`, which keeps the unrevealed ones. A daily letter's commit and reveal ride one
+ * send, so its commit is never "pending": finding it needs the whole list.
+ */
+export async function readLetterCommits(player: `0x${string}`): Promise<LetterCommit[]> {
   const letters = addressOf("letters");
   const client = getPublicClient();
 
@@ -377,9 +391,7 @@ export async function readPendingCommits(player: `0x${string}`): Promise<Pending
         blockNumber: l.blockNumber ?? 0n,
         revealed: Boolean(s[2]),
       };
-    })
-    .filter((c) => !c.revealed)
-    .map(({ commitId, count, buyer, blockNumber }) => ({ commitId, count, buyer, blockNumber }));
+    });
 }
 
 /**
@@ -396,6 +408,28 @@ export async function readLetterCommitRevealed(commitId: bigint): Promise<boolea
     args: [commitId],
   })) as unknown as readonly [string, number, boolean];
   return Boolean(raw[2]);
+}
+
+/**
+ * One Letters commit as the chain has it, or null when no commit has that id yet (the read
+ * reverts past the end of the list). For a commit whose id was PREDICTED (the daily letter's
+ * bundle): the id means nothing until this says whose commit it is.
+ */
+export async function readLetterCommit(commitId: bigint): Promise<{ buyer: `0x${string}`; count: number; revealed: boolean } | null> {
+  try {
+    const raw = (await getPublicClient().readContract({
+      address: addressOf("letters"),
+      abi: lettersAbi,
+      functionName: "commits",
+      args: [commitId],
+    })) as unknown as readonly [`0x${string}`, number, boolean];
+    if (!raw[0] || /^0x0+$/.test(raw[0])) return null;
+    return { buyer: raw[0], count: Number(raw[1]), revealed: Boolean(raw[2]) };
+  } catch (err) {
+    // A revert is "no such commit yet"; anything else (the node didn't answer) is not an answer.
+    if (/revert|out of bounds|0x32|Panic/i.test(String((err as Error)?.message ?? err))) return null;
+    throw err;
+  }
 }
 
 /**
