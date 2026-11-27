@@ -130,4 +130,6 @@ export interface SimResult {
   /** Equilibrium estimate for the Rewards Pool given observed pool inflow. */
   poolEquilibrium: number;
   jackpotWins: { day: number; word: string; amount: number }[];
+  /** Claim fees paid by the claimed word's tier (decisions.md #60): claims made and USD, whole run. */
+  claimRevenue: Record<Tier, { claims: number; usd: number }>;
 }

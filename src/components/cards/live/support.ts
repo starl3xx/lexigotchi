@@ -1,7 +1,7 @@
 /**
- * Whether this browser can draw a live back at all (WebGL 1 is enough), asked once and remembered.
- * Kept apart from ./liveSurface so asking doesn't load the drawing code (OGL loads only when a back
- * first goes live).
+ * What the share video needs from a browser, asked without loading the video's code (OGL and the
+ * encoder load only when a video is made). This folder held the backs' live drawing too, until a
+ * back became an engraved plate, a still picture (decisions.md #58, part 2).
  */
 let videoOk: Promise<boolean> | null = null;
 /** The video's frame and the H.264 profiles it tries (../loop/makeLoop uses the same). */

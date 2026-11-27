@@ -22,6 +22,7 @@ import {
 import { ALPHABET, LETTER_ODDS, wordTier, type Tier } from "@/lib/economy";
 import { WORDS } from "@/lib/dictionary";
 import { stageFeeMultiple } from "@/lib/ascension";
+import { PRACTICE_TIER_BPS, claimFeeWord } from "@/lib/claimFee";
 import {
   DEFAULT_PARAMS,
   currentWordUsd,
@@ -256,6 +257,10 @@ export type Sheet =
   | { kind: "earnings" }
   /** A word opened from the Dictionary (sheets/LookupSheet): what the player needs to spell it, or who has it. */
   | { kind: "lookup"; word: string }
+  /** One thing in the Shop, opened from its card (sheets/ShopItemSheet): seen large, with what it
+   *  is and its Buy. `id` is the registry's; the sheet reads the item live. `word`: the player's
+   *  word to show a card face on first (the face picker names the word being dressed). */
+  | { kind: "shopItem"; id: number; word?: string }
   | null;
 
 export interface Toast {
@@ -507,7 +512,7 @@ type Action =
   | { t: "pack"; idxs: number[] }
   | { t: "rollLoose"; idx: number; success: boolean }
   | { t: "rollWord"; word: string; pos: number; success: boolean }
-  | { t: "claim"; word: string; cases: boolean[] }
+  | { t: "claim"; word: string; cases: boolean[]; fee: number }
   | { t: "stake"; word: string }
   | { t: "feed"; word: string }
   | { t: "feedAll" }
@@ -601,7 +606,7 @@ export function reducer(s: GameState, a: Action): GameState {
         !WORD_SET.has(info) ||
         s.words.some((w) => w.word === info) ||
         !canSpellAs(info, a.cases, s.lower, s.upper) ||
-        s.balance < COST.claim
+        s.balance < a.fee
       ) {
         return s;
       }
@@ -627,7 +632,7 @@ export function reducer(s: GameState, a: Action): GameState {
         upper,
         words: [word, ...s.words],
         wordsEverHeld: Math.max(s.wordsEverHeld || 0, s.words.length) + 1,
-        balance: spend(s, COST.claim),
+        balance: spend(s, a.fee),
       } as GameState;
     }
     case "stake":
@@ -788,6 +793,16 @@ export interface GameApi {
    * `stageFee`). Same store rule as `price`.
    */
   prestigePrice: (level: number) => number;
+  /**
+   * What claiming `word` costs, in whole $WORD: the base claim fee times the multiple of the word's
+   * tier as the game shows it (decisions.md #60, the "gentle ladder"; a collab word is Legendary).
+   * On a network whose Words predates the ladder every word costs the base, which is what that
+   * contract takes. Price a claim of a word through this, never `price("claim")`: that is the base,
+   * a Common word's fee.
+   */
+  claimFee: (word: string) => number;
+  /** The same for a tier: the cost examples ("a first word" is a Common one). */
+  tierClaimFee: (tier: Tier) => number;
   /**
    * Lowercase letters still for sale (chain store: Letters.unreservedSupply). Null = no limit to
    * show: the mock, or a deployment that predates the reservation. Below a pack's 5, packs are
@@ -1044,6 +1059,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       canAfford: (amount) => state.balance >= amount,
       price: (item) => MOCK_PRICE[item],
       prestigePrice: (level) => mockPrestigeFee(level),
+      // The practice game plays the ladder as decided (no collab sets here: the derived tier).
+      claimFee: (word) => claimFeeWord(COST.claim, PRACTICE_TIER_BPS, wordTier(word)),
+      tierClaimFee: (tier) => claimFeeWord(COST.claim, PRACTICE_TIER_BPS, tier),
       lettersLeft: null,
       maxPrestigeLevel: PRESTIGE_LEVELS,
       unfinishedAscents: NO_WORDS,
@@ -1087,11 +1105,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
           toast("Can’t claim that word", "bad");
           return;
         }
-        if (state.balance < COST.claim) {
-          needWord(COST.claim, "this claim"); // spellable but broke — a buy moment, not a dead end
+        const fee = claimFeeWord(COST.claim, PRACTICE_TIER_BPS, wordTier(word));
+        if (state.balance < fee) {
+          needWord(fee, "this claim"); // spellable but broke — a buy moment, not a dead end
           return;
         }
-        dispatch({ t: "claim", word, cases });
+        dispatch({ t: "claim", word, cases, fee });
         dispatch({ t: "sheet", sheet: { kind: "celebrate", word } });
       },
       toggleStake: (word) => dispatch({ t: "stake", word }),
@@ -1272,6 +1291,11 @@ export function useGame(): GameApi {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("useGame must be used within <GameProvider>");
   return ctx;
+}
+
+/** The game, or null outside it: for a shared piece that some screens render with no store. */
+export function useOptionalGame(): GameApi | null {
+  return useContext(Ctx);
 }
 
 /**

@@ -49,7 +49,8 @@ export function useCostPrices(): CostPrices {
   const g = useGame();
   const pack = g.price("pack");
   const roll = g.price("roll");
-  const claim = g.price("claim");
+  // By the word's tier (decisions.md #60): a Mythic word's claim is 8x a Common one's.
+  const claim = g.claimFee;
   const prestigeSnack = g.price("prestigeSnack");
   const prestigeFee = g.prestigePrice;
   return useMemo(() => ({ pack, roll, claim, prestigeSnack, prestigeFee }), [pack, roll, claim, prestigeSnack, prestigeFee]);

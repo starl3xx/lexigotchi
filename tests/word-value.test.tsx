@@ -20,6 +20,8 @@ vi.mock("@/components/game/state", async (orig) => {
     useGame: () => ({
       state: { chainBacked: true },
       price: (item: string) => prices[item],
+      // A flat claim fee here (a Words without the ladder): the test is about the parts, not the tier.
+      claimFee: () => prices.claim,
       prestigePrice: (level: number) => 2_000_000 * (level + 1),
     }),
   };

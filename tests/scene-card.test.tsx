@@ -14,6 +14,9 @@ vi.mock("@/components/cards/CardBack", () => ({
   CardBack: ({ word, mini }: { word: OwnedWord; mini?: boolean }) => <div data-testid="back">{`${word.word}${mini ? " mini" : ""}`}</div>,
 }));
 const { SceneCard } = await import("@/components/cards/SceneCard");
+const { CardLit } = await import("@/components/scenes/cardLit");
+/** A front that says whether its card told it that it is lit (the front draws the band of light: scenes/SceneFrame). */
+const Front = () => <CardLit.Consumer>{(lit) => <p data-lit={lit ? "yes" : "no"}>scene</p>}</CardLit.Consumer>;
 
 // jsdom has no matchMedia; this viewer doesn't ask for reduced motion
 window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
@@ -110,14 +113,16 @@ describe("the card's own light (decisions.md #34)", () => {
     el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 450, right: 800, bottom: 450, x: 0, y: 0, toJSON: () => ({}) });
     return el as HTMLElement;
   };
-  const parts = (c: HTMLElement) => ({ sc: box(c.querySelector(".sc")!), lean: c.querySelector<HTMLElement>(".sc-lean")!, glare: c.querySelector<HTMLElement>(".sc-glare"), sheen: c.querySelector(".sc-sheen") });
+  const parts = (c: HTMLElement) => ({ sc: box(c.querySelector(".sc")!), lean: c.querySelector<HTMLElement>(".sc-lean")!, glare: c.querySelector<HTMLElement>(".sc-glare"), told: c.querySelector("[data-lit]")?.getAttribute("data-lit") });
 
   it("is on for the card in focus, and leans it toward the pointer with no transition while it follows", () => {
-    const { container } = render(<SceneCard word={word("CRANE")} front={<p>scene</p>} />);
-    const { sc, lean, glare, sheen } = parts(container);
+    const { container } = render(<SceneCard word={word("CRANE")} front={<Front />} />);
+    const { sc, lean, glare, told } = parts(container);
     expect(sc.className).toContain("is-lit");
     expect(glare).not.toBeNull();
-    expect(sheen).not.toBeNull();
+    // the band of light is the front's to draw, under its letters: the card tells it, and draws none itself
+    expect(told).toBe("yes");
+    expect(container.querySelector(".sc-sheen")).toBeNull();
     fireEvent.pointerMove(sc, { clientX: 800, clientY: 0, pointerType: "mouse" }); // the upper right corner
     expect(lean.style.transform).toBe(""); // nothing until the frame
     frame();
@@ -125,7 +130,7 @@ describe("the card's own light (decisions.md #34)", () => {
     expect(glare!.style.transform).toBe("translate(62.0%, -34.0%)");
     expect(lean.className).not.toContain("sc-ease");
     // and nothing is handed down as a custom property: one there is inherited by every shape inside
-    expect(sc.getAttribute("style")).not.toMatch(/--(kx|ky|x|y)\b/);
+    expect(sc.getAttribute("style") ?? "").not.toMatch(/--/); // the card carries no style at all now: the band's ink is the front's
     expect(lean.getAttribute("style")).not.toContain("--");
   });
 
@@ -166,15 +171,15 @@ describe("the card's own light (decisions.md #34)", () => {
 
   it("is off for a card in a grid, a covered card, and a hungry word's card (its shine is gone until it is fed)", () => {
     for (const el of [
-      <SceneCard key="small" word={word("CRANE")} front={<p>scene</p>} small />,
-      <SceneCard key="covered" word={word("CRANE")} front={<p>scene</p>} live={false} />,
-      <SceneCard key="hungry" word={{ ...word("CRANE"), daysUnfed: 5 }} front={<p>scene</p>} />,
+      <SceneCard key="small" word={word("CRANE")} front={<Front />} small />,
+      <SceneCard key="covered" word={word("CRANE")} front={<Front />} live={false} />,
+      <SceneCard key="hungry" word={{ ...word("CRANE"), daysUnfed: 5 }} front={<Front />} />,
     ]) {
       const { container, unmount } = render(el);
-      const { sc, lean, glare, sheen } = parts(container);
+      const { sc, lean, glare, told } = parts(container);
       expect(sc.className).not.toContain("is-lit");
       expect(glare).toBeNull();
-      expect(sheen).toBeNull();
+      expect(told).toBe("no");
       fireEvent.pointerMove(sc, { clientX: 800, clientY: 0, pointerType: "mouse" });
       frame();
       expect(lean.style.transform).toBe("");

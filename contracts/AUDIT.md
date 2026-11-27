@@ -278,6 +278,42 @@ classified. The local skill is still version 1 (upstream 4.1), and this was the 
 - **Before mainnet:** unchanged. Run the skill in DEEP mode on the final `Words.sol`, with the
   current skill version.
 
+### Seventh internal pass (2026-11-27): the claim fee by rarity in Words
+
+`Words.sol` charges a claim by the word's tier (decisions.md #60): each dictionary leaf is
+(word, tier) (`keccak256(bytes.concat(keccak256(abi.encode(word, tier))))`, OZ leaf types
+`["string","uint8"]`), both `claim` overloads take the tier, `claimFee(tier)` = `claimPrice ×
+tierMultiplierBps[tier] / 10,000`, `setTierMultiplier` (owner, 1× to 20×, `TierMultiplierSet`), and
+`ClaimFeePaid(tokenId, payer, tier, fee)` beside an unchanged `Claimed`. The `solidity-auditor`
+skill ran on `Words.sol` in filename mode, focused on this diff: four vector scanners, all 170
+vectors classified. The local skill is still version 1 (upstream 4.1).
+
+- **No finding at or above the confidence threshold (80).** The scanners traced the tier through
+  both overloads (a wrong or out-of-range tier fails before any transfer: `BadTier`, then the
+  proof), the leaf encoding (a double hash of `abi.encode`, so an inner node can't pass as a leaf),
+  reentrancy around the fee and the mint (one `nonReentrant` lock, escrow written before
+  `_safeMint`), the multiplier bounds and casts, and rounding (`claimFee` multiplies first; the
+  floor loses under one wei and favors the claimer).
+- **Below the threshold (55), accepted, not fixed:** neither `claim` takes a maximum fee, so a
+  price-keeper repeg (clamped, once per 5 minutes) or an owner `setTierMultiplier` / `setClaimPrice`
+  that lands first raises what an already-signed claim pays, up to the claimer's allowance. Every
+  mover is privileged, the base had the same property before, and the app keeps max $WORD
+  approvals by the owner's ruling (decisions.md #14). The ladder makes a base move up to 8× larger
+  in $WORD for a Mythic word.
+- **Noted by two scanners, handled off chain:** the contract can't check that the root holds each
+  word once; a root with a word under two tiers would let a claimer pick the cheaper leaf. The
+  tree builder (`lib/onchain/dictionaryTree`) throws on a duplicate word, and every root is built
+  there.
+- **The fifth pass's note stands:** `dissolve(tokenId, word_)` still logs an unchecked `word_`.
+- **Tests:** `test_ClaimFee_*` (each tier's fee and event, a wrong tier fails the proof, the
+  multiplier and the base both move the fee, the bounds and owner-only, the constructor refuses a
+  bad ladder, a repeg scales every tier, a gated claim pays the tier's fee, dissolve and re-claim
+  pays it again, the split is unchanged), with a tree built by `@openzeppelin/merkle-tree` in
+  TypeScript as their fixture, so the leaf can't drift from the app's. `forge test`: 162 pass.
+  Words is 16,214 bytes (the limit is 24,576).
+- **Before mainnet:** unchanged. Run the skill in DEEP mode on the final `Words.sol`, with the
+  current skill version.
+
 ## Suggested external focus
 
 Commit-reveal + voucher signature surface (digest layouts, replay, the KIND tags); FeeRouter

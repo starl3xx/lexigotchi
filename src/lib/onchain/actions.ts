@@ -16,6 +16,8 @@ import type { Call } from "./sendCalls";
 import { addressOf, wordTokenAddress } from "./addresses";
 import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, erc20Abi, merkleEpochsAbi } from "./abis";
 import { stageFeeMultiple } from "@/lib/ascension";
+import { claimFeeWei } from "@/lib/claimFee";
+import { TIER_INDEX, type Tier } from "@/lib/economy";
 import { erc20ApprovalCalls, operatorApprovalCalls, prestigeTotalNeeded, feedManyNeeded } from "./allowances";
 import { NETWORK } from "./network";
 import type { GameParams, PlayerState } from "./reads";
@@ -91,25 +93,79 @@ export function revealCalls(commitId: bigint, letterIndexes: readonly number[], 
 // --- words --------------------------------------------------------------------------------------
 
 /**
+ * Words.claim as the contracts deployed before the claim fee by rarity have it (decisions.md #60):
+ * no tier argument. Kept by hand because `npm run derive:abis` only knows the current contract, and
+ * Base Sepolia runs the older Words until the held redeploy. Its selectors are pinned by
+ * tests/claim-calls.test.ts (0x527c5082 and 0x67a6f93d), so a typo here can't pass for the real thing.
+ */
+export const LEGACY_CLAIM_ABI = [
+  {
+    type: "function",
+    name: "claim",
+    inputs: [
+      { name: "word_", type: "string", internalType: "string" },
+      { name: "upperMask", type: "uint8", internalType: "uint8" },
+      { name: "proof", type: "bytes32[]", internalType: "bytes32[]" },
+    ],
+    outputs: [{ name: "tokenId", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "claim",
+    inputs: [
+      { name: "word_", type: "string", internalType: "string" },
+      { name: "upperMask", type: "uint8", internalType: "uint8" },
+      { name: "proof", type: "bytes32[]", internalType: "bytes32[]" },
+      { name: "deadline", type: "uint256", internalType: "uint256" },
+      { name: "sig", type: "bytes", internalType: "bytes" },
+    ],
+    outputs: [{ name: "tokenId", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
+  },
+] as const;
+
+/**
  * Claim a word. Three calls: the 1155 operator approval, the $WORD allowance for the claim fee, then
  * the claim. `word` must be UPPERCASE — the contract requires 'A'..'Z' (Words.sol:108), the merkle
  * leaf is over that same string, and tokenId is keccak256 of it. `upperMask` names each letter's
  * case (bit k ⇒ position k UPPERCASE; any mix, decisions.md #17): `caseMask` in the game state.
+ *
+ * `tier` is the tier the PROOF ROUTE returned with the proof (its leaf's tier, decisions.md #60),
+ * never the caller's own lookup: the claim must name the leaf's tier or the proof fails. On a Words
+ * with the ladder it is required (the claim names it, and the allowance covers that tier's fee);
+ * null means a Words without the ladder, and the call is the older three-argument claim, byte for
+ * byte, at the flat price.
  */
 export function claimCalls(
   word: string,
   proof: readonly `0x${string}`[],
+  tier: Tier | null,
   upperMask: number,
   params: GameParams,
   player: PlayerState,
   /**
    * The server's voucher, for a word still inside its set's first day (POST /api/sets/voucher;
-   * Words.claim's five-argument form). Without one this is the claim it always was, byte for byte:
-   * only a Words deployed with the gate has the other form, and only the server says a word is gated.
+   * Words.claim's voucher form). Without one this is the plain claim: only a Words deployed with the
+   * gate has the other form, and only the server says a word is gated. The voucher names no tier.
    */
   voucher?: { deadline: bigint; sig: `0x${string}` },
 ): Call[] {
   const words = addressOf("words");
+  const W = word.toUpperCase();
+  const p = proof as `0x${string}`[];
+  let data: `0x${string}`;
+  if (tier === null) {
+    if (params.claimTierBps) throw new Error("This Words charges by rarity: the claim needs the proof's tier.");
+    data = voucher
+      ? encodeFunctionData({ abi: LEGACY_CLAIM_ABI, functionName: "claim", args: [W, upperMask, p, voucher.deadline, voucher.sig] })
+      : encodeFunctionData({ abi: LEGACY_CLAIM_ABI, functionName: "claim", args: [W, upperMask, p] });
+  } else {
+    const t = TIER_INDEX[tier];
+    data = voucher
+      ? encodeFunctionData({ abi: wordsAbi, functionName: "claim", args: [W, t, upperMask, p, voucher.deadline, voucher.sig] })
+      : encodeFunctionData({ abi: wordsAbi, functionName: "claim", args: [W, t, upperMask, p] });
+  }
   return [
     ...operatorApprovalCalls({
       collection: addressOf("letters"),
@@ -120,22 +176,10 @@ export function claimCalls(
       token: wordTokenAddress(),
       spender: words,
       current: player.allowance.words,
-      needed: params.wei.claim,
+      // The fee the contract takes for THIS word: the base times the tier's multiplier.
+      needed: tier === null ? params.wei.claim : claimFeeWei(params.wei.claim, params.claimTierBps, tier),
     }),
-    {
-      to: words,
-      data: voucher
-        ? encodeFunctionData({
-            abi: wordsAbi,
-            functionName: "claim",
-            args: [word.toUpperCase(), upperMask, proof as `0x${string}`[], voucher.deadline, voucher.sig],
-          })
-        : encodeFunctionData({
-            abi: wordsAbi,
-            functionName: "claim",
-            args: [word.toUpperCase(), upperMask, proof as `0x${string}`[]],
-          }),
-    },
+    { to: words, data },
   ];
 }
 

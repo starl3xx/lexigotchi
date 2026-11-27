@@ -12,27 +12,29 @@
  *   pointer), and the letters, as ever.
  * - **Nothing is drawn over the art but the letters.** A host's overlay (the Today stage's bubble
  *   and arrows) goes on top of everything.
- * - **The scene shows how the word is doing** (starl3xx, 2026-11-24: "the scenes themselves should
- *   get visibly more grayscale when a word is peckish and hungry", and "a cool animated, opaque fog
- *   ... in addition to the grayscale"). Peckish: the color drains halfway and a thin fog drifts in.
- *   Hungry: nearly grey, and thick fog rolling over the scene and the word (globals.css, .scene-fog).
- *   Both stay inside the window: the card keeps its paper and its ink. The characters keep their
- *   color: their faces already show the mood.
+ * - **The face shows how the word is doing: its ink runs low** (decisions.md #61; starl3xx,
+ *   2026-11-27: "19B!"). Peckish: the art is printed a little fainter and loses some color.
+ *   Hungry: most of the way to bare paper. Only the art takes it (globals.css, .scene-tone): the
+ *   frame and the ribbon keep their ink, and the characters keep their color, since their faces
+ *   already show the mood. Nothing is laid over the card for it: the fog that used to roll over
+ *   the scene and the word is gone ("fog doesn't feel right anymore").
  * - **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the ribbon letters what the card
  *   says about the word, in the card's serif (Source Serif 4, shipped with the game), and never
  *   the word itself.
  */
-import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useContext, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { TileCharacter, leanFor, useFinishMoment, useGaze, usePrefersReducedMotion, useWordLife, type Gild, type TileState } from "../game/TileCharacter";
 import { TierMark } from "../game/TierMark";
 import type { Tier } from "@/lib/economy";
-import type { SceneId } from "@/lib/scenes";
+import { swapSide, type SceneId } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, type CardLook } from "@/lib/cardArt/looks";
 import { collabCardLook, type CollabLook } from "@/lib/collabLook";
 import { tileTierOf, useCollabLook } from "../game/collabLooksContext";
-import { DARK_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, PALE_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { LIGHT_INK, lightLines, type LightInk } from "@/lib/cardArt/light";
+import { CardLit } from "./cardLit";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -67,6 +69,10 @@ const cardLookOf = (look: CollabLook | undefined): (CardLook & { tint2?: string 
 export function sceneArtImage(scene: SceneId, tier: Tier, look?: CollabLook): string {
   return picture(`art-${scene}-${RARITY_FACES.has(scene) ? tier + lookKey(look) : ""}`, () => cardArt(scene, tier, cardLookOf(look)));
 }
+/** The card's light as a CSS image (lib/cardArt/light): the ruled lines a passing band shows, in one of three inks. */
+export function cardLightImage(ink: LightInk): string {
+  return picture(`light-${ink}`, () => lightLines(ink));
+}
 /** The frame for a rarity as a CSS image: in a collab word's own ink when it has a look. */
 export function cardFrameImage(tier: Tier, look?: CollabLook): string {
   return picture(`frame-${tier}${lookKey(look)}`, () => cardFrame(tier, cardLookOf(look)));
@@ -94,6 +100,7 @@ export function SceneFrame({
   number,
   small = false,
   collab,
+  change = "fade",
 }: {
   /**
    * The word's rarity: its tiles' material (lib/rarityFinish, decisions.md #23), the ink of the
@@ -107,7 +114,7 @@ export function SceneFrame({
   state?: TileState;
   gild?: Gild;
   /**
-   * How the word is doing: the scene greys and fogs as it gets hungry (pass toneOf(state)). Left
+   * How the word is doing: the face's ink runs low as it gets hungry (pass toneOf(state)). Left
    * "fed" on purpose where the player is choosing a scene (the scene sheet): they need to see it.
    */
   tone?: SceneTone;
@@ -130,6 +137,13 @@ export function SceneFrame({
    * `null` for a card that is no word of a set. Otherwise it is looked up by the word.
    */
   collab?: CollabLook | null;
+  /**
+   * How a new face takes the old one's place. "fade": it fades in over it (the Today stage's next
+   * word, a pick made behind a sheet). "slide": it slides in over it from the side it sits on in
+   * the face picker, where the player is switching faces and watching this card (decisions.md
+   * #59). Under reduced motion both are the fade.
+   */
+  change?: "fade" | "slide";
 }) {
   const ribbonId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   // A collab word's card is the collab stock in its set's two colors, with the set's stamp
@@ -137,6 +151,10 @@ export function SceneFrame({
   // stock card's wash, the ribbon, and the tiles. Its rarity (Legendary) still names the ribbon.
   const mine = useCollabLook(word, collab);
   const look = cardLookOf(mine) ?? CARD_LOOKS[tier ?? PLAIN];
+  // The card's light (./cardLit): only the card in focus has one. Its ink is the rarity's, or the
+  // plain white for a collab word, whose card is its set's colors and no metal.
+  const lit = useContext(CardLit);
+  const lightInk: LightInk = mine ? "white" : LIGHT_INK[tier ?? PLAIN];
   // The word's row in percent of the card, so it draws on the first paint and on the server (the
   // share page), with nothing measured first.
   const L = wordLayout(word.length);
@@ -150,19 +168,22 @@ export function SceneFrame({
   if (entered.word !== word) setEntered({ word, enter });
   const slide = entered.word === word ? entered.enter : enter;
 
-  // A new scene fades in over the old one (a pick in the scene sheet, or the next word's home).
-  const [wasState, setWas] = useState<SceneId | null>(null);
-  const last = useRef(scene);
+  // A new face comes in over the old one (a pick in the face sheet, or the next word's home): the
+  // old one stays underneath until the new one is in. Which face was showing is worked out WHILE
+  // rendering, never in an effect: an effect is one render late, and that render has the new face
+  // in place with nothing under it. If it reaches the screen, a slide starts with a jump.
+  const [swap, setSwap] = useState<{ shown: SceneId; was: SceneId | null; side: "next" | "prev"; n: number }>({ shown: scene, was: null, side: "next", n: 0 });
+  if (swap.shown !== scene) setSwap({ shown: scene, was: swap.shown, side: swapSide(swap.shown, scene), n: swap.n + 1 });
   useEffect(() => {
-    if (last.current === scene) return;
-    setWas(last.current);
-    last.current = scene;
-    const id = window.setTimeout(() => setWas(null), SCENE_FADE_MS);
+    if (swap.n === 0) return;
+    // `n` names this change: a later change's old face is never cleared by this one's timer
+    const id = window.setTimeout(() => setSwap((s) => (s.n === swap.n ? { ...s, was: null } : s)), SCENE_SWAP_MS);
     return () => window.clearTimeout(id);
-  }, [scene]);
-  // Flipping A → B → A inside the fade renders once with the old scene equal to the new one, before
-  // the effect catches up: never draw a scene twice (same key; Bugbot on #164).
-  const was = wasState !== scene ? wasState : null;
+  }, [swap.n]);
+  // Flipping A → B → A inside the change would draw one face twice, as the old and the new: never
+  // draw a face twice (same key; Bugbot on #164).
+  const was = swap.was !== scene ? swap.was : null;
+  const coming = was ? (change === "slide" ? `scene-slide-${swap.side}` : "scene-fade-in") : "";
 
   // Nothing moves where it can't be seen: while the card is off screen its tiles and their finishes
   // hold still (globals.css, .scene-offscreen), which keeps a long page cheap.
@@ -220,11 +241,17 @@ export function SceneFrame({
     <div ref={wordRow} className={`flex items-end ${moment ? "rf-moment" : ""}`} onPointerEnter={play} {...gaze}>
       {[...word].map((ch, i, all) => {
         const f = footings[i];
-        const stand: CSSProperties | undefined =
-          f.drop || f.deg ? { transform: `translateY(${((f.drop / CARD_W) * 100).toFixed(3)}cqw) rotate(${f.deg.toFixed(2)}deg)`, transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%` } : undefined;
+        // A letter turns about its FEET, always: the turning point is set on level ground too,
+        // where nothing turns. Set only with the turn, it was dropped the moment a word left a
+        // curved face for a level one, and the letter swung about its middle for the length of
+        // the glide (.cf-stand; Bugbot on #317).
+        const stand: CSSProperties = {
+          transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%`,
+          ...(f.drop || f.deg ? { transform: `translateY(${((f.drop / CARD_W) * 100).toFixed(3)}cqw) rotate(${f.deg.toFixed(2)}deg)` } : {}),
+        };
         return (
           // display: flex, so no line box sits under the tile and the feet land on the line exactly
-          <div key={i} style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
+          <div key={i} className="cf-stand" style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
             <TileCharacter
               char={ch}
               upper={upper[i] ?? false}
@@ -248,7 +275,7 @@ export function SceneFrame({
   // The art's text is worked out from sines and cosines, which the server and a browser may round
   // one digit apart; either picture is right, so a mismatch on hydration is let be.
   const art = (id: SceneId, fade: string) => (
-    <div key={`art-${id}`} className={`cf-art ${toneClass} ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
+    <div key={`art-${id}`} className={`cf-art ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
   );
   const no = cardNo(number);
   // A ribbon's folded tail, drawn (not clipped out of a box), so its notch has the ink line too.
@@ -265,14 +292,32 @@ export function SceneFrame({
   return (
     <div
       ref={box}
-      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
+      // `cf-changing`: only while a face change is in flight do the letters glide to their new
+      // stances (globals.css, .cf-stand). A stance is written in units of the card's width, so a
+      // glide that was always on also ran on every resize: the letters drifted for half a second.
+      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : PALE_SCENES.has(scene) ? "cf-pale" : ""} ${was ? "cf-changing" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
       style={{ "--cf-ink": look.ink, "--cf-accent": look.accent, "--cf-ground": look.ground, ...(onSwipe ? { touchAction: "pan-y" } : {}) } as CSSProperties}
       {...swipe}
     >
-      {was && art(was, "")}
-      {art(scene, was ? "scene-fade-in" : "")}
+      {/* The face's art, as ONE GROUP, and the group takes the hunger tone (globals.css, .scene-tone).
+          During a face change the old picture stays under the new one until it is in. A hungry
+          face is see-through, so with the tone on each picture the two added up to more ink than
+          one, and the card popped paler when the old one was dropped (Bugbot on #328). As a group
+          they are put together at full strength first, and then faded once. */}
+      <div className={`cf-arts ${toneClass}`}>
+        {was && art(was, "")}
+        {art(scene, coming)}
+      </div>
       <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
+      {/* The card's light (decisions.md #58, part 3): ruled lines that stand still on the card, shown
+          through a band that crosses it in a moment (globals.css, .cf-light). Over the art, the
+          frame, and the stock; UNDER the word, so no line ever crosses a letter. */}
+      {lit && (
+        <i aria-hidden className="cf-light">
+          <i style={{ backgroundImage: cardLightImage(lightInk) }} />
+        </i>
+      )}
       {/* The set's stamp, in ONE fixed place on every collab card: the window's upper left, clear of
           the word, the ribbon, and the turn-over button. A picture the operator uploaded, served by
           this site (never an SVG). A thumbnail is too small for it (globals.css). */}
@@ -304,13 +349,6 @@ export function SceneFrame({
           )}
         </div>
       )}
-      {/* the fog: inside the window, over the scene and the word, under the ribbon (globals.css) */}
-      <div aria-hidden className={`cf-fog scene-fog is-${tone}`}>
-        <i className="scene-fog-haze" />
-        <i className="scene-fog-bank scene-fog-1" />
-        <i className="scene-fog-bank scene-fog-2" />
-        <i className="scene-fog-bank scene-fog-3" />
-      </div>
       {/* The ribbon, set into the frame's lower edge: "one of one", the number, the rarity, in that
           order (starl3xx, 2026-11-25). A phone-sized card drops "one of one" (globals.css). The
           word itself is never lettered here. */}
@@ -339,8 +377,9 @@ export function SceneFrame({
   );
 }
 
-/** How long a new scene takes to fade in over the old one (globals.css, .scene-fade-in). */
-const SCENE_FADE_MS = 450;
+/** How long a new face takes to come in over the old one (globals.css, .scene-fade-in and
+ *  .scene-slide-*): the old face is kept underneath for this long, then dropped. */
+const SCENE_SWAP_MS = 540;
 
 /** A still thumbnail of a scene, for the picker: the art in the frame, no word. The stock card
  *  shows in the rarity of the word being dressed. */

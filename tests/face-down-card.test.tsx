@@ -30,9 +30,10 @@ describe("a card, face down", () => {
     // nothing to read: no letters, no number, no facts
     expect(card.textContent).toBe("");
     expect(card.querySelector(".cb-no, .cb-stats, .cb-tiles, .cb-tier, .cb-foot, svg text")).toBeNull();
-    // the back's own stock and frame, and the seal
+    // the back's own stock, on Common's plate (rules and a ruled ground, which are its frame), and the seal
     expect(card.querySelector(".cb .cb-mat .cb-tex")).not.toBeNull();
-    expect(card.querySelector(".cb .cb-frame")).not.toBeNull();
+    expect((card.querySelector(".cb .cb-mat") as HTMLElement).style.backgroundImage).toContain("data:image/svg+xml");
+    expect(card.querySelector(".cb .cb-frame")).toBeNull();
     expect((card.querySelector(".fd-seal") as HTMLElement).style.backgroundImage).toContain("data:image/svg+xml");
   });
 
@@ -55,12 +56,11 @@ describe("a card, face down", () => {
     expect(rule(".fd")).toContain("aspect-ratio: 16 / 9");
     expect(rule(".fd")).toContain("container-type: inline-size");
     expect(rule(".fd")).not.toMatch(/overflow|border/);
-    // the face is opaque to its edge (the shadow under it is solid), with the edge the back's frame counts on
+    // the face is opaque to its edge (the shadow under it is solid)
     const face = rule(".fd-face");
     expect(face).toContain("overflow: hidden");
     expect(face).toContain("border: 3px solid #1b1714");
     expect(face).toContain("background: #1b1714");
-    expect(face).toContain("--cb-edge: 3px");
   });
 });
 

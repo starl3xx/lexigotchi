@@ -43,6 +43,13 @@ type Registry = {
    * records a redeploy. Absent or false: no gate.
    */
   wordsGate?: boolean;
+  /**
+   * Was this network's Words deployed WITH the claim fee by rarity (decisions.md #60)? Its leaves are
+   * then (word, tier), `claim` names the tier, and a claim pays `claimFee(tier)`. Written here by the
+   * PR that records the redeploy, like `wordsGate`. Absent or false: the older Words (word-only
+   * leaves, a flat `claimPrice`, the three-argument `claim`).
+   */
+  claimTiers?: boolean;
   /** The Shop beside the suite (decisions.md #22): never part of isSuiteDeployed. */
   shop?: { shop: string | null; usdc: string | null; adapter: string | null; deployBlock: number | null };
 };
@@ -141,6 +148,15 @@ export function shopDeployBlock(): bigint {
  */
 export function wordsHaveGate(): boolean {
   return REGISTRY.wordsGate === true && isSuiteDeployed();
+}
+
+/**
+ * Does this network's Words charge the claim fee by rarity, with (word, tier) leaves? The REGISTRY's
+ * answer, for the reason `wordsHaveGate` gives: a failed read must never pick the claim's calldata
+ * or the tree a proof comes from. False on a network with no suite (the practice game).
+ */
+export function wordsHaveClaimTiers(): boolean {
+  return REGISTRY.claimTiers === true && isSuiteDeployed();
 }
 
 /** True when the whole suite resolves — the gate for showing real on-chain UI at all. */

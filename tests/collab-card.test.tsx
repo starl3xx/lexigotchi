@@ -6,6 +6,7 @@
  * those colors with the set's stamp in one fixed place, and its card pictures' addresses name its
  * look. The case still owns the border and ascension its rings: neither reads the look.
  */
+import { collabPlate } from "@/components/cards/material";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -170,7 +171,7 @@ describe("the card's own colors", () => {
     for (const f of [...files("src/components"), ...files("src/app")]) {
       const src = readFileSync(join(root, f), "utf8");
       src.split("\n").forEach((line, i) => {
-        if (!/\b(CARD_LOOKS|MATERIAL_LINE|CARD_SHEEN)\[[^\]"']*tier/.test(line)) return; // keyed by a word's tier
+        if (!/\b(CARD_LOOKS|MATERIAL_LINE|LIGHT_INK)\[[^\]"']*tier/.test(line)) return; // keyed by a word's tier
         seen++;
         // the same line decides by the look first: `mine ? … :`, `look ? … :`, `collab?.… ??`, `… ?? CARD_LOOKS[…]`
         if (!/\b(mine|look|collab|collabLook)\b[^;]*(\?|\?\?)|\?\?\s*(CARD_LOOKS|MATERIAL_LINE)\[/.test(line)) wrong.push(`${f}:${i + 1} ${line.trim().slice(0, 90)}`);
@@ -180,16 +181,18 @@ describe("the card's own colors", () => {
     expect(seen).toBeGreaterThanOrEqual(6); // SceneFrame, wordCard, CardCase, SceneCard, CardBack (twice), ShareVideo
   });
 
-  it("the video's back gets no rarity material under a collab's colorway (the back's third renderer)", () => {
-    // The shader lays the back's picture over a material by the picture's alpha. A collab's
-    // colorway is painted into that picture edge to edge, and the video is given the plain
-    // material all the same: never Legendary's gold light.
+  it("the video's back is one picture for every word: a collab's plate comes with it, and no material is drawn (the back's third renderer)", () => {
+    // The video's back was the picture laid over a material by the picture's alpha, and a collab had
+    // to be given the plain one. A back is one opaque picture now, its plate with it (decisions.md #58).
     const video = readFileSync(join(__dirname, "..", "src/components/cards/ShareVideo.tsx"), "utf8");
-    expect(video).toContain('material: look ? "common" : materialOf(word.tier),');
-    expect(video.match(/materialOf\(word\.tier\)/g)).toHaveLength(2); // that line, and the stamp's ink (which asks the look first too)
+    expect(video).not.toMatch(/\bmaterial:/);
+    expect(video.match(/materialOf\(word\.tier\)/g)).toHaveLength(1); // the stamp's ink (which asks the look first)
+    const shader = readFileSync(join(__dirname, "..", "src/components/cards/loop/loopRenderer.ts"), "utf8");
+    expect(shader).toContain("col = texture2D(tBack, vec2(1.0 - vUv.x, vUv.y)).rgb;");
+    expect(shader).not.toMatch(/material\(|MATERIAL_GLSL|uMat/);
     const route = readFileSync(join(__dirname, "..", "src/app/s/[text]/back/route.tsx"), "utf8");
-    // the colorway covers the whole picture, in two opaque colors
-    expect(route).toMatch(/left: 0, top: 0, width: W, height: H, display: "flex", borderRadius: CARD_CORNER \* W, backgroundImage: `linear-gradient\(165deg, \$\{colorway\.base2\}, \$\{colorway\.base\}/);
+    // the plate covers the whole picture: a collab set's two colors, or a rarity's inks
+    expect(route).toContain("svgDoc(colorway ? collabPlate(colorway) : materialPlate(materialOf(tier)))");
   });
 });
 
@@ -284,28 +287,29 @@ describe("the card's back", () => {
     expect(read("src/app/globals.css")).toContain(`--cb-text: ${BACK_TEXT};`);
     expect(read("src/app/s/[text]/back/route.tsx")).toMatch(new RegExp(`const TEXT = "${BACK_TEXT}"`));
   });
-  it("in the game: the colorway in place of the rarity's material, with none of a material's extras and no live shader", () => {
+  it("in the game: a plate in the set's two colors in place of the rarity's, and the partner's line", () => {
     const src = read("src/components/cards/CardBack.tsx");
     expect(src).toContain('className={`cb ${collab ? "m-collab" : `m-${m}`}`} style={collab?.style}');
-    expect(src).toContain("const drawLive = live && !mini && !reduced && !lowPower && !collab && canDrawLive();");
-    for (const extra of ['m === "rare" && <div className="cb-brush" />', 'm === "legendary" && <div className="cb-glitter" />', 'm === "mythic" && <Facets />', 'm === "mythic" && <div className="cb-fire" />']) {
-      expect(src, extra).toContain(`!collab && ${extra}`);
-    }
+    expect(src).toContain("collab ? plateImage(`collab:${collab.base}:${collab.base2}:${collab.line}`, () => collabPlate(collab)) : plateImage(m, () => materialPlate(m))");
+    // no back has a material's extras or a live drawing any more: a back is paper and ink (decisions.md #58)
+    expect(src).not.toMatch(/cb-brush|cb-glitter|Facets|cb-fire|LiveMaterial|drawLive/);
     expect(src).toContain("{f.collab && <span className=\"cb-collab\">{collabLine(f.collab, true)}</span>}");
     expect(src).toContain('{f.collab && <Row label="Collab">{collabLine(f.collab)}</Row>}'); // a phone-sized back leaves the line out; the rows under the card carry it
     // the colors come from the one function that deepens them until the cream type reads
     expect(src).toContain("const b = collabBack(look);");
   });
-  it("on the server: the colorway is painted INTO the picture (the video's shader paints a rarity's under a clear ground)", () => {
+  it("on the server: the same plate is the picture's ground, and the partner's line reads", () => {
     const src = read("src/app/s/[text]/back/route.tsx");
     expect(src).toContain("const colorway = mine ? collabBack(mine) : null;");
-    expect(src).toContain("backgroundImage: `linear-gradient(165deg, ${colorway.base2}, ${colorway.base} 70%)`");
-    expect(src).toMatch(/tier === "Legendary" &&\s*!colorway &&/); // no gold scrollwork on a partner's colorway
+    expect(src).toContain("svgDoc(colorway ? collabPlate(colorway) : materialPlate(materialOf(tier)))");
     // the partner line: cut to fit, and in the back's full cream in BOTH renderers (the server's was dimmer: Bugbot on #306)
     expect(src).toContain("{mine && <div style={{ display: \"flex\", fontSize: 1.9 * U, lineHeight: 1.2, color: TEXT }}>{collabLine(mine.partner, true)}</div>}");
     expect(read("src/app/globals.css")).toMatch(/\.cb-collab \{[^}]*color: var\(--cb-text\)/);
-    // the game's back and the server's use the same two grounds
-    expect(read("src/components/cards/CardBack.tsx")).toContain("`linear-gradient(165deg, ${b.base2}, ${b.base} 70%)`");
+    // the game's back and the server's draw the set's two colors with ONE function: the field in one, the border in the other, flat
+    const plate = collabPlate({ base: "#102030", base2: "#302010", line: "#f0e0c0" });
+    expect(plate).toContain('<rect width="1200" height="675" fill="#102030"/>');
+    expect(plate).toMatch(/<path fill-rule="evenodd" fill="#302010"/);
+    expect(plate).not.toMatch(/Gradient/);
   });
 });
 

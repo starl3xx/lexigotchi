@@ -19,6 +19,8 @@ import { useOpenUrl } from "../useShare";
 import { usePublicProfile } from "../useProfile";
 import { DOCS_URL } from "@/lib/site";
 import { DEFAULT_PARAMS } from "@/lib/params";
+import { TIERS } from "@/lib/economy";
+import { claimLadderLive } from "@/lib/claimFee";
 import { FREE_DAILIES, FREE_PACK, days } from "@/lib/howItWorks";
 
 export function CheatSheet() {
@@ -27,10 +29,10 @@ export function CheatSheet() {
   const { replay } = useOnboarding();
   // Each way into the daily (and each way to be reminded) shows only while the server has it switched on.
   const { xEnabled, emailEnabled, telegramEnabled, profilesEnabled } = usePublicProfile();
-  const price = (item: Parameters<typeof g.price>[0]) => {
-    const w = g.price(item);
-    return showsUsd(g.state) ? `${fmtWord(w)} $WORD (${fmtUsd(w)})` : `${fmtWord(w)} $WORD`;
-  };
+  const amount = (w: number) => (showsUsd(g.state) ? `${fmtWord(w)} $WORD (${fmtUsd(w)})` : `${fmtWord(w)} $WORD`);
+  const price = (item: Parameters<typeof g.price>[0]) => amount(g.price(item));
+  // The claim fee by rarity (decisions.md #60), where this network charges it.
+  const ladder = claimLadderLive();
   const { peckishAfterDays, hungryAfterDays } = DEFAULT_PARAMS.care;
 
   return (
@@ -72,8 +74,23 @@ export function CheatSheet() {
         <Step n={3} icon={<TextAa weight="bold" size={18} />} title="Spell words">
           <li>
             <strong>Five letters make a word:</strong> any five that spell a dictionary word, in any mix of
-            lowercase and UPPERCASE. Claim it for {price("claim")} and it’s yours alone. Each word has one owner.
+            lowercase and UPPERCASE.{" "}
+            {ladder ? (
+              <>
+                Claim it and it’s yours alone: from {amount(g.tierClaimFee("Common"))} for a Common word, and rarer words
+                cost more. Each word has one owner.
+              </>
+            ) : (
+              <>Claim it for {amount(g.tierClaimFee("Common"))} and it’s yours alone. Each word has one owner.</>
+            )}
           </li>
+          {ladder && (
+            <li>
+              <strong>The claim fee follows the word’s rarity:</strong>{" "}
+              {TIERS.map((t, i) => `${i > 0 ? " · " : ""}${t.name} ${fmtWord(g.tierClaimFee(t.name))}`).join("")} $WORD. A
+              rarer word also earns more once it’s all UPPERCASE.
+            </li>
+          )}
           <li>Some words are held back in sets that unlock later. The Dictionary shows which sets are coming.</li>
           <li>A collab set is five words made with a partner, on their own style of card. They count as Legendary.</li>
         </Step>

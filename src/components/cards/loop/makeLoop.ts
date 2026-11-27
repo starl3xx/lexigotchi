@@ -12,11 +12,9 @@
  * video is made, fails, or is called off (`signal`).
  */
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
-import type { CardMaterial } from "../material";
 import type { Tier } from "@/lib/economy";
 import type { SceneId } from "@/lib/scenes";
 import type { LiveFront } from "./liveFront";
-import { releaseLive } from "../live/liveSurface";
 import { LOOP_SECONDS, attachLoop } from "./loopRenderer";
 import { svgDataUri } from "@/lib/cardArt/engrave";
 import { lockupDoc } from "@/lib/cardArt/logo";
@@ -214,7 +212,6 @@ export { LoopCancelled };
 export async function makeLoop({
   front,
   back,
-  material,
   stamp,
   live,
   signal,
@@ -222,7 +219,6 @@ export async function makeLoop({
 }: {
   front: string;
   back: string;
-  material: CardMaterial;
   /** The front's living letters. Without it the front is the still picture. */
   live?: LoopLive;
   /** The holder's stamp for the back, where they show one. */
@@ -259,7 +255,7 @@ export async function makeLoop({
   });
   // the back's bytes are kept until the last frame is drawn (loadBack says why)
   try {
-    return await film({ codec, frontImg: frontLoaded.img, living: frontLoaded.living, backImg: backLoaded.img, numbered: backLoaded.numbered, material, stamp, stampFace, markReady, signal, onProgress });
+    return await film({ codec, frontImg: frontLoaded.img, living: frontLoaded.living, backImg: backLoaded.img, numbered: backLoaded.numbered, stamp, stampFace, markReady, signal, onProgress });
   } finally {
     backLoaded.release();
   }
@@ -272,7 +268,6 @@ async function film({
   living,
   backImg,
   numbered,
-  material,
   stamp,
   stampFace,
   markReady,
@@ -285,7 +280,6 @@ async function film({
   living: LiveFront | null;
   backImg: HTMLImageElement;
   numbered: boolean | null;
-  material: CardMaterial;
   stamp?: LoopStamp;
   stampFace: Promise<HTMLImageElement | null>;
   /** The corner mark's pictures, loading since the start; null when one failed (the name is then set in type). */
@@ -295,15 +289,13 @@ async function film({
 }): Promise<Blob> {
   if (signal?.aborted) throw new LoopCancelled();
 
-  // the one WebGL context is the video's while it's made
-  releaseLive();
   const glCanvas = document.createElement("canvas");
   // the stamp sits where the back's picture says its number is; a picture that doesn't say gets none
   const backFace = stamp && numbered !== null ? await stampedBack(backImg, stamp, await stampFace, numbered) : backImg;
   if (signal?.aborted) throw new LoopCancelled();
   const mark = await markReady;
   if (signal?.aborted) throw new LoopCancelled();
-  const loop = attachLoop(glCanvas, { front: frontImg, back: backFace, material, width: VIDEO_WIDTH, height: VIDEO_HEIGHT });
+  const loop = attachLoop(glCanvas, { front: frontImg, back: backFace, width: VIDEO_WIDTH, height: VIDEO_HEIGHT });
   // each frame: the turning card, then the name over it, on a plain canvas the encoder reads
   const out = document.createElement("canvas");
   out.width = VIDEO_WIDTH;

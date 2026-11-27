@@ -51,6 +51,8 @@ The Tamagotchi/Pokémon comparison stays internal: both are guarded trademarks, 
 | the back (the side with the word's story) | the reverse |
 Never write: price, pump, moon, invest, investment, "number go up", or any dollar figure for $WORD or for the jackpot. Prices of game actions in USD ("a pack is $1") are fine. One exception (owner, 2026-11-26, decisions.md #46): Today's three pot tiles (the jackpot, the bounty, the Rewards Pool) show "about $X" beside each $WORD amount, and never for test $WORD. A second exception (owner, 2026-11-26, decisions.md #38 as amended): the earnings share PICTURE says "about $X" under what the player's words have earned, from a figure the server signed at a live price, and never for test $WORD. Share text (the post's own words), reminders, the landing page, the docs, and bot posts keep the rule.
 
+The claim fee follows the word's rarity (owner, 2026-11-27, decisions.md #60): Common $0.50, Uncommon $1, Rare $1.50, Legendary $2.50, Mythic $4. Write "$0.50" only where it is plainly a Common word's fee ("Your first Common is still $0.50"); anywhere else say "from $0.50", and say why a price is what it is by its tier ("Rare word: $1.50 to claim"). Where prices are listed (the docs, the cheat sheet), give the ladder as a table or one line per tier.
+
 ## Landing page
 | Section | Proposed |
 | Eyebrow | A word-pet game on Base |

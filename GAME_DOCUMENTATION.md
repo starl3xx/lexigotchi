@@ -108,7 +108,24 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
 - **Case is derived, never stored:** 5 lowercase = `lowercase`, 5 uppercase = `UPPERCASE`, anything in
   between = `Mixed`. Upgrade rolls mutate the escrow in place, walking a word lowercase → Mixed →
   UPPERCASE.
-- **Claim fee:** **$0.50** (~2.11M $WORD). Claims are permanent.
+- **Claim fee, by rarity** (decisions.md #60, the "gentle ladder"): the base fee, a Common word's
+  **$0.50** (~2.11M $WORD), times the tier's earning weight. Claims are permanent.
+
+  | Tier | Multiple | Claim fee |
+  |---|---|---|
+  | Common | 1× | $0.50 |
+  | Uncommon | 2× | $1.00 |
+  | Rare | 3× | $1.50 |
+  | Legendary | 5× | $2.50 |
+  | Mythic | 8× | $4.00 |
+
+  The multiples are `TIER_WEIGHT` over Common's (`CLAIM_MULTIPLE` in `src/lib/economy.ts`), so a
+  new player's first word, a Common one, still costs $0.50. A collab set's words are Legendary from
+  its reveal, so they pay $2.50 (a word whose own tier is higher keeps it). The whole dictionary pays
+  about $4,200 to claim once at these prices; the flat $0.50 was about $2,300. Dissolving and claiming
+  a word again pays its tier's fee again. On chain: `Words.claimFee(tier)` = `claimPrice ×
+  tierMultiplierBps[tier] / 10,000`; the price keeper moves the base (`claimPrice`), so every tier moves
+  with it. Base Sepolia's Words predates it (flat $0.50) until the held redeploy (rehearsal #5).
 - **Dissolution:** burn the Word, recover its 5 escrowed letters (in their current case), and free the
   name for re-claim. Trophy history persists by word. The only liquidity escape hatch for a claim you
   regret — so people claim boldly.
@@ -117,7 +134,11 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
 - **Reserved word sets** (decisions.md #51): some of those words are held back at launch in themed
   **sets** and released later. A held-back word is one the published root leaves out, so it can’t
   be claimed; a release is a new root that includes the set’s words (never one that removes a
-  word). A set goes draft → revealed (its name and words show, and lock) → released. The lists are
+  word). A set goes draft → revealed (its name and words show, and lock) → released. **A set is
+  revealed only once the published root already leaves every one of its words out** (the reserve
+  root comes before any reveal: a reveal names the words, and a word still under the root could
+  be claimed straight from the contract), so a set past its reveal date waits as a draft until
+  then. The lists are
   private until a set is revealed and live only in the database; which words are held back can’t
   be hidden (the dictionary is public, and the game says “not available yet”).
   - **Always from the full dictionary:** letter supply caps, mint odds, rarity tiers, and token
@@ -367,8 +388,9 @@ in the simulation.
   in USD; `priceWord(usd)` converts at the live peg.
 - **$WORD:** ERC-20 on Base, `0x304e649e69979298bd1aee63e175adf07885fb4b`. ~100B supply, micro-cap
   (~$23.5K FDV, ~$21K liquidity as of June 2026), paired with WETH.
-- **Price ladder:** daily **free** · pack **$1.00** · roll **$0.25** · claim **$0.50** · snack
-  **$0.02** · ascension **$0.50 × the stage** ($0.50 … $2.50).
+- **Price ladder:** daily **free** · pack **$1.00** · roll **$0.25** · claim **from $0.50, by
+  rarity** ($0.50 Common … $4.00 Mythic, §5) · snack **$0.02** · ascension **$0.50 × the stage**
+  ($0.50 … $2.50).
 - **Treasury bootstrap:** seed the **Rewards Pool** only (~$240); **never the jackpot**. The other
   lever is LP depth, not a faucet seed.
 
@@ -380,7 +402,8 @@ Every value below is a storage variable behind the owner (a single hardware-wall
 on-chain (the mechanic is fixed; the number can be tuned).
 
 ```
-prices:   pack $1.00 · dailyMint $0 (free) · roll $0.25 · claim $0.50 · snack $0.02
+prices:   pack $1.00 · dailyMint $0 (free) · roll $0.25 · claim $0.50 (the base: Common) · snack $0.02
+claimMultiple: Common 1 · Uncommon 2 · Rare 3 · Legendary 5 · Mythic 8  (= TIER_WEIGHT / Common's; decisions.md #60)
 roll:     baseSuccess 0.40 · pityStep +0.15 · pityCap 0.85
 staking:  dailyDistributionRate 0.01 · yieldRequiresUppercase true
 care:     peckishAfterDays 1 · hungryAfterDays 3 · peckishYieldFactor 0.5 · freeDailySnack true
@@ -405,7 +428,7 @@ trust model, and the deploy + pre-mainnet checklist.
 |---|---|
 | `FeeRouter` | The four-bucket ledger: split fees, hold pool/jackpot/bounty, cap every payout at balance |
 | `Letters` | 52-id ERC-1155: demand-mirrored capped draws, commit/reveal, FID daily + free vouchers (free daily / free-pack airdrop), ETH swap, clamped `priceKeeper` repeg, `upgrade` |
-| `Words` | One ERC-721 per word, Merkle dictionary (the owner’s root decides which words are claimable: reserved sets), letter escrow, case-as-state, dissolve, prestige level, the first-day gate (`setGate`, `gatedUntil`, a `claim` form that takes the `claimSigner`’s voucher) |
+| `Words` | One ERC-721 per word, Merkle dictionary (the owner’s root decides which words are claimable: reserved sets), letter escrow, case-as-state, dissolve, prestige level, the first-day gate (`setGate`, `gatedUntil`, a `claim` form that takes the `claimSigner`’s voucher), and the claim fee by rarity (decisions.md #60): each leaf is (word, tier), OpenZeppelin leaf types `["string","uint8"]`, tiers 0 Common … 4 Mythic; `claim(word, tier, upperMask, proof)` names the tier and the proof checks it; the fee is `claimFee(tier)` = `claimPrice × tierMultiplierBps[tier] / 10,000` (owner-set, 1× to 20×, `TierMultiplierSet`), and every claim emits `ClaimFeePaid(tokenId, payer, tier, fee)` beside an unchanged `Claimed`. The token id never involves the tier |
 | `Rolls` | Commit→signed-reveal upgrades; fail no-op; pity per `(beneficialOwner, letter)` |
 | `Staking` | Word custody + hunger clock + snack feed; the eligibility truth read by Jackpot |
 | `Prestige` | Ascension of full-UPPERCASE staked words (signed reveal, monotonic, fail no-op) |

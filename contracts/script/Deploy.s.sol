@@ -24,7 +24,8 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
 /**
  * @title Deploy
  * @notice Deploys and fully wires the Lexigotchi contract suite. The letter caps/weights and the
- *         dictionary Merkle root are read from `config/economy.json` (regenerate with
+ *         dictionary Merkle root (leaves of (word, tier)) and the claim fee's tier multipliers are read
+ *         from `config/economy.json` (regenerate with
  *         `npm run derive:contracts`) so the on-chain economy can never drift from the published
  *         dictionary. Addresses, prices, and care thresholds come from environment variables.
  *
@@ -66,6 +67,7 @@ contract Deploy is Script {
         uint96 royaltyBps;
         uint32[26] cap;
         bytes32 dictRoot;
+        uint32[5] claimTierBps;
     }
 
     struct Addrs {
@@ -91,7 +93,9 @@ contract Deploy is Script {
         a.feeRouter = new FeeRouter(c.word, c.treasury, deployer);
         a.letters =
             new Letters(c.word, a.feeRouter, c.cap, c.packPrice, c.dailyPrice, c.signer, c.lettersUri, deployer);
-        a.words = new Words(c.word, a.feeRouter, ILetters(address(a.letters)), c.dictRoot, c.claimPrice, c.signer, deployer);
+        a.words = new Words(
+            c.word, a.feeRouter, ILetters(address(a.letters)), c.dictRoot, c.claimPrice, c.claimTierBps, c.signer, deployer
+        );
         a.rolls = new Rolls(c.word, a.feeRouter, ILetters(address(a.letters)), IWords(address(a.words)), c.rollPrice, c.signer);
         a.staking =
             new Staking(c.word, a.feeRouter, IWords(address(a.words)), c.snackPrice, c.peckishAfter, c.hungryAfter, c.signer, deployer);
@@ -189,6 +193,8 @@ contract Deploy is Script {
         // default was the superseded $0.05-daily artifact.
         c.dailyPrice = vm.envOr("DAILY_PRICE", uint256(0));
         c.rollPrice = vm.envOr("ROLL_PRICE", uint256(1_060_000 ether));
+        // The BASE claim fee: Common's ($0.50). A claim of a rarer word pays a multiple of it, read
+        // from config/economy.json below (decisions.md #60).
         c.claimPrice = vm.envOr("CLAIM_PRICE", uint256(2_110_000 ether));
         c.snackPrice = vm.envOr("SNACK_PRICE", uint256(84_000 ether));
         // The BASE ascension fee (Gilded 1, $0.50 = 2 rolls); a stage-N attempt pays N × this.
@@ -204,7 +210,7 @@ contract Deploy is Script {
         c.wordsUri = vm.envOr("WORDS_URI", string(""));
         c.royaltyBps = uint96(vm.envOr("ROYALTY_BPS", uint256(250))); // 2.5% EIP-2981 signal; 0 = skip
 
-        (c.cap, c.dictRoot) = _readEconomy();
+        (c.cap, c.dictRoot, c.claimTierBps) = _readEconomy();
         // Reserved word sets (decisions.md, "Reserved word sets"): a launch that holds words back
         // deploys Words with the RESERVE root (`npm run sets -- reserve` prints it), so no held-back
         // word is claimable for even one block. Unset, the full dictionary's root, as before. The
@@ -212,13 +218,24 @@ contract Deploy is Script {
         c.dictRoot = vm.envOr("DICTIONARY_ROOT", c.dictRoot);
     }
 
-    function _readEconomy() internal view returns (uint32[26] memory cap, bytes32 dictRoot) {
+    function _readEconomy()
+        internal
+        view
+        returns (uint32[26] memory cap, bytes32 dictRoot, uint32[5] memory claimTierBps)
+    {
         string memory json = vm.readFile("config/economy.json");
         dictRoot = vm.parseJsonBytes32(json, ".dictionaryRoot");
         uint256[] memory caps = vm.parseJsonUintArray(json, ".caps");
         require(caps.length == 26, "economy.json: expected 26 letters");
         for (uint256 i = 0; i < 26; i++) {
             cap[i] = uint32(caps[i]);
+        }
+        // Each tier's claim fee as basis points of the base, derived from the tiers' earning weights
+        // (lib/economy.ts TIERS; decisions.md #60). Words refuses any outside 1x..20x.
+        uint256[] memory tierBps = vm.parseJsonUintArray(json, ".claimTierMultiplierBps");
+        require(tierBps.length == 5, "economy.json: expected 5 tiers");
+        for (uint256 t = 0; t < 5; t++) {
+            claimTierBps[t] = uint32(tierBps[t]);
         }
     }
 

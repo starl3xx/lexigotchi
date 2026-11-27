@@ -31,6 +31,8 @@ vi.mock("@/components/game/state", async (orig) => {
       state: { chainBacked: true, lower: bag("unbox"), upper: bag(""), words: [] },
       wordBoard: board,
       price: () => 2_000_000,
+      claimFee: () => 2_000_000,
+      tierClaimFee: () => 2_000_000,
       canAfford: () => true,
       closeSheet() {},
       openSheet() {},

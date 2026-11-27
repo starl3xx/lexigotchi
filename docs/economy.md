@@ -55,13 +55,17 @@ ABUZZ, DIZZY, FIZZY, FUZZY, JAZZY, MEZZO, PIZZA, RAQQA, XEROX.
 Word rarity score = −Σ log₁₀(letter frequency) over its 5 letters; tiers cut at the
 50th / 80th / 95th / 99th percentiles (floor cuts, alphabetical tiebreak).
 
-| Tier | Words | Share | Stake weight |
-|---|---:|---:|---:|
-| Common | 2,292 | 50.00% | 1 |
-| Uncommon | 1,375 | 30.00% | 2 |
-| Rare | 687 | 14.99% | 3 |
-| Legendary | 184 | 4.01% | 5 |
-| Mythic | 46 | 1.00% | 8 |
+| Tier | Words | Share | Stake weight | Claim fee | All its words, claimed once |
+|---|---:|---:|---:|---:|---:|
+| Common | 2,292 | 50.00% | 1 | $0.50 (1×) | $1,146.00 |
+| Uncommon | 1,375 | 30.00% | 2 | $1.00 (2×) | $1,375.00 |
+| Rare | 687 | 14.99% | 3 | $1.50 (3×) | $1,030.50 |
+| Legendary | 184 | 4.01% | 5 | $2.50 (5×) | $460.00 |
+| Mythic | 46 | 1.00% | 8 | $4.00 (8×) | $184.00 |
+
+> The claim fee is the base ($0.50, a Common word's) times the tier's stake weight over
+> Common's (decisions.md #60). Claiming the whole dictionary once: $4,195.50, against
+> $2,292.00 at the old flat fee.
 
 > Note: the cuts fall at floor(N × .50/.80/.95/.99), so each count is exact, and `npm test` pins all five.
 > (The spec's Appendix B was written for 4,438 words: 2,219 / 1,330 / 667 / 177 / 45.)

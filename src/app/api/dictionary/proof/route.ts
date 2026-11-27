@@ -31,6 +31,10 @@ const GATE_SKEW_SECONDS = 120;
  * the owner sends `Words.setDictionaryRoot`): every claim would revert NotInDictionary inside the
  * wallet, so the route says `dictionary_mismatch` instead.
  *
+ * On a network whose Words charges the claim fee by rarity (decisions.md #60), the answer also
+ * carries the leaf's tier (`tier`, 0 Common … 4 Mythic, and `tierName`): the claim must send that
+ * number with the proof, which checks it.
+ *
  * A word still inside its set's first day carries `gate` (when the gate lifts, in seconds, read
  * from the chain): the claim then needs a voucher too. The game asks the voucher route whenever
  * `gate` is there; that route reads the chain's own time and decides.
@@ -84,5 +88,10 @@ export async function GET(req: Request) {
     if ((until + GATE_SKEW_SECONDS) * 1000 > Date.now()) gate = until;
   }
 
-  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root, ...(gate ? { gate } : {}) });
+  // On a Words with the claim fee by rarity (decisions.md #60), the leaf's tier: the claim must
+  // name it (`tier`, the number Words.claim takes, and `tierName`, the game's name for it). It is
+  // the tier the tree was built with, the game's own (collab words included), so the fee the game
+  // shows and the fee the contract takes are the same tier's. Absent on an older Words.
+  const tier = result.tierIndex !== null && result.tier !== null ? { tier: result.tierIndex, tierName: result.tier } : {};
+  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root, ...tier, ...(gate ? { gate } : {}) });
 }

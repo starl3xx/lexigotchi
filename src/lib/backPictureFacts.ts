@@ -8,6 +8,7 @@
  */
 import { yoursSince, type WordStory } from "./cardFacts";
 import { costToMake, dailyEarnEstimate } from "./wordCost";
+import { claimFeeWord } from "./claimFee";
 import type { Tier } from "./economy";
 import { stageFeeMultiple } from "./ascension";
 import { worldSoon } from "./worldSnapshot";
@@ -69,7 +70,9 @@ export async function readBackFacts(word: string, level: number | null, story: W
   let cost: number | null = null;
   if (params && raised !== undefined && level !== null) {
     const p = params.word;
-    cost = costToMake({ word, upper: [...word].map((_, i) => i < raised), prestigeLevel: level }, { pack: p.pack, roll: p.roll, claim: p.claim, prestigeFee: (l) => p.prestigeFee * stageFeeMultiple(l), prestigeSnack: p.prestigeSnackCost }).total;
+    // The claim at the word's tier (decisions.md #60), as the game's back says it.
+    const claim = (w: string) => claimFeeWord(p.claim, params.claimTierBps, tier(w));
+    cost = costToMake({ word, upper: [...word].map((_, i) => i < raised), prestigeLevel: level }, { pack: p.pack, roll: p.roll, claim, prestigeFee: (l) => p.prestigeFee * stageFeeMultiple(l), prestigeSnack: p.prestigeSnackCost }).total;
   }
   const drawnMap = world?.body.drawn;
   const drawn: number | "never" | null = drawnMap ? (drawnMap[word] ?? "never") : null;

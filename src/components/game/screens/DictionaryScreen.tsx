@@ -194,6 +194,9 @@ export function DictionaryScreen() {
               <span className="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5">
                 <span className="font-display text-[15px] font-extrabold leading-tight">{w}</span>
                 <TierBadge tier={wTier} />
+                {/* A word nobody has says what it costs to claim, whatever the player holds: its
+                    tier's fee (decisions.md #60). */}
+                {status === "open" && <span className="text-xs tabular-nums text-ink/60">{fmtWord(g.claimFee(w))} to claim</span>}
               </span>
               <span className="flex w-full min-w-0 items-center gap-1.5 text-[13px] leading-snug">
                 {status === "mine" || status === "mineAway" ? (

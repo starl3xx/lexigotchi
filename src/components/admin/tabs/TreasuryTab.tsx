@@ -16,6 +16,7 @@ import { currentWordUsd, fmtUsd, fmtWordCompact, isAddress, shortAddr, usdToWord
 import { AdminCard, Banner, CopyButton, ErrorState, Field, KeyVal, MetricCard, SectionLabel, Select, Spinner, TextField, useFetch } from "../ui";
 import { Coins, Info, Lock, Trophy, Wallet, Warning } from "../icons";
 import { NETWORK } from "@/lib/onchain/network";
+import { TIERS } from "@/lib/economy";
 
 export function TreasuryTab() {
   const { data, loading, error, reload } = useFetch<PulsePayload>("/api/admin/pulse");
@@ -53,6 +54,27 @@ export function TreasuryTab() {
                 sub={word == null ? sub : `${sub} · ≈ ${fmtUsd(word * currentWordUsd())}`}
               />
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Claim fees by tier (decisions.md #60), from Words' ClaimFeePaid events. Null on a Words
+          without the ladder: then nothing is shown, never a row of zeros. */}
+      {live?.live && live.claimRevenue && (
+        <section>
+          <SectionLabel>Claim fees by rarity · live on {live.network?.name}</SectionLabel>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+            {[...TIERS.map((t) => [t.name, live.claimRevenue!.byTier[t.name]] as const), ["All tiers", { claims: live.claimRevenue.claims, word: live.claimRevenue.word }] as const].map(
+              ([label, r]) => (
+                <MetricCard
+                  key={label}
+                  icon={<Coins weight="bold" size={14} />}
+                  label={label}
+                  value={`${fmtWordCompact(r.word)} $WORD`}
+                  sub={`${r.claims.toLocaleString("en-US")} claim${r.claims === 1 ? "" : "s"} · ≈ ${fmtUsd(r.word * currentWordUsd())}`}
+                />
+              ),
+            )}
           </div>
         </section>
       )}

@@ -26,6 +26,7 @@ import { firstDayAhead, firstDayNote, setLines } from "./sets";
 import { useOpenWord } from "./useDictionary";
 import { useMinuteClock, useSets } from "./useSets";
 import { useTierOf } from "./useRarity";
+import { fmtWord, useOptionalGame } from "./state";
 
 const LOWER = [false, false, false, false, false];
 /** Words shown before "Show all": a set may hold dozens. */
@@ -33,6 +34,8 @@ const PREVIEW = 8;
 
 function SetCard({ set, now, gate }: { set: Exclude<PublicSet, { kind: "locked" }>; now: number; gate: boolean }) {
   const tierOf = useTierOf();
+  // Each word's claim fee, by its tier (decisions.md #60: a collab set's words pay Legendary's).
+  const g = useOptionalGame();
   const [all, setAll] = useState(false);
   const openWord = useOpenWord();
   const lines = setLines(set, now, gate);
@@ -73,12 +76,14 @@ function SetCard({ set, now, gate }: { set: Exclude<PublicSet, { kind: "locked" 
             <button key={w.word} onClick={() => openWord(w.word)} className="press cel-sm flex flex-col items-start gap-1 rounded-lg bg-paper p-2 text-left">
               <MiniTiles word={w.word} upper={LOWER} tier={tierOf(w.word)} />
               <span className="font-display text-xs font-extrabold">{w.word}</span>
+              {g && <span className="text-[11px] leading-none text-ink/60">{fmtWord(g.claimFee(w.word))} to claim</span>}
             </button>
           ) : (
             // Revealed, not released: shown, and not a button. It can't be spelled or claimed yet.
             <span key={w.word} className="flex flex-col items-start gap-1 rounded-lg border-2 border-dashed border-ink/25 p-2">
               <MiniTiles word={w.word} upper={LOWER} tier={tierOf(w.word)} className="opacity-60" />
               <span className="font-display text-xs font-extrabold text-ink/70">{w.word}</span>
+              {g && <span className="text-[11px] leading-none text-ink/55">{fmtWord(g.claimFee(w.word))} to claim</span>}
             </span>
           ),
         )}

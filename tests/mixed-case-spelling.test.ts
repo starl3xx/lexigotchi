@@ -64,7 +64,7 @@ describe("the case each letter is claimed in", () => {
     const s = seedState();
     expect(s.words.some((w) => w.word === "TIERS")).toBe(false);
     const cases = [false, false, true, true, false]; // t i E R s
-    const after = reducer(s, { t: "claim", word: "TIERS", cases });
+    const after = reducer(s, { t: "claim", word: "TIERS", cases, fee: 1 });
     const word = after.words.find((w) => w.word === "TIERS");
     expect(word?.upper).toEqual(cases);
     expect(after.upper[charToIdx("E")]).toBe(s.upper[charToIdx("E")] - 1);
@@ -72,7 +72,7 @@ describe("the case each letter is claimed in", () => {
     expect(after.lower[charToIdx("E")]).toBe(s.lower[charToIdx("E")]); // the lowercase e stays
     expect(after.lower[charToIdx("T")]).toBe(s.lower[charToIdx("T")] - 1);
     // A case the bag doesn't hold (no raised T) claims nothing.
-    expect(reducer(s, { t: "claim", word: "TIERS", cases: [true, false, false, false, false] })).toBe(s);
+    expect(reducer(s, { t: "claim", word: "TIERS", cases: [true, false, false, false, false], fee: 1 })).toBe(s);
   });
 
   it("from the rack, uses exactly the tiles picked", () => {
