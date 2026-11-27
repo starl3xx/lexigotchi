@@ -664,7 +664,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (nothing listed while `metaKnown` is false; a face sold only on a positive "you don't have it").
   The categories are a pure rule (`lib/shop/rules`: `SHOP_CATEGORIES`, `categoryOf`, `byCategory`,
   tested): kind `scene` is Card faces, everything else (a case, a costume) is Accessories, and the
-  test network's placeholder is in neither (it sits under "Try paying"). A NEW kind needs its
+  test network's placeholder is in neither (it sits under "Try paying"; Base Sepolia's own, item 1,
+  is switched off since 2026-11-27 with the owner's word, so that section shows only if an item is
+  ever listed again with no `shop_items` row). A NEW kind needs its
   category chosen in `categoryOf`. One switch for the categories, as the Market has for its parts;
   a link lands on one with `nav("shop", "faces")` (the face picker's tile for a face on sale) or
   `nav("shop", "accessories")` (an opened word's Case button). There is no `shop` sheet any more:

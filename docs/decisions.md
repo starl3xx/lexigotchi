@@ -2964,7 +2964,9 @@ setter. All small, riding existing suite patterns.
     - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
       phone's bottom bar has five places, all taken); the categories are one switch at the top
       of the screen; a costume, when one exists, is an accessory; the placeholder stays, under
-      "Try paying", until the owner switches item 1 off.
+      "Try paying", until the owner switches item 1 off. (He did, the same day: "you can switch off
+      the test item". `setActive(1, false)`, 0x1b41049d…e3dd. It had sold 4. The live Shop now shows
+      Outer Space alone, and no "Try paying" section.)
     - **Seen and not seen:** the screen with no wallet at 390, 768, and 1,280 px in Chromium,
       on a local chain build reading a local fork: both categories, the placeholder, a limited
       edition with some left, and one sold out. And with a read-only pretend wallet at the
