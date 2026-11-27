@@ -17,7 +17,7 @@ import { useTakenWords } from "../useTodayPlan";
 import { useWorld } from "../useWorld";
 import { useAmount } from "../market/bits";
 import { useTierOf } from "../useRarity";
-import { aTierWord } from "@/lib/claimFee";
+import { claimAction } from "@/lib/claimFee";
 
 /**
  * Tiles drawn before the rest become a number (a listing can sell thousands of one letter): up to
@@ -160,7 +160,7 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
                   Claim {first.word} · {fmtWord(claim)}
                 </Button>
               ) : (
-                <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: aTierWord(tierOf(first.word)) } })}>
+                <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: claimAction(tierOf(first.word)) } })}>
                   Get $WORD to claim it
                 </Button>
               )}

@@ -705,12 +705,17 @@ function playerTurn(player: Player, world: World, day: number): void {
   const bountyOn = p.bounty.enabled;
   const themeSet = bountyOn ? THEME_WORDSETS[activeThemeIndex(day, p.bounty.periodDays)] : null;
   let claims = poisson(rng, cfg.claimsPerDay);
+  // `canSpend(base)` only asks whether ANY word is affordable (the base is the cheapest fee, since
+  // no multiple is below 1×). The word itself is chosen among those the player can pay for:
+  // findClaimable reads the balance on each pass and passes over a word whose tier's fee is above
+  // it (decisions.md #60), so the fee charged below always fits.
   while (claims-- > 0 && canSpend(p.prices.claim)) {
     const prefer = bountyOn && rng.chance(p.bounty.chaseProbability) ? themeSet! : undefined;
     const found = findClaimable(player, world, cfg.crownHunter, prefer);
     if (!found) break;
     const tier = wordTier(found.word);
     const fee = claimFeeUsd(tier, p); // base × the tier's multiple (decisions.md #60)
+    if (!canSpend(fee)) break; // never reached (see above); a player never goes below zero
     spend(fee);
     world.ledger.route(fee, p.splits.claim);
     world.claimRevenue[tier].claims += 1;

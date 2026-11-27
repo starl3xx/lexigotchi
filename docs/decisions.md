@@ -2901,7 +2901,8 @@ setter. All small, riding existing suite patterns.
       `Words`, which can't change after deploy; no token of a set exists at its release, so the
       call matters only if a card's look changes later.
     - **The owner's rulings, 2026-11-27.** The Base Sepolia redeploy for the gate: "Hold for now"
-      (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
+      (no date; the plan in web3-runtime-plan.md waits). Later the same day, with the claim fee by
+      rarity (#60) added to it: "let's do it this coming tuesday" (Tuesday 2026-12-01). The free-letter ledger at that reset:
       "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
       `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
       refresh for a list of words). The check on the word that `dissolve` logs was not chosen.
@@ -3482,7 +3483,9 @@ setter. All small, riding existing suite patterns.
       `"claimTiers"` says which contract a network has (never a contract read). False: word-only
       leaves, the older three-argument claim byte for byte, the flat base for every word, and copy
       that says so. The redeploy carries this with the gate, the 3.0× caps, and the metadata
-      refresh, and the mainnet deploy must include it (`docs/web3-runtime-plan.md`).
+      refresh, and the mainnet deploy must include it (`docs/web3-runtime-plan.md`). He set its
+      date the same day: "let's do it this coming tuesday... and send a note to the TG group via
+      the bot, with upgrades that will be included" (Tuesday 2026-12-01; the note is #326's).
     - **The simulation** (`npm run sim -- --days 365 --population 1500`, seeds 7 / 11 / 23; flat
       is `--claim-flat`; no other param changed). Flat → ladder:
       - Claim revenue: $2,292 → $4,180–4,188 (+82–83%). By tier: Common $1,146 → $1,146;

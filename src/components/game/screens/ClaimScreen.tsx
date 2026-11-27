@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TIERS, type Tier } from "@/lib/economy";
-import { aTierWord, claimLadderLive } from "@/lib/claimFee";
+import { claimAction, claimLadderLive } from "@/lib/claimFee";
 import { rarestByScore } from "@/lib/rarity";
 import { cantClaim } from "@/lib/dictionaryList";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
@@ -177,7 +177,7 @@ export function ClaimScreen() {
   // Why a word costs what it does: its tier, where the ladder is live; the plain fee where every
   // word costs the base (a Words without the ladder: saying "Rare word" there would be untrue).
   const feeSay = (w: string) => (ladder ? `${tierOf(w)} word: ${amountText(feeOf(w))} to claim` : `Claiming costs ${amountText(feeOf(w))}`);
-  const getWordFor = (w: string) => g.openSheet({ kind: "balance", need: { amount: feeOf(w), action: aTierWord(tierOf(w)) } });
+  const getWordFor = (w: string) => g.openSheet({ kind: "balance", need: { amount: feeOf(w), action: claimAction(tierOf(w)) } });
 
   return (
     <div className="space-y-3">

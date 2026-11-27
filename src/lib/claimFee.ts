@@ -58,6 +58,15 @@ export function aTierWord(tier: Tier): string {
   return `${/^[AEIOU]/.test(tier) ? "an" : "a"} ${tier} word`;
 }
 
+/**
+ * What a claim is "for" in the balance sheet's "You need … for {action}": the word's tier where the
+ * fee follows it, and plainly "a claim" where every word costs the base (naming the tier there would
+ * say the rarity sets a price it doesn't: Bugbot on #326).
+ */
+export function claimAction(tier: Tier): string {
+  return claimLadderLive() ? aTierWord(tier) : "a claim";
+}
+
 /** Is `x` one of the five tier names (an answer from the proof route, say)? */
 export function isTier(x: unknown): x is Tier {
   return typeof x === "string" && TIERS.some((t) => t.name === x);

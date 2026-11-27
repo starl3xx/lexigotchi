@@ -237,7 +237,7 @@ predates it.
   refuses.
 - Run the `solidity-auditor` skill in DEEP mode on the final `Words.sol` first (`contracts/AUDIT.md`).
 
-### Base Sepolia redeploy for the gate (rehearsal #5): ON HOLD (the owner, 2026-11-27: "Hold for now")
+### Base Sepolia redeploy for the gate (rehearsal #5): TUESDAY 2026-12-01 (the owner, 2026-11-27: "let's do it this coming tuesday")
 
 A full redeploy of the suite: Staking, Rolls, Prestige, and the Jackpot hold the Words address for
 good, so Words can't be swapped alone. **It resets every tester's letters, words, stakes, and
@@ -245,17 +245,22 @@ earnings on the test build.** It also carries the 3.0× letter supply caps (68,7
 #21), which have waited for a redeploy since 2026-11-25, and the claim fee by rarity (decisions.md
 #60: (word, tier) leaves, `claim` names the tier, Common 1× … Mythic 8× the base).
 
-**No date is set.** The owner held it on 2026-11-27, so nothing here runs until he names a day.
-When he does, pick a **Thursday, right after the 00:05 UTC keeper run**: bounty weeks start on
-Thursdays, so that run pays the week that just ended, and the new suite starts on a week's first
-day with nothing owed on the old one. (The first proposal was Thursday 2026-12-03.)
+**The date: Tuesday 2026-12-01, right after the 00:05 UTC keeper run** (the owner, 2026-11-27,
+first "Hold for now", then "let's do it this coming tuesday... and send a note to the TG group via
+the bot, with upgrades that will be included"; the heads-up went out with #326's merge). A Thursday
+was proposed (bounty weeks start on Thursdays); he chose Tuesday, so the old suite's bounty week
+that began Thursday 2026-11-26 ends early and is never settled (test $WORD only). The new suite's
+first bounty week starts Thursday 2026-12-03 as usual. `WORD_TOKEN` stays the registry's
+`wordToken`, so testers keep their test $WORD; letters, words, stakes, listings, and the Shop's
+wardrobe start over.
 
 Before the day:
 1. The gate's PR is merged, and migrations 0021, 0022, and 0023 are run. `Words.sol` has the
    owner's metadata refresh (his choice, 2026-11-27; decisions.md #53; tested and audited,
    `contracts/AUDIT.md` sixth pass): Words can't change afterwards.
 2. The sets are in the Sets tab (placeholders are fine: a draft stays editable).
-3. A `heads-up` tester note goes out a day ahead: the test build resets on the day.
+3. A `heads-up` tester note goes out ahead: the test build resets on the day. (Done: #326's note,
+   with the upgrades it brings.)
 
 On the day (about half an hour; the game shows the old suite until step 5 deploys):
 1. On the registry PR's branch, with **`"claimTiers": true`** already in
@@ -268,7 +273,9 @@ On the day (about half an hour; the game shows the old suite until step 5 deploy
    --broadcast`, with the rehearsal's environment: the registry's roles, `ANSWERCHAIN_HEAD` from
    the same seeded list, `PRESTIGE_MAX_LEVEL=5`, `BOUNTY_CARVE_BPS=1500`, and `DICTIONARY_ROOT`.
 3. `DeployShopTestnet` against the new FeeRouter and Letters (the Shop's route and peg name the old
-   ones), then the one Test item again.
+   ones), then the one Test item again, and Outer Space again (item, `shop_items` row, a limit of
+   5: the three steps under "The Shop's scenes" in CLAUDE.md). Purchases on the old Shop don't
+   carry over.
 4. Check on the chain: `Words.claimSigner()` is the signer, `Words.dictionaryRoot()` is the reserve
    root, `Letters.cap` sums to 68,760, and `Words.tierMultiplierBps(0…4)` reads 10000, 20000,
    30000, 50000, 80000 (`Words.claimFee(4)` = 8 × `claimPrice`).

@@ -199,7 +199,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the redeploy the voucher route answers `not_gated`, the proof route never says `gate`, and a
   release is the root alone. The redeploy is
   the whole suite and resets the test build: never run it without the owner's word on the plan and
-  the date (`docs/web3-runtime-plan.md`, "rehearsal #5"). `POST /api/sets/voucher`
+  the date (`docs/web3-runtime-plan.md`, "rehearsal #5"; the date he set on 2026-11-27: Tuesday
+  2026-12-01, after the 00:05 UTC keeper run). `POST /api/sets/voucher`
   (`lib/sets/voucher.ts` pure, `lib/db/setVouchers.ts`, table `set_vouchers`, migration 0022): a
   verified profile (`resolveFreeIdentity`) that PROVES the wallet is its own (its profile session,
   or a Farcaster sign-in Farcaster ties to the profile: unlike the free snack, this voucher spends
