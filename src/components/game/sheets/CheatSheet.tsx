@@ -74,6 +74,7 @@ export function CheatSheet() {
             <strong>Five letters make a word:</strong> any five that spell a dictionary word, in any mix of
             lowercase and UPPERCASE. Claim it for {price("claim")} and it’s yours alone. Each word has one owner.
           </li>
+          <li>Some words are held back in sets that unlock later. The Dictionary shows which sets are coming.</li>
         </Step>
 
         <Step n={4} icon={<Cookie weight="fill" size={18} />} title="Keep them fed">
