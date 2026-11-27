@@ -47,9 +47,25 @@ shows nothing on a white page.
 
 - **The eyes never invert.** On any ground an eye is a light eyeball with a dark pupil. That is why
   one ink has two files: never recolour one to make the other.
-- **Alive only where it is drawn live.** In the game and on the landing page the eyes blink and
-  glance (`src/components/brand/Lockup.tsx`). These files are still.
+- **Alive only where it is drawn live** (`src/components/brand/Lockup.tsx`): the eyes blink and
+  glance in the game, on the landing page, on a shared word's page, and on a shared earnings page.
+  In the share video they move on the video's written score. Every file is still.
 - Where a mark must be square (an app icon, a tab, a profile picture), use A, not the lockup.
+
+### Where the lockup is used
+
+Wherever the game is named: the game's rail and phone header, its intro, the landing page, a
+shared word's page and a shared earnings page, the page after linking X, the unsubscribe page, the
+operator console, the corner of the share video and of a saved picture, the game's own link
+picture, the head of every email, the player docs' logo, and this repository's README. A link
+card carries no name. New places draw the lockup; none sets the name in type.
+
+### Two files the same script makes, outside this folder
+
+| File | Use |
+|---|---|
+| `public/brand/lockup-email.png` | The emails' header. The card's paper is IN the picture (a clear ground would vanish in a mail program that turns a page dark). 507 × 108, shown at 169 × 36. |
+| `docs-site/logo/lockup.svg`, `lockup-on-dark.svg` | The player docs' logo, for light and dark. The same drawings as the two files above. |
 
 ## Where B is used in the game
 

@@ -1052,7 +1052,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the earnings page (alive, at their head, linking home), the page after linking X and the
   unsubscribe page (still, `lockupTag`: they are strings and run no script). `Lockup` asks the two
   motion hooks from `components/game/motionPrefs.ts`, never from the letter rig, so a page that
-  draws no letters stays light. `npm run brand:art` makes the email's picture and the docs' files too. **A file is never
+  draws no letters stays light. The operator console's heading and the repository's README carry
+  it too. `docs/brand/README.md` lists every place: keep that list true. `npm run brand:art` makes the email's picture and the docs' files too. **A file is never
   alive:** no looping SVG, no animated picture in email, unless the owner asks and it can be checked.
   A new place that names the game draws the lockup: never set LEXIGOTCHI in type again.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
