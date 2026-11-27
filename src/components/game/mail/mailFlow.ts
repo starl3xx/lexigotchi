@@ -190,6 +190,41 @@ export function countSub(pulls: readonly Pull[], rarity?: { odds: string; packs:
  */
 export const QUICK_AFTER = 3;
 
+/** Envelopes torn open since the page loaded: a sitting. */
+let tornThisSitting = 0;
+/** Count one envelope torn, and say whether it plays the short version. */
+export function nextTearIsQuick(): boolean {
+  return tornThisSitting++ >= QUICK_AFTER;
+}
+/** A new sitting (tests). */
+export function resetSitting(): void {
+  tornThisSitting = 0;
+}
+
+/**
+ * The bag as the chain has it once a piece is revealed: what the bag held before, plus the piece's
+ * letters. The game's own read of the bag lags a reveal by seconds, and an envelope is usually
+ * torn inside them, so the order letters come out in and their tags are worked out from this. It
+ * never lowers a count the bag already shows. (The count's claim still waits for the bag itself.)
+ */
+export function bagWithMail(lower: readonly number[], had: readonly number[], letters: readonly number[]): number[] {
+  const due = had.slice(0, 26);
+  for (const i of letters) due[i] = (due[i] ?? 0) + 1;
+  return Array.from({ length: 26 }, (_, i) => Math.max(lower[i] ?? 0, due[i] ?? 0));
+}
+
+/**
+ * What the bag held before a new piece, when the read of the bag may still be behind the LAST
+ * piece ("Rip another" comes seconds after a reveal): never less than what that piece left in it.
+ * `owed` is the last piece's `bagWithMail`, kept only until the bag is seen to have caught up.
+ * Erring high is safe: a letter counted that was since spent names nothing as new.
+ */
+export function hadWithOwed(lower: readonly number[], owed: readonly number[] | null): number[] {
+  return Array.from({ length: 26 }, (_, i) => Math.max(lower[i] ?? 0, owed?.[i] ?? 0));
+}
+/** Has the bag caught up with what a revealed piece left in it? */
+export const caughtUp = (lower: readonly number[], owed: readonly number[]): boolean => owed.every((n, i) => (lower[i] ?? 0) >= n);
+
 /** When each letter peeks and comes out, in ms from the tear, and when the count shows. */
 export interface Beat {
   /** which pull (an index into `revealOrder`'s list) */

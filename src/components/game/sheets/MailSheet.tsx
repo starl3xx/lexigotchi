@@ -37,7 +37,7 @@ import { useWorld } from "../useWorld";
 import { useLetterSupply } from "../useLetterSupply";
 import { useMyName } from "../useMyName";
 import { newlySpellableWith } from "./BoughtLettersSheet";
-import { QUICK_AFTER, bestLine, countHead, countSub, finishers, mailNumberText, mailStatus, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
+import { bagWithMail, bestLine, countHead, countSub, finishers, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
 
 // ── measures: one box, 328 wide, drawn larger or smaller as a whole to fit the sheet ─────────────
 const W = 328;
@@ -84,8 +84,6 @@ const Pic = ({ src, w, style, className, innerRef }: { src: string; w: number; s
   <img ref={innerRef} src={src} width={w} alt="" draggable={false} className={className} style={{ display: "block", position: "absolute", maxWidth: "none", ...style }} />
 );
 
-/** How many envelopes this sitting: from the fourth, the short version plays (mailFlow QUICK_AFTER). */
-let tornThisSitting = 0;
 
 /**
  * Pairs of eyes at the window: the letters, before anyone knows which. They blink out of step (a
@@ -160,20 +158,32 @@ function MailStage({ mail }: { mail: Mail }) {
   const upper = mineUpper(state);
   const letters = mail.letters;
   const checking = state.chainBacked && !world.data?.owners && world.isPending === true;
+  /** The piece's letters, a count per letter, each with what the bag held before. */
+  const added = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const i of letters ?? []) counts.set(i, (counts.get(i) ?? 0) + 1);
+    return [...counts].map(([letterId, count]) => ({ letterId, count, had: mail.had[letterId] ?? 0 }));
+  }, [letters, mail.had]);
   const fresh = useMemo(() => {
     // A pack opened for another wallet of the player's is "away": nothing here can be spelled with it.
     if (!letters || !mail.mine || checking) return [];
-    const counts = new Map<number, number>();
-    for (const i of letters) counts.set(i, (counts.get(i) ?? 0) + 1);
-    return newlySpellableWith(lower, upper, [...counts].map(([letterId, count]) => ({ letterId, count, had: mail.had[letterId] ?? 0 })), taken);
-  }, [letters, mail.mine, mail.had, checking, lower, upper, taken]);
+    return newlySpellableWith(lower, upper, added, taken);
+  }, [letters, mail.mine, added, checking, lower, upper, taken]);
   // The letters' standing is fixed at the tear, so a word list that lands a moment later can't
   // reorder letters that are already climbing out.
   const [pulls, setPulls] = useState<Pull[] | null>(null);
   const orderNow = (): Pull[] => {
     if (!letters) return [];
     const before = bagTotals({ lower: lower.map((v, i) => Math.min(v, mail.had[i] ?? 0)), upper: [...upper] });
-    return revealOrder(letters, mail.had, finishers(fresh.map((f) => f.word), before));
+    // The chain minted these letters onto what the bag held, but the game's read of the bag is
+    // often a few seconds behind the reveal, and the tear comes inside them. So which letter
+    // finishes a word is worked out from the bag as the chain has it (`bagWithMail`), not from a
+    // read that may not show the letters yet. Only the count's claim waits for the bag itself.
+    const words =
+      !mail.mine || checking
+        ? []
+        : newlySpellableWith(bagWithMail(lower, mail.had, letters), upper, added, taken).map((f) => f.word);
+    return revealOrder(letters, mail.had, finishers(words, before));
   };
 
   // ── the wait ─────────────────────────────────────────────────────────────────────────────────
@@ -246,8 +256,7 @@ function MailStage({ mail }: { mail: Mail }) {
     tear.current.done = true;
     cancelAnimationFrame(tear.current.raf);
     const order = orderNow();
-    const quick = tornThisSitting >= QUICK_AFTER;
-    tornThisSitting++;
+    const quick = nextTearIsQuick();
     setPulls(order);
     setTorn(true);
     g.mailTorn();

@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
-import { QUICK_AFTER, bestLine, countHead, countSub, finishers, isRarest, mailNumber, mailNumberText, mailStatus, revealBeats, revealOrder, tagOf, type Mail } from "@/components/game/mail/mailFlow";
+import { QUICK_AFTER, bagWithMail, bestLine, caughtUp, countHead, countSub, finishers, hadWithOwed, isRarest, mailNumber, mailNumberText, mailStatus, nextTearIsQuick, resetSitting, revealBeats, revealOrder, tagOf, type Mail } from "@/components/game/mail/mailFlow";
 
 const idx = (ch: string) => ch.toLowerCase().charCodeAt(0) - 97;
 const bag = (letters: string) => {
@@ -197,5 +197,72 @@ describe("when each letter comes out", () => {
     expect(quick.beats[4].peek).toBeDefined();
     expect(quick.done).toBeLessThan(slow.done);
     expect(QUICK_AFTER).toBeGreaterThanOrEqual(2);
+  });
+
+  it("the short version starts after a few envelopes in one sitting, and a new sitting starts over", () => {
+    resetSitting();
+    const sitting = Array.from({ length: QUICK_AFTER + 2 }, () => nextTearIsQuick());
+    expect(sitting).toEqual([...Array.from({ length: QUICK_AFTER }, () => false), true, true]);
+    resetSitting();
+    expect(nextTearIsQuick()).toBe(false);
+    resetSitting();
+  });
+});
+
+describe("the bag as the chain has it", () => {
+  // The game's read of the bag is often seconds behind a reveal, and the tear comes inside them.
+  it("is what the bag held plus the piece's letters, when the read hasn't caught up", () => {
+    const had = bag("funy");
+    expect(bagWithMail(had, had, pack("kke"))).toEqual(bag("funykke"));
+  });
+
+  it("never lowers a count the read already shows", () => {
+    // the read has caught up, and the player was given another e meanwhile
+    expect(bagWithMail(bag("funykee"), bag("funy"), pack("ke"))).toEqual(bag("funykee"));
+  });
+
+  it("so a letter that finishes a word is known at the tear, with the bag's read still behind", () => {
+    const had = bag("funy");
+    const letters = pack("kesad");
+    const stale = had; // the read shows none of the pack yet
+    const after = bagWithMail(stale, had, letters);
+    // FUNKY needs the k: spellable from the bag as the chain has it, not from the stale read
+    for (const ch of "funky") expect(after[idx(ch)]).toBeGreaterThan(0);
+    expect(stale[idx("k")]).toBe(0);
+    expect(revealOrder(letters, had, finishers(["FUNKY"], had))[4]).toMatchObject({ finishes: "FUNKY", best: true });
+  });
+});
+
+describe("what the bag held before a new piece, when its read is behind the last one", () => {
+  const had = bag("funy");
+  const owed = bagWithMail(had, had, pack("kesad")); // what the last piece left in the bag
+
+  it("is never less than what the last piece left: its letters are not new again", () => {
+    // "Rip another" seconds later, and the read still shows the bag from before the last piece
+    const before = hadWithOwed(had, owed);
+    expect(before).toEqual(owed);
+    // the next piece brings another d: not the player's first
+    expect(revealOrder(pack("d"), before)[0].isNew).toBe(false);
+    // from the stale read it would have been called new
+    expect(revealOrder(pack("d"), had)[0].isNew).toBe(true);
+  });
+
+  it("is the read itself once nothing is owed", () => {
+    expect(hadWithOwed(bag("funykesad"), null)).toEqual(bag("funykesad"));
+  });
+
+  it("the read has caught up when it shows every owed letter, and not before", () => {
+    expect(caughtUp(had, owed)).toBe(false);
+    expect(caughtUp(bag("funykesa"), owed)).toBe(false);
+    expect(caughtUp(bag("funykesad"), owed)).toBe(true);
+    expect(caughtUp(bag("funykesadzz"), owed)).toBe(true);
+  });
+
+  it("errs safe when a letter was spent meanwhile: it counts high, and a high count names nothing as new", () => {
+    // the player claimed FUNKY (its letters left the bag) and the read shows that
+    const spent = bag("esad");
+    const before = hadWithOwed(spent, owed);
+    expect(before[idx("k")]).toBe(1);
+    expect(revealOrder(pack("k"), before)[0].isNew).toBe(false);
   });
 });

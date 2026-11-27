@@ -24,7 +24,7 @@ vi.mock("@/components/game/useLetterSupply", () => ({ useLetterSupply: () => ({ 
 const { GameProvider, useGame } = await import("@/components/game/state");
 const { MailSheet } = await import("@/components/game/sheets/MailSheet");
 const { PendingReveal } = await import("@/components/game/PendingReveal");
-const { PRACTICE_MAIL_MS } = await import("@/components/game/mail/mailFlow");
+const { PRACTICE_MAIL_MS, resetSitting } = await import("@/components/game/mail/mailFlow");
 type GameApi = ReturnType<typeof useGame>;
 
 let g!: GameApi;
@@ -55,6 +55,7 @@ const gained = (before: readonly number[]) => g.state.lower.flatMap((n, i) => Ar
 
 beforeEach(() => {
   reduce = false;
+  resetSitting(); // each test is a new sitting: the short version starts after a few envelopes
   name = null;
   // setTimeout and the clock both move with the test, so a drawn-out tear and each letter's beat
   // can be stepped through; a frame is a 16 ms timer.
@@ -151,6 +152,26 @@ describe("tearing it open", () => {
     expect(said()).toMatch(/rip another/i);
     // the strip is gone with the envelope
     expect(screen.queryByRole("button", { name: "Tear the envelope open" })).toBeNull();
+  });
+
+  it("Claim at the count claims that word, and the envelope gives way to the word's own moment", () => {
+    reduce = true;
+    play();
+    buy();
+    arrive();
+    fireEvent.click(strip());
+    tick(600);
+    // the seeded first pack finishes a word
+    const claim = screen.getByRole("button", { name: /^Claim / });
+    const word = /Claim ([A-Z]{5})/.exec(claim.textContent ?? "")![1];
+    expect(g.state.words.some((w) => w.word === word)).toBe(false);
+    fireEvent.click(claim);
+    expect(g.state.words.some((w) => w.word === word)).toBe(true);
+    // the mail sheet is gone, and the claim's own sheet (the word, celebrating) took its place
+    expect(g.state.sheet?.kind).not.toBe("mail");
+    expect(g.state.sheet).toMatchObject({ kind: "celebrate", word });
+    // nothing waits: the envelope was torn
+    expect(g.pendingReveals).toBe(0);
   });
 
   it("with motion, they come out one at a time, and a tap hurries them", () => {
