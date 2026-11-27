@@ -1,11 +1,15 @@
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Sound is dark without its files (src/lib/sound.ts, decisions.md #49 part 4): the switch shows
+  // only where the mail's cues are in this build, or NEXT_PUBLIC_SOUND_BASE says where they are served.
+  env: { NEXT_PUBLIC_SOUND_READY: process.env.NEXT_PUBLIC_SOUND_BASE || existsSync(join(here, "public/sfx/mail/drop.mp3")) ? "1" : "" },
   // tree-shake the Phosphor icon barrel so we don't bundle the whole set
   experimental: { optimizePackageImports: ["@phosphor-icons/react"] },
   // Pin the workspace root — a stray parent lockfile otherwise misleads Next's inference.

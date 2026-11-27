@@ -37,6 +37,8 @@ import { useWorld } from "../useWorld";
 import { useLetterSupply } from "../useLetterSupply";
 import { useMyName } from "../useMyName";
 import { newlySpellableWith } from "./BoughtLettersSheet";
+import { useMailCues } from "../useSound";
+import { SoundToggle } from "../SoundToggle";
 import { bagWithMail, bestLine, countHead, countSub, finishers, hadFor, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
 
 // ── measures: one box, 328 wide, drawn larger or smaller as a whole to fit the sheet ─────────────
@@ -391,6 +393,16 @@ function MailStage({ mail }: { mail: Mail }) {
     void g.buyPack();
   };
   const rarity = useRarity(pulls);
+  // Its sounds follow its steps (mail/mailCues): never what it shows when it appears.
+  useMailCues({
+    phase: mail.phase,
+    numbered: marked,
+    torn,
+    fidget,
+    out: torn ? pos.filter((v) => v === "out").length : 0,
+    rareOut: !!pulls && pulls.some((p, i) => p.best && p.rare && pos[i] === "out"),
+    word: counted && !!first,
+  });
 
   return (
     <div className="flex flex-col items-center pb-1">
@@ -485,6 +497,7 @@ function MailStage({ mail }: { mail: Mail }) {
           {status}
         </p>
       )}
+      {!counted && <SoundToggle compact />}
 
       {counted && pulls && (
         <div className="mail-count w-full text-center">
