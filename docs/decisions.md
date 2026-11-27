@@ -3178,12 +3178,27 @@ setter. All small, riding existing suite patterns.
       the right, an earlier one from the left). 520 ms on a curve of its own (`--ease-swap`): the
       house ease-out covers nine tenths of the way in the first third, and the slide was over
       before it could be seen as one.
-    - **The card's rules hold.** Each face is one still picture, moved whole, under the card's
-      frame, which stays; nothing moves inside a picture (a face never moves: #34). The word
-      stays where it stands, and each letter glides to its place on the new ground
-      (`.cf-stand`: a curved ground lowers and turns a letter). Nothing is scaled (#48). All
-      travel sits behind `prefers-reduced-motion: no-preference`; under reduced motion the new
-      face fades in as before.
+    - **The card's rules hold.** Each face is one still picture, moved whole; nothing moves
+      inside a picture (a face never moves: #34). The word stays where it stands, and each
+      letter glides to its place on the new ground (`.cf-stand`: a curved ground lowers and
+      turns a letter). Nothing is scaled (#48). All travel sits behind
+      `prefers-reduced-motion: no-preference`; under reduced motion the new face fades in as
+      before.
+    - **The card's border holds still** (found by enlarging a held frame's edge, after review
+      asked whether I had looked there). A face's picture is drawn only inside the card's
+      window; the paper border is the card's own ground, and the frame is line work over it.
+      My first slide moved the picture alone, so it passed under the side border and a dark
+      face showed through the ornaments. The moving picture is now clipped to the window, and
+      the clip stands still while the picture moves (each frame's `clip-path` is the window as
+      seen from the picture's own place; the numbers are `lib/cardArt/looks` `WINDOW`, and a test
+      works them out from it). The shade at the new face's leading edge is a strip at the edge
+      of its window, never a `box-shadow` (the box's edge is 3.5% further out).
+    - **The letters glide only while a change is in flight** (`.cf-changing` on the card, for as
+      long as the old face is kept; caught in review, then measured). A stance is written in
+      units of the card's width. With the glide always on, any change of the card's size also
+      ran it: narrowing the window set four of five letters on Spring's hill drifting for half
+      a second, in both engines. It would also have run in the Shop's closer look, which
+      doubles the card.
     - **Why the new face covers the old instead of pushing it out** (my choice between two
       readings of "swipe"): the letters stand in front of the picture, and their ground is part
       of it. A push moves both pictures, so the ground slides under ten still feet for the whole
@@ -3202,10 +3217,14 @@ setter. All small, riding existing suite patterns.
       game's picker at 1,280 px, with the card's own timer stalled in the test browser (a held
       frame takes longer to capture than the change lasts; my first frames, taken without that,
       showed the finished change and I nearly read them as the curve being too fast, and one
-      showed a blank that was only the capture): the Stage to Spring from the right, Spring to
-      Stock (dark) from the left, the letters part way down Spring's hill as its edge passed.
-      Not seen: the motion itself by a person, a phone, Outer Space in the picker (the practice
-      game has no Shop).
+      showed a blank that was only the capture): the Stage to Spring and Stock (dark) to Spring
+      from the right, the Stage to Stock (dark) from the left, the letters part way down
+      Spring's hill as its edge passed, and the card's side border, enlarged, cream under its
+      ornaments while a dark face passed inside the window. With a read-only pretend wallet in
+      the live test game (every write to the server blocked in the browser): the Stage to
+      Outer Space with a Mythic word, before the window clip. A window narrowed with Spring
+      showing: no letter moved. Not seen: the motion itself by a person, a phone, Outer Space
+      after the window clip.
 
 ## Pricing & launch economics (decided June 2026)
 

@@ -789,9 +789,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   it until it is in (`SceneFrame`; which face was showing is worked out WHILE rendering, never in
   an effect, which is one render late: a render with the new face in place and nothing under it). It fades in everywhere but the
   face picker, which passes `change="slide"`: there it slides in over the old face from the side
-  it sits on in the picker (`lib/scenes` `swapSide`), under the frame, each face one still picture
-  moved whole, while each letter glides to its place on the new ground (`.cf-stand`). It covers
-  the old face and never pushes it: a push slides the ground under still feet. Its curve is its
+  it sits on in the picker (`lib/scenes` `swapSide`), each face one still picture moved whole,
+  while each letter glides to its place on the new ground (`.cf-stand`). It covers the old face
+  and never pushes it: a push slides the ground under still feet. **A face's picture is drawn
+  only inside the card's window: the paper border is the card's own ground and the frame is
+  line work over it.** So anything that moves a face must clip it to the window with a clip that
+  stands still (the slide's keyframes do: `clip-path` as seen from the picture's own place), or
+  a dark face shows through the side border. **A letter's stance is written in units of the
+  card's width**, so a transition on it must exist only while a face change is in flight
+  (`.cf-changing`): always on, it sets the letters drifting on every resize. Its curve is its
   own (`--ease-swap`; the house ease-out is nearly done in a third of its time, so a slide on it
   reads as a jump). `tests/face-change.test.tsx` holds it. **To judge any change that lasts under
   a second from held frames, stall the timer that ends it first**: a held frame takes longer to

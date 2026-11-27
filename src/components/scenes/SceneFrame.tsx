@@ -276,7 +276,10 @@ export function SceneFrame({
   return (
     <div
       ref={box}
-      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
+      // `cf-changing`: only while a face change is in flight do the letters glide to their new
+      // stances (globals.css, .cf-stand). A stance is written in units of the card's width, so a
+      // glide that was always on also ran on every resize: the letters drifted for half a second.
+      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : ""} ${was ? "cf-changing" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
       style={{ "--cf-ink": look.ink, "--cf-accent": look.accent, "--cf-ground": look.ground, ...(onSwipe ? { touchAction: "pan-y" } : {}) } as CSSProperties}
       {...swipe}
     >
