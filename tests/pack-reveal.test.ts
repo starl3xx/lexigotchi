@@ -5,7 +5,7 @@
  * is known to be on chain.
  */
 import { describe, it, expect } from "vitest";
-import { failedAsk, openPacks, packRevealPlan } from "@/lib/onchain/packReveal";
+import { waitingCommits, failedAsk, openPacks, packRevealPlan } from "@/lib/onchain/packReveal";
 
 const SIG = `0x${"11".repeat(65)}` as const;
 const FIVE = [17, 8, 3, 3, 0];
@@ -94,5 +94,42 @@ describe("failedAsk: what a failed request to open a pack means", () => {
 
   it("anything else the server stated is a refusal before it sent anything", () => {
     for (const e of ["rate_limited", "unknown_commit", "bad_commit_id", "no_supply", "http_404", "http_429", undefined]) expect(failedAsk(e)).toBe("refused");
+  });
+});
+
+// The card on Today and Mint counts these (Bugbot on #273: a pack that was mined, and not yet seen
+// by its own flow, showed as waiting, and the card's Open could only say "Still working on").
+describe("which open commits are waiting for the player", () => {
+  const c = (id: bigint) => ({ commitId: id });
+  const ids = (list: { commitId: bigint }[]) => list.map((x) => x.commitId);
+
+  it("with no piece on its way, every open commit waits", () => {
+    expect(ids(waitingCommits([c(7n), c(9n)], null))).toEqual([7n, 9n]);
+  });
+
+  it("while a pack is on its way, its own commit never counts, at any step", () => {
+    const known = new Set(["7"]); // what was waiting before the tap
+    // the wallet is open, or the commit is sent: its number isn't known yet, and the commit shows up
+    expect(ids(waitingCommits([c(7n), c(9n)], { known, own: null }))).toEqual([7n]);
+    // the flow has found it
+    expect(ids(waitingCommits([c(7n), c(9n)], { known, own: 9n }))).toEqual([7n]);
+  });
+
+  it("an older pack that was waiting still counts while a new one is on its way", () => {
+    expect(ids(waitingCommits([c(3n), c(7n), c(9n)], { known: new Set(["3", "7"]), own: null }))).toEqual([3n, 7n]);
+  });
+
+  it("mail being opened from the card is not waiting while it is opened", () => {
+    // it WAS waiting before (the card listed it), and it is the piece's own commit
+    expect(ids(waitingCommits([c(7n), c(9n)], { known: new Set(["7", "9"]), own: 7n }))).toEqual([9n]);
+  });
+
+  it("once the piece settles, a pack that ended up waiting counts again", () => {
+    expect(ids(waitingCommits([c(9n)], null))).toEqual([9n]);
+  });
+
+  it("gives back a list of its own", () => {
+    const open = [c(7n)];
+    expect(waitingCommits(open, null)).not.toBe(open);
   });
 });
