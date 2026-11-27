@@ -3338,8 +3338,7 @@ setter. All small, riding existing suite patterns.
       paper's own brown. On the back (`.cb-tex`, and the face-down card) it is the same weave
       with one set of lines light and one dark, at about the strength the back's weave had:
       his drawing was of the front's paper, so the back's inks are my translation.
-      - Only the game draws stock: no picture and no video carried it before, and none does
-        now, so `CARD_LOOK` stays.
+      - As first built, only the game drew stock. That was wrong: see "the stock is everywhere" below.
     - **Part 4, amended the day it shipped: the weave must be seen.** The owner, an hour after
       it merged: "i can't see the weave on any cards". He was right, and the fault was mine:
       the swatch he chose was enlarged three times, and I built it at its true size, hairlines
@@ -3352,6 +3351,19 @@ setter. All small, riding existing suite patterns.
       tried on real cards at pixel ratios 1, 1.5, 2, and 3; he has not seen it.
       - **Kept as a rule:** when he approves something from an enlarged swatch, show it at
         real size too before building, and compare the build with what it replaces.
+    - **Part 4, amended again: the stock is everywhere a card is drawn.** The owner, after
+      the crosshatch reached the game ("the crosshatch looks so good"): "crosshatch isn't in
+      the share cards images/videos, either... make sure those are all updated with the latest
+      changes". I had left it out of the pictures because they had never carried stock, which
+      was the wrong test: a card is one object wherever it is drawn. Now `lib/cardArt/stock`
+      is the weave's one source. The game's styles hold its tile, and the server's picture of
+      a front and of a back lay its sheet over the card, in card units, under the letters and
+      the lettering. The share video is made of those two pictures, so it carries the
+      crosshatch on both sides; checked in a real video at full size, with the card turning.
+      In the front's picture the frame is now drawn before the letters, which is the game's
+      own order (nine pictures compared before and after: none changed). `CARD_LOOK` is 16.
+      - **Kept as a rule:** a change to how a card looks is not done until the game, the
+        front picture, the back picture, and a real video all show it.
     - **All four parts he chose are built** (the video, the backs, the front's light, the
       stock), with the emblem made standard on the way.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a

@@ -12,6 +12,7 @@ import { PLATE_BORDER, PLATE_SEAL, backPlate } from "@/lib/cardArt/plate";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { MATERIAL_GROUND, MATERIAL_LINE, collabPlate, materialPlate, type CardMaterial } from "@/components/cards/material";
 import { LIGHT, LIGHT_INK, lightBand, lightLines, type LightInk } from "@/lib/cardArt/light";
+import { WEAVE, sheetMeasures, weaveSheet, weaveTile, type StockSide } from "@/lib/cardArt/stock";
 import { DARK_SCENES, PALE_SCENES } from "@/lib/cardArt/scenes";
 import { SCENES } from "@/lib/scenes";
 
@@ -324,5 +325,74 @@ describe("the card's stock is a playing card's weave: a diagonal crosshatch you 
     expect(frame.indexOf('<div className="cf-tex" />')).toBeLessThan(frame.indexOf("className={`cf-word "));
     expect(read("src/components/cards/CardBack.tsx")).toContain('<div className="cb-tex" />');
     expect(read("src/components/cards/FaceDownCard.tsx")).toContain('<div className="cb-tex" />');
+  });
+});
+
+describe("the stock is in every place a card is drawn: the game, the share pictures, and the video (\"crosshatch isn't in the share cards images/videos, either... make sure those are all updated\")", () => {
+  const css = read("src/app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const styled = (sel: string) => decodeURIComponent(new RegExp(`(?:^|\\n)${sel.replace(/[.]/g, "\\.")} \\{[^}]*url\\("data:image\\/svg\\+xml,([^"]+)"\\)`).exec(css)?.[1] ?? "");
+  const SIDES: [string, StockSide][] = [[".cf-tex", "front"], [".cb-tex", "back"]];
+
+  it.each(SIDES)("%s in the game's styles is the one module's tile, character for character", (sel, side) => {
+    expect(styled(sel)).toBe(weaveTile(side));
+    expect(css).toMatch(new RegExp(`\\n${sel.replace(/[.]/g, "\\.")} \\{[^}]*background-size: ${WEAVE.tile}px ${WEAVE.tile}px`));
+  });
+  it("the back's weave is laid on at the share the module names, in the styles and in a picture", () => {
+    expect(css).toMatch(new RegExp(`\\n\\.cb-tex \\{ opacity: ${WEAVE.back.share};`));
+    expect(weaveSheet("back")).toContain(`opacity="${WEAVE.back.share}"`);
+    expect(weaveSheet("front")).not.toMatch(/ opacity="/);
+  });
+
+  it.each(["front", "back"] as StockSide[])("a picture's weave (%s) is the same crosshatch in card units: the same inks and strengths, a whole repeat, lines a pixel or more", (side) => {
+    const sheet = weaveSheet(side);
+    const m = sheetMeasures();
+    // the game's six pixels, as they fall on the card an opened word shows on a computer
+    expect(m.pitch).toBe(Math.round((WEAVE.pitch * CARD_W) / WEAVE.pictureCard));
+    expect(Number.isInteger(m.pitch)).toBe(true);
+    expect(m.weight / m.pitch).toBeCloseTo(WEAVE.weight / WEAVE.pitch, 1);
+    // a line is never finer than about a pixel where it is shown: the picture is 1200 wide
+    expect(m.weight).toBeGreaterThanOrEqual(1.2);
+    expect(sheet).toContain(`<pattern id="weave" width="${m.pitch}" height="${m.pitch}" patternUnits="userSpaceOnUse">`);
+    expect(sheet).toContain(`<rect width="${CARD_W}" height="${CARD_H}" fill="url(#weave)"`);
+    // the same four sets of lines as the game's tile: ink for ink, strength for strength
+    const sets = (svg: string) => [...svg.matchAll(/stroke=["'](#[0-9a-f]+)["'] stroke-opacity=["']([.\d]+)["']/g)].map((x) => x[1] + " " + x[2]);
+    expect(sets(sheet)).toEqual(sets(weaveTile(side)));
+    expect(sets(sheet)).toHaveLength(4);
+    // the kit's rules
+    expect(sheet).not.toMatch(/<text|<filter|<style|<script|<image|<animate|href=|NaN|undefined/);
+    expect(svgDoc(sheet)).toContain("</svg>");
+  });
+
+  it("the server's picture of a front lays it over the art and the frame and UNDER the letters, as the game does", () => {
+    const src = read("src/app/_og/wordCard.tsx");
+    const at = (x: string) => { const i = src.indexOf(x); expect(i, x).toBeGreaterThan(-1); return i; };
+    const art = at("<img src={image(cardArt(scene, tier ?? PLAIN, collabLook))}");
+    const frame = at("<img src={image(cardFrame(tier ?? PLAIN, collabLook))}");
+    const weave = at('<img src={image(weaveSheet("front"))} width={cardW} height={cardH}');
+    const letters = at("{(letters ? tiles : []).map((t, i) => {");
+    expect(art).toBeLessThan(frame);
+    expect(frame).toBeLessThan(weave);
+    expect(weave).toBeLessThan(letters); // never a line over a letter
+    // one drawing serves the link card, the bare front, the stage the video's letters stand on, and the earnings picture
+    expect(read("src/app/s/[text]/card/route.tsx")).toContain("wordCard(");
+    expect(read("src/app/e/[token]/card/route.tsx")).toContain("wordCard(");
+  });
+
+  it("the server's picture of a back lays it over the plate and under the seal and the lettering", () => {
+    const src = read("src/app/s/[text]/back/route.tsx");
+    const at = (x: string) => { const i = src.indexOf(x); expect(i, x).toBeGreaterThan(-1); return i; };
+    expect(src).toContain('const weave = `data:image/svg+xml;base64,${Buffer.from(svgDoc(weaveSheet("back"))).toString("base64")}`;');
+    const plate = at("<img src={plate} width={W} height={H}");
+    const weave = at("<img src={weave} width={W} height={H}");
+    const seal = at("<img src={seal(look.line)}");
+    expect(plate).toBeLessThan(weave);
+    expect(weave).toBeLessThan(seal);
+  });
+
+  it("the video is made of those two pictures and draws no stock of its own", () => {
+    const maker = read("src/components/cards/loop/makeLoop.ts");
+    expect(maker).toContain("loadImage(live.stage, { signal })"); // the front without its letters: the server's picture
+    expect(read("src/components/cards/loop/loopRenderer.ts")).toContain("col = texture2D(tBack, vec2(1.0 - vUv.x, vUv.y)).rgb;");
+    expect(maker + read("src/components/cards/loop/loopRenderer.ts")).not.toMatch(/weave|crosshatch/i);
   });
 });
