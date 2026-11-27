@@ -2784,8 +2784,16 @@ setter. All small, riding existing suite patterns.
       (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
       "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
       `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
-      refresh for a list of words; it gets tests and an audit pass, in part 4). The check on the
-      word that `dissolve` logs was not chosen.
+      refresh for a list of words). The check on the word that `dissolve` logs was not chosen.
+    - **The metadata refresh is in `Words.sol`** (its own PR, ahead of part 4, because it is the
+      one piece of the collab work that a contract must carry and Words can't change after
+      deploy). `refreshMetadata(uint256[])` emits `MetadataUpdate` for each word named;
+      `refreshAllMetadata()` emits `BatchMetadataUpdate(0, max)`, ERC-4906's "everything
+      changed", which word ids need because they are hashes and never a run. The second is mine:
+      he chose the list form, and a contract that says it speaks ERC-4906 should be able to say
+      "all of them" (a new metadata server, a change to how every card is drawn). Both are
+      owner-only and only emit events. Tests, and the audit's sixth pass (no finding at the
+      threshold). Nothing is deployed: it rides the Base Sepolia redeploy, which is on hold.
 
 54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
     about cards... the *front* of the card is its front regardless of the scene/face... the *face*

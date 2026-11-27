@@ -210,6 +210,9 @@ set to everyone at once and the release builder says so. Base Sepolia's Words (r
 predates it.
 
 **Mainnet must include (Words can't change afterwards):**
+- **The metadata refresh.** Deploy the `Words.sol` that has `refreshMetadata` and
+  `refreshAllMetadata` (decisions.md #53). They are how a marketplace is told to read a word again
+  after a change the chain can't see (a collab set's card look, a new metadata server).
 - **The gate.** Deploy the `Words.sol` that has it, and record `"wordsGate": true` in
   `config/deployments.json` with the addresses. A Words without it can never gate a release.
 - **The reserve root.** Set `DICTIONARY_ROOT` for `Deploy.s.sol` to the root `npm run sets -- reserve`
@@ -233,9 +236,9 @@ Thursdays, so that run pays the week that just ended, and the new suite starts o
 day with nothing owed on the old one. (The first proposal was Thursday 2026-12-03.)
 
 Before the day:
-1. The gate's PR is merged, and migrations 0021, 0022, and 0023 are run. `Words.sol` also has the
-   owner's metadata refresh by then (his choice, 2026-11-27; decisions.md #53), tested and audited:
-   Words can't change afterwards.
+1. The gate's PR is merged, and migrations 0021, 0022, and 0023 are run. `Words.sol` has the
+   owner's metadata refresh (his choice, 2026-11-27; decisions.md #53; tested and audited,
+   `contracts/AUDIT.md` sixth pass): Words can't change afterwards.
 2. The sets are in the Sets tab (placeholders are fine: a draft stays editable).
 3. A `heads-up` tester note goes out a day ahead: the test build resets on the day.
 

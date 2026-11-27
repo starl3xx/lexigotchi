@@ -120,6 +120,10 @@ generator's encoding matches `AnswerChain.reveal` exactly.
       choices stay: `seed.jackpot = 0`, the operator never funds the prize (`docs/pricing-review.md`).
 - [ ] `owner`/`treasury` = a single hardware-wallet EOA (no multisig); separate hot keys for `signer`,
       `keeper`, and `priceKeeper`.
+- [ ] **Words is deployed WITH the owner's metadata refresh** (`refreshMetadata`,
+      `refreshAllMetadata`: ERC-4906 events for a change the chain can't see, such as a card's look;
+      decisions.md #53). They only emit events. A Words without them can never tell a marketplace to
+      read a word again.
 - [ ] **Words is deployed WITH the first-day gate** (`setGate`, `gatedUntil`, `claimSigner`: in
       `Words.sol` since decisions.md #51) **and with the reserve root** (`DICTIONARY_ROOT`), if any
       word is held back in a set at launch. Words can't change after it is deployed: a Words without
