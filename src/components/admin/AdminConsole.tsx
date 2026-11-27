@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Stack,
   Storefront,
+  TelegramLogo,
   UserList,
   Wallet,
   Wrench,
@@ -34,6 +35,7 @@ import { DeploymentsTab } from "./tabs/DeploymentsTab";
 import { BroadcastTab } from "./tabs/BroadcastTab";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { PlayersTab } from "./tabs/PlayersTab";
+import { ReportsTab } from "./tabs/ReportsTab";
 import { SystemTab } from "./tabs/SystemTab";
 import { ShopTab } from "./tabs/ShopTab";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
@@ -41,6 +43,7 @@ import { useWordPrice } from "@/lib/oracle/useWordPrice";
 type TabId =
   | "pulse"
   | "players"
+  | "reports"
   | "system"
   | "economy"
   | "supply"
@@ -65,6 +68,7 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: "pulse", label: "Pulse", section: "Analytics", icon: <Gauge weight="bold" size={15} />, render: () => <PulseTab /> },
   { id: "players", label: "Players", section: "Analytics", icon: <UserList weight="bold" size={15} />, render: () => <PlayersTab /> },
+  { id: "reports", label: "Reports", section: "Analytics", icon: <TelegramLogo weight="bold" size={15} />, render: () => <ReportsTab /> },
   { id: "economy", label: "Economy", section: "Analytics", icon: <ChartLineUp weight="bold" size={15} />, render: () => <EconomyTab /> },
   { id: "supply", label: "Supply", section: "Analytics", icon: <Stack weight="bold" size={15} />, render: () => <SupplyTab /> },
   { id: "system", label: "System", section: "Operations", icon: <GearSix weight="bold" size={15} />, render: () => <SystemTab /> },

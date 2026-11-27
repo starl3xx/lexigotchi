@@ -34,7 +34,8 @@ export type RateKind =
   | "shop-record"
   | "market-read"
   | "market-list"
-  | "telegram";
+  | "telegram"
+  | "telegram-report";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -115,6 +116,10 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     // a message in the group, so this bounds one person flooding either.
     case "telegram":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "rl:telegram" });
+    // Reports filed with the bot's /bug, keyed by the Telegram user: each is a row for the team to
+    // read, so this bounds one person filling the list.
+    case "telegram-report":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(6, "10 m"), prefix: "rl:telegram:report" });
     case "shop-record":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:shop:record" });
   }

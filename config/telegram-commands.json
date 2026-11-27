@@ -3,5 +3,6 @@
   { "command": "status", "description": "Is the game up?" },
   { "command": "jackpot", "description": "Today’s pot and the last draw" },
   { "command": "bounty", "description": "This week’s theme and pool" },
-  { "command": "word", "description": "Who holds a word. Try /word CRANE" }
+  { "command": "word", "description": "Who holds a word. Try /word CRANE" },
+  { "command": "bug", "description": "Tell the team what went wrong. Try /bug the Roll button stays grey" }
 ]

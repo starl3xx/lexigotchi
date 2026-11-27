@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { showcaseCardUrl } from "@/lib/showcase";
 import { commandOf, sendMessage, sendPhoto, telegramConfigured, webhookSecretMatches, welcomeFor, type TgMessage, type TgUpdate } from "@/lib/telegram";
 import { answer } from "@/lib/telegramCommands";
+import { fileReport } from "@/lib/telegramReports";
 import { afterResponse } from "@/lib/afterResponse";
 import { allow } from "@/lib/ratelimit";
 import { getRedis } from "@/lib/redis";
@@ -20,6 +21,7 @@ export const maxDuration = 60;
  * - **Answers a command** (`/help`, `/status`, `/jackpot`, `/bounty`, `/word CRANE`:
  *   lib/telegramCommands), in the beta group or in a private chat with the bot, as a reply to the
  *   message that asked.
+ * - **Files a report** (`/bug what went wrong`: lib/telegramReports), kept for the team alone.
  *
  * The bot is an administrator of the group, so Telegram sends it every message there. Only a join
  * and a command are acted on; nothing else is read, and no message's words are ever logged.
@@ -114,7 +116,8 @@ async function answerCommand(updateId: number | undefined, m: TgMessage, cmd: { 
     // One person asking faster than they can read gets no answer, quietly: a "slow down" in the
     // group for each try would be the flood.
     if (!(await allow("telegram", m.from?.id ?? m.chat.id))) return;
-    const reply = await answer(cmd, { private: m.chat.type === "private" });
+    // /bug is the one command that keeps what was typed: the words after it, as a report.
+    const reply = cmd.name === "bug" ? { text: await fileReport(m, cmd.args), photoUrl: undefined } : await answer(cmd, { private: m.chat.type === "private" });
     if (!reply) return;
     const to = { replyTo: m.message_id };
     // The card, uploaded by us as the welcome's is. Without it (the picture is slow to draw, or

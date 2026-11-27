@@ -650,3 +650,35 @@ export const marketSales = pgTable(
     index("market_sales_word_idx").on(t.chainId, t.word, t.soldAt),
   ],
 );
+
+/**
+ * A beta tester's report, filed with the Telegram bot's `/bug` (lib/telegramReports.ts, migration
+ * 0019). One row per report: its words, who typed it and where (to answer there when it is fixed),
+ * and whether it is open, fixed, or closed.
+ *
+ * PRIVATE. These are a tester's own words from a private group, with their Telegram name: shown
+ * only behind the admin gate (`/api/admin/reports`), and never put in a public GitHub issue with a
+ * name on it (the repository is public; the console's "open as an issue" leaves the reporter out).
+ * Losing the table loses the list of reports, not anything a player owns.
+ */
+export const testerReports = pgTable(
+  "tester_reports",
+  {
+    id: serial("id").primaryKey(),
+    /** The chat the report was typed in (the beta group, or a private chat with the bot) and its message there. */
+    chatId: bigint("chat_id", { mode: "number" }).notNull(),
+    messageId: bigint("message_id", { mode: "number" }),
+    /** The reporter's Telegram id, and their name as it was then: a username (no "@"), else a first name. */
+    reporterId: bigint("reporter_id", { mode: "number" }).notNull(),
+    reporterName: text("reporter_name").notNull(),
+    text: text("text").notNull(),
+    /** Telegram's id of the screenshot the report was typed under, if any (the bot can fetch it). */
+    photoFileId: text("photo_file_id"),
+    /** "open", "fixed" (the reporter was told), or "closed" (not a bug, a duplicate: nobody is told). */
+    status: text("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tester_reports_created_idx").on(t.createdAt)],
+);
+export type TesterReport = typeof testerReports.$inferSelect;

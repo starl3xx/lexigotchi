@@ -5,7 +5,8 @@
  * ADMINISTRATOR of the beta group, and Telegram sends an administrator every message in the group,
  * whatever its privacy mode. So this module reads only what it acts on: a join (the welcome) and a
  * command typed to the bot (`commandOf`; lib/telegramCommands answers it). Nothing else in a
- * message is read, kept, or logged, and nothing here may start to.
+ * message is read, kept, or logged, and nothing here may start to. One command keeps what was
+ * typed after it, because that is what it is for: `/bug` (lib/telegramReports).
  *
  * Dark until all three are set: TELEGRAM_BOT_TOKEN (from @BotFather), TELEGRAM_CHAT_ID (the beta
  * group, "-<id>" for a basic group), and TELEGRAM_WEBHOOK_SECRET (Telegram sends it back in the
@@ -40,6 +41,8 @@ export interface TgMessage {
   /** A picture's words, and their entities: a command can be typed under a screenshot. */
   caption?: string;
   caption_entities?: TgEntity[];
+  /** A picture, in several sizes, smallest first. */
+  photo?: { file_id: string }[];
   new_chat_members?: TgUser[];
   migrate_to_chat_id?: number;
 }
@@ -100,6 +103,16 @@ export interface TgMention {
  * "free-eth.example" as a link; else nothing. Control characters out, at most 40 characters, never
  * cutting an emoji in half.
  */
+/**
+ * A member's name as plain words, to keep beside something they filed: their username WITHOUT the
+ * "@" (so writing it never mentions anyone), else their first name, else null. Control characters
+ * out, at most 40 characters, never cutting an emoji in half.
+ */
+export function plainName(u: TgUser | undefined): string | null {
+  const raw = (u?.username || u?.first_name?.trim() || "").replace(/[\u0000-\u001f\u007f]/g, "");
+  return raw ? Array.from(raw).slice(0, 40).join("") : null;
+}
+
 function nameOf(u: TgUser): { text: string; mention?: number } | null {
   const raw = (u.username ? `@${u.username}` : u.first_name?.trim() || "").replace(/[\u0000-\u001f\u007f]/g, "");
   if (!raw) return null;
@@ -147,6 +160,51 @@ export async function chatMemberCount(
     });
     const data = (await res.json().catch(() => null)) as { ok?: boolean; result?: unknown } | null;
     return data?.ok && typeof data.result === "number" ? data.result : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether someone is in the beta group now: true, false, or null when Telegram didn't say. For a
+ * request that arrives in a private chat with the bot, where anyone on Telegram can type. (The bot
+ * is an administrator of the group, which is what makes this read dependable.) Never logs: the
+ * request URL carries the bot token.
+ */
+export async function inBetaGroup(
+  userId: number,
+  chatId = process.env.TELEGRAM_CHAT_ID ?? "",
+  token = process.env.TELEGRAM_BOT_TOKEN ?? "",
+): Promise<boolean | null> {
+  if (!chatId || !token) return null;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getChatMember?chat_id=${encodeURIComponent(chatId)}&user_id=${userId}`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    const data = (await res.json().catch(() => null)) as { ok?: boolean; result?: { status?: string; is_member?: boolean } } | null;
+    if (!data?.ok || !data.result?.status) return res.status === 400 ? false : null; // 400: Telegram knows no such member
+    const { status, is_member } = data.result;
+    return status === "creator" || status === "administrator" || status === "member" || (status === "restricted" && is_member === true);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A file someone sent the bot (a report's screenshot), by Telegram's id for it: its bytes and
+ * type, or null when Telegram no longer has it or doesn't answer. Never logs: both URLs carry the
+ * bot token.
+ */
+export async function telegramFile(fileId: string, token = process.env.TELEGRAM_BOT_TOKEN ?? ""): Promise<{ bytes: ArrayBuffer; type: string } | null> {
+  if (!fileId || !token) return null;
+  try {
+    const meta = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`, { signal: AbortSignal.timeout(5_000) });
+    const data = (await meta.json().catch(() => null)) as { ok?: boolean; result?: { file_path?: string } } | null;
+    const path = data?.ok ? data.result?.file_path : undefined;
+    if (!path) return null;
+    const file = await fetch(`https://api.telegram.org/file/bot${token}/${path}`, { signal: AbortSignal.timeout(15_000) });
+    if (!file.ok) return null;
+    return { bytes: await file.arrayBuffer(), type: /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg" };
   } catch {
     return null;
   }
