@@ -2208,6 +2208,30 @@ setter. All small, riding existing suite patterns.
       - **Seen and not seen (part 2):** the running landing page at 390, 768, 1,024, and
         1,280 px in WebKit and Chromium: no error, no sideways scrolling, the card beside the
         headline from 1,024 px and under it below. Not seen: a real phone.
+    - **Part 3, the Market's letters stand on a fine double rule** (2C; globals.css `.mk-rule`,
+      `LettersBoard.tsx`). The shelf was a flat tan plank between two heavy ink lines. It is an
+      ink line 1.5 px thick with a fainter line under it, 5 px in all, as a card's frame is
+      ruled. The tags are as they were, and each tag's string still reaches the rule. The shelf
+      is 6 px shorter a row.
+      - **One line a row, not one piece a slot.** The plank was a piece under each letter, each
+        a pixel wider than its slot so that no gap showed between neighbors. With thin lines that
+        pixel showed: at pixel ratios 1.25 and 1.5 the softened edge of the line was drawn twice
+        there, a darker tick at every join (about 53 of 255 darker). Pieces exactly a slot wide
+        left gaps at those ratios in WebKit (the page showing through the line). So the first
+        slot of each row draws the whole row's line (7 slots wide on a phone, 13 from md), and
+        every other slot keeps its place and draws nothing. The line lets taps through
+        (`pointer-events: none`): a tap on it goes to the letter above it.
+      - **The column counts are written twice**, in the grid (`LettersBoard`) and in the rule's
+        width (globals.css). `tests/market-shelf.test.ts` holds them equal.
+      - **Solid colours.** The lower line is the page's paper with 45% ink, mixed (`#928b7c`),
+        never a see-through ink: the page's dots would show through it.
+      - **Measured** (the practice game; 1,280 px at pixel ratios 1, 1.5, and 2; 768 px at 1.25;
+        390 px at 2 and 3; Chromium and WebKit): at every join between two slots the line is the
+        same as beside it, to 1 of 255. A tap on the line under the 5th, 10th, and 17th letter
+        opens that letter, on a phone and on a wide screen, in both.
+      - **Seen and not seen (part 3):** the whole shelf before and after at 1,280 px and 390 px;
+        the joins enlarged at all six settings. `screen-market.jpg` in the player docs is taken
+        again. Not seen: a real phone.
 
 51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
     2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
