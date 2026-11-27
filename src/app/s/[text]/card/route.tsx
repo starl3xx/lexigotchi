@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
-import { CARD_SERIF, CARD_SERIF_FILE, cardTier, wordCard } from "../../../_og/wordCard";
+import { CARD_SERIF, CARD_SERIF_FILE, cardTier, cornerMark, wordCard } from "../../../_og/wordCard";
 import { cardPictureCache, parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
@@ -111,9 +111,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         {/* the table, engraved (lib/cardArt/table): a still picture under the card, placed as a scene is */}
         <img src={tableImage(W, H)} width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
         {card}
-        {saved && (
-          <div style={{ position: "absolute", right: tall ? 34 : 28, bottom: tall ? 26 : 12, display: "flex", fontSize: tall ? 26 : 20, fontWeight: 800, letterSpacing: -0.5, color: "#fbf4e3", opacity: 0.85 }}>LEXIGOTCHI</div>
-        )}
+        {saved && cornerMark(tall)}
       </div>
     ),
     {

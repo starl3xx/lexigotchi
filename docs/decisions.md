@@ -2967,11 +2967,36 @@ setter. All small, riding existing suite patterns.
       dark one, and in one ink for each, and the name alone; each as a drawing and as pictures 512
       and 128 px tall. `tests/lockup.test.tsx` holds the drawing, the eye rule, the moments, and
       the six places.
-    - **Not built, and his to decide:** the lockup in the pictures that name the game (a saved
-      card's corner, the earnings picture, the game's link picture), the share video's corner
-      (alive there only on a written score, as the letters are), the docs' logo, and the emails
-      (which carry no picture today, by rule). The seal's own one-ink file is still the dark-ground
-      drawing only.
+    - **Part 2, the same day: everywhere the name was still set in type** (starl3xx, of a share
+      video whose corner still said LEXIGOTCHI in plain type: "the wordmark didn't make it onto
+      the share cards... did you implement everywhere including email, share cards, OG
+      images"). I had held these back for his word, and that was the wrong reading of "how many
+      places can we incorporate 9E?".
+      - **The share video's corner** is the lockup, alive on the video's written score
+        (`loop/score.ts` `markEyes`): it keeps still while the word's letters act, and while
+        the back is up it blinks, looks up at the card, and blinks. Open at 0 and at 6. The frame
+        picks one of four still pictures (`lockup({ pose })`); if they fail to load the name is
+        set in type as before, because a video is always made.
+      - **A saved picture's corner** (a word's card and the earnings picture, `?saved=1`, and so
+        the Telegram welcome card): the lockup on the dark table, drawn once for both
+        (`app/_og/wordCard.tsx` `cornerMark`). `CARD_LOOK` is 12. **A link card still carries no
+        name:** that rule (#23) is unchanged, and it is his to change.
+      - **The game's own link picture** (`/embed-image`) is the lockup and the line under it.
+        The lockup under the four letters that spelled LEXI showed the L tile twice, so the four
+        letters went. My choice, and the picture's larger redesign (the audit's 8A) is still his
+        to answer. Its address carries no version, so a host that kept the old picture keeps it.
+      - **The emails' header** is a picture of the lockup. This ends #47's "no picture": the
+        picture is a file the site serves (`public/brand/lockup-email.png`, made by
+        `npm run brand:art`), with the card's paper IN it (a clear ground vanishes in a mail
+        program that turns a page dark), its size given, and the name as its words, lettered as
+        the old header was, for a mail program that shows no pictures. It is still: a mail
+        program runs no drawing code. No real mail program has shown it yet.
+      - **The docs' logo** is the lockup, light and dark (`docs-site/logo`, set in `docs.json`).
+        Still files: a file is never alive.
+    - **Still not built:** the share page, the earnings page, the page after linking X, and the
+      unsubscribe page carry no mark (they follow). An animated picture in email and a moving
+      logo in the docs: neither can be checked from here. The seal's own one-ink file is still
+      the dark-ground drawing only.
 
 57. **The dark stock face: Stock (dark), on a pewter plate, free for everyone** (starl3xx,
     2026-11-27: "a new dark version of the stock face... give me an artifact w/a proposal").

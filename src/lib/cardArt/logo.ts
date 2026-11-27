@@ -127,6 +127,18 @@ const NAME_CAP = 718;
  * the drawing is moved into its box. The tile is A's, 172 tall at its ring and centred on the
  * capitals, so its eyes stand above the name; the name starts 15 units after it and is set tight.
  */
+/**
+ * The lockup in an email's header: its size on the page in points, and the paper it lies on (the
+ * card's own, CARD_PAPER). One place for the two that must agree: the picture `npm run brand:art`
+ * makes (public/brand/lockup-email.png) and the `<img>` that shows it (lib/notify/email).
+ */
+export const EMAIL_MARK = { width: 169, height: 36, paper: "#fcf7ea", path: "/brand/lockup-email.png" } as const;
+
+/** How the eyes stand in a still drawing of the lockup. */
+export type LockupPose = "open" | "shut" | "left" | "right";
+/** How far the pupils slide in a glance, in A's own units (the live lockup's styles slide them the same: globals.css, .lk). */
+const GLANCE: Record<"left" | "right", readonly [number, number]> = { left: [-11, 1], right: [10, -1] };
+
 export const LOCKUP = { cap: 100, tile: 172, gap: 15, track: -14, above: 150, below: 46, pad: 6, ink: "#1b1714", paper: "#f4ead2", height: 196 } as const;
 
 /** The name from its `from`-th letter, its first letter's left edge at x. The path, and where it ends. */
@@ -165,9 +177,12 @@ const ownIds = (markup: string, prefix: string) => (prefix ? markup.replace(/id=
  * - `alive`: the eyes are grouped so a page can move them (components/brand/Lockup): each eye has
  *   its open drawing (.lk-open, its pupil in .lk-pupil) and a shut one (.lk-shut), swapped for the
  *   moment of a blink, as a letter's are. A file is never alive.
+ * - `pose`: a STILL drawing with the eyes shut, or glancing left or right, for something drawn
+ *   frame by frame with no stylesheet (the share video's corner, on its written score). "open" is
+ *   the plain drawing, and the default: nothing about it changes.
  * - `prefix`: put before every id. Give each drawing on a page its own.
  */
-export function lockup({ tone = "paper", oneInk = false, alive = false, prefix = "" }: { tone?: "paper" | "dark"; oneInk?: boolean; alive?: boolean; prefix?: string } = {}): { markup: string; width: number; height: number } {
+export function lockup({ tone = "paper", oneInk = false, alive = false, pose = "open", prefix = "" }: { tone?: "paper" | "dark"; oneInk?: boolean; alive?: boolean; pose?: LockupPose; prefix?: string } = {}): { markup: string; width: number; height: number } {
   const A = LOGO_A;
   const fg = tone === "paper" ? LOCKUP.ink : LOCKUP.paper;
   const s = LOCKUP.tile / A.ring.s;
@@ -211,6 +226,8 @@ export function lockup({ tone = "paper", oneInk = false, alive = false, prefix =
         // shut, an eye keeps its shape and its lashes come down (the letters' own blink: TileCharacter, Eye).
         // The drawing hides it itself, so it is right with no stylesheet; the page's blink shows it (globals.css, .lk).
         const shut = `<g class="lk-shut" visibility="hidden">${ballOf("#f4f6fa")}<path d="M ${n1(ex - a)} ${n1(e.y + e.ry * 0.12)} Q ${ex} ${n1(e.y + e.ry * 0.58)} ${n1(ex + a)} ${n1(e.y + e.ry * 0.12)}" fill="none" stroke="${A.ink}" stroke-width="${e.line}" stroke-linecap="round"/></g>`;
+        if (pose === "shut") return `<g class="lk-eye">${shut.replace(' visibility="hidden"', "")}</g>`;
+        if (pose !== "open") return `<g class="lk-eye">${open.replace('<g class="lk-pupil">', `<g class="lk-pupil" transform="translate(${GLANCE[pose].join(" ")})">`)}</g>`;
         return `<g class="lk-eye">${open}${alive ? shut : ""}</g>`;
       })
       .join("");
@@ -220,6 +237,12 @@ export function lockup({ tone = "paper", oneInk = false, alive = false, prefix =
   const placed = `<g transform="translate(${(-A.ring.x * s).toFixed(2)} ${(-LOCKUP.cap / 2 - (A.ring.y + A.ring.s / 2) * s).toFixed(2)}) scale(${s.toFixed(4)})">${tile}</g>`;
   const markup = ownIds(`<g transform="translate(${LOCKUP.pad} ${LOCKUP.above})">${placed}${name.markup}</g>`, prefix);
   return { markup, width: n1(name.end + 2 * LOCKUP.pad), height: LOCKUP.height };
+}
+
+/** The lockup as one SVG document: a picture for an `<img>`, a canvas, or a file. */
+export function lockupDoc(options: Parameters<typeof lockup>[0] = {}): { svg: string; width: number; height: number } {
+  const l = lockup(options);
+  return { svg: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${l.width} ${l.height}" width="${l.width}" height="${l.height}">${l.markup}</svg>`, width: l.width, height: l.height };
 }
 
 /** The name alone, for a place too tight for a mark: the same letters, with 12 units of air over and under their capitals. */
