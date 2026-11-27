@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
-import { cardTier, wordCard } from "../../../_og/wordCard";
+import { CARD_SERIF, CARD_SERIF_FILE, cardTier, wordCard } from "../../../_og/wordCard";
 import { cardPictureCache, parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
@@ -26,11 +26,10 @@ import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
  *   turns it over (components/cards/loop), beside the back's picture.
  * - **The card is drawn by `_og/wordCard`,** which the earnings share's picture draws too.
  * - **The art and the frame are the game's own pictures** (lib/cardArt), each placed as one image.
- * - **The ribbon's lettering is TeX Gyre Pagella,** an open look-alike of Palatino. The game uses
- *   Iowan Old Style where the device has it and ships no font for it; a server has no fonts of its
- *   own (starl3xx, 2026-11-25: "let's ship an open-licensed Palatino look-alike for the share
- *   card"). Its license is beside it (public/fonts/texgyrepagella-LICENSE.txt). The picture's
- *   figures are lining ones: this renderer sets no old-style figures.
+ * - **The ribbon's lettering is Source Serif 4,** the card's serif in the game too (decisions.md
+ *   #52: one face for every player and every picture). A server has no fonts of its own, so the
+ *   bold file is loaded here. Its license is beside it (public/fonts/sourceserif4-LICENSE.txt).
+ *   The picture's figures are lining ones: this renderer sets no old-style figures.
  * - **The card's number is the chain's,** never the link's: nothing in the query can put a number
  *   on a card. A word with no number yet, and a house card, have none on the ribbon. The picture
  *   waits a second and a half for the number at most, then is drawn without it.
@@ -48,7 +47,7 @@ import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
 
 // TTF and OTF: Satori (next/og) can't read the app's woff2 (same as /embed-image).
 const soehneBold = readFileSync(join(process.cwd(), "public/fonts/soehne-fett.ttf"));
-const pagellaBold = readFileSync(join(process.cwd(), "public/fonts/texgyrepagella-bold.otf"));
+const serifBold = readFileSync(join(process.cwd(), CARD_SERIF_FILE));
 
 export async function GET(req: Request, { params }: { params: Promise<{ text: string }> }) {
   const tiles = parseShowcase((await params).text);
@@ -120,7 +119,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
       height: H,
       fonts: [
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
-        { name: "Pagella", data: pagellaBold, weight: 700, style: "normal" },
+        { name: CARD_SERIF, data: serifBold, weight: 700, style: "normal" },
       ],
       headers: { "cache-control": cardPictureCache({ waiting, level, hint }) },
     },

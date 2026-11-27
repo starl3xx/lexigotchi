@@ -77,7 +77,8 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
  * sentences stay in the sans, as words do on a card.
  *
  * What an email can't have, it doesn't try for: no picture, no shipped font (stacks only: the
- * card's serif is Iowan Old Style where the device has it, then Palatino, then Georgia), no dark
+ * card's serif is Source Serif 4 where a device happens to have it, then Iowan Old Style, then
+ * Palatino, then Georgia: a mail program loads no font, so an email can't be held to the game's), no dark
  * variant (it says "light only", so a client that honors it leaves the paper alone). Tables and
  * inline styles, because mail clients read little else. One button, in ink.
  */
@@ -86,7 +87,7 @@ const CARD = "#fcf7ea"; // lib/cardArt/looks CARD_PAPER
 const INK = "#1b1714";
 const LINE = "#4a3a2c"; // the Common card's frame ink (lib/cardArt/looks CARD_LOOKS)
 const SOFT = "#5f5549"; // body text: ink at about 70% on the card's paper
-const SERIF = "'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
+const SERIF = "'Source Serif 4','Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 /** A fact for the ledger: its name, and its value. */

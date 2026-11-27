@@ -30,8 +30,8 @@ export function cardNumber(n: number | null | undefined): string {
 }
 
 /**
- * The same number as the card's front letters it on its ribbon: "No. 0001". (The card's serif,
- * Iowan Old Style, has no "№" sign.) Null while the number is unknown: the ribbon leaves it out,
+ * The same number as the card's front letters it on its ribbon: "No. 0001". (Written out, never
+ * the "№" sign: the serif's shipped Latin file and a device's fallback serif may lack it.) Null while the number is unknown: the ribbon leaves it out,
  * it never shows a dash or a guess.
  */
 export function cardNo(n: number | null | undefined): string | null {

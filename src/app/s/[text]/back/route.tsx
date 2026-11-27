@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { OgTile } from "../../../_og/tile";
+import { CARD_SERIF, CARD_SERIF_FILE } from "../../../_og/wordCard";
 import { parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { cardLevelOf } from "@/lib/onchain/cardLevel";
 import { wordTier, type Tier } from "@/lib/economy";
@@ -26,8 +27,8 @@ import { playerFaces } from "@/lib/profile/faces";
  * transparent ground, 1200×675, the card's own shape (16:9). Laid out as the game's back is at its
  * full size (components/cards/CardBack; decisions.md #35, #37): the rarity over the card's number
  * (the headline), "One of one", the tiles on their rack, the facts as a ledger, the game's seal
- * pressed in behind them, and the frame's two lines. The card's serif here is TeX Gyre Pagella
- * (the server has no fonts of its own; the share picture's route says more). The loop's shader
+ * pressed in behind them, and the frame's two lines. The card's serif here is Source Serif 4, as
+ * in the game (the server has no fonts of its own; the share picture's route says more). The loop's shader
  * paints the back's material under it (cards/live/materialGlsl), the same material the game's live
  * back draws, so the video and the game match.
  *
@@ -47,7 +48,7 @@ import { playerFaces } from "@/lib/profile/faces";
 // semibold Söhne (the game's labels are semibold).
 const soehneBold = readFileSync(join(process.cwd(), "public/fonts/soehne-fett.ttf"));
 const soehneBook = readFileSync(join(process.cwd(), "public/fonts/soehne-buch.ttf"));
-const pagellaBold = readFileSync(join(process.cwd(), "public/fonts/texgyrepagella-bold.otf"));
+const serifBold = readFileSync(join(process.cwd(), CARD_SERIF_FILE));
 
 const W = 1200;
 const H = 675;
@@ -69,7 +70,7 @@ const RACK = rackPaths(RACK_W, RACK_H);
 const TEXT = "#f7efdc";
 const SUB = "rgba(247, 239, 220, 0.74)";
 const SHADOW = "0 2px 3px rgba(0, 0, 0, 0.45)";
-const SERIF = "Pagella";
+const SERIF = CARD_SERIF;
 /** Two colours mixed, `share` of the first: the game's `color-mix` for lettering in the line's colour. */
 function mix(a: string, b: string, share: number): string {
   const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
@@ -243,7 +244,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
       fonts: [
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
         { name: "Soehne", data: soehneBook, weight: 400, style: "normal" },
-        { name: SERIF, data: pagellaBold, weight: 700, style: "normal" },
+        { name: SERIF, data: serifBold, weight: 700, style: "normal" },
       ],
       // Ascension and the first finder's name can change: minutes, not the share card's week.
       // and whether this picture has the card's number on it: the share video places the holder's stamp by it (cards/stamp)

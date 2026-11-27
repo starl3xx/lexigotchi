@@ -2603,6 +2603,39 @@ setter. All small, riding existing suite patterns.
     - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available
       yet", the set's name on a card's back, the reminders, the player docs).
 
+52. **The card's serif is Source Serif 4, shipped: one face for every player and every picture**
+    (starl3xx, 2026-11-27, on the design audit page: "I like Source Serif 4", then "let's go 3H
+    for consistency"). The first thing built from the audit ("Lexigotchi Design Language").
+    - **What it was.** The serif that letters what a card says about a word (its ribbon, its
+      number, its ledger) was asked for by name and never shipped: Iowan Old Style on Apple
+      devices, Palatino Linotype or Book Antiqua on Windows, Noto Serif or Georgia on Android, and
+      a fourth face, TeX Gyre Pagella, on the server's pictures (a server has no fonts). A tester
+      on Windows never saw what a Mac shows.
+    - **Now.** Source Serif 4 (SIL Open Font License) is in `public/fonts`, first in
+      `--font-card`, for everyone, Apple devices too. The old faces stay behind it for the
+      moment before the file loads. The three picture routes (a word's card, its back, the
+      earnings share) load the same face, named once in `app/_og/wordCard.tsx` (`CARD_SERIF`,
+      `CARD_SERIF_FILE`). TeX Gyre Pagella and its license are removed.
+    - **The files.** Two web files hold every weight (200 to 900) and every optical size (8 to
+      60), roman and italic, Latin only: 122 KB and 130 KB, from Google Fonts. The browser draws
+      small lettering with a sturdier, wider cut and large lettering with a finer one, by itself.
+      The picture renderer can't read those, so it has one plain bold file (195 KB), at the
+      face's middle optical size: the game's number is a little finer than the picture's.
+    - **Why Source Serif 4 and not the nearest face.** He asked what on Google Fonts is near
+      Iowan. I set six beside it and measured: Newsreader was nearest and was my pick. He chose
+      Source Serif 4 from the specimen, and then chose one face for all over "Iowan where a device
+      has it": on a Mac he would otherwise never see the face he chose.
+    - **Emails keep a device serif.** A mail program loads no font. The stack names Source Serif 4
+      first, for a device that happens to have it.
+    - **`CARD_LOOK` is 11:** the lettering on every card picture changed.
+    - **The rule is unchanged:** a word is never set in the serif. Where else the serif goes in
+      the interface (figures, status values) is the audit's part 3, and not decided here.
+    - **Seen and not seen:** the practice game at 1,440 px and 390 px in Chromium and WebKit: the
+      ribbon and the back are in Source Serif 4, loaded from the game's own files (no request
+      leaves for Google), nothing is clipped or outside the card, and the phone's shorter ribbon
+      fits. The three pictures draw in it. Not seen: a real phone, Windows, the earnings share
+      picture (it needs a link the server signs; it loads the same file through the same code).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

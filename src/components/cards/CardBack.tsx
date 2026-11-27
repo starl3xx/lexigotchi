@@ -5,8 +5,8 @@
  * perspective (the "Scene Cards" mock, starl3xx, 2026-11-25).
  *
  * Relettered with the card's front (decisions.md #35, the "Cards, Scenes, and Logo" proposal):
- * - **The card's number is the headline,** large, in the card's serif (Iowan Old Style where the
- *   device has it), with "One of one" under it.
+ * - **The card's number is the headline,** large, in the card's serif (Source Serif 4, shipped
+ *   with the game), with "One of one" under it.
  * - **The facts are a ledger:** a name, a row of dots, a value. Names in Söhne and as written
  *   (capitals mean a raised letter in this game; the owner: "back word casing can stay as it is"),
  *   values in the card's serif, so the two never blur.

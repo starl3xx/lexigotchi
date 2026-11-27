@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
-import { wordCard } from "../../../_og/wordCard";
+import { CARD_SERIF, CARD_SERIF_FILE, wordCard } from "../../../_og/wordCard";
 import { parseShowcase, type ShowcaseTile } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
@@ -31,7 +31,7 @@ import { readEarningsShare } from "@/lib/earningsShareToken";
  *   already holds the picture's facts. So the card's ribbon carries no number (the word's own
  *   picture reads it from the chain).
  * - **The tag is lettered as the card's back is** (decisions.md #35): a name in Söhne, a value in
- *   the card's serif (TeX Gyre Pagella here), a row of dashes between. A WORD is a name: it is
+ *   the card's serif (Source Serif 4, as in the game), a row of dashes between. A WORD is a name: it is
  *   never set in the serif.
  * - **One design, three shapes.** 1200×630 for X's large card and `?ratio=16x9` (1200×675) for the
  *   picture that travels alone (Save image): the card and the tag side by side. `?ratio=3x2`
@@ -39,9 +39,9 @@ import { readEarningsShare } from "@/lib/earningsShareToken";
  *   corner wordmark a word's saved picture has.
  */
 
-// TTF and OTF: Satori (next/og) can't read the app's woff2. Pagella is the card ribbon's lettering.
+// TTF and OTF: Satori (next/og) can't read the app's woff2. The serif is the card ribbon's lettering.
 const soehneBold = readFileSync(join(process.cwd(), "public/fonts/soehne-fett.ttf"));
-const pagellaBold = readFileSync(join(process.cwd(), "public/fonts/texgyrepagella-bold.otf"));
+const serifBold = readFileSync(join(process.cwd(), CARD_SERIF_FILE));
 
 const INK = "#1b1714";
 const SOFT = "rgba(27, 23, 20, 0.66)";
@@ -49,7 +49,7 @@ const GOLD_DEEP = "#b07d20"; // the sheet's number (tailwind gold.deep: display 
 const GOLD_INK = "#6f4e10";
 const SHADOW = "7px 9px 0 rgba(0, 0, 0, 0.42)"; // the card's own, so both lie on the same table
 
-const SERIF = "Pagella";
+const SERIF = CARD_SERIF;
 const RULE = "3px dashed rgba(27, 23, 20, 0.3)";
 
 /** About how wide a figure sets in the serif, in ems: its digits are half an em, and a letter (K, M, B) most of one. */
@@ -193,7 +193,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
       height: H,
       fonts: [
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
-        { name: "Pagella", data: pagellaBold, weight: 700, style: "normal" },
+        { name: CARD_SERIF, data: serifBold, weight: 700, style: "normal" },
       ],
       // A token is one picture for good: a day in browsers, a week at the edge (the word's picture).
       headers: { "cache-control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400" },
