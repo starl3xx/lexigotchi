@@ -50,6 +50,7 @@ import { useCardFacts, type CardFacts } from "./useCardFacts";
 import { useCardNumber } from "./useCardNumber";
 import dynamic from "next/dynamic";
 import { canDrawLive } from "./live/support";
+import { tileTierOf, useCollabLook } from "@/components/game/collabLooksContext";
 
 // The live material loads the first time a back goes live: OGL stays out of the game's first download.
 const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.LiveMaterial), { ssr: false });
@@ -98,6 +99,8 @@ const RACK = rackPaths();
 
 function Rack({ word }: { word: OwnedWord }) {
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
+  // The rack's tiles are the word's own: a collab word's wear its set's two colors here too.
+  const tileTier = tileTierOf(word.tier, useCollabLook(word.word));
   return (
     <div className="cb-rackwrap">
       {/* a tile rack in perspective, engraved (lib/cardArt/rack): its top runs back behind the tiles,
@@ -109,7 +112,7 @@ function Rack({ word }: { word: OwnedWord }) {
       <div className="cb-tiles">
         {[...word.word].map((ch, i) => (
           <div key={i} className="cb-tile">
-            <TileCharacter char={ch} upper={word.upper[i] ?? false} gild={gild} detail="tile" fluid tier={word.tier} still />
+            <TileCharacter char={ch} upper={word.upper[i] ?? false} gild={gild} detail="tile" fluid tier={tileTier} still />
           </div>
         ))}
       </div>

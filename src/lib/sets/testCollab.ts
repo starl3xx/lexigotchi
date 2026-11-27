@@ -69,7 +69,8 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
 
 /**
  * A plain placeholder stamp, drawn here so no picture file ships: a ring with a dot at its centre,
- * white on clear, 96 px square. The card tints and places it like any partner's stamp.
+ * graphite on clear, 96 px square. A stamp is drawn as it is given (a partner's mark has its own
+ * colors), so the placeholder is dark: it shows on the stock card's pale paper.
  */
 export function placeholderStamp(size = 96): Uint8Array {
   const raw = new Uint8Array(size * (size * 4 + 1));
@@ -83,7 +84,9 @@ export function placeholderStamp(size = 96): Uint8Array {
       const r = Math.hypot(x - mid, y - mid);
       const alpha = Math.max(band(r, size * 0.36, size * 0.46), band(r, 0, size * 0.13));
       const at = row + 1 + x * 4;
-      raw[at] = raw[at + 1] = raw[at + 2] = 255;
+      raw[at] = 0x3a; // graphite (cardArt/looks.ts GRAPHITE)
+      raw[at + 1] = 0x37;
+      raw[at + 2] = 0x34;
       raw[at + 3] = Math.round(alpha * 255);
     }
   }

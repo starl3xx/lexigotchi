@@ -24,11 +24,22 @@
  */
 import { TIERS, TIER_COUNTS, wordScore, wordTier, type Tier } from "./economy";
 
-/** The words of every REVEALED or RELEASED collab set, UPPERCASE. A draft's words are never in it. */
-export type CollabWords = ReadonlySet<string>;
+/**
+ * The words of every REVEALED or RELEASED collab set, UPPERCASE. A draft's words are never in it.
+ *
+ * Only what this layer asks of them: is a word one, how many are there, and which. So a plain set
+ * of words is one, and so is the map of word → card look that the game and the server carry
+ * (lib/collabLook.ts `CollabLooks`): ONE object answers both "is it Legendary?" and "what does its
+ * card look like?", and the two can't disagree about which words are collab words.
+ */
+export interface CollabWords {
+  has(word: string): boolean;
+  readonly size: number;
+  keys(): Iterable<string>;
+}
 
 /** No collab words: the derived tiers, as they were before collab sets existed. */
-export const NO_COLLAB: CollabWords = new Set<string>();
+export const NO_COLLAB: ReadonlyMap<string, never> = new Map<string, never>();
 
 /** The tier a collab word is raised to. */
 export const COLLAB_TIER: Tier = "Legendary";
@@ -63,7 +74,7 @@ export function rarestByScore(tierOf: (word: string) => Tier): (a: string, b: st
 /** How many words are in each tier, by the same rule: a raised word counts in Legendary, not in its own tier. */
 export function tierCountsWith(collab: CollabWords): Record<Tier, number> {
   const counts = { ...TIER_COUNTS } as Record<Tier, number>;
-  for (const word of collab) {
+  for (const word of collab.keys()) {
     if (!raisedByCollab(word, collab)) continue;
     counts[wordTier(word)] -= 1;
     counts[COLLAB_TIER] += 1;
@@ -82,7 +93,7 @@ export function collabWordsOf(
     | { kind: "locked" }
     | { kind: "revealed" | "released"; collab?: object | null; words: readonly { word: string }[] }
   )[],
-): CollabWords {
+): ReadonlySet<string> {
   const out = new Set<string>();
   for (const s of sets) {
     if ("kind" in s) {
@@ -90,5 +101,5 @@ export function collabWordsOf(
     } else if (s.type !== "collab" || s.status === "draft") continue;
     for (const w of s.words) out.add(w.word.toUpperCase());
   }
-  return out.size === 0 ? NO_COLLAB : out;
+  return out;
 }

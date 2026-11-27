@@ -379,7 +379,9 @@ async function answerWord(args: string): Promise<BotReply> {
   const read = await soon(readHeld(arg.word).then((h) => ({ h })));
   const held = read === null ? undefined : read.h;
   const notYet = held === null ? (await isHeldBack(arg.word).catch(() => null)) === true : false;
-  return { text: wordText(arg.word, held, true, notYet, await collabSoon()), photoUrl: held ? cardUrlOf(arg.word, held) : undefined };
+  const collab = await collabSoon();
+  // The picture's address names the word's collab look too, as it names its stage (lib/showcase, markQuery).
+  return { text: wordText(arg.word, held, true, notYet, collab), photoUrl: held ? cardUrlOf(arg.word, held, collab.get(arg.word.toUpperCase())?.mark) : undefined };
 }
 
 /**
@@ -390,8 +392,8 @@ async function answerWord(args: string): Promise<BotReply> {
  * for a week under an address, so without the stage in it a word that has since ascended would be
  * sent in its old, ungilded picture under words that say it is gilded (Bugbot on #258).
  */
-export function cardUrlOf(word: string, held: Pick<HeldWord, "upper" | "level">): string | undefined {
-  return held.upper ? showcaseCardUrl(showcaseWordText(word, held.upper), "x", undefined, true, held.level) : undefined;
+export function cardUrlOf(word: string, held: Pick<HeldWord, "upper" | "level">, mark?: string | null): string | undefined {
+  return held.upper ? showcaseCardUrl(showcaseWordText(word, held.upper), "x", undefined, true, held.level, mark) : undefined;
 }
 
 /**

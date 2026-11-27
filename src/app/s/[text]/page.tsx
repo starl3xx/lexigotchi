@@ -34,9 +34,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const description = "Lexigotchi is a word-pet game on Base. Collect letters, raise them, and spell words only you can own.";
   // The pictures' addresses name the word's stage (read from the chain, never from this link), so a
   // word shared again after an ascension gets pictures at new addresses (lib/showcase, stageQuery).
-  const stage = await stageOf(tiles.map((t) => t.char).join(""), parseLinkStage((await searchParams).g));
-  const card = { url: showcaseCardUrl(text, "x", scene, false, stage), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
-  const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene, false, stage));
+  const plain = tiles.map((t) => t.char).join("");
+  const stage = await stageOf(plain, parseLinkStage((await searchParams).g));
+  // And its collab look, read from the sets (lib/showcase, markQuery): a word shared again after
+  // its set's reveal gets pictures at new addresses too.
+  const mark = (await collabSoon()).get(plain.toUpperCase())?.mark;
+  const card = { url: showcaseCardUrl(text, "x", scene, false, stage, mark), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
+  const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene, false, stage, mark));
   return {
     title,
     description,
@@ -70,7 +74,11 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
   // A house card (HEYOO) is no dictionary word: it has no rarity and no number, and its card says so
   // by carrying no ribbon. A word's number is the chain's, never the link's, and the page waits
   // for it only a moment (cardNumberSoon).
-  const tier = isWord(word) ? tierWith(word, await collabSoon()) : undefined;
+  const collab = await collabSoon();
+  const tier = isWord(word) ? tierWith(word, collab) : undefined;
+  // The word's collab look, handed to the card: this page is outside the game, where a card looks
+  // its own up. `null` for any other word (and a house card).
+  const look = collab.get(word.toUpperCase()) ?? null;
   const [number, stage] = await Promise.all([tier ? cardNumberSoon(word) : null, stageOf(word, parseLinkStage((await searchParams).g))]);
 
   return (
@@ -81,7 +89,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
       {/* the card stands on the page (globals.css, .card-stand): its block shadow is on a box of its own, under its ink edge */}
       <div className="card-stand w-full max-w-3xl" style={{ "--card-sy": "4px" } as CSSProperties}>
         <div className="card-corner overflow-hidden border-[3px] border-ink">
-          <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} />
+          <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} collab={look} />
         </div>
       </div>
       <h1 className="sr-only">{text}</h1>

@@ -2,9 +2,10 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { CARD_SERIF, CARD_SERIF_FILE, cornerMark, wordCard } from "../../../_og/wordCard";
-import { NO_COLLAB } from "@/lib/rarity";
-import { collabSoon } from "@/lib/raritySoon";
-import { parseShowcase, type ShowcaseTile } from "@/lib/showcase";
+import { NO_LOOKS } from "@/lib/collabLook";
+import { stampDataOf } from "@/lib/sets/stampData";
+import { collabSoonRead } from "@/lib/raritySoon";
+import { CARD_CACHE_LONG, CARD_CACHE_SHORT, parseShowcase, type ShowcaseTile } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { TABLE, tableImage } from "@/lib/cardArt/table";
@@ -156,7 +157,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   const tiles: ShowcaseTile[] | null = asked?.length === 5 ? asked : snapshot.words[0] ? [...snapshot.words[0][0]].map((char) => ({ char, upper: true })) : null;
   const word = tiles ? tiles.map((t) => t.char).join("") : null;
   // The hero word's rarity on its card, as the game treats it (a collab word is Legendary).
-  const collab = tiles ? await collabSoon() : NO_COLLAB;
+  const { looks: collab, known: setsRead } = tiles ? await collabSoonRead() : { looks: NO_LOOKS, known: true };
+  const mine = word ? collab.get(word.toUpperCase()) : undefined;
+  const stamp = mine ? await stampDataOf(mine) : null;
+  // The picture is right only when the sets were read (a failed read draws a collab word in its
+  // rarity's look) and the stamp the word has was drawn. Otherwise it is asked again soon.
+  const whole = setsRead && !(mine?.stamp && !stamp);
   const text = earningsCardText(snapshot, { testnet: NETWORK.isTestnet, tz: parseTz(url.searchParams.get("tz")), hero: word });
 
   // Side by side on the wide shapes; the card over a wide tag on the tall one.
@@ -183,7 +189,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
       >
         {/* the same engraved table (lib/cardArt/table) */}
         <img src={tableImage(CARD_W, H)} width={CARD_W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
-        {tiles && wordCard({ tiles, scene, cardW, collab, gild: heroStage(snapshot, word) ?? 0 })}
+        {tiles && wordCard({ tiles, scene, cardW, collab, stamp, gild: heroStage(snapshot, word) ?? 0 })}
         {tag(text, tagW, tall && !!tiles)}
         {saved && cornerMark(tall)}
       </div>
@@ -195,8 +201,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
         { name: CARD_SERIF, data: serifBold, weight: 700, style: "normal" },
       ],
-      // A token is one picture for good: a day in browsers, a week at the edge (the word's picture).
-      headers: { "cache-control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400" },
+      // A token is one picture for good: a day in browsers, a week at the edge (the word's
+      // picture). Unless it was drawn without what a collab word's card needs: then five minutes,
+      // so a crawler that kept it asks again (X and Farcaster keep what they first read).
+      headers: { "cache-control": whole ? CARD_CACHE_LONG : CARD_CACHE_SHORT },
     },
   );
 }

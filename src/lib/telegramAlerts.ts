@@ -51,7 +51,7 @@ export function isAlertWord(word: string, collab: CollabWords): boolean {
  * The alert for one claim: its words (the photo's caption, or the message when the card can't be
  * drawn), where its heading's label sits, and the card's address, in the case the word was made in.
  */
-export function alertPost(claim: Pick<Claim, "word" | "upper">, maker: string, collab: CollabWords): { text: string; bold: { offset: number; length: number }[]; photoUrl: string } {
+export function alertPost(claim: Pick<Claim, "word" | "upper">, maker: string, collab: CollabWords & { get?(word: string): { mark: string } | undefined }): { text: string; bold: { offset: number; length: number }[]; photoUrl: string } {
   const tier = tierWith(claim.word, collab);
   const { emoji, rule } = HEADING[tier] ?? PLAIN_HEADING;
   const head = `${emoji} `;
@@ -59,7 +59,7 @@ export function alertPost(claim: Pick<Claim, "word" | "upper">, maker: string, c
   return {
     text: `${head}${label}\n${"-".repeat(rule)}\n${maker} just made ${claim.word}, one of the game’s ${tierCountsWith(collab)[tier].toLocaleString("en-US")} ${tier} words.`,
     bold: [{ offset: head.length, length: label.length }],
-    photoUrl: showcaseCardUrl(showcaseWordText(claim.word, claim.upper), "x", undefined, true),
+    photoUrl: showcaseCardUrl(showcaseWordText(claim.word, claim.upper), "x", undefined, true, undefined, collab.get?.(claim.word.toUpperCase())?.mark),
   };
 }
 
