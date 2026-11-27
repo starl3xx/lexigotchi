@@ -33,6 +33,18 @@ Right now the game runs on **Base Sepolia** (chain ID 84532), Base’s test netw
 
 The Base mainnet addresses will be listed here at launch.
 
+## Claiming a word
+
+The Words contract checks every claim against the dictionary, and charges a fee by the word’s rarity tier. See [what a claim costs](/words#what-a-claim-costs).
+
+- **The dictionary is a Merkle root.** `dictionaryRoot` commits to every word together with its tier. Each leaf is the pair (word, tier), built with OpenZeppelin’s [StandardMerkleTree](https://github.com/OpenZeppelin/merkle-tree) with leaf types `["string","uint8"]`. The tier numbers are 0 Common, 1 Uncommon, 2 Rare, 3 Legendary, and 4 Mythic.
+- **A claim names its tier, and the proof checks it.** A claim is `Words.claim(word, tier, upperMask, proof)`. While the owner holds a word behind a gate (`gatedUntil`, at most 7 days ahead), its claim also carries a voucher from the game: `claim(word, tier, upperMask, proof, deadline, sig)`. The proof covers the tier, so a claimer can’t understate a word’s tier to pay less: a wrong tier fails the proof.
+- **The fee is a multiple of the base.** `claimPrice` is the base fee, Common’s. `tierMultiplierBps(tier)` holds each tier’s multiple in basis points of the base: `10000`, `20000`, `30000`, `50000`, and `80000` by default (1×, 2×, 3×, 5×, and 8×, the tiers’ earning weights). A claim pays `claimFee(tier)`, which is `claimPrice * tierMultiplierBps(tier) / 10000`. The owner can set each multiple between 1× and 20× with `setTierMultiplier`, which emits `TierMultiplierSet`. The game’s keeper moves `claimPrice` toward \$0.50 in \$WORD (`repegClaimPrice`), and every tier’s fee moves with it.
+- **The fee splits like every paid action**: 75% to the Rewards Pool, 10% to the jackpot, 10% burned, and 5% to the treasury. See [where fees go](/fees).
+- **Events.** Each claim emits `Claimed(tokenId, owner, word, upperMask)`, as before, and `ClaimFeePaid(tokenId, payer, tier, fee)` beside it.
+- **The tier never changes the ID.** A word’s token ID is still `keccak256(word)`, whatever its tier. The gate’s voucher names the caller and the word, never the tier.
+- **Claiming again pays again.** Dissolve a word and claim it again, and the claim pays that tier’s fee again.
+
 ## Signatures and approvals
 
 - **Listings** are free signatures, not transactions. Each one is a [Seaport 1.6](https://github.com/ProjectOpenSea/seaport) order, signed with [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Seaport is the open-source exchange contract OpenSea uses, at [`0x0000…B395`](https://basescan.org/address/0x0000000000000068F116a894984e2DB1123eB395) on every chain. Seaport settles the sale when someone buys. A listing lasts 30 days.

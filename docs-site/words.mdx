@@ -5,9 +5,23 @@ description: "Spell a dictionary word to claim it. Every word has one owner."
 
 ## Claiming a word
 
-Spell a word from the dictionary with **any five of your letters, in any mix of cases**: all lowercase, all UPPERCASE, or some of each. Claiming it costs **\$0.50 in \$WORD**.
+Spell a word from the dictionary with **any five of your letters, in any mix of cases**: all lowercase, all UPPERCASE, or some of each. Claiming it costs \$WORD, by the word’s rarity: **\$0.50** for a Common word, and more for a rarer one. See [what a claim costs](#what-a-claim-costs).
 
 When you claim, your five letters lock inside the word, and the word is yours alone. Each word has exactly one owner, so nobody else can own it while you do.
+
+### What a claim costs
+
+A word’s claim fee is the Common fee, \$0.50, times its [rarity’s](#rarity) weight. It’s the same weight that sets the word’s share of [earnings](/earning) and the [weekly bounty](/bounty). So a rarer word costs more to claim, and it takes a bigger share once it’s staked and fed.
+
+| Tier | Weight | Claim fee |
+| --- | --- | --- |
+| Common | 1 | \$0.50 |
+| Uncommon | 2 | \$1.00 |
+| Rare | 3 | \$1.50 |
+| Legendary | 5 | \$2.50 |
+| Mythic | 8 | \$4.00 |
+
+Half the dictionary is Common, and a Common word costs \$0.50. The fees are set in dollars and paid in \$WORD. As \$WORD moves, the game updates the amounts, and each tier’s fee stays the same multiple of the Common fee. The game shows the exact amount before you claim. A claim fee splits like a pack’s: see [where fees go](/fees).
 
 The dictionary is the same 4,584 five-letter words as [Let’s Have A Word!](/lets-have-a-word). The **Dictionary** tab shows every word, who owns it, and how close you are to spelling it.
 
@@ -38,7 +52,7 @@ You can [roll](/rolls) the letters inside a word you own. Only an all-UPPERCASE 
 
 ## Rarity
 
-Every word is scored by how rare its letters are and given one of five tiers. A rarer word takes a bigger share of [earnings](/earning) and the [weekly bounty](/bounty).
+Every word is scored by how rare its letters are and given one of five tiers. A rarer word takes a bigger share of [earnings](/earning) and the [weekly bounty](/bounty), and it [costs more to claim](#what-a-claim-costs).
 
 | Tier | Words | Weight |
 | --- | --- | --- |
@@ -85,7 +99,7 @@ Your **Bag** opens on your words, as cards. Turn one over right there, or tap it
 
 ## Dissolving a word
 
-Changed your mind? **Dissolve** a word to unmake it and get its five letters back, in their current case. The word is then free for anyone to claim. Unstake it first: a staked word can’t be dissolved. A card face you bought in the Shop [stays with you](/showcase-and-swap#what-you-buy-in-the-shop-stays-with-you): dissolving a word never takes it away.
+Changed your mind? **Dissolve** a word to unmake it and get its five letters back, in their current case. The word is then free for anyone to claim, and whoever claims it next, you included, pays its tier’s [claim fee](#what-a-claim-costs) again. Unstake it first: a staked word can’t be dissolved. A card face you bought in the Shop [stays with you](/showcase-and-swap#what-you-buy-in-the-shop-stays-with-you): dissolving a word never takes it away.
 
 ## Your word, onchain
 
