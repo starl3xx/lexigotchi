@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { LIMITS, clamp, buildPayload, notificationsAreActive, sendNotification } from "@/lib/notify/send";
+import { LIMITS, clamp, buildPayload, notificationsAreActive, sendNotification, notificationUuid } from "@/lib/notify/send";
 import {
   ALL_TITLE_POOLS,
   withinLimits,
@@ -119,7 +119,53 @@ describe("length limits", () => {
     });
     expect(payload.notification.title.length).toBeLessThanOrEqual(LIMITS.title);
     expect(payload.notification.body.length).toBeLessThanOrEqual(LIMITS.body);
-    expect(payload.notification.uuid!.length).toBeLessThanOrEqual(LIMITS.notificationId);
+    // whatever our id is, what travels is a UUID (the next test)
+    expect(payload.notification.uuid).toHaveLength(36);
+  });
+
+  // The service's own pattern, from the 400 it answered to "paid-20784" (2026-11-27).
+  const SERVICE_UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+  it("sends the service a real UUID: it refuses the whole request for anything else", () => {
+    for (const note of [earningsPaid("1 $WORD", 20784), dailyReady(20784), hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }, 20784), remindersOn()]) {
+      const payload = buildPayload({ ...note, targetFids: [77] }, [77]);
+      expect(payload.notification.uuid).toMatch(SERVICE_UUID);
+      expect(payload.notification.uuid).not.toContain(note.notificationId);
+    }
+    // no id of ours, no uuid: the service assigns one
+    expect(buildPayload({ title: "t", body: "b" }, [77]).notification).not.toHaveProperty("uuid");
+  });
+
+  it("a send nobody can receive is not ok and not an error; a refused one logs the service’s reason", async () => {
+    const env = { ...process.env };
+    Object.assign(process.env, { NODE_ENV: "production", NOTIFICATIONS_ENABLED: "true", NEYNAR_API_KEY: "k" });
+    const answer = (status: number, body: object) => vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    try {
+      let spy = answer(422, { code: "NoNotificationTokens", message: "No notification tokens found for the specified target FIDs" });
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      expect(await sendNotification({ title: "t", body: "b", targetFids: [77], notificationId: "paid-1" })).toEqual({ ok: false, delivered: 0, skipped: "no-tokens" });
+      expect(err).not.toHaveBeenCalled();
+      spy.mockRestore();
+      spy = answer(400, { message: "Invalid body parameters", code: "InvalidField", errors: '[{"format":"uuid","path":["notification","uuid"]}]' });
+      const res = await sendNotification({ title: "t", body: "b", targetFids: [77], notificationId: "paid-1" });
+      expect(res).toMatchObject({ ok: false, error: "Invalid body parameters" });
+      expect(err.mock.calls.flat().join(" ")).toMatch(/Invalid body parameters .*uuid/);
+      spy.mockRestore();
+      err.mockRestore();
+    } finally {
+      process.env = env;
+    }
+  });
+
+  it("the same send to the same people is the same key; another player’s is another", () => {
+    expect(notificationUuid("paid-20784", [77])).toBe(notificationUuid("paid-20784", [77]));
+    // "paid-20784" is every player's payday that day, each in a request of its own
+    expect(notificationUuid("paid-20784", [77])).not.toBe(notificationUuid("paid-20784", [78]));
+    expect(notificationUuid("paid-20784", [77])).not.toBe(notificationUuid("paid-20785", [77]));
+    // the order the audience was read in doesn't matter, and a broadcast has a key of its own
+    expect(notificationUuid("daily-20784", [3, 1, 2])).toBe(notificationUuid("daily-20784", [1, 2, 3]));
+    expect(notificationUuid("daily-20784")).toMatch(SERVICE_UUID);
+    expect(notificationUuid("daily-20784")).not.toBe(notificationUuid("daily-20784", [1]));
   });
 
   // The LHAW bug, caught structurally: titles are static, so they fit for all inputs, forever.

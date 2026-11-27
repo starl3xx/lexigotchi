@@ -22,6 +22,7 @@
  * mid-session env change in the admin console takes effect without a restart.
  */
 
+import { createHash } from "node:crypto";
 import { SITE_URL } from "@/lib/site";
 import { LIMITS, clamp } from "./limits";
 
@@ -48,7 +49,7 @@ export interface NotifyResult {
   ok: boolean;
   /** How many FIDs the service accepted across all chunks. */
   delivered?: number;
-  /** Set when we declined to send — "dev", "muted", "unconfigured", "no-recipients". */
+  /** Set when nothing was sent: "dev", "muted", "unconfigured", "no-recipients", or "no-tokens" (the service knows no way to notify these FIDs). */
   skipped?: string;
   error?: string;
 }
@@ -64,10 +65,34 @@ export interface NotifyInput {
    */
   targetFids?: number[];
   /**
-   * Idempotency key. The same id for the same FID inside 24h is dropped by the client, which makes
-   * a retried cron safe. Omit and the service assigns one (retries then duplicate — avoid).
+   * Idempotency key. A retried send of the same id to the same people is one notification, which
+   * makes a retried cron safe. Omit and the service assigns one (retries then duplicate: avoid).
+   * It travels as a UUID made from this id and the audience (`notificationUuid`).
    */
   notificationId?: string;
+}
+
+/**
+ * The service's `uuid` for a send: a real UUID, made from our own id and the people it goes to.
+ *
+ * It has to be a UUID. Neynar validates the field's FORMAT and refuses the whole request otherwise
+ * ("Invalid body parameters"), and our ids are words ("paid-20784", "hunger-20784"). So every
+ * Farcaster notification failed from the day the channel was armed until the first armed keeper run
+ * showed it in the log (2026-11-27). No test caught it: none spoke to the service.
+ *
+ * The audience is part of it because our ids name a DAY or an EVENT, not a player: "paid-20784" is
+ * every player's payday that day, each sent in its own request. If the key were the id alone, the
+ * service could read the second player's request as a repeat of the first. With the audience in it,
+ * the same send to the same people is the same key (a retry is dropped), and another player's is
+ * another key.
+ */
+export function notificationUuid(id: string, fids?: readonly number[]): string {
+  const audience = fids && fids.length > 0 ? [...fids].sort((a, b) => a - b).join(",") : "everyone";
+  const bytes = Buffer.from(createHash("sha256").update(`lexigotchi:notification:${id}|${audience}`).digest().subarray(0, 16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5: an id made from a name
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // the RFC 4122 variant
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /** True only when a real send may happen. The NODE_ENV check is first and unconditional. */
@@ -99,9 +124,7 @@ export function buildPayload(input: NotifyInput, fids?: number[]) {
       title: clamp(input.title, LIMITS.title),
       body: clamp(input.body, LIMITS.body),
       target_url: clamp(targetUrl, LIMITS.targetUrl),
-      ...(input.notificationId
-        ? { uuid: clamp(input.notificationId, LIMITS.notificationId) }
-        : {}),
+      ...(input.notificationId ? { uuid: notificationUuid(input.notificationId, fids) } : {}),
     },
     target_fids: fids ?? [],
   };
@@ -131,6 +154,7 @@ export async function sendNotification(input: NotifyInput): Promise<NotifyResult
   }
 
   let delivered = 0;
+  let noTokens = 0;
   for (const chunk of chunkFids(input.targetFids)) {
     try {
       const res = await fetch(NEYNAR_NOTIFY_URL, {
@@ -140,7 +164,16 @@ export async function sendNotification(input: NotifyInput): Promise<NotifyResult
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        console.error("[notify] send failed:", data?.message ?? `HTTP ${res.status}`);
+        // Nobody in this chunk can be notified any more (they removed the app, or turned
+        // notifications off since the audience was read): nothing to send, and not a failure.
+        if (data?.code === "NoNotificationTokens") {
+          noTokens++;
+          continue;
+        }
+        // The service's own reason, and which field it refused: "Invalid body parameters" alone
+        // said nothing about the uuid.
+        const why = [data?.message ?? `HTTP ${res.status}`, typeof data?.errors === "string" ? data.errors.slice(0, 200) : ""].filter(Boolean).join(" ");
+        console.error("[notify] send failed:", why);
         return { ok: false, delivered, error: data?.message ?? `HTTP ${res.status}` };
       }
       delivered += Number(data?.notification_deliveries?.length ?? chunk?.length ?? 0);
@@ -149,5 +182,8 @@ export async function sendNotification(input: NotifyInput): Promise<NotifyResult
       return { ok: false, delivered, error: err instanceof Error ? err.message : "unknown" };
     }
   }
+  // Nothing went out because nobody asked for could be notified: not "ok" (a caller that counts
+  // who was told must not count them), and not an error either.
+  if (delivered === 0 && noTokens > 0) return { ok: false, delivered: 0, skipped: "no-tokens" };
   return { ok: true, delivered };
 }
