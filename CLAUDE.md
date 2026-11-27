@@ -803,6 +803,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
   profile account, never prompting a sign-in (`useWordScene`, `useSceneSync` uploads waiting picks);
   the newer pick wins. Dark with profiles; until migration 0011 runs, everything stays in the browser.
+- **The cards are matte** (decisions.md #58; starl3xx, 2026-11-27: "the cards have *reflections* but
+  they shouldn't be super *shiny*", in the game, the video, and every picture). A card is paper and
+  ink. Light on a card is DRAWN in lines and is quiet; never a soft white wash, a hot spot, or
+  glitter, and never a line over a letter. Its references are a playing card's stock and back, and
+  banknote engraving. Being built in parts: **the video's light is a veil** (`loopRenderer` `VEIL`
+  0.1: it lifts the inks and can't pass the paper; it was white added at 0.55). Still to come: the
+  backs as dark engraved plates, the front's ruled band, the stock's diagonal weave. Still his to
+  answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
+  `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
   **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
   material on its tiles (`lib/rarityFinish.ts` = the table; `components/game/TileFinish.tsx` = the
