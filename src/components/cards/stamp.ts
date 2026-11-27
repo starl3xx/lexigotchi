@@ -27,13 +27,16 @@ export function stampRingSvg(ink: string): string {
 
 /**
  * Where the stamp sits on the back's PICTURE (app/s/[text]/back, 1200 wide), as shares of the
- * card's width: its centre and its size. Beside the number where the card has one (the picture's
- * number ends about 34% across: "No." and four digits in the route's measures), in the top left
- * corner where it has none. The game's own back needs none of this: there the stamp follows the
- * digits in the page's layout.
+ * card's width: its centre and its size. Beside the number where the card has one (NUMBER_END,
+ * below, says where the picture's number ends), in the top left corner of the plate's FIELD where it has none (the game's own
+ * corner stamp, globals.css `.cb-stamp-corner`: a test holds the two equal). The game's own back
+ * needs no numbers for the first: there the stamp follows the digits in the page's layout.
+ *
+ * These follow the back's layout: when the lettering moves, they move (the plate's border moved the
+ * lettering in, and a stamp left where it was sat on the number and on the lace: Bugbot on #315).
  */
 export function stampBox(numbered: boolean): { cx: number; cy: number; size: number } {
-  return numbered ? { cx: 0.4008, cy: 0.196, size: 0.102 } : { cx: 0.133, cy: 0.075, size: 0.086 };
+  return numbered ? { cx: 0.439, cy: 0.193, size: 0.096 } : { cx: 0.119, cy: 0.106, size: 0.086 };
 }
 /**
  * The back's picture says in a header whether it drew the card's number, and the share video places
@@ -48,8 +51,19 @@ export function numberedFrom(headers: { get(name: string): string | null }): boo
   const v = headers.get(NUMBERED_HEADER);
   return v === "1" ? true : v === "0" ? false : null;
 }
+/**
+ * Where the picture's number ends, as a share of the width: the ink of the last digit, MEASURED on
+ * the route's own picture (four digits; they are set at one width each, so 0001 and 4584 end within
+ * half a percent of each other). The stamp must stay right of it. It moves with the number's type
+ * and with the back's left margin: the card's serif (#52) made the number wider and the stamp was
+ * left on its last digit, and then the plate's border moved the number in (#58). Measure it again
+ * after either changes.
+ */
+export const NUMBER_END = 0.385;
+/** The ring's own radius, as a share of the stamp's box (stampRingSvg: petals to 57 of 60). */
+export const STAMP_RING = 0.95;
 /** The left edge of the picture's ledger, as a share of the width: the stamp must stay left of it. */
-export const LEDGER_LEFT = 0.499;
+export const LEDGER_LEFT = 0.4997;
 
 /**
  * A picture's pixels (RGBA) turned to one ink, in place: black stays black, and white becomes the

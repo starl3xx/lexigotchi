@@ -13,6 +13,13 @@ import { encodeFunctionData, hexToSignature, type Hex } from "viem";
 import { erc20Abi, shopAbi } from "@/lib/onchain/abis";
 import type { Call } from "@/lib/onchain/sendCalls";
 
+/**
+ * What the status pill says while a purchase is in flight (the action gate's label). Named here
+ * because the Shop's Buy buttons ask the gate whether THIS is the action in flight (game/useShop,
+ * useShopBuy): the provider and the buttons must mean the same words.
+ */
+export const SHOP_BUY_LABEL = "Buying";
+
 export type BuyRoute = "allowance" | "batch" | "permit" | "approve-then-buy";
 
 /**

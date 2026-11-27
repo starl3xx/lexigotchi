@@ -3,11 +3,14 @@
  * purchase pays, the keeper's sweep minimum, the console's totals, and the test USDC voucher digest.
  * Items here are throwaway fixtures, never a real catalog.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { decodeFunctionData, encodeAbiParameters, getAddress, keccak256, recoverTypedDataAddress, toBytes, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { availability, byCategory, cardFor, CATEGORY_NAME, categoryOf, edition, editionLine, fmtUsdc, isShopCategory, ITEM_KINDS, SHOP_CATEGORIES, shopCards, shopOn, TEST_USDC_FAUCET, usdcLabel, type RegistryItem } from "@/lib/shop/rules";
 import { approveCall, buyCall, buyRoute, buyWithPermitCall, isUnsupported, permitTypedDataJson } from "@/lib/shop/buy";
+import { buyOffer, offerIsButton, saleWindow, type ItemSale } from "@/lib/shop/offer";
+import { sceneSale } from "@/lib/shop/scenes";
 import { holderProfiles, sweepMinWordOut, MIN_SWEEP_USDC } from "@/lib/keeper/shop";
 import { shopTotals } from "@/lib/admin/shopStats";
 import { USDC_FAUCET_KIND, usdcFaucetDigest } from "@/lib/onchain/digests";
@@ -133,6 +136,127 @@ describe("a limited edition (the Shop's supply limit)", () => {
     expect(editionLine({ made: 25, left: 0 })).toBe("Limited edition of 25. None left.");
     expect(editionLine({ made: 2500, left: 1200 })).toBe("Limited edition of 2,500. 1,200 left.");
     for (const e of [{ made: 25, left: 24 }, { made: 25, left: 0 }]) expect(editionLine(e)).not.toMatch(/ever|never|for good|only/i);
+  });
+});
+
+describe("what the Shop offers one player for one item (decisions.md #55: the card and the item's view share it)", () => {
+  const ready = { sale: "sell" as ItemSale, status: "on_sale" as const, wallet: true, paused: false, short: false };
+  it("sells an item that is on sale to a wallet that can pay", () => {
+    expect(buyOffer(ready)).toEqual({ kind: "buy", blocked: null });
+  });
+  it("never sells a face to a player who has it, whatever else is true", () => {
+    for (const status of ["on_sale", "not_yet", "ended", "sold_out", "inactive"] as const)
+      for (const wallet of [true, false])
+        for (const paused of [true, false]) expect(buyOffer({ ...ready, sale: "have", status, wallet, paused }).kind).toBe("have");
+  });
+  it("never sells on a guess: while what they have is being read, or couldn't be, there is no Buy", () => {
+    expect(buyOffer({ ...ready, sale: "checking" })).toEqual({ kind: "wait", why: "checking" });
+    expect(buyOffer({ ...ready, sale: "unknown" })).toEqual({ kind: "wait", why: "unknown" });
+    // and a visitor with no wallet is not sent to connect for a thing nobody can say they lack
+    expect(buyOffer({ ...ready, sale: "unknown", wallet: false }).kind).toBe("wait");
+  });
+  it("says why an item isn't on sale, before it asks for a wallet", () => {
+    for (const status of ["not_yet", "ended", "sold_out", "inactive"] as const) {
+      expect(buyOffer({ ...ready, status })).toEqual({ kind: "off", status });
+      expect(buyOffer({ ...ready, status, wallet: false })).toEqual({ kind: "off", status });
+    }
+  });
+  it("sends a visitor with no wallet to connect", () => {
+    expect(buyOffer({ ...ready, wallet: false })).toEqual({ kind: "connect" });
+  });
+  it("holds Buy back while the Shop is paused or the wallet holds too little: paused first", () => {
+    expect(buyOffer({ ...ready, paused: true })).toEqual({ kind: "buy", blocked: "paused" });
+    expect(buyOffer({ ...ready, short: true })).toEqual({ kind: "buy", blocked: "short" });
+    expect(buyOffer({ ...ready, paused: true, short: true })).toEqual({ kind: "buy", blocked: "paused" });
+  });
+  it("takes every answer the face rule gives (lib/shop/scenes, sceneSale)", () => {
+    // a new answer there must be sorted here: this fails to compile, or falls into "wait"
+    const answers: ItemSale[] = [
+      sceneSale({ known: true, bought: true, checking: false }),
+      sceneSale({ known: true, bought: false, checking: false }),
+      sceneSale({ known: false, bought: false, checking: true }),
+      sceneSale({ known: false, bought: false, checking: false }),
+    ];
+    expect(answers.map((sale) => buyOffer({ ...ready, sale }).kind)).toEqual(["have", "buy", "wait", "wait"]);
+  });
+});
+
+describe("one Buy for every place that shows one", () => {
+  const read = (f: string) => readFileSync(`src/components/game/${f}`, "utf8");
+  it("the Shop's screen and an item's view both draw shop/ShopBuy, and neither decides or sends a purchase itself", () => {
+    for (const f of ["screens/ShopScreen.tsx", "sheets/ShopItemSheet.tsx"]) {
+      const src = read(f);
+      expect(src, f).toMatch(/<ShopBuy /);
+      expect(src, f).not.toMatch(/buyShopItem|sceneSale\(|buyOffer\(|Buy for /);
+    }
+  });
+  it("ShopBuy draws the rule's answer, and buys through the shared purchase (so a second Buy knows one is in flight)", () => {
+    const src = read("shop/ShopBuy.tsx");
+    expect(src).toMatch(/about\.offer/);
+    expect(src).toMatch(/useShopBuy\(\)/);
+    expect(src).not.toMatch(/buyShopItem|sceneSale\(/);
+  });
+  it("a purchase is in flight only while the action gate says so: Hide on the status pill brings Buy back", () => {
+    // A wallet that never answers leaves the purchase's promise pending for good. Counting that
+    // promise alone left every Buy disabled until a reload.
+    expect(read("useShop.ts")).toMatch(/g\.busy\?\.label === SHOP_BUY_LABEL/);
+    expect(read("ChainGameProvider.tsx")).toMatch(/track\(\s*SHOP_BUY_LABEL,/);
+  });
+  it("only a BUTTON sits above the card's own open button: a line that says why there is no Buy opens the item when tapped", () => {
+    // Bugbot on #316: the whole foot was lifted, so "Sold out" and "Not on sale yet" were dead to a tap
+    expect(offerIsButton({ kind: "buy", blocked: null })).toBe(true);
+    expect(offerIsButton({ kind: "buy", blocked: "short" })).toBe(true);
+    expect(offerIsButton({ kind: "connect" })).toBe(true);
+    expect(offerIsButton({ kind: "have" })).toBe(false);
+    expect(offerIsButton({ kind: "wait", why: "checking" })).toBe(false);
+    expect(offerIsButton({ kind: "wait", why: "unknown" })).toBe(false);
+    for (const status of ["not_yet", "ended", "sold_out", "inactive"] as const) expect(offerIsButton({ kind: "off", status })).toBe(false);
+    const screen = read("screens/ShopScreen.tsx");
+    // the one lifted box on a card is the button's, and it asks the rule
+    expect(screen.match(/z-10/g)).toHaveLength(1);
+    expect(screen).toMatch(/className=\{offerIsButton\(about\.offer\) \? "relative z-10" : undefined\}/);
+    // and ShopBuy draws a button for exactly those answers
+    expect(read("shop/ShopBuy.tsx")).toMatch(/if \(!offerIsButton\(o\)\) \{\s*return \(\s*<div/);
+  });
+  it("the card doesn't press in when its own Buy is what is pressed (a press inside a press)", () => {
+    // measured with motion on: a press on Buy pushed the whole card into its shadow too
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toMatch(/\.press:has\(\.press:active\):active:not\(:disabled\) \{\s*box-shadow: var\(--sh, 3px\) var\(--sh, 3px\) 0/);
+    expect(css).toMatch(/\.press:has\(\.press:active\):active:not\(:disabled\) \{\s*transform: none;/);
+    // the card is such a press, and its Buy is a press inside it
+    expect(read("screens/ShopScreen.tsx")).toMatch(/className=\{`cel-sm isolate [^`]*\$\{opens \? "press" : ""\}`\}/);
+  });
+  it("a purchase runs at the tap or not at all: it never waits for the network and pays later", () => {
+    // By default a mutation made offline is held and run when the network returns. Seen in a
+    // browser: a tap offline showed nothing, and seconds after reconnecting the wallet was asked
+    // to sign with no new tap.
+    const hooks = read("useShop.ts");
+    expect(hooks).toMatch(/mutationKey: BUY_KEY,[\s\S]{0,700}networkMode: "always",\s*retry: false,/);
+    // and a purchase that never got going says so, instead of a tap with nothing after it
+    expect(hooks).toMatch(/mutateAsync\(item\)\.catch\(\(\) => \{\s*toast\(/);
+  });
+  it("an item's view opens only a real item: never the test network's placeholder", () => {
+    expect(read("sheets/ShopItemSheet.tsx")).toMatch(/c\.kind === "item" && c\.item\.id === id/);
+    expect(read("screens/ShopScreen.tsx")).toMatch(/const opens = card\.kind === "item";/);
+  });
+});
+
+describe("when a sale starts or ends, for the item's view", () => {
+  it("says nothing for an item with no end: the owner can set one later, so nothing is promised", () => {
+    expect(saleWindow(item(), 1_000)).toBeNull();
+  });
+  it("says when a sale that is running ends", () => {
+    expect(saleWindow(item({ start: 100, end: 200 }), 150)).toEqual({ until: 200 });
+    expect(saleWindow(item({ end: 200 }), 199)).toEqual({ until: 200 });
+  });
+  it("says when a sale that hasn't started starts", () => {
+    expect(saleWindow(item({ start: 100, end: 200 }), 99)).toEqual({ from: 100 });
+    expect(saleWindow(item({ start: 100 }), 0)).toEqual({ from: 100 });
+  });
+  it("says nothing once the sale is over, sold out, or switched off: the status says that", () => {
+    expect(saleWindow(item({ start: 100, end: 200 }), 200)).toBeNull();
+    expect(saleWindow(item({ end: 200, maxSupply: 2, sold: 2 }), 150)).toBeNull();
+    expect(saleWindow(item({ end: 200, active: false }), 150)).toBeNull();
   });
 });
 

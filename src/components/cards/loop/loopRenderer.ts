@@ -1,7 +1,7 @@
 /**
  * The share loop's turning card (decisions.md #27), on OGL: the word's card face on
- * its front, its back (the `/s/<word>/back` picture over the material, drawn by the same shader as
- * the live back: ../live/materialGlsl), turning over and home again in six seconds. `render(t)`
+ * its front, and its back (the `/s/<word>/back` picture: the back's engraved plate with the word's
+ * story on it, one picture), turning over and home again in six seconds. `render(t)`
  * draws the frame at time t, the same frame every time, so the video is the same however fast the
  * device: ./makeLoop steps it and encodes each frame.
  *
@@ -10,8 +10,6 @@
  * catching the light, and the turn home. The light is a VEIL, never a glare (VEIL, below).
  */
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
-import { MATERIAL_GLSL, MAT_INDEX } from "../live/materialGlsl";
-import type { CardMaterial } from "../material";
 import { CARD_CORNER } from "@/lib/cardArt/looks";
 
 export const LOOP_SECONDS = 6;
@@ -48,14 +46,10 @@ const FRAG = /* glsl */ `
 precision highp float;
 uniform sampler2D tFront;
 uniform sampler2D tBack;
-uniform float uTime;
-uniform vec2 uLight;
-uniform float uMat;
 uniform float uAspect;
 uniform float uGlare;
 uniform float uGlareX;
 varying vec2 vUv;
-${MATERIAL_GLSL}
 float rounded(vec2 uv, float r) {
   vec2 q = abs(vec2((uv.x - 0.5) * uAspect, uv.y - 0.5)) - vec2(0.5 * uAspect - r, 0.5 - r);
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
@@ -67,11 +61,9 @@ void main() {
   if (gl_FrontFacing) {
     col = texture2D(tFront, vUv).rgb;
   } else {
-    // the back: its material, with its words and tiles over it
-    vec2 buv = vec2(1.0 - vUv.x, vUv.y);
-    vec3 m = material(buv, uLight, uTime, uMat, uAspect, 1.0 / 675.0);
-    vec4 c = texture2D(tBack, buv);
-    col = mix(m, c.rgb, c.a);
+    // the back: one picture, the engraved plate with the story of the word on it. Paper and ink: no
+    // material is drawn here, and nothing on it catches a light of its own (decisions.md #58, part 2).
+    col = texture2D(tBack, vec2(1.0 - vUv.x, vUv.y)).rgb;
   }
   // the light catching the card as it turns: a veil over a matte card (VEIL), never white added to it
   float g = exp(-pow((vUv.x - uGlareX) * 3.2 + (vUv.y - 0.5) * 1.2, 2.0) * 6.0) * uGlare;
@@ -145,12 +137,6 @@ export function loopPose(t: number) {
   return { s, turn, lift, tiltX, tiltY, glare, glareX };
 }
 
-/** The back's light during the loop: one slow orbit a loop, so the material is never dead still, and
- *  it comes round to where it started. */
-export function loopLight(t: number): [number, number] {
-  return [0.5 + 0.24 * Math.cos(t * ONCE), 0.55 + 0.15 * Math.sin(t * ONCE)];
-}
-
 export interface LoopRenderer {
   /** Draw the frame at time t (seconds). */
   render(t: number): void;
@@ -163,7 +149,7 @@ export interface LoopRenderer {
 /** A turning card on `canvas`, `width`×`height` pixels, its two faces from `front` and `back`. */
 export function attachLoop(
   canvas: HTMLCanvasElement,
-  { front, back, material, width, height }: { front: TexImageSource; back: TexImageSource; material: CardMaterial; width: number; height: number },
+  { front, back, width, height }: { front: TexImageSource; back: TexImageSource; width: number; height: number },
 ): LoopRenderer {
   // The frame is read the moment it's drawn (./makeLoop): keep it until then.
   const renderer = new Renderer({ canvas, width, height, dpr: 1, alpha: false, antialias: true, preserveDrawingBuffer: true });
@@ -181,9 +167,6 @@ export function attachLoop(
     uniforms: {
       tFront: { value: tFront },
       tBack: { value: tBack },
-      uTime: { value: 0 },
-      uLight: { value: [0.5, 0.5] },
-      uMat: { value: MAT_INDEX[material] },
       uAspect: { value: CARD_ASPECT },
       uGlare: { value: 0 },
       uGlareX: { value: 0 },
@@ -212,10 +195,6 @@ export function attachLoop(
       card.position.z = p.lift * 0.22;
       card.position.y = p.lift * 0.03;
       shadowProgram.uniforms.uSpread.value = 1 + p.lift * 0.5;
-      const [lx, ly] = loopLight(p.s);
-      // the glitter and the fire turn with the light, which comes round; a clock wouldn't
-      program.uniforms.uTime.value = 0;
-      program.uniforms.uLight.value = [lx, 1 - ly];
       program.uniforms.uGlare.value = p.glare;
       program.uniforms.uGlareX.value = p.glareX;
       renderer.render({ scene, camera });

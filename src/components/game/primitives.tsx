@@ -265,11 +265,17 @@ export function Sheet({
   onClose,
   title,
   children,
+  wide = false,
 }: {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
+  /**
+   * A wider dialog on a computer, for a sheet whose point is a picture seen large (a Shop item's
+   * view). A phone's bottom sheet is the screen's width either way.
+   */
+  wide?: boolean;
 }) {
   const closing = useContext(SheetClosing);
   const [entered, setEntered] = useState(false);
@@ -304,7 +310,9 @@ export function Sheet({
       {/* The bordered, rounded box never scrolls itself: only the body below the title bar does.
           When the box was the scroller, a browser that always shows scrollbars (Brave, or any
           macOS setup with a mouse) drew its track over the right border and the rounded corner. */}
-      <div className="sheet-panel relative flex max-h-[88%] flex-col overflow-hidden rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:max-w-[560px] md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714]">
+      <div
+        className={`sheet-panel relative flex max-h-[88%] flex-col overflow-hidden rounded-t-3xl border-t-[3px] border-x-[3px] border-ink bg-paper shadow-[0_-6px_0_#1b1714] md:max-h-[85vh] md:w-full md:rounded-3xl md:border-[3px] md:shadow-[0_8px_0_#1b1714] ${wide ? "md:max-w-[720px] lg:max-w-[1000px]" : "md:max-w-[560px]"}`}
+      >
         <div className="flex shrink-0 items-center justify-between border-b-2 border-ink/15 bg-paper px-4 py-3">
           <div className="font-display text-lg font-extrabold">{title}</div>
           <button

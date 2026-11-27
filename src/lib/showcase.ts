@@ -130,8 +130,12 @@ export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null
  *     the back's number and ledger, and the earnings tag's figures are lettered in it.
  * 12: a saved picture's corner carries the game's lockup, where the name was plain type
  *     (decisions.md #56, part 2). The earnings picture's corner too: its address carries this number.
+ * 13: a card's back is an engraved plate (decisions.md #58, part 2): the back's picture is the whole
+ *     back now, its plate with it, and its lettering sits inside the plate's border.
+ * 14: the game's emblem is the same on every back: no rings round it for a rarer word (the owner,
+ *     2026-11-27). The back's picture changes for Rare, Legendary, Mythic, and collab words.
  */
-export const CARD_LOOK = 12;
+export const CARD_LOOK = 14;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null, mark?: string | null): string {

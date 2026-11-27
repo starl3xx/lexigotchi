@@ -256,6 +256,10 @@ export type Sheet =
   | { kind: "earnings" }
   /** A word opened from the Dictionary (sheets/LookupSheet): what the player needs to spell it, or who has it. */
   | { kind: "lookup"; word: string }
+  /** One thing in the Shop, opened from its card (sheets/ShopItemSheet): seen large, with what it
+   *  is and its Buy. `id` is the registry's; the sheet reads the item live. `word`: the player's
+   *  word to show a card face on first (the face picker names the word being dressed). */
+  | { kind: "shopItem"; id: number; word?: string }
   | null;
 
 export interface Toast {

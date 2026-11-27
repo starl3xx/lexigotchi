@@ -2982,7 +2982,8 @@ setter. All small, riding existing suite patterns.
       test network's placeholder is in neither: it is nothing a card wears, so it sits apart
       under "Try paying". An empty category says so plainly and promises nothing.
     - **Links land on a category:** the face picker's tile for a face on sale goes to Card
-      faces, and an opened word's Case button to Accessories.
+      faces (and, since the item's view below, opens that face there), and an opened word's Case
+      button to Accessories.
     - **Limited editions already worked, and now they show.** The contract has always held a
       supply limit (`maxSupply`; `_buy` reverts `SoldOut`), and the face picker stops offering a
       sold-out face. What is new is the card's line: "Limited edition of 25. 24 left.", then
@@ -3002,6 +3003,78 @@ setter. All small, riding existing suite patterns.
       doesn't have it.
     - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
       editions, paying, and that what a player buys stays with the player.
+    - **An item opens** (starl3xx, 2026-11-27, later the same day: "in the shop I should be able
+      to click items and see more info about them, see them at higher size, etc").
+      `sheets/ShopItemSheet.tsx`, sheet kind `shopItem` (the item's id, and optionally a word).
+      One tap anywhere on an item's card opens it (the card's picture and words are one button,
+      stretched over the card; Buy stays a button of its own above it). The view shows:
+      - **the thing large**: a wide dialog on a computer (`Sheet`'s new `wide`: up to 720 px
+        from md and 1,000 px from lg, where the picture and the facts stand side by side; the
+        560 px default is unchanged), and "Look closer", the card at twice that width in a box
+        that pans (a finger or a trackpad scrolls it; a mouse drags it). On a phone the dialog
+        is no wider than the Shop's own card, so the closer look IS the phone's larger size.
+        The change of size is a cut, never an animation (#48);
+      - **a card face on the player's own word**: a row of their words under the picture, the
+        first one showing (or the word the face picker was dressing), and "No word". It is a
+        preview: it draws the face directly and saves nothing. No wallet or no words: the face
+        alone, never a made-up word;
+      - **what it is**: its kind, its price, the face's own line, the card's words, the limited
+        edition line, when a sale ends or starts if the item has such a date
+        (`lib/shop/offer` `saleWindow`: an item with no end says nothing, because the owner can
+        set one later), "You have it", that it stays with the profile, where the money goes,
+        and a link to the docs' Shop page;
+      - **the same Buy as the card**; and, for a face the player has, **"Put it on WORD"**,
+        the face picker's own save (`useWordScene`), offered only on a positive "you have it".
+    - **One rule decides Buy for the card and the view** (`lib/shop/offer` `buyOffer`, pure,
+      tested; drawn by `shop/ShopBuy`): have it, not known yet, not on sale, no wallet, then Buy
+      (held back while paused or short). Two copies of that ladder would one day disagree, and
+      the wrong one would sell a face to someone who has it. `useShopView` (game/useShop) is the
+      one place both read the Shop from. **A purchase in flight is known to every Buy on the
+      page** (`useShopBuy`, a shared mutation): the view is a sheet that can be closed
+      mid-purchase, and the card behind it must not offer a second Buy. **"In flight" is the
+      action gate's word** (`g.busy` with the purchase's label, `SHOP_BUY_LABEL`), never the
+      purchase's own promise alone: a wallet that never answers leaves the promise pending for
+      good, and after Hide on the status pill Buy must be live again. My first version counted
+      the pending promise and would have left every Buy disabled until a reload (caught in
+      review, before it shipped).
+    - **A purchase runs at the tap or not at all** (`networkMode: "always"` on the shared
+      purchase; caught in review, then seen). The purchase became a query-library mutation so
+      that every Buy could know one was in flight, and by default such a mutation made OFFLINE
+      is held and run when the network returns. Seen in a browser: a tap on Buy while offline
+      showed nothing, and eight seconds after reconnecting the wallet was asked to sign, with
+      no new tap. Now it runs at once, as the direct call did. Offline, its first read fails,
+      and that is said ("Couldn’t reach the Shop. Check your connection and try again."): a
+      purchase whose first read threw used to be silent, before this change too.
+    - **A thing with no picture** (a costume with no art yet) opens in the usual dialog, one
+      column: the wide dialog is for a picture.
+    - **Only a button sits above the card's open button** (`lib/shop/offer` `offerIsButton`,
+      Bugbot on #316). The card's foot is either a button (Buy, or the way to a wallet) or a line
+      of words that says why there is no Buy. I had lifted the whole foot above the card's own
+      button, so a tap on "Sold out" or "Not on sale yet" did nothing, on the very cards a
+      player is most likely to tap for more. Now only a button is lifted. Checked with a mouse
+      at each line's own place, in Chromium and WebKit, at 390 and 1,280 px.
+    - **The view reads the Shop live, by id.** An item that has gone, or a Shop that couldn't
+      say what its items are, says so; the view never falls back to a placeholder card, and the
+      test network's placeholder opens nothing.
+    - **My readings of "etc":** the preview on the player's words, the closer look, "Put it on
+      WORD", the docs link, and that the face picker's tile now opens the item (on the word
+      being dressed) instead of only the category. Not built: a case's or a costume's own
+      larger view beyond its picture and words (none is listed).
+    - **Seen and not seen (the item's view):** in Chromium and WebKit, on my own dev server
+      against the live test Shop, with every write to the server blocked in the browser.
+      At 390, 768, and 1,280 px: with no wallet (Connect a wallet to buy), and as a read-only
+      pretend wallet at an address that has the face and 18 words (You have it, the words row,
+      the closer look, and "Put it on NOVEL", which then read "NOVEL's card has this face":
+      saved in that browser only). At 390 and 1,280 px, as a pretend wallet that has words and
+      not the face: the face picker's tile landed on the Shop with the item open on the word
+      being dressed, and Buy live; a mouse click on the card's edition line, its top padding,
+      and its bottom padding each opened the view, and a click on Buy did not; and with a
+      wallet that never answers the signature request, the card and the view both read
+      "Buying…", and after Hide the card's Buy was live again. With a Shop answer MADE UP in
+      the test browser (nothing listed anywhere): a sale with an end date ("On sale until
+      November 30 at 3:31 PM."), a sold-out face, a case, and a costume not yet on sale.
+      Not seen: a purchase that completes from the view, a finger on the closer look (a mouse
+      and scripted scrolling only), a real phone.
     - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
       phone's bottom bar has five places, all taken); the categories are one switch at the top
       of the screen; a costume, when one exists, is an accessory; the placeholder stays, under
@@ -3163,9 +3236,60 @@ setter. All small, riding existing suite patterns.
       0.55: the strongest light anywhere, and at 0.9 s it hid the word. It is a veil at 0.10
       (`loopRenderer` `VEIL`): it scales down what is left of the dark, so it lifts the inks a
       little and can never pass the paper. Where and when the light crosses is unchanged.
+    - **Part 2, the backs (13A).** A back is an engraved PLATE (`lib/cardArt/plate`): printed
+      solid in the rarity's dark ink, its engraving in the rarity's light ink. A rarity is told by
+      its inks and by how much engraving its plate carries: Common has rules and a ruled ground;
+      Uncommon adds a border of lace with a lathe medallion in each corner; Rare adds lathe work
+      around the seal; Legendary adds a second ring and filigree in the border's corners, in a
+      second ink; Mythic adds a third ring, and its ink changes from violet to magenta and back
+      along the card (a banknote's "rainbow printing": printed, so it never moves). The drawings
+      are the ones he approved, character for character.
+      - **What went:** the five materials in the styles and in the shader, the live WebGL
+        drawing of a back, the light under the pointer and under a tilted phone, the tilt
+        prompt on iPhone, the back's own frame line, Legendary's corner scrolls, and Mythic's
+        spectral frame line. A back is one still picture.
+      - **What moved, to make room for the plate's border:** the seal is a fifth smaller and
+        sits inside the lathe work; the lettering is set in from the edge; the line at the foot
+        moved up. The styles, the server's picture, and the plate share these measures, and a
+        test holds them equal.
+      - **Everywhere:** the game (every size, and the Bag's thumbnail), the server's picture of
+        a back (which is now the WHOLE back, plate and all, so the video draws nothing under
+        it), the share video, and the jackpot's face-down card (Common's plate). `CARD_LOOK`
+        is 13.
+      - **A collab set's back** (#53) is Legendary's engraving printed in the set's two colors:
+        the field in one and the border in the other, flat. It was a soft blend of the two. My
+        translation of another session's design: the partner's two colors both stay.
+      - **The holder's stamp moved with the lettering** (#48, part 6; Bugbot on #315, and my own
+        review, found it left behind). With no number it stands in the top left of the plate's
+        FIELD, never on the lace; on a thumbnail it stands inside the field too; in the video it
+        stands right of the number by MEASUREMENT (`NUMBER_END`: the card's serif, #52, had
+        already made the number wider than the stamp's old place allowed). On a back under
+        340 px it is smaller and rides higher, clear of the ledger's first row; under 296 px (a
+        320 px phone) nothing fits beside the number, and it is left off the opened back, where
+        before it covered "Case". A test holds the styles, the video's arithmetic, and the
+        plate's field together.
+      - **A finding kept as a rule:** a line on a plate is never finer than about a pixel where
+        it is shown. The first ruled ground (7 units apart) smeared into streaks in the video
+        and read as brushed metal, the very thing the plate replaces.
+      - **Mythic's blended ink was in the drawings he approved**, so it is built. Whether a
+        printed spectrum is enough for the top rarity (13F) is still his to say.
+    - **Part 2, amended the day it shipped: the emblem is standard.** The first plates turned
+      lathe work round the seal for the rarer words: one ring for Rare, two for Legendary, three
+      for Mythic. The owner, on seeing it live: "I don't like the Lexigotchi emblem on the back
+      getting more rings for more rarity... I think that should look the same on all rarities,
+      standard". So the plate draws nothing round the seal, and the seal stands alone on every
+      back, as it always had before the plates. A rarity is told by its inks and its border.
+      - **My reading:** "standard" is the seal with no ring, the emblem as every back had it
+        before. One ring on every back is the other reading: it is a small change if he wants it.
+      - **A consequence he has not ruled on:** Rare's own step WAS the ring, so a Rare plate
+        now carries Uncommon's engraving in its own sapphire inks. The border still steps for
+        Legendary (filigree, a second ink) and Mythic (the blended ink). If Rare should have a
+        step of its own, it goes in the border, never on the emblem.
+      - `CARD_LOOK` is 14.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
-      moving light on the back (13E), Mythic's rainbow (13F), and whether matte reaches the
-      letters' finishes, the Holographic stage, and the plastic case (part 16).
+      light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
+      rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and
+      the plastic case (part 16).
 
 59. **A face change slides in, in the face picker** (starl3xx, 2026-11-27, with a picture of the
     picker: "when switching faces, the faces should have a nice swipe animation/transition rather

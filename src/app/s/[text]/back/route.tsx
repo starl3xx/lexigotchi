@@ -17,7 +17,8 @@ import { backFoot, backLedger } from "@/lib/backPicture";
 import { NUMBERED_HEADER } from "@/components/cards/stamp";
 import { rackPaths } from "@/lib/cardArt/rack";
 import { readBackFacts } from "@/lib/backPictureFacts";
-import { SCROLL_PATH_CARD } from "@/components/cards/material";
+import { collabPlate, materialOf, materialPlate } from "@/components/cards/material";
+import { PLATE_SEAL } from "@/lib/cardArt/plate";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { CARD_CORNER } from "@/lib/cardArt/looks";
@@ -27,14 +28,14 @@ import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { playerFaces } from "@/lib/profile/faces";
 
 /**
- * The back of a word's card for the share loop (components/cards/loop): its words and tiles over a
- * transparent ground, 1200×675, the card's own shape (16:9). Laid out as the game's back is at its
+ * The back of a word's card for the share loop (components/cards/loop): its engraved plate with its
+ * words and tiles on it, 1200×675, the card's own shape (16:9). ONE picture, the whole back: the
+ * video draws nothing under it (a back is paper and ink; decisions.md #58, part 2). Laid out as the game's back is at its
  * full size (components/cards/CardBack; decisions.md #35, #37): the rarity over the card's number
  * (the headline), "One of one", the tiles on their rack, the facts as a ledger, the game's seal
- * pressed in behind them, and the frame's two lines. The card's serif here is Source Serif 4, as
- * in the game (the server has no fonts of its own; the share picture's route says more). The loop's shader
- * paints the back's material under it (cards/live/materialGlsl), the same material the game's live
- * back draws, so the video and the game match.
+ * pressed in behind them, in the plate's field, the same on every rarity. The card's serif here is Source Serif 4, as
+ * in the game (the server has no fonts of its own; the share picture's route says more). The plate is the
+ * game's own (lib/cardArt/plate, through components/cards/material), so the video and the game match.
  *
  * The video travels to strangers, so the back speaks of the word, never of "you" (lib/backPicture
  * says which of the game's lines it keeps, rewords, and leaves out; decisions.md #48, part 5): its
@@ -155,42 +156,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // card's width each (cqw there, U here), without the caps the game puts on type for a screen.
   const U = W / 100;
   const tint = mix(look.line, TEXT, 0.74);
+  const plate = `data:image/svg+xml;base64,${Buffer.from(svgDoc(colorway ? collabPlate(colorway) : materialPlate(materialOf(tier)))).toString("base64")}`;
   return new ImageResponse(
     (
       <div style={{ position: "relative", display: "flex", width: W, height: H, fontFamily: "Soehne", color: TEXT, textShadow: SHADOW }}>
-        {/* A rarity's back is drawn over a clear ground: the video's shader paints the material
-            under it. A collab word's ground is its colorway, painted HERE, so the picture alone is
-            the whole back and the shader's material never shows under it. */}
-        {colorway && (
-          <div
-            style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", borderRadius: CARD_CORNER * W, backgroundImage: `linear-gradient(165deg, ${colorway.base2}, ${colorway.base} 70%)` }}
-          />
-        )}
-        {/* the frame: a line in the material's colour, and a dotted line just outside it */}
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", left: 0, top: 0 }}>
-          {/* each line runs parallel to the card's own corner: the corner (CARD_CORNER of the width) less the line's inset */}
-          <rect x="13" y="13" width={W - 26} height={H - 26} rx={CARD_CORNER * W - 13} fill="none" stroke={look.line} strokeWidth="3.4" strokeDasharray="3.4 5" />
-          <rect x="21.5" y="21.5" width={W - 43} height={H - 43} rx={CARD_CORNER * W - 21.5} fill="none" stroke={look.line} strokeWidth="3.6" />
-        </svg>
-        {/* Legendary's engraved scrollwork, in each corner (the game's back draws it: CardBack, Scroll) */}
-        {tier === "Legendary" &&
-          !colorway &&
-          ([
-            ["tl", {}],
-            ["tr", { transform: "scaleX(-1)" }],
-            ["bl", { transform: "scaleY(-1)" }],
-            ["br", { transform: "scale(-1, -1)" }],
-          ] as const).map(([k, flip]) => (
-            <svg key={k} width={6 * U} height={6 * U} viewBox="0 0 40 40" style={{ position: "absolute", ...(k[1] === "l" ? { left: 2.6 * U } : { right: 2.6 * U }), ...(k[0] === "t" ? { top: 2.6 * U } : { bottom: 2.6 * U }), ...flip }}>
-              <path d={SCROLL_PATH_CARD} fill="none" stroke="rgba(255, 244, 200, 0.55)" strokeWidth="2.4" strokeLinecap="round" transform="translate(1 1)" />
-              <path d={SCROLL_PATH_CARD} fill="none" stroke="#e9b949" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          ))}
-        {/* the game's seal, pressed into the material behind the facts */}
-        <img src={seal(look.line)} width={42 * U} height={42 * U} style={{ position: "absolute", right: 4 * U, top: (H - 42 * U) / 2, opacity: 0.14 }} />
-        <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", alignItems: "center", padding: `${6.5 * U}px ${5.5 * U}px ${5.5 * U}px`, gap: 4 * U }}>
+        {/* the plate: the back's ground and its engraving, the game's own drawing (a rarity's inks, or a
+            collab set's two). It is the whole ground, so the picture alone is the whole back. */}
+        <img src={plate} width={W} height={H} style={{ position: "absolute", left: 0, top: 0, borderRadius: CARD_CORNER * W }} />
+        {/* the game's seal, pressed into the plate's field, behind the facts: the same on every rarity */}
+        <img src={seal(look.line)} width={PLATE_SEAL.d} height={PLATE_SEAL.d} style={{ position: "absolute", left: PLATE_SEAL.cx - PLATE_SEAL.d / 2, top: PLATE_SEAL.cy - PLATE_SEAL.d / 2, opacity: 0.2 }} />
+        <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", alignItems: "center", padding: `${7.5 * U}px ${7.3 * U}px ${8.3 * U}px`, gap: 4 * U }}>
           {/* the left column: the rarity, the number (the headline), "One of one", how many share the rarity, the tiles */}
-          <div style={{ display: "flex", flexDirection: "column", width: 0.475 * (W - 15 * U), gap: 1.1 * U }}>
+          <div style={{ display: "flex", flexDirection: "column", width: 0.475 * (W - 18.6 * U), gap: 1.1 * U }}>
             {/* the tier's mark, the game's own (lib/tierMark): plain paths, every attribute given (Satori's rules) */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: SERIF, fontWeight: 700, fontSize: 2.3 * U, lineHeight: 1.15, color: tint }}>
               <svg width={2.65 * U} height={2.65 * U} viewBox="0 0 20 20">
@@ -264,7 +241,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         </div>
         {/* the line along the bottom, inside the frame: the jackpot, then the token */}
         {foot.length > 0 && (
-          <div style={{ position: "absolute", left: 5.5 * U, right: 5.5 * U, bottom: 2.9 * U, display: "flex", justifyContent: "center", fontSize: 1.75 * U, lineHeight: 1.15, color: SUB }}>{foot.join("  ·  ")}</div>
+          <div style={{ position: "absolute", left: 11 * U, right: 11 * U, bottom: 6.1 * U, display: "flex", justifyContent: "center", fontSize: 1.75 * U, lineHeight: 1.15, color: SUB }}>{foot.join("  ·  ")}</div>
         )}
       </div>
     ),

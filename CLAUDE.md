@@ -691,6 +691,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   purchases and not players (the game sells a face once to a profile; the contract would sell it
   twice), and a sold-out item stays with everyone who has it. The player docs have a Shop page
   (`docs-site/shop.mdx`): when an accessory is listed, its "None are in the Shop yet" goes.
+  **An item opens** (the same decision; starl3xx: "I should be able to click items and see more
+  info about them, see them at higher size, etc"): one tap on its card opens
+  `sheets/ShopItemSheet` (sheet kind `shopItem`, a `wide` dialog on a computer): the thing large,
+  "Look closer" (twice the width in a box that pans: a cut, never an animated scale), a card face
+  shown on any of the player's own words (a preview: it saves nothing, and with no words the face
+  shows alone), its facts, the card's own Buy, and "Put it on WORD" for a face they have.
+  **Whether a thing sells is ONE rule** (`lib/shop/offer` `buyOffer`, tested), drawn by ONE
+  component (`shop/ShopBuy`) and read from ONE place (`useShopView`): never give a new surface a
+  Buy ladder of its own, and never start a purchase but through `useShopBuy`, which tells every
+  Buy on the page that one is in flight (the view can be closed mid-purchase). The view reads the
+  item live by id, and an item that has gone says so: it never falls back to a placeholder card.
+  The face picker's tile for a face on sale opens that item, on the word being dressed
+  (`nav("shop", "faces")`, then `openSheet`: `nav` closes the picker first).
 - **A card's words: front, face, back** (decisions.md #54; starl3xx, 2026-11-27: "the *front* of the
   card is its front regardless of the scene/face... the *face* (not scene) is the background on the
   front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it
@@ -812,8 +825,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   ink. Light on a card is DRAWN in lines and is quiet; never a soft white wash, a hot spot, or
   glitter, and never a line over a letter. Its references are a playing card's stock and back, and
   banknote engraving. Being built in parts: **the video's light is a veil** (`loopRenderer` `VEIL`
-  0.1: it lifts the inks and can't pass the paper; it was white added at 0.55). Still to come: the
-  backs as dark engraved plates, the front's ruled band, the stock's diagonal weave. Still his to
+  0.1: it lifts the inks and can't pass the paper; it was white added at 0.55). **The backs are dark engraved plates** (part 2, below under Word cards). Still to come: the
+  front's ruled band, the stock's diagonal weave. Still his to
   answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
   `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
@@ -844,8 +857,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   diamond, a crown, or a sparkle: those mean ascension, a raised letter, and Mint. The player docs'
   picture is `marks.svg` (`npm run docs:art`).
 - **Word cards** (decisions.md #25; `src/components/cards/`): every owned word is a `SceneCard`, its
-  front (`SceneFrame`: the word in its scene, in the card's frame) and its story on the back (`CardBack`, deep materials per tier in globals.css
-  `.cb.m-*`), turned by the corner button. The flip belongs to the word (a host showing another word
+  front (`SceneFrame`: the word in its scene, in the card's frame) and its story on the back (`CardBack`: an engraved plate in the rarity's inks,
+  `lib/cardArt/plate`, with the lettering over it), turned by the corner button. The flip belongs to the word (a host showing another word
   gets its scene), the back mounts on the first turn, and a host holds its scene still while the
   back is up or a sheet covers it. **Only the card in focus moves** (the Today stage, an opened
   word: `WordSheetCard`); the Bag's grid (`BagWordCard`) is still and draws each card only as it
@@ -858,7 +871,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Söhne, a row of dots, a value in the serif), and **the game's seal is pressed into the material in
   one ink** behind them (`lib/cardArt/seal.ts`, one picture for the game's back and the server's; its
   lines stop at the eyes, and in one ink the eyeball is ink and the pupil clear with its pie cut:
-  the owner's three notes, held by `tests/card-seal.test.ts`). **The holder's picture is stamped on the back** (decisions.md #48; `cards/stamp.ts`, `cards/CardStamp.tsx`, `.cb-stamp`): the player's own picture in ONE INK (the material's line colour) in an engraved ring, beside the number (in the number's own line, so it follows the digits), the top left corner on a card with no number, over the seal on a thumbnail. "Show my picture on my cards" in the profile turns it off, and the choice is kept on the device (`useCardStamp`): only the player's own browser ever draws a stamp, so no server holds the choice and none fetches a picture. The video draws it onto the back's picture itself (`makeLoop`, `stampedBack`). **One back at every size**
+  the owner's three notes, held by `tests/card-seal.test.ts`). **The holder's picture is stamped on the back** (decisions.md #48; `cards/stamp.ts`, `cards/CardStamp.tsx`, `.cb-stamp`): the player's own picture in ONE INK (the material's line colour) in an engraved ring, beside the number (in the number's own line, so it follows the digits), the top left corner on a card with no number, over the seal on a thumbnail. **The stamp's place follows the back's layout** (`cards/stamp` `stampBox`, `NUMBER_END`, the `.cb-stamp-*` styles): it stands inside the plate's field, and in the video right of the number by a MEASURED end; when the lettering or the number's type moves, move it and measure again (it was left on the lace and on the last digit once: Bugbot on #315). Under 340 px it is smaller and higher; under 296 px it is left off the opened back, since nothing fits beside the number. "Show my picture on my cards" in the profile turns it off, and the choice is kept on the device (`useCardStamp`): only the player's own browser ever draws a stamp, so no server holds the choice and none fetches a picture. The video draws it onto the back's picture itself (`makeLoop`, `stampedBack`). **One back at every size**
   (decisions.md #37; globals.css `.cb`, by container width): two columns (the rarity over the
   number, "One of one", the count, the rack; the ledger) with a line along the bottom, all of it from
   470 px; the first four facts under 470 px (an opened card's `CardMore` lists the rest: keep the two
@@ -872,21 +885,28 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
   while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
   screen is gone (Share and Face sit under an opened card; badges moved to the profile; a scene
-  picked from an opened word returns to it). **Live backs** (decisions.md #26; `cards/live/`, the `ogl`
-  package, loaded on the first live back): WebGL draws a showing back's material on the card in focus only, on demand (a frame per
-  change, nothing at rest: `tests/live-back.test.ts` counts them), one context, lost when the back
-  leaves, each mount its own canvas (a lost context never draws again), at most 1.25× the CSS size.
-  The light sweeps in once, then follows the pointer, a sideways drag, or the tilt (iOS asks on the
-  flip tap, `askForTilt`, only when that back will draw live). A held phone tilts all the time:
-  `makeTiltFilter` draws only real moves (about a degree, ~30 a second), never off screen. The Today
-  stage passes `live={!state.sheet}`, and an evicted back steps aside (`onEvicted`). CSS is the
-  fallback everywhere else. A back under 470 px shows four
+  picked from an opened word returns to it). **A back is an engraved plate** (decisions.md #58, part 2; `lib/cardArt/plate` `backPlate`, through
+  `cards/material` `materialPlate` / `collabPlate`): one still picture set on `.cb-mat`, in the rarity's
+  inks (a collab set's two colors: the field in one, the border in the other, flat). A rarity is told
+  by its inks and by its plate's BORDER (rules; lace, for Uncommon and Rare; filigree; Mythic's blended
+  ink, a banknote's "rainbow printing", which is printed and never moves). **The game's emblem is the
+  same on every rarity, and nothing is drawn round it** (starl3xx, 2026-11-27, of the rings the first
+  plates turned round the seal for Rare and up: "I don't like the Lexigotchi emblem on the back
+  getting more rings for more rarity... that should look the same on all rarities, standard"): never
+  mark a rarity on, in, or around the emblem. **It replaced the backs' materials and their live WebGL drawing**
+  (#25, #26: satin, foil, gold, a gem, a light under the pointer, a tilt prompt on iPhone): all of
+  that code is gone, and nothing on a back moves or asks a phone for anything. The lettering and the
+  seal are laid out BY THE PLATE'S MEASURES (`PLATE_BORDER`, `PLATE_SEAL`), in three places that a
+  test holds equal: the styles (`.cb-body`, `.cb-foot`, `.cb-seal`), the server's picture
+  (`app/s/[text]/back`), and the plate itself. **A line on a plate is never finer than about a pixel
+  where it is shown** (a 7-unit ruled ground smeared into "brushed metal" in the video; 11 at 1.5
+  holds). The face-down jackpot card wears Common's plate. A back under 470 px shows four
   stats; an opened card lists the rest under it (`CardMore`). **The share loop** (decisions.md #27;
   `cards/loop/`, `cards/ShareVideo.tsx`): Share → "Make a video of the card" draws six seconds of the
-  card turning (OGL, the same `materialGlsl` as the live back, over `/s/<word>/back`, a transparent
-  Satori picture of the back's words: no "you", nothing from the query) **The video's letters are alive** (decisions.md #48; `loop/liveFront.tsx`, `loop/score.ts`): the front is put together again for every frame from the server's picture of the card WITHOUT its letters (`showcaseStagePath`, `?face=1&letters=0`) and the game's own rig, drawn once as one drawing (`flat still`) and cut into its layers by name (`data-layer`), each kept as a picture. The life is WRITTEN in `score.ts`, never random or clocked: every motion's time divides the six seconds, and nothing is scored while the front faces away. **A piece is a picture of its own** (`pieceOf`): it carries the drawing's definitions (a paint that points at another layer's gradient draws nothing alone: the Holographic rings), names its font outright, and takes nothing from the page; `tests/living-video.test.tsx` checks every rarity, stage, and case, and lists the classes a piece may carry, so sort a new class in the rig's drawing there. The front's letters wear the stage the GAME shows (which reads the chain); the back's picture reads the chain itself, so the back may say less (practice, a failed read), never something else. If the living front can't be drawn (a piece or the font inside it doesn't load), the still picture is used: a video is always made. **The back's picture says what the game's back says about the WORD** (decisions.md #48; `lib/backPicture` words it, `lib/backPictureFacts` reads it from the chain, the prices, and the shared world in `lib/worldSnapshot`): "Held since" for "Yours since", no earned amount, no "Staked", and a fact that can't be read is left out. It takes the world with `worldSoon`: a kept one up to a quarter of an hour old at once (a scan takes longer than a picture can wait), never `worldNow`, which waits for the scan. and encodes it in the
+  card turning (OGL; its back is `/s/<word>/back`, ONE Satori picture: the back's plate with its words
+  on it: no "you", nothing from the query) **The video's letters are alive** (decisions.md #48; `loop/liveFront.tsx`, `loop/score.ts`): the front is put together again for every frame from the server's picture of the card WITHOUT its letters (`showcaseStagePath`, `?face=1&letters=0`) and the game's own rig, drawn once as one drawing (`flat still`) and cut into its layers by name (`data-layer`), each kept as a picture. The life is WRITTEN in `score.ts`, never random or clocked: every motion's time divides the six seconds, and nothing is scored while the front faces away. **A piece is a picture of its own** (`pieceOf`): it carries the drawing's definitions (a paint that points at another layer's gradient draws nothing alone: the Holographic rings), names its font outright, and takes nothing from the page; `tests/living-video.test.tsx` checks every rarity, stage, and case, and lists the classes a piece may carry, so sort a new class in the rig's drawing there. The front's letters wear the stage the GAME shows (which reads the chain); the back's picture reads the chain itself, so the back may say less (practice, a failed read), never something else. If the living front can't be drawn (a piece or the font inside it doesn't load), the still picture is used: a video is always made. **The back's picture says what the game's back says about the WORD** (decisions.md #48; `lib/backPicture` words it, `lib/backPictureFacts` reads it from the chain, the prices, and the shared world in `lib/worldSnapshot`): "Held since" for "Yours since", no earned amount, no "Staked", and a fact that can't be read is left out. It takes the world with `worldSoon`: a kept one up to a quarter of an hour old at once (a scan takes longer than a picture can wait), never `worldNow`, which waits for the scan. and encodes it in the
   browser (WebCodecs H.264 + `mp4-muxer`, deprecated but 9 kB: swap in `makeLoop.ts` only). It
-  takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
+  makes its own WebGL context and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
   twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the game's lockup in the corner of every frame, its eyes on the video's written score (`score.ts` `markEyes`; the name in type if its pictures fail to load).
 - **A word's status is three marks** (decisions.md #39; `components/game/stageMarks.ts` pure + tested,
