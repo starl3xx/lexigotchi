@@ -44,6 +44,7 @@ function set(id: number, name: string, status: SetStatus, words: string[], over:
     releasedAt: null,
     gateUntil: null,
     releaseBlock: null,
+    releaseRoot: null,
     words: words.map((word, i) => ({ word, headliner: i === 0 })),
     ...over,
   };

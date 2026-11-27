@@ -42,6 +42,8 @@ export interface WordSet {
   gateUntil: Date | null;
   /** The block the chain was first seen holding the set's words (the stats read from here). */
   releaseBlock: number | null;
+  /** The root last built to release this set, or null when none was (see `word_sets.release_root`). */
+  releaseRoot: string | null;
   words: SetWord[];
 }
 

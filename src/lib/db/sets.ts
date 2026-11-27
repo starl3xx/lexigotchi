@@ -10,7 +10,7 @@
  * a driver error carries the statement's parameters, which are the words. `SetError` is safe (it
  * carries a code, and words only where the operator's own request named them).
  */
-import { and, asc, eq, inArray, like, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { getDb, type DbOrTx } from "./client";
 import { dictionaryRoots, setWords, wordSets } from "./schema";
 import { isMissingTable } from "./profiles";
@@ -50,6 +50,7 @@ function shape(row: Row, words: SetWord[]): WordSet {
     releasedAt: row.releasedAt,
     gateUntil: row.gateUntil,
     releaseBlock: row.releaseBlock,
+    releaseRoot: row.releaseRoot,
     words,
   };
 }
@@ -336,16 +337,15 @@ export async function newestRoot(chainId: number): Promise<{ root: string; held:
   }
 }
 
-/** The ids of the sets a release root was ever built for (the note is "release:<id>"). */
-export async function setsWithReleaseRoot(chainId: number): Promise<Set<number>> {
-  try {
-    const rows = await getDb()
-      .select({ note: dictionaryRoots.note })
-      .from(dictionaryRoots)
-      .where(and(eq(dictionaryRoots.chainId, chainId), like(dictionaryRoots.note, "release:%")));
-    return new Set(rows.map((r) => Number(r.note.slice("release:".length))).filter(Number.isInteger));
-  } catch (err) {
-    if (isMissingTable(err)) return new Set();
-    throw err;
-  }
+/**
+ * Record the root built to release a revealed set. False when the set is no longer revealed (it was
+ * released meanwhile, or never was): the caller then has no plan to show.
+ */
+export async function setReleaseRoot(chainId: number, id: number, root: string): Promise<boolean> {
+  const rows = await getDb()
+    .update(wordSets)
+    .set({ releaseRoot: root.toLowerCase(), ...touch })
+    .where(and(eq(wordSets.chainId, chainId), eq(wordSets.id, id), eq(wordSets.status, "revealed")))
+    .returning({ id: wordSets.id });
+  return rows.length > 0;
 }

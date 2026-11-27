@@ -43,7 +43,7 @@ import {
   setOfWord,
   type WordSet,
 } from "@/lib/sets/rules";
-import { claimedAmong, forgetSets, hasGate, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
+import { claimedAmong, forgetSets, hasGate, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
 import { setStats, type SetClaim, type SetStats } from "@/lib/sets/stats";
 
 export const runtime = "nodejs";
@@ -109,8 +109,11 @@ export async function GET(req: Request) {
   if (!who.ok) return json(refusalBody(who), who.status);
   try {
     await reconcile().catch(() => []);
-    const s = await serving();
-    const book = s.ok ? s.book : { sets: [] as WordSet[], migrated: true, known: false };
+    // The sets are read for themselves. What the chain holds is a separate question, and when it
+    // can't be answered (a root this server never built) the operator still needs the sets, the
+    // export, and the commitment in front of them.
+    const [book, s] = await Promise.all([loadSets({ fresh: true }), serving()]);
+    if (!book.known) return json({ ok: false, error: "try_again" }, 503);
     const sets = book.sets;
     const unreleased = sets.filter((x) => x.status !== "released");
     const released = sets.filter((x) => x.status === "released");
@@ -220,11 +223,13 @@ export async function POST(req: Request) {
         const c = checkSettings(body);
         if (!c.ok) return json({ ok: false, error: "invalid", errors: c.errors }, 400);
         // The dates are checked together with the ones the set already has.
-        const now = (await serving().catch(() => null));
-        const cur = now?.ok ? now.book.sets.find((x) => x.id === id) : undefined;
+        const book = await loadSets({ fresh: true });
+        if (!book.known) return json({ ok: false, error: "try_again" }, 503);
+        const cur = book.sets.find((x) => x.id === id);
+        if (!cur) return json({ ok: false, error: "not_found" }, 404);
         const sched = scheduleError({
-          revealAt: c.value.revealAt !== undefined ? c.value.revealAt : (cur?.revealAt ?? null),
-          releaseAt: c.value.releaseAt !== undefined ? c.value.releaseAt : (cur?.releaseAt ?? null),
+          revealAt: c.value.revealAt !== undefined ? c.value.revealAt : cur.revealAt,
+          releaseAt: c.value.releaseAt !== undefined ? c.value.releaseAt : cur.releaseAt,
         });
         if (sched) return json({ ok: false, error: "invalid", errors: [sched] }, 400);
         await updateSet(chainId, id, c.value);
@@ -280,10 +285,11 @@ export async function POST(req: Request) {
       }
       case "import": {
         if (typeof body.text !== "string" || body.text.length > 400_000) return json({ ok: false, error: "bad_request" }, 400);
-        const now = await serving();
-        if (!now.ok || !now.book.migrated) return json({ ok: false, error: now.ok ? "not_migrated" : now.error }, 409);
+        const book = await loadSets({ fresh: true });
+        if (!book.known) return json({ ok: false, error: "try_again" }, 503);
+        if (!book.migrated) return json({ ok: false, error: "not_migrated" }, 409);
         // An import only makes drafts: a word a revealed or released set holds can't be taken.
-        const locked = new Set(setOfWord(now.book.sets.filter((x) => x.status !== "draft")).keys());
+        const locked = new Set(setOfWord(book.sets.filter((x) => x.status !== "draft")).keys());
         const parsed = parseSetsFile(body.text, isWord, locked);
         if (!parsed.ok) return json({ ok: false, error: "invalid", errors: parsed.errors }, 400);
         const ids = await replaceDrafts(chainId, parsed.sets);

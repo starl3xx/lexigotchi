@@ -31,7 +31,7 @@ import { wordsAbi } from "@/lib/onchain/abis";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
-import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setsWithReleaseRoot } from "@/lib/db/sets";
+import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
 import { dueToReveal, gateUntilFor, heldOf, releaseChange, reserveChange, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
@@ -263,9 +263,11 @@ async function gateOf(words: readonly string[]): Promise<Date | null> {
 /**
  * Mark every revealed set the chain now offers as released, and say which were newly marked.
  *
- * A set counts as released when a release root was BUILT for it and the chain's root holds none of
- * its words back. The first half matters: a revealed set whose words were never reserved on the
- * chain is claimable too, and that is a mistake to show the operator, never a release to announce.
+ * A set counts as released when a release root was BUILT for it (`releaseRoot`) and the chain's
+ * root holds none of its words back. The first half matters: a revealed set whose words were never
+ * reserved on the chain is claimable too, and that is a mistake to show the operator, never a
+ * release to announce. The chain's root need not BE the set's release root: a later release is
+ * built on top of it, and still holds none of this set's words back.
  */
 export async function reconcile(): Promise<number[]> {
   const sets = await loadSets({ fresh: true });
@@ -276,10 +278,9 @@ export async function reconcile(): Promise<number[]> {
   const chainHeld = await heldBehind(root);
   if (!chainHeld) return [];
   const heldSet = new Set(chainHeld);
-  const built = await setsWithReleaseRoot(NETWORK.id);
   const done: number[] = [];
   for (const s of waiting) {
-    if (!built.has(s.id) || s.words.some((w) => heldSet.has(w.word))) continue;
+    if (!s.releaseRoot || s.words.some((w) => heldSet.has(w.word))) continue;
     const when = await whenRootSet(root);
     const gateUntil = await gateOf(s.words.map((w) => w.word)).catch(() => null);
     if (await markReleased(NETWORK.id, s.id, { releasedAt: when?.at ?? new Date(), gateUntil, releaseBlock: when?.block ?? null })) done.push(s.id);
@@ -442,8 +443,12 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
   }
   intents.push(rootIntent(root, `${gatePlan ? "THEN: r" : "R"}elease “${set.name}”: the root adds ${change.added.length} words and removes none.`));
 
+  // The root's words first (the chain's root must always turn back into its tree), then the mark
+  // on the set that a release was built for it: that mark is what lets `reconcile` call it released.
   await saveRoot(NETWORK.id, root, change.held, `release:${set.id}`);
   heldByRoot.set(root, change.held);
+  if (!(await setReleaseRoot(NETWORK.id, set.id, root))) return { ok: false, error: "not_revealed" };
+  book = null;
   return { ok: true, setId: set.id, currentRoot: chain.root, root, added: change.added, gate: gatePlan, gateNote, intents };
 }
 

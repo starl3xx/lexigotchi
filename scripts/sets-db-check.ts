@@ -30,7 +30,7 @@ import {
   revealSet,
   saveRoot,
   setHeadliner,
-  setsWithReleaseRoot,
+  setReleaseRoot,
   updateSet,
 } from "@/lib/db/sets";
 import { GATE_HOURS_DEFAULT, PER_PLAYER_DEFAULT, type SetSettings } from "@/lib/sets/rules";
@@ -176,7 +176,10 @@ async function main() {
   check("a root's words are kept, by the root in lowercase", JSON.stringify(await heldOfRoot(CHAIN, "0xAA")) === JSON.stringify([A, B]));
   check("a root never built here is null", (await heldOfRoot(CHAIN, "0xcc")) === null);
   check("the newest root is the last built", (await newestRoot(CHAIN))?.root === "0xbb");
-  check("the sets a release root was built for", [...(await setsWithReleaseRoot(CHAIN))].join() === String(two));
+  // the mark that a release was built: only on a revealed set
+  const shown = (await listSets(CHAIN)).sets.find((s) => s.status === "revealed")!;
+  check("a release root is recorded on a revealed set", (await setReleaseRoot(CHAIN, shown.id, "0xBB")) === true && (await listSets(CHAIN)).sets.find((s) => s.id === shown.id)?.releaseRoot === "0xbb");
+  check("and never on a draft or a released one", (await setReleaseRoot(CHAIN, one, "0xbb")) === false && (await setReleaseRoot(CHAIN, two, "0xbb")) === false);
   check("another chain sees none of it", (await heldOfRoot(8453, "0xaa")) === null && (await listSets(8453)).sets.length === 0);
 
   await closeDb();

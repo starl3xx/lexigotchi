@@ -29,6 +29,7 @@ CREATE TABLE "word_sets" (
 	"released_at" timestamp with time zone,
 	"gate_until" timestamp with time zone,
 	"release_block" bigint,
+	"release_root" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

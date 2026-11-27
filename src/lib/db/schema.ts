@@ -750,6 +750,14 @@ export const wordSets = pgTable(
     gateUntil: timestamp("gate_until", { withTimezone: true }),
     /** The block the chain was first seen holding the set's words. */
     releaseBlock: bigint("release_block", { mode: "number" }),
+    /**
+     * The root last BUILT to release this set (lowercase 0x…), or null when none was. A set is
+     * marked released only once one exists: a release can be built only while the chain holds every
+     * word of the set back, so "a release was built, and the chain now holds none of them back"
+     * means the release landed. Kept here, on the set, because one root can be built for two
+     * reasons (a release that returns the chain to an earlier reserve root).
+     */
+    releaseRoot: text("release_root"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -793,7 +801,7 @@ export const dictionaryRoots = pgTable(
     root: text("root").notNull(),
     /** The dictionary words this root leaves out, A to Z. */
     held: jsonb("held").$type<string[]>().notNull(),
-    /** What built it: "reserve", or "release:<set id>". */
+    /** What first built it, for a person reading the table: "reserve", or "release:<set id>". No rule reads it. */
     note: text("note").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

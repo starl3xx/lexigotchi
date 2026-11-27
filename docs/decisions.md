@@ -2126,7 +2126,8 @@ setter. All small, riding existing suite patterns.
       chain holds and can never remove a word, whatever draft edits are waiting. A release is
       refused until every word of the set is held back on the chain: otherwise it would be a root
       that changes nothing, and the set would be marked released with no transaction behind it. A
-      set is marked released from the chain (its release root is the chain's root), never by hand.
+      set is marked released from the chain, never by hand: a release was built for it
+      (`word_sets.release_root`), and the chain's root now holds none of its words back.
       `npm run sets -- status | commitment | reserve | release <id> | confirm` runs the same code
       and sends nothing: it prints the calls.
     - **The gate goes first.** Where the network's Words has the gate, a release is two calls:

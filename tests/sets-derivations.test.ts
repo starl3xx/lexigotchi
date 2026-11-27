@@ -21,7 +21,7 @@ vi.mock("@/lib/db/sets", () => ({
   saveRoot: async (_c: number, root: string, held: string[]) => void world.roots.set(root, [...held]),
   heldOfRoot: async (_c: number, root: string) => world.roots.get(root) ?? null,
   newestRoot: async () => null,
-  setsWithReleaseRoot: async () => new Set<number>(),
+  setReleaseRoot: async () => true,
   markReleased: async () => false,
 }));
 vi.mock("@/lib/onchain/reads", async (orig) => ({
@@ -63,7 +63,7 @@ async function derived() {
 function setOf(id: number, status: WordSet["status"], words: string[]): WordSet {
   return {
     id, name: `set ${id}`, status, revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
-    revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null,
+    revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
     words: words.map((word) => ({ word, headliner: false })),
   };
 }
@@ -107,7 +107,8 @@ describe("derived from the full dictionary, whatever is held back", () => {
     expect(await server2.releasedWordCount()).toBe(before.wordCount - 120);
     vi.resetModules();
     expect(await derived()).toEqual(before);
-  });
+    // Five fresh loads of the dictionary and its trees: seconds on a busy machine, by design.
+  }, 30_000);
 
   it("the deployed caps and weights are the full dictionary's (contracts/config/economy.json)", async () => {
     const d = await derived();

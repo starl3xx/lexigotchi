@@ -45,8 +45,12 @@ vi.mock("@/lib/db/sets", () => {
       const last = [...world.roots.entries()].sort((a, b) => b[1].n - a[1].n)[0];
       return last ? { root: last[0], held: last[1].held } : null;
     },
-    setsWithReleaseRoot: async () =>
-      new Set([...world.roots.values()].filter((r) => r.note.startsWith("release:")).map((r) => Number(r.note.slice(8)))),
+    setReleaseRoot: async (_c: number, id: number, root: string) => {
+      const s = world.sets.find((x) => x.id === id);
+      if (!s || s.status !== "revealed") return false;
+      s.releaseRoot = root;
+      return true;
+    },
     markReleased: async (_c: number, id: number, at: { releasedAt: Date; gateUntil: Date | null; releaseBlock: number | null }) => {
       const s = world.sets.find((x) => x.id === id);
       if (!s || s.status !== "revealed") return false;
@@ -80,7 +84,7 @@ let words: { A: string; B: string; C: string; Z: string };
 function draft(id: number, name: string, list: string[], over: Partial<WordSet> = {}): WordSet {
   return {
     id, name, status: "draft", revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
-    revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null,
+    revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
     words: list.map((word) => ({ word, headliner: false })), ...over,
   };
 }
@@ -246,6 +250,56 @@ describe("releasing", () => {
     expect((await (await GET(proofReq(words.C))).json()).error).toBe("not_released");
   });
 
+  it("a release whose root is one built before, for another reason, is still marked", async () => {
+    // Reserve with only Second → root R1 (held: C). Then First is added and reserved → R2 (A, B, C).
+    // Releasing First returns the chain to R1: the same root, built first as a "reserve".
+    world.sets = [draft(2, "Second", [words.C])];
+    const server = await import("@/lib/sets/server");
+    const r1 = await server.planReserve();
+    if (!r1.ok) throw new Error("no plan");
+    world.sets.unshift(draft(1, "First", [words.A, words.B]));
+    server.forgetSets();
+    const r2 = await server.planReserve();
+    if (!r2.ok) throw new Error("no plan");
+    world.chainRoot = r2.root;
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+
+    const release = await server.planRelease(1);
+    if (!release.ok) throw new Error("no release plan");
+    expect(release.root).toBe(r1.root); // the earlier reserve root, again
+    expect(world.roots.get(release.root)?.note).toBe("reserve"); // its row keeps its first note
+    expect(await server.reconcile()).toEqual([]); // not on the chain yet
+
+    world.chainRoot = release.root;
+    expect(await server.reconcile()).toEqual([1]);
+    expect(world.sets[0].status).toBe("released");
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    expect((await GET(proofReq(words.A))).status).toBe(200);
+    const again = await server.planReserve(); // and a reserve doesn't hold its words back again
+    expect(again.ok && again.upToDate).toBe(true);
+  });
+
+  it("building the next release marks the one before it, and each release is marked once", async () => {
+    const { server } = await reserved();
+    world.sets[0].status = "revealed";
+    world.sets[1].status = "revealed";
+    server.forgetSets();
+    const first = await server.planRelease(1);
+    if (!first.ok) throw new Error("no plan");
+    world.chainRoot = first.root;
+    // Nobody presses "Check the chain": planning the second release reads the chain itself first,
+    // so the second root is built on what the chain holds now (and can't hold the first set back).
+    const second = await server.planRelease(2);
+    if (!second.ok) throw new Error("no plan");
+    expect(world.sets[0].status).toBe("released");
+    expect(world.roots.get(second.root)?.held).toEqual([]); // the full dictionary again
+    world.chainRoot = second.root;
+    server.forgetSets();
+    expect(await server.reconcile()).toEqual([2]);
+    expect(await server.reconcile()).toEqual([]);
+  });
+
   it("with the gate on this network's Words, the gate goes FIRST and the root second", async () => {
     const { server } = await reserved();
     world.gate = true;
@@ -374,6 +428,26 @@ describe("/api/admin/sets is gated, and nothing private leaves without the gate"
     } finally {
       vi.stubEnv("NEXT_PUBLIC_ADMIN_WALLETS", "");
     }
+  });
+
+  it("still shows the operator the sets when the chain holds a root nobody here built", async () => {
+    world.sets = [draft(1, "SecretName", [words.A])];
+    world.chainRoot = "0x" + "cd".repeat(32);
+    const { GET, POST } = await import("@/app/api/admin/sets/route");
+    const body = await (await GET(get())).json();
+    expect(body.ok).toBe(true);
+    expect(body.chain.known).toBe(false);
+    expect(body.pending).toBeNull();
+    expect(body.sets.map((s: { name: string }) => s.name)).toEqual(["SecretName"]);
+    expect(body.file.sets).toHaveLength(1);
+    const { commitmentOf } = await import("@/lib/sets/rules");
+    expect(body.commitment).toBe(commitmentOf(world.sets));
+    // and an edit's dates are checked against the set's saved dates, not against nothing
+    world.sets[0].releaseAt = new Date("2026-12-01T00:00:00Z");
+    const res = await POST(post({ action: "update", id: 1, revealAt: "2026-12-02T00:00:00Z" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).errors[0]).toMatch(/before the release/);
+    expect((await POST(post({ action: "update", id: 99, gateHours: 2 }))).status).toBe(404);
   });
 
   it("gives the operator the sets, the commitment, the export, and what waits for a root", async () => {

@@ -1,5 +1,5 @@
 {
-  "id": "07a9f649-6302-4df1-8f2a-41be46d7f4b6",
+  "id": "a48bf98a-6c09-46d0-a4f3-ce40b42908ae",
   "prevId": "60efe529-96c4-4281-9c70-c56f0ed8a392",
   "version": "7",
   "dialect": "postgresql",
@@ -2366,6 +2366,12 @@
         "release_block": {
           "name": "release_block",
           "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "release_root": {
+          "name": "release_root",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
