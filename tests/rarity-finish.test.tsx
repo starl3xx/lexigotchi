@@ -10,9 +10,9 @@ import { describe, it, expect, vi } from "vitest";
 import { TIERS, type Tier } from "@/lib/economy";
 import { FINISH, finishFor, mixHex } from "@/lib/rarityFinish";
 import { OgTile } from "@/app/_og/tile";
-import { MOMENT_END_S } from "@/components/game/TileFinish";
+import { MOMENT_END_S, haloInk } from "@/components/game/TileFinish";
 import { TileCharacter } from "@/components/game/TileCharacter";
-import { HALO, T, haloPath, tileOuter } from "@/components/game/tileShapes";
+import { HALO, LEG_L, T, haloPath, tileOuter } from "@/components/game/tileShapes";
 import { LINK_OVERLAP } from "@/components/scenes/layout";
 import { CARD_LOOK, showcaseCardPath, showcaseCardUrl } from "@/lib/showcase";
 
@@ -178,6 +178,24 @@ describe("the glow behind a Legendary or Mythic tile is an engraved halo", () =>
     const bust = renderToStaticMarkup(<TileCharacter char="g" tier="Legendary" still detail="bust" size={80} />);
     expect(bust).toContain("data-halo");
     expect(bust).not.toContain('data-layer="rings"');
+  });
+
+  it("is the same halo on the server's own letter (link pictures, the video's still front), in the same ink", () => {
+    const draw = (props: Record<string, unknown>) => renderToStaticMarkup(OgTile({ char: "q", upper: true, uid: "x", limbs: true, w: 200, ...props } as Parameters<typeof OgTile>[0]));
+    for (const tier of ["Legendary", "Mythic"] as const) {
+      for (const [upper, gild] of [[true, 0], [true, 5], [false, 2]] as const) {
+        const html = draw({ tier, upper, gild });
+        expect(html, `${tier} ${upper} ${gild}`).toContain(`d="${haloPath(tileOuter(upper, gild))}"`);
+        expect(html).toContain(`stroke="${haloInk(finishFor(tier)!)}"`);
+        // no soft glow is left there
+        expect(html).not.toMatch(/id="[^"]*aura/);
+        // and it is under the legs there too: the halo comes before the first leg in the drawing
+        expect(html.indexOf(haloPath(tileOuter(upper, gild)))).toBeLessThan(html.indexOf(LEG_L));
+      }
+    }
+    // the other rarities have none, and neither has a tile on a rack (as in the game's "tile" detail)
+    for (const tier of [undefined, "Common", "Uncommon", "Rare"] as const) expect(draw({ tier })).not.toContain(haloPath(tileOuter(true, 0)));
+    expect(draw({ tier: "Mythic", limbs: false, w: 74 })).not.toContain(haloPath(tileOuter(true, 0)));
   });
 
   it("stands the same distance off whatever the tile wears, and never reaches the next letter's", () => {

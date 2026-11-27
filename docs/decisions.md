@@ -1916,6 +1916,10 @@ setter. All small, riding existing suite patterns.
         a soft blur the glow faded out before it reached the legs; as line work, drawn with the
         body, its rays lay across their tops. The layer under the legs (named "rings", which the
         share video cuts by) holds an UPPERCASE letter's rings and a rare letter's halo.
+        **The server's own letter draws the same halo** (`app/_og/tile`, from the same shape and in
+        the same ink; Bugbot on #263: it kept the soft glow, so link pictures and the video's still
+        front no longer matched the game). A tile on a rack has none there, as in the game (the
+        server drew a glow on those before). `CARD_LOOK` 9.
       - **The ascend sheet's rays** (`lib/cardArt/glory`, `.asc-rays`): an engraved glory, the
         drawing behind a raised letter sized for a whole word: fine rays in three lengths between
         twelve wedges. It was a flat gold fan (a conic gradient). One still picture, built as a
