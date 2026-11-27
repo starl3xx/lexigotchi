@@ -1982,6 +1982,59 @@ setter. All small, riding existing suite patterns.
         made-up snapshot signed with a throwaway key; a Bag thumbnail's rack at 170 and 315 px.
         Not seen: anything on a phone.
 
+49. **Packs come by mail, built in parts** (starl3xx, 2026-11-26: "the letter upgrade roll
+    animation is amazing, as is the ascension upgrade. what's missing now is anything at all
+    related to ripping packs: it's just click and wait until it's revealed"). The proposal page
+    "Ripping Packs" showed three playable options with the game's own letters. The owner chose
+    "By mail": letters arrive in an envelope, and each step the chain takes is a mark on it. One
+    entry: each part is added here as it ships.
+    - **Decided on the page, in the owner's words.** "'By post' is the clear winner", built "with
+      one loan from each of the others (dozing and the nervous letter)". "We should use 'Mail'
+      instead of Post." The envelope says "@username (with the @) if they have one", else "For
+      you", then "from the Lexigotchi Mint", and under the stamp "Contents: 1 letter" or 5
+      letters. The postmark's number is "one series for all mail". "Yes the server can send."
+      "Yes, the pack looks great with serif lettering." Sound: "I like the Paper and ink sounds
+      for everything but the letters popping up and the rare sound", then "wooden tile and
+      typewriter's bell", and "sound off by default". "No, letters should not arrive in the same
+      way via the Market."
+    - **Part 1, the server opens the pack.** A pack was the last purchase with a second wallet
+      prompt (rolls lost theirs in #14, ascension in #44), and that prompt's data named the five
+      letters before the game had shown them. Now the game posts `{ commitId, relay: true }` to
+      `/api/mint/reveal`, and the relayer key sends `Letters.reveal` (`relayLettersReveal`). The
+      contract allows it: `reveal` checks the signer's signature and mints to the commit's stored
+      buyer, whoever calls.
+      - **Why not one send, as the free daily letter does.** The daily's commit and reveal ride one
+        transaction because its draw is fixed per identity and day. A paid pack's draw is fixed per
+        commit, and a commit's number isn't known until it lands: a pre-signed reveal would show
+        the letters before the price was paid, and a buyer could decline the packs they didn't
+        like. So the daily keeps its bundle and is not relayed; a pack, a free pack, and a daily
+        whose reveal didn't ride its commit are.
+      - **The answer is the chain's, never the draw's.** "mined" and "already" name the letters
+        from the reveal's own `Revealed` event (`relayOutcome`, tested on a real Sepolia pack
+        reveal). The stored draw can't answer for an opened pack: it is served again only while it
+        can still be minted, so after a letter caps out it would name five different letters.
+        "pending" and "reverted" name no letters and carry no signature.
+      - **Only an answer with no `relayed` field reaches the wallet** (`lib/onchain/packReveal`,
+        pure, tested): once a reveal is broadcast, a second from the wallet would only revert.
+        A lost answer is "ask the chain", as for ascension (`answerLost`). A broadcast reveal is
+        waited for (`commits(id).revealed`), then the route is asked once more.
+      - **A commit seen revealed is never open again** (`revealedPacks`, `openPacks`): "Rip
+        another" commits seconds after a reveal, and a node a block behind would hand the old pack
+        back as the new one and leave the new, paid commit unopened. Rolls keep the same set.
+      - **Without `relay: true` the route answers exactly as before,** so a client bundle from
+        before the deploy keeps working, and a missing or unfunded relayer falls back to the
+        wallet's own reveal.
+      - **Cost:** the relayer pays each pack's reveal. It mints five letters, so it costs a few
+        times a roll's reveal.
+      - **Proven and not proven (part 1):** `scripts/pack-relay-fork-check.ts` buys packs on a
+        local fork of Base Sepolia and asks the real route to open them: the deployed Letters
+        accepted the relayer's reveal, the buyer held exactly the letters the answer named, the
+        send carried the builder code, a second ask sent nothing, the old no-relay path still
+        minted, and an unfunded relayer handed back the signature. Not proven there: "already"
+        naming letters (the public RPC behind the fork refuses the log range; the production RPC
+        serves the same range for the daily letter's lookup). Not tried: a real wallet in a
+        browser. The sheet is unchanged in this part: "Fresh pull" still shows the letters.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
