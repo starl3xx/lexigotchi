@@ -37,6 +37,7 @@ vi.mock("@/lib/telegramCommands", async (orig) => ({ ...(await orig<typeof impor
 
 const marks = vi.hoisted(() => ({ taken: new Set<string>(), unavailable: false, log: [] as string[] }));
 vi.mock("@/lib/db/reminderMarks", () => ({
+  hasMark: async (account: string, kind: string, mark: string) => (marks.unavailable ? null : marks.taken.has(`${account} ${kind} ${mark}`)),
   claimMark: async (account: string, kind: string, mark: string) => {
     const key = `${account} ${kind} ${mark}`;
     if (marks.unavailable) return "unavailable";
@@ -128,6 +129,8 @@ describe("the alert's route", () => {
    */
   async function run(opts: { telegram?: (method: string) => { ok: boolean; description?: string } | Error; card?: boolean; auth?: string | null } = {}) {
     const sent: { method: string; text: string; entities: unknown; photo: boolean }[] = [];
+    /** What had been claimed each time a card was asked for. */
+    const cards: string[][] = [];
     const real = { fetch: globalThis.fetch, error: console.error, warn: console.warn };
     console.error = () => {};
     console.warn = () => {};
@@ -135,6 +138,7 @@ describe("the alert's route", () => {
       const u = String(url);
       if (!u.includes("api.telegram.org")) {
         if (!u.includes("/card")) throw new Error(`unexpected fetch: ${u}`);
+        cards.push([...marks.log]);
         return opts.card === false ? new Response("no", { status: 500 }) : new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
       }
       const method = u.split("/").pop()!;
@@ -153,7 +157,7 @@ describe("the alert's route", () => {
     try {
       const { GET } = await import("@/app/api/cron/telegram-alerts/route");
       const res = await GET(call(opts.auth));
-      return { status: res.status, body: (await res.json()) as Record<string, unknown>, sent };
+      return { status: res.status, body: (await res.json()) as Record<string, unknown>, sent, cards };
     } finally {
       globalThis.fetch = real.fetch;
       console.error = real.error;
@@ -164,6 +168,7 @@ describe("the alert's route", () => {
   beforeEach(() => {
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TELEGRAM_ALERTS", "");
     chain.down = false;
     chain.latest = AT + 1_000n;
@@ -180,8 +185,15 @@ describe("the alert's route", () => {
       { method: "sendPhoto", text: `💎 Mythic word\n----------------\nann just made ${MYTHIC}, one of the game’s 46 Mythic words.`, entities: [{ type: "bold", offset: 3, length: 11 }], photo: true },
     ]);
     expect(marks.log).toEqual(["claim 0xa1:2"]);
-    // five minutes on, the claim is still fresh, and already told
-    expect(await run()).toMatchObject({ status: 200, body: { posted: [] }, sent: [] });
+    // five minutes on, the claim is still fresh, and already told: not even its card is asked for
+    expect(await run()).toMatchObject({ status: 200, body: { posted: [] }, sent: [], cards: [] });
+  });
+
+  it("claims the mark last: a run that dies while the card is drawn has claimed nothing", async () => {
+    const r = await run();
+    // when the card was asked for, nothing had been claimed yet
+    expect(r.cards).toEqual([[]]);
+    expect(marks.log).toEqual(["claim 0xa1:2"]);
   });
 
   it("posts nothing for other words, or with nothing fresh", async () => {
@@ -227,6 +239,10 @@ describe("the alert's route", () => {
     vi.stubEnv("NODE_ENV", "test");
     expect(await run()).toMatchObject({ body: { skipped: "not_production" }, sent: [] });
     vi.stubEnv("NODE_ENV", "production");
+    // a Vercel preview build runs with NODE_ENV "production" too, and may hold the same secrets
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(await run()).toMatchObject({ body: { skipped: "not_production" }, sent: [] });
+    vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TELEGRAM_ALERTS", "off");
     expect(await run()).toMatchObject({ body: { skipped: "off" }, sent: [] });
     vi.stubEnv("TELEGRAM_ALERTS", "");

@@ -72,6 +72,16 @@ export function commandOf(m: TgMessage | undefined, bot = botUsername()): { name
   return { name: name.toLowerCase(), args: text.slice(mark.length).trim() };
 }
 
+/**
+ * True only where the bot may post to the group UNASKED (the daily recap, the Mythic-word alert):
+ * the production deployment, and nowhere else. A local server and a test are not production; and on
+ * Vercel a PREVIEW build also runs with NODE_ENV "production" and may hold the same secrets, so
+ * where VERCEL_ENV is set it must say "production" too.
+ */
+export function mayPostUnasked(): boolean {
+  return process.env.NODE_ENV === "production" && (process.env.VERCEL_ENV || "production") === "production";
+}
+
 export function telegramConfigured(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID && process.env.TELEGRAM_WEBHOOK_SECRET);
 }

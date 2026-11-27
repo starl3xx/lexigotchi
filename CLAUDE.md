@@ -755,9 +755,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   2026-11-26; `lib/telegramAlerts.ts`, `/api/cron/telegram-alerts`, every five minutes): a post
   with the word's card when someone makes a Mythic word (`ALERT_TIERS`), only while the claim is
   under half an hour old, so nothing is announced late. Both post to real people unasked, so both:
-  run in production only, CLAIM a send-once mark in `reminder_marks` before sending (the chain day;
-  the claim's own event) and post nothing when no mark can be kept, give the mark back only on
-  Telegram's clear refusal, and are muted by `TELEGRAM_RECAP=off` / `TELEGRAM_ALERTS=off`. The
+  run on the production deployment only (`mayPostUnasked` in `lib/telegram.ts`: a Vercel preview
+  build has NODE_ENV "production" too, so VERCEL_ENV must agree), CLAIM a send-once mark in
+  `reminder_marks` before sending (the chain day; the claim's own event) and post nothing when no
+  mark can be kept, give the mark back only on Telegram's clear refusal, and are muted by
+  `TELEGRAM_RECAP=off` / `TELEGRAM_ALERTS=off` (a setting needs a deploy to take effect). The alert
+  claims its mark LAST, after the name and the card are fetched (`hasMark` skips what was told), so
+  a run that dies mid-fetch loses nothing. The
   recap waits for the day's draw (no draw, no recap). `lib/onchain/claims.ts` reads the words made
   in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
   its start block, and times each claim's block exactly). A heading is bold by an entity

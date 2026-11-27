@@ -203,6 +203,7 @@ describe("the recap's route", () => {
   beforeEach(() => {
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TELEGRAM_RECAP", "");
     recap.next = ready;
     marks.claim = "claimed";
@@ -230,6 +231,14 @@ describe("the recap's route", () => {
     vi.stubEnv("NODE_ENV", "test");
     expect(await run()).toMatchObject({ body: { skipped: "not_production" }, sent: [] });
     vi.stubEnv("NODE_ENV", "production");
+    // a Vercel preview build runs with NODE_ENV "production" too, and may hold the same secrets
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(await run()).toMatchObject({ body: { skipped: "not_production" }, sent: [] });
+    // outside Vercel there is no VERCEL_ENV: NODE_ENV alone decides
+    vi.stubEnv("VERCEL_ENV", "");
+    expect((await run()).body).toMatchObject({ posted: 20_784 });
+    marks.log = [];
+    vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TELEGRAM_RECAP", "off");
     expect(await run()).toMatchObject({ body: { skipped: "off" }, sent: [] });
     vi.stubEnv("TELEGRAM_RECAP", "");

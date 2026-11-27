@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isChainBacked } from "@/lib/onchain/gameMode";
-import { sendMessage, telegramConfigured } from "@/lib/telegram";
+import { mayPostUnasked, sendMessage, telegramConfigured } from "@/lib/telegram";
 import { readRecap, recapPost } from "@/lib/telegramRecap";
 import { claimMark, releaseMark } from "@/lib/db/reminderMarks";
 
@@ -16,7 +16,8 @@ const MARK = { account: "telegram:group", kind: "recap" };
  * after the keeper's 00:05 draw, and again at 02:20 for a day the draw ran late.
  *
  * It posts to real people, unasked, so every way of posting twice or by mistake is closed first:
- * - **Production only.** A preview build or a local server holds the same secrets and never posts.
+ * - **The production deployment only** (lib/telegram `mayPostUnasked`): a preview build or a local
+ *   server may hold the same secrets, and never posts.
  * - **Once a day:** the chain day's mark is CLAIMED in `reminder_marks` before the send (the second
  *   run finds it taken). With no mark to claim (no table, or the write failed) nothing is posted:
  *   "nobody was sent this" would be a guess.
@@ -39,7 +40,7 @@ export async function GET(req: Request) {
   }
 
   const skip = (skipped: string) => NextResponse.json({ ok: true, skipped });
-  if (process.env.NODE_ENV !== "production") return skip("not_production");
+  if (!mayPostUnasked()) return skip("not_production");
   if (process.env.TELEGRAM_RECAP === "off") return skip("off");
   if (!telegramConfigured()) return skip("telegram_not_configured");
   if (!isChainBacked()) return skip("practice_mode");
