@@ -16,7 +16,8 @@
  * with a way to get more.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { wordScore, type Tier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
+import { rarestByScore } from "@/lib/rarity";
 import { cantClaim } from "@/lib/dictionaryList";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
 import { TierMark } from "../TierMark";
@@ -135,15 +136,16 @@ export function ClaimScreen() {
     const c: Partial<Record<Tier, number>> = {};
     for (const w of spellable) c[tierOf(w)] = (c[tierOf(w)] ?? 0) + 1;
     return c;
-  }, [spellable]);
+  }, [spellable, tierOf]);
   // A chosen rarity with nothing left in it (its last word claimed, or the case switched) shows
   // All rather than an empty list under a heading that counts words (Bugbot on #146).
   const activeTier: Tier | "All" = tier !== "All" && !tierCounts[tier] ? "All" : tier;
   const quick = useMemo(() => {
     const list = activeTier === "All" ? spellable : spellable.filter((w) => tierOf(w) === activeTier);
-    // The dictionary is alphabetical already; rarest first ranks by the same score that sets tiers.
-    return order === "rarest" ? [...list].sort((a, b) => wordScore(b) - wordScore(a) || a.localeCompare(b)) : list;
-  }, [spellable, activeTier, order]);
+    // The dictionary is alphabetical already; rarest first ranks by the same score that sets tiers,
+    // under the game's tier (lib/rarity.ts): a collab word sorts with the Legendary words.
+    return order === "rarest" ? [...list].sort(rarestByScore(tierOf)) : list;
+  }, [spellable, activeTier, order, tierOf]);
   // A full bag spells hundreds of words; render them a page at a time so a phone stays smooth.
   const [shown, setShown] = useState(SPELL_PAGE);
   useEffect(() => setShown(SPELL_PAGE), [activeTier, order, show]);

@@ -11,8 +11,8 @@ import { join } from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { WORD_COUNT } from "@/lib/dictionary";
-import { MYTHICS, RANKED_WORDS, TIER_COUNTS, TIER_WEIGHT, TIERS, wordTier, wordsByTier, type Tier } from "@/lib/economy";
-import { COLLAB_TIER, NO_COLLAB, collabWordsOf, raisedByCollab, tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
+import { MYTHICS, RANKED_WORDS, TIER_COUNTS, TIER_WEIGHT, TIERS, wordScore, wordTier, wordsByTier, type Tier } from "@/lib/economy";
+import { COLLAB_TIER, NO_COLLAB, collabWordsOf, raisedByCollab, rarestByScore, tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
 import { STANDARD_FIELDS, publicSets, type WordSet } from "@/lib/sets/rules";
 import { bountyLeaves, yieldLeaves, yieldWeight, type KeeperWord } from "@/lib/keeper/shares";
 import { TIER_READ_TRIES, epochTiers } from "@/lib/keeper/tiers";
@@ -217,6 +217,16 @@ describe("filters, sort order, and what the market records", () => {
     expect(order.indexOf(COMMON)).toBeLessThan(order.indexOf(RARE)); // above every Rare word
     expect(order.indexOf(plainLegend)).toBeLessThan(order.indexOf(COMMON)); // and last among the Legendary: its own rank within the tier
   });
+  it("Spell's “rarest first” (by score) follows it too, and is the score order itself with the derived tiers", () => {
+    const all = RANKED_WORDS.map((r) => r.word);
+    const byScore = (a: string, b: string) => wordScore(b) - wordScore(a) || a.localeCompare(b);
+    expect([...all].sort(rarestByScore(wordTier))).toEqual([...all].sort(byScore));
+    const order = [COMMON, plainLegend, RARE, wordsByTier("Rare")[1], MYTHIC, wordsByTier("Common")[1]].sort(rarestByScore(tierFn(new Set([COMMON]))));
+    expect(order[0]).toBe(MYTHIC);
+    expect(order.indexOf(COMMON)).toBeLessThan(order.indexOf(RARE)); // with the Legendary words, above every Rare one
+    expect(order.indexOf(plainLegend)).toBeLessThan(order.indexOf(COMMON));
+    expect(order[order.length - 1]).toBe(wordsByTier("Common")[1]);
+  });
   it("the Dictionary's tier filter follows it", () => {
     const open = () => "open" as const;
     const legendary = listDictionary({ query: "", tier: "Legendary", filter: "all", sort: "az" }, open, null, tier).words;
@@ -290,6 +300,54 @@ describe("in the game", () => {
     hook.collab = collab;
     rerender(<Probe />);
     expect(screen.getByText(`Legendary ${TIER_COUNTS.Legendary + 3}`)).toBeTruthy();
+  });
+});
+
+// --- a list or a count worked out from the tier is worked out AGAIN when the collab words arrive --
+describe("a memo that reads the game's tier depends on it", () => {
+  // The sets answer lands after the first paint, and `useTierOf()` then gives a new function. A
+  // memo that used the old one and doesn't list it keeps the derived tiers: a collab word sat in
+  // Common under a Legendary badge until something else re-ran the memo (Bugbot on #295).
+  const root = join(__dirname, "..");
+  const files = (dir: string): string[] =>
+    readdirSync(join(root, dir)).flatMap((name) => {
+      const rel = `${dir}/${name}`;
+      return statSync(join(root, rel)).isDirectory() ? files(rel) : /\.(ts|tsx)$/.test(name) ? [rel] : [];
+    });
+  /** Every `useMemo(` / `useCallback(` / `useEffect(` call in a source: its body and its dependency list. */
+  function hooks(src: string): { at: number; body: string; deps: string | null }[] {
+    const out: { at: number; body: string; deps: string | null }[] = [];
+    const re = /\buse(Memo|Callback|Effect|LayoutEffect)\(/g;
+    for (let m = re.exec(src); m; m = re.exec(src)) {
+      let i = m.index + m[0].length;
+      let depth = 1;
+      const start = i;
+      for (; i < src.length && depth > 0; i++) depth += src[i] === "(" ? 1 : src[i] === ")" ? -1 : 0;
+      const call = src.slice(start, i - 1);
+      const d = /,\s*\[([^\[\]]*)\]\s*,?\s*$/.exec(call);
+      out.push({ at: src.slice(0, m.index).split("\n").length, body: d ? call.slice(0, d.index) : call, deps: d ? d[1] : null });
+    }
+    return out;
+  }
+  it("in every component", () => {
+    const missing: string[] = [];
+    let seen = 0;
+    for (const f of files("src/components")) {
+      const src = readFileSync(join(root, f), "utf8");
+      if (!/\buseTier(Of|Counts)\(/.test(src)) continue;
+      // the names this file gives the two hooks' results
+      const names = [...src.matchAll(/const (\w+) = useTier(?:Of|Counts)\(\)/g)].map((x) => x[1]);
+      for (const h of hooks(src)) {
+        if (h.deps === null) continue; // no list: it runs every render
+        for (const name of new Set(names)) {
+          if (!new RegExp(`\\b${name}\\b`).test(h.body)) continue;
+          seen++;
+          if (!new RegExp(`\\b${name}\\b`).test(h.deps)) missing.push(`${f}:${h.at} uses ${name}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+    expect(seen).toBeGreaterThan(8); // the scan does find the memos it is meant to hold
   });
 });
 

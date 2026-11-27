@@ -2838,7 +2838,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, chainDayNow, dailyIsSealed, mail, mailTorn, waitingMail, waitingPacks, beginMail, patchMail, dropMail, settleMail, mailGuard, bagBefore, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [tierOf, state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, chainDayNow, dailyIsSealed, mail, mailTorn, waitingMail, waitingPacks, beginMail, patchMail, dropMail, settleMail, mailGuard, bagBefore, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

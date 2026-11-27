@@ -22,7 +22,7 @@
  * Tier COUNTS come from the same rule (`tierCountsWith`), so "one of N Legendary words" stays true
  * when a collab word joins that tier.
  */
-import { TIERS, TIER_COUNTS, wordTier, type Tier } from "./economy";
+import { TIERS, TIER_COUNTS, wordScore, wordTier, type Tier } from "./economy";
 
 /** The words of every REVEALED or RELEASED collab set, UPPERCASE. A draft's words are never in it. */
 export type CollabWords = ReadonlySet<string>;
@@ -48,6 +48,16 @@ export function tierWith(word: string, collab: CollabWords): Tier {
 /** A function of one word, for a caller that maps many. */
 export function tierFn(collab: CollabWords): (word: string) => Tier {
   return collab.size === 0 ? wordTier : (word) => tierWith(word, collab);
+}
+
+/**
+ * "Rarest first" by the rarity SCORE (Spell's order), with the game's tier on top: a collab word
+ * sorts with the Legendary words it is treated as, and within a tier the order is the score's, then
+ * A to Z. With the derived tiers this is the score order itself, exactly as it was.
+ */
+export function rarestByScore(tierOf: (word: string) => Tier): (a: string, b: string) => number {
+  const byScore = (a: string, b: string) => wordScore(b) - wordScore(a) || a.localeCompare(b);
+  return tierOf === wordTier ? byScore : (a, b) => RANK[tierOf(b)] - RANK[tierOf(a)] || byScore(a, b);
 }
 
 /** How many words are in each tier, by the same rule: a raised word counts in Legendary, not in its own tier. */

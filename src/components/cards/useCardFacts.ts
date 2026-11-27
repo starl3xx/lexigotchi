@@ -124,5 +124,5 @@ export function useCardFacts(word: OwnedWord): CardFacts {
       token: shortTokenId(word.word),
       set: setName ?? null,
     };
-  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice, setName]);
+  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice, setName, tierOf, tierCounts]);
 }
