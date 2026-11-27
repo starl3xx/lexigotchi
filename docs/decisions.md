@@ -3286,6 +3286,36 @@ setter. All small, riding existing suite patterns.
         Legendary (filigree, a second ink) and Mythic (the blended ink). If Rare should have a
         step of its own, it goes in the border, never on the emblem.
       - `CARD_LOOK` is 14.
+    - **Part 3, the front's light (12D).** Of five ways to show a reflection without shine he
+      chose the ruled band, and of the first drawing of it: "I love the ruled band, but it's too
+      strong rn... needs to be more subtle (more opacity or whatever you choose to achieve it)".
+      So the band of light that crosses the card in focus (#34) is DRAWN: a ground of fine
+      leaning lines the size of the card stands still on it (`lib/cardArt/light`, a picture),
+      and a soft-edged window crosses the front and shows the part under it. It was a soft
+      white gradient over the whole front, letters and all.
+      - **Quieter in three ways, which were mine to choose.** The lines are about a third as
+        strong as first drawn, and the band is wider and softer at its edges. It passes UNDER
+        the letters (the front draws it, not the card): never a line over a letter. And its
+        strength follows the face, because one number can't serve: 0.36 on a face with colour,
+        0.16 on a dark plate (Stock (dark), Outer Space), 0.79 on the pale stock card, where a
+        light line shows only by breaking the grey engraving and is still the quietest of the
+        three. A face nobody has sorted takes the middle.
+      - **The rarity's ink is kept, as lines:** white for most, warm for Legendary, and for
+        Mythic a spectrum printed across the card, of which the band shows the part it passes
+        over. On the old band the spectrum travelled with the light. Nobody asked for either;
+        it is today's behaviour carried over, and 13F (is a printed rainbow enough for Mythic)
+        covers it.
+      - **How it moves:** two elements slide, the window one way and the lines inside it the
+        other way by the same amount, so the lines stay where they are on the card. Transforms
+        only. Measured (the two captures' fine pattern at two moments of a pass agree, r 0.99,
+        in Chromium and WebKit). A mask moved by its position would be painted on every frame.
+      - **Cost, against the old band, each made to pass again and again:** WebKit 8 to 14% of a
+        core against 7 to 10% (at rest 3 to 6% for both); with the card leaning, 24 to 28%
+        against 29%; Chromium slowed four times, 105% against 101%. So a few points more while
+        it passes, and it passes for 1.3 s every 6 to 11 s: under one point on average.
+      - **Not changed:** the round glare under the pointer (12F, his to answer) still lies
+        over the letters. When it shows, how often, and for whom (never a hungry word, a card
+        in a grid, or a player who asked for less motion) are as they were.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
       light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
       rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and

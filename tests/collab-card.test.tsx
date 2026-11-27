@@ -171,7 +171,7 @@ describe("the card's own colors", () => {
     for (const f of [...files("src/components"), ...files("src/app")]) {
       const src = readFileSync(join(root, f), "utf8");
       src.split("\n").forEach((line, i) => {
-        if (!/\b(CARD_LOOKS|MATERIAL_LINE|CARD_SHEEN)\[[^\]"']*tier/.test(line)) return; // keyed by a word's tier
+        if (!/\b(CARD_LOOKS|MATERIAL_LINE|LIGHT_INK)\[[^\]"']*tier/.test(line)) return; // keyed by a word's tier
         seen++;
         // the same line decides by the look first: `mine ? … :`, `look ? … :`, `collab?.… ??`, `… ?? CARD_LOOKS[…]`
         if (!/\b(mine|look|collab|collabLook)\b[^;]*(\?|\?\?)|\?\?\s*(CARD_LOOKS|MATERIAL_LINE)\[/.test(line)) wrong.push(`${f}:${i + 1} ${line.trim().slice(0, 90)}`);

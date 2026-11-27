@@ -7,10 +7,13 @@
  *
  * - **A band of light crosses the front** a moment after the card appears, then every few seconds
  *   (the rarity's own beat, lib/rarityFinish: rarer cards more often), and when the pointer arrives.
+ *   The band is DRAWN: ruled lines that stand still on the card, shown through a soft window that
+ *   crosses it, under the letters (decisions.md #58, part 3; lib/cardArt/light; the front draws it,
+ *   scenes/SceneFrame). It was a soft white gradient over the whole front.
  * - **The card leans toward the pointer** by a few degrees, and a faint round glare follows it.
  *   Only a mouse has a pointer to lean to: on a phone the band alone plays.
  *
- * Each is one element sliding or turning (globals.css, `.sc-sheen`, `.sc-glare`, `.sc-lean`), so
+ * Each is an element sliding or turning (globals.css, `.cf-light`, `.sc-glare`, `.sc-lean`), so
  * the scene and the letters are not redrawn for it. One timer a card; nothing loops.
  *
  * Two things keep the lean cheap, both measured in WebKit with the pointer moving all the time:
@@ -27,23 +30,10 @@ import { finishFor } from "@/lib/rarityFinish";
 /** The most the card leans toward the pointer, in degrees (up and down, side to side). */
 const LEAN_X = 2.5;
 const LEAN_Y = 3.5;
-/** How long the band takes to cross (globals.css, sc-sheen), and a little more. */
+/** How long the band takes to cross (globals.css, cf-light), and a little more. */
 const SHEEN_MS = 1360;
 /** A Common card has no finish and so no beat of its own: it takes the slowest. */
 const PLAIN_PERIOD = 11;
-
-/**
- * The band, drawn at full strength here and shown faint (globals.css gives it its peak opacity).
- * White for most, warm for Legendary, a spectrum for Mythic: the rainbow is Mythic's and
- * Holographic's alone, as on the tiles.
- */
-export const CARD_SHEEN: Record<Tier, string> = {
-  Common: "linear-gradient(100deg, transparent, rgb(255 255 255 / 0.7) 45%, rgb(255 255 255 / 0.25) 58%, transparent)",
-  Uncommon: "linear-gradient(100deg, transparent, rgb(255 255 255 / 0.7) 45%, rgb(255 255 255 / 0.25) 58%, transparent)",
-  Rare: "linear-gradient(100deg, transparent, rgb(255 255 255 / 0.75) 45%, rgb(255 255 255 / 0.28) 58%, transparent)",
-  Legendary: "linear-gradient(100deg, transparent, rgb(255 236 180 / 0.85) 42%, rgb(255 255 255 / 0.6) 52%, rgb(255 226 150 / 0.4) 62%, transparent)",
-  Mythic: "linear-gradient(100deg, transparent, rgb(255 154 213 / 0.5) 28%, rgb(255 226 138 / 0.55) 41%, rgb(255 255 255 / 0.75) 50%, rgb(143 240 208 / 0.55) 59%, rgb(142 197 255 / 0.5) 72%, transparent)",
-};
 
 type Move = { clientX: number; clientY: number; pointerType?: string };
 

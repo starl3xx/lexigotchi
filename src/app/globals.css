@@ -993,28 +993,47 @@ body {
 .sc-flip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #1b1714; }
 .sc-flip:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) { .sc-flip:hover { transform: translate(-1px, -1px) rotate(-18deg); box-shadow: 3px 3px 0 #1b1714; } }
-/* ---- the card's own light (SceneCard; decisions.md #34): the only motion a still scene has ----
+/* ---- the card's own light (SceneCard; decisions.md #34, #58): the only motion a still scene has ----
    - the lean: the card turns a few degrees toward the pointer (.sc-lean's transform, written by
      SceneCard with no transition while it follows: a transition restarted on every frame cost a
      third of a processor core in WebKit; it eases only as the pointer arrives and leaves, .sc-ease);
    - the glare: a faint round light that follows the pointer across the front;
-   - the sheen: a faint band of light that crosses the front in a moment (.sc-moment), then rests
-     unseen. White for most cards, warm for Legendary, a spectrum for Mythic (--sc-sheen).
-   Each is one element sliding or turning: a transform, so the scene and the letters are not
-   redrawn. No loop. Kept faint on purpose (starl3xx, 2026-11-25: "much more subtle/transparent"). */
-.sc-glare, .sc-sheen { position: absolute; pointer-events: none; z-index: 2; }
+   - the band: a reflection DRAWN IN LINES (decisions.md #58, part 3: the cards are matte). A ground
+     of fine ruled lines stands still on the card (.cf-light > i: a picture, lib/cardArt/light, in
+     the rarity's ink), and a soft-edged window crosses the front in a moment (.sc-moment) and
+     shows the part of it under it, then rests off the card. The front draws it UNDER its letters
+     (SceneFrame): never a line over a letter. It was a soft band of white over the whole front.
+   The band is two elements sliding: the window one way, the lines inside it the other way by the
+   same amount, so the lines stay where they are on the card. Transforms only, so the scene and the
+   letters are not redrawn, and nothing is painted again as it crosses (a mask moved by its
+   position is painted on every frame). No loop.
+   Its measures are the drawing's (lib/cardArt/light, lightBand; a test holds them equal): the
+   window is 54cqw wide, and its light fades to nothing 21.67cqw either side of its middle, along a
+   line that leans as the ruled lines lean (100deg here is their 10 degrees).
+   ITS STRENGTH FOLLOWS THE FACE, because one number can't serve: light lines are loud on a dark
+   face and lost on a pale one. A face with colour takes the middle; a dark plate (.cf-dark) under
+   half of it; the pale stock card (.cf-pale) about double, where a light line shows only by
+   breaking the grey engraving under it, and is still the quietest of the three. A face nobody has
+   sorted takes the middle. Kept quiet on purpose (starl3xx, 2026-11-25: "much more
+   subtle/transparent"; 2026-11-27, of this band as first drawn: "it's too strong rn"). */
+.sc-glare { position: absolute; pointer-events: none; z-index: 2; }
 .sc-glare { left: 50%; top: 50%; width: 76%; aspect-ratio: 1; margin: -38% 0 0 -38%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.16) 55%, transparent); opacity: 0; }
-.sc-sheen { top: -20%; bottom: -20%; left: 0; width: 30%; background: var(--sc-sheen); opacity: 0; transform: translateX(-160%) skewX(-16deg); }
+.cf-light { top: 0; bottom: 0; left: 0; width: 54cqw; pointer-events: none; opacity: 0.36; transform: translateX(-54cqw); -webkit-mask-image: linear-gradient(100deg, transparent calc(50% - 21.67cqw), #000 50%, transparent calc(50% + 21.67cqw)); mask-image: linear-gradient(100deg, transparent calc(50% - 21.67cqw), #000 50%, transparent calc(50% + 21.67cqw)); }
+.cf-light > i { position: absolute; top: 0; left: 0; width: 100cqw; height: 100%; background-size: 100% 100%; transform: translateX(54cqw); }
+.cf-pale .cf-light { opacity: 0.79; }
+.cf-dark .cf-light { opacity: 0.16; }
 @media (prefers-reduced-motion: no-preference) {
   .sc-ease { transition: transform 240ms var(--ease-out); }
   .sc-glare { transition: opacity 260ms ease; }
   .sc-ease .sc-glare { transition: opacity 260ms ease, transform 240ms var(--ease-out); }
-  .sc-moment .sc-sheen { animation: sc-sheen 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
+  .sc-moment .cf-light { animation: cf-light 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
+  .sc-moment .cf-light > i { animation: cf-light-back 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
   @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .sc-glare { opacity: var(--sc-glare-a, 0.3); } }
 }
-/* over a scene on a dark plate (Outer Space), the same white shows far more: the light is fainter */
-.sc:has(.cf-dark) { --sc-sheen-a: 0.13; --sc-glare-a: 0.12; }
-@keyframes sc-sheen { 0% { opacity: 0; transform: translateX(-160%) skewX(-16deg); } 12%, 86% { opacity: var(--sc-sheen-a, 0.34); } 100% { opacity: 0; transform: translateX(440%) skewX(-16deg); } }
+/* over a face on a dark plate, the same white shows far more: the glare is fainter */
+.sc:has(.cf-dark) { --sc-glare-a: 0.12; }
+@keyframes cf-light { from { transform: translateX(-54cqw); } to { transform: translateX(100cqw); } }
+@keyframes cf-light-back { from { transform: translateX(54cqw); } to { transform: translateX(-100cqw); } }
 
 /* A list's word as flat tiles (components/game/MiniTiles.tsx): the rig's colors, the finish baked
    into a background per tier. A lowercase tile sits on its wooden edge; an UPPERCASE one wears the
