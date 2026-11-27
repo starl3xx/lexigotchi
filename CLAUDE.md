@@ -924,7 +924,26 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   reveal would show the letters before the price is paid. Without `relay: true` the route answers
   exactly as before (`tests/mint-relay-route.test.ts`). `scripts/pack-relay-fork-check.ts` proves it
   against the deployed Letters on an Anvil fork (no real keys, no `DATABASE_URL`): rerun it after
-  touching the route, the relayer, or `Letters.reveal`. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  touching the route, the relayer, or `Letters.reveal`. **A pack comes by mail** (decisions.md #49,
+  part 2; `sheets/MailSheet.tsx`, sheet kind `mail`; rules in `mail/mailFlow.ts`, pure, tested; art
+  in `lib/cardArt/mail.ts`, the cards' engraving, each piece a still picture moved whole): a paid
+  pack and the free pack. The daily letter keeps the `pack` sheet ("Fresh pull") until it comes by
+  mail too. The piece in hand is `g.mail` (both stores), because the purchase outlives the sheet.
+  **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
+  commit is sent, the postmark and its number (`mailNumber`: the commit id plus one, one series for
+  packs, free packs, and daily letters) when the commit is on chain, and the strip tears only when
+  the chain says the pack is revealed. Never show a mark early, and never print a predicted number.
+  The best letter comes out last (`revealOrder`); the count names newly spellable words with
+  `newlySpellableWith` (the bought-letters rule: nothing named until the bag shows every letter).
+  **Unopened mail is two things** (`pendingReveals`, the "Your mail is waiting" card on Today and
+  Mint): a commit the server still has to open, and an envelope that arrived and was never torn,
+  which is a record in the browser only (`lib/mailbox`, per chain, Letters address, and wallet):
+  ceremony, never state, since those letters are in the bag. `settleMail` takes each pack's own
+  `had` and `mine` (another envelope may be in hand when it lands) and writes to the box of the
+  wallet that bought it. Say "mail", never "post" (docs/messaging.md). Letters from the Market
+  never come by mail. Its styles sit ABOVE the cards' section in globals.css (a card test reads the
+  file's tail), and `tests/mail-sheet.test.tsx` fails on a scale, on travel outside the
+  no-preference block, and on any loop but the pull tab's nudge and the blink. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
   network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
   empty until the deploy, so production flips to the real game in the same deploy that commits the
   mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the

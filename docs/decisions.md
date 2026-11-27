@@ -2034,6 +2034,62 @@ setter. All small, riding existing suite patterns.
         naming letters (the public RPC behind the fork refuses the log range; the production RPC
         serves the same range for the daily letter's lookup). Not tried: a real wallet in a
         browser. The sheet is unchanged in this part: "Fresh pull" still shows the letters.
+        After the merge, production answered `relayed: "already"` for the fixture's pack (commit
+        177) with its five letters from the chain, and sent nothing.
+    - **Part 2, the envelope** (`sheets/MailSheet.tsx`, sheet kind `mail`; rules in
+      `mail/mailFlow.ts`, pure, tested; art in `lib/cardArt/mail.ts`). A paid pack and the free
+      pack come by mail. The daily letter keeps the old "Fresh pull" sheet until its own part (my
+      order, not the owner's: the daily's commit and reveal ride one send, so its envelope needs
+      its own waiting rule, and a predicted number must never be printed).
+      - **The tap is answered by the envelope, and each mark on it is a true step.** The sheet
+        opens when the wallet does. The stamp goes on when the commit is sent ("Paid. It's in the
+        mail."; a free pack is never "Paid"). The postmark and its number land when the commit is
+        on chain. The strip can be torn only when the chain says the pack is revealed, also when
+        the wallet sent the reveal itself. If the wallet send fails, the envelope leaves.
+      - **The number is the commit id plus one** (`mailNumber`): the contract counts packs, free
+        packs, and daily letters in one list from zero, which is the owner's "one series for all
+        mail". It starts again on a redeploy. Practice has no chain, so its number is the player's
+        own count (my reading).
+      - **The order letters come out in is the chain's, except that the best comes last**
+        (`revealOrder`): plain letters as minted, then a letter that finishes a word, then a rare
+        one (the six rarest letters, as the rig and the old sheet mark them; the rarest of them
+        last). Only a rare best letter gets the shake, the shy
+        peek in the rig's nervous state (the loan from option C), and sparkles. "Finishes a word"
+        is the game's one rule (`lib/wordNeed`): the word was exactly one letter short before.
+      - **The loan from option B:** on a long wait the eyes at the window close one by one ("They
+        nodded off. Any second now.") and open when the letters exist.
+      - **The count** names what came out, the rarity from the Mint's own odds (`letterOdds`,
+        never claimed without supply), and the word the letters newly finish, with its claim.
+        "Newly" is `newlySpellableWith`, the bought-letters rule for several letters at once:
+        measured from what the bag held before, and nothing is named until the bag shows every
+        letter, nor while the world's owners load.
+      - **The purchase outlives the sheet.** Closed mid-way, the envelope opens again when it
+        lands (the reducer's `arrive`), or a toast says "Your mail is here." when another sheet is
+        open. A pack that lands while a different envelope is in hand is kept and said in a toast.
+      - **Where unopened mail lives** (my reading; nothing depends on it). The server now reveals
+        at once, so the chain has no "unopened" state for a pack that arrived. An envelope that
+        was never torn is a record in the browser (`lib/mailbox`: the chain, the Letters address,
+        the wallet; the newest 12), written when the pack can be torn and removed at the tear.
+        Its letters are in the bag whatever the record says; another browser shows no envelope.
+        The card on Today and Mint ("Your mail is waiting") counts these with the commits the
+        server still has to open, and opens an envelope that only needs tearing first.
+      - **The short version** (my reading of the proposal's "by the tenth pack"): from the fourth
+        envelope torn in one sitting (`QUICK_AFTER`), plain letters come straight out, close
+        together; the best one still gets its peek. A tap hurries any envelope.
+      - **House rules kept.** A tile never changes size: the envelope's styles move and turn, and
+        a test fails on a scale. The envelope is still pictures in the cards' engraving, each
+        moved whole; the only loops are the pull tab's nudge and the blink (a swap in steps), each
+        on a whole picture. All travel sits behind `prefers-reduced-motion: no-preference`; with
+        reduced motion the letters are simply out. The drag writes straight to the element.
+      - **Cost at rest, measured in the practice game** (a share of one core, my own browser's
+        processes only): WebKit, the sealed envelope 3.6%, the count 7.7%, against 6.8% for Today
+        with a word on stage. Headless Chromium (it draws in software): 11.5% and 36.6%, against
+        41.9% for Today.
+      - **Seen and not seen (part 2):** driven in the practice game in WebKit and Chromium at 360,
+        424, 768, and 1280 px: the tap, each mark, the tear by tap and by drag, closing mid-way,
+        the waiting card, a long wait with the dozing, and a pack with a q (with a temporary local
+        change, not committed). Not driven: the chain store's flow with a real wallet (its rules
+        are the tested pure parts; its glue is not under test), a real phone, and a mini-app host.
 
 ## Pricing & launch economics (decided June 2026)
 
