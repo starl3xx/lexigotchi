@@ -304,3 +304,77 @@ describe("a tile's size never changes (decisions.md #48)", () => {
     expect(new Set(loops)).toEqual(new Set(["mail-nudge", "mail-eyes"]));
   });
 });
+
+// Bugbot on #273: practice kept one piece of mail, and a second purchase dropped the first if it
+// had not been torn. The chain store keeps such envelopes in the mailbox; practice sets them aside.
+describe("an untorn envelope is never dropped by the next one", () => {
+  it("buying another pack while one waits keeps both, and the card opens the older first", () => {
+    reduce = true;
+    play();
+    buy();
+    arrive();
+    const first = { number: g.mail!.number, letters: g.mail!.letters };
+    act(() => g.closeSheet()); // untorn: it waits
+    expect(g.pendingReveals).toBe(1);
+    buy();
+    arrive();
+    const second = { number: g.mail!.number, letters: g.mail!.letters };
+    expect(second.number).not.toBe(first.number);
+    // the new one is on screen; the first still waits
+    expect(g.pendingReveals).toBe(1);
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(2);
+    expect(screen.getByText("2 pieces of mail are waiting")).toBeTruthy();
+    // the older envelope first, with its own letters
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(g.mail).toMatchObject({ number: first.number, letters: first.letters, phase: "ready", torn: false });
+    expect(g.pendingReveals).toBe(1); // the second went back to waiting
+    fireEvent.click(strip());
+    tick(600);
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(g.mail).toMatchObject({ number: second.number, letters: second.letters, phase: "ready", torn: false });
+    fireEvent.click(strip());
+    tick(600);
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(0);
+  });
+
+  it("an envelope set aside while it was still on its way waits whole, with its letters", () => {
+    reduce = true;
+    play();
+    const before = g.state.lower.slice();
+    buy();
+    act(() => g.closeSheet()); // closed mid-way
+    buy(); // at once: the first never finished arriving
+    // the first is not lost: it waits behind the new one, complete
+    expect(g.pendingReveals).toBe(1);
+    arrive();
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(g.mail).toMatchObject({ phase: "ready", torn: false });
+    expect(g.mail!.letters).toHaveLength(5);
+    expect(strip().disabled).toBe(false);
+    // and every letter of both packs is in the bag, as it was from each tap
+    expect(gained(before)).toHaveLength(10);
+    // its timers were cleared with it: nothing arrives a second time
+    tick(5000);
+    expect(g.state.toasts).toHaveLength(0);
+  });
+
+  it("a torn envelope is not set aside: it was opened", () => {
+    reduce = true;
+    play();
+    buy();
+    arrive();
+    fireEvent.click(strip());
+    tick(600);
+    act(() => g.closeSheet());
+    buy();
+    arrive();
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(1);
+  });
+});

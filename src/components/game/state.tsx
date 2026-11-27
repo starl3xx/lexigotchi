@@ -954,6 +954,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [mail, setMail] = useState<Mail | null>(null);
   const mailSeq = useRef(0);
   const mailTimers = useRef<number[]>([]);
+  /**
+   * Envelopes set aside untorn (the chain store keeps these in the browser's mailbox, lib/mailbox):
+   * a new piece never drops one that was not torn open (Bugbot on #273). Oldest first.
+   */
+  const [shelf, setShelf] = useState<Mail[]>([]);
+  /** Each piece's number and letters, known from the tap: a piece set aside on its way is whole. */
+  const mailFacts = useRef(new Map<number, { number: number; letters: number[] }>());
   const sheetNow = useRef(state.sheet);
   sheetNow.current = state.sheet;
   useEffect(
@@ -970,6 +977,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Every insufficient-balance dead end routes here: open the Buy sheet with what was blocked.
     const needWord = (amount: number, action: string) =>
       dispatch({ t: "sheet", sheet: { kind: "balance", need: { amount, action } } });
+    /**
+     * The envelope in hand, if it was never torn, goes on the shelf whole (its letters have been in
+     * the bag since the tap), whatever step it was at: it waits, and the card opens it.
+     */
+    const setAside = () => {
+      if (!mail || mail.torn) return;
+      const facts = mailFacts.current.get(mail.seq);
+      if (!facts) return;
+      mailTimers.current.forEach((id) => window.clearTimeout(id));
+      mailTimers.current = [];
+      setShelf((list) => [...list.filter((m) => m.seq !== mail.seq), { ...mail, phase: "ready", number: facts.number, letters: facts.letters }]);
+    };
+    const waitingInHand = !!mail && mail.phase === "ready" && !mail.torn && state.sheet?.kind !== "mail";
     const buyMockPack = () => {
       if (state.balance < COST.pack) {
         needWord(COST.pack, "a pack");
@@ -982,6 +1002,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // The pack comes by mail. In practice the number on the postmark is the player's own count.
       const seq = ++mailSeq.current;
       const number = state.mintCount + 1;
+      mailFacts.current.set(seq, { number, letters: idxs });
+      setAside();
       mailTimers.current.forEach((id) => window.clearTimeout(id));
       const step = (ms: number, patch: Partial<Mail>, arrived = false) =>
         mailTimers.current.push(
@@ -1129,12 +1151,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       // The mock reveals in the same tick it commits, so nothing can strand. The one piece that can
       // wait is an envelope whose sheet was closed before it was torn open.
-      pendingReveals: mail && mail.phase === "ready" && !mail.torn && state.sheet?.kind !== "mail" ? 1 : 0,
+      pendingReveals: shelf.length + (waitingInHand ? 1 : 0),
       mail,
       mailTorn: () => setMail((m) => (m ? { ...m, torn: true } : m)),
       busy: null,
       dismissBusy: () => {},
       openPending: () => {
+        // The oldest first: an envelope on the shelf, then the one in hand.
+        const next = shelf[0];
+        if (next) {
+          setAside(); // the one in hand, if untorn, takes its place at the end of the shelf
+          setShelf((list) => list.filter((m) => m.seq !== next.seq));
+          setMail(next);
+          dispatch({ t: "sheet", sheet: { kind: "mail" } });
+          return;
+        }
         if (mail && mail.phase === "ready" && !mail.torn) dispatch({ t: "sheet", sheet: { kind: "mail" } });
       },
       // Practice pays its words when a day passes (skipDay), at once, so nothing ever waits.
@@ -1215,7 +1246,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rollProb: (pity) => rollSuccessProbability(pity),
       prestigeProb: (level, pity) => prestigeSuccessProbability(pity, level),
     };
-  }, [state, dismissToast, mail]);
+  }, [state, dismissToast, mail, shelf]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
