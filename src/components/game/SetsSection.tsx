@@ -31,10 +31,10 @@ const LOWER = [false, false, false, false, false];
 /** Words shown before "Show all": a set may hold dozens. */
 const PREVIEW = 8;
 
-function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; now: number }) {
+function SetCard({ set, now, gate }: { set: Exclude<PublicSet, { kind: "locked" }>; now: number; gate: boolean }) {
   const [all, setAll] = useState(false);
   const openWord = useOpenWord();
-  const lines = setLines(set, now);
+  const lines = setLines(set, now, gate);
   const released = set.kind === "released";
   // A set that is simply unlocked (its first day over, or it never had one) is old news: it stays
   // folded to its name, so the Dictionary's top doesn't fill with every set there has ever been.
@@ -61,7 +61,8 @@ function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; no
       )}
       {lines.rule && (
         <p className="mt-1 text-[13px] leading-snug text-ink/75">
-          <span className="font-extrabold text-gold-ink">{lines.rule}.</span> {set.kind === "released" ? firstDayNote(set.perPlayerLimit, set.firstDay, set.firstDayLabel) : null}
+          <span className="font-extrabold text-gold-ink">{lines.rule}.</span>{" "}
+          {set.kind === "released" ? firstDayNote(set.perPlayerLimit, lines.openTo ? set.firstDay : "verified", set.firstDayLabel) : null}
         </p>
       )}
       {!lines.rule && lines.openTo && <p className="mt-1 text-[13px] leading-snug text-ink/75">{firstDayAhead(lines.openTo)}</p>}
@@ -91,7 +92,7 @@ function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; no
 }
 
 export function SetsSection() {
-  const { known, sets } = useSets();
+  const { known, sets, gate } = useSets();
   const now = useMinuteClock();
   if (!known || sets.length === 0) return null;
   const locked = sets.filter((s) => s.kind === "locked").length;
@@ -109,7 +110,7 @@ export function SetsSection() {
           .slice()
           .sort((a, b) => order(a) - order(b))
           .map((s) => (
-            <SetCard key={s.id} set={s} now={now} />
+            <SetCard key={s.id} set={s} now={now} gate={gate} />
           ))}
         {Array.from({ length: locked }, (_, i) => (
           <div key={`locked-${i}`} className="flex items-center gap-3 rounded-xl border-2 border-dashed border-ink/30 p-3">

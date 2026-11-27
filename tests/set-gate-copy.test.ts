@@ -37,6 +37,10 @@ describe("a first day with a rule of its own", () => {
     const token = gateRefusalNote("motel", { error: "not_on_list", rule: "token", label: "holders of a test token", until: UNTIL }, NOW, 0);
     expect(token.text).toBe("First day: this set is open to holders of a test token. MOTEL opens to everyone in about 5 hours.");
   });
+  it("and when another wallet of theirs IS let in, to claim with that one", () => {
+    const n = gateRefusalNote("motel", { error: "not_on_list", rule: "allowlist", label: null, linked: true, until: UNTIL }, NOW, 0);
+    expect(n.text).toBe("First day: this set is open to players on this set’s list. Claim MOTEL with the wallet of yours that qualifies.");
+  });
 });
 
 describe("why a claim of a gated word was refused", () => {

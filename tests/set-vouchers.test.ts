@@ -409,13 +409,22 @@ describe("POST /api/sets/voucher", () => {
     const refused = await call({ wallet: O, word: "CRANE" });
     expect(refused).toMatchObject({ status: 403, body: { error: "not_on_list", rule: "allowlist", label: "friends of the partner", until: world.gatedUntil } });
     expect(world.rows).toHaveLength(0);
-    // Any wallet of the profile counts: P claims with the wallet they play with.
+    // The wallet that CLAIMS must be the listed one. P's own wallet isn't, so it is refused, and
+    // told that a wallet of theirs qualifies; claiming with that wallet works.
     world.session = P;
-    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 403, body: { error: "not_on_list", linked: true } });
+    expect(world.rows).toHaveLength(0);
+    expect((await call({ wallet: L, word: "CRANE" })).status).toBe(200);
+    expect(world.rows[0]).toMatchObject({ account: P, wallet: L });
     // Not verified is still refused FIRST, list or no list: the list never stands in for it.
     world.identity = { ok: false, status: 403, error: "verification_required" };
-    expect((await call({ wallet: P, word: "MOTEL" })).body.error).toBe("verification_required");
+    expect((await call({ wallet: L, word: "MOTEL" })).body.error).toBe("verification_required");
     world.identity = { ok: true };
+    // A listed wallet lets ONE profile in: unlinked from P and linked into O's profile, it brings
+    // its word with it, so O (verified, and now holding a listed wallet) is at the limit.
+    world.links = { [P]: { account: P, wallets: [P] }, [O]: { account: O, wallets: [O, L] }, [L]: { account: O, wallets: [O, L] } };
+    world.session = O;
+    expect(await call({ wallet: L, word: "MOTEL" })).toMatchObject({ status: 409, body: { error: "limit_reached", words: ["CRANE"] } });
     // After the gate, nobody needs a voucher: the plain claim is the claim, for O too.
     world.gatedUntil = world.now;
     world.session = O;
@@ -434,15 +443,16 @@ describe("POST /api/sets/voucher", () => {
     const TOKEN = "0x4444444444444444444444444444444444444444";
     world.sets = [{ ...released(1, WORDS), gateRule: "token", gateToken: TOKEN, gateMin: "5" }];
     world.balances = new Map([[P, 4n], [L, 0n]]);
-    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 403, body: { error: "not_on_list", rule: "token" } });
+    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 403, body: { error: "not_on_list", rule: "token", linked: false } });
+    // The claiming wallet first; the profile's other wallet only to say whether IT would do.
     expect(world.balanceReads).toEqual([{ token: TOKEN, wallet: P }, { token: TOKEN, wallet: L }]);
-    world.balances.set(L, 5n); // the linked wallet holds enough
-    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
-    // A balance that can't be read, with nobody seen holding enough: ask again.
+    world.balances.set(L, 5n); // the linked wallet holds enough: the claim must come from it
+    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 403, body: { error: "not_on_list", linked: true } });
+    expect((await call({ wallet: L, word: "CRANE" })).status).toBe(200);
+    // The claiming wallet's balance can't be read: ask again, and nothing is issued.
     world.rows = [];
-    world.balances.set(L, 0n);
     world.balanceDown = new Set([L]);
-    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 503, body: { error: "try_again" } });
+    expect(await call({ wallet: L, word: "CRANE" })).toMatchObject({ status: 503, body: { error: "try_again" } });
     expect(world.rows).toHaveLength(0);
   });
 

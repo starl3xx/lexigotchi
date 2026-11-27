@@ -6,8 +6,14 @@
  *    on Base, read at the moment the voucher is asked for.
  *
  * This is checked AFTER the player is verified and has proved the wallet is theirs (the voucher
- * route), and it adds to those: it never replaces them. Any wallet of the player's profile counts,
- * so a player who keeps a partner's token in a linked wallet claims from the one they play with.
+ * route), and it adds to those: it never replaces them.
+ *
+ * The voucher route asks about ONE wallet: the one that will send the claim. A wallet elsewhere in
+ * the player's profile doesn't count for it, because a listed wallet could then be linked into one
+ * verified profile after another and let each of them in. The claiming wallet is also the one the
+ * voucher's row is counted under, so a wallet that moves to another profile brings its word with
+ * it (lib/db/setVouchers.ts). The route does look at the profile's other wallets, only to tell the
+ * player "claim with the wallet of yours that qualifies".
  *
  * It fails CLOSED. A list or a balance that can't be read is "ask again" (null), never "yes"; a
  * rule that is missing a part lets nobody in.
@@ -28,23 +34,37 @@ export interface FirstDayDeps {
   balanceOf: (token: string, wallet: string) => Promise<bigint>;
 }
 
-async function defaults(): Promise<FirstDayDeps> {
-  const [{ onAllowlist }, { getMainnetClient }] = await Promise.all([import("@/lib/db/sets"), import("@/lib/onchain/mainnet")]);
-  return {
-    onAllowlist,
-    balanceOf: (token, wallet) =>
-      getMainnetClient().readContract({ address: getAddress(token), abi: erc20Abi, functionName: "balanceOf", args: [getAddress(wallet)] }),
-  };
+/** The real reads. Each loads only what it needs, when it is asked: a token's balance never touches the database. */
+const REAL: FirstDayDeps = {
+  onAllowlist: async (setId, wallets) => (await import("@/lib/db/sets")).onAllowlist(setId, wallets),
+  balanceOf: async (token, wallet) =>
+    (await import("@/lib/onchain/mainnet"))
+      .getMainnetClient()
+      .readContract({ address: getAddress(token), abi: erc20Abi, functionName: "balanceOf", args: [getAddress(wallet)] }),
+};
+
+/**
+ * Can this contract's `balanceOf` be read on Base? Asked before a release is built for a token
+ * rule: a mistyped address (or a contract that isn't a token) would make EVERY balance read fail,
+ * so every player would be told "try again" for the whole first day, and the rule can't be
+ * changed after the release. The balance asked about is a burn address's: any answer will do.
+ */
+export async function tokenReadable(token: string, deps: Pick<FirstDayDeps, "balanceOf"> = REAL): Promise<boolean> {
+  try {
+    await deps.balanceOf(token, "0x000000000000000000000000000000000000dead");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Is the first day of `set` open to a player with these wallets (lowercase)? True, false, or null
- * when it couldn't be read (the caller answers "try again", and issues nothing).
+ * Is the first day of `set` open to these wallets (lowercase)? True when ANY of them is let in,
+ * false, or null when it couldn't be read (the caller answers "try again", and issues nothing).
  */
-export async function firstDayOpenTo(set: FirstDaySet, wallets: readonly string[], deps?: FirstDayDeps): Promise<boolean | null> {
+export async function firstDayOpenTo(set: FirstDaySet, wallets: readonly string[], d: FirstDayDeps = REAL): Promise<boolean | null> {
   if (set.gateRule === "verified") return true;
   if (wallets.length === 0) return false;
-  const d = deps ?? (await defaults());
   if (set.gateRule === "allowlist") {
     try {
       return await d.onAllowlist(set.id, wallets);

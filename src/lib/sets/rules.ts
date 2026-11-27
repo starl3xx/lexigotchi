@@ -37,12 +37,23 @@ export const SET_TYPES: readonly SetType[] = ["standard", "collab"];
 export const GATE_RULES: readonly GateRule[] = ["verified", "allowlist", "token"];
 /** A collab set has exactly this many words. */
 export const COLLAB_WORDS = 5;
+/**
+ * Can a collab set be REVEALED yet? Not until its card and its rarity ship (decisions.md "Collab
+ * sets", parts 2 and 3): a collab word is Legendary "from the moment its set is revealed" and has
+ * its own card, and a set revealed before those exist would be neither. A draft can be made and
+ * edited meanwhile. The PR that ships the card sets this to true.
+ */
+export const COLLAB_LIVE: boolean = false;
 export const PARTNER_URL_MAX = 200;
 /** A list the operator pastes is bounded. */
 export const ALLOWLIST_MAX = 20_000;
-/** A stamp is a small raster picture: PNG, JPEG, or WebP, never SVG (an SVG can carry script). */
+/**
+ * A stamp is a small raster picture: PNG or JPEG. Never SVG (an SVG can carry script), and not
+ * WebP for now: the server's pictures (share cards, the token's art) must be able to draw it, a
+ * revealed set's stamp can never be replaced, and only these two are proven there.
+ */
 export const STAMP_MAX_BYTES = 256 * 1024;
-export const STAMP_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+export const STAMP_TYPES = ["image/png", "image/jpeg"] as const;
 export type StampType = (typeof STAMP_TYPES)[number];
 
 export interface SetWord {
@@ -169,10 +180,11 @@ export function cleanWallet(raw: unknown): string | null {
  * needs exactly five words, its partner's name, its two colors, and its stamp. (The first day's
  * rule isn't identity: it can change until the release, and `releaseProblems` checks it there.)
  */
-export function revealProblems(s: Pick<WordSet, "type" | "words" | "partnerName" | "colorA" | "colorB" | "stampAt">): string[] {
+export function revealProblems(s: Pick<WordSet, "type" | "words" | "partnerName" | "colorA" | "colorB" | "stampAt">, collabLive: boolean = COLLAB_LIVE): string[] {
   const out: string[] = [];
   if (s.words.length === 0) out.push("a set with no words can't be revealed");
   if (s.type === "collab") {
+    if (!collabLive) out.push("a collab set can be revealed once the collab card ships (a draft can be made and edited now)");
     if (s.words.length !== COLLAB_WORDS) out.push(`a collab set has exactly ${COLLAB_WORDS} words (this one has ${s.words.length})`);
     if (!s.partnerName?.trim()) out.push("a collab set needs its partner's name");
     if (!s.colorA || !s.colorB) out.push("a collab set needs its two colors");
@@ -217,12 +229,11 @@ export function parseAllowlist(text: string): { ok: true; wallets: string[]; bad
   return { ok: true, wallets: [...seen], bad };
 }
 
-/** What a picture's first bytes say it is: PNG, JPEG, or WebP; or null (an SVG, a GIF, anything else). */
+/** What a picture's first bytes say it is: PNG or JPEG; or null (an SVG, a WebP, a GIF, anything else). */
 export function sniffStamp(bytes: Uint8Array): StampType | null {
   const at = (i: number, ...v: number[]) => v.every((x, j) => bytes[i + j] === x);
   if (bytes.length >= 8 && at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return "image/png";
   if (bytes.length >= 3 && at(0, 0xff, 0xd8, 0xff)) return "image/jpeg";
-  if (bytes.length >= 12 && at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50)) return "image/webp";
   return null;
 }
 

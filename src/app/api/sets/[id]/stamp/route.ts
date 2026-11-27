@@ -6,7 +6,7 @@
  * doesn't exist does. The status is read from the database on every miss, never from a kept copy.
  *
  * The picture is one the operator uploaded, so it is served as what its own first bytes say it is
- * (a PNG, a JPEG, or a WebP: never an SVG or HTML, whatever was stored), with `nosniff`, as an
+ * (a PNG or a JPEG: never an SVG or HTML, whatever was stored), with `nosniff`, as an
  * attachment-safe image and nothing a browser would run. The address carries the stamp's time
  * (`?v=`), and a revealed set's stamp can't change, so it is kept for good.
  */

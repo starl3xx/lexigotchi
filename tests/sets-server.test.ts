@@ -29,6 +29,19 @@ const world = vi.hoisted(() => ({
   stamps: new Map<number, { mime: string; base64: string }>(),
   lists: new Map<number, string[]>(),
   made: [] as Record<string, unknown>[],
+  tokenDown: false, // a token rule's contract can't be read on Base
+  tokenAsked: [] as string[],
+}));
+
+// A token rule's contract is asked on Base MAINNET, whatever network the game is on.
+vi.mock("@/lib/onchain/mainnet", () => ({
+  getMainnetClient: () => ({
+    readContract: async ({ address }: { address: string }) => {
+      world.tokenAsked.push(address.toLowerCase());
+      if (world.tokenDown) throw new Error("execution reverted");
+      return 0n;
+    },
+  }),
 }));
 
 vi.mock("@/lib/db/sets", () => {
@@ -171,6 +184,8 @@ beforeEach(async () => {
   world.stamps = new Map();
   world.lists = new Map();
   world.made = [];
+  world.tokenDown = false;
+  world.tokenAsked = [];
   const { tokenIdOf } = await import("@/lib/onchain/tokenId");
   world.ids = new Map(Object.values(words).map((w) => [tokenIdOf(w).toString(), w]));
   world.chainRoot = dictionaryRoot();
@@ -467,6 +482,19 @@ describe("releasing", () => {
     Object.assign(world.sets[0], { gateRule: "token", gateToken: null, gateMin: null });
     server.forgetSets();
     expect(await server.planRelease(1)).toMatchObject({ ok: false, error: "gate_rule", detail: expect.stringMatching(/contract and a minimum/) });
+    // A token rule whose contract doesn't answer on Base (a mistyped address): every balance read
+    // would fail all day, so no release is built. With a contract that answers, it is.
+    const TOKEN = "0x4444444444444444444444444444444444444444";
+    Object.assign(world.sets[0], { gateRule: "token", gateToken: TOKEN, gateMin: "1" });
+    world.tokenDown = true;
+    server.forgetSets();
+    expect(await server.planRelease(1)).toMatchObject({ ok: false, error: "gate_rule", detail: expect.stringMatching(/balanceOf/) });
+    expect(world.tokenAsked).toEqual([TOKEN]);
+    expect(world.sets[0].releaseRoot).toBeNull(); // nothing was recorded as built
+    world.tokenDown = false;
+    server.forgetSets();
+    expect((await server.planRelease(1)).ok).toBe(true);
+    world.sets[0].releaseRoot = null;
     // With its list filled the release is built, gate first.
     Object.assign(world.sets[0], { gateRule: "allowlist", allowlistCount: 3 });
     server.forgetSets();
@@ -858,13 +886,14 @@ describe("collab sets: what leaves the server, and what the operator may store",
     expect((await GET(...stampReq("1"))).status).toBe(404);
   });
 
-  it("takes a stamp only when its own bytes are a PNG, a JPEG, or a WebP, and small", async () => {
+  it("takes a stamp only when its own bytes are a PNG or a JPEG, and small", async () => {
     world.sets = [draft(1, "Draft", [words.A], { type: "collab" })];
     const { POST } = await import("@/app/api/admin/sets/route");
     const { STAMP_MAX_BYTES } = await import("@/lib/sets/rules");
     const send = async (bytes: Buffer) => (await POST(post({ action: "stamp", id: 1, data: bytes.toString("base64") }))).status;
     expect(await send(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'))).toBe(400);
     expect(await send(Buffer.from("GIF89a...."))).toBe(400);
+    expect(await send(Buffer.from("RIFF\u0000\u0000\u0000\u0000WEBPVP8 "))).toBe(400); // not until the server's pictures are known to draw it
     expect(await send(Buffer.concat([PNG, Buffer.alloc(STAMP_MAX_BYTES)]))).toBe(400); // too big
     expect(world.stamps.size).toBe(0);
     expect(await send(PNG)).toBe(200);
@@ -898,7 +927,12 @@ describe("collab sets: what leaves the server, and what the operator may store",
     const { GET } = await import("@/app/api/admin/sets/route");
     const body = await (await GET(new Request("http://localhost/api/admin/sets"))).json();
     expect(body.collab).toBe(true);
-    expect(body.sets[0].needs).toEqual(["a collab set has exactly 5 words (this one has 1)", "a collab set needs its two colors", "a collab set needs its stamp"]);
+    expect(body.sets[0].needs).toEqual([
+      "a collab set can be revealed once the collab card ships (a draft can be made and edited now)",
+      "a collab set has exactly 5 words (this one has 1)",
+      "a collab set needs its two colors",
+      "a collab set needs its stamp",
+    ]);
     expect(body.sets[1].needs).toEqual(["the allowlist rule needs at least one wallet on the list"]);
   });
 
@@ -927,7 +961,7 @@ describe("collab sets: what leaves the server, and what the operator may store",
       expect(made.words.filter((w) => wordTier(w.word) === "Mythic").map((w) => w.word)).toEqual([mythic[0]]);
       const { sniffStamp, revealProblems } = await import("@/lib/sets/rules");
       expect(sniffStamp(Buffer.from(world.stamps.get(made.id)!.base64, "base64"))).toBe("image/png");
-      expect(revealProblems(made)).toEqual([]); // whole: the operator can reveal it as it is
+      expect(revealProblems(made, true)).toEqual([]); // whole: once the collab card ships, the operator can reveal it as it is
       // Once is enough.
       expect(await (await POST(post({ action: "testCollab" }))).json()).toMatchObject({ ok: false, error: "exists" });
     }

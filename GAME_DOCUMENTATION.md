@@ -133,15 +133,16 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
   - **A first day can have a rule of its own** (decisions.md #53): open to every verified player
     (the default), to the wallets on a list the operator imports, or to holders of a minimum
     balance of one token on Base, read when the voucher is asked for. The rule adds to
-    “verified”; it never replaces it. Any wallet of a player’s profile counts. The Dictionary says
-    who the day is open to.
+    “verified”; it never replaces it. The wallet that claims must be the one on the list, or the
+    one that holds the token. The Dictionary says who the day is open to.
 - **Collab sets** (decisions.md #53, built in parts): a set made with a partner. It has exactly
   five words, the partner’s name and link, and a card look of its own (two colors and a stamp).
   Collab changes how the card looks, and its words are Legendary rarity from the set’s reveal (a
   word whose own rarity is higher keeps it); the word itself is the same word. A revealed or
   released collab set shows in the Dictionary as a collaboration, with the partner’s name and
   link. Nothing of a collab is shown before its reveal. (Shipped so far: the set’s type, partner,
-  colors, stamp, and first-day rule. The rarity and the card follow.)
+  colors, stamp, and first-day rule, as drafts. A collab set can be revealed once its rarity and
+  its card ship.)
 
 ---
 

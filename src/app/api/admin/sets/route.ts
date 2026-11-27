@@ -350,12 +350,12 @@ export async function POST(req: Request) {
         // can carry script, and this picture is drawn into every card of the set).
         const id = idOf(body.id);
         if (!id || typeof body.data !== "string" || body.data.length > Math.ceil(STAMP_MAX_BYTES / 3) * 4 + 4) {
-          return json({ ok: false, error: "invalid", errors: [`a stamp is a PNG, JPEG, or WebP of at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB`] }, 400);
+          return json({ ok: false, error: "invalid", errors: [`a stamp is a PNG or a JPEG of at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB`] }, 400);
         }
         const bytes = Buffer.from(body.data, "base64");
         const mime = sniffStamp(bytes);
         if (!mime || bytes.length === 0 || bytes.length > STAMP_MAX_BYTES) {
-          return json({ ok: false, error: "invalid", errors: [`a stamp is a PNG, JPEG, or WebP of at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB`] }, 400);
+          return json({ ok: false, error: "invalid", errors: [`a stamp is a PNG or a JPEG of at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB`] }, 400);
         }
         await setStamp(chainId, id, { mime, base64: bytes.toString("base64"), bytes: bytes.length });
         forgetSets();

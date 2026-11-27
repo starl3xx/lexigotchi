@@ -107,12 +107,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   its identity: a draft's to edit, locked at the reveal (`rules.ts` `IDENTITY_KEYS`,
   `revealProblems`), and **nothing of it reaches a browser before the reveal**, not even that the
   set is a collab. **No real partner, name, logo, or color ever ships in this repository**, and
-  "Test collab" is made only by the owner's button on a test network. The stamp is a raster
-  picture in the database (`set_stamps`; never an SVG, and typed by its own first bytes both
-  ways); `/api/sets/{id}/stamp` answers only for a revealed set. **A set's first day has a rule**
-  (`gate_rule`: every verified player, an allowlist, or a token's holders on Base MAINNET):
-  `lib/sets/firstDay.ts` checks it AFTER verification, any wallet of the profile counts, and it
-  fails closed (unreadable = "try again", never "yes"). **A deploy never waits for a migration:**
+  "Test collab" is made only by the owner's button on a test network. **No collab set can be
+  revealed until its card ships** (`rules.ts` `COLLAB_LIVE`; the PR that ships the card flips it).
+  The stamp is a raster picture in the database (`set_stamps`; PNG or JPEG, never an SVG, and
+  typed by its own first bytes both ways); `/api/sets/{id}/stamp` answers only for a revealed set.
+  **A set's first day has a rule** (`gate_rule`: every verified player, an allowlist, or a token's
+  holders on Base MAINNET): `lib/sets/firstDay.ts` checks it AFTER verification, of the wallet that
+  CLAIMS (never the whole profile: a listed wallet would let in every profile it is linked into),
+  and it fails closed (unreadable = "try again", never "yes"). **A deploy never waits for a migration:**
   the sets must read and plain sets must save before 0023 has run (`listSets` falls back to
   0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
   the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`

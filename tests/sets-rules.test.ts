@@ -31,6 +31,8 @@ import {
   SCHEDULE_KEYS,
   SETTINGS_DEFAULTS,
   STAMP_MAX_BYTES,
+  STAMP_TYPES,
+  COLLAB_LIVE,
   parseAllowlist,
   releaseProblems,
   revealProblems,
@@ -257,16 +259,24 @@ describe("a collab set", () => {
   const five = WORDS.slice(300, 305);
   const whole = { type: "collab", partnerName: "Partner", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0) } as const;
 
+  // `true`: the collab's own rules, as they hold once its card has shipped.
   it("can't be revealed with other than five words", () => {
     for (const n of [1, 4, 6]) {
-      expect(revealProblems(set(1, "C", "draft", WORDS.slice(300, 300 + n), whole))).toEqual([`a collab set has exactly 5 words (this one has ${n})`]);
+      expect(revealProblems(set(1, "C", "draft", WORDS.slice(300, 300 + n), whole), true)).toEqual([`a collab set has exactly 5 words (this one has ${n})`]);
     }
-    expect(revealProblems(set(1, "C", "draft", five, whole))).toEqual([]);
+    expect(revealProblems(set(1, "C", "draft", five, whole), true)).toEqual([]);
   });
   it("nor without its partner's name, its two colors, and its stamp", () => {
-    expect(revealProblems(set(1, "C", "draft", five, { ...whole, partnerName: "  " }))).toEqual(["a collab set needs its partner's name"]);
-    expect(revealProblems(set(1, "C", "draft", five, { ...whole, colorB: null }))).toEqual(["a collab set needs its two colors"]);
-    expect(revealProblems(set(1, "C", "draft", five, { ...whole, stampAt: null }))).toEqual(["a collab set needs its stamp"]);
+    expect(revealProblems(set(1, "C", "draft", five, { ...whole, partnerName: "  " }), true)).toEqual(["a collab set needs its partner's name"]);
+    expect(revealProblems(set(1, "C", "draft", five, { ...whole, colorB: null }), true)).toEqual(["a collab set needs its two colors"]);
+    expect(revealProblems(set(1, "C", "draft", five, { ...whole, stampAt: null }), true)).toEqual(["a collab set needs its stamp"]);
+  });
+  it("and not at all until the collab card ships: a collab word is Legendary and on its own card from the reveal, and neither exists yet", () => {
+    // This pins today's state. The PR that ships the card flips COLLAB_LIVE and this expectation with it.
+    expect(COLLAB_LIVE).toBe(false);
+    expect(revealProblems(set(1, "C", "draft", five, whole))).toEqual(["a collab set can be revealed once the collab card ships (a draft can be made and edited now)"]);
+    expect(revealProblems(set(1, "C", "draft", five, whole), false)).toHaveLength(1);
+    expect(revealProblems(set(1, "S", "draft", five), false)).toEqual([]); // a standard set is as it was
   });
   it("a standard set needs none of it, only a word", () => {
     expect(revealProblems(set(1, "S", "draft", WORDS.slice(300, 303)))).toEqual([]);
@@ -386,11 +396,11 @@ describe("an allowlist as it is pasted", () => {
 });
 
 describe("a stamp is what its first bytes say", () => {
-  it("a PNG, a JPEG, or a WebP; never an SVG, a GIF, or a page", () => {
+  it("a PNG or a JPEG; never an SVG, a WebP, a GIF, or a page", () => {
     expect(sniffStamp(Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0))).toBe("image/png");
     expect(sniffStamp(Uint8Array.of(0xff, 0xd8, 0xff, 0xe0))).toBe("image/jpeg");
-    expect(sniffStamp(new TextEncoder().encode("RIFF\u0000\u0000\u0000\u0000WEBPVP8 "))).toBe("image/webp");
-    for (const text of ['<svg xmlns="http://www.w3.org/2000/svg"/>', "<?xml version='1.0'?><svg/>", "GIF89a", "<!doctype html>", "RIFF....WAVE", ""]) {
+    expect(STAMP_TYPES).toEqual(["image/png", "image/jpeg"]); // what the server's pictures are known to draw
+    for (const text of ['<svg xmlns="http://www.w3.org/2000/svg"/>', "<?xml version='1.0'?><svg/>", "GIF89a", "<!doctype html>", "RIFF\u0000\u0000\u0000\u0000WEBPVP8 ", ""]) {
       expect(sniffStamp(new TextEncoder().encode(text)), text).toBeNull();
     }
   });

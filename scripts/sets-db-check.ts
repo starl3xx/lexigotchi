@@ -278,12 +278,21 @@ async function main() {
     check("before 0023: there is no stamp to read", (await readStamp(CHAIN, plain)) === null && (await readStamps(CHAIN)).size === 0);
     check("before 0023: every set reads as a standard one", (await listSets(CHAIN)).sets.every((s) => s.type === "standard" && s.gateRule === "verified" && s.stampAt === null));
     check("before 0023: a plain set is still renamed and rescheduled", (await refused(() => updateSet(CHAIN, plain, { name: "Plainer", gateHours: 6 }))) === null);
+    // An import of a draft that keeps its name tries to carry its stamp and list over. Those
+    // tables aren't there yet: the import must go through all the same (a savepoint, not a dead transaction).
+    const kept = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft").map((s) => ({ ...base(s.name, { sort: s.sort }), words: s.words }));
+    check("before 0023: an import of drafts that keep their names still goes through, words and all",
+      kept.some((s) => s.name === "Plainer") && (await refused(() => replaceDrafts(CHAIN, kept))) === null &&
+        JSON.stringify((await listSets(CHAIN)).sets.filter((s) => s.status === "draft").map((s) => [s.name, s.words.map((w) => w.word)]).sort()) === JSON.stringify(kept.map((s) => [s.name, s.words.map((w) => w.word)]).sort()));
   } else {
     const [K1, K2, K3, K4, K5, K6, K7, K8, K9, K10, K11, K12, K13, K14, K15, K16, K17] = WORDS.slice(320, 337);
     const look = { type: "collab" as const, partnerName: "Partner", partnerUrl: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc" };
-    const whyNot = async (id: number): Promise<string[] | null> => {
+    // The collab's own rules are checked as they will be once its card ships (`collabLive`); what
+    // holds today, while it hasn't, is checked once below.
+    const LIVE = { collabLive: true };
+    const whyNot = async (id: number, opts: { collabLive?: boolean } = LIVE): Promise<string[] | null> => {
       try {
-        await revealSet(CHAIN, id, new Date());
+        await revealSet(CHAIN, id, new Date(), opts);
         return null;
       } catch (err) {
         return err instanceof SetError && err.code === "not_ready" ? err.problems : [`other: ${String((err as Error).message)}`];
@@ -298,7 +307,7 @@ async function main() {
     check("four words and no stamp: not revealed, and it says both", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 4)", "a collab set needs its stamp"]));
     await setStamp(CHAIN, co, stamp);
     check("its stamp is stored, and the set says when", (await get(co))?.stampAt instanceof Date && (await readStamp(CHAIN, co))?.base64 === stamp.base64);
-    check("a second stamp takes the first one's place", (await refused(() => setStamp(CHAIN, co, { ...stamp, mime: "image/webp" }))) === null && (await readStamp(CHAIN, co))?.mime === "image/webp");
+    check("a second stamp takes the first one's place", (await refused(() => setStamp(CHAIN, co, { ...stamp, mime: "image/jpeg" }))) === null && (await readStamp(CHAIN, co))?.mime === "image/jpeg");
     await setStamp(CHAIN, co, stamp);
     check("another chain has no such stamp", (await readStamp(8453, co)) === null);
     check("four words: still not revealed", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 4)"]));
@@ -306,6 +315,8 @@ async function main() {
     check("six words: not revealed either", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 6)"]));
     await removeWords(CHAIN, co, [K6]);
     check("it is still a draft", (await get(co))?.status === "draft");
+    const today = await whyNot(co, {});
+    check("today (the collab card hasn't shipped) even a whole collab isn't revealed, by hand or on its date", today?.length === 1 && /once the collab card ships/.test(today[0]) && (await get(co))?.status === "draft", today);
 
     // the allowlist
     check("a list is stored whole", (await replaceAllowlist(CHAIN, co, [X1, X2])) === 2 && (await get(co))?.allowlistCount === 2);
@@ -342,10 +353,16 @@ async function main() {
       await mk("standard, due", {}, [WORDS[340]], false),
     ];
     await updateSet(CHAIN, co2.id, { revealAt: due });
-    const expectIds = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft" && s.revealAt && revealProblems(s).length === 0).map((s) => s.id).sort();
-    const got = (await revealDue(CHAIN, new Date())).sort();
-    check("the scheduled reveal reveals exactly the due drafts that are whole (the SQL and the rule agree)", JSON.stringify(got) === JSON.stringify(expectIds) && got.includes(cases[0]) && got.includes(co2.id) && got.includes(cases[4]) && !got.includes(cases[1]) && !got.includes(cases[2]), { got, expectIds, cases });
-    check("a late collab that isn't whole stays a draft, and a second pass changes nothing", (await revealDue(CHAIN, new Date())).length === 0 && (await get(cases[1]))?.status === "draft");
+    const dueNow = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft" && s.revealAt);
+    // First as it is today: only the standard set is revealed, and every collab waits.
+    const todayIds = dueNow.filter((s) => revealProblems(s).length === 0).map((s) => s.id).sort();
+    const gotToday = (await revealDue(CHAIN, new Date())).sort();
+    check("today the scheduled reveal passes every collab by (the SQL and the rule agree)", JSON.stringify(gotToday) === JSON.stringify(todayIds) && JSON.stringify(gotToday) === JSON.stringify([cases[4]]), { gotToday, todayIds });
+    // Then as it will be once the card ships.
+    const expectIds = dueNow.filter((s) => s.id !== cases[4] && revealProblems(s, true).length === 0).map((s) => s.id).sort();
+    const got = (await revealDue(CHAIN, new Date(), LIVE)).sort();
+    check("the scheduled reveal reveals exactly the due drafts that are whole (the SQL and the rule agree)", JSON.stringify(got) === JSON.stringify(expectIds) && got.includes(cases[0]) && got.includes(co2.id) && !got.includes(cases[1]) && !got.includes(cases[2]), { got, expectIds, cases });
+    check("a late collab that isn't whole stays a draft, and a second pass changes nothing", (await revealDue(CHAIN, new Date(), LIVE)).length === 0 && (await get(cases[1]))?.status === "draft");
 
     // revealed: the look is locked with the name; the first day's rule still moves
     check("revealed: no new color", (await refused(() => updateSet(CHAIN, co2.id, { colorA: "#000000" }))) === "locked");

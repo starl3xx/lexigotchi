@@ -11,6 +11,8 @@ export interface GateRefusal {
   /** The set's first-day rule (not_on_list): "allowlist" or "token"; and the operator's words for who it lets in. */
   rule?: string;
   label?: string | null;
+  /** not_on_list: another wallet of the player's profile IS let in (the claim must come from that one). */
+  linked?: boolean;
   /** The words that hold the player's slots (limit_reached). */
   words?: string[];
   limit?: number;
@@ -80,7 +82,9 @@ export function gateRefusalNote(word: string, r: GateRefusal, nowSec: number, un
       };
     case "not_on_list":
       return {
-        text: `First day: this set is open to ${firstDayWho(r.rule, r.label)}. ${W} opens to everyone in ${left}.`,
+        text: r.linked
+          ? `First day: this set is open to ${firstDayWho(r.rule, r.label)}. Claim ${W} with the wallet of yours that qualifies.`
+          : `First day: this set is open to ${firstDayWho(r.rule, r.label)}. ${W} opens to everyone in ${left}.`,
         tone: "info",
         openProfile: false,
       };

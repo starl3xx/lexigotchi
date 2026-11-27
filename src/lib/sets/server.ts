@@ -33,6 +33,7 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
 import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
+import { tokenReadable } from "./firstDay";
 import { dueToReveal, gateUntilFor, heldOf, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
@@ -499,6 +500,11 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
     // with nobody on it, would lock the set's words to everyone for the whole gate.
     const rule = releaseProblems(set);
     if (rule.length > 0) return { ok: false, error: "gate_rule", detail: rule.join("; ") };
+    // And a token rule's contract must answer on Base: a mistyped address fails every balance
+    // read, which is "try again" for every player all day, and the rule is final once released.
+    if (set.gateRule === "token" && set.gateToken && !(await tokenReadable(set.gateToken))) {
+      return { ok: false, error: "gate_rule", detail: "couldn’t read balanceOf on the token’s contract on Base: check the address, then build the release again" };
+    }
     // Words.setGate reverts on a word somebody holds, and the release with it: gate the rest. If
     // ownership can't be read, no plan: a batch that might revert is worse than waiting a minute.
     const owned = g.until !== null ? await claimedAmong(words) : [];

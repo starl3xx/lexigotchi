@@ -4,7 +4,7 @@
  * closed: a read that fails is "ask again", never "yes".
  */
 import { describe, it, expect } from "vitest";
-import { firstDayOpenTo, type FirstDayDeps, type FirstDaySet } from "@/lib/sets/firstDay";
+import { firstDayOpenTo, tokenReadable, type FirstDayDeps, type FirstDaySet } from "@/lib/sets/firstDay";
 
 const A = "0x00000000000000000000000000000000000000a1";
 const B = "0x00000000000000000000000000000000000000b2";
@@ -76,5 +76,22 @@ describe("a token's holders", () => {
     const big = set({ gateRule: "token", gateToken: TOKEN, gateMin: "1000000000000000000000" }); // 1,000 tokens of 18 decimals
     expect(await firstDayOpenTo(big, [A], holding({ [A]: 999_999_999_999_999_999_999n }))).toBe(false);
     expect(await firstDayOpenTo(big, [A], holding({ [A]: 1_000_000_000_000_000_000_000n }))).toBe(true);
+  });
+});
+
+describe("a token rule's contract, before a release is built for it", () => {
+  it("is readable when balanceOf answers, whatever the answer", async () => {
+    expect(await tokenReadable(TOKEN, { balanceOf: async () => 0n })).toBe(true);
+  });
+  it("is not when the read fails: a mistyped address, or a contract that isn't a token", async () => {
+    const asked: string[] = [];
+    const bad = {
+      balanceOf: async (_t: string, wallet: string) => {
+        asked.push(wallet);
+        throw new Error("execution reverted");
+      },
+    };
+    expect(await tokenReadable(TOKEN, bad)).toBe(false);
+    expect(asked).toEqual(["0x000000000000000000000000000000000000dead"]); // never the zero address: an ERC-721 reverts on it
   });
 });

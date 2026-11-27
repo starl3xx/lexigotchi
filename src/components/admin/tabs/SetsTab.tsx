@@ -60,7 +60,7 @@ const SELECT = "w-full rounded-xl border-[3px] border-ink bg-paper px-2 py-1.5 t
 /** A picked file as base64 (no `data:` prefix), or a reason it can't be a stamp. The server checks again, by the bytes. */
 function readStampFile(file: File): Promise<{ ok: true; data: string } | { ok: false; error: string }> {
   return new Promise((resolve) => {
-    if (!(STAMP_TYPES as readonly string[]).includes(file.type)) return resolve({ ok: false, error: "A stamp is a PNG, a JPEG, or a WebP (never an SVG)." });
+    if (!(STAMP_TYPES as readonly string[]).includes(file.type)) return resolve({ ok: false, error: "A stamp is a PNG or a JPEG (never an SVG)." });
     if (file.size > STAMP_MAX_BYTES) return resolve({ ok: false, error: `A stamp is at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB.` });
     const reader = new FileReader();
     reader.onerror = () => resolve({ ok: false, error: "Couldn’t read that file." });
@@ -489,7 +489,7 @@ function SetCard({
                   Remove it
                 </button>
               )}
-              <span className="text-[11px] text-ink/55">PNG, JPEG, or WebP, at most {Math.round(STAMP_MAX_BYTES / 1024)} KB. Never an SVG.</span>
+              <span className="text-[11px] text-ink/55">PNG or JPEG, at most {Math.round(STAMP_MAX_BYTES / 1024)} KB. Never an SVG.</span>
             </span>
           )}
           {draft && set.type !== "collab" && <span className="text-xs text-ink/60">Save the set as a collab first, then upload its stamp.</span>}
@@ -787,7 +787,8 @@ export function SetsTab() {
             <AdminCard title="A test collab">
               <p className="mb-2 text-xs text-ink/60">
                 A placeholder collab set for this test network, so the card can be seen: “Test collab”, two arbitrary colors, a plain stamp, and
-                five free words picked now. It names no real partner, it is made as a draft, and it can’t be made on mainnet.
+                five free words picked now. It names no real partner, it is made as a draft, and it can’t be made on mainnet. A collab set
+                can be revealed once the collab card ships; until then the draft is here to look at and edit.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button className={BTN} onClick={makeTestCollab} disabled={!data.collab || data.sets.some((s) => s.name === "Test collab")}>

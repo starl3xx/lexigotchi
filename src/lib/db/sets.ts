@@ -17,6 +17,7 @@ import { getDb, type DbOrTx } from "./client";
 import { dictionaryRoots, setAllowlist, setStamps, setWords, wordSets } from "./schema";
 import { isMissingColumn, isMissingTable } from "./profiles";
 import {
+  COLLAB_LIVE,
   COLLAB_WORDS,
   IDENTITY_KEYS,
   SCHEDULE_KEYS,
@@ -516,7 +517,7 @@ async function replaceDraftsTx(chainId: number, sets: readonly ImportSet[]): Pro
  * stamp (`not_ready`, with what is missing). Checked under the set's lock, so an edit can't slip in
  * between the check and the reveal.
  */
-export async function revealSet(chainId: number, id: number, now: Date): Promise<void> {
+export async function revealSet(chainId: number, id: number, now: Date, opts: { collabLive?: boolean } = {}): Promise<void> {
   await getDb().transaction(async (tx) => {
     if ((await lockSet(tx, chainId, id)) !== "draft") throw new SetError("locked");
     const words = await tx.select({ word: setWords.word, headliner: setWords.headliner }).from(setWords).where(eq(setWords.setId, id));
@@ -536,7 +537,7 @@ export async function revealSet(chainId: number, id: number, now: Date): Promise
     } catch (err) {
       if (!lacksCollab(err)) throw err;
     }
-    const problems = revealProblems({ ...look, words });
+    const problems = revealProblems({ ...look, words }, opts.collabLive ?? COLLAB_LIVE);
     if (problems.length > 0) throw new SetError("not_ready", [], problems);
     await tx
       .update(wordSets)
@@ -553,14 +554,17 @@ export async function revealSet(chainId: number, id: number, now: Date): Promise
  * late it is: the admin shows what it is missing. The rule is written twice, here in SQL and in
  * rules.ts `revealProblems`; scripts/sets-db-check.ts holds the two together.
  */
-export async function revealDue(chainId: number, now: Date): Promise<number[]> {
+export async function revealDue(chainId: number, now: Date, opts: { collabLive?: boolean } = {}): Promise<number[]> {
   const due = [
     eq(wordSets.chainId, chainId),
     eq(wordSets.status, "draft"),
     lte(wordSets.revealAt, now),
     sql`exists (select 1 from ${setWords} where ${setWords.setId} = ${wordSets.id})`,
   ];
-  const whole = sql`(${wordSets.type} <> 'collab' or (
+  // Until the collab card ships no collab set is revealed at all (rules.ts COLLAB_LIVE).
+  const whole = !(opts.collabLive ?? COLLAB_LIVE)
+    ? sql`${wordSets.type} <> 'collab'`
+    : sql`(${wordSets.type} <> 'collab' or (
     (select count(*) from ${setWords} where ${setWords.setId} = ${wordSets.id}) = ${COLLAB_WORDS}
     and coalesce(btrim(${wordSets.partnerName}), '') <> ''
     and ${wordSets.colorA} is not null and ${wordSets.colorB} is not null

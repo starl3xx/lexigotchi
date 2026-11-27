@@ -39,11 +39,17 @@ export function firstDayRule(limit: number): string {
   return limit <= 1 ? "First day: one word per player" : `First day: ${limit} words per player`;
 }
 
-/** What a set says of itself right now. */
-export function setLines(set: PublicSet, nowMs: number): SetLines {
+/**
+ * What a set says of itself right now. `gate` is whether this network's Words can enforce a first
+ * day at all (the sets answer's `gate`): where it can't, a set opens to everyone at once, so
+ * nothing is said about who its first day is open to.
+ */
+export function setLines(set: PublicSet, nowMs: number, gate = true): SetLines {
   if (set.kind === "locked") return { title: "A new set is coming", status: "Locked", gated: false };
   const partner = set.collab ? { name: set.collab.partner, url: set.collab.url } : undefined;
-  const openTo = set.firstDay !== "verified" ? firstDayWho(set.firstDay, set.firstDayLabel) : undefined;
+  // `firstDay` may be missing in an answer kept from before this field existed: that is "verified".
+  const ruled = gate && (set.firstDay === "allowlist" || set.firstDay === "token");
+  const openTo = ruled ? firstDayWho(set.firstDay, set.firstDayLabel) : undefined;
   if (set.kind === "revealed") {
     const left = set.releaseAt ? leftText(Date.parse(set.releaseAt) - nowMs) : undefined;
     return {

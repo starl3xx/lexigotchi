@@ -13,7 +13,7 @@
  *    written before the voucher is signed; a voucher that expires unused gives its slot back, read
  *    from the chain's own `Claimed` history.
  *  - On a set whose first day has a rule of its own (an allowlist, or holders of a token on Base):
- *    a profile with a wallet the rule lets in (lib/sets/firstDay.ts). This adds to "verified".
+ *    the CLAIMING wallet must be one the rule lets in (lib/sets/firstDay.ts). This adds to "verified".
  *  - A caller who PROVES the wallet is theirs: that wallet's profile session, or a Farcaster
  *    sign-in that Farcaster itself says verified one of the profile's wallets. Unlike the free
  *    snack's voucher, this one spends something scarce (the profile's one slot, on a word the
@@ -161,10 +161,17 @@ export async function POST(req: Request) {
   if (!proven) return no("sign_in", 401, { until });
 
   // Who this set's first day is open to (an allowlist, or holders of a token). After verification,
-  // never in its place; and a list or a balance that can't be read issues nothing.
-  const open = await firstDayOpenTo(set, wallets);
+  // never in its place; and a list or a balance that can't be read issues nothing. It is asked of
+  // the wallet that will CLAIM, never of the whole profile: a listed wallet linked into one
+  // verified profile after another would otherwise let each of them in (lib/sets/firstDay.ts).
+  const open = await firstDayOpenTo(set, [wallet]);
   if (open === null) return no("try_again", 503);
-  if (!open) return no("not_on_list", 403, { until, rule: set.gateRule, label: set.gateLabel });
+  if (!open) {
+    // Say so when another wallet of the profile would be let in: the fix is to claim with that one.
+    const others = wallets.filter((w) => w !== wallet);
+    const linked = others.length > 0 && (await firstDayOpenTo(set, others)) === true;
+    return no("not_on_list", 403, { until, rule: set.gateRule, label: set.gateLabel, linked });
+  }
 
   const deadline = now + VOUCHER_TTL_SECONDS;
   try {
