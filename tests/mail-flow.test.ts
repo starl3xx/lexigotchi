@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { LETTERS_BY_FREQUENCY } from "@/lib/economy";
-import { QUICK_AFTER, bagWithMail, bestLine, caughtUp, countHead, countSub, finishers, hadFor, hadWithOwed, isRarest, mailNumber, mailNumberText, mailStatus, nextTearIsQuick, resetSitting, revealBeats, revealOrder, tagOf, type Mail } from "@/components/game/mail/mailFlow";
+import { QUICK_AFTER, bagWithMail, bestLine, caughtUp, countHead, countSub, finishers, hadFor, hadWithOwed, isRarest, mailNumber, mailNumberText, mailStatus, owedAfter, nextTearIsQuick, resetSitting, revealBeats, revealOrder, tagOf, type Mail } from "@/components/game/mail/mailFlow";
 
 const idx = (ch: string) => ch.toLowerCase().charCodeAt(0) - 97;
 const bag = (letters: string) => {
@@ -301,5 +301,27 @@ describe("what “new” is measured from", () => {
     expect(pulls.some((p) => p.isNew)).toBe(false);
     // the same piece, when what it held before IS known, says what is new
     expect(revealOrder(pack("kesad"), hadFor({ mine: true, had: bag("funy") })).filter((p) => p.isNew)).toHaveLength(5);
+  });
+});
+
+// Bugbot on #276: pieces can settle out of order (a daily letter found minutes late).
+describe("what is owed after a piece is revealed", () => {
+  it("is what the bag held plus the piece's letters, when nothing else is owed", () => {
+    expect(owedAfter(bag("funy"), pack("ke"), null)).toEqual(bag("funyke"));
+  });
+
+  it("is never lowered by an older piece that settles late", () => {
+    // a pack was opened after the daily was sent: the bag is owed its five letters
+    const afterPack = bag("funyesard");
+    // the daily, found minutes later, still carries the bag from BEFORE the pack
+    const late = owedAfter(bag("funy"), pack("k"), afterPack);
+    for (const ch of "esard") expect(late[idx(ch)]).toBeGreaterThanOrEqual(afterPack[idx(ch)]);
+    expect(late[idx("k")]).toBe(1);
+    // so the next envelope does not call the pack's letters new again
+    expect(revealOrder(pack("d"), hadWithOwed(bag("funy"), late))[0].isNew).toBe(false);
+  });
+
+  it("a newer piece raises it as before", () => {
+    expect(owedAfter(bag("funyk"), pack("zz"), bag("funyk"))).toEqual(bag("funykzz"));
   });
 });

@@ -2151,8 +2151,9 @@ setter. All small, riding existing suite patterns.
         `dailySealed`, pure, tested). The letter goes on the stored note at the send, as it did
         before the mail. The tile beside "claimed" on Today and Mint is hidden only while a sealed
         one-letter envelope stands in this browser: in hand and on its way or waiting to be torn,
-        kept as mail, or a one-letter commit the card still has to open. No toast names the letter
-        at the tap. The note may name its envelope, so its tear writes the letter the chain minted
+        kept as mail, or a one-letter commit the card still has to open. When the note names its
+        envelope, only that one counts, so an older daily left unopened never keeps today's tile
+        blank. No toast names the letter at the tap. The note may name its envelope, so its tear writes the letter the chain minted
         over the one the send was made with, and never stamps the note again (tearing an old
         envelope must not mark today as claimed).
       - **The rule I tried first, and why it is gone.** The note was written with NO letter, and

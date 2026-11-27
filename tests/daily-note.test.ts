@@ -93,19 +93,22 @@ describe("is today's letter still sealed in an envelope here?", () => {
   });
 
   it("a one-letter commit of this wallet's still to be opened: sealed (the card shows it)", () => {
-    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: true }] })).toBe(true);
-    expect(dailySealed({ ...nothing, open: [{ count: 5, mine: true }] })).toBe(false);
+    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: true, number: 196 }] })).toBe(true);
+    expect(dailySealed({ ...nothing, open: [{ count: 5, mine: true, number: 196 }] })).toBe(false);
     // a linked wallet's daily is not this wallet's letter
-    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: false }] })).toBe(false);
+    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: false, number: 196 }] })).toBe(false);
   });
 
   it("when the note names its envelope, an OLDER daily letter still unopened does not hide today's", () => {
     // yesterday's envelope (No. 150) is still kept; today's (No. 190) was torn
     expect(dailySealed({ ...nothing, kept: [{ number: 150, letters: [7] }], mail: 190 })).toBe(false);
     expect(dailySealed({ ...nothing, hand: hand({ number: 150 }), mail: 190 })).toBe(false);
-    // today's own, kept or in hand, does
+    // nor does an older daily that is stranded as a commit still to be opened (Bugbot on #276)
+    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: true, number: 150 }], mail: 190 })).toBe(false);
+    // today's own, kept, in hand, or still to be opened, does
     expect(dailySealed({ ...nothing, kept: [{ number: 150, letters: [7] }, { number: 190, letters: [4] }], mail: 190 })).toBe(true);
     expect(dailySealed({ ...nothing, hand: hand({ number: 190 }), mail: 190 })).toBe(true);
+    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: true, number: 150 }, { count: 1, mine: true, number: 190 }], mail: 190 })).toBe(true);
   });
 
   it("a piece on its way has no number yet, and it is today's", () => {

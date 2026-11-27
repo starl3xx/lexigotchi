@@ -247,6 +247,15 @@ export function bagWithMail(lower: readonly number[], had: readonly number[], le
 export function hadWithOwed(lower: readonly number[], owed: readonly number[] | null): number[] {
   return Array.from({ length: 26 }, (_, i) => Math.max(lower[i] ?? 0, owed?.[i] ?? 0));
 }
+/**
+ * What is owed after a piece is revealed: what it left in the bag, and never less than what was
+ * already owed. Pieces can settle out of order (a daily letter found minutes late, after a pack
+ * was opened in between): its older "before" must not lower what the newer piece left, or the
+ * next envelope calls those letters new again (Bugbot on #276).
+ */
+export function owedAfter(had: readonly number[], letters: readonly number[], owed: readonly number[] | null): number[] {
+  return hadWithOwed(bagWithMail(had, had, letters), owed);
+}
 /** Has the bag caught up with what a revealed piece left in it? */
 export const caughtUp = (lower: readonly number[], owed: readonly number[]): boolean => owed.every((n, i) => (lower[i] ?? 0) >= n);
 

@@ -136,7 +136,7 @@ import { failedAsk, openPacks, packRevealPlan, waitingCommits, type PackRevealAn
 import { DAILY_LOOK_MS, DAILY_STEP_MS, dailyPlan } from "@/lib/onchain/dailySend";
 import { dailySealed, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 import { mailboxKey, readMailbox, withMail, withoutMail, writeMailbox, type UnopenedMail } from "@/lib/mailbox";
-import { bagWithMail, caughtUp, hadWithOwed, mailNumber, type Mail } from "./mail/mailFlow";
+import { caughtUp, hadWithOwed, mailNumber, owedAfter, type Mail } from "./mail/mailFlow";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
@@ -1148,7 +1148,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       if (boxKey && piece.mine) saveBox(boxKey, (list) => withMail(list, { number, letters, had: piece.had, at: Date.now(), ...(piece.plain ? { plain: true as const } : {}) }));
       // The chain holds these letters now, whatever the bag's read says for the next few seconds.
       // (Not for a piece whose "before" isn't known: its letters may be in that count already.)
-      if (piece.mine && !piece.plain) owed.current = { key: boxKey, bag: bagWithMail(piece.had, piece.had, letters), at: Date.now() };
+      if (piece.mine && !piece.plain) {
+        // Never lowered by a piece that settles late: what a newer piece left still stands.
+        const still = owed.current && owed.current.key === boxKey && Date.now() - owed.current.at <= OWED_TRUST_MS ? owed.current.bag : null;
+        owed.current = { key: boxKey, bag: owedAfter(piece.had, letters, still), at: Date.now() };
+      }
       if (shown) return { status: "resolved", success: true };
       // Its sheet has gone. If it is still the piece in hand, `arrive` opens the sheet on it (or
       // says so in a toast, when another sheet is open). If another envelope is in hand, the
@@ -1548,7 +1552,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   const dailyIsSealed = dailySealed({
     hand: mail,
     kept: untorn,
-    open: waitingPacks.map((c) => ({ count: c.count, mine: c.buyer.toLowerCase() === address?.toLowerCase() })),
+    open: waitingPacks.map((c) => ({ count: c.count, mine: c.buyer.toLowerCase() === address?.toLowerCase(), number: mailNumber(c.commitId) })),
     mail: seenToday?.mail,
   });
   const api: GameApi = useMemo(

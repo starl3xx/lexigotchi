@@ -65,19 +65,21 @@ const SEALED_PHASES: readonly string[] = ["wallet", "paid", "found", "ready"];
  *   nothing may ever come of it, and the tile would stay hidden for the whole sitting;
  * - kept as mail here, never torn;
  * - as a one-letter commit of this wallet's that the server still has to open (the card shows it).
- * When the note names its envelope (`mail`), only THAT envelope counts in hand or kept: an older
- * daily letter still unopened does not hide today's. (A commit still to be opened has no day this
- * browser knows, so any one-letter one counts.)
+ * When the note names its envelope (`mail`), only THAT envelope counts, wherever it stands: an
+ * older daily letter still unopened, in hand, kept, or stranded as a commit, does not hide today's
+ * (Bugbot on #276). While the note names none, any one-letter envelope counts: it can't be told
+ * apart.
  */
 export function dailySealed(at: {
   hand: { count: number; torn: boolean; phase: string; number: number | null } | null;
   kept: readonly { number: number; letters: readonly number[] }[];
-  open: readonly { count: number; mine: boolean }[];
+  /** Each with its number in the mail (its commit id plus one). */
+  open: readonly { count: number; mine: boolean; number: number }[];
   mail: number | undefined;
 }): boolean {
   const named = (number: number | null) => at.mail === undefined || number === null || number === at.mail;
   const { hand } = at;
   if (hand && hand.count === 1 && !hand.torn && SEALED_PHASES.includes(hand.phase) && named(hand.number)) return true;
   if (at.kept.some((k) => k.letters.length === 1 && named(k.number))) return true;
-  return at.open.some((c) => c.count === 1 && c.mine);
+  return at.open.some((c) => c.count === 1 && c.mine && named(c.number));
 }
