@@ -232,6 +232,15 @@ describe("a card picture's address names the word's look", () => {
     expect(cardPictureCache({ ...known, mark: "7-100", look: "7-123" })).toBe(CARD_CACHE_SHORT); // a stamp replaced before the reveal
     expect(cardPictureCache({ ...known, mark: "7-123", look: null })).toBe(CARD_CACHE_SHORT); // an address that claims a look the word doesn't have
   });
+  it("the earnings picture is kept long only when it was drawn whole: the sets read, and the hero word's stamp drawn", () => {
+    // It used to be a week whatever happened; X and Farcaster keep what they first read (Bugbot on #302).
+    const route = readFileSync(join(__dirname, "..", "src/app/e/[token]/card/route.tsx"), "utf8");
+    expect(route).toContain("const whole = setsRead && !(mine?.stamp && !stamp);");
+    expect(route).toContain('headers: { "cache-control": whole ? CARD_CACHE_LONG : CARD_CACHE_SHORT }');
+    expect(CARD_CACHE_LONG).toBe("public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"); // what the route sent before, unchanged when whole
+    // a picture with no word on it reads no sets, and is whole
+    expect(route).toContain("tiles ? await collabSoonRead() : { looks: NO_LOOKS, known: true }");
+  });
   it("a draft's word gets the same address and the same caching as any word: nothing to read from a header", () => {
     // The look map holds nothing of a draft (lib/collabLook.ts), so the route sees `look: null`
     // and the game builds an address with no `c`: exactly a plain word's.
