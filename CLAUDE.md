@@ -885,7 +885,22 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   finished by the server** (decisions.md #14): `revealRoll` posts `{ relay: true }` and
   `/api/roll/reveal` sends `Rolls.reveal` from `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`),
   so the wallet never previews the result; the answer's `relayed` field says what happened, and only
-  "nothing broadcast" returns a signature for the wallet to send. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  "nothing broadcast" returns a signature for the wallet to send. **The server opens packs too**
+  (decisions.md #49; `revealCommit`, `/api/mint/reveal` with `{ relay: true }`, `relayLettersReveal`):
+  a pack, a free pack, and a daily letter whose reveal didn't ride its commit are ONE wallet
+  confirmation. What the game does with each answer is `lib/onchain/packReveal.ts` (pure, tested):
+  **only an answer with no `relayed` field reaches the wallet**; "mined" and "already" name the
+  letters the CHAIN minted (the reveal's own `Revealed` event, `relayOutcome`), never the stored draw
+  (which is served again only while it can still mint, so it can name different letters for a pack
+  long since opened); "pending" and "reverted" name none, and the game waits for
+  `commits(id).revealed`, then asks once more. A lost answer is "ask the chain" (`answerLost`). A
+  commit seen revealed goes in `revealedPacks` and is skipped by every search for an open pack
+  (`openPacks`): a lagging node would hand the old pack back as the new one. The free daily's bundle
+  (commit + reveal in one send) is NOT relayed, and a paid pack can never be bundled: a pre-signed
+  reveal would show the letters before the price is paid. Without `relay: true` the route answers
+  exactly as before (`tests/mint-relay-route.test.ts`). `scripts/pack-relay-fork-check.ts` proves it
+  against the deployed Letters on an Anvil fork (no real keys, no `DATABASE_URL`): rerun it after
+  touching the route, the relayer, or `Letters.reveal`. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
   network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
   empty until the deploy, so production flips to the real game in the same deploy that commits the
   mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the

@@ -133,7 +133,8 @@ export function MintScreen() {
               if (result.length) g.openSheet({ kind: "pack", letters: result });
               return;
             }
-            // Chain store: two wallet prompts, then the reveal opens the pack sheet itself. Hold the
+            // Chain store: one wallet prompt, then the server opens the pack (decisions.md #49) and
+            // the reveal opens the pack sheet itself. Hold the
             // button the whole time so a second tap can't buy a second pack by accident; a pack that
             // ends "stranded" is paid for and waits in PendingReveal above.
             setBuying(true);

@@ -383,6 +383,22 @@ export async function readPendingCommits(player: `0x${string}`): Promise<Pending
 }
 
 /**
+ * Has this Letters commit been revealed? One read of `commits(commitId)`, for the moment after the
+ * server has broadcast a pack's reveal (or its answer was lost): the game waits on this before it
+ * asks what the pack held. It throws on a failed read, so the caller can tell "not yet" from
+ * "couldn't ask".
+ */
+export async function readLetterCommitRevealed(commitId: bigint): Promise<boolean> {
+  const raw = (await getPublicClient().readContract({
+    address: addressOf("letters"),
+    abi: lettersAbi,
+    functionName: "commits",
+    args: [commitId],
+  })) as unknown as readonly [string, number, boolean];
+  return Boolean(raw[2]);
+}
+
+/**
  * Poll until a commit appears that wasn't in `knownIds`.
  *
  * Callers discovering a commit they JUST created cannot use `readPendingCommits` directly: logs are

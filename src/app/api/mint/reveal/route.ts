@@ -9,6 +9,35 @@ import { getPublicClient, readLetterSupply } from "@/lib/onchain/reads";
 import { lettersAbi } from "@/lib/onchain/abis";
 import { stickyDraw } from "@/lib/onchain/stickyDraw";
 import { NETWORK } from "@/lib/onchain/network";
+import { getAbiItem } from "viem";
+import { relayLettersReveal, relayerConfigured } from "@/lib/onchain/relayer";
+
+/**
+ * The letters a commit's reveal MINTED, from its own `Revealed` event (commitId is indexed, so this
+ * is one log lookup). Null when the event can't be read: the caller then says the pack is open and
+ * names no letters. The event comes from the generated ABI, never a hand copy: a log filter on a
+ * changed signature silently matches nothing.
+ *
+ * Never the draw: `stickyDraw` serves a stored draw again only while it can still be minted, so
+ * after a letter caps out it would hand back five DIFFERENT letters for a pack long since opened.
+ */
+async function readRevealedLetters(commitId: bigint, letters: `0x${string}`): Promise<number[] | null> {
+  try {
+    const logs = await getPublicClient().getLogs({
+      address: letters,
+      event: getAbiItem({ abi: lettersAbi, name: "Revealed" }),
+      args: { commitId },
+      fromBlock: deployBlock(),
+      toBlock: "latest",
+    });
+    const ids = logs[0]?.args.letterIds;
+    if (!ids?.length) return null;
+    const indexes = ids.map(Number);
+    return indexes.every((i) => Number.isInteger(i) && i >= 0 && i <= 25) ? indexes : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The (identity, day) a daily commit was minted under, from its FreeDailyMinted event — commitId
@@ -42,6 +71,8 @@ async function readDailyIdentity(
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// A relayed reveal waits up to RELAY_WAIT_MS for its block; leave room around it.
+export const maxDuration = 30;
 
 /**
  * POST — draw and sign the outcome of a letter commit.
@@ -62,7 +93,21 @@ export const runtime = "nodejs";
  * players have no Farcaster JWT) with the letter already paid for on-chain. Anonymous callers are
  * bucketed by IP instead.
  *
- * Body: `{ commitId: "123" }`
+ * RELAY (`{ relay: true }`, decisions.md #49): the server sends the reveal itself
+ * (lib/onchain/relayer), so a pack is ONE wallet confirmation and no wallet prompt names the letters
+ * before the game shows them. The answer then says what the chain did:
+ * - `relayed: "mined"`, with `letterIndexes` read from the reveal's own event;
+ * - `relayed: "already"`: revealed before this request (a lost answer is a normal case, since the
+ *   request is held while the reveal mines). `letterIndexes` are again the chain's, from the
+ *   `Revealed` event, and are left out if that event can't be read;
+ * - `relayed: "pending"` or `"reverted"`: broadcast, not seen to land. NO letters and NO signature:
+ *   the letters don't exist yet as far as this answer knows, and a second reveal from the player's
+ *   wallet would only revert when the first lands.
+ * Without a relayer key, or when the send is refused before broadcast, the answer is the signature
+ * as before and the player's wallet sends it. Without `relay: true` the route answers exactly as it
+ * always has (a client from before the relay keeps working through a deploy).
+ *
+ * Body: `{ commitId: "123", relay?: true }`
  */
 export async function POST(req: Request) {
   const fid = await getAuthedFid(req);
@@ -70,8 +115,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let commitIdRaw: string | undefined;
+  let wantRelay = false;
   try {
-    commitIdRaw = (await req.json())?.commitId;
+    const body = await req.json();
+    commitIdRaw = body?.commitId;
+    wantRelay = body?.relay === true;
   } catch {
     /* handled below */
   }
@@ -102,7 +150,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "unknown_commit" }, { status: 404 });
   }
   if (commit.revealed) {
-    return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
+    if (!wantRelay) return NextResponse.json({ ok: false, error: "already_revealed" }, { status: 409 });
+    // Open already: what it held is the chain's to say, from the reveal's own event.
+    const minted = await readRevealedLetters(commitId, letters);
+    return NextResponse.json({
+      ok: true,
+      reveal: { commitId: String(commitId), buyer: commit.buyer, ...(minted ? { letterIndexes: minted } : {}), relayed: "already" },
+    });
   }
 
   // Never draw a capped letter — Letters.reveal reverts CapExceeded and the paid commit is stranded.
@@ -138,6 +192,21 @@ export async function POST(req: Request) {
 
   const inner = lettersRevealDigest({ letters, commitId, buyer: commit.buyer, letterIndexes });
   const signature = await signDigest(inner);
+
+  if (wantRelay && relayerConfigured()) {
+    const r = await relayLettersReveal(commitId, letterIndexes, signature);
+    const facts = { commitId: String(commitId), buyer: commit.buyer };
+    if (r.kind === "mined") {
+      // The letters as the chain minted them (the reveal's own event), not the draw that was signed.
+      return NextResponse.json({ ok: true, reveal: { ...facts, letterIndexes: r.letterIndexes, relayed: "mined", txHash: r.txHash } });
+    }
+    if (r.kind === "pending" || r.kind === "reverted") {
+      // Broadcast: the player's wallet must NOT send a second reveal, and no letter is named yet.
+      return NextResponse.json({ ok: true, reveal: { ...facts, relayed: r.kind, txHash: r.txHash } });
+    }
+    console.warn(`[mint/reveal] relay unavailable (${r.reason}); the player's wallet sends commit ${commitId}`);
+    // Nothing was broadcast: fall through to the signature, and the wallet sends it.
+  }
 
   return NextResponse.json({
     ok: true,
