@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { isWord } from "@/lib/dictionary";
-import { serving } from "@/lib/sets/server";
+import { hasGate, serving } from "@/lib/sets/server";
+import { addressOf } from "@/lib/onchain/addresses";
+import { wordsAbi } from "@/lib/onchain/abis";
+import { getPublicClient } from "@/lib/onchain/reads";
+import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
 
@@ -9,6 +13,9 @@ export const runtime = "nodejs";
 // or a set's release (a cached "dictionary_mismatch" would block claims long after the fix). Proofs
 // are cheap: a tree is built once per root per server start.
 export const dynamic = "force-dynamic";
+
+/** How long past a gate's end (by this server's clock) the game is still sent to ask for a voucher. */
+const GATE_SKEW_SECONDS = 120;
 
 /**
  * GET /api/dictionary/proof?word=CRANE
@@ -23,6 +30,10 @@ export const dynamic = "force-dynamic";
  * server never built means the bundled dictionary and the chain disagree (after a re-vendor, until
  * the owner sends `Words.setDictionaryRoot`): every claim would revert NotInDictionary inside the
  * wallet, so the route says `dictionary_mismatch` instead.
+ *
+ * A word still inside its set's first day carries `gate` (when the gate lifts, in seconds, read
+ * from the chain): the claim then needs a voucher too. The game asks the voucher route whenever
+ * `gate` is there; that route reads the chain's own time and decides.
  *
  * A dictionary word that is held back answers `not_released`, and nothing more: not which set has
  * it, not when it comes. One word a request, and a limit per address, because the answers together
@@ -54,5 +65,24 @@ export async function GET(req: Request) {
   // `held` covers what the chain leaves out, but a proof that can't verify is never served.
   if (!result) return NextResponse.json({ ok: false, error: "not_released" }, { status: 404 });
 
-  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root });
+  // Inside its set's first day? Then the claim also needs a voucher (POST /api/sets/voucher), and
+  // the game is told until when. Asked of the CHAIN, for this word, on a network whose Words has
+  // the gate: never of the sets table (which may be unreadable, or behind an owner who lifted a
+  // gate early), and a proof is never served for a word whose gate couldn't be read (the plain
+  // claim would revert in the wallet).
+  let gate: number | null = null;
+  if (hasGate()) {
+    let until: number;
+    try {
+      until = Number(await getPublicClient().readContract({ address: addressOf("words"), abi: wordsAbi, functionName: "gatedUntil", args: [tokenIdOf(W)] }));
+    } catch {
+      return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
+    }
+    // Generous on purpose: this server's clock isn't the chain's, and neither is the player's
+    // device's. A gate that ended a moment ago still sends the game to the voucher route, which
+    // reads the chain's own time and answers "not gated" (then the plain claim is the claim).
+    if ((until + GATE_SKEW_SECONDS) * 1000 > Date.now()) gate = until;
+  }
+
+  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root, ...(gate ? { gate } : {}) });
 }

@@ -39,7 +39,6 @@ import {
   ArrowRight,
   Confetti,
   Cookie,
-  DiceFive,
   Planet,
   SealCheck,
   Sparkle,
@@ -153,11 +152,13 @@ const STEP_VISUALS: Record<HowItWorksStep["id"], ReactNode> = {
       ))}
     </div>
   ),
+  // The letters act the step out, with no icon between them (decisions.md #50, part 5): a
+  // lowercase r, the r mid-roll (it can't look), and the R it becomes. The intro draws the same.
   raise: (
-    <div className="flex items-center justify-center gap-2">
-      <TileCharacter char="r" detail="full" state="idle" size={50} />
-      <DiceFive weight="fill" size={28} className="shrink-0 text-candy" aria-hidden />
-      <TileCharacter char="r" upper detail="full" state="upgrade" size={68} />
+    <div className="flex items-end justify-center gap-1">
+      <TileCharacter char="r" detail="full" state="idle" size={46} />
+      <TileCharacter char="r" detail="full" state="rolling" size={46} index={1} />
+      <TileCharacter char="r" upper detail="full" state="upgrade" size={64} />
     </div>
   ),
   spell: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={42} />,
@@ -395,9 +396,10 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             id="care"
             title="They get hungry."
             visual={
-              <div className="flex items-center justify-center gap-2">
+              // a hungry y, and the y fed: no icon between them, and no letter at its snack (the
+              // owner, of the snack held still at this size: "I don't like the static cookie/circle thing")
+              <div className="flex items-end justify-center gap-2">
                 <TileCharacter char="y" detail="full" state="hungry" size={56} />
-                <Cookie weight="fill" size={26} className="shrink-0 text-candy" aria-hidden />
                 <TileCharacter char="y" detail="full" state="celebrate" size={64} />
               </div>
             }

@@ -4,6 +4,7 @@
   "chainId": 8453,
   "deployedAt": null,
   "deployBlock": null,
+  "wordsGate": false,
   "wordToken": "0x304e649e69979298bd1aee63e175adf07885fb4b",
   "roles": {
     "treasury": null,

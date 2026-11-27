@@ -15,6 +15,7 @@ import type { ContractKey } from "./deployments";
 export type SolType =
   | "address"
   | "uint256"
+  | "uint256[]" // written "[1,2,3]" (lib/admin/tx.ts): Words.setGate's token ids
   | "uint96"
   | "uint128"
   | "uint64"
@@ -377,8 +378,9 @@ export const CONTRACTS: ContractDef[] = [
       { name: "word", type: "address" },
       { name: "feeRouter", type: "address" },
       { name: "letters", type: "address" },
-      { name: "dictionaryRoot", type: "bytes32", help: "Merkle root from economy.json" },
+      { name: "dictionaryRoot", type: "bytes32", help: "Merkle root from economy.json, or the RESERVE root when words are held back in sets (Sets tab; Deploy env DICTIONARY_ROOT)" },
       { name: "claimPrice", type: "uint256", default: WEI.claim },
+      { name: "claimSigner", type: "address", help: "the backend signer (Deploy env SIGNER): vouches for first-day claims of a newly released set" },
       { name: "initialOwner", type: "address" },
     ],
     fns: [
@@ -395,13 +397,36 @@ export const CONTRACTS: ContractDef[] = [
         fn: "setDictionaryRoot",
         signature: "setDictionaryRoot(bytes32)",
         title: "Set dictionary root",
-        desc: "Update the canonical dictionary Merkle root. Only if the word list is re-vendored (regenerate with npm run derive:contracts).",
+        desc: "Update the dictionary Merkle root. Use the Sets tab's builders, never a root typed here: with words held back in sets, the right root is the reserve root (it also follows a re-vendor), and a release sets its gate first.",
         kind: "owner",
         group: "Dictionary",
         danger: true,
         args: [
           { name: "root", type: "bytes32", default: "0x0d48916cd7b9f350667ee831da1e50506571843845327ab7977ba563761866c8" },
         ],
+      },
+      {
+        fn: "setGate",
+        signature: "setGate(uint256[],uint64)",
+        title: "Set the first-day gate",
+        desc: "Gate words until a time (at most 7 days ahead; never a word somebody holds): claiming one then needs the backend's voucher. Built by the Sets tab's release, BEFORE the root. Only on a Words deployed with the gate; a past time or 0 lifts it.",
+        kind: "owner",
+        group: "Dictionary",
+        danger: true,
+        args: [
+          { name: "tokenIds", type: "uint256[]", help: "[id,id,…]: each word's token id (keccak256 of the word)" },
+          { name: "until", type: "uint64", help: "unix seconds" },
+        ],
+      },
+      {
+        fn: "setClaimSigner",
+        signature: "setClaimSigner(address)",
+        title: "Set claim signer",
+        desc: "Rotate the backend key that signs first-day claim vouchers (keep it the same key as Letters, Rolls, Staking, and Prestige). Rotating to a dead key closes gated words to everyone until their gate lifts. Only on a Words deployed with the gate.",
+        kind: "owner",
+        group: "Roles",
+        danger: true,
+        args: [{ name: "signer_", type: "address" }],
       },
       {
         fn: "setBaseURI",
