@@ -19,7 +19,7 @@ import { wordTier } from "@/lib/economy";
 import { MiniTiles } from "./MiniTiles";
 import { Pill } from "./primitives";
 import { Lock } from "./ui/icons";
-import { setLines } from "./sets";
+import { firstDayNote, setLines } from "./sets";
 import { useOpenWord } from "./useDictionary";
 import { useMinuteClock, useSets } from "./useSets";
 
@@ -44,8 +44,7 @@ function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; no
       </div>
       {lines.rule && (
         <p className="mt-1 text-[13px] leading-snug text-ink/75">
-          <span className="font-extrabold text-gold-ink">{lines.rule}.</span> Each verified player can claim one word from this set today. After
-          that, every word that’s left is open to all.
+          <span className="font-extrabold text-gold-ink">{lines.rule}.</span> {set.kind === "released" ? firstDayNote(set.perPlayerLimit) : null}
         </p>
       )}
       <div className={words.length > 0 ? "mt-2 flex flex-wrap gap-2" : "hidden"}>

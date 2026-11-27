@@ -37,6 +37,7 @@ import type { Tier } from "@/lib/economy";
 import type { ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
 import { ascensionLabel, cardDigits } from "@/lib/cardFacts";
+import { footSetName } from "@/lib/backPicture";
 import { svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { rackPaths } from "@/lib/cardArt/rack";
@@ -244,7 +245,7 @@ function FullBody({ word }: { word: OwnedWord }) {
         {/* a word released in a reserved set carries the set's name (decisions.md, "Reserved word sets") */}
         {f.set && (
           <span>
-            Set <b>{f.set}</b>
+            Set <b>{footSetName(f.set)}</b>
           </span>
         )}
         {s.jackpot && <span>{s.jackpot}</span>}

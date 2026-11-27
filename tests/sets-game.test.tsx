@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PublicSet } from "@/lib/sets/rules";
-import { firstDayRule, leftText, releasedSetNames, setLines } from "@/components/game/sets";
+import { firstDayNote, firstDayRule, leftText, releasedSetNames, setLines, setsPollMs } from "@/components/game/sets";
 
 const NOW = Date.parse("2026-12-01T12:00:00Z");
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -74,6 +74,17 @@ describe("what a set says of itself", () => {
     expect(firstDayRule(1)).toBe("First day: one word per player");
     expect(firstDayRule(3)).toBe("First day: 3 words per player");
   });
+  it("what the rule means follows the set's own limit, and never says “today” (a gate may run longer)", () => {
+    expect(firstDayNote(1)).toBe("Each verified player can claim one word from this set until it opens to everyone. After that, every word that’s left is open to all.");
+    expect(firstDayNote(3)).toContain("up to 3 words");
+    expect(firstDayNote(1)).not.toMatch(/today/i);
+  });
+  it("asks about the sets every minute, and every few seconds around a set's unlock", () => {
+    expect(setsPollMs([], NOW)).toBe(60_000);
+    expect(setsPollMs([locked, released(null), revealed(iso(NOW + 26 * H)), revealed(null)], NOW)).toBe(60_000);
+    expect(setsPollMs([revealed(iso(NOW + 5 * 60_000))], NOW)).toBe(8_000); // about to unlock
+    expect(setsPollMs([revealed(iso(NOW - 3 * H))], NOW)).toBe(8_000); // past its time: the owner's transaction is due
+  });
   it("only a RELEASED set names its words' set (what a card's back carries)", () => {
     const names = releasedSetNames([locked, revealed(null), released(null)]);
     expect([...names.entries()].sort()).toEqual([["BLAZE", "Garden"], ["GRAPE", "Garden"]]);
@@ -130,6 +141,7 @@ describe("the Dictionary's Sets section", () => {
     sets.list = [released(iso(NOW + 5 * H))];
     render(<SetsSection />);
     expect(screen.getByText("First day: one word per player.")).toBeTruthy();
+    expect(screen.getByText(/Each verified player can claim one word from this set until it opens to everyone/)).toBeTruthy();
     expect(screen.getByText("Opens to everyone in 5 h 00 min")).toBeTruthy();
     fireEvent.click(screen.getByText("GRAPE"));
     expect(sets.opened).toEqual(["GRAPE"]);

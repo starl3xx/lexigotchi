@@ -590,7 +590,7 @@ describe("GET /api/dictionary/sets: what any visitor is told", () => {
     const { GET } = await import("@/app/api/dictionary/sets/route");
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toContain("s-maxage=30");
+    expect(res.headers.get("cache-control")).toContain("s-maxage=10"); // short: a stale held list keeps a released set closed in Spell
     const text = await res.text();
     const body = JSON.parse(text);
     expect(body.sets).toEqual([

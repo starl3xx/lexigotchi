@@ -1,8 +1,8 @@
 "use client";
 /**
  * Reserved word sets, as any visitor may see them (GET /api/dictionary/sets; decisions.md,
- * "Reserved word sets"): locked slots, revealed sets, released sets. Kept half a minute, like the
- * server's own copy.
+ * "Reserved word sets"): locked slots, revealed sets, released sets, and the words held back now.
+ * Asked again every minute, and every few seconds around a set's unlock.
  *
  * **Unknown is not "none".** While the read is loading or has failed, `known` is false and nothing
  * here says there are no sets: a screen shows no Sets section then, and a card's back simply has
@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SetsPayload } from "@/app/api/dictionary/sets/route";
-import { releasedSetNames } from "./sets";
+import { releasedSetNames, setsPollMs } from "./sets";
 
 export function useSets() {
   const q = useQuery({
@@ -21,8 +21,9 @@ export function useSets() {
       if (!res.ok) throw new Error(`sets ${res.status}`);
       return res.json();
     },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 5_000,
+    // Faster while a revealed set is about to unlock (sets.ts setsPollMs says why).
+    refetchInterval: (query) => setsPollMs(query.state.data?.sets ?? [], Date.now()),
   });
   const sets = q.data?.sets;
   const names = useMemo(() => releasedSetNames(sets ?? []), [sets]);

@@ -32,7 +32,7 @@ export interface SetsPayload {
 
 /**
  * GET /api/dictionary/sets: reserved word sets as ANY visitor may see them (decisions.md,
- * "Reserved word sets"). Public, and cached at the edge for half a minute.
+ * "Reserved word sets"). Public, and cached at the edge for ten seconds.
  *
  * Everything about a SET goes through `publicSets` (lib/sets/rules.ts): a draft is a locked slot
  * with nothing in it (no name, no word, no date, no count), a revealed set shows its name and
@@ -55,5 +55,7 @@ export async function GET() {
     gate: hasGate(),
     held: s?.ok ? [...s.held].sort() : null,
   };
-  return NextResponse.json(body, { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } });
+  // Kept only a few seconds: the game refuses a word it thinks is held before it ever asks for a
+  // proof, so a stale `held` list keeps a just-released set closed in Spell for as long as it is stale.
+  return NextResponse.json(body, { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=10" } });
 }
