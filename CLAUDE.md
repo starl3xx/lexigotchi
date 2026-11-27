@@ -688,7 +688,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`--font-card`: **Source Serif 4, shipped**, the same face for every player and on the server's pictures: decisions.md #52; `public/fonts/sourceserif4-*`, two variable web files for the game and one plain bold file for the picture routes, named once in `app/_og/wordCard.tsx` as `CARD_SERIF` / `CARD_SERIF_FILE`; `tests/card-serif.test.ts`) letters what a card says
   ABOUT a word, never the word. **Scenes:** every word starts on the stock card (`DEFAULT_SCENE`:
   grey, the rarity as an overtone); the dark stock face and the Stage are free too (`FREE_SCENES`).
-  **The dark stock face** (decisions.md #56; id `darkstock`, never to change: links and saved picks
+  **The dark stock face** (decisions.md #57; id `darkstock`, never to change: links and saved picks
   carry it) is the light stock's own engraving (`stockPlan`, shared, so the two can't drift) on the
   pewter plate (`PEWTER` in `lib/cardArt/scenes.ts`). The owner chose pewter after calling the first,
   near-black plate "way too dark": **when drawing something dark for him, start lighter than seems
@@ -1003,11 +1003,28 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
   its start block, and times each claim's block exactly). A heading is bold by an entity
   (`SendOptions.bold`), never a parse mode, over a line of hyphens measured as the update posts' are.
+- **The lockup** (decisions.md #56; `lib/cardArt/logo` `lockup`, `components/brand/Lockup.tsx`): A's
+  tile standing where the name's L would, then EXIGOTCHI, as outlines (no font). **No seal in a
+  lockup** (starl3xx, 2026-11-27). It is ALIVE where it is drawn live (the rail, the phone header,
+  the intro, pre-launch, the landing header; the landing footer is still, and so is the game's own
+  while the intro is up: one living mark at a time): the eyes blink and glance in MOMENTS from one timer (a class on the drawing for a moment,
+  `.lk` in globals.css), never a loop inside the drawing, and never for a lockup nobody sees, under
+  reduced motion, or on a low-power device. A blink is the letters' own swap of two drawings.
+  **Each drawing on a page has its own ids** (`prefix`): the rail's and the header's are both in the
+  page, and a gradient named twice can resolve to the hidden one and paint nothing. **The phone
+  header's lockup gives way** (down to 91 px wide, the old plain name's width): at full size it
+  pushed the profile button off a 390 px screen, so check the header at 320 to 424 px after
+  touching it, in the practice game (its header is the fullest). **The eyes never invert** (the same
+  day): on any ground an eye is a light eyeball with a dark pupil, so one ink has a drawing for a
+  light ground and one for a dark ground, and what is clear is CUT OUT with a mask, never painted
+  in a ground's colour. Where a mark must be square, use A. `tests/lockup.test.tsx` holds it. Not
+  built yet (the owner's word first): the lockup in the share pictures, the video's corner, the
+  docs' logo, and email.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
   `seal.ts`. **`npm run brand:art`** (`scripts/brand-art.tsx`) makes `public/icon*.png`,
-  `docs-site/favicon.png`, and the exports in `docs/brand/` from it. Never edit those files by hand:
+  `docs-site/favicon.png`, and the exports in `docs/brand/` (the lockup's too) from it. Never edit those files by hand:
   change the source and run the script (`tests/logo.test.ts` fails when they differ, and holds the
   grain mask in `docs/icon/make_grain.py` to the logo's measures). The letter is Söhne Fett's "L" as
   an outline, so no font is needed.

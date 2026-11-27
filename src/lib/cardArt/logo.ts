@@ -11,7 +11,11 @@
  *   ring of beads). Round by design, so a circle cuts nothing that matters. In one ink it is
  *   ./seal's `sealInk`, pressed into every card's back.
  *
- * Both are drawn in a 512 box. The letter is Söhne Fett's "L" as its own outline (a plain polygon in
+ * - **The lockup** (starl3xx, 2026-11-27: "9E is amazing", "let's not use the seal in the lockup"):
+ *   A's tile standing where the name's first letter would, then EXIGOTCHI. One word. `lockup()`,
+ *   at the foot of this file, says how it is drawn and what may move.
+ *
+ * Both marks are drawn in a 512 box. The letter is Söhne Fett's "L" as its own outline (a plain polygon in
  * that face: no font is needed to draw a mark, and a mark never changes with the device's fonts).
  */
 import { pupilOf } from "@/components/game/tileShapes";
@@ -94,4 +98,132 @@ export function logoB({ round = false }: { round?: boolean } = {}): string {
     <pattern id="ln" width="6" height="6" patternUnits="userSpaceOnUse"><line x1="0" y1="3" x2="6" y2="3" stroke="#ffffff" stroke-width="1" stroke-opacity="0.1"/></pattern>
     ${round ? `<clipPath id="disc"><circle cx="${C}" cy="${C}" r="${C}"/></clipPath>` : ""}</defs>
   ${round ? `<g clip-path="url(#disc)">${art}</g>` : art}`;
+}
+
+// ── the lockup ───────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The name's letters in Söhne Fett, the face of the L inside the mark: each letter's outline in the
+ * font's own units (1000 to the em, the baseline at y = 0, up is negative), its advance, its kerning
+ * to the next letter, and its left and right edges. Outlines, so the lockup needs no font and never
+ * changes with a device's fonts (taken from public/fonts/soehne-fett.ttf).
+ */
+const NAME: readonly (readonly [ch: string, d: string, adv: number, kern: number, x1: number, x2: number])[] = [
+  ["L", "M554 0L49 0L49 -718L245 -718L245 -166L554 -166L554 0Z", 570, 0, 49, 554],
+  ["E", "M49 0L49 -718L572 -718L572 -552L241 -552L241 -445L515 -445L515 -283L241 -283L241 -166L572 -166L572 0L49 0Z", 604, -3, 49, 572],
+  ["X", "M493 -718L708 -718L476 -366L720 0L499 0L358 -220L218 0L3 0L247 -366L15 -718L235 -718L363 -514L493 -718Z", 723, 0, 3, 720],
+  ["I", "M49 -718L245 -718L245 0L49 0L49 -718Z", 294, 0, 49, 245],
+  ["G", "M693 0L523 0L523 -57Q501 -28 456 -8Q411 12 350 12L350 12Q254 12 179.5 -34.5Q105 -81 62 -163.5Q19 -246 19 -354L19 -354Q19 -435 44.5 -503.5Q70 -572 116.5 -623Q163 -674 227 -702Q291 -730 368 -730L368 -730Q492 -730 571 -670Q650 -610 683 -508L683 -508L496 -448Q486 -502 453.5 -531Q421 -560 369 -560L369 -560Q301 -560 258 -504.5Q215 -449 215 -357L215 -357Q215 -264 258.5 -208.5Q302 -153 372 -153L372 -153Q422 -153 454.5 -180.5Q487 -208 497 -248L497 -248L359 -248L359 -403L693 -403L693 0Z", 739, 0, 19, 693],
+  ["O", "M19 -359L19 -359Q19 -467 63.5 -551Q108 -635 187.5 -682.5Q267 -730 370 -730L370 -730Q474 -730 553.5 -682.5Q633 -635 677.5 -551Q722 -467 722 -359L722 -359Q722 -251 677.5 -167.5Q633 -84 553.5 -36Q474 12 370 12L370 12Q267 12 187.5 -36Q108 -84 63.5 -167.5Q19 -251 19 -359ZM525 -359L525 -359Q525 -453 482 -506.5Q439 -560 370 -560L370 -560Q302 -560 259 -506.5Q216 -453 216 -359L216 -359Q216 -265 259 -211.5Q302 -158 370 -158L370 -158Q439 -158 482 -211.5Q525 -265 525 -359Z", 741, -36, 19, 722],
+  ["T", "M634 -718L634 -552L423 -552L423 0L227 0L227 -552L16 -552L16 -718L634 -718Z", 650, -36, 16, 634],
+  ["C", "M215 -359L215 -359Q215 -267 256.5 -212.5Q298 -158 363 -158L363 -158Q413 -158 446 -189Q479 -220 489 -273L489 -273L673 -212Q640 -111 562.5 -49.5Q485 12 364 12L364 12Q263 12 185 -36Q107 -84 63 -167.5Q19 -251 19 -359L19 -359Q19 -467 63 -551Q107 -635 185 -682.5Q263 -730 364 -730L364 -730Q485 -730 562.5 -668.5Q640 -607 673 -506L673 -506L489 -445Q479 -498 446 -529Q413 -560 363 -560L363 -560Q298 -560 256.5 -505.5Q215 -451 215 -359Z", 679, 0, 19, 673],
+  ["H", "M498 -447L498 -718L694 -718L694 0L498 0L498 -282L245 -282L245 0L49 0L49 -718L245 -718L245 -447L498 -447Z", 743, 0, 49, 694],
+  ["I", "M49 -718L245 -718L245 0L49 0L49 -718Z", 294, 0, 49, 245],
+];
+const NAME_CAP = 718;
+
+/**
+ * The lockup's measures, with the name's capitals 100 units tall and their baseline at y = 0 before
+ * the drawing is moved into its box. The tile is A's, 172 tall at its ring and centred on the
+ * capitals, so its eyes stand above the name; the name starts 15 units after it and is set tight.
+ */
+export const LOCKUP = { cap: 100, tile: 172, gap: 15, track: -14, above: 150, below: 46, pad: 6, ink: "#1b1714", paper: "#f4ead2", height: 196 } as const;
+
+/** The name from its `from`-th letter, its first letter's left edge at x. The path, and where it ends. */
+function nameFrom(from: number, x: number, fill: string): { markup: string; end: number } {
+  const k = LOCKUP.cap / NAME_CAP;
+  const letters = NAME.slice(from);
+  let at = x;
+  let d = "";
+  let end = x;
+  letters.forEach(([, path, adv, kern, x1, x2], i) => {
+    const ox = at - (i === 0 ? x1 * k : 0);
+    d += path.replace(/([MLQCZ])([^MLQCZ]*)/g, (_m, c: string, nums: string) =>
+      c === "Z" ? "Z" : c + nums.trim().split(/[ ,]+/).map((v, j) => n1(j % 2 === 0 ? ox + Number(v) * k : Number(v) * k)).join(" "),
+    );
+    at = ox + (adv + kern + LOCKUP.track) * k;
+    end = ox + x2 * k;
+  });
+  return { markup: `<path d="${d}" fill="${fill}"/>`, end };
+}
+
+/** Every id a drawing names, and every use of one, given a prefix: two drawings on one page never share a gradient. */
+const ownIds = (markup: string, prefix: string) => (prefix ? markup.replace(/id="([\w-]+)"/g, `id="${prefix}$1"`).replace(/url\(#([\w-]+)\)/g, `url(#${prefix}$1)`) : markup);
+
+/**
+ * The lockup, as SVG markup in a box `width` by `height` (LOCKUP.height) whose corner is 0 0.
+ *
+ * - **The tile is the L.** A separate mark beside the full name read as two things ("L LEXIGOTCHI"),
+ *   so the mark stands where the first letter would and the name goes on from E.
+ * - `tone`: "paper" letters the name in ink, for a light ground; "dark" in paper, for a dark one.
+ *   The tile is the same on both.
+ * - `oneInk`: outlines only, in the name's colour. **The eyes never invert** (starl3xx, 2026-11-27):
+ *   on any ground an eye is a light eyeball with a dark pupil. In dark ink on a light ground the
+ *   eyeball is clear and the pupil is ink; in light ink on a dark ground the eyeball is filled and
+ *   the pupil is cut out of it. Clear means cut out, never painted in a ground's colour: the one-ink
+ *   drawings hold one colour and work on any ground of their kind.
+ * - `alive`: the eyes are grouped so a page can move them (components/brand/Lockup): each eye has
+ *   its open drawing (.lk-open, its pupil in .lk-pupil) and a shut one (.lk-shut), swapped for the
+ *   moment of a blink, as a letter's are. A file is never alive.
+ * - `prefix`: put before every id. Give each drawing on a page its own.
+ */
+export function lockup({ tone = "paper", oneInk = false, alive = false, prefix = "" }: { tone?: "paper" | "dark"; oneInk?: boolean; alive?: boolean; prefix?: string } = {}): { markup: string; width: number; height: number } {
+  const A = LOGO_A;
+  const fg = tone === "paper" ? LOCKUP.ink : LOCKUP.paper;
+  const s = LOCKUP.tile / A.ring.s;
+  const e = A.eyes;
+  const eyePairs = ([-1, 1] as const).map((side) => ({ side, ex: e.cx + side * e.dx, p: pupilOf(e.cx + side * e.dx, e.y, e.rx, e.ry, side) }));
+  const pupilAndCut = (p: ReturnType<typeof pupilOf>, pupil: string, cut: string) =>
+    `<ellipse cx="${n1(p.cx)}" cy="${n1(p.cy)}" rx="${n1(p.rx)}" ry="${n1(p.ry)}" fill="${pupil}"/><path d="${p.cut}" fill="${cut}"/>`;
+  let tile: string;
+  if (oneInk) {
+    // One ink has no ground colour to fill with (it is printed or pressed onto whatever is under it),
+    // so what is clear is CUT OUT with a mask, as in the seal (lib/cardArt/seal), never painted.
+    const line = 12;
+    const box = `maskUnits="userSpaceOnUse" x="0" y="0" width="${LOGO}" height="${LOGO}"`;
+    const all = `<rect width="${LOGO}" height="${LOGO}" fill="#fff"/>`;
+    // the tile's lines stop at the eyes
+    const behind = `<mask id="behind" ${box}>${all}${eyePairs.map(({ ex }) => `<ellipse cx="${ex}" cy="${e.y}" rx="${e.rx + line / 2}" ry="${e.ry + line / 2}" fill="#000"/>`).join("")}</mask>`;
+    const eye = ({ side, ex, p }: (typeof eyePairs)[number]) => {
+      const id = side < 0 ? "eyel" : "eyer";
+      const pupil = `<ellipse cx="${n1(p.cx)}" cy="${n1(p.cy)}" rx="${n1(p.rx)}" ry="${n1(p.ry)}"`;
+      return tone === "dark"
+        ? // light ink on a dark ground: the eyeball is the ink, the pupil is taken out of it, and its pie cut is put back
+          `<mask id="${id}" ${box}>${all}${pupil} fill="#000"/><path d="${p.cut}" fill="#fff"/></mask><ellipse cx="${ex}" cy="${e.y}" rx="${e.rx}" ry="${e.ry}" fill="${fg}" stroke="${fg}" stroke-width="${line}" mask="url(#${id})"/>`
+        : // dark ink on a light ground: the eyeball is clear inside its line, the pupil is the ink, and its pie cut is taken out
+          `<mask id="${id}" ${box}>${all}<path d="${p.cut}" fill="#000"/></mask><ellipse cx="${ex}" cy="${e.y}" rx="${e.rx}" ry="${e.ry}" fill="none" stroke="${fg}" stroke-width="${line}"/>${pupil} fill="${fg}" mask="url(#${id})"/>`;
+    };
+    tile =
+      `<defs>${behind}</defs><g mask="url(#behind)" fill="none" stroke="${fg}">` +
+      `<rect x="${A.ring.x + 9}" y="${A.ring.y + 9}" width="${A.ring.s - 18}" height="${A.ring.s - 18}" rx="${A.ring.r - 9}" stroke-width="18"/>` +
+      `<rect x="${A.face.x}" y="${A.face.y}" width="${A.face.s}" height="${A.face.s}" rx="${A.face.r}" stroke-width="9"/></g>` +
+      letterL(253.5, 184.2, 143.6, fg) +
+      eyePairs.map(eye).join("");
+  } else {
+    // A's own drawing, without its paper square and its eyes (the only ellipses in it), which are drawn again in groups
+    const art = logoA().replace(`<rect width="${LOGO}" height="${LOGO}" fill="${A.paper}"/>`, "");
+    const body = art.slice(0, art.indexOf("<ellipse"));
+    const a = e.rx * 0.66;
+    const eyes = eyePairs
+      .map(({ ex, p }) => {
+        const ballOf = (fill: string) => `<ellipse cx="${ex}" cy="${e.y}" rx="${e.rx}" ry="${e.ry}" fill="${fill}" stroke="${A.ink}" stroke-width="${e.line}"/>`;
+        const open = `<g class="lk-open">${ballOf("#ffffff")}<g class="lk-pupil">${pupilAndCut(p, A.ink, "#ffffff")}</g></g>`;
+        // shut, an eye keeps its shape and its lashes come down (the letters' own blink: TileCharacter, Eye).
+        // The drawing hides it itself, so it is right with no stylesheet; the page's blink shows it (globals.css, .lk).
+        const shut = `<g class="lk-shut" visibility="hidden">${ballOf("#f4f6fa")}<path d="M ${n1(ex - a)} ${n1(e.y + e.ry * 0.12)} Q ${ex} ${n1(e.y + e.ry * 0.58)} ${n1(ex + a)} ${n1(e.y + e.ry * 0.12)}" fill="none" stroke="${A.ink}" stroke-width="${e.line}" stroke-linecap="round"/></g>`;
+        return `<g class="lk-eye">${open}${alive ? shut : ""}</g>`;
+      })
+      .join("");
+    tile = body + eyes;
+  }
+  const name = nameFrom(1, LOCKUP.tile + LOCKUP.gap, fg);
+  const placed = `<g transform="translate(${(-A.ring.x * s).toFixed(2)} ${(-LOCKUP.cap / 2 - (A.ring.y + A.ring.s / 2) * s).toFixed(2)}) scale(${s.toFixed(4)})">${tile}</g>`;
+  const markup = ownIds(`<g transform="translate(${LOCKUP.pad} ${LOCKUP.above})">${placed}${name.markup}</g>`, prefix);
+  return { markup, width: n1(name.end + 2 * LOCKUP.pad), height: LOCKUP.height };
+}
+
+/** The name alone, for a place too tight for a mark: the same letters, with 12 units of air over and under their capitals. */
+export function nameAlone(tone: "paper" | "dark" = "paper"): { markup: string; width: number; height: number } {
+  const name = nameFrom(0, 0, tone === "paper" ? LOCKUP.ink : LOCKUP.paper);
+  return { markup: `<g transform="translate(${LOCKUP.pad} ${LOCKUP.cap + 2 * LOCKUP.pad})">${name.markup}</g>`, width: n1(name.end + 2 * LOCKUP.pad), height: LOCKUP.cap + 4 * LOCKUP.pad };
 }

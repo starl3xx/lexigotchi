@@ -232,7 +232,7 @@ describe("the card's art (lib/cardArt)", () => {
   });
 });
 
-describe("the dark stock face (decisions.md #56)", () => {
+describe("the dark stock face (decisions.md #57)", () => {
   // every path's own drawing (`d="…"`), longest first: the floor's tiles and lines are the longest
   const paths = (markup: string) => [...markup.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]).sort((a, b) => b.length - a.length);
 

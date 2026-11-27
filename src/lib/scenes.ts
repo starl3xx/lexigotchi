@@ -5,7 +5,7 @@
  * The line-up (decisions.md #34; starl3xx, 2026-11-25):
  * - **The stock card** is where every word starts: no place at all, the card's own engraving in
  *   grey with the word's rarity as an overtone. Every player has it.
- * - **The dark stock face** is the stock face's other side (decisions.md #56; starl3xx, 2026-11-27):
+ * - **The dark stock face** is the stock face's other side (decisions.md #57; starl3xx, 2026-11-27):
  *   the same engraving on a pewter plate in pale line, the rarity still an overtone. Every player
  *   has it. Its id, "darkstock", is in share links and saved picks, so it never changes.
  * - **The Stage** is free for everyone too.

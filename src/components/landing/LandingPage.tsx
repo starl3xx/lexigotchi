@@ -32,6 +32,7 @@ import { isChainBacked, isRealEconomy } from "@/lib/onchain/gameMode";
 import { NETWORK } from "@/lib/onchain/network";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { TileCharacter, TileWord } from "@/components/game/TileCharacter";
+import { Lockup } from "@/components/brand/Lockup";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { TierMark } from "@/components/game/TierMark";
 import { WordStripLive } from "@/components/WordStrip";
@@ -93,15 +94,11 @@ function PlayButton({
 }
 
 function Wordmark({ small = false }: { small?: boolean }) {
-  return (
-    // The first letter IS a tile: a separate tile beside the full name read as "I LEXIGOTCHI".
-    <span className="inline-flex items-center gap-0.5" aria-label="Lexigotchi" role="img">
-      <TileCharacter char="l" upper detail="tile" size={small ? 26 : 32} />
-      <span aria-hidden className={`font-display font-black tracking-tight ${small ? "text-base" : "text-xl"}`}>
-        EXIGOTCHI
-      </span>
-    </span>
-  );
+  // The lockup (components/brand/Lockup): the tile IS the name's first letter, because a separate
+  // tile beside the full name read as two things. The header's is alive; the footer's is still
+  // (one living mark a screen). The header's gives way on a narrow phone (its link may shrink): at
+  // its full 179 px it touched the Play button on a 320 px screen.
+  return <Lockup alive={!small} height={small ? 30 : 38} className={small ? "" : "h-auto w-full"} />;
 }
 
 function SectionHead({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
@@ -267,11 +264,11 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
   return (
     <div className="overflow-x-clip">
       {/* Header */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-        <Link href="/">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+        <Link href="/" className="min-w-0 shrink">
           <Wordmark />
         </Link>
-        <nav className="flex items-center gap-6 text-sm font-bold">
+        <nav className="flex shrink-0 items-center gap-6 text-sm font-bold">
           <a href="#how-it-works" className="hidden hover:text-candy md:inline">
             How it works
           </a>

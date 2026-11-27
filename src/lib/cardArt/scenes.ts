@@ -93,7 +93,7 @@ export function stock(L: CardLook): string {
 }
 
 /**
- * The dark stock face's plate (decisions.md #56): pewter, a warm mid grey. The owner chose it from
+ * The dark stock face's plate (decisions.md #57): pewter, a warm mid grey. The owner chose it from
  * four (2026-11-27). Of the first, near-black plate: "I like A for the dark stock, but it's way too
  * dark"; then, of three lighter steps: "i actually really like pewter".
  *

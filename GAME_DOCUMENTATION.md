@@ -300,7 +300,7 @@ A staked word's care state is a function of days since last fed:
   ribbon ("one of one", the card's number, the rarity). It shows on the Today stage, in the Bag,
   and on the share picture (`src/lib/scenes.ts`, `src/lib/cardArt/`, `src/components/scenes/`).
   Every word starts on the light stock face ("Stock (light)": pale grey, the rarity as an overtone);
-  the dark stock face ("Stock (dark)", decisions.md #56: the same engraving on a pewter plate) and
+  the dark stock face ("Stock (dark)", decisions.md #57: the same engraving on a pewter plate) and
   the Stage are free for everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
   unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
   (decisions.md #41): a player's only once their profile buys one, for every word they hold, and never the word's (a
