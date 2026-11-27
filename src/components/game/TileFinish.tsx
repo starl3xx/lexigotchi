@@ -229,9 +229,15 @@ export const haloInk = (fin: Finish) => mixHex(fin.glow, fin.deep, 0.42);
  * (tileShapes, HALO, says how it is sized). It is around the letter, so it is drawn like the cards
  * (decisions.md #48, part 8); it was a soft blur. Still: it never moves.
  */
+/** Whether a tile of this rarity and mood has a halo at all (a Legendary or Mythic one that is not asleep). */
+export function finishHasAura(tier: Tier | undefined, motion: FinishMotion): boolean {
+  const fin = finishFor(tier);
+  return !!fin && motion !== "rest" && (fin.material === "amethyst" || fin.material === "gold");
+}
+
 export function FinishAura({ tier, outer, small, motion, dim }: { tier?: Tier; /** how far outside the tile's edge its own drawing ends (tileShapes, tileOuter) */ outer: number; /** a tile too small for it: rays a third of a pixel long are only a smudge */ small: boolean; motion: FinishMotion; dim: boolean }) {
   const fin = finishFor(tier);
-  if (!fin || small || motion === "rest" || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
+  if (!fin || small || !finishHasAura(tier, motion)) return null;
   return <path data-halo="" d={haloPath(outer)} fill="none" stroke={haloInk(fin)} strokeWidth={1.3} strokeLinecap="round" opacity={dim ? 0.4 : 0.75} />;
 }
 

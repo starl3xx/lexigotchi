@@ -154,6 +154,32 @@ describe("the glow behind a Legendary or Mythic tile is an engraved halo", () =>
     expect(halo(renderToStaticMarkup(<TileCharacter char="a" tier="Mythic" still size={52} />))).toBeUndefined();
   });
 
+  it("is under the legs of any letter that has legs, lowercase too: its rays never lie across a leg", () => {
+    // As a soft blur the glow faded out before it reached the legs. As line work, drawn with the
+    // body (which is over the legs), its rays crossed the legs' tops on a lowercase letter.
+    for (const tier of ["Legendary", "Mythic"] as const) {
+      for (const upper of [false, true]) {
+        const html = renderToStaticMarkup(<TileCharacter char="g" upper={upper} tier={tier} still detail="full" size={160} />);
+        const [rings, legs, body] = ["rings", "legs", "body"].map((k) => html.indexOf(`data-layer="${k}"`));
+        expect(rings, `${tier} ${upper}: has the layer under the legs`).toBeGreaterThan(0);
+        expect(rings).toBeLessThan(legs);
+        expect(legs).toBeLessThan(body);
+        const at = html.indexOf("data-halo");
+        expect(at).toBeGreaterThan(rings);
+        expect(at).toBeLessThan(legs);
+        // once, and not with the body
+        expect(html.indexOf("data-halo", at + 1)).toBe(-1);
+      }
+    }
+    // a letter with no halo and no rings has no such layer: nothing empty is drawn
+    expect(renderToStaticMarkup(<TileCharacter char="g" tier="Rare" still detail="full" size={160} />)).not.toContain('data-layer="rings"');
+    expect(renderToStaticMarkup(<TileCharacter char="g" tier="Legendary" state="hungry" still detail="full" size={160} />)).not.toContain('data-layer="rings"');
+    // a letter with no legs (a list's row) keeps its halo with its body: there is nothing to cross
+    const bust = renderToStaticMarkup(<TileCharacter char="g" tier="Legendary" still detail="bust" size={80} />);
+    expect(bust).toContain("data-halo");
+    expect(bust).not.toContain('data-layer="rings"');
+  });
+
   it("stands the same distance off whatever the tile wears, and never reaches the next letter's", () => {
     const cases: [boolean, number][] = [[false, 0], [false, 4], [true, 0], [true, 1], [true, 3], [true, 4], [true, 5]];
     for (const [upper, gild] of cases) {

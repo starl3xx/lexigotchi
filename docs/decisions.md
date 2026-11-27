@@ -1886,6 +1886,10 @@ setter. All small, riding existing suite patterns.
         apart, so two neighbours' halos never cross. A tile in wide gilding has less room, so its
         rays are shorter in the same proportions. Its ink is between the material's light and its
         engraving shade, so it reads on paper and on a dark scene. Still; no moment.
+        **It is under the legs of any letter that has legs, lowercase too** (Bugbot on #263): as
+        a soft blur the glow faded out before it reached the legs; as line work, drawn with the
+        body, its rays lay across their tops. The layer under the legs (named "rings", which the
+        share video cuts by) holds an UPPERCASE letter's rings and a rare letter's halo.
       - **The ascend sheet's rays** (`lib/cardArt/glory`, `.asc-rays`): an engraved glory, the
         drawing behind a raised letter sized for a whole word: fine rays in three lengths between
         twelve wedges. It was a flat gold fan (a conic gradient). One still picture, built as a
@@ -1914,8 +1918,10 @@ setter. All small, riding existing suite patterns.
         to 190 px; the confetti on one letter and on a word, in Chromium and WebKit, in the
         running landing page (thirteen cheering letters), and in a docs picture, where it falls
         inside the one file. The rays behind a still word as the sheet lays them out, gold and
-        Holographic. Not seen: the rays in the sheet after a real try (a try may miss, and the
-        practice game's result is chance), and nothing on a phone.
+        Holographic, and in the real sheet after a try that landed (the practice game, WebKit:
+        the third try). The halo where it is smallest: in card thumbnails 170 and 315 px wide
+        and in rows of 16, 30, and 54 px, where it is a faint fuzz or nothing, and no two cross.
+        Not seen: anything on a phone.
 
 ## Pricing & launch economics (decided June 2026)
 

@@ -85,7 +85,7 @@ import {
 } from "./tileShapes";
 
 export { WORD_LEAN, leanFor } from "./tileShapes";
-import { FinishAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, finishFace, finishHasMotes, momentPieces, type FinishMotion, type MomentPiece } from "./TileFinish";
+import { FinishAura, finishHasAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, finishFace, finishHasMotes, momentPieces, type FinishMotion, type MomentPiece } from "./TileFinish";
 
 export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
 export type TilePose = "rest" | "hero";
@@ -960,6 +960,10 @@ export function TileCharacter({
   const fin = finishFor(tier);
   const motion: FinishMotion =
     state === "hungry" ? "rest" : reduced || lowPower || still || lod !== "full" ? "off" : "on";
+  // The glow behind a rare tile goes under the legs with them, and on a lowercase letter too. As a
+  // soft blur it faded out before it reached the legs; as line work its rays lay across their tops
+  // (Bugbot on #263). So a letter with legs and a halo has that under-the-legs layer whatever its case.
+  const haloUnder = showLimbs && finishHasAura(tier, motion);
   // a peckish word's shine is dimmed, moving or still
   const finDim = state === "peckish";
   const finSmall = lod === "tile";
@@ -1039,7 +1043,7 @@ export function TileCharacter({
   const bodyBase = (
     <>
       {/* the rarity's aura, behind the tile */}
-      {!ringsApart && lod !== "tile" && <FinishAura tier={tier} outer={tileOuter(upper, g)} small={finSmall} motion={motion} dim={finDim} />}
+      {!ringsApart && !haloUnder && lod !== "tile" && <FinishAura tier={tier} outer={tileOuter(upper, g)} small={finSmall} motion={motion} dim={finDim} />}
 
       {/* UPPERCASE ring stack — pale-blue LHAW skin, or the gilding. A letter with legs draws it on
           a layer of its own, under the legs (ringsApart). */}
@@ -1290,15 +1294,17 @@ export function TileCharacter({
         </>,
       ),
 
-    // the rings of a letter with legs, and the glow behind them: under the legs, moving with the body
-    // (the same loop, the same turn). The body's own paints (the foil, the glow) are found by id.
-    ringsApart &&
+    // what a letter with legs wears under them: an UPPERCASE letter's rings, and the halo behind
+    // a rare tile of either case. Under the legs, moving with the body (the same loop, the same
+    // turn). The body's own paints (the foil) are found by id. The layer keeps the name "rings":
+    // the share video cuts the letter into its layers by name (cards/loop/liveFront).
+    (ringsApart || haloUnder) &&
       layer(
         "rings",
         leaned(
           <>
             <FinishAura tier={tier} outer={tileOuter(upper, g)} small={finSmall} motion={motion} dim={finDim} />
-            <Rings gild={g} holo={holo} />
+            {upper && <Rings gild={g} holo={holo} />}
           </>,
         ),
         bodyAnim,
