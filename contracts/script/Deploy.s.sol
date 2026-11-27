@@ -37,7 +37,9 @@ import {IFeeRouter, FeeSource} from "../src/interfaces/IFeeRouter.sol";
  *         Required env: WORD_TOKEN, TREASURY, SIGNER, KEEPER, ANSWERCHAIN_HEAD (bytes32 — generate
  *         the chain + head with `npm run answerchain:generate`).
  *         Optional env: SWAP_ROUTER, *_PRICE / *_FEE, PECKISH_AFTER, HUNGRY_AFTER,
- *                       PRESTIGE_MAX_LEVEL, BOUNTY_CARVE_BPS, LETTERS_URI, WORDS_URI, ROYALTY_BPS.
+ *                       PRESTIGE_MAX_LEVEL, BOUNTY_CARVE_BPS, LETTERS_URI, WORDS_URI, ROYALTY_BPS,
+ *                       DICTIONARY_ROOT (the reserve root, when words are held back at launch).
+ *         SIGNER is also Words' claim signer (the first-day gate's vouchers).
  */
 contract Deploy is Script {
     struct Config {
@@ -89,7 +91,7 @@ contract Deploy is Script {
         a.feeRouter = new FeeRouter(c.word, c.treasury, deployer);
         a.letters =
             new Letters(c.word, a.feeRouter, c.cap, c.packPrice, c.dailyPrice, c.signer, c.lettersUri, deployer);
-        a.words = new Words(c.word, a.feeRouter, ILetters(address(a.letters)), c.dictRoot, c.claimPrice, deployer);
+        a.words = new Words(c.word, a.feeRouter, ILetters(address(a.letters)), c.dictRoot, c.claimPrice, c.signer, deployer);
         a.rolls = new Rolls(c.word, a.feeRouter, ILetters(address(a.letters)), IWords(address(a.words)), c.rollPrice, c.signer);
         a.staking =
             new Staking(c.word, a.feeRouter, IWords(address(a.words)), c.snackPrice, c.peckishAfter, c.hungryAfter, c.signer, deployer);
@@ -203,6 +205,11 @@ contract Deploy is Script {
         c.royaltyBps = uint96(vm.envOr("ROYALTY_BPS", uint256(250))); // 2.5% EIP-2981 signal; 0 = skip
 
         (c.cap, c.dictRoot) = _readEconomy();
+        // Reserved word sets (decisions.md, "Reserved word sets"): a launch that holds words back
+        // deploys Words with the RESERVE root (`npm run sets -- reserve` prints it), so no held-back
+        // word is claimable for even one block. Unset, the full dictionary's root, as before. The
+        // letter caps always come from the full dictionary: a held-back word needs its letters.
+        c.dictRoot = vm.envOr("DICTIONARY_ROOT", c.dictRoot);
     }
 
     function _readEconomy() internal view returns (uint32[26] memory cap, bytes32 dictRoot) {

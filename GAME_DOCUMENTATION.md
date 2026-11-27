@@ -114,6 +114,22 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
   regret — so people claim boldly.
 - The canonical claimable set is **4,584 words** (deduped): Let’s Have A Word’s list, re-vendored
   2026-11-21 after its round-36 additions (146 words, none removed).
+- **Reserved word sets** (decisions.md #51): some of those words are held back at launch in themed
+  **sets** and released later. A held-back word is one the published root leaves out, so it can’t
+  be claimed; a release is a new root that includes the set’s words (never one that removes a
+  word). A set goes draft → revealed (its name and words show, and lock) → released. The lists are
+  private until a set is revealed and live only in the database; which words are held back can’t
+  be hidden (the dictionary is public, and the game says “not available yet”).
+  - **Always from the full dictionary:** letter supply caps, mint odds, rarity tiers, and token
+    ids. A held-back word’s letters exist from day one, and it arrives with the tier it always had.
+  - **Counted over released words only:** “of the dictionary” anywhere a player reads it (the
+    free-letter stop at 95%, Spell, the Dictionary, the Market’s picks, the deal alert).
+  - **The first-day gate** (in `Words`; live on a network only once its Words is deployed with it):
+    for a set’s first day (its `gate_hours`, 24 by default, 7 days at most) claiming one of its
+    words also needs a voucher from the game’s server. A verified player (Farcaster, X older than
+    90 days, or a Coinbase-verified wallet, as for the free letters) gets vouchers for one word of
+    the set (its `per_player_limit`), per profile across linked wallets. After the gate, anyone
+    claims as usual. The gate is set in the same batch as the release, before the root.
 
 ---
 
@@ -199,6 +215,10 @@ A staked word's care state is a function of days since last fed:
 - **Resolution is a single lookup:** does `keccak256(todaysWord)` exist, is it staked, and is it not
   hungry? If yes → its owner wins the **entire pot**. If no → it **rolls over** and grows. **Case is
   irrelevant** to the jackpot (only to yield).
+- **A held-back word can be the day’s word.** The list was committed before launch and takes no
+  account of sets. Nobody can hold a word that can’t be claimed, so that day’s pot rolls over, as
+  for any unowned word: no special case in the contract or the keeper. Because a word is drawn
+  once, a set word drawn before its release has had its draw.
 - **Funding:** the jackpot bucket fills only from fee splits. The operator never seeds it
   (`seed.jackpot = 0`) — an operator-funded chance prize is the core lottery-compliance risk.
 - **LHAW bonus (soft tie-in):** when an LHAW round resolves, a player who simply **owns** that winning
@@ -358,7 +378,7 @@ trust model, and the deploy + pre-mainnet checklist.
 |---|---|
 | `FeeRouter` | The four-bucket ledger: split fees, hold pool/jackpot/bounty, cap every payout at balance |
 | `Letters` | 52-id ERC-1155: demand-mirrored capped draws, commit/reveal, FID daily + free vouchers (free daily / free-pack airdrop), ETH swap, clamped `priceKeeper` repeg, `upgrade` |
-| `Words` | One ERC-721 per word, Merkle dictionary, letter escrow, case-as-state, dissolve, prestige level |
+| `Words` | One ERC-721 per word, Merkle dictionary (the owner’s root decides which words are claimable: reserved sets), letter escrow, case-as-state, dissolve, prestige level, the first-day gate (`setGate`, `gatedUntil`, a `claim` form that takes the `claimSigner`’s voucher) |
 | `Rolls` | Commit→signed-reveal upgrades; fail no-op; pity per `(beneficialOwner, letter)` |
 | `Staking` | Word custody + hunger clock + snack feed; the eligibility truth read by Jackpot |
 | `Prestige` | Ascension of full-UPPERCASE staked words (signed reveal, monotonic, fail no-op) |
@@ -369,7 +389,10 @@ trust model, and the deploy + pre-mainnet checklist.
 **Trust seams (Phase 0, documented):** a backend `signer` decides roll/prestige outcomes (EGGS model)
 and authorizes the FID daily; a `keeper` reveals the daily word, posts the yield/bounty Merkle
 roots, and pays every share out (its `payout` job; anyone may, since `claim` pays the leaf's account). Both are trusted for *fairness only* — never for solvency (every payout is bucket-capped) and
-never to harm an asset (failures are no-ops). A distinct `priceKeeper` hot key may auto-repeg prices
+never to harm an asset (failures are no-ops). The same `signer` is Words’ `claimSigner`: it decides
+who gets a first-day voucher for a newly released set (the server counts one word per profile), and
+the `owner` decides which words the dictionary root admits and which are gated, for at most 7 days
+at a time and never a word somebody holds. A distinct `priceKeeper` hot key may auto-repeg prices
 within a clamped band (solvency-irrelevant, can't cross zero). The `owner` is a single hardware-wallet
 EOA — **no multisig**.
 

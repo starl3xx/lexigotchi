@@ -54,6 +54,15 @@ These mirror the EGGS reference (`docs/reference/eggs/PATTERN.md`) and are inten
   free snack voucher (`Staking.feedWithSnack`; the profile is the server's knowledge, not the chain's). Trusted for *fairness*,
   never for solvency or for harming an asset (failures are no-ops). Pity binding, single-use commit
   ids, KIND-tagged digests, and per-FID gates (`dailyUsed` / `freePackClaimed`) prevent replay.
+- **`claimSigner` (Words, the first-day gate; the same backend key)** — for the first day after a
+  reserved set is released (decisions.md #51), `Words.claim` takes one of its words only with this
+  key's voucher for the caller and that word. The server issues one word of a set per PROFILE; the
+  contract can't know a profile, so the count is off-chain and the key is trusted for it. It can't
+  touch a claimed Word, its letters, or $WORD, and it has no say once a gate's time passes. The
+  `owner` sets gates (`setGate`: at most `MAX_GATE` = 7 days ahead a call, never a word somebody
+  holds) and decides which words `dictionaryRoot` admits at all, so the gate adds no power over
+  unclaimed words that the root didn't already give. A voucher carries no nonce on purpose: reused,
+  it is the same wallet claiming the same word again after dissolving it.
 - **`keeper` (AnswerChain / Jackpot / distributors)** — reveals the daily word and posts the
   yield/bounty Merkle roots computed off-chain (the weights — UPPERCASE/tier/prestige/hunger/theme —
   are impractical to iterate on-chain). Trusted for fairness of the share split; **never for
@@ -80,6 +89,9 @@ Required env: `WORD_TOKEN` (defaults to the live $WORD), `TREASURY` (the owner w
 `KEEPER`, `ANSWERCHAIN_HEAD` (the precomputed reverse-hash-chain head — see below). Optional:
 `SWAP_ROUTER`, the `*_PRICE` / `*_FEE` overrides (in $WORD wei, set per the current USD peg),
 `PECKISH_AFTER`/`HUNGRY_AFTER`, `PRESTIGE_MAX_LEVEL`, `BOUNTY_CARVE_BPS`, `LETTERS_URI`, `WORDS_URI`,
+`DICTIONARY_ROOT` (the RESERVE root from `npm run sets -- reserve`, when words are held back in sets
+at launch: Words must never be deployed with the full dictionary's root then; unset = the full
+root from `economy.json`),
 `ROYALTY_BPS` (the EIP-2981 signal, default 250 = 2.5% → treasury; 0 = skip), `PRICE_KEEPER` (the
 repeg hot key; omit = repeg disabled), `MAX_MOVE_BPS` (the repeg band, default 2000 = ±20%). The
 script seeds the v0.2 fee-split table and wires every collector/payer. After deploy, transfer
@@ -108,6 +120,11 @@ generator's encoding matches `AnswerChain.reveal` exactly.
       choices stay: `seed.jackpot = 0`, the operator never funds the prize (`docs/pricing-review.md`).
 - [ ] `owner`/`treasury` = a single hardware-wallet EOA (no multisig); separate hot keys for `signer`,
       `keeper`, and `priceKeeper`.
+- [ ] **Words is deployed WITH the first-day gate** (`setGate`, `gatedUntil`, `claimSigner`: in
+      `Words.sol` since decisions.md #51) **and with the reserve root** (`DICTIONARY_ROOT`), if any
+      word is held back in a set at launch. Words can't change after it is deployed: a Words without
+      the gate can never gate a release, and one deployed with the full root has every held-back
+      word claimable from its first block.
 - [ ] Production `SwapRouter` adapter over a real Uniswap v3 / aggregator route (slippage-bounded).
 - [ ] Fuzz/invariant campaign on FeeRouter solvency and letter-supply conservation.
 - [ ] Publish the AnswerChain head + the dictionary Merkle root for independent verification
