@@ -950,6 +950,25 @@ describe("collab sets: what leaves the server, and what the operator may store",
     expect(Buffer.from(await shown.arrayBuffer()).equals(PNG)).toBe(true);
   });
 
+  it("the server's pictures are handed a revealed set's stamp as bytes; a draft's, and stored markup, never", async () => {
+    world.sets = [draft(1, "SecretName", [words.A], collab)];
+    world.stamps.set(1, { mime: "image/png", base64: PNG.toString("base64") });
+    const { stampDataOf } = await import("@/lib/sets/stampData");
+    const look = { setId: 1, mark: "1-1800000000", stamp: "/api/sets/1/stamp?v=1800000000" };
+    expect(await stampDataOf(look)).toBeNull(); // a draft: as private as its name
+    world.sets[0].status = "revealed";
+    expect(await stampDataOf(look)).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // a revealed set's stamp can't change: it is read once and kept
+    world.stamps.delete(1);
+    expect(await stampDataOf(look)).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // a set with no stamp asks for nothing
+    expect(await stampDataOf({ setId: 2, mark: "2-0", stamp: null })).toBeNull();
+    // and bytes that are no picture are never handed to the renderer, whatever the row says they are
+    world.sets.push(draft(3, "Shown", [words.B], { ...collab, status: "revealed" }));
+    world.stamps.set(3, { mime: "image/png", base64: Buffer.from("<svg onload=alert(1)>").toString("base64") });
+    expect(await stampDataOf({ setId: 3, mark: "3-1", stamp: "/api/sets/3/stamp?v=1" })).toBeNull();
+  });
+
   it("serves a stamp as what its bytes are, never as what the row says: stored markup is served as nothing", async () => {
     world.sets = [draft(1, "Shown", [words.A], { ...collab, status: "revealed" })];
     world.stamps.set(1, { mime: "image/svg+xml", base64: Buffer.from("<svg onload=alert(1)>").toString("base64") });

@@ -2,7 +2,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
 import { CARD_SERIF, CARD_SERIF_FILE, wordCard } from "../../../_og/wordCard";
-import { NO_COLLAB } from "@/lib/rarity";
+import { NO_LOOKS } from "@/lib/collabLook";
+import { stampDataOf } from "@/lib/sets/stampData";
 import { collabSoon } from "@/lib/raritySoon";
 import { parseShowcase, type ShowcaseTile } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
@@ -156,7 +157,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   const tiles: ShowcaseTile[] | null = asked?.length === 5 ? asked : snapshot.words[0] ? [...snapshot.words[0][0]].map((char) => ({ char, upper: true })) : null;
   const word = tiles ? tiles.map((t) => t.char).join("") : null;
   // The hero word's rarity on its card, as the game treats it (a collab word is Legendary).
-  const collab = tiles ? await collabSoon() : NO_COLLAB;
+  const collab = tiles ? await collabSoon() : NO_LOOKS;
+  const mine = word ? collab.get(word.toUpperCase()) : undefined;
+  const stamp = mine ? await stampDataOf(mine) : null;
   const text = earningsCardText(snapshot, { testnet: NETWORK.isTestnet, tz: parseTz(url.searchParams.get("tz")), hero: word });
 
   // Side by side on the wide shapes; the card over a wide tag on the tall one.
@@ -183,7 +186,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
       >
         {/* the same engraved table (lib/cardArt/table) */}
         <img src={tableImage(CARD_W, H)} width={CARD_W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
-        {tiles && wordCard({ tiles, scene, cardW, collab, gild: heroStage(snapshot, word) ?? 0 })}
+        {tiles && wordCard({ tiles, scene, cardW, collab, stamp, gild: heroStage(snapshot, word) ?? 0 })}
         {tag(text, tagW, tall && !!tiles)}
         {saved && (
           <div style={{ position: "absolute", right: tall ? 34 : 28, bottom: tall ? 26 : 12, display: "flex", fontSize: tall ? 26 : 20, fontWeight: 800, letterSpacing: -0.5, color: "#fbf4e3", opacity: 0.85 }}>

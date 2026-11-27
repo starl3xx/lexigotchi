@@ -76,6 +76,22 @@ function sceneQuery(scene: SceneId | undefined, more: Record<string, string> = {
  * word shared again after an ascension would otherwise show its old gilding.
  */
 const stageQuery = (stage?: number | null): Record<string, string> => (stage && stage > 0 ? { g: String(Math.min(5, Math.round(stage))) } : {});
+/**
+ * A collab word's LOOK, as an address carries it (`c`: the set and its stamp's time;
+ * lib/collabLook.ts `mark`). Like the stage, **it is never what gets drawn**: the pictures read the
+ * look from the sets. It is in the address so that a collab word's pictures get a NEW address when
+ * its set is revealed. A picture is kept for a week at the edge, and a reveal changes the card
+ * without changing the word; an address that doesn't name the look the word has is asked again
+ * soon (`cardPictureCache`). A word of no collab set carries none, and neither does a draft's:
+ * nothing about an address or its caching differs for a word of an unrevealed set.
+ */
+const markQuery = (mark?: string | null): Record<string, string> => (mark ? { c: mark } : {});
+/** The look an address names, or null. Only ever compared with the word's own. */
+export function parseLinkMark(raw: string | string[] | null | undefined): string | null {
+  const s = Array.isArray(raw) ? raw[0] : raw;
+  return s && /^\d{1,9}-\d{1,12}$/.test(s) ? s : null;
+}
+
 /** The stage an address names, 1 to 5, or null. Only ever compared with the chain's. */
 export function parseLinkStage(raw: string | string[] | null | undefined): number | null {
   const s = Array.isArray(raw) ? raw[0] : raw;
@@ -116,8 +132,8 @@ export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null
 export const CARD_LOOK = 11;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
-export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null): string {
-  return `${SITE_URL}${showcaseCardPath(text, ratio, scene, saved, stage)}`;
+export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null, mark?: string | null): string {
+  return `${SITE_URL}${showcaseCardPath(text, ratio, scene, saved, stage, mark)}`;
 }
 
 /**
@@ -128,8 +144,8 @@ export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: S
  * quiet wordmark in its corner. A link card carries no name: X shows the site under it and the
  * post names @lexigotchi, and Farcaster's card has the game's button (decisions.md #23).
  */
-export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null): string {
-  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}), v: String(CARD_LOOK), ...stageQuery(stage) })}`;
+export function showcaseCardPath(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null, mark?: string | null): string {
+  return `/s/${text}/card${sceneQuery(scene, { ...(ratio === "fc" ? { ratio: "3x2" } : {}), ...(saved ? { saved: "1" } : {}), v: String(CARD_LOOK), ...stageQuery(stage), ...markQuery(mark) })}`;
 }
 
 /** How long a card's picture is kept: a day in browsers and a week at the edge, or five minutes. */
@@ -142,16 +158,18 @@ export const CARD_CACHE_SHORT = "public, max-age=300, s-maxage=300";
  * link to a word that has since ascended, and an address that names a stage the word isn't at, are
  * asked again soon and never kept for a week.
  */
-export function cardPictureCache({ waiting, level, hint }: { waiting: boolean; level: number | null; hint: number | null }): string {
-  return !waiting && level !== null && (hint ?? 0) === level ? CARD_CACHE_LONG : CARD_CACHE_SHORT;
+export function cardPictureCache({ waiting, level, hint, mark = null, look = null }: { waiting: boolean; level: number | null; hint: number | null; /** the collab look the address names (`c`) */ mark?: string | null; /** the look the word has now */ look?: string | null }): string {
+  // And its look: an address that names another look than the word's (an old link to a word whose
+  // collab set has since been revealed) is asked again soon, never kept for a week.
+  return !waiting && level !== null && (hint ?? 0) === level && mark === look ? CARD_CACHE_LONG : CARD_CACHE_SHORT;
 }
 
 /**
  * The card's front alone, 1200×675 with clear corners: no table under it. The share loop turns it
  * over (components/cards/loop), so it wants the card itself, the size of the back's picture.
  */
-export function showcaseFacePath(text: string, scene?: SceneId, stage?: number | null): string {
-  return `/s/${text}/card${sceneQuery(scene, { face: "1", v: String(CARD_LOOK), ...stageQuery(stage) })}`;
+export function showcaseFacePath(text: string, scene?: SceneId, stage?: number | null, mark?: string | null): string {
+  return `/s/${text}/card${sceneQuery(scene, { face: "1", v: String(CARD_LOOK), ...stageQuery(stage), ...markQuery(mark) })}`;
 }
 
 /**
@@ -159,8 +177,8 @@ export function showcaseFacePath(text: string, scene?: SceneId, stage?: number |
  * scene, the frame, the ribbon). The player's browser draws the letters over it, a frame at a time,
  * so that they breathe and blink (components/cards/loop/liveFront; decisions.md #48, part 7).
  */
-export function showcaseStagePath(text: string, scene?: SceneId, stage?: number | null): string {
-  return `/s/${text}/card${sceneQuery(scene, { face: "1", letters: "0", v: String(CARD_LOOK), ...stageQuery(stage) })}`;
+export function showcaseStagePath(text: string, scene?: SceneId, stage?: number | null, mark?: string | null): string {
+  return `/s/${text}/card${sceneQuery(scene, { face: "1", letters: "0", v: String(CARD_LOOK), ...stageQuery(stage), ...markQuery(mark) })}`;
 }
 
 /**

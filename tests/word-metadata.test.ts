@@ -144,6 +144,7 @@ describe("GET /api/word/{id}", () => {
     const { body } = await get(idOf(COMMON));
     expect(trait(body, "Rarity")).toBe("Common");
     expect(JSON.stringify(body)).not.toMatch(/Collab|SecretSet|Test partner|Legendary/);
+    expect(body.image).not.toMatch(/[?&]c=/); // nor its picture's address: a draft's word is addressed as any word
   });
 
   it("from the reveal it is Legendary with its “Collab” trait; its set is named once released", async () => {
@@ -151,6 +152,9 @@ describe("GET /api/word/{id}", () => {
     const revealed = (await get(idOf(COMMON))).body;
     expect(trait(revealed, "Rarity")).toBe("Legendary");
     expect(trait(revealed, "Collab")).toBe("Test partner");
+    // and its picture is at a NEW address (it names the look), so a marketplace told to read the
+    // word again gets the collab card, never the picture it kept from before the reveal
+    expect(revealed.image).toContain("&c=1-0");
     expect(trait(revealed, "Set")).toBeUndefined(); // the card's back names a set only once it is released
     vi.resetModules();
     world.sets = [set(1, "Shown", "released", [COMMON], collabLook)];

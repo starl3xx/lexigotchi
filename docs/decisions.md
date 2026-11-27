@@ -2812,6 +2812,48 @@ setter. All small, riding existing suite patterns.
         the derived tiers), and two admin tables that say so: the supply table ("Words
         (derived)") and the simulator's page. The spec asks for tier counts "anywhere" to come
         from the one function; those two show what the full dictionary derives, on purpose.
+    - **Part 3, first piece: the tiles and the card's front** (`lib/collabLook.ts`,
+      `lib/rarityFinish.ts` `collabFinish`). A collab is a look, not a rarity, so it is chosen by
+      the WORD, never by the tier (a collab word is Legendary, and so are other words).
+      - **One lookup.** `collabLooksOf` gives word → look (the two colors, the stamp's address,
+        the partner). It is the same object the rarity layer asks "is this a collab word?", on
+        the server (`collabNow`) and in the game (`useSets().collab`), so the two can't disagree.
+        The components that draw a word (its tiles, its small tiles, its card) ask for the look
+        by the word themselves, through one context for the whole game: no screen passes it
+        along, which is how "everywhere a word is drawn" is kept. A page outside the game hands
+        the look in (the share page).
+      - **The tile** is given the two colors where its rarity would go (`TileTier`): one
+        diagonal tint over the tile's own face, in place of the rarity's material. No metal,
+        foil, facets, halo, or motes: it is a stock, not a material; a light still passes over
+        it. The border is the case's and the rings and rainbow are ascension's, untouched.
+      - **Any two colors** (an operator types them), so nothing is drawn in them as given. The
+        tile keeps its own ink (the letter's color belongs to its case), so the TINT is thinned
+        until the letter reads on both cases, at both ends and the middle. The frame and ribbon
+        are printed on paper, so the INK is the darker color, darkened until it reads, graphite
+        if it never does. Tested over a sweep of the color cube and the hard pairs (both black,
+        both pale, mid greys, pure hues), at WCAG 4.5. Seen at 48 px in Chromium and WebKit.
+      - **The front** is the stock card in the two colors (the first behind the word, the second
+        toward the edges; the card stays grey first), the frame and ribbon in the look's ink, and
+        the corners still the rarity's mark. Another scene keeps its own art, as for any word.
+      - **The stamp** has ONE place on every collab card: the window's upper left (a 92-unit box,
+        62 in and 60 down, of 1200 × 675), clear of the corner piece, the word, the ribbon, and
+        the turn-over button. This is the one thing drawn over a card's art besides its letters
+        (CLAUDE.md said nothing is): the owner's spec asks for it. It is a layer of its own, never
+        inside the art's SVG. A thumbnail has none. The server's pictures are handed its BYTES
+        (`lib/sets/stampData.ts`) and never fetch this site's own stamp route, whose failed
+        fetch the renderer would keep for the life of the server.
+      - **A reveal changes a card without changing the word**, and a card picture is kept a week
+        at the edge. So every card picture's address names the word's look (`c`, the set and its
+        stamp's time), as it names its stage: the link picture, the face, the video's stage, and
+        the token metadata's `image` (which is what makes the owner's `refreshMetadata` worth
+        sending). An address that doesn't name the look the word has is kept five minutes, not a
+        week. A draft's word gets no `c` and the same caching as any word: nothing about a
+        header tells a draft apart. A copy made before a reveal can still be shown for up to a
+        week at its old address (X and Farcaster keep theirs for good); only a new address
+        mends that, which is what sharing the word again gives.
+      - **Still owed in part 3:** the back in the partner's colorway with the partner's name and
+        "1 of 5" (the game, the server's picture, and the video's shader), and the admin's live
+        preview. `COLLAB_LIVE` stays false until they ship.
     - **Two things the spec assumed that weren't so.** There is no token metadata server in this
       repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
       mean building that route: part 4. And a metadata refresh "at release" needs an owner call in

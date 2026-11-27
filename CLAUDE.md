@@ -119,6 +119,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
   the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`
   must pass on a database with and without the newest migration.
+- **A collab word's LOOK is chosen by the word, never by its tier** (decisions.md #53, part 3;
+  `lib/collabLook.ts`). `collabLooksOf` is the one lookup (word → the two colors, the stamp, the
+  partner), and it is the same object as the rarity layer's collab words. In the game the
+  components that draw a word (`WordTiles`, `MiniTiles`, `SceneFrame`, `SceneThumb`) look it up by
+  the word (`components/game/collabLooks.tsx`), so a new screen needs nothing; a page outside the
+  game passes `look` / `collab`. A tile takes the two colors where its tier goes (`TileTier`).
+  **The two colors are any two colors: never draw in them as given.** Use `collabFinish` (the
+  tint is thinned until the letter reads), `collabCardLook` (the ink is darkened until it reads on
+  paper), `collabBack` (deepened until cream reads); `tests/collab-look.test.ts` sweeps the color
+  cube. The server's pictures get the stamp as bytes (`stampDataOf`), never by fetching the stamp
+  route. **Every card picture's address names the look (`c`)**, as it names the stage: a reveal
+  changes a card without changing the word, and a picture is kept a week. Never give a draft's
+  word a different address or cache header (it would tell which words are in a draft).
 - **Token metadata** is `GET /api/word/{tokenId}` (`lib/wordMetadata.ts`; decisions.md #53):
   `Words.tokenURI` = base URI + decimal id. It follows the chain's live state (case, ascension)
   and says of a set only what any visitor may see: "Set" once released, "Collab" from the reveal,
@@ -827,7 +840,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **The Today stage is a clean card and a placard under it** (`.tt`, `.tt-plate`): the marks, the one
   thing to do, the earnings line, and a pager with the arrows. **The placard never names the word**
   (starl3xx: "seeing JAZZY immediately underneath the card is redundant"); the action's label does.
-  Nothing is drawn over a card's art but its letters. The Jackpot mark says "In the running", never a
+  Nothing is drawn over a card's art but its letters (and, on a collab word's card, its set's stamp in its one place: decisions.md #53). The Jackpot mark says "In the running", never a
   draw or a ticket (docs/messaging.md).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters

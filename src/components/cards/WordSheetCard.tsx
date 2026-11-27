@@ -27,6 +27,7 @@ import { CardMore } from "./CardBack";
 import { ShareVideo } from "./ShareVideo";
 import { useCardNumber } from "./useCardNumber";
 import { flipKey, useFlipOf } from "./useFlipOf";
+import { useCollabLook } from "@/components/game/collabLooks";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();
@@ -101,7 +102,8 @@ function ShareWord({ word, onMaking }: { word: OwnedWord; onMaking: (making: boo
   const postToX = usePostToX();
   const { scene } = useWordScene(word.word);
   const text = showcaseWordText(word.word, word.upper);
-  const saveImage = useSaveImage(showcaseCardPath(text, "x", scene, true, word.prestigeLevel), `lexigotchi-${word.word.toLowerCase()}-${scene}.png`);
+  const look = useCollabLook(word.word);
+  const saveImage = useSaveImage(showcaseCardPath(text, "x", scene, true, word.prestigeLevel, look?.mark), `lexigotchi-${word.word.toLowerCase()}-${scene}.png`);
   return (
     <div className="space-y-2 rounded-2xl border-2 border-ink bg-card p-2.5">
       <Button full variant="primary" onClick={() => postToX({ text: showcaseXText(text), url: showcaseUrl(text, scene, word.prestigeLevel) })}>

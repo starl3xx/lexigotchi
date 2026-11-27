@@ -1,3 +1,4 @@
+"use client";
 /**
  * A word as five small flat tiles in its finish, for long lists (the Dictionary draws 80 words).
  * Each tile is one styled letter, not the character rig: at 20 px the rig's face and limbs don't
@@ -8,7 +9,9 @@
  */
 import type { CSSProperties } from "react";
 import type { Tier } from "@/lib/economy";
-import { FINISH, finishFor } from "@/lib/rarityFinish";
+import { FINISH, finishFor, type Finish } from "@/lib/rarityFinish";
+import { tintOf, type CollabLook } from "@/lib/collabLook";
+import { useCollabLook } from "./collabLooks";
 import type { LetterState } from "@/lib/wordNeed";
 
 /** "#rrggbb" at `a` opacity. */
@@ -17,18 +20,28 @@ function rgba(hex: string, a: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-/** Each tier's tile background, worked out once: the material's tint, then a gloss. */
-const BAKED: Partial<Record<Tier, string>> = Object.fromEntries(
-  Object.keys(FINISH).map((t) => {
-    const fin = finishFor(t as Tier)!;
-    const tint = `linear-gradient(160deg, ${fin.face.map((c) => rgba(c, fin.alpha)).join(", ")})`;
-    const gloss =
-      fin.material === "satin"
-        ? "linear-gradient(135deg, rgba(255,255,255,0) 15%, rgba(255,255,255,0.45) 30%, rgba(255,255,255,0) 48%)"
-        : "linear-gradient(135deg, rgba(255,255,255,0) 22%, rgba(255,255,255,0.65) 34%, rgba(255,255,255,0) 44%, rgba(255,255,255,0.35) 52%, rgba(255,255,255,0) 58%)";
-    return [t, `${gloss}, ${tint}`];
-  }),
-);
+/** A finish as a small tile's background: the material's tint, then a gloss. The collab stock has no gloss (it is no material). */
+function baked(fin: Finish): string {
+  const tint = `linear-gradient(160deg, ${fin.face.map((c) => rgba(c, fin.alpha)).join(", ")})`;
+  if (fin.material === "collab") return tint;
+  const gloss =
+    fin.material === "satin"
+      ? "linear-gradient(135deg, rgba(255,255,255,0) 15%, rgba(255,255,255,0.45) 30%, rgba(255,255,255,0) 48%)"
+      : "linear-gradient(135deg, rgba(255,255,255,0) 22%, rgba(255,255,255,0.65) 34%, rgba(255,255,255,0) 44%, rgba(255,255,255,0.35) 52%, rgba(255,255,255,0) 58%)";
+  return `${gloss}, ${tint}`;
+}
+
+/** Each tier's tile background, worked out once. */
+const BAKED: Partial<Record<Tier, string>> = Object.fromEntries(Object.keys(FINISH).map((t) => [t, baked(finishFor(t as Tier)!)]));
+
+/** A collab look's, worked out once a pair of colors (a list draws the same set's words many times). */
+const BAKED_COLLAB = new Map<string, string>();
+function bakedCollab(look: CollabLook): string {
+  const key = `${look.a}${look.b}`;
+  let bg = BAKED_COLLAB.get(key);
+  if (!bg) BAKED_COLLAB.set(key, (bg = baked(finishFor(tintOf(look))!)));
+  return bg;
+}
 
 /**
  * `letters` (the Dictionary, lib/wordNeed) marks the letters the player doesn't hold here: a
@@ -51,7 +64,9 @@ export function MiniTiles({
   large?: boolean;
   className?: string;
 }) {
-  const bg = tier ? BAKED[tier] : undefined;
+  // A collab word's small tiles wear its set's two colors, as its full tiles do (lib/collabLook.ts).
+  const look = useCollabLook(word);
+  const bg = look ? bakedCollab(look) : tier ? BAKED[tier] : undefined;
   const style: CSSProperties | undefined = bg ? { backgroundImage: bg } : undefined;
   return (
     <span className={`inline-flex gap-[3px] ${className}`} aria-hidden>

@@ -7,6 +7,7 @@ import type { SceneId } from "@/lib/scenes";
 import { isWord } from "@/lib/dictionary";
 import type { Tier } from "@/lib/economy";
 import { tierWith, type CollabWords } from "@/lib/rarity";
+import { collabCardLook, tintOf, type CollabLooks } from "@/lib/collabLook";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_CORNER, CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
@@ -58,6 +59,7 @@ export function wordCard({
   scene,
   cardW,
   collab,
+  stamp = null,
   no = null,
   gild = 0,
   bare = false,
@@ -66,7 +68,10 @@ export function wordCard({
   tiles: readonly ShowcaseTile[];
   scene: SceneId;
   cardW: number;
-  collab: CollabWords;
+  /** The collab looks in force (lib/raritySoon.ts `collabSoon`): the word's rarity and its card look come from here. */
+  collab: CollabLooks;
+  /** The word's set's stamp as a `data:` address (lib/sets/stampData.ts), when it is a collab word with one. */
+  stamp?: string | null;
   no?: string | null;
   gild?: number;
   bare?: boolean;
@@ -76,7 +81,13 @@ export function wordCard({
   const cardH = Math.round(CARD_H * k);
   const word = tiles.map((t) => t.char).join("");
   const tier = cardTier(tiles, collab);
-  const look = CARD_LOOKS[tier ?? PLAIN];
+  // A collab word's card is the collab stock in its set's two colors (lib/collabLook.ts), as in
+  // the game: the look takes the place of the rarity's on the frame, the stock card's wash, the
+  // ribbon, and the tiles. Its rarity still names the ribbon.
+  const mine = collab.get(word.toUpperCase());
+  const collabLook = mine ? collabCardLook(mine) : undefined;
+  const look = collabLook ?? CARD_LOOKS[tier ?? PLAIN];
+  const tileTier = mine ? tintOf(mine) : tier;
 
   // The same layout the game uses (scenes/layout.ts), at this card's scale.
   const L = wordLayout(tiles.length, k);
@@ -114,7 +125,7 @@ export function wordCard({
         ...(bare ? {} : { borderRadius: Math.round(CARD_CORNER * cardW), border: `${Math.round(4 * k)}px solid ${INK}`, boxShadow: `${Math.round(7 * k)}px ${Math.round(9 * k)}px 0 rgba(0, 0, 0, 0.42)` }),
       }}
     >
-      <img src={image(cardArt(scene, tier ?? PLAIN))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      <img src={image(cardArt(scene, tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
       <div style={{ position: "absolute", left: L.rowLeft, top: L.rowTop, display: "flex", alignItems: "flex-end" }}>
         {(letters ? tiles : []).map((t, i) => {
           const f = footings[i];
@@ -128,12 +139,14 @@ export function wordCard({
                 ...(f.drop || f.deg ? { transform: `translateY(${f.drop.toFixed(1)}px) rotate(${f.deg.toFixed(2)}deg)`, transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%` } : {}),
               }}
             >
-              <OgTile char={t.char} upper={t.upper} w={L.tileW} tier={tier} gild={gild} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
+              <OgTile char={t.char} upper={t.upper} w={L.tileW} tier={tileTier} gild={gild} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
             </div>
           );
         })}
       </div>
-      <img src={image(cardFrame(tier ?? PLAIN))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      <img src={image(cardFrame(tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      {/* The set's stamp, where the game draws it (globals.css, .cf-stamp): a 92-unit box, 62 in and 60 down. */}
+      {mine && stamp && <img src={stamp} width={Math.round(92 * k)} height={Math.round(92 * k)} style={{ position: "absolute", left: Math.round(62 * k), top: Math.round(60 * k), objectFit: "contain" }} />}
       {/* The ribbon: "one of one", the number when the chain has given one, the rarity. Never the word. */}
       {tier && (
         <div style={{ position: "absolute", left: 0, bottom: Math.round(cardW * 0.0105), width: cardW, display: "flex", justifyContent: "center" }}>

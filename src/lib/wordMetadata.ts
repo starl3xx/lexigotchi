@@ -33,6 +33,8 @@ export interface WordMetaFacts {
   setName: string | null;
   /** The partner of the REVEALED or RELEASED collab set it belongs to, or null. */
   collabPartner: string | null;
+  /** That set's look, as a picture's address names it (lib/collabLook.ts `mark`), or null. */
+  collabMark?: string | null;
 }
 
 export interface WordMetadata {
@@ -58,9 +60,10 @@ export function wordMetadata(f: WordMetaFacts, site: string): WordMetadata {
   return {
     name: text,
     description: `${f.word} is a word in Lexigotchi, made from five letters. There is one of it.`,
-    // The card's front alone, at its stage. The address changes with the word's case and stage, so
-    // a marketplace that reads the metadata again gets the new picture.
-    image: `${site}${showcaseFacePath(text, undefined, f.level)}`,
+    // The card's front alone, at its stage. The address changes with the word's case, its stage,
+    // and its collab look, so a marketplace that reads the metadata again (the owner's
+    // `refreshMetadata` after a set's reveal) gets the new picture, never the one it kept.
+    image: `${site}${showcaseFacePath(text, undefined, f.level, f.collabMark)}`,
     external_url: `${site}/s/${text}`,
     attributes,
   };
