@@ -128,8 +128,10 @@ const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: 
   { term: "moon", re: /\bmoon(s|ing)?\b/i, sample: "To the moon." },
   // The card's vocabulary (decisions.md #54; starl3xx, 2026-11-27): the picture on a card's front
   // is its FACE, and the side is the FRONT. "Scene" is the code's word only (SceneId, `?scene=`,
-  // the stored kind), so the pattern leaves out a class name or a key ("scene-fog", "word_scenes").
-  { term: "scene", re: /(?<![-\w./:])scenes?(?![-\w=:])/i, sample: "Pick a scene." },
+  // the stored kind), so the pattern leaves out a class name or a key ("scene-fog", "word_scenes",
+  // "lexigotchi:scene:local"). A colon after it is a key only when no space follows: "Scene: Spring"
+  // is a label a player reads, and the first pattern let it through.
+  { term: "scene", re: /(?<![-\w./:])scenes?(?![-\w=])(?!:\S)/i, sample: "Pick a scene." },
   // Never a code value either, so these are checked in every string, single words included: the
   // manifest's discovery tag "tamagotchi" was one (decisions.md #24).
   { term: "Lexidex", re: /\blexidex\b/i, sample: "Fill your Lexidex.", everywhere: true },
@@ -188,6 +190,15 @@ const CODE_VALUE = /^[a-z0-9_:./#?=&-]*$/;
 
 describe("the messaging guide's words", () => {
   it.each(BANNED)("the pattern for $term catches it", ({ re, sample }) => expect(re.test(sample)).toBe(true));
+  it("the pattern for scene catches what a player reads, and leaves the code's own names alone", () => {
+    const { re } = BANNED.find((b) => b.term === "scene")!;
+    for (const prose of ["Pick a scene.", "Scenes, cases, and costumes stay with the seller.", "CRANE’s scene", "Scene: Spring", "Show the scene", "Scene:"]) {
+      expect(re.test(prose), prose).toBe(true);
+    }
+    for (const code of ["cf-fog scene-fog is-hungry", "word_scenes", "/api/scenes?wallets=", "?scene=space", "lexigotchi:scene:local:CRANE", "scene:darka", "wordScenes", "scene-tone"]) {
+      expect(re.test(code), code).toBe(false);
+    }
+  });
   it("every exception names a banned term and a reason", () => {
     for (const a of VOCAB_ALLOW) {
       expect(BANNED.map((b) => b.term)).toContain(a.term);
