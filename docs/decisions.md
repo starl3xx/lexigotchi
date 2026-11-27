@@ -2848,7 +2848,8 @@ setter. All small, riding existing suite patterns.
       in WebKit on a still screen: about one point of a core (0.6 to 0.8% without it, 1.4 to 2.7%
       with it).
     - **Where.** The game's rail and its phone header, the intro, the pre-launch screen, and the
-      landing page's header, alive; the landing page's footer, still (one living mark a screen).
+      landing page's header, alive; the landing page's footer, still (one living mark on a page that
+      shows two). While the intro is up, the game's own lockup behind it is still.
       They set the name in plain type before, or (the landing page) a tile with no eyes beside
       live type in the heavier Extrafett; the name is Fett now, as the L in the mark is.
     - **The phone header's lockup gives way.** At its full 28 px it is 132 px wide, 41 more than

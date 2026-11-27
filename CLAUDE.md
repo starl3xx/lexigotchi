@@ -957,8 +957,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - **The lockup** (decisions.md #55; `lib/cardArt/logo` `lockup`, `components/brand/Lockup.tsx`): A's
   tile standing where the name's L would, then EXIGOTCHI, as outlines (no font). **No seal in a
   lockup** (starl3xx, 2026-11-27). It is ALIVE where it is drawn live (the rail, the phone header,
-  the intro, pre-launch, the landing header; the landing footer is still: one living mark a
-  screen): the eyes blink and glance in MOMENTS from one timer (a class on the drawing for a moment,
+  the intro, pre-launch, the landing header; the landing footer is still, and so is the game's own
+  while the intro is up: one living mark at a time): the eyes blink and glance in MOMENTS from one timer (a class on the drawing for a moment,
   `.lk` in globals.css), never a loop inside the drawing, and never for a lockup nobody sees, under
   reduced motion, or on a low-power device. A blink is the letters' own swap of two drawings.
   **Each drawing on a page has its own ids** (`prefix`): the rail's and the header's are both in the

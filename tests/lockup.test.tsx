@@ -166,16 +166,21 @@ describe("the lockup, drawn live", () => {
 describe("where the name is drawn", () => {
   it("the six live places draw the lockup, alive in five and still in the landing page's footer", () => {
     const app = read("src/components/game/GameApp.tsx");
-    expect(app.match(/<Lockup alive height=\{\d+\}[^>]*\/>/g)).toHaveLength(2); // the rail, and the phone's header
+    // the rail, and the phone's header: alive, but still while the intro is up (its lockup is the living one)
+    expect(app.match(/<Lockup alive=\{!still\} height=\{\d+\}[^>]*\/>/g)).toHaveLength(2);
+    expect(app).toContain("<SideRail still={!onboarded} />");
+    expect(app).toContain("<TopBar still={!onboarded} />");
     // The phone header's lockup gives way when the row is tight, down to the old plain name's width:
     // at its full 132 px it pushed the profile button off a 390 px screen.
-    expect(app).toMatch(/<span className="min-w-\[91px\] shrink md:hidden">\s*<Lockup alive height=\{28\} className="h-auto w-full" \/>/);
+    expect(app).toMatch(/<span className="min-w-\[91px\] shrink md:hidden">\s*<Lockup alive=\{!still\} height=\{28\} className="h-auto w-full" \/>/);
     // and only the lockup gives way: when its whole group could shrink, the chip beside it slid under the balance
     expect(app).not.toMatch(/<div className="flex min-w-0 items-center gap-1\.5">\s*\{\/\* The lockup/);
     expect(read("src/components/game/Onboarding.tsx")).toMatch(/<Lockup alive height=\{\d+\} \/>/);
     expect(read("src/components/game/screens/PreLaunchScreen.tsx")).toMatch(/<Lockup alive height=\{\d+\} \/>/);
     const landing = read("src/components/landing/LandingPage.tsx");
-    expect(landing).toContain("<Lockup alive={!small} height={small ? 30 : 38} />");
+    expect(landing).toContain('<Lockup alive={!small} height={small ? 30 : 38} className={small ? "" : "h-auto w-full"} />');
+    // the header's lockup gives way too: at full size it touched the Play button on a 320 px screen
+    expect(landing).toMatch(/justify-between gap-4 [^"]*">\s*<Link href="\/" className="min-w-0 shrink">\s*<Wordmark \/>/);
     expect(landing).toContain("<Wordmark small />"); // the footer's
     // and none of them still sets the name in plain type
     for (const f of ["src/components/game/GameApp.tsx", "src/components/game/Onboarding.tsx", "src/components/game/screens/PreLaunchScreen.tsx", "src/components/landing/LandingPage.tsx"]) expect(read(f), f).not.toMatch(/>\s*L?EXIGOTCHI\s*</);

@@ -96,8 +96,9 @@ function PlayButton({
 function Wordmark({ small = false }: { small?: boolean }) {
   // The lockup (components/brand/Lockup): the tile IS the name's first letter, because a separate
   // tile beside the full name read as two things. The header's is alive; the footer's is still
-  // (one living mark a screen).
-  return <Lockup alive={!small} height={small ? 30 : 38} />;
+  // (one living mark a screen). The header's gives way on a narrow phone (its link may shrink): at
+  // its full 179 px it touched the Play button on a 320 px screen.
+  return <Lockup alive={!small} height={small ? 30 : 38} className={small ? "" : "h-auto w-full"} />;
 }
 
 function SectionHead({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
@@ -263,11 +264,11 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
   return (
     <div className="overflow-x-clip">
       {/* Header */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-        <Link href="/">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+        <Link href="/" className="min-w-0 shrink">
           <Wordmark />
         </Link>
-        <nav className="flex items-center gap-6 text-sm font-bold">
+        <nav className="flex shrink-0 items-center gap-6 text-sm font-bold">
           <a href="#how-it-works" className="hidden hover:text-candy md:inline">
             How it works
           </a>

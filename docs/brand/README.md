@@ -47,7 +47,6 @@ shows nothing on a white page.
 
 - **The eyes never invert.** On any ground an eye is a light eyeball with a dark pupil. That is why
   one ink has two files: never recolour one to make the other.
-- **Clear space:** half the tile's height on every side. **Smallest:** 20 px tall on a screen.
 - **Alive only where it is drawn live.** In the game and on the landing page the eyes blink and
   glance (`src/components/brand/Lockup.tsx`). These files are still.
 - Where a mark must be square (an app icon, a tab, a profile picture), use A, not the lockup.
