@@ -18,7 +18,7 @@ import { Button } from "../game/primitives";
 import { DownloadSimple, FilmStrip, ShareNetwork } from "../game/ui/icons";
 import { useGame, type OwnedWord } from "../game/state";
 import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
-import { showcaseBackPath, showcaseFacePath, showcasePostText, showcaseUrl } from "@/lib/showcase";
+import { showcaseBackPath, showcaseFacePath, showcasePostText, showcaseStagePath, showcaseUrl } from "@/lib/showcase";
 import type { SceneId } from "@/lib/scenes";
 import { canMakeLoop } from "./live/support";
 import { MATERIAL_LINE, materialOf } from "./material";
@@ -116,6 +116,8 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
       const blob = await makeLoop({
         front: showcaseFacePath(text, scene, word.prestigeLevel),
         back: showcaseBackPath(text, word.prestigeLevel),
+        // the front's letters, alive: drawn by the game's own rig over the card without its letters
+        live: { stage: showcaseStagePath(text, scene, word.prestigeLevel), word: word.word, upper: word.upper, tier: word.tier, gild: word.prestigeLevel, scene },
         material: materialOf(word.tier),
         stamp: stampSrc ? { src: stampSrc, ink: MATERIAL_LINE[materialOf(word.tier)] } : undefined,
         signal: ctl.signal,

@@ -279,7 +279,7 @@ describe("the loops run on layers", () => {
     const html = renderToStaticMarkup(<TileCharacter char="a" size={120} detail="full" flat />);
     expect(html.match(/<svg/g)).toHaveLength(1);
     expect(html).toMatch(/<svg[^>]* width="120" height="170"/);
-    expect(html).toMatch(/<g class="animate-tc-breathe"/);
+    expect(html).toMatch(/<g data-layer="body" class="animate-tc-breathe"/);
     // the units the loops' keyframes move by are on the drawing itself
     expect(html).toContain("--uy:");
   });

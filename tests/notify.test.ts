@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { LIMITS, clamp, buildPayload, notificationsAreActive, sendNotification } from "@/lib/notify/send";
+import { LIMITS, clamp, buildPayload, notificationsAreActive, sendNotification, notificationUuid } from "@/lib/notify/send";
 import {
   ALL_TITLE_POOLS,
   withinLimits,
@@ -76,7 +76,7 @@ describe("send guards", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("chunks a large audience into ≤100-FID requests", async () => {
+  it("chunks a large audience into ≤100-FID requests when the send has no id to key", async () => {
     env("production", "true", "key");
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -88,6 +88,34 @@ describe("send guards", () => {
       const sent = JSON.parse(String((call[1] as RequestInit).body));
       expect(sent.target_fids.length).toBeLessThanOrEqual(LIMITS.fidsPerRequest);
     }
+  });
+
+  it("with an id, sends ONE request a player, each with that player’s own key", async () => {
+    env("production", "true", "key");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({}), { status: 200 }));
+    const sentFor = (calls: typeof fetchSpy.mock.calls) => calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)) as { target_fids: number[]; notification: { uuid: string } });
+    await sendNotification({ title: "t", body: "b", targetFids: [7, 8, 9, 8], notificationId: "daily-20784" });
+    const first = sentFor(fetchSpy.mock.calls);
+    expect(first.map((r) => r.target_fids)).toEqual([[7], [8], [9]]); // one each, and a repeated FID once
+    expect(new Set(first.map((r) => r.notification.uuid)).size).toBe(3);
+    // a retry after the audience changed (8 took their letter): 7 and 9 keep THEIR keys, so they are not told twice
+    fetchSpy.mockClear();
+    await sendNotification({ title: "t", body: "b", targetFids: [9, 7], notificationId: "daily-20784" });
+    const keyOf = (rs: ReturnType<typeof sentFor>, fid: number) => rs.find((r) => r.target_fids[0] === fid)!.notification.uuid;
+    const retry = sentFor(fetchSpy.mock.calls);
+    expect(keyOf(retry, 7)).toBe(keyOf(first, 7));
+    expect(keyOf(retry, 9)).toBe(keyOf(first, 9));
+    expect(keyOf(first, 7)).not.toBe(keyOf(first, 8));
+  });
+
+  it("one player’s failed request doesn’t stop the others, and the send is not ok", async () => {
+    env("production", "true", "key");
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    let n = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => (++n === 1 ? new Response(JSON.stringify({ message: "busy" }), { status: 503 }) : new Response(JSON.stringify({}), { status: 200 })));
+    const res = await sendNotification({ title: "t", body: "b", targetFids: [7, 8, 9], notificationId: "daily-20784" });
+    quiet.mockRestore();
+    expect(res).toEqual({ ok: false, delivered: 2, error: "busy" });
   });
 
   it("reports failure instead of throwing, so a bad push can't kill the keeper pass", async () => {
@@ -119,7 +147,53 @@ describe("length limits", () => {
     });
     expect(payload.notification.title.length).toBeLessThanOrEqual(LIMITS.title);
     expect(payload.notification.body.length).toBeLessThanOrEqual(LIMITS.body);
-    expect(payload.notification.uuid!.length).toBeLessThanOrEqual(LIMITS.notificationId);
+    // whatever our id is, what travels is a UUID (the next test)
+    expect(payload.notification.uuid).toHaveLength(36);
+  });
+
+  // The service's own pattern, from the 400 it answered to "paid-20784" (2026-11-27).
+  const SERVICE_UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+  it("sends the service a real UUID: it refuses the whole request for anything else", () => {
+    for (const note of [earningsPaid("1 $WORD", 20784), dailyReady(20784), hungerWarning({ word: "FUNKY", words: 3, hoursLeft: 6 }, 20784), remindersOn()]) {
+      const payload = buildPayload({ ...note, targetFids: [77] }, [77]);
+      expect(payload.notification.uuid).toMatch(SERVICE_UUID);
+      expect(payload.notification.uuid).not.toContain(note.notificationId);
+    }
+    // no id of ours, no uuid: the service assigns one
+    expect(buildPayload({ title: "t", body: "b" }, [77]).notification).not.toHaveProperty("uuid");
+  });
+
+  it("a send nobody can receive is not ok and not an error; a refused one logs the service’s reason", async () => {
+    const env = { ...process.env };
+    Object.assign(process.env, { NODE_ENV: "production", NOTIFICATIONS_ENABLED: "true", NEYNAR_API_KEY: "k" });
+    const answer = (status: number, body: object) => vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    try {
+      let spy = answer(422, { code: "NoNotificationTokens", message: "No notification tokens found for the specified target FIDs" });
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      expect(await sendNotification({ title: "t", body: "b", targetFids: [77], notificationId: "paid-1" })).toEqual({ ok: false, delivered: 0, skipped: "no-tokens" });
+      expect(err).not.toHaveBeenCalled();
+      spy.mockRestore();
+      spy = answer(400, { message: "Invalid body parameters", code: "InvalidField", errors: '[{"format":"uuid","path":["notification","uuid"]}]' });
+      const res = await sendNotification({ title: "t", body: "b", targetFids: [77], notificationId: "paid-1" });
+      expect(res).toMatchObject({ ok: false, error: "Invalid body parameters" });
+      expect(err.mock.calls.flat().join(" ")).toMatch(/Invalid body parameters .*uuid/);
+      spy.mockRestore();
+      err.mockRestore();
+    } finally {
+      process.env = env;
+    }
+  });
+
+  it("the same send to the same people is the same key; another player’s is another", () => {
+    expect(notificationUuid("paid-20784", [77])).toBe(notificationUuid("paid-20784", [77]));
+    // "paid-20784" is every player's payday that day: the key is the id AND the player
+    expect(notificationUuid("paid-20784", [77])).not.toBe(notificationUuid("paid-20784", [78]));
+    expect(notificationUuid("paid-20784", [77])).not.toBe(notificationUuid("paid-20785", [77]));
+    // the order the audience was read in doesn't matter, and a broadcast has a key of its own
+    expect(notificationUuid("daily-20784", [3, 1, 2])).toBe(notificationUuid("daily-20784", [1, 2, 3]));
+    expect(notificationUuid("daily-20784")).toMatch(SERVICE_UUID);
+    expect(notificationUuid("daily-20784")).not.toBe(notificationUuid("daily-20784", [1]));
   });
 
   // The LHAW bug, caught structurally: titles are static, so they fit for all inputs, forever.

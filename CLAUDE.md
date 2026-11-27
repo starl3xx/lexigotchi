@@ -121,6 +121,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends without
   `NOTIFICATIONS_ENABLED=true` in production: **set 2026-11-26, with the owner's word**.
+  **The service's `uuid` must be a real UUID** (`notificationUuid` in `send.ts`: made from our id
+  and the PLAYER, and a send with an id goes out one player a request, so a retry to a changed
+  audience never tells a player twice; revisit that at some thousands of players). Our ids are words ("paid-20784"), the service refused every request with
+  "Invalid body parameters", and so NO Farcaster notification went out from the day the channel
+  was armed until the first armed keeper run showed it (2026-11-27). No test spoke to the service.
+  To check a body against the service without notifying anyone, send it to a FID that doesn't
+  exist: a good body answers 422 `NoNotificationTokens` (which the sender reads as "nobody to
+  tell", never as ok).
   **A receipt to a player goes through `notifyPlayers`** (`lib/notify/players.ts`): a kind, and a
   `PlayerNote` per account (who, what, an email ledger). It asks the choices, sends to Farcaster or
   else the account's browsers, and emails under a send-once mark. A sale (`sold.ts`), a payday and
@@ -653,7 +661,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   stats; an opened card lists the rest under it (`CardMore`). **The share loop** (decisions.md #27;
   `cards/loop/`, `cards/ShareVideo.tsx`): Share → "Make a video of the card" draws six seconds of the
   card turning (OGL, the same `materialGlsl` as the live back, over `/s/<word>/back`, a transparent
-  Satori picture of the back's words: no "you", nothing from the query) **The back's picture says what the game's back says about the WORD** (decisions.md #48; `lib/backPicture` words it, `lib/backPictureFacts` reads it from the chain, the prices, and the shared world in `lib/worldSnapshot`): "Held since" for "Yours since", no earned amount, no "Staked", and a fact that can't be read is left out. It takes the world with `worldSoon`: a kept one up to a quarter of an hour old at once (a scan takes longer than a picture can wait), never `worldNow`, which waits for the scan. and encodes it in the
+  Satori picture of the back's words: no "you", nothing from the query) **The video's letters are alive** (decisions.md #48; `loop/liveFront.tsx`, `loop/score.ts`): the front is put together again for every frame from the server's picture of the card WITHOUT its letters (`showcaseStagePath`, `?face=1&letters=0`) and the game's own rig, drawn once as one drawing (`flat still`) and cut into its layers by name (`data-layer`), each kept as a picture. The life is WRITTEN in `score.ts`, never random or clocked: every motion's time divides the six seconds, and nothing is scored while the front faces away. **A piece is a picture of its own** (`pieceOf`): it carries the drawing's definitions (a paint that points at another layer's gradient draws nothing alone: the Holographic rings), names its font outright, and takes nothing from the page; `tests/living-video.test.tsx` checks every rarity, stage, and case, and lists the classes a piece may carry, so sort a new class in the rig's drawing there. The front's letters wear the stage the GAME shows (which reads the chain); the back's picture reads the chain itself, so the back may say less (practice, a failed read), never something else. If the living front can't be drawn (a piece or the font inside it doesn't load), the still picture is used: a video is always made. **The back's picture says what the game's back says about the WORD** (decisions.md #48; `lib/backPicture` words it, `lib/backPictureFacts` reads it from the chain, the prices, and the shared world in `lib/worldSnapshot`): "Held since" for "Yours since", no earned amount, no "Staked", and a fact that can't be read is left out. It takes the world with `worldSoon`: a kept one up to a quarter of an hour old at once (a scan takes longer than a picture can wait), never `worldNow`, which waits for the scan. and encodes it in the
   browser (WebCodecs H.264 + `mp4-muxer`, deprecated but 9 kB: swap in `makeLoop.ts` only). It
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
@@ -738,6 +746,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
   `TELEGRAM_CHAT_ID`; "Run workflow" on it checks the bot can reach the group and the formatter
   loads, and never posts.
+  **A PR can ask the testers a question** (starl3xx, 2026-11-26): a `## Tester poll` section, a
+  question and then its answers as a list (2 to 12, each at most 100 characters; the question at
+  most 300). It goes out as a Telegram poll, as a reply to the post that carries the PR's note, so
+  no note, no poll. Anonymous unless the heading says `(named)`; `(multiple)` lets a tester pick
+  several. `testerPoll` in `tester-note.mjs` reads it; a poll Telegram would refuse is a warning on
+  the run with the reason, and a poll that fails NEVER stops its note being labelled (the note
+  would post again on every deploy). The results are in the group; nothing is stored. **Once a
+  week** (`.github/workflows/beta-pulse.yml`, Fridays 16:00 UTC) the bot asks "How was Lexigotchi
+  this week?" (`PULSE_POLL`, the same every week so the weeks compare; anonymous). Pause it by
+  disabling the workflow in GitHub; a manual run only shows the poll unless "send" is ticked.
+  `tests/beta-workflows.test.ts` runs both workflows' scripts as GitHub would, with Telegram replaced.
   **New members get a welcome**: Telegram calls `/api/telegram/webhook` (`src/lib/telegram.ts`), which
   greets anyone who joins by their @username (else their first name, as a mention of their account,
   so both notify) with the HEYOO card
