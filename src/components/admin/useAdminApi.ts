@@ -85,7 +85,47 @@ export function useAdminApi<T>(path: string) {
     }
   }, [signedIn, signOut, walletSignIn, load]);
 
+  /**
+   * POST `body` to a gated route, with the same credential the load sends. Gives the route's JSON,
+   * or `{ ok: false, error }` when it refused or couldn't be reached. Never prompts.
+   */
+  const send = useCallback(
+    async <R,>(to: string, body: unknown): Promise<R | { ok: false; error: string }> => {
+      try {
+        const token = address ? ((qc.getQueryData(["profileToken", address]) as string | null | undefined) ?? null) : null;
+        const res = await maybeAuthedFetch(to, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "content-type": "application/json", ...(token ? { [SESSION_HEADER]: token } : {}) },
+          body: JSON.stringify(body),
+        });
+        const json = (await res.json().catch(() => null)) as (R & { ok?: boolean; error?: string }) | null;
+        if (!res.ok || !json || json.ok === false) return { ok: false, error: json?.error ?? `Failed (${res.status})` };
+        return json;
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "Failed" };
+      }
+    },
+    [address, qc],
+  );
+
+  /** GET a gated route's bytes (a report's screenshot), with the same credential: an <img> can't send a header. */
+  const fetchBlob = useCallback(
+    async (from: string): Promise<Blob | null> => {
+      try {
+        const token = address ? ((qc.getQueryData(["profileToken", address]) as string | null | undefined) ?? null) : null;
+        const res = await maybeAuthedFetch(from, { cache: "no-store", headers: token ? { [SESSION_HEADER]: token } : {} });
+        return res.ok ? await res.blob() : null;
+      } catch {
+        return null;
+      }
+    },
+    [address, qc],
+  );
+
   return {
+    send,
+    fetchBlob,
     data,
     loading,
     error,

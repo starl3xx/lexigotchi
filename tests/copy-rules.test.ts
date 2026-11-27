@@ -15,7 +15,7 @@ import ts from "typescript";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOTS = ["src/components/game", "src/components/cards", "src/lib/cardFacts.ts", "src/components/landing", "src/components/scenes", "src/lib/scenes.ts", "src/lib/howItWorks.ts", "src/lib/notify/templates.ts", "src/lib/market/deals.ts", "src/lib/earningsShare.ts", "src/lib/notify/kinds.ts", "src/lib/telegramCommands.ts", "src/lib/telegramRecap.ts", "src/lib/telegramAlerts.ts"];
+const ROOTS = ["src/components/game", "src/components/cards", "src/lib/cardFacts.ts", "src/components/landing", "src/components/scenes", "src/lib/scenes.ts", "src/lib/howItWorks.ts", "src/lib/notify/templates.ts", "src/lib/market/deals.ts", "src/lib/earningsShare.ts", "src/lib/notify/kinds.ts", "src/lib/telegramCommands.ts", "src/lib/telegramRecap.ts", "src/lib/telegramAlerts.ts", "src/lib/telegramReports.ts"];
 const CODE_ATTR = /^(className|href|src|key|id|type|d|viewBox|fill|stroke|style|rel|target|role|method|name|htmlFor|transform|points|xmlns|preserveAspectRatio|mode|as|lang|dir|inputMode|autoComplete)$/;
 
 function files(p: string): string[] {
@@ -148,6 +148,7 @@ const VOCAB_ROOTS = [
   "src/lib/themes.ts",
   "src/lib/telegram.ts",
   "src/lib/telegramCommands.ts",
+  "src/lib/telegramReports.ts",
   "src/lib/telegramRecap.ts",
   "src/lib/telegramAlerts.ts",
   "src/lib/ascension.ts",

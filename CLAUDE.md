@@ -774,6 +774,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`/status` is not the System tab), sent with no parse mode, a fact that couldn't be read is left
   out (never zero or "nobody"), and a player's name is never written with an "@" (in Telegram that
   mentions someone else). 10 commands a minute per person (`allow("telegram", …)`).
+  **`/bug what went wrong` files a report** (`lib/telegramReports.ts`, table `tester_reports`,
+  migration 0019, `lib/db/testerReports.ts`): the words after the command, the reporter's Telegram
+  name (never with an "@"), and Telegram's id of the screenshot it was typed under, if any. It is
+  the one command that keeps what was typed. **Reports are PRIVATE: the repository is public, so
+  they never go to GitHub by themselves.** They show in the console's **Reports** tab
+  (`/api/admin/reports`, gated like Players; `lib/admin/reportRows.ts`), where "Mark fixed and tell
+  them" makes the bot reply to the report where it was filed, ONCE (`setReportStatus` is one
+  statement that only the first caller wins), with an optional note; "Close quietly" tells nobody;
+  the screenshot is fetched through the bot (`/api/admin/reports/photo`, never a public address);
+  and "Open as a public GitHub issue" fills in the report's words and number and never the
+  reporter's name. In a private chat only someone in the beta group now may file one
+  (`inBetaGroup`); 6 reports per 10 minutes per person; a report's words are never logged. Before
+  0019 runs the bot answers that it couldn't save the report, and the tab says the migration is owed.
   **The bot posts game news by itself**, from two Vercel crons (vercel.json):
   the **daily recap** (`lib/telegramRecap.ts`, `/api/cron/telegram-recap`, 00:20 UTC and again at
   02:20 for a late draw): how the day's jackpot draw went, the pot now, the words made the day
