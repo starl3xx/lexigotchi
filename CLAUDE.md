@@ -841,9 +841,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   spectrum printed across the card). Measured against the old white band, made to pass again and
   again: a few points of a core more while it passes, in both engines, and under one point on
   average. **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
-  of two sets of diagonal hairlines, three pixels a repeat, on both sides, and NO random grain (the
-  noise filter is gone: it was the one part of the paper that was not drawn). A picture, never a
-  slanted gradient. All four parts he chose are built. Still his to
+  of a diagonal CROSSHATCH, six pixels a repeat, on both sides, and NO random grain (the noise
+  filter is gone: it was the one part of the paper that was not drawn). A picture, never a
+  slanted gradient. **It must be SEEN at real size:** the first build drew the swatch he chose
+  (enlarged three times) at its true size, a third of a pixel at 7%, and he said "i can't see the
+  weave on any cards". Each direction is a dark hairline with a light one beside it, so both
+  directions show on dark art and on pale paper. **When he approves something from an enlarged
+  swatch, show it at real size too before building, and compare the build with what it replaces.** All four parts he chose are built. Still his to
   answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
   `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
