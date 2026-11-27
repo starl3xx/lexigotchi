@@ -16,6 +16,7 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { profileSecret, profilesEnabled } from "@/lib/profile/session";
 import { EMAIL_MARK } from "@/lib/cardArt/logo";
+import { ownLink } from "@/lib/gameLinks";
 
 const RESEND = "https://api.resend.com";
 const SITE = "https://lexigotchi.fun";
@@ -164,13 +165,16 @@ export function codeEmail(to: string, code: string): EmailMessage {
 
 /**
  * A reminder, from the same { title, body } the Farcaster and browser channels send. `facts` are a
- * receipt's ledger (what sold, for how much), shown as the card's back shows its facts.
+ * receipt's ledger (what sold, for how much), shown as the card's back shows its facts. Its button
+ * opens the note's own place in the game when it has one (`targetUrl`, lib/gameLinks.ts).
  */
-export function reminderEmail(to: string, address: string, note: { title: string; body: string }, facts: readonly EmailFact[] = []): EmailMessage | null {
+export function reminderEmail(to: string, address: string, note: { title: string; body: string; targetUrl?: string }, facts: readonly EmailFact[] = []): EmailMessage | null {
   const a = address.toLowerCase();
   const unsub = unsubscribeUrl(address);
   if (!unsub) return null; // never send a reminder without a working way out
-  const play = `${SITE}/play`;
+  // The note's own place in the game, when it names one of ours (a set's notice opens the Sets
+  // section); anything else gets the front door.
+  const play = ownLink(note.targetUrl, SITE);
   const body = `${paragraph(note.body)}${ledger(facts)}${button(play, "Open Lexigotchi")}`;
   const footer = `You get this because you turned on email reminders in your Lexigotchi profile. Choose which ones, and how often, there, under “What to tell me”, or ${footLink(unsub, "unsubscribe")} from all of them.`;
   const factLines = facts.map(([name, value]) => `${name}: ${value}`).join("\n");

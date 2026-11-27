@@ -230,6 +230,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `SET_REMINDERS=off` mutes them. The same route reveals what is due and marks releases. The
   "A new set of words" choice shows in the profile only once a set exists. Never name a reserved
   word in public copy.
+  **A set's moments** (decisions.md #62): ONE rule says whether a set is still news, `sets.ts`
+  `setPhase` (`revealed` / `firstDay` / `fresh` = unlocked under 24 h ago with no first day
+  running / `old`); Today's card (`TodaySets.tsx`, two rows at most, never a locked slot) and the
+  Dictionary's order and fold (`byNews`) both read it, so don't write a second test of "is it
+  news". On a network without the gate a release has `gateUntil: null`: every unlock there is
+  `fresh`. **Links into the game** are `lib/gameLinks.ts` only: `/play?go=<key>`, read once by
+  `GoHost.tsx` and removed from the address; add a key to `GO`, never read a raw value (the
+  section's name ends in a selector). The three set notices carry `goUrl("sets")`; an email uses a
+  note's link only when it is on the game's own site (`ownLink`). **A revealed word** is a button,
+  and `LookupSheet` counts the player's letters against it (`revealedSetOf`, `aheadLine`), with no
+  Spell; a held word of an unrevealed set must stay a plain "not yet" that names no set.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`
