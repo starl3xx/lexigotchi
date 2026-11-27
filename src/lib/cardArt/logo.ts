@@ -245,6 +245,15 @@ export function lockupDoc(options: Parameters<typeof lockup>[0] = {}): { svg: st
   return { svg: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${l.width} ${l.height}" width="${l.width}" height="${l.height}">${l.markup}</svg>`, width: l.width, height: l.height };
 }
 
+/**
+ * The lockup as one `<svg>` tag to put straight into a page that is written as a string (the page
+ * after linking X, the unsubscribe page): `height` px tall, named for a screen reader.
+ */
+export function lockupTag(height: number, options: Parameters<typeof lockup>[0] = {}): string {
+  const l = lockup(options);
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${l.width} ${l.height}" width="${Math.round((height * l.width) / l.height)}" height="${height}" role="img" aria-label="Lexigotchi">${l.markup}</svg>`;
+}
+
 /** The name alone, for a place too tight for a mark: the same letters, with 12 units of air over and under their capitals. */
 export function nameAlone(tone: "paper" | "dark" = "paper"): { markup: string; width: number; height: number } {
   const name = nameFrom(0, 0, tone === "paper" ? LOCKUP.ink : LOCKUP.paper);

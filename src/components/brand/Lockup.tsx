@@ -16,7 +16,7 @@
  */
 import { useEffect, useId, useMemo, useRef } from "react";
 import { lockup } from "@/lib/cardArt/logo";
-import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
+import { useLowPower, usePrefersReducedMotion } from "../game/motionPrefs";
 
 /** How long the eyes stay shut, and how long a glance is held (ms). */
 export const BLINK_MS = 130;

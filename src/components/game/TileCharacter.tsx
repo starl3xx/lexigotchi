@@ -35,6 +35,7 @@ import { Fragment, useCallback, useEffect, useId, useRef, useState, type CSSProp
 import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
 import { finishFor, mixHex, type TileTier } from "@/lib/rarityFinish";
 import type { CollabLook } from "@/lib/collabLook";
+import { useLowPower, usePrefersReducedMotion } from "./motionPrefs";
 import { tileTierOf, useCollabLook } from "./collabLooksContext";
 import { LINK_OVERLAP } from "@/components/scenes/layout";
 import {
@@ -235,40 +236,9 @@ const PEEK_STEP_S = 1.28;
 // origin = the element's own bottom, so scale/rotate keep the feet down
 const PLANT: CSSProperties = { transformBox: "fill-box", transformOrigin: "center bottom" };
 
-// ---------------------------------------------------------------------------
-// prefers-reduced-motion (client-only; SSR-safe default = false)
-// ---------------------------------------------------------------------------
-export function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const on = () => setReduced(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return reduced;
-}
-
-/**
- * A device that should get the still finishes: a low-end phone (2 GB of memory or less, which only
- * Chromium reports) or Save-Data on. Read once (it can't change mid-session) and SSR-safe (false
- * until mounted). Not the core count: WebKit reports at most 2 on iOS (a fingerprinting guard), so
- * it would keep every iPhone still, the mini app's hosts included. The finishes' motion is cheap by
- * design instead: a moment every few seconds, only for the word in focus (useFinishMoment).
- */
-let lowPowerCache: boolean | null = null;
-function readLowPower(): boolean {
-  if (lowPowerCache !== null) return lowPowerCache;
-  const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
-  lowPowerCache = (typeof nav.deviceMemory === "number" && nav.deviceMemory <= 2) || nav.connection?.saveData === true;
-  return lowPowerCache;
-}
-export function useLowPower(): boolean {
-  const [low, setLow] = useState(false);
-  useEffect(() => setLow(readLowPower()), []);
-  return low;
-}
+// The two motion hooks live in ./motionPrefs, so that something small (the lockup) can ask them
+// without bringing the whole rig to a page. They are still offered from here, where the game asks.
+export { useLowPower, usePrefersReducedMotion };
 
 /**
  * Whether this browser is WebKit: Safari, and every browser and mini-app host on an iPhone (they
