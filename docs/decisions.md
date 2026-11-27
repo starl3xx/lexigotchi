@@ -3139,6 +3139,34 @@ setter. All small, riding existing suite patterns.
       could be a Shop face later. The proposal's drawings are on a local branch that is never
       pushed.
 
+58. **The cards are matte** (starl3xx, 2026-11-27, opening a deep dive on the design audit's part
+    2: "the cards have *reflections* but they shouldn't be super *shiny* -- the cards are matte
+    finish in videos and all outputs and UI locations... and the effect(s) we use to achieve these
+    should be, yes, “Neo-Victorian engraving illustration: ruled linework in ink, on paper.” with
+    the additional notes that the "paper" is like a playing card, and playing card backs are
+    another source of inspo, along with like US dollar bills, especially the engraving and filigree
+    and stuff"). The review page is "Lexigotchi Matte Cards"; its parts are numbered 10 to 16.
+    - **The rule, as four sentences.** A card is paper and ink: nothing on it is metal, glass, or
+      a gem. Light is drawn in lines, and it is quiet: a band of fine ruled lines, or the card's
+      own lines in a lighter ink; never a soft white wash, and never a line over a letter. No hot
+      spot, no glitter. The same in the game, the video, and every picture.
+    - **What it replaces.** #25 and #26 made each rarity's back a material (walnut, satin jade,
+      sapphire foil, polished gold, cut amethyst) with a light that follows the pointer; #34 gave
+      the front a soft white band and a round glare; #27 gave the video a glare. He approved
+      those two days before. This rule is later, and it wins.
+    - **What he chose, of the page's choices** (four messages the same day): the front's light is
+      the ruled band, "but it's too strong rn... needs to be more subtle" (12D); "13A dark plate
+      is definitely the way to go" (the back is an engraved plate in the rarity's ink, on a dark
+      ground); "14A is good" (the video: no glare, a veil); "15A is good" (the stock's weave on
+      the diagonal, no random grain).
+    - **Part 1, the video (14A).** The light that crosses the turning card was white ADDED at
+      0.55: the strongest light anywhere, and at 0.9 s it hid the word. It is a veil at 0.10
+      (`loopRenderer` `VEIL`): it scales down what is left of the dark, so it lifts the inks a
+      little and can never pass the paper. Where and when the light crosses is unchanged.
+    - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
+      moving light on the back (13E), Mythic's rainbow (13F), and whether matte reaches the
+      letters' finishes, the Holographic stage, and the plastic case (part 16).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

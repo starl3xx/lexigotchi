@@ -6,8 +6,8 @@
  * device: ./makeLoop steps it and encodes each frame.
  *
  * From the "Scene Cards" mock (approved 2026-11-25: "front, rotates, shows back, on a like 5-8s
- * loop"): the scene, a turn with a lift and a glare as it passes edge-on, the back catching the
- * light, and the turn home.
+ * loop"): the scene, a turn with a lift and the light crossing it as it passes edge-on, the back
+ * catching the light, and the turn home. The light is a VEIL, never a glare (VEIL, below).
  */
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
 import { MATERIAL_GLSL, MAT_INDEX } from "../live/materialGlsl";
@@ -33,6 +33,16 @@ uniform mat4 projectionMatrix;
 varying vec2 vUv;
 void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
 `;
+
+/**
+ * How strong the light is as it crosses the turning card, of 1 (decisions.md #58, part 1). A card is
+ * matte (starl3xx, 2026-11-27: "the cards have *reflections* but they shouldn't be super *shiny* --
+ * the cards are matte finish in videos and all outputs and UI locations"; and of frames made with
+ * this veil: "14A is good"). It was a glare: white ADDED at 0.55, the strongest light anywhere, and
+ * at 0.9 s it hid the word. A veil lifts the inks a little and can never go past the paper, the way
+ * a matte card takes light. Kept as a number so a test holds it faint.
+ */
+export const VEIL = 0.1;
 
 const FRAG = /* glsl */ `
 precision highp float;
@@ -63,9 +73,9 @@ void main() {
     vec4 c = texture2D(tBack, buv);
     col = mix(m, c.rgb, c.a);
   }
-  // the light catching the card as it turns
+  // the light catching the card as it turns: a veil over a matte card (VEIL), never white added to it
   float g = exp(-pow((vUv.x - uGlareX) * 3.2 + (vUv.y - 0.5) * 1.2, 2.0) * 6.0) * uGlare;
-  col += g * vec3(1.0, 0.97, 0.9) * 0.55;
+  col = 1.0 - (1.0 - col) * (1.0 - g * ${VEIL.toFixed(2)});
   // its ink edge (sd runs negative inside; the last sliver before the edge is ink)
   col = mix(col, vec3(0.106, 0.09, 0.078), smoothstep(-0.014, -0.006, sd));
   gl_FragColor = vec4(col, 1.0);
@@ -113,7 +123,7 @@ void main() {
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
-/** Where the card is at time t of the loop: its turn (degrees), lift, tilt, and the glare. */
+/** Where the card is at time t of the loop: its turn (degrees), lift, tilt, and the light crossing it (`glare`: how much of the veil, and where). */
 export function loopPose(t: number) {
   const s = ((t % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS;
   const turn1 = ease(clamp01((s - 1.8) / 0.9));
@@ -124,7 +134,7 @@ export function loopPose(t: number) {
   // video loops without a jump at its seam (Bugbot on #214: the tilt used to snap ~5°).
   const tiltY = Math.sin(s * ONCE) * 5;
   const tiltX = Math.sin(s * ONCE + 1) * 3;
-  // a glare crossing the front early on, and crossing as each turn passes edge-on
+  // the light crossing the front early on, and crossing as each turn passes edge-on
   const g1 = Math.max(0, 1 - Math.abs(s - 0.9) / 0.6);
   const g2 = Math.sin(Math.PI * clamp01((s - 1.8) / 0.9));
   const g3 = Math.max(0, 1 - Math.abs(s - 3.6) / 0.7);
