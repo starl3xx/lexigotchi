@@ -80,11 +80,13 @@ export interface NotifyInput {
  * Farcaster notification failed from the day the channel was armed until the first armed keeper run
  * showed it in the log (2026-11-27). No test caught it: none spoke to the service.
  *
- * The audience is part of it because our ids name a DAY or an EVENT, not a player: "paid-20784" is
- * every player's payday that day, each sent in its own request. If the key were the id alone, the
- * service could read the second player's request as a repeat of the first. With the audience in it,
- * the same send to the same people is the same key (a retry is dropped), and another player's is
- * another key.
+ * The key is the id AND the player. Our ids name a DAY or an EVENT, not a player ("paid-20784" is
+ * every player's payday that day): with the id alone, the service could read the second player's
+ * request as a repeat of the first. And it must not be the id and the whole AUDIENCE, or a retried
+ * send to a slightly different audience (someone took their letter meanwhile) would be a new key
+ * and tell the others twice (Bugbot on #261). So a send with an id goes out ONE PLAYER A REQUEST
+ * (`requests`, below), each with the key of that id and that player: a retry is the same key for
+ * every player it reaches again, whoever else is in it.
  */
 export function notificationUuid(id: string, fids?: readonly number[]): string {
   const audience = fids && fids.length > 0 ? [...fids].sort((a, b) => a - b).join(",") : "everyone";
@@ -102,15 +104,27 @@ export function notificationsAreActive(): boolean {
   return Boolean(process.env.NEYNAR_API_KEY);
 }
 
-/** Split into ≤100-FID chunks. A broadcast (empty list) stays a single unchunked request. */
-function chunkFids(fids: number[] | undefined): (number[] | undefined)[] {
+/**
+ * The requests one send makes. A broadcast (no list) is one request. A send WITH an id is one
+ * request a player, so each carries that player's own key (`notificationUuid` says why). A send
+ * with no id has no key to keep, and goes in chunks of up to 100 FIDs.
+ *
+ * One request a player is right for a game this size and wrong for a big one: at some thousands of
+ * players the daily reminder would outrun the service's rate limit and the cron's time. Before
+ * then, learn from the service whether its key is kept per player, and batch again if it is.
+ */
+function requests(fids: number[] | undefined, keyed: boolean): (number[] | undefined)[] {
   if (!fids || fids.length === 0) return [undefined];
+  if (keyed) return [...new Set(fids)].map((fid) => [fid]);
   const out: number[][] = [];
   for (let i = 0; i < fids.length; i += LIMITS.fidsPerRequest) {
     out.push(fids.slice(i, i + LIMITS.fidsPerRequest));
   }
   return out;
 }
+
+/** How many requests are in flight at once. */
+const CONCURRENCY = 5;
 
 /**
  * Build the exact request body we'd POST, with every field clamped. Exported so the admin console
@@ -155,7 +169,10 @@ export async function sendNotification(input: NotifyInput): Promise<NotifyResult
 
   let delivered = 0;
   let noTokens = 0;
-  for (const chunk of chunkFids(input.targetFids)) {
+  let failed = 0;
+  let error: string | undefined;
+  /** One request. A failure is its own: it doesn't stop the other players' requests. */
+  const post = async (chunk: number[] | undefined): Promise<void> => {
     try {
       const res = await fetch(NEYNAR_NOTIFY_URL, {
         method: "POST",
@@ -164,24 +181,29 @@ export async function sendNotification(input: NotifyInput): Promise<NotifyResult
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // Nobody in this chunk can be notified any more (they removed the app, or turned
+        // Nobody in this request can be notified any more (they removed the app, or turned
         // notifications off since the audience was read): nothing to send, and not a failure.
-        if (data?.code === "NoNotificationTokens") {
-          noTokens++;
-          continue;
-        }
+        if (data?.code === "NoNotificationTokens") return void noTokens++;
         // The service's own reason, and which field it refused: "Invalid body parameters" alone
         // said nothing about the uuid.
         const why = [data?.message ?? `HTTP ${res.status}`, typeof data?.errors === "string" ? data.errors.slice(0, 200) : ""].filter(Boolean).join(" ");
         console.error("[notify] send failed:", why);
-        return { ok: false, delivered, error: data?.message ?? `HTTP ${res.status}` };
+        failed++;
+        error ??= data?.message ?? `HTTP ${res.status}`;
+        return;
       }
       delivered += Number(data?.notification_deliveries?.length ?? chunk?.length ?? 0);
     } catch (err) {
       console.error("[notify] send threw:", err);
-      return { ok: false, delivered, error: err instanceof Error ? err.message : "unknown" };
+      failed++;
+      error ??= err instanceof Error ? err.message : "unknown";
     }
+  };
+  const all = requests(input.targetFids, Boolean(input.notificationId));
+  for (let i = 0; i < all.length; i += CONCURRENCY) {
+    await Promise.all(all.slice(i, i + CONCURRENCY).map(post));
   }
+  if (failed > 0) return { ok: false, delivered, error };
   // Nothing went out because nobody asked for could be notified: not "ok" (a caller that counts
   // who was told must not count them), and not an error either.
   if (delivered === 0 && noTokens > 0) return { ok: false, delivered: 0, skipped: "no-tokens" };

@@ -122,7 +122,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends without
   `NOTIFICATIONS_ENABLED=true` in production: **set 2026-11-26, with the owner's word**.
   **The service's `uuid` must be a real UUID** (`notificationUuid` in `send.ts`: made from our id
-  and the audience). Our ids are words ("paid-20784"), the service refused every request with
+  and the PLAYER, and a send with an id goes out one player a request, so a retry to a changed
+  audience never tells a player twice; revisit that at some thousands of players). Our ids are words ("paid-20784"), the service refused every request with
   "Invalid body parameters", and so NO Farcaster notification went out from the day the channel
   was armed until the first armed keeper run showed it (2026-11-27). No test spoke to the service.
   To check a body against the service without notifying anyone, send it to a FID that doesn't

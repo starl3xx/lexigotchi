@@ -76,7 +76,7 @@ describe("send guards", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("chunks a large audience into ≤100-FID requests", async () => {
+  it("chunks a large audience into ≤100-FID requests when the send has no id to key", async () => {
     env("production", "true", "key");
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -88,6 +88,34 @@ describe("send guards", () => {
       const sent = JSON.parse(String((call[1] as RequestInit).body));
       expect(sent.target_fids.length).toBeLessThanOrEqual(LIMITS.fidsPerRequest);
     }
+  });
+
+  it("with an id, sends ONE request a player, each with that player’s own key", async () => {
+    env("production", "true", "key");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({}), { status: 200 }));
+    const sentFor = (calls: typeof fetchSpy.mock.calls) => calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)) as { target_fids: number[]; notification: { uuid: string } });
+    await sendNotification({ title: "t", body: "b", targetFids: [7, 8, 9, 8], notificationId: "daily-20784" });
+    const first = sentFor(fetchSpy.mock.calls);
+    expect(first.map((r) => r.target_fids)).toEqual([[7], [8], [9]]); // one each, and a repeated FID once
+    expect(new Set(first.map((r) => r.notification.uuid)).size).toBe(3);
+    // a retry after the audience changed (8 took their letter): 7 and 9 keep THEIR keys, so they are not told twice
+    fetchSpy.mockClear();
+    await sendNotification({ title: "t", body: "b", targetFids: [9, 7], notificationId: "daily-20784" });
+    const keyOf = (rs: ReturnType<typeof sentFor>, fid: number) => rs.find((r) => r.target_fids[0] === fid)!.notification.uuid;
+    const retry = sentFor(fetchSpy.mock.calls);
+    expect(keyOf(retry, 7)).toBe(keyOf(first, 7));
+    expect(keyOf(retry, 9)).toBe(keyOf(first, 9));
+    expect(keyOf(first, 7)).not.toBe(keyOf(first, 8));
+  });
+
+  it("one player’s failed request doesn’t stop the others, and the send is not ok", async () => {
+    env("production", "true", "key");
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    let n = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => (++n === 1 ? new Response(JSON.stringify({ message: "busy" }), { status: 503 }) : new Response(JSON.stringify({}), { status: 200 })));
+    const res = await sendNotification({ title: "t", body: "b", targetFids: [7, 8, 9], notificationId: "daily-20784" });
+    quiet.mockRestore();
+    expect(res).toEqual({ ok: false, delivered: 2, error: "busy" });
   });
 
   it("reports failure instead of throwing, so a bad push can't kill the keeper pass", async () => {
@@ -159,7 +187,7 @@ describe("length limits", () => {
 
   it("the same send to the same people is the same key; another player’s is another", () => {
     expect(notificationUuid("paid-20784", [77])).toBe(notificationUuid("paid-20784", [77]));
-    // "paid-20784" is every player's payday that day, each in a request of its own
+    // "paid-20784" is every player's payday that day: the key is the id AND the player
     expect(notificationUuid("paid-20784", [77])).not.toBe(notificationUuid("paid-20784", [78]));
     expect(notificationUuid("paid-20784", [77])).not.toBe(notificationUuid("paid-20785", [77]));
     // the order the audience was read in doesn't matter, and a broadcast has a key of its own
