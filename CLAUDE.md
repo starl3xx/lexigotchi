@@ -102,6 +102,34 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Formulas: caps = `floor(slots × DEMAND_MULTIPLE)` (3.0 since decisions.md #21 → 68,760; Sepolia's
   deployed Letters keeps 2.5× → 57,294 until a redeploy); tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.
+- **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /
+  `set_words` / `dictionary_roots`, migration 0021): themed groups of dictionary words held back
+  and released later. A reserved word is one `Words.dictionaryRoot` leaves out; a release is a
+  root that includes the set's words. **The lists are PRIVATE and live only in the database** (the
+  repository is public): never commit, log, or paste a set's name or words, and never log a
+  driver's error from a sets query whole (its text carries the statement's parameters: log
+  `codeOf(err)`). `publicSets` (`rules.ts`, pure) is the ONE place a set's contents become public:
+  a draft is a locked slot with nothing in it. What can't be hidden is WHICH words are held back
+  (the dictionary is public and the game says "not available yet"), so that is only kept slow: one
+  word a request, and `allow("proof", ip)`. **Proofs follow the chain** (`lib/sets/server.ts`
+  `serving`): every root the server builds is stored with the words it leaves out BEFORE its
+  transaction is shown, and `/api/dictionary/proof` serves from the tree behind the root the chain
+  holds now; a word is offered only when it is in that tree AND in no unreleased set, so a draft
+  edit never stops a claim (the admin says "root out of date"). `planReserve` moves the chain to
+  what the sets hold back; `planRelease` adds exactly one revealed set's words, never removes one,
+  refuses a set not fully held back on the chain, and puts `setGate` BEFORE `setDictionaryRoot`
+  where the network's Words has the gate (`hasGate` asks the contract). A set is marked released
+  from the chain (`reconcile`), never by hand. Admin: the **Sets** tab (`/api/admin/sets`, gated
+  on the server and `no-store`, like Players); `npm run sets -- status | commitment | reserve |
+  release <id> | confirm` prints the same plans and sends nothing. **Full dictionary, always:**
+  caps, mint odds, tiers, token ids, the answer pool (`tests/sets-derivations.test.ts` fails if one
+  of those modules imports `lib/sets`). **Released words only:** anything that says "of the
+  dictionary" to a player (`releasedWordCount` / `releasedWords`: the free-letter stop, the deal
+  alert, the dictionary-share achievement, the admin's numbers). No tables or no database = no
+  sets and the old behavior; a failed read with nothing kept answers `try_again`, never the full
+  tree. `scripts/sets-db-check.ts` proves the SQL on a throwaway local Postgres (rerun it after
+  touching `lib/db/sets.ts`). The jackpot needs no special case: a held-back answer rolls over
+  like any unowned word.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`

@@ -118,8 +118,11 @@ async function main() {
 main()
   .then(() => closeDb())
   .catch(async (err) => {
-    // The message only: a driver's error object can carry a statement's parameters (the words).
-    console.error(`sets: ${String((err as Error)?.message ?? err).split("\n")[0].slice(0, 200)}`);
+    // Never a database error's own text: it carries the statement and its parameters (the words).
+    // Those have a code; this script's own errors don't, and say what to do.
+    const e = err as { code?: string; cause?: { code?: string }; message?: string } | null;
+    const code = e?.code ?? e?.cause?.code;
+    console.error(`sets: ${code ? `failed (${String(code).slice(0, 40)})` : String(e?.message ?? err).split("\n")[0].slice(0, 200)}`);
     await closeDb().catch(() => {});
     process.exit(1);
   });

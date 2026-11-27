@@ -2082,6 +2082,95 @@ setter. All small, riding existing suite patterns.
         before. Not seen: the celebrate sheet in the running game (its markup was drawn with the
         game's styles on a test page), a real phone.
 
+51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
+    2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
+    owner's words: "we set aside a portion of the total dictionary into packs of themed words".
+    "on launch (or ASAP in testnet) we'd make sure something like 200 words (not sure on the total
+    number) are reserved and grouped into themes. then we can release these new words into the
+    ecosystem at later points (sort of an anti-whale mechanism, in a way)". "I'll refine the actual
+    words (for these lists and overall) in the coming days... most important rn is the plumbing and
+    the ability to release them in the game". "I like the gated idea on #8". They are called
+    **sets**. This is plumbing: the words and themes are placeholders, so everything about a set is
+    editable data until the set is released. One entry: each part is added here as it ships.
+    - **How a word is held back.** `Words.claim` checks a Merkle proof against `dictionaryRoot`,
+      and the owner can call `setDictionaryRoot`. A reserved word is one the current root leaves
+      out. Releasing a set is publishing a root that includes its words. No contract change is
+      needed for that; the first-day gate (part 3) is the contract change.
+    - **Where the lists live.** In the database, never in this repository, which is public:
+      `word_sets` (name, status draft → revealed → released, `reveal_at`, `release_at`,
+      `gate_hours` 24, `per_player_limit` 1, order) and `set_words` (the word is the key, so a
+      word is in one set at most; a headliner flag). A draft is fully editable (add, remove, move,
+      rename, reorder, delete). A revealed set's name and words are locked; its dates and gate
+      settings can still move. A released set is permanent. The admin imports and exports the
+      unreleased sets as JSON; an import replaces every draft, all or nothing. The lists are never
+      committed and never logged.
+    - **A limit on secrecy, stated plainly.** The full dictionary is public (this repository, and
+      the app's own bundle), and the game answers "not available yet" for a held-back word. So
+      anyone who asks about every word can work out WHICH words are held back. That can be made
+      slow (one word a request, a limit per address on the proof route) and never secret. What does
+      stay private until a set is revealed: its name, which words it groups, its headliners, and
+      its dates. `publicSets` (lib/sets/rules.ts) is the one place that decides what a player's
+      browser is told, and it gives a draft as a locked slot with nothing in it.
+    - **Proofs follow the chain, not the sets table** (my design; the spec said only "build the
+      Merkle tree from" the claimable dictionary). A draft edit changes the sets at once and the
+      chain only when the owner sends a transaction. If proofs came from the sets table, every
+      edit would stop every claim (`dictionary_mismatch`) until that transaction landed. So each
+      root the server builds is stored with the words it leaves out (`dictionary_roots`, written
+      before the transaction is shown, never deleted, as `reward_leaves` is), and a proof comes
+      from the tree behind the root the chain holds now. A word is offered only when BOTH agree:
+      it is in the chain's tree, and it is in no unreleased set. The admin says "root out of date"
+      while the two differ.
+    - **Two builders, where the spec named one.** RESERVE moves the chain's root to what the sets
+      hold back (it removes words, and may let some go); it flags any word a player already owns,
+      which matters on Sepolia. RELEASE adds exactly one revealed set's words to the tree the
+      chain holds and can never remove a word, whatever draft edits are waiting. A release is
+      refused until every word of the set is held back on the chain: otherwise it would be a root
+      that changes nothing, and the set would be marked released with no transaction behind it. A
+      set is marked released from the chain (its release root is the chain's root), never by hand.
+      `npm run sets -- status | commitment | reserve | release <id> | confirm` runs the same code
+      and sends nothing: it prints the calls.
+    - **The gate goes first.** Where the network's Words has the gate, a release is two calls:
+      `setGate` on the set's words, THEN `setDictionaryRoot`, as one Safe batch or as two `cast`
+      commands joined so the second runs only if the first succeeded. There is no moment when a set
+      word is claimable without its gate. Until the redeploy that carries the gate, a release is
+      the root alone and the set opens to everyone at once (the builder says so).
+    - **The commitment.** keccak256 of the canonical JSON of every unreleased set: each set's name,
+      words, and headliners; sets by name, words A to Z, fixed keys, no whitespace. Shown in the
+      admin and printed by `npm run sets -- commitment`. I left the dates, the gate settings, and
+      the order out of it (my choice): they can move without the lists changing, and a promise
+      that breaks when a release slips a day is no use. It changes with any edit to a name, a
+      word, or a headliner, and at every release.
+    - **Derived from the FULL dictionary, and tested never to move** (`tests/sets-derivations`):
+      letter supply caps, mint odds, rarity tiers and ranks, token ids, and the jackpot's frozen
+      answer pool. A reserved word needs its letters to exist, and comes back with the tier and
+      the token id it always had.
+    - **Counted over RELEASED words only:** the free-letter stop at 95% and its
+      `dictionaryFull` answer, the admin's "dictionary claimed" and Supply tab, the keeper's deal
+      alert (a letter that "finishes" a held-back word is no deal), the dictionary-share
+      achievement, and the bot's `/word` ("It isn't available yet."). Spell, the Dictionary, and
+      the Market's picks follow in part 2. **No change was needed** for the leaderboard's totals
+      or the bounty's theme matching: both count words players own, and a held-back word can't be
+      owned. (One Sepolia-only exception: a word claimed before it was reserved stays owned and
+      still counts; the admin flags it.)
+    - **The jackpot needs no special case.** The daily answers were committed before launch and
+      may include a held-back word. `Jackpot.resolve` pays only a word that exists, is staked, and
+      is fed; a word nobody can claim doesn't exist, so the pot rolls over as it does for any
+      unowned word (`test_Jackpot_rollsOverOnAWordHeldBackFromTheRoot`). The keeper reveals the
+      next link whatever the word is. The answer chain is not changed. One consequence to say in
+      the player docs: a word is drawn once, ever (#20), so a set word drawn before its release
+      has had its draw.
+    - **Part 1 (this entry's first PR): the server and the admin.** Migration 0021, the rules, the
+      proof route, the builders and the script, the admin's Sets tab (gated on the server like
+      Players, never cached), and the tests. It merges dark: with no tables, or no sets, every
+      answer is what it was. A database that is there and fails refuses (`try_again`) only when
+      nothing was read before; otherwise the last read keeps holding back what it held.
+    - **Owner steps after part 1:** run migration 0021; paste the JSON into Sets; send the reserve
+      root (`setDictionaryRoot`) from the owner wallet.
+    - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available
+      yet", the set's name on a card's back, the reminders, the player docs); part 3, the
+      first-day gate (the Words change, its tests and audit, the voucher server), which needs a
+      redeploy of the whole suite and waits for the owner's word on a date.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
