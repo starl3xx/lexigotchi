@@ -7,26 +7,29 @@
  * of three directions drawn for him, "13A dark plate is definitely the way to go".
  *
  * So a back is paper and ink. It is printed solid in a dark ink, and its engraving is in a light
- * ink of the same family. A rarity is told by its inks and by HOW MUCH engraving its plate carries,
- * never by a material: the backs were walnut, satin, brushed foil, polished gold, and a cut gem,
+ * ink of the same family. A rarity is told by its INKS, never by a material: the backs were walnut, satin, brushed foil, polished gold, and a cut gem,
  * with a hot spot and glitter (decisions.md #25, #26), and this replaces them.
  *
- * The engraving is in the plate's BORDER, each rank keeping the last one's and adding its own:
- *   0  rules, and a ruled ground (fine even lines that make a tone, as an engraver does)
- *   1  + a border of LACE (braided waves, as on a banknote's edge), a lathe medallion in each corner
- *   2  as 1, in its own inks (its step was lathe work round the seal: see below)
- *   3  + FILIGREE in the border's corners, in a second ink
- *   4  + the ink changes along the card
+ * THERE ARE TWO BORDERS, AND ONLY TWO:
+ *   "rules"  Common's: plain rules, round a ruled ground (fine even lines that make a tone)
+ *   "lace"   every other back's, THE SAME ON ALL OF THEM: a band of lace (braided waves, as on a
+ *            banknote's edge) with a lathe medallion in each corner
+ * As first built, each rarity added engraving of its own, and Legendary and Mythic had filigree
+ * in their corners in place of the medallions, with a lace cut short to make room. starl3xx, the
+ * day it shipped: "the 'border of lace' on uncommon and rare should be the border on the back of
+ * every one but common". So Uncommon, Rare, Legendary, Mythic, and a collab set's back carry one
+ * drawing, and differ only in their inks. Never give a rarity a border of its own again.
  *
- * Rank 4's changing ink is a banknote's "rainbow printing": one plate, the ink blended across it.
- * It is printed, so it never moves.
+ * Mythic's ink changes along the card (`blend`): a banknote's "rainbow printing", one plate with
+ * the ink blended across it. It is an ink, so it is Mythic's to keep, and it is printed, so it
+ * never moves.
  *
  * THE GAME'S EMBLEM IS THE SAME ON EVERY RARITY, AND THE PLATE DRAWS NOTHING ROUND IT. As first
- * built, ranks 2, 3, and 4 turned one, two, and three rings of lathe work around the seal.
+ * built, Rare, Legendary, and Mythic turned one, two, and three rings of lathe work around the seal.
  * starl3xx, the day it shipped: "I don't like the Lexigotchi emblem on the back getting more rings
  * for more rarity... I think that should look the same on all rarities, standard". So the seal
- * stands alone on every back, as it always had before the plates, and a rarity is told by its inks
- * and its border. Never mark a rarity on, in, or around the emblem.
+ * stands alone on every back, as it always had before the plates. Never mark a rarity on, in, or
+ * around the emblem.
  *
  * The drawing keeps the engraving kit's rules (./engrave: plain shapes, gradients, patterns, clip
  * paths, and `<use>`; no text, no filter, nothing fetched; every number finite and rounded), so the
@@ -38,8 +41,8 @@
  */
 import { CARD_H, CARD_W, n1, rosette } from "./engrave";
 
-/** How much engraving a plate carries: Common's 0 to Mythic's 4. */
-export type PlateRank = 0 | 1 | 2 | 3 | 4;
+/** A plate's border: Common's plain rules, or the lace every other back carries (the note at the top). */
+export type PlateEdge = "rules" | "lace";
 
 export interface PlateInks {
   /** The dark ink the back is printed solid in. */
@@ -48,7 +51,7 @@ export interface PlateInks {
   band?: string;
   /** The light ink of its engraving. */
   line: string;
-  /** A second light ink, from rank 3: the filigree, and (rank 4) the far end of the blend. */
+  /** A second light ink: the far end of a blended ink (Mythic's). A plate with no blend never draws in it. */
   second: string;
 }
 
@@ -87,54 +90,17 @@ function lace(x0: number, y0: number, x1: number, y1: number, amp: number, waves
   return d;
 }
 
-/** A spiral from radius r0 to r1 over `turns`, starting at angle a0 (radians), as a path piece. */
-function spiral(cx: number, cy: number, r0: number, r1: number, turns: number, a0: number, dir: 1 | -1 = 1): string {
-  const steps = Math.round(turns * 28);
-  let d = "";
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const r = r0 + (r1 - r0) * t;
-    const a = a0 + dir * t * turns * Math.PI * 2;
-    d += `${i ? "L" : "M"}${n1(cx + r * Math.cos(a))} ${n1(cy + r * Math.sin(a))}`;
-  }
-  return d;
-}
-
-/** A leaf: a teardrop from (x, y), `len` long, pointing at angle a. */
-function leaf(x: number, y: number, len: number, a: number, fat = 0.34): string {
-  const c = Math.cos(a), s = Math.sin(a);
-  const tx = x + c * len, ty = y + s * len;
-  const mx = x + c * len * 0.45, my = y + s * len * 0.45;
-  const w = len * fat;
-  return `M${n1(x)} ${n1(y)}Q${n1(mx - s * w)} ${n1(my + c * w)} ${n1(tx)} ${n1(ty)}Q${n1(mx + s * w)} ${n1(my - c * w)} ${n1(x)} ${n1(y)}Z`;
-}
-
-/** Filigree for one corner: vines that leave the corner along each edge and curl home, with leaves. Drawn for the top left with its corner at (0, 0), `size` units along each edge; turned for the other corners. */
-function filigree(size: number): { stroke: string; fill: string } {
-  const k = size / 120;
-  const P = (x: number, y: number) => `${n1(x * k)} ${n1(y * k)}`;
-  const vine = (flip: boolean) => {
-    const q = (x: number, y: number) => (flip ? P(y, x) : P(x, y));
-    return `M${q(10, 10)}C${q(34, 6)} ${q(62, 8)} ${q(84, 20)}` + (flip ? spiral(34 * k, 100 * k, 16 * k, 3 * k, 1.35, -Math.PI / 2 - 0.5, -1).replace(/^M[^L]+/, "") : spiral(100 * k, 34 * k, 16 * k, 3 * k, 1.35, Math.PI + 0.5, 1).replace(/^M[^L]+/, ""));
-  };
-  const curl = (flip: boolean) => (flip ? spiral(24 * k, 52 * k, 11 * k, 2 * k, 1.2, -Math.PI / 2, -1) : spiral(52 * k, 24 * k, 11 * k, 2 * k, 1.2, Math.PI, 1));
-  const bud = (flip: boolean) => (flip ? spiral(52 * k, 112 * k, 7 * k, 1.5 * k, 1.1, 0, 1) : spiral(112 * k, 52 * k, 7 * k, 1.5 * k, 1.1, Math.PI / 2, -1));
-  const stroke = vine(false) + vine(true) + curl(false) + curl(true) + bud(false) + bud(true);
-  const fill = leaf(12 * k, 12 * k, 34 * k, Math.PI / 4, 0.3) + leaf(40 * k, 9 * k, 18 * k, -0.5) + leaf(9 * k, 40 * k, 18 * k, Math.PI / 2 + 0.5) + leaf(70 * k, 14 * k, 15 * k, 0.9) + leaf(14 * k, 70 * k, 15 * k, Math.PI / 2 - 0.9);
-  return { stroke, fill };
-}
-
 /**
  * A back's plate: its ground and its engraving, as SVG markup for svgDoc (the card's size,
  * CARD_W × CARD_H).
  *
- * - `rank`: how much engraving (above).
+ * - `edge`: its border, "rules" or "lace" (above).
  * - `inks`: the plate's own. A rarity's are in components/cards/material; a collab set's are its
  *   two colors (lib/collabLook). The drawing never knows which.
- * - `blend`: the line ink changes along the card, from `line` to `second` and back (rank 4's
+ * - `blend`: the line ink changes along the card, from `line` to `second` and back (Mythic's
  *   rainbow printing). Without it every line is `line`.
  */
-export function backPlate(rank: PlateRank, inks: PlateInks, blend = false): string {
+export function backPlate(edge: PlateEdge, inks: PlateInks, blend = false): string {
   const W = CARD_W, H = CARD_H;
   const A = inks.line, B = inks.second;
   const defs: string[] = [];
@@ -152,31 +118,24 @@ export function backPlate(rank: PlateRank, inks: PlateInks, blend = false): stri
   // the ruled ground: an engraver's tone, fine and even (and never finer: the note at the top says why)
   defs.push(`<pattern id="rule" width="11" height="11" patternUnits="userSpaceOnUse"><line x1="0" y1="5.5" x2="11" y2="5.5" stroke="${A}" stroke-width="1.5"/></pattern>`);
   out.push(`<rect x="${inner}" y="${inner}" width="${W - 2 * inner}" height="${H - 2 * inner}" rx="8" fill="url(#rule)" opacity="${n1(0.3 * SOFT * 10) / 10}"/>`);
-  // the border: rules, and from rank 1 a band of lace between them
+  // the border: rules, and on every back but Common's a band of lace between them
   out.push(`<rect x="${o}" y="${o}" width="${W - 2 * o}" height="${H - 2 * o}" rx="18" fill="none" stroke="${stroke}" stroke-width="3.2"/><rect x="${o + 6}" y="${o + 6}" width="${W - 2 * o - 12}" height="${H - 2 * o - 12}" rx="13" fill="none" stroke="${stroke}" stroke-width="0.9"/>`);
-  out.push(`<rect x="${inner - 6}" y="${inner - 6}" width="${W - 2 * inner + 12}" height="${H - 2 * inner + 12}" rx="11" fill="none" stroke="${rank >= 3 ? B : stroke}" stroke-width="0.9"/><rect x="${inner}" y="${inner}" width="${W - 2 * inner}" height="${H - 2 * inner}" rx="8" fill="none" stroke="${stroke}" stroke-width="2"/>`);
-  if (rank >= 1) {
+  out.push(`<rect x="${inner - 6}" y="${inner - 6}" width="${W - 2 * inner + 12}" height="${H - 2 * inner + 12}" rx="11" fill="none" stroke="${stroke}" stroke-width="0.9"/><rect x="${inner}" y="${inner}" width="${W - 2 * inner}" height="${H - 2 * inner}" rx="8" fill="none" stroke="${stroke}" stroke-width="2"/>`);
+  if (edge === "lace") {
     const mid = (lo + li) / 2, amp = (li - lo) / 2 - 2;
-    // the lace stops short of a corner that carries filigree (rank 3 and up); below that a medallion closes it
-    const gap = rank >= 3 ? 104 : 22;
+    // the lace stops just short of each corner, where a medallion closes it
+    const gap = 22;
     const x0 = li + gap, x1 = W - li - gap, y0 = li + gap, y1 = H - li - gap;
     // two braids of different pitch cross, as on a note's border
-    const fine = lace(x0, mid, x1, mid, amp, rank >= 3 ? 26 : 30, 3) + lace(x0, H - mid, x1, H - mid, amp, rank >= 3 ? 26 : 30, 3) + lace(mid, y0, mid, y1, amp, rank >= 3 ? 11 : 15, 3) + lace(W - mid, y0, W - mid, y1, amp, rank >= 3 ? 11 : 15, 3);
-    const slow = lace(x0, mid, x1, mid, amp, rank >= 3 ? 9 : 10, 2) + lace(x0, H - mid, x1, H - mid, amp, rank >= 3 ? 9 : 10, 2) + lace(mid, y0, mid, y1, amp, rank >= 3 ? 4 : 5, 2) + lace(W - mid, y0, W - mid, y1, amp, rank >= 3 ? 4 : 5, 2);
+    const fine = lace(x0, mid, x1, mid, amp, 30, 3) + lace(x0, H - mid, x1, H - mid, amp, 30, 3) + lace(mid, y0, mid, y1, amp, 15, 3) + lace(W - mid, y0, W - mid, y1, amp, 15, 3);
+    const slow = lace(x0, mid, x1, mid, amp, 10, 2) + lace(x0, H - mid, x1, H - mid, amp, 10, 2) + lace(mid, y0, mid, y1, amp, 5, 2) + lace(W - mid, y0, W - mid, y1, amp, 5, 2);
     out.push(`<path d="${fine}" fill="none" stroke="${stroke}" stroke-width="1.15" opacity="${SOFT}"/><path d="${slow}" fill="none" stroke="${stroke}" stroke-width="1.5" opacity="${SOFT}"/>`);
-    if (rank < 3)
-      [[mid + 2, mid + 2], [W - mid - 2, mid + 2], [mid + 2, H - mid - 2], [W - mid - 2, H - mid - 2]].forEach(([x, y], n) => {
-        defs.push(`<path id="c${n}" d="${rosette(x, y, 15, 5.5, 8, 120)}"/>`);
-        out.push(`<circle cx="${x}" cy="${y}" r="23.5" fill="${border}" stroke="${stroke}" stroke-width="1.6"/><g fill="none" stroke="${stroke}" stroke-width="0.9">${turn(`c${n}`, 4, 45, x, y)}</g><circle cx="${x}" cy="${y}" r="4" fill="${A}"/>`);
-      });
+    [[mid + 2, mid + 2], [W - mid - 2, mid + 2], [mid + 2, H - mid - 2], [W - mid - 2, H - mid - 2]].forEach(([x, y], n) => {
+      defs.push(`<path id="c${n}" d="${rosette(x, y, 15, 5.5, 8, 120)}"/>`);
+      out.push(`<circle cx="${x}" cy="${y}" r="23.5" fill="${border}" stroke="${stroke}" stroke-width="1.6"/><g fill="none" stroke="${stroke}" stroke-width="0.9">${turn(`c${n}`, 4, 45, x, y)}</g><circle cx="${x}" cy="${y}" r="4" fill="${A}"/>`);
+    });
   } else {
     out.push(`<rect x="${(lo + li) / 2}" y="${(lo + li) / 2}" width="${W - lo - li}" height="${H - lo - li}" rx="12" fill="none" stroke="${stroke}" stroke-width="0.9"/>`);
-  }
-  if (rank >= 3) {
-    const fl = filigree(96);
-    const c = lo - 4;
-    const at: [number, number, number, number][] = [[c, c, 1, 1], [W - c, c, -1, 1], [c, H - c, 1, -1], [W - c, H - c, -1, -1]];
-    out.push(at.map(([x, y, sx, sy]) => `<g transform="translate(${x} ${y}) scale(${sx} ${sy})"><path d="${fl.stroke}" fill="none" stroke="${B}" stroke-width="1.7" stroke-linecap="round"/><path d="${fl.fill}" fill="${B}"/></g>`).join(""));
   }
   return `<defs>${defs.join("")}</defs>${out.join("")}`;
 }

@@ -19,6 +19,7 @@ import { rackPaths } from "@/lib/cardArt/rack";
 import { readBackFacts } from "@/lib/backPictureFacts";
 import { collabPlate, materialOf, materialPlate } from "@/components/cards/material";
 import { PLATE_SEAL } from "@/lib/cardArt/plate";
+import { weaveSheet } from "@/lib/cardArt/stock";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { CARD_CORNER } from "@/lib/cardArt/looks";
@@ -157,12 +158,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const U = W / 100;
   const tint = mix(look.line, TEXT, 0.74);
   const plate = `data:image/svg+xml;base64,${Buffer.from(svgDoc(colorway ? collabPlate(colorway) : materialPlate(materialOf(tier)))).toString("base64")}`;
+  const weave = `data:image/svg+xml;base64,${Buffer.from(svgDoc(weaveSheet("back"))).toString("base64")}`;
   return new ImageResponse(
     (
       <div style={{ position: "relative", display: "flex", width: W, height: H, fontFamily: "Soehne", color: TEXT, textShadow: SHADOW }}>
         {/* the plate: the back's ground and its engraving, the game's own drawing (a rarity's inks, or a
             collab set's two). It is the whole ground, so the picture alone is the whole back. */}
         <img src={plate} width={W} height={H} style={{ position: "absolute", left: 0, top: 0, borderRadius: CARD_CORNER * W }} />
+        {/* the card's stock, over the plate and under the seal and the lettering, as in the game (lib/cardArt/stock) */}
+        <img src={weave} width={W} height={H} style={{ position: "absolute", left: 0, top: 0, borderRadius: CARD_CORNER * W }} />
         {/* the game's seal, pressed into the plate's field, behind the facts: the same on every rarity */}
         <img src={seal(look.line)} width={PLATE_SEAL.d} height={PLATE_SEAL.d} style={{ position: "absolute", left: PLATE_SEAL.cx - PLATE_SEAL.d / 2, top: PLATE_SEAL.cy - PLATE_SEAL.d / 2, opacity: 0.2 }} />
         <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", alignItems: "center", padding: `${7.5 * U}px ${7.3 * U}px ${8.3 * U}px`, gap: 4 * U }}>

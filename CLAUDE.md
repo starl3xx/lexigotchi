@@ -840,7 +840,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hold it). Its ink is the rarity's (`LIGHT_INK`: white, warm for Legendary, for Mythic a
   spectrum printed across the card). Measured against the old white band, made to pass again and
   again: a few points of a core more while it passes, in both engines, and under one point on
-  average. **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
+  average. **The stock is in EVERY place a card is drawn** (starl3xx, 2026-11-27: "crosshatch isn't in the
+  share cards images/videos, either... make sure those are all updated with the latest changes"):
+  `lib/cardArt/stock` is its one source. The game's styles hold its tile (`weaveTile`: a test compares
+  them character for character, so change the weave in the module and copy the tile into the two
+  rules), and the server's pictures of a front (`app/_og/wordCard`) and a back
+  (`app/s/[text]/back`) lay its sheet over the card (`weaveSheet`, in card units), under the letters;
+  the share video is made of those pictures. **A change to how a card looks is not done until the
+  game, the front picture, the back picture, and a real video all show it** (I left the stock out of
+  the pictures because they had never carried it; that was wrong). **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
   of a diagonal CROSSHATCH, six pixels a repeat, on both sides, and NO random grain (the noise
   filter is gone: it was the one part of the paper that was not drawn). A picture, never a
   slanted gradient. **It must be SEEN at real size:** the first build drew the swatch he chose
@@ -909,8 +917,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   picked from an opened word returns to it). **A back is an engraved plate** (decisions.md #58, part 2; `lib/cardArt/plate` `backPlate`, through
   `cards/material` `materialPlate` / `collabPlate`): one still picture set on `.cb-mat`, in the rarity's
   inks (a collab set's two colors: the field in one, the border in the other, flat). A rarity is told
-  by its inks and by its plate's BORDER (rules; lace, for Uncommon and Rare; filigree; Mythic's blended
-  ink, a banknote's "rainbow printing", which is printed and never moves). **The game's emblem is the
+  by its INKS (Mythic's is blended along the card, a banknote's "rainbow printing", which is printed
+  and never moves). **There are two borders and only two:** Common's plain rules, and ONE border of
+  lace on every other back (starl3xx, 2026-11-27: "the 'border of lace' on uncommon and rare should
+  be the border on the back of every one but common"; the first plates gave each rarity engraving
+  of its own, with filigree corners for Legendary and Mythic). Never give a rarity a border, or
+  any other shape, of its own on a back: he made the emblem standard the same day. **The game's emblem is the
   same on every rarity, and nothing is drawn round it** (starl3xx, 2026-11-27, of the rings the first
   plates turned round the seal for Rare and up: "I don't like the Lexigotchi emblem on the back
   getting more rings for more rarity... that should look the same on all rarities, standard"): never

@@ -8,10 +8,11 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { VEIL, loopPose, LOOP_SECONDS } from "@/components/cards/loop/loopRenderer";
-import { PLATE_BORDER, PLATE_SEAL, backPlate, type PlateRank } from "@/lib/cardArt/plate";
+import { PLATE_BORDER, PLATE_SEAL, backPlate } from "@/lib/cardArt/plate";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { MATERIAL_GROUND, MATERIAL_LINE, collabPlate, materialPlate, type CardMaterial } from "@/components/cards/material";
 import { LIGHT, LIGHT_INK, lightBand, lightLines, type LightInk } from "@/lib/cardArt/light";
+import { WEAVE, sheetMeasures, weaveSheet, weaveTile, type StockSide } from "@/lib/cardArt/stock";
 import { DARK_SCENES, PALE_SCENES } from "@/lib/cardArt/scenes";
 import { SCENES } from "@/lib/scenes";
 
@@ -63,18 +64,27 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect(svgDoc(art)).toContain("</svg>");
   });
 
-  it("a rarity is told by its inks and its border, each plate keeping the last one's engraving", () => {
+  it("there are two borders: Common's plain rules, and ONE border of lace on every other back", () => {
+    // starl3xx, 2026-11-27: "the 'border of lace' on uncommon and rare should be the border on the
+    // back of every one but common". The first plates gave Legendary and Mythic filigree in their
+    // corners in place of the medallions, with the lace cut short to make room.
     const [common, uncommon, rare, legendary, mythic] = MATERIALS.map(materialPlate);
     const has = (art: string) => ({ lace: /stroke-width="1\.15"/.test(art), medallions: /id="c0"/.test(art), filigree: /stroke-linecap="round"/.test(art), blend: /id="iris"/.test(art) });
     expect(has(common)).toEqual({ lace: false, medallions: false, filigree: false, blend: false });
-    expect(has(uncommon)).toEqual({ lace: true, medallions: true, filigree: false, blend: false });
-    // Rare's own step was the ring round the seal, which went: its plate is Uncommon's engraving in its own inks
-    expect(has(rare)).toEqual(has(uncommon));
-    expect(rare).not.toBe(uncommon);
-    // from Legendary the corners carry filigree where the medallions were
-    expect(has(legendary)).toEqual({ lace: true, medallions: false, filigree: true, blend: false });
-    expect(has(mythic)).toEqual({ lace: true, medallions: false, filigree: true, blend: true });
-    // (the drawings' sizes say nothing: a corner of filigree is a shorter drawing than the lace it takes the place of)
+    for (const art of [uncommon, rare, legendary]) expect(has(art)).toEqual({ lace: true, medallions: true, filigree: false, blend: false });
+    // Mythic's ink changes along the card: an ink, so it is Mythic's to keep
+    expect(has(mythic)).toEqual({ lace: true, medallions: true, filigree: false, blend: true });
+    // THE SAME DRAWING: with each plate's inks named alike, Uncommon's, Rare's, and Legendary's are one text
+    const plain = (m: CardMaterial) => materialPlate(m).split(MATERIAL_GROUND[m]).join("GROUND").split(MATERIAL_LINE[m]).join("LINE");
+    expect(plain("rare")).toBe(plain("uncommon"));
+    expect(plain("legendary")).toBe(plain("uncommon"));
+    // and Mythic's, once its blended ink is read as a plain one
+    expect(plain("mythic").replace(/<linearGradient id="iris"[\s\S]*?<\/linearGradient>/, "").split("url(#iris)").join("LINE")).toBe(plain("uncommon"));
+    // and a collab set's, once its border's own ground is read as the plate's
+    const collab = collabPlate({ base: "#102030", base2: "#302010", line: "#f0e0c0" }).replace(/<path fill-rule="evenodd"[^>]*\/>/, "").split("#102030").join("GROUND").split("#302010").join("GROUND").split("#f0e0c0").join("LINE");
+    expect(collab).toBe(plain("uncommon"));
+    // Common's is a different drawing
+    expect(plain("common")).not.toBe(plain("uncommon"));
   });
 
   it("the game's emblem is the same on every rarity: no plate draws anything round the seal", () => {
@@ -157,11 +167,12 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect(art).toContain('<rect width="1200" height="675" fill="#102030"/>');
     expect(art).toMatch(/<path fill-rule="evenodd" fill="#302010" d="M0 0H1200V675H0Z/);
     expect(art).not.toMatch(/Gradient/);
-    // Legendary's engraving (its filigree), in the set's one line ink
-    expect(art).toMatch(/stroke-linecap="round"/);
+    // the border of lace every back but Common's carries, in the set's one line ink
+    expect(art).toMatch(/stroke-width="1\.15"/);
+    expect(art).toMatch(/ id="c0"/);
     expect([...new Set([...art.matchAll(/(?:stroke|fill)="(#[0-9a-f]{6})"/g)].map((x) => x[1]))].sort()).toEqual(["#102030", "#302010", "#f0e0c0"]);
     // a rarity's own plate has one ground
-    expect(backPlate(0 as PlateRank, { ground: "#111111", line: "#eeeeee", second: "#eeeeee" })).not.toContain("evenodd");
+    expect(backPlate("rules", { ground: "#111111", line: "#eeeeee", second: "#eeeeee" })).not.toContain("evenodd");
   });
 });
 
@@ -314,5 +325,74 @@ describe("the card's stock is a playing card's weave: a diagonal crosshatch you 
     expect(frame.indexOf('<div className="cf-tex" />')).toBeLessThan(frame.indexOf("className={`cf-word "));
     expect(read("src/components/cards/CardBack.tsx")).toContain('<div className="cb-tex" />');
     expect(read("src/components/cards/FaceDownCard.tsx")).toContain('<div className="cb-tex" />');
+  });
+});
+
+describe("the stock is in every place a card is drawn: the game, the share pictures, and the video (\"crosshatch isn't in the share cards images/videos, either... make sure those are all updated\")", () => {
+  const css = read("src/app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const styled = (sel: string) => decodeURIComponent(new RegExp(`(?:^|\\n)${sel.replace(/[.]/g, "\\.")} \\{[^}]*url\\("data:image\\/svg\\+xml,([^"]+)"\\)`).exec(css)?.[1] ?? "");
+  const SIDES: [string, StockSide][] = [[".cf-tex", "front"], [".cb-tex", "back"]];
+
+  it.each(SIDES)("%s in the game's styles is the one module's tile, character for character", (sel, side) => {
+    expect(styled(sel)).toBe(weaveTile(side));
+    expect(css).toMatch(new RegExp(`\\n${sel.replace(/[.]/g, "\\.")} \\{[^}]*background-size: ${WEAVE.tile}px ${WEAVE.tile}px`));
+  });
+  it("the back's weave is laid on at the share the module names, in the styles and in a picture", () => {
+    expect(css).toMatch(new RegExp(`\\n\\.cb-tex \\{ opacity: ${WEAVE.back.share};`));
+    expect(weaveSheet("back")).toContain(`opacity="${WEAVE.back.share}"`);
+    expect(weaveSheet("front")).not.toMatch(/ opacity="/);
+  });
+
+  it.each(["front", "back"] as StockSide[])("a picture's weave (%s) is the same crosshatch in card units: the same inks and strengths, a whole repeat, lines a pixel or more", (side) => {
+    const sheet = weaveSheet(side);
+    const m = sheetMeasures();
+    // the game's six pixels, as they fall on the card an opened word shows on a computer
+    expect(m.pitch).toBe(Math.round((WEAVE.pitch * CARD_W) / WEAVE.pictureCard));
+    expect(Number.isInteger(m.pitch)).toBe(true);
+    expect(m.weight / m.pitch).toBeCloseTo(WEAVE.weight / WEAVE.pitch, 1);
+    // a line is never finer than about a pixel where it is shown: the picture is 1200 wide
+    expect(m.weight).toBeGreaterThanOrEqual(1.2);
+    expect(sheet).toContain(`<pattern id="weave" width="${m.pitch}" height="${m.pitch}" patternUnits="userSpaceOnUse">`);
+    expect(sheet).toContain(`<rect width="${CARD_W}" height="${CARD_H}" fill="url(#weave)"`);
+    // the same four sets of lines as the game's tile: ink for ink, strength for strength
+    const sets = (svg: string) => [...svg.matchAll(/stroke=["'](#[0-9a-f]+)["'] stroke-opacity=["']([.\d]+)["']/g)].map((x) => x[1] + " " + x[2]);
+    expect(sets(sheet)).toEqual(sets(weaveTile(side)));
+    expect(sets(sheet)).toHaveLength(4);
+    // the kit's rules
+    expect(sheet).not.toMatch(/<text|<filter|<style|<script|<image|<animate|href=|NaN|undefined/);
+    expect(svgDoc(sheet)).toContain("</svg>");
+  });
+
+  it("the server's picture of a front lays it over the art and the frame and UNDER the letters, as the game does", () => {
+    const src = read("src/app/_og/wordCard.tsx");
+    const at = (x: string) => { const i = src.indexOf(x); expect(i, x).toBeGreaterThan(-1); return i; };
+    const art = at("<img src={image(cardArt(scene, tier ?? PLAIN, collabLook))}");
+    const frame = at("<img src={image(cardFrame(tier ?? PLAIN, collabLook))}");
+    const weave = at('<img src={image(weaveSheet("front"))} width={cardW} height={cardH}');
+    const letters = at("{(letters ? tiles : []).map((t, i) => {");
+    expect(art).toBeLessThan(frame);
+    expect(frame).toBeLessThan(weave);
+    expect(weave).toBeLessThan(letters); // never a line over a letter
+    // one drawing serves the link card, the bare front, the stage the video's letters stand on, and the earnings picture
+    expect(read("src/app/s/[text]/card/route.tsx")).toContain("wordCard(");
+    expect(read("src/app/e/[token]/card/route.tsx")).toContain("wordCard(");
+  });
+
+  it("the server's picture of a back lays it over the plate and under the seal and the lettering", () => {
+    const src = read("src/app/s/[text]/back/route.tsx");
+    const at = (x: string) => { const i = src.indexOf(x); expect(i, x).toBeGreaterThan(-1); return i; };
+    expect(src).toContain('const weave = `data:image/svg+xml;base64,${Buffer.from(svgDoc(weaveSheet("back"))).toString("base64")}`;');
+    const plate = at("<img src={plate} width={W} height={H}");
+    const weave = at("<img src={weave} width={W} height={H}");
+    const seal = at("<img src={seal(look.line)}");
+    expect(plate).toBeLessThan(weave);
+    expect(weave).toBeLessThan(seal);
+  });
+
+  it("the video is made of those two pictures and draws no stock of its own", () => {
+    const maker = read("src/components/cards/loop/makeLoop.ts");
+    expect(maker).toContain("loadImage(live.stage, { signal })"); // the front without its letters: the server's picture
+    expect(read("src/components/cards/loop/loopRenderer.ts")).toContain("col = texture2D(tBack, vec2(1.0 - vUv.x, vUv.y)).rgb;");
+    expect(maker + read("src/components/cards/loop/loopRenderer.ts")).not.toMatch(/weave|crosshatch/i);
   });
 });
