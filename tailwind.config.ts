@@ -210,10 +210,12 @@ const config: Config = {
           "82%,100%": { opacity: "1" },
         },
         tcConfetti: {
-          "0%": { opacity: "0", transform: "translateY(-16px) rotate(0)" },
+          // a piece of confetti is a small drawing of its own (TileCharacter, Confetti), so a percent
+          // here is of the PIECE's box: it starts a little over its own height up, and falls
+          // --tc-fall, which is most of the letter's visible height
+          "0%": { opacity: "0", transform: "translateY(-133%) rotate(0)" },
           "12%": { opacity: "1" },
-          // --tc-fall: each piece's drop, set from the tile's visible height (TileCharacter Confetti)
-          "100%": { opacity: "0", transform: "translateY(var(--tc-fall, 82px)) rotate(360deg)" },
+          "100%": { opacity: "0", transform: "translateY(var(--tc-fall, 1400%)) rotate(360deg)" },
         },
         tcRay: { to: { transform: "rotate(360deg)" } },
         // a sleeping letter's z, on a layer of its own (TileCharacter, ZS): it rises 16 of the drawing's
