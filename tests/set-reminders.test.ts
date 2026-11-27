@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import type { WordSet } from "@/lib/sets/rules";
-import { NAME_MAX } from "@/lib/sets/rules";
+import { NAME_MAX, STANDARD_FIELDS } from "@/lib/sets/rules";
 import { KIND_INFO, REMINDER_KINDS, wantsKind, emailedNow } from "@/lib/notify/kinds";
 import { ALL_TITLE_POOLS, setOpen, setRevealed, setUnlocked, withinLimits } from "@/lib/notify/templates";
 import { TELL_WINDOW_MS, setEvents, setRemindersOn, tellSetEvents, type SetEvent } from "@/lib/notify/sets";
@@ -18,7 +18,7 @@ function set(id: number, status: WordSet["status"], over: Partial<WordSet> = {})
   return {
     id, name: `Set ${id}`, status, revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
     revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
-    words: [{ word: "CRANE", headliner: false }], ...over,
+    words: [{ word: "CRANE", headliner: false }], ...STANDARD_FIELDS, ...over,
   };
 }
 

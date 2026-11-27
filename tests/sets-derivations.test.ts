@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { WordSet } from "@/lib/sets/rules";
+import { STANDARD_FIELDS, type WordSet } from "@/lib/sets/rules";
 
 vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532");
 vi.stubEnv("DATABASE_URL", "postgresql://stand-in");
@@ -64,7 +64,7 @@ function setOf(id: number, status: WordSet["status"], words: string[]): WordSet 
   return {
     id, name: `set ${id}`, status, revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
     revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
-    words: words.map((word) => ({ word, headliner: false })),
+    words: words.map((word) => ({ word, headliner: false })), ...STANDARD_FIELDS,
   };
 }
 
