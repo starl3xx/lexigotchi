@@ -318,6 +318,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `lib/market/`): words AND letters sell for $WORD, 10% to `SaleFees`. Four parts behind one switch
   (Words, Letters, Sell, Sold), "Just sold" and the player's picks above. Both stores feed it through
   `g.market` (the practice store from a seeded stall, `market/practiceMarket.ts`).
+  **The Letters shelf's line is one element a row** (`.mk-rule`; decisions.md #50, part 3): the row's first slot
+  draws it 7 slots wide on a phone and 13 from md, so the grid's column counts are written twice, in
+  `LettersBoard` and in globals.css (`tests/market-shelf.test.ts` holds them equal). A piece under each
+  letter showed a tick or a gap at every join at pixel ratios 1.25 and 1.5.
   **Letters for sale** (`lib/onchain/letterSale.ts`, `/api/market/letters`, table `letter_listings`,
   migration 0017): one Seaport order offers `qty` of one letter id at a price each, PARTIAL_OPEN,
   filled k of qty with `fulfillAdvancedOrder` (`fulfillPartCalls`). **Every amount is a per-letter

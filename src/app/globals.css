@@ -1204,11 +1204,14 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------------------------------------------------------------------------------------------
    The Market's letter shelf (decisions.md #30; components/game/market/LettersBoard.tsx).
-   The 26 letters stand on a plank, and a paper price tag hangs under each one that is for sale:
-   the lowest price, and how many. 52 kinds of letter hold any number of listings, so the shelf is
-   the same size whether three letters are for sale or three thousand.
-   - .mk-slot: one letter's place (a button). Its plank segment meets its neighbors', so each row
-     reads as one shelf.
+   The 26 letters stand on a fine double rule, and a paper price tag hangs under each one that is
+   for sale: the lowest price, and how many. 52 kinds of letter hold any number of listings, so the
+   shelf is the same size whether three letters are for sale or three thousand.
+   - .mk-slot: one letter's place (a button). Its piece of the rule meets its neighbors', so each
+     row reads as one shelf.
+   - .mk-rule: what the letters stand on. It was a flat tan plank between two heavy ink lines; the
+     owner chose the lightest of three (decisions.md #50, "yes to 2C"): no plank, an ink line and a
+     fainter one under it, as a card's frame is ruled.
    - .mk-tag: the tag, on its string (::before), with its punched hole (::after). Alternate tags
      hang a degree or two off level; the open letter's tag is ink ("you are here" is ink).
    Still: nothing here moves by itself. A hover lifts the tag where a mouse hovers.
@@ -1220,15 +1223,28 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
   padding-top: 6px;
   min-width: 0;
 }
-.mk-plank {
+.mk-rule {
   display: block;
-  /* A pixel over its slot, so no seam shows between neighbors at a fractional pixel ratio. */
-  width: calc(100% + 1px);
-  height: 9px;
-  margin-top: 1px;
-  background: theme(colors.tile);
-  border-top: 3px solid theme(colors.ink);
-  border-bottom: 3px solid theme(colors.ink);
+  align-self: flex-start;
+  width: 100%;
+  height: 5px;
+  margin-top: 2px;
+  /* a row's line lies over every slot in the row: a tap on it goes to the letter above it */
+  pointer-events: none;
+  --mk-lines:
+    linear-gradient(theme(colors.ink), theme(colors.ink)) 0 0 / 100% 1.5px no-repeat,
+    linear-gradient(#928b7c, #928b7c) 0 100% / 100% 1px no-repeat;
+}
+/* ONE line a row, drawn by the row's first slot across the whole row (7 slots on a phone, 13 from
+   md); every other slot keeps its place under the letter and draws nothing. A line made of one
+   piece a slot has joins: the plank hid them by making each piece a pixel wider than its slot,
+   and thin lines drawn twice in that pixel showed a darker tick at every join at pixel ratios
+   1.25 and 1.5. Pieces exactly a slot wide left gaps there in WebKit. The lower line is a solid
+   colour (the page's paper with 45% ink, mixed here). */
+.mk-slot:nth-child(7n + 1) .mk-rule { width: 700%; background: var(--mk-lines); }
+@media (min-width: 768px) {
+  .mk-slot:nth-child(7n + 1) .mk-rule { width: 100%; background: none; }
+  .mk-slot:nth-child(13n + 1) .mk-rule { width: 1300%; background: var(--mk-lines); }
 }
 .mk-tag {
   position: relative;
