@@ -3,8 +3,9 @@
  * Pick a word's scene: every scene as a still thumbnail (the card's art in its frame, in the
  * word's rarity), the word's own one marked, and the locked ones shown with what opens them
  * (lib/scenes: own SCENE_UNLOCK_WORDS words). A Shop scene the player has bought is picked like any
- * other; one they can buy shows with its price and opens the Shop (game/useShop). Used by the scene
- * sheet (from the Today stage, or from an opened word's card).
+ * other; one they can buy shows with its price and opens that item in the Shop, shown on the word
+ * being dressed (game/useShop, sheets/ShopItemSheet). Used by the scene sheet (from the Today
+ * stage, or from an opened word's card).
  */
 import type { Tier } from "@/lib/economy";
 import { FREE_SCENES, SCENES, UNLOCK_SCENES, isShopScene, sceneMeta } from "@/lib/scenes";
@@ -48,7 +49,8 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
       <div role="radiogroup" aria-label={`${word}’s card face`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {scenes.map((s) => {
           const on = scene === s.id;
-          // In the Shop, not bought: the tile goes to the Shop's Card faces, where the face is for sale.
+          // In the Shop, not bought: the tile goes to the Shop's Card faces and opens the face's own
+          // view there, on this word. `nav` closes this sheet; the item's view opens in its place.
           const forSale = isShopScene(s.id) && offerOf(s.id) === "buy" ? shop.onSale.get(s.id) : undefined;
           if (forSale) {
             const price = usdcLabel(forSale.priceUsdc, NETWORK.isTestnet);
@@ -58,7 +60,10 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
                 type="button"
                 title={`${s.blurb} In the Shop for ${price}.`}
                 aria-label={`${s.name}, in the Shop for ${price}`}
-                onClick={() => g.nav("shop", "faces")}
+                onClick={() => {
+                  g.nav("shop", "faces");
+                  g.openSheet({ kind: "shopItem", id: forSale.id, word });
+                }}
                 className="cel-sm press relative flex flex-col gap-1 rounded-xl bg-card p-1 text-left"
               >
                 <span className="card-corner block overflow-hidden border-2 border-ink">

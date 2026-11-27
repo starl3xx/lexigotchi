@@ -691,6 +691,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   purchases and not players (the game sells a face once to a profile; the contract would sell it
   twice), and a sold-out item stays with everyone who has it. The player docs have a Shop page
   (`docs-site/shop.mdx`): when an accessory is listed, its "None are in the Shop yet" goes.
+  **An item opens** (the same decision; starl3xx: "I should be able to click items and see more
+  info about them, see them at higher size, etc"): one tap on its card opens
+  `sheets/ShopItemSheet` (sheet kind `shopItem`, a `wide` dialog on a computer): the thing large,
+  "Look closer" (twice the width in a box that pans: a cut, never an animated scale), a card face
+  shown on any of the player's own words (a preview: it saves nothing, and with no words the face
+  shows alone), its facts, the card's own Buy, and "Put it on WORD" for a face they have.
+  **Whether a thing sells is ONE rule** (`lib/shop/offer` `buyOffer`, tested), drawn by ONE
+  component (`shop/ShopBuy`) and read from ONE place (`useShopView`): never give a new surface a
+  Buy ladder of its own, and never start a purchase but through `useShopBuy`, which tells every
+  Buy on the page that one is in flight (the view can be closed mid-purchase). The view reads the
+  item live by id, and an item that has gone says so: it never falls back to a placeholder card.
+  The face picker's tile for a face on sale opens that item, on the word being dressed
+  (`nav("shop", "faces")`, then `openSheet`: `nav` closes the picker first).
 - **A card's words: front, face, back** (decisions.md #54; starl3xx, 2026-11-27: "the *front* of the
   card is its front regardless of the scene/face... the *face* (not scene) is the background on the
   front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it

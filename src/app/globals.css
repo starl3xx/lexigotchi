@@ -72,6 +72,43 @@ body {
   background-clip: padding-box;
 }
 
+/* A Shop item's closer look (sheets/ShopItemSheet): the card at twice the width in a box that pans.
+   No scrollbars: on a browser that always shows them they would sit on the picture, and the
+   picture itself is what moves. `touch-action` lets a finger pan it both ways. */
+.shop-closer {
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+.shop-closer::-webkit-scrollbar {
+  display: none;
+}
+/* The row of the player's words under it. On a phone it is one line that a finger slides, with no
+   scrollbar; from md it wraps to a few lines and scrolls down, with the thin ink scrollbar, so a
+   mouse can see there is more. */
+.shop-words {
+  scrollbar-width: none;
+}
+.shop-words::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .shop-words {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(27 23 20 / 0.3) transparent;
+  }
+  .shop-words::-webkit-scrollbar {
+    display: block;
+    width: 10px;
+  }
+  .shop-words::-webkit-scrollbar-thumb {
+    background: rgb(27 23 20 / 0.3);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
 /* A 44 × 44 px tap area centered on a smaller round control, so the 28–32 px header circles keep
    their look and still meet the touch-target size. Neighbors need >= 12 px between them so the
    areas never overlap. */
