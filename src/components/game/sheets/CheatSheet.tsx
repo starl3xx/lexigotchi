@@ -25,8 +25,8 @@ export function CheatSheet() {
   const g = useGame();
   const openUrl = useOpenUrl();
   const { replay } = useOnboarding();
-  // Each way into the daily (and email reminders) shows only while the server has it switched on.
-  const { xEnabled, emailEnabled, profilesEnabled } = usePublicProfile();
+  // Each way into the daily (and each way to be reminded) shows only while the server has it switched on.
+  const { xEnabled, emailEnabled, telegramEnabled, profilesEnabled } = usePublicProfile();
   const price = (item: Parameters<typeof g.price>[0]) => {
     const w = g.price(item);
     return showsUsd(g.state) ? `${fmtWord(w)} $WORD (${fmtUsd(w)})` : `${fmtWord(w)} $WORD`;
@@ -97,10 +97,10 @@ export function CheatSheet() {
             <strong>Sell a word</strong> from its card, for $WORD you choose. You get 90%; 10% goes to the
             Rewards Pool. The form shows about what the word costs to make.
           </li>
-          {emailEnabled && (
+          {(emailEnabled || telegramEnabled) && (
             <li>
-              <strong>Want a nudge?</strong> Add your email in your profile, and the game tells you before a
-              word goes hungry.
+              <strong>Want a nudge?</strong> {emailEnabled && telegramEnabled ? "Add your email or link Telegram" : emailEnabled ? "Add your email" : "Link Telegram"} in
+              your profile, and the game tells you before a word goes hungry.
             </li>
           )}
         </Step>

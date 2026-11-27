@@ -13,6 +13,7 @@ import { profileSecret, profilesEnabled } from "@/lib/profile/session";
 import { xEnabled } from "@/lib/profile/x";
 import { emailEnabled } from "@/lib/notify/email";
 import { telegramConfigured } from "@/lib/telegram";
+import { telegramRemindersOn } from "@/lib/notify/telegram";
 import { getRedis } from "@/lib/redis";
 import { shopEnabled } from "@/lib/shop/config";
 import { shopAddress } from "@/lib/onchain/addresses";
@@ -82,6 +83,22 @@ export function emailSwitch(): Switch {
   };
 }
 
+/** Reminders by Telegram message (lib/notify/telegram.ts): armed by the bot's token on the production deployment, unless muted. */
+export function telegramRemindersSwitch(): Switch {
+  const missing = need([
+    [process.env.NODE_ENV === "production" && (process.env.VERCEL_ENV || "production") === "production", "the production deployment"],
+    [set("TELEGRAM_BOT_TOKEN"), "TELEGRAM_BOT_TOKEN"],
+    [!is("TELEGRAM_REMINDERS", "off"), "TELEGRAM_REMINDERS not set to off"],
+  ]);
+  return {
+    key: "telegramReminders",
+    label: "Telegram reminders",
+    on: telegramRemindersOn(),
+    detail: "A player who linked Telegram in their profile gets the reminders they keep on as a message from the bot. The profile offers the link once migration 0020 has run.",
+    missing,
+  };
+}
+
 export function featureSwitches(): Switch[] {
   const profilesMissing = need([
     [is("PROFILES_ENABLED", "true"), "PROFILES_ENABLED=true"],
@@ -110,6 +127,7 @@ export function featureSwitches(): Switch[] {
     emailSwitch(),
     farcasterNotifySwitch(),
     webPushSwitch(),
+    telegramRemindersSwitch(),
     {
       key: "neynar",
       label: "Farcaster data (Neynar)",
@@ -121,7 +139,7 @@ export function featureSwitches(): Switch[] {
       key: "telegram",
       label: "Beta group bot",
       on: telegramConfigured(),
-      detail: "@lexigotchi_bot welcomes new members. Release posts come from the GitHub workflow’s own secrets.",
+      detail: "@lexigotchi_bot welcomes new members, answers commands, files /bug reports, and posts the daily recap and Mythic-word alerts. Release posts and polls come from the GitHub workflows’ own secrets.",
       missing: need([
         [set("TELEGRAM_BOT_TOKEN"), "TELEGRAM_BOT_TOKEN"],
         [set("TELEGRAM_CHAT_ID"), "TELEGRAM_CHAT_ID"],

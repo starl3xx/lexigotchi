@@ -11,6 +11,8 @@
  *   - **And by email,** to an account with a confirmed address and email on, whatever else reached
  *     it: it asked for email. The message's send-once mark (lib/db/reminderMarks.ts) is taken
  *     BEFORE the send and given back if the send fails; with no mark table nothing is emailed.
+ *   - **And by Telegram,** to an account that linked its Telegram account (./telegram.ts), whatever
+ *     else reached it, under the same send-once rule with a mark of its own.
  *   - **It can't hurt its caller.** Nothing is loaded while every channel is dark; the push senders
  *     are imported only here, at the moment of use (each THROWS at import when armed without its
  *     keys, which must never take a public route or a keeper job down); and it never throws.
@@ -40,6 +42,8 @@ export interface TellResult {
   /** Players no push channel reaches. */
   unreached: number;
   emailed: number;
+  /** Told by Telegram message (./telegram.ts). Absent where that channel isn't armed. */
+  telegram?: number;
 }
 
 export interface PushDeps {
@@ -174,7 +178,10 @@ export async function notifyPlayers(
     // Email has its own switch, and its module is safe to load (it throws at nothing).
     const mail = await import("./email");
     const email = mail.emailEnabled();
-    if (!on.farcaster && !on.browser && !email) return null;
+    // Telegram has its own switch too, and its module is as safe to load.
+    const telegram = await import("./telegram");
+    const byTelegram = telegram.telegramRemindersOn();
+    if (!on.farcaster && !on.browser && !email && !byTelegram) return null;
 
     const [{ loadLinkMap }, { notifiableFids }, { fidsByAddresses }, { allWebPushSubscriptions }, { loadPrefs }] = await Promise.all([
       import("@/lib/db/walletLinks"),
@@ -232,7 +239,23 @@ export async function notifyPlayers(
         console.error(`${kind}: the email pass failed:`, String((err as Error)?.message ?? err).slice(0, 160));
       }
     }
-    log(`${kind}: ${res.players} player(s): ${res.farcaster} told in Farcaster, ${res.browsers} in a browser, ${res.emailed} by email, ${res.unreached} with no push channel`);
+    // By Telegram too, for a player who linked it: its own pass, and its failure is its own
+    // (tellByTelegram never throws). A note with no id has no send-once mark, so it isn't sent.
+    if (byTelegram) {
+      const told = await telegram.tellByTelegram(
+        kind,
+        notes.flatMap((n) => (n.note.notificationId ? [{ account: n.account, note: n.note, mark: n.note.notificationId }] : [])),
+        { onReached: opts.onReached },
+      );
+      if (told) {
+        res.telegram = told.sent;
+        res.players = Math.max(res.players, notes.length);
+      }
+    }
+    log(
+      `${kind}: ${res.players} player(s): ${res.farcaster} told in Farcaster, ${res.browsers} in a browser, ${res.emailed} by email, ` +
+        `${res.telegram ?? 0} by Telegram, ${res.unreached} with no push channel`,
+    );
     return res;
   } catch (err) {
     console.error(`${kind}: telling players failed:`, String((err as Error)?.message ?? err).slice(0, 200));

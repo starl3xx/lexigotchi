@@ -8,7 +8,10 @@
  * what the contract really emits.
  */
 import { describe, it, expect } from "vitest";
-import { prestigeRevealOutcome, type RelayLog } from "@/lib/onchain/relayOutcome";
+import { encodeAbiParameters, encodeEventTopics, getAbiItem } from "viem";
+import { lettersRevealOutcome, prestigeRevealOutcome, type RelayLog } from "@/lib/onchain/relayOutcome";
+import { lettersAbi } from "@/lib/onchain/abis";
+import { LETTERS, PACK_BUYER, PACK_COMMIT, PACK_LETTERS, PACK_REVEAL_LOGS } from "./pack-reveal-logs";
 
 const PRESTIGE = "0x20D4D992Ac077cA5d70a61f16575FA7f57190940";
 const WORDS = "0xc1b4e6625e1b1588aeea70913526c4418f390f91";
@@ -55,5 +58,48 @@ describe("prestigeRevealOutcome, on real Base Sepolia reveals", () => {
     expect(prestigeRevealOutcome([], PRESTIGE)).toBeNull();
     // the same events from an address that isn't Prestige are not Prestige's word
     expect(prestigeRevealOutcome(MISS, WORDS)).toBeNull();
+  });
+});
+
+/**
+ * A pack's reveal (decisions.md #49): `Revealed(commitId, buyer, letterIds)` after one ERC-1155
+ * `TransferSingle` per letter. The five-letter receipt is real (tests/pack-reveal-logs.ts says which).
+ */
+describe("lettersRevealOutcome, on a real Base Sepolia pack reveal", () => {
+  it("reads the commit, its buyer, and the five letters in the order they were minted, past the transfers", () => {
+    const got = lettersRevealOutcome(PACK_REVEAL_LOGS, LETTERS);
+    expect(got).toEqual({ commitId: PACK_COMMIT, buyer: PACK_BUYER, letterIndexes: PACK_LETTERS });
+    // five transfers come first in the receipt: none of them is taken for the answer
+    expect(PACK_REVEAL_LOGS).toHaveLength(6);
+  });
+
+  it("matches the contract's address whatever its letter case", () => {
+    expect(lettersRevealOutcome(PACK_REVEAL_LOGS, LETTERS.toLowerCase())?.letterIndexes).toEqual(PACK_LETTERS);
+  });
+
+  it("a daily letter: one letter (this log is built with the ABI, not copied from a receipt)", () => {
+    const revealed = getAbiItem({ abi: lettersAbi, name: "Revealed" });
+    const log = {
+      address: LETTERS.toLowerCase(),
+      topics: encodeEventTopics({ abi: [revealed], eventName: "Revealed", args: { commitId: 212n, buyer: PACK_BUYER } }) as `0x${string}`[],
+      data: encodeAbiParameters([{ type: "uint256[]" }], [[16n]]),
+    };
+    expect(lettersRevealOutcome([log], LETTERS)).toEqual({ commitId: 212n, buyer: PACK_BUYER, letterIndexes: [16] });
+  });
+
+  it("the transfers alone are not a reveal, and another contract's logs are not Letters' word", () => {
+    expect(lettersRevealOutcome(PACK_REVEAL_LOGS.slice(0, 5), LETTERS)).toBeNull();
+    expect(lettersRevealOutcome([], LETTERS)).toBeNull();
+    expect(lettersRevealOutcome(PACK_REVEAL_LOGS, PRESTIGE)).toBeNull();
+  });
+
+  it("an id that is not a lowercase letter is never shown as one", () => {
+    const revealed = getAbiItem({ abi: lettersAbi, name: "Revealed" });
+    const log = {
+      address: LETTERS.toLowerCase(),
+      topics: encodeEventTopics({ abi: [revealed], eventName: "Revealed", args: { commitId: 5n, buyer: PACK_BUYER } }) as `0x${string}`[],
+      data: encodeAbiParameters([{ type: "uint256[]" }], [[26n]]),
+    };
+    expect(lettersRevealOutcome([log], LETTERS)).toBeNull();
   });
 });

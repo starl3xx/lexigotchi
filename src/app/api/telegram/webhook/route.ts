@@ -3,6 +3,7 @@ import { showcaseCardUrl } from "@/lib/showcase";
 import { commandOf, sendMessage, sendPhoto, telegramConfigured, webhookSecretMatches, welcomeFor, type TgMessage, type TgUpdate } from "@/lib/telegram";
 import { answer } from "@/lib/telegramCommands";
 import { fileReport } from "@/lib/telegramReports";
+import { linkFromStart, unlinkFrom } from "@/lib/telegramLink";
 import { afterResponse } from "@/lib/afterResponse";
 import { allow } from "@/lib/ratelimit";
 import { getRedis } from "@/lib/redis";
@@ -22,6 +23,8 @@ export const maxDuration = 60;
  *   lib/telegramCommands), in the beta group or in a private chat with the bot, as a reply to the
  *   message that asked.
  * - **Files a report** (`/bug what went wrong`: lib/telegramReports), kept for the team alone.
+ * - **Links a Telegram account to a profile** (`/start <code>` from the profile's own link, and
+ *   `/unlink`: lib/telegramLink), so that player's reminders can come as a private message.
  *
  * The bot is an administrator of the group, so Telegram sends it every message there. Only a join
  * and a command are acted on; nothing else is read, and no message's words are ever logged.
@@ -88,6 +91,16 @@ function commandAllowedIn(m: TgMessage, chatId: string): boolean {
   return person && (inGroup || m.chat.type === "private");
 }
 
+/** What to answer a command with, or null for one that isn't ours to answer. */
+async function replyTo(m: TgMessage, cmd: { name: string; args: string }): Promise<{ text: string; photoUrl?: string } | null> {
+  // /bug is the one command that keeps what was typed: the words after it, as a report.
+  if (cmd.name === "bug") return { text: await fileReport(m, cmd.args) };
+  if (cmd.name === "unlink") return { text: await unlinkFrom(m) };
+  // "/start <code>" is a profile's own link (lib/telegramLink); a plain /start is the greeting.
+  const linked = cmd.name === "start" ? await linkFromStart(m, cmd.args) : null;
+  return linked ? { text: linked } : answer(cmd, { private: m.chat.type === "private" });
+}
+
 /** How long an update's number is remembered: Telegram gives up on an update long before a day. */
 const SEEN_FOR_S = 86_400;
 
@@ -116,8 +129,7 @@ async function answerCommand(updateId: number | undefined, m: TgMessage, cmd: { 
     // One person asking faster than they can read gets no answer, quietly: a "slow down" in the
     // group for each try would be the flood.
     if (!(await allow("telegram", m.from?.id ?? m.chat.id))) return;
-    // /bug is the one command that keeps what was typed: the words after it, as a report.
-    const reply = cmd.name === "bug" ? { text: await fileReport(m, cmd.args), photoUrl: undefined } : await answer(cmd, { private: m.chat.type === "private" });
+    const reply = await replyTo(m, cmd);
     if (!reply) return;
     const to = { replyTo: m.message_id };
     // The card, uploaded by us as the welcome's is. Without it (the picture is slow to draw, or

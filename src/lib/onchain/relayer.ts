@@ -10,6 +10,12 @@
  * permissionless (the signature binds the commit's owner and outcome, and the outcome is fixed per
  * commitId), so anyone may relay them; this is the game doing so.
  *
+ * A pack's reveal is relayed the same way (decisions.md #49): `Letters.reveal` checks the signer's
+ * signature and mints to the commit's stored buyer, whoever calls it. A pack was the last purchase
+ * with a second wallet prompt, and that prompt's data named the five letters before the game had
+ * shown them. The free daily letter is NOT relayed when its commit and reveal ride one send
+ * (the bundle in /api/mint/free-daily): that is one confirmation already.
+ *
  * Every relayed write carries the builder code (ERC-8021 `dataSuffix`), like the keeper's: it is
  * an app write (tests/no-write-bypass.test.ts holds this file to that).
  *
@@ -24,9 +30,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ACTIVE_CHAIN } from "./chain";
 import { rpcTransport } from "./transport";
 import { BUILDER_DATA_SUFFIX } from "./builderCode";
-import { prestigeAbi, rollsAbi, wordsAbi } from "./abis";
+import { lettersAbi, prestigeAbi, rollsAbi, wordsAbi } from "./abis";
 import { addressOf } from "./addresses";
-import { prestigeRevealOutcome } from "./relayOutcome";
+import { lettersRevealOutcome, prestigeRevealOutcome } from "./relayOutcome";
 
 /**
  * What happened to a relayed reveal.
@@ -49,22 +55,28 @@ export type RollRelay = { kind: "mined"; txHash: Hash; success: boolean; pity: n
  */
 export type PrestigeRelay = { kind: "mined"; txHash: Hash; success: boolean; level: number | null; pity: number } | Unmined;
 
+/**
+ * A pack's (or a daily letter's) relayed reveal. `mined` carries the letters the reveal MINTED, from
+ * its own `Revealed` event: each one's alphabet index, never the draw that was signed.
+ */
+export type LettersRelay = { kind: "mined"; txHash: Hash; letterIndexes: number[] } | Unmined;
+
 /** How long the route waits for the reveal to be mined. Base makes a block every 2 s. */
 export const RELAY_WAIT_MS = 20_000;
 
 const NONCE_RACE = /nonce too low|nonce has already been used|replacement transaction underpriced|already known/i;
 /**
- * Sends in flight, by contract AND commit: "roll:7" and "prestige:7" are different commits (each
- * contract counts its own), and one key for both would answer an ascension with a roll's result.
+ * Sends in flight, by contract AND commit: "roll:7", "prestige:7", and "letters:7" are different
+ * commits (each contract counts its own), and one key for all would answer one with another's result.
  */
-const inflight = new Map<string, Promise<RollRelay | PrestigeRelay>>();
+const inflight = new Map<string, Promise<RollRelay | PrestigeRelay | LettersRelay>>();
 
 export function relayerConfigured(): boolean {
   return !!process.env.RELAYER_PRIVATE_KEY;
 }
 
 /** One send per (contract, commit) at a time on this instance; repeats get the first one's answer. */
-function once<T extends RollRelay | PrestigeRelay>(key: string, send: () => Promise<T>): Promise<T> {
+function once<T extends RollRelay | PrestigeRelay | LettersRelay>(key: string, send: () => Promise<T>): Promise<T> {
   const existing = inflight.get(key);
   if (existing) return existing as Promise<T>;
   const p = send().finally(() => {
@@ -83,6 +95,11 @@ export function relayRollReveal(commitId: bigint, success: boolean, signature: H
 /** Send `Prestige.reveal(commitId, success, signature)` from the relayer key and wait for it. */
 export function relayPrestigeReveal(commitId: bigint, success: boolean, signature: Hex): Promise<PrestigeRelay> {
   return once(`prestige:${commitId}`, () => sendPrestigeReveal(commitId, success, signature));
+}
+
+/** Send `Letters.reveal(commitId, letterIndexes, signature)` from the relayer key and wait for it. */
+export function relayLettersReveal(commitId: bigint, letterIndexes: readonly number[], signature: Hex): Promise<LettersRelay> {
+  return once(`letters:${commitId}`, () => sendLettersReveal(commitId, letterIndexes, signature));
 }
 
 function relayerClient(pk: string) {
@@ -201,4 +218,27 @@ async function sendPrestigeReveal(commitId: bigint, success: boolean, signature:
     /* leave it null */
   }
   return { kind: "mined", txHash: sent.txHash, success: false, level, pity: outcome.pity };
+}
+
+async function sendLettersReveal(commitId: bigint, letterIndexes: readonly number[], signature: Hex): Promise<LettersRelay> {
+  const pk = process.env.RELAYER_PRIVATE_KEY;
+  if (!pk) return { kind: "unavailable", reason: "no_relayer" };
+  const letters = addressOf("letters");
+  const w = relayerClient(pk);
+  const sent = await broadcast(w, () =>
+    w.writeContract({
+      dataSuffix: BUILDER_DATA_SUFFIX, // ERC-8021: the relayer's writes are app writes too
+      address: letters,
+      abi: lettersAbi,
+      functionName: "reveal",
+      args: [commitId, letterIndexes as number[], signature],
+    }),
+  );
+  if (sent.kind !== "landed") return sent;
+
+  // What the chain minted, from the reveal's own event (lib/onchain/relayOutcome says why).
+  const outcome = lettersRevealOutcome(sent.receipt.logs, letters);
+  // Mined and successful, but no `Revealed` event: impossible for Letters.reveal. Say only what we know.
+  if (!outcome) return { kind: "pending", txHash: sent.txHash };
+  return { kind: "mined", txHash: sent.txHash, letterIndexes: outcome.letterIndexes };
 }

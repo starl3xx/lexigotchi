@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { notifiableFids } from "@/lib/db/queries";
 import { reminderAudience } from "@/lib/db/adminReads";
 import { isCampaignConfigured } from "@/lib/db/client";
-import { emailSwitch, farcasterNotifySwitch, webPushSwitch, type Switch } from "@/lib/admin/switches";
+import { emailSwitch, farcasterNotifySwitch, telegramRemindersSwitch, webPushSwitch, type Switch } from "@/lib/admin/switches";
+import { allTelegramLinks } from "@/lib/db/telegramLinks";
 import { LIMITS } from "@/lib/notify/limits"; // NOT ./send — that module throws when armed without a key
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,9 @@ export async function GET() {
   }
   const reach = isCampaignConfigured() ? await reminderAudience().catch(() => null) : null;
 
+  // Profiles that linked Telegram (none before migration 0020). A failed read is "not readable", never zero.
+  const telegramLinked = isCampaignConfigured() ? await allTelegramLinks().then((l) => l.length).catch(() => null) : null;
+
   const blockers: string[] = [];
   if (!isProd) blockers.push("not a production deployment");
   if (!flagOn) blockers.push("NOTIFICATIONS_ENABLED is not \"true\"");
@@ -77,6 +81,11 @@ export async function GET() {
         reach && !reach.missing
           ? `${n(reach.value.emailOptedIn, "confirmed email", "confirmed emails")} with reminders on`
           : "profiles table not readable",
+    },
+    {
+      ...telegramRemindersSwitch(),
+      audience: telegramLinked,
+      audienceNote: telegramLinked == null ? "links not readable" : `${n(telegramLinked, "profile", "profiles")} linked Telegram`,
     },
   ];
 

@@ -7,8 +7,8 @@
  *
  * ── The honest part ───────────────────────────────────────────────────────────────────────────
  * GameApi is synchronous: `openPack()` returns five letters, `rollLoose()` returns a boolean. On
- * chain none of that is true — a pack is two transactions with a wallet prompt and a backend draw
- * between them, and either can be rejected. Rather than fake a synchronous answer (which is what the
+ * chain none of that is true — a pack is two transactions (the wallet's paid commit, then the
+ * reveal the server sends, decisions.md #49) with a backend draw between them, and either can fail. Rather than fake a synchronous answer (which is what the
  * mock's setTimeout does), the actions here START a flow and report through toasts and re-reads,
  * returning the empty/null value the signature demands.
  *
@@ -65,6 +65,7 @@ import {
   readCaretakers,
   readPity,
   readPendingCommits,
+  readLetterCommitRevealed,
   readDayState,
   waitForNewCommit,
   readOpenRollCommits,
@@ -128,6 +129,7 @@ import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageNote } from "@/lib/onchain/stageOverlay";
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
+import { failedAsk, openPacks, packRevealPlan, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
@@ -142,6 +144,10 @@ const EMPTY_26 = Array.from({ length: 26 }, () => 0);
  * the read is one small multicall, and Base makes a block every 2 s.
  */
 const ASCEND_SETTLE_MS: readonly number[] = [0, 1_000, 2_000, 3_500, 5_000, 7_500, 10_000, 15_000, 20_000, 30_000];
+/** The same wait for a pack's reveal that the server broadcast: one small read a time. */
+const PACK_SETTLE_MS = ASCEND_SETTLE_MS;
+/** Said when a pack's reveal is broadcast and wasn't seen to land: nothing more can be sent. */
+const PACK_FINISHING = "Your pack is finishing onchain. It’ll show in a moment.";
 
 /** Signing-route response shapes. */
 // The two vouchers differ: the free pack is nonce-scoped, the daily is UTC-day-scoped.
@@ -149,7 +155,6 @@ interface PackVoucher { fid: string; nonce: string; deadline: string; signature:
 interface DailyVoucher { fid: string; today: number; deadline: string; signature: `0x${string}` }
 /** Pre-signed reveal for the predicted commitId — lets commit+reveal ride one send. */
 interface DailyBundle { predictedCommitId: string; letterIndexes: number[]; revealSignature: `0x${string}` }
-interface LetterReveal { letterIndexes: number[]; signature: `0x${string}` }
 interface OutcomeReveal { success: boolean; signature: `0x${string}`; probability: number }
 /**
  * /api/prestige/reveal's answer. `level` and `owner` are the COMMIT's (the stage the attempt was
@@ -885,44 +890,101 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * Second half of a Letters commit→reveal: discover the commit, get the draw, send the reveal.
-   *
-   * `stranded` is the important branch. The contracts have NO reveal expiry, so a commit that is
-   * paid for but never revealed stays open forever. The draw is deterministic in commitId, so
-   * retrying later yields the identical letters — which is why it is honest to tell the player it
-   * is waiting for them rather than that it failed.
+   * Pack commits this browser has SEEN revealed (the server's relayed reveal mined, or the chain
+   * said so). "Rip another" commits seconds after a reveal, and an RPC node a block behind can
+   * still read the finished commit as open: taken for the new pack, it would show the old letters
+   * again and leave the new, paid commit unopened. These ids are never open again, so every search
+   * for an open pack skips them (lib/onchain/packReveal `openPacks`; rolls keep `revealedRolls`).
    */
+  const revealedPacks = useRef(new Set<string>());
+  /** Ids to leave out when looking for the commit a send just made. */
+  const knownPacks = useCallback((before: readonly bigint[]) => [...before, ...[...revealedPacks.current].map(BigInt)], []);
+
   /**
-   * Reveal a KNOWN commit: fetch the deterministic draw, send the reveal, show the letters.
-   * Shared by the normal flow and the stranded-commit recovery — the only difference between them
-   * is how the commitId was learned.
+   * Open a KNOWN, already-paid Letters commit (a pack, a free pack, or a daily letter whose reveal
+   * didn't ride its commit). Shared by the purchase and by the stranded-commit recovery: the only
+   * difference between them is how the commitId was learned.
+   *
+   * The server finishes it (decisions.md #49): it sends the reveal from its relayer key, so a pack
+   * is one wallet confirmation and no wallet prompt names the letters first. What the game does
+   * with each answer is lib/onchain/packReveal (pure, tested). Only an answer that says nothing
+   * was broadcast reaches the wallet.
+   *
+   * - "shown": the pack is open, and its letters are on screen (or, when the chain says it is
+   *   open and nothing could say what it held, in the bag with a line saying so).
+   * - "finishing": the reveal is broadcast and wasn't seen to land. Nothing more to send.
+   * - "waiting": nothing was sent. The contracts have NO reveal expiry, and the draw is fixed per
+   *   commit, so the pack waits for the player and opening it later gives the same letters.
    */
   const revealCommit = useCallback(
-    async (commitId: bigint, run: RunFn): Promise<boolean> => {
+    async (commitId: bigint, run: RunFn): Promise<"shown" | "finishing" | "waiting"> => {
       // openPostJson, not postJson: the verified-wallet daily reaches here with no Farcaster
       // session, and the reveal route accepts anonymous callers (buyer-bound + idempotent).
-      const draw = await openPostJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commitId) });
-      if (!draw?.ok) {
-        toast(authError(draw?.error, "Draw"), "bad");
-        return false;
+      const ask = () => openPostJson<{ reveal: PackRevealAnswer }>("/api/mint/reveal", { commitId: String(commitId), relay: true });
+      // No send of ours to refresh after, so read again what a reveal changes, on a stagger.
+      const reread = () => {
+        void chain.refresh();
+        void pendingQ.refetch();
+      };
+      const opened = (letters: number[] | null) => {
+        revealedPacks.current.add(String(commitId));
+        reread();
+        for (const delay of [2_000, 6_000, 15_000]) setTimeout(reread, delay);
+        if (letters) dispatch({ t: "sheet", sheet: { kind: "pack", letters } });
+        else toast("Your pack is open. Its letters are in your bag", "good");
+        return "shown" as const;
+      };
+
+      const first = await ask();
+      // What a failed ask means (lib/onchain/packReveal `failedAsk`). An error the server STATED
+      // (rate_limited, unknown_commit, …) means it refused before sending. Two do not: a lost answer
+      // says nothing about whether the server sent the reveal (it holds the request while the reveal
+      // mines, up to about 20 s), and "already revealed" says the pack is OPEN (a server from before
+      // the relay answers an opened commit that way). Both are "ask the chain".
+      const failed = first?.ok ? null : failedAsk(first?.error);
+      if (failed === "refused") {
+        toast(authError(first?.error, "Draw"), "bad");
+        return "waiting";
       }
-      const ok = await run("Reveal", () =>
-        revealCalls(commitId, draw.reveal.letterIndexes, draw.reveal.signature),
-      );
-      if (!ok) return false;
-      dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
-      return true;
+      const plan: PackRevealPlan = first?.ok ? packRevealPlan(first.reveal) : { do: "read" };
+      if (plan.do === "show") return opened(plan.letters);
+      if (plan.do === "wallet") {
+        const ok = await run("Reveal", () => revealCalls(commitId, plan.letters, plan.signature));
+        if (!ok) return "waiting";
+        // Sent by the wallet, so not yet known to be mined: not added to `revealedPacks`.
+        dispatch({ t: "sheet", sheet: { kind: "pack", letters: plan.letters } });
+        return "shown";
+      }
+      if (plan.do === "none") return "waiting";
+
+      // "read": a reveal is broadcast (or may be). Wait for the chain to say the pack is open, then
+      // ask once more: the route then answers with the letters the chain minted. Capped: the action
+      // gate waits on this, and a read that never answers must not hold it.
+      const landed = await readUntil(() => orThrowAfter(readLetterCommitRevealed(commitId), 5_000), (revealed) => revealed, PACK_SETTLE_MS);
+      if (!landed) {
+        for (const delay of [0, 4_000, 12_000]) setTimeout(reread, delay);
+        // The server said it broadcast, or that the pack is open: the chain finishes it. A lost
+        // answer said nothing: the pack waits, and opening it again asks the server about THIS
+        // commit (never the wallet first).
+        return failed === "lost" ? "waiting" : "finishing";
+      }
+      const again = await ask();
+      const after = again?.ok ? packRevealPlan(again.reveal) : null;
+      return opened(after?.do === "show" ? after.letters : null);
     },
-    [openPostJson, toast, authError],
+    [openPostJson, toast, authError, chain, pendingQ],
   );
 
+  /** Second half of a Letters commit→reveal: discover the commit, then open it. */
   const finishLetterCommit = useCallback(
     async (before: readonly bigint[], strandedMsg: string, run: RunFn) => {
       if (!address) return;
       toast("Opening…", "info");
-      const commit = await waitForNewCommit(address, before);
+      const commit = await waitForNewCommit(address, knownPacks(before));
       if (!commit) return void toast("Committed but slow to appear. It’ll be waiting for you", "info");
-      if (!(await revealCommit(commit.commitId, run))) return void toast(strandedMsg, "info");
+      const got = await revealCommit(commit.commitId, run);
+      if (got === "finishing") return void toast(PACK_FINISHING, "info");
+      if (got === "waiting") return void toast(strandedMsg, "info");
     },
     [address, toast, revealCommit],
   );
@@ -1352,31 +1414,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // Logs are not queryable the instant a tx mines, so poll. A timeout here means UNKNOWN,
           // never failed — the commit may well exist, and the pack is recoverable either way.
           toast("Opening…", "info");
-          const commit = await waitForNewCommit(address, before);
+          const commit = await waitForNewCommit(address, knownPacks(before));
+          void relatedDayQ.refetch(); // the pack is taken: the Mint card stops offering it
           if (!commit) {
             return void toast("Pack is committed but slow to appear. It’ll be waiting for you", "info");
           }
 
-          const draw = await postJson<{ reveal: LetterReveal }>("/api/mint/reveal", { commitId: String(commit.commitId) });
-          if (!draw?.ok) return void toast(authError(draw?.error, "Draw"), "bad");
-
-          const revealed = await run("Reveal", () =>
-            revealCalls(commit.commitId, draw.reveal.letterIndexes, draw.reveal.signature),
-          );
-          if (!revealed) {
-            // The draw is deterministic, so retrying later yields the identical letters.
-            return void toast("Your pack is paid for. Reopen to finish it", "info");
-          }
-          dispatch({ t: "sheet", sheet: { kind: "pack", letters: draw.reveal.letterIndexes } });
-          void relatedDayQ.refetch(); // the pack is taken: the Mint card stops offering it
+          // The server opens it, as it opens a paid pack (revealCommit): one confirmation in all.
+          const got = await revealCommit(commit.commitId, run);
+          if (got === "finishing") return void toast(PACK_FINISHING, "info");
+          // The draw is fixed per commit, so opening it later yields the identical letters.
+          if (got === "waiting") return void toast("Your pack is yours and waiting. Reopen to finish it", "info");
         }, undefined);
         return [];
       },
 
       /**
-       * A PAID pack: approve + commitPack, then the signed reveal. Any wallet can buy one; the
-       * reveal route needs no sign-in. Same money rule as the rolls: once the commit is sent, every
-       * later failure is "stranded" (paid, and recoverable from PendingReveal), never "try again".
+       * A PAID pack: approve + commitPack from the wallet, then the server sends the reveal
+       * (decisions.md #49): one confirmation. Any wallet can buy one; the reveal route needs no
+       * sign-in. Same money rule as the rolls: once the commit is sent, every later failure is
+       * "stranded" (paid, and recoverable from PendingReveal), never "try again".
        */
       buyPack: () =>
         track("Buying a pack", (run) => guarded(async (markPaid) => {
@@ -1391,12 +1448,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           }
           markPaid(); // the pack price is spent from here on
           toast("Opening…", "info");
-          const commit = await waitForNewCommit(address, before);
+          const commit = await waitForNewCommit(address, knownPacks(before));
           if (!commit) return { status: "stranded" as const, note: "Your pack is paid for. It’ll be waiting for you." };
           // revealCommit opens the pack sheet itself once the letters exist.
-          if (!(await revealCommit(commit.commitId, run))) {
-            return { status: "stranded" as const, note: "Your pack is paid for. Reopen it to finish." };
-          }
+          const got = await revealCommit(commit.commitId, run);
+          if (got === "finishing") return { status: "stranded" as const, note: PACK_FINISHING };
+          if (got === "waiting") return { status: "stranded" as const, note: "Your pack is paid for. Reopen it to finish." };
           return { status: "resolved" as const, success: true };
         }), NOT_STARTED),
 
@@ -2212,12 +2269,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // claim it. The reveal is deterministic and free, so finishing is always safe.
       busy,
       dismissBusy: gate.dismiss,
-      pendingReveals: (pendingQ.data ?? []).length,
+      // A commit this browser has seen revealed is never counted, whatever a lagging node says.
+      pendingReveals: openPacks(pendingQ.data ?? [], revealedPacks.current).length,
       openPending: () => {
-        const oldest = (pendingQ.data ?? [])[0];
+        const oldest = openPacks(pendingQ.data ?? [], revealedPacks.current)[0];
         if (!oldest) return;
         void track("Opening your letters", async (run) => {
-          if (await revealCommit(oldest.commitId, run)) void pendingQ.refetch();
+          const got = await revealCommit(oldest.commitId, run);
+          if (got === "finishing") toast(PACK_FINISHING, "info");
+          void pendingQ.refetch();
         }, undefined);
       },
 

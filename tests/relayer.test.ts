@@ -213,3 +213,73 @@ describe("rolls and ascensions count their commits separately", () => {
     for (const w of writes) expect(w.dataSuffix).toBe(BUILDER_DATA_SUFFIX);
   });
 });
+
+/**
+ * A pack's reveal (decisions.md #49). The receipt's logs are a real Base Sepolia pack reveal
+ * (tests/pack-reveal-logs.ts): five transfers, then the one `Revealed`.
+ */
+const { relayLettersReveal } = await import("@/lib/onchain/relayer");
+const { PACK_LETTERS, PACK_REVEAL_LOGS } = await import("./pack-reveal-logs");
+
+describe("a relayed pack reveal", () => {
+  it("sends Letters.reveal with the builder code, and answers with the letters the chain minted", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: PACK_REVEAL_LOGS });
+    const id = next();
+    const r = await relayLettersReveal(id, PACK_LETTERS, SIG);
+    expect(r).toMatchObject({ kind: "mined", letterIndexes: PACK_LETTERS });
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ functionName: "reveal", args: [id, PACK_LETTERS, SIG], dataSuffix: BUILDER_DATA_SUFFIX });
+    expect(writes[0].address.toLowerCase()).toBe(addressOf("letters").toLowerCase());
+    // the event says everything: nothing is read after it
+    expect(reads).toHaveLength(0);
+  });
+
+  it("the chain's letters, not the signed ones: what the event names is what the answer says", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: PACK_REVEAL_LOGS });
+    const r = await relayLettersReveal(next(), [0, 0, 0, 0, 0], SIG);
+    expect(r).toMatchObject({ kind: "mined", letterIndexes: PACK_LETTERS });
+  });
+
+  it("mined with no Revealed event says only what is known: broadcast, and no letters", async () => {
+    const r = await relayLettersReveal(next(), PACK_LETTERS, SIG);
+    expect(r).toMatchObject({ kind: "pending" });
+    expect(r).not.toHaveProperty("letterIndexes");
+  });
+
+  it("a reverted reveal and one not mined in the wait are both “broadcast”, with no letters", async () => {
+    receipt = () => ({ status: "reverted", blockNumber: BLOCK, logs: [] });
+    const reverted = await relayLettersReveal(next(), PACK_LETTERS, SIG);
+    expect(reverted.kind).toBe("reverted");
+    expect(reverted).not.toHaveProperty("letterIndexes");
+    receipt = () => {
+      throw new Error("timed out");
+    };
+    expect((await relayLettersReveal(next(), PACK_LETTERS, SIG)).kind).toBe("pending");
+  });
+
+  it("a refused send is “unavailable” (a capped letter would revert the estimate): the wallet path stays open", async () => {
+    writeError = new Error("execution reverted: CapExceeded https://rpc.example/v2/SECRET");
+    expect(await relayLettersReveal(next(), PACK_LETTERS, SIG)).toEqual({ kind: "unavailable", reason: "send_failed" });
+    writeError = new Error("insufficient funds for gas * price + value");
+    expect(await relayLettersReveal(next(), PACK_LETTERS, SIG)).toEqual({ kind: "unavailable", reason: "relayer_unfunded" });
+  });
+
+  it("with no relayer key nothing is sent", async () => {
+    vi.stubEnv("RELAYER_PRIVATE_KEY", "");
+    expect(await relayLettersReveal(next(), PACK_LETTERS, SIG)).toEqual({ kind: "unavailable", reason: "no_relayer" });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("a pack and a roll with the same commit id are different commits: neither answers for the other", async () => {
+    receipt = () => ({ status: "success", blockNumber: BLOCK, logs: PACK_REVEAL_LOGS });
+    const id = next();
+    const pack = await relayLettersReveal(id, PACK_LETTERS, SIG);
+    const roll = await relayRollReveal(id, true, SIG); // the same receipt holds no roll event → "pending"
+    expect(pack).toMatchObject({ kind: "mined", letterIndexes: PACK_LETTERS });
+    expect(roll.kind).toBe("pending");
+    expect(writes).toHaveLength(2);
+    // a repeat request for the same pack is answered by the first send, not a second one
+    expect(await relayLettersReveal(id, PACK_LETTERS, SIG)).toBe(pack);
+    expect(writes).toHaveLength(2);
+  });
+});

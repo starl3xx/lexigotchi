@@ -787,6 +787,24 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   reporter's name. In a private chat only someone in the beta group now may file one
   (`inBetaGroup`); 6 reports per 10 minutes per person; a report's words are never logged. Before
   0019 runs the bot answers that it couldn't save the report, and the tab says the migration is owed.
+  **A player can link Telegram to their profile, and get reminders there** (`lib/telegramLink.ts`,
+  `lib/db/telegramLinks.ts`, tables `telegram_links` + `telegram_link_codes`, migration 0020;
+  `components/game/TelegramCard.tsx` in the profile sheet). "Link Telegram" makes a single-use code
+  under the profile's session (`POST /api/profile/telegram`, 15 minutes) and shows "Open Telegram",
+  its OWN tap (a browser opens another app only from the tap itself); the link is
+  `t.me/<bot>?start=<code>`, and the bot's `/start <code>` links whoever presses Start. The code is
+  the proof, so GET never returns one. One Telegram account names one profile and a profile has
+  one: a new link replaces the old on both sides, in one transaction. `/unlink` (or Unlink in the
+  profile) stops it. Never public. **Telegram is a fourth reminder channel**
+  (`lib/notify/telegram.ts`): like email it goes to a linked player whatever else reached them,
+  under a send-once mark of its own (`telegram:<kind>` in `reminder_marks`, claimed BEFORE the send,
+  given back only on Telegram's clear refusal). Wired into `notifyPlayers` (sold, payday, bounty,
+  deal), the keeper's hunger warning and jackpot win, and the daily-letter cron; every caller has
+  already dropped players who turned the kind off. A player who blocked the bot is unlinked.
+  Armed on the production deployment with the bot's token; `TELEGRAM_REMINDERS=off` mutes it. The
+  profile offers the card only where the bot is set up AND the tables exist
+  (`/api/profile/config` `telegram`, `telegramLinksReady`), so nothing shows before 0020 runs. The
+  Players tab says WHETHER a wallet's account linked Telegram, never which account.
   **The operator can post as the bot** from the console's Broadcast tab (`tabs/TelegramBroadcast.tsx`,
   `POST /api/admin/telegram`, gated on the server like Players): the composer's text as a message,
   or a poll. Every send is typed-to-confirm, goes out as typed (no parse mode, no link preview),
@@ -891,7 +909,22 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   finished by the server** (decisions.md #14): `revealRoll` posts `{ relay: true }` and
   `/api/roll/reveal` sends `Rolls.reveal` from `RELAYER_PRIVATE_KEY` (`src/lib/onchain/relayer.ts`),
   so the wallet never previews the result; the answer's `relayed` field says what happened, and only
-  "nothing broadcast" returns a signature for the wallet to send. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  "nothing broadcast" returns a signature for the wallet to send. **The server opens packs too**
+  (decisions.md #49; `revealCommit`, `/api/mint/reveal` with `{ relay: true }`, `relayLettersReveal`):
+  a pack, a free pack, and a daily letter whose reveal didn't ride its commit are ONE wallet
+  confirmation. What the game does with each answer is `lib/onchain/packReveal.ts` (pure, tested):
+  **only an answer with no `relayed` field reaches the wallet**; "mined" and "already" name the
+  letters the CHAIN minted (the reveal's own `Revealed` event, `relayOutcome`), never the stored draw
+  (which is served again only while it can still mint, so it can name different letters for a pack
+  long since opened); "pending" and "reverted" name none, and the game waits for
+  `commits(id).revealed`, then asks once more. A lost answer is "ask the chain" (`answerLost`). A
+  commit seen revealed goes in `revealedPacks` and is skipped by every search for an open pack
+  (`openPacks`): a lagging node would hand the old pack back as the new one. The free daily's bundle
+  (commit + reveal in one send) is NOT relayed, and a paid pack can never be bundled: a pre-signed
+  reveal would show the letters before the price is paid. Without `relay: true` the route answers
+  exactly as before (`tests/mint-relay-route.test.ts`). `scripts/pack-relay-fork-check.ts` proves it
+  against the deployed Letters on an Anvil fork (no real keys, no `DATABASE_URL`): rerun it after
+  touching the route, the relayer, or `Letters.reveal`. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
   network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
   empty until the deploy, so production flips to the real game in the same deploy that commits the
   mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the
