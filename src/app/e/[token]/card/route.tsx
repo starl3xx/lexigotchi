@@ -63,7 +63,7 @@ function tag(text: EarningsCardText, w: number, wide: boolean) {
   // "about $24.0K": the word in Söhne, the figure in the serif, on one line of text.
   const about = text.usd && (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 9, fontSize: 25, lineHeight: 1.15, color: SOFT }}>
-      <div style={{ display: "flex", marginBottom: 2 }}>about</div>
+      <div style={{ display: "flex" }}>about</div>
       <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700, fontSize: 30, color: INK }}>{text.usd.replace(/^about /, "")}</div>
     </div>
   );

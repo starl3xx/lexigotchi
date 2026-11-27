@@ -46,7 +46,7 @@ The Tamagotchi/Pokémon comparison stays internal: both are guarded trademarks, 
 | earns $WORD every day | yield, APR, returns, passive income |
 | Dictionary | Lexidex |
 | the Market | marketplace, exchange |
-Never write: price, pump, moon, invest, investment, "number go up", or any dollar figure for $WORD or for the jackpot. Prices of game actions in USD ("a pack is $1") are fine. One exception (owner, 2026-11-26, decisions.md #46): Today's three pot tiles (the jackpot, the bounty, the Rewards Pool) show "about $X" beside each $WORD amount, and never for test $WORD. Share text, reminders, the landing page, the docs, and bot posts keep the rule.
+Never write: price, pump, moon, invest, investment, "number go up", or any dollar figure for $WORD or for the jackpot. Prices of game actions in USD ("a pack is $1") are fine. One exception (owner, 2026-11-26, decisions.md #46): Today's three pot tiles (the jackpot, the bounty, the Rewards Pool) show "about $X" beside each $WORD amount, and never for test $WORD. A second exception (owner, 2026-11-26, decisions.md #38 as amended): the earnings share PICTURE says "about $X" under what the player's words have earned, from a figure the server signed at a live price, and never for test $WORD. Share text (the post's own words), reminders, the landing page, the docs, and bot posts keep the rule.
 
 ## Landing page
 | Section | Proposed |
