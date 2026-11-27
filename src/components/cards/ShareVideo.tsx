@@ -21,7 +21,8 @@ import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
 import { showcaseBackPath, showcaseFacePath, showcasePostText, showcaseUrl } from "@/lib/showcase";
 import type { SceneId } from "@/lib/scenes";
 import { canMakeLoop } from "./live/support";
-import { materialOf } from "./material";
+import { MATERIAL_LINE, materialOf } from "./material";
+import { useMyStamp } from "./CardStamp";
 
 /** A phone's share sheet that takes a video file. */
 function canShareVideo(): boolean {
@@ -65,6 +66,8 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
   const [made, setMade] = useState<Made | null>(null);
   const abort = useRef<AbortController | null>(null);
   const plays = useRef(0);
+  // the holder's stamp on the video's back, as on the game's (./CardStamp): their own picture, unless they turned it off
+  const stampSrc = useMyStamp();
 
   // the made video belongs to this word and scene; a new pick starts over, and leaving lets it go
   const madeUrl = useRef<string | null>(null);
@@ -114,6 +117,7 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
         front: showcaseFacePath(text, scene, word.prestigeLevel),
         back: showcaseBackPath(text, word.prestigeLevel),
         material: materialOf(word.tier),
+        stamp: stampSrc ? { src: stampSrc, ink: MATERIAL_LINE[materialOf(word.tier)] } : undefined,
         signal: ctl.signal,
         onProgress: (p) => !ctl.signal.aborted && setProgress(p),
       });

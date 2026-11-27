@@ -1760,6 +1760,44 @@ setter. All small, riding existing suite patterns.
       - **Not changed:** the "Case" line still follows the link's casing, as the front does.
       - **Seen and not seen (part 5):** the back drawn by the real route with stand-in chain
         answers. Not seen against the test game's chain: check GLYPH's video after the merge.
+    - **Part 6, the holder's picture, stamped on the back.** "How can we feature an owner's PFP on
+      the back of the card (if they have a PFP)? ... maybe as a slightly rotated circular stamp
+      somewhere? (UI and share video)". Then: "one ink, engraved ring beside the number, and yes
+      they can turn it off."
+      - **One ink, in an engraved ring.** The stamp is not part of a letter, so it is drawn like
+        the card: the picture in the material's line colour (black stays black, white becomes the
+        ink), in a rosette from the engraving kit, turned 8 degrees (`cards/stamp`,
+        `cards/CardStamp`, `.cb-stamp`).
+      - **Beside the number**, in the number's own line, so it follows the digits at every size.
+        The right half of a full back is facts from top to bottom, and the card's turn button is
+        in its top right corner, so the left half is the only free place. A card with no number
+        yet takes the top left corner; a thumbnail sets it over the pressed seal.
+      - **Always the player's own picture.** A back shows only for the player's own words, so the
+        game draws the picture its profile shows (Farcaster's or X's). No picture, no stamp, and a
+        picture that fails to load takes the whole stamp with it.
+      - **Theirs to turn off:** "Show my picture on my cards", in the profile, shown only to a
+        player with a picture. **Kept on the device, not on the server:** the stamp is only ever
+        drawn by the player's own browser (their own backs, and a video they make themselves), so
+        there is nothing for a server to obey, no table, and no migration to run. A player with two
+        devices chooses on each.
+      - **In the video,** the player's browser draws the stamp onto the back's picture before the
+        card turns (`loop/makeLoop`, `stampedBack`), with the one ink worked out pixel by pixel,
+        since a canvas has no blend a browser can be trusted to have. **No server fetches a
+        picture.** The review page said the video would need a guarded server fetch; it doesn't:
+        the picture is asked for openly from the player's browser, and a site that doesn't allow
+        its pixels to be read gives no stamp in the video (the game's back still shows it).
+      - **The video's stamp sits where the back's PICTURE says its number is** (Bugbot on #257).
+        The picture reads the card's number itself (the chain, with a wait, kept for minutes; none
+        where there is no chain), so the game and the picture can differ. The picture says in a
+        header whether the number is on it (`x-card-numbered`), and the video reads that with the
+        picture's bytes. A picture that doesn't say gets no stamp.
+      - **The holder's picture can't hold a video up** (the same review). It is asked for beside the
+        card's two faces, for at most four seconds, and stops when the sheet closes
+        (`loop/loadImage`). Late, refused, or unreadable: the video is made without the stamp.
+      - **Not built:** a "Held by" line on the video's back. The owner approved the back without it.
+      - **Seen and not seen (part 6):** the stamp at every size on the review page, in the same
+        styles. Not seen in the game with a real picture (the practice game has no linked account),
+        and no video was made with one.
 
 ## Pricing & launch economics (decided June 2026)
 

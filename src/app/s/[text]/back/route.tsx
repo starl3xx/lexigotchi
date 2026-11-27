@@ -9,6 +9,7 @@ import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
 import { backFoot, backLedger } from "@/lib/backPicture";
+import { NUMBERED_HEADER } from "@/components/cards/stamp";
 import { readBackFacts } from "@/lib/backPictureFacts";
 import { SCROLL_PATH_CARD } from "@/components/cards/material";
 import { svgDoc } from "@/lib/cardArt/engrave";
@@ -235,7 +236,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         { name: SERIF, data: pagellaBold, weight: 700, style: "normal" },
       ],
       // Ascension and the first finder's name can change: minutes, not the share card's week.
-      headers: { "cache-control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600" },
+      // and whether this picture has the card's number on it: the share video places the holder's stamp by it (cards/stamp)
+      headers: { "cache-control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600", [NUMBERED_HEADER]: digits ? "1" : "0" },
     },
   );
 }

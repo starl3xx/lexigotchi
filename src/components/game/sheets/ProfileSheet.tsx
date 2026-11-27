@@ -21,6 +21,7 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 import { ReminderToggle } from "../ReminderToggle";
 import { ReminderChoices } from "../ReminderChoices";
+import { CardStampChoice } from "../../cards/CardStamp";
 import { WalletsCard } from "./WalletsCard";
 import { OnchainBadges } from "../OnchainBadges";
 import { useOpenUrl } from "../useShare";
@@ -300,6 +301,10 @@ export function ProfileSheet() {
       {/* Keyed by wallet: switching wallets starts the card fresh, so one wallet's typed address,
           code, or error never carries into another's session (Bugbot on #139). */}
       {p.emailEnabled && <EmailCard key={p.address ?? "none"} p={p} />}
+
+      {/* The player's picture as a stamp on the back of their cards: theirs to turn off (cards/CardStamp).
+          Only where there is a picture to stamp. */}
+      {me.pfpUrl && <CardStampChoice />}
 
       {/* Browser reminders, here as well as in More: the desktop rail has no More, so the profile is
           where a desktop player finds them. Renders nothing until web push is switched on. */}

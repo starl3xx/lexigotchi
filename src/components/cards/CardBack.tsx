@@ -42,7 +42,8 @@ import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
-import { SCROLL_PATH_CARD, materialOf } from "./material";
+import { MATERIAL_LINE, SCROLL_PATH_CARD, materialOf, type CardMaterial } from "./material";
+import { CardStamp, useMyStamp } from "./CardStamp";
 import { useCardFacts, type CardFacts } from "./useCardFacts";
 import { useCardNumber } from "./useCardNumber";
 import dynamic from "next/dynamic";
@@ -53,13 +54,11 @@ const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.L
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** Each material's line colour (globals.css `.m-*`, --cb-line): the seal is pressed in it. */
-const SEAL_INK: Record<string, string> = { common: "#9a8164", uncommon: "#5cc4a9", rare: "#7fb0ef", legendary: "#e9b949", mythic: "#b48cf0" };
 // One picture a material, built the first time a back of that material shows.
 const seals = new Map<string, string>();
-function sealImage(material: string): string {
+function sealImage(material: CardMaterial): string {
   let url = seals.get(material);
-  if (!url) seals.set(material, (url = `url("${svgDataUri(svgDoc(sealInk(SEAL_INK[material] ?? SEAL_INK.common), SEAL, SEAL))}")`));
+  if (!url) seals.set(material, (url = `url("${svgDataUri(svgDoc(sealInk(MATERIAL_LINE[material]), SEAL, SEAL))}")`));
   return url;
 }
 const MOOD: Record<string, string> = { fed: "full", peckish: "peckish", hungry: "hungry" };
@@ -128,13 +127,15 @@ function TierLine({ tier }: { tier: Tier }) {
   );
 }
 
-/** The card's number, the back's headline. None while it isn't known (never a dash that looks like a number). */
-function Number({ n }: { n: number | null }) {
+/** The card's number, the back's headline. None while it isn't known (never a dash that looks like a number).
+ *  `stamp`: the holder's stamp, which sits in the number's own line, so it follows the digits at every size. */
+function Number({ n, stamp }: { n: number | null; stamp?: ReactNode }) {
   const digits = cardDigits(n);
   return digits ? (
     <p className="cb-no">
       <small>No.</small>
       {digits}
+      {stamp}
     </p>
   ) : null;
 }
@@ -142,16 +143,21 @@ function Number({ n }: { n: number | null }) {
 /** A thumbnail's back (a Bag card): the rarity, the number, one line, and the tiles on their rack. */
 function MiniBody({ word }: { word: OwnedWord }) {
   const number = useCardNumber(word.word);
+  const stamp = useMyStamp();
   return (
-    <div className="cb-body">
-      <div className="cb-wordcol">
-        <TierLine tier={word.tier} />
-        <Number n={number} />
-        <div className="cb-rule" />
-        <p className="cb-mini">One of one · {ascensionLabel(word.prestigeLevel)}</p>
-        <Rack word={word} />
+    <>
+      <div className="cb-body">
+        <div className="cb-wordcol">
+          <TierLine tier={word.tier} />
+          <Number n={number} />
+          <div className="cb-rule" />
+          <p className="cb-mini">One of one · {ascensionLabel(word.prestigeLevel)}</p>
+          <Rack word={word} />
+        </div>
       </div>
-    </div>
+      {/* the holder's stamp: on a thumbnail, beside the number's column, over the pressed seal */}
+      {stamp && <CardStamp src={stamp} ink={MATERIAL_LINE[materialOf(word.tier)]} place="mini" />}
+    </>
   );
 }
 
@@ -183,12 +189,18 @@ function FullBody({ word }: { word: OwnedWord }) {
   const { state } = useGame();
   const s = says(f);
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
+  // The holder's stamp (./CardStamp): the player's own picture, beside the number, or in the top
+  // left corner of a card with no number yet.
+  const stamp = useMyStamp();
+  const ink = MATERIAL_LINE[materialOf(word.tier)];
+  const numbered = cardDigits(f.number) !== null;
   return (
     <>
+      {stamp && !numbered && <CardStamp src={stamp} ink={ink} place="corner" />}
       <div className="cb-body">
         <div className="cb-wordcol">
           <TierLine tier={f.tier} />
-          <Number n={f.number} />
+          <Number n={f.number} stamp={stamp ? <CardStamp src={stamp} ink={ink} place="number" /> : null} />
           <div className="cb-rule" />
           <div className="cb-oneof">
             <b>One of one</b>
