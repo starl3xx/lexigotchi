@@ -2671,6 +2671,20 @@ setter. All small, riding existing suite patterns.
       - **A fully unlocked set folds to its name** in the Sets section (my call): its words are in
         the list below like any others, and the Dictionary's top would otherwise fill with every
         set there has ever been.
+      - **A set is revealed only once the chain holds its words back** (mine, 2026-11-27, found
+        when a review read my own runbook steps for the Test collab: "reveal, then send the
+        reserve root"). A reveal names a set's words to everyone, and until the chain's root
+        leaves a word out anyone can claim it straight from the contract with a proof made from
+        the public dictionary; the server refusing the proof stops only the game. Nothing checked
+        the order. Now every reveal is checked against what the chain holds back (`lib/sets/server`
+        `heldOnChain`), inside the one function that reveals a set and under the set's row lock
+        (`lib/db/sets` `revealSet`; the scheduled reveal now goes through it too, a set at a
+        time), so a word added to a draft while a reveal runs can't ride along:
+        **Reveal now** is refused with "send the reserve root first, then reveal", a set past its
+        `revealAt` stays a draft and is revealed by the first read after the root lands, and a
+        chain that can't be read (or a root this server never built) is "can't tell", never "held
+        back". The cost: a reveal can be late by as long as the root or the chain is. The order
+        is always draft, reserve root, reveal, release.
 
 52. **The card's serif is Source Serif 4, shipped: one face for every player and every picture**
     (starl3xx, 2026-11-27, on the design audit page: "I like Source Serif 4", then "let's go 3H
@@ -2905,6 +2919,11 @@ setter. All small, riding existing suite patterns.
       "all of them" (a new metadata server, a change to how every card is drawn). Both are
       owner-only and only emit events. Tests, and the audit's sixth pass (no finding at the
       threshold). Nothing is deployed: it rides the Base Sepolia redeploy, which is on hold.
+    - **The share video's back has no rarity material under a collab's colorway.** The video is
+      the back's third renderer: its shader draws a material and lays the server's picture over
+      it by the picture's alpha. A collab's colorway is painted into that picture edge to edge,
+      so the material can't show; the video is given the plain one for a collab word all the
+      same, never Legendary's gold light, so the rule doesn't rest on a picture's corners.
 
 54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
     about cards... the *front* of the card is its front regardless of the scene/face... the *face*

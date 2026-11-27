@@ -757,7 +757,7 @@ export function SetsTab() {
       };
       return void setTestNote(why[res.error] ?? res.error);
     }
-    setTestNote("Made as a draft, below. Reveal it, send the reserve root, then build its release.");
+    setTestNote("Made as a draft, below. Send the reserve root first, then reveal it, then build its release.");
     reload();
   };
 

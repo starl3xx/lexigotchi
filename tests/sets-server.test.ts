@@ -29,6 +29,7 @@ const world = vi.hoisted(() => ({
   stamps: new Map<number, { mime: string; base64: string }>(),
   lists: new Map<number, string[]>(),
   made: [] as Record<string, unknown>[],
+  revealAsked: [] as (string[] | null)[], // what the chain held back, as each scheduled reveal was told
   tokenDown: false, // a token rule's contract can't be read on Base
   tokenAsked: [] as string[],
 }));
@@ -95,7 +96,21 @@ vi.mock("@/lib/db/sets", () => {
       if (world.fail) throw Object.assign(new Error("Failed query … params: ZEBRA,SECRETSET"), { code: "08006" });
       return { sets: world.sets.map((s) => ({ ...s, words: [...s.words] })), migrated: world.migrated, collab: world.collab };
     },
-    revealDue: async () => [],
+    // The reveals, as the database does them: each set checked against what the chain holds back.
+    revealDue: async (_c: number, now: Date, held: ReadonlySet<string> | "unchecked") => {
+      world.revealAsked.push(held === "unchecked" ? null : [...held].sort());
+      const due = world.sets.filter((s) => s.status === "draft" && s.revealAt !== null && s.revealAt <= now && s.words.length > 0 && (held === "unchecked" || s.words.every((w) => held.has(w.word))));
+      for (const s of due) Object.assign(s, { status: "revealed", revealedAt: now });
+      return due.map((s) => s.id);
+    },
+    revealSet: async (_c: number, id: number, now: Date, held: ReadonlySet<string> | "unchecked") => {
+      const s = world.sets.find((x) => x.id === id);
+      if (!s) throw new SetError("not_found");
+      if (s.status !== "draft") throw new SetError("locked");
+      const missing = held === "unchecked" ? 0 : s.words.filter((w) => !held.has(w.word)).length;
+      if (missing > 0) throw new SetError("not_reserved", [], [`${missing} of this set’s ${s.words.length} words are not held back on the chain yet: send the reserve root first, then reveal`]);
+      Object.assign(s, { status: "revealed", revealedAt: now });
+    },
     saveRoot: async (_c: number, root: string, held: string[], note: string) => {
       if (!world.roots.has(root)) world.roots.set(root, { held: [...held], note, n: world.roots.size });
     },
@@ -184,6 +199,7 @@ beforeEach(async () => {
   world.stamps = new Map();
   world.lists = new Map();
   world.made = [];
+  world.revealAsked = [];
   world.tokenDown = false;
   world.tokenAsked = [];
   const { tokenIdOf } = await import("@/lib/onchain/tokenId");
@@ -279,6 +295,98 @@ describe("reserving", () => {
     const again = await server.planReserve();
     expect(again.ok && again.upToDate).toBe(true);
     expect(again.ok && again.intents).toEqual([]);
+  });
+});
+
+describe("a reveal waits for the chain to hold the set back", () => {
+  // A reveal names a set's words to everyone. Until the chain's root leaves a word out, anyone can
+  // claim it straight from the contract with a proof made from the public dictionary, so the
+  // reserve root goes first: draft, reserve root, reveal, release.
+  const past = new Date(Date.now() - 60_000);
+  const post = (body: unknown) => new Request("http://localhost/api/admin/sets", { method: "POST", body: JSON.stringify(body) });
+
+  it("on its date: a set the chain doesn't hold back stays a draft, and is revealed by the first read after the root lands", async () => {
+    world.sets = [draft(1, "Due", [words.A, words.B], { revealAt: past })];
+    const server = await import("@/lib/sets/server");
+    expect((await server.loadSets({ fresh: true })).sets[0].status).toBe("draft");
+    expect(world.revealAsked).toEqual([]); // the reveal wasn't even run
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    world.chainRoot = plan.root; // the owner's reserve root lands
+    await server.readChainRoot({ fresh: true });
+    expect((await server.loadSets({ fresh: true })).sets[0].status).toBe("revealed");
+    expect(world.revealAsked).toEqual([[words.A, words.B].sort()]);
+  });
+
+  it("on its date: only the sets the chain holds back are revealed, never one beside them that isn't", async () => {
+    world.sets = [draft(1, "Held", [words.A], { revealAt: past })];
+    const server = await import("@/lib/sets/server");
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    world.chainRoot = plan.root;
+    await server.readChainRoot({ fresh: true });
+    // a second set is drafted after the root: due, and not on the chain yet
+    world.sets.push(draft(2, "Late", [words.C], { revealAt: past }));
+    const book = await server.loadSets({ fresh: true });
+    expect(book.sets.map((s) => s.status)).toEqual(["revealed", "draft"]);
+    expect(world.revealAsked).toEqual([[words.A]]); // told what the chain holds back: the check that counts is the database's own, under the set's lock
+  });
+
+  it("a chain that can't be read, or a root this server never built, reveals nothing", async () => {
+    world.sets = [draft(1, "Due", [words.A], { revealAt: past })];
+    const server = await import("@/lib/sets/server");
+    world.chainRoot = `0x${"ab".repeat(32)}`; // nobody here built this root
+    await server.readChainRoot({ fresh: true });
+    expect(await server.heldOnChain()).toBeNull();
+    expect((await server.loadSets({ fresh: true })).sets[0].status).toBe("draft");
+    expect(world.revealAsked).toEqual([]);
+  });
+
+  it("by hand: Reveal now is refused until the reserve root lands, then it reveals", async () => {
+    world.sets = [draft(1, "ByHand", [words.A, words.B])];
+    const { POST } = await import("@/app/api/admin/sets/route");
+    const early = await POST(post({ action: "reveal", id: 1 }));
+    expect(early.status).toBe(409);
+    const said = await early.json();
+    expect(said.error).toBe("not_reserved");
+    expect(said.errors[0]).toMatch(/2 of this set’s 2 words are not held back on the chain yet: send the reserve root first/);
+    expect(world.sets[0].status).toBe("draft");
+
+    const server = await import("@/lib/sets/server");
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    world.chainRoot = plan.root;
+    const res = await POST(post({ action: "reveal", id: 1 }));
+    expect(res.status).toBe(200);
+    expect(world.sets[0].status).toBe("revealed");
+  });
+
+  it("by hand: the check is the set's own words at the reveal, never a kept read of the sets (Bugbot on #312)", async () => {
+    world.sets = [draft(1, "ByHand", [words.A])];
+    const server = await import("@/lib/sets/server");
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    world.chainRoot = plan.root; // the chain holds A back
+    await server.loadSets({ fresh: true }); // the server's kept book: the set with one word
+    world.sets[0].words.push({ word: words.C, headliner: false }); // the draft gains a word the chain doesn't hold
+    world.fail = true; // …and the sets can't be read again: the kept book still says one word
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { POST } = await import("@/app/api/admin/sets/route");
+    const res = await POST(post({ action: "reveal", id: 1 }));
+    log.mockRestore();
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("not_reserved");
+    expect(world.sets[0].status).toBe("draft");
+  });
+
+  it("by hand: a root that can't be told is \"try again\", never a reveal", async () => {
+    world.sets = [draft(1, "ByHand", [words.A])];
+    world.chainRoot = `0x${"cd".repeat(32)}`;
+    const { POST } = await import("@/app/api/admin/sets/route");
+    const res = await POST(post({ action: "reveal", id: 1 }));
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("try_again");
+    expect(world.sets[0].status).toBe("draft");
   });
 });
 

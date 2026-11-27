@@ -56,7 +56,7 @@ import {
 } from "@/lib/sets/rules";
 import { TEST_COLLAB, pickTestWords, placeholderStamp } from "@/lib/sets/testCollab";
 import { wordTier } from "@/lib/economy";
-import { claimedAmong, forgetSets, hasGate, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
+import { claimedAmong, forgetSets, hasGate, heldOnChain, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
 import { setStats, type SetClaim, type SetStats } from "@/lib/sets/stats";
 
 export const runtime = "nodejs";
@@ -340,7 +340,15 @@ export async function POST(req: Request) {
       case "reveal": {
         const id = idOf(body.id);
         if (!id) return json({ ok: false, error: "bad_request" }, 400);
-        await revealSet(chainId, id, new Date());
+        // A reveal names the set's words to everyone, so the chain must hold them back FIRST: the
+        // reserve root, then the reveal. What the chain holds back is read here, fresh, and
+        // revealSet checks the set's own words against it under the set's lock (so neither a
+        // stale read of the sets nor a word added meanwhile can slip one through).
+        const held = await heldOnChain({ fresh: true });
+        if (!held) {
+          return json({ ok: false, error: "try_again", errors: ["the chain’s dictionary root couldn’t be read (or isn’t one this server built), so the set can’t be shown to be held back: try again"] }, 503);
+        }
+        await revealSet(chainId, id, new Date(), held);
         forgetSets();
         return json({ ok: true });
       }
