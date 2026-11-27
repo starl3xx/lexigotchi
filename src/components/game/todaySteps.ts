@@ -81,16 +81,8 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
     .filter((w) => !w.upper.every(Boolean))
     .sort((a, b) => Number(b.staked) - Number(a.staked) || b.upper.filter(Boolean).length - a.upper.filter(Boolean).length);
   for (const w of raisable.slice(0, MAX.roll)) {
-    let best: { pos: number; odds: number } | null = null;
-    [...w.word].forEach((ch, pos) => {
-      if (w.upper[pos]) return;
-      const odds = i.rollProb(i.pity[ch.toUpperCase().charCodeAt(0) - 65] ?? 0);
-      if (!best || odds > best.odds) best = { pos, odds };
-    });
-    if (best) {
-      const b = best as { pos: number; odds: number };
-      steps.push({ kind: "roll", word: w.word, pos: b.pos, letter: w.word[b.pos].toUpperCase(), odds: b.odds });
-    }
+    const b = letterToRaise(w, i.pity, i.rollProb);
+    if (b) steps.push({ kind: "roll", word: w.word, pos: b.pos, letter: w.word[b.pos].toUpperCase(), odds: b.odds });
   }
 
   // An empty bag: nothing above applies, so point at the start.
@@ -98,4 +90,23 @@ export function nextSteps(i: NextStepsInput): NextStep[] {
   if (i.words.length === 0 && letters === 0 && (i.bagLetters ?? 0) === 0) steps.push({ kind: "start" });
 
   return steps;
+}
+
+/**
+ * The letter in a word to raise next: its lowercase letter with the best roll odds (pity is per
+ * letter), the leftmost on a tie, or null when every letter is raised. Next steps offers it, and
+ * the word sheet's earnings row opens its roll (earningsRowTarget), so both name the same letter.
+ */
+export function letterToRaise(
+  w: Pick<OwnedWord, "word" | "upper">,
+  pity: readonly number[],
+  rollProb: (pity: number) => number,
+): { pos: number; odds: number } | null {
+  let best: { pos: number; odds: number } | null = null;
+  for (let pos = 0; pos < w.word.length; pos++) {
+    if (w.upper[pos]) continue;
+    const odds = rollProb(pity[w.word.toUpperCase().charCodeAt(pos) - 65] ?? 0);
+    if (!best || odds > best.odds) best = { pos, odds };
+  }
+  return best;
 }
