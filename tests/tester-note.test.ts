@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 // The same file the "Beta updates" workflow loads (plain JavaScript, so it runs with nothing installed).
-import { KINDS, UPDATE, betaPosts, noteHtml, testerNote } from "../.github/scripts/tester-note.mjs";
+import { KINDS, PULSE_POLL, UPDATE, betaPosts, noteHtml, pollProblem, testerNote, testerPoll } from "../.github/scripts/tester-note.mjs";
 
 // #160's note, as it was posted with its asterisks showing.
 const PR_160 =
@@ -250,5 +250,98 @@ describe("the posts", () => {
     const [post] = betaPosts([{ kind: "heads-up", note: "🐸".repeat(5000) }]);
     expect(post.text).toBe(`⚠️ Heads up\n-------------\n${"🐸".repeat(1750)}…`);
     expect(post.text.length).toBeLessThanOrEqual(4096);
+  });
+});
+
+describe("finding a PR's tester poll", () => {
+  const body = (poll: string, heading = "## Tester poll") => `## Summary\n\nStuff.\n\n## Tester note (qol)\n\nRoll again.\n\n${heading}\n\n${poll}\n\n## Test plan\n- [x] done\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n`;
+
+  it("reads the question, then each list item as an answer, anonymous and single-answer by default", () => {
+    expect(testerPoll(body("Did Roll again work for you?\n- Yes\n- No\n- I haven’t tried it"))).toEqual({
+      ok: true,
+      question: "Did Roll again work for you?",
+      options: ["Yes", "No", "I haven’t tried it"],
+      named: false,
+      multiple: false,
+    });
+  });
+
+  it("leaves the note alone, and the note leaves the poll alone", () => {
+    const text = body("Did it work?\n- Yes\n- No");
+    expect(testerNote(text)).toEqual({ kind: "qol", note: "Roll again." });
+    expect(testerPoll(text)).toMatchObject({ question: "Did it work?", options: ["Yes", "No"] });
+    // a poll written above the note
+    const flipped = "## Tester poll\nDid it work?\n- Yes\n- No\n\n## Tester note (fix)\n\nFixed.";
+    expect(testerNote(flipped)?.note).toBe("Fixed.");
+    expect(testerPoll(flipped)).toMatchObject({ options: ["Yes", "No"] });
+  });
+
+  it("takes any list mark, task boxes, a question over several lines, and blank lines between answers", () => {
+    expect(testerPoll(body("Which did you\nlike best?\n\n* Spell\n+ Mint\n\n1. The jackpot\n2) The bag\n- [ ] None\n- [x] All"))).toMatchObject({
+      question: "Which did you like best?",
+      options: ["Spell", "Mint", "The jackpot", "The bag", "None", "All"],
+    });
+  });
+
+  it("writes formatting as its words: a poll takes none", () => {
+    expect(testerPoll(body("Did **Roll again** and `Spell` [work](https://lexigotchi.fun/docs/rolls)?\n- **Yes**\n- `No`"))).toMatchObject({
+      question: "Did Roll again and Spell work?",
+      options: ["Yes", "No"],
+    });
+  });
+
+  it("stops the list at the first line that isn't an answer, and the section at the next heading", () => {
+    expect(testerPoll(body("Did it work?\n- Yes\n- No\nnotes for me\n- not an answer"))).toMatchObject({ options: ["Yes", "No"] });
+    expect(testerPoll("## Tester poll\nDid it work?\n- Yes\n- No\n\n## Test plan\n- [x] a\n- [ ] b")).toMatchObject({ options: ["Yes", "No"] });
+  });
+
+  it("is named, or takes several answers, when the heading says so", () => {
+    const poll = "Did it work?\n- Yes\n- No";
+    expect(testerPoll(body(poll, "## Tester poll (named)"))).toMatchObject({ named: true, multiple: false });
+    expect(testerPoll(body(poll, "### Tester poll: public"))).toMatchObject({ named: true });
+    expect(testerPoll(body(poll, "## Tester poll (multiple)"))).toMatchObject({ named: false, multiple: true });
+    expect(testerPoll(body(poll, "## Tester poll (named, multiple)"))).toMatchObject({ named: true, multiple: true });
+    expect(testerPoll(body(poll, "## Tester poll (anonymous)"))).toMatchObject({ named: false, multiple: false });
+  });
+
+  it("is null with no section, an empty one, or one that says none; “Tester polls” is not it", () => {
+    expect(testerPoll("## Summary\nStuff.\n\n## Tester note\nA note.")).toBeNull();
+    expect(testerPoll("## Tester poll\n\n## Test plan\n- x")).toBeNull();
+    expect(testerPoll("## Tester poll\nnone")).toBeNull();
+    expect(testerPoll("## Tester polls\nDid it work?\n- Yes\n- No")).toBeNull();
+    expect(testerPoll(null)).toBeNull();
+    // a poll in a comment is not a poll
+    expect(testerPoll("<!--\n## Tester poll\nDid it work?\n- Yes\n- No\n-->")).toBeNull();
+  });
+
+  it("says why, for a poll Telegram would refuse", () => {
+    const why = (poll: string) => {
+      const p = testerPoll(body(poll));
+      return p && !p.ok ? p.why : null;
+    };
+    expect(why("Only a question?")).toBe("it has 0 answers (write each as a list item; a poll needs at least 2)");
+    expect(why("Did it work?\n- Yes")).toBe("it has 1 answer (write each as a list item; a poll needs at least 2)");
+    expect(why("- Yes\n- No")).toBe("it has no question above its answers");
+    expect(why(`${"Did it work? ".repeat(30)}\n- Yes\n- No`)).toBe("its question is 389 characters (Telegram takes 300)");
+    expect(why(`Which?\n${Array.from({ length: 13 }, (_, i) => `- Answer ${i + 1}`).join("\n")}`)).toBe("it has 13 answers (Telegram takes 12)");
+    expect(why(`Which?\n- Yes\n- ${"long ".repeat(25)}`)).toMatch(/^the answer "long long long long long long …" is 124 characters \(Telegram takes 100\)$/);
+    expect(why("Which?\n- Yes\n- yes")).toBe("two of its answers are the same");
+    expect(why("Which?\n- Yes\n- \n- No")).toBe("one of its answers is empty");
+  });
+
+  it("takes a question and answers right at Telegram's limits", () => {
+    const q = "Q".repeat(299) + "?";
+    const twelve = Array.from({ length: 12 }, (_, i) => `${"a".repeat(98)}${String(i).padStart(2, "0")}`);
+    expect(testerPoll(body(`${q}\n${twelve.map((o) => `- ${o}`).join("\n")}`))).toMatchObject({ ok: true, question: q, options: twelve });
+  });
+});
+
+describe("the weekly poll", () => {
+  it("is one Telegram would take, and keeps the house copy rules", () => {
+    expect(pollProblem(PULSE_POLL.question, PULSE_POLL.options)).toBeNull();
+    const all = [PULSE_POLL.question, ...PULSE_POLL.options].join("\n");
+    expect(all).not.toMatch(/—/);
+    expect(all).not.toMatch(/[A-Za-z]'[A-Za-z]/);
+    expect(PULSE_POLL.options.length).toBeGreaterThanOrEqual(3);
   });
 });

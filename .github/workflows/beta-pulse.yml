@@ -1,0 +1,65 @@
+# The weekly poll in the beta testers' Telegram group: "How was Lexigotchi this week?", every
+# Friday at 16:00 UTC, sent as @lexigotchi_bot. The question and its answers are PULSE_POLL in
+# .github/scripts/tester-note.mjs: the same every week, so one week's answers compare with the
+# next's. Anonymous, so a tester can say it was frustrating. The results are in the group itself.
+#
+# To pause it: Actions → Beta pulse → "…" → Disable workflow. Nothing to redeploy.
+# Run it by hand (Run workflow) to see the poll it would send; tick "send" to send it now.
+# Secrets: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, the same two "Beta updates" uses.
+name: Beta pulse
+
+on:
+  schedule:
+    - cron: "0 16 * * 5"
+  workflow_dispatch:
+    inputs:
+      send:
+        description: "Send the poll to the group now (leave off to only show it)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      # Only the poll's text.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - uses: actions/github-script@v9
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # "true" only when a manual run ticked the box; empty on the schedule.
+          SEND: ${{ inputs.send }}
+        with:
+          script: |
+            const { PULSE_POLL, pollProblem } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/tester-note.mjs`);
+            const why = pollProblem(PULSE_POLL.question, PULSE_POLL.options);
+            if (why) return core.setFailed(`The weekly poll can't be sent: ${why}.`);
+            core.notice(`The poll: ${PULSE_POLL.question} / ${PULSE_POLL.options.join(" / ")}`);
+            if (context.eventName !== "schedule" && process.env.SEND !== "true") {
+              return core.notice("Shown only: nothing was sent. Tick “send” to send it.");
+            }
+
+            const token = process.env.TELEGRAM_BOT_TOKEN;
+            const chatId = process.env.TELEGRAM_CHAT_ID;
+            if (!token || !chatId) return core.notice("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set; nothing sent.");
+            const res = await fetch(`https://api.telegram.org/bot${token}/sendPoll`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                question: PULSE_POLL.question,
+                options: PULSE_POLL.options.map((text) => ({ text })),
+                is_anonymous: true,
+              }),
+            });
+            const data = await res.json();
+            // Telegram's own words, never the request: its address holds the bot's token.
+            if (!data.ok) return core.setFailed(`sendPoll: ${data.description}`);
+            core.notice("Sent.");
