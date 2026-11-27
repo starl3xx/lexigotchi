@@ -84,7 +84,8 @@ describe("a phone's back and the rows under it", () => {
     expect(css).toMatch(/@container \(min-width: 470px\) \{ \.sc-more \{ display: none; \} \}/);
     const rows = [...back.slice(back.indexOf("export function CardMore")).matchAll(/<Row label="([^"]+)"/g)].map((m) => m[1]);
     // "Set" is a row only for a word released in a reserved set, as on the wide back's bottom line.
-    expect(rows).toEqual(["Rarity", "Found by", "Set", "Earned so far", "Earns staked", "Cost to make", "Points", "Jackpot", "Token"]);
+    // "Set" and "Collab" show only for a word that has one (a released set; a collab set's partner and "1 of 5").
+    expect(rows).toEqual(["Rarity", "Found by", "Set", "Collab", "Earned so far", "Earns staked", "Cost to make", "Points", "Jackpot", "Token"]);
   });
   it("keeps every word on the back at 12 px or more, the small \"No.\" beside a thumbnail's digits too", () => {
     expect(css).toMatch(/\.cb-no small \{ font-size: max\(12px, 0\.34em\);/);

@@ -111,7 +111,7 @@ describe("the card's back: cream type always reads", () => {
       const B = collabBack({ a, b });
       for (const ground of [B.base, B.base2]) {
         expect(contrast(BACK_TEXT, ground), `text ${a} ${b}`).toBeGreaterThanOrEqual(7);
-        expect(contrast(B.line, ground), `line ${a} ${b}`).toBeGreaterThanOrEqual(SHOWS);
+        expect(contrast(B.line, ground), `line ${a} ${b}`).toBeGreaterThanOrEqual(READS); // it letters the rarity's name and "No."
       }
       expect(B.rack).toMatch(/^#[0-9a-f]{6}$/);
     }
