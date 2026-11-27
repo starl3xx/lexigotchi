@@ -45,6 +45,15 @@ export function buyOffer(a: {
 }
 
 /**
+ * Whether an offer shows as a BUTTON (Buy, or the way to a wallet) or as a line of words (why there
+ * is no Buy). An item's card is one big button that opens the item, and only a real button may sit
+ * above it: a line of words lifted above it would be dead to a tap (Bugbot on #316).
+ */
+export function offerIsButton(o: BuyOffer): o is Extract<BuyOffer, { kind: "buy" | "connect" }> {
+  return o.kind === "buy" || o.kind === "connect";
+}
+
+/**
  * The end of an item's sale, for its view to say: `until` for an item on sale now that has an end,
  * `from` for one whose sale hasn't started. Seconds, as the registry holds them. Null when there is
  * nothing to say: an item with no end says nothing (the owner can set one later with `updateItem`,

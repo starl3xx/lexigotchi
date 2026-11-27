@@ -3039,6 +3039,12 @@ setter. All small, riding existing suite patterns.
       review, before it shipped).
     - **A thing with no picture** (a costume with no art yet) opens in the usual dialog, one
       column: the wide dialog is for a picture.
+    - **Only a button sits above the card's open button** (`lib/shop/offer` `offerIsButton`,
+      Bugbot on #316). The card's foot is either a button (Buy, or the way to a wallet) or a line
+      of words that says why there is no Buy. I had lifted the whole foot above the card's own
+      button, so a tap on "Sold out" or "Not on sale yet" did nothing, on the very cards a
+      player is most likely to tap for more. Now only a button is lifted. Checked with a mouse
+      at each line's own place, in Chromium and WebKit, at 390 and 1,280 px.
     - **The view reads the Shop live, by id.** An item that has gone, or a Shop that couldn't
       say what its items are, says so; the view never falls back to a placeholder card, and the
       test network's placeholder opens nothing.

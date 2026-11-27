@@ -38,6 +38,7 @@ import { useShopView } from "../useShop";
 import { ShopBuy, itemWords } from "../shop/ShopBuy";
 import { SceneThumb } from "../../scenes/SceneFrame";
 import { shopEnabled } from "@/lib/shop/config";
+import { offerIsButton } from "@/lib/shop/offer";
 import { CaseThumb } from "../../cards/CardCase";
 import { NETWORK } from "@/lib/onchain/network";
 import {
@@ -148,9 +149,15 @@ export function ShopScreen() {
         {about.have && <div className="mt-1 text-xs font-bold text-teal-ink">{about.owned > 1 ? `You have ${about.owned}` : "You have it"}</div>}
         {/* the button sits at the foot of its card, so a row of cards lines its buttons up; a face
             the player has shows no button, and no empty foot either */}
+        {/* Only a BUTTON is lifted above the card's own open button. A line that says why there is no
+            Buy ("Sold out", "Not on sale yet", "Checking what you have…") stays under it, with the
+            gap above the foot: a tap there opens the item, like a tap anywhere else on the card.
+            Lifting the whole foot made those lines dead to a tap (Bugbot on #316). */}
         {about.offer.kind !== "have" && (
-          <div className="relative z-10 mt-auto pt-2">
-            <ShopBuy card={card} about={about} />
+          <div className="mt-auto pt-2">
+            <div className={offerIsButton(about.offer) ? "relative z-10" : undefined}>
+              <ShopBuy card={card} about={about} />
+            </div>
           </div>
         )}
       </li>

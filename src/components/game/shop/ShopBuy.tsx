@@ -13,6 +13,7 @@ import { CircleNotch } from "../ui/icons";
 import { useGame } from "../state";
 import { useShopBuy, type ItemAbout } from "../useShop";
 import { NETWORK } from "@/lib/onchain/network";
+import { offerIsButton } from "@/lib/shop/offer";
 import { usdcLabel, type Availability, type ItemKind, type ShopCard } from "@/lib/shop/rules";
 
 const STATUS: Record<Exclude<Availability, "on_sale">, string> = {
@@ -40,7 +41,9 @@ export function ShopBuy({ card, about, size = "sm" }: { card: ShopCard; about: I
   const testnet = NETWORK.isTestnet;
   const o = about.offer;
   if (o.kind === "have") return null;
-  if (o.kind === "wait" || o.kind === "off") {
+  // A line of words, or a button: the card asks the same question (offerIsButton) to know whether
+  // to lift this above its own open button.
+  if (!offerIsButton(o)) {
     return (
       <div className="text-center text-xs font-bold text-ink/55">
         {o.kind === "off" ? STATUS[o.status] : o.why === "checking" ? "Checking what you have…" : "Couldn’t check what you have. Leave the Shop and come back."}

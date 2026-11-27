@@ -9,7 +9,7 @@ import { decodeFunctionData, encodeAbiParameters, getAddress, keccak256, recover
 import { privateKeyToAccount } from "viem/accounts";
 import { availability, byCategory, cardFor, CATEGORY_NAME, categoryOf, edition, editionLine, fmtUsdc, isShopCategory, ITEM_KINDS, SHOP_CATEGORIES, shopCards, shopOn, TEST_USDC_FAUCET, usdcLabel, type RegistryItem } from "@/lib/shop/rules";
 import { approveCall, buyCall, buyRoute, buyWithPermitCall, isUnsupported, permitTypedDataJson } from "@/lib/shop/buy";
-import { buyOffer, saleWindow, type ItemSale } from "@/lib/shop/offer";
+import { buyOffer, offerIsButton, saleWindow, type ItemSale } from "@/lib/shop/offer";
 import { sceneSale } from "@/lib/shop/scenes";
 import { holderProfiles, sweepMinWordOut, MIN_SWEEP_USDC } from "@/lib/keeper/shop";
 import { shopTotals } from "@/lib/admin/shopStats";
@@ -201,6 +201,22 @@ describe("one Buy for every place that shows one", () => {
     // promise alone left every Buy disabled until a reload.
     expect(read("useShop.ts")).toMatch(/g\.busy\?\.label === SHOP_BUY_LABEL/);
     expect(read("ChainGameProvider.tsx")).toMatch(/track\(\s*SHOP_BUY_LABEL,/);
+  });
+  it("only a BUTTON sits above the card's own open button: a line that says why there is no Buy opens the item when tapped", () => {
+    // Bugbot on #316: the whole foot was lifted, so "Sold out" and "Not on sale yet" were dead to a tap
+    expect(offerIsButton({ kind: "buy", blocked: null })).toBe(true);
+    expect(offerIsButton({ kind: "buy", blocked: "short" })).toBe(true);
+    expect(offerIsButton({ kind: "connect" })).toBe(true);
+    expect(offerIsButton({ kind: "have" })).toBe(false);
+    expect(offerIsButton({ kind: "wait", why: "checking" })).toBe(false);
+    expect(offerIsButton({ kind: "wait", why: "unknown" })).toBe(false);
+    for (const status of ["not_yet", "ended", "sold_out", "inactive"] as const) expect(offerIsButton({ kind: "off", status })).toBe(false);
+    const screen = read("screens/ShopScreen.tsx");
+    // the one lifted box on a card is the button's, and it asks the rule
+    expect(screen.match(/z-10/g)).toHaveLength(1);
+    expect(screen).toMatch(/className=\{offerIsButton\(about\.offer\) \? "relative z-10" : undefined\}/);
+    // and ShopBuy draws a button for exactly those answers
+    expect(read("shop/ShopBuy.tsx")).toMatch(/if \(!offerIsButton\(o\)\) \{\s*return \(\s*<div/);
   });
   it("an item's view opens only a real item: never the test network's placeholder", () => {
     expect(read("sheets/ShopItemSheet.tsx")).toMatch(/c\.kind === "item" && c\.item\.id === id/);
