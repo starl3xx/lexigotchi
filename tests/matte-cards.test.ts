@@ -261,18 +261,19 @@ describe("the front's light is a ruled band (part 3: \"I love the ruled band, bu
   });
 });
 
-describe("the card's stock is a playing card's weave, on the diagonal, with no random grain (part 4: \"15A is good\")", () => {
+describe("the card's stock is a playing card's weave: a diagonal crosshatch you can see, with no random grain (part 4: \"15A is good\")", () => {
   const css = read("src/app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
   const rule = (sel: string) => new RegExp(`(?:^|\\n)${sel.replace(/[.]/g, "\\.")} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
   const picture = (r: string) => decodeURIComponent(/url\("data:image\/svg\+xml,([^"]+)"\)/.exec(r)?.[1] ?? "");
+  type Line = { d: string; ink: string; strength: number; weight: number };
+  const lines = (svg: string): Line[] => [...svg.matchAll(/<path d='([^']+)' stroke='(#[0-9a-f]+)' stroke-opacity='([.\d]+)' stroke-width='([.\d]+)'\/>/g)].map((m) => ({ d: m[1], ink: m[2], strength: Number(m[3]), weight: Number(m[4]) }));
+  /** Which way a set of lines runs: +1 when x and y rise together (down to the right), -1 when one falls as the other rises. */
+  const way = (d: string) => { const [, x0, y0, x1, y1] = /M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/.exec(d)!.map(Number); return Math.sign((x1 - x0) * (y1 - y0)); };
 
-  it.each([".cf-tex", ".cb-tex"])("%s: one small picture of two sets of diagonal hairlines, and nothing else", (sel) => {
+  it.each([".cf-tex", ".cb-tex"])("%s: one small picture, six pixels a repeat, and nothing else", (sel) => {
     const r = rule(sel);
     const svg = picture(r);
-    // the weave: three pixels a repeat, one set of lines each way
-    expect(svg).toContain("<pattern id='w' width='3' height='3' patternUnits='userSpaceOnUse'>");
-    expect(svg).toContain("d='M0 3L3 0M-.5 .5L.5 -.5M2.5 3.5L3.5 2.5'");
-    expect(svg).toContain("d='M0 0L3 3M-.5 2.5L.5 3.5M2.5 -.5L3.5 .5'");
+    expect(svg).toContain("<pattern id='w' width='6' height='6' patternUnits='userSpaceOnUse'>");
     expect(svg).toContain("<rect width='48' height='48' fill='url(#w)'/>");
     expect(r).toContain("background-size: 48px 48px");
     // no random grain (it was a noise filter), and no weave made of gradients (a slanted one breaks into dashes)
@@ -281,16 +282,36 @@ describe("the card's stock is a playing card's weave, on the diagonal, with no r
     expect(svg).not.toMatch(/<text|<image|<animate|href=/);
   });
 
-  it("the front's weave is in the paper's own brown, one set a little stronger than the other; the back's is a light set and a dark set", () => {
-    const front = picture(rule(".cf-tex"));
-    expect([...front.matchAll(/stroke='(#[0-9a-f]+)' stroke-opacity='([.\d]+)' stroke-width='([.\d]+)'/g)].map((m) => m.slice(1))).toEqual([["#5a4a3a", ".07", ".35"], ["#5a4a3a", ".042", ".35"]]);
-    const back = picture(rule(".cb-tex"));
-    expect([...back.matchAll(/stroke='(#[0-9a-f]+)' stroke-opacity='([.\d]+)' stroke-width='([.\d]+)'/g)].map((m) => m.slice(1))).toEqual([["#fff", ".07", ".35"], ["#000", ".1", ".35"]]);
-    expect(rule(".cb-tex")).toContain("opacity: 0.55");
+  it.each([".cf-tex", ".cb-tex"])("%s: a CROSSHATCH that shows on any tone: each direction is a dark line with a light line beside it", (sel) => {
+    const set = lines(picture(rule(sel)));
+    expect(set).toHaveLength(4);
+    const dark = sel === ".cf-tex" ? "#5a4a3a" : "#000";
+    // both directions, and in each a dark line and a light one: a dark line alone is lost on a dark face, a light one on paper
+    for (const dir of [-1, 1]) expect(set.filter((l) => way(l.d) === dir).map((l) => l.ink).sort()).toEqual([dark, "#fff"].sort());
+    // one direction a little weaker than the other, as in the drawing he chose
+    const strongest = (dir: number) => Math.max(...set.filter((l) => way(l.d) === dir).map((l) => l.strength));
+    expect(strongest(1)).toBeLessThan(strongest(-1));
+    expect(strongest(1)).toBeGreaterThan(strongest(-1) * 0.6);
   });
 
-  it("every card side carries it: the front, a thumbnail's front, a back, and the face-down card", () => {
-    expect(read("src/components/scenes/SceneFrame.tsx").match(/<div className="cf-tex" \/>/g)).toHaveLength(2);
+  it("it can be SEEN at real size: no hairline under two thirds of a pixel, none fainter than the first build's", () => {
+    // starl3xx, of the first build: "i can't see the weave on any cards". It drew the swatch he chose
+    // (which was enlarged three times) at its true size: lines 0.35 px wide, at 0.07 and 0.042.
+    for (const sel of [".cf-tex", ".cb-tex"]) {
+      const share = sel === ".cb-tex" ? Number(/opacity: ([\d.]+)/.exec(rule(sel))![1]) : 1;
+      for (const l of lines(picture(rule(sel)))) {
+        expect(l.weight, sel).toBeGreaterThanOrEqual(0.66);
+        expect(l.strength * share * l.weight, sel).toBeGreaterThan(0.07 * 0.35 * 1.2); // more ink on the screen than the strongest line that could not be seen
+      }
+    }
+    // and kept quiet: nothing over a fifth
+    for (const sel of [".cf-tex", ".cb-tex"]) for (const l of lines(picture(rule(sel)))) expect(l.strength).toBeLessThanOrEqual(0.2);
+  });
+
+  it("every card side carries it, under the letters: the front, a thumbnail's front, a back, and the face-down card", () => {
+    const frame = read("src/components/scenes/SceneFrame.tsx");
+    expect(frame.match(/<div className="cf-tex" \/>/g)).toHaveLength(2);
+    expect(frame.indexOf('<div className="cf-tex" />')).toBeLessThan(frame.indexOf("className={`cf-word "));
     expect(read("src/components/cards/CardBack.tsx")).toContain('<div className="cb-tex" />');
     expect(read("src/components/cards/FaceDownCard.tsx")).toContain('<div className="cb-tex" />');
   });

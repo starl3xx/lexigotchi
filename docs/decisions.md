@@ -3326,7 +3326,18 @@ setter. All small, riding existing suite patterns.
       his drawing was of the front's paper, so the back's inks are my translation.
       - Only the game draws stock: no picture and no video carried it before, and none does
         now, so `CARD_LOOK` stays.
-      - A page of cards is lighter for it: every front and back on screen ran a noise filter.
+    - **Part 4, amended the day it shipped: the weave must be seen.** The owner, an hour after
+      it merged: "i can't see the weave on any cards". He was right, and the fault was mine:
+      the swatch he chose was enlarged three times, and I built it at its true size, hairlines
+      a third of a pixel wide at 7%. Nobody could see it, and it showed LESS than the square
+      weave it replaced, which had visible light lines. So the weave is now a crosshatch six
+      pixels a repeat, with lines about two thirds of a pixel wide, and each direction is a
+      dark hairline with a light one beside it (a line pressed into paper has a shadow and a
+      lit edge), so both directions show on dark art and on pale paper. It has about the
+      presence the old square weave had. Its exact strength is my choice, picked from four
+      tried on real cards at pixel ratios 1, 1.5, 2, and 3; he has not seen it.
+      - **Kept as a rule:** when he approves something from an enlarged swatch, show it at
+        real size too before building, and compare the build with what it replaces.
     - **All four parts he chose are built** (the video, the backs, the front's light, the
       stock), with the emblem made standard on the way.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
