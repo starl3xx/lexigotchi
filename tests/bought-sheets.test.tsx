@@ -20,7 +20,7 @@ vi.mock("@/components/scenes/useWordScene", () => ({ useWordScene: () => ({ scen
 
 const { GameProvider, useGame, mineLower, mineUpper } = await import("@/components/game/state");
 const { CelebrateSheet, stakeStep } = await import("@/components/game/sheets/CelebrateSheet");
-const { BoughtLettersSheet, newlySpellable } = await import("@/components/game/sheets/BoughtLettersSheet");
+const { BoughtLettersSheet, newlySpellable, newlySpellableWith } = await import("@/components/game/sheets/BoughtLettersSheet");
 type GameApi = ReturnType<typeof useGame>;
 
 /** The two sheets, routed as GameApp routes them, and the store handed out for the test to drive. */
@@ -246,5 +246,52 @@ describe("newlySpellable", () => {
     const now = bag("geeseunbox");
     expect(newlySpellable(now, none, E, 2, 1, new Set()).map((s) => s.word)).toContain("GEESE");
     expect(newlySpellable(now, none, E, 2, 1, new Set()).map((s) => s.word)).not.toContain("UNBOX");
+  });
+
+  // A pack in the mail brings several letters at once (sheets/MailSheet, decisions.md #49).
+  describe("for several letters arriving together", () => {
+    const N = "N".charCodeAt(0) - 65;
+    const O = "O".charCodeAt(0) - 65;
+    const words = (list: { word: string }[]) => list.map((s) => s.word);
+
+    it("names a word that needed two of them, which neither letter alone would finish", () => {
+      // "ub" held; the pack brought n, o, and x.
+      const added = [
+        { letterId: N, count: 1, had: 0 },
+        { letterId: O, count: 1, had: 0 },
+        { letterId: X, count: 1, had: 0 },
+      ];
+      expect(words(newlySpellableWith(bag("unbox"), none, added, new Set()))).toEqual(["UNBOX"]);
+    });
+
+    it("agrees with the one-letter rule for one letter", () => {
+      const now = bag("geeseunbox");
+      expect(newlySpellableWith(now, none, [{ letterId: E, count: 2, had: 1 }], new Set())).toEqual(newlySpellable(now, none, E, 2, 1, new Set()));
+    });
+
+    it("leaves out a word the bag could already spell, and a word someone owns", () => {
+      const added = [
+        { letterId: E, count: 2, had: 1 },
+        { letterId: X, count: 1, had: 1 },
+      ];
+      const got = words(newlySpellableWith(bag("geeseunboxx"), none, added, new Set()));
+      expect(got).toContain("GEESE");
+      expect(got).not.toContain("UNBOX");
+      expect(words(newlySpellableWith(bag("geeseunboxx"), none, added, new Set(["GEESE"])))).not.toContain("GEESE");
+    });
+
+    it("names nothing until the bag shows every one of them", () => {
+      // The x has landed in the bag and the o hasn't: a bag that is behind the chain names nothing.
+      const added = [
+        { letterId: O, count: 1, had: 0 },
+        { letterId: X, count: 1, had: 0 },
+      ];
+      expect(newlySpellableWith(bag("unbx"), none, added, new Set())).toEqual([]);
+      expect(words(newlySpellableWith(bag("unbox"), none, added, new Set()))).toEqual(["UNBOX"]);
+    });
+
+    it("names nothing for no letters", () => {
+      expect(newlySpellableWith(bag("unbox"), none, [], new Set())).toEqual([]);
+    });
   });
 });

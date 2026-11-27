@@ -76,6 +76,20 @@ export function failedAsk(error: string | undefined): "open" | "lost" | "refused
  * again and leave the new, paid commit unopened. A revealed commit is never open again, so it is
  * always safe to skip (the roll flow keeps the same set, `revealedRolls`).
  */
+/**
+ * The open commits that are WAITING for the player (the card on Today and Mint counts them).
+ *
+ * While a piece of mail is on its way (`flight`: its wallet prompt is open, or its commit is sent
+ * and not opened yet), only commits that were already waiting BEFORE it began count, and never its
+ * own. The new commit can show in the list at any step, mined but not yet seen by its own flow,
+ * and the card's Open could then only say "Still working on" (Bugbot on #273). Once the piece
+ * settles there is no flight, and everything open counts: a pack that ended up waiting included.
+ */
+export function waitingCommits<T extends { commitId: bigint }>(open: readonly T[], flight: { known: ReadonlySet<string>; own: bigint | null } | null): T[] {
+  if (!flight) return [...open];
+  return open.filter((c) => flight.known.has(String(c.commitId)) && c.commitId !== flight.own);
+}
+
 export function openPacks<T extends { commitId: bigint }>(pending: readonly T[], revealed: ReadonlySet<string>): T[] {
   return pending.filter((c) => !revealed.has(String(c.commitId)));
 }

@@ -128,25 +128,20 @@ export function MintScreen() {
               g.openSheet({ kind: "balance", need: { amount: packPrice, action: "a pack" } });
               return;
             }
+            // The pack comes by mail (decisions.md #49): either store opens the mail sheet itself and
+            // fills it as the pack arrives. The practice store is done with its part at the tap.
             const result = g.buyPack();
-            if (Array.isArray(result)) {
-              if (result.length) g.openSheet({ kind: "pack", letters: result });
-              return;
-            }
-            // Chain store: one wallet prompt, then the server opens the pack (decisions.md #49) and
-            // the reveal opens the pack sheet itself. Hold the
-            // button the whole time so a second tap can't buy a second pack by accident; a pack that
-            // ends "stranded" is paid for and waits in PendingReveal above.
+            if (Array.isArray(result)) return;
+            // Chain store: one wallet prompt, then the server opens the pack. Hold the button the
+            // whole time so a second tap can't buy a second pack by accident. However it ends, the
+            // envelope says so (or a toast, if its sheet has gone); a pack that ends "stranded" is
+            // paid for and waits as mail in PendingReveal above.
             setBuying(true);
-            void result
-              .then((outcome) => {
-                if (outcome.status === "stranded") g.toast(outcome.note, "info");
-              })
-              .finally(() => setBuying(false));
+            void result.finally(() => setBuying(false));
           }}
         >
           <Package weight="fill" />
-          {soldOut ? "Sold out" : buying ? "Opening…" : g.canAfford(packPrice) ? "Rip a pack open" : "Get $WORD to rip a pack"}
+          {soldOut ? "Sold out" : buying ? "On its way…" : g.canAfford(packPrice) ? "Rip a pack open" : "Get $WORD to rip a pack"}
         </Button>
         {free?.dictionaryFull && (
           // About 95% of the words have owners (decisions.md #21): letters still sell, but a new word is

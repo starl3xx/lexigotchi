@@ -67,6 +67,7 @@ Page title and share description: "Lexigotchi: a word-pet game on Base. Collect 
 ## Docs and in-game
 - Docs welcome: "Lexigotchi is a word-pet game on Base. Collect living letters, raise them, and spell words nobody else can own." Then the four steps. Keep the testnet note.
 - Reminders: the pet voice, naming the letter or word: "your q is hungry", "FUNKY is peckish", "your free letter is here".
+- A pack comes **by mail** (decisions.md #49; the owner: "We should use 'Mail' instead of Post"): an envelope, a stamp, a postmark with its number, torn open by the player. Say mail, envelope, tear, "is waiting"; never post, parcel, delivery, or shipping. The envelope says "For @handle" (else "For you"), "from the Lexigotchi Mint", and "Contents: 5 letters". Its status line says only what is true at that moment ("Paid. It's in the mail.", "No. 4,512 is yours. Minting your letters…", "They're here. Tear along the top."). Letters from the Market never come by mail.
 - Empty states: an empty bag says "No letters yet. Your free pack is waiting." An empty word list says "No words yet. Five letters make one."
 - Card backs keep "1 of 1" and "One of 46 Mythic words".
 - Bot posts write like the game, not like a changelog: short, using the letter's case.
