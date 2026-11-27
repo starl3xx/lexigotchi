@@ -924,8 +924,11 @@ setter. All small, riding existing suite patterns.
 34. **A card is an object, and its scene is a still engraving** (starl3xx, 2026-11-25, on the
     "Cards, Scenes, and Logo" proposal, six versions: "this is ABSOLUTELY the right direction for
     the cards"; then "After these are fixed, you're free to start building"). The owner pointed at
-    Peter Voth's engraved cards and labels for the manner, and asked that the letters "retain their
-    current style but ... live on top of" such card scenes. Nothing of his is copied.
+    engraved cards and labels for the manner, and asked that the letters "retain their current
+    style but ... live on top of" such card scenes. **The style has a name, and no artist's name
+    is ever written** (starl3xx, 2026-11-26): "neo-Victorian engraving illustration or vintage
+    ornamental illustration". Not in the docs, the code, a comment, a test, a pull request, or a
+    page. Nothing of anyone's is copied.
     - **The card.** Its own paper, a shade lighter than the page, with a grain and a linen weave;
       the scene's art in a window; a frame in the rarity's ink (an edge rule, a chain of engraved
       links, the window's rule) with the rarity's mark in its four corners; and a ribbon set into
