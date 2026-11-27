@@ -9,12 +9,13 @@
  *   2. "Open Telegram" opens that link. It is its own tap because a browser only lets a page open
  *      another app or tab from the tap itself, and step 1 has to wait for the server.
  * In Telegram the player presses Start, and the bot links whoever does (lib/telegramLink). The card
- * then asks the server every few seconds until the link shows.
+ * then asks the server every few seconds until the link shows, and stops when the link has
+ * expired: "Link Telegram" comes back, for a fresh one.
  *
  * The card is rendered only where linking works (useProfile `telegramEnabled`).
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card } from "./primitives";
 import { useOpenUrl } from "./useShare";
 
@@ -25,6 +26,9 @@ const ERRORS: Record<string, string> = {
   rate_limited: "Too many tries at once. Try again in a minute.",
 };
 const FAILED = "Couldn’t do that. Try again.";
+const EXPIRED = "That link has expired. Tap Link Telegram for a new one.";
+/** How long a link is taken to work when the server didn't say (it says: lib/db/telegramLinks). */
+const LINK_LIFE_MS = 15 * 60_000;
 
 /** How often the card asks whether the link has arrived, while the player is over in Telegram. */
 const WAIT_POLL_MS = 3_000;
@@ -44,8 +48,18 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
   const openUrl = useOpenUrl();
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** The link to open, once the server has made one: the player is on their way to Telegram. */
-  const [link, setLink] = useState<string | null>(null);
+  /** The link to open, once the server has made one, and when it stops working: the player is on their way to Telegram. */
+  const [link, setLink] = useState<{ url: string; expiresAt: number } | null>(null);
+  // A link works for a quarter of an hour. Past that, the card stops asking and offers a fresh one.
+  useEffect(() => {
+    if (!link) return;
+    const left = link.expiresAt - Date.now();
+    const timer = setTimeout(() => {
+      setLink(null);
+      setNote(EXPIRED);
+    }, Math.max(0, left));
+    return () => clearTimeout(timer);
+  }, [link]);
   const key = ["telegramLink", p.address, p.sessionToken];
   const q = useQuery({
     queryKey: key,
@@ -63,13 +77,13 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
   const linked = q.data ?? null;
 
   /** One call to the profile's Telegram route, with the session (asking for the sign-in if there is none). */
-  const call = async (method: "POST" | "DELETE"): Promise<{ url?: string; error?: string; token?: string }> => {
+  const call = async (method: "POST" | "DELETE"): Promise<{ url?: string; expiresAt?: string; error?: string; token?: string }> => {
     const token = await p.ensureToken();
     if (!token) return { error: "no_session" };
     try {
       const r = await fetch("/api/profile/telegram", { method, headers: { [SESSION_HEADER]: token } });
-      const d = (await r.json().catch(() => null)) as { ok?: boolean; error?: string; url?: string } | null;
-      return d?.ok ? { url: d.url, token } : { error: d?.error ?? "failed" };
+      const d = (await r.json().catch(() => null)) as { ok?: boolean; error?: string; url?: string; expiresAt?: string } | null;
+      return d?.ok ? { url: d.url, expiresAt: d.expiresAt, token } : { error: d?.error ?? "failed" };
     } catch {
       return { error: "failed" };
     }
@@ -80,7 +94,8 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
     setBusy(true);
     const r = await call("POST");
     setBusy(false);
-    if (r.url) setLink(r.url);
+    const until = r.expiresAt ? Date.parse(r.expiresAt) : NaN;
+    if (r.url) setLink({ url: r.url, expiresAt: Number.isFinite(until) ? until : Date.now() + LINK_LIFE_MS });
     else setNote(ERRORS[r.error ?? ""] ?? FAILED);
   };
   const unlink = async () => {
@@ -111,7 +126,7 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
         <div className="mt-2 space-y-2">
           <p className="text-sm">Press Start in Telegram, then come back here.</p>
           {/* Its own tap: a browser opens another app or tab only from the tap itself. */}
-          <Button size="sm" onClick={() => void openUrl(link)}>
+          <Button size="sm" onClick={() => void openUrl(link.url)}>
             Open Telegram
           </Button>
           <p className="text-xs text-ink/55">The link works once, for 15 minutes.</p>

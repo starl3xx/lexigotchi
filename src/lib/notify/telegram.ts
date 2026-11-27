@@ -14,7 +14,11 @@
  *   in its refusal, and writing to them again would only fail again.
  * - **Production's own deployment only** (`telegramRemindersOn`), like the bot's other unasked
  *   posts (lib/telegram `mayPostUnasked`). `TELEGRAM_REMINDERS=off` mutes the channel.
- * - **It can't hurt its caller:** `tellByTelegram` never throws.
+ * - **It can't hurt its caller:** `tellByTelegram` never throws, and a pass STOPS at the first send
+ *   that fails any other way than Telegram's own refusal (a timeout, a server error). Each send
+ *   may wait ten seconds, and the callers are the keeper's jobs, which share one time limit: an
+ *   outage must cost one wait, not one per linked player. The players not reached keep their marks
+ *   unclaimed, so the next pass tells them.
  *
  * Sent as typed, with no parse mode, like everything the bot says.
  */
@@ -37,6 +41,8 @@ export interface TelegramResult {
   skipped: number;
   /** Not sent: Telegram refused or didn't answer. */
   failed: number;
+  /** Players never tried, because the pass stopped at a send Telegram didn't answer. */
+  dropped: number;
   /** People who blocked the bot or left Telegram, now unlinked. */
   gone: number;
 }
@@ -72,12 +78,14 @@ const REFUSED = /Bad Request|Forbidden|Unauthorized/i;
 
 /** The messages, over deps already chosen. Each player's failure is its own; never throws past `chats`. */
 export async function telegramNotes(notes: readonly TelegramNote[], deps: TelegramDeps): Promise<TelegramResult> {
-  const out: TelegramResult = { sent: 0, skipped: 0, failed: 0, gone: 0 };
+  const out: TelegramResult = { sent: 0, skipped: 0, failed: 0, dropped: 0, gone: 0 };
   if (notes.length === 0) return out;
   const chatOf = await deps.chats(notes.map((n) => n.account));
-  for (const n of notes) {
+  const linked = notes.flatMap((n) => {
     const chat = chatOf.get(n.account.toLowerCase());
-    if (chat === undefined) continue; // not linked: not this channel's player
+    return chat === undefined ? [] : [{ n, chat }]; // not linked: not this channel's player
+  });
+  for (const [i, { n, chat }] of linked.entries()) {
     if ((await deps.claim(n.account, n.mark)) !== "claimed") {
       out.skipped++;
       continue;
@@ -94,6 +102,12 @@ export async function telegramNotes(notes: readonly TelegramNote[], deps: Telegr
         await deps.forget(chat).catch(() => {});
       }
       if (REFUSED.test(why)) await deps.release(n.account, n.mark);
+      else {
+        // Telegram didn't answer. This player's mark stays (the message may have arrived), and
+        // nobody after them is tried this pass.
+        out.dropped = linked.length - i - 1;
+        break;
+      }
     }
   }
   return out;

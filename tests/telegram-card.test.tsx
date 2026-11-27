@@ -17,14 +17,17 @@ const A = "0x00000000000000000000000000000000000000aa";
 const LINK = "https://t.me/lexigotchi_bot?start=code-0123456789abcdef";
 let calls: { method: string; token?: string }[] = [];
 let linked: { name: string } | null = null;
+/** How long the server says a link works. */
+let linkLifeMs = 15 * 60_000;
 let answer: (method: string) => { json: unknown };
 
 beforeEach(() => {
   calls = [];
   linked = null;
+  linkLifeMs = 15 * 60_000;
   opened.urls = [];
   answer = (method) => {
-    if (method === "POST") return { json: { ok: true, url: LINK, expiresAt: "2026-11-27T10:15:00.000Z" } };
+    if (method === "POST") return { json: { ok: true, url: LINK, expiresAt: new Date(Date.now() + linkLifeMs).toISOString() } };
     if (method === "DELETE") {
       linked = null;
       return { json: { ok: true, linked: null } };
@@ -71,6 +74,20 @@ describe("Telegram reminders", () => {
     expect(screen.queryByRole("button", { name: "Open Telegram" })).toBeNull();
     expect(screen.getByRole("button", { name: "Unlink" })).toBeTruthy();
   }, 8000);
+
+  it("gives up on a link that has expired: Link Telegram comes back, for a fresh one", async () => {
+    linkLifeMs = 300;
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Link Telegram" }));
+    await screen.findByRole("button", { name: "Open Telegram" });
+    expect(await screen.findByText("That link has expired. Tap Link Telegram for a new one.", {}, { timeout: 3000 })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open Telegram" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Link Telegram" })).toBeTruthy();
+    // and it has stopped asking
+    const asked = calls.length;
+    await new Promise((r) => setTimeout(r, 3500));
+    expect(calls.length).toBe(asked);
+  }, 10000);
 
   it("shows a linked account by name and unlinks it", async () => {
     linked = { name: "ann_plays" };

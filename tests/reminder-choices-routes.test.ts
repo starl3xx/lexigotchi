@@ -92,12 +92,24 @@ describe("the daily-letter reminder obeys the choices", () => {
   const sub = (address: string, endpoint: string) => ({ address, fid: null, endpoint, p256dh: "k", auth: "a" });
   let neynarUp = true;
   let extraSubs: ReturnType<typeof sub>[] = [];
+  let telegramArmed = false;
   beforeEach(() => {
     neynarUp = true;
     extraSubs = [];
+    telegramArmed = false;
   });
   function mockCron(prefs: ReturnType<typeof prefsBookFrom>) {
-    const sent = { fids: [] as number[], browsers: [] as string[], emails: [] as string[] };
+    const sent = { fids: [] as number[], browsers: [] as string[], emails: [] as string[], telegram: [] as { account: string; mark: string }[] };
+    // Telegram: armed only in the tests that say so. A and B linked it.
+    vi.doMock("@/lib/notify/telegram", () => ({
+      telegramRemindersOn: () => telegramArmed,
+      tellByTelegram: async (kind: string, notes: { account: string; mark: string }[]) => {
+        if (kind !== "daily") throw new Error(`unexpected kind ${kind}`);
+        sent.telegram.push(...notes.map((n) => ({ account: n.account, mark: n.mark })));
+        return { sent: notes.length, skipped: 0, failed: 0, dropped: 0, gone: 0 };
+      },
+    }));
+    vi.doMock("@/lib/db/telegramLinks", () => ({ allTelegramLinks: async () => [{ account: A }, { account: B }] }));
     vi.stubEnv("CRON_SECRET", "s3cret");
     vi.doMock("@/lib/db/reminderPrefs", () => ({ loadPrefs: async () => prefs }));
     vi.doMock("@/lib/db/queries", () => ({ notifiableFids: async () => [77, 78] }));
@@ -142,6 +154,29 @@ describe("the daily-letter reminder obeys the choices", () => {
     expect(sent.fids.sort()).toEqual([77, 78]);
     expect(sent.browsers.sort()).toEqual(["https://push.example/a2", "https://push.example/b"]);
     expect(sent.emails.sort()).toEqual(["a@example.test", "b@example.test"]);
+  });
+
+  it("reminds the profiles that linked Telegram too, once a day, and nobody there while that channel is dark", async () => {
+    let sent = mockCron(prefsBookFrom([]));
+    await run();
+    expect(sent.telegram).toEqual([]);
+    vi.resetModules();
+    vi.doMock("@/lib/ratelimit", () => ({ allow: async () => true }));
+    telegramArmed = true;
+    sent = mockCron(prefsBookFrom([]));
+    const body = await (await run()).json();
+    // the chain day is the send-once mark, so a retried cron can't remind twice
+    expect(sent.telegram).toEqual([{ account: A, mark: "daily-500" }, { account: B, mark: "daily-500" }]);
+    expect(body.telegram).toMatchObject({ targets: 2, result: { sent: 2 } });
+    // the other channels are as they were
+    expect(sent.emails.sort()).toEqual(["a@example.test", "b@example.test"]);
+  });
+
+  it("leaves a player who turned the daily letter off out of the Telegram reminders too", async () => {
+    telegramArmed = true;
+    const sent = mockCron(prefsBookFrom([{ account: A, kinds: { daily: false } }]));
+    await run();
+    expect(sent.telegram).toEqual([{ account: B, mark: "daily-500" }]);
   });
 
   it("leaves out a player who turned it off, on every channel, whichever wallet each channel knows", async () => {

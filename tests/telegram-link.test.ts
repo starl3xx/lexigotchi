@@ -86,6 +86,8 @@ const dm = (text: string, more: Partial<TgMessage> = {}): TgMessage => ({
 });
 
 beforeEach(() => {
+  // every test starts from this file's settings: one test's "production" must not reach the next
+  vi.unstubAllEnvs();
   for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
   db.codes.clear();
   db.links.clear();
@@ -330,7 +332,7 @@ describe("a reminder as a Telegram message", () => {
   it("goes only to a linked player, with the mark claimed before the send", async () => {
     const { telegramNotes } = await import("@/lib/notify/telegram");
     const t = deps({ chats: { "0xa": 11 } });
-    expect(await telegramNotes(notes(["0xa", "0xb"]), t.d)).toEqual({ sent: 1, skipped: 0, failed: 0, gone: 0 });
+    expect(await telegramNotes(notes(["0xa", "0xb"]), t.d)).toEqual({ sent: 1, skipped: 0, failed: 0, dropped: 0, gone: 0 });
     expect(t.log).toEqual(["claim 0xa daily-20784: claimed", "send 11 Your free letter is ready"]);
     expect(t.reached).toEqual(["0xa"]);
   });
@@ -338,7 +340,7 @@ describe("a reminder as a Telegram message", () => {
   it("is sent once: a taken mark, or no mark to keep, sends nothing", async () => {
     const { telegramNotes } = await import("@/lib/notify/telegram");
     const t = deps({ chats: { "0xa": 11, "0xb": 22 }, claim: { "0xa": "taken", "0xb": "unavailable" } });
-    expect(await telegramNotes(notes(["0xa", "0xb"]), t.d)).toEqual({ sent: 0, skipped: 2, failed: 0, gone: 0 });
+    expect(await telegramNotes(notes(["0xa", "0xb"]), t.d)).toEqual({ sent: 0, skipped: 2, failed: 0, dropped: 0, gone: 0 });
     expect(t.log.filter((l) => l.startsWith("send"))).toEqual([]);
     expect(t.reached).toEqual([]);
   });
@@ -352,7 +354,7 @@ describe("a reminder as a Telegram message", () => {
         if (chat === 22) throw new Error("sendMessage: Bad Request: message is too long");
       },
     });
-    expect(await telegramNotes(notes(["0xa", "0xb", "0xc"]), t.d)).toEqual({ sent: 1, skipped: 0, failed: 2, gone: 1 });
+    expect(await telegramNotes(notes(["0xa", "0xb", "0xc"]), t.d)).toEqual({ sent: 1, skipped: 0, failed: 2, dropped: 0, gone: 1 });
     expect(t.log).toEqual([
       "claim 0xa daily-20784: claimed",
       "send 11 Your free letter is ready",
@@ -371,8 +373,17 @@ describe("a reminder as a Telegram message", () => {
   it("keeps the mark after a timeout: the message may have arrived, so it isn't sent again", async () => {
     const { telegramNotes } = await import("@/lib/notify/telegram");
     const t = deps({ chats: { "0xa": 11 }, send: () => { throw new Error("The operation was aborted due to timeout"); } });
-    expect(await telegramNotes(notes(["0xa"]), t.d)).toEqual({ sent: 0, skipped: 0, failed: 1, gone: 0 });
+    expect(await telegramNotes(notes(["0xa"]), t.d)).toEqual({ sent: 0, skipped: 0, failed: 1, dropped: 0, gone: 0 });
     expect(t.log.filter((l) => l.startsWith("release") || l.startsWith("forget"))).toEqual([]);
+  });
+
+  it("stops the pass when Telegram doesn't answer: an outage costs one wait, not one per player", async () => {
+    const { telegramNotes } = await import("@/lib/notify/telegram");
+    // 0xa is sent; Telegram then stops answering at 0xb; 0xc and 0xd are never tried, nor claimed
+    const t = deps({ chats: { "0xa": 11, "0xb": 22, "0xc": 33, "0xd": 44 }, send: (chat) => { if (chat !== 11) throw new Error("sendMessage: 502"); } });
+    expect(await telegramNotes(notes(["0xa", "0xb", "0xnot-linked", "0xc", "0xd"]), t.d)).toEqual({ sent: 1, skipped: 0, failed: 1, dropped: 2, gone: 0 });
+    expect(t.log).toEqual(["claim 0xa daily-20784: claimed", "send 11 Your free letter is ready", "claim 0xb daily-20784: claimed", "send 22 Your free letter is ready"]);
+    expect(t.reached).toEqual(["0xa"]);
   });
 
   it("does nothing where the channel is dark, without reading who is linked", async () => {
@@ -384,6 +395,25 @@ describe("a reminder as a Telegram message", () => {
     expect(await tellByTelegram("daily", notes([ACCOUNT]))).toBeNull();
     vi.stubEnv("TELEGRAM_REMINDERS", "");
     expect(await tellByTelegram("daily", [])).toBeNull();
+  });
+});
+
+describe("the console's switches", () => {
+  it("list Telegram reminders with what they still need, and never a setting's value", async () => {
+    const { featureSwitches, telegramRemindersSwitch } = await import("@/lib/admin/switches");
+    // here: not production
+    expect(telegramRemindersSwitch()).toMatchObject({ key: "telegramReminders", on: false, missing: ["the production deployment"] });
+    vi.stubEnv("NODE_ENV", "production");
+    expect(telegramRemindersSwitch()).toMatchObject({ on: true, missing: [] });
+    vi.stubEnv("TELEGRAM_REMINDERS", "off");
+    expect(telegramRemindersSwitch()).toMatchObject({ on: false, missing: ["TELEGRAM_REMINDERS not set to off"] });
+    vi.stubEnv("TELEGRAM_REMINDERS", "");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(telegramRemindersSwitch().on).toBe(false);
+    vi.stubEnv("VERCEL_ENV", "");
+    const all = featureSwitches();
+    expect(all.map((s) => s.key)).toContain("telegramReminders");
+    expect(JSON.stringify(all)).not.toContain("123:test");
   });
 });
 

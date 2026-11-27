@@ -217,7 +217,11 @@ export async function GET(req: Request) {
         const uniqueKeys = [...new Set(linkedKeys.flat())];
         const used = await readDailyUsed(uniqueKeys);
         const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
-        const due = linked.filter((account, i) => !isFinished([account], linkedKeys[i]) && isDailyDue(Math.max(0, ...linkedKeys[i].map((k) => usedByKey.get(k) ?? 0)), day));
+        // A player with no slot to pull on is never "due": with no keys, "never pulled" would be
+        // a guess (the browser pass leaves them out the same way).
+        const due = linked.filter(
+          (account, i) => linkedKeys[i].length > 0 && !isFinished([account], linkedKeys[i]) && isDailyDue(Math.max(0, ...linkedKeys[i].map((k) => usedByKey.get(k) ?? 0)), day),
+        );
         telegramTargets = due.length;
         telegramResult = await tellByTelegram("daily", due.map((account) => ({ account, note: dailyReady(day), mark: `daily-${day}` })));
       } catch (err) {
