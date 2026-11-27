@@ -7,6 +7,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { HOW_IT_WORKS, type HowItWorksStep } from "@/lib/howItWorks";
 import { Button } from "./primitives";
+import { Lockup } from "../brand/Lockup";
 import { TileCharacter, TileWord } from "./TileCharacter";
 import { Confetti, Cookie, Sparkle, Trophy } from "./ui/icons";
 
@@ -69,7 +70,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       />
 
       <div className="relative flex items-center justify-between px-4 pt-5">
-        <span className="font-display text-lg font-extrabold tracking-tight">LEXIGOTCHI</span>
+        <Lockup alive height={32} />
         {!last && (
           <button onClick={onDone} className="round-btn rounded-lg px-2 py-1 text-sm font-bold text-ink/45 hover:text-ink">
             Skip

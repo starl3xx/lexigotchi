@@ -488,6 +488,13 @@ body {
 }
 .scene-fog.is-peckish { opacity: 0.5; }
 .scene-fog.is-hungry { opacity: 1; }
+/* On a dark face (lib/cardArt/scenes, DARK_SCENES: the dark stock face, Outer Space) the fog is
+   thinner (decisions.md #57; starl3xx, 2026-11-27). The fog is pale, so at full strength it turns a
+   dark plate white: the face stops being a dark face at all, and the word goes with it. Only the
+   fog's strength changes, so nothing is redrawn. The grey tone, the sleeping letters, and the three
+   status marks still say hungry. */
+.cf-dark .scene-fog.is-peckish { opacity: 0.2; }
+.cf-dark .scene-fog.is-hungry { opacity: 0.42; }
 .scene-fog-haze {
   position: absolute;
   inset: 0;
@@ -1323,4 +1330,24 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mk-tag { transition: none; }
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The lockup (components/brand/Lockup, lib/cardArt/logo `lockup`; decisions.md #56): the tile that
+   is the name's L, then EXIGOTCHI. Where it is drawn live its eyes blink and glance, as a letter's
+   do. Both are MOMENTS: the component sets a class for a moment and takes it off, so nothing runs
+   between (never an animation that loops inside the drawing: WebKit would redraw the header on
+   every frame, on every screen).
+   - A blink is a swap of two drawings, the eye open and the eye shut, as a letter's blink is.
+     Nothing is drawn between them and nothing changes size.
+   - A glance slides the two pupils to one side and back.
+   --------------------------------------------------------------------------------------------- */
+.lk { display: block; flex: none; overflow: visible; }
+.lk .lk-shut { visibility: hidden; }
+.lk.is-blink .lk-shut { visibility: visible; }
+.lk.is-blink .lk-open { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .lk .lk-pupil { transition: transform 170ms var(--ease-out); }
+  .lk.is-left .lk-pupil { transform: translate(-11px, 1px); }
+  .lk.is-right .lk-pupil { transform: translate(10px, -1px); }
 }

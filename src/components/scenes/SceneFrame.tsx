@@ -32,7 +32,7 @@ import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, type CardLook } from "@/lib/cardArt/looks";
 import { collabCardLook, type CollabLook } from "@/lib/collabLook";
 import { tileTierOf, useCollabLook } from "../game/collabLooksContext";
-import { DARK_SCENES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -58,9 +58,9 @@ const lookKey = (look: CollabLook | undefined) => (look ? `${look.a}${look.b}` :
 /** A collab word's card look in place of its rarity's, or undefined for any other word. */
 const cardLookOf = (look: CollabLook | undefined): (CardLook & { tint2?: string }) | undefined => (look ? collabCardLook(look) : undefined);
 
-/** A scene's art as a CSS image. Only the stock card's art takes the rarity, or a collab word's two colors. */
+/** A face's art as a CSS image, kept per rarity (and per collab look) for the faces that are printed in it (RARITY_FACES). */
 export function sceneArtImage(scene: SceneId, tier: Tier, look?: CollabLook): string {
-  return picture(`art-${scene}-${scene === "stock" ? tier + lookKey(look) : ""}`, () => cardArt(scene, tier, cardLookOf(look)));
+  return picture(`art-${scene}-${RARITY_FACES.has(scene) ? tier + lookKey(look) : ""}`, () => cardArt(scene, tier, cardLookOf(look)));
 }
 /** The frame for a rarity as a CSS image: in a collab word's own ink when it has a look. */
 export function cardFrameImage(tier: Tier, look?: CollabLook): string {

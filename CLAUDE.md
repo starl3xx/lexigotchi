@@ -681,7 +681,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   wears. The FACE (a "card face" where the sentence needs it) is the picture on the front, behind
   the word: the thing a player picks, unlocks, or buys. The BACK is the back. Every surface a player
   reads says so, and `tests/copy-rules.test.ts` fails on "scene" in the app and the player docs.
-  The first face is "Stock" in the picker and "the stock face" in a sentence. **The code still
+  The two stock faces are "Stock (light)" and "Stock (dark)" in the picker (the owner's names,
+  2026-11-27), and a sentence a player reads names them the same way ("its new owner gets it on
+  Stock (light)"). **The code still
   says "scene" for a face** (`SceneId`, `lib/scenes.ts`, `SceneFrame`, `useWordScene`, the `scene`
   sheet, and these notes below), and so does everything stored or posted, which can never change:
   `?scene=` in share links, kind `scene` in `shop_items` and `word_picks`, `/api/scenes`, the
@@ -699,7 +701,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   on a `small` card). **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the card's serif
   (`--font-card`: **Source Serif 4, shipped**, the same face for every player and on the server's pictures: decisions.md #52; `public/fonts/sourceserif4-*`, two variable web files for the game and one plain bold file for the picture routes, named once in `app/_og/wordCard.tsx` as `CARD_SERIF` / `CARD_SERIF_FILE`; `tests/card-serif.test.ts`) letters what a card says
   ABOUT a word, never the word. **Scenes:** every word starts on the stock card (`DEFAULT_SCENE`:
-  grey, the rarity as an overtone); the Stage is free too (`FREE_SCENES`); the Trophy Case and Spring
+  grey, the rarity as an overtone); the dark stock face and the Stage are free too (`FREE_SCENES`).
+  **The dark stock face** (decisions.md #57; id `darkstock`, never to change: links and saved picks
+  carry it) is the light stock's own engraving (`stockPlan`, shared, so the two can't drift) on the
+  pewter plate (`PEWTER` in `lib/cardArt/scenes.ts`). The owner chose pewter after calling the first,
+  near-black plate "way too dark": **when drawing something dark for him, start lighter than seems
+  right.** **A dark face needs two things** (`DARK_SCENES`: the dark stock face and Outer Space):
+  (1) light where the word stands, on the wall behind it and the floor under it, because a letter's
+  arms, legs, and shoes are dark ink and vanish on a dark plate; (2) thinner fog for a hungry word
+  (globals.css, `.cf-dark .scene-fog`: 0.42 hungry, 0.2 peckish), because the fog is pale and at full
+  strength it turns the plate white. A new dark face joins `DARK_SCENES` and is looked at hungry.
+  The other faces: the Trophy Case and Spring
   open at `SCENE_UNLOCK_WORDS` = 3 words ever held (`state.wordsEverHeld`, so it stays open after a
   dissolve). Picture Day, Summer, Fall, and Winter are retired: a pick or link that names one reads
   as the stock card. **A scene is a still picture and never moves** (starl3xx: "the only animation
@@ -1005,11 +1017,28 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
   its start block, and times each claim's block exactly). A heading is bold by an entity
   (`SendOptions.bold`), never a parse mode, over a line of hyphens measured as the update posts' are.
+- **The lockup** (decisions.md #56; `lib/cardArt/logo` `lockup`, `components/brand/Lockup.tsx`): A's
+  tile standing where the name's L would, then EXIGOTCHI, as outlines (no font). **No seal in a
+  lockup** (starl3xx, 2026-11-27). It is ALIVE where it is drawn live (the rail, the phone header,
+  the intro, pre-launch, the landing header; the landing footer is still, and so is the game's own
+  while the intro is up: one living mark at a time): the eyes blink and glance in MOMENTS from one timer (a class on the drawing for a moment,
+  `.lk` in globals.css), never a loop inside the drawing, and never for a lockup nobody sees, under
+  reduced motion, or on a low-power device. A blink is the letters' own swap of two drawings.
+  **Each drawing on a page has its own ids** (`prefix`): the rail's and the header's are both in the
+  page, and a gradient named twice can resolve to the hidden one and paint nothing. **The phone
+  header's lockup gives way** (down to 91 px wide, the old plain name's width): at full size it
+  pushed the profile button off a 390 px screen, so check the header at 320 to 424 px after
+  touching it, in the practice game (its header is the fullest). **The eyes never invert** (the same
+  day): on any ground an eye is a light eyeball with a dark pupil, so one ink has a drawing for a
+  light ground and one for a dark ground, and what is clear is CUT OUT with a mask, never painted
+  in a ground's colour. Where a mark must be square, use A. `tests/lockup.test.tsx` holds it. Not
+  built yet (the owner's word first): the lockup in the share pictures, the video's corner, the
+  docs' logo, and email.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
   `seal.ts`. **`npm run brand:art`** (`scripts/brand-art.tsx`) makes `public/icon*.png`,
-  `docs-site/favicon.png`, and the exports in `docs/brand/` from it. Never edit those files by hand:
+  `docs-site/favicon.png`, and the exports in `docs/brand/` (the lockup's too) from it. Never edit those files by hand:
   change the source and run the script (`tests/logo.test.ts` fails when they differ, and holds the
   grain mask in `docs/icon/make_grain.py` to the logo's measures). The letter is Söhne Fett's "L" as
   an outline, so no font is needed.

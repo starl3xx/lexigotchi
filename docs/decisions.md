@@ -2967,6 +2967,98 @@ setter. All small, riding existing suite patterns.
       balance row, and "You have it" with no Buy. Not seen: a purchase made from the new screen,
       the two links from the picker and the Case button, a real phone.
 
+56. **The lockup: the tile is the name's L, and its eyes are alive** (starl3xx, 2026-11-27: "we
+    have the 2 square logos (the "plain" one and the seal) but we don't have a horizontal lockup
+    with the LEXIGOTCHI wordmark... i feel like that's a major oversight"; then, of the candidates
+    on the design audit page, "9E is amazing" and "let's not use the seal in the lockup").
+    - **What it is.** Logo A's tile standing where the name's first letter would, then EXIGOTCHI:
+      one word. A separate mark beside the full name read as two things. The name's letters are
+      outlines of Söhne Fett, the face of the L inside the tile, so the lockup needs no font. One
+      source draws it (`lockup()` in `src/lib/cardArt/logo.ts`, beside `logoA` and `logoB`); the
+      measures are the approved drawing's (the capitals 100, the tile 172 and centred on them, 15
+      between, the name set tight), and the built drawing matches it to within the rounding of a
+      line's edge.
+    - **No seal in a lockup.** B stays what it was: pressed into a card's back, and round marks.
+    - **Alive where it is drawn live** (`src/components/brand/Lockup.tsx`): the eyes blink and
+      glance, as a letter's do. A blink is the letters' own (the eye keeps its shape and its lashes
+      come down: a swap of two drawings), not the squash the audit page showed: the mark is a
+      letter, and it stands beside letters that blink this way. Both are MOMENTS set off by one
+      timer, never a loop inside the drawing. A lockup nobody sees does nothing (a hidden tab, the
+      copy this width hides), and reduced motion and a low-power device get a still one. Measured
+      in WebKit on a still screen: about one point of a core (0.6 to 0.8% without it, 1.4 to 2.7%
+      with it).
+    - **Where.** The game's rail and its phone header, the intro, the pre-launch screen, and the
+      landing page's header, alive; the landing page's footer, still (one living mark on a page that
+      shows two). While the intro is up, the game's own lockup behind it is still.
+      They set the name in plain type before, or (the landing page) a tile with no eyes beside
+      live type in the heavier Extrafett; the name is Fett now, as the L in the mark is.
+    - **The phone header's lockup gives way.** At its full 28 px it is 132 px wide, 41 more than
+      the plain name was, and it pushed the profile button off a 390 px screen. It shrinks to no
+      less than the old name's 91 px when the row is tight, so the header fits exactly as it did.
+    - **The eyes never invert** (the same day, of a one-ink drawing set light on dark: "any time
+      the colors are inverted like this, the colors of the eyes need to be inverted"). On any
+      ground an eye is a light eyeball with a dark pupil. So one ink has two drawings, one for a
+      light ground and one for a dark one, and what is clear in them is cut out, never painted in
+      a ground's colour (as in the seal).
+    - **The files** (`docs/brand`, by `npm run brand:art`): the lockup on a light ground, on a
+      dark one, and in one ink for each, and the name alone; each as a drawing and as pictures 512
+      and 128 px tall. `tests/lockup.test.tsx` holds the drawing, the eye rule, the moments, and
+      the six places.
+    - **Not built, and his to decide:** the lockup in the pictures that name the game (a saved
+      card's corner, the earnings picture, the game's link picture), the share video's corner
+      (alive there only on a written score, as the letters are), the docs' logo, and the emails
+      (which carry no picture today, by rule). The seal's own one-ink file is still the dark-ground
+      drawing only.
+
+57. **The dark stock face: Stock (dark), on a pewter plate, free for everyone** (starl3xx,
+    2026-11-27: "a new dark version of the stock face... give me an artifact w/a proposal").
+    - **How it was chosen.** The proposal showed three plates. Of plate A, graphite: "I like A
+      for the dark stock, but it's way too dark" (it was close to black). A second round showed
+      A in three lighter steps, and of the lightest: "i actually really like pewter". Then, asked:
+      everyone gets it, and the fog is thinner on every dark face. Its name is his: "Maybe it
+      should be Stock (light) and Stock (dark)". The two are named so in the picker, and a sentence
+      a player reads uses the same names ("its new owner gets it on Stock (light)").
+    - **What it is.** The light stock's own engraving (the sunburst, the woven medallion, the
+      tiled floor) on a pewter plate in pale line. `stockPlan` in `lib/cardArt/scenes.ts` is the
+      one drawing both faces share, so they can't drift apart. The rarity is an overtone and
+      never the plate: a glow of its tint behind the word, and its tint on the medallion's beads
+      and on the line where the wall meets the floor. Grey first, as he asked of the light stock.
+    - **No picture that existed changed.** Every other face's drawing, in every rarity, and the
+      frame, are the same to the last character (35 fingerprints taken before and after). So
+      `CARD_LOOK` stays.
+    - **Its id is `darkstock`, for good.** Share links (`?scene=darkstock`) and saved picks carry
+      it. The name a player reads can change; the id can't.
+    - **The word stands in light.** A letter's arms, legs, and shoes are dark ink. On the first,
+      near-black plate they vanished and the tiles seemed to float. So the plate is lit where the
+      word stands: on the wall behind it and on the floor under it. Pewter needs less of that
+      than the darker plates did, and it has less shadow in its corners and a stronger line.
+    - **Thinner fog on dark faces** (`.cf-dark .scene-fog`: 0.42 for a hungry word, 0.2 for a
+      peckish one; 1 and 0.5 elsewhere). The fog is pale, so at full strength it turns a dark
+      plate white. It applies to Outer Space too, which was checked first: a hungry word there
+      went white the same way.
+    - **What the owner did not see when he chose the fog, said to him after:** on the LIGHT
+      stock a hungry word is hidden by the fog about as much as it was on pewter. The fog is
+      meant to be thick (he asked for "much more foggy", 2026-11-24). What differs on a dark
+      face is that the plate itself turns white. With the thinner fog, a hungry word on a dark
+      face reads more easily than one on a light face. The grey tone, the sleeping letters, and
+      the status marks still say hungry. The other way to keep the plate dark is a darker fog
+      of full thickness; it was offered and not built.
+    - **Seen and not seen.** The built face drawn by the real picture route in all five
+      rarities: the same picture, byte for byte, as the proposal's pewter. In the practice game
+      in Chromium at 1,280 px and 390 px: the picker's two stock tiles, the Bag, Today, and a
+      hungry and a peckish word on the dark stock face and on Outer Space, with the fog as it
+      was and thinned. Not seen: the card's moving light over pewter in WebKit, the share video
+      with this face, a real phone.
+    - **Bugbot on #303, a real bug:** the game keeps each face's picture, and the cache named
+      only the light stock by rarity. Every dark stock card on a page took the colour of the
+      first rarity drawn (in my own Bag pictures a Common word wore a Legendary word's gold,
+      and I read it as the plate). `RARITY_FACES` now says which faces take the rarity; the
+      cache reads it, and a test holds the list to the drawings and the cache to the list.
+      The server's pictures were never wrong: they are drawn for each request.
+    - **Set aside:** the rarity's own plate and black and gold, from the first round. Either
+      could be a Shop face later. The proposal's drawings are on a local branch that is never
+      pushed.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

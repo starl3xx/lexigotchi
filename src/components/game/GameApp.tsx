@@ -22,6 +22,7 @@ import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer, postFarcasterWalletsSync } from "./campaignClient";
 import { forgetVerifiedWallets } from "./useVerifiedWallet";
 import { SHEET_EXIT_MS, SheetClosing, Toaster, TweenNumber } from "./primitives";
+import { Lockup } from "../brand/Lockup";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
 import { ChainGameProvider } from "./ChainGameProvider";
@@ -172,14 +173,14 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
       {/* The outer box is the overlay host: fixed to the viewport, so the sheets, onboarding and
           toasts below (absolute inset-0) cover the whole window on desktop, rail included. */}
       <div className="fixed inset-0 z-50 flex bg-paper">
-        <SideRail />
+        <SideRail still={!onboarded} />
         <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
           {/* faint aged-paper grain */}
           <div
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{ backgroundImage: "radial-gradient(#e7d7b0 0.5px, transparent 0.5px)", backgroundSize: "14px 14px" }}
           />
-          <TopBar />
+          <TopBar still={!onboarded} />
           <main ref={mainRef} className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3 md:px-8 md:pb-12 md:pt-6">
             {/* Phones: the full width (as before). Desktop: a readable column the screens fill
                 with their own grids. Tablets in portrait get a centered phone-width column. */}
@@ -378,7 +379,8 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
 // Top bar — brand + balance + streak + day control
 // ---------------------------------------------------------------------------
 
-function TopBar() {
+/** `still`: the intro is up, and its own lockup is the living one (one living mark at a time). */
+function TopBar({ still }: { still: boolean }) {
   const { state, skipDay, openSheet } = useGame();
   const helpBtn = (
     <button
@@ -394,7 +396,14 @@ function TopBar() {
   return (
     <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5 md:px-8 md:py-3">
       <div className="flex items-center gap-1.5">
-        <span className="font-display text-base font-extrabold tracking-tight md:hidden">LEXIGOTCHI</span>
+        {/* The lockup (components/brand/Lockup): on a phone the header has it, on a wide screen the rail
+            does. It is 132 px wide at its full size, 41 more than the plain name was, and the row is
+            tight on a phone: so it GIVES WAY, down to the old name's 91 px, before anything is pushed
+            off the screen (at full size the profile button left a 390 px screen). Only the lockup
+            gives way: letting this whole group shrink slid the chip beside it under the balance. */}
+        <span className="min-w-[91px] shrink md:hidden">
+          <Lockup alive={!still} height={28} className="h-auto w-full" />
+        </span>
         {/* Desktop: the rail shows the brand, so the header names the page instead. */}
         <h1 className="hidden font-display text-xl font-extrabold tracking-tight md:block">{VIEW_TITLE[state.view]}</h1>
         {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
@@ -546,7 +555,7 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
   },
 ];
 
-function SideRail() {
+function SideRail({ still }: { still: boolean }) {
   const { state, nav, openSheet } = useGame();
   const openUrl = useOpenUrl();
   const item = (view: View, label: string, Icon: typeof House) => {
@@ -568,8 +577,8 @@ function SideRail() {
   return (
     <aside className="relative z-10 hidden h-full w-56 shrink-0 flex-col border-r-[3px] border-ink bg-paper-dark/70 md:flex lg:w-60">
       {/* the brand goes home to the landing page */}
-      <a href="/" className="flex items-center gap-2 px-5 pb-4 pt-4 font-display text-lg font-extrabold tracking-tight">
-        LEXIGOTCHI
+      <a href="/" className="flex items-center px-5 pb-3 pt-3">
+        <Lockup alive={!still} height={34} />
       </a>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Game">
         {RAIL.map((group) => (
