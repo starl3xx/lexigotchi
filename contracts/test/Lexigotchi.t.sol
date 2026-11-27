@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -939,6 +939,65 @@ contract LexigotchiTest is Test {
     }
 
     /// The claim signer: set at deploy, changed only by the owner, never to nobody.
+    /// The owner's metadata refresh (ERC-4906; decisions.md "Collab sets"): an event per word
+    /// named, in order, and nothing else. It changes no state, moves no token, and is the
+    /// owner's alone.
+    function test_MetadataRefresh_emitsForEachWordAndChangesNothing() public {
+        vm.warp(1755000000);
+        uint256 crane = _claimLower(alice, 0);
+        uint256 motel = _tokenId("MOTEL"); // nobody holds it: naming it is harmless
+        uint256[] memory ids = new uint256[](3);
+        ids[0] = motel;
+        ids[1] = crane;
+        ids[2] = crane; // named twice: two events, as asked
+
+        vm.recordLogs();
+        words.refreshMetadata(ids);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 3, "one event per id, and no other event");
+        for (uint256 i = 0; i < logs.length; i++) {
+            assertEq(logs[i].emitter, address(words));
+            assertEq(logs[i].topics.length, 1);
+            assertEq(logs[i].topics[0], keccak256("MetadataUpdate(uint256)"));
+            assertEq(abi.decode(logs[i].data, (uint256)), ids[i]);
+        }
+
+        // Nothing moved: the holder, the unheld word, the gate, and the root are as they were.
+        assertEq(words.ownerOf(crane), alice);
+        assertFalse(words.exists(motel));
+        assertEq(words.gatedUntil(motel), 0);
+        assertEq(words.balanceOf(alice), 1);
+
+        // An empty list is no event and no revert.
+        vm.recordLogs();
+        words.refreshMetadata(new uint256[](0));
+        assertEq(vm.getRecordedLogs().length, 0);
+
+        // The owner's alone: a holder can't send it, even for their own word.
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.refreshMetadata(_ids(crane));
+    }
+
+    function test_MetadataRefresh_allWordsAtOnce() public {
+        vm.recordLogs();
+        words.refreshAllMetadata();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].emitter, address(words));
+        assertEq(logs[0].topics[0], keccak256("BatchMetadataUpdate(uint256,uint256)"));
+        (uint256 from, uint256 to) = abi.decode(logs[0].data, (uint256, uint256));
+        assertEq(from, 0);
+        assertEq(to, type(uint256).max);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.refreshAllMetadata();
+
+        // ERC-4906 is still what the contract says it speaks.
+        assertTrue(words.supportsInterface(bytes4(0x49064906)));
+    }
+
     function test_Gate_claimSigner() public {
         vm.warp(1755000000);
         assertEq(words.claimSigner(), signer);
