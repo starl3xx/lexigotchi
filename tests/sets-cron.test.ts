@@ -20,6 +20,7 @@ const world = vi.hoisted(() => ({
   prefsKnown: true,
   off: new Set<string>(),
   farcasterAnswers: true,
+  farcasterTakes: null as number | null, // how many FIDs the service takes; null = all
   email: false,
   telegram: false,
   seen: { fids: [] as number[][], browsers: [] as string[][], emails: [] as string[][], telegram: [] as string[][] },
@@ -36,7 +37,13 @@ vi.mock("@/lib/db/reminderMarks", () => ({
 // Every channel stands in, and records whom it was asked to tell.
 vi.mock("@/lib/db/queries", () => ({ notifiableFids: async () => [1, 2] }));
 vi.mock("@/lib/notify/send", () => ({
-  sendNotification: async ({ targetFids }: { targetFids: number[] }) => (world.sent++, world.seen.fids.push(targetFids), { ok: true }),
+  // `delivered` is how many the service took: all of them, unless the test says fewer.
+  sendNotification: async ({ targetFids }: { targetFids: number[] }) => {
+    world.sent++;
+    world.seen.fids.push(targetFids);
+    const delivered = world.farcasterTakes ?? targetFids.length;
+    return delivered === 0 ? { ok: false, delivered: 0, skipped: "no-tokens" } : { ok: true, delivered };
+  },
 }));
 vi.mock("@/lib/notify/webPush", () => ({
   sendWebPush: async (subs: { address: string }[]) => (world.seen.browsers.push(subs.map((x) => x.address)), { ok: true, delivered: subs.length }),
@@ -109,6 +116,7 @@ beforeEach(() => {
   world.prefsKnown = true;
   world.off = new Set();
   world.farcasterAnswers = true;
+  world.farcasterTakes = null;
   world.email = false;
   world.telegram = false;
   world.seen = { fids: [], browsers: [], emails: [], telegram: [] };
@@ -181,6 +189,25 @@ describe("GET /api/cron/sets", () => {
     expect(world.seen.browsers).toEqual([[WEB]]); // ON's browser isn't told twice (Farcaster reached them); OFF's isn't told
     expect(world.seen.emails).toEqual([["on@example.test"]]);
     expect(world.seen.telegram).toEqual([[ON]]);
+    log.mockRestore();
+  });
+
+  it("a browser is skipped only when Farcaster took EVERY player: it says how many, never which", async () => {
+    world.sets = [revealedNow(4)];
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    // It took one of the two: which one is unknown, so both players' browsers are told.
+    world.farcasterTakes = 1;
+    expect((await call()).body.told[0]).toMatchObject({ outcome: "sent", reached: 1 + 3 });
+    expect(world.seen.browsers).toEqual([[ON, OFF, WEB]]);
+
+    // It took none (it knows no way to reach them): the browsers are the whole reach, and the
+    // reminder isn't marked as said on Farcaster's word alone.
+    vi.resetModules();
+    world.claimed = [];
+    world.seen = { fids: [], browsers: [], emails: [], telegram: [] };
+    world.farcasterTakes = 0;
+    expect((await call()).body.told[0]).toMatchObject({ outcome: "sent", reached: 3 });
+    expect(world.seen.browsers).toEqual([[ON, OFF, WEB]]);
     log.mockRestore();
   });
 
