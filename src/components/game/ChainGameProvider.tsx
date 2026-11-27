@@ -133,6 +133,7 @@ import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageN
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
 import { failedAsk, openPacks, packRevealPlan, waitingCommits, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
 import { DAILY_STEP_MS, dailyPlan } from "@/lib/onchain/dailySend";
+import { parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 import { mailboxKey, readMailbox, withMail, withoutMail, writeMailbox, type UnopenedMail } from "@/lib/mailbox";
 import { bagWithMail, caughtUp, hadWithOwed, mailNumber, type Mail } from "./mail/mailFlow";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -245,24 +246,15 @@ function toOwnedWord(w: BagWord, careFor?: ReadonlySet<string>): OwnedWord {
 }
 
 /** Today's daily as this browser saw it go out (see `dailySeen` in the provider). */
-interface DailySeen {
-  /** The chain day it was claimed on. */
-  day: number;
-  /** The lowercase letter (0–25) it gave, when known before the reveal mined. */
-  idx: number | null;
-  /** When the claim went out (ms), for the trust window. */
-  at: number;
-}
 /** How long the note alone counts as "claimed" before the chain's own read decides again. */
 const DAILY_SEEN_TRUST_MS = 10 * 60_000;
 
 function readDailySeen(key: string | null): DailySeen | null {
   if (!key) return null;
   try {
-    const v = JSON.parse(localStorage.getItem(key) ?? "null") as DailySeen | null;
-    return v && typeof v.day === "number" && typeof v.at === "number" ? { day: v.day, idx: typeof v.idx === "number" ? v.idx : null, at: v.at } : null;
+    return parseDailySeen(localStorage.getItem(key));
   } catch {
-    return null; // private mode, or a bad value: the chain read still works
+    return null; // private mode: the chain read still works
   }
 }
 
@@ -494,24 +486,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   }, [dailySeenKey]);
   const forgetDailyRef = useRef(forgetDaily);
   forgetDailyRef.current = forgetDaily;
-  /**
-   * Put the letter on a note that is already there for `day`, without stamping it again: the tile
-   * beside "claimed" is held back until the envelope is torn, and tearing yesterday's envelope
-   * today must not mark today's letter as claimed.
-   */
-  const showDailyLetter = useCallback(
-    (day: number, idx: number) => {
+  /** Change the note, and keep what it becomes (lib/dailyNote holds the rules). */
+  const changeDailyNote = useCallback(
+    (change: (seen: DailySeen | null) => DailySeen | null) => {
       setDailySeen((seen) => {
-        if (!seen || seen.day !== day) return seen;
-        const next = { ...seen, idx };
-        writeDailySeen(dailySeenKey, next);
+        const next = change(seen);
+        if (next !== seen) writeDailySeen(dailySeenKey, next);
         return next;
       });
     },
     [dailySeenKey],
   );
-  const showDailyLetterRef = useRef(showDailyLetter);
-  showDailyLetterRef.current = showDailyLetter;
+  const changeDailyNoteRef = useRef(changeDailyNote);
+  changeDailyNoteRef.current = changeDailyNote;
   const seenToday = dailySeen && dailySeen.day === chainDayNow ? dailySeen : null;
   // Re-render when the note's trust window closes, so a send that never landed offers Pull again.
   const [, expireTick] = useReducer((n: number) => n + 1, 0);
@@ -1169,12 +1156,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     setMail((m) => (m && m.seq === piece.seq ? { ...m, torn: true } : m));
     const number = piece.number;
     if (boxKey && number !== null) saveBox(boxKey, (list) => withoutMail(list, number));
-    // Today's daily letter: the tile beside "claimed" was held back so the envelope could say it.
-    const today = dailyPiece.current;
-    if (piece.count === 1 && piece.letters && today && today.number === number) showDailyLetterRef.current(today.day, piece.letters[0]);
+    // A daily letter: the tile beside "claimed" was held back so the envelope could say it. The
+    // note names its envelope and is stored, so this holds for one that waited through a reload.
+    const letter = piece.count === 1 ? piece.letters?.[0] : undefined;
+    if (number !== null && letter !== undefined) changeDailyNoteRef.current((seen) => withDailyLetter(seen, number, letter));
   }, [boxKey, saveBox]);
-  /** The daily letter pulled in this sitting: its number in the mail, and the chain day it was pulled on. */
-  const dailyPiece = useRef<{ number: number; day: number } | null>(null);
   /**
    * Run the rest of a pack's flow with its envelope in hand. A throw must never leave the envelope
    * saying "Minting your letters…" for good: before the commit is sent it leaves (nothing was
@@ -1681,7 +1667,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                   if (show?.do !== "show" || found) return;
                   found = true;
                   revealedPacks.current.add(String(id));
-                  dailyPiece.current = { number: mailNumber(id), day: chainDayNow };
+                  changeDailyNoteRef.current((seen) => withDailyMail(seen, chainDayNow, mailNumber(id)));
                   settleMail(seq, piece, id, { got: "open", letters: show.letters, late: false }, waiting);
                 };
                 for (const delay of DAILY_LATE_LOOKS_MS) setTimeout(() => void lookLater().catch(() => {}), delay);
@@ -1691,7 +1677,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                 if (!numbered) {
                   numbered = true;
                   const number = mailNumber(plan.commitId);
-                  dailyPiece.current = { number, day: chainDayNow };
+                  changeDailyNoteRef.current((seen) => withDailyMail(seen, chainDayNow, number));
                   patchMail(seq, { phase: "found", number });
                 }
                 // "open": revealed (the server only names the letter the chain minted), or no reveal

@@ -2142,7 +2142,9 @@ setter. All small, riding existing suite patterns.
           and made mail to tear.
       - **Which letter is the envelope's to say.** The tile beside "claimed" on Today and Mint
         waits for the tear, in both stores, and no toast names the letter at the tap. Tearing an
-        old envelope never marks today's letter as claimed (the note is not stamped again).
+        old envelope never marks today's letter as claimed (the note is not stamped again). The
+        stored note names its envelope (`lib/dailyNote`), so the tile also shows for an envelope
+        that waited through a reload (Bugbot on #276: the link was first kept in memory only).
       - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
         that was already revealed, the bag read at that tap may count its letters already. Its
         letters then get no tags, none is called new, and no word is named: counted twice, a

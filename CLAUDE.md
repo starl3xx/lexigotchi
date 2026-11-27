@@ -940,8 +940,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the chain says "revealed", the letter from the route's "already" answer (the chain's), the
   server asked to open it only when the wallet's own reveal can no longer land (two reveals for
   one commit means one reverts), and the envelope leaves only when `dailyUsed` says nothing was
-  committed. Today's tile beside "claimed" waits for the tear (`showDailyLetter` never stamps the
-  note again: tearing an old envelope must not mark today as claimed). **Mail opened late says
+  committed. Today's tile beside "claimed" waits for the tear (`lib/dailyNote`, pure, tested: the
+  stored note names its envelope, so the tile shows for one torn after a reload too, and
+  `withDailyLetter` never stamps the note again: tearing an old envelope must not mark today as
+  claimed). **Mail opened late says
   less** (`Mail.plain`, `hadFor`): a commit that was already revealed when the card opened it, or
   letters that went to a linked wallet, get no tags, no "new", and no word named.
   **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
