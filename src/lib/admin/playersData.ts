@@ -20,6 +20,7 @@ import { isMissingTable } from "@/lib/db/profiles";
 import { farcasterUserCounts, listingCounts, profileFlags, pushBrowserCounts } from "@/lib/db/adminReads";
 import { playerFaces } from "@/lib/profile/faces";
 import { chatMemberCount } from "@/lib/telegram";
+import { allTelegramLinks } from "@/lib/db/telegramLinks";
 import { serverKeys } from "./serverKeys";
 import {
   buildPlayerRows,
@@ -173,7 +174,14 @@ export async function loadPlayers(): Promise<PlayersPayload> {
   let pushBrowsers = new Map<string, number>();
   let listings = new Map<string, number>();
   let farcaster: PlayersPayload["farcaster"] = null;
+  let telegram = new Set<string>();
   if (db) {
+    // Who linked Telegram for reminders: whether, never which account. Empty before migration 0020.
+    try {
+      telegram = new Set((await allTelegramLinks()).map((l) => l.account.toLowerCase()));
+    } catch (err) {
+      console.error("[admin/players] Telegram links unread:", (err as Error).message?.slice(0, 200));
+    }
     try {
       sightings = (await allSightings()).map((s) => ({
         address: s.address,
@@ -238,6 +246,7 @@ export async function loadPlayers(): Promise<PlayersPayload> {
     profiles,
     pushBrowsers,
     listings,
+    telegram,
     accountOf: (a) => accountFor.get(a.toLowerCase()) ?? a.toLowerCase(),
     faces,
   });

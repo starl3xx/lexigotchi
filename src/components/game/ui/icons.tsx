@@ -62,6 +62,7 @@ export {
   Bell,
   BellSlash,
   EnvelopeSimple,
+  TelegramLogo,
   CheckCircle,
   Copy,
   BookBookmark,

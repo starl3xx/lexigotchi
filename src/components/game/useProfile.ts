@@ -415,6 +415,8 @@ export function useProfile() {
     enabled,
     xEnabled: Boolean(config.data?.x),
     emailEnabled: Boolean(config.data?.email),
+    /** Linking Telegram for reminders works here (the bot is set up and its tables exist). */
+    telegramEnabled: Boolean(config.data?.telegram),
     address: addr,
     // A stored session counts at once. Waiting for /me made the sheet ask a player to sign in
     // while their session was still loading (Bugbot on #136); a dead token is forgotten on its 401.
@@ -491,6 +493,7 @@ export function usePublicProfile(): {
   loading: boolean;
   xEnabled: boolean;
   emailEnabled: boolean;
+  telegramEnabled: boolean;
   profilesEnabled: boolean;
 } {
   const { address } = useAccount();
@@ -521,6 +524,8 @@ export function usePublicProfile(): {
     profile,
     xEnabled,
     emailEnabled: Boolean(config.data?.email),
+    /** Reminders by Telegram can be set up here (the bot is set up and its tables exist). */
+    telegramEnabled: Boolean(config.data?.telegram),
     /** Profiles are on, so wallets can be linked into one account. */
     profilesEnabled: Boolean(config.data?.profiles),
     // Mirrors the server (free-daily): X switched on, linked, and older than 90 days.

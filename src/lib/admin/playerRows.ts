@@ -79,6 +79,8 @@ export interface PlayerInputs {
   pushBrowsers: ReadonlyMap<string, number>;
   /** Market listings made (words and letters for sale), per wallet. */
   listings: ReadonlyMap<string, number>;
+  /** The accounts (lowercase) that linked a Telegram account for reminders. Absent: none. */
+  telegram?: ReadonlySet<string>;
   /** The account (first wallet) a linked wallet belongs to, when it isn't its own. */
   accountOf: (address: string) => string;
   /** Public names and pictures (Farcaster or X), by address. */
@@ -115,6 +117,8 @@ export interface PlayerRow {
   emailConfirmed: boolean;
   emailReminders: boolean;
   pushBrowsers: number;
+  /** The wallet's account linked a Telegram account for reminders (whether, never which). */
+  telegram: boolean;
 }
 
 export interface Funnel {
@@ -130,6 +134,8 @@ export interface Funnel {
   linkedX: number;
   email: number;
   reminders: number;
+  /** Wallets whose account linked Telegram for reminders. */
+  telegram: number;
   listings: number;
 }
 
@@ -206,6 +212,7 @@ export function buildPlayerRows(input: PlayerInputs): PlayerRow[] {
       emailConfirmed: p?.emailConfirmed ?? false,
       emailReminders: p?.emailReminders ?? false,
       pushBrowsers: input.pushBrowsers.get(address) ?? 0,
+      telegram: input.telegram?.has(lower(account || address)) ?? false,
     });
   }
   // Most recent first; wallets with no time at all last.
@@ -226,7 +233,8 @@ export function funnelOf(rows: readonly PlayerRow[]): Funnel {
     staked: n((r) => r.stakes > 0 || r.holds.staked > 0),
     linkedX: n((r) => r.xUsername !== null),
     email: n((r) => r.emailConfirmed),
-    reminders: n((r) => r.emailReminders || r.pushBrowsers > 0),
+    reminders: n((r) => r.emailReminders || r.pushBrowsers > 0 || r.telegram),
+    telegram: n((r) => r.telegram),
     listings: n((r) => r.listings > 0),
   };
 }

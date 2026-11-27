@@ -1,7 +1,7 @@
 "use client";
 /** More — the full "Do something" directory (the bottom-nav tab that used to dump into Claim). */
 import { Button, SectionTitle } from "../primitives";
-import { EnvelopeSimple, ShoppingBag } from "../ui/icons";
+import { EnvelopeSimple, ShoppingBag, TelegramLogo } from "../ui/icons";
 import { shopEnabled } from "@/lib/shop/config";
 import { useGame } from "../state";
 import { usePublicProfile } from "../useProfile";
@@ -13,7 +13,7 @@ import { ReminderToggle } from "../ReminderToggle";
 export function MoreScreen() {
   const openUrl = useOpenUrl();
   const { openSheet, state } = useGame();
-  const { emailEnabled } = usePublicProfile();
+  const { emailEnabled, telegramEnabled } = usePublicProfile();
   return (
     <div className="space-y-3">
       <h1 className="font-display text-2xl font-extrabold">Do something</h1>
@@ -40,6 +40,18 @@ export function MoreScreen() {
             words win the jackpot or a share of the bounty. Each one as it happens, or one email a week. Your email is
             never shown to anyone.
           </p>
+          <Button size="sm" variant="ghost" className="mt-3" onClick={() => openSheet({ kind: "profile" })}>
+            Set up in your profile
+          </Button>
+        </div>
+      )}
+      {/* Telegram reminders live in the profile too: the same pointer as email's. */}
+      {telegramEnabled && (
+        <div className="cel rounded-2xl bg-card p-4">
+          <div className="flex items-center gap-2 font-display font-extrabold">
+            <TelegramLogo weight="bold" /> Telegram reminders
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-ink/60">The same reminders, as a message from the Lexigotchi bot in Telegram.</p>
           <Button size="sm" variant="ghost" className="mt-3" onClick={() => openSheet({ kind: "profile" })}>
             Set up in your profile
           </Button>

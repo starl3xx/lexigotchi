@@ -93,7 +93,7 @@ export async function GET(req: Request) {
     } catch (err) {
       const why = err instanceof Error ? err.message : String(err);
       // Telegram's own "no": nothing was posted, so the next run may try this claim again.
-      if (/Bad Request|Forbidden|Unauthorized/i.test(why)) await releaseMark(MARK.account, MARK.kind, mark);
+      if (/Bad Request|Forbidden|Unauthorized|Too Many Requests/i.test(why)) await releaseMark(MARK.account, MARK.kind, mark);
       console.error(`[cron/telegram-alerts] ${claim.word} not posted:`, why);
       failed++;
     }

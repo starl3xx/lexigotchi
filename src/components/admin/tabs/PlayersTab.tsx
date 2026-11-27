@@ -46,7 +46,8 @@ const FUNNEL_STEPS: { key: keyof Funnel; label: string; note?: string; testnetOn
   { key: "staked", label: "Staked a word" },
   { key: "linkedX", label: "Linked X" },
   { key: "email", label: "Confirmed an email" },
-  { key: "reminders", label: "Turned on reminders", note: "email or browser push" },
+  { key: "reminders", label: "Turned on reminders", note: "email, browser push, or Telegram" },
+  { key: "telegram", label: "Linked Telegram", note: "for reminders from the bot" },
   { key: "listings", label: "Listed on the Market" },
 ];
 
@@ -308,7 +309,8 @@ function PlayerTable({ rows, now, testnet }: { rows: PlayerRow[]; now: number; t
                     {r.xUsername && <Chip>X @{r.xUsername}</Chip>}
                     {r.emailConfirmed && <Chip>email{r.emailReminders ? " · reminders on" : ""}</Chip>}
                     {r.pushBrowsers > 0 && <Chip>push ×{r.pushBrowsers}</Chip>}
-                    {!r.xUsername && !r.emailConfirmed && r.pushBrowsers === 0 && <span className="text-ink/45">–</span>}
+                    {r.telegram && <Chip>Telegram</Chip>}
+                    {!r.xUsername && !r.emailConfirmed && r.pushBrowsers === 0 && !r.telegram && <span className="text-ink/45">–</span>}
                   </div>
                 </td>
               </tr>
