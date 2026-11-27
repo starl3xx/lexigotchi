@@ -2822,6 +2822,16 @@ setter. All small, riding existing suite patterns.
       "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
       `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
       refresh for a list of words). The check on the word that `dissolve` logs was not chosen.
+    - **Token metadata is served** (`GET /api/word/{tokenId}`, `lib/wordMetadata.ts`; part 4's
+      first piece). There was none before, so this is the whole server, kept small: the word's
+      name as its letters stand now, the card's front as its picture (the existing share
+      picture, so one drawing serves both), and traits: Rarity (the tier the game treats it as),
+      UPPERCASE letters, Ascension, Number, **Set** once its set is released (as the card's back
+      says it), and **Collab** with the partner's name from its set's reveal. A draft set adds
+      nothing, and a word nobody holds has no metadata (404, as `tokenURI` reverts for it). The
+      chain's state decides the rest; when the chain can't be read the answer is 503, never a
+      guess a marketplace would keep. The owner points Words at it with `setBaseURI` (a step in
+      web3-runtime-plan.md); nothing calls it until he does.
     - **The metadata refresh is in `Words.sol`** (its own PR, ahead of part 4, because it is the
       one piece of the collab work that a contract must carry and Words can't change after
       deploy). `refreshMetadata(uint256[])` emits `MetadataUpdate` for each word named;

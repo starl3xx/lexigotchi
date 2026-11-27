@@ -119,6 +119,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
   the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`
   must pass on a database with and without the newest migration.
+- **Token metadata** is `GET /api/word/{tokenId}` (`lib/wordMetadata.ts`; decisions.md #53):
+  `Words.tokenURI` = base URI + decimal id. It follows the chain's live state (case, ascension)
+  and says of a set only what any visitor may see: "Set" once released, "Collab" from the reveal,
+  nothing of a draft. A new trait goes in `wordMetadata` with a test. (`/api/word` with no id is
+  the $WORD token's numbers, a different route.)
 - **A word's rarity has two names; use the right one** (decisions.md #53, part 2; `lib/rarity.ts`).
   `wordTier(word)` is the DERIVED tier (the full dictionary's; supply, odds, the simulator).
   `tierWith(word, collab)` is the tier the game TREATS it as: a collab word is Legendary from its
