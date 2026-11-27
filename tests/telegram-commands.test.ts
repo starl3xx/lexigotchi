@@ -3,6 +3,7 @@ import { commandOf, type TgMessage } from "@/lib/telegram";
 import {
   COMMANDS,
   bountyText,
+  cardUrlOf,
   drawState,
   helpText,
   jackpotText,
@@ -241,6 +242,19 @@ describe("/word", () => {
       expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).toContain("It is hungry: it sits out the jackpot until it is fed.");
       expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).not.toMatch(/earns/);
     }
+  });
+
+  it("sends the card in the word's real case, at an address that names its stage", () => {
+    const upper = [true, true, true, false, false];
+    const plain = cardUrlOf("CRANE", { upper, level: 0 })!;
+    expect(new URL(plain).pathname).toBe("/s/CRAne/card");
+    expect(new URL(plain).searchParams.get("saved")).toBe("1");
+    // a picture is kept for a week under its address: a new stage must be a new address
+    const gilded = cardUrlOf("CRANE", { upper: [true, true, true, true, true], level: 2 })!;
+    expect(new URL(gilded).searchParams.get("g")).toBe("2");
+    expect(gilded).not.toBe(cardUrlOf("CRANE", { upper: [true, true, true, true, true], level: 3 }));
+    // no picture for a word whose case couldn't be read
+    expect(cardUrlOf("CRANE", { upper: null, level: 2 })).toBeUndefined();
   });
 
   it("leaves out what it couldn't read, and tells nobody apart from not knowing", () => {

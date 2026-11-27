@@ -373,9 +373,19 @@ async function answerWord(args: string): Promise<BotReply> {
   if (!isChainBacked()) return { text: wordText(arg.word, undefined, false) };
   const read = await soon(readHeld(arg.word).then((h) => ({ h })));
   const held = read === null ? undefined : read.h;
-  const text = wordText(arg.word, held);
-  // The card in the word's real case, the picture that travels alone (it carries the game's name).
-  return held?.upper ? { text, photoUrl: showcaseCardUrl(showcaseWordText(arg.word, held.upper), "x", undefined, true) } : { text };
+  return { text: wordText(arg.word, held), photoUrl: held ? cardUrlOf(arg.word, held) : undefined };
+}
+
+/**
+ * The picture to send a held word's facts under: its card in its real case, the picture that
+ * travels alone (it carries the game's name), or undefined when its case couldn't be read.
+ *
+ * The address names the word's stage, as the game's own share links do: a word's picture is kept
+ * for a week under an address, so without the stage in it a word that has since ascended would be
+ * sent in its old, ungilded picture under words that say it is gilded (Bugbot on #258).
+ */
+export function cardUrlOf(word: string, held: Pick<HeldWord, "upper" | "level">): string | undefined {
+  return held.upper ? showcaseCardUrl(showcaseWordText(word, held.upper), "x", undefined, true, held.level) : undefined;
 }
 
 /**
