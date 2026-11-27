@@ -37,6 +37,8 @@ export type PlateRank = 0 | 1 | 2 | 3 | 4;
 export interface PlateInks {
   /** The dark ink the back is printed solid in. */
   ground: string;
+  /** A second dark ink for the border, where a plate is printed in two (a collab set's two colors). Without it the border is the ground's. */
+  band?: string;
   /** The light ink of its engraving. */
   line: string;
   /** A second light ink, from rank 3: the filigree, the second ring, and (rank 4) the far end of the blend. */
@@ -130,12 +132,15 @@ export function backPlate(rank: PlateRank, inks: PlateInks, blend = false): stri
   const A = inks.line, B = inks.second;
   const defs: string[] = [];
   const out: string[] = [`<rect width="${W}" height="${H}" fill="${inks.ground}"/>`];
+  const border = inks.band ?? inks.ground;
   let stroke = A;
   if (blend) {
     defs.push(`<linearGradient id="iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${W}" y2="${H}"><stop offset="0" stop-color="${A}"/><stop offset="0.5" stop-color="${B}"/><stop offset="1" stop-color="${A}"/></linearGradient>`);
     stroke = "url(#iris)";
   }
   const o = PLATE_BORDER.edge, [lo, li] = PLATE_BORDER.lace, inner = PLATE_BORDER.field;
+  // a border printed in its own ink: everything outside the field's outer hairline
+  if (inks.band) out.push(`<path fill-rule="evenodd" fill="${inks.band}" d="M0 0H${W}V${H}H0ZM${inner - 6 + 11} ${inner - 6}h${W - 2 * inner + 12 - 22}a11 11 0 0 1 11 11v${H - 2 * inner + 12 - 22}a11 11 0 0 1 -11 11h${-(W - 2 * inner + 12 - 22)}a11 11 0 0 1 -11 -11v${-(H - 2 * inner + 12 - 22)}a11 11 0 0 1 11 -11Z"/>`);
   const turn = (ref: string, n: number, span: number, cx: number, cy: number) => Array.from({ length: n }, (_, t) => `<use href="#${ref}" xlink:href="#${ref}" transform="rotate(${n1((t * span) / n)} ${cx} ${cy})"/>`).join("");
   // the ruled ground: an engraver's tone, fine and even (and never finer: the note at the top says why)
   defs.push(`<pattern id="rule" width="11" height="11" patternUnits="userSpaceOnUse"><line x1="0" y1="5.5" x2="11" y2="5.5" stroke="${A}" stroke-width="1.5"/></pattern>`, `<clipPath id="field"><rect x="${inner}" y="${inner}" width="${W - 2 * inner}" height="${H - 2 * inner}" rx="8"/></clipPath>`);
@@ -155,7 +160,7 @@ export function backPlate(rank: PlateRank, inks: PlateInks, blend = false): stri
     if (rank < 3)
       [[mid + 2, mid + 2], [W - mid - 2, mid + 2], [mid + 2, H - mid - 2], [W - mid - 2, H - mid - 2]].forEach(([x, y], n) => {
         defs.push(`<path id="c${n}" d="${rosette(x, y, 15, 5.5, 8, 120)}"/>`);
-        out.push(`<circle cx="${x}" cy="${y}" r="23.5" fill="${inks.ground}" stroke="${stroke}" stroke-width="1.6"/><g fill="none" stroke="${stroke}" stroke-width="0.9">${turn(`c${n}`, 4, 45, x, y)}</g><circle cx="${x}" cy="${y}" r="4" fill="${A}"/>`);
+        out.push(`<circle cx="${x}" cy="${y}" r="23.5" fill="${border}" stroke="${stroke}" stroke-width="1.6"/><g fill="none" stroke="${stroke}" stroke-width="0.9">${turn(`c${n}`, 4, 45, x, y)}</g><circle cx="${x}" cy="${y}" r="4" fill="${A}"/>`);
       });
   } else {
     out.push(`<rect x="${(lo + li) / 2}" y="${(lo + li) / 2}" width="${W - lo - li}" height="${H - lo - li}" rx="12" fill="none" stroke="${stroke}" stroke-width="0.9"/>`);

@@ -291,7 +291,7 @@ export function CardCase({
           </>,
           front,
         )}
-        {face(true, seen ? <BackLabel word={word} since={since} /> : null, seen ? <CardBack word={word} live={false} /> : null)}
+        {face(true, seen ? <BackLabel word={word} since={since} /> : null, seen ? <CardBack word={word} /> : null)}
         <i aria-hidden className="cc-edge cc-edge-l" />
         <i aria-hidden className="cc-edge cc-edge-r" />
         <i aria-hidden className="cc-edge cc-edge-t" />
