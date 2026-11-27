@@ -107,8 +107,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   its identity: a draft's to edit, locked at the reveal (`rules.ts` `IDENTITY_KEYS`,
   `revealProblems`), and **nothing of it reaches a browser before the reveal**, not even that the
   set is a collab. **No real partner, name, logo, or color ever ships in this repository**, and
-  "Test collab" is made only by the owner's button on a test network. **No collab set can be
-  revealed until its card ships** (`rules.ts` `COLLAB_LIVE`; the PR that ships the card flips it).
+  "Test collab" is made only by the owner's button on a test network. **Collab reveals have a
+  switch** (`rules.ts` `COLLAB_LIVE`, true since the rarity and the card shipped; false stops every
+  collab reveal, by hand and on its date, and leaves drafts editable).
   The stamp is a raster picture in the database (`set_stamps`; PNG or JPEG, never an SVG, and
   typed by its own first bytes both ways); `/api/sets/{id}/stamp` answers only for a revealed set.
   **A set's first day has a rule** (`gate_rule`: every verified player, an allowlist, or a token's

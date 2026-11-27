@@ -1036,7 +1036,6 @@ describe("collab sets: what leaves the server, and what the operator may store",
     const body = await (await GET(new Request("http://localhost/api/admin/sets"))).json();
     expect(body.collab).toBe(true);
     expect(body.sets[0].needs).toEqual([
-      "a collab set can be revealed once the collab card ships (a draft can be made and edited now)",
       "a collab set has exactly 5 words (this one has 1)",
       "a collab set needs its two colors",
       "a collab set needs its stamp",
@@ -1069,7 +1068,7 @@ describe("collab sets: what leaves the server, and what the operator may store",
       expect(made.words.filter((w) => wordTier(w.word) === "Mythic").map((w) => w.word)).toEqual([mythic[0]]);
       const { sniffStamp, revealProblems } = await import("@/lib/sets/rules");
       expect(sniffStamp(Buffer.from(world.stamps.get(made.id)!.base64, "base64"))).toBe("image/png");
-      expect(revealProblems(made, true)).toEqual([]); // whole: once the collab card ships, the operator can reveal it as it is
+      expect(revealProblems(made)).toEqual([]); // whole: the operator can reveal it as it is
       // Once is enough.
       expect(await (await POST(post({ action: "testCollab" }))).json()).toMatchObject({ ok: false, error: "exists" });
     }

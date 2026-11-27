@@ -271,12 +271,13 @@ describe("a collab set", () => {
     expect(revealProblems(set(1, "C", "draft", five, { ...whole, colorB: null }), true)).toEqual(["a collab set needs its two colors"]);
     expect(revealProblems(set(1, "C", "draft", five, { ...whole, stampAt: null }), true)).toEqual(["a collab set needs its stamp"]);
   });
-  it("and not at all until the collab card ships: a collab word is Legendary and on its own card from the reveal, and neither exists yet", () => {
-    // This pins today's state. The PR that ships the card flips COLLAB_LIVE and this expectation with it.
-    expect(COLLAB_LIVE).toBe(false);
-    expect(revealProblems(set(1, "C", "draft", five, whole))).toEqual(["a collab set can be revealed once the collab card ships (a draft can be made and edited now)"]);
-    expect(revealProblems(set(1, "C", "draft", five, whole), false)).toHaveLength(1);
-    expect(revealProblems(set(1, "S", "draft", five), false)).toEqual([]); // a standard set is as it was
+  it("can be revealed now that its rarity and its card have shipped; the switch still turns every collab reveal off", () => {
+    // It was false until a collab word was Legendary from its reveal and had its own card everywhere a word is drawn.
+    expect(COLLAB_LIVE).toBe(true);
+    expect(revealProblems(set(1, "C", "draft", five, whole))).toEqual([]);
+    // Switched off: no collab set is revealed, whole or not, and a standard set is as it always was.
+    expect(revealProblems(set(1, "C", "draft", five, whole), false)).toEqual(["collab sets can't be revealed just now (a draft can be made and edited)"]);
+    expect(revealProblems(set(1, "S", "draft", five), false)).toEqual([]);
   });
   it("a standard set needs none of it, only a word", () => {
     expect(revealProblems(set(1, "S", "draft", WORDS.slice(300, 303)))).toEqual([]);

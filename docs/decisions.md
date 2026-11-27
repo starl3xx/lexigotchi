@@ -2873,7 +2873,9 @@ setter. All small, riding existing suite patterns.
         real drawing, and a plain drawing of the back in the same colors (the game's back needs a
         player's word). Both go through the functions the game uses, so a color that is hard to
         read shows there as it will in the game.
-      - **`COLLAB_LIVE` is flipped last**, in a change of its own, once all of this is merged.
+      - **`COLLAB_LIVE` is true** (flipped last, in a change of its own, once every surface drew
+        the look): a collab set can be revealed. It stays a switch: false stops every collab
+        reveal, by hand and on its date, and leaves drafts editable.
     - **Two things the spec assumed that weren't so.** There is no token metadata server in this
       repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
       mean building that route: part 4. And a metadata refresh "at release" needs an owner call in

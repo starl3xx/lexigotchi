@@ -144,8 +144,10 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
   of the word’s own (derived) tier: it applies to what a card shows, to earnings and the bounty,
   to filters, sort order, and tier counts, and to the tier a sale is recorded at. It does not
   change letter supply, mint odds, or the word’s rank. It takes effect from the next daily yield
-  and bounty the keeper opens after the reveal. (Shipped so far: the set’s type, partner, colors,
-  stamp, first-day rule, and the rarity layer. A collab set can be revealed once its card ships.)
+  and bounty the keeper opens after the reveal. A collab word’s card wears its set’s look in place of its rarity’s: its two colors on the tiles,
+  the frame, the stock card, and the back, and the set’s stamp on a small plate at the front’s
+  upper left. The colors are thinned, darkened, or deepened where needed so letters and type
+  always read. Case still owns a tile’s border, and ascension its rings and rainbow.
 
 ---
 
