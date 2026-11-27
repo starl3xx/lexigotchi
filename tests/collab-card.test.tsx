@@ -152,6 +152,35 @@ describe("who draws a word's tiles", () => {
   });
 });
 
+describe("the card's own colors", () => {
+  it("every color picked by a word's rarity asks for its collab look first (the list of where)", () => {
+    // The tiles are held by the scan above; these are the card's other inks, each from a table
+    // keyed by tier: the frame's and the case's ink, the back's line, the band of light. A collab
+    // word is Legendary, so any of these read by tier alone comes out gold (a review found the
+    // video's stamp, the case's label, and the sheen that way).
+    const { readdirSync, statSync } = require("fs") as typeof import("fs");
+    const root = join(__dirname, "..");
+    const files = (dir: string): string[] =>
+      readdirSync(join(root, dir)).flatMap((name: string) => {
+        const rel = `${dir}/${name}`;
+        return statSync(join(root, rel)).isDirectory() ? files(rel) : /\.tsx?$/.test(name) ? [rel] : [];
+      });
+    const wrong: string[] = [];
+    let seen = 0;
+    for (const f of [...files("src/components"), ...files("src/app")]) {
+      const src = readFileSync(join(root, f), "utf8");
+      src.split("\n").forEach((line, i) => {
+        if (!/\b(CARD_LOOKS|MATERIAL_LINE|CARD_SHEEN)\[[^\]"']*tier/.test(line)) return; // keyed by a word's tier
+        seen++;
+        // the same line decides by the look first: `mine ? … :`, `look ? … :`, `collab?.… ??`, `… ?? CARD_LOOKS[…]`
+        if (!/\b(mine|look|collab|collabLook)\b[^;]*(\?|\?\?)|\?\?\s*(CARD_LOOKS|MATERIAL_LINE)\[/.test(line)) wrong.push(`${f}:${i + 1} ${line.trim().slice(0, 90)}`);
+      });
+    }
+    expect(wrong).toEqual([]);
+    expect(seen).toBeGreaterThanOrEqual(6); // SceneFrame, wordCard, CardCase, SceneCard, CardBack (twice), ShareVideo
+  });
+});
+
 describe("the card's front", () => {
   it("the stock card's wash takes the two colors, and the frame the look's ink; a rarity's card is what it was", () => {
     const L = collabCardLook(LOOK);
@@ -207,6 +236,64 @@ describe("the card's front", () => {
     const og = readFileSync(join(__dirname, "..", "src/app/_og/wordCard.tsx"), "utf8");
     expect(og).toContain("left: Math.round(62 * k), top: Math.round(60 * k)");
     expect([Math.round(left), Math.round(top), Math.round(width)]).toEqual([62, 60, 92]);
+  });
+});
+
+describe("the stamp's plate", () => {
+  it("stands the stamp on the card's own paper, ruled in the frame's ink, in the game and on the server alike", () => {
+    // A stamp is any picture: without a plate a dark one was lost on Outer Space and a pale one on
+    // the stock card (seen in both engines). On paper, a mark made for a light ground always reads.
+    const css = readFileSync(join(__dirname, "..", "src/app/globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = /\.cf-stamp \{([^}]*)\}/.exec(css)![1];
+    expect(rule).toContain("background: #fcf7ea"); // CARD_PAPER
+    expect(rule).toMatch(/border: [^;]* solid var\(--cf-ink\)/);
+    expect(rule).toContain("object-fit: contain");
+    const og = readFileSync(join(__dirname, "..", "src/app/_og/wordCard.tsx"), "utf8");
+    expect(og).toContain("background: CARD_PAPER");
+    expect(og).toMatch(/border: `\$\{[^`]*\}px solid \$\{look\.ink\}`/);
+  });
+});
+
+describe("the card's back", () => {
+  const read = (f: string) => readFileSync(join(__dirname, "..", f), "utf8");
+  it("says the partner and “1 of 5”", async () => {
+    const { collabLine, BACK_PARTNER_MAX } = await import("@/lib/cardFacts");
+    expect(collabLine("Test partner")).toBe("Test partner · 1 of 5");
+    expect(collabLine("Test partner", true)).toBe("Test partner · 1 of 5");
+    // On the back it is ONE line in a narrow column: a name of 60 characters is cut in the text
+    // itself, so the game's back and the server's picture agree and neither runs into the ledger.
+    const long = "P".repeat(60);
+    expect(collabLine(long, true)).toBe(`${"P".repeat(BACK_PARTNER_MAX - 1)}… · 1 of 5`);
+    expect(collabLine(long, true).length).toBeLessThanOrEqual(BACK_PARTNER_MAX + 9);
+    expect(collabLine(long)).toBe(`${long} · 1 of 5`); // the row under an opened card wraps: the whole name
+  });
+  it("the cream type the colorway is deepened for is the back's own", async () => {
+    const { BACK_TEXT } = await import("@/lib/collabLook");
+    expect(read("src/app/globals.css")).toContain(`--cb-text: ${BACK_TEXT};`);
+    expect(read("src/app/s/[text]/back/route.tsx")).toMatch(new RegExp(`const TEXT = "${BACK_TEXT}"`));
+  });
+  it("in the game: the colorway in place of the rarity's material, with none of a material's extras and no live shader", () => {
+    const src = read("src/components/cards/CardBack.tsx");
+    expect(src).toContain('className={`cb ${collab ? "m-collab" : `m-${m}`}`} style={collab?.style}');
+    expect(src).toContain("const drawLive = live && !mini && !reduced && !lowPower && !collab && canDrawLive();");
+    for (const extra of ['m === "rare" && <div className="cb-brush" />', 'm === "legendary" && <div className="cb-glitter" />', 'm === "mythic" && <Facets />', 'm === "mythic" && <div className="cb-fire" />']) {
+      expect(src, extra).toContain(`!collab && ${extra}`);
+    }
+    expect(src).toContain("{f.collab && <span className=\"cb-collab\">{collabLine(f.collab, true)}</span>}");
+    expect(src).toContain('{f.collab && <Row label="Collab">{collabLine(f.collab)}</Row>}'); // a phone-sized back leaves the line out; the rows under the card carry it
+    // the colors come from the one function that deepens them until the cream type reads
+    expect(src).toContain("const b = collabBack(look);");
+  });
+  it("on the server: the colorway is painted INTO the picture (the video's shader paints a rarity's under a clear ground)", () => {
+    const src = read("src/app/s/[text]/back/route.tsx");
+    expect(src).toContain("const colorway = mine ? collabBack(mine) : null;");
+    expect(src).toContain("backgroundImage: `linear-gradient(165deg, ${colorway.base2}, ${colorway.base} 70%)`");
+    expect(src).toMatch(/tier === "Legendary" &&\s*!colorway &&/); // no gold scrollwork on a partner's colorway
+    // the partner line: cut to fit, and in the back's full cream in BOTH renderers (the server's was dimmer: Bugbot on #306)
+    expect(src).toContain("{mine && <div style={{ display: \"flex\", fontSize: 1.9 * U, lineHeight: 1.2, color: TEXT }}>{collabLine(mine.partner, true)}</div>}");
+    expect(read("src/app/globals.css")).toMatch(/\.cb-collab \{[^}]*color: var\(--cb-text\)/);
+    // the game's back and the server's use the same two grounds
+    expect(read("src/components/cards/CardBack.tsx")).toContain("`linear-gradient(165deg, ${b.base2}, ${b.base} 70%)`");
   });
 });
 

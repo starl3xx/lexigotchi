@@ -24,6 +24,7 @@ import { canMakeLoop } from "./live/support";
 import { MATERIAL_LINE, materialOf } from "./material";
 import { useMyStamp } from "./CardStamp";
 import { tileTierOf, useCollabLook } from "@/components/game/collabLooksContext";
+import { collabBack } from "@/lib/collabLook";
 
 /** A phone's share sheet that takes a video file. */
 function canShareVideo(): boolean {
@@ -123,7 +124,8 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
         // (the letters wear the word's collab colors in place of its rarity's material, as in the game)
         live: { stage: showcaseStagePath(text, scene, word.prestigeLevel, look?.mark), word: word.word, upper: word.upper, tier: tileTierOf(word.tier, look), gild: word.prestigeLevel, scene },
         material: materialOf(word.tier),
-        stamp: stampSrc ? { src: stampSrc, ink: MATERIAL_LINE[materialOf(word.tier)] } : undefined,
+        // the holder's stamp on the video's back, in the back's own line: a collab word's colorway's, or its rarity's material's
+        stamp: stampSrc ? { src: stampSrc, ink: look ? collabBack(look).line : MATERIAL_LINE[materialOf(word.tier)] } : undefined,
         signal: ctl.signal,
         onProgress: (p) => !ctl.signal.aborted && setProgress(p),
       });

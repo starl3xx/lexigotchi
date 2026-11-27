@@ -2851,9 +2851,29 @@ setter. All small, riding existing suite patterns.
         header tells a draft apart. A copy made before a reveal can still be shown for up to a
         week at its old address (X and Farcaster keep theirs for good); only a new address
         mends that, which is what sharing the word again gives.
-      - **Still owed in part 3:** the back in the partner's colorway with the partner's name and
-        "1 of 5" (the game, the server's picture, and the video's shader), and the admin's live
-        preview. `COLLAB_LIVE` stays false until they ship.
+      - **The stamp stands on a plate** of the card's own paper, ruled in the frame's ink, like
+        the frame's corner pieces (mine, after seeing it): a stamp is any picture, and without a
+        plate a dark one was lost on Outer Space and a pale one on the stock card. On paper, a
+        mark made for a light ground always reads; the admin says to upload that version.
+      - **The back** is the partner's colorway in place of the rarity's material: the two colors,
+        each deepened until the back's cream type reads on it (`collabBack`), the frame, seal, and
+        holder's stamp in the lighter color. It has none of a material's metal, glitter, facets,
+        fire, or scrollwork, and no live shader. Under how many words share the rarity it says the
+        partner and "1 of 5"; a phone-sized back leaves that line out, as it leaves the one above
+        it, and the rows under an opened card carry it ("Collab"). Three renderers draw a back
+        and must agree, so the colorway is painted the same way in two of them and the third is
+        kept out: the game's CSS and the server's picture use one gradient of the same two
+        grounds, and the server paints it INTO the picture (a rarity's back is drawn over a clear
+        ground for the video's shader to fill), so the shader's material never shows under it.
+      - **Seen moving** in Chromium and WebKit, where a moving tile's light is drawn as layers:
+        the light passes over a collab tile, and at Holographic its rings, laurels, and rainbow
+        are as on any word. `tests/living-video.test.tsx` now sweeps the collab look with every
+        rarity, stage, and case, so the share video's letters stand alone in it too.
+      - **The admin's live preview** (item 6) is the game's own card for the front, so it is the
+        real drawing, and a plain drawing of the back in the same colors (the game's back needs a
+        player's word). Both go through the functions the game uses, so a color that is hard to
+        read shows there as it will in the game.
+      - **`COLLAB_LIVE` is flipped last**, in a change of its own, once all of this is merged.
     - **Two things the spec assumed that weren't so.** There is no token metadata server in this
       repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
       mean building that route: part 4. And a metadata refresh "at release" needs an owner call in

@@ -50,7 +50,12 @@ export function toneOf(state: TileState): SceneTone {
 const pictures = new Map<string, string>();
 function picture(key: string, make: () => string): string {
   let url = pictures.get(key);
-  if (!url) pictures.set(key, (url = `url("${svgDataUri(svgDoc(make()))}")`));
+  if (!url) {
+    // Bounded: the rarities and scenes make a few dozen pictures, but a collab look is any two
+    // colors, and the admin's preview makes a new look for every step of a color picker.
+    if (pictures.size > 120) pictures.clear();
+    pictures.set(key, (url = `url("${svgDataUri(svgDoc(make()))}")`));
+  }
   return url;
 }
 /** A collab look's own key for the pictures kept here: its two colors (the stamp is not in these pictures). */

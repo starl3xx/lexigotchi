@@ -95,8 +95,8 @@ export function collabCardLook(look: Pick<CollabLook, "a" | "b">): CollabCardLoo
 
 // --- the card's back --------------------------------------------------------------------------
 
-/** The back's cream type (globals.css, `.cb`). */
-export const BACK_TEXT = "#fdf6e3";
+/** The back's cream type (globals.css, `.cb`, --cb-text; tests/collab-look.test.ts holds them equal). */
+export const BACK_TEXT = "#f7efdc";
 
 export interface CollabBack {
   /** the back's ground, deep */
@@ -112,7 +112,7 @@ export interface CollabBack {
 /**
  * The back in the partner's colorway. A back is deep so cream type and light tiles read on it
  * (cards/material.ts), so each color is deepened until the cream type reads; the frame's line is
- * the lighter color, lightened until it shows on that ground.
+ * the lighter color, lightened until it reads on that ground (it letters the rarity's name too).
  */
 export function collabBack(look: Pick<CollabLook, "a" | "b">): CollabBack {
   const deep = (c: string) => moved(c, "#14100d", (x) => contrast(BACK_TEXT, x) >= 7) ?? "#14100d";
@@ -120,7 +120,8 @@ export function collabBack(look: Pick<CollabLook, "a" | "b">): CollabBack {
   const base2 = deep(look.b);
   const darkest = luminance(base) <= luminance(base2) ? base : base2;
   const lighter = luminance(look.a) >= luminance(look.b) ? look.a : look.b;
-  const line = moved(lighter, "#ffffff", (c) => contrast(c, base) >= SHOWS && contrast(c, base2) >= SHOWS) ?? BACK_TEXT;
+  // The line also letters the rarity's name and "No." (globals.css, .cb-tier), so it must READ on both grounds.
+  const line = moved(lighter, "#ffffff", (c) => contrast(c, base) >= READS && contrast(c, base2) >= READS) ?? BACK_TEXT;
   return { base, base2, line, rack: mixHex(darkest, "#000000", 0.25) };
 }
 

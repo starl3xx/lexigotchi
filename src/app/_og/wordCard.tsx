@@ -161,7 +161,25 @@ export function wordCard({
       </div>
       <img src={image(cardFrame(tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
       {/* The set's stamp, where the game draws it (globals.css, .cf-stamp): a 92-unit box, 62 in and 60 down. */}
-      {mine && stamp && <img src={stamp} width={Math.round(92 * k)} height={Math.round(92 * k)} style={{ position: "absolute", left: Math.round(62 * k), top: Math.round(60 * k), objectFit: "contain" }} />}
+      {mine && stamp && (
+        // on a plate of the card's paper, ruled in the frame's ink (globals.css says why): 92 across, 8.4 of padding, a 2.4 rule
+        <div
+          style={{
+            position: "absolute",
+            left: Math.round(62 * k), top: Math.round(60 * k),
+            width: Math.round(92 * k),
+            height: Math.round(92 * k),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: CARD_PAPER,
+            border: `${Math.max(2, Math.round(2.4 * k))}px solid ${look.ink}`,
+            borderRadius: Math.round(22 * k),
+          }}
+        >
+          <img src={stamp} width={Math.round(70 * k)} height={Math.round(70 * k)} style={{ objectFit: "contain" }} />
+        </div>
+      )}
       {/* The ribbon: "one of one", the number when the chain has given one, the rarity. Never the word. */}
       {tier && (
         <div style={{ position: "absolute", left: 0, bottom: Math.round(cardW * 0.0105), width: cardW, display: "flex", justifyContent: "center" }}>
