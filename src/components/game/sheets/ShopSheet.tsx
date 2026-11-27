@@ -141,11 +141,11 @@ export function ShopSheet() {
                         {card.kind === "placeholder"
                           ? "A placeholder on the test network. It does nothing; it’s here so you can try paying."
                           : scene
-                            ? "A scene for your words’ cards. Pick it for a word with the palette button under its card."
+                            ? "A card face: the picture behind your word, on the front of its card. Buy it once, then pick it for any of your words with the palette button under a card."
                             : isCase
                               ? "A clear case for one word’s card, with a label of its own. Put a word in it with the Case button under its card."
                               : card.meta.kind === "scene"
-                                ? "A scene"
+                                ? "A card face"
                                 : "A costume"}
                       </div>
                       {(owned > 0 || sale === "have") && (

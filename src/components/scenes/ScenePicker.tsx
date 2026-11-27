@@ -45,7 +45,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
           </span>
         </p>
       )}
-      <div role="radiogroup" aria-label={`${word}’s scene`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div role="radiogroup" aria-label={`${word}’s card face`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {scenes.map((s) => {
           const on = scene === s.id;
           // In the Shop, not bought: the tile opens the Shop, where the scene is for sale.

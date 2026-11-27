@@ -226,8 +226,8 @@ export function CardCase({
       type="button"
       className="sc-flip"
       onClick={() => settle(turns + 1, true)}
-      aria-label={isBack ? `Show ${W}’s scene` : `Turn ${W} over`}
-      title={isBack ? "Show the scene" : "Turn it over"}
+      aria-label={isBack ? `Show ${W}’s front` : `Turn ${W} over`}
+      title={isBack ? "Show the front" : "Turn it over"}
     >
       <FlipIcon />
     </button>

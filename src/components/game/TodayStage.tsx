@@ -242,8 +242,8 @@ export function TodayStage() {
             <Button
               variant="ghost"
               className="shrink-0 !px-3"
-              aria-label={`Pick ${W}’s scene`}
-              title="Pick a scene"
+              aria-label={`Pick ${W}’s card face`}
+              title="Pick a card face"
               onClick={() => g.openSheet({ kind: "scene", word: W })}
             >
               <Palette weight="fill" size={18} />
@@ -328,7 +328,7 @@ function EmptyStage() {
     elsewhere: "Your words live in your other wallet. Connect it to look after them here.",
     spell: "Your letters can spell a word now. Spell it, and it moves in here.",
     more: "Your words will live here. A few more letters, and you can spell your first.",
-    start: "Your words will live here, each in its own scene. Start with some letters.",
+    start: "Your words will live here, each on a card of its own. Start with some letters.",
   };
   return (
     <section aria-label="Your stage" aria-busy={shape === "loading"} className="tt">

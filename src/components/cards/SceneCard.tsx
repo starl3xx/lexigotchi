@@ -117,8 +117,8 @@ export function SceneCard({
             e.stopPropagation();
             flip();
           }}
-          aria-label={back ? `Show ${W}’s scene` : `Turn ${W} over`}
-          title={back ? "Show the scene" : "Turn it over"}
+          aria-label={back ? `Show ${W}’s front` : `Turn ${W} over`}
+          title={back ? "Show the front" : "Turn it over"}
         >
           <FlipIcon />
         </button>

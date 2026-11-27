@@ -2787,6 +2787,46 @@ setter. All small, riding existing suite patterns.
       refresh for a list of words; it gets tests and an audit pass, in part 4). The check on the
       word that `dissolve` logs was not chosen.
 
+54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
+    about cards... the *front* of the card is its front regardless of the scene/face... the *face*
+    (not scene) is the background on the front of the card. the back is the back. standardize
+    across all surfaces, docs, etc").
+    - **The three words.** The FRONT is the side of a card with the word on it, whatever it
+      wears. The FACE (a "card face" where a sentence needs the noun) is the picture on the
+      front, behind the word: what a player picks, unlocks, or buys. The BACK is the other side,
+      with the word's story.
+    - **"Scene" had two meanings, and each got its own word.** Where it meant the side (the flip
+      button's "Show the scene") it is "front". Where it meant the picture ("Pick a scene") it is
+      "face". So the change was read line by line, never as a replace-all.
+    - **Every surface a player reads:** the game (the button under an opened card is "Face"; the
+      picker's title is "CRANE's card face"; the flip button says "Show the front"; the Market's
+      "Card faces, cases, and costumes stay with the seller"), the Shop's wording, the player docs
+      (the section is "Card faces", with the three words defined once, and an FAQ entry), and the
+      messaging guide's word list. The mechanics reference follows.
+    - **The guard.** `tests/copy-rules.test.ts` fails on "scene" in player-facing code and in the
+      player docs. The operator console is excused: it names the stored kind.
+    - **The code keeps "scene", and so does everything stored or posted** (my reading of "all
+      surfaces, docs, etc": what a person reads, not what the code is called). A share link's
+      `?scene=` is posted for good; kind `scene` is in `shop_items` and `word_picks`; `/api/scenes`
+      and the browser's `lexigotchi:scene:` key hold players' picks. Renaming the code's own names
+      (`SceneId`, `SceneFrame`, `useWordScene`) is a change to about a hundred files that other
+      work is in the middle of, for no player's benefit. It can be done on its own if the owner
+      wants it.
+    - **Two older code names use "face" for something else:** `?face=1` and `showcaseFacePath`
+      are the card's front alone, and `playerFaces` is a player's name and picture. They are
+      listed in CLAUDE.md so nobody takes one for the other.
+    - **My readings, not starl3xx's words:** the first face is named "Stock" in the picker and
+      "the stock face" in a sentence (his phrase, from the listing: "it shows the stock face");
+      the button under an opened card is "Face", not "Card face", because three buttons share a
+      phone's width there; "face down", of the jackpot's secret card, stays as plain English for
+      a card lying on its front.
+    - **What a player buys in the Shop stays with the player** (the same day: "shop items staying
+      with the player and not transferring on sale or dissolve or anything is something we should
+      be clear about in the docs"). The docs say it in a section of its own, and again where a
+      player reads about selling a word, buying one, and dissolving one. It was already how the
+      game works (#41): a purchase is the profile's, a pick is kept by profile, and nothing from
+      the Shop is a token that can move.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
