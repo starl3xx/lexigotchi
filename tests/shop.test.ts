@@ -196,6 +196,12 @@ describe("one Buy for every place that shows one", () => {
     expect(src).toMatch(/useShopBuy\(\)/);
     expect(src).not.toMatch(/buyShopItem|sceneSale\(/);
   });
+  it("a purchase is in flight only while the action gate says so: Hide on the status pill brings Buy back", () => {
+    // A wallet that never answers leaves the purchase's promise pending for good. Counting that
+    // promise alone left every Buy disabled until a reload.
+    expect(read("useShop.ts")).toMatch(/g\.busy\?\.label === SHOP_BUY_LABEL/);
+    expect(read("ChainGameProvider.tsx")).toMatch(/track\(\s*SHOP_BUY_LABEL,/);
+  });
   it("an item's view opens only a real item: never the test network's placeholder", () => {
     expect(read("sheets/ShopItemSheet.tsx")).toMatch(/c\.kind === "item" && c\.item\.id === id/);
     expect(read("screens/ShopScreen.tsx")).toMatch(/const opens = card\.kind === "item";/);

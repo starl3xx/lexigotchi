@@ -129,7 +129,9 @@ export function ShopScreen() {
       // An item's card lifts and presses as one thing (`press`), because one tap anywhere on it
       // opens the item: the button below is stretched over the card (its ::after), and Buy sits
       // above that, a button of its own.
-      <li key={card.item.id} className={`cel-sm flex flex-col rounded-2xl bg-card p-3 ${opens ? "press" : ""}`}>
+      // `isolate`: Buy's own layer stays inside its card, so it can never paint over the header
+      // or the phone's bottom bar as the list scrolls under them.
+      <li key={card.item.id} className={`cel-sm isolate flex flex-col rounded-2xl bg-card p-3 ${opens ? "press" : ""}`}>
         {opens ? (
           <button
             type="button"

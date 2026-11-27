@@ -3031,7 +3031,14 @@ setter. All small, riding existing suite patterns.
       the wrong one would sell a face to someone who has it. `useShopView` (game/useShop) is the
       one place both read the Shop from. **A purchase in flight is known to every Buy on the
       page** (`useShopBuy`, a shared mutation): the view is a sheet that can be closed
-      mid-purchase, and the card behind it must not offer a second Buy.
+      mid-purchase, and the card behind it must not offer a second Buy. **"In flight" is the
+      action gate's word** (`g.busy` with the purchase's label, `SHOP_BUY_LABEL`), never the
+      purchase's own promise alone: a wallet that never answers leaves the promise pending for
+      good, and after Hide on the status pill Buy must be live again. My first version counted
+      the pending promise and would have left every Buy disabled until a reload (caught in
+      review, before it shipped).
+    - **A thing with no picture** (a costume with no art yet) opens in the usual dialog, one
+      column: the wide dialog is for a picture.
     - **The view reads the Shop live, by id.** An item that has gone, or a Shop that couldn't
       say what its items are, says so; the view never falls back to a placeholder card, and the
       test network's placeholder opens nothing.
@@ -3039,13 +3046,21 @@ setter. All small, riding existing suite patterns.
       WORD", the docs link, and that the face picker's tile now opens the item (on the word
       being dressed) instead of only the category. Not built: a case's or a costume's own
       larger view beyond its picture and words (none is listed).
-    - **Seen and not seen (the item's view):** in Chromium at 390, 768, and 1,280 px on my own
-      dev server against the live test Shop, with every write to the server blocked in the
-      browser: with no wallet (Connect a wallet to buy), and as a read-only pretend wallet at an
-      address that has the face and 19 words (You have it, the words row, the closer look, and
-      "Put it on NOVEL", which then read "NOVEL's card has this face": saved in that browser
-      only). Not seen: a purchase from the view, a sale with an end date, a case or costume
-      item (none exists), a real phone.
+    - **Seen and not seen (the item's view):** in Chromium and WebKit, on my own dev server
+      against the live test Shop, with every write to the server blocked in the browser.
+      At 390, 768, and 1,280 px: with no wallet (Connect a wallet to buy), and as a read-only
+      pretend wallet at an address that has the face and 18 words (You have it, the words row,
+      the closer look, and "Put it on NOVEL", which then read "NOVEL's card has this face":
+      saved in that browser only). At 390 and 1,280 px, as a pretend wallet that has words and
+      not the face: the face picker's tile landed on the Shop with the item open on the word
+      being dressed, and Buy live; a mouse click on the card's edition line, its top padding,
+      and its bottom padding each opened the view, and a click on Buy did not; and with a
+      wallet that never answers the signature request, the card and the view both read
+      "Buying…", and after Hide the card's Buy was live again. With a Shop answer MADE UP in
+      the test browser (nothing listed anywhere): a sale with an end date ("On sale until
+      November 30 at 3:31 PM."), a sold-out face, a case, and a costume not yet on sale.
+      Not seen: a purchase that completes from the view, a finger on the closer look (a mouse
+      and scripted scrolling only), a real phone.
     - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
       phone's bottom bar has five places, all taken); the categories are one switch at the top
       of the screen; a costume, when one exists, is an accessory; the placeholder stays, under

@@ -44,10 +44,14 @@ export function ShopItemSheet({ id, word }: { id: number; word?: string }) {
   const g = useGame();
   const v = useShopView();
   const card = v.known ? v.cards.find((c): c is ItemCard => c.kind === "item" && c.item.id === id) : undefined;
+  const about = card ? v.about(card) : null;
+  // The wide dialog is for a picture seen large. A thing with no picture yet (a costume with no
+  // art) is its words alone, in the usual dialog and one column.
+  const pictured = !!about && (!!about.scene || about.isCase);
   return (
-    <Sheet open onClose={g.closeSheet} title={card ? card.meta.name : "The Shop"} wide>
-      {card ? (
-        <ItemView card={card} about={v.about(card)} now={v.now} poolPct={v.poolPct} word={word} />
+    <Sheet open onClose={g.closeSheet} title={card ? card.meta.name : "The Shop"} wide={pictured}>
+      {card && about ? (
+        <ItemView card={card} about={about} pictured={pictured} now={v.now} poolPct={v.poolPct} word={word} />
       ) : v.loading ? (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/60">
           <CircleNotch className="animate-spin" /> Opening the Shop…
@@ -62,7 +66,7 @@ export function ShopItemSheet({ id, word }: { id: number; word?: string }) {
 /** A sale's end or start, in the reader's own time: "December 12, 4:00 PM". */
 const when = (sec: number) => new Date(sec * 1000).toLocaleString(undefined, { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-function ItemView({ card, about, now, poolPct, word }: { card: ItemCard; about: ItemAbout; now: number; poolPct: number; word?: string }) {
+function ItemView({ card, about, pictured, now, poolPct, word }: { card: ItemCard; about: ItemAbout; pictured: boolean; now: number; poolPct: number; word?: string }) {
   const g = useGame();
   const openUrl = useOpenUrl();
   const testnet = NETWORK.isTestnet;
@@ -76,8 +80,8 @@ function ItemView({ card, about, now, poolPct, word }: { card: ItemCard; about: 
   const face = about.scene;
 
   return (
-    <div className="space-y-4 pb-2 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-5 lg:space-y-0">
-      <div className="min-w-0 space-y-3">
+    <div className={`space-y-4 pb-2 ${pictured ? "lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-5 lg:space-y-0" : ""}`}>
+      <div hidden={!pictured} className="min-w-0 space-y-3">
         {face ? (
           <Closer>{on ? <OnWord scene={face} w={on} /> : <SceneThumb scene={face} />}</Closer>
         ) : about.isCase ? (
@@ -205,7 +209,7 @@ function Closer({ children }: { children: ReactNode }) {
       <div className="card-corner overflow-hidden border-[3px] border-ink">
         <div
           ref={view}
-          className={`shop-closer ${close ? "cursor-grab overflow-auto active:cursor-grabbing" : "overflow-hidden"}`}
+          className={`shop-closer ${close ? "is-close cursor-grab overflow-auto active:cursor-grabbing" : "overflow-hidden"}`}
           style={{ aspectRatio: "16 / 9" }}
           onPointerDown={onDown}
           onPointerMove={onMove}

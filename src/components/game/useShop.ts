@@ -16,6 +16,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { casesState, isCaseItem, type CasesState } from "@/lib/shop/cases";
 import { shopEnabled } from "@/lib/shop/config";
+import { SHOP_BUY_LABEL } from "@/lib/shop/buy";
 import { buyOffer, type BuyOffer } from "@/lib/shop/offer";
 import { availability, edition, shopCards, type Availability, type ItemMeta, type RegistryItem, type ShopCard } from "@/lib/shop/rules";
 import { boughtScenes, sceneOfItem, sceneSale, scenesOnSale } from "@/lib/shop/scenes";
@@ -211,6 +212,12 @@ const BUY_KEY = ["shop", "buy"] as const;
  * sheet that can be closed mid-purchase, and the card behind it must not offer a second Buy then.
  * (The action gate would refuse the second send; the button should not offer it.) What the Shop
  * and the player hold is read again when the purchase settles, even if its sheet has gone.
+ *
+ * **In flight means the action gate says so** (`g.busy`, lib/onchain/actionGate), never the
+ * purchase's own promise alone. A wallet that never answers leaves that promise pending for
+ * good; the player presses Hide on the status pill, which releases the gate, and Buy must be
+ * live again then. Counting the pending promise by itself left every Buy disabled until a reload.
+ * The promise only says WHICH item (the newest one started).
  */
 export function useShopBuy(): { buyingId: number | null; buy: (item: { id: number; priceUsdc: bigint }) => Promise<boolean> } {
   const g = useGame();
@@ -231,7 +238,9 @@ export function useShopBuy(): { buyingId: number | null; buy: (item: { id: numbe
     },
   });
   const buy = useCallback((item: { id: number; priceUsdc: bigint }) => mutateAsync(item).catch(() => false), [mutateAsync]);
-  return { buyingId: inFlight.find((id) => id !== null) ?? null, buy };
+  const buying = g.busy?.label === SHOP_BUY_LABEL;
+  const started = inFlight.filter((id): id is number => id !== null);
+  return { buyingId: buying ? (started.at(-1) ?? null) : null, buy };
 }
 
 /** One shown item, as this player sees it: what it is, what they have, and what the Shop offers. */

@@ -74,9 +74,12 @@ body {
 
 /* A Shop item's closer look (sheets/ShopItemSheet): the card at twice the width in a box that pans.
    No scrollbars: on a browser that always shows them they would sit on the picture, and the
-   picture itself is what moves. `touch-action` lets a finger pan it both ways. */
+   picture itself is what moves. Only WHILE it is a closer look (.is-close) does a finger pan the
+   picture and stop at its edge; at rest a finger on the picture scrolls the sheet as anywhere. */
 .shop-closer {
   scrollbar-width: none;
+}
+.shop-closer.is-close {
   overscroll-behavior: contain;
   touch-action: pan-x pan-y;
 }
