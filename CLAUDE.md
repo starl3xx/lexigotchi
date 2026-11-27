@@ -374,6 +374,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `game_wallets`, migration 0010; its own table because `getProfile` selects every profiles column):
   the wallet the player keeps everything in; a stored wallet that left the account reads as none.
   `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
+  its × hides it in this browser on both screens (`useHiddenWalletNotices`), one key per wallet it
+  names (`adviceKeys`: kind, connected wallet, that wallet; never counts): it stays hidden with less
+  to say (a named wallet emptied or unlinked) and returns only for a wallet it never named, and
+  "none" (also said while holdings load) never clears one;
   `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
   **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
   staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
