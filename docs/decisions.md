@@ -2261,6 +2261,28 @@ setter. All small, riding existing suite patterns.
         holds), and after a loss (the next day). No error, no sideways scrolling.
         `screen-bounty.jpg` in the player docs is taken again. Not seen: a real phone; the page
         onchain (it shows only the face-down state, the same component).
+    - **Part 5, letters act the steps out, with no icons between them** (3A, in part;
+      `Onboarding.tsx`, `LandingPage.tsx`). Built:
+      - **"Raise them"** (the intro and the landing page): a lowercase r, the r mid-roll (the
+        rig's rolling look: it can't look), and the R it becomes. It was r, a dice icon, R.
+      - **"They get hungry."** (the landing page): a hungry y and the y fed. It was a hungry y,
+        a cookie icon, and a fed y. The review page drew a third letter between them, at its
+        snack; he does not like that look held small ("the static cookie/circle thing"), so no
+        letter is shown at its snack in these pictures. The rig's snack is not changed.
+      - **Held: "Keep them fed"** (the intro and the landing page) still has its trophy, cookie,
+        and confetti icons. The review page's picture for it was the word at its snacks, which
+        he turned down, and he has seen no other. **Open for the owner:** candidates for it go
+        on the design audit's pages (he also said, the same evening, that he hates the trophy).
+      - **What it costs.** The letter mid-roll is the dear one. The "Raise them" picture alone,
+        at the landing page's size, three alternating runs of 15 s, on this Mac under heavy
+        load from other work: WebKit 1.5%, 1.5%, 3.1% of a processor core with the icon, and
+        14.5%, 31.5%, 13.7% with the three letters; Chromium 8.9%, 13.3%, 13.1%, and 15.6%,
+        19.9%, 21.4%. About 12 points more in WebKit and 7 in Chromium, while the picture is on
+        screen. If that is too much for the landing page, the middle letter can stand still
+        there (`still`) at no cost; the intro shows one step at a time.
+      - **Seen and not seen (part 5):** the landing page's two pictures at 390 px and 1,280 px,
+        and the intro's second step at both, in WebKit and Chromium: no error, nothing outside
+        its box, no sideways scrolling. Not seen: a real phone.
 
 51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
     2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the

@@ -8,7 +8,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import { HOW_IT_WORKS, type HowItWorksStep } from "@/lib/howItWorks";
 import { Button } from "./primitives";
 import { TileCharacter, TileWord } from "./TileCharacter";
-import { Confetti, Cookie, DiceFive, Sparkle, Trophy } from "./ui/icons";
+import { Confetti, Cookie, Sparkle, Trophy } from "./ui/icons";
 
 /** Lets any screen (e.g. the FAQ) replay the intro. Provided by GameApp's OnboardingHost. */
 export const OnboardingContext = createContext<{ replay: () => void }>({ replay: () => {} });
@@ -30,11 +30,13 @@ const VISUALS: Record<HowItWorksStep["id"], ReactNode> = {
       ))}
     </div>
   ),
+  // The letters act the step out, with no icon between them (decisions.md #50, part 5): a
+  // lowercase r, the r mid-roll (it can't look), and the R it becomes.
   raise: (
-    <div className="flex items-center justify-center gap-3">
-      <TileCharacter char="R" detail="full" state="idle" size={68} />
-      <DiceFive weight="fill" size={34} className="shrink-0 text-candy-ink" />
-      <TileCharacter char="R" upper detail="full" state="upgrade" size={94} />
+    <div className="flex items-end justify-center gap-2">
+      <TileCharacter char="r" detail="full" state="idle" size={64} />
+      <TileCharacter char="r" detail="full" state="rolling" size={64} index={1} />
+      <TileCharacter char="r" upper detail="full" state="upgrade" size={90} />
     </div>
   ),
   spell: <TileWord word="CRANE" upper={[false, false, false, false, false]} detail="full" size={60} />,
