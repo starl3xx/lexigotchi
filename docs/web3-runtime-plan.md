@@ -271,6 +271,22 @@ it is his to run, never the app's or an agent's). The other tables that name the
 (listings, sales, the wardrobe, reward leaves) are keyed by address or root and simply go quiet;
 each is checked on the day.
 
+## Token metadata (decisions.md #53)
+
+`GET /api/word/{tokenId}` serves a word's metadata: its name in its live case, its card's picture,
+and its traits (Rarity as the game treats it, UPPERCASE letters, Ascension, Number, Set once its set
+is released, Collab from its set's reveal). `Words.tokenURI` is the base URI plus the decimal token
+id, so the owner points Words at it once per network:
+
+1. Console → Contracts → Words → **Set base token URI**: `https://<the site>/api/word/` (with the
+   closing slash). Today's Base Sepolia Words has `setBaseURI`; no redeploy is needed for this.
+2. Check one held word: `Words.tokenURI(id)` opens in a browser and shows the JSON.
+3. After a change the chain can't see (a collab set's reveal for words somebody already holds, a
+   new look for every card): **Refresh words' metadata** with the set's token ids (the Sets tab
+   copies them), or **Refresh every word's metadata**. These two need a Words deployed with the
+   refresh (it rides the redeploy above); `applyUpgrade` and ascension already emit the event
+   themselves.
+
 ## The Shop (decisions.md #22)
 
 Live on Base Sepolia since 2026-11-25 (`config/deployments.base-sepolia.json` `shop`; one placeholder

@@ -23,6 +23,7 @@ import type { AdminSet, AdminSetsPayload } from "@/app/api/admin/sets/route";
 import type { ReleasePlan, ReservePlan } from "@/lib/sets/server";
 import { castCommand, safeBatchJson, type TxIntent } from "@/lib/admin/tx";
 import { NETWORK } from "@/lib/onchain/network";
+import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { COLLAB_WORDS, STAMP_MAX_BYTES, STAMP_TYPES } from "@/lib/sets/rules";
 import { useAdminApi, type AdminSendError } from "../useAdminApi";
 import { GatedState } from "../GatedState";
@@ -651,6 +652,14 @@ function SetCard({
           )}
           <PlanOutput intents={plan.intents} name={`Words: release ${set.name}`} />
         </div>
+      )}
+
+      {set.status !== "draft" && set.words.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink/60">
+          <CopyButton text={`[${set.words.map((w) => tokenIdOf(w.word).toString()).join(",")}]`} small label="Copy its token ids" />
+          For a metadata refresh: Contracts → Words → “Refresh words’ metadata” takes this list. Use it when a card’s look or traits change for words
+          somebody already holds (a collab set’s reveal). It needs a Words deployed with the refresh.
+        </p>
       )}
 
       {set.status === "released" && (
