@@ -4,7 +4,7 @@
  * envelope is torn, and the note names its envelope so this survives a reload (Bugbot on #276).
  */
 import { describe, it, expect } from "vitest";
-import { parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
+import { awaitsLetter, dayOf, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 
 const note = (over: Partial<DailySeen> = {}): DailySeen => ({ day: 20784, idx: null, at: 1_795_700_000_000, ...over });
 const reload = (seen: DailySeen | null) => parseDailySeen(JSON.stringify(seen));
@@ -64,5 +64,37 @@ describe("the letter, at the tear", () => {
     expect(torn.day).toBe(20783);
     expect(torn.at).toBe(1_795_600_000_000);
     expect(torn.idx).toBe(7);
+  });
+});
+
+// Bugbot on #276, round two: an envelope opened from the card, or lost to a reload, must still
+// end with its letter beside "claimed".
+describe("a note that still waits for its letter", () => {
+  it("is today's note with no letter on it", () => {
+    expect(awaitsLetter(note(), 20784)).toBe(true);
+    expect(awaitsLetter(note({ mail: 190 }), 20784)).toBe(true);
+  });
+
+  it("is not a note whose envelope was torn, another day's note, or no note", () => {
+    expect(awaitsLetter(note({ idx: 20 }), 20784)).toBe(false);
+    expect(awaitsLetter(note({ idx: 0 }), 20784)).toBe(false); // an "a" is a letter
+    expect(awaitsLetter(note(), 20785)).toBe(false);
+    expect(awaitsLetter(null, 20784)).toBe(false);
+  });
+
+  it("a daily opened from the card names itself on the note of the day it was committed", () => {
+    // the commit's block time says which day it is; only that day's note learns it
+    const day = dayOf(20784 * 86_400 + 3_600);
+    expect(day).toBe(20784);
+    expect(withDailyMail(note(), day, 190)).toEqual(note({ mail: 190 }));
+    // yesterday's stranded letter, opened today, does not become today's
+    expect(withDailyMail(note(), dayOf(20783 * 86_400 + 80_000), 150)).toEqual(note());
+  });
+
+  it("the day of a block time is the contract's: whole days since 1970, UTC", () => {
+    expect(dayOf(0)).toBe(0);
+    expect(dayOf(86_399)).toBe(0);
+    expect(dayOf(86_400)).toBe(1);
+    expect(dayOf(1_795_737_600n)).toBe(20784);
   });
 });

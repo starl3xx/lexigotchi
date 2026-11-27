@@ -72,7 +72,14 @@ export function dailyPlan(look: DailyLook): DailyPlan {
   // Whose is the predicted slot? Only a ONE-letter commit of this wallet's is the daily: a pack
   // bought in another tab between the voucher and the send can sit at that id.
   const slotIsMine = look.predicted !== null && look.slot !== null && same(look.slot.buyer, look.me) && look.slot.count === 1;
-  const mine = slotIsMine ? { commitId: look.predicted as bigint, revealed: (look.slot as CommitState).revealed, atPredicted: true } : look.fresh ? { ...look.fresh, atPredicted: false } : null;
+  // A commit the scan found AT the predicted id is at the predicted id, whatever the slot's own
+  // read said: that read can fail (it then looks like an empty slot), and the wallet's reveal names
+  // this very commit, so it must still be waited for (Bugbot on #276).
+  const mine = slotIsMine
+    ? { commitId: look.predicted as bigint, revealed: (look.slot as CommitState).revealed, atPredicted: true }
+    : look.fresh
+      ? { ...look.fresh, atPredicted: look.predicted !== null && look.fresh.commitId === look.predicted }
+      : null;
 
   if (mine) {
     if (mine.revealed) return { do: "open", commitId: mine.commitId, revealed: true };

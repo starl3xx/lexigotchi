@@ -21,6 +21,18 @@ export interface DailySeen {
   mail?: number;
 }
 
+/** The chain day of a block time (seconds): the day the contract counts a daily under. */
+export const dayOf = (timestamp: number | bigint): number => Math.floor(Number(timestamp) / 86_400);
+
+/**
+ * Does today's note still wait for its letter? Then its envelope has not been torn, and it must
+ * be somewhere: in hand, kept as mail, an open commit, or (after a reload mid-flight, or a send
+ * that landed with nobody watching) nowhere this browser knows, and it has to be found again.
+ */
+export function awaitsLetter(seen: DailySeen | null, today: number): seen is DailySeen {
+  return !!seen && seen.day === today && seen.idx === null;
+}
+
 /** What a stored value holds, or null: a bad value is no note, and the chain read still works. */
 export function parseDailySeen(raw: string | null | undefined): DailySeen | null {
   if (!raw) return null;

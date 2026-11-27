@@ -68,6 +68,7 @@ import {
   readLetterCommit,
   readLetterCommits,
   readLetterCommitRevealed,
+  readBlockDay,
   readDayState,
   waitForNewCommit,
   readOpenRollCommits,
@@ -133,7 +134,7 @@ import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageN
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
 import { failedAsk, openPacks, packRevealPlan, waitingCommits, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
 import { DAILY_STEP_MS, dailyPlan } from "@/lib/onchain/dailySend";
-import { parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
+import { awaitsLetter, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 import { mailboxKey, readMailbox, withMail, withoutMail, writeMailbox, type UnopenedMail } from "@/lib/mailbox";
 import { bagWithMail, caughtUp, hadWithOwed, mailNumber, type Mail } from "./mail/mailFlow";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -1226,6 +1227,51 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [openCommits, flight, mail],
   );
+
+  /**
+   * Today's letter was claimed and its envelope isn't known here: the page was reloaded before the
+   * chain answered, or the send landed with nobody watching. Its tile waits for a tear, so the
+   * envelope has to be found again (Bugbot on #276): this wallet's one-letter commit of that chain
+   * day. The note learns its number. If the commit is still to be opened, the card shows it by
+   * itself; if it is already revealed, it is kept as mail to tear (plainly: what the bag held
+   * before it is not known). Once per note, and never while a piece is on its way.
+   */
+  const sought = useRef<string | null>(null);
+  useEffect(() => {
+    if (!address || !boxKey || !awaitsLetter(seenToday, chainDayNow) || flight || busy) return;
+    const number = seenToday.mail;
+    // An envelope already stands for it: in hand, or kept as mail.
+    if (number !== undefined && (mailNow.current?.number === number || untorn.some((u) => u.number === number))) return;
+    const key = `${boxKey}:${seenToday.day}`;
+    if (sought.current === key) return;
+    sought.current = key;
+    const day = seenToday.day;
+    // Not a cleanup flag: naming the note below changes the note, which runs this effect again,
+    // and a flag set by that would stop the search before it kept the mail. The wallet is the
+    // thing that must not have changed.
+    const gone = () => boxKeyNow.current !== boxKey;
+    void (async () => {
+      const dailies = (await readLetterCommits(address)).filter((c) => c.count === 1).sort((a, b) => (a.commitId < b.commitId ? 1 : -1));
+      // newest first: today's is among the last few
+      for (const c of dailies.slice(0, 4)) {
+        if (gone()) return;
+        if ((await readBlockDay(c.blockNumber)) !== day) continue;
+        const n = mailNumber(c.commitId);
+        changeDailyNoteRef.current((seen) => withDailyMail(seen, day, n));
+        if (!c.revealed || gone()) return; // still to be opened: the card shows it
+        if (readMailbox(boxKey).some((u) => u.number === n)) return;
+        // Revealed: the route sends nothing, it names the letter the chain minted.
+        const res = await openPostJson<{ reveal: PackRevealAnswer }>("/api/mint/reveal", { commitId: String(c.commitId), relay: true });
+        const show = res?.ok ? packRevealPlan(res.reveal) : null;
+        if (gone() || show?.do !== "show") return;
+        revealedPacks.current.add(String(c.commitId));
+        saveBox(boxKey, (list) => withMail(list, { number: n, letters: show.letters, had: Array.from({ length: 26 }, () => 0), at: Date.now(), plain: true }));
+        return;
+      }
+    })().catch(() => {
+      sought.current = null; // the chain couldn't be asked: look again on a later change
+    });
+  }, [address, boxKey, seenToday, chainDayNow, flight, busy, untorn, openPostJson, saveBox]);
 
   /** Lay a pity value the client KNOWS over the lagging chain read, for that roll's owner. */
   const notePity = useCallback((owner: string, letterIndex: number, value: number) => {
@@ -2630,6 +2676,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // for another wallet is "away", and the envelope must not say it can be spelled with.
           const mine = oldest.buyer.toLowerCase() === address?.toLowerCase();
           const count = oldest.count === 1 ? 1 : 5;
+          // A daily letter opened here is the envelope of the day it was committed on: the note
+          // of that day learns it, so its tear shows the letter (the pull's own flow may never
+          // have got that far: a reload, a lost connection).
+          if (mine && count === 1) {
+            void readBlockDay(oldest.blockNumber)
+              .then((day) => changeDailyNoteRef.current((seen) => withDailyMail(seen, day, mailNumber(oldest.commitId))))
+              .catch(() => {});
+          }
           const piece: Piece = { count, had: bagBefore(mineLower(state)), mine };
           const seq = beginMail({ free: count === 1, phase: "found", number: mailNumber(oldest.commitId), ...piece });
           await mailGuard(seq, piece, waiting, async (markSent) => {

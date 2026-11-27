@@ -2144,7 +2144,11 @@ setter. All small, riding existing suite patterns.
         waits for the tear, in both stores, and no toast names the letter at the tap. Tearing an
         old envelope never marks today's letter as claimed (the note is not stamped again). The
         stored note names its envelope (`lib/dailyNote`), so the tile also shows for an envelope
-        that waited through a reload (Bugbot on #276: the link was first kept in memory only).
+        that waited through a reload (Bugbot on #276: the link was first kept in memory only). A
+        daily opened from the card names itself on the note of the day it was committed, and when
+        today's note waits for a letter with no envelope known (a reload mid-flight, a send that
+        landed unwatched), the day's commit is found again and, if already revealed, kept as
+        plain mail to tear.
       - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
         that was already revealed, the bag read at that tap may count its letters already. Its
         letters then get no tags, none is called new, and no word is named: counted twice, a

@@ -103,3 +103,20 @@ describe("the rule under all of it", () => {
     }
   });
 });
+
+// Bugbot on #276: the read of the predicted slot can fail, and it then looks like an empty slot.
+describe("when the predicted slot's own read fails", () => {
+  it("a commit the scan finds AT the predicted id is still waited for: the wallet's reveal names it", () => {
+    const plan = dailyPlan(look({ slot: null, fresh: { commitId: 200n, revealed: false }, unrevealedFor: 0 }));
+    expect(plan).toEqual({ do: "hold", commitId: 200n });
+  });
+
+  it("and is opened through the server once the wait is over, or when it is revealed", () => {
+    expect(dailyPlan(look({ slot: null, fresh: { commitId: 200n, revealed: false }, unrevealedFor: DAILY_HOLD_MS }))).toEqual({ do: "open", commitId: 200n, revealed: false });
+    expect(dailyPlan(look({ slot: null, fresh: { commitId: 200n, revealed: true } }))).toEqual({ do: "open", commitId: 200n, revealed: true });
+  });
+
+  it("a commit found at ANOTHER id is not waited for: the wallet's reveal can't land on it", () => {
+    expect(dailyPlan(look({ slot: null, fresh: { commitId: 201n, revealed: false }, unrevealedFor: 0 }))).toEqual({ do: "open", commitId: 201n, revealed: false });
+  });
+});
