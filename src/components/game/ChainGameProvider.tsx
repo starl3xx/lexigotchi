@@ -1912,6 +1912,15 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             if (proof.error === "dictionary_mismatch") {
               return void toast("The word list was just updated. Claims reopen shortly.", "info");
             }
+            // Held back in a reserved set (decisions.md, "Reserved word sets"): a plain "not yet".
+            if (proof.error === "not_released") {
+              return void toast(`${word.toUpperCase()} isn’t available yet`, "info");
+            }
+            // The server couldn't answer just now (its own read failed, or too many asks from this
+            // address): nothing is wrong with the word, so never say it isn't claimable.
+            if (proof.error === "try_again" || proof.error === "rate_limited") {
+              return void toast("Couldn’t check that word just now. Try again in a moment.", "info");
+            }
             return void toast(`${word} isn’t claimable`, "bad");
           }
           const W = word.toUpperCase();

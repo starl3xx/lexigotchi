@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { StatusStrip } from "./StatusStrip";
 import {
   ChartLineUp,
+  Cube,
   Faders,
   Gauge,
   GearSix,
@@ -38,6 +39,7 @@ import { PlayersTab } from "./tabs/PlayersTab";
 import { ReportsTab } from "./tabs/ReportsTab";
 import { SystemTab } from "./tabs/SystemTab";
 import { ShopTab } from "./tabs/ShopTab";
+import { SetsTab } from "./tabs/SetsTab";
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 
 type TabId =
@@ -55,7 +57,8 @@ type TabId =
   | "deployments"
   | "broadcast"
   | "notifications"
-  | "shop";
+  | "shop"
+  | "sets";
 
 interface TabDef {
   id: TabId;
@@ -78,6 +81,8 @@ const TABS: TabDef[] = [
   { id: "parameters", label: "Parameters", section: "Operations", icon: <Faders weight="bold" size={15} />, render: () => <ParametersTab /> },
   { id: "keeper", label: "Keeper", section: "Operations", icon: <Wrench weight="bold" size={15} />, render: () => <KeeperTab /> },
   { id: "access", label: "Access & Safety", section: "Operations", icon: <ShieldCheck weight="bold" size={15} />, render: () => <AccessTab /> },
+  // After the first ten on purpose: the digit shortcuts of the tabs above keep their numbers.
+  { id: "sets", label: "Sets", section: "Operations", icon: <Cube weight="bold" size={15} />, render: () => <SetsTab /> },
   { id: "deployments", label: "Deployments", section: "Settings", icon: <ListChecks weight="bold" size={15} />, render: () => <DeploymentsTab /> },
   { id: "broadcast", label: "Broadcast", section: "Settings", icon: <Megaphone weight="bold" size={15} />, render: () => <BroadcastTab /> },
   { id: "notifications", label: "Notifications", section: "Settings", icon: <BellRinging weight="bold" size={15} />, render: () => <NotificationsTab /> },

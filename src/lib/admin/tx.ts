@@ -51,6 +51,14 @@ export function validateIntent(intent: TxIntent): string[] {
       if (!isBytes32(v)) errs.push(`${a.name} must be 32 bytes (0x + 64 hex)`);
     } else if (a.type === "bool") {
       if (v !== "true" && v !== "false") errs.push(`${a.name} must be true or false`);
+    } else if (a.type.endsWith("[]")) {
+      // A list, written "[1,2,3]" (what `cast` and the Safe builder both take). Whole numbers only:
+      // the one list the console builds is a set's token ids (Words.setGate).
+      const inner = v.replace(/^\[|\]$/g, "").trim();
+      const parts = inner === "" ? [] : inner.split(",").map((s) => s.trim());
+      if (!/^\[.*\]$/.test(v)) errs.push(`${a.name} must be a list like [1,2,3]`);
+      else if (parts.length === 0) errs.push(`${a.name} needs at least one value`);
+      else if (parts.some((p) => !/^\d+$/.test(p))) errs.push(`${a.name} values must be whole numbers`);
     } else if (a.type.startsWith("uint")) {
       if (!/^\d+$/.test(v)) {
         errs.push(`${a.name} must be a whole number`);
@@ -81,7 +89,8 @@ function castArg(a: TxArgValue): string {
   const v = a.value.trim();
   // Single-quote strings and tuple literals so shell metacharacters — the tuple's parens, or a
   // `$`/backtick inside a string — reach cast verbatim instead of being interpreted by the shell.
-  if (a.type === "string" || a.type.startsWith("(")) return `'${v.replace(/'/g, "'\\''")}'`;
+  // A list is quoted too: its brackets are glob characters to a shell.
+  if (a.type === "string" || a.type.startsWith("(") || a.type.endsWith("[]")) return `'${v.replace(/'/g, "'\\''")}'`;
   return v; // address / uint / bytes32 / bool are shell-safe
 }
 

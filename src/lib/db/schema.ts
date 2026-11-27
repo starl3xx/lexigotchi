@@ -717,3 +717,93 @@ export const telegramLinkCodes = pgTable("telegram_link_codes", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
 });
+
+/**
+ * Reserved word sets (decisions.md, "Reserved word sets"; migration 0021): themed groups of
+ * dictionary words held back from the game and released later. `status` goes draft → revealed →
+ * released, and only forward (lib/sets/rules.ts says what may change in each).
+ *
+ * PRIVATE until a set is revealed: this repository is public, so a set's name and words live here
+ * and nowhere in the code. Nothing but `publicSets` (lib/sets/rules.ts) decides what a player's
+ * browser is told, and no row of a draft set is ever logged.
+ */
+export const wordSets = pgTable(
+  "word_sets",
+  {
+    id: serial("id").primaryKey(),
+    chainId: integer("chain_id").notNull(),
+    name: text("name").notNull(),
+    /** "draft" | "revealed" | "released". */
+    status: text("status").notNull().default("draft"),
+    /** When the set shows its name and words by itself. Null: only by hand. */
+    revealAt: timestamp("reveal_at", { withTimezone: true }),
+    /** The planned release. The release itself is the owner's transaction. */
+    releaseAt: timestamp("release_at", { withTimezone: true }),
+    /** The first-day gate's length (0 = no gate). */
+    gateHours: integer("gate_hours").notNull().default(24),
+    /** Words of this set one player may claim while the gate is up. */
+    perPlayerLimit: integer("per_player_limit").notNull().default(1),
+    sort: integer("sort").notNull().default(0),
+    revealedAt: timestamp("revealed_at", { withTimezone: true }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    /** When the gate lifts, read from the chain at release. Null: no gate was set. */
+    gateUntil: timestamp("gate_until", { withTimezone: true }),
+    /** The block the chain was first seen holding the set's words. */
+    releaseBlock: bigint("release_block", { mode: "number" }),
+    /**
+     * The root last BUILT to release this set (lowercase 0x…), or null when none was. A set is
+     * marked released only once one exists: a release can be built only while the chain holds every
+     * word of the set back, so "a release was built, and the chain now holds none of them back"
+     * means the release landed. Kept here, on the set, because one root can be built for two
+     * reasons (a release that returns the chain to an earlier reserve root).
+     */
+    releaseRoot: text("release_root"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("word_sets_chain_idx").on(t.chainId, t.sort)],
+);
+
+/**
+ * A set's words. The key is the word, so a word is in ONE set at most, whatever two requests do at
+ * once. Whether a word is in the dictionary is the code's to check (lib/sets/rules.ts).
+ */
+export const setWords = pgTable(
+  "set_words",
+  {
+    chainId: integer("chain_id").notNull(),
+    /** UPPERCASE, as the dictionary writes it. */
+    word: text("word").notNull(),
+    setId: integer("set_id")
+      .notNull()
+      .references(() => wordSets.id, { onDelete: "cascade" }),
+    headliner: boolean("headliner").notNull().default(false),
+  },
+  (t) => [primaryKey({ columns: [t.chainId, t.word] }), index("set_words_set_idx").on(t.setId)],
+);
+
+/**
+ * Every dictionary root this server has BUILT, with the words that root leaves out (migration 0021).
+ *
+ * `Words.claim` checks a proof against the root the chain holds, so proofs must come from the tree
+ * behind THAT root, not from whatever the sets table says this minute: a draft edit changes the
+ * sets at once and the chain only when the owner sends `setDictionaryRoot`. A row is written BEFORE
+ * its transaction is shown (as `reward_leaves` is before `openEpoch`), and never deleted: a root
+ * sent but unconfirmed may still land. No row is needed for the full dictionary's root.
+ *
+ * `held` is the private list itself. Never log a row, and never send one to a browser.
+ */
+export const dictionaryRoots = pgTable(
+  "dictionary_roots",
+  {
+    chainId: integer("chain_id").notNull(),
+    /** Lowercase 0x…, the root as the contract stores it. */
+    root: text("root").notNull(),
+    /** The dictionary words this root leaves out, A to Z. */
+    held: jsonb("held").$type<string[]>().notNull(),
+    /** What first built it, for a person reading the table: "reserve", or "release:<set id>". No rule reads it. */
+    note: text("note").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.chainId, t.root] })],
+);
