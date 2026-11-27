@@ -7,7 +7,7 @@
  * sheet (from the Today stage, or from an opened word's card).
  */
 import type { Tier } from "@/lib/economy";
-import { FREE_SCENES, SCENES, isShopScene } from "@/lib/scenes";
+import { FREE_SCENES, SCENES, UNLOCK_SCENES, isShopScene, sceneMeta } from "@/lib/scenes";
 import { usdcLabel } from "@/lib/shop/rules";
 import { shopSceneOffer } from "@/lib/shop/scenes";
 import { NETWORK } from "@/lib/onchain/network";
@@ -16,6 +16,13 @@ import { useGame } from "../game/state";
 import { useShopScenes } from "../game/useShop";
 import { SceneThumb } from "./SceneFrame";
 import { useSceneUnlock, useWordScene } from "./useWordScene";
+
+/**
+ * The scenes the 3-word unlock opens, by name ("the Trophy Case and Spring"). The line used to say
+ * "every scene", which stopped being true the day the Shop listed one: owning words never opens a
+ * Shop scene.
+ */
+const UNLOCKED_BY_WORDS = `the ${UNLOCK_SCENES.map((id) => sceneMeta(id).name).join(" and ")}`;
 
 export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
   const g = useGame();
@@ -34,7 +41,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
         <p className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-ink/30 px-3 py-2 text-center text-sm text-ink/70">
           <Lock weight="fill" className="shrink-0" />
           <span>
-            Own {need} words to unlock every scene for good. You’re at {count}.
+            Own {need} words to unlock {UNLOCKED_BY_WORDS} for good. You’re at {count}.
           </span>
         </p>
       )}

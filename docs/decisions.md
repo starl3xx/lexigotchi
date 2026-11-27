@@ -1254,6 +1254,24 @@ setter. All small, riding existing suite patterns.
       how a player comes to have one. Nobody has one until the Shop lists it, and listing is the
       owner's: `Shop.addItem` (the admin's Shop tab builds it), then a `shop_items` row with
       `kind` "scene" and `art` "bookshelf" or "space". Until then the picker doesn't show them.
+    - **Outer Space is listed on the test network** (starl3xx, 2026-11-27: "i want to introduce
+      it as a Shop item on Testnet for $5 USDC"). Item 2 of Base Sepolia's Shop: 5 test USDC, no
+      supply limit, no end date. Sent with the owner's word, in three steps so that it never
+      showed as a "Test item" card: `addItem` switched off
+      (`0x3bf3fcdadb6e5643c87b0e50e1befefa47a8ea3dd52ce458d02cafad4eea52db`), the `shop_items`
+      row, then `setActive`
+      (`0xf951290d976b45dd923fb3d7a3c3b5ae4e9fe9cbfa67bed51e0fde55ec27c8a3`). The Bookshelf is
+      still not listed.
+    - **A scene is the player's, never the word's** (the same message: "users will be able to
+      select it as a card face on any of their words... it doesn't travel with a card though
+      (when it's for sale in the shop, it shows the stock face)"). That is how it was built:
+      one purchase is for every word the profile holds; a pick is kept by profile and comes off
+      when the word leaves it; a Shop scene shows only for a profile that bought it; so a buyer's
+      card starts on the stock card. Nothing a buyer sees draws the seller's scene: the Market's
+      rows and the word view show the letters, never a card. The one place a word for sale still
+      shows its scene is the seller's own Today, Bag, and opened card. Asked whether that should
+      change (stock for the seller too, or the Market drawing stock cards), the owner chose to
+      change nothing.
     - **What grants a scene** (`lib/shop/scenes.ts`, pure and tested): an item in the profile's
       wardrobe whose `shop_items` row is kind "scene" and names a Shop scene in `art`. Nothing
       else: not an item with no row (the test network's "Test item"), not a row that names a free
@@ -1279,10 +1297,12 @@ setter. All small, riding existing suite patterns.
     - **Left open, the owner's call:** a share link draws whatever scene it names, as it always
       has (the page doesn't ask who owns a word, #15), so a hand-typed link can picture a word in
       a Shop scene its owner hasn't bought. It is a picture only. Closing it means the share page
-      asking who owns the word and what their profile bought, on every card.
+      asking who owns the word and what their profile bought, on every card. (Still open now
+      that Outer Space is sold: it costs test USDC only, so it waits for the owner.)
     - **My readings, not starl3xx's words:** the Shop scenes are not part of the 3-word unlock;
-      the practice game has no Shop, so it has neither scene; the player docs say nothing of them
-      until one is listed.
+      the practice game has no Shop, so it has neither scene; the player docs say nothing of a
+      Shop scene until it is listed (Outer Space is in them since its listing, without its cost:
+      the docs can't read the Shop, and the owner can change what it costs).
 
 42. **The plastic case** (step 5 of #34; starl3xx, 2026-11-25: "a plastic case (like PSA-rated
     cards)... should be able to rotate like the card does now"; then "the plastic case is SO
