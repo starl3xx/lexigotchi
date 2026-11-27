@@ -3531,6 +3531,12 @@ setter. All small, riding existing suite patterns.
       the plate stays dark. Feeding eases the ink back over 0.9 s; that is a change of colour
       and not a movement, so it plays under reduced motion too. These are the numbers he chose
       from: the proposal was drawn with the style rules that shipped.
+    - **The tone is on the GROUP of the face's pictures, never on a picture** (Bugbot on #328).
+      During a face change the old picture stays under the new one until it is in. A hungry
+      face is see-through, so with the tone on each picture the two added up to more ink than
+      one, and the card popped paler when the old one was dropped. As a group they are put
+      together at full strength and faded once. Checked in the game: for the 65 frames two
+      pictures were stacked, the group's strength eased smoothly and nothing added up.
     - **"agreed on frame and ribbon":** only the art takes it. The frame and the ribbon keep
       their ink in every state, so a hungry card still names its rarity. The letters keep their
       colour and are never covered; their own faces show the mood.

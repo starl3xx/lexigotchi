@@ -448,12 +448,29 @@ describe("the front of a word's card (SceneFrame)", () => {
     expect(toneOf("hungry")).toBe("hungry");
     expect(toneOf("eating")).toBe("fed");
     const c = card({ tone: "hungry", state: "hungry" });
-    expect(c.querySelector(".cf-art")!.className).toContain("scene-hungry");
+    // the tone is on the GROUP of art layers, never on a picture itself
+    expect(c.querySelector(".cf-arts")!.className).toContain("scene-hungry");
+    expect(c.querySelector(".cf-art")!.className).not.toContain("scene-hungry");
+    expect(c.querySelector(".cf-art")!.parentElement!.className).toContain("cf-arts");
     expect(c.querySelector(".cf-frame")!.className).not.toContain("scene-");
     // the fog that used to roll over the scene and the word is gone (decisions.md #61)
     expect(c.querySelector(".cf-fog, .scene-fog, [class*='fog']")).toBeNull();
-    expect(card({ tone: "peckish", state: "peckish" }).querySelector(".cf-art")!.className).toContain("scene-peckish");
-    expect(card().querySelector(".cf-art")!.className).not.toMatch(/scene-(peckish|hungry)/);
+    expect(card({ tone: "peckish", state: "peckish" }).querySelector(".cf-arts")!.className).toContain("scene-peckish");
+    expect(card().querySelector(".cf-arts")!.className).not.toMatch(/scene-(peckish|hungry)/);
+  });
+
+  it("fades a hungry card's two pictures as one during a face change: see-through pictures would add up, then pop", () => {
+    // Bugbot on #328: the old face stays under the new one until it is in. With the tone on each
+    // picture, two hungry faces showed more ink than one, and the card went paler when the old one left.
+    const frame = (scene: "stock" | "stage") => <SceneFrame scene={scene} word="CRANE" upper={[true, true, true, false, false]} tier="Rare" animated={false} tone="hungry" state="hungry" change="fade" />;
+    const { container, rerender } = render(frame("stock"));
+    rerender(frame("stage"));
+    const group = container.querySelector(".cf-arts")!;
+    expect(group.className).toContain("scene-hungry");
+    const pictures = [...group.querySelectorAll(".cf-art")];
+    expect(pictures).toHaveLength(2); // the old face under the new one
+    for (const p of pictures) expect(p.className).not.toMatch(/scene-(tone|peckish|hungry)/);
+    expect(container.querySelectorAll(".cf > .cf-art")).toHaveLength(0);
   });
 
   it("prints a card with no rarity as Common, and a thumbnail in the rarity it is shown for", () => {

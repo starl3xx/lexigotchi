@@ -417,9 +417,11 @@ describe("a hungry word's card: the ink runs low (decisions.md #61: \"19B!\", \"
     expect(css).not.toMatch(/fog/i);
     const frame = read("src/components/scenes/SceneFrame.tsx");
     expect(frame).not.toMatch(/scene-fog|cf-fog/);
-    // the tone goes on the art, and on nothing else in the front
+    // the tone goes on the art, as one group, and on nothing else in the front
     expect(frame.match(/toneClass/g)).toHaveLength(2); // made once, used once
-    expect(frame).toContain("className={`cf-art ${toneClass} ${fade}`}");
+    expect(frame).toContain("<div className={`cf-arts ${toneClass}`}>");
+    expect(frame).toContain("className={`cf-art ${fade}`}"); // never on a picture itself: two see-through pictures add up
+    expect(css).toMatch(/\n\.cf-arts \{ inset: 0; pointer-events: none; \}\n\.cf-arts > \.cf-art \{ position: absolute; \}/);
     expect(frame).toContain('<div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />');
   });
 

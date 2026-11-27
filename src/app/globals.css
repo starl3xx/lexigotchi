@@ -570,7 +570,10 @@ body {
      new design language)". The fog was not drawn, it hid the word when the word most needed its
      player, and one strength could not serve every face. Never lay anything over a card to show
      hunger, and never over its letters.
-   - Only the art (.cf-art) takes it. The frame and the ribbon keep their ink in every state
+   - Only the art takes it, AS A GROUP (.cf-arts, which holds the face's picture and, during a face
+     change, the old picture under the new one). Never put the tone on a picture itself: two
+     see-through pictures add up to more ink than one, and the card pops paler when the old one is
+     dropped (Bugbot on #328). The frame and the ribbon keep their ink in every state
      ("agreed on frame and ribbon"), so a hungry card still names its rarity; the letters keep
      their colour, and their own faces show the mood.
    - A dark face (.cf-dark) fades less: at the full amount a dark plate would stop being dark.
@@ -684,6 +687,9 @@ body {
 .cf { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; container-type: inline-size; background: #fcf7ea; }
 .cf > * { position: absolute; }
 .cf-art, .cf-frame, .cf-tex { inset: 0; background-size: 100% 100%; pointer-events: none; }
+/* the face's art layers stand in one group, which takes the hunger tone (above, .scene-tone) */
+.cf-arts { inset: 0; pointer-events: none; }
+.cf-arts > .cf-art { position: absolute; }
 /* A collab set's stamp (components/scenes/SceneFrame): ONE fixed place on every collab card, the
    window's upper left. In card units (1200 wide): a 92-unit box, 62 in from the left and 60 from
    the top, clear of the corner piece (13 to 46), the word's row (from 200), the ribbon, and the

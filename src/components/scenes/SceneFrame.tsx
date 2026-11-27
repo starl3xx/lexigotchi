@@ -275,7 +275,7 @@ export function SceneFrame({
   // The art's text is worked out from sines and cosines, which the server and a browser may round
   // one digit apart; either picture is right, so a mismatch on hydration is let be.
   const art = (id: SceneId, fade: string) => (
-    <div key={`art-${id}`} className={`cf-art ${toneClass} ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
+    <div key={`art-${id}`} className={`cf-art ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
   );
   const no = cardNo(number);
   // A ribbon's folded tail, drawn (not clipped out of a box), so its notch has the ink line too.
@@ -299,8 +299,15 @@ export function SceneFrame({
       style={{ "--cf-ink": look.ink, "--cf-accent": look.accent, "--cf-ground": look.ground, ...(onSwipe ? { touchAction: "pan-y" } : {}) } as CSSProperties}
       {...swipe}
     >
-      {was && art(was, "")}
-      {art(scene, coming)}
+      {/* The face's art, as ONE GROUP, and the group takes the hunger tone (globals.css, .scene-tone).
+          During a face change the old picture stays under the new one until it is in. A hungry
+          face is see-through, so with the tone on each picture the two added up to more ink than
+          one, and the card popped paler when the old one was dropped (Bugbot on #328). As a group
+          they are put together at full strength first, and then faded once. */}
+      <div className={`cf-arts ${toneClass}`}>
+        {was && art(was, "")}
+        {art(scene, coming)}
+      </div>
       <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
       {/* The card's light (decisions.md #58, part 3): ruled lines that stand still on the card, shown
