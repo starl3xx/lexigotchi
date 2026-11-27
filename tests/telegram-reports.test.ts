@@ -16,7 +16,6 @@ vi.mock("@/lib/db/testerReports", () => {
     if (store.broken) throw new Error("connection refused");
   };
   return {
-    REPORT_STATUSES: ["open", "fixed", "closed"],
     addReport: async (r: Record<string, unknown>) => {
       fail();
       const id = store.rows.length + 1;
@@ -251,6 +250,19 @@ describe("telling a reporter it is fixed", () => {
     expect(all).not.toMatch(/—/);
     expect(all).not.toMatch(/[A-Za-z]'[A-Za-z]/);
     expect(all).not.toMatch(/@/);
+  });
+});
+
+describe("what the console's tab may import", () => {
+  // The tab is a client component. A VALUE imported from a database module, by it or by a file it
+  // takes values from, puts the Postgres driver in the browser bundle and fails the build: #265's
+  // first build did. Types are erased, so `import type` is fine.
+  it("no value from a database module, directly or through the row helpers", async () => {
+    const { readFileSync } = await import("node:fs");
+    for (const file of ["src/components/admin/tabs/ReportsTab.tsx", "src/lib/admin/reportRows.ts"]) {
+      const valueImports = [...readFileSync(file, "utf8").matchAll(/^import (?!type\b)[^;]*? from "([^"]+)";/gm)].map((m) => m[1]);
+      expect(valueImports.filter((from) => /\/db\//.test(from) || /telegramReports|lib\/telegram"?$/.test(from))).toEqual([]);
+    }
   });
 });
 

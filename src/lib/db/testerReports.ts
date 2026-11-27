@@ -8,9 +8,7 @@
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { testerReports, type TesterReport } from "./schema";
-
-export type ReportStatus = "open" | "fixed" | "closed";
-export const REPORT_STATUSES: readonly ReportStatus[] = ["open", "fixed", "closed"];
+import type { ReportStatus } from "@/lib/admin/reportRows";
 
 export interface NewReport {
   chatId: number;

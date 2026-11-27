@@ -27,7 +27,9 @@ export function ReportsTab() {
   useEffect(() => setMoved({}), [data]);
   const rows = useMemo(() => (data?.reports ?? []).map((r) => moved[r.id] ?? r), [data, moved]);
   const open = rows.filter((r) => r.status === "open").length;
-  const shown = rows.filter((r) => showDone || r.status === "open");
+  // A report moved here stays on screen until the next load, whatever the filter: its card holds
+  // what the move came to (told, or why not), and would take that with it (Bugbot on #265).
+  const shown = rows.filter((r) => showDone || r.status === "open" || moved[r.id] !== undefined);
 
   return (
     <div className="space-y-6">
