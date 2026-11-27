@@ -97,6 +97,16 @@ export function collabFinish(tint: CollabTint): Finish {
   };
 }
 
+/**
+ * Is this a POLISHED surface: one that shows a hot spot where a light rests on it, and catches the
+ * light on its edge as a pass leaves? Foil, gold, and amethyst are. Satin isn't (a soft sheen), and
+ * the collab stock isn't either: it is a matte tint, with no metal to shine (Bugbot on #302: it
+ * had the polished highlight, while the small tiles already left the gloss off).
+ */
+export function polished(fin: Finish): boolean {
+  return fin.material !== "satin" && fin.material !== "collab";
+}
+
 /** A list of words draws hundreds of tiles: each pair of colors is worked out once. */
 const collabFinishes = new Map<string, Finish>();
 

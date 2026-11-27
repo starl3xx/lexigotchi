@@ -50,6 +50,25 @@ describe("the tiles", () => {
     for (const ink of ["#111827", "#2a1e1a"]) expect(collab).toContain(`fill="${ink}"`);
     expect(new Set(strokes(collab).filter((s) => new Set(strokes(gold)).has(s))).size).toBeGreaterThan(0);
   });
+  it("is matte: no hot spot and no edge glint, in the game and on the server, as its small tiles have no gloss", async () => {
+    const { polished, FINISH: F, collabFinish: cf } = await import("@/lib/rarityFinish");
+    expect(polished(cf({ a: A, b: B }))).toBe(false);
+    expect(polished(F.Uncommon!)).toBe(false); // satin, as before
+    for (const t of ["Rare", "Legendary", "Mythic"] as const) expect(polished(F[t]!)).toBe(true);
+    // every "is it polished?" in the two tile renderers asks the one function: a new material can't be missed in one of them
+    for (const f of ["src/components/game/TileFinish.tsx", "src/app/_og/tile.tsx"]) {
+      const src = readFileSync(join(__dirname, "..", f), "utf8");
+      expect(src, f).not.toMatch(/!== "satin"/);
+      expect(src, f).toContain("polished(fin)");
+    }
+    // and a collab tile at rest draws no hot spot (the radial gradient a polished tile has)
+    const { WordTiles } = await import("@/components/game/LetterTile");
+    const upper = [true, true, false, false, true];
+    const collab = renderToStaticMarkup(<WordTiles word="CRANE" upper={upper} size={48} tier="Legendary" look={LOOK} />);
+    const gold = renderToStaticMarkup(<WordTiles word="CRANE" upper={upper} size={48} tier="Legendary" look={null} />);
+    expect(gold).toContain("radialGradient");
+    expect(collab).not.toContain("radialGradient");
+  });
   it("ascension still draws on a collab word: its rings and pips are there at a stage", async () => {
     const { WordTiles } = await import("@/components/game/LetterTile");
     const all = [true, true, true, true, true];

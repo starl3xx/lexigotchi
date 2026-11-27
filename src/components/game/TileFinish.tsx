@@ -28,7 +28,7 @@
  * clip differently.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { finishFor, mixHex, type Finish, type TileTier } from "@/lib/rarityFinish";
+import { finishFor, mixHex, polished, type Finish, type TileTier } from "@/lib/rarityFinish";
 import { haloPath } from "./tileShapes";
 
 /** "on": it has its moments · "off": a still frame (reduced motion, small sizes, a still scene) ·
@@ -162,7 +162,7 @@ export function FinishDefs({ tier, uid, bw, small, motion }: { tier?: TileTier; 
         </linearGradient>
       )}
       {/* the hot spot a light makes on a polished surface */}
-      {m !== "satin" && motion !== "rest" && (
+      {polished(fin) && motion !== "rest" && (
         <radialGradient id={f("hot")} cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stopColor="#ffffff" stopOpacity="0.8" />
           <stop offset="0.4" stopColor={fin.glow} stopOpacity="0.3" />
@@ -282,7 +282,7 @@ export function FinishSurface({ tier, uid, bw, small, motion }: { tier?: TileTie
   if (!fin) return null;
   const f = id(uid);
   const face = inner(bw);
-  const hot = motion !== "rest" && fin.material !== "satin" && (
+  const hot = motion !== "rest" && polished(fin) && (
     <g style={POINTER}>
       <ellipse cx={T.x + 60} cy={T.y + 50} rx={66} ry={54} fill={`url(#${f("hot")})`} opacity={fin.material === "foil" ? 0.9 : 0.7} />
     </g>
@@ -428,7 +428,7 @@ export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier
       {/* (No light circling the rim: animating a stroke's dash re-strokes the outline every frame,
           and on a 4×-slowed CPU it alone took a Legendary word's moment from 62% to 97%.) */}
       {/* the edge catching the light as it leaves (Rare and up) */}
-      {fin.material !== "satin" && !small && anim && !dim && (
+      {polished(fin) && !small && anim && !dim && (
         <Glint x={EDGE_GLINT[0]} y={EDGE_GLINT[1]} s={EDGE_GLINT[2]} color={fin.glow} delay={0} anim cls="rf-edge" style={timing(index, 0)} waits />
       )}
       {/* soft glints that come and go: one a tile (two on Mythic), placed by the tile's place in the word */}
@@ -566,7 +566,7 @@ export function momentPieces({ tier, uid, bw, dim, seed, index }: { tier?: TileT
       ),
     });
   }
-  if (fin.material !== "satin" && !dim) {
+  if (polished(fin) && !dim) {
     const [x, y, sc] = EDGE_GLINT;
     over.push({ key: "edge", cls: "rf-edge", frame: "point", origin: [x, y], delay: at(), waits: true, children: glintShapes(x, y, sc, fin.glow) });
   }
