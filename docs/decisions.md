@@ -2232,6 +2232,32 @@ setter. All small, riding existing suite patterns.
       - **Seen and not seen (part 3):** the whole shelf before and after at 1,280 px and 390 px;
         the joins enlarged at all six settings. `screen-market.jpg` in the player docs is taken
         again. Not seen: a real phone.
+    - **Part 4, the jackpot's secret word is a card** (4B; `cards/FaceDownCard.tsx`,
+      `screens/JackpotScreen.tsx`). It was five dark tiles with a "?" on each, and after the
+      reveal the word as loose letters. Now:
+      - **Before the reveal, one card, face down:** a back's stock and frame with the game's
+        seal in the middle, and no number, facts, or letters. 240 px wide at most.
+      - **After, the card face up.** A player who held the word, staked and fed, sees THEIR card:
+        their scene, their cases, their gilding, the letters cheering. Anyone else sees the word
+        in the plain scene, in lowercase, in its rarity's frame.
+      - **The face-down card is given no word and no rarity,** so it can show neither. Its
+        material is always the plain one (Common's). A back in the word's own material would
+        tell every player the word's rarity before the reveal. **Open for the owner:** Common's
+        material is the stand-in he saw on the review page; which plain material a face-down
+        card wears is his to decide.
+      - **No turn.** The face-up card arrives with the game's drop (it moves, it never changes
+        size). A real turn from back to front is its own piece of work: the back and the front
+        would be one card, and the front must not be in the page before the reveal.
+      - **Where it shows.** In the game onchain the page never reveals the word by itself, so
+        players see the face-down card all day. The reveal, the win, and the loss are the
+        practice game's.
+      - **The room it takes:** the jackpot's box is 347 px tall with the card, where it was about
+        260 px with the tiles. Beside the bounty from `lg` each column keeps its own height.
+      - **Seen and not seen (part 4):** the practice game at 390 px, 1,024 px, and 1,280 px in
+        Chromium and WebKit: face down, after a win (the first day's word is one the player
+        holds), and after a loss (the next day). No error, no sideways scrolling.
+        `screen-bounty.jpg` in the player docs is taken again. Not seen: a real phone; the page
+        onchain (it shows only the face-down state, the same component).
 
 51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
     2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
