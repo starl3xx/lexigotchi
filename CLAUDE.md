@@ -731,6 +731,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   PR `beta-posted` (no repost on a redeploy). No section, no post. Secrets `TELEGRAM_BOT_TOKEN` and
   `TELEGRAM_CHAT_ID`; "Run workflow" on it checks the bot can reach the group and the formatter
   loads, and never posts.
+  **A PR can ask the testers a question** (starl3xx, 2026-11-26): a `## Tester poll` section, a
+  question and then its answers as a list (2 to 12, each at most 100 characters; the question at
+  most 300). It goes out as a Telegram poll, as a reply to the post that carries the PR's note, so
+  no note, no poll. Anonymous unless the heading says `(named)`; `(multiple)` lets a tester pick
+  several. `testerPoll` in `tester-note.mjs` reads it; a poll Telegram would refuse is a warning on
+  the run with the reason, and a poll that fails NEVER stops its note being labelled (the note
+  would post again on every deploy). The results are in the group; nothing is stored. **Once a
+  week** (`.github/workflows/beta-pulse.yml`, Fridays 16:00 UTC) the bot asks "How was Lexigotchi
+  this week?" (`PULSE_POLL`, the same every week so the weeks compare; anonymous). Pause it by
+  disabling the workflow in GitHub; a manual run only shows the poll unless "send" is ticked.
+  `tests/beta-workflows.test.ts` runs both workflows' scripts as GitHub would, with Telegram replaced.
   **New members get a welcome**: Telegram calls `/api/telegram/webhook` (`src/lib/telegram.ts`), which
   greets anyone who joins by their @username (else their first name, as a mention of their account,
   so both notify) with the HEYOO card

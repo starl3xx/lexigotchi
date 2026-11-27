@@ -1,5 +1,6 @@
 // The text of a beta-updates post (.github/workflows/beta-updates.yml): a PR's "## Tester note",
-// and the Telegram messages built from one or more of them.
+// and the Telegram messages built from one or more of them. Also a PR's "## Tester poll", which
+// goes out under its note, and the weekly poll (.github/workflows/beta-pulse.yml).
 //
 // Plain JavaScript, no imports, so the workflow can load it with nothing installed; the tests in
 // tests/tester-note.test.ts import the same file.
@@ -56,15 +57,127 @@ const HEADING = /^#{2,3}\s*tester note\b(.*)$/i;
  * @returns {{ kind: string | null, note: string } | null}
  */
 export function testerNote(text) {
+  const section = sectionUnder(text, HEADING);
+  if (!section || /^(none|n\/a|-)$/i.test(section.body)) return null;
+  return { kind: kindOf(section.words), note: section.body };
+}
+
+/**
+ * A section of a PR description: the words after its heading's name ("(fix)"), and everything
+ * under the heading up to the next heading, a horizontal rule, a code fence, or the
+ * "🤖 Generated with …" line. Null when there is no such heading, or nothing under it.
+ *
+ * A heading inside a code fence is not one: a PR that SHOWS how to write a section (this file's
+ * own PRs do) must not have its example posted to the testers.
+ * @param {string | null | undefined} text
+ * @param {RegExp} heading  matches the heading line; its first group is the words after the name
+ * @returns {{ words: string, body: string } | null}
+ */
+function sectionUnder(text, heading) {
   const lines = (text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/);
-  const start = lines.findIndex((l) => HEADING.test(l.trim()));
+  let fenced = false;
+  const start = lines.findIndex((l) => {
+    if (/^(```|~~~)/.test(l.trim())) fenced = !fenced;
+    return !fenced && heading.test(l.trim());
+  });
   if (start < 0) return null;
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((l) => /^(#{1,6}\s|([-*_])( *\2){2,}$|```|~~~|🤖)/u.test(l.trim()));
-  const note = (end < 0 ? rest : rest.slice(0, end)).join("\n").trim();
-  if (!note || /^(none|n\/a|-)$/i.test(note)) return null;
-  return { kind: kindOf(HEADING.exec(lines[start].trim())?.[1] ?? ""), note };
+  const body = (end < 0 ? rest : rest.slice(0, end)).join("\n").trim();
+  return body ? { words: heading.exec(lines[start].trim())?.[1] ?? "", body } : null;
 }
+
+// Telegram's limits for a poll (Bot API, sendPoll): a question of 1 to 300 characters, and up to 12
+// answers of 1 to 100 characters each. Telegram takes a single answer; a poll needs two to ask anything.
+const QUESTION_MAX = 300;
+const OPTION_MAX = 100;
+const OPTIONS_MIN = 2;
+const OPTIONS_MAX = 12;
+
+/**
+ * A poll's text as Telegram shows it: plain. A poll's question and answers take no formatting, so
+ * **bold**, `code`, and [links](https://…) are written as their words.
+ * @param {string} s
+ */
+const plain = (s) =>
+  s
+    .replace(/\[([^\]\n]+)\]\((?:[^\s()]|\([^\s()]*\))+\)/g, "$1")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Why a poll can't be sent, or null when it can. One check for a PR's poll and the weekly one.
+ * @param {string} question
+ * @param {readonly string[]} options
+ */
+export function pollProblem(question, options) {
+  if (!question) return "it has no question above its answers";
+  if (question.length > QUESTION_MAX) return `its question is ${question.length} characters (Telegram takes ${QUESTION_MAX})`;
+  if (options.length < OPTIONS_MIN) return `it has ${options.length === 1 ? "1 answer" : `${options.length} answers`} (write each as a list item; a poll needs at least ${OPTIONS_MIN})`;
+  if (options.length > OPTIONS_MAX) return `it has ${options.length} answers (Telegram takes ${OPTIONS_MAX})`;
+  const long = options.find((o) => o.length > OPTION_MAX);
+  if (long) return `the answer "${long.slice(0, 30)}…" is ${long.length} characters (Telegram takes ${OPTION_MAX})`;
+  if (options.some((o) => !o)) return "one of its answers is empty";
+  if (new Set(options.map((o) => o.toLowerCase())).size < options.length) return "two of its answers are the same";
+  return null;
+}
+
+// "## Tester poll", and after it, how it is asked: "## Tester poll (named)". Not "## Tester polls".
+const POLL_HEADING = /^#{2,3}\s*tester poll\b(.*)$/i;
+// An answer: a list item ("- Yes", "* Yes", "1. Yes"), with or without a task box ("- [ ] Yes").
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?(.*)$/;
+
+/**
+ * The "## Tester poll" section of a PR description: a question for the beta testers, then its
+ * answers as a list. It goes out as a Telegram poll under the PR's tester note (no note, no poll).
+ *
+ *   ## Tester poll
+ *
+ *   Did **Roll again** work for you?
+ *   - Yes
+ *   - No
+ *   - I haven't tried it
+ *
+ * Everything before the first list item is the question; each list item is an answer; anything
+ * after the list is left out. Votes are anonymous unless the heading says "(named)" (the group then
+ * sees who chose what). "(multiple)" lets a tester pick more than one answer: "(named, multiple)".
+ *
+ * Null when there is no section. `{ ok: false, why }` for one Telegram would refuse, so the
+ * workflow can say why instead of posting nothing in silence.
+ * @param {string | null | undefined} text
+ * @returns {{ ok: true, question: string, options: string[], named: boolean, multiple: boolean } | { ok: false, why: string } | null}
+ */
+export function testerPoll(text) {
+  const section = sectionUnder(text, POLL_HEADING);
+  if (!section || /^(none|n\/a|-)$/i.test(section.body)) return null;
+  const lines = section.body.split("\n");
+  const first = lines.findIndex((l) => LIST_ITEM.test(l));
+  const question = plain((first < 0 ? lines : lines.slice(0, first)).join(" "));
+  const options = [];
+  if (first >= 0) {
+    for (const l of lines.slice(first)) {
+      const item = LIST_ITEM.exec(l);
+      // The list ends at the first line that isn't an item (a blank line between items is fine).
+      if (!item && l.trim()) break;
+      if (item) options.push(plain(item[1]));
+    }
+  }
+  const why = pollProblem(question, options);
+  if (why) return { ok: false, why };
+  const said = section.words.toLowerCase();
+  return { ok: true, question, options, named: /\b(named|public)\b/.test(said), multiple: /\b(multiple|multi|any)\b/.test(said) };
+}
+
+/**
+ * The weekly poll (.github/workflows/beta-pulse.yml): one question, the same every week, so the
+ * answers can be compared from week to week. Anonymous, so a tester can say it was frustrating.
+ */
+export const PULSE_POLL = Object.freeze({
+  question: "How was Lexigotchi this week?",
+  options: Object.freeze(["Loved it", "Good", "It was OK", "Frustrating", "I didn’t play"]),
+});
 
 /** @param {string} s */
 const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
