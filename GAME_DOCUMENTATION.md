@@ -117,7 +117,11 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
 - **Reserved word sets** (decisions.md #51): some of those words are held back at launch in themed
   **sets** and released later. A held-back word is one the published root leaves out, so it can’t
   be claimed; a release is a new root that includes the set’s words (never one that removes a
-  word). A set goes draft → revealed (its name and words show, and lock) → released. The lists are
+  word). A set goes draft → revealed (its name and words show, and lock) → released. **A set is
+  revealed only once the published root already leaves every one of its words out** (the reserve
+  root comes before any reveal: a reveal names the words, and a word still under the root could
+  be claimed straight from the contract), so a set past its reveal date waits as a draft until
+  then. The lists are
   private until a set is revealed and live only in the database; which words are held back can’t
   be hidden (the dictionary is public, and the game says “not available yet”).
   - **Always from the full dictionary:** letter supply caps, mint odds, rarity tiers, and token
