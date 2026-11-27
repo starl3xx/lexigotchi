@@ -16,7 +16,8 @@ export const MAX_LOG_RANGES = 400;
 
 export async function getLogsAdaptive<E extends AbiEvent>(
   client: PublicClient,
-  a: { address: `0x${string}`; event: E; fromBlock: bigint; toBlock?: bigint },
+  /** `args` filters on the event's indexed arguments, as viem's `getLogs` does (a list is "any of"). */
+  a: { address: `0x${string}`; event: E; fromBlock: bigint; toBlock?: bigint; args?: Record<string, unknown> },
 ): Promise<Log<bigint, number, false, E>[]> {
   const latest = a.toBlock ?? (await client.getBlockNumber());
   const out: Log<bigint, number, false, E>[] = [];
@@ -25,7 +26,7 @@ export async function getLogsAdaptive<E extends AbiEvent>(
   for (let i = 0; i < MAX_LOG_RANGES && from <= latest; i++) {
     const to = from + span - 1n > latest ? latest : from + span - 1n;
     try {
-      const logs = await client.getLogs({ address: a.address, event: a.event, fromBlock: from, toBlock: to });
+      const logs = await client.getLogs({ address: a.address, event: a.event, fromBlock: from, toBlock: to, ...(a.args ? { args: a.args } : {}) } as never);
       out.push(...(logs as unknown as Log<bigint, number, false, E>[]));
       from = to + 1n;
     } catch (err) {

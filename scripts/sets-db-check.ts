@@ -34,6 +34,8 @@ import {
   updateSet,
 } from "@/lib/db/sets";
 import { GATE_HOURS_DEFAULT, PER_PLAYER_DEFAULT, type SetSettings } from "@/lib/sets/rules";
+import { profileVouchers, settleVouchers, takeVoucher } from "@/lib/db/setVouchers";
+import { SETTLE_AFTER_SECONDS } from "@/lib/sets/voucher";
 import { WORDS } from "@/lib/dictionary";
 
 const CHAIN = 84532;
@@ -69,6 +71,7 @@ async function main() {
   const statusOf = async (id: number) => (await listSets(CHAIN)).sets.find((s) => s.id === id)?.status;
 
   const db = getDb();
+  await db.execute(sql`delete from set_vouchers`);
   await db.execute(sql`delete from set_words`);
   await db.execute(sql`delete from word_sets`);
   await db.execute(sql`delete from dictionary_roots`);
@@ -185,6 +188,68 @@ async function main() {
   check("a release root is recorded on a revealed set", (await setReleaseRoot(CHAIN, shown.id, "0xBB")) === true && (await listSets(CHAIN)).sets.find((s) => s.id === shown.id)?.releaseRoot === "0xbb");
   check("and never on a draft or a released one", (await setReleaseRoot(CHAIN, one, "0xbb")) === false && (await setReleaseRoot(CHAIN, two, "0xbb")) === false);
   check("another chain sees none of it", (await heldOfRoot(8453, "0xaa")) === null && (await listSets(8453)).sets.length === 0);
+
+  // --- the first-day gate's vouchers (lib/db/setVouchers.ts) ---
+  const P = "0x00000000000000000000000000000000000000a1"; // a profile's account
+  const L = "0x00000000000000000000000000000000000000b2"; // a wallet linked into it
+  const O = "0x00000000000000000000000000000000000000c3"; // another player
+  const soon = () => new Date(Date.now() + 600_000);
+  const take = (account: string, wallets: string[], wallet: string, word: string, limit = 1) =>
+    takeVoucher({ chainId: CHAIN, setId: two, account, wallets, wallet, word, limit, deadline: soon() });
+  const res = (r: Awaited<ReturnType<typeof take>>) => (r.ok ? (r.renewed ? "renewed" : "new") : `limit:${r.words.join("+")}`);
+
+  check("a profile's first word of a set", res(await take(P, [P, L], P, B)) === "new");
+  check("a second word is refused, from the same wallet", res(await take(P, [P, L], P, D)) === `limit:${B}`);
+  check("and from a linked wallet", res(await take(P, [P, L], L, D)) === `limit:${B}`);
+  check("the same word again renews its one row, for either wallet", res(await take(P, [P, L], L, B)) === "renewed" && (await profileVouchers(CHAIN, two, P, [P, L])).length === 1);
+  check("the row names the wallet that asked last", (await profileVouchers(CHAIN, two, P, [P, L]))[0].wallet === L);
+  check("another profile has its own slot", res(await take(O, [O], O, D)) === "new");
+
+  // a wallet that took its word as a profile of its own, then joined: its row comes with it
+  const J = "0x00000000000000000000000000000000000000d4";
+  const Q = "0x00000000000000000000000000000000000000e5";
+  check("a lone wallet takes a word", res(await take(J, [J], J, B)) === "new");
+  check("then joins a profile: that profile's limit counts it", res(await take(Q, [Q, J], Q, D)) === `limit:${B}`);
+
+  // two requests at once for two different words: exactly one gets the slot
+  const R = "0x00000000000000000000000000000000000000f6";
+  const both2 = await Promise.all([take(R, [R], R, B), take(R, [R], R, D)]);
+  check("two at once for the last slot: one new, one refused", both2.map(res).filter((x) => x === "new").length === 1 && both2.filter((x) => !x.ok).length === 1, both2.map(res));
+  check("with a limit of two, two different words go in and a third doesn't", res(await take(R, [R], R, both2[0].ok ? D : B, 2)) === "new" && !(await take(R, [R], R, A, 2)).ok);
+
+  // settling: read from the chain only once a voucher can no longer be spent
+  const nowSec = Math.floor(Date.now() / 1000);
+  let asked = 0;
+  await settleVouchers(CHAIN, two, P, [P, L], nowSec, async () => (asked++, false));
+  check("a voucher still spendable isn't settled", asked === 0 && (await profileVouchers(CHAIN, two, P, [P, L]))[0].used === null);
+  const past = nowSec + 600 + SETTLE_AFTER_SECONDS + 5;
+  await settleVouchers(CHAIN, two, P, [P, L], past, async () => null);
+  check("a read that couldn't tell leaves it counting", (await profileVouchers(CHAIN, two, P, [P, L]))[0].used === null && !(await take(P, [P, L], P, D)).ok);
+  await settleVouchers(CHAIN, two, P, [P, L], past, async () => false);
+  check("expired and unused: the slot is free again", (await profileVouchers(CHAIN, two, P, [P, L]))[0].used === false && res(await take(P, [P, L], P, D)) === "new");
+  await settleVouchers(CHAIN, two, P, [P, L], past + 10_000, async (r) => r.word === D);
+  check("used: the slot is spent for good", (await profileVouchers(CHAIN, two, P, [P, L])).find((r) => r.word === D)?.used === true && res(await take(P, [P, L], P, A)) === `limit:${D}`);
+  check("the same word again is still only a renewal", res(await take(P, [P, L], P, D)) === "renewed" && (await profileVouchers(CHAIN, two, P, [P, L])).find((r) => r.word === D)?.used === true);
+
+  // the same word again after its voucher expired unused: its one row is revived (the table's key
+  // is the word, so a second row for it would be refused by the database every time)
+  const V = "0x00000000000000000000000000000000000000a7";
+  check("a first voucher", res(await take(V, [V], V, B)) === "new");
+  await settleVouchers(CHAIN, two, V, [V], past, async () => false);
+  check("it expired unused", (await profileVouchers(CHAIN, two, V, [V]))[0].used === false);
+  check("the same word again is signed again, on the same row", res(await take(V, [V], V, B)) === "renewed" && (await profileVouchers(CHAIN, two, V, [V])).length === 1);
+  check("and holds its slot again", (await profileVouchers(CHAIN, two, V, [V]))[0].used === null && !(await take(V, [V], V, D)).ok);
+
+  // a renewal from a linked wallet: the row remembers the first wallet, and settling is asked about both
+  const W1 = "0x00000000000000000000000000000000000000b8";
+  const W2 = "0x00000000000000000000000000000000000000c9";
+  await take(W1, [W1, W2], W1, B);
+  await take(W1, [W1, W2], W2, B);
+  const kept = (await profileVouchers(CHAIN, two, W1, [W1, W2]))[0];
+  check("a renewal from another wallet keeps every wallet the row was signed for", kept.wallet === W2 && kept.named.slice().sort().join() === [W1, W2].sort().join(), kept);
+  let seen: string[] = [];
+  await settleVouchers(CHAIN, two, W1, [W1, W2], past, async (r) => ((seen = r.named), r.named.includes(W1)));
+  check("settling is handed them all, so the first wallet's claim spends the slot", seen.includes(W1) && (await profileVouchers(CHAIN, two, W1, [W1, W2]))[0].used === true && !(await take(W1, [W1, W2], W2, D)).ok);
 
   await closeDb();
   console.log(failed === 0 ? "\nall checks passed" : `\n${failed} FAILED`);

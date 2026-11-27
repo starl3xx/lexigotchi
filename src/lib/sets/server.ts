@@ -25,7 +25,7 @@
 import { getAbiItem } from "viem";
 import { WORDS, WORD_COUNT, isWord } from "@/lib/dictionary";
 import { dictionaryRoot, treeWithout, type DictionaryTree } from "@/lib/onchain/dictionaryTree";
-import { addressOf, deployBlock, isSuiteDeployed } from "@/lib/onchain/addresses";
+import { addressOf, deployBlock, isSuiteDeployed, wordsHaveGate } from "@/lib/onchain/addresses";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { getLogsAdaptive } from "@/lib/onchain/logs";
 import { wordsAbi } from "@/lib/onchain/abis";
@@ -40,7 +40,6 @@ const BOOK_TTL_MS = 15_000;
 // reverts in the wallet, for every word, until this server reads the new root. A release is the
 // busiest minute a set has.
 const ROOT_TTL_MS = 10_000;
-const GATE_TTL_MS = 5 * 60_000;
 
 /** A short, word-free note of a failure. A driver's message can carry a statement's parameters. */
 function codeOf(err: unknown): string {
@@ -65,7 +64,6 @@ export function forgetSets(): void {
   book = null;
   chainRoot = null;
   lastReconciled = null;
-  gate = null;
 }
 
 /**
@@ -237,45 +235,27 @@ async function whenRootSet(root: string): Promise<{ block: number; at: Date } | 
 }
 
 /**
- * The part of the gate's interface this file reads. Written here, not taken from the generated
- * ABI, because the Words deployed on a network may predate the gate: `hasGate` asks the contract.
+ * Does this network's Words have the first-day gate? The REGISTRY's answer (`wordsGate` in
+ * config/deployments*.json), never a read of the contract: Words can't change after deploy, so it
+ * is a fact of the deployment, and a failed read must never pass for "no gate". Until a network's
+ * Words is redeployed with it, a release opens a set to everyone at once.
  */
-const GATE_ABI = [
-  { type: "function", name: "claimSigner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
-  { type: "function", name: "gatedUntil", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint64" }] },
-] as const;
-
-let gate: { at: number; value: boolean } | null = null;
-
-/**
- * Does this network's Words have the first-day gate (`setGate`, `claimSigner`)? Words can't be
- * changed after it is deployed, so a network gets the gate only with a redeploy; until then a
- * release opens a set to everyone at once. A failed read is "no": never plan a call the contract
- * may not have.
- */
-export async function hasGate(): Promise<boolean> {
-  if (!isSuiteDeployed()) return false;
-  if (gate && Date.now() - gate.at < GATE_TTL_MS) return gate.value;
-  let value = false;
-  try {
-    await getPublicClient().readContract({ address: addressOf("words"), abi: GATE_ABI, functionName: "claimSigner" });
-    value = true;
-  } catch {
-    value = false;
-  }
-  gate = { at: Date.now(), value };
-  return value;
+export function hasGate(): boolean {
+  return wordsHaveGate();
 }
 
-/** When the gate on a set's words lifts, read from the chain: the latest of its words'. Null: none. */
+/**
+ * When the gate on a set's words lifts, read from the chain: the latest of its words'. Null: no
+ * gate is set on any of them. THROWS when it can't be read: "unknown" is never "no gate".
+ */
 async function gateOf(words: readonly string[]): Promise<Date | null> {
-  if (words.length === 0 || !(await hasGate())) return null;
+  if (words.length === 0) return null;
   const res = await getPublicClient().multicall({
-    allowFailure: true,
-    contracts: words.map((w) => ({ address: addressOf("words"), abi: GATE_ABI, functionName: "gatedUntil" as const, args: [tokenIdOf(w)] as const })),
+    allowFailure: false,
+    contracts: words.map((w) => ({ address: addressOf("words"), abi: wordsAbi, functionName: "gatedUntil" as const, args: [tokenIdOf(w)] as const })),
   });
   let until = 0n;
-  for (const r of res) if (r.status === "success" && (r.result as bigint) > until) until = r.result as bigint;
+  for (const r of res) if (BigInt(r as bigint) > until) until = BigInt(r as bigint);
   return until > 0n ? new Date(Number(until) * 1000) : null;
 }
 
@@ -301,7 +281,17 @@ export async function reconcile(): Promise<number[]> {
   for (const s of waiting) {
     if (!s.releaseRoot || s.words.some((w) => heldSet.has(w.word))) continue;
     const when = await whenRootSet(root);
-    const gateUntil = await gateOf(s.words.map((w) => w.word)).catch(() => null);
+    // On a Words with the gate, the set's gate is part of what "released" records, and the game
+    // tells players of it from this row. If it can't be read now, don't mark the set yet: the
+    // next look tries again (a mark is made once and never corrected).
+    let gateUntil: Date | null = null;
+    if (hasGate()) {
+      try {
+        gateUntil = await gateOf(s.words.map((w) => w.word));
+      } catch {
+        continue;
+      }
+    }
     if (await markReleased(NETWORK.id, s.id, { releasedAt: when?.at ?? new Date(), gateUntil, releaseBlock: when?.block ?? null })) done.push(s.id);
   }
   if (done.length > 0) book = null;
@@ -427,8 +417,12 @@ export interface ReleasePlan {
   root: string;
   /** The words this root adds: every word of the set. Never any removed (see `releaseChange`). */
   added: string[];
-  /** The first-day gate this plan sets, or null with the reason. */
-  gate: { until: number; tokenIds: string[] } | null;
+  /**
+   * The first-day gate this plan sets, or null with the reason. `owned` is the set's words a player
+   * already holds: they are left out of the gate (Words.setGate refuses a claimed word, and one
+   * would revert the whole release), so if one is dissolved during the first day it opens ungated.
+   */
+  gate: { until: number; tokenIds: string[]; owned: string[] } | null;
   gateNote: string | null;
   /** In the order they must land: the gate FIRST, then the root. */
   intents: TxIntent[];
@@ -476,13 +470,27 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
   let gatePlan: ReleasePlan["gate"] = null;
   let gateNote: string | null = null;
   if (set.gateHours <= 0) gateNote = "This set has no first-day gate: it opens to everyone at once.";
-  else if (!(await hasGate())) gateNote = "This network’s Words has no gate yet (it arrives with the next redeploy): the set opens to everyone at once.";
+  else if (!hasGate()) gateNote = "This network’s Words has no gate yet (it arrives with the next redeploy): the set opens to everyone at once.";
   else {
+    // The registry says this Words has the gate. Ask the contract too before planning a call to
+    // it: a registry that is wrong, or a chain that can't be read, gets no plan at all, never a
+    // release without its gate.
+    try {
+      await getPublicClient().readContract({ address: addressOf("words"), abi: wordsAbi, functionName: "claimSigner" });
+    } catch {
+      return { ok: false, error: "chain_unreadable", detail: "couldn’t read the gate on this network’s Words (Words.claimSigner)" };
+    }
     const g = gateUntilFor(nowSec, set);
     if ("error" in g) return { ok: false, error: "gate_too_far", detail: g.error };
-    if (g.until !== null) {
-      const tokenIds = words.map((w) => tokenIdOf(w).toString());
-      gatePlan = { until: g.until, tokenIds };
+    // Words.setGate reverts on a word somebody holds, and the release with it: gate the rest. If
+    // ownership can't be read, no plan: a batch that might revert is worse than waiting a minute.
+    const owned = g.until !== null ? await claimedAmong(words) : [];
+    if (owned === null) return { ok: false, error: "chain_unreadable", detail: "couldn’t read which of the set’s words are already owned" };
+    const gated = words.filter((w) => !owned.includes(w));
+    if (g.until !== null && gated.length === 0) gateNote = "Every word of this set is already owned: there is nothing to gate.";
+    if (g.until !== null && gated.length > 0) {
+      const tokenIds = gated.map((w) => tokenIdOf(w).toString());
+      gatePlan = { until: g.until, tokenIds, owned };
       intents.push({
         contractKey: "words",
         contractName: "Words",
@@ -493,7 +501,7 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
           { name: "tokenIds", type: "uint256[]", value: `[${tokenIds.join(",")}]` },
           { name: "until", type: "uint64", value: String(g.until) },
         ],
-        note: `FIRST: the first-day gate on “${set.name}” (${words.length} words) until ${new Date(g.until * 1000).toISOString()}.`,
+        note: `FIRST: the first-day gate on “${set.name}” (${gated.length} words${owned.length ? `; ${owned.length} already owned are left out` : ""}) until ${new Date(g.until * 1000).toISOString()}.`,
       });
     }
   }

@@ -82,7 +82,7 @@ contract LexigotchiTest is Test {
         letters = new LettersHarness(word, feeRouter, cap, PACK, DAILY, signer, "ipfs://letters/", address(this));
 
         _buildTree();
-        words = new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, address(this));
+        words = new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, signer, address(this));
         rolls = new Rolls(word, feeRouter, ILetters(address(letters)), IWords(address(words)), ROLL, signer);
         staking = new Staking(word, feeRouter, IWords(address(words)), SNACK, 1 days, 3 days, signer, address(this));
         prestige =
@@ -671,6 +671,344 @@ contract LexigotchiTest is Test {
     // ---------------------------------------------------------------------------------------------
     // Metadata + royalty signal — Words tokenURI (owner-set base), EIP-2981 on both token contracts
     // ---------------------------------------------------------------------------------------------
+
+    // ---------------------------------------------------------------------------------------------
+    // Words — the first-day gate (decisions.md, "Reserved word sets")
+    // ---------------------------------------------------------------------------------------------
+
+    /// A gated word reverts without a voucher, and with a bad, expired, or someone else's voucher;
+    /// it claims with a good one.
+    function test_Gate_gatedWordNeedsAGoodVoucher() public {
+        vm.warp(1755000000);
+        uint256 id = _tokenId("CRANE");
+        uint64 until = uint64(block.timestamp + 1 days);
+        words.setGate(_ids(id), until);
+        assertEq(words.gatedUntil(id), until);
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        uint256 dl = block.timestamp + 600;
+
+        // No voucher: the plain claim is refused while the gate is up.
+        vm.prank(alice);
+        vm.expectRevert(Words.VoucherRequired.selector);
+        words.claim("CRANE", 0, _proof(0));
+
+        // Another key's signature.
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, _signClaimAs(0xBADBAD, address(words), alice, id, dl));
+
+        // Someone else's voucher: bob's, read out of the mempool, is no use to alice.
+        bytes memory bobs = _signClaim(bob, id, dl);
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, bobs);
+
+        // A voucher for another word.
+        bytes memory forMotel = _signClaim(alice, _tokenId("MOTEL"), dl);
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, forMotel);
+
+        // A deadline other than the one signed.
+        bytes memory good = _signClaim(alice, id, dl);
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl + 1, good);
+
+        // A voucher made out to another contract (another deployment's Words), same signer.
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, _signClaimAs(SIGNER_PK, address(staking), alice, id, dl));
+
+        // Nothing at all where the signature goes.
+        vm.prank(alice);
+        vm.expectRevert(); // OpenZeppelin's own "invalid signature length"
+        words.claim("CRANE", 0, _proof(0), dl, "");
+
+        // Expired.
+        vm.warp(dl + 1);
+        vm.prank(alice);
+        vm.expectRevert(Words.VoucherExpired.selector);
+        words.claim("CRANE", 0, _proof(0), dl, good);
+
+        // A good one, still inside the gate.
+        uint256 dl2 = block.timestamp + 600;
+        bytes memory fresh = _signClaim(alice, id, dl2);
+        vm.expectEmit(true, true, false, true, address(words));
+        emit Words.Claimed(id, alice, "CRANE", 0);
+        vm.prank(alice);
+        assertEq(words.claim("CRANE", 0, _proof(0), dl2, fresh), id);
+        assertEq(words.ownerOf(id), alice);
+    }
+
+    /// After `gatedUntil` anyone claims, as they always could: with no voucher, or with one that
+    /// is no longer looked at.
+    function test_Gate_opensToEveryoneAfterGatedUntil() public {
+        vm.warp(1755000000);
+        uint256 crane = _tokenId("CRANE");
+        uint256 motel = _tokenId("MOTEL");
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = crane;
+        ids[1] = motel;
+        uint64 until = uint64(block.timestamp + 1 days);
+        words.setGate(ids, until);
+
+        vm.warp(until - 1); // the last gated second
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        vm.prank(alice);
+        vm.expectRevert(Words.VoucherRequired.selector);
+        words.claim("CRANE", 0, _proof(0));
+
+        vm.warp(until); // open
+        vm.prank(alice);
+        words.claim("CRANE", 0, _proof(0));
+        assertEq(words.ownerOf(crane), alice);
+
+        // A claim sent with a voucher just as the gate lifts doesn't fail for the voucher: an
+        // expired one, signed by nobody, is simply not read.
+        _fundLower(bob, "MOTEL");
+        _approveAll(bob);
+        vm.prank(bob);
+        words.claim("MOTEL", 0, _proof(1), 0, hex"00");
+        assertEq(words.ownerOf(motel), bob);
+    }
+
+    /// The owner can't gate a claimed word, or past the cap, and nobody else can gate at all.
+    function test_Gate_ownerLimits() public {
+        vm.warp(1755000000);
+        uint256 crane = _claimLower(alice, 0);
+        uint256 motel = _tokenId("MOTEL");
+
+        vm.expectRevert(Words.AlreadyClaimed.selector);
+        words.setGate(_ids(crane), uint64(block.timestamp + 1 days));
+        // ...even as one of several: the whole call is refused, and nothing is gated.
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = motel;
+        ids[1] = crane;
+        vm.expectRevert(Words.AlreadyClaimed.selector);
+        words.setGate(ids, uint64(block.timestamp + 1 days));
+        assertEq(words.gatedUntil(motel), 0);
+
+        // The cap: exactly MAX_GATE ahead is allowed, a second more is not.
+        uint64 cap = uint64(block.timestamp) + words.MAX_GATE();
+        vm.expectRevert(Words.GateTooLong.selector);
+        words.setGate(_ids(motel), cap + 1);
+        words.setGate(_ids(motel), cap);
+        assertEq(words.gatedUntil(motel), cap);
+
+        // Only the owner.
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.setGate(_ids(motel), uint64(block.timestamp + 1));
+
+        // The owner can lift a gate early (a past time, or 0), and the event says what was set.
+        vm.expectEmit(false, false, false, true, address(words));
+        emit Words.Gated(_ids(motel), 0);
+        words.setGate(_ids(motel), 0);
+        _fundLower(bob, "MOTEL");
+        _approveAll(bob);
+        vm.prank(bob);
+        words.claim("MOTEL", 0, _proof(1));
+    }
+
+    function testFuzz_Gate_neverPastTheCap(uint64 until) public {
+        vm.warp(1755000000);
+        uint256 id = _tokenId("GRAPE");
+        if (until > block.timestamp + words.MAX_GATE()) {
+            vm.expectRevert(Words.GateTooLong.selector);
+            words.setGate(_ids(id), until);
+        } else {
+            words.setGate(_ids(id), until);
+            assertEq(words.gatedUntil(id), until);
+            assertLe(uint256(words.gatedUntil(id)), block.timestamp + 7 days);
+        }
+    }
+
+    /// A release: the gate FIRST, on words the root doesn't hold yet, THEN the root. From the root's
+    /// first block the word needs a voucher; there is no moment when it is claimable without one.
+    function test_Gate_releaseSetsTheGateBeforeTheRoot() public {
+        vm.warp(1755000000);
+        uint256 id = _tokenId("CRANE");
+        bytes32 n23 = _hashPair(leaves[2], leaves[3]);
+        words.setDictionaryRoot(_hashPair(leaves[1], n23)); // CRANE held back
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+
+        words.setGate(_ids(id), uint64(block.timestamp + 1 days)); // 1: the gate, on a word not in the root
+        vm.prank(alice);
+        vm.expectRevert(Words.NotInDictionary.selector); // still held back
+        words.claim("CRANE", 0, _proof(0));
+
+        words.setDictionaryRoot(dictRoot); // 2: the release
+        vm.prank(alice);
+        vm.expectRevert(Words.VoucherRequired.selector); // released, and gated from its first block
+        words.claim("CRANE", 0, _proof(0));
+
+        uint256 dl = block.timestamp + 600;
+        bytes memory sig = _signClaim(alice, id, dl);
+        vm.prank(alice);
+        words.claim("CRANE", 0, _proof(0), dl, sig);
+        assertEq(words.ownerOf(id), alice);
+    }
+
+    /// A voucher carries no nonce. Used twice it is the same wallet claiming the same word again
+    /// after dissolving it: nobody else gains a word, and the wallet holds the one word it was
+    /// vouched for. The gate stays on a dissolved word until its time passes.
+    function test_Gate_voucherReuseIsTheSameWalletAndWordOnly() public {
+        vm.warp(1755000000);
+        uint256 id = _tokenId("CRANE");
+        words.setGate(_ids(id), uint64(block.timestamp + 1 days));
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        uint256 dl = block.timestamp + 600;
+        bytes memory sig = _signClaim(alice, id, dl);
+
+        vm.prank(alice);
+        words.claim("CRANE", 0, _proof(0), dl, sig);
+        vm.prank(alice);
+        vm.expectRevert(Words.AlreadyClaimed.selector); // a held word is never claimed twice
+        words.claim("CRANE", 0, _proof(0), dl, sig);
+
+        vm.prank(alice);
+        words.dissolve(id, "CRANE");
+        // Dissolved: free again, and STILL gated. Bob needs a voucher of his own...
+        _fundLower(bob, "CRANE");
+        _approveAll(bob);
+        vm.prank(bob);
+        vm.expectRevert(Words.VoucherRequired.selector);
+        words.claim("CRANE", 0, _proof(0));
+        vm.prank(bob);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, sig);
+        // ...and alice's own still claims her the same word, until its deadline.
+        vm.prank(alice);
+        words.claim("CRANE", 0, _proof(0), dl, sig);
+        assertEq(words.ownerOf(id), alice);
+    }
+
+    /// An ungated word claims exactly as before the gate existed: the same selector and arguments,
+    /// the same event, the same escrow, fee, and token, and the same reverts in the same order.
+    function test_Gate_ungatedClaimIsUnchanged() public {
+        vm.warp(1755000000);
+        // The selector every deployed client and wallet already calls.
+        assertEq(bytes4(keccak256("claim(string,uint8,bytes32[])")), bytes4(0x527c5082));
+        uint256 id = _tokenId("CRANE");
+        assertEq(words.gatedUntil(id), 0, "never gated");
+
+        // The reverts, in the order they were always checked.
+        vm.startPrank(alice);
+        vm.expectRevert(Words.WrongLength.selector);
+        words.claim("CRAN", 0, _proof(0));
+        vm.expectRevert(Words.BadCaseMask.selector);
+        words.claim("CRANE", 0x20, _proof(0));
+        vm.expectRevert(Words.NotInDictionary.selector);
+        words.claim("ZZZZZ", 0, _proof(0));
+        vm.stopPrank();
+
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        uint256 balBefore = word.balanceOf(alice);
+        // By the raw call a client built before the gate sends: nothing about it changed.
+        vm.expectEmit(true, true, false, true, address(words));
+        emit Words.Claimed(id, alice, "CRANE", 0);
+        vm.prank(alice);
+        (bool ok, bytes memory ret) =
+            address(words).call(abi.encodeWithSelector(bytes4(0x527c5082), "CRANE", uint8(0), _proof(0)));
+        assertTrue(ok);
+        assertEq(abi.decode(ret, (uint256)), id);
+        assertEq(words.ownerOf(id), alice);
+        assertEq(balBefore - word.balanceOf(alice), CLAIM, "the claim fee, once");
+        assertEq(letters.balanceOf(address(words), uint256(uint8(bytes1("C")) - 65)), 1, "letters escrowed");
+        assertEq(words.claimedAt(id), uint64(block.timestamp));
+        (uint8 li, bool up) = words.escrowLetter(id, 0);
+        assertEq(li, 2);
+        assertFalse(up);
+
+        vm.prank(bob);
+        vm.expectRevert(Words.AlreadyClaimed.selector);
+        words.claim("CRANE", 0, _proof(0));
+
+        // The other overload on an ungated word is the same claim: the voucher isn't read.
+        _fundLower(bob, "MOTEL");
+        _approveAll(bob);
+        vm.prank(bob);
+        words.claim("MOTEL", 0, _proof(1), 0, "");
+        assertEq(words.ownerOf(_tokenId("MOTEL")), bob);
+    }
+
+    /// The claim signer: set at deploy, changed only by the owner, never to nobody.
+    function test_Gate_claimSigner() public {
+        vm.warp(1755000000);
+        assertEq(words.claimSigner(), signer);
+        vm.expectRevert(Words.ZeroAddress.selector);
+        new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, address(0), address(this));
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.setClaimSigner(alice);
+        vm.expectRevert(Words.ZeroAddress.selector);
+        words.setClaimSigner(address(0));
+
+        uint256 newPk = 0xC0FFEE;
+        vm.expectEmit(false, false, false, true, address(words));
+        emit Words.ClaimSignerSet(vm.addr(newPk));
+        words.setClaimSigner(vm.addr(newPk));
+
+        // The old signer's vouchers stop, the new one's work.
+        uint256 id = _tokenId("CRANE");
+        words.setGate(_ids(id), uint64(block.timestamp + 1 days));
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        uint256 dl = block.timestamp + 600;
+        bytes memory old = _signClaim(alice, id, dl);
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, old);
+        vm.prank(alice);
+        words.claim("CRANE", 0, _proof(0), dl, _signClaimAs(newPk, address(words), alice, id, dl));
+    }
+
+    /// A voucher of another kind from the same key can't pass for a gated claim: a free-snack
+    /// voucher, a daily-letter voucher, and a raw signature over the same fields without the kind.
+    function test_Gate_noOtherVoucherPassesForOne() public {
+        vm.warp(1755000000);
+        uint256 id = _tokenId("CRANE");
+        words.setGate(_ids(id), uint64(block.timestamp + 1 days));
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        uint256 dl = block.timestamp + 600;
+
+        bytes memory snack = _signSnack(alice, alice, alice, dl);
+        bytes memory daily = _signDaily(alice, id, dl);
+        (uint8 v, bytes32 r, bytes32 ss) = vm.sign(
+            SIGNER_PK,
+            MessageHashUtils.toEthSignedMessageHash(keccak256(abi.encode(address(words), block.chainid, alice, id, dl)))
+        );
+        bytes memory noKind = abi.encodePacked(r, ss, v);
+        bytes[3] memory others = [snack, daily, noKind];
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(alice);
+            vm.expectRevert(Words.BadSignature.selector);
+            words.claim("CRANE", 0, _proof(0), dl, others[i]);
+        }
+    }
+
+    /// Another chain's voucher is no use here: the chain id is in what is signed.
+    function test_Gate_voucherIsForThisChainOnly() public {
+        vm.warp(1755000000);
+        uint256 id = _tokenId("CRANE");
+        words.setGate(_ids(id), uint64(block.timestamp + 1 days));
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        uint256 dl = block.timestamp + 600;
+        bytes memory sig = _signClaim(alice, id, dl); // signed on this chain id
+        vm.chainId(block.chainid + 1);
+        vm.prank(alice);
+        vm.expectRevert(Words.BadSignature.selector);
+        words.claim("CRANE", 0, _proof(0), dl, sig);
+    }
 
     function test_Words_tokenURI_ownerSetBase() public {
         uint256 tokenId = _claimLower(alice, 0); // CRANE
@@ -1511,6 +1849,27 @@ contract LexigotchiTest is Test {
             keccak256(abi.encode(address(letters), block.chainid, id, buyer, letterIndexes))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _tokenId(string memory w) internal pure returns (uint256) {
+        return uint256(keccak256(bytes(w)));
+    }
+
+    /// The claim signer's voucher for `who` to claim the gated word `tokenId` (Words.claim).
+    function _signClaim(address who, uint256 tokenId, uint256 deadline) internal view returns (bytes memory) {
+        return _signClaimAs(SIGNER_PK, address(words), who, tokenId, deadline);
+    }
+
+    function _signClaimAs(uint256 pk, address wordsAddr, address who, uint256 tokenId, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            keccak256(abi.encode(wordsAddr, block.chainid, keccak256("lexigotchi.words.gatedClaim"), who, tokenId, deadline))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
 

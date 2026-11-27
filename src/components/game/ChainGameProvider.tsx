@@ -118,6 +118,7 @@ import {
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import type { EarningsJson } from "@/lib/rewards/earnings";
 import { earningsFromJson } from "./earnings";
+import { gateRefusalNote, type GateRefusal } from "./setGate";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK, networkById } from "@/lib/onchain/network";
 import { wordTier } from "@/lib/economy";
@@ -1924,10 +1925,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast(`${word} isn’t claimable`, "bad");
           }
           const W = word.toUpperCase();
+          // The first day after a set's release (decisions.md, "Reserved word sets"): the claim
+          // needs the server's voucher, one word of the set per player. The server says when a
+          // word is gated (`proof.gate`, read from the chain), and the voucher route decides by the
+          // chain's own time: never this device's clock, which may run ahead of a gate's end and
+          // send a plain claim the contract refuses. "not_gated" back from the voucher route means
+          // the gate has lifted, and the plain claim is the claim.
+          let voucher: { deadline: bigint; sig: `0x${string}` } | undefined;
+          if (typeof proof.gate === "number") {
+            const v = await openPostJson<{ voucher: { deadline: string; sig: `0x${string}` } }>("/api/sets/voucher", { wallet: address, word: W });
+            if (v.ok) voucher = { deadline: BigInt(v.voucher.deadline), sig: v.voucher.sig };
+            else if (v.error !== "not_gated") {
+              const note = gateRefusalNote(W, v as GateRefusal, Date.now() / 1000, proof.gate);
+              if (note.openProfile) dispatch({ t: "sheet", sheet: { kind: "profile" } });
+              return void toast(note.text, note.tone);
+            }
+          }
           const landed = await sendAndSettle(
             run,
             `Claim ${word}`,
-            () => claimCalls(proof.word, proof.proof, caseMask(cases), chain.params!, chain.player!),
+            () => claimCalls(proof.word, proof.proof, caseMask(cases), chain.params!, chain.player!, voucher),
             (ws) => ws.some((x) => x.word === W),
             {
               done: () => `${W} is yours. It’s in your Bag.`,
