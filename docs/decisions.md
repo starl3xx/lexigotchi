@@ -2188,6 +2188,26 @@ setter. All small, riding existing suite patterns.
         reports the same lean as Chromium), so it shows no gap before or after. Not seen: real
         Safari, a real phone (a touch has no pointer to lean to), the celebrate sheet in the
         running game.
+    - **Part 2, the landing page's hero is the word's own card** (1A; `LandingPage.tsx`,
+      `Stage()`). JAZZY's card as its holder would see it: the engraved Stage scene, the Mythic
+      frame, and the ribbon that says one of one, with two letters already UPPERCASE. It was a flat
+      stage built in the page: a valance of half circles, a soft spotlight, and a tan floor.
+      - **One render at every width.** The old stage drew the word three times, at 58, 78, and
+        96 px a letter, and showed one by screen width. A card sizes its letters to itself.
+      - **The label is under the card,** as the placard is under Today's: nothing is drawn over a
+        card's art but its letters. Its words are unchanged.
+      - **The shape.** A card is 16 to 9, so the hero is shorter: at 1,280 px it is 484 by 323
+        with its label, where the box was 484 by 406; at 1,024 px, 424 by 289; on a phone
+        (390 px), 350 by 244.
+      - **It stands on `.card-stand`** (part 1), with a shadow of 8 px each way, as on the
+        review page and as this page's other boxes have. The game's cards have 4 and 5.
+      - **Measured** (headless, this Mac, three alternating runs of 15 s, the old stage against
+        the card, both moving): WebKit 19.9%, 33.5%, 28.1% of a processor core against 15.1%,
+        27.2%, 29.9%; Chromium 35.9%, 37.3%, 39.9% against 38.5%, 35.7%, 49.9%. No difference I can
+        tell from the noise.
+      - **Seen and not seen (part 2):** the running landing page at 390, 768, 1,024, and
+        1,280 px in WebKit and Chromium: no error, no sideways scrolling, the card beside the
+        headline from 1,024 px and under it below. Not seen: a real phone.
 
 51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
     2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
