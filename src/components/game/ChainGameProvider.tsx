@@ -68,7 +68,6 @@ import {
   readLetterCommit,
   readLetterCommits,
   readLetterCommitRevealed,
-  readBlockDay,
   readDayState,
   waitForNewCommit,
   readOpenRollCommits,
@@ -133,8 +132,8 @@ import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/on
 import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageNote } from "@/lib/onchain/stageOverlay";
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
 import { failedAsk, openPacks, packRevealPlan, waitingCommits, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
-import { DAILY_STEP_MS, dailyPlan } from "@/lib/onchain/dailySend";
-import { awaitsLetter, parseDailySeen, seekAgainIn, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
+import { DAILY_LOOK_MS, DAILY_STEP_MS, dailyPlan } from "@/lib/onchain/dailySend";
+import { dailySealed, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 import { mailboxKey, readMailbox, withMail, withoutMail, writeMailbox, type UnopenedMail } from "@/lib/mailbox";
 import { bagWithMail, caughtUp, hadWithOwed, mailNumber, type Mail } from "./mail/mailFlow";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -156,6 +155,8 @@ const PACK_SETTLE_MS = ASCEND_SETTLE_MS;
 /** Said when a pack's reveal is broadcast and wasn't seen to land: nothing more can be sent. */
 const PACK_FINISHING = "Your pack is finishing onchain. It’ll show in a moment.";
 const LETTER_FINISHING = "Your letter is finishing onchain. It’ll show in a moment.";
+/** A daily send the chain hasn’t included after a minute, with no proof that it failed. */
+const DAILY_UNSURE = "Your letter is taking a while to arrive. If it went through, it’ll be in your bag.";
 /** After a daily letter the chain couldn't be asked about: when to look again for it. */
 const DAILY_LATE_LOOKS_MS = [10_000, 30_000, 90_000, 240_000];
 /** How long a revealed pack's letters are counted before the bag's own read shows them (its re-reads end at 20 s). */
@@ -1235,70 +1236,6 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     [openCommits, flight, mail],
   );
 
-  /**
-   * Today's letter was claimed and its envelope isn't known here: the page was reloaded before the
-   * chain answered, or the send landed with nobody watching. Its tile waits for a tear, so the
-   * envelope has to be found again (Bugbot on #276): this wallet's one-letter commit of that chain
-   * day. The note learns its number. If the commit is still to be opened, the card shows it by
-   * itself; if it is already revealed, it is kept as mail to tear (plainly: what the bag held
-   * before it is not known). It looks again after a miss, a few times, and never while a piece is
-   * on its way.
-   */
-  const seek = useRef<{ key: string; tries: number; running: boolean; done: boolean } | null>(null);
-  const [seekTick, setSeekTick] = useState(0);
-  useEffect(() => {
-    if (!address || !boxKey || !awaitsLetter(seenToday, chainDayNow) || flight || busy) return;
-    const number = seenToday.mail;
-    // An envelope already stands for it: in hand, or kept as mail.
-    if (number !== undefined && (mailNow.current?.number === number || untorn.some((u) => u.number === number))) return;
-    const key = `${boxKey}:${seenToday.day}`;
-    if (seek.current?.key !== key) seek.current = { key, tries: 0, running: false, done: false };
-    const s = seek.current;
-    if (s.running || s.done) return;
-    s.running = true;
-    const day = seenToday.day;
-    // Not a cleanup flag: naming the note below changes the note, which runs this effect again,
-    // and a flag set by that would stop the search before it kept the mail. The wallet is the
-    // thing that must not have changed.
-    const gone = () => boxKeyNow.current !== boxKey;
-    /** "found": an envelope stands for it now, or it is no longer this wallet's. "miss": not yet. */
-    const look = async (): Promise<"found" | "miss"> => {
-      const dailies = (await readLetterCommits(address)).filter((c) => c.count === 1).sort((a, b) => (a.commitId < b.commitId ? 1 : -1));
-      // newest first: today's is among the last few
-      for (const c of dailies.slice(0, 4)) {
-        if (gone()) return "found";
-        if ((await readBlockDay(c.blockNumber)) !== day) continue;
-        if (gone()) return "found";
-        const n = mailNumber(c.commitId);
-        changeDailyNoteRef.current((seen) => withDailyMail(seen, day, n));
-        if (!c.revealed) {
-          void rereadOpenCommits.current(); // still to be opened: the card shows it
-          return "found";
-        }
-        if (readMailbox(boxKey).some((u) => u.number === n)) return "found";
-        // Revealed: the route sends nothing, it names the letter the chain minted.
-        const res = await openPostJson<{ reveal: PackRevealAnswer }>("/api/mint/reveal", { commitId: String(c.commitId), relay: true });
-        const show = res?.ok ? packRevealPlan(res.reveal) : null;
-        if (gone()) return "found";
-        if (show?.do !== "show") return "miss"; // the server couldn't say what it held, yet
-        revealedPacks.current.add(String(c.commitId));
-        saveBox(boxKey, (list) => withMail(list, { number: n, letters: show.letters, had: Array.from({ length: 26 }, () => 0), at: Date.now(), plain: true }));
-        return "found";
-      }
-      return "miss"; // the logs don't serve today's commit yet
-    };
-    void look()
-      .catch((): "miss" => "miss") // the chain couldn't be asked
-      .then((got) => {
-        s.running = false;
-        if (got === "found") return void (s.done = true);
-        // A quiet miss is not an answer: right after a reload the logs are often behind. Look
-        // again, a few times, further apart (lib/dailyNote `seekAgainIn`).
-        const wait = seekAgainIn(s.tries++);
-        if (wait !== null) setTimeout(() => setSeekTick((n) => n + 1), wait);
-      });
-  }, [address, boxKey, seenToday, chainDayNow, flight, busy, untorn, openPostJson, saveBox, seekTick]);
-
   /** Lay a pity value the client KNOWS over the lagging chain read, for that roll's owner. */
   const notePity = useCallback((owner: string, letterIndex: number, value: number) => {
     const key = owner.toLowerCase();
@@ -1603,9 +1540,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     [address, chain, toast, traceSent],
   );
 
+  /**
+   * Today's letter is on the note from the send; the tile beside "claimed" is hidden while its
+   * envelope is still sealed in this browser (lib/dailyNote `dailySealed`), so the envelope says it.
+   */
+  const dailyIsSealed = dailySealed({
+    hand: mail,
+    kept: untorn,
+    open: waitingPacks.map((c) => ({ count: c.count, mine: c.buyer.toLowerCase() === address?.toLowerCase() })),
+    mail: seenToday?.mail,
+  });
   const api: GameApi = useMemo(
     () => ({
-      state,
+      state: dailyIsSealed && state.dailyLetter !== null ? { ...state, dailyLetter: null } : state,
       nav: (view: View, section?: ViewSection) => dispatch({ t: "nav", view, section }),
       openSheet: (sheet: Sheet) => dispatch({ t: "sheet", sheet }),
       closeSheet: () => dispatch({ t: "sheet", sheet: null }),
@@ -1669,14 +1616,22 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // it began under is still the one connected.
           const noteKey = dailySeenKeyNow.current;
           const myNote = () => dailySeenKeyNow.current === noteKey;
-          const waiting = "Your letter is yours and safe onchain. It’ll be waiting for you on Today.";
+          // True whether it is found again as mail or not: a revealed letter is in the bag.
+          const waiting = "Your letter is yours and safe onchain. It’ll be in your bag, or waiting for you on Today.";
           return mailGuard(seq, piece, waiting, async (markSent): Promise<ActionOutcome> => {
             // Every commit of this wallet's from before the send, opened or not: the daily's own is
             // revealed in its send, so it is never among the "pending" ones.
             const before = new Set((await readLetterCommits(address)).map((c) => String(c.commitId)));
             const used = () => readDayState([key]).then((d) => d.dailyUsed).catch(() => null);
             // `settles`: no "Daily sent" toast. The envelope says it.
-            const sent = await run("Daily", calls, { settles: true });
+            let handed: SendResult | undefined;
+            const sent = await run("Daily", calls, { settles: true, onSent: (r) => (handed = r) });
+            // What became of the send ITSELF, traced beside the look at the chain: "the daily was
+            // never used" means "nothing was committed" only when the send is known to have failed.
+            // On a two-transaction send only the FIRST, the commit, is traced: a reveal that
+            // reverted (a stale predicted id) says nothing about whether the daily was used.
+            const commitSend = (r: SendResult | undefined): SendResult | undefined => (r?.via === "sendTransaction" ? { via: "sendTransaction", hashes: r.hashes.slice(0, 1) } : r);
+            const traced: Promise<SendTrace> | null = sent ? traceSent(commitSend(handed)).catch((): SendTrace => ({ kind: "unknown" })) : null;
             if (!sent) {
               // The wallet refused. With two prompts that can mean "the commit went out, the reveal
               // was declined": ask the chain rather than guess, so a cancel at the first prompt is
@@ -1691,7 +1646,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             }
             markPaid();
             markSent();
-            if (myNote()) noteDailyRef.current(null); // claimed. WHICH letter is the envelope's to say, at the tear.
+            // Claimed, with the letter the send was made with (the bundle's; none without a bundle).
+            // The tile beside "claimed" is hidden while this envelope is sealed here (`dailySealed`),
+            // and the tear writes the letter the chain minted over it.
+            if (myNote()) noteDailyRef.current(b ? (b.letterIndexes[0] ?? null) : null);
             patchMail(seq, { phase: "paid" });
 
             const at = Date.now();
@@ -1703,6 +1661,14 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               // The scan of every commit is a wide log read: only when the predicted slot isn't it.
               const mineNow = slotIsMine ? [] : await readLetterCommits(address).catch(() => []);
               const fresh = mineNow.find((c) => c.count === 1 && !before.has(String(c.commitId))) ?? null;
+              const waited = Date.now() - at;
+              // Asked only when it matters (time is up, and the daily reads as never used): the
+              // trace has had the whole minute to follow the send.
+              let failed: boolean | null = null;
+              if (waited >= DAILY_LOOK_MS && usedNow === false && traced) {
+                const trace = await traced;
+                failed = trace.kind === "reverted" || trace.kind === "wallet_failed" || trace.kind === "other_chain";
+              }
               const plan = dailyPlan({
                 me: address,
                 bundled: !!b,
@@ -1711,24 +1677,29 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                 slot,
                 fresh,
                 used: usedNow,
-                waited: Date.now() - at,
+                failed,
+                waited,
                 unrevealedFor: unrevealedSince ? Date.now() - unrevealedSince : 0,
               });
               if (plan.do === "gone") {
-                // Nothing was committed (a batch that goes all or nothing, and reverted): the letter
-                // is still there to pull, and the "claimed" note was wrong.
+                // Nothing was committed, and the send is KNOWN to have failed (a batch that goes all
+                // or nothing, and reverted): the letter is still there to pull, and the "claimed"
+                // note was wrong.
                 dropMail(seq);
                 if (myNote()) forgetDailyRef.current();
                 void dayQ.refetch();
                 toast("Your letter didn’t go through, and it wasn’t used. Pull it again", "info");
                 return { status: "not-started" };
               }
-              if (plan.do === "lost") {
-                // The chain couldn't say for a whole minute. The envelope says the letter is safe
-                // and will be waiting, and that is kept: an UNREVEALED commit shows on the card by
-                // itself (the open commits are re-read), and one the bundle already revealed is
-                // looked for again here, a few times, and made mail to tear.
-                const settled = settleMail(seq, piece, 0n, { got: "waiting" }, waiting);
+              if (plan.do === "lost" || plan.do === "unsure") {
+                // "lost": the chain couldn't say for a whole minute. The envelope says the letter is
+                // safe and will be waiting. "unsure": no commit yet and no proof the send failed, so
+                // it may only be slow: the envelope says that, and the claimed note stays (it runs
+                // out by itself if nothing ever lands). Either note says only what holds either
+                // way: an UNREVEALED commit shows on the card by itself (the open commits are
+                // re-read), and one that is already revealed is looked for again here, for a few
+                // minutes, and made mail to tear; after that its letter is simply in the bag.
+                const settled = settleMail(seq, piece, 0n, { got: "waiting" }, plan.do === "lost" ? waiting : DAILY_UNSURE);
                 let found = false;
                 const lookLater = async () => {
                   if (found) return;
@@ -2706,15 +2677,6 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // for another wallet is "away", and the envelope must not say it can be spelled with.
           const mine = oldest.buyer.toLowerCase() === address?.toLowerCase();
           const count = oldest.count === 1 ? 1 : 5;
-          // A daily letter opened here is the envelope of the day it was committed on: the note
-          // of that day learns it, so its tear shows the letter (the pull's own flow may never
-          // have got that far: a reload, a lost connection).
-          if (mine && count === 1) {
-            const noteKey = dailySeenKeyNow.current; // the wallet may be switched before the block's day is read
-            void readBlockDay(oldest.blockNumber)
-              .then((day) => dailySeenKeyNow.current === noteKey && changeDailyNoteRef.current((seen) => withDailyMail(seen, day, mailNumber(oldest.commitId))))
-              .catch(() => {});
-          }
           const piece: Piece = { count, had: bagBefore(mineLower(state)), mine };
           const seq = beginMail({ free: count === 1, phase: "found", number: mailNumber(oldest.commitId), ...piece });
           await mailGuard(seq, piece, waiting, async (markSent) => {
@@ -2851,7 +2813,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, chainDayNow, mail, mailTorn, waitingMail, waitingPacks, beginMail, patchMail, dropMail, settleMail, mailGuard, bagBefore, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, chainDayNow, dailyIsSealed, mail, mailTorn, waitingMail, waitingPacks, beginMail, patchMail, dropMail, settleMail, mailGuard, bagBefore, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

@@ -2134,23 +2134,34 @@ setter. All small, riding existing suite patterns.
           land:** it was refused, there was no bundle, it named another id, or 15 s passed. Two
           reveals for one commit means one reverts;
         - **the envelope leaves only when the chain says the daily was never used**
-          (`dailyUsed`), never from time alone. Then the "claimed" note is taken back and Pull
-          returns;
+          (`dailyUsed`) AND the send itself is known to have failed (it mined and reverted, or
+          the wallet says so: `traceSend`). Then the "claimed" note is taken back and Pull
+          returns. The wallet accepting a send is not the chain including it: a send that is only
+          slow is "unsure", the envelope says it is taking a while, and the note stays (Bugbot on
+          #276);
         - **when the chain can't be read for a whole minute,** the envelope says the letter is
           safe and will be waiting, and that is kept: an unrevealed commit shows on the card by
           itself, and one the bundle already revealed is looked for again (10 s to 4 min later)
-          and made mail to tear.
-      - **Which letter is the envelope's to say.** The tile beside "claimed" on Today and Mint
-        waits for the tear, in both stores, and no toast names the letter at the tap. Tearing an
-        old envelope never marks today's letter as claimed (the note is not stamped again). The
-        stored note names its envelope (`lib/dailyNote`), so the tile also shows for an envelope
-        that waited through a reload (Bugbot on #276: the link was first kept in memory only). A
-        daily opened from the card names itself on the note of the day it was committed, and when
-        today's note waits for a letter with no envelope known (a reload mid-flight, a send that
-        landed unwatched), the day's commit is found again and, if already revealed, kept as
-        plain mail to tear. That search looks again after a quiet miss (right after a reload the
-        logs are often behind), a few times over some minutes. And a daily's send that is still
-        running after a wallet switch writes nothing to the new wallet's note.
+          and made mail to tear. After that its letter is simply in the bag, which is why the
+          envelope's words say "in your bag, or waiting for you on Today".
+      - **Which letter is the envelope's to say, as a display rule** (`lib/dailyNote`
+        `dailySealed`, pure, tested). The letter goes on the stored note at the send, as it did
+        before the mail. The tile beside "claimed" on Today and Mint is hidden only while a sealed
+        one-letter envelope stands in this browser: in hand and on its way or waiting to be torn,
+        kept as mail, or a one-letter commit the card still has to open. No toast names the letter
+        at the tap. The note may name its envelope, so its tear writes the letter the chain minted
+        over the one the send was made with, and never stamps the note again (tearing an old
+        envelope must not mark today as claimed).
+      - **The rule I tried first, and why it is gone.** The note was written with NO letter, and
+        the tile waited for the tear. Then a note with no letter had to find its envelope again
+        after every reload, late open, or lost connection: first a link in memory, then a stored
+        link, then a search of the chain, then retries, then a watch on unrevealed commits. Bugbot
+        found a gap in each of five rounds, all in provider code that no test reaches. Hiding is a
+        matter of what is on screen, so it is now worked out from what is on screen. An envelope
+        lost to a reload costs the ceremony only, as it does for a pack; the tile and the letter
+        are never lost with it.
+      - **A daily's send that is still running after a wallet switch** writes nothing to the new
+        wallet's note (it remembers the note it began under).
       - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
         that was already revealed, the bag read at that tap may count its letters already. Its
         letters then get no tags, none is called new, and no word is named: counted twice, a

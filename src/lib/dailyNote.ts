@@ -3,34 +3,28 @@
  *
  * The chain read that follows a send can lag, so the note counts as "claimed" on its own for a
  * short while (the trust window is its caller's). It also carries WHICH letter, for the tile
- * beside "claimed", and since the daily letter comes by mail (decisions.md #49, part 3) that is
- * the envelope's to say: the letter goes on the note only when its envelope is torn.
+ * beside "claimed": the letter the send was made with goes on the note at the send.
  *
- * So the note names its envelope (`mail`, the piece's number). Kept in the note, not in memory:
- * a daily envelope can wait through a reload, and tearing it later must still show the letter
- * (Bugbot on #276). Pure, so each rule is a test.
+ * Since the daily letter comes by mail (decisions.md #49, part 3), saying which letter is the
+ * envelope's. That is a DISPLAY rule, not a storage one: the tile is hidden while a sealed
+ * one-letter envelope stands in this browser (`dailySealed`), and shows otherwise. So an envelope
+ * lost to a reload costs the ceremony only, never the tile: there is no "note with no letter that
+ * must find its envelope" to keep true (that rule was tried first, in memory and then stored and
+ * then searched for, and took five rounds of fixes: Bugbot on #276).
+ *
+ * The note may name its envelope (`mail`, the piece's number), so that the tear of THAT envelope
+ * writes the letter the chain minted over the one the send was made with. Pure, so each rule is a
+ * test.
  */
 export interface DailySeen {
   /** The chain day it was claimed on. */
   day: number;
-  /** The lowercase letter (0–25) it gave: null until its envelope is torn. */
+  /** The lowercase letter (0–25) it gave, when this browser knows it. */
   idx: number | null;
   /** When the claim went out (ms), for the trust window. */
   at: number;
   /** The number, in the mail, of the envelope that holds this letter, once the chain has said it. */
   mail?: number;
-}
-
-/** The chain day of a block time (seconds): the day the contract counts a daily under. */
-export const dayOf = (timestamp: number | bigint): number => Math.floor(Number(timestamp) / 86_400);
-
-/**
- * Does today's note still wait for its letter? Then its envelope has not been torn, and it must
- * be somewhere: in hand, kept as mail, an open commit, or (after a reload mid-flight, or a send
- * that landed with nobody watching) nowhere this browser knows, and it has to be found again.
- */
-export function awaitsLetter(seen: DailySeen | null, today: number): seen is DailySeen {
-  return !!seen && seen.day === today && seen.idx === null;
 }
 
 /** What a stored value holds, or null: a bad value is no note, and the chain read still works. */
@@ -53,21 +47,37 @@ export function withDailyMail(seen: DailySeen | null, day: number, mail: number)
 }
 
 /**
- * The note with its letter on, when envelope `mail` is torn: only the note that names that
- * envelope. It is never stamped again (`at` and `day` stay): tearing yesterday's envelope today
- * must not mark today's letter as claimed.
+ * The note with the letter the chain minted, when envelope `mail` is torn: only the note that
+ * names that envelope. It is never stamped again (`at` and `day` stay): tearing yesterday's
+ * envelope today must not mark today's letter as claimed.
  */
 export function withDailyLetter(seen: DailySeen | null, mail: number, idx: number): DailySeen | null {
   return seen && seen.mail === mail ? { ...seen, idx } : seen;
 }
 
+/** The steps at which a piece in hand is a sealed envelope: on its way, or waiting to be torn. */
+const SEALED_PHASES: readonly string[] = ["wallet", "paid", "found", "ready"];
+
 /**
- * When to look again for today's envelope after a look that found nothing (the logs don't serve
- * the commit yet, or the server couldn't say what it held): ms to wait after miss number `tries`
- * (0 for the first), or null when it has been looked for long enough for this visit. A miss is
- * never final on the first look: right after a reload the chain's logs are often behind.
+ * Is today's letter sealed in an envelope that stands in this browser? Then the tile beside
+ * "claimed" is hidden, so the envelope can say the letter. It stands:
+ * - in hand, untorn, on its way or waiting to be torn. NOT one stuck on "waiting" or "finishing":
+ *   nothing may ever come of it, and the tile would stay hidden for the whole sitting;
+ * - kept as mail here, never torn;
+ * - as a one-letter commit of this wallet's that the server still has to open (the card shows it).
+ * When the note names its envelope (`mail`), only THAT envelope counts in hand or kept: an older
+ * daily letter still unopened does not hide today's. (A commit still to be opened has no day this
+ * browser knows, so any one-letter one counts.)
  */
-export const SEEK_AGAIN_MS: readonly number[] = [5_000, 15_000, 45_000, 120_000, 300_000];
-export function seekAgainIn(tries: number): number | null {
-  return tries >= 0 && tries < SEEK_AGAIN_MS.length ? SEEK_AGAIN_MS[tries] : null;
+export function dailySealed(at: {
+  hand: { count: number; torn: boolean; phase: string; number: number | null } | null;
+  kept: readonly { number: number; letters: readonly number[] }[];
+  open: readonly { count: number; mine: boolean }[];
+  mail: number | undefined;
+}): boolean {
+  const named = (number: number | null) => at.mail === undefined || number === null || number === at.mail;
+  const { hand } = at;
+  if (hand && hand.count === 1 && !hand.torn && SEALED_PHASES.includes(hand.phase) && named(hand.number)) return true;
+  if (at.kept.some((k) => k.letters.length === 1 && named(k.number))) return true;
+  return at.open.some((c) => c.count === 1 && c.mine);
 }

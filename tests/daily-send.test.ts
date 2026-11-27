@@ -11,7 +11,7 @@ import { DAILY_HOLD_MS, DAILY_LOOK_MS, dailyPlan, type DailyLook } from "@/lib/o
 
 const ME = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const OTHER = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-const look = (over: Partial<DailyLook> = {}): DailyLook => ({ me: ME, bundled: true, sent: true, predicted: 200n, slot: null, fresh: null, used: null, waited: 2_000, unrevealedFor: 0, ...over });
+const look = (over: Partial<DailyLook> = {}): DailyLook => ({ me: ME, bundled: true, sent: true, predicted: 200n, slot: null, fresh: null, used: null, failed: null, waited: 2_000, unrevealedFor: 0, ...over });
 const mine = (revealed: boolean) => ({ buyer: ME, count: 1, revealed });
 
 describe("both landed", () => {
@@ -69,8 +69,16 @@ describe("nothing in sight", () => {
     expect(dailyPlan(look({ used: true, waited: 30_000 }))).toEqual({ do: "wait" });
   });
 
-  it("is gone only when time is up AND the chain says the daily was never used (a batch that reverted whole)", () => {
-    expect(dailyPlan(look({ used: false, waited: DAILY_LOOK_MS }))).toEqual({ do: "gone" });
+  it("is gone only when time is up, the daily was never used, AND the send is known to have failed", () => {
+    expect(dailyPlan(look({ used: false, failed: true, waited: DAILY_LOOK_MS }))).toEqual({ do: "gone" });
+    // known to have failed, but not yet time: a read of "never used" can be a block behind
+    expect(dailyPlan(look({ used: false, failed: true, waited: DAILY_LOOK_MS - 1 }))).toEqual({ do: "wait" });
+  });
+
+  // Bugbot on #276: the wallet accepting a send is not the chain including it.
+  it("a send that is only slow is never gone: with no proof it failed, it is “unsure”, and the letter is not offered again", () => {
+    expect(dailyPlan(look({ used: false, failed: null, waited: DAILY_LOOK_MS }))).toEqual({ do: "unsure" });
+    expect(dailyPlan(look({ used: false, failed: false, waited: DAILY_LOOK_MS + 60_000 }))).toEqual({ do: "unsure" });
   });
 
   it("is never gone from time alone: used, or a chain that couldn't be asked, means it waits", () => {
@@ -79,7 +87,7 @@ describe("nothing in sight", () => {
   });
 
   it("a commit seen at the last moment still counts", () => {
-    expect(dailyPlan(look({ used: false, waited: DAILY_LOOK_MS + 5_000, fresh: { commitId: 201n, revealed: true } }))).toEqual({ do: "open", commitId: 201n, revealed: true });
+    expect(dailyPlan(look({ used: false, failed: true, waited: DAILY_LOOK_MS + 5_000, fresh: { commitId: 201n, revealed: true } }))).toEqual({ do: "open", commitId: 201n, revealed: true });
   });
 });
 

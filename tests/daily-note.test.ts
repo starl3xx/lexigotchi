@@ -1,22 +1,24 @@
 /**
- * The note that today's free letter was claimed (src/lib/dailyNote.ts). Since the daily letter
- * comes by mail, which letter it was is the envelope's to say: it goes on the note when THAT
- * envelope is torn, and the note names its envelope so this survives a reload (Bugbot on #276).
+ * The note that today's free letter was claimed (src/lib/dailyNote.ts). The letter is on the note
+ * from the send. Since the daily letter comes by mail, saying which letter is the envelope's, and
+ * that is a DISPLAY rule: the tile is hidden while a sealed one-letter envelope stands in this
+ * browser, and shows otherwise. So nothing has to "find its envelope": an envelope lost to a reload
+ * costs the ceremony only (Bugbot on #276 took five rounds on the other design).
  */
 import { describe, it, expect } from "vitest";
-import { SEEK_AGAIN_MS, awaitsLetter, dayOf, parseDailySeen, seekAgainIn, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
+import { dailySealed, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 
 const note = (over: Partial<DailySeen> = {}): DailySeen => ({ day: 20784, idx: null, at: 1_795_700_000_000, ...over });
 const reload = (seen: DailySeen | null) => parseDailySeen(JSON.stringify(seen));
 
 describe("a stored note", () => {
-  it("comes back as it was kept, with its envelope's number", () => {
-    expect(reload(note({ mail: 190 }))).toEqual(note({ mail: 190 }));
-    expect(reload(note({ mail: 190, idx: 20 }))).toEqual(note({ mail: 190, idx: 20 }));
+  it("comes back as it was kept, with its letter and its envelope's number", () => {
+    expect(reload(note({ idx: 20 }))).toEqual(note({ idx: 20 }));
+    expect(reload(note({ idx: 20, mail: 190 }))).toEqual(note({ idx: 20, mail: 190 }));
   });
 
-  it("a note from before letters came by mail has no envelope, and still reads", () => {
-    expect(reload(note({ idx: 4 }))).toEqual(note({ idx: 4 }));
+  it("a note with no letter reads too: the letter is simply not known here (no bundle)", () => {
+    expect(reload(note())).toEqual(note());
     expect("mail" in (reload(note()) as DailySeen)).toBe(false);
   });
 
@@ -30,8 +32,8 @@ describe("a stored note", () => {
 });
 
 describe("naming the envelope", () => {
-  it("goes on the note of the day it was pulled", () => {
-    expect(withDailyMail(note(), 20784, 190)).toEqual(note({ mail: 190 }));
+  it("goes on the note of the day it was pulled, and keeps the letter it had", () => {
+    expect(withDailyMail(note({ idx: 20 }), 20784, 190)).toEqual(note({ idx: 20, mail: 190 }));
   });
 
   it("leaves another day's note alone, and no note stays no note", () => {
@@ -41,20 +43,16 @@ describe("naming the envelope", () => {
   });
 });
 
-describe("the letter, at the tear", () => {
-  it("goes on the note that names that envelope", () => {
-    expect(withDailyLetter(note({ mail: 190 }), 190, 20)).toEqual(note({ mail: 190, idx: 20 }));
-  });
-
-  it("after a reload too: the envelope waited, the page was closed, and it is torn the next visit", () => {
-    const kept = reload(withDailyMail(note(), 20784, 190));
-    expect(withDailyLetter(kept, 190, 20)).toEqual(note({ mail: 190, idx: 20 }));
+describe("the letter the chain minted, at the tear", () => {
+  it("is written over the one the send was made with, on the note that names that envelope", () => {
+    expect(withDailyLetter(note({ idx: 20, mail: 190 }), 190, 4)).toEqual(note({ idx: 4, mail: 190 }));
+    expect(withDailyLetter(note({ mail: 190 }), 190, 4)).toEqual(note({ idx: 4, mail: 190 }));
   });
 
   it("another envelope (a pack, or an older daily) changes nothing", () => {
-    const seen = note({ mail: 190 });
+    const seen = note({ idx: 20, mail: 190 });
     expect(withDailyLetter(seen, 191, 3)).toBe(seen);
-    expect(withDailyLetter(note(), 190, 3)).toEqual(note()); // a note that names no envelope
+    expect(withDailyLetter(note({ idx: 20 }), 190, 3)).toEqual(note({ idx: 20 })); // a note that names no envelope
     expect(withDailyLetter(null, 190, 3)).toBeNull();
   });
 
@@ -67,54 +65,53 @@ describe("the letter, at the tear", () => {
   });
 });
 
-// Bugbot on #276, round two: an envelope opened from the card, or lost to a reload, must still
-// end with its letter beside "claimed".
-describe("a note that still waits for its letter", () => {
-  it("is today's note with no letter on it", () => {
-    expect(awaitsLetter(note(), 20784)).toBe(true);
-    expect(awaitsLetter(note({ mail: 190 }), 20784)).toBe(true);
+describe("is today's letter still sealed in an envelope here?", () => {
+  const nothing = { hand: null, kept: [], open: [], mail: undefined };
+  const hand = (over: Partial<{ count: number; torn: boolean; phase: string; number: number | null }> = {}) => ({ count: 1, torn: false, phase: "ready", number: 190, ...over });
+
+  it("no envelope stands: the tile shows (a reload mid-way, another browser, a torn envelope)", () => {
+    expect(dailySealed(nothing)).toBe(false);
+    expect(dailySealed({ ...nothing, hand: hand({ torn: true }) })).toBe(false);
   });
 
-  it("is not a note whose envelope was torn, another day's note, or no note", () => {
-    expect(awaitsLetter(note({ idx: 20 }), 20784)).toBe(false);
-    expect(awaitsLetter(note({ idx: 0 }), 20784)).toBe(false); // an "a" is a letter
-    expect(awaitsLetter(note(), 20785)).toBe(false);
-    expect(awaitsLetter(null, 20784)).toBe(false);
+  it("in hand, on its way or waiting to be torn: sealed", () => {
+    for (const phase of ["wallet", "paid", "found", "ready"]) expect(dailySealed({ ...nothing, hand: hand({ phase, number: phase === "ready" || phase === "found" ? 190 : null }) })).toBe(true);
   });
 
-  it("a daily opened from the card names itself on the note of the day it was committed", () => {
-    // the commit's block time says which day it is; only that day's note learns it
-    const day = dayOf(20784 * 86_400 + 3_600);
-    expect(day).toBe(20784);
-    expect(withDailyMail(note(), day, 190)).toEqual(note({ mail: 190 }));
-    // yesterday's stranded letter, opened today, does not become today's
-    expect(withDailyMail(note(), dayOf(20783 * 86_400 + 80_000), 150)).toEqual(note());
+  it("a piece stuck on “waiting” or “finishing” does not hide the tile: nothing may ever come of it", () => {
+    expect(dailySealed({ ...nothing, hand: hand({ phase: "waiting", number: null }) })).toBe(false);
+    expect(dailySealed({ ...nothing, hand: hand({ phase: "finishing" }) })).toBe(false);
   });
 
-  it("the day of a block time is the contract's: whole days since 1970, UTC", () => {
-    expect(dayOf(0)).toBe(0);
-    expect(dayOf(86_399)).toBe(0);
-    expect(dayOf(86_400)).toBe(1);
-    expect(dayOf(1_795_737_600n)).toBe(20784);
-  });
-});
-
-// Bugbot on #276, round four: the search after a reload ran once and locked on a quiet miss.
-describe("looking again for today's envelope", () => {
-  it("a first miss is never final: it looks again, soon", () => {
-    expect(seekAgainIn(0)).toBe(SEEK_AGAIN_MS[0]);
-    expect(seekAgainIn(0)).toBeLessThanOrEqual(10_000);
+  it("a pack in hand is not the daily letter", () => {
+    expect(dailySealed({ ...nothing, hand: hand({ count: 5 }) })).toBe(false);
   });
 
-  it("looks further apart each time, for a few minutes in all", () => {
-    const waits = SEEK_AGAIN_MS.map((_, i) => seekAgainIn(i) as number);
-    for (let i = 1; i < waits.length; i++) expect(waits[i]).toBeGreaterThan(waits[i - 1]);
-    expect(waits.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(5 * 60_000);
+  it("kept as mail here, never torn: sealed, and a kept pack is not", () => {
+    expect(dailySealed({ ...nothing, kept: [{ number: 190, letters: [4] }] })).toBe(true);
+    expect(dailySealed({ ...nothing, kept: [{ number: 191, letters: [4, 3, 2, 1, 0] }] })).toBe(false);
   });
 
-  it("stops after the last one, for this visit", () => {
-    expect(seekAgainIn(SEEK_AGAIN_MS.length)).toBeNull();
-    expect(seekAgainIn(99)).toBeNull();
-    expect(seekAgainIn(-1)).toBeNull();
+  it("a one-letter commit of this wallet's still to be opened: sealed (the card shows it)", () => {
+    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: true }] })).toBe(true);
+    expect(dailySealed({ ...nothing, open: [{ count: 5, mine: true }] })).toBe(false);
+    // a linked wallet's daily is not this wallet's letter
+    expect(dailySealed({ ...nothing, open: [{ count: 1, mine: false }] })).toBe(false);
+  });
+
+  it("when the note names its envelope, an OLDER daily letter still unopened does not hide today's", () => {
+    // yesterday's envelope (No. 150) is still kept; today's (No. 190) was torn
+    expect(dailySealed({ ...nothing, kept: [{ number: 150, letters: [7] }], mail: 190 })).toBe(false);
+    expect(dailySealed({ ...nothing, hand: hand({ number: 150 }), mail: 190 })).toBe(false);
+    // today's own, kept or in hand, does
+    expect(dailySealed({ ...nothing, kept: [{ number: 150, letters: [7] }, { number: 190, letters: [4] }], mail: 190 })).toBe(true);
+    expect(dailySealed({ ...nothing, hand: hand({ number: 190 }), mail: 190 })).toBe(true);
+  });
+
+  it("a piece on its way has no number yet, and it is today's", () => {
+    expect(dailySealed({ ...nothing, hand: hand({ phase: "paid", number: null }), mail: undefined })).toBe(true);
+    // a note that already names an envelope, with a NEW piece on its way, cannot be about that piece
+    // (one daily a day), but an unnumbered piece is never mistaken for an old one
+    expect(dailySealed({ ...nothing, hand: hand({ phase: "paid", number: null }), mail: 190 })).toBe(true);
   });
 });

@@ -884,12 +884,6 @@ export async function readFeeBuckets(): Promise<{ pool: number; jackpot: number;
 }
 
 /** The chain's current block timestamp — the only correct source for the UTC day boundary. */
-/** The chain day a block was made on (its time over a day): the day a daily letter's commit counts under. */
-export async function readBlockDay(blockNumber: bigint): Promise<number> {
-  const block = await getPublicClient().getBlock({ blockNumber });
-  return Math.floor(Number(block.timestamp) / 86_400);
-}
-
 export async function readChainTime(): Promise<number> {
   const block = await getPublicClient().getBlock();
   return Number(block.timestamp);

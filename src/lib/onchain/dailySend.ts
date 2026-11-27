@@ -38,6 +38,12 @@ export interface DailyLook {
   fresh: { commitId: bigint; revealed: boolean } | null;
   /** `dailyUsed` for the key the voucher was signed under; null = the read failed. */
   used: boolean | null;
+  /**
+   * Is the send itself KNOWN to have failed: it mined and reverted, or the wallet says the batch
+   * failed? null or false: nobody can say so (it may be pending, queued in the wallet, or in a
+   * private mempool where a waiting transaction looks like one never sent).
+   */
+  failed: boolean | null;
   /** ms since the wallet answered. */
   waited: number;
   /** ms since this wallet's commit was first seen unrevealed; 0 before that. */
@@ -54,8 +60,14 @@ export type DailyPlan =
    * letters the chain minted), or unrevealed with no reveal of the wallet's coming (it relays).
    */
   | { do: "open"; commitId: bigint; revealed: boolean }
-  /** Nothing was committed: the envelope leaves, and the letter is still there to pull. */
+  /** Nothing was committed, and the send is known to have failed: the envelope leaves, and the letter is still there to pull. */
   | { do: "gone" }
+  /**
+   * No commit in sight, the daily not used, and no proof the send failed: it may only be slow to
+   * be included. The claimed note stays and the envelope says it is taking a while. If it lands,
+   * it is found again; if it never does, the note runs out and the chain's read decides.
+   */
+  | { do: "unsure" }
   /** The daily is used but its commit was never found: it is safe, and it waits. */
   | { do: "lost" };
 
@@ -91,8 +103,10 @@ export function dailyPlan(look: DailyLook): DailyPlan {
 
   // No commit of this wallet's is in sight.
   if (look.waited < DAILY_LOOK_MS) return { do: "wait" };
-  // Time is up. `dailyUsed` is the exact test of "did a commit land": never guess it from the time.
-  if (look.used === false) return { do: "gone" };
+  // Time is up. `dailyUsed` is the exact test of "did a commit land", and "not yet" is not
+  // "never": the wallet accepting a send is not the chain including it (Bugbot on #276). Only a
+  // send that is KNOWN to have failed lets the envelope go and the letter be pulled again.
+  if (look.used === false) return look.failed === true ? { do: "gone" } : { do: "unsure" };
   // Used (or the chain couldn't be asked): the money rule. It is treated as committed, and it waits.
   return { do: "lost" };
 }

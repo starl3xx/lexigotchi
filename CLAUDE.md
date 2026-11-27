@@ -968,11 +968,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the chain says "revealed", the letter from the route's "already" answer (the chain's), the
   server asked to open it only when the wallet's own reveal can no longer land (two reveals for
   one commit means one reverts), and the envelope leaves only when `dailyUsed` says nothing was
-  committed. Today's tile beside "claimed" waits for the tear (`lib/dailyNote`, pure, tested: the
-  stored note names its envelope, so the tile shows for one torn after a reload too, and
-  `withDailyLetter` never stamps the note again: tearing an old envelope must not mark today as
-  claimed; a note that still waits for its letter with no envelope known has its day's commit
-  found again, by block day, and kept as mail). **Mail opened late says
+  committed AND the send is known to have failed (a send that is only slow is "unsure": the note
+  stays). **Hiding the daily's letter is a DISPLAY rule** (`lib/dailyNote` `dailySealed`, pure,
+  tested): the letter goes on the stored note at the send, and the tile beside "claimed" is
+  hidden only while a sealed one-letter envelope stands in this browser (in hand, kept as mail,
+  or a one-letter commit still to be opened). Never bring back "a note with no letter must find
+  its envelope": it took five rounds of fixes and was removed. An envelope lost to a reload costs
+  the ceremony only. **Mail opened late says
   less** (`Mail.plain`, `hadFor`): a commit that was already revealed when the card opened it, or
   letters that went to a linked wallet, get no tags, no "new", and no word named.
   **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
