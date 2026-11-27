@@ -363,7 +363,26 @@ describe("when something can't be read", () => {
     expect(await releasedWordCount()).toBe(WORD_COUNT);
   });
 
-  it("a failed read with nothing kept refuses, and logs no word", async () => {
+  it("a failed read while the chain holds the full root stops no claim: nothing is held back there", async () => {
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const res = await GET(proofReq(words.A));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(verifies(world.chainRoot, words.A, body.proof)).toBe(true);
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/ZEBRA|SECRETSET/);
+    log.mockRestore();
+  });
+
+  it("a failed read with nothing kept, on a chain that holds words back, refuses and logs no word", async () => {
+    // A reserve root is on the chain; then a cold server starts while the database is down.
+    world.sets = [draft(1, "Secret", [words.A])];
+    const first = await import("@/lib/sets/server");
+    const plan = await first.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    world.chainRoot = plan.root;
+    vi.resetModules();
     world.fail = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const { GET } = await import("@/app/api/dictionary/proof/route");
@@ -392,6 +411,41 @@ describe("when something can't be read", () => {
     const res = await GET(proofReq(words.Z));
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("dictionary_mismatch");
+  });
+
+  it("and the reserve root is the way out of it: built from the sets alone, with no diff to list", async () => {
+    world.chainRoot = "0x" + "ab".repeat(32);
+    world.sets = [draft(1, "Secret", [words.A]), draft(2, "Shown", [words.B], { status: "revealed" })];
+    const server = await import("@/lib/sets/server");
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    expect(plan).toMatchObject({ chainKnown: false, dictionaryChanged: false, upToDate: false, holds: 2, removed: [], added: [] });
+    const { treeWithout } = await import("@/lib/onchain/dictionaryTree");
+    expect(plan.root).toBe(treeWithout([words.A, words.B]).root.toLowerCase());
+    expect(plan.intents).toHaveLength(1);
+    // no release until the chain's tree is one this server can rebuild
+    const release = await server.planRelease(2);
+    expect(!release.ok && release.error).toBe("dictionary_mismatch");
+    world.chainRoot = plan.root; // the reserve root lands: claims flow again
+    server.forgetSets();
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    expect((await GET(proofReq(words.Z))).status).toBe(200);
+  });
+
+  it("a stored root whose words no longer give it (the dictionary grew) is a mismatch too, and Reserve fixes it", async () => {
+    // Stand-in for a re-vendor: a row for the chain's root whose words build a different tree.
+    const stale = "0x" + "5e".repeat(32);
+    world.roots.set(stale, { held: [words.A], note: "reserve", n: 0 });
+    world.chainRoot = stale;
+    world.sets = [draft(1, "Secret", [words.A]), draft(2, "Shown", [words.B], { status: "revealed" })];
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    expect((await (await GET(proofReq(words.Z))).json()).error).toBe("dictionary_mismatch"); // never a proof that can't verify
+    const server = await import("@/lib/sets/server");
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    expect(plan).toMatchObject({ chainKnown: true, dictionaryChanged: true, upToDate: false, removed: [words.B], added: [] });
+    const release = await server.planRelease(2);
+    expect(!release.ok && release.error).toBe("dictionary_mismatch");
   });
 });
 

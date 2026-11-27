@@ -78,11 +78,14 @@ async function main() {
     if (plan.upToDate) return void console.log("Nothing to send: the chain already holds this root.");
     console.log(`current root ${plan.currentRoot}`);
     console.log(`new root     ${plan.root}`);
-    console.log(`holds back ${plan.removed.length} more, lets go ${plan.added.length}`);
+    console.log(`holds back ${plan.holds} words in all`);
+    if (plan.chainKnown) console.log(`that is ${plan.removed.length} more than the chain holds back now, and ${plan.added.length} let go`);
+    else console.log("the chain's current root isn't one built here, so what this changes can't be listed");
+    if (plan.dictionaryChanged) console.log("the word list has grown since the chain's root was built: this root also takes in the new words");
     console.log(
       plan.alreadyClaimed === null
         ? "couldn't read which of the newly held-back words are already owned"
-        : `${plan.alreadyClaimed.length} of the newly held-back words are already owned (they stay owned; the root only stops a re-claim)`,
+        : `${plan.alreadyClaimed.length} of the ${plan.chainKnown ? "newly " : ""}held-back words are already owned (they stay owned; the root only stops a re-claim)`,
     );
     if (show) {
       console.log(`newly held back: ${plan.removed.join(" ")}`);

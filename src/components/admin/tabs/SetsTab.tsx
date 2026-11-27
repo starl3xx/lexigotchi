@@ -135,8 +135,8 @@ function ReserveCard({ data, send, reload }: { data: AdminSetsPayload; send: Sen
       {!data.chain.known && (
         <div className="mt-3">
           <Banner tone="error" icon={<Warning weight="bold" size={14} />}>
-            The chain holds a root this server never built (or the sets couldn’t be read). Claims answer “dictionary_mismatch” until the chain holds
-            a root built here.
+            The chain holds a root this server can’t rebuild: one never built here, or one built before the word list last grew. Claims answer
+            “dictionary_mismatch” until the reserve root below is sent (it is built from the sets and the dictionary alone).
           </Banner>
         </div>
       )}
@@ -156,7 +156,7 @@ function ReserveCard({ data, send, reload }: { data: AdminSetsPayload; send: Sen
         </div>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className={BTN} onClick={build} disabled={busy || !data.chain.known || !data.migrated}>
+        <button className={BTN} onClick={build} disabled={busy || !data.migrated}>
           <Lock weight="bold" size={13} /> Build the reserve root
         </button>
         <button className={BTN} onClick={confirm} disabled={busy}>
@@ -171,8 +171,15 @@ function ReserveCard({ data, send, reload }: { data: AdminSetsPayload; send: Sen
           ) : (
             <>
               <p className="text-sm">
-                New root <span className="font-mono">{short(plan.root)}</span>: holds back {plan.removed.length} more, lets go {plan.added.length}.
+                New root <span className="font-mono">{short(plan.root)}</span>: holds back {plan.holds} words in all
+                {plan.chainKnown ? ` (${plan.removed.length} more than now, ${plan.added.length} let go)` : ""}.
               </p>
+              {!plan.chainKnown && (
+                <p className="text-xs text-ink/60">The chain’s current root isn’t one built here, so what this changes can’t be listed.</p>
+              )}
+              {plan.dictionaryChanged && (
+                <p className="text-xs text-ink/60">The word list has grown since the chain’s root was built: this root also takes in the new words.</p>
+              )}
               <WordList label="Newly held back" words={plan.removed} />
               <WordList label="Let go (claimable again)" words={plan.added} tone="warning" />
               {plan.alreadyClaimed === null ? (

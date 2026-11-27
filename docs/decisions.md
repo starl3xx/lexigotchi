@@ -2163,8 +2163,17 @@ setter. All small, riding existing suite patterns.
     - **Part 1 (this entry's first PR): the server and the admin.** Migration 0021, the rules, the
       proof route, the builders and the script, the admin's Sets tab (gated on the server like
       Players, never cached), and the tests. It merges dark: with no tables, or no sets, every
-      answer is what it was. A database that is there and fails refuses (`try_again`) only when
-      nothing was read before; otherwise the last read keeps holding back what it held.
+      answer is what it was (checked against a real database that stops at migration 0020). A
+      database that is there and fails refuses (`try_again`) only when nothing was read before AND
+      the chain holds words back; while the chain holds the full dictionary's root nothing is held
+      back there, so a claim is served as it always was, and after a good read the last read keeps
+      holding back what it held.
+    - **After a re-vendor.** A stored root's words no longer give that root once the bundled
+      dictionary grows, so the server checks that the tree it would serve IS the chain's root and
+      answers `dictionary_mismatch` otherwise, as a re-vendor always did. RESERVE is the way out:
+      it is built from the sets and the dictionary alone, so it also works from a root nobody here
+      built. The new root after a re-vendor is the reserve root, never `derive:contracts`'s, which
+      holds nothing back and would release every set at once (the runbook says so).
     - **Owner steps after part 1:** run migration 0021; paste the JSON into Sets; send the reserve
       root (`setDictionaryRoot`) from the owner wallet.
     - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available

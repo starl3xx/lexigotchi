@@ -10,6 +10,7 @@
  */
 import { NextResponse } from "next/server";
 import { checkAdmin, refusalBody } from "@/lib/admin/serverAuth";
+import { isMissingTable } from "@/lib/db/profiles";
 import { isWord } from "@/lib/dictionary";
 import { dictionaryRoot } from "@/lib/onchain/dictionaryTree";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
@@ -322,6 +323,8 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     if (err instanceof SetError) return json({ ok: false, error: err.code, words: err.words }, err.code === "not_found" ? 404 : 409);
+    // The set tables aren't there (migration 0021 hasn't run): say that, for every action.
+    if (isMissingTable(err)) return json({ ok: false, error: "not_migrated" }, 409);
     console.error(`[admin/sets] ${action} failed:`, codeOf(err));
     return json({ ok: false, error: "failed" }, 500);
   }

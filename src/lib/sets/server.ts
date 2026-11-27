@@ -17,7 +17,8 @@
  * No database here (a local or rehearsal build), or no tables yet (migration 0021 hasn't run):
  * no sets, and every answer is what it was before sets existed. A database that is configured and
  * FAILS is different: with nothing kept from an earlier read, the answer is `try_again`, never the
- * full dictionary.
+ * full dictionary, UNLESS the chain itself holds the full dictionary's root (then nothing is held
+ * back on the chain, and a claim is served as it always was).
  *
  * Nothing in this file logs a word.
  */
@@ -35,7 +36,10 @@ import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, se
 import { dueToReveal, gateUntilFor, heldOf, releaseChange, reserveChange, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
-const ROOT_TTL_MS = 60_000;
+// Short: after the owner changes the root (a reserve, a release), a proof from the old tree
+// reverts in the wallet, for every word, until this server reads the new root. A release is the
+// busiest minute a set has.
+const ROOT_TTL_MS = 10_000;
 const GATE_TTL_MS = 5 * 60_000;
 
 /** A short, word-free note of a failure. A driver's message can carry a statement's parameters. */
@@ -94,7 +98,7 @@ export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook
 
 let chainRoot: { at: number; value: string } | null = null;
 
-/** `Words.dictionaryRoot()`, lowercase, read at most once a minute. Null: no suite here, or the read failed. */
+/** `Words.dictionaryRoot()`, lowercase, read at most every few seconds. Null: no suite here, or the read failed. */
 export async function readChainRoot(opts: { fresh?: boolean } = {}): Promise<string | null> {
   if (!isSuiteDeployed()) return null;
   if (!opts.fresh && chainRoot && Date.now() - chainRoot.at < ROOT_TTL_MS) return chainRoot.value;
@@ -145,8 +149,18 @@ let lastReconciled: string | null = null;
 /** The tree to serve proofs from, and everything held back. See the file's header for the rules. */
 export async function serving(): Promise<Serving> {
   let sets = await loadSets();
-  if (!sets.known) return { ok: false, error: "try_again" };
   const root = await readChainRoot();
+  if (!sets.known) {
+    // The sets can't be read and nothing is kept from before. If the chain holds the FULL
+    // dictionary's root, no word is held back on the chain, and a claim needs nothing from the
+    // database: serve it as it was always served. (A word waiting in a set for its reserve root
+    // is claimable on the chain anyway until that root lands.) So a database outage can't stop
+    // claims on a deployment that reserves nothing. Any other root needs its row: refuse.
+    if (root === dictionaryRoot().toLowerCase()) {
+      return { ok: true, tree: treeWithout([]), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, known: false } };
+    }
+    return { ok: false, error: "try_again" };
+  }
   let chainHeld: string[];
   if (root) {
     let found: string[] | null;
@@ -157,6 +171,11 @@ export async function serving(): Promise<Serving> {
       return { ok: false, error: "try_again" };
     }
     if (!found) return { ok: false, error: "dictionary_mismatch" };
+    // The stored words must still GIVE that root. After a re-vendor (the bundled dictionary grew)
+    // they don't: the tree built here has leaves the chain's root has never seen, and every proof
+    // from it would revert. Same answer as a re-vendor always got, until the owner sends the new
+    // reserve root.
+    if (treeWithout(found).root.toLowerCase() !== root) return { ok: false, error: "dictionary_mismatch" };
     chainHeld = found;
     // A new root on the chain may be a release: mark it, once per root this server sees.
     if (root !== lastReconciled && sets.sets.some((s) => s.status === "revealed")) {
@@ -303,13 +322,18 @@ const rootIntent = (root: string, note: string): TxIntent => ({
   note,
 });
 
-/** The chain's root and the words it leaves out, read now, or why not. */
-async function chainNow(): Promise<{ root: string; held: Set<string> } | { error: PlanError }> {
+/**
+ * The chain's root, read now, with what this server knows of it:
+ * `held` is the words it leaves out, or null for a root never built here;
+ * `exact` says the tree those words give IS that root (false after a re-vendor: the dictionary
+ * here has grown since the root was built).
+ */
+async function chainNow(): Promise<{ root: string; held: Set<string> | null; exact: boolean } | { error: PlanError }> {
   const root = await readChainRoot({ fresh: true });
   if (!root) return { error: "chain_unreadable" };
   const held = await heldBehind(root);
-  if (!held) return { error: "dictionary_mismatch" };
-  return { root, held: new Set(held) };
+  if (!held) return { root, held: null, exact: false };
+  return { root, held: new Set(held), exact: treeWithout(held).root.toLowerCase() === root };
 }
 
 /** Which of `words` are claimed on the chain right now. Null when it can't be read. */
@@ -333,11 +357,24 @@ export interface ReservePlan {
   upToDate: boolean;
   currentRoot: string;
   root: string;
+  /** How many words the new root holds back in all. */
+  holds: number;
+  /**
+   * Does this server know what the chain's CURRENT root holds back? False for a root never built
+   * here: the new root is still right (it is built from the sets alone), but what it changes
+   * can't be listed, so `removed` and `added` are empty.
+   */
+  chainKnown: boolean;
+  /** The chain's root is one built here from an older dictionary (a re-vendor): this root also adds the new words. */
+  dictionaryChanged: boolean;
   /** Newly held back by this root. */
   removed: string[];
   /** Let go by this root: held back on the chain, in no unreleased set any more. */
   added: string[];
-  /** Newly held-back words somebody owns now. They stay theirs; the root only stops a re-claim. Null: couldn't be read. */
+  /**
+   * Held-back words somebody owns now (among the newly held back; among all of them when the
+   * chain's root isn't known). They stay theirs; the root only stops a re-claim. Null: couldn't be read.
+   */
   alreadyClaimed: string[] | null;
   intents: TxIntent[];
 }
@@ -346,6 +383,10 @@ export interface ReservePlan {
  * RESERVE: the root that makes the chain hold back what the sets hold back. It removes words (ones
  * newly put in a set) and may add some back (ones taken out of every set). The row for the new root
  * is stored before the plan is returned.
+ *
+ * It is built from the sets and the bundled dictionary alone, so it is also the way OUT of a root
+ * this server can't serve: one never built here, or one built before a re-vendor. (After a
+ * re-vendor, send this root, never `derive:contracts`'s: that one holds nothing back.)
  */
 export async function planReserve(): Promise<ReservePlan | { ok: false; error: PlanError }> {
   await reconcile().catch(() => []); // never hold back again a set the chain has already released
@@ -353,20 +394,29 @@ export async function planReserve(): Promise<ReservePlan | { ok: false; error: P
   if (!sets.known || !sets.migrated) return { ok: false, error: "not_migrated" };
   const chain = await chainNow();
   if ("error" in chain) return { ok: false, error: chain.error };
-  const change = reserveChange(chain.held, heldOf(sets.sets));
+  const change = reserveChange(chain.held ?? new Set(), heldOf(sets.sets));
   const tree = treeWithout(change.held);
   const root = tree.root.toLowerCase();
   await saveRoot(NETWORK.id, root, change.held, "reserve");
   heldByRoot.set(root, change.held);
+  const chainKnown = chain.held !== null;
+  const removed = chainKnown ? change.removed : [];
+  const added = chainKnown ? change.added : [];
+  const note = chainKnown
+    ? `Reserve: hold back ${removed.length} more, let go ${added.length}${chain.exact ? "" : ", and take in the dictionary's new words"}.`
+    : `Reserve: hold back ${change.held.length} words in all.`;
   return {
     ok: true,
     upToDate: root === chain.root,
     currentRoot: chain.root,
     root,
-    removed: change.removed,
-    added: change.added,
-    alreadyClaimed: await claimedAmong(change.removed),
-    intents: root === chain.root ? [] : [rootIntent(root, `Reserve: hold back ${change.removed.length} more, let go ${change.added.length}.`)],
+    holds: change.held.length,
+    chainKnown,
+    dictionaryChanged: chainKnown && !chain.exact,
+    removed,
+    added,
+    alreadyClaimed: await claimedAmong(chainKnown ? change.removed : change.held),
+    intents: root === chain.root ? [] : [rootIntent(root, note)],
   };
 }
 
@@ -401,6 +451,12 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
   if (set.words.length === 0) return { ok: false, error: "empty" };
   const chain = await chainNow();
   if ("error" in chain) return { ok: false, error: chain.error };
+  // A release is "the chain's tree, plus this set's words", so the chain's tree must be one this
+  // server can rebuild exactly. Otherwise it can't promise that nothing is removed (a root never
+  // built here), or it would slip the dictionary's new words in beside the set's (after a re-vendor).
+  if (!chain.held || !chain.exact) {
+    return { ok: false, error: "dictionary_mismatch", detail: "the chain’s root can’t be rebuilt from the dictionary here: send the reserve root first" };
+  }
   const words = set.words.map((w) => w.word);
   const change = releaseChange(chain.held, words);
   // Every word of the set must be held back on the chain first. Otherwise the "release" would be a
