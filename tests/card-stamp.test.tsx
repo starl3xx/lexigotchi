@@ -7,7 +7,9 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, renderHook } from "@testing-library/react";
-import { LEDGER_LEFT, NUMBERED_HEADER, STAMP_FACE, inkRgb, numberedFrom, oneInk, stampBox, stampRingSvg } from "@/components/cards/stamp";
+import { LEDGER_LEFT, NUMBERED_HEADER, NUMBER_END, STAMP_FACE, STAMP_RING, inkRgb, numberedFrom, oneInk, stampBox, stampRingSvg } from "@/components/cards/stamp";
+import { PLATE_BORDER } from "@/lib/cardArt/plate";
+import { CARD_W } from "@/lib/cardArt/engrave";
 import { LoopCancelled, loadImage } from "@/components/cards/loop/loadImage";
 
 const me = vi.hoisted(() => ({ pfpUrl: "https://pics.example/me.png" as string | null }));
@@ -27,15 +29,46 @@ beforeEach(() => {
 });
 
 describe("the stamp's shapes", () => {
-  it("on the back's picture, sits beside the number and left of the ledger; with no number, in the top left corner", () => {
+  it("on the back's picture, sits beside the number and left of the ledger; with no number, in the top left corner of the plate's field", () => {
     const beside = stampBox(true);
-    expect(beside.cx + beside.size / 2).toBeLessThan(LEDGER_LEFT);
-    expect(beside.cx - beside.size / 2).toBeGreaterThan(0.33); // right of the number's digits
+    const ring = (b: { size: number }) => (b.size / 2) * STAMP_RING;
+    // clear of the number's last digit (the widest number's, measured on the picture) and of the ledger
+    expect(beside.cx - ring(beside)).toBeGreaterThan(NUMBER_END + 0.005);
+    expect(beside.cx + ring(beside)).toBeLessThan(LEDGER_LEFT - 0.01);
+    // the ledger's left edge is the route's own arithmetic: its left margin, the left column, the gap
+    const route = readFileSync(join(__dirname, "..", "src/app/s/[text]/back/route.tsx"), "utf8");
+    expect(route).toContain("padding: `${7.5 * U}px ${7.3 * U}px ${8.3 * U}px`, gap: 4 * U }}");
+    expect(route).toContain("width: 0.475 * (W - 18.6 * U)");
+    expect(LEDGER_LEFT).toBeCloseTo((7.3 + 0.475 * (100 - 18.6) + 4) / 100, 4);
+    // with no number: inside the plate's field, never on its border (it sat on the lace: Bugbot on #315)
     const corner = stampBox(false);
-    expect(corner.cx - corner.size / 2).toBeGreaterThan(0.05);
-    expect(corner.cy - corner.size / 2).toBeGreaterThan(0.02);
+    const field = PLATE_BORDER.field / CARD_W;
+    expect(corner.cx - corner.size / 2).toBeGreaterThan(field);
+    expect(corner.cy - corner.size / 2).toBeGreaterThan(field);
     expect(corner.size).toBeLessThan(beside.size);
     expect(STAMP_FACE).toBeLessThan(1);
+    expect(STAMP_RING).toBeCloseTo((54 + 3.2) / 60, 2); // the ring's petals, of the stamp's box
+  });
+
+  it("the game's own stamps stand inside the plate's field too, and the corner's is the video's", () => {
+    const css = readFileSync(join(__dirname, "..", "src/app/globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const field = (PLATE_BORDER.field / CARD_W) * 100; // cqw
+    const corner = /\n\.cb-stamp-corner \{ left: ([\d.]+)cqw; top: ([\d.]+)cqw; width: ([\d.]+)cqw;/.exec(css)!;
+    const [left, top, width] = corner.slice(1).map(Number);
+    expect(left).toBeGreaterThan(field);
+    expect(top).toBeGreaterThan(field);
+    const box = stampBox(false);
+    expect(box.size * 100).toBeCloseTo(width, 5);
+    expect((box.cx - box.size / 2) * 100).toBeCloseTo(left, 5);
+    expect((box.cy - box.size / 2) * 100).toBeCloseTo(top, 5);
+    // a thumbnail's
+    const mini = /\n\.cb-stamp-mini \{ right: ([\d.]+)cqw; top: ([\d.]+)cqw;/.exec(css)!;
+    expect(Number(mini[1])).toBeGreaterThan(field);
+    expect(Number(mini[2])).toBeGreaterThan(field);
+    // beside the number on a narrow back: smaller and higher, clear of the ledger's first row; and
+    // left off where nothing fits (measured in WebKit: it covered "Case" under 296 px)
+    expect(css).toMatch(/@container \(max-width: 339px\) \{[^@]*\.cb-stamp-number \{ width: 8\.6cqw; left: calc\(100% \+ 0\.6cqw\); transform: translateY\(-76%\) rotate\(-8deg\); \}/);
+    expect(css).toMatch(/@container \(max-width: 295px\) \{\s*\.cb-body \.cb-stamp-number \{ display: none; \}/);
   });
 
   it("turns a picture to one ink: black stays black, white becomes the ink, and nothing becomes see-through", () => {

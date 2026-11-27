@@ -21,8 +21,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { hunger, type OwnedWord } from "../game/state";
 import { CardBack } from "./CardBack";
-import { askForTilt } from "./live/tilt";
-import { canDrawLive } from "./live/support";
 import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
 import { CARD_SHEEN, useCardLight } from "./useCardLight";
 import { useCollabLook } from "@/components/game/collabLooksContext";
@@ -73,8 +71,6 @@ export function SceneCard({
   const flip = () => {
     const next = !back;
     if (next) setSeen(word.word);
-    // the tap that turns a card in focus over is the one iOS lets ask for the tilt (live/tilt)
-    if (next && !small && live && !reduced && !lowPower && canDrawLive()) askForTilt();
     setOwn({ word: word.word, back: next });
     onFlip?.(next);
     setTurning(true);
@@ -108,7 +104,7 @@ export function SceneCard({
           </div>
           {showBack && (
             <div className="sc-face sc-back" inert={!back} aria-hidden={!back || undefined}>
-              <CardBack word={word} mini={small} live={back && live} />
+              <CardBack word={word} mini={small} />
             </div>
           )}
         </div>
