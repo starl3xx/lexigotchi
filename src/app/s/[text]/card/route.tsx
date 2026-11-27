@@ -6,6 +6,7 @@ import { cardPictureCache, parseLinkStage, parseShowcase } from "@/lib/showcase"
 import { parseLinkScene } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
+import { TABLE, tableImage } from "@/lib/cardArt/table";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { cardNumberOf, cardNumberSoon } from "@/lib/onchain/cardNumbers";
 import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
@@ -103,10 +104,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
           width: W,
           height: H,
           fontFamily: "Soehne",
-          backgroundColor: "#16293a",
-          backgroundImage: "radial-gradient(circle at 50% 42%, #2f5570 0%, #16293a 78%)",
+          backgroundColor: TABLE.ground,
         }}
       >
+        {/* the table, engraved (lib/cardArt/table): a still picture under the card, placed as a scene is */}
+        <img src={tableImage(W, H)} width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
         {card}
         {saved && (
           <div style={{ position: "absolute", right: tall ? 34 : 28, bottom: tall ? 26 : 12, display: "flex", fontSize: tall ? 26 : 20, fontWeight: 800, letterSpacing: -0.5, color: "#fbf4e3", opacity: 0.85 }}>LEXIGOTCHI</div>

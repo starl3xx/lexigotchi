@@ -10,6 +10,7 @@ import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
 import { backFoot, backLedger } from "@/lib/backPicture";
 import { NUMBERED_HEADER } from "@/components/cards/stamp";
+import { rackPaths } from "@/lib/cardArt/rack";
 import { readBackFacts } from "@/lib/backPictureFacts";
 import { SCROLL_PATH_CARD } from "@/components/cards/material";
 import { svgDoc } from "@/lib/cardArt/engrave";
@@ -52,14 +53,18 @@ const W = 1200;
 const H = 675;
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** Each material’s frame line and rack (globals.css `.cb.m-*`, the same colors). */
-const LOOK: Record<Tier, { line: string; rackTop: string; rackFront: string }> = {
-  Common: { line: "#9a8164", rackTop: "#54402d", rackFront: "#2a1e15" },
-  Uncommon: { line: "#5cc4a9", rackTop: "#22705e", rackFront: "#0c3028" },
-  Rare: { line: "#7fb0ef", rackTop: "#2a5799", rackFront: "#0b1d3d" },
-  Legendary: { line: "#e9b949", rackTop: "#8a6418", rackFront: "#3a2806" },
-  Mythic: { line: "#b48cf0", rackTop: "#552c94", rackFront: "#1d0d36" },
+/** Each material’s frame line and the rack's dark front (globals.css `.cb.m-*`, the same colors). */
+const LOOK: Record<Tier, { line: string; rackFront: string }> = {
+  Common: { line: "#9a8164", rackFront: "#2a1e15" },
+  Uncommon: { line: "#5cc4a9", rackFront: "#0c3028" },
+  Rare: { line: "#7fb0ef", rackFront: "#0b1d3d" },
+  Legendary: { line: "#e9b949", rackFront: "#3a2806" },
+  Mythic: { line: "#b48cf0", rackFront: "#1d0d36" },
 };
+/** The rack on this picture, in its pixels (lib/cardArt/rack: the game's own shapes). */
+const RACK_W = 430;
+const RACK_H = 48;
+const RACK = rackPaths(RACK_W, RACK_H);
 
 const TEXT = "#f7efdc";
 const SUB = "rgba(247, 239, 220, 0.74)";
@@ -184,12 +189,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
             </div>
             {/* the tiles on their rack: the word itself, in Söhne, and nowhere else on the back */}
             <div style={{ position: "relative", display: "flex", width: 430, height: 118, marginTop: 0.6 * U, alignItems: "flex-end", justifyContent: "center" }}>
-              <svg width="430" height="48" viewBox="0 0 100 20" preserveAspectRatio="none" style={{ position: "absolute", left: 0, bottom: 0 }}>
-                <polygon points="5,4 95,4 100,13 0,13" fill={look.rackTop} />
-                <polygon points="5,4 95,4 95.6,5 4.4,5" fill="rgba(0,0,0,0.35)" />
-                <rect x="1.5" y="10.6" width="97" height="1.4" fill="rgba(0,0,0,0.42)" />
-                <path d="M0 13 L100 13 L100 18 Q100 20 98 20 L2 20 Q0 20 0 18 Z" fill={look.rackFront} />
-                <rect x="0" y="13" width="100" height="0.9" fill="rgba(255,255,255,0.3)" />
+              {/* the rack, engraved: the game's own shapes (lib/cardArt/rack), in this picture's pixels.
+                  Its top, behind the tiles; its front is drawn after them, below. */}
+              <svg width={RACK_W} height={RACK_H} viewBox={`0 0 ${RACK_W} ${RACK_H}`} style={{ position: "absolute", left: 0, bottom: 0 }}>
+                <path d={RACK.top} fill={look.line} fillOpacity={0.1} stroke={look.line} strokeOpacity={0.8} strokeWidth={1.8} strokeLinejoin="round" />
+                <path d={RACK.topRules} fill="none" stroke={look.line} strokeOpacity={0.5} strokeWidth={1.3} strokeLinecap="round" />
               </svg>
               <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
                 {tiles.map((t, i) => (
@@ -198,6 +202,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
                   </div>
                 ))}
               </div>
+              {/* the rack's front, before the tiles: dark, under closer ruling, with the bright edge they stand behind */}
+              <svg width={RACK_W} height={RACK_H} viewBox={`0 0 ${RACK_W} ${RACK_H}`} style={{ position: "absolute", left: 0, bottom: 0 }}>
+                <path d={RACK.front} fill={look.rackFront} stroke={look.line} strokeOpacity={0.8} strokeWidth={1.8} strokeLinejoin="round" />
+                <path d={RACK.frontRules} fill="none" stroke={look.line} strokeOpacity={0.34} strokeWidth={1.3} strokeLinecap="round" />
+                <path d={RACK.edge} fill="none" stroke={look.line} strokeWidth={2.6} strokeLinecap="round" />
+              </svg>
             </div>
           </div>
           {/* the ledger: a name, a row of dots, a value */}
