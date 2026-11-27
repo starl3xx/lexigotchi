@@ -40,6 +40,7 @@ import { WordScreen } from "./screens/WordScreen";
 import { MarketScreen } from "./screens/MarketScreen";
 import { WordSheet } from "./sheets/WordSheet";
 import { PackReveal } from "./sheets/PackReveal";
+import { MailSheet } from "./sheets/MailSheet";
 import { RollSheet } from "./sheets/RollSheet";
 import { AscendSheet } from "./sheets/AscendSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
@@ -354,6 +355,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   const state = { sheet };
   if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
+  if (state.sheet?.kind === "mail") return <MailSheet />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "ascend") return <AscendSheet word={state.sheet.word} />;
   if (state.sheet?.kind === "balance") return <BalanceSheet />;

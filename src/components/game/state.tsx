@@ -13,8 +13,10 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useEffect,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import { ALPHABET, LETTER_ODDS, wordTier, type Tier } from "@/lib/economy";
@@ -221,7 +223,11 @@ export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: 
 
 export type Sheet =
   | { kind: "word"; word: string }
+  /** The daily letter's reveal (sheets/PackReveal). A pack comes by mail now: see `mail`. */
   | { kind: "pack"; letters: number[] }
+  /** A pack, as mail (sheets/MailSheet, decisions.md #49): the envelope from the tap to the count.
+   *  It shows the store's `mail`, so the sheet carries nothing of its own. */
+  | { kind: "mail" }
   | { kind: "roll"; target: RollTarget }
   /** Try to ascend a staked, all-UPPERCASE word a stage (sheets/AscendSheet), from its word sheet. */
   | { kind: "ascend"; word: string }
@@ -753,6 +759,7 @@ import {
   type MarketAction, type PracticeMarket,
 } from "./market/practiceMarket";
 import { addPracticeDay, practiceEarnings, practicePayout, type PlayerEarnings, type PracticeEarned } from "./earnings";
+import { PRACTICE_MAIL_MS, type Mail } from "./mail/mailFlow";
 export type { ActionOutcome };
 
 /** What a move did: sent, or why it didn't send. */
@@ -811,9 +818,10 @@ export interface GameApi {
    */
   openPack: () => number[];
   /**
-   * A PAID pack of five. The mock returns the letters at once; the chain store returns a PROMISE of
-   * the outcome (approve + commit, then the signed reveal opens the pack sheet itself), so the
-   * caller can hold its button until money has either moved or clearly not moved.
+   * A PAID pack of five. Either store opens the mail sheet itself and fills `mail` as the pack
+   * arrives. The mock returns [] (nothing was blocked) at once; the chain store returns a PROMISE
+   * of the outcome (approve + commit, then the server opens the pack), so the caller can hold its
+   * button until money has either moved or clearly not moved.
    */
   buyPack: () => number[] | Promise<ActionOutcome>;
   /**
@@ -860,11 +868,22 @@ export interface GameApi {
   /** prototype-only: top up the mock $WORD balance for testing. */
   addDemoBalance: () => void;
   /**
-   * Unrevealed letter commits for this wallet (chain only; the mock has none). A nonzero count is
-   * a PAID pull whose reveal never landed — recoverable forever, identical letters whenever it is
-   * finished, and the UI must offer to finish it or the player's letter silently rots on-chain.
+   * Mail that waits to be opened (decisions.md #49). Two kinds, counted together:
+   * - unrevealed letter commits for this wallet (chain only): a PAID pull whose reveal never
+   *   landed. Recoverable forever, identical letters whenever it is finished, and the UI must offer
+   *   to finish it or the player's letter silently rots on-chain;
+   * - a pack whose letters exist and whose envelope was never torn open. Its letters are already in
+   *   the bag: this is ceremony, and nothing may depend on it (lib/mailbox).
    */
   pendingReveals: number;
+  /**
+   * The piece of mail in hand, from the tap to the count (mail/mailFlow `Mail`), or null. The mail
+   * sheet shows it. It outlives the sheet: a purchase goes on when the sheet is closed, and its
+   * envelope then waits (see `pendingReveals`).
+   */
+  mail: Mail | null;
+  /** The player tore the envelope open: it is no longer unopened mail. */
+  mailTorn: () => void;
   /**
    * The action in flight and where it is (preparing, the wallet prompt, the chain), for the status
    * pill. The chain store only: the mock's actions are instant, so it is always null there.
@@ -872,7 +891,7 @@ export interface GameApi {
   busy: Busy | null;
   /** Hide the status and release the one-at-a-time gate (a request that never answers). */
   dismissBusy: () => void;
-  /** Finish the oldest unrevealed commit: fetch the deterministic draw, send the reveal, open the sheet. */
+  /** Open the oldest waiting mail: an envelope not yet torn, else a commit the server still has to open. */
   openPending: () => void;
   /**
    * What the player's words have earned (earnings.ts): per word, the latest payout, and anything
@@ -930,6 +949,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // stable across renders (dispatch is stable) so the Toaster's per-toast timers don't reset
   const dismissToast = useCallback((id: number) => dispatch({ t: "untoast", id }), []);
 
+  // The piece of mail in hand (decisions.md #49). Practice has no chain to wait for, so its envelope
+  // takes its marks on short timers: the same order as the real one, a beat each.
+  const [mail, setMail] = useState<Mail | null>(null);
+  const mailSeq = useRef(0);
+  const mailTimers = useRef<number[]>([]);
+  const sheetNow = useRef(state.sheet);
+  sheetNow.current = state.sheet;
+  useEffect(
+    () => () => {
+      mailTimers.current.forEach((id) => window.clearTimeout(id));
+    },
+    [],
+  );
+
   const api = useMemo<GameApi>(() => {
     const r = rng.current;
     const drawLetter = () => r.weightedIndex(LETTER_WEIGHTS);
@@ -942,9 +975,28 @@ export function GameProvider({ children }: { children: ReactNode }) {
         needWord(COST.pack, "a pack");
         return [];
       }
+      // What the bag held BEFORE: the reducer adds the letters at the tap, and "new" is measured from here.
+      const had = state.lower.slice();
       const idxs = Array.from({ length: 5 }, drawLetter);
       dispatch({ t: "pack", idxs });
-      return idxs;
+      // The pack comes by mail. In practice the number on the postmark is the player's own count.
+      const seq = ++mailSeq.current;
+      const number = state.mintCount + 1;
+      mailTimers.current.forEach((id) => window.clearTimeout(id));
+      const step = (ms: number, patch: Partial<Mail>, arrived = false) =>
+        mailTimers.current.push(
+          window.setTimeout(() => {
+            setMail((m) => (m && m.seq === seq ? { ...m, ...patch } : m));
+            // The sheet was closed while it was on its way: it says so when it lands (the reducer's
+            // `arrive`: the sheet opens if nothing else is open, else a toast).
+            if (arrived && sheetNow.current?.kind !== "mail") dispatch({ t: "arrive", sheet: { kind: "mail" }, text: "Your mail is here." });
+          }, ms),
+        );
+      setMail({ seq, count: 5, free: false, phase: "paid", number: null, letters: null, had, mine: true, torn: false });
+      dispatch({ t: "sheet", sheet: { kind: "mail" } });
+      step(PRACTICE_MAIL_MS.found, { phase: "found", number });
+      step(PRACTICE_MAIL_MS.ready, { phase: "ready", letters: idxs }, true);
+      return [];
     };
 
     return {
@@ -1075,11 +1127,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
         toast("Added demo $WORD", "good");
       },
 
-      // The mock reveals in the same tick it commits, so nothing can strand.
-      pendingReveals: 0,
+      // The mock reveals in the same tick it commits, so nothing can strand. The one piece that can
+      // wait is an envelope whose sheet was closed before it was torn open.
+      pendingReveals: mail && mail.phase === "ready" && !mail.torn && state.sheet?.kind !== "mail" ? 1 : 0,
+      mail,
+      mailTorn: () => setMail((m) => (m ? { ...m, torn: true } : m)),
       busy: null,
       dismissBusy: () => {},
-      openPending: () => {},
+      openPending: () => {
+        if (mail && mail.phase === "ready" && !mail.torn) dispatch({ t: "sheet", sheet: { kind: "mail" } });
+      },
       // Practice pays its words when a day passes (skipDay), at once, so nothing ever waits.
       earnings: practiceEarnings(state.earned),
       earningsShare: null,
@@ -1158,7 +1215,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rollProb: (pity) => rollSuccessProbability(pity),
       prestigeProb: (level, pity) => prestigeSuccessProbability(pity, level),
     };
-  }, [state, dismissToast]);
+  }, [state, dismissToast, mail]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

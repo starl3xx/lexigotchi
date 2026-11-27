@@ -1,31 +1,35 @@
 "use client";
 /**
- * The stranded-pull recovery card, shared by Home and Mint.
+ * Mail that waits to be opened, on Home and Mint (decisions.md #49).
  *
- * Renders only when the chain says this wallet has a paid, unrevealed commit — a pull whose
- * second transaction never landed (page closed between wallet prompts, reveal rejected, RPC
- * blip). The letters are deterministic in the commitId, so opening late yields exactly what
- * opening promptly would have — which is why the copy says "waiting", never "failed".
+ * Two kinds, said the same way because to the player they are the same thing, an envelope that
+ * hasn't been torn open:
+ * - a paid pull whose reveal never landed (the page closed, the chain was slow). The letters are
+ *   fixed by the commit, so opening late yields exactly what opening promptly would have, which is
+ *   why the copy says "waiting", never "failed";
+ * - a pack that arrived and whose sheet was closed before it was torn. Those letters are already in
+ *   the bag: this is the ceremony, and nothing depends on it.
  */
 import { Card, Button } from "./primitives";
-import { Gift } from "./ui/icons";
 import { useGame } from "./state";
+import { MailThumb } from "./mail/MailThumb";
 
 export function PendingReveal() {
   const g = useGame();
-  if (!g.state.chainBacked || g.pendingReveals === 0) return null;
+  if (g.pendingReveals === 0) return null;
 
   return (
     <Card className="border-gold bg-gold/10">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-ink/80">
-          <span className="font-display font-extrabold">
-            {g.pendingReveals === 1 ? "An unopened pull is waiting" : `${g.pendingReveals} unopened pulls are waiting`}
+      <div className="flex items-center gap-3">
+        <MailThumb width={92} />
+        <div className="min-w-0 flex-1 text-sm text-ink/80">
+          <span className="font-display font-extrabold leading-tight">
+            {g.pendingReveals === 1 ? "Your mail is waiting" : `${g.pendingReveals} pieces of mail are waiting`}
           </span>
-          <div className="text-xs text-ink/55">Paid for and safe onchain. Open it to get your letters.</div>
+          <div className="text-xs text-ink/60">Yours, and safe onchain.</div>
         </div>
-        <Button variant="primary" onClick={() => g.openPending()}>
-          <Gift weight="fill" /> Open
+        <Button variant="primary" className="shrink-0" onClick={() => g.openPending()}>
+          Open
         </Button>
       </div>
     </Card>
