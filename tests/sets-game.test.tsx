@@ -11,6 +11,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PublicSet } from "@/lib/sets/rules";
 import { firstDayNote, firstDayRule, leftText, releasedSetNames, setLines, setsPollMs } from "@/components/game/sets";
+import { SetsSection } from "@/components/game/SetsSection";
 
 const NOW = Date.parse("2026-12-01T12:00:00Z");
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -108,7 +109,6 @@ afterEach(() => {
 
 describe("the Dictionary's Sets section", () => {
   it("shows nothing while the sets aren't known, and nothing when there are none", async () => {
-    const { SetsSection } = await import("@/components/game/SetsSection");
     sets.known = false;
     sets.list = [locked];
     expect(render(<SetsSection />).container.innerHTML).toBe("");
@@ -119,7 +119,6 @@ describe("the Dictionary's Sets section", () => {
   });
 
   it("a locked slot says only that a set is coming", async () => {
-    const { SetsSection } = await import("@/components/game/SetsSection");
     sets.list = [locked, locked];
     const { container } = render(<SetsSection />);
     expect(screen.getAllByText("A new set is coming")).toHaveLength(2);
@@ -127,7 +126,6 @@ describe("the Dictionary's Sets section", () => {
   });
 
   it("a revealed set shows its name, its words, and its countdown, and its words aren't buttons", async () => {
-    const { SetsSection } = await import("@/components/game/SetsSection");
     sets.list = [revealed(iso(NOW + 26 * H))];
     const { container } = render(<SetsSection />);
     expect(screen.getByText("Kitchen")).toBeTruthy();
@@ -137,7 +135,6 @@ describe("the Dictionary's Sets section", () => {
   });
 
   it("a released set in its first day says the rule, and its words open like any word", async () => {
-    const { SetsSection } = await import("@/components/game/SetsSection");
     sets.list = [released(iso(NOW + 5 * H))];
     render(<SetsSection />);
     expect(screen.getByText("First day: one word per player.")).toBeTruthy();
@@ -148,7 +145,6 @@ describe("the Dictionary's Sets section", () => {
   });
 
   it("after the first day it says nothing of the rule, and folds to its name", async () => {
-    const { SetsSection } = await import("@/components/game/SetsSection");
     sets.list = [released(iso(NOW - H))];
     render(<SetsSection />);
     expect(screen.getByText("Unlocked")).toBeTruthy();
@@ -162,7 +158,6 @@ describe("the Dictionary's Sets section", () => {
   });
 
   it("a long set shows a few words until asked for all", async () => {
-    const { SetsSection } = await import("@/components/game/SetsSection");
     const many = ["CRANE", "MOTEL", "GRAPE", "BLAZE", "ABOUT", "ABOVE", "ACORN", "ADAPT", "ADMIT", "ADOPT"];
     sets.list = [{ ...revealed(iso(NOW + H)), words: many.map((word) => ({ word, headliner: false })) }];
     render(<SetsSection />);

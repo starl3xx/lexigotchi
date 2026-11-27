@@ -19,8 +19,6 @@ window.matchMedia = ((q: string) => ({ matches: reduce && /reduce/.test(q), medi
 let name: string | null = null;
 vi.mock("@/components/game/useMyName", () => ({ useMyName: () => name }));
 vi.mock("@/components/game/useWorld", () => ({ useWorld: () => ({ data: undefined, isPending: false }), useMyWallets: () => new Set<string>(), shortAddress: (a: string) => a }));
-// Reserved sets (useSets) read through the query client, which these renders don't set up: no sets, nothing held.
-vi.mock("@/components/game/useSets", () => ({ useSets: () => ({ known: false, sets: [], held: null, setNameOf: () => undefined, released: undefined, gate: false }), useMinuteClock: () => 0 }));
 vi.mock("@/components/game/useLetterSupply", () => ({ useLetterSupply: () => ({ data: undefined }) }));
 
 const { GameProvider, useGame } = await import("@/components/game/state");

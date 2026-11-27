@@ -15,8 +15,6 @@ window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListene
 
 let world: { drawn?: Record<string, number> } | undefined;
 vi.mock("@/components/game/useWorld", () => ({ useWorld: () => ({ data: world }), useMyWallets: () => new Set<string>(), shortAddress: (a: string) => a }));
-// Reserved sets (useSets) read through the query client, which these renders don't set up: no sets, nothing held.
-vi.mock("@/components/game/useSets", () => ({ useSets: () => ({ known: false, sets: [], held: null, setNameOf: () => undefined, released: undefined, gate: false }), useMinuteClock: () => 0 }));
 // The scene pick is its own subject (tests/scenes.test.tsx); here every word stands on the stage.
 vi.mock("@/components/scenes/useWordScene", () => ({ useWordScene: () => ({ scene: "stage" }) }));
 
