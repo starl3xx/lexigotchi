@@ -289,7 +289,9 @@ describe("the card's back", () => {
     expect(src).toContain("const colorway = mine ? collabBack(mine) : null;");
     expect(src).toContain("backgroundImage: `linear-gradient(165deg, ${colorway.base2}, ${colorway.base} 70%)`");
     expect(src).toMatch(/tier === "Legendary" &&\s*!colorway &&/); // no gold scrollwork on a partner's colorway
-    expect(src).toContain("{mine && <div style={{ display: \"flex\", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>{collabLine(mine.partner, true)}</div>}");
+    // the partner line: cut to fit, and in the back's full cream in BOTH renderers (the server's was dimmer: Bugbot on #306)
+    expect(src).toContain("{mine && <div style={{ display: \"flex\", fontSize: 1.9 * U, lineHeight: 1.2, color: TEXT }}>{collabLine(mine.partner, true)}</div>}");
+    expect(read("src/app/globals.css")).toMatch(/\.cb-collab \{[^}]*color: var\(--cb-text\)/);
     // the game's back and the server's use the same two grounds
     expect(read("src/components/cards/CardBack.tsx")).toContain("`linear-gradient(165deg, ${b.base2}, ${b.base} 70%)`");
   });
