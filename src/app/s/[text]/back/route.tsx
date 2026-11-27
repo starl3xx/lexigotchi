@@ -128,7 +128,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const [{ number, finder, story }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
   const live = isSuiteDeployed();
   const more = live ? await readBackFacts(word, level, story) : { since: null, perDay: null, cost: null, drawn: null };
-  const facts = { word, upper: tiles.map((t) => t.upper), level, finder, ...more, token: live ? shortTokenId(word) : null };
+  // A word released in a reserved set carries its set's name, as the game's back does. Only a
+  // RELEASED set's: nothing of a set that isn't public can reach a picture. Unknown is left out.
+  // Loaded here, at the moment of use: the sets module brings the database and the chain reads with
+  // it, and this route's other answers (a 404 for anything that isn't a word) need none of that.
+  const set =
+    (await import("@/lib/sets/server").then((m) => m.loadSets()).catch(() => null))?.sets.find((s) => s.status === "released" && s.words.some((w) => w.word === word))?.name ?? null;
+  const facts = { word, upper: tiles.map((t) => t.upper), level, finder, ...more, token: live ? shortTokenId(word) : null, set };
   const stats = backLedger(facts);
   const foot = backFoot(facts);
 

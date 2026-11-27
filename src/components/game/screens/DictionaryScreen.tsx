@@ -31,6 +31,7 @@ import { MiniTiles } from "../MiniTiles";
 import { NeedText } from "../NeedText";
 import { Check } from "../ui/icons";
 import { useDictionary } from "../useDictionary";
+import { SetsSection } from "../SetsSection";
 import { useStoredChoice } from "../useStoredChoice";
 
 /** Rarest first, as Spell and the Market list them. */
@@ -103,9 +104,11 @@ export function DictionaryScreen() {
         <h1 className="font-display text-2xl font-extrabold md:hidden">Dictionary</h1>
         <span className="text-xs text-ink/55">
           you own {d.ownedSet.size}
-          {d.claimedCount > 0 && <> · {d.claimedCount.toLocaleString("en-US")} claimed</>} · {WORD_COUNT.toLocaleString("en-US")} words
+          {d.claimedCount > 0 && <> · {d.claimedCount.toLocaleString("en-US")} claimed</>} · {(d.offered ?? WORD_COUNT).toLocaleString("en-US")} words
         </span>
       </div>
+
+      <SetsSection />
 
       <input
         value={q}

@@ -35,6 +35,8 @@ export interface BackFacts {
   drawn: number | "never" | null;
   /** Its onchain id, shortened, or null where there is no chain. */
   token: string | null;
+  /** The reserved set it was released in, or null (none, or not known). */
+  set?: string | null;
 }
 
 /** The ledger's lines, in the game's order: a name, a value. */
@@ -49,9 +51,18 @@ export function backLedger(f: BackFacts): [string, string][] {
   return rows;
 }
 
-/** The line along the bottom: the jackpot, then the token. */
+/** The longest a set's name runs on a back's bottom line, which is ONE line: the jackpot and the token come after it. */
+export const FOOT_SET_MAX = 28;
+
+/** A set's name as the bottom line shows it: whole, or cut with an ellipsis (a name may be 60 characters). */
+export function footSetName(name: string): string {
+  return name.length <= FOOT_SET_MAX ? name : `${name.slice(0, FOOT_SET_MAX - 1).trimEnd()}…`;
+}
+
+/** The line along the bottom: its set (a word released in a reserved set), the jackpot, then the token. */
 export function backFoot(f: BackFacts): string[] {
   const parts: string[] = [];
+  if (f.set) parts.push(`Set: ${footSetName(f.set)}`);
   if (f.drawn !== null) parts.push(f.drawn === "never" ? "Never drawn for the jackpot" : `Drawn for the jackpot (draw ${f.drawn})`);
   if (f.token) parts.push(f.token);
   return parts;

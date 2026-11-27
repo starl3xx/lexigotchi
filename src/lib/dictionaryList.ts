@@ -22,8 +22,10 @@ import { finishingLetter, type Distance } from "./wordNeed";
  * - `mine`: in the player's bag (its card opens). `mineAway`: theirs, in a linked wallet the bag
  *   doesn't hold. `sale`: someone's, and listed in the Market. `taken`: someone's, not for sale.
  * - `open`: nobody's. `unknown`: the owners aren't known yet.
+ * - `held`: nobody's, and nobody can claim it yet: it is held back in a reserved set that hasn't
+ *   unlocked (decisions.md, "Reserved word sets"). Never `open`, so no screen offers it.
  */
-export type EntryStatus = "mine" | "mineAway" | "sale" | "taken" | "open" | "unknown";
+export type EntryStatus = "mine" | "mineAway" | "sale" | "taken" | "open" | "unknown" | "held";
 /** What is known about who has the words, when a word's status is worked out. */
 export interface WordHolders {
   /** the words in the player's bag */
@@ -36,6 +38,8 @@ export interface WordHolders {
   listed: ReadonlyMap<string, boolean>;
   /** the world read has answered: an absent owner means nobody, not "not known yet" */
   ownersKnown: boolean;
+  /** the words held back in sets that haven't unlocked (absent while that isn't known) */
+  held?: ReadonlySet<string> | null;
 }
 
 /**
@@ -55,11 +59,16 @@ export function entryStatus(word: string, k: WordHolders): EntryStatus {
   if (sellerIsPlayer !== undefined) return sellerIsPlayer ? "mineAway" : "sale";
   const owner = k.owners?.[word];
   if (owner) return k.wallets.has(owner) ? "mineAway" : "taken";
+  // Asked after the owners: a word somebody held before it was put in a set is still theirs.
+  if (k.held?.has(word)) return "held";
   return k.ownersKnown ? "open" : "unknown";
 }
 
 /** Someone has this word, so a claim of it reverts: another player, a seller, or another wallet of the player's. */
 export const isTaken = (status: EntryStatus): boolean => status === "taken" || status === "sale" || status === "mineAway";
+
+/** A claim of this word can't go through: someone has it, or it is held back and not available yet. */
+export const cantClaim = (status: EntryStatus): boolean => isTaken(status) || status === "held";
 
 export type DictSort = "closest" | "az";
 export type DictFilter = "all" | "can" | "one" | "two" | "letter" | "unclaimed" | "claimed";
@@ -108,6 +117,9 @@ export function listDictionary(q: DictQuery, statusOf: (word: string) => EntrySt
     if (needle && !w.includes(needle)) continue;
     if (q.tier !== "All" && wordTier(w) !== q.tier) continue;
     const status = statusOf(w);
+    // A held-back word isn't in the Dictionary's list at all: the list is the words the game
+    // offers. A revealed set's words show in the Sets section, which says when they unlock.
+    if (status === "held") continue;
     const d = distances?.[i];
     const open = status === "open";
     const spellable = open && !!d && d.missing === 0 && d.away === 0;
