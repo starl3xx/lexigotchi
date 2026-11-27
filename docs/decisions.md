@@ -2209,7 +2209,7 @@ setter. All small, riding existing suite patterns.
         ship them: commit the eight files; or keep them out of git and serve them from storage
         (`NEXT_PUBLIC_SOUND_BASE`); or ask ElevenLabs in writing first.
       - **The files are the takes the owner heard:** the bytes the proposal page played, taken
-        from its `source/src/sounds.json` (kept with the artifact, with the originals as
+        from its `source/sounds.json` (kept with the artifact, with the originals as
         generated). 86 KB in all. First 12 hex digits of each file's SHA-256: drop
         `81d6dda2b38f`, stamp `9dd088eb3d7b`, postmark `d88493fade0a`, rustle `904d9bf8a324`,
         tear `01925566caec`, word `9b04df2872e3`, hop `88e143a9d884`, rare `5f0d76e1fc1a`.
@@ -2230,7 +2230,9 @@ setter. All small, riding existing suite patterns.
         is suspended 1.5 s after the last cue ends, except while an envelope is on screen
         (`holdSound`): its stamp and postmark land when the chain says so, seconds or a minute
         after the tap, and a browser (an iPhone's above all) may refuse to wake a rested context
-        without a tap. It rests when the envelope goes.
+        without a tap. It rests when the envelope goes. A context that is not running is woken
+        whatever its state is called: WebKit's is "interrupted" after the app was in the
+        background (Bugbot on #287), and coming back to the page tries to wake it too.
       - **A cue that is waiting its turn asks whether the envelope is still there** when its
         moment comes. It was first cancelled when the component went, and React's development
         double mount "goes" and comes back at once: the stamp, a beat after the drop, never
@@ -2253,8 +2255,9 @@ setter. All small, riding existing suite patterns.
       - **The dark state, which is what ships,** in both engines: with no sound files present,
         More shows no Sound card, the envelope shows no switch, and a whole pack asked for no
         sound file and made no AudioContext, even with "on" remembered from another build.
-      - **A file that failed to load is asked for again** the next time its cue plays: one bad
-        moment on the network at the first tap does not silence a cue for the page's life.
+      - **A file that failed to load is asked for again,** 30 s later at the soonest: one bad
+        moment on the network at the first tap does not silence a cue for the page's life, and a
+        wrong address does not make every tap fetch all eight again.
       - **Not done:** nobody has listened to it in the game; a real phone and a mini-app host
         (their sound rules are the strictest).
 

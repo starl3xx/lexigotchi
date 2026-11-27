@@ -19,7 +19,7 @@ class FakeContext {
   static made = 0;
   static last: FakeContext | null = null;
   static sources: FakeSource[] = [];
-  state: "running" | "suspended" = "suspended";
+  state: "running" | "suspended" | "interrupted" | "closed" = "suspended";
   destination = {};
   constructor() {
     FakeContext.made++;
@@ -192,6 +192,41 @@ describe("it rests, except while something on screen is still going to play", ()
     expect(state()).toBe("running");
   });
 
+  // Bugbot on #287: WebKit calls it "interrupted" when the tab or app went to the background.
+  it("wakes a context the browser interrupted, at the next tap and at the next cue", async () => {
+    const s = await load(true);
+    s.setSoundOn(true);
+    await settle();
+    const ac = FakeContext.last!;
+    ac.state = "interrupted";
+    ac.resume.mockClear();
+    s.wakeSound(); // the player comes back and taps
+    await settle();
+    expect(ac.resume).toHaveBeenCalledTimes(1);
+    expect(ac.state).toBe("running");
+    ac.state = "interrupted";
+    ac.resume.mockClear();
+    s.play("stamp"); // or a cue lands first
+    await settle();
+    expect(ac.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a running context alone, and never tries to wake a closed one", async () => {
+    const s = await load(true);
+    s.setSoundOn(true);
+    await settle();
+    const ac = FakeContext.last!;
+    ac.resume.mockClear();
+    s.wakeSound();
+    s.play("drop");
+    await settle();
+    expect(ac.resume).not.toHaveBeenCalled();
+    ac.state = "closed";
+    s.wakeSound();
+    await settle();
+    expect(ac.resume).not.toHaveBeenCalled();
+  });
+
   it("stays awake while an envelope is on screen: its stamp lands when the chain says so, not at a tap", async () => {
     vi.useFakeTimers();
     const s = await load(true);
@@ -256,7 +291,7 @@ describe("it never throws", () => {
     expect(FakeContext.sources).toHaveLength(0);
   });
 
-  it("a file that failed once is fetched again the next time: one bad moment doesn't silence the cue for the page's life", async () => {
+  it("a file that failed is fetched again after a while: one bad moment doesn't silence the cue for the page's life", async () => {
     let down = true;
     vi.stubGlobal(
       "fetch",
@@ -273,10 +308,19 @@ describe("it never throws", () => {
     s.play("drop");
     await settle();
     expect(FakeContext.sources).toHaveLength(0);
+    // not at once: with a wrong address, every tap would otherwise fetch all eight again
+    const asked = fetched.length;
+    s.wakeSound();
+    s.play("drop");
+    await settle();
+    expect(fetched.length).toBe(asked);
+    // after a while it is asked for again, and this time it loads
     down = false;
+    const later = vi.spyOn(Date, "now").mockReturnValue(Date.now() + s.RETRY_AFTER_MS + 1);
     s.play("drop");
     await settle();
     await settle();
+    later.mockRestore();
     expect(FakeContext.sources).toHaveLength(1);
     // and a file that loaded is not fetched again
     const before = fetched.filter((u) => u.endsWith("/drop.mp3")).length;

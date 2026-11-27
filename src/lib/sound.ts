@@ -52,6 +52,10 @@ export function subscribeSound(f: () => void): () => void {
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<Cue, Promise<AudioBuffer | null>>();
+/** When a cue's file last failed to load. */
+const failedAt = new Map<Cue, number>();
+/** How long a file that failed to load is left alone before it is asked for again. */
+export const RETRY_AFTER_MS = 30_000;
 let rest: ReturnType<typeof setTimeout> | undefined;
 
 /** The context, made on first need, and only while sound is on. */
@@ -69,6 +73,8 @@ function context(): AudioContext | null {
 
 function buffer(cue: Cue, ac: AudioContext): Promise<AudioBuffer | null> {
   let got = buffers.get(cue);
+  // A file that just failed is left alone for a while: see below.
+  if (!got && Date.now() - (failedAt.get(cue) ?? -Infinity) < RETRY_AFTER_MS) return Promise.resolve(null);
   if (!got) {
     got = (async () => {
       try {
@@ -90,10 +96,14 @@ function buffer(cue: Cue, ac: AudioContext): Promise<AudioBuffer | null> {
     })();
     buffers.set(cue, got);
     // A file that didn't load is not kept as "no sound" for the life of the page: one bad moment
-    // on the network at the first tap would silence that cue until a reload. The next ask fetches again.
+    // on the network at the first tap would silence that cue until a reload. It is asked for
+    // again, but not at once: with a wrong base URL, or a storage that refuses this site, every
+    // tap would otherwise fetch all eight files again.
     const mine = got;
     void got.then((buf) => {
-      if (!buf && buffers.get(cue) === mine) buffers.delete(cue);
+      if (buf || buffers.get(cue) !== mine) return;
+      buffers.delete(cue);
+      failedAt.set(cue, Date.now());
     });
   }
   return got;
@@ -101,6 +111,17 @@ function buffer(cue: Cue, ac: AudioContext): Promise<AudioBuffer | null> {
 
 /** How many things are on screen that will make a sound without a tap (an envelope on its way). */
 let held = 0;
+
+/**
+ * Wake a context that isn't running, whatever its state is called. "suspended" is the one the
+ * standard names; WebKit also has "interrupted", for a tab or app that was put in the background
+ * (a phone call, the app switcher), and a context left there plays nothing until it is resumed
+ * (Bugbot on #287). A closed one can't be woken.
+ */
+function rouse(ac: AudioContext): void {
+  const state: string = ac.state;
+  if (state !== "running" && state !== "closed") void ac.resume().catch(() => {});
+}
 
 function restSoon(afterMs: number) {
   if (rest) clearTimeout(rest);
@@ -134,7 +155,7 @@ export function holdSound(): () => void {
 export function wakeSound(): void {
   const ac = context();
   if (!ac) return;
-  if (ac.state === "suspended") void ac.resume().catch(() => {});
+  rouse(ac);
   for (const cue of CUES) void buffer(cue, ac);
   restSoon(4000);
 }
@@ -161,7 +182,7 @@ export function play(cue: Cue, o: { rate?: number; gain?: number } = {}): void {
   if (!stored() || (typeof document !== "undefined" && document.hidden)) return;
   const ac = context();
   if (!ac) return;
-  if (ac.state === "suspended") void ac.resume().catch(() => {});
+  rouse(ac);
   const rate = o.rate ?? 1;
   void buffer(cue, ac).then((buf) => {
     if (!buf || !on) return;
@@ -187,6 +208,7 @@ export function resetSoundForTests(): void {
   ctx = null;
   held = 0;
   buffers.clear();
+  failedAt.clear();
   if (rest) clearTimeout(rest);
   subs.clear();
 }

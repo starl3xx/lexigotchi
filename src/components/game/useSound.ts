@@ -14,18 +14,26 @@ export function useSound(): { ready: boolean; on: boolean; set: (on: boolean) =>
 
 /**
  * While sound is on, every tap and key press wakes the browser's sound: a browser plays only after
- * one, and the cues themselves fire later, from timers and from the chain. Mounted once, in GameApp.
+ * one, and the cues themselves fire later, from timers and from the chain. So does coming back to
+ * the page. Mounted once, in GameApp.
  */
 export function useSoundGestures(): void {
   const { on } = useSound();
   useEffect(() => {
     if (!on) return;
     const wake = () => wakeSound();
+    // Coming back to the page too: an iPhone interrupts the sound when the app goes to the
+    // background. A browser may still want a tap first; the tap listeners above then do it.
+    const back = () => {
+      if (!document.hidden) wakeSound();
+    };
     window.addEventListener("pointerdown", wake, { passive: true });
     window.addEventListener("keydown", wake);
+    document.addEventListener("visibilitychange", back);
     return () => {
       window.removeEventListener("pointerdown", wake);
       window.removeEventListener("keydown", wake);
+      document.removeEventListener("visibilitychange", back);
     };
   }, [on]);
 }
