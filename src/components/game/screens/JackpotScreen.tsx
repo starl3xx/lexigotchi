@@ -19,8 +19,8 @@ import { FaceDownCard } from "../../cards/FaceDownCard";
 import { SceneFrame } from "../../scenes/SceneFrame";
 import { useWordScene } from "../../scenes/useWordScene";
 import type { Gild } from "../TileCharacter";
-import { wordTier } from "@/lib/economy";
 import { DEFAULT_SCENE } from "@/lib/scenes";
+import { useTierOf } from "../useRarity";
 
 const PAST = ["MOTEL", "GRAPE", "QUILT"];
 
@@ -45,6 +45,7 @@ function WonCard({ word }: { word: OwnedWord }) {
 }
 
 export function JackpotScreen() {
+  const tierOf = useTierOf();
   const g = useGame();
   const { state } = g;
   const tickets = state.words.filter(jackpotEligible);
@@ -96,7 +97,7 @@ export function JackpotScreen() {
               <p className="text-sm text-ink/60">Today’s secret word was</p>
               {/* nobody's card: the word in the plain scene, in lowercase, with its rarity's frame */}
               <FaceUp>
-                <SceneFrame scene={DEFAULT_SCENE} word={state.jackpotWord} upper={Array(5).fill(false)} tier={wordTier(state.jackpotWord)} small animated={false} />
+                <SceneFrame scene={DEFAULT_SCENE} word={state.jackpotWord} upper={Array(5).fill(false)} tier={tierOf(state.jackpotWord)} small animated={false} />
               </FaceUp>
               <p className="text-sm">
                 {ownedAnswer

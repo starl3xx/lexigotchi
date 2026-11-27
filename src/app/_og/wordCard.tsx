@@ -5,7 +5,8 @@ import { FOOT_SHARE, wordFootings, wordLayout } from "@/components/scenes/layout
 import type { ShowcaseTile } from "@/lib/showcase";
 import type { SceneId } from "@/lib/scenes";
 import { isWord } from "@/lib/dictionary";
-import { wordTier, type Tier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
+import { tierWith, type CollabWords } from "@/lib/rarity";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_CORNER, CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
@@ -42,17 +43,39 @@ export const CARD_SERIF = "Source Serif 4";
 /** The file every picture loads for it: a plain TTF, because the renderer can't read the game's woff2. */
 export const CARD_SERIF_FILE = "public/fonts/sourceserif4-bold.ttf";
 
-/** The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't a dictionary word, so it has none. */
-export function cardTier(tiles: readonly ShowcaseTile[]): Tier | undefined {
+/**
+ * The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't a
+ * dictionary word, so it has none. `collab` is the collab words in force (lib/raritySoon.ts): a
+ * collab word is Legendary on its pictures as it is in the game.
+ */
+export function cardTier(tiles: readonly ShowcaseTile[], collab: CollabWords): Tier | undefined {
   const word = tiles.map((t) => t.char).join("");
-  return isWord(word) ? wordTier(word) : undefined;
+  return isWord(word) ? tierWith(word, collab) : undefined;
 }
 
-export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = false, letters = true }: { tiles: readonly ShowcaseTile[]; scene: SceneId; cardW: number; no?: string | null; gild?: number; bare?: boolean; letters?: boolean }): ReactElement {
+export function wordCard({
+  tiles,
+  scene,
+  cardW,
+  collab,
+  no = null,
+  gild = 0,
+  bare = false,
+  letters = true,
+}: {
+  tiles: readonly ShowcaseTile[];
+  scene: SceneId;
+  cardW: number;
+  collab: CollabWords;
+  no?: string | null;
+  gild?: number;
+  bare?: boolean;
+  letters?: boolean;
+}): ReactElement {
   const k = cardW / CARD_W; // pixels per card unit
   const cardH = Math.round(CARD_H * k);
   const word = tiles.map((t) => t.char).join("");
-  const tier = cardTier(tiles);
+  const tier = cardTier(tiles, collab);
   const look = CARD_LOOKS[tier ?? PLAIN];
 
   // The same layout the game uses (scenes/layout.ts), at this card's scale.

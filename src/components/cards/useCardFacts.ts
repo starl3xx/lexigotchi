@@ -30,6 +30,7 @@ import { useCostToMake } from "../game/WordValue";
 import { usePlayerWallets } from "../game/usePlayerWallets";
 import { useWorld } from "../game/useWorld";
 import { useSets } from "../game/useSets";
+import { useTierCounts, useTierOf } from "@/components/game/useRarity";
 
 export interface CardFacts {
   tier: Tier;
@@ -61,6 +62,8 @@ export interface CardFacts {
 }
 
 export function useCardFacts(word: OwnedWord): CardFacts {
+  const tierOf = useTierOf();
+  const tierCounts = useTierCounts();
   const g = useGame();
   const chain = g.state.chainBacked;
   const wallets = usePlayerWallets();
@@ -97,11 +100,11 @@ export function useCardFacts(word: OwnedWord): CardFacts {
     }
     // "Earns staked": staked and fed, among the words sharing today's pot (lib/cardFacts).
     const today = world.data?.yieldToday;
-    const est = today ? earnsStaked(word, today) : undefined;
+    const est = today ? earnsStaked(word, today, tierOf) : undefined;
     const drawnMap = world.data?.live ? world.data.drawn : undefined;
     return {
       tier: word.tier,
-      ofTier: tierCount(word.tier),
+      ofTier: tierCount(word.tier, tierCounts),
       // its place in the order words were first made: the chain's, or in practice the player's own
       number: chain ? (world.data?.live ? (world.data.numbers?.[word.word] ?? null) : null) : (practice[word.word] ?? null),
       caseLabel: caseLabel(word.upper),

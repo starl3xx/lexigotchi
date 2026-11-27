@@ -19,19 +19,20 @@
  */
 import { useState } from "react";
 import type { PublicSet } from "@/lib/sets/rules";
-import { wordTier } from "@/lib/economy";
 import { MiniTiles } from "./MiniTiles";
 import { Pill } from "./primitives";
 import { Lock } from "./ui/icons";
 import { firstDayAhead, firstDayNote, setLines } from "./sets";
 import { useOpenWord } from "./useDictionary";
 import { useMinuteClock, useSets } from "./useSets";
+import { useTierOf } from "./useRarity";
 
 const LOWER = [false, false, false, false, false];
 /** Words shown before "Show all": a set may hold dozens. */
 const PREVIEW = 8;
 
 function SetCard({ set, now, gate }: { set: Exclude<PublicSet, { kind: "locked" }>; now: number; gate: boolean }) {
+  const tierOf = useTierOf();
   const [all, setAll] = useState(false);
   const openWord = useOpenWord();
   const lines = setLines(set, now, gate);
@@ -70,13 +71,13 @@ function SetCard({ set, now, gate }: { set: Exclude<PublicSet, { kind: "locked" 
         {words.map((w) =>
           released ? (
             <button key={w.word} onClick={() => openWord(w.word)} className="press cel-sm flex flex-col items-start gap-1 rounded-lg bg-paper p-2 text-left">
-              <MiniTiles word={w.word} upper={LOWER} tier={wordTier(w.word)} />
+              <MiniTiles word={w.word} upper={LOWER} tier={tierOf(w.word)} />
               <span className="font-display text-xs font-extrabold">{w.word}</span>
             </button>
           ) : (
             // Revealed, not released: shown, and not a button. It can't be spelled or claimed yet.
             <span key={w.word} className="flex flex-col items-start gap-1 rounded-lg border-2 border-dashed border-ink/25 p-2">
-              <MiniTiles word={w.word} upper={LOWER} tier={wordTier(w.word)} className="opacity-60" />
+              <MiniTiles word={w.word} upper={LOWER} tier={tierOf(w.word)} className="opacity-60" />
               <span className="font-display text-xs font-extrabold text-ink/70">{w.word}</span>
             </span>
           ),

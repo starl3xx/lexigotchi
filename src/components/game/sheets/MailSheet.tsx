@@ -24,7 +24,6 @@
  * - The purchase outlives the sheet. Closing it stops nothing: the envelope waits on Today.
  */
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
-import { wordTier } from "@/lib/economy";
 import { fmtOdds, letterOdds, packsPer } from "@/lib/letterOdds";
 import { CONTENTS, ENV, EYES, POSTMARK, SPARKLES, STAMP, STAMP_PLACE, STRIP, envBack, envFront, envStrip, envWindow, eyesArt, mailUri, postmarkArt, sparklesArt, stampArt, type Gaze } from "@/lib/cardArt/mail";
 import { bagTotals } from "@/lib/wordNeed";
@@ -40,6 +39,8 @@ import { newlySpellableWith } from "./BoughtLettersSheet";
 import { useMailCues } from "../useSound";
 import { SoundToggle } from "../SoundToggle";
 import { bagWithMail, bestLine, countHead, countSub, finishers, hadFor, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
+import { useTierOf } from "../useRarity";
+import { rarestFirstBy } from "@/lib/market/deals";
 
 // ── measures: one box, 328 wide, drawn larger or smaller as a whole to fit the sheet ─────────────
 const W = 328;
@@ -131,6 +132,7 @@ type Pos = "in" | "peek" | "out";
 
 /** One envelope, from wherever its purchase stands to the count. Keyed by the mail's `seq`. */
 function MailStage({ mail }: { mail: Mail }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const { state } = g;
   const reduced = usePrefersReducedMotion();
@@ -174,8 +176,8 @@ function MailStage({ mail }: { mail: Mail }) {
   }, [letters, mail.had]);
   const fresh = useMemo(() => {
     if (!letters || plain || checking) return [];
-    return newlySpellableWith(lower, upper, added, taken);
-  }, [letters, plain, added, checking, lower, upper, taken]);
+    return newlySpellableWith(lower, upper, added, taken, rarestFirstBy(tierOf));
+  }, [letters, plain, added, checking, lower, upper, taken, tierOf]);
   // The letters' standing is fixed at the tear, so a word list that lands a moment later can't
   // reorder letters that are already climbing out.
   const [pulls, setPulls] = useState<Pull[] | null>(null);
@@ -186,7 +188,7 @@ function MailStage({ mail }: { mail: Mail }) {
     // often a few seconds behind the reveal, and the tear comes inside them. So which letter
     // finishes a word is worked out from the bag as the chain has it (`bagWithMail`), not from a
     // read that may not show the letters yet. Only the count's claim waits for the bag itself.
-    const words = plain || checking ? [] : newlySpellableWith(bagWithMail(lower, mail.had, letters), upper, added, taken).map((f) => f.word);
+    const words = plain || checking ? [] : newlySpellableWith(bagWithMail(lower, mail.had, letters), upper, added, taken, rarestFirstBy(tierOf)).map((f) => f.word);
     // A plain piece measures "new" from a bag that holds every letter (`hadFor`): none is called new.
     return revealOrder(letters, hadFor(mail), finishers(words, before));
   };
@@ -508,7 +510,7 @@ function MailStage({ mail }: { mail: Mail }) {
               <p className="text-sm text-ink/70">Now you can spell</p>
               <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
                 <WordTiles word={first.word} upper={first.cases} size={38} still />
-                <TierBadge tier={wordTier(first.word)} />
+                <TierBadge tier={tierOf(first.word)} />
               </div>
               {fresh.length > 1 && (
                 <button

@@ -22,7 +22,7 @@
  * with each repeg; the odds come from params, the same numbers the contracts were deployed with.
  * Pure, so the arithmetic is tested (tests/word-cost.test.ts).
  */
-import { LETTER_ODDS, TIER_WEIGHT, wordTier } from "./economy";
+import { LETTER_ODDS, TIER_WEIGHT, type Tier } from "./economy";
 import { DEFAULT_PARAMS, type Params } from "./params";
 
 /** Whole $WORD, as the game's `price` hands them out. */
@@ -105,10 +105,12 @@ export function costToMake(w: WordShape, prices: CostPrices, p: Params = DEFAULT
 export function dailyEarnEstimate(
   w: WordShape,
   today: { pot: number; weight: number },
+  /** The tier the word is weighed at (lib/rarity.ts): the game's, so a collab word counts as Legendary. */
+  tier: (word: string) => Tier,
   p: Params = DEFAULT_PARAMS,
 ): number | null {
   if (!w.upper.every(Boolean)) return null;
-  const mine = TIER_WEIGHT[wordTier(w.word)] * p.prestige.yieldMultPerLevel ** w.prestigeLevel;
+  const mine = TIER_WEIGHT[tier(w.word)] * p.prestige.yieldMultPerLevel ** w.prestigeLevel;
   if (!(today.pot > 0) || mine <= 0) return 0;
   return (today.pot * mine) / (Math.max(0, today.weight) + mine);
 }

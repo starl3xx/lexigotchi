@@ -15,7 +15,7 @@
  *   then the list is A to Z and the distance filters match nothing.
  */
 import { WORDS } from "./dictionary";
-import { RANKED_WORDS, wordTier, type Tier } from "./economy";
+import { RANKED_WORDS, TIERS, wordTier, type Tier } from "./economy";
 import { finishingLetter, type Distance } from "./wordNeed";
 
 /**
@@ -94,6 +94,7 @@ export interface DictList {
 
 /** Higher = rarer. */
 const RANK = new Map(RANKED_WORDS.map((r) => [r.word, r.rank]));
+const TIER_INDEX = Object.fromEntries(TIERS.map((t, i) => [t.name, i])) as Record<Tier, number>;
 const CLAIMED: ReadonlySet<EntryStatus> = new Set<EntryStatus>(["mine", "mineAway", "sale", "taken"]);
 const AFTER: Partial<Record<EntryStatus, number>> = { sale: 100, taken: 101, mineAway: 102, mine: 103, unknown: 99 };
 
@@ -107,7 +108,13 @@ export function closeness(status: EntryStatus, d: Distance | undefined): number 
  * `distances` lines up with the dictionary (lib/dictionary WORDS), one per word, or is null when
  * there is nothing to count.
  */
-export function listDictionary(q: DictQuery, statusOf: (word: string) => EntryStatus, distances: readonly Distance[] | null): DictList {
+export function listDictionary(
+  q: DictQuery,
+  statusOf: (word: string) => EntryStatus,
+  distances: readonly Distance[] | null,
+  /** The game's tiers (lib/rarity.ts): a collab word filters as Legendary. The derived ones when left out. */
+  tierOf: (word: string) => Tier = wordTier,
+): DictList {
   const needle = q.query.trim().toUpperCase();
   const counts = { can: 0, one: 0, two: 0, letter: 0 };
   const letter = q.letter ?? -1;
@@ -115,7 +122,7 @@ export function listDictionary(q: DictQuery, statusOf: (word: string) => EntrySt
   for (let i = 0; i < WORDS.length; i++) {
     const w = WORDS[i];
     if (needle && !w.includes(needle)) continue;
-    if (q.tier !== "All" && wordTier(w) !== q.tier) continue;
+    if (q.tier !== "All" && tierOf(w) !== q.tier) continue;
     const status = statusOf(w);
     // A held-back word isn't in the Dictionary's list at all: the list is the words the game
     // offers. A revealed set's words show in the Sets section, which says when they unlock.
@@ -140,7 +147,10 @@ export function listDictionary(q: DictQuery, statusOf: (word: string) => EntrySt
   }
   // The dictionary is alphabetical already. Closest first needs distances to mean anything.
   if (q.sort === "closest" && distances) {
-    rows.sort((a, b) => a.key - b.key || (RANK.get(b.word) ?? 0) - (RANK.get(a.word) ?? 0) || a.word.localeCompare(b.word));
+    // Rarer first among equally close words: by the game's tier (a collab word counts as
+    // Legendary), then word by word. With the derived tiers this is the ranking itself.
+    const rarity = (w: string) => TIER_INDEX[tierOf(w)] * WORDS.length + (RANK.get(w) ?? 0);
+    rows.sort((a, b) => a.key - b.key || rarity(b.word) - rarity(a.word) || a.word.localeCompare(b.word));
   }
   return { words: rows.map((r) => r.word), counts };
 }

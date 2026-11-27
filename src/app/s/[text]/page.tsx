@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { WordStripLive } from "@/components/WordStrip";
-import { wordTier } from "@/lib/economy";
+import { tierWith } from "@/lib/rarity";
+import { collabSoon } from "@/lib/raritySoon";
 import { isWord } from "@/lib/dictionary";
 import { parseLinkStage, parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
 import { cardLevelSoon } from "@/lib/onchain/cardLevel";
@@ -69,7 +70,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
   // A house card (HEYOO) is no dictionary word: it has no rarity and no number, and its card says so
   // by carrying no ribbon. A word's number is the chain's, never the link's, and the page waits
   // for it only a moment (cardNumberSoon).
-  const tier = isWord(word) ? wordTier(word) : undefined;
+  const tier = isWord(word) ? tierWith(word, await collabSoon()) : undefined;
   const [number, stage] = await Promise.all([tier ? cardNumberSoon(word) : null, stageOf(word, parseLinkStage((await searchParams).g))]);
 
   return (

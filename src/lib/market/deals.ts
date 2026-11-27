@@ -139,6 +139,15 @@ const RARITY = new Map(RANKED_WORDS.map((r) => [r.word, r.rank]));
 export const rarestFirst = (a: string, b: string): number => (RARITY.get(b) ?? 0) - (RARITY.get(a) ?? 0) || a.localeCompare(b);
 
 /**
+ * That one order with the game's tiers on top (lib/rarity.ts): a collab word sorts as the Legendary
+ * it is treated as, and within a tier the order is word by word as before. With the derived tiers
+ * this IS `rarestFirst`, because a tier is a band of the same ranking; so only a collab word moves.
+ * Every list that used `rarestFirst` in the game passes the game's tiers here, and stays one order.
+ */
+export const rarestFirstBy = (tierOf: (word: string) => Tier): ((a: string, b: string) => number) =>
+  tierOf === wordTier ? rarestFirst : (a, b) => TIER_RANK[tierOf(b)] - TIER_RANK[tierOf(a)] || rarestFirst(a, b);
+
+/**
  * The words the player is exactly ONE letter short of, by the letter that finishes them (0-25), each
  * list rarest first. `unclaimed` is every dictionary word nobody owns. A letter of either case fills
  * the gap (a claim may mix cases), so the bag counts both.
@@ -150,7 +159,7 @@ export const rarestFirst = (a: string, b: string): number => (RARITY.get(b) ?? 0
  * AND another moved is not finished by the purchase. This used to count the connected wallet alone,
  * and offered to sell a player a letter they already held.
  */
-export function oneLetterShort(here: LetterBag, all: LetterBag, unclaimed: Iterable<string>): Map<number, string[]> {
+export function oneLetterShort(here: LetterBag, all: LetterBag, unclaimed: Iterable<string>, tierOf: (word: string) => Tier = wordTier): Map<number, string[]> {
   const hereTotal = bagTotals(here);
   const elsewhere = elsewhereTotals(here, all);
   const out = new Map<number, string[]>();
@@ -159,7 +168,8 @@ export function oneLetterShort(here: LetterBag, all: LetterBag, unclaimed: Itera
     if (letter >= 0) (out.get(letter) ?? out.set(letter, []).get(letter)!).push(word);
   }
   // Word by word, as the word view's "would also finish" sorts, so both name the same word first.
-  for (const words of out.values()) words.sort(rarestFirst);
+  const order = rarestFirstBy(tierOf);
+  for (const words of out.values()) words.sort(order);
   return out;
 }
 
@@ -189,11 +199,18 @@ export interface WordFilter {
   within: number | null;
 }
 
-export function filterWords<T extends WordForSale>(listings: readonly T[], f: WordFilter): T[] {
+/**
+ * The tier a word is treated as (lib/rarity.ts). The game passes its own, where a collab word is
+ * Legendary from its set's reveal; the default is the derived tier, for the practice game and for
+ * tests with no sets. tests/rarity-override.test.ts checks that every call in the game passes one.
+ */
+export type TierOf = (word: string) => Tier;
+
+export function filterWords<T extends WordForSale>(listings: readonly T[], f: WordFilter, tierOf: TierOf = wordTier): T[] {
   const q = f.q.trim().toUpperCase().replace(/[^A-Z]/g, "");
   return listings.filter((l) => {
     if (q && !l.word.includes(q)) return false;
-    if (f.tier !== "all" && wordTier(l.word) !== f.tier) return false;
+    if (f.tier !== "all" && tierOf(l.word) !== f.tier) return false;
     if (f.cases === "upper" && !l.upper.every(Boolean)) return false;
     if (f.cases === "lower" && l.upper.some(Boolean)) return false;
     if (f.within !== null && l.price > f.within) return false;
@@ -206,21 +223,21 @@ export function filterWords<T extends WordForSale>(listings: readonly T[], f: Wo
  * cost goes last); "rare" is rarest first, then lowest price. Every sort ends on the word, so the
  * order never jitters between polls.
  */
-export function sortWords<T extends WordForSale>(listings: readonly T[], sort: WordSort, makeCost: (l: T) => number | null): T[] {
+export function sortWords<T extends WordForSale>(listings: readonly T[], sort: WordSort, makeCost: (l: T) => number | null, tierOf: TierOf = wordTier): T[] {
   const ratio = (l: T) => versus(l.price, makeCost(l)) ?? Number.POSITIVE_INFINITY;
   const by: Record<WordSort, (a: T, b: T) => number> = {
     deal: (a, b) => ratio(a) - ratio(b),
     low: (a, b) => a.price - b.price,
     high: (a, b) => b.price - a.price,
     new: (a, b) => (b.listedAt ?? "").localeCompare(a.listedAt ?? ""),
-    rare: (a, b) => TIER_RANK[wordTier(b.word)] - TIER_RANK[wordTier(a.word)] || a.price - b.price,
+    rare: (a, b) => TIER_RANK[tierOf(b.word)] - TIER_RANK[tierOf(a.word)] || a.price - b.price,
   };
   return [...listings].sort((a, b) => by[sort](a, b) || a.price - b.price || a.word.localeCompare(b.word));
 }
 
 /** The lowest price among the words of one rarity that someone else is selling. */
-export function tierLowest(listings: readonly WordForSale[], tier: Tier, isMine: (maker: string) => boolean, except?: string): number | undefined {
-  const prices = listings.filter((l) => wordTier(l.word) === tier && !isMine(l.maker) && l.word !== except).map((l) => l.price);
+export function tierLowest(listings: readonly WordForSale[], tier: Tier, isMine: (maker: string) => boolean, except?: string, tierOf: TierOf = wordTier): number | undefined {
+  const prices = listings.filter((l) => tierOf(l.word) === tier && !isMine(l.maker) && l.word !== except).map((l) => l.price);
   return prices.length ? Math.min(...prices) : undefined;
 }
 
@@ -252,8 +269,11 @@ export function pickDeals(a: {
   balance: number;
   yieldToday?: { pot: number; weight: number };
   limit?: number;
+  /** The game's tiers (see `TierOf`); the derived ones when left out. */
+  tierOf?: TierOf;
 }): Deal[] {
   const limit = a.limit ?? 3;
+  const tierOf = a.tierOf ?? wordTier;
   const cheapest = (letterId: number): LetterAsk | undefined =>
     (a.book[letterId]?.asks ?? []).filter((x) => !a.isMine(x.maker) && x.available > 0).sort((x, y) => x.unitPrice - y.unitPrice)[0];
 
@@ -263,7 +283,7 @@ export function pickDeals(a: {
     const ask = [cheapest(index), cheapest(index + 26)].filter((x): x is LetterAsk => !!x).sort((x, y) => x.unitPrice - y.unitPrice)[0];
     if (ask && words.length > 0) finish.push({ kind: "finish", ask, word: words[0], alsoFinishes: words.length - 1 });
   }
-  finish.sort((x, y) => (x.kind === "finish" && y.kind === "finish" ? TIER_RANK[wordTier(y.word)] - TIER_RANK[wordTier(x.word)] || x.ask.unitPrice - y.ask.unitPrice : 0));
+  finish.sort((x, y) => (x.kind === "finish" && y.kind === "finish" ? TIER_RANK[tierOf(y.word)] - TIER_RANK[tierOf(x.word)] || x.ask.unitPrice - y.ask.unitPrice : 0));
 
   const taken = new Set(finish.map((p) => (p.kind === "finish" ? p.ask.orderHash : "")));
   const under: Deal[] = [];
@@ -278,7 +298,7 @@ export function pickDeals(a: {
     const shape = { word: listing.word, upper: listing.upper, prestigeLevel: listing.prestigeLevel };
     const v = versus(listing.price, costToMake(shape, a.prices).total);
     if (v !== null && v <= -PICK_UNDER) {
-      under.push({ kind: "word", listing, under: -v, earns: a.yieldToday ? dailyEarnEstimate(shape, a.yieldToday) : null });
+      under.push({ kind: "word", listing, under: -v, earns: a.yieldToday ? dailyEarnEstimate(shape, a.yieldToday, tierOf) : null });
     }
   }
   under.sort((x, y) => (x.kind !== "finish" && y.kind !== "finish" ? y.under - x.under : 0));

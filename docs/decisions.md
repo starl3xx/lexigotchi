@@ -2775,6 +2775,30 @@ setter. All small, riding existing suite patterns.
       set holds and nobody owns: one Mythic word when one is free, the rest from below Legendary,
       so the test set shows both "Legendary from reveal" and "a higher rarity is kept". The words
       are never written in this repository.
+    - **Part 2: Legendary from the reveal, as a layer** (`lib/rarity.ts`). `wordTier` is still
+      the tier derived from the full dictionary, and supply, mint odds, token ids, and the
+      simulator still use it. `tierWith(word, collab)` is the tier the game TREATS a word as: a
+      word of a revealed or released collab set is Legendary, unless its own tier is higher. The
+      collab words are always passed in (the server reads them from the sets, the game from the
+      sets answer), so a draft's words are never in them, on either side. Tier counts come from
+      the same rule (`tierCountsWith`): "one of N Legendary words" counts a raised word in
+      Legendary and no longer in its own tier.
+      - **Where it applies:** what a card, a tile, a badge, and a share picture show; the
+        Dictionary's, Spell's, and the Market's tier filters and counts; "rarest first"
+        everywhere (the one word-by-word order now has the game's tier on top, so only a collab
+        word moves); the keeper's daily yield and the bounty; the "earns about" estimates; the
+        tier a sale is recorded at; the deal alert; the Telegram alert and `/word`.
+      - **The keeper opens no epoch on guessed rarities** (mine). An epoch is money and can't be
+        reopened. If the sets can't be read, the yield and bounty jobs throw and the next run
+        tries again (`lib/keeper/tiers.ts`). Everything that only SHOWS a rarity falls back to
+        the derived tiers instead (`lib/raritySoon.ts`), which is what every word had before.
+      - **Mid-epoch.** A reveal raises a word's weight from the next epoch the keeper opens: an
+        open epoch's tree is never rebuilt. A sale already recorded keeps the tier it sold at.
+      - **Held to it by a test** (`tests/rarity-override.test.tsx`): the list of files that may
+        still read the derived tier, with a reason each, and a check that the game's own calls
+        of the functions with a default pass a tier.
+      - Not changed by a collab: letter supply caps, mint odds, the word's rank number ("the
+        37th rarest word"), the practice game, and the admin's supply table (derived counts).
     - **Two things the spec assumed that weren't so.** There is no token metadata server in this
       repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
       mean building that route: part 4. And a metadata refresh "at release" needs an owner call in

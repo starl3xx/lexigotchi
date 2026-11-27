@@ -8,6 +8,7 @@ import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { TABLE, tableImage } from "@/lib/cardArt/table";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
+import { collabSoon } from "@/lib/raritySoon";
 import { cardNumberOf, cardNumberSoon } from "@/lib/onchain/cardNumbers";
 import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
 
@@ -66,7 +67,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't
   // a dictionary word, so it has none and stays plain.
   const word = tiles.map((t) => t.char).join("");
-  const tier = cardTier(tiles);
+  const collab = await collabSoon();
+  const tier = cardTier(tiles, collab);
   // Not for long: a crawler is waiting for this picture (cardNumberSoon). A picture drawn without
   // its number is kept for minutes only, below.
   // The stage the same way. A house card has none; before the game is deployed there is none to read.
@@ -84,7 +86,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const no = cardNo(number);
 
   // The front without its letters (`letters=0`, only with `face=1`): the share video draws them itself.
-  const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face, letters: !(face && url.searchParams.get("letters") === "0") });
+  const card = wordCard({ tiles, scene, cardW, collab, no, gild: level ?? 0, bare: face, letters: !(face && url.searchParams.get("letters") === "0") });
 
   // A known number is for good, and so is a card with none to wait for: a day in browsers, a week
   // at the edge (CARD_LOOK in the address starts every cache again when the look changes). A word

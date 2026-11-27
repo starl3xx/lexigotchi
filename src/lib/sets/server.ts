@@ -34,6 +34,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
 import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
 import { tokenReadable } from "./firstDay";
+import { NO_COLLAB, collabWordsOf, type CollabWords } from "@/lib/rarity";
 import { dueToReveal, gateUntilFor, heldOf, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
@@ -95,6 +96,17 @@ export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook
     if (book) return book.value;
     return { sets: [], migrated: true, collab: true, known: false };
   }
+}
+
+/**
+ * The words the collab layer raises to Legendary right now (lib/rarity.ts): every word of a
+ * REVEALED or RELEASED collab set. `known: false` when the sets couldn't be read: a caller that
+ * only shows a rarity may fall back to the derived tiers, and a caller that PAYS by rarity (the
+ * keeper's yield and bounty) must not open an epoch on a guess.
+ */
+export async function collabNow(): Promise<{ known: boolean; words: CollabWords }> {
+  const book = await loadSets();
+  return { known: book.known, words: book.known ? collabWordsOf(book.sets) : NO_COLLAB };
 }
 
 // --- the chain's root -------------------------------------------------------------------------
