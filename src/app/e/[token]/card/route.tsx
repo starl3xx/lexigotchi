@@ -5,6 +5,7 @@ import { wordCard } from "../../../_og/wordCard";
 import { parseShowcase, type ShowcaseTile } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
+import { TABLE, tableImage } from "@/lib/cardArt/table";
 import { CARD_PAPER } from "@/lib/cardArt/looks";
 import { NETWORK } from "@/lib/onchain/network";
 import { earningsCardText, heroStage, parseTz, type EarningsCardText } from "@/lib/earningsShare";
@@ -46,7 +47,6 @@ const INK = "#1b1714";
 const SOFT = "rgba(27, 23, 20, 0.66)";
 const GOLD_DEEP = "#b07d20"; // the sheet's number (tailwind gold.deep: display numbers)
 const GOLD_INK = "#6f4e10";
-const TABLE = "#16293a";
 const SHADOW = "7px 9px 0 rgba(0, 0, 0, 0.42)"; // the card's own, so both lie on the same table
 
 const SERIF = "Pagella";
@@ -128,7 +128,7 @@ function tag(text: EarningsCardText, w: number, wide: boolean) {
           height: 24,
           borderRadius: 12,
           border: `4px solid ${INK}`,
-          background: TABLE,
+          background: TABLE.ground,
           display: "flex",
         }}
       />
@@ -174,10 +174,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
           fontFamily: "Soehne",
           color: INK,
           // the table a word's own share picture lies on
-          backgroundColor: TABLE,
-          backgroundImage: "radial-gradient(circle at 50% 42%, #2f5570 0%, #16293a 78%)",
+          backgroundColor: TABLE.ground,
         }}
       >
+        {/* the same engraved table (lib/cardArt/table) */}
+        <img src={tableImage(CARD_W, H)} width={CARD_W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
         {tiles && wordCard({ tiles, scene, cardW, gild: heroStage(snapshot, word) ?? 0 })}
         {tag(text, tagW, tall && !!tiles)}
         {saved && (

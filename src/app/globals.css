@@ -408,8 +408,10 @@ body {
 /* The ascend sheet (sheets/AscendSheet.tsx). A hit's rays turn behind the word for as long as it
    cheers, then fade with it: .asc-rays holds still (its box, and an oval fade so no edge shows) and
    only the square of rays inside it turns, a transform on one HTML element, so the letters in front
-   are never redrawn for it. Gold for Gilded 1 to 4; the foil's colors for Holographic. Under
-   reduced motion the rays are simply there, still, while the word's result shows. */
+   are never redrawn for it. The rays are an engraved "glory" (lib/cardArt/glory, decisions.md #48):
+   they are around the letters, so they are drawn like the cards. They were a flat gold fan. Gold
+   for Gilded 1 to 4; the foil's colors for Holographic. Under reduced motion the rays are simply
+   there, still, while the word's result shows. */
 .asc-rays {
   position: absolute;
   inset: 0;
@@ -428,12 +430,15 @@ body {
   aspect-ratio: 1;
   /* percentages of the box's WIDTH, both ways: half the square's side */
   margin: -65% 0 0 -65%;
-  background: repeating-conic-gradient(rgb(240 166 23 / 0.5) 0deg 8deg, transparent 8deg 30deg);
+  /* the engraved glory (lib/cardArt/glory), which the sheet gives as --asc-glory: one still picture */
+  background: var(--asc-glory) center / 100% 100% no-repeat;
 }
+/* Holographic: the foil's colours, seen through the same engraved lines. Deeper than the foil's
+   own pastels: a fine line in a pastel is lost on the paper. */
 .asc-rays-holo::before {
-  background: conic-gradient(#ff9ad5, #ffe28a, #8ff0d0, #8ec5ff, #c7a0ff, #ff9ad5);
-  -webkit-mask-image: repeating-conic-gradient(#000 0deg 8deg, transparent 8deg 30deg);
-  mask-image: repeating-conic-gradient(#000 0deg 8deg, transparent 8deg 30deg);
+  background: conic-gradient(#f0509f, #e8a50c, #18b48c, #3b82f6, #8b5cf6, #f0509f);
+  -webkit-mask: var(--asc-glory) center / 100% 100% no-repeat;
+  mask: var(--asc-glory) center / 100% 100% no-repeat;
 }
 @media (prefers-reduced-motion: no-preference) {
   /* in with the cheer, out before it ends (AscendSheet's CHEER_MS) */
@@ -811,11 +816,11 @@ body {
    chain border, said quietly) */
 .cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: var(--cb-frame-r); border: max(1.5px, 0.3cqw) solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); outline: max(1.5px, 0.28cqw) dotted var(--cb-line); outline-offset: max(1.5px, 0.42cqw); pointer-events: none; }
 /* the materials, deep */
-.m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-top: #54402d; --rk-front: #2a1e15; }
-.m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-top: #22705e; --rk-front: #0c3028; }
-.m-rare { --cb-base: #0b1f40; --cb-mat: linear-gradient(165deg, #1d4485, #0b1f40 70%); --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --rk-top: #2a5799; --rk-front: #0b1d3d; }
-.m-legendary { --cb-base: #2e2006; --cb-mat: linear-gradient(135deg, #2e2006, #6b4a10 38%, #2e2006 66%, #5a3e0c); --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-top: #8a6418; --rk-front: #3a2806; }
-.m-mythic { --cb-base: #1d0d36; --cb-mat: linear-gradient(165deg, #47237a, #1d0d36 70%); --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-top: #552c94; --rk-front: #1d0d36; }
+.m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-front: #2a1e15; }
+.m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-front: #0c3028; }
+.m-rare { --cb-base: #0b1f40; --cb-mat: linear-gradient(165deg, #1d4485, #0b1f40 70%); --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --rk-front: #0b1d3d; }
+.m-legendary { --cb-base: #2e2006; --cb-mat: linear-gradient(135deg, #2e2006, #6b4a10 38%, #2e2006 66%, #5a3e0c); --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-front: #3a2806; }
+.m-mythic { --cb-base: #1d0d36; --cb-mat: linear-gradient(165deg, #47237a, #1d0d36 70%); --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-front: #1d0d36; }
 .cb-brush { background: repeating-linear-gradient(-32deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 4px); }
 .cb-glitter { background-image: radial-gradient(circle, rgba(255, 238, 180, 0.9) 0 0.9px, transparent 1.3px), radial-gradient(circle, rgba(255, 250, 220, 0.7) 0 0.7px, transparent 1.1px); background-size: 19px 19px, 13px 13px; background-position: 0 0, 7px 9px; opacity: 0.7; }
 .cb-facets { width: 100%; height: 100%; }
@@ -876,18 +881,24 @@ body {
 .cb-rule { width: 100%; height: max(2px, 0.3cqw); background: linear-gradient(90deg, var(--cb-line), transparent); }
 .cb-oneof { display: grid; gap: 0.2em; font-size: clamp(12px, 1.9cqw, 14px); line-height: 1.2; color: var(--cb-sub); }
 .cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; color: var(--cb-text); }
-/* the rack: its top recedes behind the tiles (lit), its lip stands in front (in shadow) */
+/* The rack, engraved (lib/cardArt/rack; decisions.md #48): line work in the material's own line
+   colour, like the frame and the seal. Its top face runs back behind the tiles, ruled; its front
+   stands before them, kept dark so that it hides the tiles' feet, under closer ruling; one bright
+   line marks the edge between. The box is stretched to the row, so every line keeps its weight
+   with vector-effect. No soft shadow: it was two flat tones with a drop shadow. */
 .cb-rackwrap { position: relative; --rh: 5.2cqw; width: 84%; margin-top: 0.6cqw; padding: 0 1.2cqw calc(var(--rh) * 0.33); }
 .cb-rack { position: absolute; left: 0; bottom: 0; width: 100%; height: var(--rh); display: block; overflow: visible; }
 .cb-rack-back { z-index: 0; }
-.cb-rack-front { z-index: 2; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)); }
-.rk-top { fill: var(--rk-top); }
-.rk-far { fill: rgba(0, 0, 0, 0.35); }
-.rk-groove { fill: rgba(0, 0, 0, 0.42); }
-.rk-front { fill: var(--rk-front); }
-.rk-lip { fill: rgba(255, 255, 255, 0.3); }
+.cb-rack-front { z-index: 2; }
+.cb-rack path { vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.rk-top { fill: var(--cb-line); fill-opacity: 0.1; stroke: var(--cb-line); stroke-opacity: 0.8; stroke-width: 1px; }
+.rk-rule { fill: none; stroke: var(--cb-line); stroke-opacity: 0.5; stroke-width: 0.75px; }
+.rk-rule-front { stroke-opacity: 0.34; }
+.rk-front { fill: var(--rk-front); stroke: var(--cb-line); stroke-opacity: 0.8; stroke-width: 1px; }
+.rk-edge { fill: none; stroke: var(--cb-line); stroke-width: 1.5px; }
 .cb-tiles { position: relative; z-index: 1; display: flex; gap: 0.7cqw; }
-.cb-tile { flex: 1 1 0; min-width: 0; filter: drop-shadow(0 2px 1.5px rgba(0, 0, 0, 0.45)); }
+/* no soft shadow under a tile on the rack: the rack's own ruling is its ground (decisions.md #48, part 9), and the server's picture of the back never had one */
+.cb-tile { flex: 1 1 0; min-width: 0; }
 /* the ledger: a name (Söhne, as written), a row of dots, a value (the card's serif) */
 .cb-stats { display: grid; gap: clamp(5px, 1.5cqw, 12px); margin: 0; min-width: 0; }
 .cb-stat { display: flex; align-items: baseline; gap: 0.5em; min-width: 0; font-size: clamp(12px, 2.05cqw, 16px); line-height: 1.15; }

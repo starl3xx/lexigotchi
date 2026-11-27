@@ -14,7 +14,7 @@
 @keyframes tcSweat{0%{opacity:0;transform:translate(calc(var(--ux) * var(--fx) * -3), calc(var(--uy) * var(--fy) * -3)) scale(0.5)}18%,62%{opacity:1}100%{opacity:0;transform:translate(calc(var(--ux) * var(--fx) * 18), calc(var(--uy) * var(--fy) * 18)) scale(1)}}.animate-tc-sweat{animation:tcSweat 1.5s ease-out infinite}
 @keyframes tcPeekOpen{0%{opacity:0}60%{opacity:1}82%,100%{opacity:0}}.animate-tc-peek-open{animation:tcPeekOpen 3.2s step-end infinite}
 @keyframes tcPeekShut{0%{opacity:1}60%{opacity:0}82%,100%{opacity:1}}.animate-tc-peek-shut{animation:tcPeekShut 3.2s step-end infinite}
-@keyframes tcConfetti{0%{opacity:0;transform:translateY(-16px) rotate(0)}12%{opacity:1}100%{opacity:0;transform:translateY(var(--tc-fall, 82px)) rotate(360deg)}}.animate-tc-confetti{animation:tcConfetti 1.5s linear infinite}
+@keyframes tcConfetti{0%{opacity:0;transform:translateY(-133%) rotate(0)}12%{opacity:1}100%{opacity:0;transform:translateY(var(--tc-fall, 1400%)) rotate(360deg)}}.animate-tc-confetti{animation:tcConfetti 1.5s linear infinite}
 @keyframes tcRay{to{transform:rotate(360deg)}}.animate-tc-ray{animation:tcRay 18s linear infinite}
 @keyframes tcZzz{0%{opacity:0;transform:translateY(calc(var(--uy) * 2)) scale(0.8)}30%{opacity:1}100%{opacity:0;transform:translateY(calc(var(--uy) * -14)) scale(1.1)}}.animate-tc-zzz{animation:tcZzz 2.4s ease-in-out infinite}
 @media (prefers-reduced-motion: reduce){[class*="animate-tc-"]{animation:none!important}}
