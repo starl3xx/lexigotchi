@@ -41,12 +41,16 @@ export interface SetsPayload {
  * word is in (see `SetsPayload.held` for why the app is told).
  */
 export async function GET() {
-  // The sets are read for themselves: what a set is doesn't depend on what the chain holds this
-  // minute. Can't read them: the game shows no sets rather than wrong ones (unknown is never "none").
-  const book = await loadSets().catch(() => null);
+  // The chain's side first: asking it is what notices a release that has just landed (it marks the
+  // set released and reads the sets again). So the sets shown must be the ones IT read, or one
+  // answer could say "still revealed" beside a `held` list that already lets the set's words go.
+  const s = await serving().catch(() => null);
+  // Without the chain's side the sets are still read for themselves: what a set is doesn't depend
+  // on what the chain holds this minute. Can't read them at all: the game shows no sets rather
+  // than wrong ones (unknown is never "none").
+  const book = s?.ok && s.book.known ? s.book : await loadSets().catch(() => null);
   if (!book?.known) return NextResponse.json({ ok: false, error: "try_again" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   // The count needs the chain's side too (a word is offered only when both agree); without it, no count.
-  const s = await serving().catch(() => null);
   const body: SetsPayload = {
     ok: true,
     sets: publicSets(book.sets),
