@@ -836,7 +836,11 @@ describe("the collab words a rarity is read with", () => {
   it("are the words of revealed and released collab sets, and are UNKNOWN when the sets can't be read", async () => {
     world.sets = [draft(1, "Draft", [words.A], look), draft(2, "Shown", [words.B], { ...look, status: "revealed" }), draft(3, "Plain", [words.C], { status: "revealed" })];
     const server = await import("@/lib/sets/server");
-    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    const now = await server.collabNow();
+    expect(now.known).toBe(true);
+    expect([...now.words.keys()]).toEqual([words.B]);
+    // The same object carries the word's card look: one lookup for the rarity and the card.
+    expect(now.words.get(words.B)).toMatchObject({ setId: 2, partner: "P", a: "#112233", b: "#aabbcc" });
     // Unreadable, with nothing kept from before: unknown, never "no collab words".
     vi.resetModules();
     world.fail = true;
@@ -850,11 +854,13 @@ describe("the collab words a rarity is read with", () => {
   it("a caller that PAYS gets this call's own read or a throw: never the copy kept from before a failure", async () => {
     world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
     const server = await import("@/lib/sets/server");
-    expect([...(await server.collabStrict())]).toEqual([words.B]); // and this read is now the kept copy
+    expect([...(await server.collabStrict()).keys()]).toEqual([words.B]); // and this read is now the kept copy
     world.fail = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     // The ordinary read answers from the kept copy and calls it known: right for holding words back...
-    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    const kept = await server.collabNow();
+    expect(kept.known).toBe(true);
+    expect([...kept.words.keys()]).toEqual([words.B]);
     // ...and exactly what the keeper must not weigh an epoch with.
     await expect(server.collabStrict()).rejects.toThrow(/couldn't be read/);
     const { epochTiers } = await import("@/lib/keeper/tiers");
@@ -870,7 +876,7 @@ describe("the collab words a rarity is read with", () => {
   it("a picture that only SHOWS a rarity falls back to the derived tiers; it never fails or waits long", async () => {
     world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
     const { collabSoon } = await import("@/lib/raritySoon");
-    expect([...(await collabSoon())]).toEqual([words.B]);
+    expect([...(await collabSoon()).keys()]).toEqual([words.B]);
     vi.resetModules();
     world.fail = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => {});

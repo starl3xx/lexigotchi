@@ -21,7 +21,7 @@ import { wordsAbi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { wordOfTokenId } from "@/lib/market/sales";
-import { tierWith, collabWordsOf, NO_COLLAB } from "@/lib/rarity";
+import { tierWith, collabWordsOf, NO_COLLAB, type CollabWords } from "@/lib/rarity";
 import { SITE_URL } from "@/lib/site";
 import { parseTokenId, wordMetadata } from "@/lib/wordMetadata";
 
@@ -72,7 +72,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   // `loadSets` answers as known.)
   let setName: string | null = null;
   let collabPartner: string | null = null;
-  let collab = NO_COLLAB;
+  let collab: CollabWords = NO_COLLAB;
   try {
     const { loadSets } = await import("@/lib/sets/server");
     const book = await loadSets();

@@ -7,9 +7,10 @@
  * (lib/keeper/jobs.ts). The sets module is loaded only when asked, so a picture route's first load
  * doesn't carry the database client it may never use.
  */
-import { NO_COLLAB, type CollabWords } from "./rarity";
+import { NO_COLLAB } from "./rarity";
+import type { CollabLooks } from "./collabLook";
 
-export async function collabSoon(ms = 1200): Promise<CollabWords> {
+export async function collabSoon(ms = 1200): Promise<CollabLooks> {
   try {
     const { collabNow } = await import("@/lib/sets/server");
     const got = await Promise.race([collabNow(), new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
