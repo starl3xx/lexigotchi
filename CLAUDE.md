@@ -805,6 +805,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   profile offers the card only where the bot is set up AND the tables exist
   (`/api/profile/config` `telegram`, `telegramLinksReady`), so nothing shows before 0020 runs. The
   Players tab says WHETHER a wallet's account linked Telegram, never which account.
+  **Migrations 0019 and 0020 ran in production (the Sepolia build) on 2026-11-27** (all three
+  tables checked with a read-only query, and drizzle's own table holds 21 entries, as the journal
+  does: `migrate` can say "applied" and skip one), so `/bug` saves reports and the profile offers
+  Link Telegram (`/api/profile/config` says `"telegram": true`).
   **The operator can post as the bot** from the console's Broadcast tab (`tabs/TelegramBroadcast.tsx`,
   `POST /api/admin/telegram`, gated on the server like Players): the composer's text as a message,
   or a poll. Every send is typed-to-confirm, goes out as typed (no parse mode, no link preview),
