@@ -29,8 +29,10 @@ import type { Tier } from "@/lib/economy";
 import type { SceneId } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
-import { CARD_LOOKS } from "@/lib/cardArt/looks";
-import { DARK_SCENES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { CARD_LOOKS, type CardLook } from "@/lib/cardArt/looks";
+import { collabCardLook, type CollabLook } from "@/lib/collabLook";
+import { tileTierOf, useCollabLook } from "../game/collabLooksContext";
+import { DARK_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -48,16 +50,26 @@ export function toneOf(state: TileState): SceneTone {
 const pictures = new Map<string, string>();
 function picture(key: string, make: () => string): string {
   let url = pictures.get(key);
-  if (!url) pictures.set(key, (url = `url("${svgDataUri(svgDoc(make()))}")`));
+  if (!url) {
+    // Bounded: the rarities and scenes make a few dozen pictures, but a collab look is any two
+    // colors, and the admin's preview makes a new look for every step of a color picker.
+    if (pictures.size > 120) pictures.clear();
+    pictures.set(key, (url = `url("${svgDataUri(svgDoc(make()))}")`));
+  }
   return url;
 }
-/** A scene's art as a CSS image. Only the stock card's art takes the rarity. */
-export function sceneArtImage(scene: SceneId, tier: Tier): string {
-  return picture(`art-${scene}-${scene === "stock" ? tier : ""}`, () => cardArt(scene, tier));
+/** A collab look's own key for the pictures kept here: its two colors (the stamp is not in these pictures). */
+const lookKey = (look: CollabLook | undefined) => (look ? `${look.a}${look.b}` : "");
+/** A collab word's card look in place of its rarity's, or undefined for any other word. */
+const cardLookOf = (look: CollabLook | undefined): (CardLook & { tint2?: string }) | undefined => (look ? collabCardLook(look) : undefined);
+
+/** A face's art as a CSS image, kept per rarity (and per collab look) for the faces that are printed in it (RARITY_FACES). */
+export function sceneArtImage(scene: SceneId, tier: Tier, look?: CollabLook): string {
+  return picture(`art-${scene}-${RARITY_FACES.has(scene) ? tier + lookKey(look) : ""}`, () => cardArt(scene, tier, cardLookOf(look)));
 }
-/** The frame for a rarity as a CSS image. */
-export function cardFrameImage(tier: Tier): string {
-  return picture(`frame-${tier}`, () => cardFrame(tier));
+/** The frame for a rarity as a CSS image: in a collab word's own ink when it has a look. */
+export function cardFrameImage(tier: Tier, look?: CollabLook): string {
+  return picture(`frame-${tier}${lookKey(look)}`, () => cardFrame(tier, cardLookOf(look)));
 }
 
 const pct = (v: number, of: number) => `${((v / of) * 100).toFixed(4)}%`;
@@ -81,6 +93,7 @@ export function SceneFrame({
   tier,
   number,
   small = false,
+  collab,
 }: {
   /**
    * The word's rarity: its tiles' material (lib/rarityFinish, decisions.md #23), the ink of the
@@ -112,9 +125,18 @@ export function SceneFrame({
   number?: number | null;
   /** A thumbnail (the Bag's grid, the scene picker): no ribbon. The frame's corners say the rarity. */
   small?: boolean;
+  /**
+   * The word's collab look, when the caller already holds it (the share page, outside the game);
+   * `null` for a card that is no word of a set. Otherwise it is looked up by the word.
+   */
+  collab?: CollabLook | null;
 }) {
   const ribbonId = useId().replace(/[^A-Za-z0-9_-]/g, "");
-  const look = CARD_LOOKS[tier ?? PLAIN];
+  // A collab word's card is the collab stock in its set's two colors, with the set's stamp
+  // (decisions.md, "Collab sets"): its look takes the place of its rarity's on the frame, the
+  // stock card's wash, the ribbon, and the tiles. Its rarity (Legendary) still names the ribbon.
+  const mine = useCollabLook(word, collab);
+  const look = cardLookOf(mine) ?? CARD_LOOKS[tier ?? PLAIN];
   // The word's row in percent of the card, so it draws on the first paint and on the server (the
   // share page), with nothing measured first.
   const L = wordLayout(word.length);
@@ -214,7 +236,7 @@ export function SceneFrame({
               size={L.tileW}
               detail="full"
               fluid
-              tier={tier}
+              tier={tileTierOf(tier, mine)}
               index={i}
               still={!animated}
             />
@@ -226,7 +248,7 @@ export function SceneFrame({
   // The art's text is worked out from sines and cosines, which the server and a browser may round
   // one digit apart; either picture is right, so a mismatch on hydration is let be.
   const art = (id: SceneId, fade: string) => (
-    <div key={`art-${id}`} className={`cf-art ${toneClass} ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN) }} suppressHydrationWarning />
+    <div key={`art-${id}`} className={`cf-art ${toneClass} ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
   );
   const no = cardNo(number);
   // A ribbon's folded tail, drawn (not clipped out of a box), so its notch has the ink line too.
@@ -249,8 +271,15 @@ export function SceneFrame({
     >
       {was && art(was, "")}
       {art(scene, was ? "scene-fade-in" : "")}
-      <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN) }} suppressHydrationWarning />
+      <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
+      {/* The set's stamp, in ONE fixed place on every collab card: the window's upper left, clear of
+          the word, the ribbon, and the turn-over button. A picture the operator uploaded, served by
+          this site (never an SVG). A thumbnail is too small for it (globals.css). */}
+      {mine?.stamp && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="cf-stamp" src={mine.stamp} alt="" draggable={false} />
+      )}
       {word && (
         <div
           key={word}
@@ -315,11 +344,12 @@ const SCENE_FADE_MS = 450;
 
 /** A still thumbnail of a scene, for the picker: the art in the frame, no word. The stock card
  *  shows in the rarity of the word being dressed. */
-export function SceneThumb({ scene, tier = PLAIN, className = "" }: { scene: SceneId; tier?: Tier; className?: string }) {
+export function SceneThumb({ scene, tier = PLAIN, className = "", word }: { scene: SceneId; tier?: Tier; className?: string; /** the word being dressed: a collab word's thumbnails are in its own look */ word?: string }) {
+  const mine = useCollabLook(word);
   return (
     <div className={`cf cf-small ${className}`}>
-      <div className="cf-art" style={{ backgroundImage: sceneArtImage(scene, tier) }} suppressHydrationWarning />
-      <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier) }} suppressHydrationWarning />
+      <div className="cf-art" style={{ backgroundImage: sceneArtImage(scene, tier, mine) }} suppressHydrationWarning />
+      <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
     </div>
   );

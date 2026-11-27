@@ -25,6 +25,9 @@ import { planRepeg, type PricePoint } from "@/lib/keeper/repeg";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { scanAllWords } from "@/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "@/lib/keeper/shares";
+import { collabNow } from "@/lib/sets/server";
+import { NO_COLLAB, tierFn } from "@/lib/rarity";
+import { epochTiers } from "@/lib/keeper/tiers";
 import { computeAchievements, type AchievementLeaf } from "@/lib/keeper/achievements";
 import { readLetterCounts, readWalletBalances } from "@/lib/onchain/reads";
 import { releasedWordCount, releasedWords } from "@/lib/sets/server";
@@ -252,15 +255,20 @@ export function createKeeper(opts: { dry: boolean }) {
       address: feeRouter, abi: feeRouterAbi, functionName: kind === "yield" ? "poolBalance" : "bountyBalance",
     })) as bigint;
 
+    // What each word is weighed at: the derived tier, with a collab word raised to Legendary from
+    // its set's reveal (decisions.md, "Collab sets"). An epoch is money, and it can't be reopened:
+    // if the sets can't be read this THROWS, nothing is opened on a guess, and the next run tries again.
+    const tier = await epochTiers(`${kind} epoch ${epochId}`);
+
     let leaves, meta = 0n;
     if (kind === "yield") {
       // pool × dailyDistributionRate — the self-scaling fraction the sim equilibrates on.
       const pot = (bucket * BigInt(Math.round(DEFAULT_PARAMS.staking.dailyDistributionRate * 1e6))) / 1_000_000n;
-      leaves = yieldLeaves(words, pot);
+      leaves = yieldLeaves(words, pot, tier);
     } else {
       const themeIdx = themeForPeriod(Number(epochId));
       meta = BigInt(themeIdx);
-      leaves = bountyLeaves(words, bucket, THEMES[themeIdx].test);
+      leaves = bountyLeaves(words, bucket, THEMES[themeIdx].test, tier);
       console.log(`bounty: period ${epochId}, theme "${THEMES[themeIdx].name}"`);
     }
 
@@ -659,6 +667,9 @@ export function createKeeper(opts: { dry: boolean }) {
           },
           unclaimed: offered.filter((w) => !claimed.has(w)),
           book,
+          // "The rarest word a letter finishes" counts a collab word as Legendary. A courtesy, so
+          // an unreadable sets table falls back to the derived tiers rather than skip the alert.
+          tierOf: tierFn((await collabNow().catch(() => null))?.words ?? NO_COLLAB),
           marks: {
             claimDay: (account) => claimMarkEvery(account, "deal-day", "last", DEAL_DAILY_SECONDS),
             releaseDay: (account) => releaseMark(account, "deal-day", "last"),

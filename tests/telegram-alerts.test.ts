@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MYTHICS, wordsByTier } from "@/lib/economy";
+import { NO_COLLAB } from "@/lib/rarity";
 
 vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532"); // the Sepolia registry has a deployed suite
 
@@ -63,7 +64,7 @@ const claim = (word: string, minutesAgo: number, tx: string, upperMask = 0) => (
 describe("the alert's words", () => {
   it("name who made the word and how rare it is, under the update posts' own heading", async () => {
     const { alertPost } = await import("@/lib/telegramAlerts");
-    const post = alertPost({ word: MYTHIC, upper: [false, false, false, false, false] }, "ann");
+    const post = alertPost({ word: MYTHIC, upper: [false, false, false, false, false] }, "ann", NO_COLLAB);
     expect(post.text).toBe(["💎 Mythic word", "----------------", `ann just made ${MYTHIC}, one of the game’s 46 Mythic words.`].join("\n"));
     expect(post.text.slice(post.bold[0].offset, post.bold[0].offset + post.bold[0].length)).toBe("Mythic word");
     expect(post.bold).toHaveLength(1);
@@ -71,7 +72,7 @@ describe("the alert's words", () => {
 
   it("send the card in the case the word was made in, as the picture that travels alone", async () => {
     const { alertPost } = await import("@/lib/telegramAlerts");
-    const url = new URL(alertPost({ word: MYTHIC, upper: [true, false, true, false, false] }, "ann").photoUrl);
+    const url = new URL(alertPost({ word: MYTHIC, upper: [true, false, true, false, false] }, "ann", NO_COLLAB).photoUrl);
     const [a, b, c, d, e] = [...MYTHIC];
     expect(url.pathname).toBe(`/s/${a}${b.toLowerCase()}${c}${d.toLowerCase()}${e.toLowerCase()}/card`);
     expect(url.searchParams.get("saved")).toBe("1");
@@ -79,7 +80,7 @@ describe("the alert's words", () => {
 
   it("follow the house copy rules, and never write an “@”", async () => {
     const { alertPost } = await import("@/lib/telegramAlerts");
-    const text = alertPost({ word: MYTHIC, upper: [] }, "0x12ab…cdef").text;
+    const text = alertPost({ word: MYTHIC, upper: [] }, "0x12ab…cdef", NO_COLLAB).text;
     expect(text).not.toMatch(/—/);
     expect(text).not.toMatch(/[A-Za-z]'[A-Za-z]/);
     expect(text).not.toMatch(/@/);
@@ -95,8 +96,8 @@ describe("which claims earn an alert", () => {
   it("only a Mythic word", async () => {
     const { isAlertWord, ALERT_TIERS } = await import("@/lib/telegramAlerts");
     expect(ALERT_TIERS).toEqual(["Mythic"]);
-    for (const w of MYTHICS) expect(isAlertWord(w)).toBe(true);
-    for (const tier of ["Common", "Uncommon", "Rare", "Legendary"] as const) expect(isAlertWord(wordsByTier(tier)[0])).toBe(false);
+    for (const w of MYTHICS) expect(isAlertWord(w, NO_COLLAB)).toBe(true);
+    for (const tier of ["Common", "Uncommon", "Rare", "Legendary"] as const) expect(isAlertWord(wordsByTier(tier)[0], NO_COLLAB)).toBe(false);
   });
 
   it("only a fresh one: half an hour old at most, oldest first, with the case it was made in", async () => {
@@ -108,7 +109,7 @@ describe("which claims earn an alert", () => {
       claim(COMMON, 3, "0xcommon"),
       claim(MYTHICS[0].toLowerCase(), 29, "0xfirst"),
     ];
-    const fresh = await readAlertClaims();
+    const fresh = await readAlertClaims(NO_COLLAB);
     expect(fresh.map((c) => c.word)).toEqual([MYTHICS[0], MYTHICS[1]]);
     expect(fresh[1]).toMatchObject({ owner: "0xabc0000000000000000000000000000000000001", upper: [true, false, true, false, false], transactionHash: "0xnew", logIndex: 2 });
   });

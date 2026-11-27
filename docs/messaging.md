@@ -29,7 +29,7 @@ One hook per post or page section, and always land on the premise.
 | The glow-up | Every letter starts lowercase. | Gamers | Roll and ascension moments |
 | The daily word | One word wins every day. Is yours staked and fed? | LHAW players, word-game fans | Farcaster, daily posts |
 | Word nerd | The cheapest word in the game is ASSES. We don't make the rules. | Everyone, for shares | X replies, launch thread |
-| Make it yours | Give your words a home. | Players who already have a word | Shop drops, scenes (later) |
+| Make it yours | Give your words a home. | Players who already have a word | Shop drops, card faces |
 | Made by one person | One builder, two word games, a $WORD universe. | Farcaster, Base builders | Jake's own posts |
 Rules: lead with a pet, a word or a rare letter, never with earning. Facts beat adjectives. The jackpot always carries "staked and fed".
 
@@ -46,6 +46,9 @@ The Tamagotchi/Pokémon comparison stays internal: both are guarded trademarks, 
 | earns $WORD every day | yield, APR, returns, passive income |
 | Dictionary | Lexidex |
 | the Market | marketplace, exchange |
+| the front (the side of a card with the word on it) | the scene, the face (for the side) |
+| the face, a card face (the picture on the front, behind the word) | scene, background, skin |
+| the back (the side with the word's story) | the reverse |
 Never write: price, pump, moon, invest, investment, "number go up", or any dollar figure for $WORD or for the jackpot. Prices of game actions in USD ("a pack is $1") are fine. One exception (owner, 2026-11-26, decisions.md #46): Today's three pot tiles (the jackpot, the bounty, the Rewards Pool) show "about $X" beside each $WORD amount, and never for test $WORD. A second exception (owner, 2026-11-26, decisions.md #38 as amended): the earnings share PICTURE says "about $X" under what the player's words have earned, from a figure the server signed at a live price, and never for test $WORD. Share text (the post's own words), reminders, the landing page, the docs, and bot posts keep the rule.
 
 ## Landing page

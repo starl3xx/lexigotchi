@@ -195,7 +195,9 @@ export type View =
   | "word"
   /** Let's Have A Word!, Lexigotchi's sibling in the $WORD universe. */
   | "lhaw"
-  | "swap";
+  | "swap"
+  /** The Shop (decisions.md #22, #55), behind SHOP_ENABLED (screens/ShopScreen). */
+  | "shop";
 
 /**
  * A part of a screen a link can land on: GameApp scrolls `main` to the element with this
@@ -210,8 +212,11 @@ export type View =
  * finishes (the Market's "and 45 more words"). Read the letter with `sectionLetter`. A link is
  * state, not a value handed over once, so it also works when the screen is already showing: a
  * screen keys its effect on `navSeq` as well as the section, so the same link lands twice.
+ *
+ * On the Shop, "faces" and "accessories" open that category (lib/shop/rules, ShopCategory): the
+ * face picker's tile for a face on sale, and an opened word's Case button.
  */
-export type ViewSection = "bounty" | "letters" | "sellLetters" | "words" | `letter:${string}` | `needs:${string}`;
+export type ViewSection = "bounty" | "letters" | "sellLetters" | "words" | "faces" | "accessories" | `letter:${string}` | `needs:${string}`;
 
 /** The letter (0-25) a `letter:q` or `needs:q` link names, or null when the link isn't one. */
 export function sectionLetter(section: ViewSection | undefined, kind: "letter" | "needs"): number | null {
@@ -248,8 +253,6 @@ export type Sheet =
   /** Pick a word's scene, from the Today stage or an opened word (sheets/SceneSheet). `fromWord`:
    *  opened from the word's own sheet, so closing it goes back there. */
   | { kind: "scene"; word: string; fromWord?: boolean }
-  /** The Shop (decisions.md #22), behind SHOP_ENABLED (sheets/ShopSheet). */
-  | { kind: "shop" }
   | { kind: "earnings" }
   /** A word opened from the Dictionary (sheets/LookupSheet): what the player needs to spell it, or who has it. */
   | { kind: "lookup"; word: string }

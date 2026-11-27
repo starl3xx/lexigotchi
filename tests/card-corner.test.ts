@@ -77,7 +77,7 @@ describe("the card's corner is 2.6% of its width", () => {
     const wrappers: Record<string, RegExp> = {
       "src/components/game/sheets/SceneSheet.tsx": /className="card-corner border-\[3px\]/,
       "src/components/scenes/ScenePicker.tsx": /card-corner block overflow-hidden/,
-      "src/components/game/sheets/ShopSheet.tsx": /className="card-corner mb-2 overflow-hidden/,
+      "src/components/game/screens/ShopScreen.tsx": /className="card-corner mb-2 overflow-hidden/,
       "src/components/game/sheets/CelebrateSheet.tsx": /className="card-corner overflow-hidden border-\[3px\] border-ink"/,
       "src/app/s/[text]/page.tsx": /className="card-corner overflow-hidden border-\[3px\] border-ink"/,
     };

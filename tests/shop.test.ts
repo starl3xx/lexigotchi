@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeFunctionData, encodeAbiParameters, getAddress, keccak256, recoverTypedDataAddress, toBytes, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { availability, cardFor, fmtUsdc, shopCards, shopOn, TEST_USDC_FAUCET, usdcLabel, type RegistryItem } from "@/lib/shop/rules";
+import { availability, byCategory, cardFor, CATEGORY_NAME, categoryOf, edition, editionLine, fmtUsdc, isShopCategory, ITEM_KINDS, SHOP_CATEGORIES, shopCards, shopOn, TEST_USDC_FAUCET, usdcLabel, type RegistryItem } from "@/lib/shop/rules";
 import { approveCall, buyCall, buyRoute, buyWithPermitCall, isUnsupported, permitTypedDataJson } from "@/lib/shop/buy";
 import { holderProfiles, sweepMinWordOut, MIN_SWEEP_USDC } from "@/lib/keeper/shop";
 import { shopTotals } from "@/lib/admin/shopStats";
@@ -73,6 +73,66 @@ describe("what can be bought (mirrors Shop._buy)", () => {
     expect(availability(item({ maxSupply: 2, sold: 2 }), 0)).toBe("sold_out");
     expect(availability(item({ maxSupply: 0, sold: 10_000 }), 0)).toBe("on_sale");
     expect(availability(item({ active: false }), 0)).toBe("inactive");
+  });
+});
+
+describe("the Shop's categories (decisions.md #55)", () => {
+  const face = { name: "A fixture face", kind: "scene" as const, art: "space" };
+  const slab = { name: "A fixture case", kind: "case" as const, art: null };
+  const hat = { name: "A fixture costume", kind: "costume" as const, art: null };
+
+  it("a card face is the stored kind 'scene'; a case and a costume are accessories", () => {
+    expect(categoryOf("scene")).toBe("faces");
+    expect(categoryOf("case")).toBe("accessories");
+    expect(categoryOf("costume")).toBe("accessories");
+  });
+  it("every kind has a category, and every category a name a player reads", () => {
+    for (const kind of ITEM_KINDS) expect(SHOP_CATEGORIES).toContain(categoryOf(kind));
+    expect(SHOP_CATEGORIES.map((c) => CATEGORY_NAME[c])).toEqual(["Card faces", "Accessories"]);
+  });
+  it("puts each shown card in its category, in registry order, and the test placeholder in none", () => {
+    const metaOf = (id: number) => ({ 1: null, 2: face, 3: slab, 4: hat, 5: face }[id] ?? null);
+    const cards = shopCards([1, 2, 3, 4, 5].map((id) => item({ id })), metaOf, true);
+    const { categories, placeholders } = byCategory(cards);
+    expect(categories.faces.map((c) => c.item.id)).toEqual([2, 5]);
+    expect(categories.accessories.map((c) => c.item.id)).toEqual([3, 4]);
+    expect(placeholders.map((c) => c.item.id)).toEqual([1]);
+    // nothing shown is lost, and nothing is in two places
+    expect(categories.faces.length + categories.accessories.length + placeholders.length).toBe(cards.length);
+  });
+  it("an empty Shop has two empty categories", () => {
+    expect(byCategory([])).toEqual({ categories: { faces: [], accessories: [] }, placeholders: [] });
+  });
+  it("only a category's own name is a link to it", () => {
+    expect(isShopCategory("faces")).toBe(true);
+    expect(isShopCategory("accessories")).toBe(true);
+    for (const v of ["letters", "words", "scene", "", undefined, null, 3]) expect(isShopCategory(v)).toBe(false);
+  });
+});
+
+describe("a limited edition (the Shop's supply limit)", () => {
+  it("no limit is no edition", () => {
+    expect(edition(item({ maxSupply: 0, sold: 10_000 }))).toBeNull();
+  });
+  it("says how many were made and how many are left", () => {
+    expect(edition(item({ maxSupply: 25, sold: 0 }))).toEqual({ made: 25, left: 25 });
+    expect(edition(item({ maxSupply: 25, sold: 24 }))).toEqual({ made: 25, left: 1 });
+    expect(edition(item({ maxSupply: 25, sold: 25 }))).toEqual({ made: 25, left: 0 });
+  });
+  it("never says fewer than none are left (a limit lowered to what sold, or a count read late)", () => {
+    expect(edition(item({ maxSupply: 25, sold: 26 }))).toEqual({ made: 25, left: 0 });
+  });
+  it("agrees with what can be bought: none left is sold out, and one left is on sale", () => {
+    for (const sold of [0, 1, 24, 25]) {
+      const it2 = item({ maxSupply: 25, sold });
+      expect(edition(it2)!.left === 0).toBe(availability(it2, 0) === "sold_out");
+    }
+  });
+  it("reads plainly on a card, with no promise that the limit can never change", () => {
+    expect(editionLine({ made: 25, left: 24 })).toBe("Limited edition of 25. 24 left.");
+    expect(editionLine({ made: 25, left: 0 })).toBe("Limited edition of 25. None left.");
+    expect(editionLine({ made: 2500, left: 1200 })).toBe("Limited edition of 2,500. 1,200 left.");
+    for (const e of [{ made: 25, left: 24 }, { made: 25, left: 0 }]) expect(editionLine(e)).not.toMatch(/ever|never|for good|only/i);
   });
 });
 

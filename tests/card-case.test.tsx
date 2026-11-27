@@ -150,7 +150,7 @@ describe("a card in its case", () => {
     await waitFor(() => expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(1).toFixed(1)}deg)`), { timeout: SETTLE_MS });
     expect((side(".cc-backface") as HTMLElement).style.visibility).toBe("visible");
     expect((side(".cc-frontface") as HTMLElement).style.visibility).toBe("hidden");
-    const home = screen.getByRole("button", { name: "Show JAZZY’s scene" });
+    const home = screen.getByRole("button", { name: "Show JAZZY’s front" });
     // (the last frames round to the rest angle before the turn's end hands the focus over)
     await waitFor(() => expect(document.activeElement).toBe(home), { timeout: SETTLE_MS });
     fireEvent.click(home);
@@ -180,9 +180,9 @@ describe("a card in its case", () => {
     // no turn is drawn: the back is up in the same instant
     expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(1).toFixed(1)}deg)`);
     expect((container.querySelector(".cc-backface") as HTMLElement).style.visibility).toBe("visible");
-    const home = screen.getByRole("button", { name: "Show JAZZY’s scene" });
+    const home = screen.getByRole("button", { name: "Show JAZZY’s front" });
     await waitFor(() => expect(document.activeElement).toBe(home), { timeout: SETTLE_MS });
-    expect(sent).toEqual([{ label: "Show JAZZY’s scene", inert: false }]);
+    expect(sent).toEqual([{ label: "Show JAZZY’s front", inert: false }]);
   });
 
   it("turns with a drag only where its host says so", () => {

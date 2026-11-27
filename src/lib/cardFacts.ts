@@ -75,9 +75,24 @@ export function practiceNumbers(words: readonly { word: string; since?: number }
   return Object.fromEntries(sorted.map((w, i) => [w.word.toUpperCase(), i + 1]));
 }
 
+/** The longest a partner's name runs on the back's one line, beside "· 1 of 5" (a name may be 60 characters). */
+export const BACK_PARTNER_MAX = 26;
+
+/**
+ * A collab word's line: its partner, and that it is one of the set's five ("Test partner · 1 of 5").
+ * `short` is for the card's BACK, where it is ONE line in a narrow column: a long name is cut with
+ * an ellipsis here, in the text itself, so the game's back and the server's picture (which has no
+ * way to clip a line) agree and neither runs into the ledger beside it. The row under an opened
+ * card has room and wraps, so it gets the whole name.
+ */
+export function collabLine(partner: string, short = false, of = 5): string {
+  const name = short && partner.length > BACK_PARTNER_MAX ? `${partner.slice(0, BACK_PARTNER_MAX - 1).trimEnd()}…` : partner;
+  return `${name} · 1 of ${of}`;
+}
+
 /** How many words share its tier: "one of 46 Mythic words". */
-export function tierCount(tier: Tier): number {
-  return TIER_COUNTS[tier];
+export function tierCount(tier: Tier, counts: Readonly<Record<Tier, number>> = TIER_COUNTS): number {
+  return counts[tier];
 }
 
 /** The word's case in words: lowercase, UPPERCASE, or Mixed with how many are raised. */
@@ -172,7 +187,7 @@ export interface EarnShape {
  * in that weight (at its current weight, halved if peckish), so it comes out first: estimating it
  * as a newcomer would count it twice (Bugbot on #211).
  */
-export function earnsStaked(w: EarnShape, today: { pot: number; weight: number }): number | null {
-  const counted = yieldWeight({ word: w.word, staked: w.staked, upperAll: w.upper.every(Boolean), daysUnfed: w.daysUnfed, prestigeLevel: w.prestigeLevel });
-  return dailyEarnEstimate(w, { pot: today.pot, weight: Math.max(0, today.weight - counted) });
+export function earnsStaked(w: EarnShape, today: { pot: number; weight: number }, tier: (word: string) => Tier): number | null {
+  const counted = yieldWeight({ word: w.word, staked: w.staked, upperAll: w.upper.every(Boolean), daysUnfed: w.daysUnfed, prestigeLevel: w.prestigeLevel }, tier);
+  return dailyEarnEstimate(w, { pot: today.pot, weight: Math.max(0, today.weight - counted) }, tier);
 }

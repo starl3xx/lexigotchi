@@ -15,7 +15,8 @@
  *   player's name can't be read as formatting. A name is never written with an "@".
  * - **House copy rules** (tests/telegram-alerts.test.ts): curly apostrophes, no em dashes.
  */
-import { wordTier, TIER_COUNTS, type Tier } from "./economy";
+import type { Tier } from "./economy";
+import { tierCountsWith, tierWith, type CollabWords } from "./rarity";
 import { showcaseCardUrl, showcaseWordText } from "./showcase";
 import { readClaimsBetween, type Claim } from "./onchain/claims";
 import { readChainTime } from "./onchain/reads";
@@ -41,24 +42,24 @@ export const ALERTS_PER_RUN = 3;
 const HEADING: Partial<Record<Tier, { emoji: string; rule: number }>> = { Mythic: { emoji: "💎", rule: 16 } };
 const PLAIN_HEADING = { emoji: "💎", rule: 16 };
 
-/** True for a claim worth an alert: a word of an alerted tier. */
-export function isAlertWord(word: string): boolean {
-  return ALERT_TIERS.includes(wordTier(word));
+/** True for a claim worth an alert: a word of an alerted tier, as the game treats it (`collab`: lib/rarity.ts). */
+export function isAlertWord(word: string, collab: CollabWords): boolean {
+  return ALERT_TIERS.includes(tierWith(word, collab));
 }
 
 /**
  * The alert for one claim: its words (the photo's caption, or the message when the card can't be
  * drawn), where its heading's label sits, and the card's address, in the case the word was made in.
  */
-export function alertPost(claim: Pick<Claim, "word" | "upper">, maker: string): { text: string; bold: { offset: number; length: number }[]; photoUrl: string } {
-  const tier = wordTier(claim.word);
+export function alertPost(claim: Pick<Claim, "word" | "upper">, maker: string, collab: CollabWords & { get?(word: string): { mark: string } | undefined }): { text: string; bold: { offset: number; length: number }[]; photoUrl: string } {
+  const tier = tierWith(claim.word, collab);
   const { emoji, rule } = HEADING[tier] ?? PLAIN_HEADING;
   const head = `${emoji} `;
   const label = `${tier} word`;
   return {
-    text: `${head}${label}\n${"-".repeat(rule)}\n${maker} just made ${claim.word}, one of the game’s ${TIER_COUNTS[tier].toLocaleString("en-US")} ${tier} words.`,
+    text: `${head}${label}\n${"-".repeat(rule)}\n${maker} just made ${claim.word}, one of the game’s ${tierCountsWith(collab)[tier].toLocaleString("en-US")} ${tier} words.`,
     bold: [{ offset: head.length, length: label.length }],
-    photoUrl: showcaseCardUrl(showcaseWordText(claim.word, claim.upper), "x", undefined, true),
+    photoUrl: showcaseCardUrl(showcaseWordText(claim.word, claim.upper), "x", undefined, true, undefined, collab.get?.(claim.word.toUpperCase())?.mark),
   };
 }
 
@@ -68,7 +69,7 @@ export function alertMark(claim: Pick<Claim, "transactionHash" | "logIndex">): s
 }
 
 /** The fresh claims worth an alert, oldest first. Throws when the chain can't be read. */
-export async function readAlertClaims(): Promise<Claim[]> {
+export async function readAlertClaims(collab: CollabWords): Promise<Claim[]> {
   const now = await readChainTime();
-  return (await readClaimsBetween(now - ALERT_WINDOW_S)).filter((c) => isAlertWord(c.word));
+  return (await readClaimsBetween(now - ALERT_WINDOW_S)).filter((c) => isAlertWord(c.word, collab));
 }

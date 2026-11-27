@@ -23,15 +23,27 @@ const Y1 = WIN.y + WIN.h;
 const clip = (id: string) => `<clipPath id="${id}"><rect x="${WIN.x}" y="${WIN.y}" width="${WIN.w}" height="${WIN.h}" rx="${WIN.r}"/></clipPath>`;
 
 /**
- * Stock: no place at all, and nearly no colour. A grey engraving (a sunburst, a woven medallion)
- * over a tiled floor drawn in perspective, with the rarity as an overtone: a wash of its tint
- * behind the word, and its ink on the medallion's beads and the line where wall meets floor.
+ * What the two stock faces share: where the medallion sits, where the wall meets the floor, and
+ * the floor itself. One drawing, so the dark stock face is the light one's own engraving and can
+ * never drift from it.
  */
-export function stock(L: CardLook): string {
+/**
+ * The stock card's wash of colour behind the word. A rarity's is one tint, fading out. A collab
+ * set's is its two colors (lib/collabLook.ts `collabCardLook`): the first behind the word, the
+ * second toward the card's edges, a little stronger there so both show. The card stays grey first.
+ */
+function wash(L: CardLook & { tint2?: string }): string {
+  const at = (v: number) => n1(v * L.wash * 100) / 100;
+  const stops = L.tint2
+    ? [`<stop offset="0" stop-color="${L.tint}" stop-opacity="${at(0.28)}"/>`, `<stop offset="0.5" stop-color="${L.tint}" stop-opacity="${at(0.13)}"/>`, `<stop offset="0.72" stop-color="${L.tint2}" stop-opacity="${at(0.16)}"/>`, `<stop offset="1" stop-color="${L.tint2}" stop-opacity="${at(0.3)}"/>`]
+    : [`<stop offset="0" stop-color="${L.tint}" stop-opacity="${at(0.28)}"/>`, `<stop offset="0.55" stop-color="${L.tint}" stop-opacity="${at(0.11)}"/>`, `<stop offset="1" stop-color="${L.tint}" stop-opacity="${at(0.03)}"/>`];
+  return `<radialGradient id="tint" cx="0.5" cy="0.56" r="0.72">${stops.join("")}</radialGradient>`;
+}
+
+function stockPlan() {
   const cx = W / 2;
   const cy = 296;
   const yh = FEET_Y - 64; // where the wall meets the floor (the floor's horizon)
-  const g = GRAPHITE;
   // The floor: tiles in one-point perspective. Columns fan out from the vanishing point, so a
   // fixed number of them covers the card's width only near the front; each row takes as many as
   // reach both edges at its own depth (starl3xx, 2026-11-25: the checks ended at the word's ends).
@@ -54,9 +66,20 @@ export function stock(L: CardLook): string {
   const nFar = reach(far);
   for (let k = -nFar; k <= nFar; k++) lines += `M${n1(colAt(k, far))} ${n1(far)}L${n1(colAt(k, Y1 + 34))} ${n1(Y1 + 34)}`;
   for (const y of rows) lines += `M${X0} ${n1(y)}H${X1}`;
+  return { cx, cy, yh, checks, lines, far };
+}
+
+/**
+ * Stock: no place at all, and nearly no colour. A grey engraving (a sunburst, a woven medallion)
+ * over a tiled floor drawn in perspective, with the rarity as an overtone: a wash of its tint
+ * behind the word, and its ink on the medallion's beads and the line where wall meets floor.
+ */
+export function stock(L: CardLook & { tint2?: string }): string {
+  const { cx, cy, yh, checks, lines, far } = stockPlan();
+  const g = GRAPHITE;
   return `<defs>${clip("w")}${hatch("far", 0, 4, g, 1, 0.26)}
     <radialGradient id="glow" cx="0.5" cy="0.42" r="0.55"><stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
-    <radialGradient id="tint" cx="0.5" cy="0.56" r="0.72"><stop offset="0" stop-color="${L.tint}" stop-opacity="${n1(0.28 * L.wash * 100) / 100}"/><stop offset="0.55" stop-color="${L.tint}" stop-opacity="${n1(0.11 * L.wash * 100) / 100}"/><stop offset="1" stop-color="${L.tint}" stop-opacity="${n1(0.03 * L.wash * 100) / 100}"/></radialGradient>
+    ${wash(L)}
     <linearGradient id="deep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${g}" stop-opacity="0.16"/><stop offset="0.5" stop-color="${g}" stop-opacity="0"/></linearGradient>
     <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${NEUTRAL.floor}" stop-opacity="0.9"/><stop offset="0.4" stop-color="${NEUTRAL.floor}" stop-opacity="0"/></linearGradient></defs>
   <g clip-path="url(#w)">
@@ -79,6 +102,83 @@ export function stock(L: CardLook): string {
     <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="url(#tint)"/>
     <line x1="${X0}" y1="${yh}" x2="${X1}" y2="${yh}" stroke="${L.ink}" stroke-width="3.2"/>
     <line x1="${X0}" y1="${yh + 6}" x2="${X1}" y2="${yh + 6}" stroke="${g}" stroke-width="1" opacity="0.6"/>
+  </g>`;
+}
+
+/**
+ * The dark stock face's plate (decisions.md #57): pewter, a warm mid grey. The owner chose it from
+ * four (2026-11-27). Of the first, near-black plate: "I like A for the dark stock, but it's way too
+ * dark"; then, of three lighter steps: "i actually really like pewter".
+ *
+ * - `field` and `floor`: the wall and the floor (a shade deeper).
+ * - `line`: the engraving, pale where the light stock's is graphite. `lines` is how much stronger
+ *   it is drawn than on the light stock: a pale line on a mid grey fades at the light stock's weight.
+ * - `mark`: how far the rarity's tint is taken toward white for the beads and the line where the
+ *   wall meets the floor (the light stock prints those in the rarity's ink, which is too dark here).
+ * - `wall` and `pool`: THE LIGHT THE WORD STANDS IN. A letter's arms, legs, and shoes are dark ink,
+ *   so on a dark plate they are lost unless the wall behind the word and the floor under it are
+ *   lit. On the first, near-black plate the tiles seemed to float. A new dark face needs the same.
+ * - `edge`: how much the corners fall off into shadow.
+ */
+export const PEWTER = { field: "#706b65", floor: "#615c56", line: "#efe6d2", lines: 1.4, mark: 0.4, wall: 0.18, pool: 0.26, edge: 0.13 } as const;
+
+const channels = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+/** One colour taken a share `t` of the way to another. */
+function mix(a: string, b: string, t: number): string {
+  const [x, y] = [channels(a), channels(b)];
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+/** A soft ellipse of light: a radial gradient in the card's own units, squashed to `ry`. */
+function lightPool(id: string, cx: number, cy: number, rx: number, ry: number, color: string, at: number): string {
+  const squash = n1((ry / rx) * 1000) / 1000;
+  return `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${cx}" cy="${cy}" r="${rx}" gradientTransform="translate(0 ${cy}) scale(1 ${squash}) translate(0 ${-cy})"><stop offset="0" stop-color="${color}" stop-opacity="${n1(at * 100) / 100}"/><stop offset="0.5" stop-color="${color}" stop-opacity="${n1(at * 52) / 100}"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`;
+}
+
+/**
+ * Dark stock: the stock face's own engraving (stockPlan), printed on a pewter plate in pale line.
+ * The rarity is still an overtone and never the plate: a glow of its tint behind the word, and its
+ * tint on the medallion's beads and the line where wall meets floor. Grey first, as the light
+ * stock is (starl3xx, 2026-11-25: "grayscale with rarity color overtones").
+ */
+export function darkStock(L: CardLook): string {
+  const { cx, cy, yh, checks, lines, far } = stockPlan();
+  const P = PEWTER;
+  const g = P.line;
+  const o = (v: number) => n1(v * P.lines * 100) / 100; // a line's strength, from the light stock's
+  const mark = mix(L.tint, "#ffffff", P.mark);
+  const light = mix(L.tint, "#f3ecdc", 0.72);
+  // The glow follows the rarity's wash, but less steeply than the light stock's: on grey a faint
+  // tint is lost, so even the lightest wash (the green) keeps a little over half.
+  const glow = 0.3 * Math.min(1, 0.55 + L.wash * 0.5);
+  return `<defs>${clip("w")}${hatch("far", 0, 4, g, 1, o(0.2))}
+    <radialGradient id="glow" cx="0.5" cy="0.44" r="0.6"><stop offset="0" stop-color="${L.tint}" stop-opacity="${n1(glow * 100) / 100}"/><stop offset="0.45" stop-color="${L.tint}" stop-opacity="${n1(glow * 38) / 100}"/><stop offset="1" stop-color="${L.tint}" stop-opacity="0"/></radialGradient>
+    ${lightPool("wall", cx, yh - 46, 640, 190, light, P.wall)}
+    ${lightPool("pool", cx, FEET_Y + 4, 640, 92, light, P.pool)}
+    <radialGradient id="edge" cx="0.5" cy="0.5" r="0.75"><stop offset="0.55" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="${P.edge}"/></radialGradient>
+    <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.floor}" stop-opacity="0.92"/><stop offset="0.42" stop-color="${P.floor}" stop-opacity="0"/></linearGradient></defs>
+  <g clip-path="url(#w)">
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="${P.field}"/>
+    <path d="${sunburst(cx, cy, 250, 900, 48, 0.5)}" fill="${g}" opacity="${o(0.05)}"/>
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${yh - Y0}" fill="url(#glow)"/>
+    ${guilloche("r1", cx, cy, 194, 26, 18, 6, g, 1.1, o(0.34))}
+    ${guilloche("r2", cx, cy, 136, 32, 12, 5, g, 1.1, o(0.26))}
+    <circle cx="${cx}" cy="${cy}" r="232" fill="none" stroke="${g}" stroke-width="2" opacity="${o(0.5)}"/>
+    ${beadRing(cx, cy, 241, 10.1, 1.8, mark, 0.95)}
+    <circle cx="${cx}" cy="${cy}" r="250" fill="none" stroke="${g}" stroke-width="1" opacity="${o(0.5)}"/>
+    <!-- the light the word stands in, on the wall behind it -->
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${yh - Y0}" fill="url(#wall)"/>
+    <!-- the floor: far tiles blur into a ruled tone, near tiles are drawn one by one -->
+    <rect x="${X0}" y="${yh}" width="${WIN.w}" height="${Y1 - yh}" fill="${P.floor}"/>
+    <rect x="${X0}" y="${yh}" width="${WIN.w}" height="${n1(far - yh)}" fill="url(#far)"/>
+    <path d="${checks}" fill="${g}" opacity="${o(0.07)}"/>
+    <path d="${lines}" fill="none" stroke="${g}" stroke-width="1" opacity="${o(0.2)}"/>
+    <!-- distance: the far tiles fade into the floor's own tone -->
+    <rect x="${X0}" y="${yh}" width="${WIN.w}" height="${Y1 - yh}" fill="url(#haze)"/>
+    <!-- the light the word stands in, on the floor under it -->
+    <rect x="${X0}" y="${yh}" width="${WIN.w}" height="${Y1 - yh}" fill="url(#pool)"/>
+    <rect x="${X0}" y="${Y0}" width="${WIN.w}" height="${WIN.h}" fill="url(#edge)"/>
+    <line x1="${X0}" y1="${yh}" x2="${X1}" y2="${yh}" stroke="${mark}" stroke-width="3.2"/>
+    <line x1="${X0}" y1="${yh + 6}" x2="${X1}" y2="${yh + 6}" stroke="${g}" stroke-width="1" opacity="${o(0.55)}"/>
   </g>`;
 }
 
@@ -488,13 +588,24 @@ export function frame(L: CardLook, tier: Tier): string {
 }
 
 
-/** Scenes printed on a dark plate: the card's own light is shown fainter over them (white shows far
- *  more on navy than on a pale scene; globals.css, .cf-dark). */
-export const DARK_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["space"]);
+/** Faces printed on a dark plate: the card's own light is shown fainter over them (white shows far
+ *  more on navy or pewter than on a pale face), and a hungry word's fog is thinner (the fog is pale,
+ *  so on a dark plate it is a bright cloud that hides the word): globals.css, .cf-dark. */
+export const DARK_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["darkstock", "space"]);
 
-/** Each scene's art for the window. Only the stock card takes the rarity: a place has inks of its own. */
+/**
+ * The faces printed in the word's rarity: the two stock faces. Every other face is a place with
+ * inks of its own, the same picture for every word. **Anything that keeps a face's picture must
+ * keep these per rarity** (SceneFrame's `sceneArtImage` does): the cache once named the light stock
+ * alone, and every dark stock card on a page took the colour of the first rarity drawn (Bugbot on
+ * #303). A new face that takes the rarity joins this list, and a test holds the list to the drawings.
+ */
+export const RARITY_FACES: ReadonlySet<SceneId> = new Set<SceneId>(["stock", "darkstock"]);
+
+/** Each face's art for the window. Only the faces in RARITY_FACES take the rarity. */
 const ART: Record<SceneId, (L: CardLook) => string> = {
   stock,
+  darkstock: darkStock,
   stage: () => stage(),
   trophy: () => trophy(),
   spring: () => spring(),
@@ -502,14 +613,18 @@ const ART: Record<SceneId, (L: CardLook) => string> = {
   space: () => space(),
 };
 
-/** A scene's art (the window's picture) for a word of this rarity, as SVG markup for svgDoc. */
-export function cardArt(scene: SceneId, tier: Tier): string {
-  return ART[scene](CARD_LOOKS[tier]);
+/**
+ * A scene's art (the window's picture) for a word of this rarity, as SVG markup for svgDoc. `look`
+ * is a collab word's own look in place of its rarity's (lib/collabLook.ts): the stock card is then
+ * the collab stock, in the set's two colors.
+ */
+export function cardArt(scene: SceneId, tier: Tier, look?: CardLook & { tint2?: string }): string {
+  return ART[scene](look ?? CARD_LOOKS[tier]);
 }
 
-/** The frame for a word of this rarity, as SVG markup for svgDoc. */
-export function cardFrame(tier: Tier): string {
-  return frame(CARD_LOOKS[tier], tier);
+/** The frame for a word of this rarity, as SVG markup for svgDoc. A collab word's is printed in its look's ink; its corners still carry its rarity's mark. */
+export function cardFrame(tier: Tier, look?: CardLook): string {
+  return frame(look ?? CARD_LOOKS[tier], tier);
 }
 
 /**

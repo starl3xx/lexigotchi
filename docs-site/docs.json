@@ -14,6 +14,11 @@
       "dark": "#14212b"
     }
   },
+  "logo": {
+    "light": "/logo/lockup.svg",
+    "dark": "/logo/lockup-on-dark.svg",
+    "href": "https://lexigotchi.fun"
+  },
   "favicon": "/favicon.png",
   "navbar": {
     "links": [
@@ -29,7 +34,7 @@
   "navigation": {
     "groups": [
       { "group": "Get started", "pages": ["index", "quickstart", "profile"] },
-      { "group": "Play", "pages": ["letters", "rolls", "words", "sets", "care", "jackpot", "bounty", "earning", "ascension", "showcase-and-swap"] },
+      { "group": "Play", "pages": ["letters", "rolls", "words", "sets", "care", "jackpot", "bounty", "earning", "ascension", "showcase-and-swap", "shop"] },
       { "group": "$WORD", "pages": ["word", "fees"] },
       { "group": "More", "pages": ["fairness", "contracts", "lets-have-a-word", "faq"] }
     ]

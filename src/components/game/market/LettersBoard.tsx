@@ -15,7 +15,7 @@
  * word with its gap, and links to every word that letter finishes, in the Dictionary.
  */
 import { useEffect, useRef, useState } from "react";
-import { ALPHABET, wordTier } from "@/lib/economy";
+import { ALPHABET } from "@/lib/economy";
 import { isUpperId, letterLabel, letterMakeCost, letterStalls } from "@/lib/market/deals";
 import type { LetterAsk, LetterBook } from "@/lib/market/types";
 import { finishTokens, wordNeed, type LetterBag } from "@/lib/wordNeed";
@@ -27,6 +27,7 @@ import { PlayerChip } from "../PlayerChip";
 import { fmtWord, mineLower, mineUpper, useGame } from "../state";
 import { useOpenWord } from "../useDictionary";
 import { Qty, Versus, timeAgo, useAmount } from "./bits";
+import { useTierOf } from "../useRarity";
 
 export function LettersBoard({
   open,
@@ -148,6 +149,7 @@ function Counter({
   onSell: (letterId: number) => void;
   onClose: () => void;
 }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const ch = ALPHABET[index];
   const heldLower = mineLower(g.state)[index] ?? 0;
@@ -173,7 +175,7 @@ function Counter({
                   <NeedText tokens={finishTokens(ch.toLowerCase(), heldLower + heldUpper > 0, first)} />
                 </span>
                 <button type="button" className="word-press" aria-label={`Open ${first}`} onClick={() => openWord(first)}>
-                  <MiniTiles word={first} upper={need.upper} letters={need.letters} tier={wordTier(first)} />
+                  <MiniTiles word={first} upper={need.upper} letters={need.letters} tier={tierOf(first)} />
                 </button>
                 {finishes.length > 1 && (
                   <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${ch.toLowerCase()}`)}>

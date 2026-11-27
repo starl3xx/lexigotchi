@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
+import { Lockup } from "@/components/brand/Lockup";
 import { WordStripLive } from "@/components/WordStrip";
-import { wordTier } from "@/lib/economy";
+import { tierWith } from "@/lib/rarity";
+import { collabSoon } from "@/lib/raritySoon";
 import { isWord } from "@/lib/dictionary";
 import { parseLinkStage, parseShowcase, showcaseCardUrl, showcaseText, showcaseUrl } from "@/lib/showcase";
 import { cardLevelSoon } from "@/lib/onchain/cardLevel";
@@ -33,9 +35,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const description = "Lexigotchi is a word-pet game on Base. Collect letters, raise them, and spell words only you can own.";
   // The pictures' addresses name the word's stage (read from the chain, never from this link), so a
   // word shared again after an ascension gets pictures at new addresses (lib/showcase, stageQuery).
-  const stage = await stageOf(tiles.map((t) => t.char).join(""), parseLinkStage((await searchParams).g));
-  const card = { url: showcaseCardUrl(text, "x", scene, false, stage), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
-  const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene, false, stage));
+  const plain = tiles.map((t) => t.char).join("");
+  const stage = await stageOf(plain, parseLinkStage((await searchParams).g));
+  // And its collab look, read from the sets (lib/showcase, markQuery): a word shared again after
+  // its set's reveal gets pictures at new addresses too.
+  const mark = (await collabSoon()).get(plain.toUpperCase())?.mark;
+  const card = { url: showcaseCardUrl(text, "x", scene, false, stage, mark), width: 1200, height: 630, alt: `${text} in Lexigotchi tiles, ${sceneMeta(scene).name}` };
+  const embeds = embedsWithImage(showcaseCardUrl(text, "fc", scene, false, stage, mark));
   return {
     title,
     description,
@@ -69,18 +75,23 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
   // A house card (HEYOO) is no dictionary word: it has no rarity and no number, and its card says so
   // by carrying no ribbon. A word's number is the chain's, never the link's, and the page waits
   // for it only a moment (cardNumberSoon).
-  const tier = isWord(word) ? wordTier(word) : undefined;
+  const collab = await collabSoon();
+  const tier = isWord(word) ? tierWith(word, collab) : undefined;
+  // The word's collab look, handed to the card: this page is outside the game, where a card looks
+  // its own up. `null` for any other word (and a house card).
+  const look = collab.get(word.toUpperCase()) ?? null;
   const [number, stage] = await Promise.all([tier ? cardNumberSoon(word) : null, stageOf(word, parseLinkStage((await searchParams).g))]);
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-8 bg-paper px-4 py-12 text-ink">
-      <p className="rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider shadow-[2px_2px_0_#1b1714]">
-        A Lexigotchi showcase
-      </p>
+      {/* the game's lockup, alive, where a gold label said "A Lexigotchi showcase" (decisions.md #56, part 3) */}
+      <Link href="/" aria-label="Lexigotchi: how it works">
+        <Lockup alive height={40} />
+      </Link>
       {/* the card stands on the page (globals.css, .card-stand): its block shadow is on a box of its own, under its ink edge */}
       <div className="card-stand w-full max-w-3xl" style={{ "--card-sy": "4px" } as CSSProperties}>
         <div className="card-corner overflow-hidden border-[3px] border-ink">
-          <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} />
+          <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} collab={look} />
         </div>
       </div>
       <h1 className="sr-only">{text}</h1>

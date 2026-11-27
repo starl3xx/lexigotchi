@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isChainBacked } from "@/lib/onchain/gameMode";
 import { mayPostUnasked, sendMessage, sendPhoto, telegramConfigured } from "@/lib/telegram";
 import { ALERTS_PER_RUN, alertMark, alertPost, readAlertClaims } from "@/lib/telegramAlerts";
+import { collabSoon } from "@/lib/raritySoon";
 import { nameOf } from "@/lib/telegramCommands";
 import { claimMark, hasMark, releaseMark } from "@/lib/db/reminderMarks";
 
@@ -51,9 +52,12 @@ export async function GET(req: Request) {
   if (!telegramConfigured()) return skip("telegram_not_configured");
   if (!isChainBacked()) return skip("practice_mode");
 
+  // Which claims are worth an alert, and what the alert says of the word's rarity, follow the
+  // game's tiers (a collab word is Legendary). Asked once for the whole run.
+  const collab = await collabSoon();
   let claims;
   try {
-    claims = await readAlertClaims();
+    claims = await readAlertClaims(collab);
   } catch (err) {
     // Nothing is lost: the claims are still fresh at the next run.
     console.error("[cron/telegram-alerts] couldn't read the claims:", String((err as Error)?.message ?? err).slice(0, 200));
@@ -69,7 +73,7 @@ export async function GET(req: Request) {
     // Told already (or it can't be told whether it was): nothing to do, and nothing to fetch.
     if ((await hasMark(MARK.account, MARK.kind, mark)) !== false) continue;
     // The slow work first, the claim last: see the route's header.
-    const post = alertPost(claim, await nameOf(claim.owner));
+    const post = alertPost(claim, await nameOf(claim.owner), collab);
     // The card, uploaded by us as the welcome's is; without it the words still go.
     const card = await fetch(post.photoUrl, { signal: AbortSignal.timeout(15_000) })
       .then((res) => (res.ok ? res.blob() : null))

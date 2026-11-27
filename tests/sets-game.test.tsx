@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PublicSet } from "@/lib/sets/rules";
-import { firstDayNote, firstDayRule, leftText, releasedSetNames, setLines, setsPollMs } from "@/components/game/sets";
+import { firstDayAhead, firstDayNote, firstDayRule, leftText, releasedSetNames, setLines, setsPollMs } from "@/components/game/sets";
 import { SetsSection } from "@/components/game/SetsSection";
 
 const NOW = Date.parse("2026-12-01T12:00:00Z");
@@ -23,6 +23,9 @@ const revealed = (releaseAt: string | null): PublicSet => ({
   id: 2,
   name: "Kitchen",
   words: [{ word: "CRANE", headliner: true }, { word: "MOTEL", headliner: false }],
+  collab: null,
+  firstDay: "verified",
+  firstDayLabel: null,
   releaseAt,
 });
 const released = (gateUntil: string | null, perPlayerLimit = 1): PublicSet => ({
@@ -30,6 +33,9 @@ const released = (gateUntil: string | null, perPlayerLimit = 1): PublicSet => ({
   id: 3,
   name: "Garden",
   words: [{ word: "GRAPE", headliner: false }, { word: "BLAZE", headliner: false }],
+  collab: null,
+  firstDay: "verified",
+  firstDayLabel: null,
   releasedAt: iso(NOW - H),
   gateUntil,
   perPlayerLimit,
@@ -80,6 +86,27 @@ describe("what a set says of itself", () => {
     expect(firstDayNote(3)).toContain("up to 3 words");
     expect(firstDayNote(1)).not.toMatch(/today/i);
   });
+  it("a first day with its own rule says who it is open to, in the operator's words or the plain ones, and still asks for a verified player", () => {
+    expect(firstDayNote(1, "token", "holders of a test token")).toBe(
+      "The first day is open to holders of a test token. Each of them who is verified can claim one word until the set opens to everyone. After that, every word that’s left is open to all.",
+    );
+    expect(firstDayNote(2, "allowlist", null)).toContain("open to players on this set’s list. Each of them who is verified can claim up to 2 words");
+    expect(firstDayNote(1, "token", "  ")).toContain("open to holders of this set’s token.");
+    expect(firstDayNote(1, "verified", "ignored")).toBe(firstDayNote(1));
+    expect(firstDayAhead("players on this set’s list")).toBe("Its first day is open to players on this set’s list.");
+  });
+  it("a set's lines carry its partner always, and who its first day is open to only until that day ends", () => {
+    const collab = { partner: "P", url: null, colorA: "#112233", colorB: "#aabbcc", stamp: null };
+    const ruled = { collab, firstDay: "allowlist" as const, firstDayLabel: "friends" };
+    expect(setLines({ ...revealed(null), ...ruled }, NOW)).toMatchObject({ partner: { name: "P", url: null }, openTo: "friends" });
+    expect(setLines({ ...released(iso(NOW + H)), ...ruled }, NOW)).toMatchObject({ partner: { name: "P" }, openTo: "friends", gated: true });
+    const over = setLines({ ...released(iso(NOW - H)), ...ruled }, NOW);
+    expect(over.partner).toEqual({ name: "P", url: null });
+    expect(over.openTo).toBeUndefined();
+    expect(setLines(revealed(null), NOW).partner).toBeUndefined();
+    // where the network's Words has no gate, nothing is said of who a first day is open to
+    expect(setLines({ ...revealed(null), ...ruled }, NOW, false).openTo).toBeUndefined();
+  });
   it("asks about the sets every minute, and every few seconds around a set's unlock", () => {
     expect(setsPollMs([], NOW)).toBe(60_000);
     expect(setsPollMs([locked, released(null), revealed(iso(NOW + 26 * H)), revealed(null)], NOW)).toBe(60_000);
@@ -93,9 +120,9 @@ describe("what a set says of itself", () => {
 });
 
 // --- the Dictionary's section ---
-const sets = vi.hoisted(() => ({ known: true, list: [] as unknown[], opened: [] as string[] }));
+const sets = vi.hoisted(() => ({ known: true, list: [] as unknown[], opened: [] as string[], gate: true }));
 vi.mock("@/components/game/useSets", () => ({
-  useSets: () => ({ known: sets.known, sets: sets.list, setNameOf: () => undefined, released: undefined, gate: false }),
+  useSets: () => ({ known: sets.known, sets: sets.list, setNameOf: () => undefined, released: undefined, gate: sets.gate }),
   useMinuteClock: () => Date.parse("2026-12-01T12:00:00Z"),
 }));
 vi.mock("@/components/game/useDictionary", () => ({ useOpenWord: () => (w: string) => void sets.opened.push(w) }));
@@ -103,6 +130,7 @@ vi.mock("@/components/game/useDictionary", () => ({ useOpenWord: () => (w: strin
 afterEach(() => {
   cleanup();
   sets.known = true;
+  sets.gate = true;
   sets.list = [];
   sets.opened = [];
 });
@@ -142,6 +170,46 @@ describe("the Dictionary's Sets section", () => {
     expect(screen.getByText("Opens to everyone in 5 h 00 min")).toBeTruthy();
     fireEvent.click(screen.getByText("GRAPE"));
     expect(sets.opened).toEqual(["GRAPE"]);
+  });
+
+  it("a collab set says it is a collaboration, with the partner's name and link, before and after its unlock", async () => {
+    const partner = { partner: "Test partner", url: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc", stamp: null };
+    sets.list = [{ ...revealed(iso(NOW + 26 * H)), collab: partner }, { ...released(iso(NOW - H)), collab: { ...partner, url: null } }];
+    render(<SetsSection />);
+    expect(screen.getAllByText(/A collaboration with/)).toHaveLength(2);
+    const link = screen.getAllByText("Test partner")[0].closest("a")!;
+    expect(link.getAttribute("href")).toBe("https://partner.example/");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer nofollow"); // an outside link, opened apart from the game
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(screen.getAllByText("Test partner")[1].closest("a")).toBeNull(); // no link: only the name
+  });
+
+  it("says who a first day with its own rule is open to: before the unlock, and during the day", async () => {
+    sets.list = [
+      { ...revealed(iso(NOW + 26 * H)), firstDay: "token", firstDayLabel: "holders of a test token" },
+      { ...released(iso(NOW + 5 * H)), firstDay: "allowlist", firstDayLabel: null },
+    ];
+    render(<SetsSection />);
+    expect(screen.getByText("Its first day is open to holders of a test token.")).toBeTruthy();
+    expect(screen.getByText(/The first day is open to players on this set’s list\. Each of them who is verified can claim one word/)).toBeTruthy();
+  });
+
+  it("says nothing of a first day's rule on a network that can't enforce one: there the set opens to everyone at once", async () => {
+    sets.gate = false;
+    sets.list = [{ ...revealed(iso(NOW + 26 * H)), firstDay: "token", firstDayLabel: "holders of a test token" }];
+    render(<SetsSection />);
+    expect(screen.getByText("Kitchen")).toBeTruthy();
+    expect(screen.queryByText(/first day/i)).toBeNull();
+  });
+
+  it("an answer kept from before the collab fields existed still draws: no partner, the plain first day", async () => {
+    const old = (s: object) => Object.fromEntries(Object.entries(s).filter(([k]) => !["collab", "firstDay", "firstDayLabel"].includes(k)));
+    sets.list = [old(revealed(iso(NOW + 26 * H))), old(released(iso(NOW + 5 * H)))];
+    render(<SetsSection />);
+    expect(screen.getByText("Kitchen")).toBeTruthy();
+    expect(screen.getByText(/Each verified player can claim one word from this set/)).toBeTruthy();
+    expect(screen.queryByText(/A collaboration with/)).toBeNull();
+    expect(screen.queryByText(/first day is open to/i)).toBeNull();
   });
 
   it("after the first day it says nothing of the rule, and folds to its name", async () => {

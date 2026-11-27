@@ -19,7 +19,7 @@
  */
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
-import { ALPHABET, TIER_COUNTS, wordTier, type Tier } from "@/lib/economy";
+import { ALPHABET, type Tier } from "@/lib/economy";
 import { cardNumber } from "@/lib/cardFacts";
 import { DICT_SORTS, listDictionary, type DictFilter, type DictSort, type EntryStatus } from "@/lib/dictionaryList";
 import { article, bagTotals, distanceOf, elsewhereTotals, needTokens, wordNeed } from "@/lib/wordNeed";
@@ -33,6 +33,7 @@ import { Check } from "../ui/icons";
 import { useDictionary } from "../useDictionary";
 import { SetsSection } from "../SetsSection";
 import { useStoredChoice } from "../useStoredChoice";
+import { useTierCounts, useTierOf } from "../useRarity";
 
 /** Rarest first, as Spell and the Market list them. */
 const TIERS: (Tier | "All")[] = ["All", "Mythic", "Legendary", "Rare", "Uncommon", "Common"];
@@ -41,6 +42,8 @@ const LOWER = [false, false, false, false, false];
 const PAGE = 80;
 
 export function DictionaryScreen() {
+  const tierOf = useTierOf();
+  const tierCounts = useTierCounts();
   const g = useGame();
   const d = useDictionary();
   const [q, setQ] = useState("");
@@ -79,8 +82,8 @@ export function DictionaryScreen() {
   // later, so a slow phone never lags behind the keys.
   const query = useDeferredValue(q);
   const list = useMemo(
-    () => listDictionary({ query, tier, filter: activeFilter, sort: counting ? sort : "az", letter }, d.statusOf, distances),
-    [query, tier, activeFilter, sort, counting, letter, d.statusOf, distances],
+    () => listDictionary({ query, tier, filter: activeFilter, sort: counting ? sort : "az", letter }, d.statusOf, distances, tierOf),
+    [query, tier, activeFilter, sort, counting, letter, d.statusOf, distances, tierOf],
   );
   const [shown, setShown] = useState(PAGE);
   useEffect(() => setShown(PAGE), [query, tier, activeFilter, sort, letter]);
@@ -154,7 +157,7 @@ export function DictionaryScreen() {
               {t !== "All" && <TierMark tier={t} size={12} />}
               {t}
               {/* the count stays readable on the selected (ink) chip, as Spell's does */}
-              {t !== "All" && <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{TIER_COUNTS[t as Tier]}</span>}
+              {t !== "All" && <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{tierCounts[t as Tier]}</span>}
             </Pill>
           </button>
         ))}
@@ -163,7 +166,7 @@ export function DictionaryScreen() {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
         {list.words.slice(0, shown).map((w) => {
           const status = d.statusOf(w);
-          const wTier = wordTier(w);
+          const wTier = tierOf(w);
           const holder = d.holderOf(w);
           const number = d.numbers?.[w];
           const listing = d.listings.get(w);

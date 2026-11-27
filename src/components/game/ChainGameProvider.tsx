@@ -121,9 +121,10 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import type { EarningsJson } from "@/lib/rewards/earnings";
 import { earningsFromJson } from "./earnings";
 import { gateRefusalNote, type GateRefusal } from "./setGate";
+import { useTierOf } from "./useRarity";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK, networkById } from "@/lib/onchain/network";
-import { wordTier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls";
@@ -227,10 +228,11 @@ type Piece = { count: 1 | 5; had: number[]; mine: boolean; plain?: boolean };
 type UnfinishedMark = Stage & { commitId?: string };
 
 /** Chain words → the shape screens already destructure. `careFor`: stakers that named this wallet. */
-function toOwnedWord(w: BagWord, careFor?: ReadonlySet<string>): OwnedWord {
+function toOwnedWord(w: BagWord, tierOf: (word: string) => Tier, careFor?: ReadonlySet<string>): OwnedWord {
   return {
     word: w.word,
-    tier: wordTier(w.word),
+    // The tier the game treats it as (lib/rarity.ts): a collab word is Legendary from its set's reveal.
+    tier: tierOf(w.word),
     upper: w.upper,
     staked: w.staked,
     daysUnfed: w.daysUnfed,
@@ -272,6 +274,8 @@ function writeDailySeen(key: string | null, v: DailySeen | null) {
 }
 
 export function ChainGameProvider({ children }: { children: ReactNode }) {
+  // A word's tier as the game treats it; it changes when the sets answer brings the collab words.
+  const tierOf = useTierOf();
   // The same reducer still owns nav/sheet/toast; the economy fields it computes are overridden
   // below by chain reads, so its money actions are simply never dispatched here.
   const [ui, dispatch] = useReducer(reducer, undefined, seedState);
@@ -685,7 +689,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       upperMine: chain.player ? chain.player.letters.slice(26, 52) : EMPTY_26,
       pity: overlayPity(pityQ.data ?? EMPTY_26, myPityNotes ?? {}, Date.now()),
       words: (wordsQ.data?.words ?? []).map((w) => {
-        const owned = toOwnedWord(w, careFor);
+        const owned = toOwnedWord(w, tierOf, careFor);
         const note = stageNotes[w.word];
         if (!note) return owned;
         const shown = overlayStage({ level: owned.prestigeLevel, pity: owned.prestigePity }, note, Date.now());
@@ -720,7 +724,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       jackpotRevealed: false,
     }),
     // careFor: the caretaker read lands after the words; `care` must follow it (Bugbot on #173).
-    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, stageNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, chainDayNow, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor],
+    [ui, status, chain.error, chain.player, pityQ.data, myPityNotes, stageNotes, wordsQ.data, wordsQ.isLoading, wordsQ.isError, wordsQ.isFetching, dayQ.data, chainDayNow, relatedDayQ.data, bucketsQ.data, dailyClaimed, seenToday, careFor, tierOf],
   );
 
   /** Run a batch, surfacing the two outcomes that matter: rejected, and "sent but unconfirmed". */
@@ -2101,7 +2105,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                 // Hunger survives an unstake (the clock keeps running), so a restaked word can be
                 // staked and still too hungry to enter the jackpot.
                 const now = ws.find((x) => x.word === word);
-                return now && jackpotEligible(toOwnedWord(now))
+                return now && jackpotEligible(toOwnedWord(now, tierOf))
                   ? `${word} is staked. It’s in the daily jackpot.`
                   : `${word} is staked. Feed it to enter the daily jackpot.`;
               },
@@ -2834,7 +2838,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, chainDayNow, dailyIsSealed, mail, mailTorn, waitingMail, waitingPacks, beginMail, patchMail, dropMail, settleMail, mailGuard, bagBefore, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [tierOf, state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, chainDayNow, dailyIsSealed, mail, mailTorn, waitingMail, waitingPacks, beginMail, patchMail, dropMail, settleMail, mailGuard, bagBefore, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;

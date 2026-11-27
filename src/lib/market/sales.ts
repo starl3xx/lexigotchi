@@ -21,7 +21,9 @@ import { NETWORK } from "@/lib/onchain/network";
 import { SEAPORT, seaportAbi } from "@/lib/onchain/seaport";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { WORDS } from "@/lib/dictionary";
-import { wordTier } from "@/lib/economy";
+import { wordTier, type Tier } from "@/lib/economy";
+import { NO_COLLAB, tierFn } from "@/lib/rarity";
+import { collabNow } from "@/lib/sets/server";
 import { indexedThrough, markIndexed } from "@/lib/db/shop";
 import { recordNewSales, recordSales, type SaleRow } from "@/lib/db/market";
 import type { marketSales } from "@/lib/db/schema";
@@ -59,7 +61,12 @@ export interface SaleContracts {
  * One `OrderFulfilled` as a Market sale, or null when it isn't one: it must offer exactly one Word,
  * or some of one letter, for $WORD alone, with part of it paid to SaleFees. Pure, so it is tested.
  */
-export function saleOfFill(a: FillArgs, c: SaleContracts): Omit<SaleInsert, "chainId" | "txHash" | "logIndex" | "blockNumber" | "soldAt"> | null {
+export function saleOfFill(
+  a: FillArgs,
+  c: SaleContracts,
+  /** The tier a sold word is recorded at: the game's (a collab word sells as Legendary). The derived one when left out. */
+  tierOf: (word: string) => Tier = wordTier,
+): Omit<SaleInsert, "chainId" | "txHash" | "logIndex" | "blockNumber" | "soldAt"> | null {
   const eq = (x: string, y: string) => x.toLowerCase() === y.toLowerCase();
   if (a.offer.length !== 1 || a.consideration.length === 0) return null;
   const item = a.offer[0];
@@ -71,7 +78,7 @@ export function saleOfFill(a: FillArgs, c: SaleContracts): Omit<SaleInsert, "cha
   if (item.itemType === ERC721 && eq(item.token, c.words)) {
     const word = wordOfTokenId(item.identifier);
     if (!word || item.amount !== 1n) return null;
-    return { ...base, kind: "word", word, tier: wordTier(word), letterId: null, qty: 1 };
+    return { ...base, kind: "word", word, tier: tierOf(word), letterId: null, qty: 1 };
   }
   if (item.itemType === ERC1155 && eq(item.token, c.letters)) {
     const id = Number(item.identifier);
@@ -87,12 +94,15 @@ function contracts(): SaleContracts {
 
 async function rowsOfReceipt(receipt: TransactionReceipt, soldAt: Date): Promise<SaleInsert[]> {
   const c = contracts();
+  // A sale is recorded at the tier the game treats the word as when it sells (a collab word:
+  // Legendary). If the sets can't be read, the derived tier: a sale must still be recorded.
+  const tierOf = tierFn((await collabNow().catch(() => null))?.words ?? NO_COLLAB);
   const fills = parseEventLogs({ abi: seaportAbi, eventName: "OrderFulfilled", logs: receipt.logs }).filter(
     (l) => l.address.toLowerCase() === SEAPORT.toLowerCase(),
   );
   const rows: SaleInsert[] = [];
   for (const l of fills) {
-    const sale = saleOfFill(l.args as unknown as FillArgs, c);
+    const sale = saleOfFill(l.args as unknown as FillArgs, c, tierOf);
     if (!sale) continue;
     rows.push({ ...sale, chainId: NETWORK.id, txHash: receipt.transactionHash.toLowerCase(), logIndex: l.logIndex, blockNumber: Number(receipt.blockNumber), soldAt });
   }

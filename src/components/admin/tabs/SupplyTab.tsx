@@ -103,7 +103,9 @@ export function SupplyTab() {
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-ink/45">
                 <th className="pb-1">Tier</th>
-                <th className="pb-1 text-right">Words</th>
+                <th className="pb-1 text-right" title="From the full dictionary. A collab word is treated as Legendary in the game; it is counted here in its own tier.">
+                  Words (derived)
+                </th>
                 <th className="pb-1 text-right">Stake weight</th>
               </tr>
             </thead>

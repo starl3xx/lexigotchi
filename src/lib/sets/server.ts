@@ -33,7 +33,10 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
 import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
-import { dueToReveal, gateUntilFor, heldOf, releaseChange, reserveChange, type WordSet } from "./rules";
+import { tokenReadable } from "./firstDay";
+import { NO_COLLAB } from "@/lib/rarity";
+import { collabLooksOf, type CollabLooks } from "@/lib/collabLook";
+import { dueToReveal, gateUntilFor, heldOf, publicSets, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
 // Short: after the owner changes the root (a reserve, a release), a proof from the old tree
@@ -53,6 +56,8 @@ export interface SetsBook {
   sets: WordSet[];
   /** False: migration 0021 hasn't run here (or there is no database at all). */
   migrated: boolean;
+  /** False: migration 0023 (what a collab set adds) hasn't run here. Every set then reads as a standard one. */
+  collab: boolean;
   /** False: the database is there and couldn't be read, and nothing is kept from before. */
   known: boolean;
 }
@@ -69,14 +74,20 @@ export function forgetSets(): void {
 /**
  * The sets, kept for a few seconds. A draft whose reveal time has come is revealed on the way
  * (one statement, so two servers reveal it once).
+ *
+ * `strict`: this call's OWN read, or a throw. Never the copy kept from an earlier read, which is
+ * what an ordinary caller gets when the database fails (right for holding words back, wrong for a
+ * caller that pays by what the sets say now).
  */
-export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook> {
-  if (!process.env.DATABASE_URL) return { sets: [], migrated: false, known: true };
+export async function loadSets(opts: { fresh?: boolean; strict?: boolean } = {}): Promise<SetsBook> {
+  if (!process.env.DATABASE_URL) return { sets: [], migrated: false, collab: false, known: true };
   if (!opts.fresh && book && Date.now() - book.at < BOOK_TTL_MS) return book.value;
   try {
     let read = await listSets(NETWORK.id);
     const now = new Date();
-    if (read.sets.some((s) => dueToReveal(s, now) && s.words.length > 0)) {
+    // Only a set that CAN be revealed: a collab that is missing a part stays a draft however late
+    // it is, and must not make every read of the sets run the reveal again.
+    if (read.sets.some((s) => dueToReveal(s, now) && revealProblems(s).length === 0)) {
       await revealDue(NETWORK.id, now);
       read = await listSets(NETWORK.id);
     }
@@ -85,11 +96,37 @@ export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook
     return value;
   } catch (err) {
     console.error("[sets] the sets couldn't be read:", codeOf(err));
+    if (opts.strict) throw new Error(`the sets couldn't be read (${codeOf(err)})`);
     // What was read before still holds back everything it held back then: a set released since
     // stays closed a little longer, and nothing opens early.
     if (book) return book.value;
-    return { sets: [], migrated: true, known: false };
+    return { sets: [], migrated: true, collab: true, known: false };
   }
+}
+
+/**
+ * The words the collab layer raises to Legendary right now (lib/rarity.ts): every word of a
+ * REVEALED or RELEASED collab set. `known: false` when the sets couldn't be read: a caller that
+ * only shows a rarity may fall back to the derived tiers, and a caller that PAYS by rarity (the
+ * keeper's yield and bounty) must not open an epoch on a guess.
+ */
+export async function collabNow(): Promise<{ known: boolean; words: CollabLooks }> {
+  const book = await loadSets();
+  // Through `publicSets`, like everything a visitor may be told: a draft has no look to give.
+  return { known: book.known, words: book.known ? collabLooksOf(publicSets(book.sets)) : NO_COLLAB };
+}
+
+/**
+ * The same words for a caller that PAYS by rarity (the keeper): read now, by this call, or a
+ * throw. `collabNow` can answer from a copy kept before the database failed, and says "known";
+ * an epoch must not be weighed with that.
+ *
+ * With no database configured there are no sets at all, so there are no collab words: that is a
+ * fact, not a guess (and an epoch's proofs are stored in the same database before it is opened,
+ * so a keeper without one opens nothing).
+ */
+export async function collabStrict(): Promise<CollabLooks> {
+  return collabLooksOf(publicSets((await loadSets({ fresh: true, strict: true })).sets));
 }
 
 // --- the chain's root -------------------------------------------------------------------------
@@ -155,7 +192,7 @@ export async function serving(): Promise<Serving> {
     // is claimable on the chain anyway until that root lands.) So a database outage can't stop
     // claims on a deployment that reserves nothing. Any other root needs its row: refuse.
     if (root === dictionaryRoot().toLowerCase()) {
-      return { ok: true, tree: treeWithout([]), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, known: false } };
+      return { ok: true, tree: treeWithout([]), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, collab: true, known: false } };
     }
     return { ok: false, error: "try_again" };
   }
@@ -300,7 +337,16 @@ export async function reconcile(): Promise<number[]> {
 
 // --- the owner's root changes -----------------------------------------------------------------
 
-export type PlanError = "not_migrated" | "chain_unreadable" | "dictionary_mismatch" | "not_found" | "not_revealed" | "empty" | "not_reserved" | "gate_too_far";
+export type PlanError =
+  | "not_migrated"
+  | "chain_unreadable"
+  | "dictionary_mismatch"
+  | "not_found"
+  | "not_revealed"
+  | "empty"
+  | "not_reserved"
+  | "gate_too_far"
+  | "gate_rule";
 
 const rootIntent = (root: string, note: string): TxIntent => ({
   contractKey: "words",
@@ -482,6 +528,15 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
     }
     const g = gateUntilFor(nowSec, set);
     if ("error" in g) return { ok: false, error: "gate_too_far", detail: g.error };
+    // A first day needs a rule that can be checked: a token rule with no contract, or an allowlist
+    // with nobody on it, would lock the set's words to everyone for the whole gate.
+    const rule = releaseProblems(set);
+    if (rule.length > 0) return { ok: false, error: "gate_rule", detail: rule.join("; ") };
+    // And a token rule's contract must answer on Base: a mistyped address fails every balance
+    // read, which is "try again" for every player all day, and the rule is final once released.
+    if (set.gateRule === "token" && set.gateToken && !(await tokenReadable(set.gateToken))) {
+      return { ok: false, error: "gate_rule", detail: "couldn’t read balanceOf on the token’s contract on Base: check the address, then build the release again" };
+    }
     // Words.setGate reverts on a word somebody holds, and the release with it: gate the rest. If
     // ownership can't be read, no plan: a batch that might revert is worse than waiting a minute.
     const owned = g.until !== null ? await claimedAmong(words) : [];

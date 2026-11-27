@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
-import type { WordSet } from "@/lib/sets/rules";
+import { STANDARD_FIELDS, type WordSet } from "@/lib/sets/rules";
 
 vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532"); // a network with a deployed suite
 vi.stubEnv("DATABASE_URL", "postgresql://stand-in"); // "a database is configured"; lib/db/sets is mocked
@@ -25,20 +25,75 @@ const world = vi.hoisted(() => ({
   owned: new Set<string>(),
   ownedUnreadable: false,
   ids: new Map<string, string>(), // token id → word, filled as the tests name words
+  collab: true, // migration 0023 has run
+  stamps: new Map<number, { mime: string; base64: string }>(),
+  lists: new Map<number, string[]>(),
+  made: [] as Record<string, unknown>[],
+  tokenDown: false, // a token rule's contract can't be read on Base
+  tokenAsked: [] as string[],
+}));
+
+// A token rule's contract is asked on Base MAINNET, whatever network the game is on.
+vi.mock("@/lib/onchain/mainnet", () => ({
+  getMainnetClient: () => ({
+    readContract: async ({ address }: { address: string }) => {
+      world.tokenAsked.push(address.toLowerCase());
+      if (world.tokenDown) throw new Error("execution reverted");
+      return 0n;
+    },
+  }),
 }));
 
 vi.mock("@/lib/db/sets", () => {
   class SetError extends Error {
-    constructor(public code: string, public words: string[] = []) {
+    constructor(public code: string, public words: string[] = [], public problems: string[] = []) {
       super(code);
     }
   }
   return {
     SetError,
+    // What a collab adds, kept in the test's world.
+    setStamp: async (_c: number, id: number, stamp: { mime: string; base64: string }) => {
+      const s = world.sets.find((x) => x.id === id);
+      if (!s) throw new SetError("not_found");
+      if (s.status !== "draft") throw new SetError("locked");
+      world.stamps.set(id, stamp);
+      s.stampAt = new Date(1_800_000_000_000);
+    },
+    clearStamp: async (_c: number, id: number) => {
+      world.stamps.delete(id);
+      const s = world.sets.find((x) => x.id === id);
+      if (s) s.stampAt = null;
+    },
+    readStamp: async (_c: number, id: number) => {
+      const s = world.sets.find((x) => x.id === id);
+      const st = world.stamps.get(id);
+      return s && st ? { status: s.status, ...st } : null;
+    },
+    readStamps: async () => new Map([...world.stamps].map(([id, st]) => [id, `data:${st.mime};base64,${st.base64}`])),
+    replaceAllowlist: async (_c: number, id: number, wallets: string[]) => {
+      const s = world.sets.find((x) => x.id === id);
+      if (!s) throw new SetError("not_found");
+      if (s.status === "released") throw new SetError("locked");
+      world.lists.set(id, [...wallets]);
+      s.allowlistCount = wallets.length;
+      return wallets.length;
+    },
+    createSet: async (_c: number, settings: Record<string, unknown>) => {
+      world.made.push(settings);
+      const id = 900 + world.made.length;
+      world.sets.push({ ...draftLike(id), ...(settings as object) } as unknown as WordSet);
+      return id;
+    },
+    addWords: async (_c: number, id: number, list: string[]) => {
+      const s = world.sets.find((x) => x.id === id);
+      if (s) s.words.push(...list.map((word) => ({ word, headliner: false })));
+      return { added: list, taken: [] };
+    },
     listSets: async () => {
       // A driver's error names the statement's parameters: the words. It must never be logged whole.
       if (world.fail) throw Object.assign(new Error("Failed query … params: ZEBRA,SECRETSET"), { code: "08006" });
-      return { sets: world.sets.map((s) => ({ ...s, words: [...s.words] })), migrated: world.migrated };
+      return { sets: world.sets.map((s) => ({ ...s, words: [...s.words] })), migrated: world.migrated, collab: world.collab };
     },
     revealDue: async () => [],
     saveRoot: async (_c: number, root: string, held: string[], note: string) => {
@@ -95,11 +150,16 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
 
 let words: { A: string; B: string; C: string; Z: string };
 
+/** The fields of a set row, for the stand-in `createSet` (hoisted mocks can't reach `draft`). */
+function draftLike(id: number) {
+  return { id, status: "draft", revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null, words: [], stampAt: null, allowlistCount: 0 };
+}
+
 function draft(id: number, name: string, list: string[], over: Partial<WordSet> = {}): WordSet {
   return {
     id, name, status: "draft", revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
     revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
-    words: list.map((word) => ({ word, headliner: false })), ...over,
+    words: list.map((word) => ({ word, headliner: false })), ...STANDARD_FIELDS, ...over,
   };
 }
 
@@ -120,6 +180,12 @@ beforeEach(async () => {
   world.gateOf = new Map();
   world.owned = new Set();
   world.ownedUnreadable = false;
+  world.collab = true;
+  world.stamps = new Map();
+  world.lists = new Map();
+  world.made = [];
+  world.tokenDown = false;
+  world.tokenAsked = [];
   const { tokenIdOf } = await import("@/lib/onchain/tokenId");
   world.ids = new Map(Object.values(words).map((w) => [tokenIdOf(w).toString(), w]));
   world.chainRoot = dictionaryRoot();
@@ -407,6 +473,39 @@ describe("releasing", () => {
     expect(world.sets[0].gateUntil).toEqual(new Date(1_900_000_000_000));
   });
 
+  it("no release for a first day whose rule can't be checked: it would lock the set's words to everyone", async () => {
+    const { server } = await reserved();
+    world.gate = true;
+    Object.assign(world.sets[0], { status: "revealed", gateRule: "allowlist", allowlistCount: 0 });
+    server.forgetSets();
+    expect(await server.planRelease(1)).toMatchObject({ ok: false, error: "gate_rule", detail: expect.stringMatching(/at least one wallet/) });
+    Object.assign(world.sets[0], { gateRule: "token", gateToken: null, gateMin: null });
+    server.forgetSets();
+    expect(await server.planRelease(1)).toMatchObject({ ok: false, error: "gate_rule", detail: expect.stringMatching(/contract and a minimum/) });
+    // A token rule whose contract doesn't answer on Base (a mistyped address): every balance read
+    // would fail all day, so no release is built. With a contract that answers, it is.
+    const TOKEN = "0x4444444444444444444444444444444444444444";
+    Object.assign(world.sets[0], { gateRule: "token", gateToken: TOKEN, gateMin: "1" });
+    world.tokenDown = true;
+    server.forgetSets();
+    expect(await server.planRelease(1)).toMatchObject({ ok: false, error: "gate_rule", detail: expect.stringMatching(/balanceOf/) });
+    expect(world.tokenAsked).toEqual([TOKEN]);
+    expect(world.sets[0].releaseRoot).toBeNull(); // nothing was recorded as built
+    world.tokenDown = false;
+    server.forgetSets();
+    expect((await server.planRelease(1)).ok).toBe(true);
+    world.sets[0].releaseRoot = null;
+    // With its list filled the release is built, gate first.
+    Object.assign(world.sets[0], { gateRule: "allowlist", allowlistCount: 3 });
+    server.forgetSets();
+    const plan = await server.planRelease(1);
+    expect(plan.ok && plan.intents.map((i) => i.fn)).toEqual(["setGate", "setDictionaryRoot"]);
+    // And where there is no first day at all, there is no rule to check.
+    Object.assign(world.sets[0], { releaseRoot: null, gateHours: 0, gateRule: "allowlist", allowlistCount: 0 });
+    server.forgetSets();
+    expect((await server.planRelease(1)).ok).toBe(true);
+  });
+
   it("a set with no gate hours gets no gate even where the contract has one", async () => {
     const { server } = await reserved();
     world.gate = true;
@@ -620,7 +719,7 @@ describe("GET /api/dictionary/sets: what any visitor is told", () => {
     const body = JSON.parse(text);
     expect(body.sets).toEqual([
       { kind: "locked" },
-      { kind: "revealed", id: 2, name: "Shown", words: [{ word: words.C, headliner: false }], releaseAt: "2026-12-24T00:00:00.000Z" },
+      { kind: "revealed", id: 2, name: "Shown", words: [{ word: words.C, headliner: false }], collab: null, firstDay: "verified", firstDayLabel: null, releaseAt: "2026-12-24T00:00:00.000Z" },
     ]);
     // Nothing of an unrevealed SET reaches a client response: not a draft's name, a date of it,
     // or how many words it has. (An empty draft isn't even a slot.)
@@ -646,7 +745,10 @@ describe("GET /api/dictionary/sets: what any visitor is told", () => {
     const { GET } = await import("@/app/api/dictionary/sets/route");
     const body = await (await GET()).json();
     expect(body.sets).toEqual([
-      { kind: "released", id: 1, name: "Out", words: [{ word: words.A, headliner: false }], releasedAt: new Date(0).toISOString(), gateUntil: until.toISOString(), perPlayerLimit: 2 },
+      {
+        kind: "released", id: 1, name: "Out", words: [{ word: words.A, headliner: false }], collab: null, firstDay: "verified", firstDayLabel: null,
+        releasedAt: new Date(0).toISOString(), gateUntil: until.toISOString(), perPlayerLimit: 2,
+      },
     ]);
   });
 
@@ -726,5 +828,273 @@ describe("/api/admin/sets is gated, and nothing private leaves without the gate"
     expect(body.commitment).toMatch(/^0x[0-9a-f]{64}$/);
     expect(body.file.sets[0].words).toEqual([words.A, words.B].sort());
     expect(body.chain.gate).toBe(false);
+  });
+});
+
+describe("the collab words a rarity is read with", () => {
+  const look = { type: "collab", partnerName: "P", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0) } as const;
+  it("are the words of revealed and released collab sets, and are UNKNOWN when the sets can't be read", async () => {
+    world.sets = [draft(1, "Draft", [words.A], look), draft(2, "Shown", [words.B], { ...look, status: "revealed" }), draft(3, "Plain", [words.C], { status: "revealed" })];
+    const server = await import("@/lib/sets/server");
+    const now = await server.collabNow();
+    expect(now.known).toBe(true);
+    expect([...now.words.keys()]).toEqual([words.B]);
+    // The same object carries the word's card look: one lookup for the rarity and the card.
+    expect(now.words.get(words.B)).toMatchObject({ setId: 2, partner: "P", a: "#112233", b: "#aabbcc" });
+    // Unreadable, with nothing kept from before: unknown, never "no collab words".
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fresh = await import("@/lib/sets/server");
+    const got = await fresh.collabNow();
+    expect(got.known).toBe(false);
+    expect(got.words.size).toBe(0);
+    log.mockRestore();
+  });
+  it("a caller that PAYS gets this call's own read or a throw: never the copy kept from before a failure", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const server = await import("@/lib/sets/server");
+    expect([...(await server.collabStrict()).keys()]).toEqual([words.B]); // and this read is now the kept copy
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    // The ordinary read answers from the kept copy and calls it known: right for holding words back...
+    const kept = await server.collabNow();
+    expect(kept.known).toBe(true);
+    expect([...kept.words.keys()]).toEqual([words.B]);
+    // ...and exactly what the keeper must not weigh an epoch with.
+    await expect(server.collabStrict()).rejects.toThrow(/couldn't be read/);
+    const { epochTiers } = await import("@/lib/keeper/tiers");
+    await expect(epochTiers("yield epoch 9", undefined, async () => {})).rejects.toThrow(/no epoch is opened/);
+    // Back up: the next run reads, and weighs by the collab words.
+    world.fail = false;
+    const { wordsByTier } = await import("@/lib/economy");
+    world.sets = [draft(2, "Shown", [wordsByTier("Common")[0]], { ...look, status: "revealed" })];
+    expect((await epochTiers("yield epoch 10", undefined, async () => {}))(wordsByTier("Common")[0])).toBe("Legendary");
+    log.mockRestore();
+  });
+
+  it("a picture that only SHOWS a rarity falls back to the derived tiers; it never fails or waits long", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const { collabSoon } = await import("@/lib/raritySoon");
+    expect([...(await collabSoon()).keys()]).toEqual([words.B]);
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const again = await import("@/lib/raritySoon");
+    expect((await again.collabSoon()).size).toBe(0);
+    log.mockRestore();
+  });
+  it("a picture kept for a week is told whether the sets were READ: a failed read is never 'no collab words'", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const { collabSoonRead } = await import("@/lib/raritySoon");
+    const ok = await collabSoonRead();
+    expect(ok.known).toBe(true);
+    expect([...ok.looks.keys()]).toEqual([words.B]);
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const again = await import("@/lib/raritySoon");
+    expect(await again.collabSoonRead()).toMatchObject({ known: false });
+    log.mockRestore();
+    // and the card route keeps such a picture only briefly (its own source)
+    const { readFileSync } = await import("fs");
+    const { join } = await import("path");
+    expect(readFileSync(join(__dirname, "..", "src/app/s/[text]/card/route.tsx"), "utf8")).toContain("waiting: waiting || !setsRead ||");
+  });
+
+  it("the server's card picture, the Telegram alert, and the word answer use them", async () => {
+    const { wordsByTier, TIER_COUNTS } = await import("@/lib/economy");
+    const common = wordsByTier("Common")[0];
+    const collab = new Set([common]);
+    const { cardTier } = await import("@/app/_og/wordCard");
+    const tiles = [...common].map((char) => ({ char, upper: false }));
+    expect(cardTier(tiles, collab)).toBe("Legendary");
+    expect(cardTier(tiles, new Set())).toBe("Common");
+    expect(cardTier([..."HEYOO"].map((char) => ({ char, upper: true })), collab)).toBeUndefined(); // a house card has no rarity
+    const { wordText } = await import("@/lib/telegramCommands");
+    expect(wordText(common, undefined, false, false, collab)).toBe(`${common} is one of ${TIER_COUNTS.Legendary + 1} Legendary words.`);
+    expect(wordText(common, undefined, false)).toBe(`${common} is one of ${TIER_COUNTS.Common.toLocaleString("en-US")} Common words.`);
+    const { alertPost, isAlertWord, ALERT_TIERS } = await import("@/lib/telegramAlerts");
+    expect(isAlertWord(common, collab)).toBe(ALERT_TIERS.includes("Legendary"));
+    expect(alertPost({ word: common, upper: [false, false, false, false, false] }, "ann", collab).text).toContain(`one of the game’s ${TIER_COUNTS.Legendary + 1} Legendary words.`);
+  });
+});
+
+describe("collab sets: what leaves the server, and what the operator may store", () => {
+  const post = (body: unknown) => new Request("http://localhost/api/admin/sets", { method: "POST", body: JSON.stringify(body) });
+  const collab = { type: "collab", partnerName: "SecretPartner", partnerUrl: "https://partner.example/", colorA: "#123456", colorB: "#abcdef", stampAt: new Date(1_800_000_000_000) } as const;
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  const stampReq = (id: string) => [new Request(`http://localhost/api/sets/${id}/stamp`), { params: Promise.resolve({ id }) }] as const;
+
+  it("NOTHING of a draft collab reaches the game: not that it is one, its partner, a color, its link, or its rule", async () => {
+    const five = (await import("@/lib/dictionary")).WORDS.slice(300, 305);
+    world.sets = [draft(1, "SecretName", five, { ...collab, gateRule: "token", gateToken: "0x4444444444444444444444444444444444444444", gateMin: "77", gateLabel: "SecretLabel" })];
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    const text = await (await GET()).text();
+    expect(JSON.parse(text).sets).toEqual([{ kind: "locked" }]);
+    for (const secret of ["SecretName", "SecretPartner", "partner.example", "123456", "abcdef", "collab", "stamp", "SecretLabel", "4444444444", "token"]) {
+      expect(text, secret).not.toContain(secret);
+    }
+  });
+
+  it("a revealed collab says its partner, its colors, and where its stamp is; never its token's contract or a wallet on its list", async () => {
+    const five = (await import("@/lib/dictionary")).WORDS.slice(300, 305);
+    world.sets = [draft(1, "Shown", five, { ...collab, status: "revealed", gateRule: "token", gateToken: "0x4444444444444444444444444444444444444444", gateMin: "77", gateLabel: "holders of a test token" })];
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    const text = await (await GET()).text();
+    const set = JSON.parse(text).sets[0];
+    expect(set.collab).toEqual({ partner: "SecretPartner", url: "https://partner.example/", colorA: "#123456", colorB: "#abcdef", stamp: "/api/sets/1/stamp?v=1800000000" });
+    expect(set.firstDay).toBe("token");
+    expect(set.firstDayLabel).toBe("holders of a test token");
+    expect(text).not.toContain("4444444444");
+    expect(text).not.toContain('"77"');
+  });
+
+  it("a draft's stamp has no address: the same answer as a set that doesn't exist", async () => {
+    world.sets = [draft(1, "SecretName", [words.A], collab)];
+    world.stamps.set(1, { mime: "image/png", base64: PNG.toString("base64") });
+    const { GET } = await import("@/app/api/sets/[id]/stamp/route");
+    const hidden = await GET(...stampReq("1"));
+    const missing = await GET(...stampReq("99"));
+    expect([hidden.status, missing.status]).toEqual([404, 404]);
+    expect(await hidden.text()).toBe("");
+    expect((await GET(...stampReq("1; drop"))).status).toBe(404);
+
+    world.sets[0].status = "revealed";
+    const shown = await GET(...stampReq("1"));
+    expect(shown.status).toBe(200);
+    expect(shown.headers.get("content-type")).toBe("image/png");
+    expect(shown.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(Buffer.from(await shown.arrayBuffer()).equals(PNG)).toBe(true);
+  });
+
+  it("the server's pictures are handed a revealed set's stamp as bytes; a draft's, and stored markup, never", async () => {
+    world.sets = [draft(1, "SecretName", [words.A], collab)];
+    world.stamps.set(1, { mime: "image/png", base64: PNG.toString("base64") });
+    const { stampDataOf } = await import("@/lib/sets/stampData");
+    const look = { setId: 1, mark: "1-1800000000", stamp: "/api/sets/1/stamp?v=1800000000" };
+    expect(await stampDataOf(look)).toBeNull(); // a draft: as private as its name
+    world.sets[0].status = "revealed";
+    expect(await stampDataOf(look)).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // a revealed set's stamp can't change: it is read once and kept
+    world.stamps.delete(1);
+    expect(await stampDataOf(look)).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // a set with no stamp asks for nothing
+    expect(await stampDataOf({ setId: 2, mark: "2-0", stamp: null })).toBeNull();
+    // and bytes that are no picture are never handed to the renderer, whatever the row says they are
+    world.sets.push(draft(3, "Shown", [words.B], { ...collab, status: "revealed" }));
+    world.stamps.set(3, { mime: "image/png", base64: Buffer.from("<svg onload=alert(1)>").toString("base64") });
+    expect(await stampDataOf({ setId: 3, mark: "3-1", stamp: "/api/sets/3/stamp?v=1" })).toBeNull();
+  });
+
+  it("serves a stamp as what its bytes are, never as what the row says: stored markup is served as nothing", async () => {
+    world.sets = [draft(1, "Shown", [words.A], { ...collab, status: "revealed" })];
+    world.stamps.set(1, { mime: "image/svg+xml", base64: Buffer.from("<svg onload=alert(1)>").toString("base64") });
+    const { GET } = await import("@/app/api/sets/[id]/stamp/route");
+    expect((await GET(...stampReq("1"))).status).toBe(404);
+  });
+
+  it("takes a stamp only when its own bytes are a PNG or a JPEG, and small", async () => {
+    world.sets = [draft(1, "Draft", [words.A], { type: "collab" })];
+    const { POST } = await import("@/app/api/admin/sets/route");
+    const { STAMP_MAX_BYTES } = await import("@/lib/sets/rules");
+    const send = async (bytes: Buffer) => (await POST(post({ action: "stamp", id: 1, data: bytes.toString("base64") }))).status;
+    expect(await send(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'))).toBe(400);
+    expect(await send(Buffer.from("GIF89a...."))).toBe(400);
+    expect(await send(Buffer.from("RIFF\u0000\u0000\u0000\u0000WEBPVP8 "))).toBe(400); // not until the server's pictures are known to draw it
+    expect(await send(Buffer.concat([PNG, Buffer.alloc(STAMP_MAX_BYTES)]))).toBe(400); // too big
+    expect(world.stamps.size).toBe(0);
+    expect(await send(PNG)).toBe(200);
+    expect(world.stamps.get(1)).toEqual({ mime: "image/png", base64: PNG.toString("base64"), bytes: PNG.length });
+    // The operator's own read carries the picture for the preview; the game's read has no address for a draft's.
+    const { GET } = await import("@/app/api/admin/sets/route");
+    const admin = await (await GET(new Request("http://localhost/api/admin/sets"))).json();
+    expect(admin.sets[0].stamp).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // Once the set is revealed its stamp is locked, like its name.
+    world.sets[0].status = "revealed";
+    expect(await send(PNG)).toBe(409);
+  });
+
+  it("takes an allowlist as a paste, and never gives a wallet back", async () => {
+    world.sets = [draft(1, "Draft", [words.A], { gateRule: "allowlist" })];
+    const { GET, POST } = await import("@/app/api/admin/sets/route");
+    const A1 = "0x00000000000000000000000000000000000000A1";
+    const res = await POST(post({ action: "allowlist", id: 1, text: `${A1}\n${A1.toLowerCase()}, 0x00000000000000000000000000000000000000b2 nonsense` }));
+    expect(await res.json()).toEqual({ ok: true, wallets: 2, bad: 1 });
+    expect(world.lists.get(1)).toEqual([A1.toLowerCase(), "0x00000000000000000000000000000000000000b2"]);
+    const text = await (await GET(new Request("http://localhost/api/admin/sets"))).text();
+    expect(JSON.parse(text).sets[0].allowlistCount).toBe(2);
+    expect(text.toLowerCase()).not.toContain("00000000000000000000000000000000000000b2");
+  });
+
+  it("tells the operator what a collab draft still needs, and what a revealed set's first day still needs", async () => {
+    world.sets = [
+      draft(1, "Half", [words.A], { type: "collab", partnerName: "P" }),
+      draft(2, "Shown", [words.B], { status: "revealed", gateRule: "allowlist" }),
+    ];
+    const { GET } = await import("@/app/api/admin/sets/route");
+    const body = await (await GET(new Request("http://localhost/api/admin/sets"))).json();
+    expect(body.collab).toBe(true);
+    expect(body.sets[0].needs).toEqual([
+      "a collab set has exactly 5 words (this one has 1)",
+      "a collab set needs its two colors",
+      "a collab set needs its stamp",
+    ]);
+    expect(body.sets[1].needs).toEqual(["the allowlist rule needs at least one wallet on the list"]);
+  });
+
+  it("the placeholder “Test collab” is made on a test network only, as a draft, with words nobody holds and no set has", async () => {
+    const { WORDS } = await import("@/lib/dictionary");
+    const { wordTier } = await import("@/lib/economy");
+    world.sets = [draft(1, "Other", [words.A])];
+    {
+      const { POST } = await import("@/app/api/admin/sets/route"); // this file's network is Base Sepolia
+      const { tokenIdOf } = await import("@/lib/onchain/tokenId");
+      world.ids = new Map(WORDS.map((w) => [tokenIdOf(w).toString(), w]));
+      // Somebody owns every Mythic word but one, and a few lower ones.
+      const mythic = WORDS.filter((w) => wordTier(w) === "Mythic");
+      world.owned = new Set(mythic.slice(1, 40));
+      const res = await POST(post({ action: "testCollab" }));
+      expect(res.status).toBe(200);
+      const made = world.sets.find((s) => s.name === "Test collab")!;
+      expect(made.status).toBe("draft");
+      expect(made).toMatchObject({ type: "collab", partnerName: "Test partner", colorA: "#1f6f8b", colorB: "#f2a65a" });
+      expect(made.words).toHaveLength(5);
+      for (const w of made.words) {
+        expect(world.owned.has(w.word)).toBe(false);
+        expect(w.word).not.toBe(words.A);
+        expect(wordTier(w.word)).not.toBe("Legendary");
+      }
+      expect(made.words.filter((w) => wordTier(w.word) === "Mythic").map((w) => w.word)).toEqual([mythic[0]]);
+      const { sniffStamp, revealProblems } = await import("@/lib/sets/rules");
+      expect(sniffStamp(Buffer.from(world.stamps.get(made.id)!.base64, "base64"))).toBe("image/png");
+      expect(revealProblems(made)).toEqual([]); // whole: the operator can reveal it as it is
+      // Once is enough.
+      expect(await (await POST(post({ action: "testCollab" }))).json()).toMatchObject({ ok: false, error: "exists" });
+    }
+  });
+
+  it("and never on mainnet", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "8453");
+    try {
+      const { POST } = await import("@/app/api/admin/sets/route");
+      const res = await POST(post({ action: "testCollab" }));
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ ok: false, error: "not_testnet" });
+      expect(world.made).toEqual([]);
+    } finally {
+      vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532"); // this file's network again
+    }
+  });
+
+  it("before migration 0023 the operator is told, and the sets still read", async () => {
+    world.collab = false;
+    world.sets = [draft(1, "Plain", [words.A])];
+    const { GET, POST } = await import("@/app/api/admin/sets/route");
+    const body = await (await GET(new Request("http://localhost/api/admin/sets"))).json();
+    expect(body).toMatchObject({ ok: true, migrated: true, collab: false });
+    expect(body.sets[0].type).toBe("standard");
+    expect(await (await POST(post({ action: "testCollab" }))).json()).toEqual({ ok: false, error: "not_migrated" });
+    expect(world.made).toEqual([]);
   });
 });

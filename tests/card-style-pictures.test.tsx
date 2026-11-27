@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { rackPaths } from "@/lib/cardArt/rack";
 import { TABLE, tableDoc, tableImage } from "@/lib/cardArt/table";
-import { SHADOW_ROWS } from "@/components/cards/loop/loopRenderer";
+import { SHADOW_INK, SHADOW_ROWS, SHADOW_WEIGHT } from "@/components/cards/loop/loopRenderer";
 import { CARD_LOOK } from "@/lib/showcase";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
@@ -97,10 +97,23 @@ describe("the shadow under the video's card", () => {
     expect(SHADOW_ROWS).toBeGreaterThanOrEqual(8);
     expect(SHADOW_ROWS).toBeLessThanOrEqual(20);
   });
+
+  // The owner, 2026-11-27, of 0.5 and 0.7: "the shadow on the card video is way too dark".
+  it("is faint: a few light lines, never a dark band", () => {
+    const src = read("src/components/cards/loop/loopRenderer.ts");
+    const frag = src.slice(src.indexOf("const SHADOW_FRAG"), src.indexOf("`;", src.indexOf("const SHADOW_FRAG")));
+    // the shader draws with the two numbers, and with nothing beside them that would darken it again
+    expect(frag).toContain("float w = tone * ${SHADOW_WEIGHT};");
+    expect(frag).toContain("line * ${SHADOW_INK} * smoothstep(");
+    expect(SHADOW_INK).toBeGreaterThan(0);
+    expect(SHADOW_INK).toBeLessThanOrEqual(0.2);
+    expect(SHADOW_WEIGHT).toBeGreaterThan(0);
+    expect(SHADOW_WEIGHT).toBeLessThanOrEqual(0.5);
+  });
 });
 
 describe("the look number", () => {
   it("was raised with these pictures, so no kept copy of an old one is shown", () => {
-    expect(CARD_LOOK).toBe(11);
+    expect(CARD_LOOK).toBe(12);
   });
 });

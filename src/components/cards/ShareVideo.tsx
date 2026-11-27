@@ -23,6 +23,8 @@ import type { SceneId } from "@/lib/scenes";
 import { canMakeLoop } from "./live/support";
 import { MATERIAL_LINE, materialOf } from "./material";
 import { useMyStamp } from "./CardStamp";
+import { tileTierOf, useCollabLook } from "@/components/game/collabLooksContext";
+import { collabBack } from "@/lib/collabLook";
 
 /** A phone's share sheet that takes a video file. */
 function canShareVideo(): boolean {
@@ -58,6 +60,8 @@ function useInHost(): boolean | null {
 type Made = { blob: Blob; url: string };
 
 export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; text: string; scene: SceneId; onMaking?: (making: boolean) => void }) {
+  // The word's collab look, if it has one: its pictures' addresses name it, and its living letters wear its colors.
+  const look = useCollabLook(word.word);
   const g = useGame();
   const inHost = useInHost();
   const reduced = usePrefersReducedMotion();
@@ -114,12 +118,14 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
     try {
       const { makeLoop } = await import("./loop/makeLoop");
       const blob = await makeLoop({
-        front: showcaseFacePath(text, scene, word.prestigeLevel),
+        front: showcaseFacePath(text, scene, word.prestigeLevel, look?.mark),
         back: showcaseBackPath(text, word.prestigeLevel),
         // the front's letters, alive: drawn by the game's own rig over the card without its letters
-        live: { stage: showcaseStagePath(text, scene, word.prestigeLevel), word: word.word, upper: word.upper, tier: word.tier, gild: word.prestigeLevel, scene },
+        // (the letters wear the word's collab colors in place of its rarity's material, as in the game)
+        live: { stage: showcaseStagePath(text, scene, word.prestigeLevel, look?.mark), word: word.word, upper: word.upper, tier: tileTierOf(word.tier, look), gild: word.prestigeLevel, scene },
         material: materialOf(word.tier),
-        stamp: stampSrc ? { src: stampSrc, ink: MATERIAL_LINE[materialOf(word.tier)] } : undefined,
+        // the holder's stamp on the video's back, in the back's own line: a collab word's colorway's, or its rarity's material's
+        stamp: stampSrc ? { src: stampSrc, ink: look ? collabBack(look).line : MATERIAL_LINE[materialOf(word.tier)] } : undefined,
         signal: ctl.signal,
         onProgress: (p) => !ctl.signal.aborted && setProgress(p),
       });

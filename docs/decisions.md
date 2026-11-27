@@ -1254,6 +1254,24 @@ setter. All small, riding existing suite patterns.
       how a player comes to have one. Nobody has one until the Shop lists it, and listing is the
       owner's: `Shop.addItem` (the admin's Shop tab builds it), then a `shop_items` row with
       `kind` "scene" and `art` "bookshelf" or "space". Until then the picker doesn't show them.
+    - **Outer Space is listed on the test network** (starl3xx, 2026-11-27: "i want to introduce
+      it as a Shop item on Testnet for $5 USDC"). Item 2 of Base Sepolia's Shop: 5 test USDC, no
+      supply limit (until it was capped at 5 the same day: #55), no end date. Sent with the owner's word, in three steps so that it never
+      showed as a "Test item" card: `addItem` switched off
+      (`0x3bf3fcdadb6e5643c87b0e50e1befefa47a8ea3dd52ce458d02cafad4eea52db`), the `shop_items`
+      row, then `setActive`
+      (`0xf951290d976b45dd923fb3d7a3c3b5ae4e9fe9cbfa67bed51e0fde55ec27c8a3`). The Bookshelf is
+      still not listed.
+    - **A scene is the player's, never the word's** (the same message: "users will be able to
+      select it as a card face on any of their words... it doesn't travel with a card though
+      (when it's for sale in the shop, it shows the stock face)"). That is how it was built:
+      one purchase is for every word the profile holds; a pick is kept by profile and comes off
+      when the word leaves it; a Shop scene shows only for a profile that bought it; so a buyer's
+      card starts on the stock card. Nothing a buyer sees draws the seller's scene: the Market's
+      rows and the word view show the letters, never a card. The one place a word for sale still
+      shows its scene is the seller's own Today, Bag, and opened card. Asked whether that should
+      change (stock for the seller too, or the Market drawing stock cards), the owner chose to
+      change nothing.
     - **What grants a scene** (`lib/shop/scenes.ts`, pure and tested): an item in the profile's
       wardrobe whose `shop_items` row is kind "scene" and names a Shop scene in `art`. Nothing
       else: not an item with no row (the test network's "Test item"), not a row that names a free
@@ -1279,10 +1297,12 @@ setter. All small, riding existing suite patterns.
     - **Left open, the owner's call:** a share link draws whatever scene it names, as it always
       has (the page doesn't ask who owns a word, #15), so a hand-typed link can picture a word in
       a Shop scene its owner hasn't bought. It is a picture only. Closing it means the share page
-      asking who owns the word and what their profile bought, on every card.
+      asking who owns the word and what their profile bought, on every card. (Still open now
+      that Outer Space is sold: it costs test USDC only, so it waits for the owner.)
     - **My readings, not starl3xx's words:** the Shop scenes are not part of the 3-word unlock;
-      the practice game has no Shop, so it has neither scene; the player docs say nothing of them
-      until one is listed.
+      the practice game has no Shop, so it has neither scene; the player docs say nothing of a
+      Shop scene until it is listed (Outer Space is in them since its listing, without its cost:
+      the docs can't read the Shop, and the owner can change what it costs).
 
 42. **The plastic case** (step 5 of #34; starl3xx, 2026-11-25: "a plastic case (like PSA-rated
     cards)... should be able to rotate like the card does now"; then "the plastic case is SO
@@ -1976,7 +1996,11 @@ setter. All small, riding existing suite patterns.
         lines in the shape of the shadow, each as heavy as the shadow is dark there, as under
         every letter. It was a soft blot. It is narrower than the blot was: a ruled line shows
         to its very end, and the blot's faint ends ran under the game's name in the corner. No
-        derivative is asked of the device, so every device draws the same lines.
+        derivative is asked of the device, so every device draws the same lines. **It is
+        faint** (starl3xx, 2026-11-27, of the first one: "the shadow on the card video is way
+        too dark"): its ink went from 0.5 to 0.16 and its heaviest line from 0.7 of a row to
+        0.45 (`SHADOW_INK`, `SHADOW_WEIGHT`; a test holds them at or under 0.2 and 0.5). The
+        numbers are my reading of "way too dark", looked at on the frame he sent and mid-turn.
       - `CARD_LOOK` 10. The earnings picture's address carries it too.
       - **Seen and not seen (part 9):** the game's back with the new rack (an opened Legendary
         word, WebKit); the server's back drawn by the real route; the link picture and the tall
@@ -2680,6 +2704,421 @@ setter. All small, riding existing suite patterns.
       leaves for Google), nothing is clipped or outside the card, and the phone's shorter ribbon
       fits. The three pictures draw in it. Not seen: a real phone, Windows, the earnings share
       picture (it needs a link the server signs; it loads the same file through the same code).
+53. **Collab sets: a reserved set made with a partner, with its own card look, built in parts**
+    (starl3xx, 2026-11-26; he asked for this entry as #25, which is taken, and he calls reserved
+    sets "#24": they are #51). In the owner's words: "wait what if we offered crossover sets as
+    collaborations with other entities". "5 words only". "the card would be unique to that collab".
+    "maybe all collabs would have the same front like stock but slightly different colors or stamps
+    or something for the logo". "Collab only changes how the card looks... the word is the same...
+    and it's legendary rarity". This is plumbing: no real partner, name, logo, or color ships in
+    this repository. One entry: each part is added here as it ships.
+    - **The parts.** (1) The data, the first day's rule, and the admin fields: this part. (2) The
+      rarity override: a collab word is Legendary from its set's reveal, as a layer on top of the
+      derived tier. (3) The card: one collab stock tinted with the set's two colors, the stamp, the
+      partner back, on every surface, and the admin's live preview. (4) Token metadata with a
+      "Collab" trait, the player docs, the test set on Base Sepolia, and the tester note.
+    - **Part 1: a set's type.** A set is `standard` or `collab` (`word_sets.type`; migration
+      `0023_collab_sets`). A collab has a partner's name and https link, two colors (`#rrggbb`),
+      and a stamp. They are the set's identity: a draft's to edit, locked at the reveal with its
+      name (`rules.ts` `IDENTITY_KEYS`), and nothing of them reaches a browser before the reveal
+      (`publicSets` still gives a draft as a locked slot: not even that it is a collab).
+    - **A collab is revealed only when it is whole:** exactly five words, its partner's name, its
+      two colors, and its stamp (`revealProblems`). The reveal by hand refuses with what is missing;
+      the scheduled reveal leaves such a draft a draft, however late, and the admin says why. The
+      spec asked for the five-word check; the rest is mine, because a reveal locks the look, and a
+      card with no stamp could never get one. The rule is written twice (TypeScript, and SQL for
+      the one-statement scheduled reveal); `scripts/sets-db-check.ts` holds the two together.
+    - **No collab set can be revealed until its card ships** (`rules.ts` `COLLAB_LIVE`, false
+      until part 3; mine). A collab word is Legendary "from the moment its set is revealed" and
+      sits on its own card, and a set revealed before parts 2 and 3 would be neither. A draft can
+      be made and edited now; the reveal by hand and the scheduled reveal both pass it by, and the
+      admin says why.
+    - **The stamp** is a small raster picture (PNG or JPEG, 256 KB at most), kept in the
+      database (`set_stamps`). Never an SVG: an SVG can carry script, and this picture is drawn
+      into every card of the set. Not WebP for now: the server's pictures must be able to draw
+      it, and a revealed set's stamp can never be replaced. What it is comes from its own first bytes, on the way in and on
+      the way out. `GET /api/sets/{id}/stamp` serves it only for a revealed or released set; a
+      draft's answers as a set that doesn't exist. A file import carries no stamp and no
+      allowlist, so a draft that comes back under the same name keeps the ones it had.
+    - **The first day's rule** (item 4). `word_sets.gate_rule` is `verified` (every verified
+      player, the default), `allowlist` (wallets the operator pastes; `set_allowlist`), or `token`
+      (a contract on Base and a minimum balance, read when the voucher is asked for). It adds to
+      "verified", never replaces it: the voucher route checks it after verification and after the
+      proof of wallet control. **The wallet that claims must be the one the rule lets in** (mine):
+      if any wallet of the profile counted, one listed wallet could be linked into one verified
+      profile after another and let each of them in. The claiming wallet is also the one the
+      voucher's row is counted under, so a wallet that moves to another profile brings its word
+      with it. A player whose other wallet qualifies is told to claim with that one. It fails
+      closed: a list or a balance that can't be read is "try again", and a rule that is missing a
+      part lets nobody in (`lib/sets/firstDay.ts`). The token is read on Base MAINNET whatever network the
+      game runs on, as Coinbase's attestations are. The rule can change until the release, and no
+      release is built for a rule that can't be checked (`gate_rule`): an allowlist with nobody on
+      it, a token rule with no contract or minimum, or a contract whose `balanceOf` doesn't answer
+      on Base (a mistyped address would be "try again" for every player all day, and the rule is
+      final once released). A token's contract and a list's wallets never leave
+      the server; the Dictionary says who the day is open to in the operator's own words
+      (`gate_label`, e.g. "holders of …") or in plain ones, and only on a network whose Words has
+      the gate: where it doesn't, a set opens to everyone at once, so nothing is said of a first
+      day. One limit, stated plainly: a token can be moved to another verified player's wallet
+      during the day, and that player is then let in too.
+    - **A deploy never waits for a migration** (the owner runs them by hand). Before 0023 has run,
+      the sets read from 0021's columns as standard sets, plain sets are still made and imported
+      (a raw insert that names only 0021's columns: Drizzle's insert names every column of the
+      table), and anything a collab adds is refused with `not_migrated`. Proven on real Postgres
+      three ways: `scripts/sets-db-check.ts` with 0023 and without it, and the app itself on a
+      database with no sets tables at all (production's state on the day this merged): the sets
+      answer, a proof, the daily status, the admin's read, and the hourly job all answer as before.
+    - **"Test collab" (item 7) is the owner's button**, not something this code creates by
+      itself: it is a write to the production database. The Sets tab has it on a test network
+      only, and the server refuses it on mainnet. It makes a DRAFT (two arbitrary colors, a plain
+      stamp drawn in code, "Test partner"), with five words picked then and there from words no
+      set holds and nobody owns: one Mythic word when one is free, the rest from below Legendary,
+      so the test set shows both "Legendary from reveal" and "a higher rarity is kept". The words
+      are never written in this repository.
+    - **Part 2: Legendary from the reveal, as a layer** (`lib/rarity.ts`). `wordTier` is still
+      the tier derived from the full dictionary, and supply, mint odds, token ids, and the
+      simulator still use it. `tierWith(word, collab)` is the tier the game TREATS a word as: a
+      word of a revealed or released collab set is Legendary, unless its own tier is higher. The
+      collab words are always passed in (the server reads them from the sets, the game from the
+      sets answer), so a draft's words are never in them, on either side. Tier counts come from
+      the same rule (`tierCountsWith`): "one of N Legendary words" counts a raised word in
+      Legendary and no longer in its own tier.
+      - **Where it applies:** what a card, a tile, a badge, and a share picture show; the
+        Dictionary's, Spell's, and the Market's tier filters and counts; "rarest first"
+        everywhere (the one word-by-word order now has the game's tier on top, so only a collab
+        word moves); the keeper's daily yield and the bounty; the "earns about" estimates; the
+        tier a sale is recorded at; the deal alert; the Telegram alert and `/word`.
+      - **The keeper opens no epoch on guessed rarities** (mine). An epoch is money and can't be
+        reopened, so it is weighed only with a read that run made itself (`collabStrict`: never
+        the copy the sets loader keeps from before a failure, which it calls "known"). The read
+        is tried three times; if it still fails the yield or bounty job throws
+        (`lib/keeper/tiers.ts`). What that costs: the keeper runs once a day and each job fails
+        alone, so a refused day has no yield epoch unless the job is run again that day (the pool
+        keeps the funds and the next days pay from a larger pool), and a refused bounty week is
+        retried daily. It adds no new way to lose a day: an epoch's proofs are stored in the same
+        database before it opens. Everything that only SHOWS a rarity falls back to the derived
+        tiers instead (`lib/raritySoon.ts`), which is what every word had before.
+      - **Mid-epoch.** A reveal raises a word's weight from the next epoch the keeper opens: an
+        open epoch's tree is never rebuilt. A sale is recorded at the tier in force when it is
+        indexed (within moments of the sale), and a recorded sale is never rewritten.
+      - **The orders didn't move for any other word.** A tier is a band of the rarity ranking
+        (tested over the whole dictionary), so "tier, then rank" with the derived tiers is the
+        ranking itself: the Dictionary's and the Market's orders are what they were.
+      - **Held to it by a test** (`tests/rarity-override.test.tsx`): the list of files that may
+        still read the derived tier, with a reason each, and a check that the game's own calls
+        of the functions with a default pass a tier.
+      - Not changed by a collab: letter supply caps, mint odds, the word's rank number ("the
+        37th rarest word"), the practice game (it has no sets; its bag and its screens both show
+        the derived tiers), and two admin tables that say so: the supply table ("Words
+        (derived)") and the simulator's page. The spec asks for tier counts "anywhere" to come
+        from the one function; those two show what the full dictionary derives, on purpose.
+    - **Part 3, first piece: the tiles and the card's front** (`lib/collabLook.ts`,
+      `lib/rarityFinish.ts` `collabFinish`). A collab is a look, not a rarity, so it is chosen by
+      the WORD, never by the tier (a collab word is Legendary, and so are other words).
+      - **One lookup.** `collabLooksOf` gives word → look (the two colors, the stamp's address,
+        the partner). It is the same object the rarity layer asks "is this a collab word?", on
+        the server (`collabNow`) and in the game (`useSets().collab`), so the two can't disagree.
+        The components that draw a word (its tiles, its small tiles, its card) ask for the look
+        by the word themselves, through one context for the whole game: no screen passes it
+        along, which is how "everywhere a word is drawn" is kept. A page outside the game hands
+        the look in (the share page).
+      - **The tile** is given the two colors where its rarity would go (`TileTier`): one
+        diagonal tint over the tile's own face, in place of the rarity's material. No metal,
+        foil, facets, halo, or motes: it is a stock, not a material; a light still passes over
+        it. The border is the case's and the rings and rainbow are ascension's, untouched.
+      - **Any two colors** (an operator types them), so nothing is drawn in them as given. The
+        tile keeps its own ink (the letter's color belongs to its case), so the TINT is thinned
+        until the letter reads on both cases, at both ends and the middle. The frame and ribbon
+        are printed on paper, so the INK is the darker color, darkened until it reads, graphite
+        if it never does. Tested over a sweep of the color cube and the hard pairs (both black,
+        both pale, mid greys, pure hues), at WCAG 4.5. Seen at 48 px in Chromium and WebKit.
+      - **The front** is the stock card in the two colors (the first behind the word, the second
+        toward the edges; the card stays grey first), the frame and ribbon in the look's ink, and
+        the corners still the rarity's mark. Another scene keeps its own art, as for any word.
+      - **The stamp** has ONE place on every collab card: the window's upper left (a 92-unit box,
+        62 in and 60 down, of 1200 × 675), clear of the corner piece, the word, the ribbon, and
+        the turn-over button. This is the one thing drawn over a card's art besides its letters
+        (CLAUDE.md said nothing is): the owner's spec asks for it. It is a layer of its own, never
+        inside the art's SVG. A thumbnail has none. The server's pictures are handed its BYTES
+        (`lib/sets/stampData.ts`) and never fetch this site's own stamp route, whose failed
+        fetch the renderer would keep for the life of the server.
+      - **A reveal changes a card without changing the word**, and a card picture is kept a week
+        at the edge. So every card picture's address names the word's look (`c`, the set and its
+        stamp's time), as it names its stage: the link picture, the face, the video's stage, and
+        the token metadata's `image` (which is what makes the owner's `refreshMetadata` worth
+        sending). An address that doesn't name the look the word has is kept five minutes, not a
+        week. A draft's word gets no `c` and the same caching as any word: nothing about a
+        header tells a draft apart. A copy made before a reveal can still be shown for up to a
+        week at its old address (X and Farcaster keep theirs for good); only a new address
+        mends that, which is what sharing the word again gives.
+      - **The stamp stands on a plate** of the card's own paper, ruled in the frame's ink, like
+        the frame's corner pieces (mine, after seeing it): a stamp is any picture, and without a
+        plate a dark one was lost on Outer Space and a pale one on the stock card. On paper, a
+        mark made for a light ground always reads; the admin says to upload that version.
+      - **The back** is the partner's colorway in place of the rarity's material: the two colors,
+        each deepened until the back's cream type reads on it (`collabBack`), the frame, seal, and
+        holder's stamp in the lighter color. It has none of a material's metal, glitter, facets,
+        fire, or scrollwork, and no live shader. Under how many words share the rarity it says the
+        partner and "1 of 5"; a phone-sized back leaves that line out, as it leaves the one above
+        it, and the rows under an opened card carry it ("Collab"). Three renderers draw a back
+        and must agree, so the colorway is painted the same way in two of them and the third is
+        kept out: the game's CSS and the server's picture use one gradient of the same two
+        grounds, and the server paints it INTO the picture (a rarity's back is drawn over a clear
+        ground for the video's shader to fill), so the shader's material never shows under it.
+      - **Seen moving** in Chromium and WebKit, where a moving tile's light is drawn as layers:
+        the light passes over a collab tile, and at Holographic its rings, laurels, and rainbow
+        are as on any word. `tests/living-video.test.tsx` now sweeps the collab look with every
+        rarity, stage, and case, so the share video's letters stand alone in it too.
+      - **The admin's live preview** (item 6) is the game's own card for the front, so it is the
+        real drawing, and a plain drawing of the back in the same colors (the game's back needs a
+        player's word). Both go through the functions the game uses, so a color that is hard to
+        read shows there as it will in the game.
+      - **`COLLAB_LIVE` is true** (flipped last, in a change of its own, once every surface drew
+        the look): a collab set can be revealed. It stays a switch: false stops every collab
+        reveal, by hand and on its date, and leaves drafts editable.
+    - **Two things the spec assumed that weren't so.** There is no token metadata server in this
+      repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
+      mean building that route: part 4. And a metadata refresh "at release" needs an owner call in
+      `Words`, which can't change after deploy; no token of a set exists at its release, so the
+      call matters only if a card's look changes later.
+    - **The owner's rulings, 2026-11-27.** The Base Sepolia redeploy for the gate: "Hold for now"
+      (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
+      "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
+      `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
+      refresh for a list of words). The check on the word that `dissolve` logs was not chosen.
+    - **Token metadata is served** (`GET /api/word/{tokenId}`, `lib/wordMetadata.ts`; part 4's
+      first piece). There was none before, so this is the whole server, kept small: the word's
+      name as its letters stand now, the card's front as its picture (the existing share
+      picture, so one drawing serves both), and traits: Rarity (the tier the game treats it as),
+      UPPERCASE letters, Ascension, Number, **Set** once its set is released (as the card's back
+      says it), and **Collab** with the partner's name from its set's reveal. A draft set adds
+      nothing, and a word nobody holds has no metadata (404, as `tokenURI` reverts for it). The
+      chain's state decides the rest; when the chain can't be read the answer is 503, never a
+      guess a marketplace would keep. The owner points Words at it with `setBaseURI` (a step in
+      web3-runtime-plan.md); nothing calls it until he does.
+    - **The metadata refresh is in `Words.sol`** (its own PR, ahead of part 4, because it is the
+      one piece of the collab work that a contract must carry and Words can't change after
+      deploy). `refreshMetadata(uint256[])` emits `MetadataUpdate` for each word named;
+      `refreshAllMetadata()` emits `BatchMetadataUpdate(0, max)`, ERC-4906's "everything
+      changed", which word ids need because they are hashes and never a run. The second is mine:
+      he chose the list form, and a contract that says it speaks ERC-4906 should be able to say
+      "all of them" (a new metadata server, a change to how every card is drawn). Both are
+      owner-only and only emit events. Tests, and the audit's sixth pass (no finding at the
+      threshold). Nothing is deployed: it rides the Base Sepolia redeploy, which is on hold.
+
+54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
+    about cards... the *front* of the card is its front regardless of the scene/face... the *face*
+    (not scene) is the background on the front of the card. the back is the back. standardize
+    across all surfaces, docs, etc").
+    - **The three words.** The FRONT is the side of a card with the word on it, whatever it
+      wears. The FACE (a "card face" where a sentence needs the noun) is the picture on the
+      front, behind the word: what a player picks, unlocks, or buys. The BACK is the other side,
+      with the word's story.
+    - **"Scene" had two meanings, and each got its own word.** Where it meant the side (the flip
+      button's "Show the scene") it is "front". Where it meant the picture ("Pick a scene") it is
+      "face". So the change was read line by line, never as a replace-all.
+    - **Every surface a player reads:** the game (the button under an opened card is "Face"; the
+      picker's title is "CRANE's card face"; the flip button says "Show the front"; the Market's
+      "Card faces, cases, and costumes stay with the seller"), the Shop's wording, the player docs
+      (the section is "Card faces", with the three words defined once, and an FAQ entry), and the
+      messaging guide's word list. The mechanics reference follows.
+    - **The guard.** `tests/copy-rules.test.ts` fails on "scene" in player-facing code and in the
+      player docs. The operator console is excused: it names the stored kind.
+    - **The code keeps "scene", and so does everything stored or posted** (my reading of "all
+      surfaces, docs, etc": what a person reads, not what the code is called). A share link's
+      `?scene=` is posted for good; kind `scene` is in `shop_items` and `word_picks`; `/api/scenes`
+      and the browser's `lexigotchi:scene:` key hold players' picks. Renaming the code's own names
+      (`SceneId`, `SceneFrame`, `useWordScene`) is a change to about a hundred files that other
+      work is in the middle of, for no player's benefit. It can be done on its own if the owner
+      wants it.
+    - **Two older code names use "face" for something else:** `?face=1` and `showcaseFacePath`
+      are the card's front alone, and `playerFaces` is a player's name and picture. They are
+      listed in CLAUDE.md so nobody takes one for the other.
+    - **My readings, not starl3xx's words:** the first face is named "Stock" in the picker and
+      "the stock face" in a sentence (his phrase, from the listing: "it shows the stock face");
+      the button under an opened card is "Face", not "Card face", because three buttons share a
+      phone's width there; "face down", of the jackpot's secret card, stays as plain English for
+      a card lying on its front.
+    - **What a player buys in the Shop stays with the player** (the same day: "shop items staying
+      with the player and not transferring on sale or dissolve or anything is something we should
+      be clear about in the docs"). The docs say it in a section of its own, and again where a
+      player reads about selling a word, buying one, and dissolving one. It was already how the
+      game works (#41): a purchase is the profile's, a pick is kept by profile, and nothing from
+      the Shop is a token that can move.
+
+55. **The Shop is a screen of its own, with categories, and it can sell limited editions**
+    (starl3xx, 2026-11-27: "the Shop should be its own tab instead of a popup, since we'll
+    eventually add more things and categories (card faces and accessories for now)", and "I want to
+    make sure that we can make limited edition Shop sales, too... like, say only 25 of the Outer
+    Space face").
+    - **A screen, not a sheet.** `screens/ShopScreen.tsx` is the `shop` view: in the rail's
+      Collect group, with its title in the header, and under More on a phone. The sheet's body
+      moved as it was, with the guards Bugbot asked for on #235: nothing is listed when the Shop
+      couldn't say what its items are, and a face is sold only on a positive "you don't have it".
+      There is no `shop` sheet any more; the three callers navigate.
+    - **Anyone can look** (it is one of `PUBLIC_VIEWS`), as the sheet opened with no wallet. Buy
+      then reads "Connect a wallet to buy" and leads to Today, where a wallet connects.
+    - **Two categories, one switch:** Card faces and Accessories (`lib/shop/rules`, pure and
+      tested). The stored kind `scene` is a card face; a case and a costume are accessories. The
+      test network's placeholder is in neither: it is nothing a card wears, so it sits apart
+      under "Try paying". An empty category says so plainly and promises nothing.
+    - **Links land on a category:** the face picker's tile for a face on sale goes to Card
+      faces, and an opened word's Case button to Accessories.
+    - **Limited editions already worked, and now they show.** The contract has always held a
+      supply limit (`maxSupply`; `_buy` reverts `SoldOut`), and the face picker stops offering a
+      sold-out face. What is new is the card's line: "Limited edition of 25. 24 left.", then
+      "None left." beside "Sold out". Proven on a local fork of Base Sepolia: with the Outer
+      Space item capped at what had sold, a purchase reverted `SoldOut(2)`; capped at 25, the
+      supply check passed.
+    - **What a limited edition does not promise** (so the words don't): the owner can raise a
+      limit later (never below what has sold); the limit counts purchases, not players (the
+      game sells a face once to a profile, but the contract would sell it to the same wallet
+      twice); and `updateItem` resends the price and the dates with the limit.
+    - **The live item was not capped by this change.** "Say only 25" was an example: capping
+      Outer Space is an owner transaction, and it waited for his word. **He gave it the same
+      day: "cap outer space at 5".** Sent as `updateItem(2, 5000000, 0, 0, 5)` (0x1382f701…0cc9),
+      with the price and the dates read from the chain first and resent unchanged. One had
+      sold (the owner's own), so the live Shop reads "Limited edition of 5. 4 left." When the
+      last is sold it reads "Sold out", and the face picker stops offering it to anyone who
+      doesn't have it.
+    - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
+      editions, paying, and that what a player buys stays with the player.
+    - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
+      phone's bottom bar has five places, all taken); the categories are one switch at the top
+      of the screen; a costume, when one exists, is an accessory; the placeholder stays, under
+      "Try paying", until the owner switches item 1 off. (He did, the same day: "you can switch off
+      the test item". `setActive(1, false)`, 0x1b41049d…e3dd. It had sold 4. The live Shop now shows
+      Outer Space alone, and no "Try paying" section.)
+    - **Seen and not seen:** the screen with no wallet at 390, 768, and 1,280 px in Chromium,
+      on a local chain build reading a local fork: both categories, the placeholder, a limited
+      edition with some left, and one sold out. And with a read-only pretend wallet at the
+      address that bought Outer Space (every write to the server blocked in the browser): the
+      balance row, and "You have it" with no Buy. Not seen: a purchase made from the new screen,
+      the two links from the picker and the Case button, a real phone.
+
+56. **The lockup: the tile is the name's L, and its eyes are alive** (starl3xx, 2026-11-27: "we
+    have the 2 square logos (the "plain" one and the seal) but we don't have a horizontal lockup
+    with the LEXIGOTCHI wordmark... i feel like that's a major oversight"; then, of the candidates
+    on the design audit page, "9E is amazing" and "let's not use the seal in the lockup").
+    - **What it is.** Logo A's tile standing where the name's first letter would, then EXIGOTCHI:
+      one word. A separate mark beside the full name read as two things. The name's letters are
+      outlines of Söhne Fett, the face of the L inside the tile, so the lockup needs no font. One
+      source draws it (`lockup()` in `src/lib/cardArt/logo.ts`, beside `logoA` and `logoB`); the
+      measures are the approved drawing's (the capitals 100, the tile 172 and centred on them, 15
+      between, the name set tight), and the built drawing matches it to within the rounding of a
+      line's edge.
+    - **No seal in a lockup.** B stays what it was: pressed into a card's back, and round marks.
+    - **Alive where it is drawn live** (`src/components/brand/Lockup.tsx`): the eyes blink and
+      glance, as a letter's do. A blink is the letters' own (the eye keeps its shape and its lashes
+      come down: a swap of two drawings), not the squash the audit page showed: the mark is a
+      letter, and it stands beside letters that blink this way. Both are MOMENTS set off by one
+      timer, never a loop inside the drawing. A lockup nobody sees does nothing (a hidden tab, the
+      copy this width hides), and reduced motion and a low-power device get a still one. Measured
+      in WebKit on a still screen: about one point of a core (0.6 to 0.8% without it, 1.4 to 2.7%
+      with it).
+    - **Where.** The game's rail and its phone header, the intro, the pre-launch screen, and the
+      landing page's header, alive; the landing page's footer, still (one living mark on a page that
+      shows two). While the intro is up, the game's own lockup behind it is still.
+      They set the name in plain type before, or (the landing page) a tile with no eyes beside
+      live type in the heavier Extrafett; the name is Fett now, as the L in the mark is.
+    - **The phone header's lockup gives way.** At its full 28 px it is 132 px wide, 41 more than
+      the plain name was, and it pushed the profile button off a 390 px screen. It shrinks to no
+      less than the old name's 91 px when the row is tight, so the header fits exactly as it did.
+    - **The eyes never invert** (the same day, of a one-ink drawing set light on dark: "any time
+      the colors are inverted like this, the colors of the eyes need to be inverted"). On any
+      ground an eye is a light eyeball with a dark pupil. So one ink has two drawings, one for a
+      light ground and one for a dark one, and what is clear in them is cut out, never painted in
+      a ground's colour (as in the seal).
+    - **The files** (`docs/brand`, by `npm run brand:art`): the lockup on a light ground, on a
+      dark one, and in one ink for each, and the name alone; each as a drawing and as pictures 512
+      and 128 px tall. `tests/lockup.test.tsx` holds the drawing, the eye rule, the moments, and
+      the six places.
+    - **Part 2, the same day: everywhere the name was still set in type** (starl3xx, of a share
+      video whose corner still said LEXIGOTCHI in plain type: "the wordmark didn't make it onto
+      the share cards... did you implement everywhere including email, share cards, OG
+      images"). I had held these back for his word, and that was the wrong reading of "how many
+      places can we incorporate 9E?".
+      - **The share video's corner** is the lockup, alive on the video's written score
+        (`loop/score.ts` `markEyes`): it keeps still while the word's letters act, and while
+        the back is up it blinks, looks up at the card, and blinks. Open at 0 and at 6. The frame
+        picks one of four still pictures (`lockup({ pose })`); if they fail to load the name is
+        set in type as before, because a video is always made.
+      - **A saved picture's corner** (a word's card and the earnings picture, `?saved=1`, and so
+        the Telegram welcome card): the lockup on the dark table, drawn once for both
+        (`app/_og/wordCard.tsx` `cornerMark`). `CARD_LOOK` is 12. **A link card still carries no
+        name:** that rule (#23) is unchanged, and it is his to change.
+      - **The game's own link picture** (`/embed-image`) is the lockup and the line under it.
+        The lockup under the four letters that spelled LEXI showed the L tile twice, so the four
+        letters went. My choice, and the picture's larger redesign (the audit's 8A) is still his
+        to answer. Its address carries no version, so a host that kept the old picture keeps it.
+      - **The emails' header** is a picture of the lockup. This ends #47's "no picture": the
+        picture is a file the site serves (`public/brand/lockup-email.png`, made by
+        `npm run brand:art`), with the card's paper IN it (a clear ground vanishes in a mail
+        program that turns a page dark), its size given, and the name as its words, lettered as
+        the old header was, for a mail program that shows no pictures. It is still: a mail
+        program runs no drawing code. No real mail program has shown it yet.
+      - **The docs' logo** is the lockup, light and dark (`docs-site/logo`, set in `docs.json`).
+        Still files: a file is never alive.
+    - **Part 3: the four pages a player lands on outside the game.** A word's share page and the
+      earnings share page carry the lockup at their head, alive, linking home. On the share page
+      it stands where a gold label in capitals said "A Lexigotchi showcase" (a decorative label
+      in capitals, which the house rules already ruled out; the page's title keeps the word).
+      The page after linking X and the unsubscribe page are written as strings and run no
+      script, so theirs is still (`lockupTag`). Where it sits on all four is my choice.
+      To let a page draw a living lockup without the letter rig, the two small motion hooks
+      moved out of the rig into `components/game/motionPrefs.ts` (the rig still offers them).
+    - **Still not built:** an animated picture in email and a moving logo in the docs: neither
+      can be checked from here. The seal's own one-ink file is still the dark-ground drawing
+      only.
+
+57. **The dark stock face: Stock (dark), on a pewter plate, free for everyone** (starl3xx,
+    2026-11-27: "a new dark version of the stock face... give me an artifact w/a proposal").
+    - **How it was chosen.** The proposal showed three plates. Of plate A, graphite: "I like A
+      for the dark stock, but it's way too dark" (it was close to black). A second round showed
+      A in three lighter steps, and of the lightest: "i actually really like pewter". Then, asked:
+      everyone gets it, and the fog is thinner on every dark face. Its name is his: "Maybe it
+      should be Stock (light) and Stock (dark)". The two are named so in the picker, and a sentence
+      a player reads uses the same names ("its new owner gets it on Stock (light)").
+    - **What it is.** The light stock's own engraving (the sunburst, the woven medallion, the
+      tiled floor) on a pewter plate in pale line. `stockPlan` in `lib/cardArt/scenes.ts` is the
+      one drawing both faces share, so they can't drift apart. The rarity is an overtone and
+      never the plate: a glow of its tint behind the word, and its tint on the medallion's beads
+      and on the line where the wall meets the floor. Grey first, as he asked of the light stock.
+    - **No picture that existed changed.** Every other face's drawing, in every rarity, and the
+      frame, are the same to the last character (35 fingerprints taken before and after). So
+      `CARD_LOOK` stays.
+    - **Its id is `darkstock`, for good.** Share links (`?scene=darkstock`) and saved picks carry
+      it. The name a player reads can change; the id can't.
+    - **The word stands in light.** A letter's arms, legs, and shoes are dark ink. On the first,
+      near-black plate they vanished and the tiles seemed to float. So the plate is lit where the
+      word stands: on the wall behind it and on the floor under it. Pewter needs less of that
+      than the darker plates did, and it has less shadow in its corners and a stronger line.
+    - **Thinner fog on dark faces** (`.cf-dark .scene-fog`: 0.42 for a hungry word, 0.2 for a
+      peckish one; 1 and 0.5 elsewhere). The fog is pale, so at full strength it turns a dark
+      plate white. It applies to Outer Space too, which was checked first: a hungry word there
+      went white the same way.
+    - **What the owner did not see when he chose the fog, said to him after:** on the LIGHT
+      stock a hungry word is hidden by the fog about as much as it was on pewter. The fog is
+      meant to be thick (he asked for "much more foggy", 2026-11-24). What differs on a dark
+      face is that the plate itself turns white. With the thinner fog, a hungry word on a dark
+      face reads more easily than one on a light face. The grey tone, the sleeping letters, and
+      the status marks still say hungry. The other way to keep the plate dark is a darker fog
+      of full thickness; it was offered and not built.
+    - **Seen and not seen.** The built face drawn by the real picture route in all five
+      rarities: the same picture, byte for byte, as the proposal's pewter. In the practice game
+      in Chromium at 1,280 px and 390 px: the picker's two stock tiles, the Bag, Today, and a
+      hungry and a peckish word on the dark stock face and on Outer Space, with the fog as it
+      was and thinned. Not seen: the card's moving light over pewter in WebKit, the share video
+      with this face, a real phone.
+    - **Bugbot on #303, a real bug:** the game keeps each face's picture, and the cache named
+      only the light stock by rarity. Every dark stock card on a page took the colour of the
+      first rarity drawn (in my own Bag pictures a Common word wore a Legendary word's gold,
+      and I read it as the plate). `RARITY_FACES` now says which faces take the rarity; the
+      cache reads it, and a test holds the list to the drawings and the cache to the list.
+      The server's pictures were never wrong: they are drawn for each request.
+    - **Set aside:** the rarity's own plate and black and gold, from the first round. Either
+      could be a Shop face later. The proposal's drawings are on a local branch that is never
+      pushed.
 
 ## Pricing & launch economics (decided June 2026)
 

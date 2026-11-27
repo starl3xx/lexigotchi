@@ -25,6 +25,7 @@ import { askForTilt } from "./live/tilt";
 import { canDrawLive } from "./live/support";
 import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
 import { CARD_SHEEN, useCardLight } from "./useCardLight";
+import { useCollabLook } from "@/components/game/collabLooksContext";
 
 /** How long the turn takes (globals.css, `.sc-inner`'s transition and `.sc.is-flipping`). */
 export const FLIP_MS = 850;
@@ -88,11 +89,14 @@ export function SceneCard({
   const light = useCardLight({ root, lean, glare, tier: word.tier, active: live && !small && !back && !turning && !reduced && !lowPower && hunger(word) !== "hungry" });
 
   const W = word.word;
+  const mine = useCollabLook(W);
   return (
     <div
       ref={root}
       className={`sc ${back ? "is-back" : ""} ${turning ? "is-flipping" : ""} ${small ? "sc-small" : ""} ${framed ? "sc-framed" : ""} ${light.lit ? "is-lit" : ""} ${light.sheen ? "sc-moment" : ""} ${className}`}
-      style={{ "--sc-sheen": CARD_SHEEN[word.tier] } as CSSProperties}
+      // the band of light over the card: its rarity's (warm for Legendary), or the plain white one
+      // for a collab word, whose card is its set's colors and no metal
+      style={{ "--sc-sheen": mine ? CARD_SHEEN.Common : CARD_SHEEN[word.tier] } as CSSProperties}
       {...light.handlers}
     >
       <div ref={lean} className="sc-lean">
@@ -117,8 +121,8 @@ export function SceneCard({
             e.stopPropagation();
             flip();
           }}
-          aria-label={back ? `Show ${W}’s scene` : `Turn ${W} over`}
-          title={back ? "Show the scene" : "Turn it over"}
+          aria-label={back ? `Show ${W}’s front` : `Turn ${W} over`}
+          title={back ? "Show the front" : "Turn it over"}
         >
           <FlipIcon />
         </button>
