@@ -28,6 +28,30 @@ cut to a circle.
 Under 32 px, B's engraving is too fine to see and it reads as a gold tile on blue. For a browser
 tab, use A.
 
+## The lockup
+
+A's tile standing where the name's first letter would, then EXIGOTCHI: one word. The name's
+letters are outlines of Söhne Fett, the face of the L inside the tile, so no font is needed. There
+is no lockup with the seal (starl3xx, 2026-11-27).
+
+| File | Use |
+|---|---|
+| `lockup.svg`, `lockup-512.png`, `lockup-128.png` | On a light ground: the name in the game's ink. The pictures have a clear ground. |
+| `lockup-on-dark.svg`, `lockup-on-dark-512.png`, `lockup-on-dark-128.png` | On a dark ground: the name in the game's paper. The tile is the same. |
+| `lockup-one-ink.svg`, `lockup-one-ink-on-dark.svg` | One ink, for a stamp or a single-colour print. Use the one made for the ground. |
+| `name.svg`, `name-on-dark.svg` | The name alone, for a place too tight for a mark. |
+
+Every drawing above also comes as two pictures on a clear ground, 512 and 128 px tall
+(`lockup-one-ink-512.png`, `name-on-dark-128.png`, and so on). An "on dark" picture is light, so it
+shows nothing on a white page.
+
+- **The eyes never invert.** On any ground an eye is a light eyeball with a dark pupil. That is why
+  one ink has two files: never recolour one to make the other.
+- **Clear space:** half the tile's height on every side. **Smallest:** 20 px tall on a screen.
+- **Alive only where it is drawn live.** In the game and on the landing page the eyes blink and
+  glance (`src/components/brand/Lockup.tsx`). These files are still.
+- Where a mark must be square (an app icon, a tab, a profile picture), use A, not the lockup.
+
 ## Where B is used in the game
 
 - The back of every card: pressed into the material in one ink (`src/lib/cardArt/seal.ts`).
