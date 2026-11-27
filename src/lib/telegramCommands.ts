@@ -37,6 +37,7 @@ import { answerChainAbi, jackpotAbi, stakingAbi, wordsAbi } from "./onchain/abis
 import { tokenIdOf } from "./onchain/tokenId";
 import { cardNumberSoon } from "./onchain/cardNumbers";
 import { playerFaces } from "./profile/faces";
+import { isHeldBack } from "./sets/server";
 
 /** An answer: its words, and for a word that is held, its card's picture to send them under. */
 export interface BotReply {
@@ -211,11 +212,13 @@ function tierLine(word: string, tier: Tier): string {
  * `held`: the word's holder and state; null when nobody holds it; undefined when the chain couldn't
  * be read (or in practice mode, where there is no chain to read: `chainBacked` false).
  */
-export function wordText(word: string, held: HeldWord | null | undefined, chainBacked = true): string {
+export function wordText(word: string, held: HeldWord | null | undefined, chainBacked = true, notYet = false): string {
   const lines = [tierLine(word, wordTier(word))];
   if (!chainBacked) return lines[0];
   if (held === undefined) return [...lines, "I can’t read the chain right now, so I don’t know who holds it."].join("\n");
-  if (held === null) return [...lines, "Nobody holds it right now."].join("\n");
+  // `notYet`: held back in a reserved set (decisions.md, "Reserved word sets"). A plain "not yet",
+  // and never which set or when.
+  if (held === null) return [...lines, notYet ? "It isn’t available yet." : "Nobody holds it right now."].join("\n");
   lines.push(`${held.holder} holds it, ${held.staked ? "staked" : "not staked"}.`);
   if (held.upper) {
     const raised = held.upper.filter(Boolean).length;
@@ -373,7 +376,8 @@ async function answerWord(args: string): Promise<BotReply> {
   if (!isChainBacked()) return { text: wordText(arg.word, undefined, false) };
   const read = await soon(readHeld(arg.word).then((h) => ({ h })));
   const held = read === null ? undefined : read.h;
-  return { text: wordText(arg.word, held), photoUrl: held ? cardUrlOf(arg.word, held) : undefined };
+  const notYet = held === null ? (await isHeldBack(arg.word).catch(() => null)) === true : false;
+  return { text: wordText(arg.word, held, true, notYet), photoUrl: held ? cardUrlOf(arg.word, held) : undefined };
 }
 
 /**

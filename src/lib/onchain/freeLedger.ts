@@ -3,12 +3,12 @@
  * lib/freeLetters.ts: settle expired grants against the chain, then ask whether one more grant breaks
  * the budget or the dictionary stop. Server-only.
  */
-import { WORD_COUNT } from "@/lib/dictionary";
 import { freeLettersSigned, settleFreeClaims, type PendingGrant } from "@/lib/db/freeClaims";
 import { freeLetterBudget, freeStop, usedOnchain, type FreeStop } from "@/lib/freeLetters";
 import { addressOf } from "./addresses";
 import { lettersAbi } from "./abis";
 import { claimedWordCount } from "./claimedWords";
+import { releasedWordCount } from "@/lib/sets/server";
 import { getPublicClient } from "./reads";
 
 /** Did each grant's key take its letters onchain? One multicall. */
@@ -40,8 +40,10 @@ export async function settleGrants(chainId: number, account: string): Promise<vo
  * Two requests at the very end of the budget can both pass: it can run over by a grant or two.
  */
 export async function freeGrantStop(chainId: number, letters: number): Promise<FreeStop> {
-  const [signed, claimed] = await Promise.all([freeLettersSigned(chainId), claimedWordCount()]);
-  return freeStop({ claimed, dictionary: WORD_COUNT, signed, budget: freeLetterBudget(), letters });
+  // "Of the dictionary" is of the words the game offers now: a word held back in a reserved set
+  // can't be claimed, so it must not hold the stop off (decisions.md, "Reserved word sets").
+  const [signed, claimed, dictionary] = await Promise.all([freeLettersSigned(chainId), claimedWordCount(), releasedWordCount()]);
+  return freeStop({ claimed, dictionary, signed, budget: freeLetterBudget(), letters });
 }
 
 /** The routes' error codes for a stop. */

@@ -819,6 +819,50 @@ contract LexigotchiTest is Test {
         assertEq(feeRouter.jackpotBalance(), 0, "pot emptied");
     }
 
+    /// Reserved word sets (decisions.md, "Reserved word sets"): a word is held back by being left
+    /// out of the dictionary root, and the pre-committed answer list may still draw it. Nobody can
+    /// hold a word that can't be claimed, so the pot rolls over exactly as it does for any unowned
+    /// word: no revert, no special case in the Jackpot or the keeper, and the chain moves on one
+    /// entry. Releasing the word later is a root that includes it again.
+    function test_Jackpot_rollsOverOnAWordHeldBackFromTheRoot() public {
+        vm.warp(1755000000);
+        _approveAll(bob);
+        vm.prank(bob);
+        letters.commitPack(); // routes a jackpot share
+
+        // Hold CRANE (today's answer) back: a root over the other three words only.
+        bytes32 n23 = _hashPair(leaves[2], leaves[3]);
+        words.setDictionaryRoot(_hashPair(leaves[1], n23));
+
+        // It can't be claimed: its old proof no longer verifies, and the new tree has no leaf for it.
+        _fundLower(alice, "CRANE");
+        _approveAll(alice);
+        vm.prank(alice);
+        vm.expectRevert(Words.NotInDictionary.selector);
+        words.claim("CRANE", 0, _proof(0));
+
+        // A word still in the root claims with a proof from the new tree.
+        _fundLower(bob, "MOTEL");
+        bytes32[] memory motel = new bytes32[](1);
+        motel[0] = n23;
+        vm.prank(bob);
+        words.claim("MOTEL", 0, motel);
+
+        uint256 pot = feeRouter.jackpotBalance();
+        assertGt(pot, 0, "a pot to roll");
+        vm.prank(keeper);
+        bool won = jackpot.resolve("CRANE", keccak256("salt1"), bytes32(0));
+        assertFalse(won, "nobody can hold a held-back word");
+        assertEq(feeRouter.jackpotBalance(), pot, "the pot rolls over whole");
+        assertEq(answerChain.revealedDay(), 1, "the answer chain moved on one entry");
+
+        // Released later: the root includes it again, and it claims as any word does.
+        words.setDictionaryRoot(dictRoot);
+        vm.prank(alice);
+        uint256 tokenId = words.claim("CRANE", 0, _proof(0));
+        assertEq(words.ownerOf(tokenId), alice);
+    }
+
     function test_Jackpot_rollsOverWhenHungry() public {
         _approveAll(bob);
         vm.prank(bob);

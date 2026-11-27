@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { proofFor, dictionaryRoot } from "@/lib/onchain/dictionaryTree";
-import { addressOf, isSuiteDeployed } from "@/lib/onchain/addresses";
-import { getPublicClient } from "@/lib/onchain/reads";
-import { wordsAbi } from "@/lib/onchain/abis";
+import { isWord } from "@/lib/dictionary";
+import { serving } from "@/lib/sets/server";
+import { allow } from "@/lib/ratelimit";
+import { clientIp } from "@/lib/auth/clientIp";
 
 export const runtime = "nodejs";
 // Not cached: the answer depends on the onchain root, which the owner can update after a re-vendor
-// (a cached "dictionary_mismatch" would block claims long after the fix). Proofs are cheap: the tree
-// is built once per server start.
+// or a set's release (a cached "dictionary_mismatch" would block claims long after the fix). Proofs
+// are cheap: a tree is built once per root per server start.
 export const dynamic = "force-dynamic";
 
 /**
@@ -18,46 +18,41 @@ export const dynamic = "force-dynamic";
  * that produces tokenId = keccak256(word) — a caller that lowercases it will compute a different
  * token id and get a proof that doesn't verify.
  *
- * The proof is built from the BUNDLED dictionary, so it only verifies while the deployed Words
- * contract holds the same root. After a re-vendor (Let's Have A Word's list grows), the onchain root
- * lags until the owner sends `Words.setDictionaryRoot`; during that gap every claim would revert
- * NotInDictionary inside the wallet. So the route compares roots first and says so plainly.
+ * The proof comes from the tree behind the root the CHAIN holds (lib/sets/server.ts `serving`):
+ * the whole dictionary, or the dictionary less the words held back in reserved sets. A root this
+ * server never built means the bundled dictionary and the chain disagree (after a re-vendor, until
+ * the owner sends `Words.setDictionaryRoot`): every claim would revert NotInDictionary inside the
+ * wallet, so the route says `dictionary_mismatch` instead.
+ *
+ * A dictionary word that is held back answers `not_released`, and nothing more: not which set has
+ * it, not when it comes. One word a request, and a limit per address, because the answers together
+ * are the list of what is held back (which can only be made slow to gather, never secret: the
+ * dictionary is public).
  */
-let onchainRoot: { value: string; at: number } | null = null;
-async function readOnchainRoot(): Promise<string | null> {
-  if (!isSuiteDeployed()) return null;
-  if (onchainRoot && Date.now() - onchainRoot.at < 60_000) return onchainRoot.value; // one read a minute
-  try {
-    const value = (await getPublicClient().readContract({
-      address: addressOf("words"),
-      abi: wordsAbi,
-      functionName: "dictionaryRoot",
-    })) as string;
-    onchainRoot = { value, at: Date.now() };
-    return value;
-  } catch {
-    return null; // can't tell: serve the proof; the contract still has the final word
-  }
-}
 export async function GET(req: Request) {
-  const word = new URL(req.url).searchParams.get("word") ?? "";
-  if (!/^[A-Za-z]{5}$/.test(word.trim())) {
+  const word = (new URL(req.url).searchParams.get("word") ?? "").trim();
+  if (!/^[A-Za-z]{5}$/.test(word)) {
     return NextResponse.json({ ok: false, error: "bad_word" }, { status: 400 });
   }
-
-  const result = proofFor(word);
-  if (!result) {
+  if (!isWord(word)) {
     return NextResponse.json({ ok: false, error: "not_in_dictionary" }, { status: 404 });
   }
-  const chainRoot = await readOnchainRoot();
-  if (chainRoot && chainRoot.toLowerCase() !== dictionaryRoot().toLowerCase()) {
-    return NextResponse.json({ ok: false, error: "dictionary_mismatch" }, { status: 409 });
+  if (!(await allow("proof", clientIp(req)))) {
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
-  return NextResponse.json({
-    ok: true,
-    word: result.word,
-    proof: result.proof,
-    root: dictionaryRoot(),
-  });
+  const s = await serving();
+  if (!s.ok) {
+    return NextResponse.json({ ok: false, error: s.error }, { status: s.error === "try_again" ? 503 : 409 });
+  }
+  const W = word.toUpperCase();
+  if (s.held.has(W)) {
+    return NextResponse.json({ ok: false, error: "not_released" }, { status: 404 });
+  }
+  const result = s.tree.proofFor(W);
+  // In the dictionary, not held back, and still not in the chain's tree: can't happen while
+  // `held` covers what the chain leaves out, but a proof that can't verify is never served.
+  if (!result) return NextResponse.json({ ok: false, error: "not_released" }, { status: 404 });
+
+  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root });
 }

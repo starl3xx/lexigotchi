@@ -35,7 +35,8 @@ export type RateKind =
   | "market-read"
   | "market-list"
   | "telegram"
-  | "telegram-report";
+  | "telegram-report"
+  | "proof";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -122,6 +123,11 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(6, "10 m"), prefix: "rl:telegram:report" });
     case "shop-record":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:shop:record" });
+    // Claim proofs, keyed by IP: one a claim, and a player claims a few words in a sitting. Each
+    // answer also says whether a word is held back in a reserved set, so this is what keeps the
+    // whole held-back list slow to gather (it can't be secret: the dictionary is public).
+    case "proof":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "10 m"), prefix: "rl:proof" });
   }
 }
 

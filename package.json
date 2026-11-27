@@ -14,6 +14,7 @@
     "derive": "tsx scripts/derive-economy.ts",
     "sim": "tsx scripts/run-sim.ts",
     "keeper": "tsx --env-file-if-exists=.env.local scripts/keeper.ts",
+    "sets": "tsx --env-file-if-exists=.env.local scripts/sets.ts",
     "sweep": "tsx scripts/price-sweep.ts",
     "market": "tsx scripts/market.ts",
     "trade-exp": "tsx scripts/trading-experiment.ts",
