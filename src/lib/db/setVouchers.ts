@@ -25,6 +25,7 @@ const pick = {
   named: setVouchers.named,
   word: setVouchers.word,
   deadline: setVouchers.deadline,
+  createdAt: setVouchers.createdAt,
   used: setVouchers.used,
 };
 

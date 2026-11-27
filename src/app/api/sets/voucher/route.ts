@@ -32,6 +32,7 @@ import { wordsAbi } from "@/lib/onchain/abis";
 import { gatedClaimDigest } from "@/lib/onchain/digests";
 import { resolveFreeIdentity } from "@/lib/onchain/freeIdentity";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
+import { getLogsAdaptive } from "@/lib/onchain/logs";
 import { signDigest } from "@/lib/onchain/signer";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
@@ -54,20 +55,35 @@ const short = (err: unknown) => String((err as { code?: string; name?: string })
 // From the generated ABI, never a hand copy: a filter on a stale signature silently matches nothing.
 const CLAIMED = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
+/** Base makes a block every 2 seconds. Used only to pick where a log read STARTS, with room to spare. */
+const BLOCK_SECONDS = 2;
+/** Blocks of slack before a row's first voucher: ten minutes, for a chain that ran a little fast. */
+const START_SLACK_BLOCKS = 300n;
+
 /**
  * Did ANY wallet this row's vouchers were signed for, or any wallet of the profile, claim
- * `row.word` since `fromBlock`? The chain's own history, never who holds the word now, and never
- * only the wallet the row names last: a renewal from a linked wallet leaves the first wallet's
- * voucher spendable. Null when it can't be read.
+ * `row.word` since the row's first voucher? The chain's own history, never who holds the word now,
+ * and never only the wallet the row names last: a renewal from a linked wallet leaves the first
+ * wallet's voucher spendable. Null when it can't be read.
+ *
+ * Read from about when the row was first made (no voucher for it existed earlier), never from the
+ * set's release: a public RPC refuses a `getLogs` over a day of blocks, and a read that always
+ * fails would leave an unused voucher holding its slot for the whole first day. The read also
+ * halves its span while an RPC refuses it (`getLogsAdaptive`).
  */
-async function claimedByProfile(row: VoucherRow, profileWallets: readonly string[], fromBlock: bigint): Promise<boolean | null> {
+async function claimedByProfile(row: VoucherRow, profileWallets: readonly string[], floor: bigint): Promise<boolean | null> {
   try {
-    const logs = await getPublicClient().getLogs({
+    const client = getPublicClient();
+    const latest = await client.getBlock();
+    const age = Math.max(0, Number(latest.timestamp) - Math.floor(row.createdAt.getTime() / 1000));
+    const back = BigInt(Math.ceil((age / BLOCK_SECONDS) * 1.25)) + START_SLACK_BLOCKS;
+    const from = latest.number - back > floor ? latest.number - back : floor;
+    const logs = await getLogsAdaptive(client, {
       address: addressOf("words"),
       event: CLAIMED,
       args: { tokenId: tokenIdOf(row.word), owner: walletsToAsk(row, profileWallets).map((w) => getAddress(w)) },
-      fromBlock,
-      toBlock: "latest",
+      fromBlock: from,
+      toBlock: latest.number,
     });
     return logs.length > 0;
   } catch {

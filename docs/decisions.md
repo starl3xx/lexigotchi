@@ -2358,6 +2358,15 @@ setter. All small, riding existing suite patterns.
         row is now revived. And a renewal from a linked wallet made the row name only that wallet,
         so the first wallet's claim went unseen and the slot was freed: a row now remembers every
         wallet it was signed for, and settling asks the chain about all of them.
+      - **Three more from the last automated review, fixed before merge.** Settling read the
+        chain from the set's release, a span a public RPC refuses within hours, so an unused
+        voucher would have held its slot all day: it now reads from about when the row was first
+        made, in spans that halve when refused. The game decided whether to ask for a voucher by
+        the device's clock, and the server by its own, while the contract goes by the chain's: the
+        game now asks whenever the server says a word is gated, the server says so until two
+        minutes past the gate's end, and the voucher route decides by the chain's time. And the
+        proof route took "gated" from the sets table, which a database outage hides: it now asks
+        the chain for that word's `gatedUntil`, and serves no proof when that can't be read.
       - **The redeploy** is the whole suite (Staking, Rolls, Prestige, and the Jackpot hold the
         Words address for good), it resets the testers' test build, and it carries the 3.0× caps.
         `docs/web3-runtime-plan.md` has the plan and the proposed time (Thursday 2026-12-03, after

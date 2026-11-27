@@ -21,6 +21,7 @@ const world = vi.hoisted(() => ({
   chainRoot: "",
   gate: false,
   gateUnreadable: false,
+  gateOf: new Map<string, number>(), // word → Words.gatedUntil, in seconds
   owned: new Set<string>(),
   ownedUnreadable: false,
   ids: new Map<string, string>(), // token id → word, filled as the tests name words
@@ -69,11 +70,15 @@ vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof impo
 vi.mock("@/lib/onchain/reads", async (orig) => ({
   ...(await orig<typeof import("@/lib/onchain/reads")>()),
   getPublicClient: () => ({
-    readContract: async ({ functionName }: { functionName: string }) => {
+    readContract: async ({ functionName, args }: { functionName: string; args?: readonly bigint[] }) => {
       if (functionName === "dictionaryRoot") return world.chainRoot;
       if (functionName === "claimSigner") {
         if (world.gateUnreadable) throw new Error("rpc down");
         return "0x00000000000000000000000000000000000000aa";
+      }
+      if (functionName === "gatedUntil") {
+        if (world.gateUnreadable) throw new Error("rpc down");
+        return BigInt(world.gateOf.get(world.ids.get(String(args?.[0])) ?? "") ?? 0);
       }
       throw new Error(`unexpected read ${functionName}`);
     },
@@ -112,6 +117,7 @@ beforeEach(async () => {
   world.fail = false;
   world.gate = false;
   world.gateUnreadable = false;
+  world.gateOf = new Map();
   world.owned = new Set();
   world.ownedUnreadable = false;
   const { tokenIdOf } = await import("@/lib/onchain/tokenId");
@@ -415,28 +421,51 @@ describe("releasing", () => {
 });
 
 describe("the proof route says when a word is inside its set's first day", () => {
-  const future = () => new Date(Date.now() + 3_600_000);
-  it("carries `gate` for a released set's word while its gate is up, on a Words that has the gate", async () => {
+  const nowSec = () => Math.floor(Date.now() / 1000);
+  it("carries `gate`, read from the CHAIN for that word, on a network whose Words has the gate", async () => {
     world.gate = true;
-    const until = future();
-    world.sets = [draft(1, "Out", [words.A], { status: "released", gateUntil: until })];
+    const until = nowSec() + 3600;
+    world.gateOf = new Map([[words.A, until]]);
     const { GET } = await import("@/app/api/dictionary/proof/route");
     const a = await (await GET(proofReq(words.A))).json();
     expect(a.ok).toBe(true);
-    expect(a.gate).toBe(Math.floor(until.getTime() / 1000));
-    expect("gate" in (await (await GET(proofReq(words.Z))).json())).toBe(false); // a word of no set
+    expect(a.gate).toBe(until);
+    expect("gate" in (await (await GET(proofReq(words.Z))).json())).toBe(false); // not gated on the chain
   });
-  it("says nothing once the gate has lifted, or where the contract has no gate", async () => {
+  it("still says so just after a gate's end, so the chain's own clock decides (never this server's, or a phone's)", async () => {
     world.gate = true;
-    world.sets = [draft(1, "Out", [words.A], { status: "released", gateUntil: new Date(Date.now() - 1000) })];
+    world.gateOf = new Map([[words.A, nowSec() - 60], [words.B, nowSec() - 600]]);
     const { GET } = await import("@/app/api/dictionary/proof/route");
-    expect("gate" in (await (await GET(proofReq(words.A))).json())).toBe(false);
-
-    vi.resetModules();
+    expect("gate" in (await (await GET(proofReq(words.A))).json())).toBe(true); // a minute past: ask the voucher route
+    expect("gate" in (await (await GET(proofReq(words.B))).json())).toBe(false); // long past: the plain claim
+  });
+  it("doesn't depend on the sets table: a database outage on a chain holding the full root still says a word is gated", async () => {
+    // After the last set is released the chain holds the full dictionary's root, and its words may
+    // still be in their first day.
+    world.gate = true;
+    world.fail = true;
+    world.gateOf = new Map([[words.A, nowSec() + 3600]]);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const a = await (await GET(proofReq(words.A))).json();
+    expect(a.ok).toBe(true);
+    expect(a.gate).toBe(world.gateOf.get(words.A));
+    log.mockRestore();
+  });
+  it("serves no proof for a word whose gate can't be read: the plain claim might revert in the wallet", async () => {
+    world.gate = true;
+    world.gateUnreadable = true;
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const res = await GET(proofReq(words.A));
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("try_again");
+  });
+  it("asks nothing and says nothing where the contract has no gate", async () => {
     world.gate = false; // this network's Words predates the gate: the plain claim is the claim
-    world.sets = [draft(1, "Out", [words.A], { status: "released", gateUntil: future() })];
-    const again = await import("@/app/api/dictionary/proof/route");
-    const body = await (await again.GET(proofReq(words.A))).json();
+    world.gateOf = new Map([[words.A, nowSec() + 3600]]);
+    world.gateUnreadable = true; // and it never even asks
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const body = await (await GET(proofReq(words.A))).json();
     expect(body.ok).toBe(true);
     expect("gate" in body).toBe(false);
   });

@@ -29,6 +29,8 @@ export interface VoucherRow {
   named: string[];
   word: string;
   deadline: Date;
+  /** When the row was first made: no voucher for it existed before this, so no claim with one did either. */
+  createdAt: Date;
   /** null: not settled yet (it counts). true: claimed (it counts, for good). false: expired unused (free). */
   used: boolean | null;
 }

@@ -43,6 +43,9 @@ const world = vi.hoisted(() => ({
   fidWallets: new Map<string, number[]>(),
   limited: new Set<string>(),
   ids: new Map<string, string>(),
+  block: 5_000_000n,
+  logReads: [] as { from: bigint; to: bigint }[],
+  logRangeLimit: null as bigint | null,
 }));
 
 vi.mock("@/lib/ratelimit", () => ({ allow: async (kind: string) => !world.limited.has(kind) }));
@@ -74,7 +77,7 @@ vi.mock("@/lib/db/setVouchers", async () => {
         Object.assign(row, { named: [...new Set([...row.named, row.wallet, a.wallet])], wallet: a.wallet, deadline: a.deadline, used: row.used === true ? true : null });
         return { ok: true, renewed: true };
       }
-      world.rows.push({ id: world.nextId++, account: a.account, wallet: a.wallet, named: [a.wallet], word: a.word, deadline: a.deadline, used: null });
+      world.rows.push({ id: world.nextId++, account: a.account, wallet: a.wallet, named: [a.wallet], word: a.word, deadline: a.deadline, createdAt: new Date(world.now * 1000), used: null });
       return { ok: true, renewed: false };
     },
     settleVouchers: async (_c: number, _s: number, account: string, wallets: string[], nowSec: number, check: (r: VoucherRow) => Promise<boolean | null>) => {
@@ -117,9 +120,13 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
       if (functionName === "exists") return world.owned.has(world.ids.get(String(args?.[0])) ?? "");
       throw new Error(`unexpected read ${functionName}`);
     },
+    getBlock: async () => ({ number: world.block, timestamp: BigInt(world.now) }),
     // `owner` is a list: every wallet the row's vouchers named, and the profile's wallets.
-    getLogs: async ({ args }: { args: { tokenId: bigint; owner: string[] } }) =>
-      world.claimedLogs.filter((l) => world.ids.get(String(args.tokenId)) === l.word && args.owner.map((o) => o.toLowerCase()).includes(l.wallet)),
+    getLogs: async ({ args, fromBlock, toBlock }: { args: { tokenId: bigint; owner: string[] }; fromBlock: bigint; toBlock: bigint }) => {
+      world.logReads.push({ from: fromBlock, to: toBlock });
+      if (world.logRangeLimit !== null && toBlock - fromBlock + 1n > world.logRangeLimit) throw new Error("query exceeds max block range");
+      return world.claimedLogs.filter((l) => world.ids.get(String(args.tokenId)) === l.word && args.owner.map((o) => o.toLowerCase()).includes(l.wallet));
+    },
   }),
 }));
 
@@ -144,6 +151,7 @@ beforeEach(async () => {
   Object.assign(world, {
     rows: [], nextId: 1, now: 1_800_000_000, gate: true, gatedUntil: 1_800_050_000, owned: new Set(), claimedLogs: [],
     chainDown: false, dbDown: false, linksDown: false, identity: { ok: true }, session: P, fid: null, fidWallets: new Map(), limited: new Set(),
+    block: 5_000_000n, logReads: [], logRangeLimit: null,
     links: { [P]: { account: P, wallets: [P, L] }, [L]: { account: P, wallets: [P, L] } },
     ids: new Map([...WORDS, "ABOUT"].map((w) => [tokenIdOf(w).toString(), w])),
   });
@@ -151,7 +159,7 @@ beforeEach(async () => {
 });
 
 describe("the counting rule", () => {
-  const row = (id: number, word: string, used: boolean | null, wallet = P): VoucherRow => ({ id, account: P, wallet, named: [wallet], word, deadline: new Date(1_800_000_600_000), used });
+  const row = (id: number, word: string, used: boolean | null, wallet = P): VoucherRow => ({ id, account: P, wallet, named: [wallet], word, deadline: new Date(1_800_000_600_000), createdAt: new Date(1_800_000_000_000), used });
   it("a first word is new; the same word again is a renewal; a second word is the limit", () => {
     expect(decideVoucher([], "CRANE", 1)).toEqual({ kind: "new" });
     expect(decideVoucher([row(1, "CRANE", null)], "CRANE", 1)).toEqual({ kind: "renew", id: 1, revive: false });
@@ -303,6 +311,28 @@ describe("POST /api/sets/voucher", () => {
     expect(world.rows[0].used).toBe(true);
     world.session = P;
     expect((await call({ wallet: P, word: "GRAPE" })).status).toBe(409);
+  });
+
+  it("settling reads the chain from about when the voucher was made, never from the set's release", async () => {
+    // The set was released at block 100; the chain is at 5,000,000. A read of all of that is
+    // refused by a public RPC, and a read that always fails would hold an unused slot all day.
+    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    world.now += VOUCHER_TTL_SECONDS + SETTLE_AFTER_SECONDS + 5; // 725 s later
+    expect((await call({ wallet: P, word: "MOTEL" })).status).toBe(200); // settled as unused: the slot is free
+    expect(world.logReads).toHaveLength(1);
+    const span = world.logReads[0].to - world.logReads[0].from;
+    expect(world.logReads[0].to).toBe(5_000_000n);
+    expect(span).toBeGreaterThanOrEqual(363n); // at least the 725 s since the voucher, at a block every 2 s
+    expect(span).toBeLessThan(2_000n); // and nowhere near the 4,999,900 blocks since the release
+  });
+
+  it("and halves its span when an RPC still refuses it", async () => {
+    world.logRangeLimit = 200n;
+    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    world.now += VOUCHER_TTL_SECONDS + SETTLE_AFTER_SECONDS + 5;
+    expect((await call({ wallet: P, word: "MOTEL" })).status).toBe(200);
+    expect(world.logReads.length).toBeGreaterThan(2);
+    expect(world.rows.find((r) => r.word === "CRANE")?.used).toBe(false);
   });
 
   it("a higher per-player limit is that many different words", async () => {

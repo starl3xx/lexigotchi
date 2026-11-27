@@ -1927,10 +1927,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const W = word.toUpperCase();
           // The first day after a set's release (decisions.md, "Reserved word sets"): the claim
           // needs the server's voucher, one word of the set per player. The server says when a
-          // word is gated (`proof.gate`); "not_gated" back from the voucher route means the gate
-          // lifted meanwhile, and the plain claim is the claim.
+          // word is gated (`proof.gate`, read from the chain), and the voucher route decides by the
+          // chain's own time: never this device's clock, which may run ahead of a gate's end and
+          // send a plain claim the contract refuses. "not_gated" back from the voucher route means
+          // the gate has lifted, and the plain claim is the claim.
           let voucher: { deadline: bigint; sig: `0x${string}` } | undefined;
-          if (typeof proof.gate === "number" && proof.gate * 1000 > Date.now()) {
+          if (typeof proof.gate === "number") {
             const v = await openPostJson<{ voucher: { deadline: string; sig: `0x${string}` } }>("/api/sets/voucher", { wallet: address, word: W });
             if (v.ok) voucher = { deadline: BigInt(v.voucher.deadline), sig: v.voucher.sig };
             else if (v.error !== "not_gated") {
