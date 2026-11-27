@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { recoverMessageAddress } from "viem";
-import type { WordSet } from "@/lib/sets/rules";
+import { STANDARD_FIELDS, type WordSet } from "@/lib/sets/rules";
 import { decideVoucher, dueToSettle, holdsSlot, walletsToAsk, SETTLE_AFTER_SECONDS, VOUCHER_TTL_SECONDS, type VoucherRow } from "@/lib/sets/voucher";
 
 const KEY = generatePrivateKey();
@@ -46,6 +46,11 @@ const world = vi.hoisted(() => ({
   block: 5_000_000n,
   logReads: [] as { from: bigint; to: bigint }[],
   logRangeLimit: null as bigint | null,
+  allowlist: new Set<string>(),
+  allowlistDown: false,
+  balances: new Map<string, bigint>(), // a wallet's balance of the rule's token, on Base mainnet
+  balanceDown: new Set<string>(),
+  balanceReads: [] as { token: string; wallet: string }[],
 }));
 
 vi.mock("@/lib/ratelimit", () => ({ allow: async (kind: string) => !world.limited.has(kind) }));
@@ -60,6 +65,21 @@ vi.mock("@/lib/db/sets", () => ({
   newestRoot: async () => null,
   setReleaseRoot: async () => true,
   markReleased: async () => false,
+  onAllowlist: async (_id: number, wallets: string[]) => {
+    if (world.allowlistDown) throw new Error("db down");
+    return wallets.some((w) => world.allowlist.has(w));
+  },
+}));
+// A token rule reads Base MAINNET, whatever network the game is on.
+vi.mock("@/lib/onchain/mainnet", () => ({
+  getMainnetClient: () => ({
+    readContract: async ({ address, args }: { address: string; args: [string] }) => {
+      const wallet = args[0].toLowerCase();
+      world.balanceReads.push({ token: address.toLowerCase(), wallet });
+      if (world.balanceDown.has(wallet)) throw new Error("rpc down");
+      return world.balances.get(wallet) ?? 0n;
+    },
+  }),
 }));
 // The storage, standing on the REAL rule: what is tested here is the route and the rule together.
 vi.mock("@/lib/db/setVouchers", async () => {
@@ -135,7 +155,7 @@ function released(id: number, words: string[], perPlayerLimit = 1): WordSet {
   return {
     id, name: `set ${id}`, status: "released", revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit, sort: id,
     revealedAt: new Date(0), releasedAt: new Date((world.now - 3600) * 1000), gateUntil: new Date(world.gatedUntil * 1000), releaseBlock: 100, releaseRoot: "0x01",
-    words: words.map((word) => ({ word, headliner: false })),
+    words: words.map((word) => ({ word, headliner: false })), ...STANDARD_FIELDS,
   };
 }
 
@@ -152,6 +172,7 @@ beforeEach(async () => {
     rows: [], nextId: 1, now: 1_800_000_000, gate: true, gatedUntil: 1_800_050_000, owned: new Set(), claimedLogs: [],
     chainDown: false, dbDown: false, linksDown: false, identity: { ok: true }, session: P, fid: null, fidWallets: new Map(), limited: new Set(),
     block: 5_000_000n, logReads: [], logRangeLimit: null,
+    allowlist: new Set(), allowlistDown: false, balances: new Map(), balanceDown: new Set(), balanceReads: [],
     links: { [P]: { account: P, wallets: [P, L] }, [L]: { account: P, wallets: [P, L] } },
     ids: new Map([...WORDS, "ABOUT"].map((w) => [tokenIdOf(w).toString(), w])),
   });
@@ -376,6 +397,52 @@ describe("POST /api/sets/voucher", () => {
     world.gatedUntil = world.now + 100;
     world.owned = new Set(["CRANE"]);
     expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 409, body: { error: "taken" } });
+    expect(world.rows).toHaveLength(0);
+  });
+
+  it("an allowlist first day refuses a verified player who isn't on the list, and opens to everyone after it", async () => {
+    world.sets = [{ ...released(1, WORDS), gateRule: "allowlist", gateLabel: "friends of the partner", allowlistCount: 1 }];
+    world.links[O] = { account: O, wallets: [O] };
+    world.allowlist = new Set([L]); // P's LINKED wallet is on the list; O is on no list
+    world.session = O;
+    // O is verified and proved the wallet, and still gets nothing: the list is one more rule.
+    const refused = await call({ wallet: O, word: "CRANE" });
+    expect(refused).toMatchObject({ status: 403, body: { error: "not_on_list", rule: "allowlist", label: "friends of the partner", until: world.gatedUntil } });
+    expect(world.rows).toHaveLength(0);
+    // Any wallet of the profile counts: P claims with the wallet they play with.
+    world.session = P;
+    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    // Not verified is still refused FIRST, list or no list: the list never stands in for it.
+    world.identity = { ok: false, status: 403, error: "verification_required" };
+    expect((await call({ wallet: P, word: "MOTEL" })).body.error).toBe("verification_required");
+    world.identity = { ok: true };
+    // After the gate, nobody needs a voucher: the plain claim is the claim, for O too.
+    world.gatedUntil = world.now;
+    world.session = O;
+    expect((await call({ wallet: O, word: "MOTEL" })).body.error).toBe("not_gated");
+  });
+
+  it("a list that can't be read issues nothing (never read as 'on it', never as 'not on it')", async () => {
+    world.sets = [{ ...released(1, WORDS), gateRule: "allowlist", allowlistCount: 1 }];
+    world.allowlist = new Set([P]);
+    world.allowlistDown = true;
+    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 503, body: { error: "try_again" } });
+    expect(world.rows).toHaveLength(0);
+  });
+
+  it("a token first day asks Base for the balance when the voucher is asked for", async () => {
+    const TOKEN = "0x4444444444444444444444444444444444444444";
+    world.sets = [{ ...released(1, WORDS), gateRule: "token", gateToken: TOKEN, gateMin: "5" }];
+    world.balances = new Map([[P, 4n], [L, 0n]]);
+    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 403, body: { error: "not_on_list", rule: "token" } });
+    expect(world.balanceReads).toEqual([{ token: TOKEN, wallet: P }, { token: TOKEN, wallet: L }]);
+    world.balances.set(L, 5n); // the linked wallet holds enough
+    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    // A balance that can't be read, with nobody seen holding enough: ask again.
+    world.rows = [];
+    world.balances.set(L, 0n);
+    world.balanceDown = new Set([L]);
+    expect(await call({ wallet: P, word: "CRANE" })).toMatchObject({ status: 503, body: { error: "try_again" } });
     expect(world.rows).toHaveLength(0);
   });
 

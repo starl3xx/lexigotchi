@@ -12,6 +12,8 @@
  *    counted from vouchers issued (lib/sets/voucher.ts says why never from words held). The row is
  *    written before the voucher is signed; a voucher that expires unused gives its slot back, read
  *    from the chain's own `Claimed` history.
+ *  - On a set whose first day has a rule of its own (an allowlist, or holders of a token on Base):
+ *    a profile with a wallet the rule lets in (lib/sets/firstDay.ts). This adds to "verified".
  *  - A caller who PROVES the wallet is theirs: that wallet's profile session, or a Farcaster
  *    sign-in that Farcaster itself says verified one of the profile's wallets. Unlike the free
  *    snack's voucher, this one spends something scarce (the profile's one slot, on a word the
@@ -42,6 +44,7 @@ import { accountWalletsStrict } from "@/lib/db/walletLinks";
 import { settleVouchers, takeVoucher } from "@/lib/db/setVouchers";
 import { cleanWord } from "@/lib/sets/rules";
 import { hasGate, loadSets } from "@/lib/sets/server";
+import { firstDayOpenTo } from "@/lib/sets/firstDay";
 import { VOUCHER_TTL_SECONDS, walletsToAsk, type VoucherRow } from "@/lib/sets/voucher";
 
 export const runtime = "nodejs";
@@ -156,6 +159,12 @@ export async function POST(req: Request) {
     }
   }
   if (!proven) return no("sign_in", 401, { until });
+
+  // Who this set's first day is open to (an allowlist, or holders of a token). After verification,
+  // never in its place; and a list or a balance that can't be read issues nothing.
+  const open = await firstDayOpenTo(set, wallets);
+  if (open === null) return no("try_again", 503);
+  if (!open) return no("not_on_list", 403, { until, rule: set.gateRule, label: set.gateLabel });
 
   const deadline = now + VOUCHER_TTL_SECONDS;
   try {

@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import { checkAdmin, refusalBody } from "@/lib/admin/serverAuth";
 import { isMissingTable } from "@/lib/db/profiles";
-import { isWord } from "@/lib/dictionary";
+import { WORDS, isWord } from "@/lib/dictionary";
 import { dictionaryRoot } from "@/lib/onchain/dictionaryTree";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
@@ -19,31 +19,43 @@ import { readClaimsBetween } from "@/lib/onchain/claims";
 import {
   SetError,
   addWords,
+  clearStamp,
   createSet,
   deleteSet,
   moveWords,
+  readStamps,
   removeWords,
   reorderSets,
+  replaceAllowlist,
   replaceDrafts,
   revealSet,
   setHeadliner,
+  setStamp,
   updateSet,
 } from "@/lib/db/sets";
 import {
-  GATE_HOURS_DEFAULT,
-  PER_PLAYER_DEFAULT,
+  SETTINGS_DEFAULTS,
+  STAMP_MAX_BYTES,
   checkSettings,
   checkWords,
   cleanWord,
   commitmentOf,
   exportSets,
   heldOf,
+  parseAllowlist,
   parseSetsFile,
+  releaseProblems,
   reserveChange,
+  revealProblems,
   scheduleError,
   setOfWord,
+  sniffStamp,
+  type GateRule,
+  type SetType,
   type WordSet,
 } from "@/lib/sets/rules";
+import { TEST_COLLAB, pickTestWords, placeholderStamp } from "@/lib/sets/testCollab";
+import { wordTier } from "@/lib/economy";
 import { claimedAmong, forgetSets, hasGate, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
 import { setStats, type SetClaim, type SetStats } from "@/lib/sets/stats";
 
@@ -73,6 +85,22 @@ export interface AdminSet {
   releasedAt: string | null;
   gateUntil: string | null;
   words: { word: string; headliner: boolean }[];
+  /** "standard", or "collab": a set made with a partner. */
+  type: SetType;
+  partnerName: string | null;
+  partnerUrl: string | null;
+  colorA: string | null;
+  colorB: string | null;
+  /** The stamp as a `data:` address for the preview (a draft's stamp has no public address), or null. */
+  stamp: string | null;
+  gateRule: GateRule;
+  gateToken: string | null;
+  gateMin: string | null;
+  gateLabel: string | null;
+  /** How many wallets are on the allowlist. The wallets are never sent back. */
+  allowlistCount: number;
+  /** A draft: what it still needs before it can be revealed. Revealed: before its release can be built. */
+  needs: string[];
   /** Words of this (unreleased) set somebody owns on the chain now. Null: couldn't be read. */
   claimed: string[] | null;
   /** Words of this (unreleased) set the chain's root does NOT hold back: claimable right now. */
@@ -83,6 +111,10 @@ export interface AdminSet {
 export interface AdminSetsPayload {
   ok: true;
   migrated: boolean;
+  /** False: migration 0023 hasn't run, so nothing of a collab set can be saved yet. */
+  collab: boolean;
+  /** True on a test network: the placeholder "Test collab" can be made here, and only here. */
+  testnet: boolean;
   network: string;
   chain: {
     deployed: boolean;
@@ -116,6 +148,7 @@ export async function GET(req: Request) {
     const [book, s] = await Promise.all([loadSets({ fresh: true }), serving()]);
     if (!book.known) return json({ ok: false, error: "try_again" }, 503);
     const sets = book.sets;
+    const stamps = sets.some((x) => x.stampAt) ? await readStamps(NETWORK.id) : new Map<number, string>();
     const unreleased = sets.filter((x) => x.status !== "released");
     const released = sets.filter((x) => x.status === "released");
     const allWords = sets.flatMap((x) => x.words.map((w) => w.word));
@@ -136,6 +169,8 @@ export async function GET(req: Request) {
     const body: AdminSetsPayload = {
       ok: true,
       migrated: book.migrated,
+      collab: book.collab,
+      testnet: NETWORK.isTestnet,
       network: NETWORK.name,
       chain: {
         deployed: isSuiteDeployed(),
@@ -167,6 +202,18 @@ export async function GET(req: Request) {
           releasedAt: iso(x.releasedAt),
           gateUntil: iso(x.gateUntil),
           words: x.words,
+          type: x.type,
+          partnerName: x.partnerName,
+          partnerUrl: x.partnerUrl,
+          colorA: x.colorA,
+          colorB: x.colorB,
+          stamp: stamps.get(x.id) ?? null,
+          gateRule: x.gateRule,
+          gateToken: x.gateToken,
+          gateMin: x.gateMin,
+          gateLabel: x.gateLabel,
+          allowlistCount: x.allowlistCount,
+          needs: x.status === "draft" ? (x.words.length ? revealProblems(x) : []) : x.status === "revealed" ? releaseProblems(x) : [],
           claimed: isOut ? (ownedSet ? words.filter((w) => ownedSet.has(w)) : null) : null,
           open: isOut && s.ok && s.chainRoot ? words.filter((w) => !s.chainHeld.has(w)) : [],
           stats:
@@ -207,14 +254,7 @@ export async function POST(req: Request) {
         if (!c.ok) return json({ ok: false, error: "invalid", errors: c.errors }, 400);
         const sched = scheduleError({ revealAt: c.value.revealAt ?? null, releaseAt: c.value.releaseAt ?? null });
         if (sched) return json({ ok: false, error: "invalid", errors: [sched] }, 400);
-        const id = await createSet(chainId, {
-          name: c.value.name ?? "",
-          revealAt: c.value.revealAt ?? null,
-          releaseAt: c.value.releaseAt ?? null,
-          gateHours: c.value.gateHours ?? GATE_HOURS_DEFAULT,
-          perPlayerLimit: c.value.perPlayerLimit ?? PER_PLAYER_DEFAULT,
-          sort: c.value.sort ?? 0,
-        });
+        const id = await createSet(chainId, { ...SETTINGS_DEFAULTS, ...c.value, name: c.value.name ?? "", sort: c.value.sort ?? 0 });
         forgetSets();
         return json({ ok: true, id });
       }
@@ -304,6 +344,74 @@ export async function POST(req: Request) {
         forgetSets();
         return json({ ok: true });
       }
+      case "stamp": {
+        // A collab's stamp: a small raster picture, sent as base64. What it IS comes from its own
+        // first bytes, never from a name or a type the browser sent, and an SVG is never taken (it
+        // can carry script, and this picture is drawn into every card of the set).
+        const id = idOf(body.id);
+        if (!id || typeof body.data !== "string" || body.data.length > Math.ceil(STAMP_MAX_BYTES / 3) * 4 + 4) {
+          return json({ ok: false, error: "invalid", errors: [`a stamp is a PNG, JPEG, or WebP of at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB`] }, 400);
+        }
+        const bytes = Buffer.from(body.data, "base64");
+        const mime = sniffStamp(bytes);
+        if (!mime || bytes.length === 0 || bytes.length > STAMP_MAX_BYTES) {
+          return json({ ok: false, error: "invalid", errors: [`a stamp is a PNG, JPEG, or WebP of at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB`] }, 400);
+        }
+        await setStamp(chainId, id, { mime, base64: bytes.toString("base64"), bytes: bytes.length });
+        forgetSets();
+        return json({ ok: true, bytes: bytes.length, mime });
+      }
+      case "clearStamp": {
+        const id = idOf(body.id);
+        if (!id) return json({ ok: false, error: "bad_request" }, 400);
+        await clearStamp(chainId, id);
+        forgetSets();
+        return json({ ok: true });
+      }
+      case "allowlist": {
+        // The wallets a set's first day is open to, pasted whole: the new list takes the old one's place.
+        const id = idOf(body.id);
+        if (!id || typeof body.text !== "string" || body.text.length > 2_000_000) return json({ ok: false, error: "bad_request" }, 400);
+        const parsed = parseAllowlist(body.text);
+        if (!parsed.ok) return json({ ok: false, error: "invalid", errors: [parsed.error] }, 400);
+        const wallets = await replaceAllowlist(chainId, id, parsed.wallets);
+        forgetSets();
+        return json({ ok: true, wallets, bad: parsed.bad });
+      }
+      case "testCollab": {
+        // The placeholder collab set, for a test network only (lib/sets/testCollab.ts). It is made
+        // as a DRAFT: the operator reveals, reserves, and releases it like any set.
+        if (!NETWORK.isTestnet) return json({ ok: false, error: "not_testnet" }, 409);
+        const book = await loadSets({ fresh: true });
+        if (!book.known) return json({ ok: false, error: "try_again" }, 503);
+        if (!book.migrated || !book.collab) return json({ ok: false, error: "not_migrated" }, 409);
+        if (book.sets.some((x) => x.name === TEST_COLLAB.name)) return json({ ok: false, error: "exists" }, 409);
+        // Words in no set, that the chain doesn't hold back, and that nobody owns: a reserved word
+        // must still be unclaimed. A sample is asked about, never the whole dictionary.
+        const s = await serving();
+        if (!s.ok) return json({ ok: false, error: "try_again" }, 503);
+        const inSet = setOfWord(book.sets);
+        const free = WORDS.filter((w) => !inSet.has(w) && !s.chainHeld.has(w));
+        const sample = [...free.filter((w) => wordTier(w) === "Mythic").slice(0, 40), ...free.filter((w) => wordTier(w) !== "Mythic" && wordTier(w) !== "Legendary").sort(() => Math.random() - 0.5).slice(0, 80)];
+        const owned = await claimedAmong(sample);
+        if (owned === null) return json({ ok: false, error: "try_again" }, 503);
+        const words = pickTestWords(sample.filter((w) => !owned.includes(w)), wordTier);
+        if (!words) return json({ ok: false, error: "no_words" }, 409);
+        const id = await createSet(chainId, {
+          ...SETTINGS_DEFAULTS,
+          name: TEST_COLLAB.name,
+          sort: book.sets.reduce((n, x) => Math.max(n, x.sort + 1), 0),
+          type: "collab",
+          partnerName: TEST_COLLAB.partnerName,
+          colorA: TEST_COLLAB.colorA,
+          colorB: TEST_COLLAB.colorB,
+        });
+        await addWords(chainId, id, words);
+        const png = Buffer.from(placeholderStamp());
+        await setStamp(chainId, id, { mime: "image/png", base64: png.toString("base64"), bytes: png.length });
+        forgetSets();
+        return json({ ok: true, id });
+      }
       case "planReserve": {
         const plan = await planReserve();
         return json(plan, plan.ok ? 200 : 409);
@@ -322,7 +430,9 @@ export async function POST(req: Request) {
         return json({ ok: false, error: "bad_request" }, 400);
     }
   } catch (err) {
-    if (err instanceof SetError) return json({ ok: false, error: err.code, words: err.words }, err.code === "not_found" ? 404 : 409);
+    if (err instanceof SetError) {
+      return json({ ok: false, error: err.code, words: err.words, ...(err.problems.length ? { errors: err.problems } : {}) }, err.code === "not_found" ? 404 : 409);
+    }
     // The set tables aren't there (migration 0021 hasn't run): say that, for every action.
     if (isMissingTable(err)) return json({ ok: false, error: "not_migrated" }, 409);
     console.error(`[admin/sets] ${action} failed:`, codeOf(err));

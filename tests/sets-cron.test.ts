@@ -4,7 +4,7 @@
  * is sent when there is nothing to say. lib/notify/sets.ts has the rest.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { WordSet } from "@/lib/sets/rules";
+import { STANDARD_FIELDS, type WordSet } from "@/lib/sets/rules";
 
 // Made-up players: ON keeps the kind on (Farcaster 1, a browser, an email, Telegram); OFF turned it
 // off (Farcaster 2, a browser, an email, Telegram); WEB is a browser-only player with no Farcaster.
@@ -97,7 +97,7 @@ vi.mock("@/lib/db/telegramLinks", () => ({
 const revealedNow = (id: number): WordSet => ({
   id, name: `Set ${id}`, status: "revealed", revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
   revealedAt: new Date(Date.now() - 60_000), releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
-  words: [{ word: "CRANE", headliner: false }],
+  words: [{ word: "CRANE", headliner: false }], ...STANDARD_FIELDS,
 });
 
 const call = async (auth?: string) => {

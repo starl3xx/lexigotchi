@@ -25,8 +25,19 @@ import {
   reserveChange,
   scheduleError,
   type SetStatus,
+  STANDARD_FIELDS,
+  ALLOWLIST_MAX,
+  IDENTITY_KEYS,
+  SCHEDULE_KEYS,
+  SETTINGS_DEFAULTS,
+  STAMP_MAX_BYTES,
+  parseAllowlist,
+  releaseProblems,
+  revealProblems,
+  sniffStamp,
   type WordSet,
 } from "@/lib/sets/rules";
+import { pickTestWords, placeholderStamp } from "@/lib/sets/testCollab";
 
 const [A, B, C, D, E, F] = WORDS.slice(100, 106);
 
@@ -46,6 +57,7 @@ function set(id: number, name: string, status: SetStatus, words: string[], over:
     releaseBlock: null,
     releaseRoot: null,
     words: words.map((word, i) => ({ word, headliner: i === 0 })),
+    ...STANDARD_FIELDS,
     ...over,
   };
 }
@@ -228,10 +240,179 @@ describe("what a player's browser is told", () => {
     expect(text).not.toMatch(/"id":1\b/);
   });
   it("a revealed set shows its name, words, and release time", () => {
-    expect(pub[1]).toEqual({ kind: "revealed", id: 2, name: "Shown", words: [{ word: C, headliner: true }], releaseAt: "2026-12-24T00:00:00.000Z" });
+    expect(pub[1]).toEqual({
+      kind: "revealed", id: 2, name: "Shown", words: [{ word: C, headliner: true }], collab: null, firstDay: "verified", firstDayLabel: null,
+      releaseAt: "2026-12-24T00:00:00.000Z",
+    });
   });
   it("a released set shows its words, headliners first, and its gate", () => {
     expect(pub[2]).toMatchObject({ kind: "released", id: 3, name: "Out", gateUntil: "2026-12-02T00:00:00.000Z", perPlayerLimit: 1 });
     expect(pub[2].kind === "released" && pub[2].words[0]).toEqual({ word: D, headliner: true });
   });
 });
+
+// --- collab sets (decisions.md, "Collab sets") ---------------------------------------------------
+
+describe("a collab set", () => {
+  const five = WORDS.slice(300, 305);
+  const whole = { type: "collab", partnerName: "Partner", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0) } as const;
+
+  it("can't be revealed with other than five words", () => {
+    for (const n of [1, 4, 6]) {
+      expect(revealProblems(set(1, "C", "draft", WORDS.slice(300, 300 + n), whole))).toEqual([`a collab set has exactly 5 words (this one has ${n})`]);
+    }
+    expect(revealProblems(set(1, "C", "draft", five, whole))).toEqual([]);
+  });
+  it("nor without its partner's name, its two colors, and its stamp", () => {
+    expect(revealProblems(set(1, "C", "draft", five, { ...whole, partnerName: "  " }))).toEqual(["a collab set needs its partner's name"]);
+    expect(revealProblems(set(1, "C", "draft", five, { ...whole, colorB: null }))).toEqual(["a collab set needs its two colors"]);
+    expect(revealProblems(set(1, "C", "draft", five, { ...whole, stampAt: null }))).toEqual(["a collab set needs its stamp"]);
+  });
+  it("a standard set needs none of it, only a word", () => {
+    expect(revealProblems(set(1, "S", "draft", WORDS.slice(300, 303)))).toEqual([]);
+    expect(revealProblems(set(1, "S", "draft", []))).toEqual(["a set with no words can't be revealed"]);
+  });
+  it("its identity is locked at reveal with its name; the first day's rule can change until release", () => {
+    // Every setting is in exactly one of the two groups (or is the display order), so a new one can't be forgotten.
+    const all: Record<keyof typeof SETTINGS_DEFAULTS | "name" | "sort", true> = {
+      name: true, sort: true, revealAt: true, releaseAt: true, gateHours: true, perPlayerLimit: true, type: true, partnerName: true,
+      partnerUrl: true, colorA: true, colorB: true, gateRule: true, gateToken: true, gateMin: true, gateLabel: true,
+    };
+    expect([...IDENTITY_KEYS, ...SCHEDULE_KEYS, "sort"].sort()).toEqual(Object.keys(all).sort());
+    expect(IDENTITY_KEYS).toEqual(["name", "type", "partnerName", "partnerUrl", "colorA", "colorB"]);
+  });
+});
+
+describe("a collab's settings as the operator types them", () => {
+  it("takes a type, a partner, an https link, and two colors", () => {
+    const c = checkSettings({ type: "collab", partnerName: " Partner ", partnerUrl: "https://partner.example/page", colorA: "#1F6F8B", colorB: "#f2a65a" });
+    expect(c).toEqual({ ok: true, value: { type: "collab", partnerName: "Partner", partnerUrl: "https://partner.example/page", colorA: "#1f6f8b", colorB: "#f2a65a" } });
+  });
+  it("refuses a link that isn't https, and a color that isn't six hex digits", () => {
+    for (const partnerUrl of ["http://partner.example", "javascript:alert(1)", "data:text/html,x", "//partner.example", "partner.example", "https://localhost"]) {
+      expect(checkSettings({ partnerUrl }), partnerUrl).toMatchObject({ ok: false });
+    }
+    for (const colorA of ["red", "#fff", "#12345g", "rgb(1,2,3)", "#1234567", 'url("x")']) expect(checkSettings({ colorA }), colorA).toMatchObject({ ok: false });
+    expect(checkSettings({ type: "premium" })).toMatchObject({ ok: false });
+  });
+  it("an empty value clears a field", () => {
+    expect(checkSettings({ partnerName: "", partnerUrl: null, colorA: " ", gateToken: "", gateMin: null, gateLabel: "" })).toEqual({
+      ok: true,
+      value: { partnerName: null, partnerUrl: null, colorA: null, gateToken: null, gateMin: null, gateLabel: null },
+    });
+  });
+  it("takes a first-day rule: a contract address, and a whole amount above zero", () => {
+    const c = checkSettings({ gateRule: "token", gateToken: "0xAbCd000000000000000000000000000000000001", gateMin: "0001000000000000000000", gateLabel: "holders of a test token" });
+    expect(c).toEqual({ ok: true, value: { gateRule: "token", gateToken: "0xabcd000000000000000000000000000000000001", gateMin: "1000000000000000000", gateLabel: "holders of a test token" } });
+    for (const gateMin of ["0", "-1", "1.5", "1e18", "ten"]) expect(checkSettings({ gateMin }), gateMin).toMatchObject({ ok: false });
+    expect(checkSettings({ gateToken: "0x123" })).toMatchObject({ ok: false });
+    expect(checkSettings({ gateRule: "everyone" })).toMatchObject({ ok: false });
+  });
+});
+
+describe("a first day's rule, before a release is built", () => {
+  const s = (over: Partial<WordSet>) => set(1, "S", "revealed", [A], over);
+  it("every verified player needs nothing more", () => {
+    expect(releaseProblems(s({}))).toEqual([]);
+  });
+  it("a token rule needs its contract and its minimum; an allowlist needs somebody on it", () => {
+    expect(releaseProblems(s({ gateRule: "token", gateToken: "0x" + "1".repeat(40) }))).toEqual(["the token rule needs a contract and a minimum balance"]);
+    expect(releaseProblems(s({ gateRule: "token", gateToken: "0x" + "1".repeat(40), gateMin: "1" }))).toEqual([]);
+    expect(releaseProblems(s({ gateRule: "allowlist" }))).toEqual(["the allowlist rule needs at least one wallet on the list"]);
+    expect(releaseProblems(s({ gateRule: "allowlist", allowlistCount: 1 }))).toEqual([]);
+  });
+  it("a set with no first day has no rule to check", () => {
+    expect(releaseProblems(s({ gateHours: 0, gateRule: "allowlist" }))).toEqual([]);
+  });
+});
+
+describe("what the game is told about a collab", () => {
+  const five = WORDS.slice(300, 305);
+  const look = { type: "collab", partnerName: "Partner", partnerUrl: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(5_000) } as const;
+  it("nothing while it is a draft", () => {
+    expect(publicSets([set(1, "Secret", "draft", five, { ...look, gateRule: "token", gateToken: "0x" + "4".repeat(40), gateMin: "9", gateLabel: "SecretLabel" })])).toEqual([{ kind: "locked" }]);
+  });
+  it("its partner, its colors, and its stamp's address once it is revealed; a first day's rule, and never what the rule checks against", () => {
+    const [shown] = publicSets([set(4, "Shown", "revealed", five, { ...look, gateRule: "allowlist", gateLabel: "friends of the partner", allowlistCount: 2 })]);
+    expect(shown).toMatchObject({
+      kind: "revealed",
+      collab: { partner: "Partner", url: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc", stamp: "/api/sets/4/stamp?v=5" },
+      firstDay: "allowlist",
+      firstDayLabel: "friends of the partner",
+    });
+    expect(Object.keys(shown).sort()).toEqual(["collab", "firstDay", "firstDayLabel", "id", "kind", "name", "releaseAt", "words"]);
+  });
+  it("a set with no first day tells no rule", () => {
+    const [shown] = publicSets([set(4, "Shown", "revealed", five, { gateHours: 0, gateRule: "token", gateLabel: "x" })]);
+    expect(shown).toMatchObject({ firstDay: "verified", firstDayLabel: null, collab: null });
+  });
+});
+
+describe("a collab in the file", () => {
+  const five = WORDS.slice(300, 305);
+  it("goes out and comes back with its type, partner, colors, and rule; a stamp and a list are never in a file", () => {
+    const src = set(1, "Collab", "draft", five, {
+      type: "collab", partnerName: "Partner", partnerUrl: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0),
+      gateRule: "token", gateToken: "0x" + "4".repeat(40), gateMin: "9", gateLabel: "holders", allowlistCount: 3,
+    });
+    const file = exportSets([src, set(2, "Plain", "draft", [A])]);
+    expect(Object.keys(file.sets[1]).sort()).toEqual(["gateHours", "headliners", "name", "perPlayerLimit", "releaseAt", "revealAt", "sort", "status", "words"]); // a plain set's file is what it was
+    expect(JSON.stringify(file)).not.toMatch(/stamp|allowlist/i);
+    const back = parseSetsFile(JSON.stringify(file), isWord, new Set());
+    expect(back.ok && back.sets[0]).toMatchObject({
+      name: "Collab", type: "collab", partnerName: "Partner", partnerUrl: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc",
+      gateRule: "token", gateToken: "0x" + "4".repeat(40), gateMin: "9", gateLabel: "holders",
+    });
+    expect(back.ok && back.sets[1]).toMatchObject({ name: "Plain", type: "standard", gateRule: "verified", partnerName: null });
+  });
+  it("the commitment is about the words, as before: a set's look doesn't change it", () => {
+    const plain = set(1, "Same", "draft", five);
+    const dressed: WordSet = { ...plain, type: "collab", partnerName: "Partner", colorA: "#112233" };
+    expect(commitmentOf([dressed])).toBe(commitmentOf([plain]));
+  });
+});
+
+describe("an allowlist as it is pasted", () => {
+  it("takes wallets split by anything, each once, lowercase; counts what isn't a wallet and never echoes it", () => {
+    const W1 = "0x00000000000000000000000000000000000000A1";
+    const W2 = "0x00000000000000000000000000000000000000b2";
+    expect(parseAllowlist(`${W1}\n${W2},${W1.toLowerCase()};  not-a-wallet 0x123\n`)).toEqual({ ok: true, wallets: [W1.toLowerCase(), W2], bad: 2 });
+    expect(parseAllowlist("")).toEqual({ ok: true, wallets: [], bad: 0 });
+  });
+  it("is bounded", () => {
+    const many = Array.from({ length: ALLOWLIST_MAX + 1 }, (_, i) => "0x" + i.toString(16).padStart(40, "0")).join("\n");
+    expect(parseAllowlist(many)).toMatchObject({ ok: false });
+  });
+});
+
+describe("a stamp is what its first bytes say", () => {
+  it("a PNG, a JPEG, or a WebP; never an SVG, a GIF, or a page", () => {
+    expect(sniffStamp(Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0))).toBe("image/png");
+    expect(sniffStamp(Uint8Array.of(0xff, 0xd8, 0xff, 0xe0))).toBe("image/jpeg");
+    expect(sniffStamp(new TextEncoder().encode("RIFF\u0000\u0000\u0000\u0000WEBPVP8 "))).toBe("image/webp");
+    for (const text of ['<svg xmlns="http://www.w3.org/2000/svg"/>', "<?xml version='1.0'?><svg/>", "GIF89a", "<!doctype html>", "RIFF....WAVE", ""]) {
+      expect(sniffStamp(new TextEncoder().encode(text)), text).toBeNull();
+    }
+  });
+  it("the placeholder stamp is a small PNG with a clear corner and an inked ring", () => {
+    const png = placeholderStamp();
+    expect(sniffStamp(png)).toBe("image/png");
+    expect(png.length).toBeLessThan(STAMP_MAX_BYTES / 20);
+    expect(Buffer.from(placeholderStamp()).equals(Buffer.from(png))).toBe(true); // the same picture every time
+  });
+});
+
+describe("the test collab's five words", () => {
+  const tier = (w: string) => (w.startsWith("M") ? "Mythic" : w.startsWith("L") ? "Legendary" : "Common");
+  const first = () => 0;
+  it("one Mythic word when there is one, the rest from below Legendary, A to Z", () => {
+    expect(pickTestWords(["MYTHA", "MYTHB", "LEGEN", "ZEBRA", "APPLE", "BERRY", "CHAIR", "DOZEN"], tier, first)).toEqual(["APPLE", "BERRY", "CHAIR", "MYTHA", "ZEBRA"]);
+  });
+  it("five lower words when no Mythic word is free", () => {
+    expect(pickTestWords(["LEGEN", "ZEBRA", "APPLE", "BERRY", "CHAIR", "DOZEN"], tier, first)).toEqual(["APPLE", "BERRY", "CHAIR", "DOZEN", "ZEBRA"]);
+  });
+  it("nothing when there aren't five", () => {
+    expect(pickTestWords(["MYTHA", "LEGEN", "APPLE", "BERRY", "CHAIR"], tier, first)).toBeNull();
+  });
+});
+

@@ -8,11 +8,25 @@
 /** The server's refusal, as it arrives. */
 export interface GateRefusal {
   error: string;
+  /** The set's first-day rule (not_on_list): "allowlist" or "token"; and the operator's words for who it lets in. */
+  rule?: string;
+  label?: string | null;
   /** The words that hold the player's slots (limit_reached). */
   words?: string[];
   limit?: number;
   /** When the gate lifts, in seconds. */
   until?: number;
+}
+
+/**
+ * Who a first day with a rule of its own is open to, to end a sentence: the operator's own words
+ * when the set has them, or the plain wording for its rule. (A plain first day is every verified
+ * player, and the callers say that themselves.)
+ */
+export function firstDayWho(rule: string | undefined, label: string | null | undefined): string {
+  const own = label?.trim();
+  if (own) return own;
+  return rule === "token" ? "holders of this set’s token" : "players on this set’s list";
 }
 
 /** How long until the gate lifts, in words. */
@@ -61,6 +75,12 @@ export function gateRefusalNote(word: string, r: GateRefusal, nowSec: number, un
     case "x_too_young":
       return {
         text: `First day: your X account is too new to count yet. ${W} opens to everyone in ${left}.`,
+        tone: "info",
+        openProfile: false,
+      };
+    case "not_on_list":
+      return {
+        text: `First day: this set is open to ${firstDayWho(r.rule, r.label)}. ${W} opens to everyone in ${left}.`,
         tone: "info",
         openProfile: false,
       };

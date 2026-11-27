@@ -130,6 +130,18 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
     90 days, or a Coinbase-verified wallet, as for the free letters) gets vouchers for one word of
     the set (its `per_player_limit`), per profile across linked wallets. After the gate, anyone
     claims as usual. The gate is set in the same batch as the release, before the root.
+  - **A first day can have a rule of its own** (decisions.md #53): open to every verified player
+    (the default), to the wallets on a list the operator imports, or to holders of a minimum
+    balance of one token on Base, read when the voucher is asked for. The rule adds to
+    “verified”; it never replaces it. Any wallet of a player’s profile counts. The Dictionary says
+    who the day is open to.
+- **Collab sets** (decisions.md #53, built in parts): a set made with a partner. It has exactly
+  five words, the partner’s name and link, and a card look of its own (two colors and a stamp).
+  Collab changes how the card looks, and its words are Legendary rarity from the set’s reveal (a
+  word whose own rarity is higher keeps it); the word itself is the same word. A revealed or
+  released collab set shows in the Dictionary as a collaboration, with the partner’s name and
+  link. Nothing of a collab is shown before its reveal. (Shipped so far: the set’s type, partner,
+  colors, stamp, and first-day rule. The rarity and the card follow.)
 
 ---
 

@@ -102,6 +102,21 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Formulas: caps = `floor(slots × DEMAND_MULTIPLE)` (3.0 since decisions.md #21 → 68,760; Sepolia's
   deployed Letters keeps 2.5× → 57,294 until a redeploy); tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.
+- **Collab sets** (decisions.md #53, built in parts; part 1 is the data): a set is `standard` or
+  `collab` (a partner's name and link, two colors, a stamp; exactly five words). A collab's look is
+  its identity: a draft's to edit, locked at the reveal (`rules.ts` `IDENTITY_KEYS`,
+  `revealProblems`), and **nothing of it reaches a browser before the reveal**, not even that the
+  set is a collab. **No real partner, name, logo, or color ever ships in this repository**, and
+  "Test collab" is made only by the owner's button on a test network. The stamp is a raster
+  picture in the database (`set_stamps`; never an SVG, and typed by its own first bytes both
+  ways); `/api/sets/{id}/stamp` answers only for a revealed set. **A set's first day has a rule**
+  (`gate_rule`: every verified player, an allowlist, or a token's holders on Base MAINNET):
+  `lib/sets/firstDay.ts` checks it AFTER verification, any wallet of the profile counts, and it
+  fails closed (unreadable = "try again", never "yes"). **A deploy never waits for a migration:**
+  the sets must read and plain sets must save before 0023 has run (`listSets` falls back to
+  0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
+  the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`
+  must pass on a database with and without the newest migration.
 - **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /
   `set_words` / `dictionary_roots`, migration 0021): themed groups of dictionary words held back
   and released later. A reserved word is one `Words.dictionaryRoot` leaves out; a release is a

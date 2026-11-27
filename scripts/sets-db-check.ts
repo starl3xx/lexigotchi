@@ -16,6 +16,7 @@ import { getDb, closeDb } from "@/lib/db/client";
 import {
   SetError,
   addWords,
+  clearStamp,
   createSet,
   deleteSet,
   heldOfRoot,
@@ -23,28 +24,32 @@ import {
   markReleased,
   moveWords,
   newestRoot,
+  onAllowlist,
+  readStamp,
+  readStamps,
   removeWords,
   reorderSets,
+  replaceAllowlist,
   replaceDrafts,
   revealDue,
   revealSet,
   saveRoot,
   setHeadliner,
   setReleaseRoot,
+  setStamp,
   updateSet,
 } from "@/lib/db/sets";
-import { GATE_HOURS_DEFAULT, PER_PLAYER_DEFAULT, type SetSettings } from "@/lib/sets/rules";
+import { revealProblems } from "@/lib/sets/rules";
+import { placeholderStamp } from "@/lib/sets/testCollab";
+import { SETTINGS_DEFAULTS, type SetSettings } from "@/lib/sets/rules";
 import { profileVouchers, settleVouchers, takeVoucher } from "@/lib/db/setVouchers";
 import { SETTLE_AFTER_SECONDS } from "@/lib/sets/voucher";
 import { WORDS } from "@/lib/dictionary";
 
 const CHAIN = 84532;
 const base = (name: string, over: Partial<SetSettings> = {}): SetSettings => ({
+  ...SETTINGS_DEFAULTS,
   name,
-  revealAt: null,
-  releaseAt: null,
-  gateHours: GATE_HOURS_DEFAULT,
-  perPlayerLimit: PER_PLAYER_DEFAULT,
   sort: 0,
   ...over,
 });
@@ -76,7 +81,12 @@ async function main() {
   await db.execute(sql`delete from word_sets`);
   await db.execute(sql`delete from dictionary_roots`);
 
-  check("no sets at first, and the tables are there", JSON.stringify(await listSets(CHAIN)) === '{"sets":[],"migrated":true}');
+  // Has migration 0023 (what a collab set adds) run here? Everything before the collab section
+  // must pass either way: a deploy never waits for a migration.
+  const start = await listSets(CHAIN);
+  const collab = start.collab;
+  console.log(collab ? "migration 0023 has run: the collab checks run too" : "migration 0023 has NOT run: checking that plain sets work without it");
+  check("no sets at first, and the tables are there", start.sets.length === 0 && start.migrated === true, start);
 
   // a draft is fully editable
   const one = await createSet(CHAIN, base("One"));
@@ -250,6 +260,112 @@ async function main() {
   let seen: string[] = [];
   await settleVouchers(CHAIN, two, W1, [W1, W2], past, async (r) => ((seen = r.named), r.named.includes(W1)));
   check("settling is handed them all, so the first wallet's claim spends the slot", seen.includes(W1) && (await profileVouchers(CHAIN, two, W1, [W1, W2]))[0].used === true && !(await take(W1, [W1, W2], W2, D)).ok);
+
+  // --- collab sets (migration 0023; decisions.md, "Collab sets") ---
+  const png = Buffer.from(placeholderStamp());
+  const stamp = { mime: "image/png" as const, base64: png.toString("base64"), bytes: png.length };
+  const X1 = "0x00000000000000000000000000000000000000e1";
+  const X2 = "0x00000000000000000000000000000000000000e2";
+  const X3 = "0x00000000000000000000000000000000000000e3";
+  if (!collab) {
+    // Before 0023: plain sets did everything above. What a collab adds is refused with a reason, never a crash.
+    const plain = await createSet(CHAIN, base("Plain"));
+    check("before 0023: a collab can't be made", (await refused(() => createSet(CHAIN, base("Collab", { type: "collab" })))) === "not_migrated");
+    check("before 0023: a set's look can't be saved", (await refused(() => updateSet(CHAIN, plain, { colorA: "#112233" }))) === "not_migrated");
+    check("before 0023: no stamp is stored", (await refused(() => setStamp(CHAIN, plain, stamp))) === "not_migrated");
+    check("before 0023: no allowlist is stored", (await refused(() => replaceAllowlist(CHAIN, plain, [X1]))) === "not_migrated");
+    check("before 0023: a first-day rule can't be saved", (await refused(() => updateSet(CHAIN, plain, { gateRule: "allowlist" }))) === "not_migrated");
+    check("before 0023: there is no stamp to read", (await readStamp(CHAIN, plain)) === null && (await readStamps(CHAIN)).size === 0);
+    check("before 0023: every set reads as a standard one", (await listSets(CHAIN)).sets.every((s) => s.type === "standard" && s.gateRule === "verified" && s.stampAt === null));
+    check("before 0023: a plain set is still renamed and rescheduled", (await refused(() => updateSet(CHAIN, plain, { name: "Plainer", gateHours: 6 }))) === null);
+  } else {
+    const [K1, K2, K3, K4, K5, K6, K7, K8, K9, K10, K11, K12, K13, K14, K15, K16, K17] = WORDS.slice(320, 337);
+    const look = { type: "collab" as const, partnerName: "Partner", partnerUrl: "https://partner.example/", colorA: "#112233", colorB: "#aabbcc" };
+    const whyNot = async (id: number): Promise<string[] | null> => {
+      try {
+        await revealSet(CHAIN, id, new Date());
+        return null;
+      } catch (err) {
+        return err instanceof SetError && err.code === "not_ready" ? err.problems : [`other: ${String((err as Error).message)}`];
+      }
+    };
+    const get = async (id: number) => (await listSets(CHAIN)).sets.find((s) => s.id === id);
+
+    const co = await createSet(CHAIN, base("Collab", { ...look, sort: 20 }));
+    await addWords(CHAIN, co, [K1, K2, K3, K4]);
+    const made = await get(co);
+    check("a collab set is stored with its partner, link, and colors", made?.type === "collab" && made.partnerName === "Partner" && made.partnerUrl === "https://partner.example/" && made.colorA === "#112233" && made.colorB === "#aabbcc", made);
+    check("four words and no stamp: not revealed, and it says both", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 4)", "a collab set needs its stamp"]));
+    await setStamp(CHAIN, co, stamp);
+    check("its stamp is stored, and the set says when", (await get(co))?.stampAt instanceof Date && (await readStamp(CHAIN, co))?.base64 === stamp.base64);
+    check("a second stamp takes the first one's place", (await refused(() => setStamp(CHAIN, co, { ...stamp, mime: "image/webp" }))) === null && (await readStamp(CHAIN, co))?.mime === "image/webp");
+    await setStamp(CHAIN, co, stamp);
+    check("another chain has no such stamp", (await readStamp(8453, co)) === null);
+    check("four words: still not revealed", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 4)"]));
+    await addWords(CHAIN, co, [K5, K6]);
+    check("six words: not revealed either", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 6)"]));
+    await removeWords(CHAIN, co, [K6]);
+    check("it is still a draft", (await get(co))?.status === "draft");
+
+    // the allowlist
+    check("a list is stored whole", (await replaceAllowlist(CHAIN, co, [X1, X2])) === 2 && (await get(co))?.allowlistCount === 2);
+    check("a wallet on it is found, among a profile's wallets", (await onAllowlist(co, [X3, X2])) === true && (await onAllowlist(co, [X3])) === false && (await onAllowlist(co, [])) === false);
+    check("a new list takes the old one's place", (await replaceAllowlist(CHAIN, co, [X3])) === 1 && (await onAllowlist(co, [X1])) === false && (await onAllowlist(co, [X3])) === true);
+
+    // an import keeps a draft's stamp and list when it comes back under the same name
+    const other = await createSet(CHAIN, base("Other", { sort: 21 }));
+    await setStamp(CHAIN, other, stamp);
+    const drafts = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft");
+    await replaceDrafts(
+      CHAIN,
+      drafts.filter((s) => s.id !== other).map((s) => ({ ...base(s.name, { ...s }), words: s.words })),
+    );
+    const co2 = (await listSets(CHAIN)).sets.find((s) => s.name === "Collab")!;
+    check("an import gives the set a new row", co2.id !== co && co2.type === "collab" && co2.words.length === 5, co2);
+    check("and it keeps its stamp and its list", co2.stampAt instanceof Date && (await readStamp(CHAIN, co2.id))?.base64 === stamp.base64 && co2.allowlistCount === 1 && (await onAllowlist(co2.id, [X3])) === true);
+    const orphans = await db.execute(sql`select (select count(*) from set_stamps where set_id in (${co}, ${other})) + (select count(*) from set_allowlist where set_id in (${co}, ${other})) as n`);
+    check("a draft the import dropped takes its stamp and list with it", Number((orphans as unknown as { n: string }[])[0].n) === 0, orphans);
+
+    // the scheduled reveal agrees with revealProblems, case by case
+    const due = new Date(Date.now() - 1000);
+    const mk = async (name: string, over: Partial<SetSettings>, words: string[], stamped: boolean) => {
+      const id = await createSet(CHAIN, base(name, { revealAt: due, ...over }));
+      await addWords(CHAIN, id, words);
+      if (stamped) await setStamp(CHAIN, id, stamp);
+      return id;
+    };
+    const cases = [
+      await mk("whole", look, [K7, K8, K9, K10, K11], true),
+      await mk("no stamp", look, [K12, K13, K14, K15, K16], false),
+      await mk("no color", { ...look, colorB: null }, [K17, K6], true),
+      await mk("blank partner", { ...look, partnerName: "   " }, [], true),
+      await mk("standard, due", {}, [WORDS[340]], false),
+    ];
+    await updateSet(CHAIN, co2.id, { revealAt: due });
+    const expectIds = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft" && s.revealAt && revealProblems(s).length === 0).map((s) => s.id).sort();
+    const got = (await revealDue(CHAIN, new Date())).sort();
+    check("the scheduled reveal reveals exactly the due drafts that are whole (the SQL and the rule agree)", JSON.stringify(got) === JSON.stringify(expectIds) && got.includes(cases[0]) && got.includes(co2.id) && got.includes(cases[4]) && !got.includes(cases[1]) && !got.includes(cases[2]), { got, expectIds, cases });
+    check("a late collab that isn't whole stays a draft, and a second pass changes nothing", (await revealDue(CHAIN, new Date())).length === 0 && (await get(cases[1]))?.status === "draft");
+
+    // revealed: the look is locked with the name; the first day's rule still moves
+    check("revealed: no new color", (await refused(() => updateSet(CHAIN, co2.id, { colorA: "#000000" }))) === "locked");
+    check("revealed: no new partner, link, or type", (await refused(() => updateSet(CHAIN, co2.id, { partnerName: "Other" }))) === "locked" && (await refused(() => updateSet(CHAIN, co2.id, { partnerUrl: null }))) === "locked" && (await refused(() => updateSet(CHAIN, co2.id, { type: "standard" }))) === "locked");
+    check("revealed: no new stamp, and the stamp stays", (await refused(() => setStamp(CHAIN, co2.id, stamp))) === "locked" && (await refused(() => clearStamp(CHAIN, co2.id))) === "locked" && (await readStamp(CHAIN, co2.id))?.status === "revealed");
+    check("revealed: the first day's rule can still be set", (await refused(() => updateSet(CHAIN, co2.id, { gateRule: "token", gateToken: "0x" + "4".repeat(40), gateMin: "1000000000000000000", gateLabel: "holders of a test token" }))) === null);
+    const ruled = await get(co2.id);
+    check("and is stored", ruled?.gateRule === "token" && ruled.gateToken === "0x" + "4".repeat(40) && ruled.gateMin === "1000000000000000000" && ruled.gateLabel === "holders of a test token", ruled);
+    check("revealed: its list can still be replaced", (await replaceAllowlist(CHAIN, co2.id, [X1, X2, X3])) === 3);
+    await markReleased(CHAIN, co2.id, { releasedAt: new Date(), gateUntil: null, releaseBlock: 1 });
+    check("released: the rule and the list are final", (await refused(() => updateSet(CHAIN, co2.id, { gateRule: "verified" }))) === "locked" && (await refused(() => replaceAllowlist(CHAIN, co2.id, []))) === "locked" && (await onAllowlist(co2.id, [X2])) === true);
+
+    // a draft's stamp is cleared, and a deleted draft takes its stamp and list with it
+    check("a draft's stamp is cleared", (await refused(() => clearStamp(CHAIN, cases[2]))) === null && (await get(cases[2]))?.stampAt === null);
+    await replaceAllowlist(CHAIN, cases[3], [X1]);
+    await deleteSet(CHAIN, cases[3]);
+    const left = await db.execute(sql`select (select count(*) from set_stamps where set_id = ${cases[3]}) + (select count(*) from set_allowlist where set_id = ${cases[3]}) as n`);
+    check("a deleted draft leaves no stamp and no list behind", Number((left as unknown as { n: string }[])[0].n) === 0);
+    check("the operator's preview has every stamp of this chain, and none of another", (await readStamps(CHAIN)).size >= 2 && (await readStamps(8453)).size === 0);
+  }
 
   await closeDb();
   console.log(failed === 0 ? "\nall checks passed" : `\n${failed} FAILED`);

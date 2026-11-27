@@ -9,6 +9,12 @@
  * means the sets hold back words the chain still lets through; nothing breaks meanwhile, because
  * proofs always come from the tree the chain holds.
  *
+ * A COLLAB set (decisions.md, "Collab sets") is one made with a partner: exactly five words, a
+ * partner's name and link, two card colors, and a stamp. All of it is a draft's to edit and locked
+ * at the reveal, like the name. A set's FIRST DAY can be open to every verified player (the
+ * default), to the wallets on a list pasted here, or to holders of a token on Base; that rule can
+ * change until the release.
+ *
  * Gated on the server (useAdminApi): this is the only place a draft set's name and words are shown.
  * The repository is public, so never paste a list into an issue, a PR, or a commit.
  */
@@ -17,6 +23,7 @@ import type { AdminSet, AdminSetsPayload } from "@/app/api/admin/sets/route";
 import type { ReleasePlan, ReservePlan } from "@/lib/sets/server";
 import { castCommand, safeBatchJson, type TxIntent } from "@/lib/admin/tx";
 import { NETWORK } from "@/lib/onchain/network";
+import { COLLAB_WORDS, STAMP_MAX_BYTES, STAMP_TYPES } from "@/lib/sets/rules";
 import { useAdminApi, type AdminSendError } from "../useAdminApi";
 import { GatedState } from "../GatedState";
 import { AdminCard, Banner, ConfirmButton, CopyButton, ErrorState, Field, KeyVal, RefreshButton, Spinner, StatusBadge, TextField, type Tone } from "../ui";
@@ -47,6 +54,36 @@ const BTN =
   "inline-flex items-center gap-1.5 rounded-xl border-[3px] border-ink bg-paper px-3 py-1.5 text-xs font-extrabold shadow-[2px_2px_0_#1b1714] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40";
 
 type Send = <R>(to: string, body: unknown) => Promise<R | AdminSendError>;
+
+const SELECT = "w-full rounded-xl border-[3px] border-ink bg-paper px-2 py-1.5 text-sm font-bold outline-none disabled:opacity-50";
+
+/** A picked file as base64 (no `data:` prefix), or a reason it can't be a stamp. The server checks again, by the bytes. */
+function readStampFile(file: File): Promise<{ ok: true; data: string } | { ok: false; error: string }> {
+  return new Promise((resolve) => {
+    if (!(STAMP_TYPES as readonly string[]).includes(file.type)) return resolve({ ok: false, error: "A stamp is a PNG, a JPEG, or a WebP (never an SVG)." });
+    if (file.size > STAMP_MAX_BYTES) return resolve({ ok: false, error: `A stamp is at most ${Math.round(STAMP_MAX_BYTES / 1024)} KB.` });
+    const reader = new FileReader();
+    reader.onerror = () => resolve({ ok: false, error: "Couldn’t read that file." });
+    reader.onload = () => resolve({ ok: true, data: String(reader.result).replace(/^data:[^,]*,/, "") });
+    reader.readAsDataURL(file);
+  });
+}
+
+/** The two colors side by side with the stamp on them: a stand-in until the card itself is drawn here. */
+function LookSwatch({ a, b, stamp }: { a: string; b: string; stamp: string | null }) {
+  const ok = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
+  return (
+    <div
+      className="relative flex h-16 w-28 items-center justify-center overflow-hidden rounded-xl border-[3px] border-ink"
+      style={{ background: ok(a) && ok(b) ? `linear-gradient(135deg, ${a} 0 50%, ${b} 50% 100%)` : undefined }}
+      aria-label="The set’s two colors and its stamp"
+    >
+      {/* A data: address from this operator's own upload. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {stamp ? <img src={stamp} alt="" className="h-10 w-10 object-contain" /> : <span className="rounded-md bg-paper/90 px-1.5 py-0.5 text-[10px] font-bold text-ink/70">no stamp</span>}
+    </div>
+  );
+}
 
 /** A root change, ready to send: the calls in order, as cast commands and as one Safe batch. */
 function PlanOutput({ intents, name }: { intents: TxIntent[]; name: string }) {
@@ -243,7 +280,24 @@ function ImportExport({ data, send, reload }: { data: AdminSetsPayload; send: Se
   );
 }
 
-function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: AdminSet[]; gate: boolean; send: Send; reload: () => void; index: number }) {
+function SetCard({
+  set,
+  all,
+  gate,
+  collabReady,
+  send,
+  reload,
+  index,
+}: {
+  set: AdminSet;
+  all: AdminSet[];
+  gate: boolean;
+  /** Migration 0023 has run: a set's type, look, and first-day rule can be saved. */
+  collabReady: boolean;
+  send: Send;
+  reload: () => void;
+  index: number;
+}) {
   const draft = set.status === "draft";
   const scheduled = set.status !== "released";
   const [name, setName] = useState(set.name);
@@ -251,6 +305,16 @@ function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: 
   const [releaseAt, setReleaseAt] = useState(toInput(set.releaseAt));
   const [gateHours, setGateHours] = useState(String(set.gateHours));
   const [limit, setLimit] = useState(String(set.perPlayerLimit));
+  const [type, setType] = useState(set.type);
+  const [partnerName, setPartnerName] = useState(set.partnerName ?? "");
+  const [partnerUrl, setPartnerUrl] = useState(set.partnerUrl ?? "");
+  const [colorA, setColorA] = useState(set.colorA ?? "");
+  const [colorB, setColorB] = useState(set.colorB ?? "");
+  const [gateRule, setGateRule] = useState(set.gateRule);
+  const [gateToken, setGateToken] = useState(set.gateToken ?? "");
+  const [gateMin, setGateMin] = useState(set.gateMin ?? "");
+  const [gateLabel, setGateLabel] = useState(set.gateLabel ?? "");
+  const [list, setList] = useState("");
   const [add, setAdd] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [moveTo, setMoveTo] = useState("");
@@ -275,6 +339,28 @@ function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: 
       releaseAt: fromInput(releaseAt),
       gateHours,
       perPlayerLimit: limit,
+      // The look is a draft's to edit; the first day's rule can change until the release. Sent only
+      // when it differs from what is saved, so a plain set saves as before (and before migration 0023).
+      ...(draft && type !== set.type ? { type } : {}),
+      ...(draft && partnerName !== (set.partnerName ?? "") ? { partnerName } : {}),
+      ...(draft && partnerUrl !== (set.partnerUrl ?? "") ? { partnerUrl } : {}),
+      ...(draft && colorA !== (set.colorA ?? "") ? { colorA } : {}),
+      ...(draft && colorB !== (set.colorB ?? "") ? { colorB } : {}),
+      ...(gateRule !== set.gateRule ? { gateRule } : {}),
+      ...(gateToken !== (set.gateToken ?? "") ? { gateToken } : {}),
+      ...(gateMin !== (set.gateMin ?? "") ? { gateMin } : {}),
+      ...(gateLabel !== (set.gateLabel ?? "") ? { gateLabel } : {}),
+    });
+  const uploadStamp = async (file: File | undefined) => {
+    if (!file) return;
+    const read = await readStampFile(file);
+    if (!read.ok) return void setNote(read.error);
+    await act({ action: "stamp", id: set.id, data: read.data }, () => "stamp saved");
+  };
+  const importList = () =>
+    act({ action: "allowlist", id: set.id, text: list }, (r) => {
+      setList("");
+      return `${r.wallets} wallets on the list${Number(r.bad) > 0 ? ` · ${r.bad} entries weren’t wallets and were left out` : ""}`;
     });
   const addWords = () =>
     act({ action: "addWords", id: set.id, words: add }, (r) => {
@@ -300,6 +386,7 @@ function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: 
       title={
         <span className="flex flex-wrap items-center gap-2">
           {set.name || "Untitled"} <StatusBadge tone={STATUS_TONE[set.status]}>{set.status}</StatusBadge>
+          {set.type === "collab" && <StatusBadge tone="accent">collab</StatusBadge>}
           <span className="text-xs font-normal text-ink/50">{set.words.length} words</span>
         </span>
       }
@@ -348,6 +435,121 @@ function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: 
           <TextField inputMode="numeric" value={limit} onChange={(e) => setLimit(e.target.value)} disabled={!scheduled} />
         </Field>
       </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <Field label="Type" hint={draft ? `collab: exactly ${COLLAB_WORDS} words` : "locked"}>
+          <select value={type} onChange={(e) => setType(e.target.value as AdminSet["type"])} disabled={!draft || !collabReady} className={SELECT}>
+            <option value="standard">Standard</option>
+            <option value="collab">Collab (with a partner)</option>
+          </select>
+        </Field>
+        {type === "collab" && (
+          <>
+            <Field label="Partner" hint={draft ? "private until the reveal" : "locked"}>
+              <TextField value={partnerName} onChange={(e) => setPartnerName(e.target.value)} disabled={!draft} />
+            </Field>
+            <Field label="Partner’s link" hint="https://… (optional)">
+              <TextField value={partnerUrl} onChange={(e) => setPartnerUrl(e.target.value)} disabled={!draft} placeholder="https://" />
+            </Field>
+            {(
+              [
+                ["Color 1", colorA, setColorA],
+                ["Color 2", colorB, setColorB],
+              ] as const
+            ).map(([label, value, setValue]) => (
+              <Field key={label} label={label} hint="#rrggbb">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={`${label}, picker`}
+                    value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#888888"}
+                    onChange={(e) => setValue(e.target.value)}
+                    disabled={!draft}
+                    className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border-[3px] border-ink bg-paper p-0.5 disabled:opacity-50"
+                  />
+                  <TextField value={value} onChange={(e) => setValue(e.target.value)} disabled={!draft} placeholder="#1f6f8b" />
+                </span>
+              </Field>
+            ))}
+          </>
+        )}
+      </div>
+
+      {type === "collab" && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <LookSwatch a={colorA} b={colorB} stamp={set.stamp} />
+          {draft && set.type === "collab" && (
+            <span className="flex flex-wrap items-center gap-2">
+              <label className={`${BTN} cursor-pointer`}>
+                {set.stamp ? "Replace the stamp" : "Upload the stamp"}
+                <input type="file" accept={STAMP_TYPES.join(",")} className="sr-only" onChange={(e) => (uploadStamp(e.target.files?.[0]), (e.target.value = ""))} />
+              </label>
+              {set.stamp && (
+                <button className={BTN} onClick={() => act({ action: "clearStamp", id: set.id })}>
+                  Remove it
+                </button>
+              )}
+              <span className="text-[11px] text-ink/55">PNG, JPEG, or WebP, at most {Math.round(STAMP_MAX_BYTES / 1024)} KB. Never an SVG.</span>
+            </span>
+          )}
+          {draft && set.type !== "collab" && <span className="text-xs text-ink/60">Save the set as a collab first, then upload its stamp.</span>}
+        </div>
+      )}
+
+      {scheduled && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="First day open to" hint="always verified players only">
+            <select value={gateRule} onChange={(e) => setGateRule(e.target.value as AdminSet["gateRule"])} disabled={!collabReady} className={SELECT}>
+              <option value="verified">Every verified player</option>
+              <option value="allowlist">Wallets on a list</option>
+              <option value="token">Holders of a token on Base</option>
+            </select>
+          </Field>
+          {gateRule === "token" && (
+            <>
+              <Field label="Token contract" hint="on Base mainnet">
+                <TextField value={gateToken} onChange={(e) => setGateToken(e.target.value)} placeholder="0x…" />
+              </Field>
+              <Field label="Minimum balance" hint="smallest unit: 1 for one collectible">
+                <TextField inputMode="numeric" value={gateMin} onChange={(e) => setGateMin(e.target.value)} placeholder="1000000000000000000" />
+              </Field>
+            </>
+          )}
+          {gateRule !== "verified" && (
+            <Field label="Who that is, for players" hint="ends “open to …”">
+              <TextField value={gateLabel} onChange={(e) => setGateLabel(e.target.value)} placeholder={gateRule === "token" ? "holders of …" : "players on this set’s list"} />
+            </Field>
+          )}
+        </div>
+      )}
+      {scheduled && gateRule === "allowlist" && set.gateRule === "allowlist" && (
+        <div className="mt-3">
+          <Field label={`The list (${set.allowlistCount.toLocaleString("en-US")} wallets now)`} hint="a paste replaces the whole list; wallets are never shown back">
+            <textarea
+              value={list}
+              onChange={(e) => setList(e.target.value)}
+              rows={3}
+              spellCheck={false}
+              placeholder="0x… one per line, or separated by commas"
+              className="w-full rounded-xl border-[3px] border-ink bg-paper px-3 py-2 font-mono text-xs outline-none"
+            />
+          </Field>
+          <div className="mt-2">
+            <ConfirmButton phrase="replace" onConfirm={importList} disabled={!list.trim()}>
+              Import the list (replaces it)
+            </ConfirmButton>
+          </div>
+        </div>
+      )}
+      {scheduled && gateRule === "allowlist" && set.gateRule !== "allowlist" && <p className="mt-2 text-xs text-ink/60">Save the rule first, then paste the list.</p>}
+
+      {set.needs.length > 0 && (
+        <div className="mt-3">
+          <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
+            {draft ? "Before it can be revealed" : "Before its release can be built"}: {set.needs.join("; ")}.
+          </Banner>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {set.words.map((w) => (
@@ -415,7 +617,7 @@ function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: 
         )}
         {draft && (
           <>
-            <ConfirmButton phrase="reveal" onConfirm={() => act({ action: "reveal", id: set.id })} disabled={set.words.length === 0}>
+            <ConfirmButton phrase="reveal" onConfirm={() => act({ action: "reveal", id: set.id })} disabled={set.words.length === 0 || set.needs.length > 0}>
               Reveal now (locks the words)
             </ConfirmButton>
             <ConfirmButton phrase="delete" onConfirm={() => act({ action: "delete", id: set.id })}>
@@ -455,6 +657,14 @@ function SetCard({ set, all, gate, send, reload, index }: { set: AdminSet; all: 
         <div className="mt-3 grid gap-x-6 sm:grid-cols-2">
           <KeyVal k="Released" v={whenUtc(set.releasedAt)} />
           <KeyVal k="Gate lifts" v={set.gateUntil ? whenUtc(set.gateUntil) : "no gate"} />
+          <KeyVal
+            k="First day open to"
+            v={
+              set.gateRule === "verified"
+                ? "every verified player"
+                : `${set.gateLabel ?? (set.gateRule === "token" ? "holders of a token" : "wallets on a list")} (${set.gateRule === "token" ? `at least ${set.gateMin ?? "?"} of ${short(set.gateToken)}` : `${set.allowlistCount.toLocaleString("en-US")} wallets`})`
+            }
+          />
           {set.stats ? (
             <>
               <KeyVal k="Claimed" v={`${set.stats.claimedNow ?? "–"} of ${set.stats.total}`} />
@@ -483,12 +693,29 @@ export function SetsTab() {
   const [newName, setNewName] = useState("");
   const data = api.data;
   const reload = () => api.reload();
+  const [testNote, setTestNote] = useState<string | null>(null);
   const create = async () => {
     const res = await api.send(ROUTE, { action: "create", name: newName, sort: data?.sets.length ?? 0 });
     if ((res as { ok: boolean }).ok) {
       setNewName("");
       reload();
     }
+  };
+  const makeTestCollab = async () => {
+    setTestNote(null);
+    const res = await api.send<{ ok: true; id: number }>(ROUTE, { action: "testCollab" });
+    if (!res.ok) {
+      const why: Record<string, string> = {
+        exists: "There is already a set named “Test collab”.",
+        not_testnet: "Only on a test network.",
+        not_migrated: "Run migration 0023 first.",
+        no_words: "Couldn’t find five free words just now. Try again.",
+        try_again: "The chain or the database couldn’t be read. Try again.",
+      };
+      return void setTestNote(why[res.error] ?? res.error);
+    }
+    setTestNote("Made as a draft, below. Reveal it, send the reserve root, then build its release.");
+    reload();
   };
 
   return (
@@ -523,6 +750,13 @@ export function SetsTab() {
             </Banner>
           )}
 
+          {data.migrated && !data.collab && (
+            <Banner tone="warning" icon={<Warning weight="bold" size={14} />}>
+              Collab sets and first-day rules need migration <code>0023_collab_sets</code> (<code>npm run db:migrate</code>). Until it runs, every
+              set is a standard one and everything else here works as before.
+            </Banner>
+          )}
+
           <ReserveCard data={data} send={api.send} reload={reload} />
 
           <AdminCard title="The commitment" action={<CopyButton text={data.commitment} small />}>
@@ -549,9 +783,33 @@ export function SetsTab() {
             </div>
           </AdminCard>
 
+          {data.testnet && (
+            <AdminCard title="A test collab">
+              <p className="mb-2 text-xs text-ink/60">
+                A placeholder collab set for this test network, so the card can be seen: “Test collab”, two arbitrary colors, a plain stamp, and
+                five free words picked now. It names no real partner, it is made as a draft, and it can’t be made on mainnet.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <button className={BTN} onClick={makeTestCollab} disabled={!data.collab || data.sets.some((s) => s.name === "Test collab")}>
+                  <Plus weight="bold" size={13} /> Make the Test collab draft
+                </button>
+                {testNote && <span className="text-xs font-bold text-ink/70">{testNote}</span>}
+              </div>
+            </AdminCard>
+          )}
+
           {data.sets.map((s, i) => (
             // Keyed by what the server last said, so a reload refills the form from the saved set.
-            <SetCard key={`${s.id}:${s.status}:${s.words.length}:${s.name}:${s.releaseAt}:${s.revealAt}`} set={s} all={data.sets} gate={data.chain.gate} send={api.send} reload={reload} index={i} />
+            <SetCard
+              key={[s.id, s.status, s.words.length, s.name, s.releaseAt, s.revealAt, s.type, s.partnerName, s.partnerUrl, s.colorA, s.colorB, s.gateRule, s.gateToken, s.gateMin, s.gateLabel].join(":")}
+              set={s}
+              all={data.sets}
+              gate={data.chain.gate}
+              collabReady={data.collab}
+              send={api.send}
+              reload={reload}
+              index={i}
+            />
           ))}
         </>
       )}

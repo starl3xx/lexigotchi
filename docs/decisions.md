@@ -2680,6 +2680,73 @@ setter. All small, riding existing suite patterns.
       leaves for Google), nothing is clipped or outside the card, and the phone's shorter ribbon
       fits. The three pictures draw in it. Not seen: a real phone, Windows, the earnings share
       picture (it needs a link the server signs; it loads the same file through the same code).
+53. **Collab sets: a reserved set made with a partner, with its own card look, built in parts**
+    (starl3xx, 2026-11-26; he asked for this entry as #25, which is taken, and he calls reserved
+    sets "#24": they are #51). In the owner's words: "wait what if we offered crossover sets as
+    collaborations with other entities". "5 words only". "the card would be unique to that collab".
+    "maybe all collabs would have the same front like stock but slightly different colors or stamps
+    or something for the logo". "Collab only changes how the card looks... the word is the same...
+    and it's legendary rarity". This is plumbing: no real partner, name, logo, or color ships in
+    this repository. One entry: each part is added here as it ships.
+    - **The parts.** (1) The data, the first day's rule, and the admin fields: this part. (2) The
+      rarity override: a collab word is Legendary from its set's reveal, as a layer on top of the
+      derived tier. (3) The card: one collab stock tinted with the set's two colors, the stamp, the
+      partner back, on every surface, and the admin's live preview. (4) Token metadata with a
+      "Collab" trait, the player docs, the test set on Base Sepolia, and the tester note.
+    - **Part 1: a set's type.** A set is `standard` or `collab` (`word_sets.type`; migration
+      `0023_collab_sets`). A collab has a partner's name and https link, two colors (`#rrggbb`),
+      and a stamp. They are the set's identity: a draft's to edit, locked at the reveal with its
+      name (`rules.ts` `IDENTITY_KEYS`), and nothing of them reaches a browser before the reveal
+      (`publicSets` still gives a draft as a locked slot: not even that it is a collab).
+    - **A collab is revealed only when it is whole:** exactly five words, its partner's name, its
+      two colors, and its stamp (`revealProblems`). The reveal by hand refuses with what is missing;
+      the scheduled reveal leaves such a draft a draft, however late, and the admin says why. The
+      spec asked for the five-word check; the rest is mine, because a reveal locks the look, and a
+      card with no stamp could never get one. The rule is written twice (TypeScript, and SQL for
+      the one-statement scheduled reveal); `scripts/sets-db-check.ts` holds the two together.
+    - **The stamp** is a small raster picture (PNG, JPEG, or WebP, 256 KB at most), kept in the
+      database (`set_stamps`). Never an SVG: an SVG can carry script, and this picture is drawn
+      into every card of the set. What it is comes from its own first bytes, on the way in and on
+      the way out. `GET /api/sets/{id}/stamp` serves it only for a revealed or released set; a
+      draft's answers as a set that doesn't exist. A file import carries no stamp and no
+      allowlist, so a draft that comes back under the same name keeps the ones it had.
+    - **The first day's rule** (item 4). `word_sets.gate_rule` is `verified` (every verified
+      player, the default), `allowlist` (wallets the operator pastes; `set_allowlist`), or `token`
+      (a contract on Base and a minimum balance, read when the voucher is asked for). It adds to
+      "verified", never replaces it: the voucher route checks it after verification and after the
+      proof of wallet control. Any wallet of the player's profile counts. It fails closed: a list
+      or a balance that can't be read is "try again", and a rule that is missing a part lets
+      nobody in (`lib/sets/firstDay.ts`). The token is read on Base MAINNET whatever network the
+      game runs on, as Coinbase's attestations are. The rule can change until the release, and no
+      release is built for a rule that can't be checked (`gate_rule`): it would lock the set's
+      words to everyone for the whole gate. A token's contract and a list's wallets never leave
+      the server; the Dictionary says who the day is open to in the operator's own words
+      (`gate_label`, e.g. "holders of …") or in plain ones. Two limits, stated plainly: a token
+      can be moved to another verified player's wallet during the day, and each wallet's balance
+      is checked alone, never added up.
+    - **A deploy never waits for a migration** (the owner runs them by hand). Before 0023 has run,
+      the sets read from 0021's columns as standard sets, plain sets are still made and imported
+      (a raw insert that names only 0021's columns: Drizzle's insert names every column of the
+      table), and anything a collab adds is refused with `not_migrated`. Proven on real Postgres
+      both ways (`scripts/sets-db-check.ts`: 93 checks with 0023, 75 without).
+    - **"Test collab" (item 7) is the owner's button**, not something this code creates by
+      itself: it is a write to the production database. The Sets tab has it on a test network
+      only, and the server refuses it on mainnet. It makes a DRAFT (two arbitrary colors, a plain
+      stamp drawn in code, "Test partner"), with five words picked then and there from words no
+      set holds and nobody owns: one Mythic word when one is free, the rest from below Legendary,
+      so the test set shows both "Legendary from reveal" and "a higher rarity is kept". The words
+      are never written in this repository.
+    - **Two things the spec assumed that weren't so.** There is no token metadata server in this
+      repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
+      mean building that route: part 4. And a metadata refresh "at release" needs an owner call in
+      `Words`, which can't change after deploy; no token of a set exists at its release, so the
+      call matters only if a card's look changes later.
+    - **The owner's rulings, 2026-11-27.** The Base Sepolia redeploy for the gate: "Hold for now"
+      (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
+      "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
+      `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
+      refresh for a list of words; it gets tests and an audit pass, in part 4). The check on the
+      word that `dissolve` logs was not chosen.
 
 ## Pricing & launch economics (decided June 2026)
 
