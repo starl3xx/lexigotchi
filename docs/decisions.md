@@ -2197,17 +2197,23 @@ setter. All small, riding existing suite patterns.
       - **Off until the player turns it on, and off means off.** The choice is kept per browser.
         With sound off no sound file is fetched and no AudioContext is made (tested, and checked
         in both engines).
-      - **Dark without its files, and the files are NOT in this repository yet.** ElevenLabs'
-        sound-effects terms (read 2026-11-26; the account is on the paid Creator plan) allow
-        commercial use built into a game, and forbid making the output available "as isolated
-        audio files". A web game always serves its sound files, which is the ordinary case. But
-        this repository is public, and eight mp3 files in it are isolated audio files that anyone
-        can take. That is the owner's call, so the files are ignored by git
-        (`/public/sfx/mail/*.mp3`), and `SOUND_READY` is worked out at build time
-        (next.config.mjs): the files are in the build, or `NEXT_PUBLIC_SOUND_BASE` names where
-        they are served from. Without them no switch shows and nothing here runs. The ways to
-        ship them: commit the eight files; or keep them out of git and serve them from storage
-        (`NEXT_PUBLIC_SOUND_BASE`); or ask ElevenLabs in writing first.
+      - **The files are in this repository, by the owner's word** (starl3xx, 2026-11-27: "you
+        can incorporate the sounds"). They were held back first. ElevenLabs' sound-effects terms
+        (read 2026-11-26; the account is on the paid Creator plan) allow commercial use built
+        into a game, and forbid making the output available "as isolated audio files". A web
+        game always serves its sound files, which is the ordinary case. But this repository is
+        public, and eight mp3 files in it are files anyone can take. So the code shipped dark
+        (#287) and he was given three ways: commit the eight files, said to be the simplest and
+        public in the repository; serve them from a storage he would name
+        (`NEXT_PUBLIC_SOUND_BASE`); or ask ElevenLabs in writing first. He answered with the
+        words above and named no storage, and the game fetches the files from a public address
+        on either route. **My reading: commit them.** That can't be undone (a public history
+        keeps them), so it is written here as a reading. `SOUND_READY` is still worked out at
+        build time (next.config.mjs): the files are in the build, or `NEXT_PUBLIC_SOUND_BASE`
+        names where they are served from, and a build with neither shows no switch and runs
+        nothing here. `tests/sound-files.test.ts` holds each file to the hash below and every
+        cue to a file: `SOUND_READY` looks at one file only, and a missing one would be a cue
+        that is silent with nothing said.
       - **The files are the takes the owner heard:** the bytes the proposal page played, taken
         from its `source/sounds.json` (kept with the artifact, with the originals as
         generated). 86 KB in all. First 12 hex digits of each file's SHA-256: drop
@@ -2225,6 +2231,10 @@ setter. All small, riding existing suite patterns.
         shy peek (the page rang for every rare letter, and the sheet marks only the best); and
         there is a second, small switch under the envelope, beside the one in More, because that
         is where the sounds are.
+      - **The Sound card is in the profile too** (added with the files). The desktop rail has no
+        More, and the small switch is there only while an envelope is open, so a player on a
+        computer had nowhere to turn sound off. The browser reminders are in the profile for the
+        same reason.
       - **A browser plays only after a tap,** and the cues fire later, from timers and the chain.
         So while sound is on, every tap and key press wakes the context (`useSoundGestures`). It
         is suspended 1.5 s after the last cue ends, except while an envelope is on screen
@@ -2252,9 +2262,10 @@ setter. All small, riding existing suite patterns.
         q played four hops and then the bell, once, at the moment the q stood out of the envelope
         (all five out, none peeking), not at the shake or the peek; a pack with a z and a q rang
         once too, and the z hopped.
-      - **The dark state, which is what ships,** in both engines: with no sound files present,
-        More shows no Sound card, the envelope shows no switch, and a whole pack asked for no
-        sound file and made no AudioContext, even with "on" remembered from another build.
+      - **The dark state, which is what shipped first (#287),** in both engines: with no sound
+        files present, More shows no Sound card, the envelope shows no switch, and a whole pack
+        asked for no sound file and made no AudioContext, even with "on" remembered from another
+        build.
       - **A file that failed to load is asked for again,** 30 s later at the soonest: one bad
         moment on the network at the first tap does not silence a cue for the page's life, and a
         wrong address does not make every tap fetch all eight again.
