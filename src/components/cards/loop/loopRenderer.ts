@@ -72,14 +72,33 @@ void main() {
 }
 `;
 
+/** How many ruled lines cross the shadow's plane (about five of them fall where the shadow shows). */
+export const SHADOW_ROWS = 12;
+/**
+ * The shadow under the card, engraved (decisions.md #48, part 9): ruled lines in the shape of the
+ * shadow, each as heavy as the shadow is dark there, the way an engraving makes tone, and the way
+ * the shadow under every letter is drawn (tileShapes, SHADOW_LINES). It was a soft blot. The
+ * shadow is around the card, so it is drawn like the cards.
+ *
+ * `tone` is the old blot, kept as the measure: it still spreads as the card lifts (uSpread). Each
+ * row holds one line, and the line fills as much of its row as the tone says, so the lines thin
+ * to nothing toward the shadow's ends. No derivative is asked of the device (a plain soft edge),
+ * so every device draws the same lines.
+ *
+ * The shadow is narrower than the blot was (1.45 across, where the blot had 1): a ruled line shows
+ * to its very end, and the blot's faint ends ran under the game's name in the corner.
+ */
 const SHADOW_FRAG = /* glsl */ `
 precision highp float;
 uniform float uSpread;
 varying vec2 vUv;
 void main() {
-  vec2 q = (vUv - 0.5) * vec2(1.0, 2.6);
-  float a = exp(-dot(q, q) * 9.0 / uSpread) * 0.32;
-  gl_FragColor = vec4(0.106, 0.09, 0.078, a);
+  vec2 q = (vUv - 0.5) * vec2(1.45, 2.6);
+  float tone = exp(-dot(q, q) * 9.0 / uSpread);
+  float f = abs(fract(vUv.y * ${SHADOW_ROWS}.0) - 0.5) * 2.0;
+  float w = tone * 0.7;
+  float line = 1.0 - smoothstep(w - 0.14, w + 0.14, f);
+  gl_FragColor = vec4(0.106, 0.09, 0.078, line * 0.5 * smoothstep(0.03, 0.14, tone));
 }
 `;
 
