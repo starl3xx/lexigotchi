@@ -89,12 +89,13 @@ export async function loadSets(opts: { fresh?: boolean; strict?: boolean } = {})
     // it is, and must not make every read of the sets run the reveal again.
     const due = read.sets.filter((s) => dueToReveal(s, now) && revealProblems(s).length === 0);
     if (due.length > 0) {
-      // And only one the chain holds back already (see notReservedYet): a set whose reserve root
-      // hasn't landed stays a draft past its date, and the first read after the root reveals it.
-      const ready: number[] = [];
-      for (const s of due) if ((await notReservedYet(s.words.map((w) => w.word))) === 0) ready.push(s.id);
-      if (ready.length > 0) {
-        await revealDue(NETWORK.id, now, { only: ready });
+      // And only one the chain holds back already (see heldOnChain): a set whose reserve root hasn't
+      // landed stays a draft past its date, and the first read after the root reveals it. This
+      // look only spares the database a reveal that would change nothing; the check that counts
+      // is revealSet's own, under the set's lock.
+      const held = await heldOnChain();
+      if (held && due.some((s) => s.words.every((w) => held.has(w.word)))) {
+        await revealDue(NETWORK.id, now, held);
         read = await listSets(NETWORK.id);
       }
     }
@@ -189,27 +190,25 @@ export type Serving =
 let lastReconciled: string | null = null;
 
 /**
- * How many of `words` the chain's root does NOT hold back yet. Null when that can't be told: the
+ * The words the chain's dictionary root leaves out right now. Null when that can't be told: the
  * chain couldn't be asked, or its root is one this server never built.
  *
- * EVERY reveal asks this first, and reveals only on 0. A reveal names a set's words to everyone,
- * and until the chain's root leaves a word out anyone can claim it straight from the contract
- * with a proof made from the public dictionary (this server refusing the proof stops only the
- * game). So the reserve root goes on the chain BEFORE the reveal: by hand a reveal is refused
- * until then, and on its date a set is passed by and revealed by the first read after the root
- * lands. "Can't tell" is never "held back".
+ * EVERY reveal is checked against it (lib/db/sets `revealSet`, under the set's row lock). A reveal
+ * names a set's words to everyone, and until the chain's root leaves a word out anyone can claim
+ * it straight from the contract with a proof made from the public dictionary (this server
+ * refusing the proof stops only the game). So the reserve root goes on the chain BEFORE the
+ * reveal: by hand a reveal is refused until then, and on its date a set is passed by and revealed
+ * by the first read after the root lands. "Can't tell" is never "held back": no reveal.
  */
-export async function notReservedYet(words: readonly string[], opts: { fresh?: boolean } = {}): Promise<number | null> {
+export async function heldOnChain(opts: { fresh?: boolean } = {}): Promise<ReadonlySet<string> | null> {
   const root = await readChainRoot(opts);
   if (!root) return null;
-  let held: string[] | null;
   try {
-    held = await heldBehind(root);
+    const held = await heldBehind(root);
+    return held ? new Set(held) : null;
   } catch {
     return null;
   }
-  if (!held) return null;
-  return releaseChange(new Set(held), words).neverHeld.length;
 }
 
 /** The tree to serve proofs from, and everything held back. See the file's header for the rules. */

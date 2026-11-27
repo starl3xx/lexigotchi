@@ -116,8 +116,8 @@ async function main() {
 
   // revealed: words and name locked, the dates still move
   const empty = await createSet(CHAIN, base("Empty"));
-  check("an empty set can't be revealed", (await refused(() => revealSet(CHAIN, empty, new Date()))) === "empty");
-  await revealSet(CHAIN, two, new Date());
+  check("an empty set can't be revealed", (await refused(() => revealSet(CHAIN, empty, new Date(), "unchecked"))) === "empty");
+  await revealSet(CHAIN, two, new Date(), "unchecked");
   check("a set is revealed", (await statusOf(two)) === "revealed");
   check("revealed: no word added", (await refused(() => addWords(CHAIN, two, [F]))) === "locked");
   check("revealed: no word removed", (await refused(() => removeWords(CHAIN, two, [D]))) === "locked");
@@ -126,14 +126,14 @@ async function main() {
   check("revealed: no headliner change", (await refused(() => setHeadliner(CHAIN, two, B, true))) === "locked");
   check("revealed: no rename", (await refused(() => updateSet(CHAIN, two, { name: "Renamed" }))) === "locked");
   check("revealed: not deleted", (await refused(() => deleteSet(CHAIN, two))) === "locked");
-  check("revealed: revealing again is refused", (await refused(() => revealSet(CHAIN, two, new Date()))) === "locked");
+  check("revealed: revealing again is refused", (await refused(() => revealSet(CHAIN, two, new Date(), "unchecked"))) === "locked");
   check("revealed: its dates still move", (await refused(() => updateSet(CHAIN, two, { releaseAt: new Date("2027-02-01T00:00:00Z"), gateHours: 12 }))) === null);
   check("its words are as they were", (await wordsOf(two)).join() === [B, D].sort().join());
 
   // an edit that started while the set was a draft loses to a reveal that lands first
   const racy = await createSet(CHAIN, base("Racy"));
   await addWords(CHAIN, racy, [F]);
-  const both = await Promise.allSettled([revealSet(CHAIN, racy, new Date()), addWords(CHAIN, racy, [G])]);
+  const both = await Promise.allSettled([revealSet(CHAIN, racy, new Date(), "unchecked"), addWords(CHAIN, racy, [G])]);
   const after = await wordsOf(racy);
   check(
     "a reveal and an edit at once: the set ends revealed, and the word is in only if it got there first",
@@ -147,19 +147,34 @@ async function main() {
   const later = await createSet(CHAIN, base("Later", { revealAt: new Date(Date.now() + 3_600_000) }));
   await addWords(CHAIN, later, [E]);
   await updateSet(CHAIN, empty, { revealAt: new Date(Date.now() - 1000) });
-  // Held to a list (the sets the chain holds back already: lib/sets/server notReservedYet): an
-  // empty list reveals nothing, and a due set left off the list stays a draft.
-  const held = await createSet(CHAIN, base("Due, on the chain", { revealAt: new Date(Date.now() - 1000) }));
-  await addWords(CHAIN, held, [WORDS[3900]]); // far from every other word this script uses
-  const none = await revealDue(CHAIN, new Date(), { only: [] });
-  check("the scheduled reveal held to no sets reveals none", none.length === 0 && (await statusOf(due)) === "draft" && (await statusOf(held)) === "draft", none);
-  const some = await revealDue(CHAIN, new Date(), { only: [held, later] });
+  // Every reveal is checked against what the chain holds back (lib/sets/server heldOnChain), under
+  // the set's own lock: a set with a word the chain doesn't hold back stays a draft.
+  const onChain = await createSet(CHAIN, base("Due, on the chain", { revealAt: new Date(Date.now() - 1000) }));
+  const [farA, farB] = [WORDS[3900], WORDS[3901]]; // far from every other word this script uses
+  await addWords(CHAIN, onChain, [farA]);
+  const none = await revealDue(CHAIN, new Date(), new Set<string>());
+  check("the scheduled reveal reveals no set while the chain holds nothing back", none.length === 0 && (await statusOf(due)) === "draft" && (await statusOf(onChain)) === "draft", none);
+  const some = await revealDue(CHAIN, new Date(), new Set([farA]));
   check(
-    "the scheduled reveal held to a list reveals the due sets on it, and no due set off it",
-    some.join() === String(held) && (await statusOf(held)) === "revealed" && (await statusOf(due)) === "draft" && (await statusOf(later)) === "draft",
+    "the scheduled reveal reveals the due set the chain holds back, and no due set it doesn't",
+    some.join() === String(onChain) && (await statusOf(onChain)) === "revealed" && (await statusOf(due)) === "draft" && (await statusOf(later)) === "draft",
     some,
   );
-  const twice = await Promise.all([revealDue(CHAIN, new Date()), revealDue(CHAIN, new Date())]);
+  // by hand: refused with the count, never the words; and a word added AFTER the chain was read
+  // (the reveal's own lock sees it) is refused too
+  const byHand = await createSet(CHAIN, base("By hand"));
+  await addWords(CHAIN, byHand, [farB]);
+  check("a reveal by hand is refused while the chain doesn't hold the set back", (await refused(() => revealSet(CHAIN, byHand, new Date(), new Set([farA])))) === "not_reserved" && (await statusOf(byHand)) === "draft");
+  const heldThen = new Set([farB]); // what the chain held when it was asked
+  await addWords(CHAIN, byHand, [WORDS[3902]]); // …and then the draft gained a word
+  check("a word added after the chain was asked stops the reveal", (await refused(() => revealSet(CHAIN, byHand, new Date(), heldThen))) === "not_reserved" && (await statusOf(byHand)) === "draft");
+  await revealSet(CHAIN, byHand, new Date(), new Set([farB, WORDS[3902]]));
+  check("…and once the chain holds every word of it back, it is revealed", (await statusOf(byHand)) === "revealed");
+  // on its date: a set whose date was moved later after the read is not revealed
+  const moved = await createSet(CHAIN, base("Moved later", { revealAt: new Date(Date.now() + 3_600_000) }));
+  await addWords(CHAIN, moved, [WORDS[3903]]);
+  check("a set not due yet is refused by the scheduled reveal's own check", (await refused(() => revealSet(CHAIN, moved, new Date(), "unchecked", { dueBy: new Date() }))) === "not_due" && (await statusOf(moved)) === "draft");
+  const twice = await Promise.all([revealDue(CHAIN, new Date(), "unchecked"), revealDue(CHAIN, new Date(), "unchecked")]);
   check("a due draft is revealed once, however many servers notice", twice.flat().join() === String(due), twice);
   check("a draft not due yet, and an empty one, stay drafts", (await statusOf(later)) === "draft" && (await statusOf(empty)) === "draft");
 
@@ -304,7 +319,7 @@ async function main() {
     const LIVE = { collabLive: true };
     const whyNot = async (id: number, opts: { collabLive?: boolean } = LIVE): Promise<string[] | null> => {
       try {
-        await revealSet(CHAIN, id, new Date(), opts);
+        await revealSet(CHAIN, id, new Date(), "unchecked", opts);
         return null;
       } catch (err) {
         return err instanceof SetError && err.code === "not_ready" ? err.problems : [`other: ${String((err as Error).message)}`];
@@ -368,13 +383,13 @@ async function main() {
     const dueNow = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft" && s.revealAt);
     // First with collab reveals switched off: only the standard set is revealed, and every collab waits.
     const todayIds = dueNow.filter((s) => revealProblems(s, false).length === 0).map((s) => s.id).sort();
-    const gotToday = (await revealDue(CHAIN, new Date(), { collabLive: false })).sort();
+    const gotToday = (await revealDue(CHAIN, new Date(), "unchecked", { collabLive: false })).sort();
     check("switched off, the scheduled reveal passes every collab by (the SQL and the rule agree)", JSON.stringify(gotToday) === JSON.stringify(todayIds) && JSON.stringify(gotToday) === JSON.stringify([cases[4]]), { gotToday, todayIds });
     // Then switched on, as it is now.
     const expectIds = dueNow.filter((s) => s.id !== cases[4] && revealProblems(s, true).length === 0).map((s) => s.id).sort();
-    const got = (await revealDue(CHAIN, new Date(), LIVE)).sort();
+    const got = (await revealDue(CHAIN, new Date(), "unchecked", LIVE)).sort();
     check("the scheduled reveal reveals exactly the due drafts that are whole (the SQL and the rule agree)", JSON.stringify(got) === JSON.stringify(expectIds) && got.includes(cases[0]) && got.includes(co2.id) && !got.includes(cases[1]) && !got.includes(cases[2]), { got, expectIds, cases });
-    check("a late collab that isn't whole stays a draft, and a second pass changes nothing", (await revealDue(CHAIN, new Date(), LIVE)).length === 0 && (await get(cases[1]))?.status === "draft");
+    check("a late collab that isn't whole stays a draft, and a second pass changes nothing", (await revealDue(CHAIN, new Date(), "unchecked", LIVE)).length === 0 && (await get(cases[1]))?.status === "draft");
 
     // revealed: the look is locked with the name; the first day's rule still moves
     check("revealed: no new color", (await refused(() => updateSet(CHAIN, co2.id, { colorA: "#000000" }))) === "locked");

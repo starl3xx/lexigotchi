@@ -2676,7 +2676,10 @@ setter. All small, riding existing suite patterns.
         reserve root"). A reveal names a set's words to everyone, and until the chain's root
         leaves a word out anyone can claim it straight from the contract with a proof made from
         the public dictionary; the server refusing the proof stops only the game. Nothing checked
-        the order. Now every reveal asks the chain first (`lib/sets/server` `notReservedYet`):
+        the order. Now every reveal is checked against what the chain holds back (`lib/sets/server`
+        `heldOnChain`), inside the one function that reveals a set and under the set's row lock
+        (`lib/db/sets` `revealSet`; the scheduled reveal now goes through it too, a set at a
+        time), so a word added to a draft while a reveal runs can't ride along:
         **Reveal now** is refused with "send the reserve root first, then reveal", a set past its
         `revealAt` stays a draft and is revealed by the first read after the root lands, and a
         chain that can't be read (or a root this server never built) is "can't tell", never "held
