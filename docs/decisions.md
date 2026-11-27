@@ -2925,6 +2925,49 @@ setter. All small, riding existing suite patterns.
       balance row, and "You have it" with no Buy. Not seen: a purchase made from the new screen,
       the two links from the picker and the Case button, a real phone.
 
+56. **The dark stock face: Stock (dark), on a pewter plate, free for everyone** (starl3xx,
+    2026-11-27: "a new dark version of the stock face... give me an artifact w/a proposal").
+    - **How it was chosen.** The proposal showed three plates. Of plate A, graphite: "I like A
+      for the dark stock, but it's way too dark" (it was close to black). A second round showed
+      A in three lighter steps, and of the lightest: "i actually really like pewter". Then, asked:
+      everyone gets it, and the fog is thinner on every dark face. Its name is his: "Maybe it
+      should be Stock (light) and Stock (dark)". The two are named so in the picker, and are "the
+      light stock face" and "the dark stock face" in a sentence.
+    - **What it is.** The light stock's own engraving (the sunburst, the woven medallion, the
+      tiled floor) on a pewter plate in pale line. `stockPlan` in `lib/cardArt/scenes.ts` is the
+      one drawing both faces share, so they can't drift apart. The rarity is an overtone and
+      never the plate: a glow of its tint behind the word, and its tint on the medallion's beads
+      and on the line where the wall meets the floor. Grey first, as he asked of the light stock.
+    - **No picture that existed changed.** Every other face's drawing, in every rarity, and the
+      frame, are the same to the last character (35 fingerprints taken before and after). So
+      `CARD_LOOK` stays.
+    - **Its id is `darkstock`, for good.** Share links (`?scene=darkstock`) and saved picks carry
+      it. The name a player reads can change; the id can't.
+    - **The word stands in light.** A letter's arms, legs, and shoes are dark ink. On the first,
+      near-black plate they vanished and the tiles seemed to float. So the plate is lit where the
+      word stands: on the wall behind it and on the floor under it. Pewter needs less of that
+      than the darker plates did, and it has less shadow in its corners and a stronger line.
+    - **Thinner fog on dark faces** (`.cf-dark .scene-fog`: 0.42 for a hungry word, 0.2 for a
+      peckish one; 1 and 0.5 elsewhere). The fog is pale, so at full strength it turns a dark
+      plate white. It applies to Outer Space too, which was checked first: a hungry word there
+      went white the same way.
+    - **What the owner did not see when he chose the fog, said to him after:** on the LIGHT
+      stock a hungry word is hidden by the fog about as much as it was on pewter. The fog is
+      meant to be thick (he asked for "much more foggy", 2026-11-24). What differs on a dark
+      face is that the plate itself turns white. With the thinner fog, a hungry word on a dark
+      face reads more easily than one on a light face. The grey tone, the sleeping letters, and
+      the status marks still say hungry. The other way to keep the plate dark is a darker fog
+      of full thickness; it was offered and not built.
+    - **Seen and not seen.** The built face drawn by the real picture route in all five
+      rarities: the same picture, byte for byte, as the proposal's pewter. In the practice game
+      in Chromium at 1,280 px and 390 px: the picker's two stock tiles, the Bag, Today, and a
+      hungry and a peckish word on the dark stock face and on Outer Space, with the fog as it
+      was and thinned. Not seen: the card's moving light over pewter in WebKit, the share video
+      with this face, a real phone.
+    - **Set aside:** the rarity's own plate and black and gold, from the first round. Either
+      could be a Shop face later. The proposal's drawings are on a local branch that is never
+      pushed.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

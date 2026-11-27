@@ -4,6 +4,7 @@
  * art's rules, where the word stands, and what the card's front shows.
  */
 import { describe, it, expect, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
 import { cleanup, render } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -30,7 +31,7 @@ import {
 import { TIERS as TIER_LIST, type Tier } from "@/lib/economy";
 import { CARD_H, CARD_W, beadRing, beadsOnCurve, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, FEET_Y, WINDOW } from "@/lib/cardArt/looks";
-import { GROUND, cardArt, cardFrame, footingFor, groundOf } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, GROUND, PEWTER, cardArt, cardFrame, footingFor, groundOf } from "@/lib/cardArt/scenes";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { FOOT_SHARE, wordFootings, wordLayout } from "@/components/scenes/layout";
 import { SceneFrame, SceneThumb, toneOf } from "@/components/scenes/SceneFrame";
@@ -42,8 +43,8 @@ window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListene
 afterEach(cleanup);
 
 describe("the scene list", () => {
-  it("is the stock card, the Stage, the Trophy Case, Spring, and the Shop's two, each named once", () => {
-    expect([...SCENE_IDS]).toEqual(["stock", "stage", "trophy", "spring", "bookshelf", "space"]);
+  it("is the stock face and its dark side, the Stage, the Trophy Case, Spring, and the Shop's two, each named once", () => {
+    expect([...SCENE_IDS]).toEqual(["stock", "darkstock", "stage", "trophy", "spring", "bookshelf", "space"]);
     expect([...FREE_SCENES, ...UNLOCK_SCENES, ...SHOP_SCENES].sort()).toEqual([...SCENE_IDS].sort()); // each scene is one kind
     expect(SCENES.map((s) => s.id)).toEqual([...SCENE_IDS]);
     expect(new Set(SCENES.map((s) => s.name)).size).toBe(SCENES.length);
@@ -92,8 +93,8 @@ describe("the unlock", () => {
     expect(canUseScene("spring", 3)).toBe(true);
   });
 
-  it("always lets a player use the stock card and the Stage", () => {
-    expect([...FREE_SCENES]).toEqual(["stock", "stage"]);
+  it("always lets a player use the stock face, the dark stock face, and the Stage", () => {
+    expect([...FREE_SCENES]).toEqual(["stock", "darkstock", "stage"]);
     for (const free of FREE_SCENES) expect(canUseScene(free, 0)).toBe(true);
   });
 
@@ -197,9 +198,11 @@ describe("the card's art (lib/cardArt)", () => {
     }
   });
 
-  it("prints only the stock card in the word's rarity: a place has inks of its own", () => {
+  it("prints only the two stock faces in the word's rarity: a place has inks of its own", () => {
     expect(cardArt("stock", "Rare")).not.toBe(cardArt("stock", "Mythic"));
     expect(cardArt("stock", "Rare")).toContain(CARD_LOOKS.Rare.ink);
+    expect(cardArt("darkstock", "Rare")).not.toBe(cardArt("darkstock", "Mythic"));
+    expect(cardArt("darkstock", "Rare")).toContain(CARD_LOOKS.Rare.tint);
     for (const scene of ["stage", "trophy", "spring", "bookshelf", "space"] as const) expect(cardArt(scene, "Rare")).toBe(cardArt(scene, "Mythic"));
   });
 
@@ -226,6 +229,86 @@ describe("the card's art (lib/cardArt)", () => {
     expect(uri.startsWith("data:image/svg+xml,")).toBe(true);
     expect(uri).not.toMatch(/["'<>#\s]/); // safe inside url("…")
     expect(decodeURIComponent(uri.slice("data:image/svg+xml,".length))).toBe(doc);
+  });
+});
+
+describe("the dark stock face (decisions.md #56)", () => {
+  // every path's own drawing (`d="…"`), longest first: the floor's tiles and lines are the longest
+  const paths = (markup: string) => [...markup.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]).sort((a, b) => b.length - a.length);
+
+  it("is the stock face's own engraving: the same floor, the same sunburst, on another plate", () => {
+    for (const tier of TIERS) {
+      const light = paths(cardArt("stock", tier));
+      const dark = paths(cardArt("darkstock", tier));
+      // the tiles, the floor's lines, and the sunburst: each drawn once, and the same in both
+      expect(dark.slice(0, 3), tier).toEqual(light.slice(0, 3));
+      expect(light[0].length, tier).toBeGreaterThan(2000);
+    }
+  });
+
+  it("prints every rarity on the same pewter plate: grey first, the rarity as an overtone only", () => {
+    for (const tier of TIERS) {
+      const art = cardArt("darkstock", tier);
+      expect(art, tier).toContain(`fill="${PEWTER.field}"`);
+      expect(art, tier).toContain(`fill="${PEWTER.floor}"`);
+      // the rarity's ink is the light stock's print; here it would be dark on dark, so it is never used
+      expect(art, tier).not.toContain(CARD_LOOKS[tier].ink);
+    }
+  });
+
+  it("is pewter, never near black (starl3xx of the first plate: \"way too dark\")", () => {
+    const light = (c: string) => [1, 3, 5].reduce((sum, i) => sum + parseInt(c.slice(i, i + 2), 16), 0) / 3 / 255;
+    // the first plate was #262422, about 0.14; the owner chose the lightest of three steps up from it
+    expect(light(PEWTER.field)).toBeGreaterThan(0.35);
+    expect(light(PEWTER.field)).toBeLessThan(0.55); // and it is still the dark one beside the light stock
+    expect(light(PEWTER.floor)).toBeLessThan(light(PEWTER.field)); // the floor is a shade deeper
+  });
+
+  it("stands the word in light: on the wall behind it and on the floor under it", () => {
+    // A letter's arms, legs, and shoes are dark ink: without this light they are lost on the plate.
+    expect(PEWTER.wall).toBeGreaterThan(0);
+    expect(PEWTER.pool).toBeGreaterThan(0);
+    const art = cardArt("darkstock", "Common");
+    for (const id of ["wall", "pool"]) {
+      expect(art).toContain(`<radialGradient id="${id}" gradientUnits="userSpaceOnUse"`);
+      expect(art).toContain(`fill="url(#${id})"`);
+    }
+    // the pool is on the feet line, and wide enough for a five-letter row (800 units)
+    expect(art).toMatch(new RegExp(`id="pool" gradientUnits="userSpaceOnUse" cx="${CARD_W / 2}" cy="${FEET_Y + 4}" r="640"`));
+  });
+
+  it("is a dark face, as Outer Space is: the card's own light is fainter over it", () => {
+    expect([...DARK_SCENES].sort()).toEqual(["darkstock", "space"]);
+    const dark = render(<SceneFrame scene="darkstock" word="CRANE" upper={[true, true, true, false, false]} tier="Rare" animated={false} />).container;
+    const pale = render(<SceneFrame scene="stock" word="CRANE" upper={[true, true, true, false, false]} tier="Rare" animated={false} />).container;
+    expect(dark.querySelector(".cf")!.className).toContain("cf-dark");
+    expect(pale.querySelector(".cf")!.className).not.toContain("cf-dark");
+  });
+
+  it("thins a hungry word's fog on a dark face: the fog is pale, and at full strength it turns the plate white", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const strength = (selector: string) => {
+      const m = css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.]/g, "\\.")} \\{ opacity: ([\\d.]+); \\}`));
+      expect(m, selector).not.toBeNull();
+      return Number(m![1]);
+    };
+    const peckish = strength(".scene-fog.is-peckish");
+    const hungry = strength(".scene-fog.is-hungry");
+    const darkPeckish = strength(".cf-dark .scene-fog.is-peckish");
+    const darkHungry = strength(".cf-dark .scene-fog.is-hungry");
+    expect(darkHungry).toBeLessThan(hungry);
+    expect(darkPeckish).toBeLessThan(peckish);
+    expect(darkPeckish).toBeLessThan(darkHungry); // hungrier is still foggier
+    expect(darkPeckish).toBeGreaterThan(0); // and a peckish word still has some
+  });
+
+  it("has an id that share links and saved picks carry, so it never changes", () => {
+    expect(isSceneId("darkstock")).toBe(true);
+    expect(parseLinkScene("darkstock")).toBe("darkstock");
+    expect(storedScene("darkstock")).toBe("darkstock");
+    expect(sceneMeta("stock").name).toBe("Stock (light)");
+    expect(sceneMeta("darkstock").name).toBe("Stock (dark)");
+    expect(canUseScene("darkstock", 0)).toBe(true);
   });
 });
 

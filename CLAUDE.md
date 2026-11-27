@@ -668,7 +668,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   wears. The FACE (a "card face" where the sentence needs it) is the picture on the front, behind
   the word: the thing a player picks, unlocks, or buys. The BACK is the back. Every surface a player
   reads says so, and `tests/copy-rules.test.ts` fails on "scene" in the app and the player docs.
-  The first face is "Stock" in the picker and "the stock face" in a sentence. **The code still
+  The two stock faces are "Stock (light)" and "Stock (dark)" in the picker (the owner's names,
+  2026-11-27), and "the light stock face" / "the dark stock face" in a sentence. **The code still
   says "scene" for a face** (`SceneId`, `lib/scenes.ts`, `SceneFrame`, `useWordScene`, the `scene`
   sheet, and these notes below), and so does everything stored or posted, which can never change:
   `?scene=` in share links, kind `scene` in `shop_items` and `word_picks`, `/api/scenes`, the
@@ -686,7 +687,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   on a `small` card). **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the card's serif
   (`--font-card`: **Source Serif 4, shipped**, the same face for every player and on the server's pictures: decisions.md #52; `public/fonts/sourceserif4-*`, two variable web files for the game and one plain bold file for the picture routes, named once in `app/_og/wordCard.tsx` as `CARD_SERIF` / `CARD_SERIF_FILE`; `tests/card-serif.test.ts`) letters what a card says
   ABOUT a word, never the word. **Scenes:** every word starts on the stock card (`DEFAULT_SCENE`:
-  grey, the rarity as an overtone); the Stage is free too (`FREE_SCENES`); the Trophy Case and Spring
+  grey, the rarity as an overtone); the dark stock face and the Stage are free too (`FREE_SCENES`).
+  **The dark stock face** (decisions.md #56; id `darkstock`, never to change: links and saved picks
+  carry it) is the light stock's own engraving (`stockPlan`, shared, so the two can't drift) on the
+  pewter plate (`PEWTER` in `lib/cardArt/scenes.ts`). The owner chose pewter after calling the first,
+  near-black plate "way too dark": **when drawing something dark for him, start lighter than seems
+  right.** **A dark face needs two things** (`DARK_SCENES`: the dark stock face and Outer Space):
+  (1) light where the word stands, on the wall behind it and the floor under it, because a letter's
+  arms, legs, and shoes are dark ink and vanish on a dark plate; (2) thinner fog for a hungry word
+  (globals.css, `.cf-dark .scene-fog`: 0.42 hungry, 0.2 peckish), because the fog is pale and at full
+  strength it turns the plate white. A new dark face joins `DARK_SCENES` and is looked at hungry.
+  The other faces: the Trophy Case and Spring
   open at `SCENE_UNLOCK_WORDS` = 3 words ever held (`state.wordsEverHeld`, so it stays open after a
   dissolve). Picture Day, Summer, Fall, and Winter are retired: a pick or link that names one reads
   as the stock card. **A scene is a still picture and never moves** (starl3xx: "the only animation
