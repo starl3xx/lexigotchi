@@ -2,7 +2,7 @@
  * Screenshots of the real game for the player docs (docs-site/images/screen-*.jpg).
  *
  *   NEXT_PUBLIC_CHAIN_ID= npm run dev          # practice (mock) mode: seeded bag, no wallet
- *   npm run docs:shots [-- http://localhost:3000/play] [today bag cards share market bounty word earnings profile]
+ *   npm run docs:shots [-- http://localhost:3000/play] [today bag cards share market bounty word earnings mail profile]
  *
  * Names after the URL remake only those shots; with none, it remakes them all. Always practice
  * mode, so no real address or balance is ever pictured. The Next dev badge and the practice-only
@@ -114,6 +114,23 @@ if (want("earnings")) {
   await page.waitForTimeout(1200);
   await shot("earnings");
   console.log("wrote docs-site/images/screen-earnings.jpg");
+}
+
+// A pack in the mail (decisions.md #49): the envelope, stamped and postmarked, with the letters at
+// its window, waiting to be torn open. After the earnings shot: it buys a practice pack.
+if (want("mail")) {
+  await page.keyboard.press("Escape"); // the earnings sheet, if that shot left it open
+  await page.waitForTimeout(600);
+  await page.locator("nav").getByRole("button", { name: "Mint", exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: /Rip a pack open/ }).click();
+  // its stamp, its number, then its letters: practice gives each a beat (mailFlow PRACTICE_MAIL_MS)
+  await page.getByRole("dialog").getByText("Tear along the top", { exact: false }).waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await shot("mail");
+  console.log("wrote docs-site/images/screen-mail.jpg");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
 }
 
 // Your profile, with a wallet connected and nothing linked: the state a new player sees.
