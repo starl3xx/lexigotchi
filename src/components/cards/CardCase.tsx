@@ -41,6 +41,8 @@ import { CardBack, foundBySays } from "./CardBack";
 import { FlipIcon } from "./SceneCard";
 import { useCardFacts } from "./useCardFacts";
 import { useCardNumber } from "./useCardNumber";
+import { collabCardLook } from "@/lib/collabLook";
+import { useCollabLook } from "@/components/game/collabLooksContext";
 
 /** How the case rests: a little turned, so its thickness shows (degrees). */
 export const CASE_REST = { x: -5, y: -14 } as const;
@@ -217,7 +219,10 @@ export function CardCase({
     }
     draw(f.y + dx * TURN_PER_PX, f.tilt ? Math.max(-TILT_MAX, Math.min(TILT_MAX, CASE_REST.x - dy * TILT_PER_PX)) : CASE_REST.x);
   };
-  const look = CARD_LOOKS[word.tier];
+  // The case's label is lettered in the ink of the card inside it: a collab word's own look's
+  // (lib/collabLook.ts), in place of its rarity's.
+  const mine = useCollabLook(word.word);
+  const look = mine ? collabCardLook(mine) : CARD_LOOKS[word.tier];
   const digits = cardDigits(number);
   const W = word.word;
   const flipButton = (isBack: boolean) => (
@@ -226,8 +231,8 @@ export function CardCase({
       type="button"
       className="sc-flip"
       onClick={() => settle(turns + 1, true)}
-      aria-label={isBack ? `Show ${W}’s scene` : `Turn ${W} over`}
-      title={isBack ? "Show the scene" : "Turn it over"}
+      aria-label={isBack ? `Show ${W}’s front` : `Turn ${W} over`}
+      title={isBack ? "Show the front" : "Turn it over"}
     >
       <FlipIcon />
     </button>

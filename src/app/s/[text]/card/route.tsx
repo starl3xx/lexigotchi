@@ -1,13 +1,15 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
-import { CARD_SERIF, CARD_SERIF_FILE, cardTier, wordCard } from "../../../_og/wordCard";
-import { cardPictureCache, parseLinkStage, parseShowcase } from "@/lib/showcase";
+import { CARD_SERIF, CARD_SERIF_FILE, cardTier, cornerMark, wordCard } from "../../../_og/wordCard";
+import { cardPictureCache, parseLinkMark, parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { TABLE, tableImage } from "@/lib/cardArt/table";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
+import { collabSoonRead } from "@/lib/raritySoon";
+import { stampDataOf } from "@/lib/sets/stampData";
 import { cardNumberOf, cardNumberSoon } from "@/lib/onchain/cardNumbers";
 import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
 
@@ -66,7 +68,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't
   // a dictionary word, so it has none and stays plain.
   const word = tiles.map((t) => t.char).join("");
-  const tier = cardTier(tiles);
+  const { looks: collab, known: setsRead } = await collabSoonRead();
+  const tier = cardTier(tiles, collab);
+  // A collab word's own look, and its set's stamp as bytes (never fetched from this site's own route).
+  const mine = collab.get(word.toUpperCase());
+  const stamp = mine ? await stampDataOf(mine) : null;
   // Not for long: a crawler is waiting for this picture (cardNumberSoon). A picture drawn without
   // its number is kept for minutes only, below.
   // The stage the same way. A house card has none; before the game is deployed there is none to read.
@@ -84,7 +90,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const no = cardNo(number);
 
   // The front without its letters (`letters=0`, only with `face=1`): the share video draws them itself.
-  const card = wordCard({ tiles, scene, cardW, no, gild: level ?? 0, bare: face, letters: !(face && url.searchParams.get("letters") === "0") });
+  const card = wordCard({ tiles, scene, cardW, collab, stamp, no, gild: level ?? 0, bare: face, letters: !(face && url.searchParams.get("letters") === "0") });
 
   // A known number is for good, and so is a card with none to wait for: a day in browsers, a week
   // at the edge (CARD_LOOK in the address starts every cache again when the look changes). A word
@@ -109,9 +115,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         {/* the table, engraved (lib/cardArt/table): a still picture under the card, placed as a scene is */}
         <img src={tableImage(W, H)} width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
         {card}
-        {saved && (
-          <div style={{ position: "absolute", right: tall ? 34 : 28, bottom: tall ? 26 : 12, display: "flex", fontSize: tall ? 26 : 20, fontWeight: 800, letterSpacing: -0.5, color: "#fbf4e3", opacity: 0.85 }}>LEXIGOTCHI</div>
-        )}
+        {saved && cornerMark(tall)}
       </div>
     ),
     {
@@ -121,7 +125,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
         { name: CARD_SERIF, data: serifBold, weight: 700, style: "normal" },
       ],
-      headers: { "cache-control": cardPictureCache({ waiting, level, hint }) },
+      // Kept long only when the address names the look the word has (`c`), the sets were read (a
+      // failed read draws a collab word in its rarity's look), and the stamp it has was drawn.
+      headers: { "cache-control": cardPictureCache({ waiting: waiting || !setsRead || (!!mine?.stamp && !stamp), level, hint, mark: parseLinkMark(url.searchParams.get("c")), look: mine?.mark ?? null }) },
     },
   );
 }

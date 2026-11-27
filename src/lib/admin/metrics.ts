@@ -278,6 +278,7 @@ export function economyPayload(): EconomyPayload {
           ? res.jackpotWins.reduce((a, w) => a + w.amount, 0) / res.jackpotWins.length
           : 0,
     },
+    // The simulator's page: the DERIVED counts, as the simulator models them (it never sees the collab layer).
     tiers: (Object.entries(TIER_COUNTS) as [string, number][]).map(([name, count]) => ({ name, count })),
     notes: res.notes,
     pegInfo: { wordUsd: WORD_USD_PRICE, wordPerUsd: WORD_PER_USD },

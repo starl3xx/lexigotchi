@@ -27,6 +27,7 @@ import { CardMore } from "./CardBack";
 import { ShareVideo } from "./ShareVideo";
 import { useCardNumber } from "./useCardNumber";
 import { flipKey, useFlipOf } from "./useFlipOf";
+import { useCollabLook } from "@/components/game/collabLooksContext";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();
@@ -74,7 +75,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
       {back && <CardMore word={word} />}
       <div className={`sc-actions ${caseDoor ? "sc-actions-3" : ""}`}>
         <Button variant="ghost" onClick={() => g.openSheet({ kind: "scene", word: word.word, fromWord: true })}>
-          <Palette weight="fill" /> Scene
+          <Palette weight="fill" /> Face
         </Button>
         <Button variant={sharing ? "primary" : "ghost"} aria-expanded={sharing} onClick={() => setSharing((s) => !s)}>
           <ShareNetwork weight="fill" /> Share
@@ -101,7 +102,8 @@ function ShareWord({ word, onMaking }: { word: OwnedWord; onMaking: (making: boo
   const postToX = usePostToX();
   const { scene } = useWordScene(word.word);
   const text = showcaseWordText(word.word, word.upper);
-  const saveImage = useSaveImage(showcaseCardPath(text, "x", scene, true, word.prestigeLevel), `lexigotchi-${word.word.toLowerCase()}-${scene}.png`);
+  const look = useCollabLook(word.word);
+  const saveImage = useSaveImage(showcaseCardPath(text, "x", scene, true, word.prestigeLevel, look?.mark), `lexigotchi-${word.word.toLowerCase()}-${scene}.png`);
   return (
     <div className="space-y-2 rounded-2xl border-2 border-ink bg-card p-2.5">
       <Button full variant="primary" onClick={() => postToX({ text: showcaseXText(text), url: showcaseUrl(text, scene, word.prestigeLevel) })}>
@@ -163,7 +165,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
   const signInFirst = !profile.signedIn && <p className="text-center text-xs text-ink/55">Your wallet asks you to sign in first.</p>;
   const shopButton = (label: string, variant: "primary" | "ghost") =>
     cases.onSale && (
-      <Button full variant={variant} onClick={() => g.openSheet({ kind: "shop" })}>
+      <Button full variant={variant} onClick={() => g.nav("shop", "accessories")}>
         {label} in the Shop: {usdcLabel(cases.onSale.priceUsdc, NETWORK.isTestnet)}
       </Button>
     );

@@ -256,6 +256,28 @@ pass (the default mode; run DEEP before mainnet, see below).
 - **Before mainnet:** run the skill in DEEP mode (the adversarial reviewer) on the final
   `Words.sol`, with the current skill version.
 
+### Sixth internal pass (2026-11-27): the owner's metadata refresh in Words
+
+`Words.sol` gained `refreshMetadata(uint256[])` and `refreshAllMetadata()` (decisions.md #53; the
+owner, 2026-11-27: "Metadata refresh function"), and the event `BatchMetadataUpdate`. Both are
+owner-only and only emit ERC-4906 events: they read and write no storage and touch no token. The
+`solidity-auditor` skill ran on `Words.sol` again: four vector scanners, all 170 vectors
+classified. The local skill is still version 1 (upstream 4.1), and this was the default mode.
+
+- **No finding at or above the confidence threshold (80), and none in the new functions.** The
+  scanners checked them for access control (`onlyOwner` on both), an unbounded loop (the owner's
+  own calldata bounds it: self-inflicted at worst), and duplicate ids (an event twice, nothing
+  else).
+- **Below the threshold (70), the same finding as the fifth pass, still not fixed:**
+  `dissolve(tokenId, word_)` logs the caller's `word_` without checking it against `tokenId`. The
+  owner was asked on 2026-11-27 and did not choose the one-line check. Nothing in the app reads
+  that string.
+- **Tests:** `test_MetadataRefresh_emitsForEachWordAndChangesNothing` (one event per id in order,
+  no other event, no state moved, an empty list is quiet, a holder can't send it) and
+  `test_MetadataRefresh_allWordsAtOnce`. `forge test`: 154 pass. Words is 15,337 bytes.
+- **Before mainnet:** unchanged. Run the skill in DEEP mode on the final `Words.sol`, with the
+  current skill version.
+
 ## Suggested external focus
 
 Commit-reveal + voucher signature surface (digest layouts, replay, the KIND tags); FeeRouter

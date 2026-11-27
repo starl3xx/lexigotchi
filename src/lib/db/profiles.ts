@@ -18,6 +18,12 @@ export function isMissingTable(err: unknown): boolean {
   return e?.code === "42P01" || e?.cause?.code === "42P01";
 }
 
+/** Postgres "column does not exist": a table is there, but a later migration that adds to it hasn't run. */
+export function isMissingColumn(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string } } | null;
+  return e?.code === "42703" || e?.cause?.code === "42703";
+}
+
 export async function getProfile(address: string, db: DbOrTx = getDb()): Promise<Profile | null> {
   const rows = await db.select().from(profiles).where(eq(profiles.address, address.toLowerCase())).limit(1);
   return rows[0] ?? null;

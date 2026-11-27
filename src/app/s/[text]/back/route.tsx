@@ -5,7 +5,11 @@ import { OgTile } from "../../../_og/tile";
 import { CARD_SERIF, CARD_SERIF_FILE } from "../../../_og/wordCard";
 import { parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { cardLevelOf } from "@/lib/onchain/cardLevel";
-import { wordTier, type Tier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
+import { tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
+import { collabSoon } from "@/lib/raritySoon";
+import { collabBack, tintOf } from "@/lib/collabLook";
+import { collabLine } from "@/lib/cardFacts";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
@@ -121,13 +125,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const tiles = parseShowcase((await params).text);
   if (!tiles) return new Response("Not a showcase", { status: 404 });
   const word = tiles.map((t) => t.char).join("");
-  const tier = wordTier(word);
-  const look = LOOK[tier];
+  // The tier the game treats it as: a collab word is Legendary on its back as on its front.
+  const collab = await collabSoon();
+  const tier = tierWith(word, collab);
+  // A collab word's back is its set's colorway in place of its rarity's material (the game's
+  // CardBack does the same): the two colors, deepened until the cream type reads on them.
+  const mine = collab.get(word.toUpperCase());
+  const colorway = mine ? collabBack(mine) : null;
+  const look = colorway ? { line: colorway.line, rackFront: colorway.rack } : LOOK[tier];
+  // The rack's tiles are the word's own: a collab word's wear its set's two colors, as on its front.
+  const tileTier = mine ? tintOf(mine) : tier;
   // The stage has its own read (lib/onchain/cardLevel), which the stage this address names can ask
   // to be read again: a video made the moment after an ascension must not draw the stage before it.
   const [{ number, finder, story }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
   const live = isSuiteDeployed();
-  const more = live ? await readBackFacts(word, level, story) : { since: null, perDay: null, cost: null, drawn: null };
+  const more = live ? await readBackFacts(word, level, story, tierFn(collab)) : { since: null, perDay: null, cost: null, drawn: null };
   // A word released in a reserved set carries its set's name, as the game's back does. Only a
   // RELEASED set's: nothing of a set that isn't public can reach a picture. Unknown is left out.
   // Loaded here, at the moment of use: the sets module brings the database and the chain reads with
@@ -146,6 +158,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   return new ImageResponse(
     (
       <div style={{ position: "relative", display: "flex", width: W, height: H, fontFamily: "Soehne", color: TEXT, textShadow: SHADOW }}>
+        {/* A rarity's back is drawn over a clear ground: the video's shader paints the material
+            under it. A collab word's ground is its colorway, painted HERE, so the picture alone is
+            the whole back and the shader's material never shows under it. */}
+        {colorway && (
+          <div
+            style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", borderRadius: CARD_CORNER * W, backgroundImage: `linear-gradient(165deg, ${colorway.base2}, ${colorway.base} 70%)` }}
+          />
+        )}
         {/* the frame: a line in the material's colour, and a dotted line just outside it */}
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", left: 0, top: 0 }}>
           {/* each line runs parallel to the card's own corner: the corner (CARD_CORNER of the width) less the line's inset */}
@@ -154,6 +174,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         </svg>
         {/* Legendary's engraved scrollwork, in each corner (the game's back draws it: CardBack, Scroll) */}
         {tier === "Legendary" &&
+          !colorway &&
           ([
             ["tl", {}],
             ["tr", { transform: "scaleX(-1)" }],
@@ -191,8 +212,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700, fontSize: 2.7 * U, lineHeight: 1.05 }}>One of one</div>
               <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>
-                One of {fmt(tierCount(tier))} {tier} words
+                One of {fmt(tierCount(tier, tierCountsWith(collab)))} {tier} words
               </div>
+              {/* a collab word: its partner, and its place among the set's five. In the back's full cream, as
+                  the game's back letters it (globals.css, .cb-collab), not the muted tone of the line above. */}
+              {mine && <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: TEXT }}>{collabLine(mine.partner, true)}</div>}
             </div>
             {/* the tiles on their rack: the word itself, in Söhne, and nowhere else on the back */}
             <div style={{ position: "relative", display: "flex", width: 430, height: 118, marginTop: 0.6 * U, alignItems: "flex-end", justifyContent: "center" }}>
@@ -205,7 +229,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
               <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
                 {tiles.map((t, i) => (
                   <div key={i} style={{ display: "flex" }}>
-                    <OgTile char={t.char} upper={t.upper} w={74} limbs={false} tier={tier} gild={level ?? 0} index={i} uid={`b${i}`} />
+                    <OgTile char={t.char} upper={t.upper} w={74} limbs={false} tier={tileTier} gild={level ?? 0} index={i} uid={`b${i}`} />
                   </div>
                 ))}
               </div>

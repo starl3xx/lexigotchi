@@ -17,6 +17,8 @@ import { getPublicClient } from "@/lib/onchain/reads";
 import { addressOf, allAddresses, deployBlock } from "@/lib/onchain/addresses";
 import { scanAllWords } from "@/lib/keeper/scan";
 import { yieldWeight } from "@/lib/keeper/shares";
+import { collabNow } from "@/lib/sets/server";
+import { NO_COLLAB, tierFn } from "@/lib/rarity";
 import { answerChainAbi, feeRouterAbi } from "@/lib/onchain/abis";
 import { DEFAULT_PARAMS } from "@/lib/params";
 
@@ -103,6 +105,11 @@ export async function scanWorld(): Promise<WorldSnapshot> {
     client.getLogs({ address: addressOf("jackpot"), event: JACKPOT_WON, fromBlock, toBlock: "latest" }),
   ]);
 
+  // The weights are an ESTIMATE for the cards ("earns about X a day"), weighed as the keeper
+  // weighs: a collab word at Legendary. Unlike the keeper, an unreadable sets table doesn't stop
+  // it: the derived tiers are close, and nothing is paid from this number.
+  const tier = tierFn((await collabNow().catch(() => null))?.words ?? NO_COLLAB);
+
   const skip = new Set<string>([ZERO, ...Object.values(allAddresses()).map((a) => a.toLowerCase())]);
   const transfers: LetterTransfer[] = [
     ...singles.map((l) => ({ from: l.args.from!, to: l.args.to!, ids: [l.args.id!], values: [l.args.value!] })),
@@ -128,8 +135,8 @@ export async function scanWorld(): Promise<WorldSnapshot> {
     })),
     letters: letterTotals(transfers, skip),
     wins,
-    yieldWeight: keeperWords.reduce((a, w) => a + yieldWeight(w), 0),
-    weights: Object.fromEntries(keeperWords.map((w) => [w.word, yieldWeight(w)])),
+    yieldWeight: keeperWords.reduce((a, w) => a + yieldWeight(w, tier), 0),
+    weights: Object.fromEntries(keeperWords.map((w) => [w.word, yieldWeight(w, tier)])),
   };
 }
 

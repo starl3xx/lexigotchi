@@ -5,6 +5,9 @@
  * The line-up (decisions.md #34; starl3xx, 2026-11-25):
  * - **The stock card** is where every word starts: no place at all, the card's own engraving in
  *   grey with the word's rarity as an overtone. Every player has it.
+ * - **The dark stock face** is the stock face's other side (decisions.md #57; starl3xx, 2026-11-27):
+ *   the same engraving on a pewter plate in pale line, the rarity still an overtone. Every player
+ *   has it. Its id, "darkstock", is in share links and saved picks, so it never changes.
  * - **The Stage** is free for everyone too.
  * - **The Trophy Case and Spring** unlock together once the player has held SCENE_UNLOCK_WORDS
  *   words (starl3xx, 2026-11-24: "an Unlock for reaching, say, 3 words spelled"), and stay open
@@ -15,7 +18,9 @@
  * - **The Bookshelf and Outer Space are the Shop's** (decisions.md #41; starl3xx, 2026-11-25: "add
  *   bookshelf, outer space (maybe as shop items, but still good to build)"). A player has one only
  *   once their profile has bought it (lib/shop/scenes says what "bought" is). Until the Shop lists
- *   them, nobody has them and the picker doesn't show them.
+ *   one, nobody has it and the picker doesn't show it. Outer Space is listed on Base Sepolia
+ *   (2026-11-27); the Bookshelf is not. A bought scene is the PROFILE's, for every word it holds,
+ *   and never the word's: a word that is sold reaches its buyer on the stock card.
  * - **Retired:** Picture Day, Summer, Fall, and Winter. They were free, so nobody lost a purchase.
  *   A saved pick or a link that names one reads as the stock card (`storedScene`).
  *
@@ -27,7 +32,7 @@
  * Pure (no React), so the server's share picture and the client read the same list.
  */
 
-export const SCENE_IDS = ["stock", "stage", "trophy", "spring", "bookshelf", "space"] as const;
+export const SCENE_IDS = ["stock", "darkstock", "stage", "trophy", "spring", "bookshelf", "space"] as const;
 export type SceneId = (typeof SCENE_IDS)[number];
 
 /** Where a word stands when nobody picked a scene for it: the stock card. */
@@ -40,8 +45,8 @@ export const DEFAULT_SCENE: SceneId = "stock";
  */
 export const LINK_DEFAULT_SCENE: SceneId = "stage";
 
-/** The scenes every player has from their first word. */
-export const FREE_SCENES: readonly SceneId[] = ["stock", "stage"];
+/** The faces every player has from their first word. */
+export const FREE_SCENES: readonly SceneId[] = ["stock", "darkstock", "stage"];
 
 /** The scenes that open with the 3-word unlock. */
 export const UNLOCK_SCENES: readonly SceneId[] = ["trophy", "spring"];
@@ -64,7 +69,8 @@ export interface SceneMeta {
 }
 
 export const SCENES: readonly SceneMeta[] = [
-  { id: "stock", name: "Stock card", blurb: "The card itself, in the word’s rarity." },
+  { id: "stock", name: "Stock (light)", blurb: "The card’s own engraving, in the word’s rarity." },
+  { id: "darkstock", name: "Stock (dark)", blurb: "The same engraving, on a pewter plate." },
   { id: "stage", name: "The Stage", blurb: "Curtains up, lights on." },
   { id: "trophy", name: "Trophy Case", blurb: "On the shelf with the cups." },
   { id: "spring", name: "Spring", blurb: "A green hill under the blossom." },

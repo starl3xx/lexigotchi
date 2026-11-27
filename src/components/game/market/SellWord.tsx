@@ -19,11 +19,13 @@ import { Coins } from "../ui/icons";
 import { fmtWord, useGame, type OwnedWord } from "../state";
 import { WordValue, useCostToMake } from "../WordValue";
 import { FormHead, PriceHint, PriceIdeas, PriceInput, priceOf, priceText, useAmount } from "./bits";
+import { useTierOf } from "../useRarity";
 
 /** The Market's fee on a word (params `market.wordSaleFee`, 10%), the same number the order builder uses. */
 const SALE_FEE = DEFAULT_PARAMS.market.wordSaleFee;
 
 export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord; startOpen?: boolean; onClose?: () => void }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const amount = useAmount();
   const listing = g.wordBoard.find((l) => l.word === word.word && g.market.isHere(l.maker));
@@ -38,7 +40,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
     lastSale: listing?.lastSale?.price ?? g.market.sales.find((s) => s.kind === "word" && s.word === word.word)?.price,
     tier: word.tier,
     tierStat: g.market.tierStats[word.tier],
-    tierLowest: tierLowest(g.wordBoard, word.tier, g.market.isMine, word.word),
+    tierLowest: tierLowest(g.wordBoard, word.tier, g.market.isMine, word.word, tierOf),
     minPrice: MIN_WORD_PRICE,
   });
   const close = () => {
@@ -113,7 +115,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
         {listing && " Your old listing is cancelled in the same step."}
         {/* The Customization Spec: taste stays with the player (decisions.md #22). Said only once
             there's a Shop to buy taste in. */}
-        {shopEnabled() && " Scenes, cases, and costumes stay with the seller."}
+        {shopEnabled() && " Card faces, cases, and costumes stay with the seller."}
       </p>
       {/* Against the rounded figure the first idea offers, so taking it never reads as too low. */}
       {cost && price > 0 && price < roundPrice(cost.total) && (

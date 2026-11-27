@@ -102,6 +102,57 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Formulas: caps = `floor(slots × DEMAND_MULTIPLE)` (3.0 since decisions.md #21 → 68,760; Sepolia's
   deployed Letters keeps 2.5× → 57,294 until a redeploy); tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.
+- **Collab sets** (decisions.md #53, built in parts; part 1 is the data): a set is `standard` or
+  `collab` (a partner's name and link, two colors, a stamp; exactly five words). A collab's look is
+  its identity: a draft's to edit, locked at the reveal (`rules.ts` `IDENTITY_KEYS`,
+  `revealProblems`), and **nothing of it reaches a browser before the reveal**, not even that the
+  set is a collab. **No real partner, name, logo, or color ever ships in this repository**, and
+  "Test collab" is made only by the owner's button on a test network. **Collab reveals have a
+  switch** (`rules.ts` `COLLAB_LIVE`, true since the rarity and the card shipped; false stops every
+  collab reveal, by hand and on its date, and leaves drafts editable).
+  The stamp is a raster picture in the database (`set_stamps`; PNG or JPEG, never an SVG, and
+  typed by its own first bytes both ways); `/api/sets/{id}/stamp` answers only for a revealed set.
+  **A set's first day has a rule** (`gate_rule`: every verified player, an allowlist, or a token's
+  holders on Base MAINNET): `lib/sets/firstDay.ts` checks it AFTER verification, of the wallet that
+  CLAIMS (never the whole profile: a listed wallet would let in every profile it is linked into),
+  and it fails closed (unreadable = "try again", never "yes"). **A deploy never waits for a migration:**
+  the sets must read and plain sets must save before 0023 has run (`listSets` falls back to
+  0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
+  the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`
+  must pass on a database with and without the newest migration.
+- **A collab word's LOOK is chosen by the word, never by its tier** (decisions.md #53, part 3;
+  `lib/collabLook.ts`). `collabLooksOf` is the one lookup (word → the two colors, the stamp, the
+  partner), and it is the same object as the rarity layer's collab words. In the game the
+  components that draw a word (`WordTiles`, `MiniTiles`, `SceneFrame`, `SceneThumb`) look it up by
+  the word (`components/game/collabLooks.tsx`), so a new screen needs nothing; a page outside the
+  game passes `look` / `collab`. A tile takes the two colors where its tier goes (`TileTier`).
+  **The two colors are any two colors: never draw in them as given.** Use `collabFinish` (the
+  tint is thinned until the letter reads), `collabCardLook` (the ink is darkened until it reads on
+  paper), `collabBack` (deepened until cream reads); `tests/collab-look.test.ts` sweeps the color
+  cube. A back is drawn by three renderers (the game's CSS, the server's picture, the video's
+  shader): a collab's ground is painted in the first two with the same gradient, INTO the server's
+  picture, and gets no live material. The stamp stands on a paper plate (it is any picture). The server's pictures get the stamp as bytes (`stampDataOf`), never by fetching the stamp
+  route. **Every card picture's address names the look (`c`)**, as it names the stage: a reveal
+  changes a card without changing the word, and a picture is kept a week. Never give a draft's
+  word a different address or cache header (it would tell which words are in a draft).
+- **Token metadata** is `GET /api/word/{tokenId}` (`lib/wordMetadata.ts`; decisions.md #53):
+  `Words.tokenURI` = base URI + decimal id. It follows the chain's live state (case, ascension)
+  and says of a set only what any visitor may see: "Set" once released, "Collab" from the reveal,
+  nothing of a draft. A new trait goes in `wordMetadata` with a test. (`/api/word` with no id is
+  the $WORD token's numbers, a different route.)
+- **A word's rarity has two names; use the right one** (decisions.md #53, part 2; `lib/rarity.ts`).
+  `wordTier(word)` is the DERIVED tier (the full dictionary's; supply, odds, the simulator).
+  `tierWith(word, collab)` is the tier the game TREATS it as: a collab word is Legendary from its
+  set's reveal, a higher own tier is kept. **Anything a player reads, sorts, filters, or is paid
+  by asks the second:** a component calls `useTierOf()` / `useTierCounts()`
+  (`components/game/useRarity.ts`), a server render that only shows a rarity `collabSoon()`
+  (`lib/raritySoon.ts`, falls back to derived), and the keeper `epochTiers()`
+  (`lib/keeper/tiers.ts`), which reads with `collabStrict()` (this run's own read, never the sets
+  loader's kept copy) and THROWS when the sets can't be read: no epoch is opened on guessed
+  rarities. **`loadSets()` answers `known: true` from a kept copy after a failure**: right for
+  holding words back, wrong for anything that pays; a paying caller passes `{ strict: true }`. `tests/rarity-override.test.tsx` lists the files that may still name `wordTier`; a new
+  one fails it, so add the file there with its reason or use the game's tier. The collab words
+  are passed in, never read inside `rarity.ts`, and never reach `lib/economy.ts` or the sim.
 - **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /
   `set_words` / `dictionary_roots`, migration 0021): themed groups of dictionary words held back
   and released later. A reserved word is one `Words.dictionaryRoot` leaves out; a release is a
@@ -424,7 +475,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `walletTypedDataJson(order)`, never `JSON.stringify(orderTypedData(order))`:** eth-sig-util wallets
   read a missing `EIP712Domain` as empty and sign another digest (every MetaMask listing failed
   bad_signature until #187); viem fills it in, so a viem-signed test can't catch this.
-  **The Shop** (decisions.md #22; infrastructure only: no real item exists yet): cosmetics for USDC on
+  **The Shop** (decisions.md #22; one real item on Base Sepolia since 2026-11-27, the Outer Space scene: see "The Shop's scenes"): cosmetics for USDC on
   Base, `contracts/src/Shop.sol` (registry EMPTY at deploy; a sale sends 80% straight to the revenue
   wallet and swaps the rest to $WORD through `adapters/UniV4UsdcWordAdapter` into ROYALTY, in the same
   transaction; a failed swap waits in the Shop for `sweep`, which the keeper's `fees` job runs; the
@@ -434,8 +485,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `isSuiteDeployed` never waits on it; the admin keeps `SUITE_KEYS` apart from `CONTRACT_KEYS` the
   same way. App: **SHOP_ENABLED** = `NEXT_PUBLIC_SHOP_ENABLED=true` AND a test network AND the Shop
   deployed (`lib/shop/rules.ts` `shopOn`; mainnet is off whatever the setting says); `/api/shop` (the
-  registry + `shop_items` metadata), `sheets/ShopSheet` (the rail's Collect group and More, no entry
-  while off), `buyShopItem` (batched approve + buy where `wallet_getCapabilities` answers, else a USDC
+  registry + `shop_items` metadata), `screens/ShopScreen` (the `shop` view: a screen of its own since
+  decisions.md #55, in the rail's Collect group and under More on a phone, no entry while off; one of
+  the `PUBLIC_VIEWS`, so anyone can look), `buyShopItem` (batched approve + buy where `wallet_getCapabilities` answers, else a USDC
   permit, typed data WITH `EIP712Domain`, else approve, wait, buy; never sponsored until the CDP policy
   covers the Shop). An item shows only with a `shop_items` row; on a test network one without shows as
   a plain "Test item" card (a rule about networks, never a stored name). **Wardrobe** = table
@@ -446,19 +498,21 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   migration 0016 copies `word_scenes` in under each wallet's account; `kind` "scene" today, a slot
   for "costume"): `/api/scenes` still speaks wallets and maps them to profiles; before 0016 it falls
   back to `word_scenes`; the keeper clears picks off words that left the profile (staking and Move
-  keep them). The Market says "Scenes and costumes stay with the seller" only while SHOP_ENABLED.
+  keep them). The Market says "Card faces, cases, and costumes stay with the seller" only while SHOP_ENABLED.
   **Test USDC** (Base Sepolia only): `MockUSDC` (Circle's permit domain "USD Coin" / "2", 6 decimals),
   25 a profile a UTC day through a signer voucher (`/api/faucet/usdc`, `usdcFaucetDigest`, the free
   snack's pattern), "Get test USDC" beside "Get test $WORD" (`TestFaucets`: Your $WORD and the $WORD
-  page), and in the Shop sheet when a tester can't afford an item; it never shows as dollars. The
+  page), and on the Shop's screen when a tester can't afford an item; it never shows as dollars. The
   Sepolia route is `MockUsdcWordAdapter` (the peg's rate; it mints test $WORD, so it needs no
   funding; its owner can `setBroken` to exercise a deferred swap). Admin: the Shop tab (revenue to
   date, $WORD to the pool, waiting USDC, sales per item, settings, the transaction builders;
   `/api/admin/shop`) and the System switch list. **Switched on in production (the Sepolia build) by
   #208**, with `NEXT_PUBLIC_SHOP_ENABLED=true` in Vercel Production; unset it and merge to hide it.
   **The email's look is the card's** (decisions.md #47; `layout` in `lib/notify/email.ts`): the card's
-  paper, a rule and a dotted line for the frame, the serif wordmark, facts as a ledger
-  (`reminderEmail(..., facts)`), one ink button; tables and inline styles, no picture, font stacks
+  paper, a rule and a dotted line for the frame, the game's lockup, facts as a ledger
+  (`reminderEmail(..., facts)`), one ink button; tables and inline styles, ONE picture (the lockup,
+  decisions.md #56 part 2: a file the site serves, `public/brand/lockup-email.png`, with the card's
+  paper in it, its size given, and the name as its alt text lettered as the old header was), font stacks
   only, "light only". A new email kind uses `reminderEmail`, asks the choices, and takes its
   send-once mark first (`lib/db/reminderMarks.ts` `claimMark`, released if the send fails; no mark
   table = no send).
@@ -496,7 +550,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
 - `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages); its shapes are numbers in `tileShapes.ts`, which the share card's Satori letter (`src/app/_og/tile.tsx`) draws from too, so change a shape there, once (decisions.md #28).
-  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. A sleeping (hungry) letter's three z's are a layer each for that reason: looping inside the top layer they cost 44% of a core on Today, where a hungry word shows first, and 5% as layers. A nervous (rolling) letter's two beads of sweat are a layer each too: five letters wait together in the ascend sheet, and the beads inside their top layers were 27 of a nervous word's 45 points (about 20% as layers). The peeking eye stays inside the body layer: it swaps in steps and costs nothing. `tests/tile-character.test.tsx` holds the rule. **A tile's size never changes in an animation** (decisions.md #48; starl3xx: "it breaks the character illusion"): a letter is moved and turned, never scaled, by its loops, by a press, or by a box around it as it arrives (`animate-drop`, never `animate-pop`, on anything with a letter in it). The legs may stretch (that keeps the feet down), and a card may lift as it turns. `tests/tile-size.test.tsx` holds it, and makes every new `tc*` loop be sorted as body, legs, or off the tile. **A cheering letter's confetti is sixteen small drawings of their own** (`Confetti`: each piece an `<svg>` its own size, placed by percent over the letter, its fall in percent of its own box): looping inside the top layer they cost a cheering word 47% of a core in WebKit, and 13% this way. A whole-letter layer for each piece would keep sixteen letters' worth of store: never make an off-the-tile piece a full-size layer when there are many. **The cards' style is called "neo-Victorian engraving illustration" or "vintage ornamental illustration", and no artist's name is ever written** (starl3xx, 2026-11-26): not in the docs, the code, a comment, a test, a pull request, or a page. **What is on a letter is flat and colourful; what is around a letter is drawn like the cards** (the same decision): the ground shadow is ruled lines (`tileShapes`, `SHADOW_LINES`, shared with the share letter), the rack on a card's back is ruled line work in the material's line colour (`lib/cardArt/rack`, one set of shapes for the game and the server's picture), the table under a card in a link picture is engraved (`lib/cardArt/table`), the shadow under the video's card is ruled lines (the shader in `loop/loopRenderer`), the glow behind a Legendary or Mythic tile is an engraved halo of fine rays (`tileShapes` `haloPath`, 3 units off whatever the tile wears and never past 28, so two letters' halos never cross in a word), confetti is engraved in ink and gold, the ascend sheet's rays are an engraved picture (`lib/cardArt/glory`, turned as one element), and a raised letter's rays are an engraved "glory" on a layer of their own, cut off at the ground by a box that stands still (turning inside the floor's drawing, the old star cost 11% to 20% of a core in WebKit; under 2% now). **The gilding** (the same decision, part 2; shapes in `tileShapes`): slim rings (`GILD`: 8 to 13.5 units outside the blue border; the ring says gilded, doubled from Gilded 4, and foil at Holographic, and no longer counts the stage), black diamond pips (solid ink where earned at every stage, Holographic too; a faint outline where not; no plate), and laurels from Gilded 4 on a whole character. **An UPPERCASE letter with legs draws its rings on a layer of their own under the legs** (floor, rings, legs, body), so the legs come over the gilding as the arms do; the owner ruled out any shortcut ("has to be a layer in front of the gilding"). Measured alone, the layer costs about nothing in WebKit. `tests/gilding.test.tsx` holds all four. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
+  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. A sleeping (hungry) letter's three z's are a layer each for that reason: looping inside the top layer they cost 44% of a core on Today, where a hungry word shows first, and 5% as layers. A nervous (rolling) letter's two beads of sweat are a layer each too (a bead's point is at its bottom, toward the tile, and its round end leads: starl3xx, 2026-11-27, "so it looks like its coming from the tile, not from above"): five letters wait together in the ascend sheet, and the beads inside their top layers were 27 of a nervous word's 45 points (about 20% as layers). The peeking eye stays inside the body layer: it swaps in steps and costs nothing. `tests/tile-character.test.tsx` holds the rule. **A tile's size never changes in an animation** (decisions.md #48; starl3xx: "it breaks the character illusion"): a letter is moved and turned, never scaled, by its loops, by a press, or by a box around it as it arrives (`animate-drop`, never `animate-pop`, on anything with a letter in it). The legs may stretch (that keeps the feet down), and a card may lift as it turns. `tests/tile-size.test.tsx` holds it, and makes every new `tc*` loop be sorted as body, legs, or off the tile. **A cheering letter's confetti is sixteen small drawings of their own** (`Confetti`: each piece an `<svg>` its own size, placed by percent over the letter, its fall in percent of its own box): looping inside the top layer they cost a cheering word 47% of a core in WebKit, and 13% this way. A whole-letter layer for each piece would keep sixteen letters' worth of store: never make an off-the-tile piece a full-size layer when there are many. **The cards' style is called "neo-Victorian engraving illustration" or "vintage ornamental illustration", and no artist's name is ever written** (starl3xx, 2026-11-26): not in the docs, the code, a comment, a test, a pull request, or a page. **What is on a letter is flat and colourful; what is around a letter is drawn like the cards** (the same decision): the ground shadow is ruled lines (`tileShapes`, `SHADOW_LINES`, shared with the share letter), the rack on a card's back is ruled line work in the material's line colour (`lib/cardArt/rack`, one set of shapes for the game and the server's picture), the table under a card in a link picture is engraved (`lib/cardArt/table`), the shadow under the video's card is ruled lines (the shader in `loop/loopRenderer`), the glow behind a Legendary or Mythic tile is an engraved halo of fine rays (`tileShapes` `haloPath`, 3 units off whatever the tile wears and never past 28, so two letters' halos never cross in a word), confetti is engraved in ink and gold, the ascend sheet's rays are an engraved picture (`lib/cardArt/glory`, turned as one element), and a raised letter's rays are an engraved "glory" on a layer of their own, cut off at the ground by a box that stands still (turning inside the floor's drawing, the old star cost 11% to 20% of a core in WebKit; under 2% now). **The gilding** (the same decision, part 2; shapes in `tileShapes`): slim rings (`GILD`: 8 to 13.5 units outside the blue border; the ring says gilded, doubled from Gilded 4, and foil at Holographic, and no longer counts the stage), black diamond pips (solid ink where earned at every stage, Holographic too; a faint outline where not; no plate), and laurels from Gilded 4 on a whole character. **An UPPERCASE letter with legs draws its rings on a layer of their own under the legs** (floor, rings, legs, body), so the legs come over the gilding as the arms do; the owner ruled out any shortcut ("has to be a layer in front of the gilding"). Measured alone, the layer costs about nothing in WebKit. `tests/gilding.test.tsx` holds all four. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (`MiniAppHost` + wagmi + RainbowKit; the
   connect modal is themed in `walletTheme.ts`). **A Farcaster host is one that answers**
@@ -533,7 +587,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `/api/lhaw` + `LhawScreen` → the in-game **Let's Have A Word!** page (rail: "$WORD universe"): LHAW's
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).
-  It, the Leaderboard, the Dictionary, and More are `PUBLIC_VIEWS` in GameApp: no wallet needed.
+  It, the Leaderboard, the Dictionary, More, and the Shop are `PUBLIC_VIEWS` in GameApp: no wallet needed.
 - **The Dictionary** (decisions.md #31; `screens/DictionaryScreen.tsx`, `useDictionary.ts`): each
   word is a card (flat `MiniTiles`, never the rig: 80 words a page) showing the word as it would
   be claimed, with a dashed slot for a letter the player lacks, and one line: "You can spell it",
@@ -584,7 +638,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   root). They replace the old in-game FAQ and `FAQ.md`. Keep every number in step with `params.ts`
   and `economy.ts` (prices, odds, hunger days, splits, tier counts); the copy-rules test covers
   the pages, including the rule that a dollar sign in body text is written `\$` (Mintlify reads
-  `$…$` as math). Pictures in `docs-site/images/` come from `npm run docs:art`
+  `$…$` as math). Pictures in `docs-site/images/` come from `npm run docs:art` (`tests/docs-art.test.ts` fails when one
+  no longer matches what the rig draws: a change to the rig, the rig's keyframes, or the fee splits
+  needs the script rerun in the same PR)
   (`scripts/docs-art.tsx`, the real character rig and `params.ts` splits): rerun it after changing
   either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
   server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
@@ -608,6 +664,44 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
+- **The Shop is a screen with categories** (decisions.md #55; starl3xx, 2026-11-27: "the Shop should be
+  its own tab instead of a popup, since we'll eventually add more things and categories (card faces
+  and accessories for now)"). `screens/ShopScreen.tsx` is the old sheet's body with its guards kept
+  (nothing listed while `metaKnown` is false; a face sold only on a positive "you don't have it").
+  The categories are a pure rule (`lib/shop/rules`: `SHOP_CATEGORIES`, `categoryOf`, `byCategory`,
+  tested): kind `scene` is Card faces, everything else (a case, a costume) is Accessories, and the
+  test network's placeholder is in neither (it sits under "Try paying"; Base Sepolia's own, item 1,
+  is switched off since 2026-11-27 with the owner's word, so that section shows only if an item is
+  ever listed again with no `shop_items` row). A NEW kind needs its
+  category chosen in `categoryOf`. One switch for the categories, as the Market has for its parts;
+  a link lands on one with `nav("shop", "faces")` (the face picker's tile for a face on sale) or
+  `nav("shop", "accessories")` (an opened word's Case button). There is no `shop` sheet any more:
+  `nav` closes whatever sheet the link was in. On a phone the Shop is under More (the bottom bar
+  has no free place: my reading). **A limited edition** is an item with a supply limit
+  (`Shop.maxSupply`, set with `addItem` or later with `updateItem`, which RESENDS the price and
+  the dates with it): its card says "Limited edition of 25. 24 left." (`edition`, `editionLine`),
+  the contract refuses a purchase past it (`SoldOut`), and the picker stops offering a sold-out
+  face. Three things the words never promise: the owner can raise a limit later, the limit counts
+  purchases and not players (the game sells a face once to a profile; the contract would sell it
+  twice), and a sold-out item stays with everyone who has it. The player docs have a Shop page
+  (`docs-site/shop.mdx`): when an accessory is listed, its "None are in the Shop yet" goes.
+- **A card's words: front, face, back** (decisions.md #54; starl3xx, 2026-11-27: "the *front* of the
+  card is its front regardless of the scene/face... the *face* (not scene) is the background on the
+  front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it
+  wears. The FACE (a "card face" where the sentence needs it) is the picture on the front, behind
+  the word: the thing a player picks, unlocks, or buys. The BACK is the back. Every surface a player
+  reads says so, and `tests/copy-rules.test.ts` fails on "scene" in the app and the player docs.
+  The two stock faces are "Stock (light)" and "Stock (dark)" in the picker (the owner's names,
+  2026-11-27), and a sentence a player reads names them the same way ("its new owner gets it on
+  Stock (light)"). **The code still
+  says "scene" for a face** (`SceneId`, `lib/scenes.ts`, `SceneFrame`, `useWordScene`, the `scene`
+  sheet, and these notes below), and so does everything stored or posted, which can never change:
+  `?scene=` in share links, kind `scene` in `shop_items` and `word_picks`, `/api/scenes`, the
+  `lexigotchi:scene:` key in a browser. **Two older code names use "face" for something else:**
+  `?face=1` and `showcaseFacePath` are the card's FRONT alone, and `playerFaces` /
+  `mergePublicFaces` are a player's name and picture. "Face down" (the jackpot's secret card)
+  stays: it is plain English for a card lying on its front. Never write a new player-facing
+  "scene", and name a new thing in code by the player's word.
 - **Scenes and the card's front** (decisions.md #15 and #34; `src/lib/scenes.ts` = the list and the
   unlock; `src/lib/cardArt/` = the pictures; `src/components/scenes/`): a word's card front is
   `SceneFrame` (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9; also the Bag, the scene sheet, the
@@ -617,7 +711,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   on a `small` card). **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the card's serif
   (`--font-card`: **Source Serif 4, shipped**, the same face for every player and on the server's pictures: decisions.md #52; `public/fonts/sourceserif4-*`, two variable web files for the game and one plain bold file for the picture routes, named once in `app/_og/wordCard.tsx` as `CARD_SERIF` / `CARD_SERIF_FILE`; `tests/card-serif.test.ts`) letters what a card says
   ABOUT a word, never the word. **Scenes:** every word starts on the stock card (`DEFAULT_SCENE`:
-  grey, the rarity as an overtone); the Stage is free too (`FREE_SCENES`); the Trophy Case and Spring
+  grey, the rarity as an overtone); the dark stock face and the Stage are free too (`FREE_SCENES`).
+  **The dark stock face** (decisions.md #57; id `darkstock`, never to change: links and saved picks
+  carry it) is the light stock's own engraving (`stockPlan`, shared, so the two can't drift) on the
+  pewter plate (`PEWTER` in `lib/cardArt/scenes.ts`). The owner chose pewter after calling the first,
+  near-black plate "way too dark": **when drawing something dark for him, start lighter than seems
+  right.** **A dark face needs two things** (`DARK_SCENES`: the dark stock face and Outer Space):
+  (1) light where the word stands, on the wall behind it and the floor under it, because a letter's
+  arms, legs, and shoes are dark ink and vanish on a dark plate; (2) thinner fog for a hungry word
+  (globals.css, `.cf-dark .scene-fog`: 0.42 hungry, 0.2 peckish), because the fog is pale and at full
+  strength it turns the plate white. A new dark face joins `DARK_SCENES` and is looked at hungry.
+  The other faces: the Trophy Case and Spring
   open at `SCENE_UNLOCK_WORDS` = 3 words ever held (`state.wordsEverHeld`, so it stays open after a
   dissolve). Picture Day, Summer, Fall, and Winter are retired: a pick or link that names one reads
   as the stock card. **A scene is a still picture and never moves** (starl3xx: "the only animation
@@ -632,11 +736,24 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   with `art` = the scene id (`lib/shop/scenes.ts`; nothing else grants one). `useShopScenes`
   (`game/useShop.ts`) gives `bought`, `onSale`, and `known`: **unknown is not "no"** (a saved Shop scene
   keeps showing while the wardrobe is loading, failed, or the Shop is off), and the picker offers one
-  only on a positive answer, and for sale only when `known` (`shopSceneOffer`; the Shop sheet's Buy
+  only on a positive answer, and for sale only when `known` (`shopSceneOffer`; the Shop screen's Buy
   for a scene the same, `sceneSale`: a scene is bought once). `/api/shop`'s `metaKnown: false` (the
-  database couldn't say what the items are) is "unknown" too, and the Shop sheet lists nothing then.
+  database couldn't say what the items are) is "unknown" too, and the Shop screen lists nothing then.
   `/api/scenes` won't save one for a profile that hasn't bought it. Listing
-  is the owner's (`Shop.addItem`, then the `shop_items` row); none is listed yet. **The plastic case** (decisions.md #42;
+  is the owner's (`Shop.addItem`, then the `shop_items` row). **Outer Space is listed on Base Sepolia**
+  (starl3xx, 2026-11-27: "i want to introduce it as a Shop item on Testnet for $5 USDC"): item 2,
+  5 test USDC, no end, its row `kind` "scene", `art` "space". **It is a limited edition of 5** since
+  the same day (the owner: "cap outer space at 5"; `updateItem(2, 5000000, 0, 0, 5)`, the price and
+  dates resent unchanged, read from the chain first). The Bookshelf is
+  not listed. **List an item in three steps, so it never shows as a "Test item" card:** `addItem`
+  with `active` false (take the id from `ItemAdded`), then the `shop_items` row (`shop` in
+  LOWERCASE: the reader matches on it), then `setActive(id, true)`; check `/api/shop` after each.
+  **A scene is the buyer's profile's, never the word's** (the same day: "it doesn't travel with a
+  card"): one purchase is for every word they hold, a pick comes off when the word leaves the
+  profile, and a buyer's card starts on the stock card. Nothing a buyer sees draws a seller's
+  scene: the Market and the word view show letters. The seller's own Today, Bag, and opened card
+  keep their scene while the word is for sale (asked, and the owner chose to change nothing).
+  **The plastic case** (decisions.md #42;
   `cards/CardCase.tsx`, `lib/shop/cases.ts`, `lib/db/wordCases.ts`, `/api/cases`): a Shop item of
   kind "case". **One case holds one word** (my reading; the strict one, loosened later at no
   buyer's cost), and the server is the one place that counts: a cased word is a `word_picks` row of
@@ -684,7 +801,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the two paths to the same pieces at the same times. Never gate motion on `hardwareConcurrency` (iOS reports
   2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
-  from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
+  from TileFinish). **No name on link cards; `?saved=1` adds the game's lockup in the corner** (`app/_og/wordCard.tsx` `cornerMark`, for a word's card and the earnings picture; Save image, the
   Telegram welcome). The share loop is built (decisions.md #27; see Word cards).
   **Each tier also has a mark** (decisions.md #29; `lib/tierMark.ts` = the paths, colours, and
   corner counts; `components/game/TierMark.tsx`): a round bead for Common, then a cut stone with
@@ -722,7 +839,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   words were first claimed (`madeOrder`, served as `/api/world`'s `numbers`), never A to Z; "Found by" and "Yours since" read
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
   while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
-  screen is gone (Share and Scene sit under an opened card; badges moved to the profile; a scene
+  screen is gone (Share and Face sit under an opened card; badges moved to the profile; a scene
   picked from an opened word returns to it). **Live backs** (decisions.md #26; `cards/live/`, the `ogl`
   package, loaded on the first live back): WebGL draws a showing back's material on the card in focus only, on demand (a frame per
   change, nothing at rest: `tests/live-back.test.ts` counts them), one context, lost when the back
@@ -739,7 +856,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   browser (WebCodecs H.264 + `mp4-muxer`, deprecated but 9 kB: swap in `makeLoop.ts` only). It
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
-  twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the corner wordmark on every frame.
+  twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the game's lockup in the corner of every frame, its eyes on the video's written score (`score.ts` `markEyes`; the name in type if its pictures fail to load).
 - **A word's status is three marks** (decisions.md #39; `components/game/stageMarks.ts` pure + tested,
   `StatusMarks.tsx`): **Fed, Jackpot, Earns**, always in that order, each in the colour of its meaning.
   In full on the Today placard and the word's sheet; as three icons beside the name in the Bag
@@ -747,7 +864,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **The Today stage is a clean card and a placard under it** (`.tt`, `.tt-plate`): the marks, the one
   thing to do, the earnings line, and a pager with the arrows. **The placard never names the word**
   (starl3xx: "seeing JAZZY immediately underneath the card is redundant"); the action's label does.
-  Nothing is drawn over a card's art but its letters. The Jackpot mark says "In the running", never a
+  Nothing is drawn over a card's art but its letters (and, on a collab word's card, its set's stamp in its one place: decisions.md #53). The Jackpot mark says "In the running", never a
   draw or a ticket (docs/messaging.md).
 - **Today is the player's dashboard** (`screens/HomeScreen.tsx`; starl3xx, 2026-11-24): their words on
   stage (`TodayStage`) top left, their letters (`TodayLetters`: the free daily letter, loose letters
@@ -912,11 +1029,38 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
   its start block, and times each claim's block exactly). A heading is bold by an entity
   (`SendOptions.bold`), never a parse mode, over a line of hyphens measured as the update posts' are.
+- **The lockup** (decisions.md #56; `lib/cardArt/logo` `lockup`, `components/brand/Lockup.tsx`): A's
+  tile standing where the name's L would, then EXIGOTCHI, as outlines (no font). **No seal in a
+  lockup** (starl3xx, 2026-11-27). It is ALIVE where it is drawn live (the rail, the phone header,
+  the intro, pre-launch, the landing header; the landing footer is still, and so is the game's own
+  while the intro is up: one living mark at a time): the eyes blink and glance in MOMENTS from one timer (a class on the drawing for a moment,
+  `.lk` in globals.css), never a loop inside the drawing, and never for a lockup nobody sees, under
+  reduced motion, or on a low-power device. A blink is the letters' own swap of two drawings.
+  **Each drawing on a page has its own ids** (`prefix`): the rail's and the header's are both in the
+  page, and a gradient named twice can resolve to the hidden one and paint nothing. **The phone
+  header's lockup gives way** (down to 91 px wide, the old plain name's width): at full size it
+  pushed the profile button off a 390 px screen, so check the header at 320 to 424 px after
+  touching it, in the practice game (its header is the fullest). **The eyes never invert** (the same
+  day): on any ground an eye is a light eyeball with a dark pupil, so one ink has a drawing for a
+  light ground and one for a dark ground, and what is clear is CUT OUT with a mask, never painted
+  in a ground's colour. Where a mark must be square, use A. `tests/lockup.test.tsx` holds it.
+  **It is also everywhere the name was set in type** (part 2; `tests/lockup-everywhere.test.ts`): the
+  share video's corner (four still pictures, `lockup({ pose })`, picked by `score.ts` `markEyes`),
+  a SAVED picture's corner (`cornerMark`; a link card still carries no name), the game's link
+  picture (`/embed-image`: the lockup alone, since under the LEXI letters the L tile showed twice),
+  the emails' header (a picture, see the email notes), the docs' logo (`docs-site/logo`, still
+  files), and the four pages a player lands on outside the game (part 3): a word's share page and
+  the earnings page (alive, at their head, linking home), the page after linking X and the
+  unsubscribe page (still, `lockupTag`: they are strings and run no script). `Lockup` asks the two
+  motion hooks from `components/game/motionPrefs.ts`, never from the letter rig, so a page that
+  draws no letters stays light. `npm run brand:art` makes the email's picture and the docs' files too. **A file is never
+  alive:** no looping SVG, no animated picture in email, unless the owner asks and it can be checked.
+  A new place that names the game draws the lockup: never set LEXIGOTCHI in type again.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
   `seal.ts`. **`npm run brand:art`** (`scripts/brand-art.tsx`) makes `public/icon*.png`,
-  `docs-site/favicon.png`, and the exports in `docs/brand/` from it. Never edit those files by hand:
+  `docs-site/favicon.png`, and the exports in `docs/brand/` (the lockup's too) from it. Never edit those files by hand:
   change the source and run the script (`tests/logo.test.ts` fails when they differ, and holds the
   grain mask in `docs/icon/make_grain.py` to the logo's measures). The letter is Söhne Fett's "L" as
   an outline, so no font is needed.
@@ -1175,7 +1319,8 @@ bot posts). The hard rules:
   Web3, decentralized); raise, roll (not gamble, bet, upgrade); spell, claim a word (not mint a
   word); feed, snack, hungry (not maintain, upkeep); the daily word, the jackpot, in the running (not
   lottery, draw as a noun, ticket); earns $WORD every day (not yield, APR, returns, passive income);
-  Dictionary (not Lexidex); the Market (not marketplace, exchange).
+  Dictionary (not Lexidex); the Market (not marketplace, exchange); a card's front, its face or
+  card face, and its back (never scene: see "A card's words" above).
 - **Never write:** price, pump, moon, invest, investment, "number go up", or a dollar figure for
   $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
   functional uses: a word's sale price on the Market and the $WORD page's own data. One exception

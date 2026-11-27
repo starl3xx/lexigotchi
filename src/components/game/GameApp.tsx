@@ -22,6 +22,7 @@ import { PreLaunchScreen } from "./screens/PreLaunchScreen";
 import { markOnboardedServer, postFarcasterWalletsSync } from "./campaignClient";
 import { forgetVerifiedWallets } from "./useVerifiedWallet";
 import { SHEET_EXIT_MS, SheetClosing, Toaster, TweenNumber } from "./primitives";
+import { Lockup } from "../brand/Lockup";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
 import { ChainGameProvider } from "./ChainGameProvider";
@@ -49,7 +50,7 @@ import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writeP
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { SceneSheet } from "./sheets/SceneSheet";
-import { ShopSheet } from "./sheets/ShopSheet";
+import { ShopScreen } from "./screens/ShopScreen";
 import { shopEnabled } from "@/lib/shop/config";
 import { EarningsSheet } from "./sheets/EarningsSheet";
 import { LookupSheet } from "./sheets/LookupSheet";
@@ -67,6 +68,7 @@ import {
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 import { useWalletSighting } from "./useWalletSighting";
 import { WordStripLive } from "@/components/WordStrip";
+import { CollabLooksProvider } from "./collabLooks";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
 // dismissed an older version see the new one once (v2 added the "Roll to upgrade" step).
@@ -85,11 +87,13 @@ export function GameApp() {
   if (PRELAUNCH) return <PreLaunchScreen />;
   const Provider = isChainBacked() ? ChainGameProvider : GameProvider;
   return (
-    <Provider>
-      <SceneSync />
-      <EarningsNote />
-      <OnboardingHost />
-    </Provider>
+    <CollabLooksProvider>
+      <Provider>
+        <SceneSync />
+        <EarningsNote />
+        <OnboardingHost />
+      </Provider>
+    </CollabLooksProvider>
   );
 }
 
@@ -169,14 +173,14 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
       {/* The outer box is the overlay host: fixed to the viewport, so the sheets, onboarding and
           toasts below (absolute inset-0) cover the whole window on desktop, rail included. */}
       <div className="fixed inset-0 z-50 flex bg-paper">
-        <SideRail />
+        <SideRail still={!onboarded} />
         <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
           {/* faint aged-paper grain */}
           <div
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{ backgroundImage: "radial-gradient(#e7d7b0 0.5px, transparent 0.5px)", backgroundSize: "14px 14px" }}
           />
-          <TopBar />
+          <TopBar still={!onboarded} />
           <main ref={mainRef} className="relative flex-1 overflow-y-auto px-4 pb-28 pt-3 md:px-8 md:pb-12 md:pt-6">
             {/* Phones: the full width (as before). Desktop: a readable column the screens fill
                 with their own grids. Tablets in portrait get a centered phone-width column. */}
@@ -314,6 +318,7 @@ function Screen({ view }: { view: View }) {
     case "word": return <WordScreen />;
     case "lhaw": return <LhawScreen />;
     case "swap": return <MarketScreen />;
+    case "shop": return <ShopScreen />;
     default: return <HomeScreen />;
   }
 }
@@ -365,8 +370,6 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} bought={state.sheet.bought} />;
   if (state.sheet?.kind === "boughtLetters") return <BoughtLettersSheet letterId={state.sheet.letterId} count={state.sheet.count} unitPrice={state.sheet.unitPrice} had={state.sheet.had} />;
   if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} fromWord={state.sheet.fromWord} />;
-  // Only reachable from entries that already check the chain game and SHOP_ENABLED; checked again here.
-  if (state.sheet?.kind === "shop" && shopEnabled()) return <ShopSheet />;
   if (state.sheet?.kind === "earnings") return <EarningsSheet />;
   if (state.sheet?.kind === "lookup") return <LookupSheet word={state.sheet.word} />;
   return null;
@@ -376,7 +379,8 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
 // Top bar — brand + balance + streak + day control
 // ---------------------------------------------------------------------------
 
-function TopBar() {
+/** `still`: the intro is up, and its own lockup is the living one (one living mark at a time). */
+function TopBar({ still }: { still: boolean }) {
   const { state, skipDay, openSheet } = useGame();
   const helpBtn = (
     <button
@@ -392,7 +396,14 @@ function TopBar() {
   return (
     <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5 md:px-8 md:py-3">
       <div className="flex items-center gap-1.5">
-        <span className="font-display text-base font-extrabold tracking-tight md:hidden">LEXIGOTCHI</span>
+        {/* The lockup (components/brand/Lockup): on a phone the header has it, on a wide screen the rail
+            does. It is 132 px wide at its full size, 41 more than the plain name was, and the row is
+            tight on a phone: so it GIVES WAY, down to the old name's 91 px, before anything is pushed
+            off the screen (at full size the profile button left a 390 px screen). Only the lockup
+            gives way: letting this whole group shrink slid the chip beside it under the balance. */}
+        <span className="min-w-[91px] shrink md:hidden">
+          <Lockup alive={!still} height={28} className="h-auto w-full" />
+        </span>
         {/* Desktop: the rail shows the brand, so the header names the page instead. */}
         <h1 className="hidden font-display text-xl font-extrabold tracking-tight md:block">{VIEW_TITLE[state.view]}</h1>
         {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
@@ -492,7 +503,8 @@ function ViewerChip() {
  * connected wallet's bag is loading, or the chain read failed, the gate still shows its skeleton or
  * error, so the Dictionary never says "you own 0" before the bag arrives (Bugbot on #121).
  */
-const PUBLIC_VIEWS: ReadonlySet<View> = new Set<View>(["dictionary", "leaderboard", "word", "lhaw", "more"]);
+// The Shop is one of them: anyone can look at what it sells (its sheet opened with no wallet too).
+const PUBLIC_VIEWS: ReadonlySet<View> = new Set<View>(["dictionary", "leaderboard", "word", "lhaw", "more", "shop"]);
 
 /** The page title the desktop header shows. */
 const VIEW_TITLE: Record<View, string> = {
@@ -506,6 +518,7 @@ const VIEW_TITLE: Record<View, string> = {
   word: "$WORD",
   lhaw: "Let’s Have A Word!",
   swap: "Market",
+  shop: "Shop",
   more: "More",
 };
 
@@ -542,7 +555,7 @@ const RAIL: { heading: string; items: { view: View; label: string; Icon: typeof 
   },
 ];
 
-function SideRail() {
+function SideRail({ still }: { still: boolean }) {
   const { state, nav, openSheet } = useGame();
   const openUrl = useOpenUrl();
   const item = (view: View, label: string, Icon: typeof House) => {
@@ -564,8 +577,8 @@ function SideRail() {
   return (
     <aside className="relative z-10 hidden h-full w-56 shrink-0 flex-col border-r-[3px] border-ink bg-paper-dark/70 md:flex lg:w-60">
       {/* the brand goes home to the landing page */}
-      <a href="/" className="flex items-center gap-2 px-5 pb-4 pt-4 font-display text-lg font-extrabold tracking-tight">
-        LEXIGOTCHI
+      <a href="/" className="flex items-center px-5 pb-3 pt-3">
+        <Lockup alive={!still} height={34} />
       </a>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Game">
         {RAIL.map((group) => (
@@ -573,16 +586,9 @@ function SideRail() {
             <div className="px-3 pb-1.5 text-xs font-bold text-ink/50">{group.heading}</div>
             <div className="space-y-1">
               {group.items.map((i) => item(i.view, i.label, i.Icon))}
-              {/* The Shop is a sheet, behind SHOP_ENABLED (decisions.md #22): no entry while it's off. */}
-              {group.heading === "Collect" && state.chainBacked && shopEnabled() && (
-                <button
-                  onClick={() => openSheet({ kind: "shop" })}
-                  className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
-                >
-                  <ShoppingBag size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" />
-                  Shop
-                </button>
-              )}
+              {/* The Shop is a screen of its own (decisions.md #55), behind SHOP_ENABLED: no entry while
+                  it's off, nor in the practice game, which has no chain. */}
+              {group.heading === "Collect" && state.chainBacked && shopEnabled() && item("shop", "Shop", ShoppingBag)}
             </div>
           </div>
         ))}
@@ -624,7 +630,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "swap"];
+const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "swap", "shop"];
 
 function BottomNav() {
   const { state, nav } = useGame();

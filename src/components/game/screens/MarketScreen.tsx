@@ -24,7 +24,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { shopEnabled } from "@/lib/shop/config";
 import { WORDS } from "@/lib/dictionary";
-import { wordTier } from "@/lib/economy";
 import { cardNumber } from "@/lib/cardFacts";
 import { isUpperId, letterLabel, letterMakeCost, oneLetterShort, pickDeals, type Deal } from "@/lib/market/deals";
 import { finishTokens, needParts, wordNeed, type LetterBag } from "@/lib/wordNeed";
@@ -42,11 +41,13 @@ import { SellDesk, type SellKind } from "../market/SellDesk";
 import { SoldList, SoldThing } from "../market/SoldList";
 import { WordsBoard, useCostPrices } from "../market/WordsBoard";
 import { timeAgo } from "../market/bits";
+import { useTierOf } from "../useRarity";
 
 type Tab = "words" | "letters" | "sell" | "sold";
 const TABS: readonly Tab[] = ["words", "letters", "sell", "sold"];
 
 export function MarketScreen() {
+  const tierOf = useTierOf();
   const g = useGame();
   const { state } = g;
   const world = useWorld().data;
@@ -81,8 +82,8 @@ export function MarketScreen() {
   const { ownersKnown, hasLetters, here, all, statusOf, numbers } = useDictionary();
   const short = useMemo(() => {
     if (!ownersKnown || !hasLetters) return new Map<number, string[]>();
-    return oneLetterShort(here, all, WORDS.filter((w) => statusOf(w) === "open"));
-  }, [ownersKnown, hasLetters, here, all, statusOf]);
+    return oneLetterShort(here, all, WORDS.filter((w) => statusOf(w) === "open"), tierOf);
+  }, [ownersKnown, hasLetters, here, all, statusOf, tierOf]);
 
   const deals = pickDeals({
     book: g.market.letterBook,
@@ -92,6 +93,7 @@ export function MarketScreen() {
     prices,
     balance: state.balance,
     yieldToday: world?.yieldToday,
+    tierOf,
   });
   const showLetter = (letterId: number) => {
     setTab("letters");
@@ -125,7 +127,7 @@ export function MarketScreen() {
               className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-ink/70"
             >
               {/* a word wears its rarity's mark, as it does everywhere it is named */}
-              {s.kind === "word" && s.word && <TierMark tier={wordTier(s.word)} size={12} />}
+              {s.kind === "word" && s.word && <TierMark tier={tierOf(s.word)} size={12} />}
               <SoldThing sale={s} size={24} />
               {s.kind === "letter" && s.qty > 1 && <span>×{s.qty}</span>}
               <strong className="font-display text-ink tabular-nums">{fmtWord(s.kind === "letter" ? s.unitPrice : s.price)}</strong>
@@ -186,7 +188,7 @@ export function MarketScreen() {
         The buyer pays the price in $WORD: 90% goes to the seller, and 10% to the Rewards Pool, which pays staked words. A word arrives with
         its letters, case, and ascension. “To make” is about what a thing costs to build at today’s prices, with the average number of tries.
         {/* The Customization Spec: taste stays with the player (decisions.md #22). Only once there's a Shop. */}
-        {shopEnabled() && " Scenes, cases, and costumes stay with the seller."}
+        {shopEnabled() && " Card faces, cases, and costumes stay with the seller."}
       </p>
     </div>
   );
@@ -208,6 +210,7 @@ function DealRow({
   number?: number;
   onLetter: (letterId: number) => void;
 }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const openWord = useOpenWord();
   const [busy, setBusy] = useState(false);
@@ -219,9 +222,9 @@ function DealRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="word-press" aria-label={`Open ${l.word}`} onClick={() => openWord(l.word)}>
-              <WordTiles word={l.word} upper={[...l.upper]} size={22} tier={wordTier(l.word)} still />
+              <WordTiles word={l.word} upper={[...l.upper]} size={22} tier={tierOf(l.word)} still />
             </button>
-            <TierBadge tier={wordTier(l.word)} />
+            <TierBadge tier={tierOf(l.word)} />
             {number ? <span className="text-xs font-bold tabular-nums text-ink/60">{cardNumber(number)}</span> : null}
           </div>
           <p className="mt-0.5 text-xs text-ink/70">
@@ -270,7 +273,7 @@ function DealRow({
             </button>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <button type="button" className="word-press" aria-label={`Open ${d.word}`} onClick={() => openWord(d.word)}>
-                <MiniTiles word={d.word} upper={need.upper} letters={need.letters} tier={wordTier(d.word)} />
+                <MiniTiles word={d.word} upper={need.upper} letters={need.letters} tier={tierOf(d.word)} />
               </button>
               {d.alsoFinishes > 0 && (
                 <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${name.toLowerCase()}`)}>

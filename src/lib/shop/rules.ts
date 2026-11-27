@@ -100,3 +100,62 @@ export function fmtUsdc(units: bigint): string {
 export function usdcLabel(units: bigint, isTestnet: boolean): string {
   return isTestnet ? `${fmtUsdc(units)} test USDC` : `$${fmtUsdc(units)}`;
 }
+
+// ---------------------------------------------------------------------------
+// The Shop's categories and limited editions (decisions.md #55)
+// ---------------------------------------------------------------------------
+
+/**
+ * The Shop's categories (starl3xx, 2026-11-27: "the Shop should be its own tab instead of a popup,
+ * since we'll eventually add more things and categories (card faces and accessories for now)").
+ * A card face is kind "scene" in the table (the code's old word for it, decisions.md #54).
+ * Everything else a card or a letter can carry is an accessory: a case now, a costume later.
+ */
+export const SHOP_CATEGORIES = ["faces", "accessories"] as const;
+export type ShopCategory = (typeof SHOP_CATEGORIES)[number];
+
+export const CATEGORY_NAME: Record<ShopCategory, string> = { faces: "Card faces", accessories: "Accessories" };
+
+export function isShopCategory(v: unknown): v is ShopCategory {
+  return typeof v === "string" && (SHOP_CATEGORIES as readonly string[]).includes(v);
+}
+
+export function categoryOf(kind: ItemKind): ShopCategory {
+  return kind === "scene" ? "faces" : "accessories";
+}
+
+/**
+ * The shown cards, category by category, in registry order. The test network's placeholder is
+ * nothing a card wears, so it is in no category: it is kept apart, for a corner of its own.
+ */
+export function byCategory(cards: readonly ShopCard[]): { categories: Record<ShopCategory, ShopCard[]>; placeholders: ShopCard[] } {
+  const categories: Record<ShopCategory, ShopCard[]> = { faces: [], accessories: [] };
+  const placeholders: ShopCard[] = [];
+  for (const c of cards) {
+    if (c.kind === "placeholder") placeholders.push(c);
+    else categories[categoryOf(c.meta.kind)].push(c);
+  }
+  return { categories, placeholders };
+}
+
+/**
+ * A limited edition (starl3xx, 2026-11-27: "limited edition Shop sales... like, say only 25 of the
+ * Outer Space face"): an item with a supply limit (`Shop.maxSupply`; 0 is no limit). `made` is the
+ * limit and `left` how many can still be bought, never below zero. Null when there is no limit.
+ *
+ * The contract is what holds the limit (`_buy` reverts `SoldOut`); this only says it. Three things
+ * it does NOT promise, so the words on a card never do either: the owner can raise a limit later
+ * (`updateItem`, never below what has sold), the limit counts purchases and not players (the game
+ * sells a face once to a profile, the contract would sell it twice), and a sold-out item stays
+ * with everyone who has it.
+ */
+export function edition(item: Pick<RegistryItem, "maxSupply" | "sold">): { made: number; left: number } | null {
+  if (item.maxSupply <= 0) return null;
+  return { made: item.maxSupply, left: Math.max(0, item.maxSupply - item.sold) };
+}
+
+/** How a limited edition reads on its card: how many were made, and how many are left. */
+export function editionLine(e: { made: number; left: number }): string {
+  const made = e.made.toLocaleString("en-US");
+  return e.left === 0 ? `Limited edition of ${made}. None left.` : `Limited edition of ${made}. ${e.left.toLocaleString("en-US")} left.`;
+}

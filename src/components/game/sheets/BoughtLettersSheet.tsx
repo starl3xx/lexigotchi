@@ -9,14 +9,14 @@
  * word it could already spell is in Today's next steps, and saying "now" of it would be untrue.
  */
 import { useMemo } from "react";
-import { wordTier } from "@/lib/economy";
-import { isUpperId, letterLabel, letterOf, rarestFirst } from "@/lib/market/deals";
+import { isUpperId, letterLabel, letterOf, rarestFirst, rarestFirstBy } from "@/lib/market/deals";
 import { Button, Sheet, TierBadge } from "../primitives";
 import { LetterTile, WordTiles } from "../LetterTile";
 import { claimCase, fmtWord, mineLower, mineUpper, spellableNow, useGame } from "../state";
 import { useTakenWords } from "../useTodayPlan";
 import { useWorld } from "../useWorld";
 import { useAmount } from "../market/bits";
+import { useTierOf } from "../useRarity";
 
 /**
  * Tiles drawn before the rest become a number (a listing can sell thousands of one letter): up to
@@ -44,8 +44,9 @@ export function newlySpellable(
   count: number,
   had: number,
   taken: ReadonlySet<string>,
+  order: (a: string, b: string) => number = rarestFirst,
 ): { word: string; cases: boolean[] }[] {
-  return newlySpellableWith(lower, upper, [{ letterId, count, had }], taken);
+  return newlySpellableWith(lower, upper, [{ letterId, count, had }], taken, order);
 }
 
 /**
@@ -60,6 +61,8 @@ export function newlySpellableWith(
   upper: readonly number[],
   added: readonly { letterId: number; count: number; had: number }[],
   taken: ReadonlySet<string>,
+  /** Rarest first. The game passes the order with its own tiers on top (`rarestFirstBy`), so a collab word sorts as Legendary. */
+  order: (a: string, b: string) => number = rarestFirst,
 ): { word: string; cases: boolean[] }[] {
   const before = { lower: lower.slice(), upper: upper.slice() };
   for (const { letterId, count, had } of added) {
@@ -71,11 +74,12 @@ export function newlySpellableWith(
   const was = new Set(spellableNow(before.lower, before.upper, taken, Infinity));
   return spellableNow(lower, upper, taken, Infinity)
     .filter((w) => !was.has(w))
-    .sort(rarestFirst)
+    .sort(order)
     .map((word) => ({ word, cases: claimCase(word, upper) }));
 }
 
 export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letterId: number; count: number; unitPrice: number; had: number }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const { state } = g;
   const amount = useAmount();
@@ -89,8 +93,8 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
   // hidden for good (Bugbot on #223).
   const checking = state.chainBacked && !world.data?.owners && world.isPending === true;
   const fresh = useMemo(
-    () => (checking ? [] : newlySpellable(lower, upper, letterId, count, had, taken)),
-    [checking, lower, upper, letterId, count, had, taken],
+    () => (checking ? [] : newlySpellable(lower, upper, letterId, count, had, taken, rarestFirstBy(tierOf))),
+    [checking, lower, upper, letterId, count, had, taken, tierOf],
   );
   const first = fresh[0];
   const name = letterLabel(letterId);
@@ -123,7 +127,7 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
             <p className="text-sm text-ink/70">Now you can spell</p>
             <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
               <WordTiles word={first.word} upper={first.cases} size={38} still />
-              <TierBadge tier={wordTier(first.word)} />
+              <TierBadge tier={tierOf(first.word)} />
             </div>
             {fresh.length > 1 && (
               <button

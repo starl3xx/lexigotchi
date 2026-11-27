@@ -758,10 +758,54 @@ export const wordSets = pgTable(
      * reasons (a release that returns the chain to an earlier reserve root).
      */
     releaseRoot: text("release_root"),
+    /** "standard" | "collab" (a set made with a partner: five words, its own card look). */
+    type: text("type").notNull().default("standard"),
+    /** A collab's partner, its https link, and its two card colors ("#rrggbb"). */
+    partnerName: text("partner_name"),
+    partnerUrl: text("partner_url"),
+    colorA: text("color_a"),
+    colorB: text("color_b"),
+    /** Who the first day is open to: "verified" | "allowlist" | "token". */
+    gateRule: text("gate_rule").notNull().default("verified"),
+    /** For "token": the contract on Base, lowercase, and the least a player must hold (digits, the token's smallest unit). */
+    gateToken: text("gate_token"),
+    gateMin: text("gate_min"),
+    /** Who an allowlist or a token rule lets in, in words for players. Null: the plain wording. */
+    gateLabel: text("gate_label"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("word_sets_chain_idx").on(t.chainId, t.sort)],
+);
+
+/**
+ * A collab set's stamp: one small raster picture (PNG, JPEG, or WebP), kept as base64. Its own
+ * table, so listing the sets never reads a picture. Private until its set is revealed, like the
+ * rest of a draft: the route that serves it checks the set's status.
+ */
+export const setStamps = pgTable("set_stamps", {
+  setId: integer("set_id")
+    .primaryKey()
+    .references(() => wordSets.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  data: text("data").notNull(),
+  bytes: integer("bytes").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * The wallets a set's first day is open to, under the "allowlist" rule. Lowercase. Never sent to a
+ * browser: the voucher route only ever answers yes or no.
+ */
+export const setAllowlist = pgTable(
+  "set_allowlist",
+  {
+    setId: integer("set_id")
+      .notNull()
+      .references(() => wordSets.id, { onDelete: "cascade" }),
+    wallet: text("wallet").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.setId, t.wallet] })],
 );
 
 /**

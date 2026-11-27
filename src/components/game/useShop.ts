@@ -1,7 +1,7 @@
 "use client";
 /**
  * What the Shop sells and what the player has bought (decisions.md #22, #41, #42), read once for
- * the page: the Shop sheet, the scene picker, every word's scene, and the cases share these reads.
+ * the page: the Shop's screen, the face picker, every word's face, and the cases share these reads.
  *
  * Both are silent where there is no Shop to ask (the switch is off, or the practice game, which
  * has no chain): their `data` stays undefined, and a caller must treat that as "not known", never

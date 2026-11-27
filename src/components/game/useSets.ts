@@ -12,6 +12,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientContext, useQuery } from "@tanstack/react-query";
 import type { SetsPayload } from "@/app/api/dictionary/sets/route";
 import { releasedSetNames, setsPollMs } from "./sets";
+import { collabLooksOf } from "@/lib/collabLook";
 
 /**
  * A client that never fetches, for a render with no query client at all. This hook is read by the
@@ -43,8 +44,14 @@ export function useSets() {
   const heldList = q.data?.held;
   /** The words held back now, or null while that isn't known (then nothing is called held). */
   const held = useMemo(() => (heldList ? new Set(heldList) : null), [heldList]);
+  /**
+   * Every word of a revealed or released collab set, with its card look (lib/collabLook.ts): what
+   * raises a word to Legendary (lib/rarity.ts) and what its card is drawn in. One object for both.
+   */
+  const collab = useMemo(() => collabLooksOf(sets ?? []), [sets]);
   return {
     held,
+    collab,
     known: q.data?.ok === true,
     sets: sets ?? [],
     /** The name of the released set a word belongs to, if any. */

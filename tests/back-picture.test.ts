@@ -6,6 +6,7 @@ import { writeFileSync } from "fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { backFoot, backLedger, type BackFacts, footSetName, FOOT_SET_MAX } from "@/lib/backPicture";
 import { cardDate, type WordStory } from "@/lib/cardFacts";
+import { wordTier } from "@/lib/economy";
 
 const HOLDER = "0x00000000000000000000000000000000000000a1";
 const OTHER = "0x00000000000000000000000000000000000000b2";
@@ -112,44 +113,44 @@ describe("what the back's picture says", () => {
 
 describe("the facts read for it", () => {
   it("\"Held since\" is the day the word reached its holder's PROFILE: a move between its own wallets keeps the day", async () => {
-    expect((await readBackFacts("GLYPH", 2, STORY)).since).toBe(1_794_400_000);
+    expect((await readBackFacts("GLYPH", 2, STORY, wordTier)).since).toBe(1_794_400_000);
     // the same word, when the two wallets are not one profile: the day of the last move
     chain.wallets = [HOLDER];
-    expect((await readBackFacts("GLYPH", 2, STORY)).since).toBe(1_794_600_000);
+    expect((await readBackFacts("GLYPH", 2, STORY, wordTier)).since).toBe(1_794_600_000);
   });
 
   it("\"Earns staked\" counts the word in once: its own part of today's weight is taken out first", async () => {
     // Legendary (weight 8) at Gilded 2 is 8 × 1.1² = 9.68 of weight
     chain.world = worldOf({ weight: 50, own: 0, pot: 1000 });
-    const fresh = (await readBackFacts("GLYPH", 2, STORY)).perDay as number;
+    const fresh = (await readBackFacts("GLYPH", 2, STORY, wordTier)).perDay as number;
     chain.world = worldOf({ weight: 50 + fresh * 0 + 9.68, own: 9.68, pot: 1000 });
-    const staked = (await readBackFacts("GLYPH", 2, STORY)).perDay as number;
+    const staked = (await readBackFacts("GLYPH", 2, STORY, wordTier)).perDay as number;
     expect(staked).toBeCloseTo(fresh, 6);
     expect(fresh).toBeGreaterThan(0);
   });
 
   it("how many letters are UPPERCASE is the chain's count: a word not all raised earns nothing yet, whatever a link's casing", async () => {
     chain.world = worldOf({ raised: 3 });
-    const f = await readBackFacts("GLYPH", 0, STORY);
+    const f = await readBackFacts("GLYPH", 0, STORY, wordTier);
     expect(f.perDay).toBe("upper");
     // and it costs less to make than the same word fully raised
     chain.world = worldOf({ raised: 5 });
-    expect((await readBackFacts("GLYPH", 0, STORY)).cost!).toBeGreaterThan(f.cost!);
+    expect((await readBackFacts("GLYPH", 0, STORY, wordTier)).cost!).toBeGreaterThan(f.cost!);
   });
 
   it("a read that fails or never answers leaves its facts out, and never holds the picture or throws", async () => {
     chain.worldFails = true;
-    expect(await readBackFacts("GLYPH", 2, STORY)).toEqual({ since: null, perDay: null, cost: null, drawn: null });
+    expect(await readBackFacts("GLYPH", 2, STORY, wordTier)).toEqual({ since: null, perDay: null, cost: null, drawn: null });
     chain.worldFails = false;
     chain.paramsFail = true;
     resetBackFacts(); // the prices read a moment ago are kept for minutes
-    const f = await readBackFacts("GLYPH", 2, STORY);
+    const f = await readBackFacts("GLYPH", 2, STORY, wordTier);
     expect(f.cost).toBeNull();
     expect(f.perDay).not.toBeNull();
     // the stage couldn't be read: nothing that depends on it is guessed
     chain.paramsFail = false;
     resetBackFacts();
-    const g = await readBackFacts("GLYPH", null, STORY);
+    const g = await readBackFacts("GLYPH", null, STORY, wordTier);
     expect(g.perDay).toBeNull();
     expect(g.cost).toBeNull();
     expect(g.drawn).toBe("never");
@@ -158,7 +159,7 @@ describe("the facts read for it", () => {
   it("gives up on a world that never answers, after a few seconds", async () => {
     vi.useFakeTimers();
     chain.worldNever = true;
-    const read = readBackFacts("GLYPH", 2, STORY);
+    const read = readBackFacts("GLYPH", 2, STORY, wordTier);
     await vi.advanceTimersByTimeAsync(5000);
     expect((await read).drawn).toBeNull();
     vi.useRealTimers();

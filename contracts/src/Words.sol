@@ -256,6 +256,10 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     ///         lowercase render everywhere tokenURI was cached. (Jake, 2026-08-13.)
     event MetadataUpdate(uint256 _tokenId);
 
+    /// @notice ERC-4906's other event: every token from `_fromTokenId` to `_toTokenId` changed.
+    ///         Word ids are hashes, never a run of numbers, so this is only ever "all of them".
+    event BatchMetadataUpdate(uint256 _fromTokenId, uint256 _toTokenId);
+
     // --- escrow mutation (rolls / prestige) -------------------------------------------------------
 
     /// @inheritdoc IWords
@@ -364,6 +368,28 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     function setBaseURI(string calldata uri) external onlyOwner {
         baseTokenURI = uri;
         emit BaseURISet(uri);
+    }
+
+    /// @notice Tell metadata cachers (ERC-4906) to read these words again, for a change the chain
+    ///         can't see. A word's card is drawn off chain, and what the metadata server says of
+    ///         a word can change with no transaction here: a set made with a partner gives its
+    ///         words their own look and a trait (decisions.md "Collab sets"; the owner, 2026-11-27:
+    ///         "Metadata refresh function"). `applyUpgrade` and `setPrestige` already emit this
+    ///         for what the chain does see.
+    /// @dev    Emits and nothing else: no storage is read or written and no token is touched. A
+    ///         token id nobody holds is harmless to name (there is nothing cached to refresh).
+    ///         Owner-only so the event stays a signal worth acting on, never spam anyone can
+    ///         send. It is here before it is needed because Words can't change after deploy.
+    function refreshMetadata(uint256[] calldata tokenIds) external onlyOwner {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            emit MetadataUpdate(tokenIds[i]);
+        }
+    }
+
+    /// @notice The same for every word at once (a new metadata server, a new base URI's
+    ///         contents, a change to how every card is drawn). Emits and nothing else.
+    function refreshAllMetadata() external onlyOwner {
+        emit BatchMetadataUpdate(0, type(uint256).max);
     }
 
     /// @notice EIP-2981 royalty — a SIGNAL only (decisions.md "Royalty & marketplace architecture"):

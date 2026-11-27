@@ -18,6 +18,45 @@ import { keccak256, stringToBytes } from "viem";
 
 export type SetStatus = "draft" | "revealed" | "released";
 
+/**
+ * A COLLAB set is one made with a partner (decisions.md, "Collab sets"): exactly five words, a
+ * partner's name and link, and a card look of its own (two colors and a stamp). Collab changes how
+ * the card looks and makes the word Legendary; the word itself is the same word.
+ */
+export type SetType = "standard" | "collab";
+
+/**
+ * Who a set's first day is open to. A player must be verified in every case.
+ * - `verified`: every verified player (the default).
+ * - `allowlist`: only a player with a wallet on the list the operator imported.
+ * - `token`: only a player holding at least `gateMin` of the contract `gateToken` on Base.
+ */
+export type GateRule = "verified" | "allowlist" | "token";
+
+export const SET_TYPES: readonly SetType[] = ["standard", "collab"];
+export const GATE_RULES: readonly GateRule[] = ["verified", "allowlist", "token"];
+/** A collab set has exactly this many words. */
+export const COLLAB_WORDS = 5;
+/**
+ * Can a collab set be REVEALED? Yes, since its rarity and its card shipped (decisions.md "Collab
+ * sets", parts 2 and 3): a collab word is Legendary "from the moment its set is revealed" and has
+ * its own card, so no set could be revealed before both existed, and this was false until then.
+ * It stays a switch: set it to false and no collab set is revealed, by hand or on its date, while
+ * drafts can still be made and edited.
+ */
+export const COLLAB_LIVE: boolean = true;
+export const PARTNER_URL_MAX = 200;
+/** A list the operator pastes is bounded. */
+export const ALLOWLIST_MAX = 20_000;
+/**
+ * A stamp is a small raster picture: PNG or JPEG. Never SVG (an SVG can carry script), and not
+ * WebP for now: the server's pictures (share cards, the token's art) must be able to draw it, a
+ * revealed set's stamp can never be replaced, and only these two are proven there.
+ */
+export const STAMP_MAX_BYTES = 256 * 1024;
+export const STAMP_TYPES = ["image/png", "image/jpeg"] as const;
+export type StampType = (typeof STAMP_TYPES)[number];
+
 export interface SetWord {
   word: string;
   headliner: boolean;
@@ -45,7 +84,39 @@ export interface WordSet {
   /** The root last built to release this set, or null when none was (see `word_sets.release_root`). */
   releaseRoot: string | null;
   words: SetWord[];
+  type: SetType;
+  /** A collab's partner: its name, and a link to it (https). Null on a standard set, or not set yet. */
+  partnerName: string | null;
+  partnerUrl: string | null;
+  /** A collab's two card colors, "#rrggbb". */
+  colorA: string | null;
+  colorB: string | null;
+  /** When its stamp image was last stored, or null when it has none (the image itself is its own read). */
+  stampAt: Date | null;
+  gateRule: GateRule;
+  /** For the `token` rule: the contract on Base, and the least a player must hold (a whole number of the token's smallest unit). */
+  gateToken: string | null;
+  gateMin: string | null;
+  /** Who an allowlist or a token rule lets in, in the operator's words for players ("holders of …"). Null: the plain wording. */
+  gateLabel: string | null;
+  /** How many wallets are on its allowlist (the wallets themselves never leave the server). */
+  allowlistCount: number;
 }
+
+/** A standard set's values for the fields a collab adds: what every older row and test set has. */
+export const STANDARD_FIELDS = {
+  type: "standard",
+  partnerName: null,
+  partnerUrl: null,
+  colorA: null,
+  colorB: null,
+  stampAt: null,
+  gateRule: "verified",
+  gateToken: null,
+  gateMin: null,
+  gateLabel: null,
+  allowlistCount: 0,
+} as const satisfies Pick<WordSet, "type" | "partnerName" | "partnerUrl" | "colorA" | "colorB" | "stampAt" | "gateRule" | "gateToken" | "gateMin" | "gateLabel" | "allowlistCount">;
 
 export const GATE_HOURS_DEFAULT = 24;
 /** The contract refuses a gate further ahead than this (Words.MAX_GATE), so a longer one can't be built. */
@@ -63,13 +134,108 @@ export function cleanWord(raw: unknown): string | null {
   return /^[A-Z]{5}$/.test(w) ? w : null;
 }
 
-/** What may still change on a set in each state. */
+/**
+ * What may still change on a set in each state. `name` covers everything a player reads as the
+ * set's identity once it is revealed: its name, and for a collab its kind, partner, colors, and
+ * stamp. `schedule` covers the dates and everything about the first day, the gate rule and its
+ * allowlist included (a partner's list arrives when it arrives).
+ */
 export function editable(status: SetStatus): { words: boolean; name: boolean; schedule: boolean; remove: boolean } {
   if (status === "draft") return { words: true, name: true, schedule: true, remove: true };
   // Revealed: players have read the name and the words, so those stay. The dates and the gate's
   // settings can still move (a release that slips a day must not need a new set).
   if (status === "revealed") return { words: false, name: false, schedule: true, remove: false };
   return { words: false, name: false, schedule: false, remove: false };
+}
+
+/** "#rrggbb", lowercase, or null. */
+export function cleanColor(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const c = raw.trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(c) ? c : null;
+}
+
+/** An https link, or null. Nothing else is ever shown as a partner's link. */
+export function cleanUrl(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const u = raw.trim();
+  if (u.length === 0 || u.length > PARTNER_URL_MAX) return null;
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === "https:" && parsed.hostname.includes(".") ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A wallet address, lowercase, or null. */
+export function cleanWallet(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const a = raw.trim().toLowerCase();
+  return /^0x[0-9a-f]{40}$/.test(a) ? a : null;
+}
+
+/**
+ * Why a set can't be revealed yet, in the operator's words ([] = it can). A reveal is the moment a
+ * set's identity is locked and shown, so everything a player will read must be there: a collab
+ * needs exactly five words, its partner's name, its two colors, and its stamp. (The first day's
+ * rule isn't identity: it can change until the release, and `releaseProblems` checks it there.)
+ */
+export function revealProblems(s: Pick<WordSet, "type" | "words" | "partnerName" | "colorA" | "colorB" | "stampAt">, collabLive: boolean = COLLAB_LIVE): string[] {
+  const out: string[] = [];
+  if (s.words.length === 0) out.push("a set with no words can't be revealed");
+  if (s.type === "collab") {
+    if (!collabLive) out.push("collab sets can't be revealed just now (a draft can be made and edited)");
+    if (s.words.length !== COLLAB_WORDS) out.push(`a collab set has exactly ${COLLAB_WORDS} words (this one has ${s.words.length})`);
+    if (!s.partnerName?.trim()) out.push("a collab set needs its partner's name");
+    if (!s.colorA || !s.colorB) out.push("a collab set needs its two colors");
+    if (!s.stampAt) out.push("a collab set needs its stamp");
+  }
+  return out;
+}
+
+/**
+ * Why a set's release can't be built yet ([] = it can): its first day needs a rule that can be
+ * checked. A set with no first day (gateHours 0) has no rule to check.
+ */
+export function releaseProblems(s: Pick<WordSet, "gateHours" | "gateRule" | "gateToken" | "gateMin" | "allowlistCount">): string[] {
+  if (s.gateHours <= 0) return [];
+  if (s.gateRule === "token" && (!s.gateToken || !s.gateMin)) return ["the token rule needs a contract and a minimum balance"];
+  if (s.gateRule === "allowlist" && s.allowlistCount === 0) return ["the allowlist rule needs at least one wallet on the list"];
+  return [];
+}
+
+/** A whole number of a token's smallest unit, as digits ("1", "1000000000000000000"), above zero; or null. */
+export function cleanAmount(raw: unknown): string | null {
+  const t = typeof raw === "number" && Number.isSafeInteger(raw) ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,60}$/.test(t)) return null;
+  const n = t.replace(/^0+/, "");
+  return n.length ? n : null;
+}
+
+/**
+ * Read a pasted allowlist: wallets separated by anything (lines, commas, spaces). Each wallet once,
+ * lowercase. Anything that isn't a wallet is counted, never echoed (a paste may hold other things).
+ */
+export function parseAllowlist(text: string): { ok: true; wallets: string[]; bad: number } | { ok: false; error: string } {
+  const parts = text.split(/[\s,;]+/).filter(Boolean);
+  const seen = new Set<string>();
+  let bad = 0;
+  for (const part of parts) {
+    const w = cleanWallet(part);
+    if (w) seen.add(w);
+    else bad++;
+  }
+  if (seen.size > ALLOWLIST_MAX) return { ok: false, error: `at most ${ALLOWLIST_MAX.toLocaleString("en-US")} wallets on one list` };
+  return { ok: true, wallets: [...seen], bad };
+}
+
+/** What a picture's first bytes say it is: PNG or JPEG; or null (an SVG, a WebP, a GIF, anything else). */
+export function sniffStamp(bytes: Uint8Array): StampType | null {
+  const at = (i: number, ...v: number[]) => v.every((x, j) => bytes[i + j] === x);
+  if (bytes.length >= 8 && at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return "image/png";
+  if (bytes.length >= 3 && at(0, 0xff, 0xd8, 0xff)) return "image/jpeg";
+  return null;
 }
 
 /** Every word in a set that isn't released yet: the words the game holds back. */
@@ -100,7 +266,38 @@ export interface SetSettings {
   gateHours: number;
   perPlayerLimit: number;
   sort: number;
+  type: SetType;
+  partnerName: string | null;
+  partnerUrl: string | null;
+  colorA: string | null;
+  colorB: string | null;
+  gateRule: GateRule;
+  gateToken: string | null;
+  gateMin: string | null;
+  gateLabel: string | null;
 }
+
+/** The settings a player reads as the set's identity: locked once the set is revealed. */
+export const IDENTITY_KEYS = ["name", "type", "partnerName", "partnerUrl", "colorA", "colorB"] as const satisfies readonly (keyof SetSettings)[];
+/** The settings of the plan and the first day: they can change until the release. */
+export const SCHEDULE_KEYS = ["revealAt", "releaseAt", "gateHours", "perPlayerLimit", "gateRule", "gateToken", "gateMin", "gateLabel"] as const satisfies readonly (keyof SetSettings)[];
+
+/** What a new set starts with, beyond its name. */
+export const SETTINGS_DEFAULTS: Omit<SetSettings, "name" | "sort"> = {
+  revealAt: null,
+  releaseAt: null,
+  gateHours: GATE_HOURS_DEFAULT,
+  perPlayerLimit: PER_PLAYER_DEFAULT,
+  type: "standard",
+  partnerName: null,
+  partnerUrl: null,
+  colorA: null,
+  colorB: null,
+  gateRule: "verified",
+  gateToken: null,
+  gateMin: null,
+  gateLabel: null,
+};
 
 function parseDate(v: unknown, label: string, errors: string[]): Date | null | undefined {
   if (v === undefined) return undefined;
@@ -149,6 +346,60 @@ export function checkSettings(raw: Record<string, unknown>): { ok: true; value: 
   if (perPlayerLimit !== undefined) value.perPlayerLimit = perPlayerLimit;
   const sort = whole(raw.sort, "sort", 0, 1_000_000);
   if (sort !== undefined) value.sort = sort;
+
+  // What a collab adds. An empty or null value clears a field; a bad one is an error, never a guess.
+  const empty = (v: unknown) => v === null || (typeof v === "string" && v.trim() === "");
+  if (raw.type !== undefined) {
+    if (SET_TYPES.includes(raw.type as SetType)) value.type = raw.type as SetType;
+    else errors.push(`type must be one of: ${SET_TYPES.join(", ")}`);
+  }
+  if (raw.partnerName !== undefined) {
+    if (empty(raw.partnerName)) value.partnerName = null;
+    else if (typeof raw.partnerName !== "string" || raw.partnerName.trim().length > NAME_MAX) errors.push(`a partner's name is at most ${NAME_MAX} characters`);
+    else value.partnerName = raw.partnerName.trim();
+  }
+  if (raw.partnerUrl !== undefined) {
+    if (empty(raw.partnerUrl)) value.partnerUrl = null;
+    else {
+      const url = cleanUrl(raw.partnerUrl);
+      if (url) value.partnerUrl = url;
+      else errors.push("a partner's link must start with https://");
+    }
+  }
+  for (const key of ["colorA", "colorB"] as const) {
+    if (raw[key] === undefined) continue;
+    if (empty(raw[key])) value[key] = null;
+    else {
+      const c = cleanColor(raw[key]);
+      if (c) value[key] = c;
+      else errors.push(`${key} must be a color like #1f6f8b`);
+    }
+  }
+  if (raw.gateRule !== undefined) {
+    if (GATE_RULES.includes(raw.gateRule as GateRule)) value.gateRule = raw.gateRule as GateRule;
+    else errors.push(`gateRule must be one of: ${GATE_RULES.join(", ")}`);
+  }
+  if (raw.gateToken !== undefined) {
+    if (empty(raw.gateToken)) value.gateToken = null;
+    else {
+      const a = cleanWallet(raw.gateToken);
+      if (a) value.gateToken = a;
+      else errors.push("gateToken must be a contract address");
+    }
+  }
+  if (raw.gateLabel !== undefined) {
+    if (empty(raw.gateLabel)) value.gateLabel = null;
+    else if (typeof raw.gateLabel !== "string" || raw.gateLabel.trim().length > NAME_MAX) errors.push(`gateLabel is at most ${NAME_MAX} characters`);
+    else value.gateLabel = raw.gateLabel.trim();
+  }
+  if (raw.gateMin !== undefined) {
+    if (empty(raw.gateMin)) value.gateMin = null;
+    else {
+      const n = cleanAmount(raw.gateMin);
+      if (n) value.gateMin = n;
+      else errors.push("gateMin must be a whole number above zero, in the token's smallest unit");
+    }
+  }
   return errors.length ? { ok: false, errors } : { ok: true, value };
 }
 
@@ -212,6 +463,16 @@ export interface SetsFile {
     sort: number;
     words: string[];
     headliners: string[];
+    /** What a collab adds. Left out for a standard set with the default rule. A stamp and an allowlist are never in a file: they are their own imports. */
+    type?: SetType;
+    partnerName?: string | null;
+    partnerUrl?: string | null;
+    colorA?: string | null;
+    colorB?: string | null;
+    gateRule?: GateRule;
+    gateToken?: string | null;
+    gateMin?: string | null;
+    gateLabel?: string | null;
   }[];
 }
 
@@ -233,6 +494,8 @@ export function exportSets(sets: readonly WordSet[]): SetsFile {
         sort: s.sort,
         words: s.words.map((w) => w.word).sort(),
         headliners: s.words.filter((w) => w.headliner).map((w) => w.word).sort(),
+        ...(s.type === "collab" ? { type: s.type, partnerName: s.partnerName, partnerUrl: s.partnerUrl, colorA: s.colorA, colorB: s.colorB } : {}),
+        ...(s.gateRule !== "verified" ? { gateRule: s.gateRule, gateToken: s.gateToken, gateMin: s.gateMin, gateLabel: s.gateLabel } : {}),
       })),
   };
 }
@@ -306,11 +569,9 @@ export function parseSetsFile(
     }
     for (const h of flagged) if (!check.ok.includes(h)) errors.push(`${label}: headliner ${h} isn't one of the set's words`);
     sets.push({
+      ...SETTINGS_DEFAULTS,
+      ...s,
       name: s.name ?? "",
-      revealAt: s.revealAt ?? null,
-      releaseAt: s.releaseAt ?? null,
-      gateHours: s.gateHours ?? GATE_HOURS_DEFAULT,
-      perPlayerLimit: s.perPlayerLimit ?? PER_PLAYER_DEFAULT,
       sort: s.sort ?? i,
       words: check.ok.map((word) => ({ word, headliner: flagged.has(word) })),
     });
@@ -395,20 +656,52 @@ export function gateUntilFor(nowSec: number, s: Pick<WordSet, "releaseAt" | "gat
 
 // --- what a player's browser is told ----------------------------------------------------------
 
+/** A collab set as the game shows it: the partner, the two card colors, and where the stamp is served. */
+export interface PublicCollab {
+  partner: string;
+  /** The partner's link (https), or null. */
+  url: string | null;
+  colorA: string;
+  colorB: string;
+  /** The stamp's address on this site, or null when the set has none. It answers only for a revealed set. */
+  stamp: string | null;
+}
+
+/** What a revealed or released set says beyond its words. */
+interface PublicShown {
+  id: number;
+  name: string;
+  words: SetWord[];
+  /** Set for a collab set, null for a standard one. */
+  collab: PublicCollab | null;
+  /** Who the first day is open to. A token's contract and an allowlist's wallets are never sent. */
+  firstDay: GateRule;
+  /** The operator's words for who an allowlist or a token rule lets in, or null. */
+  firstDayLabel: string | null;
+}
+
 export type PublicSet =
-  /** A draft: a slot, and nothing else. No name, no word, no count, no date, no id. */
+  /** A draft: a slot, and nothing else. No name, no word, no count, no date, no id, no type. */
   | { kind: "locked" }
-  | { kind: "revealed"; id: number; name: string; words: SetWord[]; releaseAt: string | null }
-  | {
+  | (PublicShown & { kind: "revealed"; releaseAt: string | null })
+  | (PublicShown & {
       kind: "released";
-      id: number;
-      name: string;
-      words: SetWord[];
       releasedAt: string | null;
       /** While this is in the future, the first-day limit applies. */
       gateUntil: string | null;
       perPlayerLimit: number;
-    };
+    });
+
+/** Where a set's stamp is served. The time is in the address so a browser keeps it for good. */
+export function stampPath(id: number, at: Date): string {
+  return `/api/sets/${id}/stamp?v=${Math.floor(at.getTime() / 1000)}`;
+}
+
+/** A set's collab look, or null: for a standard set, and for a collab that is missing a part (it can't have been revealed). */
+export function collabOf(s: Pick<WordSet, "id" | "type" | "partnerName" | "partnerUrl" | "colorA" | "colorB" | "stampAt">): PublicCollab | null {
+  if (s.type !== "collab" || !s.partnerName || !s.colorA || !s.colorB) return null;
+  return { partner: s.partnerName, url: s.partnerUrl, colorA: s.colorA, colorB: s.colorB, stamp: s.stampAt ? stampPath(s.id, s.stampAt) : null };
+}
 
 /**
  * The sets as any visitor may see them. THE one place a set's contents become public: a draft is a
@@ -421,15 +714,16 @@ export function publicSets(sets: readonly WordSet[]): PublicSet[] {
     .flatMap((s): PublicSet[] => {
       if (s.status === "draft") return s.words.length ? [{ kind: "locked" }] : [];
       const words = s.words.slice().sort((a, b) => Number(b.headliner) - Number(a.headliner) || (a.word < b.word ? -1 : 1));
+      // A set with no first day has no rule to tell.
+      const ruled = s.gateHours > 0 && s.gateRule !== "verified";
+      const shown: PublicShown = { id: s.id, name: s.name, words, collab: collabOf(s), firstDay: ruled ? s.gateRule : "verified", firstDayLabel: ruled ? s.gateLabel : null };
       if (s.status === "revealed") {
-        return [{ kind: "revealed", id: s.id, name: s.name, words, releaseAt: s.releaseAt ? s.releaseAt.toISOString() : null }];
+        return [{ kind: "revealed", ...shown, releaseAt: s.releaseAt ? s.releaseAt.toISOString() : null }];
       }
       return [
         {
           kind: "released",
-          id: s.id,
-          name: s.name,
-          words,
+          ...shown,
           releasedAt: s.releasedAt ? s.releasedAt.toISOString() : null,
           gateUntil: s.gateUntil ? s.gateUntil.toISOString() : null,
           perPlayerLimit: s.perPlayerLimit,

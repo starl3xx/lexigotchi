@@ -488,6 +488,13 @@ body {
 }
 .scene-fog.is-peckish { opacity: 0.5; }
 .scene-fog.is-hungry { opacity: 1; }
+/* On a dark face (lib/cardArt/scenes, DARK_SCENES: the dark stock face, Outer Space) the fog is
+   thinner (decisions.md #57; starl3xx, 2026-11-27). The fog is pale, so at full strength it turns a
+   dark plate white: the face stops being a dark face at all, and the word goes with it. Only the
+   fog's strength changes, so nothing is redrawn. The grey tone, the sleeping letters, and the three
+   status marks still say hungry. */
+.cf-dark .scene-fog.is-peckish { opacity: 0.2; }
+.cf-dark .scene-fog.is-hungry { opacity: 0.42; }
 .scene-fog-haze {
   position: absolute;
   inset: 0;
@@ -633,6 +640,17 @@ body {
 .cf { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; container-type: inline-size; background: #fcf7ea; }
 .cf > * { position: absolute; }
 .cf-art, .cf-frame, .cf-tex { inset: 0; background-size: 100% 100%; pointer-events: none; }
+/* A collab set's stamp (components/scenes/SceneFrame): ONE fixed place on every collab card, the
+   window's upper left. In card units (1200 wide): a 92-unit box, 62 in from the left and 60 from
+   the top, clear of the corner piece (13 to 46), the word's row (from 200), the ribbon, and the
+   turn-over button on the right. `contain`, so a wide or a tall stamp keeps its shape. A thumbnail
+   has none: under 240 px the box would be 18 px of smudge.
+   It stands on a PLATE of the card's own paper, ruled in the frame's ink, like the frame's corner
+   pieces: a stamp is any picture, and without a plate a dark one was lost on Outer Space and a
+   pale one on the stock card. On paper, a mark made for a light ground always reads. */
+.cf-stamp { left: 5.17%; top: 8.9%; width: 7.67%; aspect-ratio: 1; object-fit: contain; pointer-events: none; user-select: none; box-sizing: border-box; padding: 0.7cqw; background: #fcf7ea; border: max(1.5px, 0.2cqw) solid var(--cf-ink); border-radius: 24%; }
+.cf-small .cf-stamp { display: none; }
+@container (max-width: 239px) { .cf-stamp { display: none; } }
 /* card stock: a fine grain and a faint linen weave */
 .cf-tex {
   background-image:
@@ -1058,6 +1076,11 @@ body {
 .cb-stamp-ring { inset: 0; background-size: 100% 100%; }
 .cb-rule { width: 100%; height: max(2px, 0.3cqw); background: linear-gradient(90deg, var(--cb-line), transparent); }
 .cb-oneof { display: grid; gap: 0.2em; font-size: clamp(12px, 1.9cqw, 14px); line-height: 1.2; color: var(--cb-sub); }
+/* a collab word's partner and "1 of 5", under how many share its rarity: one line. A long name is
+   cut in the text itself (lib/cardFacts collabLine), since the column sizes to its content and an
+   ellipsis here would never engage (Bugbot on #306); the width cap is the belt to that braces. */
+.cb-oneof { min-width: 0; max-width: 100%; }
+.cb-collab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%; color: var(--cb-text); }
 .cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; color: var(--cb-text); }
 /* The rack, engraved (lib/cardArt/rack; decisions.md #48): line work in the material's own line
    colour, like the frame and the seal. Its top face runs back behind the tiles, ruled; its front
@@ -1315,4 +1338,24 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mk-tag { transition: none; }
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The lockup (components/brand/Lockup, lib/cardArt/logo `lockup`; decisions.md #56): the tile that
+   is the name's L, then EXIGOTCHI. Where it is drawn live its eyes blink and glance, as a letter's
+   do. Both are MOMENTS: the component sets a class for a moment and takes it off, so nothing runs
+   between (never an animation that loops inside the drawing: WebKit would redraw the header on
+   every frame, on every screen).
+   - A blink is a swap of two drawings, the eye open and the eye shut, as a letter's blink is.
+     Nothing is drawn between them and nothing changes size.
+   - A glance slides the two pupils to one side and back.
+   --------------------------------------------------------------------------------------------- */
+.lk { display: block; flex: none; overflow: visible; }
+.lk .lk-shut { visibility: hidden; }
+.lk.is-blink .lk-shut { visibility: visible; }
+.lk.is-blink .lk-open { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .lk .lk-pupil { transition: transform 170ms var(--ease-out); }
+  .lk.is-left .lk-pupil { transform: translate(-11px, 1px); }
+  .lk.is-right .lk-pupil { transform: translate(10px, -1px); }
 }

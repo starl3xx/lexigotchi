@@ -15,6 +15,7 @@
  */
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { profileSecret, profilesEnabled } from "@/lib/profile/session";
+import { EMAIL_MARK } from "@/lib/cardArt/logo";
 
 const RESEND = "https://api.resend.com";
 const SITE = "https://lexigotchi.fun";
@@ -123,7 +124,7 @@ function layout(m: Layout): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAGE}"><tr><td align="center" style="padding:28px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${CARD};border:1px solid ${LINE};border-radius:10px"><tr><td style="padding:5px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px dotted ${LINE};border-radius:6px"><tr><td style="padding:24px 24px 26px">
-<div style="font:700 12px/1 ${SERIF};letter-spacing:3px;color:${LINE}">LEXIGOTCHI</div>
+<img src="${SITE}${EMAIL_MARK.path}" width="${EMAIL_MARK.width}" height="${EMAIL_MARK.height}" alt="LEXIGOTCHI" style="display:block;border:0;outline:none;text-decoration:none;font:700 12px/${EMAIL_MARK.height}px ${SERIF};letter-spacing:3px;color:${LINE}">
 <div style="border-top:1px solid ${LINE};opacity:.35;height:1px;line-height:1px;font-size:1px;margin:14px 0 20px">&nbsp;</div>
 <h1 style="margin:0 0 10px;font:800 22px/1.25 ${SANS};color:${INK}">${esc(m.title)}</h1>
 ${m.body}

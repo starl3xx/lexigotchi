@@ -30,6 +30,8 @@ import { useCostToMake } from "../game/WordValue";
 import { usePlayerWallets } from "../game/usePlayerWallets";
 import { useWorld } from "../game/useWorld";
 import { useSets } from "../game/useSets";
+import { useTierCounts, useTierOf } from "@/components/game/useRarity";
+import { useCollabLook } from "@/components/game/collabLooksContext";
 
 export interface CardFacts {
   tier: Tier;
@@ -58,9 +60,13 @@ export interface CardFacts {
   token: string;
   /** The reserved set it was released in (decisions.md, "Reserved word sets"), or null: none, or not known yet. */
   set: string | null;
+  /** The partner of the collab set the word belongs to (revealed or released), or null. */
+  collab: string | null;
 }
 
 export function useCardFacts(word: OwnedWord): CardFacts {
+  const tierOf = useTierOf();
+  const tierCounts = useTierCounts();
   const g = useGame();
   const chain = g.state.chainBacked;
   const wallets = usePlayerWallets();
@@ -68,6 +74,8 @@ export function useCardFacts(word: OwnedWord): CardFacts {
   const cost = useCostToMake(word);
   // The set this word was released in, if any. Unknown reads as none: the back just has no set line.
   const setName = useSets().setNameOf(word.word);
+  // Its collab look, if it is a word of a partner's set: the back names the partner.
+  const look = useCollabLook(word.word);
   const practiceWords = g.state.words;
   const practice = useMemo(() => (chain ? {} : practiceNumbers(practiceWords)), [chain, practiceWords]);
   const story = useQuery({
@@ -97,11 +105,11 @@ export function useCardFacts(word: OwnedWord): CardFacts {
     }
     // "Earns staked": staked and fed, among the words sharing today's pot (lib/cardFacts).
     const today = world.data?.yieldToday;
-    const est = today ? earnsStaked(word, today) : undefined;
+    const est = today ? earnsStaked(word, today, tierOf) : undefined;
     const drawnMap = world.data?.live ? world.data.drawn : undefined;
     return {
       tier: word.tier,
-      ofTier: tierCount(word.tier),
+      ofTier: tierCount(word.tier, tierCounts),
       // its place in the order words were first made: the chain's, or in practice the player's own
       number: chain ? (world.data?.live ? (world.data.numbers?.[word.word] ?? null) : null) : (practice[word.word] ?? null),
       caseLabel: caseLabel(word.upper),
@@ -120,6 +128,7 @@ export function useCardFacts(word: OwnedWord): CardFacts {
       points: wordPoints(word.word),
       token: shortTokenId(word.word),
       set: setName ?? null,
+      collab: look?.partner ?? null,
     };
-  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice, setName]);
+  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice, setName, tierOf, tierCounts, look]);
 }

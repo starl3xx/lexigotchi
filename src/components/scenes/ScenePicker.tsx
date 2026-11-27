@@ -7,7 +7,7 @@
  * sheet (from the Today stage, or from an opened word's card).
  */
 import type { Tier } from "@/lib/economy";
-import { FREE_SCENES, SCENES, isShopScene } from "@/lib/scenes";
+import { FREE_SCENES, SCENES, UNLOCK_SCENES, isShopScene, sceneMeta } from "@/lib/scenes";
 import { usdcLabel } from "@/lib/shop/rules";
 import { shopSceneOffer } from "@/lib/shop/scenes";
 import { NETWORK } from "@/lib/onchain/network";
@@ -16,6 +16,13 @@ import { useGame } from "../game/state";
 import { useShopScenes } from "../game/useShop";
 import { SceneThumb } from "./SceneFrame";
 import { useSceneUnlock, useWordScene } from "./useWordScene";
+
+/**
+ * The scenes the 3-word unlock opens, by name ("the Trophy Case and Spring"). The line used to say
+ * "every scene", which stopped being true the day the Shop listed one: owning words never opens a
+ * Shop scene.
+ */
+const UNLOCKED_BY_WORDS = `the ${UNLOCK_SCENES.map((id) => sceneMeta(id).name).join(" and ")}`;
 
 export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
   const g = useGame();
@@ -34,14 +41,14 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
         <p className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-ink/30 px-3 py-2 text-center text-sm text-ink/70">
           <Lock weight="fill" className="shrink-0" />
           <span>
-            Own {need} words to unlock every scene for good. You’re at {count}.
+            Own {need} words to unlock {UNLOCKED_BY_WORDS} for good. You’re at {count}.
           </span>
         </p>
       )}
-      <div role="radiogroup" aria-label={`${word}’s scene`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div role="radiogroup" aria-label={`${word}’s card face`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {scenes.map((s) => {
           const on = scene === s.id;
-          // In the Shop, not bought: the tile opens the Shop, where the scene is for sale.
+          // In the Shop, not bought: the tile goes to the Shop's Card faces, where the face is for sale.
           const forSale = isShopScene(s.id) && offerOf(s.id) === "buy" ? shop.onSale.get(s.id) : undefined;
           if (forSale) {
             const price = usdcLabel(forSale.priceUsdc, NETWORK.isTestnet);
@@ -51,11 +58,11 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
                 type="button"
                 title={`${s.blurb} In the Shop for ${price}.`}
                 aria-label={`${s.name}, in the Shop for ${price}`}
-                onClick={() => g.openSheet({ kind: "shop" })}
+                onClick={() => g.nav("shop", "faces")}
                 className="cel-sm press relative flex flex-col gap-1 rounded-xl bg-card p-1 text-left"
               >
                 <span className="card-corner block overflow-hidden border-2 border-ink">
-                  <SceneThumb scene={s.id} tier={tier} />
+                  <SceneThumb scene={s.id} tier={tier} word={word} />
                 </span>
                 <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
                   <ShoppingBag weight="fill" size={11} className="shrink-0 text-candy-ink" aria-hidden />
@@ -77,7 +84,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
               className={`cel-sm press relative flex flex-col gap-1 rounded-xl p-1 text-left disabled:cursor-not-allowed ${on ? "bg-ink text-paper" : "bg-card"}`}
             >
               <span className={`card-corner block overflow-hidden border-2 border-ink ${open ? "" : "opacity-45 grayscale"}`}>
-                <SceneThumb scene={s.id} tier={tier} />
+                <SceneThumb scene={s.id} tier={tier} word={word} />
               </span>
               <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
                 {!open && <Lock weight="fill" size={11} className="shrink-0" aria-label="locked" />}

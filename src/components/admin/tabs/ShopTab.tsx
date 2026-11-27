@@ -5,7 +5,7 @@
  * the transaction builders (add, update, on/off sale, revenue wallet, split, pause, the route).
  *
  * Adding an item takes two steps: `addItem` here, then its row in the `shop_items` table (name, kind,
- * art). The game shows nothing without that row, except a plain "Test item" card on a test network.
+ * art; a card face is still kind "scene" in the table). The game shows nothing without that row, except a plain "Test item" card on a test network.
  * Never add an item on mainnet before its row exists.
  */
 import { useMemo } from "react";
@@ -81,7 +81,7 @@ export function ShopTab() {
       <Banner tone="ok" icon={<Info weight="bold" size={14} />}>
         Cosmetics for USDC. Each sale sends the studio&apos;s share straight to the revenue wallet and swaps the rest to $WORD for
         the Rewards Pool, in the same transaction. Adding an item is two steps: <strong>addItem</strong> below, then its row in{" "}
-        <code>shop_items</code> (name, kind, art; a kind is <code>scene</code> with the scene’s id as its art, or <code>case</code>). Without that row the game shows nothing (on a test network, a plain
+        <code>shop_items</code> (name, kind, art; a card face is kind <code>scene</code> with the face’s id as its art, and a case is kind <code>case</code>). Without that row the game shows nothing (on a test network, a plain
         &ldquo;Test item&rdquo; card). Never add a mainnet item before its row exists.
       </Banner>
 

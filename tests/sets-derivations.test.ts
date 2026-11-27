@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { WordSet } from "@/lib/sets/rules";
+import { STANDARD_FIELDS, type WordSet } from "@/lib/sets/rules";
 
 vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532");
 vi.stubEnv("DATABASE_URL", "postgresql://stand-in");
@@ -64,7 +64,7 @@ function setOf(id: number, status: WordSet["status"], words: string[]): WordSet 
   return {
     id, name: `set ${id}`, status, revealAt: null, releaseAt: null, gateHours: 24, perPlayerLimit: 1, sort: id,
     revealedAt: null, releasedAt: null, gateUntil: null, releaseBlock: null, releaseRoot: null,
-    words: words.map((word) => ({ word, headliner: false })),
+    words: words.map((word) => ({ word, headliner: false })), ...STANDARD_FIELDS,
   };
 }
 
@@ -109,6 +109,45 @@ describe("derived from the full dictionary, whatever is held back", () => {
     expect(await derived()).toEqual(before);
     // Five fresh loads of the dictionary and its trees: seconds on a busy machine, by design.
   }, 30_000);
+
+  it("a collab set changes what a word is TREATED as, never what it is (the one exception, and it is a layer)", async () => {
+    // decisions.md, "Collab sets", item 2: a collab word is Legendary from its set's reveal. That
+    // is a layer on top (lib/rarity.ts): every number derived from the full dictionary stays put,
+    // and the derived tier is still there to ask for.
+    const before = await derived();
+    vi.resetModules();
+    const economy = await import("@/lib/economy");
+    const five = [economy.wordsByTier("Common")[0], economy.wordsByTier("Common")[1], economy.wordsByTier("Uncommon")[0], economy.wordsByTier("Rare")[0], economy.MYTHICS[0]];
+    const collab = (status: WordSet["status"]): WordSet => ({ ...setOf(7, status, five), type: "collab", partnerName: "Partner", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0) });
+
+    // A draft: the layer holds nothing yet.
+    world.sets = [collab("draft")];
+    const server = await import("@/lib/sets/server");
+    const { tierWith, tierCountsWith } = await import("@/lib/rarity");
+    expect((await server.collabNow()).words.size).toBe(0);
+
+    // Revealed: its words are treated as Legendary (the Mythic one keeps its own), the counts follow...
+    world.sets = [collab("revealed")];
+    server.forgetSets();
+    const now = await server.collabNow();
+    expect(now.known).toBe(true);
+    expect(five.map((w) => tierWith(w, now.words))).toEqual(["Legendary", "Legendary", "Legendary", "Legendary", "Mythic"]);
+    expect(tierCountsWith(now.words).Legendary).toBe(economy.TIER_COUNTS.Legendary + 4);
+    // ...and nothing derived moved: the same caps, odds, tiers, ranks, token ids, and root.
+    expect(five.map((w) => economy.wordTier(w))).toEqual(["Common", "Common", "Uncommon", "Rare", "Mythic"]);
+    vi.resetModules();
+    expect(await derived()).toEqual(before);
+  }, 30_000);
+
+  it("the layer is pure, and nothing it stands on knows of it", () => {
+    const read = (f: string) => readFileSync(join(__dirname, "..", f), "utf8");
+    // lib/rarity.ts takes the collab words as an argument: it reads no set and no database itself.
+    expect(/from\s+["'][^"']*(\/sets\/|db\/)[^"']*["']/.test(read("src/lib/rarity.ts").replace(/import type[^;]*;/g, ""))).toBe(false);
+    // And the derivations never ask the layer: supply, odds, and the simulator use the derived tier.
+    for (const f of ["src/lib/economy.ts", "src/lib/letterOdds.ts", "src/lib/sim/simulate.ts", "src/lib/onchain/tokenId.ts"]) {
+      expect(/lib\/rarity|\.\/rarity|\.\.\/rarity/.test(read(f)), `${f} must not import lib/rarity`).toBe(false);
+    }
+  });
 
   it("the deployed caps and weights are the full dictionary's (contracts/config/economy.json)", async () => {
     const d = await derived();

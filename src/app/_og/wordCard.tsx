@@ -1,3 +1,4 @@
+import { lockupDoc } from "@/lib/cardArt/logo";
 import type { ReactElement } from "react";
 import { OgTile } from "./tile";
 import { leanFor } from "@/components/game/tileShapes";
@@ -5,7 +6,9 @@ import { FOOT_SHARE, wordFootings, wordLayout } from "@/components/scenes/layout
 import type { ShowcaseTile } from "@/lib/showcase";
 import type { SceneId } from "@/lib/scenes";
 import { isWord } from "@/lib/dictionary";
-import { wordTier, type Tier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
+import { tierWith, type CollabWords } from "@/lib/rarity";
+import { collabCardLook, tintOf, type CollabLooks } from "@/lib/collabLook";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_CORNER, CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
@@ -39,21 +42,67 @@ const PLAIN: Tier = "Common";
  * the bold file and names it this.
  */
 export const CARD_SERIF = "Source Serif 4";
+
+/**
+ * The game's lockup in the corner of a SAVED picture (decisions.md #56, part 2): the picture leaves
+ * the game alone, so it says whose it is. On the dark table, so the name is in paper. A link card
+ * carries no name (X and Farcaster show the site under it).
+ */
+const cornerDoc = lockupDoc({ tone: "dark" });
+const cornerSrc = `data:image/svg+xml;base64,${Buffer.from(cornerDoc.svg).toString("base64")}`;
+export function cornerMark(tall: boolean) {
+  const h = tall ? 40 : 36;
+  const w = Math.round((h * cornerDoc.width) / cornerDoc.height);
+  // the drawing has air under the name's baseline (a quarter of its height), so it sits lower than the type did
+  return <img src={cornerSrc} width={w} height={h} style={{ position: "absolute", right: tall ? 30 : 24, bottom: tall ? 12 : 5, opacity: 0.94 }} />;
+}
 /** The file every picture loads for it: a plain TTF, because the renderer can't read the game's woff2. */
 export const CARD_SERIF_FILE = "public/fonts/sourceserif4-bold.ttf";
 
-/** The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't a dictionary word, so it has none. */
-export function cardTier(tiles: readonly ShowcaseTile[]): Tier | undefined {
+/**
+ * The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't a
+ * dictionary word, so it has none. `collab` is the collab words in force (lib/raritySoon.ts): a
+ * collab word is Legendary on its pictures as it is in the game.
+ */
+export function cardTier(tiles: readonly ShowcaseTile[], collab: CollabWords): Tier | undefined {
   const word = tiles.map((t) => t.char).join("");
-  return isWord(word) ? wordTier(word) : undefined;
+  return isWord(word) ? tierWith(word, collab) : undefined;
 }
 
-export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = false, letters = true }: { tiles: readonly ShowcaseTile[]; scene: SceneId; cardW: number; no?: string | null; gild?: number; bare?: boolean; letters?: boolean }): ReactElement {
+export function wordCard({
+  tiles,
+  scene,
+  cardW,
+  collab,
+  stamp = null,
+  no = null,
+  gild = 0,
+  bare = false,
+  letters = true,
+}: {
+  tiles: readonly ShowcaseTile[];
+  scene: SceneId;
+  cardW: number;
+  /** The collab looks in force (lib/raritySoon.ts `collabSoon`): the word's rarity and its card look come from here. */
+  collab: CollabLooks;
+  /** The word's set's stamp as a `data:` address (lib/sets/stampData.ts), when it is a collab word with one. */
+  stamp?: string | null;
+  no?: string | null;
+  gild?: number;
+  bare?: boolean;
+  letters?: boolean;
+}): ReactElement {
   const k = cardW / CARD_W; // pixels per card unit
   const cardH = Math.round(CARD_H * k);
   const word = tiles.map((t) => t.char).join("");
-  const tier = cardTier(tiles);
-  const look = CARD_LOOKS[tier ?? PLAIN];
+  const tier = cardTier(tiles, collab);
+  // A collab word's card is the collab stock in its set's two colors (lib/collabLook.ts), as in
+  // the game: the look takes the place of the rarity's on the frame, the stock card's wash, the
+  // ribbon, and the tiles. Its rarity still names the ribbon.
+  const mine = collab.get(word.toUpperCase());
+  const collabLook = mine ? collabCardLook(mine) : undefined;
+  const look = collabLook ?? CARD_LOOKS[tier ?? PLAIN];
+  const tileTier = mine ? tintOf(mine) : tier;
 
   // The same layout the game uses (scenes/layout.ts), at this card's scale.
   const L = wordLayout(tiles.length, k);
@@ -91,7 +140,7 @@ export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = fals
         ...(bare ? {} : { borderRadius: Math.round(CARD_CORNER * cardW), border: `${Math.round(4 * k)}px solid ${INK}`, boxShadow: `${Math.round(7 * k)}px ${Math.round(9 * k)}px 0 rgba(0, 0, 0, 0.42)` }),
       }}
     >
-      <img src={image(cardArt(scene, tier ?? PLAIN))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      <img src={image(cardArt(scene, tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
       <div style={{ position: "absolute", left: L.rowLeft, top: L.rowTop, display: "flex", alignItems: "flex-end" }}>
         {(letters ? tiles : []).map((t, i) => {
           const f = footings[i];
@@ -105,12 +154,32 @@ export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = fals
                 ...(f.drop || f.deg ? { transform: `translateY(${f.drop.toFixed(1)}px) rotate(${f.deg.toFixed(2)}deg)`, transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%` } : {}),
               }}
             >
-              <OgTile char={t.char} upper={t.upper} w={L.tileW} tier={tier} gild={gild} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
+              <OgTile char={t.char} upper={t.upper} w={L.tileW} tier={tileTier} gild={gild} index={i} uid={`t${i}`} linkLeft={i > 0} linkRight={i < tiles.length - 1} lean={leanFor(word, i)} />
             </div>
           );
         })}
       </div>
-      <img src={image(cardFrame(tier ?? PLAIN))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      <img src={image(cardFrame(tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      {/* The set's stamp, where the game draws it (globals.css, .cf-stamp): a 92-unit box, 62 in and 60 down. */}
+      {mine && stamp && (
+        // on a plate of the card's paper, ruled in the frame's ink (globals.css says why): 92 across, 8.4 of padding, a 2.4 rule
+        <div
+          style={{
+            position: "absolute",
+            left: Math.round(62 * k), top: Math.round(60 * k),
+            width: Math.round(92 * k),
+            height: Math.round(92 * k),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: CARD_PAPER,
+            border: `${Math.max(2, Math.round(2.4 * k))}px solid ${look.ink}`,
+            borderRadius: Math.round(22 * k),
+          }}
+        >
+          <img src={stamp} width={Math.round(70 * k)} height={Math.round(70 * k)} style={{ objectFit: "contain" }} />
+        </div>
+      )}
       {/* The ribbon: "one of one", the number when the chain has given one, the rarity. Never the word. */}
       {tier && (
         <div style={{ position: "absolute", left: 0, bottom: Math.round(cardW * 0.0105), width: cardW, display: "flex", justifyContent: "center" }}>

@@ -27,7 +27,7 @@
  * that couldn't be read. Otherwise an alert that never went out would stand as told for a week
  * (Bugbot on #248). Runs in the keeper's `notify` job, once a day, only for players who opted in.
  */
-import { wordTier } from "@/lib/economy";
+import { wordTier, type Tier } from "@/lib/economy";
 import { TIER_RANK, lowestOtherAsk, oneLetterShort } from "@/lib/market/deals";
 import type { LetterBook } from "@/lib/market/types";
 import { ALPHABET } from "@/lib/economy";
@@ -70,16 +70,18 @@ export function rankedDeals(
   unclaimed: readonly string[],
   book: Readonly<Record<number, LetterBook>>,
   isMine: (maker: string) => boolean,
+  /** The game's tiers (lib/rarity.ts): a collab word ranks as Legendary. The derived ones when left out. */
+  tierOf: (word: string) => Tier = wordTier,
 ): DealPick[] {
   // Best first: the rarer word, then the lower ask, then a fixed order so two runs agree.
   const byBest = (a: DealPick, b: DealPick) =>
-    TIER_RANK[wordTier(b.word)] - TIER_RANK[wordTier(a.word)] || a.from - b.from || a.word.localeCompare(b.word) || a.wallet.localeCompare(b.wallet);
+    TIER_RANK[tierOf(b.word)] - TIER_RANK[tierOf(a.word)] || a.from - b.from || a.word.localeCompare(b.word) || a.wallet.localeCompare(b.wallet);
   const bag = (letters: readonly number[]) => ({ lower: letters.slice(0, 26), upper: letters.slice(26, 52) });
   // every wallet of the player, added up: a letter held anywhere is a move, never one to buy
   const all = bag(Array.from({ length: 52 }, (_, i) => wallets.reduce((a, w) => a + (w.letters[i] ?? 0), 0)));
   const byLetter = new Map<string, DealPick>();
   for (const w of wallets) {
-    const short = oneLetterShort(bag(w.letters), all, unclaimed);
+    const short = oneLetterShort(bag(w.letters), all, unclaimed, tierOf);
     for (const [i, words] of short) {
       // either case of the letter finishes the word
       const asks = [lowestOtherAsk(book, i, isMine), lowestOtherAsk(book, i + 26, isMine)].filter((n): n is number => n !== undefined);
@@ -126,6 +128,8 @@ export interface DealDeps {
   /** Every dictionary word nobody owns. */
   unclaimed: readonly string[];
   book: Readonly<Record<number, LetterBook>>;
+  /** The game's tiers (lib/rarity.ts), so the "rarest word" of a deal counts a collab word as Legendary. */
+  tierOf?: (word: string) => Tier;
   /** The two throttles (lib/db/reminderMarks). "unavailable" (no table, a failed write) ends the pass. */
   marks: DealMarks;
 }
@@ -154,7 +158,7 @@ export async function dealNotes(deps: DealDeps, day: number, opts: { dry?: boole
   const notes: DealNote[] = [];
   players: for (const account of accounts) {
     const wallets = deps.walletsOf(account).flatMap((w) => (letters[w.toLowerCase()] ? [{ wallet: w, letters: letters[w.toLowerCase()] }] : []));
-    const ranked = rankedDeals(wallets, deps.unclaimed, deps.book, (maker) => deps.accountOf(maker).toLowerCase() === account);
+    const ranked = rankedDeals(wallets, deps.unclaimed, deps.book, (maker) => deps.accountOf(maker).toLowerCase() === account, deps.tierOf);
     if (ranked.length === 0) continue;
     if (opts.dry) {
       notes.push(dealNote(account, ranked[0], day));

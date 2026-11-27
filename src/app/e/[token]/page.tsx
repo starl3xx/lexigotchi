@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WordStripLive } from "@/components/WordStrip";
+import { Lockup } from "@/components/brand/Lockup";
 import { parseShowcase } from "@/lib/showcase";
 import { parseLinkScene } from "@/lib/scenes";
 import { earningsCardPath, earningsCardUrl, earningsShareUrl, parseTz, type EarningsShareLook } from "@/lib/earningsShare";
@@ -62,6 +63,10 @@ export default async function EarningsSharePage({ params, searchParams }: Props)
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-8 bg-paper px-4 py-12 text-ink">
+      {/* the game's lockup, alive, as on a word's share page (decisions.md #56, part 3) */}
+      <Link href="/" aria-label="Lexigotchi: how it works">
+        <Lockup alive height={40} />
+      </Link>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
         {/* the same picture the post carries, at 16:9 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}

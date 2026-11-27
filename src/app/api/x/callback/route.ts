@@ -1,3 +1,4 @@
+import { lockupTag } from "@/lib/cardArt/logo";
 import { NextResponse } from "next/server";
 import { quickAuthDomain } from "@/lib/auth/quickAuth";
 import { consumeLinkState, getProfile, linkX, walletForX } from "@/lib/db/profiles";
@@ -48,6 +49,9 @@ export async function GET(req: Request) {
   }
 }
 
+/** The game's lockup at the head of the page a player lands on outside the game (decisions.md #56, part 3). Still: this page runs no script. */
+const MARK = lockupTag(34);
+
 const COPY = {
   linked: { title: "X is linked", body: "Your X account now shows next to your wallet in Lexigotchi." },
   canceled: { title: "Not linked", body: "You canceled on X. Nothing changed." },
@@ -69,8 +73,8 @@ function finish(req: Request, ret: "redirect" | "page", result: keyof typeof COP
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${c.title} · Lexigotchi</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4ead2;color:#1b1714;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:16px}
 main{max-width:360px;background:#fbf4e3;border:3px solid #1b1714;border-radius:20px;box-shadow:4px 4px 0 #1b1714;padding:24px;text-align:center}
-h1{margin:0 0 6px;font-size:22px}.who{font-weight:800;margin:0 0 6px}p{margin:0 0 16px;color:#1b1714b3}
+main>svg{display:block;margin:0 auto 16px}h1{margin:0 0 6px;font-size:22px}.who{font-weight:800;margin:0 0 6px}p{margin:0 0 16px;color:#1b1714b3}
 a{display:inline-block;background:#bd3d35;color:#fbf4e3;font-weight:800;text-decoration:none;border:3px solid #1b1714;border-radius:14px;padding:10px 18px}</style></head>
-<body><main><h1>${c.title}</h1>${who}<p>${c.body} You can close this tab and go back to Lexigotchi.</p><a href="${origin}/play">Open the game</a></main></body></html>`;
+<body><main>${MARK}<h1>${c.title}</h1>${who}<p>${c.body} You can close this tab and go back to Lexigotchi.</p><a href="${origin}/play">Open the game</a></main></body></html>`;
   return new NextResponse(html, { status: result === "failed" ? 400 : 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }

@@ -210,6 +210,9 @@ set to everyone at once and the release builder says so. Base Sepolia's Words (r
 predates it.
 
 **Mainnet must include (Words can't change afterwards):**
+- **The metadata refresh.** Deploy the `Words.sol` that has `refreshMetadata` and
+  `refreshAllMetadata` (decisions.md #53). They are how a marketplace is told to read a word again
+  after a change the chain can't see (a collab set's card look, a new metadata server).
 - **The gate.** Deploy the `Words.sol` that has it, and record `"wordsGate": true` in
   `config/deployments.json` with the addresses. A Words without it can never gate a release.
 - **The reserve root.** Set `DICTIONARY_ROOT` for `Deploy.s.sol` to the root `npm run sets -- reserve`
@@ -220,19 +223,22 @@ predates it.
   hosted `SIGNER_PRIVATE_KEY` signs the vouchers.
 - Run the `solidity-auditor` skill in DEEP mode on the final `Words.sol` first (`contracts/AUDIT.md`).
 
-### Base Sepolia redeploy for the gate (rehearsal #5): PROPOSED, waits for the owner's word
+### Base Sepolia redeploy for the gate (rehearsal #5): ON HOLD (the owner, 2026-11-27: "Hold for now")
 
 A full redeploy of the suite: Staking, Rolls, Prestige, and the Jackpot hold the Words address for
 good, so Words can't be swapped alone. **It resets every tester's letters, words, stakes, and
 earnings on the test build.** It also carries the 3.0× letter supply caps (68,760; decisions.md
 #21), which have waited for a redeploy since 2026-11-25.
 
-Proposed time: **Thursday 2026-12-03, right after the 00:05 UTC keeper run.** Bounty weeks start on
-Thursdays, so that run pays the week that ends 2026-12-02, and the new suite starts on a week's
-first day with nothing owed on the old one.
+**No date is set.** The owner held it on 2026-11-27, so nothing here runs until he names a day.
+When he does, pick a **Thursday, right after the 00:05 UTC keeper run**: bounty weeks start on
+Thursdays, so that run pays the week that just ended, and the new suite starts on a week's first
+day with nothing owed on the old one. (The first proposal was Thursday 2026-12-03.)
 
 Before the day:
-1. The gate's PR is merged, and migrations 0021 and 0022 are run.
+1. The gate's PR is merged, and migrations 0021, 0022, and 0023 are run. `Words.sol` has the
+   owner's metadata refresh (his choice, 2026-11-27; decisions.md #53; tested and audited,
+   `contracts/AUDIT.md` sixth pass): Words can't change afterwards.
 2. The sets are in the Sets tab (placeholders are fine: a draft stays editable).
 3. A `heads-up` tester note goes out a day ahead: the test build resets on the day.
 
@@ -257,12 +263,53 @@ After:
    see it open to everyone after the gate. Then the second tester note (the first-day rule).
 4. Read the first keeper run on the new suite (00:05 UTC the next day).
 
-To decide with the owner before the day: **the free-letter ledger** (`free_claims`). Its rows are
-per profile, not per deployment, so after a reset a tester who took the free pack and dailies has
-none left on the new suite unless those rows are cleared for chain 84532. Clearing them is a
-deletion in the production database, so it needs the owner's word. The other tables that name the
-old contracts (listings, sales, the wardrobe, reward leaves) are keyed by address or root and
-simply go quiet; each is checked on the day.
+**The free-letter ledger** (`free_claims`): decided, "Clear them" (the owner, 2026-11-27). Its rows
+are per profile, not per deployment, so after a reset a tester who took the free pack and dailies
+would have none left on the new suite. On the day, right after the registry PR deploys, the owner
+runs `delete from free_claims where chain_id = 84532;` in the production database (a deletion, so
+it is his to run, never the app's or an agent's). The other tables that name the old contracts
+(listings, sales, the wardrobe, reward leaves) are keyed by address or root and simply go quiet;
+each is checked on the day.
+
+## Collab sets (decisions.md #53)
+
+A collab set is a reserved set made with a partner: five words, Legendary from its reveal, on its
+own card (the set's two colors and its stamp). The code is live; nothing shows until a set exists.
+**No real partner, name, logo, or color goes in this repository**: they are typed in the console.
+
+To put the placeholder on the test build (the owner's steps, in this order):
+1. Run migration `0023_collab_sets` (with 0021 and 0022 if they haven't run).
+2. Console → Sets → **Make the Test collab draft**. It picks five free words, two arbitrary colors,
+   and a plain stamp. The button exists on a test network only; the server refuses it on mainnet.
+   The card's front and back are drawn live in the tab: look at them there.
+3. **Reveal** it (its words turn Legendary and its look shows from this moment), **Build the reserve
+   root** and send it, then **Build the release** and send it.
+4. Merge the two docs drafts (#286 sets, then #300 collabs). Each carries its tester note.
+
+For a real partner later: a draft with type Collab, the partner's name and link, the two colors,
+and the stamp (PNG or JPEG, **the mark made for a light background**: it stands on a pale plate).
+The first day can be open to every verified player, to a pasted list of wallets, or to holders of a
+token on Base; the player claims with the wallet that qualifies. To stop every collab reveal for a
+while, set `COLLAB_LIVE` to false in `lib/sets/rules.ts`.
+
+Not automatic: the release doesn't send a metadata refresh. For words somebody already holds, use
+the token ids the Sets tab copies with **Refresh words' metadata** (below), on a Words that has it.
+
+## Token metadata (decisions.md #53)
+
+`GET /api/word/{tokenId}` serves a word's metadata: its name in its live case, its card's picture,
+and its traits (Rarity as the game treats it, UPPERCASE letters, Ascension, Number, Set once its set
+is released, Collab from its set's reveal). `Words.tokenURI` is the base URI plus the decimal token
+id, so the owner points Words at it once per network:
+
+1. Console → Contracts → Words → **Set base token URI**: `https://<the site>/api/word/` (with the
+   closing slash). Today's Base Sepolia Words has `setBaseURI`; no redeploy is needed for this.
+2. Check one held word: `Words.tokenURI(id)` opens in a browser and shows the JSON.
+3. After a change the chain can't see (a collab set's reveal for words somebody already holds, a
+   new look for every card): **Refresh words' metadata** with the set's token ids (the Sets tab
+   copies them), or **Refresh every word's metadata**. These two need a Words deployed with the
+   refresh (it rides the redeploy above); `applyUpgrade` and ascension already emit the event
+   themselves.
 
 ## The Shop (decisions.md #22)
 

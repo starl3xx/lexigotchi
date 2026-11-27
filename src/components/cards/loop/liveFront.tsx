@@ -28,6 +28,7 @@ import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import type { SceneId } from "@/lib/scenes";
 import type { Tier } from "@/lib/economy";
 import { BREATH_UNITS, GLANCE_UNITS, LEG_STRETCH, breathAt, eyesAt, type Eyes } from "./score";
+import type { TileTier } from "@/lib/rarityFinish";
 
 interface Sprite {
   floor: CanvasImageSource | null;
@@ -97,7 +98,8 @@ export interface LiveFrontSpec {
   /** The word, and each letter's case. */
   word: string;
   upper: readonly boolean[];
-  tier?: Tier;
+  /** The word's rarity, or its collab colors in place of it (lib/rarityFinish.ts `TileTier`). */
+  tier?: TileTier;
   /** Its ascension stage: its letters wear it. */
   gild: number;
   scene: SceneId;
