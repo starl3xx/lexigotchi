@@ -1033,7 +1033,26 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     }
   }, [address, chain.deployed]);
   const [untorn, setUntorn] = useState<UnopenedMail[]>([]);
-  useEffect(() => setUntorn(boxKey ? readMailbox(boxKey) : []), [boxKey]);
+  const boxKeyNow = useRef(boxKey);
+  useEffect(() => {
+    // Another wallet (or none): its own mailbox, and the envelope in hand was the old wallet's.
+    const changed = boxKeyNow.current !== boxKey;
+    boxKeyNow.current = boxKey;
+    setUntorn(boxKey ? readMailbox(boxKey) : []);
+    if (!changed || !mailNow.current) return;
+    if (sheetNow.current?.kind === "mail") dispatch({ t: "sheet", sheet: null });
+    setMail(null);
+  }, [boxKey]);
+  /**
+   * Change a wallet's stored mail. A pack bought by one wallet can land after the player has
+   * switched to another: it is written to ITS wallet's box, and only the connected wallet's box
+   * is ever the list on screen.
+   */
+  const saveBox = useCallback((key: string, change: (list: UnopenedMail[]) => UnopenedMail[]) => {
+    const next = change(readMailbox(key));
+    writeMailbox(key, next);
+    if (boxKeyNow.current === key) setUntorn(next);
+  }, []);
 
   /** A new piece: the sheet opens on it at once, so the tap is answered by the envelope. */
   const beginMail = useCallback((start: Pick<Mail, "count" | "free" | "phase" | "number" | "mine" | "had">) => {
@@ -1059,7 +1078,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * opens when nothing else is open, else a toast), the way every arrival is said.
    */
   const settleMail = useCallback(
-    (seq: number, commitId: bigint, o: Opened, waitingNote: string): ActionOutcome => {
+    (seq: number, piece: { had: number[]; mine: boolean }, commitId: bigint, o: Opened, waitingNote: string): ActionOutcome => {
+      // The piece in hand may no longer be this one: the player can open another envelope while
+      // this pack is on its way. What happened to THIS pack is still said, and still kept.
+      const inHand = mailNow.current?.seq === seq;
       if (o.got !== "open") {
         const note = o.got === "finishing" ? PACK_FINISHING : waitingNote;
         const shown = mailShows(seq);
@@ -1073,31 +1095,39 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         toast("Your pack is open. Its letters are in your bag", "good");
         return { status: "resolved", success: true };
       }
-      const piece = mailNow.current?.seq === seq ? mailNow.current : null;
       const number = mailNumber(commitId);
+      const letters = o.letters;
       const shown = mailShows(seq);
-      patchMail(seq, { phase: "ready", number, letters: o.letters });
-      if (boxKey && piece?.mine) {
-        const next = withMail(readMailbox(boxKey), { number, letters: o.letters, had: piece.had, at: Date.now() });
-        writeMailbox(boxKey, next);
-        setUntorn(next);
-      }
-      if (!shown) dispatch({ t: "arrive", sheet: { kind: "mail" }, text: "Your mail is here." });
+      patchMail(seq, { phase: "ready", number, letters });
+      // Kept from the moment it can be torn, in the box of the wallet that bought it (`boxKey`
+      // is that wallet's: this callback was made while it was connected).
+      if (boxKey && piece.mine) saveBox(boxKey, (list) => withMail(list, { number, letters, had: piece.had, at: Date.now() }));
+      if (shown) return { status: "resolved", success: true };
+      // Its sheet has gone. If it is still the piece in hand, `arrive` opens the sheet on it (or
+      // says so in a toast, when another sheet is open). If another envelope is in hand, the
+      // sheet would show that one: say it, and this one waits as mail.
+      if (inHand) dispatch({ t: "arrive", sheet: { kind: "mail" }, text: "Your mail is here." });
+      else toast("Your mail is here.", "good");
       return { status: "resolved", success: true };
     },
-    [mailShows, patchMail, dropMail, toast, boxKey],
+    [mailShows, patchMail, dropMail, toast, boxKey, saveBox],
   );
   /** The player tore it open: it is no longer unopened mail. */
   const mailTorn = useCallback(() => {
     const piece = mailNow.current;
     if (!piece || piece.torn) return;
     setMail((m) => (m && m.seq === piece.seq ? { ...m, torn: true } : m));
-    if (boxKey && piece.number !== null) {
-      const next = withoutMail(readMailbox(boxKey), piece.number);
-      writeMailbox(boxKey, next);
-      setUntorn(next);
-    }
-  }, [boxKey]);
+    const number = piece.number;
+    if (boxKey && number !== null) saveBox(boxKey, (list) => withoutMail(list, number));
+  }, [boxKey, saveBox]);
+  /**
+   * Envelopes that wait to be torn: every stored one but the one the open sheet is showing (it is
+   * on screen, not waiting; the practice store counts the same way).
+   */
+  const waitingMail = useMemo(() => {
+    const showing = ui.sheet?.kind === "mail" && mail && !mail.torn ? mail.number : null;
+    return untorn.filter((u) => u.number !== showing);
+  }, [untorn, mail, ui.sheet]);
 
   /** Lay a pity value the client KNOWS over the lagging chain read, for that roll's owner. */
   const notePity = useCallback((owner: string, letterIndex: number, value: number) => {
@@ -1507,7 +1537,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           if (!res?.ok) return void toast(packError(res?.error), "bad");
 
           // The envelope answers from here: there is a pack to send for. Nothing is promised yet.
-          const seq = beginMail({ count: 5, free: true, phase: "wallet", number: null, mine: true, had: mineLower(state) });
+          const piece = { had: mineLower(state), mine: true };
+          const seq = beginMail({ count: 5, free: true, phase: "wallet", number: null, ...piece });
           // Snapshot what was already outstanding so the new commit can be told apart from a
           // previously stranded one.
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
@@ -1529,10 +1560,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const commit = await waitForNewCommit(address, knownPacks(before));
           void relatedDayQ.refetch(); // the pack is taken: the Mint card stops offering it
           const waiting = "Your pack is yours and safe onchain. It’ll be waiting for you on Today.";
-          if (!commit) return void settleMail(seq, 0n, { got: "waiting" }, waiting);
+          if (!commit) return void settleMail(seq, piece, 0n, { got: "waiting" }, waiting);
           patchMail(seq, { phase: "found", number: mailNumber(commit.commitId) });
           // The server opens it, as it opens a paid pack (revealCommit): one confirmation in all.
-          settleMail(seq, commit.commitId, await revealCommit(commit.commitId, run), waiting);
+          settleMail(seq, piece, commit.commitId, await revealCommit(commit.commitId, run), waiting);
         }, undefined);
         return [];
       },
@@ -1554,7 +1585,8 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return { status: "not-started" as const };
           }
           if (soldOutFor(5)) return { status: "not-started" as const };
-          const seq = beginMail({ count: 5, free: false, phase: "wallet", number: null, mine: true, had: mineLower(state) });
+          const piece = { had: mineLower(state), mine: true };
+          const seq = beginMail({ count: 5, free: false, phase: "wallet", number: null, ...piece });
           const before = (await readPendingCommits(address)).map((c) => c.commitId);
           if (!(await run("Pack", () => commitPackCalls(chain.params!, chain.player!)))) {
             dropMail(seq); // nothing was sent: the envelope leaves
@@ -1566,9 +1598,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const commit = await waitForNewCommit(address, knownPacks(before));
           // No commit seen in the wait: UNKNOWN, never failed. The envelope keeps its stamp and gets
           // no number; the pack shows on Today once the chain has it.
-          if (!commit) return settleMail(seq, 0n, { got: "waiting" }, waiting);
+          if (!commit) return settleMail(seq, piece, 0n, { got: "waiting" }, waiting);
           patchMail(seq, { phase: "found", number: mailNumber(commit.commitId) });
-          return settleMail(seq, commit.commitId, await revealCommit(commit.commitId, run), waiting);
+          return settleMail(seq, piece, commit.commitId, await revealCommit(commit.commitId, run), waiting);
         }), NOT_STARTED),
 
       rollLoose: (idx: number) =>
@@ -2386,12 +2418,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // Mail that waits: commits the server still has to open (a commit this browser has seen
       // revealed is never counted, whatever a lagging node says), and envelopes that arrived and
       // were never torn open. The second kind is ceremony: those letters are in the bag already.
-      pendingReveals: openPacks(pendingQ.data ?? [], revealedPacks.current).length + untorn.length,
+      pendingReveals: openPacks(pendingQ.data ?? [], revealedPacks.current).length + waitingMail.length,
       mail,
       mailTorn,
       openPending: () => {
         // An envelope that only needs tearing comes first: nothing has to be sent for it.
-        const piece = untorn[0];
+        const piece = waitingMail[0];
         if (piece) {
           const seq = beginMail({ count: piece.letters.length === 1 ? 1 : 5, free: false, phase: "ready", number: piece.number, mine: true, had: piece.had });
           patchMail(seq, { letters: piece.letters });
@@ -2408,8 +2440,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             // `pendingQ` spans the player's linked wallets, and letters mint to the BUYER: a pack
             // opened for another wallet is "away", and the envelope must not say it can be spelled with.
             const mine = oldest.buyer.toLowerCase() === address?.toLowerCase();
-            const seq = beginMail({ count: 5, free: false, phase: "found", number: mailNumber(oldest.commitId), mine, had: mineLower(state) });
-            settleMail(seq, oldest.commitId, await revealCommit(oldest.commitId, run), waiting);
+            const piece = { had: mineLower(state), mine };
+            const seq = beginMail({ count: 5, free: false, phase: "found", number: mailNumber(oldest.commitId), ...piece });
+            settleMail(seq, piece, oldest.commitId, await revealCommit(oldest.commitId, run), waiting);
           }
           void pendingQ.refetch();
         }, undefined);
@@ -2538,7 +2571,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         );
       },
     }),
-    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, showDaily, mail, mailTorn, untorn, beginMail, patchMail, dropMail, settleMail, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
+    [state, chain, address, connector, qc, pityNotes, settleAscension, noteAscension, unfinishedAscents, unfinishedMarks, markAscent, wordsQ, track, gate, busy, toast, postJson, openPostJson, authError, dailyError, packError, finishLetterCommit, finishRoll, resumeOpenRoll, soldOutFor, revealCommit, knownPacks, showDaily, mail, mailTorn, waitingMail, beginMail, patchMail, dropMail, settleMail, guarded, pendingQ, claimablesQ, earningsQ, market, bagWallets, wordBoardQ, refreshWords, ui.view, sendAndSettle, snackVoucher, runFaucet, traceSent],
   );
 
   return <GameCtx.Provider value={api}>{children}</GameCtx.Provider>;
