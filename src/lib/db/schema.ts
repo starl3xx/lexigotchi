@@ -830,8 +830,14 @@ export const setVouchers = pgTable(
       .references(() => wordSets.id),
     /** The profile's account (its first wallet), lowercase, as it was when the voucher was signed. */
     account: text("account").notNull(),
-    /** The wallet the voucher names (the claim's msg.sender), lowercase. */
+    /** The wallet the LATEST voucher names (the claim's msg.sender), lowercase. */
     wallet: text("wallet").notNull(),
+    /**
+     * EVERY wallet a voucher for this row was signed for, lowercase. A renewal from another wallet
+     * of the profile leaves the first wallet's voucher valid until its own deadline, so "was it
+     * used?" must ask the chain about all of them, never only the latest.
+     */
+    named: jsonb("named").$type<string[]>().notNull().default([]),
     /** UPPERCASE. A released set's word: public by now. */
     word: text("word").notNull(),
     /** The voucher's last valid second. */

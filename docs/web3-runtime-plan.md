@@ -203,12 +203,15 @@ ever, so a set word drawn before its release has had its draw.
 needs a voucher from the server: one word of the set per verified profile, across its linked
 wallets. It is in `Words.sol` (`setGate`, `gatedUntil`, `claimSigner`, a second `claim` that takes
 the voucher) and in the app (`POST /api/sets/voucher`, migration `0022_set_vouchers`). **A network
-has it only once its Words is deployed with it**, because Words can't change after deploy: the app
-asks the contract (`hasGate`), and until then a release opens a set to everyone at once and the
-release builder says so. Base Sepolia's Words (rehearsal #4) predates it.
+has it only once its Words is deployed with it**, because Words can't change after deploy. The
+registry says which (`"wordsGate": true` in `config/deployments*.json`, written by the PR that
+records the redeploy; the app never guesses it from a contract read). Until then a release opens a
+set to everyone at once and the release builder says so. Base Sepolia's Words (rehearsal #4)
+predates it.
 
 **Mainnet must include (Words can't change afterwards):**
-- **The gate.** Deploy the `Words.sol` that has it. A Words without it can never gate a release.
+- **The gate.** Deploy the `Words.sol` that has it, and record `"wordsGate": true` in
+  `config/deployments.json` with the addresses. A Words without it can never gate a release.
 - **The reserve root.** Set `DICTIONARY_ROOT` for `Deploy.s.sol` to the root `npm run sets -- reserve`
   prints against the mainnet database, so no held-back word is claimable for even one block. Never
   the full dictionary's root while any word is in an unreleased set. The letter caps always come
@@ -242,8 +245,9 @@ On the day (about half an hour; the game shows the old suite until step 5 deploy
    ones), then the one Test item again.
 4. Check on the chain: `Words.claimSigner()` is the signer, `Words.dictionaryRoot()` is the reserve
    root, and `Letters.cap` sums to 68,760.
-5. A registry PR (`config/deployments.base-sepolia.json`: addresses, deploy block, the Shop's block).
-   Its merge deploys the app onto the new suite, with a `heads-up` tester note.
+5. A registry PR (`config/deployments.base-sepolia.json`: addresses, deploy block, the Shop's block,
+   and **`"wordsGate": true`**). Its merge deploys the app onto the new suite and switches the
+   gate's code paths on, with a `heads-up` tester note.
 
 After:
 1. The owner adds the new Letters and Words addresses to the CDP paymaster's allowlist.

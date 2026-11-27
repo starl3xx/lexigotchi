@@ -133,9 +133,13 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **The first-day gate** (`Words.sol`: `gatedUntil`, `setGate`, `claimSigner`, and a second `claim`
   that takes a voucher; `contracts/AUDIT.md`, fifth pass): for a set's first day a claim of one of
   its words needs the server's voucher. **Built, merged, and NOT deployed: Base Sepolia's Words
-  predates it, and Words can't change after deploy.** Everything asks `hasGate()` first (a read of
-  `claimSigner` on the deployed contract), so until the redeploy the voucher route answers
-  `not_gated`, the proof route never says `gate`, and a release is the root alone. The redeploy is
+  predates it, and Words can't change after deploy.** Everything asks `hasGate()` first, which reads
+  the REGISTRY (`"wordsGate"` in `config/deployments*.json`, set true by the PR that records a
+  redeploy with the gate), never the contract: a failed read can't tell "no gate" from an RPC
+  hiccup, and reading a hiccup as "no gate" would plan a release with no gate. For the same reason
+  a gate that can't be read is never "no gate": no release plan, and no mark of a release. Until
+  the redeploy the voucher route answers `not_gated`, the proof route never says `gate`, and a
+  release is the root alone. The redeploy is
   the whole suite and resets the test build: never run it without the owner's word on the plan and
   the date (`docs/web3-runtime-plan.md`, "rehearsal #5"). `POST /api/sets/voucher`
   (`lib/sets/voucher.ts` pure, `lib/db/setVouchers.ts`, table `set_vouchers`, migration 0022): a
@@ -144,7 +148,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   a scarce slot on a word the caller names), at most `per_player_limit` different words of a set
   per profile across linked wallets. **Count vouchers issued, never words held** (a voucher has no
   nonce: the audit's one note); a slot comes back only when the chain's `Claimed` history shows it
-  expired unused. The game's claim asks for the voucher when the proof route says `gate`
+  expired unused, asked about EVERY wallet the row's vouchers named (`named`) and the profile's
+  wallets, never only the latest (a renewal from a linked wallet leaves the first wallet's voucher
+  spendable). One row per profile per word: the same word again renews or revives that row. The game's claim asks for the voucher when the proof route says `gate`
   (`claimCalls(..., voucher)`; without one it is the old call, byte for byte), and every refusal
   has its own sentence (`components/game/setGate.ts`). A release leaves words somebody already
   holds out of its gate (`setGate` reverts on one).

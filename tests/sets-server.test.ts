@@ -20,6 +20,7 @@ const world = vi.hoisted(() => ({
   fail: false,
   chainRoot: "",
   gate: false,
+  gateUnreadable: false,
   owned: new Set<string>(),
   ownedUnreadable: false,
   ids: new Map<string, string>(), // token id → word, filled as the tests name words
@@ -62,22 +63,24 @@ vi.mock("@/lib/db/sets", () => {
   };
 });
 
+// Whether this network's Words has the gate is the registry's fact (config/deployments*.json).
+vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), wordsHaveGate: () => world.gate }));
+
 vi.mock("@/lib/onchain/reads", async (orig) => ({
   ...(await orig<typeof import("@/lib/onchain/reads")>()),
   getPublicClient: () => ({
     readContract: async ({ functionName }: { functionName: string }) => {
       if (functionName === "dictionaryRoot") return world.chainRoot;
       if (functionName === "claimSigner") {
-        if (!world.gate) throw new Error("execution reverted"); // a Words deployed before the gate
+        if (world.gateUnreadable) throw new Error("rpc down");
         return "0x00000000000000000000000000000000000000aa";
       }
       throw new Error(`unexpected read ${functionName}`);
     },
     multicall: async ({ contracts }: { contracts: { functionName: string; args: [bigint] }[] }) => {
       if (world.ownedUnreadable && contracts.some((c) => c.functionName === "exists")) throw new Error("rpc down");
-      return contracts.map((c) =>
-        c.functionName === "gatedUntil" ? { status: "success", result: 1_900_000_000n } : world.owned.has(world.ids.get(String(c.args[0])) ?? ""),
-      );
+      if (world.gateUnreadable && contracts.some((c) => c.functionName === "gatedUntil")) throw new Error("rpc down");
+      return contracts.map((c) => (c.functionName === "gatedUntil" ? 1_900_000_000n : world.owned.has(world.ids.get(String(c.args[0])) ?? "")));
     },
     getBlockNumber: async () => 1000n,
     getLogs: async () => [],
@@ -108,6 +111,7 @@ beforeEach(async () => {
   world.migrated = true;
   world.fail = false;
   world.gate = false;
+  world.gateUnreadable = false;
   world.owned = new Set();
   world.ownedUnreadable = false;
   const { tokenIdOf } = await import("@/lib/onchain/tokenId");
@@ -346,6 +350,30 @@ describe("releasing", () => {
     server.forgetSets();
     const plan = await server.planRelease(1, 1_800_000_000);
     expect(!plan.ok && plan.error).toBe("chain_unreadable");
+  });
+
+  it("a gate that can't be read is never read as 'no gate': no release plan, and no mark", async () => {
+    const { server } = await reserved();
+    world.gate = true;
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+    world.gateUnreadable = true;
+    const plan = await server.planRelease(1, 1_800_000_000);
+    expect(plan.ok).toBe(false);
+    expect(!plan.ok && plan.error).toBe("chain_unreadable"); // never the root alone
+
+    // The release lands (built while the chain could be read), and then the chain can't say when
+    // the gate lifts: the set is NOT marked released with "no gate". It is marked on a later look.
+    world.gateUnreadable = false;
+    const good = await server.planRelease(1, 1_800_000_000);
+    if (!good.ok) throw new Error("no plan");
+    world.chainRoot = good.root;
+    world.gateUnreadable = true;
+    expect(await server.reconcile()).toEqual([]);
+    expect(world.sets[0].status).toBe("revealed");
+    world.gateUnreadable = false;
+    expect(await server.reconcile()).toEqual([1]);
+    expect(world.sets[0].gateUntil).toEqual(new Date(1_900_000_000_000));
   });
 
   it("a set with no gate hours gets no gate even where the contract has one", async () => {

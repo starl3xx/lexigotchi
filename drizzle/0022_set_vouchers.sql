@@ -4,6 +4,7 @@ CREATE TABLE "set_vouchers" (
 	"set_id" integer NOT NULL,
 	"account" text NOT NULL,
 	"wallet" text NOT NULL,
+	"named" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"word" text NOT NULL,
 	"deadline" timestamp with time zone NOT NULL,
 	"used" boolean,

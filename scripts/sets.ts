@@ -60,7 +60,7 @@ async function main() {
     // A draft's name is private: ids only, unless asked.
     for (const x of book.sets) console.log(`  #${x.id} ${x.status.padEnd(9)} ${String(x.words.length).padStart(4)} words${show || x.status !== "draft" ? `  ${x.name}` : ""}`);
     console.log(`commitment ${commitmentOf(book.sets)}`);
-    console.log(`first-day gate on this network's Words: ${(await hasGate()) ? "yes" : "no (next redeploy)"}`);
+    console.log(`first-day gate on this network's Words: ${hasGate() ? "yes" : "no (next redeploy)"}`);
     if (!s.ok) return void console.log(`the chain's root: ${s.error}`);
     const change = reserveChange(s.chainHeld, heldOf(book.sets));
     console.log(`the chain holds back ${s.chainHeld.size} words (root ${s.chainRoot ?? "unread"})`);

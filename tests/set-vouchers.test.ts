@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { recoverMessageAddress } from "viem";
 import type { WordSet } from "@/lib/sets/rules";
-import { decideVoucher, dueToSettle, holdsSlot, SETTLE_AFTER_SECONDS, VOUCHER_TTL_SECONDS, type VoucherRow } from "@/lib/sets/voucher";
+import { decideVoucher, dueToSettle, holdsSlot, walletsToAsk, SETTLE_AFTER_SECONDS, VOUCHER_TTL_SECONDS, type VoucherRow } from "@/lib/sets/voucher";
 
 const KEY = generatePrivateKey();
 vi.stubEnv("NEXT_PUBLIC_CHAIN_ID", "84532");
@@ -46,6 +46,8 @@ const world = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ratelimit", () => ({ allow: async (kind: string) => !world.limited.has(kind) }));
+// Whether this network's Words has the gate is the registry's fact (config/deployments*.json).
+vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), wordsHaveGate: () => world.gate }));
 vi.mock("@/lib/db/sets", () => ({
   SetError: class extends Error {},
   listSets: async () => ({ sets: world.sets, migrated: true }),
@@ -67,10 +69,12 @@ vi.mock("@/lib/db/setVouchers", async () => {
       const d = decide(world.rows.filter(mine(a.account, a.wallets)), a.word, a.limit);
       if (d.kind === "limit") return { ok: false, error: "limit_reached", words: d.words };
       if (d.kind === "renew") {
-        Object.assign(world.rows.find((r) => r.id === d.id)!, { wallet: a.wallet, deadline: a.deadline });
+        // As lib/db/setVouchers.ts does it: the row remembers every wallet it was signed for.
+        const row = world.rows.find((r) => r.id === d.id)!;
+        Object.assign(row, { named: [...new Set([...row.named, row.wallet, a.wallet])], wallet: a.wallet, deadline: a.deadline, used: row.used === true ? true : null });
         return { ok: true, renewed: true };
       }
-      world.rows.push({ id: world.nextId++, account: a.account, wallet: a.wallet, word: a.word, deadline: a.deadline, used: null });
+      world.rows.push({ id: world.nextId++, account: a.account, wallet: a.wallet, named: [a.wallet], word: a.word, deadline: a.deadline, used: null });
       return { ok: true, renewed: false };
     },
     settleVouchers: async (_c: number, _s: number, account: string, wallets: string[], nowSec: number, check: (r: VoucherRow) => Promise<boolean | null>) => {
@@ -108,17 +112,14 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
   },
   getPublicClient: () => ({
     readContract: async ({ functionName, args }: { functionName: string; args?: readonly bigint[] }) => {
-      if (functionName === "claimSigner") {
-        if (!world.gate) throw new Error("execution reverted");
-        return "0x00000000000000000000000000000000000000aa";
-      }
       if (functionName === "dictionaryRoot") return "0x" + "00".repeat(32);
       if (functionName === "gatedUntil") return BigInt(world.gatedUntil);
       if (functionName === "exists") return world.owned.has(world.ids.get(String(args?.[0])) ?? "");
       throw new Error(`unexpected read ${functionName}`);
     },
-    getLogs: async ({ args }: { args: { tokenId: bigint; owner: string } }) =>
-      world.claimedLogs.filter((l) => world.ids.get(String(args.tokenId)) === l.word && l.wallet === args.owner.toLowerCase()),
+    // `owner` is a list: every wallet the row's vouchers named, and the profile's wallets.
+    getLogs: async ({ args }: { args: { tokenId: bigint; owner: string[] } }) =>
+      world.claimedLogs.filter((l) => world.ids.get(String(args.tokenId)) === l.word && args.owner.map((o) => o.toLowerCase()).includes(l.wallet)),
   }),
 }));
 
@@ -150,19 +151,29 @@ beforeEach(async () => {
 });
 
 describe("the counting rule", () => {
-  const row = (id: number, word: string, used: boolean | null, wallet = P): VoucherRow => ({ id, account: P, wallet, word, deadline: new Date(1_800_000_600_000), used });
+  const row = (id: number, word: string, used: boolean | null, wallet = P): VoucherRow => ({ id, account: P, wallet, named: [wallet], word, deadline: new Date(1_800_000_600_000), used });
   it("a first word is new; the same word again is a renewal; a second word is the limit", () => {
     expect(decideVoucher([], "CRANE", 1)).toEqual({ kind: "new" });
-    expect(decideVoucher([row(1, "CRANE", null)], "CRANE", 1)).toEqual({ kind: "renew", id: 1 });
+    expect(decideVoucher([row(1, "CRANE", null)], "CRANE", 1)).toEqual({ kind: "renew", id: 1, revive: false });
     expect(decideVoucher([row(1, "CRANE", null)], "MOTEL", 1)).toEqual({ kind: "limit", words: ["CRANE"] });
   });
   it("a used voucher holds its slot for good, and the same word is still only a renewal", () => {
     expect(decideVoucher([row(1, "CRANE", true)], "MOTEL", 1)).toEqual({ kind: "limit", words: ["CRANE"] });
-    expect(decideVoucher([row(1, "CRANE", true)], "CRANE", 1)).toEqual({ kind: "renew", id: 1 });
+    expect(decideVoucher([row(1, "CRANE", true)], "CRANE", 1)).toEqual({ kind: "renew", id: 1, revive: false });
   });
   it("one that expired unused gives its slot back", () => {
     expect(holdsSlot(row(1, "CRANE", false))).toBe(false);
     expect(decideVoucher([row(1, "CRANE", false)], "MOTEL", 1)).toEqual({ kind: "new" });
+  });
+  it("the same word again after it expired unused revives its ONE row (the table keeps one per word)", () => {
+    expect(decideVoucher([row(1, "CRANE", false)], "CRANE", 1)).toEqual({ kind: "renew", id: 1, revive: true });
+  });
+  it("but a freed word can't come back once another word took the slot", () => {
+    expect(decideVoucher([row(1, "CRANE", false), row(2, "MOTEL", null)], "CRANE", 1)).toEqual({ kind: "limit", words: ["MOTEL"] });
+    expect(decideVoucher([row(1, "CRANE", false), row(2, "MOTEL", null)], "CRANE", 2)).toEqual({ kind: "renew", id: 1, revive: true });
+  });
+  it("settling asks about every wallet a row was signed for, and the profile's wallets now", () => {
+    expect(walletsToAsk({ wallet: L, named: [P, L] }, [P, O]).sort()).toEqual([L, O, P].sort());
   });
   it("a higher limit counts different words", () => {
     const rows = [row(1, "CRANE", true), row(2, "MOTEL", null)];
@@ -264,6 +275,34 @@ describe("POST /api/sets/voucher", () => {
     world.now += VOUCHER_TTL_SECONDS + SETTLE_AFTER_SECONDS + 5;
     expect(await call({ wallet: P, word: "GRAPE" })).toMatchObject({ status: 409, body: { error: "limit_reached", words: ["MOTEL"] } });
     expect(world.rows.find((r) => r.word === "MOTEL")?.used).toBe(true);
+  });
+
+  it("the same word again after its voucher expired unused: signed again, never refused", async () => {
+    // The common case: the player closed the wallet's prompt, and came back a quarter of an hour later.
+    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    world.now += VOUCHER_TTL_SECONDS + SETTLE_AFTER_SECONDS + 5;
+    const again = await call({ wallet: P, word: "CRANE" });
+    expect(again.status).toBe(200);
+    expect(again.body.voucher.deadline).toBe(String(world.now + VOUCHER_TTL_SECONDS));
+    expect(world.rows).toHaveLength(1); // its one row, holding a slot again
+    expect(world.rows[0].used).toBeNull();
+    expect((await call({ wallet: P, word: "MOTEL" })).status).toBe(409);
+  });
+
+  it("a renewal from a linked wallet doesn't hide the first wallet's claim", async () => {
+    // P takes a voucher for CRANE. L (the same profile) asks for CRANE too, so the row names L now.
+    // P claims with its own voucher, which was valid all along.
+    expect((await call({ wallet: P, word: "CRANE" })).status).toBe(200);
+    world.session = L;
+    expect((await call({ wallet: L, word: "CRANE" })).status).toBe(200);
+    expect(world.rows[0]).toMatchObject({ wallet: L, named: [P, L] });
+    world.claimedLogs.push({ wallet: P, word: "CRANE" });
+    // Past every deadline: the row is settled. The chain is asked about P too, so the slot is spent.
+    world.now += VOUCHER_TTL_SECONDS + SETTLE_AFTER_SECONDS + 5;
+    expect(await call({ wallet: L, word: "MOTEL" })).toMatchObject({ status: 409, body: { error: "limit_reached", words: ["CRANE"] } });
+    expect(world.rows[0].used).toBe(true);
+    world.session = P;
+    expect((await call({ wallet: P, word: "GRAPE" })).status).toBe(409);
   });
 
   it("a higher per-player limit is that many different words", async () => {

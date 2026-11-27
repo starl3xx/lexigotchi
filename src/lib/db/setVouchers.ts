@@ -22,6 +22,7 @@ const pick = {
   id: setVouchers.id,
   account: setVouchers.account,
   wallet: setVouchers.wallet,
+  named: setVouchers.named,
   word: setVouchers.word,
   deadline: setVouchers.deadline,
   used: setVouchers.used,
@@ -52,14 +53,21 @@ export async function takeVoucher(a: {
     const rows = await tx.select(pick).from(setVouchers).where(mine(a.chainId, a.setId, account, a.wallets));
     const d = decideVoucher(rows, a.word, a.limit);
     if (d.kind === "limit") return { ok: false as const, error: "limit_reached" as const, words: d.words };
+    const w = lower(a.wallet);
     if (d.kind === "renew") {
-      // The same word again: the row now names the wallet asking, and the new deadline. `used`
-      // stays as it is (a spent slot stays spent; an unsettled one is settled against the newest
-      // deadline, since an older voucher for the same word can only claim that same word).
-      await tx.update(setVouchers).set({ wallet: lower(a.wallet), deadline: a.deadline }).where(eq(setVouchers.id, d.id));
+      // The same word again: the row takes the new deadline and the wallet asking, and REMEMBERS
+      // every wallet it was signed for (an earlier wallet's voucher stays valid until its own
+      // deadline, so its claim must still be seen when the row is settled). A spent slot stays
+      // spent; a row that had given its slot back holds one again (unsettled).
+      const row = rows.find((r) => r.id === d.id)!;
+      const named = [...new Set([...row.named, row.wallet, w])];
+      await tx
+        .update(setVouchers)
+        .set({ wallet: w, named, deadline: a.deadline, used: row.used === true ? true : null })
+        .where(eq(setVouchers.id, d.id));
       return { ok: true as const, renewed: true };
     }
-    await tx.insert(setVouchers).values({ chainId: a.chainId, setId: a.setId, account, wallet: lower(a.wallet), word: a.word, deadline: a.deadline });
+    await tx.insert(setVouchers).values({ chainId: a.chainId, setId: a.setId, account, wallet: w, named: [w], word: a.word, deadline: a.deadline });
     return { ok: true as const, renewed: false };
   });
 }

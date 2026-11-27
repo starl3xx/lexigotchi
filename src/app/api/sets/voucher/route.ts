@@ -41,7 +41,7 @@ import { accountWalletsStrict } from "@/lib/db/walletLinks";
 import { settleVouchers, takeVoucher } from "@/lib/db/setVouchers";
 import { cleanWord } from "@/lib/sets/rules";
 import { hasGate, loadSets } from "@/lib/sets/server";
-import { VOUCHER_TTL_SECONDS, type VoucherRow } from "@/lib/sets/voucher";
+import { VOUCHER_TTL_SECONDS, walletsToAsk, type VoucherRow } from "@/lib/sets/voucher";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,15 +55,17 @@ const short = (err: unknown) => String((err as { code?: string; name?: string })
 const CLAIMED = getAbiItem({ abi: wordsAbi, name: "Claimed" });
 
 /**
- * Did `row.wallet` ever claim `row.word` since `fromBlock`? The chain's own history, never who
- * holds the word now. Null when it can't be read.
+ * Did ANY wallet this row's vouchers were signed for, or any wallet of the profile, claim
+ * `row.word` since `fromBlock`? The chain's own history, never who holds the word now, and never
+ * only the wallet the row names last: a renewal from a linked wallet leaves the first wallet's
+ * voucher spendable. Null when it can't be read.
  */
-async function claimedByWallet(row: VoucherRow, fromBlock: bigint): Promise<boolean | null> {
+async function claimedByProfile(row: VoucherRow, profileWallets: readonly string[], fromBlock: bigint): Promise<boolean | null> {
   try {
     const logs = await getPublicClient().getLogs({
       address: addressOf("words"),
       event: CLAIMED,
-      args: { tokenId: tokenIdOf(row.word), owner: getAddress(row.wallet) },
+      args: { tokenId: tokenIdOf(row.word), owner: walletsToAsk(row, profileWallets).map((w) => getAddress(w)) },
       fromBlock,
       toBlock: "latest",
     });
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
   if (!wallet || !word || !isWord(word)) return no("bad_request", 400);
   if (!(await allow("set-voucher", wallet))) return no("rate_limited", 429);
   // No gate on this network's Words: there is nothing to vouch for, and the plain claim is the claim.
-  if (!isSuiteDeployed() || !(await hasGate())) return no("not_gated", 409);
+  if (!isSuiteDeployed() || !hasGate()) return no("not_gated", 409);
 
   const book = await loadSets();
   if (!book.known) return no("try_again", 503);
@@ -142,7 +144,7 @@ export async function POST(req: Request) {
   const deadline = now + VOUCHER_TTL_SECONDS;
   try {
     const from = set.releaseBlock !== null ? BigInt(set.releaseBlock) : deployBlock();
-    await settleVouchers(NETWORK.id, set.id, account, wallets, now, (row) => claimedByWallet(row, from));
+    await settleVouchers(NETWORK.id, set.id, account, wallets, now, (row) => claimedByProfile(row, wallets, from));
     const took = await takeVoucher({
       chainId: NETWORK.id,
       setId: set.id,

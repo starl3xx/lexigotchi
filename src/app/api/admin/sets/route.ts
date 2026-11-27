@@ -143,7 +143,7 @@ export async function GET(req: Request) {
         fullRoot: dictionaryRoot(),
         known: s.ok,
         held: s.ok ? s.chainHeld.size : 0,
-        gate: await hasGate(),
+        gate: hasGate(),
       },
       pending: s.ok
         ? (() => {

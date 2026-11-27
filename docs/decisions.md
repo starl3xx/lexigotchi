@@ -2300,9 +2300,19 @@ setter. All small, riding existing suite patterns.
         whether to close it in the redeploy).
       - **In the game:** a claim of a gated word asks for the voucher first; each refusal has its
         own sentence with when the word opens to everyone (`components/game/setGate.ts`).
-      - **Dark until the redeploy.** The app asks the contract whether it has the gate; Sepolia's
-        doesn't, so the voucher route answers `not_gated`, the proof route never says a word is
-        gated, and a release is the root alone. Nothing a player sees changes.
+      - **Dark until the redeploy.** Whether a network's Words has the gate is written in the
+        deployment registry (`"wordsGate"`), never guessed from a contract read: a failed read
+        can't tell "no gate" from an RPC hiccup, and a hiccup read as "no gate" would plan a
+        release without its gate. Sepolia's is false, so the voucher route answers `not_gated`,
+        the proof route never says a word is gated, and a release is the root alone. Nothing a
+        player sees changes. Likewise a gate that can't be read is never "no gate": no release
+        plan is built, and a release isn't marked until its gate can be read.
+      - **Two bugs the second review found before merge, both fixed with tests on a real
+        database.** Asking again for the same word after its voucher expired unused failed for
+        good (the rule said "new", the table's one-row-per-word key refused the insert): the freed
+        row is now revived. And a renewal from a linked wallet made the row name only that wallet,
+        so the first wallet's claim went unseen and the slot was freed: a row now remembers every
+        wallet it was signed for, and settling asks the chain about all of them.
       - **The redeploy** is the whole suite (Staking, Rolls, Prestige, and the Jackpot hold the
         Words address for good), it resets the testers' test build, and it carries the 3.0× caps.
         `docs/web3-runtime-plan.md` has the plan and the proposed time (Thursday 2026-12-03, after

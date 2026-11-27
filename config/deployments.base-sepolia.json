@@ -4,6 +4,7 @@
   "chainId": 84532,
   "deployedAt": "2026-11-25",
   "deployBlock": 63309448,
+  "wordsGate": false,
   "wordToken": "0x4abE1BC87fc508aF1A9D2Ac31E5AC1Af2a1122Ea",
   "roles": {
     "treasury": "0x51E29Ba3Ff9ebdb5e6d32f6AB52F2FD3b21Ae1E3",

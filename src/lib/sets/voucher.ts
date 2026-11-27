@@ -23,7 +23,10 @@ export const SETTLE_AFTER_SECONDS = 120;
 export interface VoucherRow {
   id: number;
   account: string;
+  /** The wallet the latest voucher names. */
   wallet: string;
+  /** Every wallet a voucher for this row was ever signed for. */
+  named: string[];
   word: string;
   deadline: Date;
   /** null: not settled yet (it counts). true: claimed (it counts, for good). false: expired unused (free). */
@@ -39,8 +42,11 @@ export function dueToSettle(r: Pick<VoucherRow, "used" | "deadline">, nowSec: nu
 }
 
 export type VoucherDecision =
-  /** The profile already has a voucher row for this word: sign again under the same row. */
-  | { kind: "renew"; id: number }
+  /**
+   * The profile already has a row for this word: sign again under the same row. `revive` when
+   * that row had given its slot back (expired unused): it takes a slot again.
+   */
+  | { kind: "renew"; id: number; revive: boolean }
   | { kind: "new" }
   /** Every slot is taken, by these words. */
   | { kind: "limit"; words: string[] };
@@ -50,13 +56,23 @@ export type VoucherDecision =
  * account OR any of its wallets (a wallet that took its word and then joined the profile brings
  * its row with it).
  *
- * The same word again is always a renewal, used or not: it can never be a second word.
+ * The same word again is always a renewal of its row, never a second row (the table keeps one row
+ * per profile per word) and never a second word. A row that still holds its slot renews freely,
+ * used or not. One that gave its slot back (its voucher expired unused, the common case of a
+ * player who closed the wallet prompt and came back later) is revived, and needs a free slot like
+ * any new word.
  */
 export function decideVoucher(rows: readonly VoucherRow[], word: string, limit: number): VoucherDecision {
   const held = rows.filter(holdsSlot);
-  const same = held.find((r) => r.word === word);
-  if (same) return { kind: "renew", id: same.id };
+  const holding = held.find((r) => r.word === word);
+  if (holding) return { kind: "renew", id: holding.id, revive: false };
   const words = [...new Set(held.map((r) => r.word))];
   if (words.length >= Math.max(1, limit)) return { kind: "limit", words };
-  return { kind: "new" };
+  const freed = rows.find((r) => r.word === word);
+  return freed ? { kind: "renew", id: freed.id, revive: true } : { kind: "new" };
+}
+
+/** Every wallet to ask the chain about when settling a row: all it ever named, and the profile's now. */
+export function walletsToAsk(row: Pick<VoucherRow, "wallet" | "named">, profileWallets: readonly string[]): string[] {
+  return [...new Set([row.wallet, ...row.named, ...profileWallets].map((w) => w.toLowerCase()))];
 }

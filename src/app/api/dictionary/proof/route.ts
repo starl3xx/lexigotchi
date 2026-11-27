@@ -62,7 +62,7 @@ export async function GET(req: Request) {
   // the release was marked; the voucher route asks the chain itself before it signs.
   const set = s.book.sets.find((x) => x.status === "released" && x.gateUntil !== null && x.words.some((w) => w.word === W));
   const until = set?.gateUntil ? Math.floor(set.gateUntil.getTime() / 1000) : 0;
-  const gate = until * 1000 > Date.now() && (await hasGate()) ? until : null;
+  const gate = until * 1000 > Date.now() && hasGate() ? until : null;
 
   return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root, ...(gate ? { gate } : {}) });
 }

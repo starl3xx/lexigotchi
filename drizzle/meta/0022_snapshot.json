@@ -1,5 +1,5 @@
 {
-  "id": "271d5f6e-fb66-4f60-8ed2-a5fc3cb1b162",
+  "id": "72435d11-fbda-4075-a0dd-32903314253c",
   "prevId": "a48bf98a-6c09-46d0-a4f3-ce40b42908ae",
   "version": "7",
   "dialect": "postgresql",
@@ -1146,6 +1146,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "named": {
+          "name": "named",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "word": {
           "name": "word",

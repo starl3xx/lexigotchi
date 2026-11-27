@@ -231,6 +231,26 @@ async function main() {
   check("used: the slot is spent for good", (await profileVouchers(CHAIN, two, P, [P, L])).find((r) => r.word === D)?.used === true && res(await take(P, [P, L], P, A)) === `limit:${D}`);
   check("the same word again is still only a renewal", res(await take(P, [P, L], P, D)) === "renewed" && (await profileVouchers(CHAIN, two, P, [P, L])).find((r) => r.word === D)?.used === true);
 
+  // the same word again after its voucher expired unused: its one row is revived (the table's key
+  // is the word, so a second row for it would be refused by the database every time)
+  const V = "0x00000000000000000000000000000000000000a7";
+  check("a first voucher", res(await take(V, [V], V, B)) === "new");
+  await settleVouchers(CHAIN, two, V, [V], past, async () => false);
+  check("it expired unused", (await profileVouchers(CHAIN, two, V, [V]))[0].used === false);
+  check("the same word again is signed again, on the same row", res(await take(V, [V], V, B)) === "renewed" && (await profileVouchers(CHAIN, two, V, [V])).length === 1);
+  check("and holds its slot again", (await profileVouchers(CHAIN, two, V, [V]))[0].used === null && !(await take(V, [V], V, D)).ok);
+
+  // a renewal from a linked wallet: the row remembers the first wallet, and settling is asked about both
+  const W1 = "0x00000000000000000000000000000000000000b8";
+  const W2 = "0x00000000000000000000000000000000000000c9";
+  await take(W1, [W1, W2], W1, B);
+  await take(W1, [W1, W2], W2, B);
+  const kept = (await profileVouchers(CHAIN, two, W1, [W1, W2]))[0];
+  check("a renewal from another wallet keeps every wallet the row was signed for", kept.wallet === W2 && kept.named.slice().sort().join() === [W1, W2].sort().join(), kept);
+  let seen: string[] = [];
+  await settleVouchers(CHAIN, two, W1, [W1, W2], past, async (r) => ((seen = r.named), r.named.includes(W1)));
+  check("settling is handed them all, so the first wallet's claim spends the slot", seen.includes(W1) && (await profileVouchers(CHAIN, two, W1, [W1, W2]))[0].used === true && !(await take(W1, [W1, W2], W2, D)).ok);
+
   await closeDb();
   console.log(failed === 0 ? "\nall checks passed" : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
