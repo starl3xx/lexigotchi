@@ -4,6 +4,7 @@
  * (Analytics · Operations · Settings), each tab self-contained, with a persistent status strip and
  * keyboard shortcuts (LHAW parity). Rendered in Lexigotchi's cel / aged-paper design language.
  */
+import { Lockup } from "@/components/brand/Lockup";
 import { useEffect, useState, type ReactNode } from "react";
 import { StatusStrip } from "./StatusStrip";
 import {
@@ -122,7 +123,11 @@ export function AdminConsole({ operator }: { operator: { label: string; kind: "f
       <div className="mx-auto max-w-6xl px-4 py-8">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl font-extrabold tracking-tight">Lexigotchi · Operator</h1>
+            {/* the game's lockup, alive, as everywhere the game is named (decisions.md #56) */}
+            <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 font-display text-3xl font-extrabold tracking-tight">
+              <Lockup alive height={44} />
+              <span>Operator</span>
+            </h1>
             <p className="mt-1 text-sm text-ink/55">
               Owner / operator console ·{" "}
               <span className="font-mono">
