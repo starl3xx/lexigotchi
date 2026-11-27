@@ -25,11 +25,17 @@ export function WordCard({ word }: { word: OwnedWord }) {
         ${answerReady ? "ring-2 ring-candy ring-offset-2 ring-offset-paper" : ""}`}
     >
       {/* One wrapping row of badges under the name. A right-hand badge column overlapped the tier
-          badge on phones: the name column shrinks (min-w-0) but its nowrap badges don't. */}
-      <div className="flex items-center gap-3">
+          badge on phones: the name column shrinks (min-w-0) but its nowrap badges don't.
+          The name's own row had the same fault: beside the tiles a phone leaves the text about
+          120 px, and a Holographic word's five stars and its payout ("+891.9K") drew past the
+          card's border and made the page scroll sideways. So the text takes the room beside the
+          tiles only where it has 12rem of it, and goes under them where it doesn't (every phone,
+          and the two-column screen at 1024 px: the card's width decides, not the screen's); the
+          name's row wraps too, for a card narrower still. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <WordTiles word={word.word} upper={word.upper} size={30} state={careState(word)} detail="bust" tier={word.tier} still />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 font-display text-base font-extrabold">
+        <div className="min-w-0 flex-[1_1_12rem]">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-display text-base font-extrabold">
             {word.word}
             <PrestigeStars level={word.prestigeLevel} />
             {(earning || latest > 0) && (
