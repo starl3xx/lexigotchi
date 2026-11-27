@@ -3,6 +3,11 @@
  * the docs show exactly what the game shows. Run `npm run docs:art` after changing the rig, a
  * figure below, or the fee splits, and commit the SVGs it writes.
  *
+ * `--check` writes nothing: it says which pictures no longer match what the rig draws, and exits 1
+ * if any don't. tests/docs-art.test.ts runs it, because "run it after changing the rig" was only
+ * a sentence: a nervous letter's sweat was flipped in the game and the docs' roll kept the old
+ * bead until the owner saw it (2026-11-27).
+ *
  * Each file is one standalone SVG:
  * - It sits on a paper card with the game's ink outline and offset shadow, so the ink-colored arms,
  *   legs, and eyes read on the docs' dark theme as well as the light one.
@@ -12,7 +17,7 @@
  */
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stageName } from "@/lib/ascension";
 
@@ -324,6 +329,17 @@ const FIGURES: Record<string, string> = {
   "fees.svg": feeChart(),
 };
 
-mkdirSync(OUT, { recursive: true });
-for (const [name, svg] of Object.entries(FIGURES)) writeFileSync(join(OUT, name), svg);
-console.log(`wrote ${Object.keys(FIGURES).length} images to docs-site/images`);
+if (process.argv.includes("--check")) {
+  const stale = Object.entries(FIGURES)
+    .filter(([name, svg]) => !existsSync(join(OUT, name)) || readFileSync(join(OUT, name), "utf8") !== svg)
+    .map(([name]) => name);
+  if (stale.length) {
+    console.error(`stale: ${stale.join(", ")}. The rig, a figure, or the fee splits changed: run \`npm run docs:art\` and commit what it writes.`);
+    process.exit(1);
+  }
+  console.log(`up to date: ${Object.keys(FIGURES).length} images in docs-site/images`);
+} else {
+  mkdirSync(OUT, { recursive: true });
+  for (const [name, svg] of Object.entries(FIGURES)) writeFileSync(join(OUT, name), svg);
+  console.log(`wrote ${Object.keys(FIGURES).length} images to docs-site/images`);
+}
