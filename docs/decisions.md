@@ -1996,7 +1996,11 @@ setter. All small, riding existing suite patterns.
         lines in the shape of the shadow, each as heavy as the shadow is dark there, as under
         every letter. It was a soft blot. It is narrower than the blot was: a ruled line shows
         to its very end, and the blot's faint ends ran under the game's name in the corner. No
-        derivative is asked of the device, so every device draws the same lines.
+        derivative is asked of the device, so every device draws the same lines. **It is
+        faint** (starl3xx, 2026-11-27, of the first one: "the shadow on the card video is way
+        too dark"): its ink went from 0.5 to 0.16 and its heaviest line from 0.7 of a row to
+        0.45 (`SHADOW_INK`, `SHADOW_WEIGHT`; a test holds them at or under 0.2 and 0.5). The
+        numbers are my reading of "way too dark", looked at on the frame he sent and mid-turn.
       - `CARD_LOOK` 10. The earnings picture's address carries it too.
       - **Seen and not seen (part 9):** the game's back with the new rack (an opened Legendary
         word, WebKit); the server's back drawn by the real route; the link picture and the tall
