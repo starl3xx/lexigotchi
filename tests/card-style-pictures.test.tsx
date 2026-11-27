@@ -101,6 +101,6 @@ describe("the shadow under the video's card", () => {
 
 describe("the look number", () => {
   it("was raised with these pictures, so no kept copy of an old one is shown", () => {
-    expect(CARD_LOOK).toBe(10);
+    expect(CARD_LOOK).toBe(11);
   });
 });

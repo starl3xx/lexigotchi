@@ -19,7 +19,7 @@
  *   Both stay inside the window: the card keeps its paper and its ink. The characters keep their
  *   color: their faces already show the mood.
  * - **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the ribbon letters what the card
- *   says about the word, in the card's serif (Iowan Old Style where the device has it), and never
+ *   says about the word, in the card's serif (Source Serif 4, shipped with the game), and never
  *   the word itself.
  */
 import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";

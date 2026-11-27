@@ -577,8 +577,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   over). **A link with no `scene` means the Stage** (`LINK_DEFAULT_SCENE`: links made before the stock
   card existed are posted for good), so every other scene is named in its link, the stock card too
   (`parseLinkScene`). The ribbon's number on the picture is the chain's (`lib/onchain/cardNumbers`),
-  never the link's. **The letters on every picture wear the word's gilding, and the stage is the chain's too** (decisions.md #48; `lib/onchain/cardLevel`). A link and every picture's address name the stage (`g`), only so that they change when the stage does (X and Farcaster keep a picture by its address for good): nothing in the query is drawn, and `cardPictureCache` keeps a picture for long only when its address names the stage it shows. Pass the stage to `showcaseUrl` / `showcaseCardPath` / `showcaseFacePath` / `showcaseBackPath` wherever the game knows it. Its lettering is TeX Gyre Pagella (`public/fonts`, GUST Font License beside it):
-  the server has no fonts, and the app ships none for the card's serif. **Only the player's
+  never the link's. **The letters on every picture wear the word's gilding, and the stage is the chain's too** (decisions.md #48; `lib/onchain/cardLevel`). A link and every picture's address name the stage (`g`), only so that they change when the stage does (X and Farcaster keep a picture by its address for good): nothing in the query is drawn, and `cardPictureCache` keeps a picture for long only when its address names the stage it shows. Pass the stage to `showcaseUrl` / `showcaseCardPath` / `showcaseFacePath` / `showcaseBackPath` wherever the game knows it. Its lettering is the card's serif, Source Serif 4, as in the game (`public/fonts/sourceserif4-bold.ttf`, SIL Open Font License beside it):
+  the server has no fonts, so each picture route loads that file. **Only the player's
   own words** (decisions.md #15): the page and card draw dictionary words only (`parseShowcase`), plus
   `HOUSE_CARDS` (the Telegram HEYOO welcome); anything else is a 404, so a link can't put free text
   on the game's card. **Raise `CARD_LOOK` (lib/showcase.ts) whenever the card picture's look changes**
@@ -597,7 +597,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   a window, a frame in the rarity's ink with the rarity's mark in its corners, and a ribbon ("one of
   one", the card's number from `cards/useCardNumber` and `/api/words/numbers`, the rarity; no ribbon
   on a `small` card). **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the card's serif
-  (`--font-card`: Iowan Old Style where the device has it, no file shipped) letters what a card says
+  (`--font-card`: **Source Serif 4, shipped**, the same face for every player and on the server's pictures: decisions.md #52; `public/fonts/sourceserif4-*`, two variable web files for the game and one plain bold file for the picture routes, named once in `app/_og/wordCard.tsx` as `CARD_SERIF` / `CARD_SERIF_FILE`; `tests/card-serif.test.ts`) letters what a card says
   ABOUT a word, never the word. **Scenes:** every word starts on the stock card (`DEFAULT_SCENE`:
   grey, the rarity as an overtone); the Stage is free too (`FREE_SCENES`); the Trophy Case and Spring
   open at `SCENE_UNLOCK_WORDS` = 3 words ever held (`state.wordsEverHeld`, so it stays open after a

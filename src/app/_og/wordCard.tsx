@@ -24,7 +24,7 @@ import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
  * leaves the letters out: the card as a stage, for the share video, whose letters are drawn by the
  * player's browser so that they can breathe and blink (cards/loop/liveFront). `bare` is the card's
  * face alone, with no outline or shadow (the share loop turns it over). The ribbon's lettering is
- * the "Pagella" font: a picture that draws a card loads it (public/fonts/texgyrepagella-bold.otf).
+ * the card's serif, CARD_SERIF: a picture that draws a card loads it (public/fonts/sourceserif4-bold.ttf).
  */
 
 const INK = "#1b1714";
@@ -32,6 +32,15 @@ const INK = "#1b1714";
 const image = (markup: string) => `data:image/svg+xml;base64,${Buffer.from(svgDoc(markup)).toString("base64")}`;
 /** A card with no word's rarity to wear (a house card) is printed as Common, with no ribbon. */
 const PLAIN: Tier = "Common";
+
+/**
+ * The card's serif on the server's pictures: Source Serif 4, as in the game (globals.css,
+ * --font-card; decisions.md #52). A server has no fonts of its own, so each picture's route loads
+ * the bold file and names it this.
+ */
+export const CARD_SERIF = "Source Serif 4";
+/** The file every picture loads for it: a plain TTF, because the renderer can't read the game's woff2. */
+export const CARD_SERIF_FILE = "public/fonts/sourceserif4-bold.ttf";
 
 /** The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't a dictionary word, so it has none. */
 export function cardTier(tiles: readonly ShowcaseTile[]): Tier | undefined {
@@ -121,7 +130,7 @@ export function wordCard({ tiles, scene, cardW, no = null, gild = 0, bare = fals
                 // fine ruled lines in the rarity's ink, as on the game's ribbon
                 backgroundImage: `linear-gradient(to bottom, ${look.ink}1f 0px, ${look.ink}1f 1px, transparent 1px, transparent 4px)`,
                 backgroundSize: "100% 4px",
-                fontFamily: "Pagella",
+                fontFamily: CARD_SERIF,
                 fontWeight: 700,
                 fontSize: font,
                 lineHeight: 1,

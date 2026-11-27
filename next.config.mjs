@@ -18,10 +18,12 @@ const nextConfig = {
   // time (/embed-image and /icon-image are static, so they read them at build). A serverless
   // function only ships the files the build traced, so name them rather than trust the tracer.
   // The earnings share's picture (src/app/e/[token]/card) reads them the same way, and both read
-  // the card ribbon's Pagella (Bugbot on #231: a function ships only the files named or traced).
+  // the card's serif (Bugbot on #231: a function ships only the files named or traced). The back's
+  // picture (src/app/s/[text]/back) reads the serif and two Söhne files the same way.
   outputFileTracingIncludes: {
-    "/s/[text]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/texgyrepagella-bold.otf"],
-    "/e/[token]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/texgyrepagella-bold.otf"],
+    "/s/[text]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/sourceserif4-bold.ttf"],
+    "/s/[text]/back": ["./public/fonts/soehne-*.ttf", "./public/fonts/sourceserif4-bold.ttf"],
+    "/e/[token]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/sourceserif4-bold.ttf"],
   },
   // The vendored dictionary lives in /data and is imported by the economy lib.
   webpack: (config) => {
