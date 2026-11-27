@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { VEIL, loopPose, LOOP_SECONDS } from "@/components/cards/loop/loopRenderer";
-import { PLATE_BORDER, PLATE_SEAL, backPlate, type PlateRank } from "@/lib/cardArt/plate";
+import { PLATE_BORDER, PLATE_SEAL, backPlate } from "@/lib/cardArt/plate";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { MATERIAL_GROUND, MATERIAL_LINE, collabPlate, materialPlate, type CardMaterial } from "@/components/cards/material";
 import { LIGHT, LIGHT_INK, lightBand, lightLines, type LightInk } from "@/lib/cardArt/light";
@@ -63,18 +63,27 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect(svgDoc(art)).toContain("</svg>");
   });
 
-  it("a rarity is told by its inks and its border, each plate keeping the last one's engraving", () => {
+  it("there are two borders: Common's plain rules, and ONE border of lace on every other back", () => {
+    // starl3xx, 2026-11-27: "the 'border of lace' on uncommon and rare should be the border on the
+    // back of every one but common". The first plates gave Legendary and Mythic filigree in their
+    // corners in place of the medallions, with the lace cut short to make room.
     const [common, uncommon, rare, legendary, mythic] = MATERIALS.map(materialPlate);
     const has = (art: string) => ({ lace: /stroke-width="1\.15"/.test(art), medallions: /id="c0"/.test(art), filigree: /stroke-linecap="round"/.test(art), blend: /id="iris"/.test(art) });
     expect(has(common)).toEqual({ lace: false, medallions: false, filigree: false, blend: false });
-    expect(has(uncommon)).toEqual({ lace: true, medallions: true, filigree: false, blend: false });
-    // Rare's own step was the ring round the seal, which went: its plate is Uncommon's engraving in its own inks
-    expect(has(rare)).toEqual(has(uncommon));
-    expect(rare).not.toBe(uncommon);
-    // from Legendary the corners carry filigree where the medallions were
-    expect(has(legendary)).toEqual({ lace: true, medallions: false, filigree: true, blend: false });
-    expect(has(mythic)).toEqual({ lace: true, medallions: false, filigree: true, blend: true });
-    // (the drawings' sizes say nothing: a corner of filigree is a shorter drawing than the lace it takes the place of)
+    for (const art of [uncommon, rare, legendary]) expect(has(art)).toEqual({ lace: true, medallions: true, filigree: false, blend: false });
+    // Mythic's ink changes along the card: an ink, so it is Mythic's to keep
+    expect(has(mythic)).toEqual({ lace: true, medallions: true, filigree: false, blend: true });
+    // THE SAME DRAWING: with each plate's inks named alike, Uncommon's, Rare's, and Legendary's are one text
+    const plain = (m: CardMaterial) => materialPlate(m).split(MATERIAL_GROUND[m]).join("GROUND").split(MATERIAL_LINE[m]).join("LINE");
+    expect(plain("rare")).toBe(plain("uncommon"));
+    expect(plain("legendary")).toBe(plain("uncommon"));
+    // and Mythic's, once its blended ink is read as a plain one
+    expect(plain("mythic").replace(/<linearGradient id="iris"[\s\S]*?<\/linearGradient>/, "").split("url(#iris)").join("LINE")).toBe(plain("uncommon"));
+    // and a collab set's, once its border's own ground is read as the plate's
+    const collab = collabPlate({ base: "#102030", base2: "#302010", line: "#f0e0c0" }).replace(/<path fill-rule="evenodd"[^>]*\/>/, "").split("#102030").join("GROUND").split("#302010").join("GROUND").split("#f0e0c0").join("LINE");
+    expect(collab).toBe(plain("uncommon"));
+    // Common's is a different drawing
+    expect(plain("common")).not.toBe(plain("uncommon"));
   });
 
   it("the game's emblem is the same on every rarity: no plate draws anything round the seal", () => {
@@ -157,11 +166,12 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect(art).toContain('<rect width="1200" height="675" fill="#102030"/>');
     expect(art).toMatch(/<path fill-rule="evenodd" fill="#302010" d="M0 0H1200V675H0Z/);
     expect(art).not.toMatch(/Gradient/);
-    // Legendary's engraving (its filigree), in the set's one line ink
-    expect(art).toMatch(/stroke-linecap="round"/);
+    // the border of lace every back but Common's carries, in the set's one line ink
+    expect(art).toMatch(/stroke-width="1\.15"/);
+    expect(art).toMatch(/ id="c0"/);
     expect([...new Set([...art.matchAll(/(?:stroke|fill)="(#[0-9a-f]{6})"/g)].map((x) => x[1]))].sort()).toEqual(["#102030", "#302010", "#f0e0c0"]);
     // a rarity's own plate has one ground
-    expect(backPlate(0 as PlateRank, { ground: "#111111", line: "#eeeeee", second: "#eeeeee" })).not.toContain("evenodd");
+    expect(backPlate("rules", { ground: "#111111", line: "#eeeeee", second: "#eeeeee" })).not.toContain("evenodd");
   });
 });
 

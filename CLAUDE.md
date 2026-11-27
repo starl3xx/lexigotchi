@@ -909,8 +909,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   picked from an opened word returns to it). **A back is an engraved plate** (decisions.md #58, part 2; `lib/cardArt/plate` `backPlate`, through
   `cards/material` `materialPlate` / `collabPlate`): one still picture set on `.cb-mat`, in the rarity's
   inks (a collab set's two colors: the field in one, the border in the other, flat). A rarity is told
-  by its inks and by its plate's BORDER (rules; lace, for Uncommon and Rare; filigree; Mythic's blended
-  ink, a banknote's "rainbow printing", which is printed and never moves). **The game's emblem is the
+  by its INKS (Mythic's is blended along the card, a banknote's "rainbow printing", which is printed
+  and never moves). **There are two borders and only two:** Common's plain rules, and ONE border of
+  lace on every other back (starl3xx, 2026-11-27: "the 'border of lace' on uncommon and rare should
+  be the border on the back of every one but common"; the first plates gave each rarity engraving
+  of its own, with filigree corners for Legendary and Mythic). Never give a rarity a border, or
+  any other shape, of its own on a back: he made the emblem standard the same day. **The game's emblem is the
   same on every rarity, and nothing is drawn round it** (starl3xx, 2026-11-27, of the rings the first
   plates turned round the seal for Rare and up: "I don't like the Lexigotchi emblem on the back
   getting more rings for more rarity... that should look the same on all rarities, standard"): never
