@@ -281,6 +281,112 @@ describe("the purchase outlives the sheet", () => {
   });
 });
 
+describe("the daily letter comes by mail too (decisions.md #49, part 3)", () => {
+  const pull = () => {
+    let got: unknown;
+    act(() => void (got = g.dailyMint()));
+    return got;
+  };
+
+  it("opens a one-letter envelope, and is never “Paid”: it is free", () => {
+    play();
+    const got = pull();
+    // not null: null is "already claimed today", and the button toasts that
+    expect(typeof got).toBe("number");
+    expect(g.state.sheet).toEqual({ kind: "mail" });
+    expect(g.mail).toMatchObject({ count: 1, free: true, phase: "paid", number: null, letters: null });
+    expect(said()).toContain("Your letter");
+    expect(said()).toContain("Contents:");
+    expect(said()).toContain("1 letter");
+    expect(said()).not.toContain("5 letters");
+    expect(said()).toContain("It’s in the mail.");
+    expect(said()).not.toMatch(/Paid/);
+    expect(strip().disabled).toBe(true);
+  });
+
+  it("says which letter only at the tear: no toast names it, and Today's tile waits", () => {
+    reduce = true;
+    play();
+    const idx = pull() as number;
+    expect(g.state.toasts).toHaveLength(0);
+    expect(g.state.dailyMinted).toBe(true); // claimed, and the card says so
+    expect(g.state.dailyLetter).toBeNull(); // which letter is the envelope's to say
+    tick(PRACTICE_MAIL_MS.found + 20);
+    expect(said()).toMatch(/No\. \d+ is yours\. Minting your letter…/);
+    arrive();
+    expect(said()).toContain("It’s here. Tear along the top.");
+    expect(g.mail?.letters).toEqual([idx]);
+    expect(g.state.dailyLetter).toBeNull();
+    fireEvent.click(strip());
+    tick(600);
+    expect(g.state.dailyLetter).toBe(idx);
+    const ch = String.fromCharCode(97 + idx);
+    expect(said()).toMatch(new RegExp(`It’s an? ${ch}\\.|An? ${ch} came out\\.`));
+    expect(sheet().querySelectorAll(".mail-letter")).toHaveLength(1);
+  });
+
+  it("the count offers a pack, not “another”: a daily letter is not a pack", () => {
+    reduce = true;
+    play();
+    pull();
+    arrive();
+    fireEvent.click(strip());
+    tick(600);
+    expect(said()).not.toMatch(/another/i);
+    expect(said()).toMatch(/rip a pack/i);
+  });
+
+  it("a second pull the same day is null, and opens nothing", () => {
+    play();
+    pull();
+    const first = g.mail!.seq;
+    expect(pull()).toBeNull();
+    expect(g.mail!.seq).toBe(first);
+  });
+
+  it("the daily and the next pack have different numbers", () => {
+    reduce = true;
+    play();
+    pull();
+    arrive();
+    const daily = g.mail!.number;
+    fireEvent.click(strip());
+    tick(600);
+    act(() => g.closeSheet());
+    buy();
+    arrive();
+    expect(g.mail!.number).not.toBe(daily);
+    expect(g.mail!.number).toBe((daily as number) + 1);
+  });
+
+  it("closed before it was torn, the card shows a one-letter envelope, and opens it", () => {
+    reduce = true;
+    play();
+    pull();
+    arrive();
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(1);
+    expect(g.nextMail).toBe(1);
+    // one pair of eyes at the card's window, not five
+    const card = screen.getByText("Your mail is waiting").closest("div")!.parentElement!.parentElement!;
+    expect(card.querySelectorAll("img")).toHaveLength(4); // the face, the strip, the stamp, one pair of eyes
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(g.state.sheet).toEqual({ kind: "mail" });
+    expect(g.nextMail).toBeNull();
+  });
+
+  it("a waiting pack's card shows five pairs of eyes", () => {
+    reduce = true;
+    play();
+    buy();
+    arrive();
+    act(() => g.closeSheet());
+    expect(g.nextMail).toBe(5);
+    const card = screen.getByText("Your mail is waiting").closest("div")!.parentElement!.parentElement!;
+    expect(card.querySelectorAll("img")).toHaveLength(8);
+  });
+});
+
 describe("a tile's size never changes (decisions.md #48)", () => {
   const css = readFileSync(resolve(__dirname, "../src/app/globals.css"), "utf8");
   // the envelope's own section: from its title to the cards' section, which follows it
@@ -376,5 +482,38 @@ describe("an untorn envelope is never dropped by the next one", () => {
     arrive();
     act(() => g.closeSheet());
     expect(g.pendingReveals).toBe(1);
+  });
+});
+
+describe("a daily letter set aside keeps its secret (part 3, with the shelf)", () => {
+  const pull = () => {
+    let got: unknown;
+    act(() => void (got = g.dailyMint()));
+    return got as number;
+  };
+
+  it("Today's tile stays hidden while the daily's envelope waits on the shelf, and shows at its tear", () => {
+    reduce = true;
+    play();
+    const idx = pull();
+    arrive();
+    act(() => g.closeSheet()); // the daily waits, untorn
+    buy(); // a pack takes its place in hand: the daily goes on the shelf
+    arrive();
+    expect(g.state.dailyLetter).toBeNull();
+    act(() => g.closeSheet());
+    expect(g.pendingReveals).toBe(2);
+    // the card opens the older piece first, and draws it: one letter
+    expect(g.nextMail).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(g.mail).toMatchObject({ count: 1, letters: [idx], torn: false });
+    expect(g.state.dailyLetter).toBeNull();
+    fireEvent.click(strip());
+    tick(600);
+    expect(g.state.dailyLetter).toBe(idx);
+    act(() => g.closeSheet());
+    // the pack still waits, and the card now draws five
+    expect(g.pendingReveals).toBe(1);
+    expect(g.nextMail).toBe(5);
   });
 });

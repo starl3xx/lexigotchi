@@ -43,6 +43,13 @@ export interface Mail {
    * linked wallet): they are "away", so nothing here may say "now you can spell".
    */
   mine: boolean;
+  /**
+   * What the bag held before this piece is NOT known: it was already open when the game asked for
+   * it (mail opened late from the card), so the bag read then may count its letters already. Its
+   * letters are shown with no tags, none called new, and no word named from them: a letter
+   * counted twice would be said to finish a word the player can't spell.
+   */
+  plain?: boolean;
   /** The player has torn the envelope open: it is no longer unopened mail. */
   torn: boolean;
   /** For `waiting` and `finishing`: what to say. */
@@ -73,10 +80,11 @@ const HELD_ALL: readonly number[] = Array.from({ length: 26 }, () => 1);
 /**
  * What "new" is measured from for a piece. Its own `had`, unless nothing may be said about its
  * letters beyond what they are: they went to another wallet of the player's ("away"), so `had`
- * (the CONNECTED wallet's bag) says nothing about them (Bugbot on #273).
+ * (the CONNECTED wallet's bag) says nothing about them (Bugbot on #273), or what the bag held
+ * before them isn't known (`plain`).
  */
-export function hadFor(piece: Pick<Mail, "mine" | "had">): readonly number[] {
-  return piece.mine ? piece.had : HELD_ALL;
+export function hadFor(piece: Pick<Mail, "mine" | "had" | "plain">): readonly number[] {
+  return piece.mine && !piece.plain ? piece.had : HELD_ALL;
 }
 
 /** One letter out of a piece of mail, and what it is to the player. */

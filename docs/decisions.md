@@ -2116,6 +2116,57 @@ setter. All small, riding existing suite patterns.
         needs a verified identity), a pack opened for a linked wallet, a wallet changed while a
         pack is on its way, a smart wallet's batched send, a real phone, and a mini-app host. The
         chain store's glue is still under no automated test; its rules are the tested pure parts.
+    - **Part 3, the daily letter comes by mail** (the same sheet with one letter: a narrower
+      window, "Contents: 1 letter", "Your letter"; it is free, so it is never "Paid"). The old
+      "Fresh pull" sheet and its sheet kind are gone.
+      - **It is not the pack's flow with a count of one.** The daily's commit and reveal ride ONE
+        send, with the commit's id predicted by the server. After the wallet says "sent", both
+        may have landed, or the commit alone (the second prompt refused, or another commit took
+        the predicted id so the reveal named the wrong one), or nothing (a batch that goes all or
+        nothing, reverted whole). The wallet can't tell them apart. So every mark follows the
+        chain (`lib/onchain/dailySend`, `dailyPlan`, pure, tested):
+        - **the number** is given only once the chain says that id is this wallet's one-letter
+          commit. The predicted id is never printed: with a pack bought in between, the envelope
+          got No. 193 where the prediction said 192;
+        - **the tear** waits for the chain's "revealed", and the letter is the one the chain
+          minted (the route's "already" answer), never the bundle's own copy;
+        - **the server is asked to open the commit only when the wallet's reveal can no longer
+          land:** it was refused, there was no bundle, it named another id, or 15 s passed. Two
+          reveals for one commit means one reverts;
+        - **the envelope leaves only when the chain says the daily was never used**
+          (`dailyUsed`), never from time alone. Then the "claimed" note is taken back and Pull
+          returns;
+        - **when the chain can't be read for a whole minute,** the envelope says the letter is
+          safe and will be waiting, and that is kept: an unrevealed commit shows on the card by
+          itself, and one the bundle already revealed is looked for again (10 s to 4 min later)
+          and made mail to tear.
+      - **Which letter is the envelope's to say.** The tile beside "claimed" on Today and Mint
+        waits for the tear, in both stores, and no toast names the letter at the tap. Tearing an
+        old envelope never marks today's letter as claimed (the note is not stamped again).
+      - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
+        that was already revealed, the bag read at that tap may count its letters already. Its
+        letters then get no tags, none is called new, and no word is named: counted twice, a
+        letter would be said to finish a word the player can't spell. The same holds for letters
+        that went to a linked wallet.
+      - **The card draws what waits:** one pair of eyes for a daily letter, five for a pack
+        (`nextMail`).
+      - **Seen and not seen (part 3).** Practice game: the one-letter envelope at 424 px, each
+        step, the card, and the tile appearing only after the tear (with a temporary local switch
+        for the Pull button, not committed: a plain browser has no linked identity). **Real-wallet
+        path on a local fork**, with the daily route's answer made by the route's own signing
+        code and the fork's test signer: both landing; the reveal prompt refused (the server
+        opened it); a pack bought between the voucher and the send; no bundle; and the page
+        losing its chain reads right after the send (the envelope said the letter waits, and ten
+        seconds after the reads returned it could be torn). In every run the letter the envelope
+        gave was the letter the chain minted. Also at 360 px (WebKit) and 768 px. And one run with
+        everything together, after part 2's fixes were merged in: a pack left untorn, a second
+        pack closed while "Paid" on a slow chain, the first opened from the card meanwhile (the
+        card kept saying one piece waits until the second landed with "Your mail is here."), the
+        daily letter pulled with two packs waiting, then both packs from the card, the older
+        first: 11 letters on chain, five wallet sends, none of them a reveal. Not driven: the
+        real `/api/mint/free-daily` (it needs a verified identity), an atomic batch that reverts
+        whole (the test wallet sends two transactions, never a batch), a real phone, a mini-app
+        host.
 
 50. **Four bigger pieces, built in parts** (starl3xx, 2026-11-26, on the review page "Four Bigger
     Pieces"). The card-and-letter review (#48) set four places apart: the landing page's hero

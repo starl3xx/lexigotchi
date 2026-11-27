@@ -292,4 +292,14 @@ describe("what “new” is measured from", () => {
     // rare is still rare: that is about the letter, not about the bag
     expect(pulls[4]).toMatchObject({ rare: true, best: true });
   });
+
+  it("calls nothing new for mail opened late: the bag read then may count its letters already", () => {
+    // The pack was open before the card asked for it, and the bag has caught up: `had` holds the
+    // pack's own k. Counted again, a second k would be said to finish a word that needs two.
+    const had = bag("funyk");
+    const pulls = revealOrder(pack("kesad"), hadFor({ mine: true, had, plain: true }));
+    expect(pulls.some((p) => p.isNew)).toBe(false);
+    // the same piece, when what it held before IS known, says what is new
+    expect(revealOrder(pack("kesad"), hadFor({ mine: true, had: bag("funy") })).filter((p) => p.isNew)).toHaveLength(5);
+  });
 });
