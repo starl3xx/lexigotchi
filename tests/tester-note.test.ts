@@ -253,6 +253,23 @@ describe("the posts", () => {
   });
 });
 
+describe("a section shown as an example", () => {
+  // How #259 described polls: the example sat in a code fence in the PR's own description.
+  const shown = "## Summary\n\nAdd a section:\n\n```\n## Tester note (new)\n\nAn example note.\n\n## Tester poll\n\nAn example?\n- Yes\n- No\n```\n\nThat is all.\n";
+
+  it("is not a section: a heading inside a code fence is never posted", () => {
+    expect(testerNote(shown)).toBeNull();
+    expect(testerPoll(shown)).toBeNull();
+    expect(testerNote(shown.replaceAll("```", "~~~"))).toBeNull();
+  });
+
+  it("doesn't hide the real section after it", () => {
+    const real = `${shown}\n## Tester note (fix)\n\nThe real note.\n\n## Tester poll\n\nThe real question?\n- Yes\n- No\n`;
+    expect(testerNote(real)).toEqual({ kind: "fix", note: "The real note." });
+    expect(testerPoll(real)).toMatchObject({ question: "The real question?", options: ["Yes", "No"] });
+  });
+});
+
 describe("finding a PR's tester poll", () => {
   const body = (poll: string, heading = "## Tester poll") => `## Summary\n\nStuff.\n\n## Tester note (qol)\n\nRoll again.\n\n${heading}\n\n${poll}\n\n## Test plan\n- [x] done\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n`;
 

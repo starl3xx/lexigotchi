@@ -66,13 +66,20 @@ export function testerNote(text) {
  * A section of a PR description: the words after its heading's name ("(fix)"), and everything
  * under the heading up to the next heading, a horizontal rule, a code fence, or the
  * "🤖 Generated with …" line. Null when there is no such heading, or nothing under it.
+ *
+ * A heading inside a code fence is not one: a PR that SHOWS how to write a section (this file's
+ * own PRs do) must not have its example posted to the testers.
  * @param {string | null | undefined} text
  * @param {RegExp} heading  matches the heading line; its first group is the words after the name
  * @returns {{ words: string, body: string } | null}
  */
 function sectionUnder(text, heading) {
   const lines = (text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/);
-  const start = lines.findIndex((l) => heading.test(l.trim()));
+  let fenced = false;
+  const start = lines.findIndex((l) => {
+    if (/^(```|~~~)/.test(l.trim())) fenced = !fenced;
+    return !fenced && heading.test(l.trim());
+  });
   if (start < 0) return null;
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((l) => /^(#{1,6}\s|([-*_])( *\2){2,}$|```|~~~|🤖)/u.test(l.trim()));
