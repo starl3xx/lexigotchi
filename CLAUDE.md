@@ -10,7 +10,7 @@ plays on the web, and the same app runs as a Farcaster mini app. This repo de-ri
 solvency, ships the playable game, and now carries the full **Foundry contract suite** (code-complete + tested, not yet deployed/audited — `contracts/`).
 Stack: Next.js App Router + TS + Tailwind + recharts; `@neynar/react` + `@farcaster/miniapp-sdk`
 for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `tsx`/`vitest`).
-`/` is the landing page (`src/components/landing/LandingPage.tsx`, a server page with no wallet code); the game is **`/play`**, which is also the mini app's `homeUrl`. `/play` is responsive by width only (`GameApp.tsx`): the portrait app below `md` (phones, and every mini-app host, which renders ~424px wide), and a desktop page from `md` (a side rail with every destination, the page title in the header, screens in `lg` two-column grids, sheets as centered dialogs). Never branch the layout on `useViewer().environment`: it reads "loading" first. The four how-it-works steps live in `src/lib/howItWorks.ts`, shared by the landing page and the in-game onboarding.
+`/` is the landing page (`src/components/landing/LandingPage.tsx`, a server page with no wallet code); the game is **`/play`**, which is also the mini app's `homeUrl`. `/play` is responsive by width only (`GameApp.tsx`): the portrait app below `md` (phones, and every mini-app host, which renders ~424px wide), and a desktop page from `md` (a side rail with every destination, the page title in the header, screens in `lg` two-column grids, sheets as centered dialogs). Never branch the layout on `useViewer().environment`: it reads "loading" first. The four how-it-works steps live in `src/lib/howItWorks.ts`, shared by the landing page and the in-game onboarding. Their pictures are letters acting the step out, with no icon between letters and no letter shown at its snack (decisions.md #50, part 5; `tests/step-pictures.test.ts`); "Keep them fed" still has its trophy until the owner picks a picture.
 
 ## Commands
 
@@ -128,8 +128,32 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   alert, the dictionary-share achievement, the admin's numbers). No tables or no database = no
   sets and the old behavior; a failed read with nothing kept answers `try_again`, never the full
   tree. `scripts/sets-db-check.ts` proves the SQL on a throwaway local Postgres (rerun it after
-  touching `lib/db/sets.ts`). The jackpot needs no special case: a held-back answer rolls over
-  like any unowned word.
+  touching `lib/db/sets.ts` or `lib/db/setVouchers.ts`). The jackpot needs no special case: a
+  held-back answer rolls over like any unowned word.
+  **The first-day gate** (`Words.sol`: `gatedUntil`, `setGate`, `claimSigner`, and a second `claim`
+  that takes a voucher; `contracts/AUDIT.md`, fifth pass): for a set's first day a claim of one of
+  its words needs the server's voucher. **Built, merged, and NOT deployed: Base Sepolia's Words
+  predates it, and Words can't change after deploy.** Everything asks `hasGate()` first, which reads
+  the REGISTRY (`"wordsGate"` in `config/deployments*.json`, set true by the PR that records a
+  redeploy with the gate), never the contract: a failed read can't tell "no gate" from an RPC
+  hiccup, and reading a hiccup as "no gate" would plan a release with no gate. For the same reason
+  a gate that can't be read is never "no gate": no release plan, and no mark of a release. Until
+  the redeploy the voucher route answers `not_gated`, the proof route never says `gate`, and a
+  release is the root alone. The redeploy is
+  the whole suite and resets the test build: never run it without the owner's word on the plan and
+  the date (`docs/web3-runtime-plan.md`, "rehearsal #5"). `POST /api/sets/voucher`
+  (`lib/sets/voucher.ts` pure, `lib/db/setVouchers.ts`, table `set_vouchers`, migration 0022): a
+  verified profile (`resolveFreeIdentity`) that PROVES the wallet is its own (its profile session,
+  or a Farcaster sign-in Farcaster ties to the profile: unlike the free snack, this voucher spends
+  a scarce slot on a word the caller names), at most `per_player_limit` different words of a set
+  per profile across linked wallets. **Count vouchers issued, never words held** (a voucher has no
+  nonce: the audit's one note); a slot comes back only when the chain's `Claimed` history shows it
+  expired unused, asked about EVERY wallet the row's vouchers named (`named`) and the profile's
+  wallets, never only the latest (a renewal from a linked wallet leaves the first wallet's voucher
+  spendable). One row per profile per word: the same word again renews or revives that row. The game's claim asks for the voucher when the proof route says `gate`
+  (`claimCalls(..., voucher)`; without one it is the old call, byte for byte), and every refusal
+  has its own sentence (`components/game/setGate.ts`). A release leaves words somebody already
+  holds out of its gate (`setGate` reverts on one).
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`
@@ -318,6 +342,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `lib/market/`): words AND letters sell for $WORD, 10% to `SaleFees`. Four parts behind one switch
   (Words, Letters, Sell, Sold), "Just sold" and the player's picks above. Both stores feed it through
   `g.market` (the practice store from a seeded stall, `market/practiceMarket.ts`).
+  **The Letters shelf's line is one element a row** (`.mk-rule`; decisions.md #50, part 3): the row's first slot
+  draws it 7 slots wide on a phone and 13 from md, so the grid's column counts are written twice, in
+  `LettersBoard` and in globals.css (`tests/market-shelf.test.ts` holds them equal). A piece under each
+  letter showed a tick or a gap at every join at pixel ratios 1.25 and 1.5.
   **Letters for sale** (`lib/onchain/letterSale.ts`, `/api/market/letters`, table `letter_listings`,
   migration 0017): one Seaport order offers `qty` of one letter id at a price each, PARTIAL_OPEN,
   filled k of qty with `fulfillAdvancedOrder` (`fulfillPartCalls`). **Every amount is a per-letter
@@ -450,7 +478,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `src/lib/sim/` → `ledger.ts` (4-bucket solvency core), `simulate.ts` (agents + day loop),
   `types.ts`. `runSim(config)` returns daily metrics + ROI + findings.
 - `src/components/game/TileCharacter.tsx` → the vaudeville tile rig for all 52 characters (both cases + gild stages); its shapes are numbers in `tileShapes.ts`, which the share card's Satori letter (`src/app/_og/tile.tsx`) draws from too, so change a shape there, once (decisions.md #28).
-  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. A sleeping (hungry) letter's three z's are a layer each for that reason: looping inside the top layer they cost 44% of a core on Today, where a hungry word shows first, and 5% as layers. A nervous (rolling) letter's two beads of sweat are a layer each too: five letters wait together in the ascend sheet, and the beads inside their top layers were 27 of a nervous word's 45 points (about 20% as layers). The peeking eye stays inside the body layer: it swaps in steps and costs nothing. `tests/tile-character.test.tsx` holds the rule. **A tile's size never changes in an animation** (decisions.md #48; starl3xx: "it breaks the character illusion"): a letter is moved and turned, never scaled, by its loops, by a press, or by a box around it as it arrives (`animate-drop`, never `animate-pop`, on anything with a letter in it). The legs may stretch (that keeps the feet down), and a card may lift as it turns. `tests/tile-size.test.tsx` holds it, and makes every new `tc*` loop be sorted as body, legs, or off the tile. **A cheering letter's confetti is sixteen small drawings of their own** (`Confetti`: each piece an `<svg>` its own size, placed by percent over the letter, its fall in percent of its own box): looping inside the top layer they cost a cheering word 47% of a core in WebKit, and 13% this way. A whole-letter layer for each piece would keep sixteen letters' worth of store: never make an off-the-tile piece a full-size layer when there are many. **What is on a letter is flat and colourful; what is around a letter is drawn like the cards** (the same decision): the ground shadow is ruled lines (`tileShapes`, `SHADOW_LINES`, shared with the share letter), the rack on a card's back is ruled line work in the material's line colour (`lib/cardArt/rack`, one set of shapes for the game and the server's picture), the table under a card in a link picture is engraved (`lib/cardArt/table`), the shadow under the video's card is ruled lines (the shader in `loop/loopRenderer`), the glow behind a Legendary or Mythic tile is an engraved halo of fine rays (`tileShapes` `haloPath`, 3 units off whatever the tile wears and never past 28, so two letters' halos never cross in a word), confetti is engraved in ink and gold, the ascend sheet's rays are an engraved picture (`lib/cardArt/glory`, turned as one element), and a raised letter's rays are an engraved "glory" on a layer of their own, cut off at the ground by a box that stands still (turning inside the floor's drawing, the old star cost 11% to 20% of a core in WebKit; under 2% now). **The gilding** (the same decision, part 2; shapes in `tileShapes`): slim rings (`GILD`: 8 to 13.5 units outside the blue border; the ring says gilded, doubled from Gilded 4, and foil at Holographic, and no longer counts the stage), black diamond pips (solid ink where earned at every stage, Holographic too; a faint outline where not; no plate), and laurels from Gilded 4 on a whole character. **An UPPERCASE letter with legs draws its rings on a layer of their own under the legs** (floor, rings, legs, body), so the legs come over the gilding as the arms do; the owner ruled out any shortcut ("has to be a layer in front of the gilding"). Measured alone, the layer costs about nothing in WebKit. `tests/gilding.test.tsx` holds all four. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
+  **The drawing is four stacked `<svg>` layers (floor, legs, body, top), and a loop goes on a LAYER, never on a shape inside one.** A transform inside an `<svg>` makes WebKit (every iPhone browser and mini-app host) redraw the whole letter each frame: one word at rest cost 47% of a core that way and 6.5% on layers. The loops are the `tc-*` keyframes in `tailwind.config.ts`, with distances in the drawing's units through `--ux` / `--uy`. Anything inside a layer moves in a MOMENT (a blink, a glance, a twinkle: `useWordLife`, one timer for a word; the classes are in globals.css), never forever. A sleeping (hungry) letter's three z's are a layer each for that reason: looping inside the top layer they cost 44% of a core on Today, where a hungry word shows first, and 5% as layers. A nervous (rolling) letter's two beads of sweat are a layer each too: five letters wait together in the ascend sheet, and the beads inside their top layers were 27 of a nervous word's 45 points (about 20% as layers). The peeking eye stays inside the body layer: it swaps in steps and costs nothing. `tests/tile-character.test.tsx` holds the rule. **A tile's size never changes in an animation** (decisions.md #48; starl3xx: "it breaks the character illusion"): a letter is moved and turned, never scaled, by its loops, by a press, or by a box around it as it arrives (`animate-drop`, never `animate-pop`, on anything with a letter in it). The legs may stretch (that keeps the feet down), and a card may lift as it turns. `tests/tile-size.test.tsx` holds it, and makes every new `tc*` loop be sorted as body, legs, or off the tile. **A cheering letter's confetti is sixteen small drawings of their own** (`Confetti`: each piece an `<svg>` its own size, placed by percent over the letter, its fall in percent of its own box): looping inside the top layer they cost a cheering word 47% of a core in WebKit, and 13% this way. A whole-letter layer for each piece would keep sixteen letters' worth of store: never make an off-the-tile piece a full-size layer when there are many. **The cards' style is called "neo-Victorian engraving illustration" or "vintage ornamental illustration", and no artist's name is ever written** (starl3xx, 2026-11-26): not in the docs, the code, a comment, a test, a pull request, or a page. **What is on a letter is flat and colourful; what is around a letter is drawn like the cards** (the same decision): the ground shadow is ruled lines (`tileShapes`, `SHADOW_LINES`, shared with the share letter), the rack on a card's back is ruled line work in the material's line colour (`lib/cardArt/rack`, one set of shapes for the game and the server's picture), the table under a card in a link picture is engraved (`lib/cardArt/table`), the shadow under the video's card is ruled lines (the shader in `loop/loopRenderer`), the glow behind a Legendary or Mythic tile is an engraved halo of fine rays (`tileShapes` `haloPath`, 3 units off whatever the tile wears and never past 28, so two letters' halos never cross in a word), confetti is engraved in ink and gold, the ascend sheet's rays are an engraved picture (`lib/cardArt/glory`, turned as one element), and a raised letter's rays are an engraved "glory" on a layer of their own, cut off at the ground by a box that stands still (turning inside the floor's drawing, the old star cost 11% to 20% of a core in WebKit; under 2% now). **The gilding** (the same decision, part 2; shapes in `tileShapes`): slim rings (`GILD`: 8 to 13.5 units outside the blue border; the ring says gilded, doubled from Gilded 4, and foil at Holographic, and no longer counts the stage), black diamond pips (solid ink where earned at every stage, Holographic too; a faint outline where not; no plate), and laurels from Gilded 4 on a whole character. **An UPPERCASE letter with legs draws its rings on a layer of their own under the legs** (floor, rings, legs, body), so the legs come over the gilding as the arms do; the owner ruled out any shortcut ("has to be a layer in front of the gilding"). Measured alone, the layer costs about nothing in WebKit. `tests/gilding.test.tsx` holds all four. In a word the letters hold hands (`linkLeft` / `linkRight`: one clasp a pair, drawn by the letter on the right, on the still top layer) and each leans up to 2° (`leanFor`). `flat` draws one `<svg>` for a picture in a single file (`scripts/docs-art.tsx`). On the Today stage the word perks up and looks at the pointer (`.tc-perks`): no glow (a `filter` over moving drawings is redone every frame).
 - `src/components/game/` → the playable mini app: `GameApp.tsx` (shell), `state.tsx` (mock store +
   reducer + seeded RNG), `Providers.tsx` (`MiniAppHost` + wagmi + RainbowKit; the
   connect modal is themed in `walletTheme.ts`). **A Farcaster host is one that answers**
@@ -742,6 +770,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`useLetterSupply`, shared with the lookup sheet): a sold-out letter shows "Sold out" and the rest
   rise; "N left" shows only at a tenth of the chain's cap or less (`LOW_SHARE`). The docs' odds table
   (`docs-site/letters.mdx`) is pinned to the code by `tests/letter-odds.test.ts`.
+- **The jackpot's secret word is a card** (decisions.md #50, part 4; starl3xx: "a card has to be held, not
+  individual letters"): face down until it is revealed (`cards/FaceDownCard`: a back's stock and the seal;
+  it takes NO word and NO rarity, so nothing about the word can show, and its material is always
+  Common's), then face up (the winner's own card, or the word in the plain scene). Never show a word as
+  loose letters where a card would do. `tests/face-down-card.test.tsx` holds it.
 - **The Jackpot page carries the bounty** (starl3xx, 2026-11-25): one tab (the phone's "Win", the
   rail's "Jackpot"), the daily jackpot then the weekly bounty (`screens/BountySection.tsx`), side by
   side from `lg`. There is no `bounty` view. Today keeps both cards; its bounty card links with
@@ -959,8 +992,24 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   touching the route, the relayer, or `Letters.reveal`. **A pack comes by mail** (decisions.md #49,
   part 2; `sheets/MailSheet.tsx`, sheet kind `mail`; rules in `mail/mailFlow.ts`, pure, tested; art
   in `lib/cardArt/mail.ts`, the cards' engraving, each piece a still picture moved whole): a paid
-  pack and the free pack. The daily letter keeps the `pack` sheet ("Fresh pull") until it comes by
-  mail too. The piece in hand is `g.mail` (both stores), because the purchase outlives the sheet.
+  pack, the free pack, and the daily letter (one letter: "Contents: 1 letter", never "Paid"). The
+  piece in hand is `g.mail` (both stores), because the purchase outlives the sheet. **The daily
+  letter is NOT the pack's flow with a count of one** (part 3): its commit and reveal ride one send
+  with a PREDICTED commit id, and the wallet's "sent" can't say which of them landed. Its marks
+  follow `lib/onchain/dailySend` (`dailyPlan`, pure, tested): the number only once the chain says
+  that id is this wallet's one-letter commit (never print the predicted id), the tear only once
+  the chain says "revealed", the letter from the route's "already" answer (the chain's), the
+  server asked to open it only when the wallet's own reveal can no longer land (two reveals for
+  one commit means one reverts), and the envelope leaves only when `dailyUsed` says nothing was
+  committed AND the send is known to have failed (a send that is only slow is "unsure": the note
+  stays). **Hiding the daily's letter is a DISPLAY rule** (`lib/dailyNote` `dailySealed`, pure,
+  tested): the letter goes on the stored note at the send, and the tile beside "claimed" is
+  hidden only while a sealed one-letter envelope stands in this browser (in hand, kept as mail,
+  or a one-letter commit still to be opened). Never bring back "a note with no letter must find
+  its envelope": it took five rounds of fixes and was removed. An envelope lost to a reload costs
+  the ceremony only. **Mail opened late says
+  less** (`Mail.plain`, `hadFor`): a commit that was already revealed when the card opened it, or
+  letters that went to a linked wallet, get no tags, no "new", and no word named.
   **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
   commit is sent, the postmark and its number (`mailNumber`: the commit id plus one, one series for
   packs, free packs, and daily letters) when the commit is on chain, and the strip tears only when

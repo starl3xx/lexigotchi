@@ -924,8 +924,11 @@ setter. All small, riding existing suite patterns.
 34. **A card is an object, and its scene is a still engraving** (starl3xx, 2026-11-25, on the
     "Cards, Scenes, and Logo" proposal, six versions: "this is ABSOLUTELY the right direction for
     the cards"; then "After these are fixed, you're free to start building"). The owner pointed at
-    Peter Voth's engraved cards and labels for the manner, and asked that the letters "retain their
-    current style but ... live on top of" such card scenes. Nothing of his is copied.
+    engraved cards and labels for the manner, and asked that the letters "retain their current
+    style but ... live on top of" such card scenes. **The style has a name, and no artist's name
+    is ever written** (starl3xx, 2026-11-26): "neo-Victorian engraving illustration or vintage
+    ornamental illustration". Not in the docs, the code, a comment, a test, a pull request, or a
+    page. Nothing of anyone's is copied.
     - **The card.** Its own paper, a shade lighter than the page, with a grain and a linen weave;
       the scene's art in a window; a frame in the rarity's ink (an edge rule, a chain of engraved
       links, the window's rule) with the rarity's mark in its four corners; and a ribbon set into
@@ -2116,6 +2119,77 @@ setter. All small, riding existing suite patterns.
         needs a verified identity), a pack opened for a linked wallet, a wallet changed while a
         pack is on its way, a smart wallet's batched send, a real phone, and a mini-app host. The
         chain store's glue is still under no automated test; its rules are the tested pure parts.
+    - **Part 3, the daily letter comes by mail** (the same sheet with one letter: a narrower
+      window, "Contents: 1 letter", "Your letter"; it is free, so it is never "Paid"). The old
+      "Fresh pull" sheet and its sheet kind are gone.
+      - **It is not the pack's flow with a count of one.** The daily's commit and reveal ride ONE
+        send, with the commit's id predicted by the server. After the wallet says "sent", both
+        may have landed, or the commit alone (the second prompt refused, or another commit took
+        the predicted id so the reveal named the wrong one), or nothing (a batch that goes all or
+        nothing, reverted whole). The wallet can't tell them apart. So every mark follows the
+        chain (`lib/onchain/dailySend`, `dailyPlan`, pure, tested):
+        - **the number** is given only once the chain says that id is this wallet's one-letter
+          commit. The predicted id is never printed: with a pack bought in between, the envelope
+          got No. 193 where the prediction said 192;
+        - **the tear** waits for the chain's "revealed", and the letter is the one the chain
+          minted (the route's "already" answer), never the bundle's own copy;
+        - **the server is asked to open the commit only when the wallet's reveal can no longer
+          land:** it was refused, there was no bundle, it named another id, or 15 s passed. Two
+          reveals for one commit means one reverts;
+        - **the envelope leaves only when the chain says the daily was never used**
+          (`dailyUsed`) AND the send itself is known to have failed (it mined and reverted, or
+          the wallet says so: `traceSend`). Then the "claimed" note is taken back and Pull
+          returns. The wallet accepting a send is not the chain including it: a send that is only
+          slow is "unsure", the envelope says it is taking a while, and the note stays (Bugbot on
+          #276);
+        - **when the chain can't be read for a whole minute,** the envelope says the letter is
+          safe and will be waiting, and that is kept: an unrevealed commit shows on the card by
+          itself, and one the bundle already revealed is looked for again (10 s to 4 min later)
+          and made mail to tear. After that its letter is simply in the bag, which is why the
+          envelope's words say "in your bag, or waiting for you on Today".
+      - **Which letter is the envelope's to say, as a display rule** (`lib/dailyNote`
+        `dailySealed`, pure, tested). The letter goes on the stored note at the send, as it did
+        before the mail. The tile beside "claimed" on Today and Mint is hidden only while a sealed
+        one-letter envelope stands in this browser: in hand and on its way or waiting to be torn,
+        kept as mail, or a one-letter commit the card still has to open. When the note names its
+        envelope, only that one counts, so an older daily left unopened never keeps today's tile
+        blank. No toast names the letter at the tap. The note may name its envelope, so its tear writes the letter the chain minted
+        over the one the send was made with, and never stamps the note again (tearing an old
+        envelope must not mark today as claimed).
+      - **The rule I tried first, and why it is gone.** The note was written with NO letter, and
+        the tile waited for the tear. Then a note with no letter had to find its envelope again
+        after every reload, late open, or lost connection: first a link in memory, then a stored
+        link, then a search of the chain, then retries, then a watch on unrevealed commits. Bugbot
+        found a gap in each of five rounds, all in provider code that no test reaches. Hiding is a
+        matter of what is on screen, so it is now worked out from what is on screen. An envelope
+        lost to a reload costs the ceremony only, as it does for a pack; the tile and the letter
+        are never lost with it.
+      - **A daily's send that is still running after a wallet switch** writes nothing to the new
+        wallet's note (it remembers the note it began under).
+      - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
+        that was already revealed, the bag read at that tap may count its letters already. Its
+        letters then get no tags, none is called new, and no word is named: counted twice, a
+        letter would be said to finish a word the player can't spell. The same holds for letters
+        that went to a linked wallet.
+      - **The card draws what waits:** one pair of eyes for a daily letter, five for a pack
+        (`nextMail`).
+      - **Seen and not seen (part 3).** Practice game: the one-letter envelope at 424 px, each
+        step, the card, and the tile appearing only after the tear (with a temporary local switch
+        for the Pull button, not committed: a plain browser has no linked identity). **Real-wallet
+        path on a local fork**, with the daily route's answer made by the route's own signing
+        code and the fork's test signer: both landing; the reveal prompt refused (the server
+        opened it); a pack bought between the voucher and the send; no bundle; and the page
+        losing its chain reads right after the send (the envelope said the letter waits, and ten
+        seconds after the reads returned it could be torn). In every run the letter the envelope
+        gave was the letter the chain minted. Also at 360 px (WebKit) and 768 px. And one run with
+        everything together, after part 2's fixes were merged in: a pack left untorn, a second
+        pack closed while "Paid" on a slow chain, the first opened from the card meanwhile (the
+        card kept saying one piece waits until the second landed with "Your mail is here."), the
+        daily letter pulled with two packs waiting, then both packs from the card, the older
+        first: 11 letters on chain, five wallet sends, none of them a reveal. Not driven: the
+        real `/api/mint/free-daily` (it needs a verified identity), an atomic batch that reverts
+        whole (the test wallet sends two transactions, never a batch), a real phone, a mini-app
+        host.
 
 50. **Four bigger pieces, built in parts** (starl3xx, 2026-11-26, on the review page "Four Bigger
     Pieces"). The card-and-letter review (#48) set four places apart: the landing page's hero
@@ -2208,6 +2282,78 @@ setter. All small, riding existing suite patterns.
       - **Seen and not seen (part 2):** the running landing page at 390, 768, 1,024, and
         1,280 px in WebKit and Chromium: no error, no sideways scrolling, the card beside the
         headline from 1,024 px and under it below. Not seen: a real phone.
+    - **Part 3, the Market's letters stand on a fine double rule** (2C; globals.css `.mk-rule`,
+      `LettersBoard.tsx`). The shelf was a flat tan plank between two heavy ink lines. It is an
+      ink line 1.5 px thick with a fainter line under it, 5 px in all, as a card's frame is
+      ruled. The tags are as they were, and each tag's string still reaches the rule. The shelf
+      is 6 px shorter a row.
+      - **One line a row, not one piece a slot.** The plank was a piece under each letter, each
+        a pixel wider than its slot so that no gap showed between neighbors. With thin lines that
+        pixel showed: at pixel ratios 1.25 and 1.5 the softened edge of the line was drawn twice
+        there, a darker tick at every join (about 53 of 255 darker). Pieces exactly a slot wide
+        left gaps at those ratios in WebKit (the page showing through the line). So the first
+        slot of each row draws the whole row's line (7 slots wide on a phone, 13 from md), and
+        every other slot keeps its place and draws nothing. The line lets taps through
+        (`pointer-events: none`): a tap on it goes to the letter above it.
+      - **The column counts are written twice**, in the grid (`LettersBoard`) and in the rule's
+        width (globals.css). `tests/market-shelf.test.ts` holds them equal.
+      - **Solid colours.** The lower line is the page's paper with 45% ink, mixed (`#928b7c`),
+        never a see-through ink: the page's dots would show through it.
+      - **Measured** (the practice game; 1,280 px at pixel ratios 1, 1.5, and 2; 768 px at 1.25;
+        390 px at 2 and 3; Chromium and WebKit): at every join between two slots the line is the
+        same as beside it, to 1 of 255. A tap on the line under the 5th, 10th, and 17th letter
+        opens that letter, on a phone and on a wide screen, in both.
+      - **Seen and not seen (part 3):** the whole shelf before and after at 1,280 px and 390 px;
+        the joins enlarged at all six settings. `screen-market.jpg` in the player docs is taken
+        again. Not seen: a real phone.
+    - **Part 4, the jackpot's secret word is a card** (4B; `cards/FaceDownCard.tsx`,
+      `screens/JackpotScreen.tsx`). It was five dark tiles with a "?" on each, and after the
+      reveal the word as loose letters. Now:
+      - **Before the reveal, one card, face down:** a back's stock and frame with the game's
+        seal in the middle, and no number, facts, or letters. 240 px wide at most.
+      - **After, the card face up.** A player who held the word, staked and fed, sees THEIR card:
+        their scene, their cases, their gilding, the letters cheering. Anyone else sees the word
+        in the plain scene, in lowercase, in its rarity's frame.
+      - **The face-down card is given no word and no rarity,** so it can show neither. Its
+        material is always the plain one (Common's). A back in the word's own material would
+        tell every player the word's rarity before the reveal. **Open for the owner:** Common's
+        material is the stand-in he saw on the review page; which plain material a face-down
+        card wears is his to decide.
+      - **No turn.** The face-up card arrives with the game's drop (it moves, it never changes
+        size). A real turn from back to front is its own piece of work: the back and the front
+        would be one card, and the front must not be in the page before the reveal.
+      - **Where it shows.** In the game onchain the page never reveals the word by itself, so
+        players see the face-down card all day. The reveal, the win, and the loss are the
+        practice game's.
+      - **The room it takes:** the jackpot's box is 347 px tall with the card, where it was about
+        260 px with the tiles. Beside the bounty from `lg` each column keeps its own height.
+      - **Seen and not seen (part 4):** the practice game at 390 px, 1,024 px, and 1,280 px in
+        Chromium and WebKit: face down, after a win (the first day's word is one the player
+        holds), and after a loss (the next day). No error, no sideways scrolling.
+        `screen-bounty.jpg` in the player docs is taken again. Not seen: a real phone; the page
+        onchain (it shows only the face-down state, the same component).
+    - **Part 5, letters act the steps out, with no icons between them** (3A, in part;
+      `Onboarding.tsx`, `LandingPage.tsx`). Built:
+      - **"Raise them"** (the intro and the landing page): a lowercase r, the r mid-roll (the
+        rig's rolling look: it can't look), and the R it becomes. It was r, a dice icon, R.
+      - **"They get hungry."** (the landing page): a hungry y and the y fed. It was a hungry y,
+        a cookie icon, and a fed y. The review page drew a third letter between them, at its
+        snack; he does not like that look held small ("the static cookie/circle thing"), so no
+        letter is shown at its snack in these pictures. The rig's snack is not changed.
+      - **Held: "Keep them fed"** (the intro and the landing page) still has its trophy, cookie,
+        and confetti icons. The review page's picture for it was the word at its snacks, which
+        he turned down, and he has seen no other. **Open for the owner:** candidates for it go
+        on the design audit's pages (he also said, the same evening, that he hates the trophy).
+      - **What it costs.** The letter mid-roll is the dear one. The "Raise them" picture alone,
+        at the landing page's size, three alternating runs of 15 s, on this Mac under heavy
+        load from other work: WebKit 1.5%, 1.5%, 3.1% of a processor core with the icon, and
+        14.5%, 31.5%, 13.7% with the three letters; Chromium 8.9%, 13.3%, 13.1%, and 15.6%,
+        19.9%, 21.4%. About 12 points more in WebKit and 7 in Chromium, while the picture is on
+        screen. If that is too much for the landing page, the middle letter can stand still
+        there (`still`) at no cost; the intro shows one step at a time.
+      - **Seen and not seen (part 5):** the landing page's two pictures at 390 px and 1,280 px,
+        and the intro's second step at both, in WebKit and Chromium: no error, nothing outside
+        its box, no sideways scrolling. Not seen: a real phone.
 
 51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
     2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
@@ -2303,10 +2449,78 @@ setter. All small, riding existing suite patterns.
       holds nothing back and would release every set at once (the runbook says so).
     - **Owner steps after part 1:** run migration 0021; paste the JSON into Sets; send the reserve
       root (`setDictionaryRoot`) from the owner wallet.
+    - **Part 3: the first-day gate, built and NOT deployed** (the owner: "I like the gated idea on
+      #8"; "tell me the plan and the date before doing it. Until then, items 1–7 ship without the
+      gate").
+      - **The contract.** `Words.gatedUntil[tokenId]`, set by the owner in a batch
+        (`setGate(tokenIds, until)`, event `Gated`), at most `MAX_GATE` = 7 days ahead, never on a
+        word somebody holds. While a word is gated, `claim` needs a voucher signed by `claimSigner`
+        (owner-set, as Staking's signer is; set at deploy) over (this contract, the chain id, a
+        gated-claim kind, the caller, the token id, a deadline). **One claim path, two forms:** the
+        old `claim(word, mask, proof)` is unchanged for an ungated word (the same selector,
+        `0x527c5082`, checked by raw call in the tests) and reverts `VoucherRequired` on a gated
+        one; `claim(word, mask, proof, deadline, sig)` takes the voucher and ignores it once the
+        gate has lifted, so a claim sent as the gate lifts doesn't fail for it. Both share
+        `_checkClaim` and `_finishClaim`.
+      - **A voucher has no nonce, on purpose.** It names the caller and the word, so reused it is
+        the same wallet claiming the same word again after dissolving it. A nonce would cost a
+        storage write on every gated claim to enforce what the server's count already holds.
+      - **The server counts vouchers ISSUED, never words held** (the audit's one note, at 70 of a
+        threshold of 80): a count of words held would let a player claim, move the word to another
+        wallet, and ask again. `POST /api/sets/voucher` signs only for a verified profile (the free
+        letters' own check), at most `per_player_limit` different words of a set per profile
+        across its linked wallets (table `set_vouchers`, migration 0022; one profile's requests
+        run one at a time), with a 10-minute deadline. The row is written before the voucher is
+        signed. A slot comes back only when the chain's `Claimed` history shows the voucher
+        expired unused; a used one is spent for good, whoever holds the word now. The same word
+        again is always a renewal, never a second word.
+      - **The caller must prove the wallet is theirs** (my addition; the spec didn't ask for it):
+        the wallet's profile session, or a Farcaster sign-in that Farcaster ties to the profile.
+        The free snack's voucher needs no proof because asking for a stranger's spends nothing.
+        This one spends the profile's one slot on a word the caller names, so without proof a
+        stranger could name your wallet and a word you don't want, again each time it expired, for
+        the whole first day. A web player with no session gets "sign in to your profile" and the
+        profile opens.
+      - **A release leaves out words somebody already holds** from its gate (`setGate` would revert
+        the whole batch), and no release is planned when ownership can't be read. Sepolia matters
+        here: words claimed before they were reserved.
+      - **The audit** (`solidity-auditor` on `Words.sol`, four scanners, 170 vectors; decisions #12
+        stands, no external audit): no finding at or above the threshold. `contracts/AUDIT.md` has
+        the pass, what was checked and dropped, and one older, unrelated detail two scanners saw
+        (`dissolve` logs the caller's word string unchecked; nothing reads it; the owner's call
+        whether to close it in the redeploy).
+      - **In the game:** a claim of a gated word asks for the voucher first; each refusal has its
+        own sentence with when the word opens to everyone (`components/game/setGate.ts`).
+      - **Dark until the redeploy.** Whether a network's Words has the gate is written in the
+        deployment registry (`"wordsGate"`), never guessed from a contract read: a failed read
+        can't tell "no gate" from an RPC hiccup, and a hiccup read as "no gate" would plan a
+        release without its gate. Sepolia's is false, so the voucher route answers `not_gated`,
+        the proof route never says a word is gated, and a release is the root alone. Nothing a
+        player sees changes. Likewise a gate that can't be read is never "no gate": no release
+        plan is built, and a release isn't marked until its gate can be read.
+      - **Two bugs the second review found before merge, both fixed with tests on a real
+        database.** Asking again for the same word after its voucher expired unused failed for
+        good (the rule said "new", the table's one-row-per-word key refused the insert): the freed
+        row is now revived. And a renewal from a linked wallet made the row name only that wallet,
+        so the first wallet's claim went unseen and the slot was freed: a row now remembers every
+        wallet it was signed for, and settling asks the chain about all of them.
+      - **Three more from the last automated review, fixed before merge.** Settling read the
+        chain from the set's release, a span a public RPC refuses within hours, so an unused
+        voucher would have held its slot all day: it now reads from about when the row was first
+        made, in spans that halve when refused. The game decided whether to ask for a voucher by
+        the device's clock, and the server by its own, while the contract goes by the chain's: the
+        game now asks whenever the server says a word is gated, the server says so until two
+        minutes past the gate's end, and the voucher route decides by the chain's time. And the
+        proof route took "gated" from the sets table, which a database outage hides: it now asks
+        the chain for that word's `gatedUntil`, and serves no proof when that can't be read.
+      - **The redeploy** is the whole suite (Staking, Rolls, Prestige, and the Jackpot hold the
+        Words address for good), it resets the testers' test build, and it carries the 3.0× caps.
+        `docs/web3-runtime-plan.md` has the plan and the proposed time (Thursday 2026-12-03, after
+        the 00:05 UTC keeper run pays the bounty week); it waits for the owner's word. The same
+        section lists what the mainnet deploy must include, since Words can't change afterwards:
+        the gate, the reserve root (`DICTIONARY_ROOT`), and the claim signer.
     - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available
-      yet", the set's name on a card's back, the reminders, the player docs); part 3, the
-      first-day gate (the Words change, its tests and audit, the voucher server), which needs a
-      redeploy of the whole suite and waits for the owner's word on a date.
+      yet", the set's name on a card's back, the reminders, the player docs).
 
 ## Pricing & launch economics (decided June 2026)
 

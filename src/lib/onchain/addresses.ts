@@ -37,6 +37,12 @@ type Registry = {
   contracts: Record<ContractKey, string | null>;
   /** The EAS schema the keeper attests achievements under, registered per network. */
   easAchievementsSchema?: string | null;
+  /**
+   * Was this network's Words deployed WITH the first-day gate (decisions.md, "Reserved word sets")?
+   * A fact about the deployment, so it is written here with the addresses, by the same PR that
+   * records a redeploy. Absent or false: no gate.
+   */
+  wordsGate?: boolean;
   /** The Shop beside the suite (decisions.md #22): never part of isSuiteDeployed. */
   shop?: { shop: string | null; usdc: string | null; adapter: string | null; deployBlock: number | null };
 };
@@ -125,6 +131,16 @@ export function shopAdapterAddress(): `0x${string}` | null {
 /** The block the Shop was deployed in: the floor for its event scans. */
 export function shopDeployBlock(): bigint {
   return BigInt(REGISTRY.shop?.deployBlock ?? 0);
+}
+
+/**
+ * Does this network's Words have the first-day gate (`setGate`, `gatedUntil`, `claimSigner`)?
+ * Read from the registry, never by asking the contract: "the call failed" can't tell a Words
+ * without the gate from an RPC hiccup, and reading a hiccup as "no gate" would plan a release
+ * with no gate and send a gated word's claim without its voucher.
+ */
+export function wordsHaveGate(): boolean {
+  return REGISTRY.wordsGate === true && isSuiteDeployed();
 }
 
 /** True when the whole suite resolves — the gate for showing real on-chain UI at all. */

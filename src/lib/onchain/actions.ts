@@ -102,6 +102,12 @@ export function claimCalls(
   upperMask: number,
   params: GameParams,
   player: PlayerState,
+  /**
+   * The server's voucher, for a word still inside its set's first day (POST /api/sets/voucher;
+   * Words.claim's five-argument form). Without one this is the claim it always was, byte for byte:
+   * only a Words deployed with the gate has the other form, and only the server says a word is gated.
+   */
+  voucher?: { deadline: bigint; sig: `0x${string}` },
 ): Call[] {
   const words = addressOf("words");
   return [
@@ -118,11 +124,17 @@ export function claimCalls(
     }),
     {
       to: words,
-      data: encodeFunctionData({
-        abi: wordsAbi,
-        functionName: "claim",
-        args: [word.toUpperCase(), upperMask, proof as `0x${string}`[]],
-      }),
+      data: voucher
+        ? encodeFunctionData({
+            abi: wordsAbi,
+            functionName: "claim",
+            args: [word.toUpperCase(), upperMask, proof as `0x${string}`[], voucher.deadline, voucher.sig],
+          })
+        : encodeFunctionData({
+            abi: wordsAbi,
+            functionName: "claim",
+            args: [word.toUpperCase(), upperMask, proof as `0x${string}`[]],
+          }),
     },
   ];
 }

@@ -9,7 +9,7 @@ deployed**. Solidity 0.8.28, OpenZeppelin 5.x, Foundry. Target chain: Base (8453
 |---|---|
 | `FeeRouter` | 4-bucket fee split (Pool/Jackpot/Burn/Treasury), solvency-capped payouts, **real `$WORD.burn()`** |
 | `Letters` | ERC-1155 (52 ids); commit→signed-reveal mints, FID daily, **free vouchers** (free daily + one-time free-pack airdrop), ETH-swap path, `upgrade`, EIP-2981 signal |
-| `Words` | ERC-721 per dictionary word, Merkle-gated claim, 5-letter escrow, case-as-state, dissolve, prestige level, base-URI `tokenURI`, EIP-2981 signal |
+| `Words` | ERC-721 per dictionary word, Merkle-gated claim, 5-letter escrow, case-as-state, dissolve, prestige level, base-URI `tokenURI`, EIP-2981 signal, **the first-day gate** (`gatedUntil`, `setGate`, a voucher `claim`; decisions.md #51) |
 | `Rolls` | Commit→signed-reveal upgrades; fail = no-op; pity per `(beneficialOwner, letter)` |
 | `Staking` | Word custody + hunger clock + snack feed; eligibility truth for Jackpot; **caretakers** (a staker's other wallets may feed, roll, and ascend its staked Words) |
 | `Prestige` | Ascension of full-UPPERCASE staked words (signed reveal, monotonic, fail = no-op) |
@@ -35,6 +35,12 @@ suite depends on its `burn()` + `transferFrom` semantics.
   fairness of the split; never for solvency (payouts capped at funded).
 - **`priceKeeper`** (distinct hot key) — auto-repegs prices within an `onlyPriceKeeper` clamp + a
   hardcoded per-contract cooldown. Solvency-irrelevant; can't cross zero; default-disabled.
+- **`claimSigner`** (Words; the same hot key as `signer`) — vouches for a claim of a GATED word (the
+  first day after a reserved set's release, decisions.md #51). Trusted for *fairness of the first
+  day* only: it can hand out more vouchers than the one-per-profile the server counts, and nothing
+  else. The `owner` sets gates (at most `MAX_GATE` = 7 days ahead a call, never on a claimed word)
+  and already decides which words the dictionary root admits, so the gate gives the owner no power
+  over unclaimed words it didn't have. Neither can reach a claimed Word, its escrow, or any $WORD.
 - **Caretakers** (`Staking.setCaretaker`, 2026-11-24; design: `docs/linked-wallets-onchain.md`) — a
   staker names its other wallets, which may then `feed`/`feedMany`, `Rolls.commitWordRoll`, and
   `Prestige.commitPrestige` its STAKED Words. The caller always pays (never the staker's allowance);
@@ -210,6 +216,46 @@ adapter that lies about its output delivers nothing and the frame reverts), perm
 allowance stands), the v3 leg's zero minimum (the v4 leg and two balance checks cover the whole route),
 and the mocks' vouchers (they bind contract, chain, caller, profile, and day).
 
+### Fifth internal pass (2026-11-26): the first-day gate in Words
+
+`Words.sol` gained the gate (decisions.md #51): `gatedUntil`, `MAX_GATE`, `setGate`, `claimSigner`,
+`setClaimSigner`, and a second `claim` that takes a voucher; the old `claim` was split into
+`_checkClaim` and `_finishClaim` so both forms share one path. The `solidity-auditor` skill ran on
+`Words.sol` (with `FeeCollector` and `RepegKeeper` as read-only context): four vector scanners, all
+170 vectors classified. The local skill is version 1; upstream is 4.1. No adversarial reviewer this
+pass (the default mode; run DEEP before mainnet, see below).
+
+- **No finding at or above the confidence threshold (80).**
+- **Below the threshold (70), handled off-chain: a voucher has no nonce.** The same wallet can
+  claim the gated word, dissolve it, and claim it again with the same voucher until its deadline.
+  That is one wallet and one word (`test_Gate_voucherReuseIsTheSameWalletAndWordOnly`), so nothing
+  is taken on the chain. It would break the one-word-per-profile limit only if the server counted
+  words HELD. It doesn't: it counts vouchers issued, and gives a slot back only when the chain's
+  `Claimed` history shows the voucher expired unused (`lib/sets/voucher.ts`, `tests/set-vouchers`,
+  `scripts/sets-db-check.ts`). A nonce in the contract would cost a storage write on every gated
+  claim to enforce what the count already holds.
+- **Checked and dropped:** a gate bypass (both `claim` forms run `_checkClaim`, and `_finishClaim`
+  is the only mint path; the token id is the keccak of the same bytes the Merkle leaf and the A–Z
+  check use); cross-contract and cross-chain replay (the digest names this contract, the chain id,
+  and a kind tag: `test_Gate_noOtherVoucherPassesForOne`, `test_Gate_voucherIsForThisChainOnly`);
+  a mempool copy (the digest names the caller); signature malleability and a zero signer (OZ
+  `ECDSA.recover`; the signer is never zero); reentrancy (one `nonReentrant` lock on both claims
+  and `dissolve`, the escrow written before `_safeMint`); the check order (unchanged for an
+  ungated word: `test_Gate_ungatedClaimIsUnchanged` sends the old selector by raw call); `setGate`
+  with duplicate ids, on a claimed word, or past the cap.
+- **Operational, not a code bug: the order of a release.** `setGate` must land BEFORE the
+  `setDictionaryRoot` that releases the words, or there is a moment when one is claimable without
+  its gate. The release builder emits them in that order as one batch
+  (`test_Gate_releaseSetsTheGateBeforeTheRoot`; `lib/sets/server.ts` `planRelease`), and leaves
+  out any word somebody already holds, since `setGate` reverts on one.
+- **Seen by two scanners, older than this change, not fixed:** `dissolve(tokenId, word_)` emits the
+  caller's `word_` in `Dissolved` without checking it against `tokenId`. An owner can log a wrong
+  label for their own token. Nothing in the app reads that string (it keys on the indexed
+  `tokenId`). A one-line check would close it, and Words is redeployed for the gate anyway: the
+  owner's call.
+- **Before mainnet:** run the skill in DEEP mode (the adversarial reviewer) on the final
+  `Words.sol`, with the current skill version.
+
 ## Suggested external focus
 
 Commit-reveal + voucher signature surface (digest layouts, replay, the KIND tags); FeeRouter
@@ -219,7 +265,7 @@ accounting + the `route()` surplus/delivered check; Words escrow + case-state; t
 
 ## Status
 
-`forge build` clean; **145 forge tests** (2026-11-25, with the Shop's 49 and its 4 fork tests; incl. the invariant campaign and a cross-language
+`forge build` clean; **153 forge tests** (2026-11-26, with the gate's 10 and the Shop's 49 and its 4 fork tests; incl. the invariant campaign and a cross-language
 AnswerChain vector — the schedule generator `scripts/generate-answer-chain.ts` and
 `AnswerChain.reveal` share a verified fixture) + **857 vitest** (economy, solvency, signer draws, and the app) green. Known gaps
 for the audit/launch (see `README.md` checklist): the production swap-router adapter (deferred —

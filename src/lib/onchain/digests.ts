@@ -199,3 +199,20 @@ export function ethSignedMessageHash(innerDigest: Hex): Hex {
     ("0x19457468657265756d205369676e6564204d6573736167653a0a3332" + innerDigest.slice(2)) as Hex,
   );
 }
+
+/** Bound into Words' gated-claim digest (Words.sol GATED_CLAIM_KIND). */
+export const GATED_CLAIM_KIND = keccak256(toBytes("lexigotchi.words.gatedClaim"));
+
+/**
+ * Words.claim with a voucher: the first-day gate on a newly released set's words (decisions.md,
+ * "Reserved word sets"). `caller` is msg.sender, `tokenId` the word's (keccak256 of the UPPERCASE
+ * word). Words.sol: abi.encode(address(this), block.chainid, GATED_CLAIM_KIND, msg.sender, tokenId, deadline).
+ */
+export function gatedClaimDigest(a: { words: Hex; caller: Hex; tokenId: bigint; deadline: bigint }): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [{ type: "address" }, { type: "uint256" }, { type: "bytes32" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }],
+      [a.words, chainId(), GATED_CLAIM_KIND, a.caller, a.tokenId, a.deadline],
+    ),
+  );
+}

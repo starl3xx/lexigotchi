@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateIntent, castCommand, type TxIntent, type TxArgValue } from "@/lib/admin/tx";
+import { validateIntent, castCommand, safeBatchJson, type TxIntent, type TxArgValue } from "@/lib/admin/tx";
 
 const ADDR = "0x" + "1".repeat(40);
 
@@ -108,5 +108,49 @@ describe("castCommand", () => {
   it("appends a --value flag only for a non-zero ETH value", () => {
     expect(castCommand(intent([], { address: ADDR, value: "1000" }))).toContain("--value 1000");
     expect(castCommand(intent([], { address: ADDR, value: "0" }))).not.toContain("--value");
+  });
+});
+
+// A release of a reserved set (decisions.md, "Reserved word sets") gates its words first:
+// Words.setGate(uint256[], uint64), then the root. The list is written "[1,2,3]".
+describe("a list argument (Words.setGate's token ids)", () => {
+  const gate = (ids: string, until = "1800000000"): TxIntent => ({
+    contractKey: "words",
+    contractName: "Words",
+    address: "0x1111111111111111111111111111111111111111",
+    signature: "setGate(uint256[],uint64)",
+    fn: "setGate",
+    args: [
+      { name: "tokenIds", type: "uint256[]", value: ids },
+      { name: "until", type: "uint64", value: until },
+    ],
+  });
+  const root: TxIntent = {
+    contractKey: "words",
+    contractName: "Words",
+    address: "0x1111111111111111111111111111111111111111",
+    signature: "setDictionaryRoot(bytes32)",
+    fn: "setDictionaryRoot",
+    args: [{ name: "root", type: "bytes32", value: "0x" + "ab".repeat(32) }],
+  };
+
+  it("takes whole numbers in brackets, and nothing else", () => {
+    expect(validateIntent(gate("[1,2,3]"))).toEqual([]);
+    expect(validateIntent(gate("[ 12 , 34 ]"))).toEqual([]);
+    expect(validateIntent(gate("[]"))).toEqual(["tokenIds needs at least one value"]);
+    expect(validateIntent(gate("1,2,3"))).toEqual(["tokenIds must be a list like [1,2,3]"]);
+    expect(validateIntent(gate("[1,0xab]"))).toEqual(["tokenIds values must be whole numbers"]);
+    expect(validateIntent(gate(""))).toEqual(["tokenIds is required"]);
+  });
+
+  it("is quoted for the shell: brackets are glob characters", () => {
+    expect(castCommand(gate("[1,2]"))).toContain(`"setGate(uint256[],uint64)" '[1,2]' 1800000000`);
+  });
+
+  it("goes into one Safe batch with the root, the gate first", () => {
+    const batch = JSON.parse(safeBatchJson([gate("[1,2]"), root], { name: "release" }, 84532));
+    expect(batch.transactions.map((t: { contractMethod: { name: string } }) => t.contractMethod.name)).toEqual(["setGate", "setDictionaryRoot"]);
+    expect(batch.transactions[0].contractInputsValues).toEqual({ tokenIds: "[1,2]", until: "1800000000" });
+    expect(batch.transactions[0].contractMethod.inputs[0]).toMatchObject({ name: "tokenIds", type: "uint256[]" });
   });
 });

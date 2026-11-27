@@ -223,8 +223,6 @@ export type RollTarget = { kind: "loose"; idx: number } | { kind: "word"; word: 
 
 export type Sheet =
   | { kind: "word"; word: string }
-  /** The daily letter's reveal (sheets/PackReveal). A pack comes by mail now: see `mail`. */
-  | { kind: "pack"; letters: number[] }
   /** A pack, as mail (sheets/MailSheet, decisions.md #49): the envelope from the tap to the count.
    *  It shows the store's `mail`, so the sheet carries nothing of its own. */
   | { kind: "mail" }
@@ -876,6 +874,8 @@ export interface GameApi {
    *   the bag: this is ceremony, and nothing may depend on it (lib/mailbox).
    */
   pendingReveals: number;
+  /** How many letters the piece `openPending` would open holds (the card draws it), or null: none waits. */
+  nextMail: 1 | 5 | null;
   /**
    * The piece of mail in hand, from the tap to the count (mail/mailFlow `Mail`), or null. The mail
    * sheet shows it. It outlives the sheet: a purchase goes on when the sheet is closed, and its
@@ -990,19 +990,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setShelf((list) => [...list.filter((m) => m.seq !== mail.seq), { ...mail, phase: "ready", number: facts.number, letters: facts.letters }]);
     };
     const waitingInHand = !!mail && mail.phase === "ready" && !mail.torn && state.sheet?.kind !== "mail";
-    const buyMockPack = () => {
-      if (state.balance < COST.pack) {
-        needWord(COST.pack, "a pack");
-        return [];
-      }
-      // What the bag held BEFORE: the reducer adds the letters at the tap, and "new" is measured from here.
-      const had = state.lower.slice();
-      const idxs = Array.from({ length: 5 }, drawLetter);
-      dispatch({ t: "pack", idxs });
-      // The pack comes by mail. In practice the number on the postmark is the player's own count.
+    /**
+     * Letters come by mail (decisions.md #49): a pack, and the daily letter. The reducer has put
+     * them in the bag at the tap; the envelope takes its marks on short timers. In practice the
+     * number on the postmark is the player's own count of pulls.
+     */
+    const sendMockMail = (piece: { count: 1 | 5; free: boolean; letters: number[]; had: number[] }) => {
       const seq = ++mailSeq.current;
       const number = state.mintCount + 1;
-      mailFacts.current.set(seq, { number, letters: idxs });
+      mailFacts.current.set(seq, { number, letters: piece.letters });
       setAside();
       mailTimers.current.forEach((id) => window.clearTimeout(id));
       const step = (ms: number, patch: Partial<Mail>, arrived = false) =>
@@ -1014,15 +1010,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
             if (arrived && sheetNow.current?.kind !== "mail") dispatch({ t: "arrive", sheet: { kind: "mail" }, text: "Your mail is here." });
           }, ms),
         );
-      setMail({ seq, count: 5, free: false, phase: "paid", number: null, letters: null, had, mine: true, torn: false });
+      setMail({ seq, count: piece.count, free: piece.free, phase: "paid", number: null, letters: null, had: piece.had, mine: true, torn: false });
       dispatch({ t: "sheet", sheet: { kind: "mail" } });
       step(PRACTICE_MAIL_MS.found, { phase: "found", number });
-      step(PRACTICE_MAIL_MS.ready, { phase: "ready", letters: idxs }, true);
+      step(PRACTICE_MAIL_MS.ready, { phase: "ready", letters: piece.letters }, true);
+    };
+    const buyMockPack = () => {
+      if (state.balance < COST.pack) {
+        needWord(COST.pack, "a pack");
+        return [];
+      }
+      // What the bag held BEFORE: the reducer adds the letters at the tap, and "new" is measured from here.
+      const had = state.lower.slice();
+      const idxs = Array.from({ length: 5 }, drawLetter);
+      dispatch({ t: "pack", idxs });
+      sendMockMail({ count: 5, free: false, letters: idxs, had });
       return [];
     };
+    // Today's letter is the envelope's to say: the tile beside "claimed" waits for the tear,
+    // whether that envelope is in hand or set aside on the shelf.
+    const sealedDaily = [mail, ...shelf].some((m) => !!m && m.count === 1 && !m.torn);
 
     return {
-      state,
+      state: sealedDaily ? { ...state, dailyLetter: null } : state,
       nav: (view, section) => dispatch({ t: "nav", view, section }),
       openSheet: (sheet) => dispatch({ t: "sheet", sheet }),
       closeSheet: () => dispatch({ t: "sheet", sheet: null }),
@@ -1038,10 +1048,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       dailyMint: () => {
         if (state.dailyMinted || state.balance < COST.daily) return null;
+        const had = state.lower.slice();
         const idx = drawLetter();
         dispatch({ t: "dailyMint", idx });
-        toast(`Daily letter: ${idxToChar(idx).toLowerCase()} · streak ${state.streak + 1}`, "good"); // lowercase: capitals mean raised
-        return idx;
+        // It comes by mail, as a pack does: no toast names the letter (the envelope says it).
+        sendMockMail({ count: 1, free: true, letters: [idx], had });
+        return idx; // not null: null is "already claimed today"
       },
       openPack: () => buyMockPack(),
       buyPack: () => buyMockPack(),
@@ -1152,6 +1164,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // The mock reveals in the same tick it commits, so nothing can strand. The one piece that can
       // wait is an envelope whose sheet was closed before it was torn open.
       pendingReveals: shelf.length + (waitingInHand ? 1 : 0),
+      // What `openPending` opens next: the oldest on the shelf, then the one in hand.
+      nextMail: shelf[0] ? shelf[0].count : waitingInHand && mail ? mail.count : null,
       mail,
       mailTorn: () => setMail((m) => (m ? { ...m, torn: true } : m)),
       busy: null,

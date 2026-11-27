@@ -8,6 +8,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ILetters} from "./interfaces/ILetters.sol";
 import {IWords, CaseState} from "./interfaces/IWords.sol";
@@ -27,9 +29,31 @@ import {RepegKeeper} from "./RepegKeeper.sol";
  *         may start in any mix of cases (decisions.md, "Mixed-case claims"). Upgrade rolls mutate the
  *         escrow in place (`applyUpgrade`, called by Rolls). Dissolution burns the Word, returns its
  *         five letters in their current case, and frees the name for re-claim (v0.1 §5.4).
+ *
+ *         RESERVED SETS AND THE FIRST-DAY GATE (decisions.md, "Reserved word sets"). A word is held
+ *         back from the game by being left out of `dictionaryRoot`, and released by a root that
+ *         includes it. For a time after its release a word may be GATED (`gatedUntil`): claiming it
+ *         then also needs a voucher signed by `claimSigner` for the caller and that word, so the
+ *         backend can limit how many words of a new set one player takes on its first day (it counts
+ *         per profile; this contract can't know a profile). Once the gate's time passes, anyone
+ *         claims the word exactly as before. A word that is not gated is not touched by any of this.
+ *
+ *         Trust in the gate: the owner sets gates (each at most `MAX_GATE` ahead, never on a word
+ *         somebody holds) and names the claim signer; the signer decides who gets a voucher. Neither
+ *         is a new power over unclaimed words: the owner already decides which words `dictionaryRoot`
+ *         admits at all. The gate can't touch a claimed Word, its letters, or anybody's $WORD.
  */
 contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, ReentrancyGuard, FeeCollector, RepegKeeper {
     uint8 internal constant FULL_MASK = 0x1F; // all five positions raised
+
+    /// @notice The furthest ahead of now a gate may end. A gate is a first-day limit on a newly
+    ///         released word; the cap bounds what one mistaken (or hostile) `setGate` can do.
+    uint64 public constant MAX_GATE = 7 days;
+
+    /// @dev Bound into the gated-claim digest, so nothing else this signer signs can pass for one
+    ///      (the same key signs Letters, Rolls, Staking and Prestige vouchers; each of those digests
+    ///      also names its own contract's address, as this one names this contract's).
+    bytes32 private constant GATED_CLAIM_KIND = keccak256("lexigotchi.words.gatedClaim");
 
     struct Escrow {
         uint8[5] letters; // alphabet indices (0..25)
@@ -49,6 +73,12 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     address public rolls; // may call applyUpgrade
     address public prestige; // may call bumpPrestige
 
+    /// @notice The backend key that vouches for a claim of a gated word (see `claim` with a voucher).
+    address public claimSigner;
+    /// @notice While `block.timestamp < gatedUntil[tokenId]`, claiming that word needs a voucher.
+    ///         0 (the default, and every word that was never in a gated release) means "not gated".
+    mapping(uint256 tokenId => uint64) public gatedUntil;
+
     /// @dev `upperMask` is the case the word was claimed in: bit k set ⇒ position k is uppercase.
     event Claimed(uint256 indexed tokenId, address indexed owner, string word, uint8 upperMask);
     event Dissolved(uint256 indexed tokenId, address indexed owner, string word);
@@ -60,6 +90,10 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     event RoyaltySet(address receiver, uint96 bps);
     event RollsSet(address rolls);
     event PrestigeSet(address prestige);
+    /// @dev One event per `setGate` call: every listed word is gated until `until` (a past time
+    ///      or 0 lifts the gate).
+    event Gated(uint256[] tokenIds, uint64 until);
+    event ClaimSignerSet(address signer);
 
     error WrongLength();
     error NotInDictionary();
@@ -73,6 +107,10 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     error AlreadyRaised();
     error ZeroAddress();
     error BadCaseMask();
+    error GateTooLong();
+    error VoucherRequired();
+    error VoucherExpired();
+    error BadSignature();
 
     constructor(
         IERC20 _word,
@@ -80,11 +118,16 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         ILetters _letters,
         bytes32 _dictionaryRoot,
         uint256 _claimPrice,
+        address _claimSigner,
         address initialOwner
     ) ERC721("Lexigotchi Word", "WORD-NFT") Ownable(initialOwner) FeeCollector(_word, _feeRouter) {
+        // Set at deploy, as Staking's signer is: a gate set while no signer exists would close its
+        // words to everyone until the owner noticed.
+        if (_claimSigner == address(0)) revert ZeroAddress();
         letters = _letters;
         dictionaryRoot = _dictionaryRoot;
         claimPrice = _claimPrice;
+        claimSigner = _claimSigner;
     }
 
     // --- claim / dissolve -------------------------------------------------------------------------
@@ -95,9 +138,55 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     ///        and anything between starts the word Mixed. Any mix is allowed (starl3xx, 2026-11-24,
     ///        replacing v0.1's "uniform case only"); the case stays derived from the escrow, so a
     ///        Mixed word is jackpot-eligible when staked and earns yield only once fully raised.
+    /// @dev   Reverts `VoucherRequired` while the word is gated: use the overload below with the
+    ///        backend's voucher. For every word that isn't gated this is the claim it always was.
     function claim(string calldata word_, uint8 upperMask, bytes32[] calldata proof)
         external
         nonReentrant
+        returns (uint256 tokenId)
+    {
+        tokenId = _checkClaim(word_, upperMask, proof);
+        if (block.timestamp < gatedUntil[tokenId]) revert VoucherRequired();
+        _finishClaim(tokenId, word_, upperMask);
+    }
+
+    /// @notice Claim `word` with a voucher: the way to claim a word while it is gated (the first
+    ///         day after its set's release). The same claim as above in every other respect.
+    /// @param deadline The voucher's last valid second.
+    /// @param sig `claimSigner`'s signature over (this contract, this chain, the gated-claim kind,
+    ///        the caller, the word's tokenId, `deadline`).
+    /// @dev   The voucher is checked ONLY while the word is gated. Once the gate has lifted (or for
+    ///        a word that was never gated) `deadline` and `sig` are ignored, so a claim sent with a
+    ///        voucher just as the gate lifts doesn't fail for it.
+    ///
+    ///        A voucher names the CALLER, so one read out of the mempool is useless to anyone else,
+    ///        and it names the WORD, so it claims no other. It carries no nonce on purpose: used
+    ///        twice it can only be the same wallet claiming the same word again after dissolving it,
+    ///        which takes nothing from anyone (how many DIFFERENT words a player gets is the
+    ///        backend's count, per profile, and it signs one word's voucher at a time).
+    function claim(
+        string calldata word_,
+        uint8 upperMask,
+        bytes32[] calldata proof,
+        uint256 deadline,
+        bytes calldata sig
+    ) external nonReentrant returns (uint256 tokenId) {
+        tokenId = _checkClaim(word_, upperMask, proof);
+        if (block.timestamp < gatedUntil[tokenId]) {
+            if (block.timestamp > deadline) revert VoucherExpired();
+            bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+                keccak256(abi.encode(address(this), block.chainid, GATED_CLAIM_KIND, msg.sender, tokenId, deadline))
+            );
+            if (ECDSA.recover(digest, sig) != claimSigner) revert BadSignature();
+        }
+        _finishClaim(tokenId, word_, upperMask);
+    }
+
+    /// @dev The checks every claim makes first, in the order they were always made: the word's
+    ///      length, the case mask, the dictionary proof, and that nobody holds the word.
+    function _checkClaim(string calldata word_, uint8 upperMask, bytes32[] calldata proof)
+        internal
+        view
         returns (uint256 tokenId)
     {
         bytes memory b = bytes(word_);
@@ -109,7 +198,11 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(word_))));
         if (!MerkleProof.verify(proof, dictionaryRoot, leaf)) revert NotInDictionary();
         if (escrows[tokenId].exists) revert AlreadyClaimed();
+    }
 
+    /// @dev The claim itself, once it is allowed: escrow the five letters, take the fee, mint.
+    function _finishClaim(uint256 tokenId, string calldata word_, uint8 upperMask) internal {
+        bytes memory b = bytes(word_);
         uint8[5] memory idx;
         uint256[] memory ids = new uint256[](5);
         uint256[] memory amounts = new uint256[](5);
@@ -225,6 +318,30 @@ contract Words is IWords, ERC721, ERC1155Holder, ERC2981, Ownable2Step, Reentran
     function setDictionaryRoot(bytes32 root) external onlyOwner {
         dictionaryRoot = root;
         emit DictionaryRootSet(root);
+    }
+
+    /// @notice Gate `tokenIds` until `until`: while it is earlier than that, claiming one of them
+    ///         needs a voucher (see `claim`). Sent BEFORE the `setDictionaryRoot` that releases the
+    ///         words, so there is no moment when one is claimable without its gate.
+    /// @param until The gate's end, at most `MAX_GATE` from now. A time that has passed (or 0)
+    ///        lifts the gate on the listed words.
+    /// @dev   Never a word somebody holds (`AlreadyClaimed`): a gate is for a word nobody has yet,
+    ///        and a claimed Word must not be touched by this. The cap bounds one call; the owner can
+    ///        call again, as it can also remove any unclaimed word from `dictionaryRoot`, so the gate
+    ///        adds no power over unclaimed words that the root didn't already give.
+    function setGate(uint256[] calldata tokenIds, uint64 until) external onlyOwner {
+        if (until > block.timestamp + MAX_GATE) revert GateTooLong();
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            if (escrows[tokenIds[i]].exists) revert AlreadyClaimed();
+            gatedUntil[tokenIds[i]] = until;
+        }
+        emit Gated(tokenIds, until);
+    }
+
+    function setClaimSigner(address signer_) external onlyOwner {
+        if (signer_ == address(0)) revert ZeroAddress();
+        claimSigner = signer_;
+        emit ClaimSignerSet(signer_);
     }
 
     function setClaimPrice(uint256 price) external onlyOwner {

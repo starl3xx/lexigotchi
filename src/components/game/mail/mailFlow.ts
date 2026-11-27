@@ -43,6 +43,13 @@ export interface Mail {
    * linked wallet): they are "away", so nothing here may say "now you can spell".
    */
   mine: boolean;
+  /**
+   * What the bag held before this piece is NOT known: it was already open when the game asked for
+   * it (mail opened late from the card), so the bag read then may count its letters already. Its
+   * letters are shown with no tags, none called new, and no word named from them: a letter
+   * counted twice would be said to finish a word the player can't spell.
+   */
+  plain?: boolean;
   /** The player has torn the envelope open: it is no longer unopened mail. */
   torn: boolean;
   /** For `waiting` and `finishing`: what to say. */
@@ -73,10 +80,11 @@ const HELD_ALL: readonly number[] = Array.from({ length: 26 }, () => 1);
 /**
  * What "new" is measured from for a piece. Its own `had`, unless nothing may be said about its
  * letters beyond what they are: they went to another wallet of the player's ("away"), so `had`
- * (the CONNECTED wallet's bag) says nothing about them (Bugbot on #273).
+ * (the CONNECTED wallet's bag) says nothing about them (Bugbot on #273), or what the bag held
+ * before them isn't known (`plain`).
  */
-export function hadFor(piece: Pick<Mail, "mine" | "had">): readonly number[] {
-  return piece.mine ? piece.had : HELD_ALL;
+export function hadFor(piece: Pick<Mail, "mine" | "had" | "plain">): readonly number[] {
+  return piece.mine && !piece.plain ? piece.had : HELD_ALL;
 }
 
 /** One letter out of a piece of mail, and what it is to the player. */
@@ -238,6 +246,15 @@ export function bagWithMail(lower: readonly number[], had: readonly number[], le
  */
 export function hadWithOwed(lower: readonly number[], owed: readonly number[] | null): number[] {
   return Array.from({ length: 26 }, (_, i) => Math.max(lower[i] ?? 0, owed?.[i] ?? 0));
+}
+/**
+ * What is owed after a piece is revealed: what it left in the bag, and never less than what was
+ * already owed. Pieces can settle out of order (a daily letter found minutes late, after a pack
+ * was opened in between): its older "before" must not lower what the newer piece left, or the
+ * next envelope calls those letters new again (Bugbot on #276).
+ */
+export function owedAfter(had: readonly number[], letters: readonly number[], owed: readonly number[] | null): number[] {
+  return hadWithOwed(bagWithMail(had, had, letters), owed);
 }
 /** Has the bag caught up with what a revealed piece left in it? */
 export const caughtUp = (lower: readonly number[], owed: readonly number[]): boolean => owed.every((n, i) => (lower[i] ?? 0) >= n);
