@@ -593,6 +593,12 @@ export function frame(L: CardLook, tier: Tier): string {
  *  so on a dark plate it is a bright cloud that hides the word): globals.css, .cf-dark. */
 export const DARK_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["darkstock", "space"]);
 
+/** Faces that are pale all over (the light stock card: grey engraving on paper). The card's light
+ *  is drawn in light lines (./light), which show on such a face only by breaking the engraving
+ *  under them, so there they are drawn stronger, and are still the quietest of all: globals.css,
+ *  .cf-pale. A face in neither list has colour, and takes the middle strength. */
+export const PALE_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["stock"]);
+
 /**
  * The faces printed in the word's rarity: the two stock faces. Every other face is a place with
  * inks of its own, the same picture for every word. **Anything that keeps a face's picture must
