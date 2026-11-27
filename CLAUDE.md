@@ -840,7 +840,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hold it). Its ink is the rarity's (`LIGHT_INK`: white, warm for Legendary, for Mythic a
   spectrum printed across the card). Measured against the old white band, made to pass again and
   again: a few points of a core more while it passes, in both engines, and under one point on
-  average. **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
+  average. **The stock is in EVERY place a card is drawn** (starl3xx, 2026-11-27: "crosshatch isn't in the
+  share cards images/videos, either... make sure those are all updated with the latest changes"):
+  `lib/cardArt/stock` is its one source. The game's styles hold its tile (`weaveTile`: a test compares
+  them character for character, so change the weave in the module and copy the tile into the two
+  rules), and the server's pictures of a front (`app/_og/wordCard`) and a back
+  (`app/s/[text]/back`) lay its sheet over the card (`weaveSheet`, in card units), under the letters;
+  the share video is made of those pictures. **A change to how a card looks is not done until the
+  game, the front picture, the back picture, and a real video all show it** (I left the stock out of
+  the pictures because they had never carried it; that was wrong). **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
   of a diagonal CROSSHATCH, six pixels a repeat, on both sides, and NO random grain (the noise
   filter is gone: it was the one part of the paper that was not drawn). A picture, never a
   slanted gradient. **It must be SEEN at real size:** the first build drew the swatch he chose
