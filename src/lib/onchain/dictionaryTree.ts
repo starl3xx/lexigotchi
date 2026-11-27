@@ -75,7 +75,13 @@ function buildTree(words: readonly string[], format: LeafFormat, collab: CollabW
   const values = words.map((w) => (format === "tiered" ? [w, TIER_INDEX[tierOf(w)!]] : [w]));
   const tree = StandardMerkleTree.of(values, [...LEAF_TYPES[format]]);
   const index = new Map<string, number>();
-  for (const [i, v] of tree.entries()) index.set(String(v[0]).toUpperCase(), i);
+  for (const [i, v] of tree.entries()) {
+    const key = String(v[0]).toUpperCase();
+    // One leaf a word, always. Words.sol can't check it: a root that held a word under two tiers
+    // would let a claimer pick the cheaper leaf (the audit's note on decisions.md #60).
+    if (index.has(key)) throw new Error(`the dictionary tree would hold ${key} twice`);
+    index.set(key, i);
+  }
   return {
     root: tree.root as `0x${string}`,
     size: words.length,

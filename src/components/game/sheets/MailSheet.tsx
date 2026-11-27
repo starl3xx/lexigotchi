@@ -40,6 +40,7 @@ import { useMailCues } from "../useSound";
 import { SoundToggle } from "../SoundToggle";
 import { bagWithMail, bestLine, countHead, countSub, finishers, hadFor, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
 import { useTierOf } from "../useRarity";
+import { aTierWord } from "@/lib/claimFee";
 import { rarestFirstBy } from "@/lib/market/deals";
 
 // ── measures: one box, 328 wide, drawn larger or smaller as a whole to fit the sheet ─────────────
@@ -541,7 +542,7 @@ function MailStage({ mail }: { mail: Mail }) {
                     Claim {first.word} · {fmtWord(claim)}
                   </Button>
                 ) : (
-                  <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: `a ${tierOf(first.word)} word` } })}>
+                  <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: aTierWord(tierOf(first.word)) } })}>
                     Get $WORD to claim it
                   </Button>
                 )}

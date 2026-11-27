@@ -53,6 +53,11 @@ export function claimLadderUsd(p: Params = DEFAULT_PARAMS): { tier: Tier; multip
   return TIERS.map((t) => ({ tier: t.name, multiple: p.claimMultiple[t.name], usd: claimFeeUsd(t.name, p) }));
 }
 
+/** "a Rare word", "an Uncommon word": a tier as a player reads it in a sentence. */
+export function aTierWord(tier: Tier): string {
+  return `${/^[AEIOU]/.test(tier) ? "an" : "a"} ${tier} word`;
+}
+
 /** Is `x` one of the five tier names (an answer from the proof route, say)? */
 export function isTier(x: unknown): x is Tier {
   return typeof x === "string" && TIERS.some((t) => t.name === x);

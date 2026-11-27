@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TIERS, type Tier } from "@/lib/economy";
-import { claimLadderLive } from "@/lib/claimFee";
+import { aTierWord, claimLadderLive } from "@/lib/claimFee";
 import { rarestByScore } from "@/lib/rarity";
 import { cantClaim } from "@/lib/dictionaryList";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
@@ -174,7 +174,10 @@ export function ClaimScreen() {
   const feeOf = (w: string) => g.claimFee(w);
   const canClaimWord = (w: string) => g.canAfford(feeOf(w));
   // The balance sheet opens with exactly what this word needs (its Buy pre-fills from it).
-  const getWordFor = (w: string) => g.openSheet({ kind: "balance", need: { amount: feeOf(w), action: `a ${tierOf(w)} word` } });
+  // Why a word costs what it does: its tier, where the ladder is live; the plain fee where every
+  // word costs the base (a Words without the ladder: saying "Rare word" there would be untrue).
+  const feeSay = (w: string) => (ladder ? `${tierOf(w)} word: ${amountText(feeOf(w))} to claim` : `Claiming costs ${amountText(feeOf(w))}`);
+  const getWordFor = (w: string) => g.openSheet({ kind: "balance", need: { amount: feeOf(w), action: aTierWord(tierOf(w)) } });
 
   return (
     <div className="space-y-3">
@@ -261,7 +264,7 @@ export function ClaimScreen() {
             .map((w) => (
               <FeeLine
                 key={w}
-                text={`${tierOf(w)} word: ${amountText(feeOf(w))} to claim${spelled.filter((x) => !taken(x)).length > 1 ? ` ${w}` : ""}.`}
+                text={`${feeSay(w)}${ladder && spelled.filter((x) => !taken(x)).length > 1 ? ` ${w}` : ""}.`}
                 canClaim={canClaimWord(w)}
                 onGetWord={() => getWordFor(w)}
               />
@@ -398,11 +401,11 @@ export function ClaimScreen() {
                   </div>
                   {ownersKnown && !canClaimWord(w) ? (
                     // Short of THIS word's fee: the way to get exactly that, never a dead button.
-                    <Button size="sm" variant="ghost" onClick={() => getWordFor(w)} title={`${tierOf(w)} word: ${amountText(feeOf(w))} to claim`}>
+                    <Button size="sm" variant="ghost" onClick={() => getWordFor(w)} title={feeSay(w)}>
                       Need {fmtWord(feeOf(w))}
                     </Button>
                   ) : (
-                    <Button size="sm" variant="teal" disabled={!ownersKnown} onClick={() => claim(w, cases)} title={`${tierOf(w)} word: ${amountText(feeOf(w))} to claim`}>
+                    <Button size="sm" variant="teal" disabled={!ownersKnown} onClick={() => claim(w, cases)} title={feeSay(w)}>
                       {ownersKnown ? `Claim · ${fmtWord(feeOf(w))}` : ownerWait}
                     </Button>
                   )}

@@ -12,6 +12,7 @@ import { nextSteps, type NextStep } from "./todaySteps";
 import { useTakenWords } from "./useTodayPlan";
 import { useForSale } from "./useForSale";
 import { useTierOf } from "./useRarity";
+import { aTierWord } from "@/lib/claimFee";
 
 /** Rows shown before "Show more": a list of five read as a to-do list, not a nudge. */
 const SHOWN = 3;
@@ -73,7 +74,7 @@ export function NextSteps() {
                   Claim · {fmtWord(g.claimFee(s.word))}
                 </Button>
               ) : (
-                <Button size="sm" variant="ghost" onClick={() => getWord(g.claimFee(s.word), `a ${tierOf(s.word)} word`)}>
+                <Button size="sm" variant="ghost" onClick={() => getWord(g.claimFee(s.word), aTierWord(tierOf(s.word)))}>
                   Get $WORD
                 </Button>
               ))}

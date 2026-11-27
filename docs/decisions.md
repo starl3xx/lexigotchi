@@ -3435,6 +3435,80 @@ setter. All small, riding existing suite patterns.
       showing: no letter moved. Not seen: the motion itself by a person, a phone, Outer Space
       after the window clip.
 
+60. **The claim fee follows the word's rarity: the "gentle ladder"** (starl3xx, 2026-11-27; asked
+    for as "#26", a number already taken). His words: "as I play the testnet game, I'm wondering if
+    the cost to claim words is high enough", and then, choosing the gentle ladder, "i like gentle
+    fee... note that the prompt needs to include updates to the docs and everywhere else".
+    - **Why.** A flat $0.50 priced a Mythic word the same as the cheapest Common, and claiming
+      the whole dictionary once took in about $2,300 ($2,292). The fee is now the base claim fee
+      times the tier's earning weight, so a new player's first word, a Common one, is still
+      $0.50, and the dictionary takes about $4,200 ($4,195.50): claim revenue roughly doubles.
+    - **The ladder** (USD targets, each DERIVED as the base × `TIERS`' weight over Common's,
+      `CLAIM_MULTIPLE` in `lib/economy.ts`; never typed):
+
+      | Tier | Multiple | Claim fee |
+      |---|---|---|
+      | Common | 1× | $0.50 |
+      | Uncommon | 2× | $1.00 |
+      | Rare | 3× | $1.50 |
+      | Legendary | 5× | $2.50 |
+      | Mythic | 8× | $4.00 |
+
+      A collab set's words (#53) are Legendary from its reveal, so they pay the Legendary fee; a
+      word whose own tier is higher keeps it (and its fee).
+    - **The contract (`Words.sol`).** Each dictionary leaf is (word, tier), OpenZeppelin leaf types
+      `["string","uint8"]`, tier 0 Common … 4 Mythic (`TIER_INDEX`). `claim(word, tier, upperMask,
+      proof)` and the gated `claim(…, deadline, sig)` name the tier and the proof checks it, so a
+      claimer can't understate it. `claimPrice` stays the base (Common's), owner-settable and
+      still moved by the price keeper within its clamp; `tierMultiplierBps[tier]` is each tier's
+      multiple in basis points of the base (deploy 10,000 / 20,000 / 30,000 / 50,000 / 80,000,
+      read by `Deploy.s.sol` from `config/economy.json`); the fee is `claimFee(tier)` = base ×
+      multiplier ÷ 10,000. The fee still routes through `FeeSource.CLAIM` with the 75/10/10/5
+      split. The token id is still `keccak256(word)`. The voucher (#51) is unchanged: it names
+      the caller and the word, and the proof already fixes the tier. A new event,
+      `ClaimFeePaid(tokenId, payer, tier, fee)`, is emitted beside `Claimed`, which is unchanged:
+      a changed `Claimed` would silently empty every scanner reading the older contract.
+    - **My readings, for him to accept or strike:** a multiplier may be set between 1× and 20×
+      (`MIN_TIER_MULTIPLIER`, `MAX_TIER_MULTIPLIER`; `TierMultiplierSet` on each change), so no
+      tier costs less than the base and one mistaken call can't charge more than 20×; the order
+      of the tiers isn't enforced (as the base itself isn't).
+    - **One tree function for the chain and the game.** `lib/onchain/dictionaryTree` builds both
+      formats, and `lib/sets/server` `treeFor` builds every tree it serves or plans in the
+      network's format with the revealed collab words (`tierWith`), so a leaf's tier is the tier
+      the game shows. A collab set's words are held back until its release (#51: the reserve root
+      comes before the reveal), so its release root is the first to hold them, as Legendary. The
+      plan builders read the sets strictly. `derive:contracts` uses the same module.
+    - **Base Sepolia keeps the older Words until the held redeploy (rehearsal #5).** The registry's
+      `"claimTiers"` says which contract a network has (never a contract read). False: word-only
+      leaves, the older three-argument claim byte for byte, the flat base for every word, and copy
+      that says so. The redeploy carries this with the gate, the 3.0× caps, and the metadata
+      refresh, and the mainnet deploy must include it (`docs/web3-runtime-plan.md`).
+    - **The simulation** (`npm run sim -- --days 365 --population 1500`, seeds 7 / 11 / 23; flat
+      is `--claim-flat`; no other param changed). Flat → ladder:
+      - Claim revenue: $2,292 → $4,180–4,188 (+82–83%). By tier: Common $1,146 → $1,146;
+        Uncommon $688 → $1,375; Rare $344 → $1,031; Legendary $92 → $460; Mythic $22.50–23 →
+        $168–176 (Mythic claims 45–46 → 42–44 of 46).
+      - The dictionary reaches 99% on day 51–52 → 57–58 (about 6 days later, +10–12%).
+      - Letters mint out on day 60 → 60–61. Solvency holds in every run. Burned +3–5%. The
+        Rewards Pool on day 365: +0–4%; at its peak: +11–16%. $WORD bought to play: +0–3%.
+      - Each group's share of the words held: casual 44–46% → 38–41% (−10 to −12%); collector
+        53–55% → 55–58% (+4%); gambler about 1% → about 3.5–3.8%; whale 0% → 0.2%; staker 0%.
+      - **With the bounty lever on, casual players' share of the weekly bounty falls by about
+        60%:** from 30–36% to 12–13% at 365 days and 1,500 players (and 15–18% → 7–8% at 120
+        days and 400). They still hold about as many words, but cheaper ones, and the bounty
+        weighs a theme word by its tier. He asked "we're only changing the cost of claiming
+        words, right?" (yes: nothing else changed), then: "accept it and note it... the cost
+        isn't that substantive tbh". `tests/loop.test.ts`'s floor for that share went from 10% to
+        5%; its check that casuals get more of the bounty than of the yield stays.
+    - **Every place that states or uses the claim price** moved to the word's own fee: Spell (the
+      intro, "Rare word: … to claim", each suggestion's button, "Need …" opening the balance sheet
+      with that word's fee), Next steps, the bought-letters and mail sheets, the Dictionary card
+      ("Unclaimed · … to claim"), the word view ("To claim"), a set's words, the cost to make
+      (the Market, the sell form, the card back's picture), the cheat sheet, the how-it-works
+      steps, the claim's allowance, and the console (the constructor, "Set a tier's claim
+      multiple", the Treasury tab's fees by tier). The player docs change in a held PR that merges
+      with the redeploy, with the tester note.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

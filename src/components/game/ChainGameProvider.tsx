@@ -125,7 +125,7 @@ import { useTierOf } from "./useRarity";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK, networkById } from "@/lib/onchain/network";
 import type { Tier } from "@/lib/economy";
-import { PRACTICE_TIER_BPS, claimFeeWord, claimLadderLive, isTier } from "@/lib/claimFee";
+import { PRACTICE_TIER_BPS, aTierWord, claimFeeWord, claimLadderLive, isTier } from "@/lib/claimFee";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls";
@@ -2078,7 +2078,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // The screen priced the word by the game's tier, which is the leaf's; should they ever
           // differ (a collab set revealed a moment ago), the leaf's is what the contract takes.
           if (state.balance < fee) {
-            dispatch({ t: "sheet", sheet: { kind: "balance", need: { amount: fee, action: leafTier ? `a ${leafTier} word` : "a claim" } } });
+            dispatch({ t: "sheet", sheet: { kind: "balance", need: { amount: fee, action: leafTier ? aTierWord(leafTier) : "a claim" } } });
             return;
           }
           // The first day after a set's release (decisions.md, "Reserved word sets"): the claim
