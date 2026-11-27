@@ -51,6 +51,25 @@ export async function claimMarkEvery(account: string, kind: string, mark: string
   }
 }
 
+/**
+ * Whether a mark is taken, without taking it: true, false, or null when that can't be told (no
+ * table, or the read failed). For a sender that has work to do before it claims (a picture to
+ * draw): it skips what was already sent, and still CLAIMS before it sends. Never a reason to send.
+ */
+export async function hasMark(account: string, kind: string, mark: string): Promise<boolean | null> {
+  try {
+    const rows = await getDb()
+      .select({ mark: reminderMarks.mark })
+      .from(reminderMarks)
+      .where(and(eq(reminderMarks.account, account.toLowerCase()), eq(reminderMarks.kind, kind), eq(reminderMarks.mark, mark)))
+      .limit(1);
+    return rows.length > 0;
+  } catch (err) {
+    if (!isMissingTable(err)) console.error("[reminders] couldn't read a send-once mark:", String((err as Error)?.message ?? err).slice(0, 160));
+    return null;
+  }
+}
+
 /** Give a mark back: the send it was claimed for didn't happen. Never throws. */
 export async function releaseMark(account: string, kind: string, mark: string): Promise<void> {
   try {

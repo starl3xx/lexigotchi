@@ -787,6 +787,24 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   reporter's name. In a private chat only someone in the beta group now may file one
   (`inBetaGroup`); 6 reports per 10 minutes per person; a report's words are never logged. Before
   0019 runs the bot answers that it couldn't save the report, and the tab says the migration is owed.
+  **The bot posts game news by itself**, from two Vercel crons (vercel.json):
+  the **daily recap** (`lib/telegramRecap.ts`, `/api/cron/telegram-recap`, 00:20 UTC and again at
+  02:20 for a late draw): how the day's jackpot draw went, the pot now, the words made the day
+  before, and a new bounty theme on a week's first day; and the **Mythic-word alert** (starl3xx,
+  2026-11-26; `lib/telegramAlerts.ts`, `/api/cron/telegram-alerts`, every five minutes): a post
+  with the word's card when someone makes a Mythic word (`ALERT_TIERS`), only while the claim is
+  under half an hour old, so nothing is announced late. Both post to real people unasked, so both:
+  run on the production deployment only (`mayPostUnasked` in `lib/telegram.ts`: a Vercel preview
+  build has NODE_ENV "production" too, so VERCEL_ENV must agree), CLAIM a send-once mark in
+  `reminder_marks` before sending (the chain day; the claim's own event) and post nothing when no
+  mark can be kept, give the mark back only on Telegram's clear refusal, and are muted by
+  `TELEGRAM_RECAP=off` / `TELEGRAM_ALERTS=off` (a setting needs a deploy to take effect). The alert
+  claims its mark LAST, after the name and the card are fetched (`hasMark` skips what was told), so
+  a run that dies mid-fetch loses nothing. The
+  recap waits for the day's draw (no draw, no recap). `lib/onchain/claims.ts` reads the words made
+  in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
+  its start block, and times each claim's block exactly). A heading is bold by an entity
+  (`SendOptions.bold`), never a parse mode, over a line of hyphens measured as the update posts' are.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
