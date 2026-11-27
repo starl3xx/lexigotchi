@@ -7,7 +7,7 @@ import { parseLinkScene } from "@/lib/scenes";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { CARD_PAPER } from "@/lib/cardArt/looks";
 import { NETWORK } from "@/lib/onchain/network";
-import { earningsCardText, parseTz, type EarningsCardText } from "@/lib/earningsShare";
+import { earningsCardText, heroStage, parseTz, type EarningsCardText } from "@/lib/earningsShare";
 import { readEarningsShare } from "@/lib/earningsShareToken";
 
 /**
@@ -20,10 +20,18 @@ import { readEarningsShare } from "@/lib/earningsShareToken";
  * - **Every amount comes from the SIGNED token in the path.** A token that doesn't verify, or was
  *   made on another network, is a 404. The word (`w`), its scene, and the clock offset for the date
  *   (`tz`) are the link's, and cosmetic; a word gets an amount beside it only when the token names
- *   it. No dollars, ever, and "test $WORD" on a test network.
- * - **Nothing here reads the chain or a database.** X's crawler won't wait, and the token already
- *   holds the picture's facts. So the card's ribbon carries no number (the word's own picture reads
- *   it from the chain).
+ *   it. "about $X" is the token's too (what the total was worth at a live price when it was
+ *   signed), and never for test $WORD, which says "test $WORD" and no dollars.
+ * - **The word wears its gilding** (decisions.md #48: the rings, the pips, the laurels, the foil),
+ *   at the stage the token signed for it. A link can't claim one, and a word the token doesn't
+ *   name is drawn without.
+ * - **Nothing here reads the chain or a database.** X's crawler won't wait, and it keeps what it
+ *   gets for good: a read that timed out would leave the picture ungilded for ever. The token
+ *   already holds the picture's facts. So the card's ribbon carries no number (the word's own
+ *   picture reads it from the chain).
+ * - **The tag is lettered as the card's back is** (decisions.md #35): a name in Söhne, a value in
+ *   the card's serif (TeX Gyre Pagella here), a row of dashes between. A WORD is a name: it is
+ *   never set in the serif.
  * - **One design, three shapes.** 1200×630 for X's large card and `?ratio=16x9` (1200×675) for the
  *   picture that travels alone (Save image): the card and the tag side by side. `?ratio=3x2`
  *   (1200×800, the Farcaster embed's shape): the card over a wide tag. `?saved=1` adds the quiet
@@ -41,35 +49,56 @@ const GOLD_INK = "#6f4e10";
 const TABLE = "#16293a";
 const SHADOW = "7px 9px 0 rgba(0, 0, 0, 0.42)"; // the card's own, so both lie on the same table
 
+const SERIF = "Pagella";
+const RULE = "3px dashed rgba(27, 23, 20, 0.3)";
+
+/** About how wide a figure sets in the serif, in ems: its digits are half an em, and a letter (K, M, B) most of one. */
+const figureEms = (text: string) => [...text].reduce((w, ch) => w + (/[0-9]/.test(ch) ? 0.5 : /[.,]/.test(ch) ? 0.26 : ch === " " ? 0.25 : 0.92), 0);
 /** The big number's size: the longest amount ("999.99B") still fits its tag. */
-const amountSize = (amount: string, room: number) => Math.min(112, Math.floor(room / (amount.length * 0.56)));
+const amountSize = (amount: string, room: number, max: number) => Math.min(max, Math.floor(room / figureEms(amount)));
 
 /** The tag: a slip of the card's paper with a punched hole, lying a little askew. `wide` lays its two halves side by side. */
 function tag(text: EarningsCardText, w: number, wide: boolean) {
   const pad = 30;
+  // "about $24.0K": the word in Söhne, the figure in the serif, on one line of text.
+  const about = text.usd && (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 9, fontSize: 25, lineHeight: 1.15, color: SOFT }}>
+      <div style={{ display: "flex" }}>about</div>
+      <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700, fontSize: 30, color: INK }}>{text.usd.replace(/^about /, "")}</div>
+    </div>
+  );
   const numbers = (
     <div style={{ display: "flex", flexDirection: "column", alignItems: wide ? "flex-start" : "center" }}>
       <div style={{ display: "flex", fontSize: 27, color: SOFT }}>{text.kicker}</div>
-      <div style={{ display: "flex", fontSize: amountSize(text.amount, wide ? w * 0.5 : w - pad * 2), letterSpacing: -3, lineHeight: 1.08, color: GOLD_DEEP }}>{text.amount}</div>
-      <div style={{ display: "flex", fontSize: 30, color: SOFT, marginTop: -2 }}>{text.unit}</div>
+      {/* the figure, in the card's serif and the game's gold: the sheet's own number */}
+      <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700, fontSize: amountSize(text.amount, wide ? w * 0.46 : w - pad * 2, wide ? 108 : 124), lineHeight: 1, marginTop: 4, color: GOLD_DEEP }}>
+        {text.amount}
+      </div>
+      {/* the wide tag is short: the unit and the dollars share a line there */}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 22, marginTop: -4 }}>
+        <div style={{ display: "flex", fontSize: 30, lineHeight: 1.15, color: SOFT }}>{text.unit}</div>
+        {wide && about}
+      </div>
+      {!wide && about && <div style={{ display: "flex", marginTop: 6 }}>{about}</div>}
     </div>
   );
-  const notes = (text.latest || text.plate) && (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: wide ? "flex-start" : "center", ...(wide ? { paddingLeft: 30, borderLeft: `3px dashed rgba(27, 23, 20, 0.3)` } : { marginTop: 14 }) }}>
-      {text.latest && <div style={{ display: "flex", fontSize: 29, color: GOLD_INK }}>{text.latest}</div>}
-      {text.plate && (
-        <div
-          style={{
-            display: "flex",
-            fontSize: 24,
-            color: INK,
-            marginTop: text.latest ? 12 : 0,
-            ...(wide || !text.latest ? {} : { paddingTop: 12, borderTop: `3px dashed rgba(27, 23, 20, 0.3)` }),
-          }}
-        >
-          {text.plate}
+  // The ledger: what the latest payout brought, and what the pictured word has earned.
+  const ledger = text.ledger.length > 0 && (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        ...(wide ? { flex: 1, marginLeft: 34, paddingLeft: 30, borderLeft: RULE } : { alignSelf: "stretch", marginTop: 16, paddingTop: 14, borderTop: RULE }),
+      }}
+    >
+      {text.ledger.map(([name, value]) => (
+        <div key={name} style={{ display: "flex", alignItems: "flex-end", gap: 10, fontSize: 25, lineHeight: 1.15 }}>
+          <div style={{ display: "flex", color: INK }}>{name}</div>
+          <div style={{ display: "flex", flex: 1, height: 0, marginBottom: 7, borderBottom: RULE }} />
+          <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700, fontSize: 29, color: GOLD_INK }}>{value}</div>
         </div>
-      )}
+      ))}
     </div>
   );
   return (
@@ -79,7 +108,7 @@ function tag(text: EarningsCardText, w: number, wide: boolean) {
         display: "flex",
         flexDirection: wide ? "row" : "column",
         alignItems: "center",
-        justifyContent: wide ? "space-between" : "center",
+        justifyContent: wide ? "flex-start" : "center",
         width: w,
         padding: wide ? `${pad}px ${pad + 14}px ${pad}px ${pad + 44}px` : `${pad + 24}px ${pad}px ${pad - 2}px`,
         background: CARD_PAPER,
@@ -104,7 +133,7 @@ function tag(text: EarningsCardText, w: number, wide: boolean) {
         }}
       />
       {numbers}
-      {notes}
+      {ledger}
     </div>
   );
 }
@@ -149,7 +178,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
           backgroundImage: "radial-gradient(circle at 50% 42%, #2f5570 0%, #16293a 78%)",
         }}
       >
-        {tiles && wordCard({ tiles, scene, cardW })}
+        {tiles && wordCard({ tiles, scene, cardW, gild: heroStage(snapshot, word) ?? 0 })}
         {tag(text, tagW, tall && !!tiles)}
         {saved && (
           <div style={{ position: "absolute", right: tall ? 34 : 28, bottom: tall ? 26 : 12, display: "flex", fontSize: tall ? 26 : 20, fontWeight: 800, letterSpacing: -0.5, color: "#fbf4e3", opacity: 0.85 }}>

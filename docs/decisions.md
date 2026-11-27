@@ -1157,9 +1157,35 @@ setter. All small, riding existing suite patterns.
       the pictured word itself has earned. Side by side at 1200×630 (X) and 1200×675 (the 16:9 the
       owner asked for: Save image); the card over a wide tag at 1200×800 (Farcaster's 3:2).
     - **The word leads** (#24): it is first in the picture, the tag says "My words have earned",
-      and the post says "CRANE and my other words have earned…". No dollars, ever, on mainnet
-      either, though the sheet shows them there. No name, handle, or wallet in the link or the
-      picture.
+      and the post says "CRANE and my other words have earned…". No name, handle, or wallet in
+      the link or the picture. ~~No dollars, ever, on mainnet either, though the sheet shows them
+      there.~~ Amended below.
+    - **Amended 2026-11-26: the gilding, the card's serif, and "about $X"** (starl3xx: "earnings
+      share card image doesn't use gilding/ pips/laurels, but it should... and can also use the
+      game's serif font(s) tastefully... and should also include an appx. USD amount").
+      - **The pictured word wears its gilding** (#48: rings, pips, laurels, foil), at the stage
+        the TOKEN signed for it. The route that signs reads each named word's stage from the
+        chain (it waits 1.2 s; a stage not known is drawn without gilding). The picture still
+        reads no chain: X fetches a posted picture once and keeps it for good, so a read that
+        timed out there would leave it ungilded for ever, and a link must not be able to claim a
+        gilding. A word the token doesn't name gets none, as it gets no amount (the game pictures
+        the top earner the player HOLDS, which the token names unless five words since sold
+        out-earned it).
+      - **"about $X" under the total**, which reverses "no dollars" for this picture and is the
+        second exception to #24 (the first is #46's pot tiles). The figure is the server's:
+        whole cents at a LIVE price not older than 15 minutes, signed into the token; never the
+        oracle's stand-in constant or an old copy, never the link's. In the $WORD page's short
+        format (`fmtUsdShort`), for the total only. **Never for test $WORD** (#46), so the live
+        test build's picture shows none. The post's own words still say no dollars.
+      - **The tag is lettered as the card's back is** (#35): names in Söhne, figures in the
+        card's serif (the big number, the dollars, the ledger's values), a row of dashes between
+        a name and its value. The pictured WORD is a name, so it stays in Söhne. The tag's two
+        notes became a ledger: the payout's date and what it brought, the word and what it earned.
+      - **Token version 2** carries the stages and the cents; a version 1 token (a link already
+        posted) still verifies and draws, without either. `EARNINGS_CARD_LOOK` is 2.
+      - **Seen:** all three shapes at each stage from 0 to 5, the longest figures ("999.99B",
+        "about $888.8M"), a version 1 link, and a test-network token (no dollars). Rendered
+        locally with invented words and amounts. Not seen: the picture on X or in a cast.
     - **No bars, no breakdown.** The sheet's rows don't add up to its total (words since sold and
       bounties are in the total), so the picture never reads as a sum. An amount stands beside the
       pictured word only when the TOKEN names that word; the word, its scene, and the clock offset

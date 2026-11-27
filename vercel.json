@@ -12,6 +12,14 @@
     {
       "path": "/api/cron/keeper",
       "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/cron/telegram-recap",
+      "schedule": "20 0,2 * * *"
+    },
+    {
+      "path": "/api/cron/telegram-alerts",
+      "schedule": "*/5 * * * *"
     }
   ],
   "rewrites": [

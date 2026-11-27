@@ -243,8 +243,8 @@ const JACKPOT_WON = getAbiItem({ abi: jackpotAbi, name: "JackpotWon" });
 const JACKPOT_ROLLED_OVER = getAbiItem({ abi: jackpotAbi, name: "JackpotRolledOver" });
 const WORD_REVEALED = getAbiItem({ abi: answerChainAbi, name: "WordRevealed" });
 
-/** A wallet's public name (its profile's X or Farcaster name), else its short address. */
-async function nameOf(address: string): Promise<string> {
+/** A wallet's public name (its profile's X or Farcaster name), else its short address. Never throws. */
+export async function nameOf(address: string): Promise<string> {
   const a = address.toLowerCase();
   const faces = await soon(playerFaces([a]), 3_000);
   return faces?.profiles[a]?.username || shortAddress(a);
@@ -310,8 +310,8 @@ async function readLastDraw(): Promise<LastDraw | null> {
 
 const readLastDrawDay = () => getPublicClient().readContract({ address: addressOf("jackpot"), abi: jackpotAbi, functionName: "lastResolvedDay" });
 
-/** The jackpot's facts, and the clock to say them by: the chain's, else this server's. */
-async function readJackpot(): Promise<{ facts: JackpotFacts; now: number }> {
+/** The jackpot's facts, and the clock to say them by: the chain's, else this server's. (The daily recap reads them too: lib/telegramRecap.) */
+export async function readJackpot(): Promise<{ facts: JackpotFacts; now: number }> {
   const [buckets, last, chainTime, lastDrawDay] = await Promise.all([
     soon(readFeeBuckets()),
     soon(readLastDraw().then((d) => ({ d }))),
