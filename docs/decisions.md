@@ -2982,7 +2982,8 @@ setter. All small, riding existing suite patterns.
       test network's placeholder is in neither: it is nothing a card wears, so it sits apart
       under "Try paying". An empty category says so plainly and promises nothing.
     - **Links land on a category:** the face picker's tile for a face on sale goes to Card
-      faces, and an opened word's Case button to Accessories.
+      faces (and, since the item's view below, opens that face there), and an opened word's Case
+      button to Accessories.
     - **Limited editions already worked, and now they show.** The contract has always held a
       supply limit (`maxSupply`; `_buy` reverts `SoldOut`), and the face picker stops offering a
       sold-out face. What is new is the card's line: "Limited edition of 25. 24 left.", then
@@ -3002,6 +3003,78 @@ setter. All small, riding existing suite patterns.
       doesn't have it.
     - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
       editions, paying, and that what a player buys stays with the player.
+    - **An item opens** (starl3xx, 2026-11-27, later the same day: "in the shop I should be able
+      to click items and see more info about them, see them at higher size, etc").
+      `sheets/ShopItemSheet.tsx`, sheet kind `shopItem` (the item's id, and optionally a word).
+      One tap anywhere on an item's card opens it (the card's picture and words are one button,
+      stretched over the card; Buy stays a button of its own above it). The view shows:
+      - **the thing large**: a wide dialog on a computer (`Sheet`'s new `wide`: up to 720 px
+        from md and 1,000 px from lg, where the picture and the facts stand side by side; the
+        560 px default is unchanged), and "Look closer", the card at twice that width in a box
+        that pans (a finger or a trackpad scrolls it; a mouse drags it). On a phone the dialog
+        is no wider than the Shop's own card, so the closer look IS the phone's larger size.
+        The change of size is a cut, never an animation (#48);
+      - **a card face on the player's own word**: a row of their words under the picture, the
+        first one showing (or the word the face picker was dressing), and "No word". It is a
+        preview: it draws the face directly and saves nothing. No wallet or no words: the face
+        alone, never a made-up word;
+      - **what it is**: its kind, its price, the face's own line, the card's words, the limited
+        edition line, when a sale ends or starts if the item has such a date
+        (`lib/shop/offer` `saleWindow`: an item with no end says nothing, because the owner can
+        set one later), "You have it", that it stays with the profile, where the money goes,
+        and a link to the docs' Shop page;
+      - **the same Buy as the card**; and, for a face the player has, **"Put it on WORD"**,
+        the face picker's own save (`useWordScene`), offered only on a positive "you have it".
+    - **One rule decides Buy for the card and the view** (`lib/shop/offer` `buyOffer`, pure,
+      tested; drawn by `shop/ShopBuy`): have it, not known yet, not on sale, no wallet, then Buy
+      (held back while paused or short). Two copies of that ladder would one day disagree, and
+      the wrong one would sell a face to someone who has it. `useShopView` (game/useShop) is the
+      one place both read the Shop from. **A purchase in flight is known to every Buy on the
+      page** (`useShopBuy`, a shared mutation): the view is a sheet that can be closed
+      mid-purchase, and the card behind it must not offer a second Buy. **"In flight" is the
+      action gate's word** (`g.busy` with the purchase's label, `SHOP_BUY_LABEL`), never the
+      purchase's own promise alone: a wallet that never answers leaves the promise pending for
+      good, and after Hide on the status pill Buy must be live again. My first version counted
+      the pending promise and would have left every Buy disabled until a reload (caught in
+      review, before it shipped).
+    - **A purchase runs at the tap or not at all** (`networkMode: "always"` on the shared
+      purchase; caught in review, then seen). The purchase became a query-library mutation so
+      that every Buy could know one was in flight, and by default such a mutation made OFFLINE
+      is held and run when the network returns. Seen in a browser: a tap on Buy while offline
+      showed nothing, and eight seconds after reconnecting the wallet was asked to sign, with
+      no new tap. Now it runs at once, as the direct call did. Offline, its first read fails,
+      and that is said ("Couldn’t reach the Shop. Check your connection and try again."): a
+      purchase whose first read threw used to be silent, before this change too.
+    - **A thing with no picture** (a costume with no art yet) opens in the usual dialog, one
+      column: the wide dialog is for a picture.
+    - **Only a button sits above the card's open button** (`lib/shop/offer` `offerIsButton`,
+      Bugbot on #316). The card's foot is either a button (Buy, or the way to a wallet) or a line
+      of words that says why there is no Buy. I had lifted the whole foot above the card's own
+      button, so a tap on "Sold out" or "Not on sale yet" did nothing, on the very cards a
+      player is most likely to tap for more. Now only a button is lifted. Checked with a mouse
+      at each line's own place, in Chromium and WebKit, at 390 and 1,280 px.
+    - **The view reads the Shop live, by id.** An item that has gone, or a Shop that couldn't
+      say what its items are, says so; the view never falls back to a placeholder card, and the
+      test network's placeholder opens nothing.
+    - **My readings of "etc":** the preview on the player's words, the closer look, "Put it on
+      WORD", the docs link, and that the face picker's tile now opens the item (on the word
+      being dressed) instead of only the category. Not built: a case's or a costume's own
+      larger view beyond its picture and words (none is listed).
+    - **Seen and not seen (the item's view):** in Chromium and WebKit, on my own dev server
+      against the live test Shop, with every write to the server blocked in the browser.
+      At 390, 768, and 1,280 px: with no wallet (Connect a wallet to buy), and as a read-only
+      pretend wallet at an address that has the face and 18 words (You have it, the words row,
+      the closer look, and "Put it on NOVEL", which then read "NOVEL's card has this face":
+      saved in that browser only). At 390 and 1,280 px, as a pretend wallet that has words and
+      not the face: the face picker's tile landed on the Shop with the item open on the word
+      being dressed, and Buy live; a mouse click on the card's edition line, its top padding,
+      and its bottom padding each opened the view, and a click on Buy did not; and with a
+      wallet that never answers the signature request, the card and the view both read
+      "Buying…", and after Hide the card's Buy was live again. With a Shop answer MADE UP in
+      the test browser (nothing listed anywhere): a sale with an end date ("On sale until
+      November 30 at 3:31 PM."), a sold-out face, a case, and a costume not yet on sale.
+      Not seen: a purchase that completes from the view, a finger on the closer look (a mouse
+      and scripted scrolling only), a real phone.
     - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
       phone's bottom bar has five places, all taken); the categories are one switch at the top
       of the screen; a costume, when one exists, is an accessory; the placeholder stays, under

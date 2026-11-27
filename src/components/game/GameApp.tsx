@@ -54,6 +54,7 @@ import { ShopScreen } from "./screens/ShopScreen";
 import { shopEnabled } from "@/lib/shop/config";
 import { EarningsSheet } from "./sheets/EarningsSheet";
 import { LookupSheet } from "./sheets/LookupSheet";
+import { ShopItemSheet } from "./sheets/ShopItemSheet";
 import { useEarningsNote } from "./useEarningsNote";
 import { useSceneSync } from "../scenes/useWordScene";
 import { CelebrateSheet } from "./sheets/CelebrateSheet";
@@ -372,6 +373,7 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} fromWord={state.sheet.fromWord} />;
   if (state.sheet?.kind === "earnings") return <EarningsSheet />;
   if (state.sheet?.kind === "lookup") return <LookupSheet word={state.sheet.word} />;
+  if (state.sheet?.kind === "shopItem") return <ShopItemSheet id={state.sheet.id} word={state.sheet.word} />;
   return null;
 }
 
