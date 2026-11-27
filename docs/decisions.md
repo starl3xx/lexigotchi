@@ -2787,7 +2787,7 @@ setter. All small, riding existing suite patterns.
       refresh for a list of words; it gets tests and an audit pass, in part 4). The check on the
       word that `dissolve` logs was not chosen.
 
-53. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
+54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
     about cards... the *front* of the card is its front regardless of the scene/face... the *face*
     (not scene) is the background on the front of the card. the back is the back. standardize
     across all surfaces, docs, etc").

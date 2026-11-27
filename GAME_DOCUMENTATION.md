@@ -290,7 +290,7 @@ A staked word's care state is a function of days since last fed:
   3:2 for the Farcaster embed). The page and card draw dictionary words only, never free text (decisions.md
   #15). Offchain, read-only vanity: no NFT, no fee. The primary organic growth loop (every shared
   word is an ad). The Showcase screen that did this folded into the cards.
-- **Card faces and the card's front** (decisions.md #34, #53): a card's FRONT is the side with the
+- **Card faces and the card's front** (decisions.md #34, #54): a card's FRONT is the side with the
   word on it, its FACE is the picture on the front behind the word (the code still calls it a
   scene), and its BACK is the back. A word's card is an object: its own paper,
   its face in a window, a frame in the rarity's ink with the rarity's mark in its corners, and a

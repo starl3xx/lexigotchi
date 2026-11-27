@@ -126,7 +126,7 @@ const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: 
   { term: "yield", re: /\byield(s|ed|ing)?\b/i, sample: "A peckish word earns half its yield." },
   { term: "pump", re: /\bpump(s|ed|ing)?\b/i, sample: "Watch $WORD pump." },
   { term: "moon", re: /\bmoon(s|ing)?\b/i, sample: "To the moon." },
-  // The card's vocabulary (decisions.md #53; starl3xx, 2026-11-27): the picture on a card's front
+  // The card's vocabulary (decisions.md #54; starl3xx, 2026-11-27): the picture on a card's front
   // is its FACE, and the side is the FRONT. "Scene" is the code's word only (SceneId, `?scene=`,
   // the stored kind), so the pattern leaves out a class name or a key ("scene-fog", "word_scenes").
   { term: "scene", re: /(?<![-\w./:])scenes?(?![-\w=:])/i, sample: "Pick a scene." },

@@ -624,7 +624,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
-- **A card's words: front, face, back** (decisions.md #53; starl3xx, 2026-11-27: "the *front* of the
+- **A card's words: front, face, back** (decisions.md #54; starl3xx, 2026-11-27: "the *front* of the
   card is its front regardless of the scene/face... the *face* (not scene) is the background on the
   front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it
   wears. The FACE (a "card face" where the sentence needs it) is the picture on the front, behind
