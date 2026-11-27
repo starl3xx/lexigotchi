@@ -11,6 +11,8 @@ import { loadPrefs } from "@/lib/db/reminderPrefs";
 import { fidsByAddressesDetailed } from "@/lib/neynar";
 import { relatedDailyKeysMany } from "@/lib/onchain/dailyIdentity";
 import { emailEnabled, reminderEmail, sendEmails } from "@/lib/notify/email";
+import { tellByTelegram, telegramRemindersOn } from "@/lib/notify/telegram";
+import { allTelegramLinks } from "@/lib/db/telegramLinks";
 import { getPublicClient, readChainTime } from "@/lib/onchain/reads";
 import { maybeAddressOf } from "@/lib/onchain/addresses";
 import { lettersAbi } from "@/lib/onchain/abis";
@@ -63,7 +65,7 @@ export async function GET(req: Request) {
     ]);
     // Email has its own audience (wallets that opted in), so it doesn't wait on the other two
     // (Bugbot on #139: wallet-only email players were skipped whenever nobody else was).
-    if (fids.length === 0 && subs.length === 0 && !emailEnabled()) return NextResponse.json({ ok: true, audience: 0, sent: 0 });
+    if (fids.length === 0 && subs.length === 0 && !emailEnabled() && !telegramRemindersOn()) return NextResponse.json({ ok: true, audience: 0, sent: 0 });
     const letters = maybeAddressOf("letters");
     if (!letters) return NextResponse.json({ ok: true, skipped: "no_deployment", audience: fids.length });
 
@@ -201,6 +203,28 @@ export async function GET(req: Request) {
       }
     }
 
+    // ── Telegram ─────────────────────────────────────────────────────────────────────────────
+    // Players who linked their Telegram account (lib/notify/telegram.ts). Like email, each reads
+    // every slot its ACCOUNT could pull on, the latest pull deciding, and it goes to a linked player
+    // whatever else reached them: they asked for it there. The day is the send-once mark, so a
+    // retried cron can't remind twice. Any failure here leaves the other channels alone.
+    let telegramTargets = 0;
+    let telegramResult: Awaited<ReturnType<typeof tellByTelegram>> = null;
+    if (telegramRemindersOn()) {
+      try {
+        const linked = (await allTelegramLinks()).map((l) => l.account).filter((account) => wantsDaily(account));
+        const linkedKeys = await relatedDailyKeysMany(linked.map((account) => ({ fid: null, wallets: links.walletsOf(account) })));
+        const uniqueKeys = [...new Set(linkedKeys.flat())];
+        const used = await readDailyUsed(uniqueKeys);
+        const usedByKey = new Map(uniqueKeys.map((k, i) => [k, Number(used[i])]));
+        const due = linked.filter((account, i) => !isFinished([account], linkedKeys[i]) && isDailyDue(Math.max(0, ...linkedKeys[i].map((k) => usedByKey.get(k) ?? 0)), day));
+        telegramTargets = due.length;
+        telegramResult = await tellByTelegram("daily", due.map((account) => ({ account, note: dailyReady(day), mark: `daily-${day}` })));
+      } catch (err) {
+        console.error("[cron/notify-daily] Telegram pass failed:", String((err as Error)?.message ?? err).slice(0, 120));
+      }
+    }
+
     const summary = {
       ok: true,
       audience: fids.length,
@@ -208,6 +232,7 @@ export async function GET(req: Request) {
       result,
       browsers: { subscriptions: subs.length, targets: browserTargets, result: browserResult },
       email: { targets: emailTargets, result: emailResult },
+      telegram: { targets: telegramTargets, result: telegramResult },
     };
     console.log("[cron/notify-daily]", summary);
     return NextResponse.json(summary);
