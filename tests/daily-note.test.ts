@@ -4,7 +4,7 @@
  * envelope is torn, and the note names its envelope so this survives a reload (Bugbot on #276).
  */
 import { describe, it, expect } from "vitest";
-import { awaitsLetter, dayOf, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
+import { SEEK_AGAIN_MS, awaitsLetter, dayOf, parseDailySeen, seekAgainIn, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 
 const note = (over: Partial<DailySeen> = {}): DailySeen => ({ day: 20784, idx: null, at: 1_795_700_000_000, ...over });
 const reload = (seen: DailySeen | null) => parseDailySeen(JSON.stringify(seen));
@@ -96,5 +96,25 @@ describe("a note that still waits for its letter", () => {
     expect(dayOf(86_399)).toBe(0);
     expect(dayOf(86_400)).toBe(1);
     expect(dayOf(1_795_737_600n)).toBe(20784);
+  });
+});
+
+// Bugbot on #276, round four: the search after a reload ran once and locked on a quiet miss.
+describe("looking again for today's envelope", () => {
+  it("a first miss is never final: it looks again, soon", () => {
+    expect(seekAgainIn(0)).toBe(SEEK_AGAIN_MS[0]);
+    expect(seekAgainIn(0)).toBeLessThanOrEqual(10_000);
+  });
+
+  it("looks further apart each time, for a few minutes in all", () => {
+    const waits = SEEK_AGAIN_MS.map((_, i) => seekAgainIn(i) as number);
+    for (let i = 1; i < waits.length; i++) expect(waits[i]).toBeGreaterThan(waits[i - 1]);
+    expect(waits.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(5 * 60_000);
+  });
+
+  it("stops after the last one, for this visit", () => {
+    expect(seekAgainIn(SEEK_AGAIN_MS.length)).toBeNull();
+    expect(seekAgainIn(99)).toBeNull();
+    expect(seekAgainIn(-1)).toBeNull();
   });
 });

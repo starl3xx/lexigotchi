@@ -134,7 +134,7 @@ import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageN
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
 import { failedAsk, openPacks, packRevealPlan, waitingCommits, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
 import { DAILY_STEP_MS, dailyPlan } from "@/lib/onchain/dailySend";
-import { awaitsLetter, parseDailySeen, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
+import { awaitsLetter, parseDailySeen, seekAgainIn, withDailyLetter, withDailyMail, type DailySeen } from "@/lib/dailyNote";
 import { mailboxKey, readMailbox, withMail, withoutMail, writeMailbox, type UnopenedMail } from "@/lib/mailbox";
 import { bagWithMail, caughtUp, hadWithOwed, mailNumber, type Mail } from "./mail/mailFlow";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
@@ -500,6 +500,13 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
   );
   const changeDailyNoteRef = useRef(changeDailyNote);
   changeDailyNoteRef.current = changeDailyNote;
+  /**
+   * Whose note it is, live. A daily's send keeps running if the wallet is switched, and the refs
+   * above follow the wallet connected NOW: a flow remembers the key it began under and writes the
+   * note only while it is still this one (Bugbot on #276).
+   */
+  const dailySeenKeyNow = useRef(dailySeenKey);
+  dailySeenKeyNow.current = dailySeenKey;
   const seenToday = dailySeen && dailySeen.day === chainDayNow ? dailySeen : null;
   // Re-render when the note's trust window closes, so a send that never landed offers Pull again.
   const [, expireTick] = useReducer((n: number) => n + 1, 0);
@@ -1234,44 +1241,63 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
    * envelope has to be found again (Bugbot on #276): this wallet's one-letter commit of that chain
    * day. The note learns its number. If the commit is still to be opened, the card shows it by
    * itself; if it is already revealed, it is kept as mail to tear (plainly: what the bag held
-   * before it is not known). Once per note, and never while a piece is on its way.
+   * before it is not known). It looks again after a miss, a few times, and never while a piece is
+   * on its way.
    */
-  const sought = useRef<string | null>(null);
+  const seek = useRef<{ key: string; tries: number; running: boolean; done: boolean } | null>(null);
+  const [seekTick, setSeekTick] = useState(0);
   useEffect(() => {
     if (!address || !boxKey || !awaitsLetter(seenToday, chainDayNow) || flight || busy) return;
     const number = seenToday.mail;
     // An envelope already stands for it: in hand, or kept as mail.
     if (number !== undefined && (mailNow.current?.number === number || untorn.some((u) => u.number === number))) return;
     const key = `${boxKey}:${seenToday.day}`;
-    if (sought.current === key) return;
-    sought.current = key;
+    if (seek.current?.key !== key) seek.current = { key, tries: 0, running: false, done: false };
+    const s = seek.current;
+    if (s.running || s.done) return;
+    s.running = true;
     const day = seenToday.day;
     // Not a cleanup flag: naming the note below changes the note, which runs this effect again,
     // and a flag set by that would stop the search before it kept the mail. The wallet is the
     // thing that must not have changed.
     const gone = () => boxKeyNow.current !== boxKey;
-    void (async () => {
+    /** "found": an envelope stands for it now, or it is no longer this wallet's. "miss": not yet. */
+    const look = async (): Promise<"found" | "miss"> => {
       const dailies = (await readLetterCommits(address)).filter((c) => c.count === 1).sort((a, b) => (a.commitId < b.commitId ? 1 : -1));
       // newest first: today's is among the last few
       for (const c of dailies.slice(0, 4)) {
-        if (gone()) return;
+        if (gone()) return "found";
         if ((await readBlockDay(c.blockNumber)) !== day) continue;
+        if (gone()) return "found";
         const n = mailNumber(c.commitId);
         changeDailyNoteRef.current((seen) => withDailyMail(seen, day, n));
-        if (!c.revealed || gone()) return; // still to be opened: the card shows it
-        if (readMailbox(boxKey).some((u) => u.number === n)) return;
+        if (!c.revealed) {
+          void rereadOpenCommits.current(); // still to be opened: the card shows it
+          return "found";
+        }
+        if (readMailbox(boxKey).some((u) => u.number === n)) return "found";
         // Revealed: the route sends nothing, it names the letter the chain minted.
         const res = await openPostJson<{ reveal: PackRevealAnswer }>("/api/mint/reveal", { commitId: String(c.commitId), relay: true });
         const show = res?.ok ? packRevealPlan(res.reveal) : null;
-        if (gone() || show?.do !== "show") return;
+        if (gone()) return "found";
+        if (show?.do !== "show") return "miss"; // the server couldn't say what it held, yet
         revealedPacks.current.add(String(c.commitId));
         saveBox(boxKey, (list) => withMail(list, { number: n, letters: show.letters, had: Array.from({ length: 26 }, () => 0), at: Date.now(), plain: true }));
-        return;
+        return "found";
       }
-    })().catch(() => {
-      sought.current = null; // the chain couldn't be asked: look again on a later change
-    });
-  }, [address, boxKey, seenToday, chainDayNow, flight, busy, untorn, openPostJson, saveBox]);
+      return "miss"; // the logs don't serve today's commit yet
+    };
+    void look()
+      .catch((): "miss" => "miss") // the chain couldn't be asked
+      .then((got) => {
+        s.running = false;
+        if (got === "found") return void (s.done = true);
+        // A quiet miss is not an answer: right after a reload the logs are often behind. Look
+        // again, a few times, further apart (lib/dailyNote `seekAgainIn`).
+        const wait = seekAgainIn(s.tries++);
+        if (wait !== null) setTimeout(() => setSeekTick((n) => n + 1), wait);
+      });
+  }, [address, boxKey, seenToday, chainDayNow, flight, busy, untorn, openPostJson, saveBox, seekTick]);
 
   /** Lay a pity value the client KNOWS over the lagging chain read, for that roll's owner. */
   const notePity = useCallback((owner: string, letterIndex: number, value: number) => {
@@ -1639,6 +1665,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // tear once the chain says "revealed", and the letter is the one the chain minted.
           const piece: Piece = { count: 1, had: bagBefore(mineLower(state)), mine: true };
           const seq = beginMail({ free: true, phase: "wallet", number: null, ...piece });
+          // This flow goes on if the wallet is switched: it writes the note only while the wallet
+          // it began under is still the one connected.
+          const noteKey = dailySeenKeyNow.current;
+          const myNote = () => dailySeenKeyNow.current === noteKey;
           const waiting = "Your letter is yours and safe onchain. It’ll be waiting for you on Today.";
           return mailGuard(seq, piece, waiting, async (markSent): Promise<ActionOutcome> => {
             // Every commit of this wallet's from before the send, opened or not: the daily's own is
@@ -1661,7 +1691,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             }
             markPaid();
             markSent();
-            noteDailyRef.current(null); // claimed. WHICH letter is the envelope's to say, at the tear.
+            if (myNote()) noteDailyRef.current(null); // claimed. WHICH letter is the envelope's to say, at the tear.
             patchMail(seq, { phase: "paid" });
 
             const at = Date.now();
@@ -1688,7 +1718,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                 // Nothing was committed (a batch that goes all or nothing, and reverted): the letter
                 // is still there to pull, and the "claimed" note was wrong.
                 dropMail(seq);
-                forgetDailyRef.current();
+                if (myNote()) forgetDailyRef.current();
                 void dayQ.refetch();
                 toast("Your letter didn’t go through, and it wasn’t used. Pull it again", "info");
                 return { status: "not-started" };
@@ -1713,7 +1743,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                   if (show?.do !== "show" || found) return;
                   found = true;
                   revealedPacks.current.add(String(id));
-                  changeDailyNoteRef.current((seen) => withDailyMail(seen, chainDayNow, mailNumber(id)));
+                  if (myNote()) changeDailyNoteRef.current((seen) => withDailyMail(seen, chainDayNow, mailNumber(id)));
                   settleMail(seq, piece, id, { got: "open", letters: show.letters, late: false }, waiting);
                 };
                 for (const delay of DAILY_LATE_LOOKS_MS) setTimeout(() => void lookLater().catch(() => {}), delay);
@@ -1723,7 +1753,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                 if (!numbered) {
                   numbered = true;
                   const number = mailNumber(plan.commitId);
-                  changeDailyNoteRef.current((seen) => withDailyMail(seen, chainDayNow, number));
+                  if (myNote()) changeDailyNoteRef.current((seen) => withDailyMail(seen, chainDayNow, number));
                   patchMail(seq, { phase: "found", number });
                 }
                 // "open": revealed (the server only names the letter the chain minted), or no reveal
@@ -2680,8 +2710,9 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           // of that day learns it, so its tear shows the letter (the pull's own flow may never
           // have got that far: a reload, a lost connection).
           if (mine && count === 1) {
+            const noteKey = dailySeenKeyNow.current; // the wallet may be switched before the block's day is read
             void readBlockDay(oldest.blockNumber)
-              .then((day) => changeDailyNoteRef.current((seen) => withDailyMail(seen, day, mailNumber(oldest.commitId))))
+              .then((day) => dailySeenKeyNow.current === noteKey && changeDailyNoteRef.current((seen) => withDailyMail(seen, day, mailNumber(oldest.commitId))))
               .catch(() => {});
           }
           const piece: Piece = { count, had: bagBefore(mineLower(state)), mine };

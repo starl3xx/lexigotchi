@@ -2148,7 +2148,9 @@ setter. All small, riding existing suite patterns.
         daily opened from the card names itself on the note of the day it was committed, and when
         today's note waits for a letter with no envelope known (a reload mid-flight, a send that
         landed unwatched), the day's commit is found again and, if already revealed, kept as
-        plain mail to tear.
+        plain mail to tear. That search looks again after a quiet miss (right after a reload the
+        logs are often behind), a few times over some minutes. And a daily's send that is still
+        running after a wallet switch writes nothing to the new wallet's note.
       - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
         that was already revealed, the bag read at that tap may count its letters already. Its
         letters then get no tags, none is called new, and no word is named: counted twice, a

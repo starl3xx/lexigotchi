@@ -60,3 +60,14 @@ export function withDailyMail(seen: DailySeen | null, day: number, mail: number)
 export function withDailyLetter(seen: DailySeen | null, mail: number, idx: number): DailySeen | null {
   return seen && seen.mail === mail ? { ...seen, idx } : seen;
 }
+
+/**
+ * When to look again for today's envelope after a look that found nothing (the logs don't serve
+ * the commit yet, or the server couldn't say what it held): ms to wait after miss number `tries`
+ * (0 for the first), or null when it has been looked for long enough for this visit. A miss is
+ * never final on the first look: right after a reload the chain's logs are often behind.
+ */
+export const SEEK_AGAIN_MS: readonly number[] = [5_000, 15_000, 45_000, 120_000, 300_000];
+export function seekAgainIn(tries: number): number | null {
+  return tries >= 0 && tries < SEEK_AGAIN_MS.length ? SEEK_AGAIN_MS[tries] : null;
+}
