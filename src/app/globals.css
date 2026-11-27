@@ -982,10 +982,10 @@ body {
 /* ---- the back ---- */
 /* A back is an engraved PLATE (lib/cardArt/plate; decisions.md #58, part 2: "the cards are matte",
    "13A dark plate is definitely the way to go"): one picture, set on .cb-mat by the component, that
-   holds the ground, the border, the lace, the lathe work, and the filigree. It is paper and ink:
+   holds the ground, the border, the lace, and the filigree. It is paper and ink:
    no material, no light of its own, and no frame line here (the plate's border is the frame).
    The lettering and the seal are laid over it BY THE PLATE'S OWN MEASURES: the field inside the
-   border starts 63 of 1200 units in, and the seal sits in the lathe work (plate.ts PLATE_BORDER,
+   border starts 63 of 1200 units in, and the seal stands in the field (plate.ts PLATE_BORDER,
    PLATE_SEAL; tests/matte-cards.test.ts holds these rules to them). */
 .cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
 .cb > * { position: absolute; }
@@ -1012,7 +1012,8 @@ body {
 .fd-seal { left: 50%; top: 50%; height: 74%; aspect-ratio: 1; transform: translate(-50%, -50%); background-size: 100% 100%; opacity: 0.5; pointer-events: none; }
 
 /* The game's seal, pressed into the plate in one ink, behind the facts (lib/cardArt/seal): one
-   picture in the plate's own line colour. It sits inside the plate's lathe work, so its place is the
+   picture in the plate's own line colour, THE SAME ON EVERY RARITY: nothing is drawn round it for
+   a rarer word (the owner, 2026-11-27). It stands in the plate's field, so its place is the
    plate's (PLATE_SEAL: 400 of 1200 units wide, its centre 868 along): a third of the card wide,
    11 from the right. Faint: it is a mark in the stock, not a picture on it. */
 .cb-seal { right: 11cqw; top: 50%; width: 33.333cqw; aspect-ratio: 1; transform: translateY(-50%); background-size: 100% 100%; opacity: 0.2; pointer-events: none; }
