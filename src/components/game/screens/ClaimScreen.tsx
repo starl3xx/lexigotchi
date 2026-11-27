@@ -16,7 +16,8 @@
  * with a way to get more.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { wordScore, wordTier, type Tier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
+import { rarestByScore } from "@/lib/rarity";
 import { cantClaim } from "@/lib/dictionaryList";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
 import { TierMark } from "../TierMark";
@@ -26,6 +27,7 @@ import { Basket, Sparkle } from "../ui/icons";
 import { anagramsOf, canSpell, charToIdx, claimCase, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, showsUsd, spellableNow, useGame } from "../state";
 import { takeQueuedSpell } from "../spellHandoff";
 import { useDictionary } from "../useDictionary";
+import { useTierOf } from "../useRarity";
 
 /** A tile in the rack or the tray: a letter (0..25) and its case. */
 type Tile = { i: number; upper: boolean };
@@ -67,6 +69,7 @@ export function filterBag(show: CaseFilter, lower: readonly number[], upper: rea
 }
 
 export function ClaimScreen() {
+  const tierOf = useTierOf();
   const g = useGame();
   const { state } = g;
   const [rack, setRack] = useState<Tile[]>([]);
@@ -131,17 +134,18 @@ export function ClaimScreen() {
   const [tier, setTier] = useState<Tier | "All">("All");
   const tierCounts = useMemo(() => {
     const c: Partial<Record<Tier, number>> = {};
-    for (const w of spellable) c[wordTier(w)] = (c[wordTier(w)] ?? 0) + 1;
+    for (const w of spellable) c[tierOf(w)] = (c[tierOf(w)] ?? 0) + 1;
     return c;
-  }, [spellable]);
+  }, [spellable, tierOf]);
   // A chosen rarity with nothing left in it (its last word claimed, or the case switched) shows
   // All rather than an empty list under a heading that counts words (Bugbot on #146).
   const activeTier: Tier | "All" = tier !== "All" && !tierCounts[tier] ? "All" : tier;
   const quick = useMemo(() => {
-    const list = activeTier === "All" ? spellable : spellable.filter((w) => wordTier(w) === activeTier);
-    // The dictionary is alphabetical already; rarest first ranks by the same score that sets tiers.
-    return order === "rarest" ? [...list].sort((a, b) => wordScore(b) - wordScore(a) || a.localeCompare(b)) : list;
-  }, [spellable, activeTier, order]);
+    const list = activeTier === "All" ? spellable : spellable.filter((w) => tierOf(w) === activeTier);
+    // The dictionary is alphabetical already; rarest first ranks by the same score that sets tiers,
+    // under the game's tier (lib/rarity.ts): a collab word sorts with the Legendary words.
+    return order === "rarest" ? [...list].sort(rarestByScore(tierOf)) : list;
+  }, [spellable, activeTier, order, tierOf]);
   // A full bag spells hundreds of words; render them a page at a time so a phone stays smooth.
   const [shown, setShown] = useState(SPELL_PAGE);
   useEffect(() => setShown(SPELL_PAGE), [activeTier, order, show]);
@@ -340,10 +344,10 @@ export function ClaimScreen() {
               const cases = bag.casesFor(w);
               return (
                 <div key={w} className="cel-sm flex items-center gap-3 rounded-2xl bg-card p-2.5">
-                  <WordTiles word={w} upper={cases} size={26} tier={wordTier(w)} still />
+                  <WordTiles word={w} upper={cases} size={26} tier={tierOf(w)} still />
                   <div className="flex-1">
                     <div className="font-display text-sm font-extrabold">{w}</div>
-                    <TierBadge tier={wordTier(w)} />
+                    <TierBadge tier={tierOf(w)} />
                   </div>
                   <Button size="sm" variant="teal" disabled={!canClaim || !ownersKnown} onClick={() => claim(w, cases)}>
                     {ownersKnown ? `Claim · ${fmtWord(fee)}` : ownerWait}

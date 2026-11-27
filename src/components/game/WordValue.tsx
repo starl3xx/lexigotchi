@@ -7,6 +7,7 @@
 import { costToMake, dailyEarnEstimate, roundPrice, type CostToMake, type WordShape } from "@/lib/wordCost";
 import { fmtUsd, fmtWord, showsUsd, useGame } from "./state";
 import { useWorld } from "./useWorld";
+import { useTierOf } from "./useRarity";
 
 /** The word's cost to make at the game's live prices, or null while a price is still loading. */
 export function useCostToMake(w: WordShape): CostToMake | null {
@@ -36,10 +37,11 @@ export function WordValue({
   /** A Market row: the total, with the parts inside a disclosure. */
   compact?: boolean;
 }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const world = useWorld().data;
   const amount = (n: number) => (showsUsd(g.state) ? `${fmtWord(n)} $WORD (${fmtUsd(n)})` : `${fmtWord(n)} $WORD`);
-  const earn = world?.yieldToday ? dailyEarnEstimate(word, world.yieldToday) : undefined;
+  const earn = world?.yieldToday ? dailyEarnEstimate(word, world.yieldToday, tierOf) : undefined;
   const drawn = world?.drawn?.[word.word] !== undefined;
 
   const parts = cost && (

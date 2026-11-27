@@ -21,7 +21,7 @@
  */
 import { useMemo, type ReactNode } from "react";
 import { WORDS, WORD_COUNT } from "@/lib/dictionary";
-import { LETTER_ODDS, LETTER_SUPPLY_CAP, RANKED_WORDS, wordTier } from "@/lib/economy";
+import { LETTER_ODDS, LETTER_SUPPLY_CAP, RANKED_WORDS } from "@/lib/economy";
 import { cardNumber, wordPoints } from "@/lib/cardFacts";
 import { stageName } from "@/lib/ascension";
 import { dailyEarnEstimate } from "@/lib/wordCost";
@@ -31,13 +31,14 @@ import { TileCharacter, TileWord, type Gild } from "../TileCharacter";
 import { PlayerChip } from "../PlayerChip";
 import { NeedText } from "../NeedText";
 import { WordValue, useCostToMake } from "../WordValue";
-import { rarestFirst, versus, versusLabel } from "@/lib/market/deals";
+import { rarestFirstBy, versus, versusLabel } from "@/lib/market/deals";
 import { timeAgo } from "../market/bits";
 import { useWorld } from "../useWorld";
 import { useDictionary } from "../useDictionary";
 import { useLetterSupply } from "../useLetterSupply";
 import { queueSpell } from "../spellHandoff";
 import { THEMES, fmtWord, useGame } from "../state";
+import { useTierOf } from "../useRarity";
 
 const LOWER = [false, false, false, false, false];
 const ALL_UPPER = [true, true, true, true, true];
@@ -47,11 +48,12 @@ const STAGE = 54; // a letter character's width on the stage, px
 const idx = (letter: string) => letter.toUpperCase().charCodeAt(0) - 65;
 
 export function LookupSheet({ word }: { word: string }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const { state } = g;
   const world = useWorld();
   const d = useDictionary();
-  const tier = wordTier(word);
+  const tier = tierOf(word);
   const status = d.statusOf(word);
   const listing = d.listings.get(word);
   // a word on the board is its seller's, whatever the minute-old world read says (useDictionary)
@@ -68,20 +70,20 @@ export function LookupSheet({ word }: { word: string }) {
   const skip = (w: string) => w === word || d.statusOf(w) !== "open";
   const also = useMemo(() => {
     if (!counting || parts.length !== 1 || parts[0].count !== 1) return [];
-    return finishedBy(parts[0].letter, WORDS, d.here, skip, d.all).sort(rarestFirst);
+    return finishedBy(parts[0].letter, WORDS, d.here, skip, d.all).sort(rarestFirstBy(tierOf));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counting, parts, d.here, d.all, d.statusOf, word]);
+  }, [counting, parts, d.here, d.all, d.statusOf, word, tierOf]);
   // for a word someone has: unclaimed words one of ITS letters would finish, the rarest letter first
   const consolation = useMemo(() => {
     if ((status !== "taken" && status !== "sale") || !d.hasLetters) return null;
     const lacking = [...new Set(need.missing)].sort((a, b) => LETTER_ODDS[a.toUpperCase()] - LETTER_ODDS[b.toUpperCase()]);
     for (const letter of lacking) {
-      const words = finishedBy(letter, WORDS, d.here, skip, d.all).sort(rarestFirst);
+      const words = finishedBy(letter, WORDS, d.here, skip, d.all).sort(rarestFirstBy(tierOf));
       if (words.length) return { letter, words };
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, d.hasLetters, need, d.here, d.all, d.statusOf, word]);
+  }, [status, d.hasLetters, need, d.here, d.all, d.statusOf, word, tierOf]);
 
   const cost = useCostToMake({ word, upper: LOWER, prestigeLevel: 0 });
   // A word for sale is priced against what IT costs to make: its own case and ascension stage.
@@ -91,7 +93,7 @@ export function LookupSheet({ word }: { word: string }) {
   // Buying needs a wallet that can pay (the Dictionary is public, and the stores ignore a Buy without one).
   const canBuy = status === "sale" && !!listing && state.status === "ready";
   const today = world.data?.live ? world.data.yieldToday : undefined;
-  const earns = today ? dailyEarnEstimate({ word, upper: ALL_UPPER, prestigeLevel: 0 }, today) : null;
+  const earns = today ? dailyEarnEstimate({ word, upper: ALL_UPPER, prestigeLevel: 0 }, today, tierOf) : null;
   const drawn = !state.chainBacked ? "never" : world.data?.live && world.data.drawn ? (world.data.drawn[word] ?? "never") : null;
   const theme = THEMES[state.bountyTheme];
   const number = d.numbers?.[word];

@@ -1,5 +1,13 @@
 import { DEFAULT_PARAMS, type Params } from "@/lib/params";
-import { TIER_WEIGHT, wordTier } from "@/lib/economy";
+import { TIER_WEIGHT, type Tier } from "@/lib/economy";
+
+/**
+ * The tier a word is WEIGHED at. Always passed in, never read here: a collab word is Legendary
+ * from its set's reveal (lib/rarity.ts `tierFn`), and the caller that pays must have read the
+ * collab words for certain (lib/keeper/jobs.ts refuses to open an epoch otherwise). The simulator
+ * and a test with no sets pass `wordTier`, the derived tier.
+ */
+export type TierOf = (word: string) => Tier;
 
 /**
  * The keeper's share math — the off-chain half of MerkleEpochs.
@@ -85,9 +93,10 @@ function split(
 export function yieldLeaves(
   words: readonly KeeperWord[],
   potWei: bigint,
+  tier: TierOf,
   p: Params = DEFAULT_PARAMS,
 ): RewardLeaf[] {
-  const entries = words.filter((w) => w.staked && w.upperAll).map((w) => ({ w, weight: yieldWeight(w, p) }));
+  const entries = words.filter((w) => w.staked && w.upperAll).map((w) => ({ w, weight: yieldWeight(w, tier, p) }));
   return split(entries, potWei);
 }
 
@@ -98,10 +107,11 @@ export function yieldLeaves(
  */
 export function yieldWeight(
   w: Pick<KeeperWord, "word" | "staked" | "upperAll" | "daysUnfed" | "prestigeLevel">,
+  tier: TierOf,
   p: Params = DEFAULT_PARAMS,
 ): number {
   if (!w.staked || !w.upperAll) return 0;
-  return TIER_WEIGHT[wordTier(w.word)] * hungerFactor(w.daysUnfed, p) * p.prestige.yieldMultPerLevel ** w.prestigeLevel;
+  return TIER_WEIGHT[tier(w.word)] * hungerFactor(w.daysUnfed, p) * p.prestige.yieldMultPerLevel ** w.prestigeLevel;
 }
 
 /**
@@ -113,6 +123,7 @@ export function bountyLeaves(
   words: readonly KeeperWord[],
   potWei: bigint,
   matches: (word: string) => boolean,
+  tier: TierOf,
   p: Params = DEFAULT_PARAMS,
 ): RewardLeaf[] {
   const entries = words
@@ -125,7 +136,7 @@ export function bountyLeaves(
     .map((w) => ({
       w,
       weight:
-        TIER_WEIGHT[wordTier(w.word)] ** p.bounty.rarityWeight *
+        TIER_WEIGHT[tier(w.word)] ** p.bounty.rarityWeight *
         p.prestige.bountyMultPerLevel ** w.prestigeLevel,
     }));
   return split(entries, potWei);

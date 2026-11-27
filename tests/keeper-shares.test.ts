@@ -34,6 +34,7 @@ describe("yieldLeaves — the daily UPPERCASE yield split", () => {
         mk({ tokenId: 3n, upperAll: false }),
       ],
       POT,
+      wordTier,
     );
     expect(leaves.map((l) => l.tokenId)).toEqual([1n]);
     expect(leaves[0].amount).toBe(POT); // the only eligible word takes the whole pot
@@ -48,6 +49,7 @@ describe("yieldLeaves — the daily UPPERCASE yield split", () => {
         mk({ tokenId: 3n, daysUnfed: p.care.hungryAfterDays }),
       ],
       POT,
+      wordTier,
     );
     expect(leaves).toHaveLength(2); // hungry word gone
     const fed = leaves.find((l) => l.tokenId === 1n)!;
@@ -63,6 +65,7 @@ describe("yieldLeaves — the daily UPPERCASE yield split", () => {
     const leaves = yieldLeaves(
       [mk({ tokenId: 1n, word: wA }), mk({ tokenId: 2n, word: wB, owner: B })],
       10n ** 24n, // big pot so integer rounding noise vanishes
+      wordTier,
     );
     const ratio = Number(leaves.find((l) => l.tokenId === 2n)!.amount) / Number(leaves.find((l) => l.tokenId === 1n)!.amount);
     const expected = TIER_WEIGHT[wordTier(wB)] / TIER_WEIGHT[wordTier(wA)];
@@ -73,6 +76,7 @@ describe("yieldLeaves — the daily UPPERCASE yield split", () => {
     const leaves = yieldLeaves(
       [mk({ tokenId: 1n }), mk({ tokenId: 2n, prestigeLevel: 1, owner: B })],
       10n ** 24n,
+      wordTier,
     );
     const ratio = Number(leaves.find((l) => l.tokenId === 2n)!.amount) / Number(leaves.find((l) => l.tokenId === 1n)!.amount);
     expect(ratio).toBeCloseTo(DEFAULT_PARAMS.prestige.yieldMultPerLevel, 3);
@@ -83,7 +87,7 @@ describe("yieldLeaves — the daily UPPERCASE yield split", () => {
     const words = Array.from({ length: 37 }, (_, i) =>
       mk({ tokenId: BigInt(i + 1), daysUnfed: i % 2, prestigeLevel: i % 3, owner: i % 2 ? A : B }),
     );
-    const total = leavesTotal(yieldLeaves(words, POT));
+    const total = leavesTotal(yieldLeaves(words, POT, wordTier));
     expect(total <= POT).toBe(true);
     // dust only: strictly less than one wei per leaf
     expect(POT - total < 37n).toBe(true);
@@ -91,8 +95,8 @@ describe("yieldLeaves — the daily UPPERCASE yield split", () => {
 
   it("is deterministic and tokenId-ordered — the published tree must be reproducible", () => {
     const words = [mk({ tokenId: 5n }), mk({ tokenId: 2n, owner: B }), mk({ tokenId: 9n })];
-    const a = yieldLeaves(words, POT);
-    const b = yieldLeaves([...words].reverse(), POT);
+    const a = yieldLeaves(words, POT, wordTier);
+    const b = yieldLeaves([...words].reverse(), POT, wordTier);
     expect(a).toEqual(b);
     expect(a.map((l) => l.tokenId)).toEqual([2n, 5n, 9n]);
   });
@@ -110,6 +114,7 @@ describe("bountyLeaves — the theme bounty split", () => {
       ],
       POT,
       isRare,
+      wordTier,
     );
     expect(leaves.map((l) => l.tokenId)).toEqual([1n]);
   });
@@ -117,7 +122,7 @@ describe("bountyLeaves — the theme bounty split", () => {
   it("respects requiresNotHungry from params", () => {
     const p = DEFAULT_PARAMS;
     const hungry = mk({ tokenId: 1n, word: "JAZZY", daysUnfed: p.care.hungryAfterDays });
-    const leaves = bountyLeaves([hungry], POT, isRare, p);
+    const leaves = bountyLeaves([hungry], POT, isRare, wordTier, p);
     expect(leaves.length).toBe(p.bounty.requiresNotHungry ? 0 : 1);
   });
 });
@@ -127,6 +132,7 @@ describe("buildEpochFile — the tree the contract will verify", () => {
     const leaves = yieldLeaves(
       Array.from({ length: 9 }, (_, i) => mk({ tokenId: BigInt(i + 1), owner: i % 2 ? A : B })),
       POT,
+      wordTier,
     );
     const epoch = buildEpochFile(leaves);
     expect(epoch.entries).toHaveLength(9);

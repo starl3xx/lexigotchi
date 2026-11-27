@@ -81,21 +81,21 @@ describe("earns staked", () => {
 
   it("counts a staked word once: alone in the pot, it takes all of it", () => {
     // the pot's weight is this word's own: it is already counted (Bugbot on #211)
-    expect(earnsStaked({ ...crane, staked: true }, { pot: 1000, weight })).toBeCloseTo(1000);
+    expect(earnsStaked({ ...crane, staked: true }, { pot: 1000, weight }, wordTier)).toBeCloseTo(1000);
   });
 
   it("adds a word not staked yet to the words already sharing", () => {
-    expect(earnsStaked({ ...crane, staked: false }, { pot: 1000, weight })).toBeCloseTo(500);
+    expect(earnsStaked({ ...crane, staked: false }, { pot: 1000, weight }, wordTier)).toBeCloseTo(500);
   });
 
   it("estimates a peckish staked word fed again (its half weight comes out, its full weight goes in)", () => {
     const peckish = { ...crane, staked: true, daysUnfed: DEFAULT_PARAMS.care.peckishAfterDays };
     const half = weight * DEFAULT_PARAMS.care.peckishYieldFactor;
-    expect(earnsStaked(peckish, { pot: 1000, weight: half + weight })).toBeCloseTo(500);
+    expect(earnsStaked(peckish, { pot: 1000, weight: half + weight }, wordTier)).toBeCloseTo(500);
   });
 
   it("says a word not yet UPPERCASE can't earn", () => {
-    expect(earnsStaked({ ...crane, upper: [true, false, true, true, true], staked: true }, { pot: 1000, weight })).toBeNull();
+    expect(earnsStaked({ ...crane, upper: [true, false, true, true, true], staked: true }, { pot: 1000, weight }, wordTier)).toBeNull();
   });
 });
 

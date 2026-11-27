@@ -119,6 +119,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
   the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`
   must pass on a database with and without the newest migration.
+- **A word's rarity has two names; use the right one** (decisions.md #53, part 2; `lib/rarity.ts`).
+  `wordTier(word)` is the DERIVED tier (the full dictionary's; supply, odds, the simulator).
+  `tierWith(word, collab)` is the tier the game TREATS it as: a collab word is Legendary from its
+  set's reveal, a higher own tier is kept. **Anything a player reads, sorts, filters, or is paid
+  by asks the second:** a component calls `useTierOf()` / `useTierCounts()`
+  (`components/game/useRarity.ts`), a server render that only shows a rarity `collabSoon()`
+  (`lib/raritySoon.ts`, falls back to derived), and the keeper `epochTiers()`
+  (`lib/keeper/tiers.ts`), which reads with `collabStrict()` (this run's own read, never the sets
+  loader's kept copy) and THROWS when the sets can't be read: no epoch is opened on guessed
+  rarities. **`loadSets()` answers `known: true` from a kept copy after a failure**: right for
+  holding words back, wrong for anything that pays; a paying caller passes `{ strict: true }`. `tests/rarity-override.test.tsx` lists the files that may still name `wordTier`; a new
+  one fails it, so add the file there with its reason or use the game's tier. The collab words
+  are passed in, never read inside `rarity.ts`, and never reach `lib/economy.ts` or the sim.
 - **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /
   `set_words` / `dictionary_roots`, migration 0021): themed groups of dictionary words held back
   and released later. A reserved word is one `Words.dictionaryRoot` leaves out; a release is a

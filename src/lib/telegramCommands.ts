@@ -22,7 +22,8 @@
 import { getAbiItem } from "viem";
 import commands from "../../config/telegram-commands.json";
 import { isWord } from "./dictionary";
-import { wordTier, type Tier } from "./economy";
+import { NO_COLLAB, tierCountsWith, tierWith, type CollabWords } from "./rarity";
+import { collabSoon } from "./raritySoon";
 import { cardNumber, tierCount } from "./cardFacts";
 import { stageName } from "./ascension";
 import { fmtWord } from "./wordAmount";
@@ -204,16 +205,17 @@ export function parseWordArg(args: string): { kind: "none" } | { kind: "unknown"
 }
 
 /** Its rarity, as the cards count it: "CRANE is one of 229 Rare words." */
-function tierLine(word: string, tier: Tier): string {
-  return `${word} is one of ${tierCount(tier).toLocaleString("en-US")} ${tier} words.`;
+function tierLine(word: string, collab: CollabWords): string {
+  const tier = tierWith(word, collab);
+  return `${word} is one of ${tierCount(tier, tierCountsWith(collab)).toLocaleString("en-US")} ${tier} words.`;
 }
 
 /**
  * `held`: the word's holder and state; null when nobody holds it; undefined when the chain couldn't
  * be read (or in practice mode, where there is no chain to read: `chainBacked` false).
  */
-export function wordText(word: string, held: HeldWord | null | undefined, chainBacked = true, notYet = false): string {
-  const lines = [tierLine(word, wordTier(word))];
+export function wordText(word: string, held: HeldWord | null | undefined, chainBacked = true, notYet = false, collab: CollabWords = NO_COLLAB): string {
+  const lines = [tierLine(word, collab)];
   if (!chainBacked) return lines[0];
   if (held === undefined) return [...lines, "I can’t read the chain right now, so I don’t know who holds it."].join("\n");
   // `notYet`: held back in a reserved set (decisions.md, "Reserved word sets"). A plain "not yet",
@@ -377,7 +379,7 @@ async function answerWord(args: string): Promise<BotReply> {
   const read = await soon(readHeld(arg.word).then((h) => ({ h })));
   const held = read === null ? undefined : read.h;
   const notYet = held === null ? (await isHeldBack(arg.word).catch(() => null)) === true : false;
-  return { text: wordText(arg.word, held, true, notYet), photoUrl: held ? cardUrlOf(arg.word, held) : undefined };
+  return { text: wordText(arg.word, held, true, notYet, await collabSoon()), photoUrl: held ? cardUrlOf(arg.word, held) : undefined };
 }
 
 /**
