@@ -124,6 +124,25 @@ describe("a face change on the card's front", () => {
     act(() => void vi.advanceTimersByTime(600));
     expect(faces(container).map((f) => f.face)).toEqual(["trophy"]);
   });
+  it("a letter turns about its feet on every face, level ground too", () => {
+    // Set only together with the turn, the turning point was dropped the moment a word left a
+    // curved face for a level one, and the letter swung about its middle for the glide (Bugbot
+    // on #317).
+    const stances = (scene: SceneId) => {
+      const { container, unmount } = render(card(scene));
+      const out = [...container.querySelectorAll<HTMLElement>(".cf-stand")].map((el) => ({ origin: el.style.transformOrigin, turned: el.style.transform !== "" }));
+      unmount();
+      return out;
+    };
+    const level = stances("stage");
+    const curved = stances("spring");
+    expect(level).toHaveLength(5);
+    expect(level.some((s) => s.turned)).toBe(false); // level ground: nothing to turn
+    expect(curved.some((s) => s.turned)).toBe(true); // a hill: the outer letters lean to it
+    const origins = new Set([...level, ...curved].map((s) => s.origin));
+    expect(origins.size).toBe(1);
+    expect([...origins][0]).toMatch(/^50% \d+(\.\d+)?%$/);
+  });
   it("the face picker asks for the slide, and it is the only place that does", () => {
     expect(readFileSync("src/components/game/sheets/SceneSheet.tsx", "utf8")).toMatch(/change="slide"/);
     for (const f of ["src/components/game/TodayStage.tsx", "src/components/cards/SceneCard.tsx", "src/components/game/sheets/CelebrateSheet.tsx"]) {

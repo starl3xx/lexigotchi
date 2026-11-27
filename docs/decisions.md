@@ -3199,6 +3199,11 @@ setter. All small, riding existing suite patterns.
       ran it: narrowing the window set four of five letters on Spring's hill drifting for half
       a second, in both engines. It would also have run in the Shop's closer look, which
       doubles the card.
+    - **A letter turns about its feet on level ground too** (Bugbot on #317). The turning point
+      was set only together with a turn, so it was dropped the moment a word left a curved
+      face for a level one, and the letter swung about its middle for the length of the glide.
+      It is set always now. Checked in a browser mid-change, Outer Space to the Stage: all
+      five letters turn about their feet.
     - **Why the new face covers the old instead of pushing it out** (my choice between two
       readings of "swipe"): the letters stand in front of the picture, and their ground is part
       of it. A push moves both pictures, so the ground slides under ten still feet for the whole

@@ -231,8 +231,14 @@ export function SceneFrame({
     <div ref={wordRow} className={`flex items-end ${moment ? "rf-moment" : ""}`} onPointerEnter={play} {...gaze}>
       {[...word].map((ch, i, all) => {
         const f = footings[i];
-        const stand: CSSProperties | undefined =
-          f.drop || f.deg ? { transform: `translateY(${((f.drop / CARD_W) * 100).toFixed(3)}cqw) rotate(${f.deg.toFixed(2)}deg)`, transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%` } : undefined;
+        // A letter turns about its FEET, always: the turning point is set on level ground too,
+        // where nothing turns. Set only with the turn, it was dropped the moment a word left a
+        // curved face for a level one, and the letter swung about its middle for the length of
+        // the glide (.cf-stand; Bugbot on #317).
+        const stand: CSSProperties = {
+          transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%`,
+          ...(f.drop || f.deg ? { transform: `translateY(${((f.drop / CARD_W) * 100).toFixed(3)}cqw) rotate(${f.deg.toFixed(2)}deg)` } : {}),
+        };
         return (
           // display: flex, so no line box sits under the tile and the feet land on the line exactly
           <div key={i} className="cf-stand" style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
