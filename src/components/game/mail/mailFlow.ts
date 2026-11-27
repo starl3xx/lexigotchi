@@ -178,10 +178,16 @@ export function countSub(pulls: readonly Pull[], rarity?: { odds: string; packs:
     const what = isRarest(best.idx) ? "The rarest letter" : "One of the rarest letters";
     return rarity && Number.isFinite(rarity.packs) ? `${what}: ${rarity.odds} of pulls, about one pack in ${Math.max(2, Math.round(rarity.packs))}.` : `${what} in the game.`;
   }
-  const fresh = pulls.find((p) => p.isNew && !p.finishes);
   const where = pulls.length === 1 ? "It’s in your bag." : "All in your bag.";
-  return fresh ? `${where} The ${ch(fresh.idx)} is your first.` : where;
+  // Letters the bag held no copy of (a second copy in the same piece is not counted twice).
+  const firsts = pulls.filter((p) => p.isNew);
+  if (firsts.length === 0) return where;
+  if (firsts.length === 1) return `${where} The ${ch(firsts[0].idx)} is your first.`;
+  // A newcomer's first pack is mostly firsts: naming one of them would read as if the rest weren't.
+  const n = COUNT_WORDS[firsts.length] ?? String(firsts.length);
+  return firsts.length === pulls.length ? `${where} All ${n} are new to you.` : `${where} ${n[0].toUpperCase()}${n.slice(1)} of them are new to you.`;
 }
+const COUNT_WORDS = ["", "one", "two", "three", "four", "five"];
 
 /**
  * How many pieces of mail a player tears open in one sitting before the short version plays: the

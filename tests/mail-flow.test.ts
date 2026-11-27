@@ -140,6 +140,15 @@ describe("tags and lines", () => {
     expect(countSub(revealOrder(pack("esar"), bag("esar")))).toBe("All in your bag.");
     expect(countSub(revealOrder(pack("e"), bag("e")))).toBe("It’s in your bag.");
   });
+
+  it("several firsts are counted, never one of them named as if the rest weren't (a newcomer's first pack)", () => {
+    // h, o, and l are new; the second and third o are copies in the same piece
+    expect(countSub(revealOrder(pack("holoo"), none))).toBe("All in your bag. Three of them are new to you.");
+    expect(countSub(revealOrder(pack("esard"), bag("esa")))).toBe("All in your bag. Two of them are new to you.");
+    expect(countSub(revealOrder(pack("esard"), none))).toBe("All in your bag. All five are new to you.");
+    // a first that also finishes a word is still a first
+    expect(countSub(revealOrder(pack("kesad"), bag("funyesad"), new Map([[idx("k"), "FUNKY"]])))).toBe("All in your bag. The k is your first.");
+  });
 });
 
 describe("the line under the envelope", () => {
