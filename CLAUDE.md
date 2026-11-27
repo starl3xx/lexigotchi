@@ -406,7 +406,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `walletTypedDataJson(order)`, never `JSON.stringify(orderTypedData(order))`:** eth-sig-util wallets
   read a missing `EIP712Domain` as empty and sign another digest (every MetaMask listing failed
   bad_signature until #187); viem fills it in, so a viem-signed test can't catch this.
-  **The Shop** (decisions.md #22; infrastructure only: no real item exists yet): cosmetics for USDC on
+  **The Shop** (decisions.md #22; one real item on Base Sepolia since 2026-11-27, the Outer Space scene: see "The Shop's scenes"): cosmetics for USDC on
   Base, `contracts/src/Shop.sol` (registry EMPTY at deploy; a sale sends 80% straight to the revenue
   wallet and swaps the rest to $WORD through `adapters/UniV4UsdcWordAdapter` into ROYALTY, in the same
   transaction; a failed swap waits in the Shop for `sweep`, which the keeper's `fees` job runs; the
@@ -618,7 +618,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   for a scene the same, `sceneSale`: a scene is bought once). `/api/shop`'s `metaKnown: false` (the
   database couldn't say what the items are) is "unknown" too, and the Shop sheet lists nothing then.
   `/api/scenes` won't save one for a profile that hasn't bought it. Listing
-  is the owner's (`Shop.addItem`, then the `shop_items` row); none is listed yet. **The plastic case** (decisions.md #42;
+  is the owner's (`Shop.addItem`, then the `shop_items` row). **Outer Space is listed on Base Sepolia**
+  (starl3xx, 2026-11-27: "i want to introduce it as a Shop item on Testnet for $5 USDC"): item 2,
+  5 test USDC, no supply limit and no end, its row `kind` "scene", `art` "space". The Bookshelf is
+  not listed. **List an item in three steps, so it never shows as a "Test item" card:** `addItem`
+  with `active` false (take the id from `ItemAdded`), then the `shop_items` row (`shop` in
+  LOWERCASE: the reader matches on it), then `setActive(id, true)`; check `/api/shop` after each.
+  **A scene is the buyer's profile's, never the word's** (the same day: "it doesn't travel with a
+  card"): one purchase is for every word they hold, a pick comes off when the word leaves the
+  profile, and a buyer's card starts on the stock card. Nothing a buyer sees draws a seller's
+  scene: the Market and the word view show letters. The seller's own Today, Bag, and opened card
+  keep their scene while the word is for sale (asked, and the owner chose to change nothing).
+  **The plastic case** (decisions.md #42;
   `cards/CardCase.tsx`, `lib/shop/cases.ts`, `lib/db/wordCases.ts`, `/api/cases`): a Shop item of
   kind "case". **One case holds one word** (my reading; the strict one, loosened later at no
   buyer's cost), and the server is the one place that counts: a cased word is a `word_picks` row of

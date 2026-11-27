@@ -15,7 +15,9 @@
  * - **The Bookshelf and Outer Space are the Shop's** (decisions.md #41; starl3xx, 2026-11-25: "add
  *   bookshelf, outer space (maybe as shop items, but still good to build)"). A player has one only
  *   once their profile has bought it (lib/shop/scenes says what "bought" is). Until the Shop lists
- *   them, nobody has them and the picker doesn't show them.
+ *   one, nobody has it and the picker doesn't show it. Outer Space is listed on Base Sepolia
+ *   (2026-11-27); the Bookshelf is not. A bought scene is the PROFILE's, for every word it holds,
+ *   and never the word's: a word that is sold reaches its buyer on the stock card.
  * - **Retired:** Picture Day, Summer, Fall, and Winter. They were free, so nobody lost a purchase.
  *   A saved pick or a link that names one reads as the stock card (`storedScene`).
  *

@@ -1,8 +1,9 @@
 "use client";
 /**
  * The Shop (decisions.md #22), behind SHOP_ENABLED: the registry's items that the app can show, what
- * the player already has, and Buy. Infrastructure only: real items come later, through the admin and
- * the `shop_items` table, so with none it shows a plain empty state. On a test network an item with
+ * the player already has, and Buy. An item is real once the owner lists it (the admin's `addItem`,
+ * then its row in the `shop_items` table); with none it shows a plain empty state. The first is the
+ * Outer Space scene, on Base Sepolia since 2026-11-27. On a test network an item with
  * no metadata is a plain "Test item" card (lib/shop/rules.ts), and Get test USDC sits here too when
  * a tester's balance is too low for an item.
  *
