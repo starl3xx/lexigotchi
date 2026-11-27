@@ -304,7 +304,9 @@ A staked word's care state is a function of days since last fed:
   unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
   (decisions.md #41): a player's only once their profile buys one, for every word they hold, and never the word's (a
   sold word reaches its buyer on the stock face). Outer Space is listed on Base Sepolia; the
-  Bookshelf is not listed. The Shop can
+  Bookshelf is not listed. The Shop is a screen of its own (decisions.md #55), with two categories
+  (Card faces, Accessories), and an item with a supply limit is a limited edition: its card says
+  how many were made and how many are left. The Shop can
   also sell a plastic case for a word's card (decisions.md #42): one case holds one word, the word
   shows in it on Today and when opened, and it turns with a drag. Not listed yet either.
   A face is a still engraving and

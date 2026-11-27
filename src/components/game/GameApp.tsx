@@ -49,7 +49,7 @@ import { bustPublicProfile, readPendingLink, resolveIdentity, useProfile, writeP
 import { CheatSheet } from "./sheets/CheatSheet";
 import { AddAppSheet } from "./sheets/AddAppSheet";
 import { SceneSheet } from "./sheets/SceneSheet";
-import { ShopSheet } from "./sheets/ShopSheet";
+import { ShopScreen } from "./screens/ShopScreen";
 import { shopEnabled } from "@/lib/shop/config";
 import { EarningsSheet } from "./sheets/EarningsSheet";
 import { LookupSheet } from "./sheets/LookupSheet";
@@ -314,6 +314,7 @@ function Screen({ view }: { view: View }) {
     case "word": return <WordScreen />;
     case "lhaw": return <LhawScreen />;
     case "swap": return <MarketScreen />;
+    case "shop": return <ShopScreen />;
     default: return <HomeScreen />;
   }
 }
@@ -365,8 +366,6 @@ function SheetFor({ sheet }: { sheet: Sheet }) {
   if (state.sheet?.kind === "celebrate") return <CelebrateSheet word={state.sheet.word} bought={state.sheet.bought} />;
   if (state.sheet?.kind === "boughtLetters") return <BoughtLettersSheet letterId={state.sheet.letterId} count={state.sheet.count} unitPrice={state.sheet.unitPrice} had={state.sheet.had} />;
   if (state.sheet?.kind === "scene") return <SceneSheet word={state.sheet.word} fromWord={state.sheet.fromWord} />;
-  // Only reachable from entries that already check the chain game and SHOP_ENABLED; checked again here.
-  if (state.sheet?.kind === "shop" && shopEnabled()) return <ShopSheet />;
   if (state.sheet?.kind === "earnings") return <EarningsSheet />;
   if (state.sheet?.kind === "lookup") return <LookupSheet word={state.sheet.word} />;
   return null;
@@ -492,7 +491,8 @@ function ViewerChip() {
  * connected wallet's bag is loading, or the chain read failed, the gate still shows its skeleton or
  * error, so the Dictionary never says "you own 0" before the bag arrives (Bugbot on #121).
  */
-const PUBLIC_VIEWS: ReadonlySet<View> = new Set<View>(["dictionary", "leaderboard", "word", "lhaw", "more"]);
+// The Shop is one of them: anyone can look at what it sells (its sheet opened with no wallet too).
+const PUBLIC_VIEWS: ReadonlySet<View> = new Set<View>(["dictionary", "leaderboard", "word", "lhaw", "more", "shop"]);
 
 /** The page title the desktop header shows. */
 const VIEW_TITLE: Record<View, string> = {
@@ -506,6 +506,7 @@ const VIEW_TITLE: Record<View, string> = {
   word: "$WORD",
   lhaw: "Let’s Have A Word!",
   swap: "Market",
+  shop: "Shop",
   more: "More",
 };
 
@@ -573,16 +574,9 @@ function SideRail() {
             <div className="px-3 pb-1.5 text-xs font-bold text-ink/50">{group.heading}</div>
             <div className="space-y-1">
               {group.items.map((i) => item(i.view, i.label, i.Icon))}
-              {/* The Shop is a sheet, behind SHOP_ENABLED (decisions.md #22): no entry while it's off. */}
-              {group.heading === "Collect" && state.chainBacked && shopEnabled() && (
-                <button
-                  onClick={() => openSheet({ kind: "shop" })}
-                  className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
-                >
-                  <ShoppingBag size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" />
-                  Shop
-                </button>
-              )}
+              {/* The Shop is a screen of its own (decisions.md #55), behind SHOP_ENABLED: no entry while
+                  it's off, nor in the practice game, which has no chain. */}
+              {group.heading === "Collect" && state.chainBacked && shopEnabled() && item("shop", "Shop", ShoppingBag)}
             </div>
           </div>
         ))}
@@ -624,7 +618,7 @@ const TABS: { view: View; label: string; Icon: typeof House }[] = [
   { view: "jackpot", label: "Win", Icon: Trophy },
 ];
 
-const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "swap"];
+const MORE: View[] = ["more", "claim", "dictionary", "leaderboard", "word", "lhaw", "swap", "shop"];
 
 function BottomNav() {
   const { state, nav } = useGame();
