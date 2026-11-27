@@ -121,6 +121,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `webhookUrl` in the manifest points at Neynar, **derived** from `NEXT_PUBLIC_NEYNAR_CLIENT_ID` —
   Neynar owns the whole token lifecycle, we store no tokens and send by FID. Nothing sends without
   `NOTIFICATIONS_ENABLED=true` in production: **set 2026-11-26, with the owner's word**.
+  **The service's `uuid` must be a real UUID** (`notificationUuid` in `send.ts`: made from our id
+  and the PLAYER, and a send with an id goes out one player a request, so a retry to a changed
+  audience never tells a player twice; revisit that at some thousands of players). Our ids are words ("paid-20784"), the service refused every request with
+  "Invalid body parameters", and so NO Farcaster notification went out from the day the channel
+  was armed until the first armed keeper run showed it (2026-11-27). No test spoke to the service.
+  To check a body against the service without notifying anyone, send it to a FID that doesn't
+  exist: a good body answers 422 `NoNotificationTokens` (which the sender reads as "nobody to
+  tell", never as ok).
   **A receipt to a player goes through `notifyPlayers`** (`lib/notify/players.ts`): a kind, and a
   `PlayerNote` per account (who, what, an email ledger). It asks the choices, sends to Farcaster or
   else the account's browsers, and emails under a send-once mark. A sale (`sold.ts`), a payday and
@@ -688,7 +696,14 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   unsigned parts, and cosmetic. The picture route reads no chain and no database. The key is
   `EARNINGS_SHARE_SECRET`, else derived from `PROFILE_SESSION_SECRET` (a read accepts either, so a
   posted link outlives the first; rotating the session secret ends the links it signed); with
-  neither there is no Share. No dollars on it, "test $WORD" on a test network, no Share in practice. Raise
+  neither there is no Share. "test $WORD" on a test network, no Share in practice. **The token
+  (version 2) also signs each named word's ascension stage and what the total was worth**
+  (`usdCentsOf`: US cents at a LIVE, recent price; none on a test network): the pictured word wears
+  its gilding at that stage, and the tag says "about $X" (the owner, 2026-11-26; the post's words
+  still say no dollars). Neither is ever the link's, and the picture still reads no chain: X keeps
+  what it fetches for good, so a read that timed out would leave it ungilded for ever. A version 1
+  token still reads and draws without either. The tag is lettered as the card's back is: names in
+  Söhne, figures in the card's serif, a WORD never in the serif. Raise
   `EARNINGS_CARD_LOOK` when the picture's own look changes (its address also carries `CARD_LOOK`). A word's card is drawn by
   `app/_og/wordCard.tsx` for both pictures: change the card there, once.
 - **The Mint tab lists every letter's actual odds** (decisions.md #33; `components/game/LetterOdds.tsx`,
@@ -960,7 +975,9 @@ bot posts). The hard rules:
   $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
   functional uses: a word's sale price on the Market and the $WORD page's own data. One exception
   (decisions.md #46): Today's three pot tiles show "about $X" beside each pot, never for test
-  $WORD; nowhere else (share text, reminders, landing, docs, bot posts) gets a jackpot dollar figure.
+  $WORD. A second (decisions.md #38, amended): the earnings share PICTURE says "about $X" under
+  the player's total, signed by the server at a live price, never for test $WORD. Nowhere else
+  (a post's own words, reminders, landing, docs, bot posts) gets a dollar figure for $WORD.
 - **The jackpot always carries "staked and fed".**
 - **Lead with a pet, a word, or a rare letter, never with earning.** Letters are characters, written
   in their case ("your q is hungry"); a reminder names the letter or word ("FUNKY is peckish").
