@@ -76,7 +76,7 @@ export async function fileReport(m: TgMessage, args: string): Promise<string> {
   try {
     return REPORT_REPLY.saved(await addReport(report));
   } catch (err) {
-    console.error("[telegram] a report couldn't be saved:", String((err as Error)?.message ?? err).slice(0, 160));
+    console.error("[telegram] a report was not saved:", String((err as Error)?.message ?? err).slice(0, 160));
     return REPORT_REPLY.failed;
   }
 }
