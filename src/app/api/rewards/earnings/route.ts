@@ -6,13 +6,19 @@ import { isCampaignConfigured } from "@/lib/db/client";
 import { latestYieldDay, loadShares } from "@/lib/rewards/load";
 import { earningsJson, summarizeEarnings } from "@/lib/rewards/earnings";
 import { parseRewardWallets } from "@/lib/rewards/wallets";
-import { accountWalletsOf, snapshotOf } from "@/lib/rewards/share";
+import { accountWalletsOf, snapshotOf, snapshotWords, usdCentsOf } from "@/lib/rewards/share";
+import { cardLevelSoon } from "@/lib/onchain/cardLevel";
+import { fetchWordPrice } from "@/lib/oracle/wordPrice";
+import { NETWORK } from "@/lib/onchain/network";
 import { earningsShareOn, signEarningsShare } from "@/lib/earningsShareToken";
 import { accountsOf } from "@/lib/db/walletLinks";
 import type { EarningsSummary, LeafStatus } from "@/lib/rewards/earnings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/** How long the answer waits for the named words' stages: the sheet is waiting for its numbers. */
+const STAGE_WAIT_MS = 1200;
 
 /**
  * GET `?wallets=0xa,0xb` — what the player's words have earned for these wallets: per word (yield),
@@ -26,16 +32,27 @@ export const runtime = "nodejs";
  * account (`accountWalletsOf`): the whole answer when every wallet is in it, else the sums of that
  * account's own leaves. `accountsOf` reads a wallet as its own account when the links can't be
  * read, and the snapshot is then the first wallet's alone. Under one whole $WORD earned, or no key:
- * no token.
+ * no token. A zero-total answer never reaches the chain or the price here.
  */
 async function shareOf(leaves: readonly LeafStatus[], latestDay: number | null, whole: EarningsSummary, wallets: readonly string[]): Promise<string | null> {
   if (whole.total <= 0n || !earningsShareOn()) return null;
   const mine = new Set(accountWalletsOf(wallets, await accountsOf(wallets)));
   const part = mine.size === new Set(wallets.map((w) => w.toLowerCase())).size ? whole : summarizeEarnings(leaves.filter((l) => mine.has(l.account.toLowerCase())), latestDay);
+  // What the picture also shows, signed with the sums so the link can claim neither: each named
+  // word's ascension stage (its gilding), and about what the total is worth. Both are best effort:
+  // a stage the chain doesn't give in time is "not known" (drawn without gilding), and without a
+  // live price there is no dollar figure. Neither may fail the answer.
   // The picture speaks in whole $WORD, rounded down: under one whole $WORD it would say "0"
-  // (Bugbot on #231), so there is nothing to share yet.
-  const snapshot = snapshotOf(part);
-  return snapshot.total > 0 ? signEarningsShare(snapshot) : null;
+  // (Bugbot on #231), so there is nothing to share yet, and nothing to read for it.
+  const total = snapshotOf(part).total;
+  if (total <= 0) return null;
+  const names = snapshotWords(part);
+  const [stages, price] = await Promise.all([
+    Promise.all(names.map((w) => cardLevelSoon(w, undefined, STAGE_WAIT_MS).catch(() => null))),
+    NETWORK.isTestnet ? null : fetchWordPrice().catch(() => null),
+  ]);
+  const stageOf = new Map(names.map((w, i) => [w, stages[i]]));
+  return signEarningsShare(snapshotOf(part, NETWORK.id, { stageOf: (w) => stageOf.get(w), usdCents: usdCentsOf(total, price, { testnet: NETWORK.isTestnet }) }));
 }
 
 export async function GET(req: Request) {
