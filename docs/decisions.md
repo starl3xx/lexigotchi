@@ -2133,36 +2133,81 @@ setter. All small, riding existing suite patterns.
       - "I like 4B - it reinforces that a card has to be held, not individual letters". The
         jackpot's secret word is one card, face down. (I had picked five tiles. **His reason is the
         rule to keep: what a player holds is a card, so a word is shown as a card.**)
-    - **Part 1, a card's edge and its shadow are one shape** (the "two borders").
-      - **What it was.** A card that stands on the page has a 3 px ink edge and a block shadow in
-        the same ink. The shadow was the card's own `box-shadow`, and a browser never draws a
-        shadow under the box that casts it: it is cut away along the box's edge. So the outside of
-        the border and the inside of the cut were the same line, each softened on its own, and a
-        hairline of the page showed between them. It was not only on the review page. On the real
-        Today card it showed at the rounded corner at pixel ratios 1, 1.25, 1.5, and 2, and along
-        the whole bottom and right edges in Chromium at ratio 2 (about 1,500 pixels changed
-        between the before and after pictures there, all of them along the edge).
-      - **Now** (`.card-stand`, globals.css): the shadow is cast by a shape 1.5 px inside the
-        card's edge and spread by 1.5 px. It is the same shadow, the same size and corner, but
-        its cut lies under the card's 3 px ink border, where it can't be seen, and the outside of
-        the border rests on ink.
-      - **Why not a solid shape under the whole card.** That was my first idea. In the middle of a
-        turn the faces are edge-on and the page shows where the card was: a solid shape would
-        flash there as a dark slab. Held edge-on, the card shows the same L of shadow as before,
-        1.5 px wider.
+    - **Part 1, a card and its shadow are one object** (the "two borders"). Built twice: the
+      first time I fixed another line than the one he meant.
+      - **What he meant.** Today's card leans toward the pointer (up to 3.5 degrees,
+        `cards/useCardLight`). The edge under the pointer pulls in: by 3.5 px on a 504 px card,
+        and by 7 px on the widest Today shows (735 px). The shadow stays flat on the page. It was
+        the card's own `box-shadow`, and a browser never draws a shadow under the box that casts
+        it, so it was hollow under the card: the page showed between the card's ink edge and the
+        shadow. Two outlines, "one for the card and one underneath it".
+      - **What I fixed first (#272), and why it missed.** I looked at the card at rest, found a
+        hairline of the page between the border and the shadow at the rounded corners, and moved
+        the shadow's cut 1.5 px under the border. That hairline was real and is gone, but it was
+        not what he saw. He said so with a screenshot, the pointer on the card's corner ("still
+        doing it BTW"). **The lesson: put the pointer where his was before deciding what a
+        picture shows.** That first fix also put the shadow half a pixel off the card in
+        Chromium (a 1.5 px inset makes half-pixel edges, and they snap another way than the
+        card's).
+      - **Now** (`.card-stand`, globals.css): the shadow is a solid shape of its own under the
+        card, the card's size and corner, moved 4 px right and 5 px down, filled with ink.
+        Whatever a leaning edge uncovers is the shadow in its own outline. There is no hollow, so
+        there is no hairline at rest either.
+      - **While the card turns over** the shadow is hollow, as it always was mid-turn
+        (`.card-stand.is-flipping`: a `box-shadow` cut away 2 px inside the edge, whole pixels).
+        The faces are edge-on for a moment and the page shows where the card was: a solid shape
+        would stand there as a dark slab. Its outline is the solid shape's, so nothing moves as
+        the turn begins and ends. A card that is turning does not lean.
+      - **Tried and dropped:** ink under the right and bottom edges only (a border on two sides,
+        then a cut shape). It hid the gap, but on a wide card the ends of the bands showed as
+        small square steps beside the leaning corner. The whole shape shows only its own smooth
+        outline.
+      - **One thing it adds.** On a card wider than about 545 px (Today between 835 and 1,023 px
+        of window, where the card is up to 735 px), a lean toward the left pulls the left edge
+        in by more than the shadow's 4 px, and up to 3 px of the shadow shows along that edge:
+        the border looks a little heavier there. It is the shadow, and it touches the edge (no
+        second outline). On the 504 px card of a wide window it never shows.
       - **Where:** Today's card and its blank, the celebrate sheet's card, and the share page's
-        card. The last three had the border, the clip, and the shadow on one box; the shadow is
-        now on a box of its own around it, because a box that clips would cut the shadow off.
-      - **Not changed, and open:** every card-like box and button in the interface (`.cel`) is
-        built the same way, a border and a block shadow of the same ink, so the same hairline is
-        there. The owner pointed at the card. `.press` moves that shadow, so changing it is its
-        own piece of work.
-      - **Seen and not seen (part 1):** before and after, the bottom right corner of each of the
-        three wrappers at pixel ratios 1, 1.5, and 2 in Chromium and WebKit (twelve pictures: a
-        hairline before, none after); the real Today card at rest and held edge-on; the real
-        share page at 1280 px (ratios 1 and 2) and 390 px (ratio 3), the card the same size as
-        before. Not seen: the celebrate sheet in the running game (its markup was drawn with the
-        game's styles on a test page), a real phone.
+        card. The last three have the border and the clip on one box and the shadow on a box of
+        its own around it, because a box that clips would cut the shadow off.
+      - **Not changed, and open:** every card-like box and button in the interface (`.cel`) has
+        a border and a `box-shadow` of the same ink, so the corner hairline is there. None of
+        them leans. `.press` moves that shadow, so changing it is its own piece of work.
+      - **Measured** (the practice game, pixel ratio 2, the pointer resting on each corner and
+        edge of Today's card; scan lines across the card's edge, beside the pointer, on which the
+        page shows between the card and the shadow): as #272 left it, up to 118 lines with up to
+        5.5 px of the page, at card widths 352, 504, 712, and 735 px, in headless Chromium and in
+        Chrome drawing with the graphics card; now none at any width, in either. At rest the
+        solid shadow and the turn's hollow one differ only by the softening of a few corner
+        pixels.
+      - **Seen and not seen (part 1):** enlarged pictures of all four corners, leaning, before
+        and after, at 504 and 712 px; the card held edge-on and mid-turn; the three still cards'
+        corners at pixel ratios 1, 1.5, and 2 in Chromium and WebKit (no line inside the border,
+        which a solid shadow would show through any gap). **Not seen: the lean in WebKit.** The
+        headless WebKit here draws a leaning card almost flat in its pictures (the browser
+        reports the same lean as Chromium), so it shows no gap before or after. Not seen: real
+        Safari, a real phone (a touch has no pointer to lean to), the celebrate sheet in the
+        running game.
+    - **Part 2, the landing page's hero is the word's own card** (1A; `LandingPage.tsx`,
+      `Stage()`). JAZZY's card as its holder would see it: the engraved Stage scene, the Mythic
+      frame, and the ribbon that says one of one, with two letters already UPPERCASE. It was a flat
+      stage built in the page: a valance of half circles, a soft spotlight, and a tan floor.
+      - **One render at every width.** The old stage drew the word three times, at 58, 78, and
+        96 px a letter, and showed one by screen width. A card sizes its letters to itself.
+      - **The label is under the card,** as the placard is under Today's: nothing is drawn over a
+        card's art but its letters. Its words are unchanged.
+      - **The shape.** A card is 16 to 9, so the hero is shorter: at 1,280 px it is 484 by 323
+        with its label, where the box was 484 by 406; at 1,024 px, 424 by 289; on a phone
+        (390 px), 350 by 244.
+      - **It stands on `.card-stand`** (part 1), with a shadow of 8 px each way, as on the
+        review page and as this page's other boxes have. The game's cards have 4 and 5.
+      - **Measured** (headless, this Mac, three alternating runs of 15 s, the old stage against
+        the card, both moving): WebKit 19.9%, 33.5%, 28.1% of a processor core against 15.1%,
+        27.2%, 29.9%; Chromium 35.9%, 37.3%, 39.9% against 38.5%, 35.7%, 49.9%. No difference I can
+        tell from the noise.
+      - **Seen and not seen (part 2):** the running landing page at 390, 768, 1,024, and
+        1,280 px in WebKit and Chromium: no error, no sideways scrolling, the card beside the
+        headline from 1,024 px and under it below. Not seen: a real phone.
 
 51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
     2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
