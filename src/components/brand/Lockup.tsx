@@ -1,6 +1,6 @@
 "use client";
 /**
- * The lockup, drawn live (decisions.md #53; lib/cardArt/logo `lockup`): the tile that is the name's
+ * The lockup, drawn live (decisions.md #55; lib/cardArt/logo `lockup`): the tile that is the name's
  * L, then EXIGOTCHI. With `alive` its eyes blink and glance, as a letter's do (starl3xx,
  * 2026-11-27: "9E is amazing").
  *

@@ -1318,7 +1318,7 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
 }
 
 /* ---------------------------------------------------------------------------------------------
-   The lockup (components/brand/Lockup, lib/cardArt/logo `lockup`; decisions.md #53): the tile that
+   The lockup (components/brand/Lockup, lib/cardArt/logo `lockup`; decisions.md #55): the tile that
    is the name's L, then EXIGOTCHI. Where it is drawn live its eyes blink and glance, as a letter's
    do. Both are MOMENTS: the component sets a class for a moment and takes it off, so nothing runs
    between (never an animation that loops inside the drawing: WebKit would redraw the header on
