@@ -21,6 +21,7 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 import { ReminderToggle } from "../ReminderToggle";
 import { ReminderChoices } from "../ReminderChoices";
+import { SoundToggle } from "../SoundToggle";
 import { TelegramCard } from "../TelegramCard";
 import { CardStampChoice } from "../../cards/CardStamp";
 import { WalletsCard } from "./WalletsCard";
@@ -310,6 +311,14 @@ export function ProfileSheet() {
       {/* The player's picture as a stamp on the back of their cards: theirs to turn off (cards/CardStamp).
           Only where there is a picture to stamp. */}
       {me.pfpUrl && <CardStampChoice />}
+
+      {/* Sound, here as well as in More, for the reason the reminders below give: the desktop rail
+          has no More, and the small switch under an envelope is there only while mail is open, so a
+          desktop player would have nowhere to turn sound off. Kept per browser. Renders nothing in
+          a build with no sounds. */}
+      <div className="mb-3 empty:hidden">
+        <SoundToggle />
+      </div>
 
       {/* Browser reminders, here as well as in More: the desktop rail has no More, so the profile is
           where a desktop player finds them. Renders nothing until web push is switched on. */}

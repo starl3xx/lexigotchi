@@ -1,11 +1,15 @@
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Sound is dark without its files (src/lib/sound.ts, decisions.md #49 part 4): the switch shows
+  // only where the mail's cues are in this build, or NEXT_PUBLIC_SOUND_BASE says where they are served.
+  env: { NEXT_PUBLIC_SOUND_READY: process.env.NEXT_PUBLIC_SOUND_BASE || existsSync(join(here, "public/sfx/mail/drop.mp3")) ? "1" : "" },
   // tree-shake the Phosphor icon barrel so we don't bundle the whole set
   experimental: { optimizePackageImports: ["@phosphor-icons/react"] },
   // Pin the workspace root — a stray parent lockfile otherwise misleads Next's inference.
@@ -14,10 +18,12 @@ const nextConfig = {
   // time (/embed-image and /icon-image are static, so they read them at build). A serverless
   // function only ships the files the build traced, so name them rather than trust the tracer.
   // The earnings share's picture (src/app/e/[token]/card) reads them the same way, and both read
-  // the card ribbon's Pagella (Bugbot on #231: a function ships only the files named or traced).
+  // the card's serif (Bugbot on #231: a function ships only the files named or traced). The back's
+  // picture (src/app/s/[text]/back) reads the serif and two Söhne files the same way.
   outputFileTracingIncludes: {
-    "/s/[text]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/texgyrepagella-bold.otf"],
-    "/e/[token]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/texgyrepagella-bold.otf"],
+    "/s/[text]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/sourceserif4-bold.ttf"],
+    "/s/[text]/back": ["./public/fonts/soehne-*.ttf", "./public/fonts/sourceserif4-bold.ttf"],
+    "/e/[token]/card": ["./public/fonts/soehne-*.ttf", "./public/fonts/sourceserif4-bold.ttf"],
   },
   // The vendored dictionary lives in /data and is imported by the economy lib.
   webpack: (config) => {

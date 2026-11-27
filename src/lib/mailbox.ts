@@ -24,6 +24,11 @@ export interface UnopenedMail {
   had: number[];
   /** When it arrived, in ms. */
   at: number;
+  /**
+   * What the bag held before it is NOT known (mailFlow `Mail.plain`): it is shown with no tags and
+   * no word named. Stored only when true.
+   */
+  plain?: true;
 }
 
 /** No more than this many are kept: the oldest are dropped (their letters are in the bag all the same). */
@@ -51,7 +56,7 @@ export function parseMailbox(raw: string | null | undefined): UnopenedMail[] {
     if (!m || !Number.isInteger(m.number) || (m.number as number) < 1 || !isLetters(m.letters) || !isBag(m.had) || typeof m.at !== "number" || !Number.isFinite(m.at)) continue;
     if (seen.has(m.number as number)) continue;
     seen.add(m.number as number);
-    out.push({ number: m.number as number, letters: [...m.letters], had: [...m.had], at: m.at });
+    out.push({ number: m.number as number, letters: [...m.letters], had: [...m.had], at: m.at, ...(m.plain === true ? { plain: true as const } : {}) });
   }
   return out.sort((a, b) => a.number - b.number).slice(-MAILBOX_MAX);
 }

@@ -37,6 +37,8 @@ import { useWorld } from "../useWorld";
 import { useLetterSupply } from "../useLetterSupply";
 import { useMyName } from "../useMyName";
 import { newlySpellableWith } from "./BoughtLettersSheet";
+import { useMailCues } from "../useSound";
+import { SoundToggle } from "../SoundToggle";
 import { bagWithMail, bestLine, countHead, countSub, finishers, hadFor, mailNumberText, mailStatus, nextTearIsQuick, revealBeats, revealOrder, tagOf, type Mail, type Pull } from "../mail/mailFlow";
 
 // ── measures: one box, 328 wide, drawn larger or smaller as a whole to fit the sheet ─────────────
@@ -158,6 +160,12 @@ function MailStage({ mail }: { mail: Mail }) {
   const upper = mineUpper(state);
   const letters = mail.letters;
   const checking = state.chainBacked && !world.data?.owners && world.isPending === true;
+  /**
+   * Nothing may be said about these letters beyond what they are: they went to another wallet of
+   * the player's ("away"), or what the bag held before them isn't known (`Mail.plain`). No "new",
+   * no word a letter finishes, no "now you can spell".
+   */
+  const plain = !mail.mine || mail.plain === true;
   /** The piece's letters, a count per letter, each with what the bag held before. */
   const added = useMemo(() => {
     const counts = new Map<number, number>();
@@ -165,10 +173,9 @@ function MailStage({ mail }: { mail: Mail }) {
     return [...counts].map(([letterId, count]) => ({ letterId, count, had: mail.had[letterId] ?? 0 }));
   }, [letters, mail.had]);
   const fresh = useMemo(() => {
-    // A pack opened for another wallet of the player's is "away": nothing here can be spelled with it.
-    if (!letters || !mail.mine || checking) return [];
+    if (!letters || plain || checking) return [];
     return newlySpellableWith(lower, upper, added, taken);
-  }, [letters, mail.mine, added, checking, lower, upper, taken]);
+  }, [letters, plain, added, checking, lower, upper, taken]);
   // The letters' standing is fixed at the tear, so a word list that lands a moment later can't
   // reorder letters that are already climbing out.
   const [pulls, setPulls] = useState<Pull[] | null>(null);
@@ -179,10 +186,8 @@ function MailStage({ mail }: { mail: Mail }) {
     // often a few seconds behind the reveal, and the tear comes inside them. So which letter
     // finishes a word is worked out from the bag as the chain has it (`bagWithMail`), not from a
     // read that may not show the letters yet. Only the count's claim waits for the bag itself.
-    const words =
-      !mail.mine || checking
-        ? []
-        : newlySpellableWith(bagWithMail(lower, mail.had, letters), upper, added, taken).map((f) => f.word);
+    const words = plain || checking ? [] : newlySpellableWith(bagWithMail(lower, mail.had, letters), upper, added, taken).map((f) => f.word);
+    // A plain piece measures "new" from a bag that holds every letter (`hadFor`): none is called new.
     return revealOrder(letters, hadFor(mail), finishers(words, before));
   };
 
@@ -388,6 +393,16 @@ function MailStage({ mail }: { mail: Mail }) {
     void g.buyPack();
   };
   const rarity = useRarity(pulls);
+  // Its sounds follow its steps (mail/mailCues): never what it shows when it appears.
+  useMailCues({
+    phase: mail.phase,
+    numbered: marked,
+    torn,
+    fidget,
+    out: torn ? pos.filter((v) => v === "out").length : 0,
+    rareOut: !!pulls && pulls.some((p, i) => p.best && p.rare && pos[i] === "out"),
+    word: counted && !!first,
+  });
 
   return (
     <div className="flex flex-col items-center pb-1">
@@ -482,6 +497,7 @@ function MailStage({ mail }: { mail: Mail }) {
           {status}
         </p>
       )}
+      {!counted && <SoundToggle compact />}
 
       {counted && pulls && (
         <div className="mail-count w-full text-center">
@@ -528,12 +544,12 @@ function MailStage({ mail }: { mail: Mail }) {
                 )}
               </div>
               <button type="button" className="mt-2.5 w-full text-center text-xs font-bold text-candy-ink underline" onClick={again}>
-                or rip another pack · {fmtWord(packPrice)} $WORD
+                or rip {n === 1 ? "a" : "another"} pack · {fmtWord(packPrice)} $WORD
               </button>
             </div>
           ) : (
             <>
-              {checking && mail.mine && (
+              {checking && !plain && (
                 <p className="mt-1 text-xs text-ink/55" aria-live="polite">
                   Checking what you can spell now…
                 </p>
@@ -543,7 +559,7 @@ function MailStage({ mail }: { mail: Mail }) {
                   Spell
                 </Button>
                 <Button variant="primary" className="flex-1" onClick={again}>
-                  Rip another · {fmtWord(packPrice)}
+                  {n === 1 ? "Rip a pack" : "Rip another"} · {fmtWord(packPrice)}
                 </Button>
               </div>
             </>

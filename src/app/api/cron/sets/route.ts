@@ -86,10 +86,13 @@ async function tellEveryone(note: Notification): Promise<number> {
   let farcasterFids = new Set<number>();
   if (targets.length > 0) {
     const res = await sendNotification({ ...note, targetFids: targets });
-    if (res.ok) {
-      reached += targets.length;
-      farcasterFids = new Set(targets);
-    }
+    // The service says how MANY it took (`delivered`), never which. So what it took is what
+    // counts as reached, and a player's browser is skipped only when it took every one of them:
+    // when it took some, or none (muted, or it knows no way to reach them), every browser is told.
+    // A few players may then hear it twice; nobody misses it.
+    const got = res.delivered ?? 0;
+    reached += got;
+    if (res.ok && got >= targets.length) farcasterFids = new Set(targets);
   }
 
   // ── Browsers ── a player Farcaster reminded this run isn't told twice.

@@ -227,6 +227,31 @@ describe("releasing", () => {
     return { server, reserveRoot: plan.root };
   }
 
+  it("the game's first answer after a release agrees with itself: the set is released AND its words are let go", async () => {
+    const { server } = await reserved();
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+    const plan = await server.planRelease(1);
+    if (!plan.ok) throw new Error("no plan");
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    // Before the transaction lands: revealed, and still held.
+    const before = await (await GET()).json();
+    expect(before.sets.find((x: { id?: number }) => x.id === 1).kind).toBe("revealed");
+    expect(before.held).toContain(words.A);
+
+    // It lands. The answer is built by ONE request that first read the sets as they were kept
+    // (revealed) and then noticed the release: it must not say "revealed" beside a `held` list that
+    // has already dropped the set's words (the game would count down on a set it lets you claim).
+    world.chainRoot = plan.root;
+    // Eleven seconds on: the chain's root is asked again (kept 10 s), the sets are not (kept 15 s).
+    const at = Date.now() + 11_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(at);
+    const after = await (await GET()).json();
+    clock.mockRestore();
+    expect(after.held).toEqual([words.C]); // the released set's words are let go; the other set stays held back
+    expect(after.sets.find((x: { id?: number }) => x.id === 1).kind).toBe("released");
+  });
+
   it("only a revealed set can be released", async () => {
     const { server } = await reserved();
     expect(await server.planRelease(1)).toEqual({ ok: false, error: "not_revealed" });
@@ -590,7 +615,7 @@ describe("GET /api/dictionary/sets: what any visitor is told", () => {
     const { GET } = await import("@/app/api/dictionary/sets/route");
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toContain("s-maxage=30");
+    expect(res.headers.get("cache-control")).toContain("s-maxage=10"); // short: a stale held list keeps a released set closed in Spell
     const text = await res.text();
     const body = JSON.parse(text);
     expect(body.sets).toEqual([

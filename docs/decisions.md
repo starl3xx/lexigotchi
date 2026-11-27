@@ -2119,6 +2119,158 @@ setter. All small, riding existing suite patterns.
         needs a verified identity), a pack opened for a linked wallet, a wallet changed while a
         pack is on its way, a smart wallet's batched send, a real phone, and a mini-app host. The
         chain store's glue is still under no automated test; its rules are the tested pure parts.
+    - **Part 3, the daily letter comes by mail** (the same sheet with one letter: a narrower
+      window, "Contents: 1 letter", "Your letter"; it is free, so it is never "Paid"). The old
+      "Fresh pull" sheet and its sheet kind are gone.
+      - **It is not the pack's flow with a count of one.** The daily's commit and reveal ride ONE
+        send, with the commit's id predicted by the server. After the wallet says "sent", both
+        may have landed, or the commit alone (the second prompt refused, or another commit took
+        the predicted id so the reveal named the wrong one), or nothing (a batch that goes all or
+        nothing, reverted whole). The wallet can't tell them apart. So every mark follows the
+        chain (`lib/onchain/dailySend`, `dailyPlan`, pure, tested):
+        - **the number** is given only once the chain says that id is this wallet's one-letter
+          commit. The predicted id is never printed: with a pack bought in between, the envelope
+          got No. 193 where the prediction said 192;
+        - **the tear** waits for the chain's "revealed", and the letter is the one the chain
+          minted (the route's "already" answer), never the bundle's own copy;
+        - **the server is asked to open the commit only when the wallet's reveal can no longer
+          land:** it was refused, there was no bundle, it named another id, or 15 s passed. Two
+          reveals for one commit means one reverts;
+        - **the envelope leaves only when the chain says the daily was never used**
+          (`dailyUsed`) AND the send itself is known to have failed (it mined and reverted, or
+          the wallet says so: `traceSend`). Then the "claimed" note is taken back and Pull
+          returns. The wallet accepting a send is not the chain including it: a send that is only
+          slow is "unsure", the envelope says it is taking a while, and the note stays (Bugbot on
+          #276);
+        - **when the chain can't be read for a whole minute,** the envelope says the letter is
+          safe and will be waiting, and that is kept: an unrevealed commit shows on the card by
+          itself, and one the bundle already revealed is looked for again (10 s to 4 min later)
+          and made mail to tear. After that its letter is simply in the bag, which is why the
+          envelope's words say "in your bag, or waiting for you on Today".
+      - **Which letter is the envelope's to say, as a display rule** (`lib/dailyNote`
+        `dailySealed`, pure, tested). The letter goes on the stored note at the send, as it did
+        before the mail. The tile beside "claimed" on Today and Mint is hidden only while a sealed
+        one-letter envelope stands in this browser: in hand and on its way or waiting to be torn,
+        kept as mail, or a one-letter commit the card still has to open. When the note names its
+        envelope, only that one counts, so an older daily left unopened never keeps today's tile
+        blank. No toast names the letter at the tap. The note may name its envelope, so its tear writes the letter the chain minted
+        over the one the send was made with, and never stamps the note again (tearing an old
+        envelope must not mark today as claimed).
+      - **The rule I tried first, and why it is gone.** The note was written with NO letter, and
+        the tile waited for the tear. Then a note with no letter had to find its envelope again
+        after every reload, late open, or lost connection: first a link in memory, then a stored
+        link, then a search of the chain, then retries, then a watch on unrevealed commits. Bugbot
+        found a gap in each of five rounds, all in provider code that no test reaches. Hiding is a
+        matter of what is on screen, so it is now worked out from what is on screen. An envelope
+        lost to a reload costs the ceremony only, as it does for a pack; the tile and the letter
+        are never lost with it.
+      - **A daily's send that is still running after a wallet switch** writes nothing to the new
+        wallet's note (it remembers the note it began under).
+      - **Mail opened late says less** (`Mail.plain`, `hadFor`). When the card opens a commit
+        that was already revealed, the bag read at that tap may count its letters already. Its
+        letters then get no tags, none is called new, and no word is named: counted twice, a
+        letter would be said to finish a word the player can't spell. The same holds for letters
+        that went to a linked wallet.
+      - **The card draws what waits:** one pair of eyes for a daily letter, five for a pack
+        (`nextMail`).
+      - **Seen and not seen (part 3).** Practice game: the one-letter envelope at 424 px, each
+        step, the card, and the tile appearing only after the tear (with a temporary local switch
+        for the Pull button, not committed: a plain browser has no linked identity). **Real-wallet
+        path on a local fork**, with the daily route's answer made by the route's own signing
+        code and the fork's test signer: both landing; the reveal prompt refused (the server
+        opened it); a pack bought between the voucher and the send; no bundle; and the page
+        losing its chain reads right after the send (the envelope said the letter waits, and ten
+        seconds after the reads returned it could be torn). In every run the letter the envelope
+        gave was the letter the chain minted. Also at 360 px (WebKit) and 768 px. And one run with
+        everything together, after part 2's fixes were merged in: a pack left untorn, a second
+        pack closed while "Paid" on a slow chain, the first opened from the card meanwhile (the
+        card kept saying one piece waits until the second landed with "Your mail is here."), the
+        daily letter pulled with two packs waiting, then both packs from the card, the older
+        first: 11 letters on chain, five wallet sends, none of them a reveal. Not driven: the
+        real `/api/mint/free-daily` (it needs a verified identity), an atomic batch that reverts
+        whole (the test wallet sends two transactions, never a batch), a real phone, a mini-app
+        host.
+    - **Part 4, the mail's sounds** (`lib/sound.ts`, `mail/mailCues.ts`, `useSound.ts`,
+      `SoundToggle.tsx`). The owner's picks: "Paper and ink" for the drop, the stamp, the
+      postmark, the rustle, the tear, and the word; "A wooden tile" for a letter hopping out; "A
+      typewriter's bell" for the rare one; and "sound off by default".
+      - **Off until the player turns it on, and off means off.** The choice is kept per browser.
+        With sound off no sound file is fetched and no AudioContext is made (tested, and checked
+        in both engines).
+      - **The files are in this repository, by the owner's word** (starl3xx, 2026-11-27: "you
+        can incorporate the sounds"). They were held back first. ElevenLabs' sound-effects terms
+        (read 2026-11-26; the account is on the paid Creator plan) allow commercial use built
+        into a game, and forbid making the output available "as isolated audio files". A web
+        game always serves its sound files, which is the ordinary case. But this repository is
+        public, and eight mp3 files in it are files anyone can take. So the code shipped dark
+        (#287) and he was given three ways: commit the eight files, said to be the simplest and
+        public in the repository; serve them from a storage he would name
+        (`NEXT_PUBLIC_SOUND_BASE`); or ask ElevenLabs in writing first. He answered with the
+        words above and named no storage, and the game fetches the files from a public address
+        on either route. **My reading: commit them.** That can't be undone (a public history
+        keeps them), so it is written here as a reading. `SOUND_READY` is still worked out at
+        build time (next.config.mjs): the files are in the build, or `NEXT_PUBLIC_SOUND_BASE`
+        names where they are served from, and a build with neither shows no switch and runs
+        nothing here. `tests/sound-files.test.ts` holds each file to the hash below and every
+        cue to a file: `SOUND_READY` looks at one file only, and a missing one would be a cue
+        that is silent with nothing said.
+      - **The files are the takes the owner heard:** the bytes the proposal page played, taken
+        from its `source/sounds.json` (kept with the artifact, with the originals as
+        generated). 86 KB in all. First 12 hex digits of each file's SHA-256: drop
+        `81d6dda2b38f`, stamp `9dd088eb3d7b`, postmark `d88493fade0a`, rustle `904d9bf8a324`,
+        tear `01925566caec`, word `9b04df2872e3`, hop `88e143a9d884`, rare `5f0d76e1fc1a`.
+      - **A cue comes from a step, never from what the envelope shows when it appears**
+        (`cuesForStep`, pure, tested). The sheet's stage is made again for every piece; a stored
+        envelope appears at "ready" and one that came back by itself appears mid-way. Read from
+        the first look, each would press its stamp and postmark a second time. A piece being sent
+        now drops in; a piece that appears further along is silent.
+      - **One cue a step for letters.** A tap that hurries five letters out, or reduced motion
+        showing them together, is one sound, not five at once.
+      - **My readings, his to change:** a hop's pitch climbs 7% with each letter out (as on the
+        proposal page); the bell rings ONCE, for the rare best letter that got the shake and the
+        shy peek (the page rang for every rare letter, and the sheet marks only the best); and
+        there is a second, small switch under the envelope, beside the one in More, because that
+        is where the sounds are.
+      - **The Sound card is in the profile too** (added with the files). The desktop rail has no
+        More, and the small switch is there only while an envelope is open, so a player on a
+        computer had nowhere to turn sound off. The browser reminders are in the profile for the
+        same reason.
+      - **A browser plays only after a tap,** and the cues fire later, from timers and the chain.
+        So while sound is on, every tap and key press wakes the context (`useSoundGestures`). It
+        is suspended 1.5 s after the last cue ends, except while an envelope is on screen
+        (`holdSound`): its stamp and postmark land when the chain says so, seconds or a minute
+        after the tap, and a browser (an iPhone's above all) may refuse to wake a rested context
+        without a tap. It rests when the envelope goes. A context that is not running is woken
+        whatever its state is called: WebKit's is "interrupted" after the app was in the
+        background (Bugbot on #287), and coming back to the page tries to wake it too.
+      - **A cue that is waiting its turn asks whether the envelope is still there** when its
+        moment comes. It was first cancelled when the component went, and React's development
+        double mount "goes" and comes back at once: the stamp, a beat after the drop, never
+        sounded there (found in a real browser, held by a test).
+      - **Checked without ears** (I cannot hear them): a recorder in the page noted every buffer
+        started, named by the file it was decoded from. In Chromium and WebKit: with sound off, a
+        whole pack made no context and fetched nothing; turned on in More, one context and eight
+        files, then drop, stamp, postmark, tear, five hops at 1, 1.07, 1.14, 1.21, 1.28, and the
+        word, each once and in order, with the context running, awake while the envelope was on
+        screen and resting once it had gone; and after a reload
+        with sound saved on, nothing until the first tap, then the same cues.
+      - **Cost with the sound awake:** the sealed envelope with sound on (the context running)
+        against off, two sittings: WebKit 3.7% against 3.7% and 4.7% against 14.0% of a core;
+        Chromium 5.8% against 6.4% and 9.9% against 6.5%. Run to run varies by more than any
+        difference between the two (this machine is shared): nothing measurable.
+      - **The bell,** with a temporary local pack (not committed), in both engines: a pack with a
+        q played four hops and then the bell, once, at the moment the q stood out of the envelope
+        (all five out, none peeking), not at the shake or the peek; a pack with a z and a q rang
+        once too, and the z hopped.
+      - **The dark state, which is what shipped first (#287),** in both engines: with no sound
+        files present, More shows no Sound card, the envelope shows no switch, and a whole pack
+        asked for no sound file and made no AudioContext, even with "on" remembered from another
+        build.
+      - **A file that failed to load is asked for again,** 30 s later at the soonest: one bad
+        moment on the network at the first tap does not silence a cue for the page's life, and a
+        wrong address does not make every tap fetch all eight again.
+      - **Not done:** nobody has listened to it in the game; a real phone and a mini-app host
+        (their sound rules are the strictest).
 
 50. **Four bigger pieces, built in parts** (starl3xx, 2026-11-26, on the review page "Four Bigger
     Pieces"). The card-and-letter review (#48) set four places apart: the landing page's hero
@@ -2495,6 +2647,39 @@ setter. All small, riding existing suite patterns.
       - **A fully unlocked set folds to its name** in the Sets section (my call): its words are in
         the list below like any others, and the Dictionary's top would otherwise fill with every
         set there has ever been.
+
+52. **The card's serif is Source Serif 4, shipped: one face for every player and every picture**
+    (starl3xx, 2026-11-27, on the design audit page: "I like Source Serif 4", then "let's go 3H
+    for consistency"). The first thing built from the audit ("Lexigotchi Design Language").
+    - **What it was.** The serif that letters what a card says about a word (its ribbon, its
+      number, its ledger) was asked for by name and never shipped: Iowan Old Style on Apple
+      devices, Palatino Linotype or Book Antiqua on Windows, Noto Serif or Georgia on Android, and
+      a fourth face, TeX Gyre Pagella, on the server's pictures (a server has no fonts). A tester
+      on Windows never saw what a Mac shows.
+    - **Now.** Source Serif 4 (SIL Open Font License) is in `public/fonts`, first in
+      `--font-card`, for everyone, Apple devices too. The old faces stay behind it for the
+      moment before the file loads. The three picture routes (a word's card, its back, the
+      earnings share) load the same face, named once in `app/_og/wordCard.tsx` (`CARD_SERIF`,
+      `CARD_SERIF_FILE`). TeX Gyre Pagella and its license are removed.
+    - **The files.** Two web files hold every weight (200 to 900) and every optical size (8 to
+      60), roman and italic, Latin only: 122 KB and 130 KB, from Google Fonts. The browser draws
+      small lettering with a sturdier, wider cut and large lettering with a finer one, by itself.
+      The picture renderer can't read those, so it has one plain bold file (195 KB), at the
+      face's middle optical size: the game's number is a little finer than the picture's.
+    - **Why Source Serif 4 and not the nearest face.** He asked what on Google Fonts is near
+      Iowan. I set six beside it and measured: Newsreader was nearest and was my pick. He chose
+      Source Serif 4 from the specimen, and then chose one face for all over "Iowan where a device
+      has it": on a Mac he would otherwise never see the face he chose.
+    - **Emails keep a device serif.** A mail program loads no font. The stack names Source Serif 4
+      first, for a device that happens to have it.
+    - **`CARD_LOOK` is 11:** the lettering on every card picture changed.
+    - **The rule is unchanged:** a word is never set in the serif. Where else the serif goes in
+      the interface (figures, status values) is the audit's part 3, and not decided here.
+    - **Seen and not seen:** the practice game at 1,440 px and 390 px in Chromium and WebKit: the
+      ribbon and the back are in Source Serif 4, loaded from the game's own files (no request
+      leaves for Google), nothing is clipped or outside the card, and the phone's shorter ribbon
+      fits. The three pictures draw in it. Not seen: a real phone, Windows, the earnings share
+      picture (it needs a link the server signs; it loads the same file through the same code).
 
 ## Pricing & launch economics (decided June 2026)
 

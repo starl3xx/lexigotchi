@@ -9,6 +9,7 @@ import { useOpenUrl } from "../useShare";
 import { DOCS_URL, X_HANDLE, X_URL } from "@/lib/site";
 import { QuickGrid } from "../QuickGrid";
 import { ReminderToggle } from "../ReminderToggle";
+import { SoundToggle } from "../SoundToggle";
 
 export function MoreScreen() {
   const openUrl = useOpenUrl();
@@ -29,6 +30,7 @@ export function MoreScreen() {
         </button>
       )}
       <ReminderToggle />
+      <SoundToggle />
       {/* Email reminders live in the profile; this makes them findable where the other reminders are. */}
       {emailEnabled && (
         <div className="cel rounded-2xl bg-card p-4">

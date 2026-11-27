@@ -72,7 +72,7 @@ describe("the email’s look (decisions.md #47: minimal, in the card’s languag
   it("carries no picture and no shipped font: stacks only, the card’s serif first where a device has it", () => {
     const m = sold();
     expect(m.html).not.toMatch(/<img|@font-face|url\(/i);
-    expect(m.html).toContain("'Iowan Old Style','Palatino Linotype',Palatino");
+    expect(m.html).toContain("'Source Serif 4','Iowan Old Style','Palatino Linotype',Palatino");
     expect(m.html).toContain('content="light only"');
   });
 

@@ -5,8 +5,8 @@
  * perspective (the "Scene Cards" mock, starl3xx, 2026-11-25).
  *
  * Relettered with the card's front (decisions.md #35, the "Cards, Scenes, and Logo" proposal):
- * - **The card's number is the headline,** large, in the card's serif (Iowan Old Style where the
- *   device has it), with "One of one" under it.
+ * - **The card's number is the headline,** large, in the card's serif (Source Serif 4, shipped
+ *   with the game), with "One of one" under it.
  * - **The facts are a ledger:** a name, a row of dots, a value. Names in Söhne and as written
  *   (capitals mean a raised letter in this game; the owner: "back word casing can stay as it is"),
  *   values in the card's serif, so the two never blur.
@@ -37,6 +37,7 @@ import type { Tier } from "@/lib/economy";
 import type { ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
 import { ascensionLabel, cardDigits } from "@/lib/cardFacts";
+import { footSetName } from "@/lib/backPicture";
 import { svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
 import { rackPaths } from "@/lib/cardArt/rack";
@@ -244,7 +245,7 @@ function FullBody({ word }: { word: OwnedWord }) {
         {/* a word released in a reserved set carries the set's name (decisions.md, "Reserved word sets") */}
         {f.set && (
           <span>
-            Set <b>{f.set}</b>
+            Set <b>{footSetName(f.set)}</b>
           </span>
         )}
         {s.jackpot && <span>{s.jackpot}</span>}

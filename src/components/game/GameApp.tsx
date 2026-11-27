@@ -39,8 +39,8 @@ import { LhawScreen } from "./screens/LhawScreen";
 import { WordScreen } from "./screens/WordScreen";
 import { MarketScreen } from "./screens/MarketScreen";
 import { WordSheet } from "./sheets/WordSheet";
-import { PackReveal } from "./sheets/PackReveal";
 import { MailSheet } from "./sheets/MailSheet";
+import { useSoundGestures } from "./useSound";
 import { RollSheet } from "./sheets/RollSheet";
 import { AscendSheet } from "./sheets/AscendSheet";
 import { BalanceSheet } from "./sheets/BalanceSheet";
@@ -78,6 +78,7 @@ export function GameApp() {
   useWordPrice();
   // Counts this wallet in the operator console's Players tab, once a day (useWalletSighting).
   useWalletSighting();
+  useSoundGestures(); // while sound is on, a tap wakes the browser's sound (lib/sound)
   // Pre-launch campaign: short-circuit the whole game and run the "add the app + share a cast →
   // free pack at launch" splash. Lives here (under <Providers> from play/page.tsx) so the Farcaster
   // SDK hooks still work, but above <GameProvider> so none of the game store/screens mount.
@@ -354,7 +355,6 @@ function SceneSync() {
 function SheetFor({ sheet }: { sheet: Sheet }) {
   const state = { sheet };
   if (state.sheet?.kind === "word") return <WordSheet word={state.sheet.word} />;
-  if (state.sheet?.kind === "pack") return <PackReveal letters={state.sheet.letters} />;
   if (state.sheet?.kind === "mail") return <MailSheet />;
   if (state.sheet?.kind === "roll") return <RollSheet target={state.sheet.target} />;
   if (state.sheet?.kind === "ascend") return <AscendSheet word={state.sheet.word} />;

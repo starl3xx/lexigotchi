@@ -50,6 +50,22 @@ export function setLines(set: PublicSet, nowMs: number): SetLines {
   return { title: set.name, status: "Unlocked", gated: false };
 }
 
+/** What the first-day rule means, under its heading: how many words, and until when. */
+export function firstDayNote(limit: number): string {
+  const many = limit <= 1 ? "one word" : `up to ${limit} words`;
+  return `Each verified player can claim ${many} from this set until it opens to everyone. After that, every word that’s left is open to all.`;
+}
+
+/**
+ * How often to ask the server about the sets, in milliseconds. Every minute as a rule, but every
+ * few seconds while a revealed set is about to unlock or is past its time: the game refuses a held
+ * word itself (Spell never asks for its proof), so the moment a set unlocks must reach it quickly.
+ */
+export function setsPollMs(sets: readonly PublicSet[], nowMs: number): number {
+  const soon = sets.some((s) => s.kind === "revealed" && s.releaseAt !== null && Date.parse(s.releaseAt) - nowMs < 10 * 60_000);
+  return soon ? 8_000 : 60_000;
+}
+
 /** word → the name of the RELEASED set it belongs to (the label a card's back carries). */
 export function releasedSetNames(sets: readonly PublicSet[]): Map<string, string> {
   const m = new Map<string, string>();
