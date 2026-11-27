@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { WORDS } from "@/lib/dictionary";
 import { wordTier } from "@/lib/economy";
-import { closeness, entryStatus, isTaken, listDictionary, type DictQuery, type EntryStatus, type WordHolders } from "@/lib/dictionaryList";
+import { cantClaim, closeness, entryStatus, isTaken, listDictionary, type DictQuery, type EntryStatus, type WordHolders } from "@/lib/dictionaryList";
 import { bagTotals, distanceOf, elsewhereTotals, finishedBy, type Distance, type LetterBag } from "@/lib/wordNeed";
 import { oneLetterShort } from "@/lib/market/deals";
 import { spellableNow } from "@/components/game/state";
@@ -220,5 +220,76 @@ describe("how close a word is", () => {
     expect(closeness("open", at(5, 0))).toBeLessThan(closeness("sale", undefined));
     expect(closeness("sale", undefined)).toBeLessThan(closeness("taken", undefined));
     expect(closeness("taken", undefined)).toBeLessThan(closeness("mine", undefined));
+  });
+});
+
+// Reserved word sets (decisions.md, "Reserved word sets"): a word held back in a set that hasn't
+// unlocked is nobody's, and nobody can claim it yet. One rule, here, for every screen.
+describe("a held-back word", () => {
+  const ME = "0xme";
+  const holders = (over: Partial<WordHolders> = {}): WordHolders => ({
+    owned: new Set(["CRANE"]),
+    owners: { CRANE: ME, ABOUT: "0xother" },
+    wallets: new Set([ME]),
+    listed: new Map(),
+    ownersKnown: true,
+    held: new Set(["TIGER", "OCEAN", "ABOUT", "CRANE"]),
+    ...over,
+  });
+
+  it("is `held`: never open, and never promised", () => {
+    expect(entryStatus("TIGER", holders())).toBe("held");
+    expect(entryStatus("QUINT", holders())).toBe("open");
+    // held is known even before the owners are: it is never "checking who owns it"
+    expect(entryStatus("TIGER", holders({ ownersKnown: false, owners: undefined }))).toBe("held");
+  });
+
+  it("a word somebody held before it was put in a set is still theirs", () => {
+    expect(entryStatus("CRANE", holders())).toBe("mine");
+    expect(entryStatus("ABOUT", holders())).toBe("taken");
+    expect(entryStatus("OCEAN", holders({ listed: new Map([["OCEAN", false]]) }))).toBe("sale");
+  });
+
+  it("while what is held isn't known, nothing is called held", () => {
+    expect(entryStatus("TIGER", holders({ held: null }))).toBe("open");
+    expect(entryStatus("TIGER", holders({ held: undefined }))).toBe("open");
+  });
+
+  it("can't be claimed, though nobody has it", () => {
+    expect(isTaken("held")).toBe(false); // nobody has it
+    expect(cantClaim("held")).toBe(true);
+    expect((["taken", "sale", "mineAway", "held"] as EntryStatus[]).every(cantClaim)).toBe(true);
+    expect((["open", "unknown", "mine"] as EntryStatus[]).some(cantClaim)).toBe(false);
+  });
+
+  it("isn't in the Dictionary's list, its counts, Spell's list, or the Market's picks", () => {
+    const k: WordHolders = { owned: MINE, wallets: new Set(), listed: new Map(), ownersKnown: true, held: new Set(["TIGER", "OCEAN"]) };
+    const status = (w: string) => entryStatus(w, k);
+    const without = (w: string) => entryStatus(w, { ...k, held: null });
+
+    // the list: every word but the held ones, whatever the filter
+    const all = listDictionary(q({ sort: "az" }), status, DIST);
+    expect(all.words).toHaveLength(WORDS.length - 2);
+    expect(all.words).not.toContain("TIGER");
+    expect(listDictionary(q({ filter: "unclaimed", sort: "az" }), status, DIST).words).not.toContain("OCEAN");
+    expect(listDictionary(q({ query: "TIGER" }), status, DIST).words).toEqual([]); // not even by search
+
+    // the counts drop by exactly the held words that would have counted
+    const before = listDictionary(q({ sort: "az" }), without, DIST).counts;
+    const spellableHeld = ["TIGER", "OCEAN"].filter((w) => listDictionary(q({ filter: "can", sort: "az" }), without, DIST).words.includes(w)).length;
+    expect(all.counts.can).toBe(before.can - spellableHeld);
+    expect(spellableHeld).toBeGreaterThan(0); // the practice bag does spell one of them: the test means something
+
+    // Spell's list is still exactly the Dictionary's "Can spell"
+    const can = listDictionary(q({ filter: "can", sort: "az" }), status, DIST).words;
+    const spell = spellableNow(PRACTICE.lower, PRACTICE.upper, MINE, Infinity).filter((w) => !cantClaim(status(w)));
+    expect([...spell].sort()).toEqual([...can].sort());
+    expect(spell).not.toContain("TIGER");
+
+    // and the Market's picks, which take the open words, can't name one
+    const open = WORDS.filter((w) => status(w) === "open");
+    expect(open).not.toContain("OCEAN");
+    const picks = oneLetterShort(PRACTICE, PRACTICE, open);
+    expect(JSON.stringify(picks)).not.toMatch(/TIGER|OCEAN/);
   });
 });

@@ -9,12 +9,20 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReminderChoices, type ReminderChoicesProfile } from "@/components/game/ReminderChoices";
 
+// Whether the game has a set to speak of (useSets): the "A new set of words" choice shows only then.
+const anySets = vi.hoisted(() => ({ on: true }));
+vi.mock("@/components/game/useSets", () => ({
+  useSets: () => ({ known: true, sets: anySets.on ? [{ kind: "locked" }] : [], held: null, setNameOf: () => undefined, released: undefined, gate: false }),
+  useMinuteClock: () => 0,
+}));
+
 const A = "0x00000000000000000000000000000000000000aa";
-const ALL_ON = { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false, deal: false };
+const ALL_ON = { hunger: true, daily: true, jackpot: true, sold: true, bounty: true, payday: false, deal: false, sets: true };
 let calls: { method: string; body?: unknown; token?: string }[] = [];
 let answer: (method: string, body?: { kinds: Record<string, boolean> }) => { status?: number; json: unknown };
 
 beforeEach(() => {
+  anySets.on = true;
   calls = [];
   answer = (method, body) => ({ json: { ok: true, kinds: method === "PUT" ? { ...ALL_ON, ...body!.kinds } : ALL_ON } });
   vi.stubGlobal("fetch", async (_url: string, init: RequestInit = {}) => {
@@ -39,10 +47,23 @@ const show = (p: Partial<ReminderChoicesProfile> = {}, hasEmail = false) =>
 const box = (name: RegExp) => screen.getByRole("checkbox", { name }) as HTMLInputElement;
 
 describe("What to tell me", () => {
+  it("offers “A new set of words” only once the game has a set", async () => {
+    anySets.on = false;
+    show();
+    await waitFor(() => expect(box(/free daily letter/).checked).toBe(true));
+    expect(screen.getAllByRole("checkbox")).toHaveLength(7);
+    expect(screen.queryByRole("checkbox", { name: /A new set of words/ })).toBeNull();
+    cleanup();
+    anySets.on = true;
+    show();
+    await waitFor(() => expect(box(/A new set of words/).checked).toBe(true));
+  });
+
   it("lists every kind with its box, and loads the player’s own choices", async () => {
     answer = () => ({ json: { ok: true, kinds: { ...ALL_ON, daily: false } } });
     show();
-    expect(screen.getAllByRole("checkbox")).toHaveLength(7);
+    // "A new set of words" is offered only once the game has a set to speak of
+    expect(screen.getAllByRole("checkbox")).toHaveLength(anySets.on ? 8 : 7);
     // the one kind that comes every day starts off
     expect(box(/My words were paid/).checked).toBe(false);
     await waitFor(() => expect(box(/free daily letter/).checked).toBe(false));

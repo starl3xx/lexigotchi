@@ -12,7 +12,7 @@
  *
  * Pure: the profile sheet, the route, and every sender read this file.
  */
-export const REMINDER_KINDS = ["hunger", "daily", "jackpot", "sold", "bounty", "payday", "deal"] as const;
+export const REMINDER_KINDS = ["hunger", "daily", "jackpot", "sold", "bounty", "payday", "deal", "sets"] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
 
 export interface KindInfo {
@@ -34,6 +34,8 @@ export const KIND_INFO: Record<ReminderKind, KindInfo> = {
   // is how the first one gets switched off.
   payday: { label: "My words were paid", hint: "Every day your words earn $WORD: what they earned. Off unless you turn it on.", on: false },
   deal: { label: "A letter I need is for sale", hint: "When the Market has the one letter that finishes a word nobody owns. Once a day at most. Off unless you turn it on.", on: false },
+  // On: it comes a few times for each set (a set is rare), and its whole point is the timing.
+  sets: { label: "A new set of words", hint: "When a set is revealed, when it unlocks, and when its first day ends.", on: true },
 };
 
 /**

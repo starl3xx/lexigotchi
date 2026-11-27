@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Card } from "./primitives";
 import { KIND_INFO, REMINDER_KINDS, effectiveKinds, type EmailCadence, type ReminderKind } from "@/lib/notify/kinds";
+import { useSets } from "./useSets";
 
 const SESSION_HEADER = "x-lexigotchi-session";
 const ERRORS: Record<string, string> = {
@@ -41,6 +42,8 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
   const qc = useQueryClient();
   const key = ["reminderKinds", p.address, p.sessionToken];
   const [note, setNote] = useState<string | null>(null);
+  const setsNow = useSets();
+  const anySets = setsNow.known && setsNow.sets.length > 0;
   const [saving, setSaving] = useState<ReminderKind | "cadence" | null>(null);
   const cadenceLabel = useId();
   const q = useQuery({
@@ -79,6 +82,10 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
     }
   };
 
+  // "A new set of words" is offered once the game has a set to speak of (decisions.md, "Reserved
+  // word sets"): before the first set exists there is nothing it could tell anyone.
+  const shownKinds = REMINDER_KINDS.filter((kind) => kind !== "sets" || anySets);
+
   return (
     <Card className="mb-3">
       <div className="font-display font-extrabold">What to tell me</div>
@@ -86,7 +93,7 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
         Your choice for every way we reach you: email, your browser, {telegram ? "Farcaster, and Telegram" : "and Farcaster"}.
       </p>
       <ul className="mt-2 space-y-2">
-        {REMINDER_KINDS.map((kind) => (
+        {shownKinds.map((kind) => (
           <li key={kind}>
             <label className="flex items-start gap-2 text-sm">
               <input

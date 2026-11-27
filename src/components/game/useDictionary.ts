@@ -22,6 +22,7 @@ import type { LetterBag } from "@/lib/wordNeed";
 import { entryStatus, type EntryStatus } from "@/lib/dictionaryList";
 import { mineLower, mineUpper, useGame, type WordListing } from "./state";
 import { useMyWallets, useWorld } from "./useWorld";
+import { useSets } from "./useSets";
 
 export function useDictionary() {
   const g = useGame();
@@ -61,9 +62,13 @@ export function useDictionary() {
     [listedKey, mine],
   );
 
+  // The words held back in sets that haven't unlocked (useSets; null while not known). One rule
+  // for every screen: a held word's status is "held", never "open", so Spell, this list, the
+  // word view, and the Market's picks all leave it out without each asking.
+  const { held, released } = useSets();
   const statusOf = useCallback(
-    (word: string): EntryStatus => entryStatus(word, { owned: ownedSet, owners, wallets: mine, listed, ownersKnown }),
-    [ownedSet, owners, mine, listed, ownersKnown],
+    (word: string): EntryStatus => entryStatus(word, { owned: ownedSet, owners, wallets: mine, listed, ownersKnown, held }),
+    [ownedSet, owners, mine, listed, ownersKnown, held],
   );
 
   /**
@@ -96,6 +101,8 @@ export function useDictionary() {
     all,
     hasLetters,
     statusOf,
+    /** How many words the game offers now (the dictionary less the held-back ones), once known. */
+    offered: released,
   };
 }
 

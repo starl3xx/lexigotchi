@@ -80,6 +80,9 @@ describe("what the back's picture says", () => {
     ]);
     expect(backFoot(FACTS)).toEqual(["Never drawn for the jackpot", "0x9c1e…41d7"]);
     expect(backFoot({ ...FACTS, drawn: 7 })[0]).toBe("Drawn for the jackpot (draw 7)");
+    // a word released in a reserved set carries its set's name, first on the line
+    expect(backFoot({ ...FACTS, set: "Spring" })).toEqual(["Set: Spring", "Never drawn for the jackpot", "0x9c1e…41d7"]);
+    expect(backFoot({ ...FACTS, set: null })).toEqual(["Never drawn for the jackpot", "0x9c1e…41d7"]);
   });
 
   it("never says \"you\", and never an amount a player earned or a state that changes by the day", () => {

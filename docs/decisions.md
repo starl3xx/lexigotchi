@@ -2448,8 +2448,53 @@ setter. All small, riding existing suite patterns.
         the 00:05 UTC keeper run pays the bounty week); it waits for the owner's word. The same
         section lists what the mainnet deploy must include, since Words can't change afterwards:
         the gate, the reserve root (`DICTIONARY_ROOT`), and the claim signer.
-    - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available
-      yet", the set's name on a card's back, the reminders, the player docs).
+    - **Part 2: the game, the reminders, and the player docs.**
+      - **The Dictionary's Sets section** (`components/game/SetsSection.tsx`, `useSets`,
+        `GET /api/dictionary/sets`). A draft is a locked slot ("A new set is coming") and nothing
+        else: the route gives the game only `publicSets`, so the app itself doesn't know a
+        draft's name, words, dates, or size. A revealed set shows its name and words, still (they
+        aren't buttons: nothing can be claimed yet), and counts down to its unlock. A released
+        set's words open like any word; in its first day it says "First day: one word per player"
+        and counts down to when it opens to everyone. Nothing shows until the sets are known.
+      - **A released set's words carry the set's name on the card's back** ("Set" on the bottom
+        line, in the list under an opened card on a phone, and on the server's back picture).
+      - **Reminders** (`lib/notify/sets.ts`, `/api/cron/sets`, hourly at ten past): a set is
+        revealed, it unlocks, and its first day ends. Each is said once (one mark per set and
+        moment, claimed before anything is sent, given back if it reached nobody), only within
+        six hours of the moment (old news is never announced), never about a draft, and to
+        everyone who keeps the new kind "A new set of words" on (on by default: it is rare and
+        timed, my call). `SET_REMINDERS=off` mutes them all. Its own hourly route and not a keeper
+        job: the keeper is daily, and a job name outside `KEEPER_JOBS` never runs. The same route
+        reveals what is due and marks releases, as a backstop for a quiet hour.
+      - **The app is told which words are held back, as one unlabeled list** (the owner's choice,
+        2026-11-26, between that, small batches per screen, and one word at a time: "One unlabeled
+        list"). Spell, the Dictionary's list, and the Market's picks must leave held-back words
+        out, so the app has to know them, and they can't be kept secret anyway. So
+        `GET /api/dictionary/sets` carries `held`: every word the game holds back now, A to Z, the
+        words of every unreleased set together, with nothing that says which set a word is in.
+        This amends "the unreleased list never reaches a client response": what never reaches a
+        client is a set's NAME, its GROUPING, its headliners, and its dates (`publicSets`); the
+        test now holds that a draft's words appear in `held` and nowhere else in the answer.
+      - **One rule hides them everywhere** (`lib/dictionaryList` `entryStatus`): a held word's
+        status is `held`, asked after the owners (a word somebody held before it was put in a set
+        is still theirs) and never `open`. So Spell's list and rack ("X isn't available yet"), the
+        Dictionary's list, counts, and search, the word view, the Market's picks, and Today's next
+        steps all leave it out through the status they already shared, and the Dictionary's count
+        is the words on offer. While what is held isn't known, nothing is called held, and the
+        claim's own answer ("not available yet") is the backstop.
+      - **The player docs and the first tester note wait for the switch-on.** Part 2's code does
+        nothing a player can see until a set exists (no Sets section, no reminder choice, the same
+        lists). So the public copy rides its own small PR, merged only once the owner has run the
+        migrations, pasted the sets, and sent the reserve root: a docs page for sets
+        (`docs-site/sets.mdx`: reserving, revealing, unlocking, the first day, and what a held-back
+        word means for Spell, letters, and the jackpot; no reserved word named), a line each in the
+        cheat sheet, the FAQ, the words page, the jackpot page, and the reminders list, and the
+        tester note "Some words are now held back in sets that unlock later…". The docs' first-day
+        section says the limit starts on the test build with its next reset; the redeploy's PR
+        removes that sentence and carries the second tester note.
+      - **A fully unlocked set folds to its name** in the Sets section (my call): its words are in
+        the list below like any others, and the Dictionary's top would otherwise fill with every
+        set there has ever been.
 
 ## Pricing & launch economics (decided June 2026)
 

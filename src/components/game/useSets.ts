@@ -1,0 +1,52 @@
+"use client";
+/**
+ * Reserved word sets, as any visitor may see them (GET /api/dictionary/sets; decisions.md,
+ * "Reserved word sets"): locked slots, revealed sets, released sets. Kept half a minute, like the
+ * server's own copy.
+ *
+ * **Unknown is not "none".** While the read is loading or has failed, `known` is false and nothing
+ * here says there are no sets: a screen shows no Sets section then, and a card's back simply has
+ * no set line.
+ */
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { SetsPayload } from "@/app/api/dictionary/sets/route";
+import { releasedSetNames } from "./sets";
+
+export function useSets() {
+  const q = useQuery({
+    queryKey: ["sets"],
+    queryFn: async (): Promise<SetsPayload> => {
+      const res = await fetch("/api/dictionary/sets");
+      if (!res.ok) throw new Error(`sets ${res.status}`);
+      return res.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const sets = q.data?.sets;
+  const names = useMemo(() => releasedSetNames(sets ?? []), [sets]);
+  const heldList = q.data?.held;
+  /** The words held back now, or null while that isn't known (then nothing is called held). */
+  const held = useMemo(() => (heldList ? new Set(heldList) : null), [heldList]);
+  return {
+    held,
+    known: q.data?.ok === true,
+    sets: sets ?? [],
+    /** The name of the released set a word belongs to, if any. */
+    setNameOf: (word: string) => names.get(word.toUpperCase()),
+    /** How many words the game offers now, once known. */
+    released: q.data?.released ?? undefined,
+    gate: q.data?.gate === true,
+  };
+}
+
+/** The time, kept to the minute: what a countdown line needs, and no more. */
+export function useMinuteClock(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}

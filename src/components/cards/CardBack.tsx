@@ -241,6 +241,12 @@ function FullBody({ word }: { word: OwnedWord }) {
         <span>
           Found by <b>{s.found}</b>
         </span>
+        {/* a word released in a reserved set carries the set's name (decisions.md, "Reserved word sets") */}
+        {f.set && (
+          <span>
+            Set <b>{f.set}</b>
+          </span>
+        )}
         {s.jackpot && <span>{s.jackpot}</span>}
         {tokenHref ? (
           <a className="cb-id" href={tokenHref} target="_blank" rel="noreferrer" aria-label={`${word.word} on the block explorer`}>
@@ -320,6 +326,7 @@ export function CardMore({ word }: { word: OwnedWord }) {
         One of {fmt(f.ofTier)} {f.tier} words
       </Row>
       <Row label="Found by">{s.found}</Row>
+      {f.set && <Row label="Set">{f.set}</Row>}
       <Row label="Earned so far">{s.earned}</Row>
       <Row label="Earns staked">{s.perDay}</Row>
       <Row label="Cost to make">{s.cost}</Row>

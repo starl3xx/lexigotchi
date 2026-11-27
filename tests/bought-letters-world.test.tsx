@@ -15,6 +15,8 @@ let world: { data?: { owners: Record<string, string> }; isPending: boolean };
 /** The words for sale on the Market's board. */
 let board: { word: string }[] = [];
 vi.mock("@/components/game/useWorld", () => ({ useWorld: () => world }));
+// Reserved sets (useSets) read through the query client, which these renders don't set up: no sets, nothing held.
+vi.mock("@/components/game/useSets", () => ({ useSets: () => ({ known: false, sets: [], held: null, setNameOf: () => undefined, released: undefined, gate: false }), useMinuteClock: () => 0 }));
 
 const bag = (letters: string) => {
   const n = new Array<number>(26).fill(0);

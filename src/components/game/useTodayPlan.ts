@@ -7,11 +7,12 @@
 import { useMemo } from "react";
 import { mineLower, mineUpper, spellableNow, useGame } from "./state";
 import { useWorld } from "./useWorld";
+import { useSets } from "./useSets";
 import { emptyStageCase, type EmptyStageCase } from "./stagePick";
 
 /**
- * Words the player can't claim: their own, every word another player owns (the world read), and
- * every word on the Market's board, which is its seller's whatever the minute-old world read says
+ * Words the player can't claim: their own, every word another player owns (the world read), every
+ * word held back in a set that hasn't unlocked, and every word on the Market's board, which is its seller's whatever the minute-old world read says
  * (decisions.md #32; lib/dictionaryList `entryStatus`). Spell, the Dictionary, and the Market count
  * the same way, since a claim of an owned word reverts. Until the world read lands, only their own
  * and the board's.
@@ -22,9 +23,12 @@ export function useTakenWords(): Set<string> {
   const owners = useWorld().data?.owners;
   // the practice store rebuilds its board with every state change: keep the set by its contents
   const listed = g.wordBoard.map((l) => l.word).join();
+  // Held back in a set that hasn't unlocked: nobody's, and still not claimable (decisions.md,
+  // "Reserved word sets"). Counted here so no next step, and no "your letters now spell…", names one.
+  const { held } = useSets();
   return useMemo(
-    () => new Set([...state.words.map((w) => w.word), ...Object.keys(owners ?? {}), ...(listed ? listed.split(",") : [])]),
-    [state.words, owners, listed],
+    () => new Set([...state.words.map((w) => w.word), ...Object.keys(owners ?? {}), ...(listed ? listed.split(",") : []), ...(held ?? [])]),
+    [state.words, owners, listed, held],
   );
 }
 
