@@ -66,8 +66,8 @@ for (const [name, file] of [["Today", "today"], ["Bag", "cards"], ["Bag", "bag"]
   }
   console.log(`wrote docs-site/images/screen-${file}.jpg`);
 }
-// Sharing a word: CRANE, three letters raised, opened from the Bag, its scene set to Spring, with
-// Share open under its card. (Picking the scene from the opened word comes back to it on Done.)
+// Sharing a word: CRANE, three letters raised, opened from the Bag, its card face set to Spring, with
+// Share open under its card. (Picking the face from the opened word comes back to it on Done.)
 if (want("share")) {
   await page.locator("nav").getByRole("button", { name: "Bag", exact: true }).first().click();
   await page.waitForTimeout(800);
@@ -75,7 +75,7 @@ if (want("share")) {
   await page.waitForTimeout(1200);
   await page.getByRole("button", { name: "Open CRANE", exact: true }).click();
   await page.waitForTimeout(800);
-  await page.getByRole("button", { name: "Scene", exact: true }).click();
+  await page.getByRole("button", { name: "Face", exact: true }).click();
   await page.waitForTimeout(600);
   await page.getByRole("radio", { name: "Spring", exact: true }).click();
   await page.getByRole("button", { name: "Done", exact: true }).click();

@@ -445,7 +445,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   migration 0016 copies `word_scenes` in under each wallet's account; `kind` "scene" today, a slot
   for "costume"): `/api/scenes` still speaks wallets and maps them to profiles; before 0016 it falls
   back to `word_scenes`; the keeper clears picks off words that left the profile (staking and Move
-  keep them). The Market says "Scenes and costumes stay with the seller" only while SHOP_ENABLED.
+  keep them). The Market says "Card faces, cases, and costumes stay with the seller" only while SHOP_ENABLED.
   **Test USDC** (Base Sepolia only): `MockUSDC` (Circle's permit domain "USD Coin" / "2", 6 decimals),
   25 a profile a UTC day through a signer voucher (`/api/faucet/usdc`, `usdcFaucetDigest`, the free
   snack's pattern), "Get test USDC" beside "Get test $WORD" (`TestFaucets`: Your $WORD and the $WORD
@@ -607,6 +607,21 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
+- **A card's words: front, face, back** (decisions.md #53; starl3xx, 2026-11-27: "the *front* of the
+  card is its front regardless of the scene/face... the *face* (not scene) is the background on the
+  front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it
+  wears. The FACE (a "card face" where the sentence needs it) is the picture on the front, behind
+  the word: the thing a player picks, unlocks, or buys. The BACK is the back. Every surface a player
+  reads says so, and `tests/copy-rules.test.ts` fails on "scene" in the app and the player docs.
+  The first face is "Stock" in the picker and "the stock face" in a sentence. **The code still
+  says "scene" for a face** (`SceneId`, `lib/scenes.ts`, `SceneFrame`, `useWordScene`, the `scene`
+  sheet, and these notes below), and so does everything stored or posted, which can never change:
+  `?scene=` in share links, kind `scene` in `shop_items` and `word_picks`, `/api/scenes`, the
+  `lexigotchi:scene:` key in a browser. **Two older code names use "face" for something else:**
+  `?face=1` and `showcaseFacePath` are the card's FRONT alone, and `playerFaces` /
+  `mergePublicFaces` are a player's name and picture. "Face down" (the jackpot's secret card)
+  stays: it is plain English for a card lying on its front. Never write a new player-facing
+  "scene", and name a new thing in code by the player's word.
 - **Scenes and the card's front** (decisions.md #15 and #34; `src/lib/scenes.ts` = the list and the
   unlock; `src/lib/cardArt/` = the pictures; `src/components/scenes/`): a word's card front is
   `SceneFrame` (`TodayStage` → `SceneCard` → `SceneFrame`, 16:9; also the Bag, the scene sheet, the
@@ -732,7 +747,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   words were first claimed (`madeOrder`, served as `/api/world`'s `numbers`), never A to Z; "Found by" and "Yours since" read
   `/api/words/story` (the word's own Claimed and Transfer logs, staking's moves left out) only
   while a back shows; practice words carry `OwnedWord.since`. The Bag opens on Words; the Showcase
-  screen is gone (Share and Scene sit under an opened card; badges moved to the profile; a scene
+  screen is gone (Share and Face sit under an opened card; badges moved to the profile; a scene
   picked from an opened word returns to it). **Live backs** (decisions.md #26; `cards/live/`, the `ogl`
   package, loaded on the first live back): WebGL draws a showing back's material on the card in focus only, on demand (a frame per
   change, nothing at rest: `tests/live-back.test.ts` counts them), one context, lost when the back
@@ -1185,7 +1200,8 @@ bot posts). The hard rules:
   Web3, decentralized); raise, roll (not gamble, bet, upgrade); spell, claim a word (not mint a
   word); feed, snack, hungry (not maintain, upkeep); the daily word, the jackpot, in the running (not
   lottery, draw as a noun, ticket); earns $WORD every day (not yield, APR, returns, passive income);
-  Dictionary (not Lexidex); the Market (not marketplace, exchange).
+  Dictionary (not Lexidex); the Market (not marketplace, exchange); a card's front, its face or
+  card face, and its back (never scene: see "A card's words" above).
 - **Never write:** price, pump, moon, invest, investment, "number go up", or a dollar figure for
   $WORD or the jackpot. USD prices of game actions ("a pack is $1") are fine, and so are the
   functional uses: a word's sale price on the Market and the $WORD page's own data. One exception

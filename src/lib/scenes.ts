@@ -66,7 +66,7 @@ export interface SceneMeta {
 }
 
 export const SCENES: readonly SceneMeta[] = [
-  { id: "stock", name: "Stock card", blurb: "The card itself, in the word’s rarity." },
+  { id: "stock", name: "Stock", blurb: "The card’s own engraving, in the word’s rarity." },
   { id: "stage", name: "The Stage", blurb: "Curtains up, lights on." },
   { id: "trophy", name: "Trophy Case", blurb: "On the shelf with the cups." },
   { id: "spring", name: "Spring", blurb: "A green hill under the blossom." },

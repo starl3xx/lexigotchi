@@ -186,7 +186,7 @@ export function MarketScreen() {
         The buyer pays the price in $WORD: 90% goes to the seller, and 10% to the Rewards Pool, which pays staked words. A word arrives with
         its letters, case, and ascension. “To make” is about what a thing costs to build at today’s prices, with the average number of tries.
         {/* The Customization Spec: taste stays with the player (decisions.md #22). Only once there's a Shop. */}
-        {shopEnabled() && " Scenes, cases, and costumes stay with the seller."}
+        {shopEnabled() && " Card faces, cases, and costumes stay with the seller."}
       </p>
     </div>
   );

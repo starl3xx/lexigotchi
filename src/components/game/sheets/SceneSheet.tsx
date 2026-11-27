@@ -24,7 +24,7 @@ export function SceneSheet({ word, fromWord = false }: { word: string; fromWord?
   const close = fromWord ? () => g.openSheet({ kind: "word", word }) : g.closeSheet;
   const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
   return (
-    <Sheet open onClose={close} title={`${word}’s scene`}>
+    <Sheet open onClose={close} title={`${word}’s card face`}>
       <div className="space-y-3 pb-2">
         <SceneFrame
           scene={scene}
