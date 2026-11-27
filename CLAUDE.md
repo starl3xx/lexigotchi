@@ -128,8 +128,26 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   alert, the dictionary-share achievement, the admin's numbers). No tables or no database = no
   sets and the old behavior; a failed read with nothing kept answers `try_again`, never the full
   tree. `scripts/sets-db-check.ts` proves the SQL on a throwaway local Postgres (rerun it after
-  touching `lib/db/sets.ts`). The jackpot needs no special case: a held-back answer rolls over
-  like any unowned word.
+  touching `lib/db/sets.ts` or `lib/db/setVouchers.ts`). The jackpot needs no special case: a
+  held-back answer rolls over like any unowned word.
+  **The first-day gate** (`Words.sol`: `gatedUntil`, `setGate`, `claimSigner`, and a second `claim`
+  that takes a voucher; `contracts/AUDIT.md`, fifth pass): for a set's first day a claim of one of
+  its words needs the server's voucher. **Built, merged, and NOT deployed: Base Sepolia's Words
+  predates it, and Words can't change after deploy.** Everything asks `hasGate()` first (a read of
+  `claimSigner` on the deployed contract), so until the redeploy the voucher route answers
+  `not_gated`, the proof route never says `gate`, and a release is the root alone. The redeploy is
+  the whole suite and resets the test build: never run it without the owner's word on the plan and
+  the date (`docs/web3-runtime-plan.md`, "rehearsal #5"). `POST /api/sets/voucher`
+  (`lib/sets/voucher.ts` pure, `lib/db/setVouchers.ts`, table `set_vouchers`, migration 0022): a
+  verified profile (`resolveFreeIdentity`) that PROVES the wallet is its own (its profile session,
+  or a Farcaster sign-in Farcaster ties to the profile: unlike the free snack, this voucher spends
+  a scarce slot on a word the caller names), at most `per_player_limit` different words of a set
+  per profile across linked wallets. **Count vouchers issued, never words held** (a voucher has no
+  nonce: the audit's one note); a slot comes back only when the chain's `Claimed` history shows it
+  expired unused. The game's claim asks for the voucher when the proof route says `gate`
+  (`claimCalls(..., voucher)`; without one it is the old call, byte for byte), and every refusal
+  has its own sentence (`components/game/setGate.ts`). A release leaves words somebody already
+  holds out of its gate (`setGate` reverts on one).
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`

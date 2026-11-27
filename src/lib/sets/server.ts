@@ -427,8 +427,12 @@ export interface ReleasePlan {
   root: string;
   /** The words this root adds: every word of the set. Never any removed (see `releaseChange`). */
   added: string[];
-  /** The first-day gate this plan sets, or null with the reason. */
-  gate: { until: number; tokenIds: string[] } | null;
+  /**
+   * The first-day gate this plan sets, or null with the reason. `owned` is the set's words a player
+   * already holds: they are left out of the gate (Words.setGate refuses a claimed word, and one
+   * would revert the whole release), so if one is dissolved during the first day it opens ungated.
+   */
+  gate: { until: number; tokenIds: string[]; owned: string[] } | null;
   gateNote: string | null;
   /** In the order they must land: the gate FIRST, then the root. */
   intents: TxIntent[];
@@ -480,9 +484,15 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
   else {
     const g = gateUntilFor(nowSec, set);
     if ("error" in g) return { ok: false, error: "gate_too_far", detail: g.error };
-    if (g.until !== null) {
-      const tokenIds = words.map((w) => tokenIdOf(w).toString());
-      gatePlan = { until: g.until, tokenIds };
+    // Words.setGate reverts on a word somebody holds, and the release with it: gate the rest. If
+    // ownership can't be read, no plan: a batch that might revert is worse than waiting a minute.
+    const owned = g.until !== null ? await claimedAmong(words) : [];
+    if (owned === null) return { ok: false, error: "chain_unreadable", detail: "couldn’t read which of the set’s words are already owned" };
+    const gated = words.filter((w) => !owned.includes(w));
+    if (g.until !== null && gated.length === 0) gateNote = "Every word of this set is already owned: there is nothing to gate.";
+    if (g.until !== null && gated.length > 0) {
+      const tokenIds = gated.map((w) => tokenIdOf(w).toString());
+      gatePlan = { until: g.until, tokenIds, owned };
       intents.push({
         contractKey: "words",
         contractName: "Words",
@@ -493,7 +503,7 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
           { name: "tokenIds", type: "uint256[]", value: `[${tokenIds.join(",")}]` },
           { name: "until", type: "uint64", value: String(g.until) },
         ],
-        note: `FIRST: the first-day gate on “${set.name}” (${words.length} words) until ${new Date(g.until * 1000).toISOString()}.`,
+        note: `FIRST: the first-day gate on “${set.name}” (${gated.length} words${owned.length ? `; ${owned.length} already owned are left out` : ""}) until ${new Date(g.until * 1000).toISOString()}.`,
       });
     }
   }

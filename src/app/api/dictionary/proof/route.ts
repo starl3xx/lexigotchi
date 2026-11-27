@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isWord } from "@/lib/dictionary";
-import { serving } from "@/lib/sets/server";
+import { hasGate, serving } from "@/lib/sets/server";
 import { allow } from "@/lib/ratelimit";
 import { clientIp } from "@/lib/auth/clientIp";
 
@@ -23,6 +23,9 @@ export const dynamic = "force-dynamic";
  * server never built means the bundled dictionary and the chain disagree (after a re-vendor, until
  * the owner sends `Words.setDictionaryRoot`): every claim would revert NotInDictionary inside the
  * wallet, so the route says `dictionary_mismatch` instead.
+ *
+ * A released word still inside its set's first day carries `gate` (when the gate lifts, in
+ * seconds): the claim then needs a voucher too.
  *
  * A dictionary word that is held back answers `not_released`, and nothing more: not which set has
  * it, not when it comes. One word a request, and a limit per address, because the answers together
@@ -54,5 +57,12 @@ export async function GET(req: Request) {
   // `held` covers what the chain leaves out, but a proof that can't verify is never served.
   if (!result) return NextResponse.json({ ok: false, error: "not_released" }, { status: 404 });
 
-  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root });
+  // Inside its set's first day? Then the claim also needs a voucher (POST /api/sets/voucher), and
+  // the game is told until when. From the set's stored time, which was read from the chain when
+  // the release was marked; the voucher route asks the chain itself before it signs.
+  const set = s.book.sets.find((x) => x.status === "released" && x.gateUntil !== null && x.words.some((w) => w.word === W));
+  const until = set?.gateUntil ? Math.floor(set.gateUntil.getTime() / 1000) : 0;
+  const gate = until * 1000 > Date.now() && (await hasGate()) ? until : null;
+
+  return NextResponse.json({ ok: true, word: result.word, proof: result.proof, root: s.tree.root, ...(gate ? { gate } : {}) });
 }

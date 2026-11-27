@@ -36,7 +36,9 @@ export type RateKind =
   | "market-list"
   | "telegram"
   | "telegram-report"
-  | "proof";
+  | "proof"
+  | "set-voucher"
+  | "set-voucher-ip";
 
 // Limits are generous: the splash retries verify-cast a few times per share, and players re-tap.
 // `verify-cast` is the Neynar-bound one, so it gets a wider window; the rest just deter abuse.
@@ -128,6 +130,12 @@ function makeLimiter(kind: RateKind, redis: Redis): Ratelimit {
     // whole held-back list slow to gather (it can't be secret: the dictionary is public).
     case "proof":
       return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "10 m"), prefix: "rl:proof" });
+    // First-day vouchers (the gate on a newly released set), by wallet and by IP: each is chain
+    // reads, a profile check, and a signature. A player asks once a claim.
+    case "set-voucher":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "10 m"), prefix: "rl:set-voucher" });
+    case "set-voucher-ip":
+      return new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "10 m"), prefix: "rl:set-voucher:ip" });
   }
 }
 

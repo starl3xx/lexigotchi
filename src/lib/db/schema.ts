@@ -807,3 +807,41 @@ export const dictionaryRoots = pgTable(
   },
   (t) => [primaryKey({ columns: [t.chainId, t.root] })],
 );
+
+/**
+ * Vouchers for the first-day gate (decisions.md, "Reserved word sets"; migration 0022). For the
+ * first day after a set's release, `Words.claim` takes one of its words only with a voucher this
+ * server signs, and a PROFILE gets vouchers for at most `word_sets.per_player_limit` different
+ * words of the set, across all its wallets.
+ *
+ * A row is written BEFORE its voucher is signed, and it counts from that moment. `used` is read
+ * from the chain's own history once the voucher can no longer be spent: true when the wallet
+ * claimed the word (the slot is spent for good, whatever happened to the word afterwards: the
+ * voucher carries no nonce, so "who holds it now" must never be what is counted), false when it
+ * expired unused (the slot is free again). Null: not settled yet, and it counts.
+ */
+export const setVouchers = pgTable(
+  "set_vouchers",
+  {
+    id: serial("id").primaryKey(),
+    chainId: integer("chain_id").notNull(),
+    setId: integer("set_id")
+      .notNull()
+      .references(() => wordSets.id),
+    /** The profile's account (its first wallet), lowercase, as it was when the voucher was signed. */
+    account: text("account").notNull(),
+    /** The wallet the voucher names (the claim's msg.sender), lowercase. */
+    wallet: text("wallet").notNull(),
+    /** UPPERCASE. A released set's word: public by now. */
+    word: text("word").notNull(),
+    /** The voucher's last valid second. */
+    deadline: timestamp("deadline", { withTimezone: true }).notNull(),
+    used: boolean("used"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // One row per profile per word of a set: asking again for the same word renews it.
+    uniqueIndex("set_vouchers_account_word").on(t.chainId, t.setId, t.account, t.word),
+    index("set_vouchers_wallet_idx").on(t.chainId, t.setId, t.wallet),
+  ],
+);

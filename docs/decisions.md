@@ -2258,10 +2258,59 @@ setter. All small, riding existing suite patterns.
       holds nothing back and would release every set at once (the runbook says so).
     - **Owner steps after part 1:** run migration 0021; paste the JSON into Sets; send the reserve
       root (`setDictionaryRoot`) from the owner wallet.
+    - **Part 3: the first-day gate, built and NOT deployed** (the owner: "I like the gated idea on
+      #8"; "tell me the plan and the date before doing it. Until then, items 1–7 ship without the
+      gate").
+      - **The contract.** `Words.gatedUntil[tokenId]`, set by the owner in a batch
+        (`setGate(tokenIds, until)`, event `Gated`), at most `MAX_GATE` = 7 days ahead, never on a
+        word somebody holds. While a word is gated, `claim` needs a voucher signed by `claimSigner`
+        (owner-set, as Staking's signer is; set at deploy) over (this contract, the chain id, a
+        gated-claim kind, the caller, the token id, a deadline). **One claim path, two forms:** the
+        old `claim(word, mask, proof)` is unchanged for an ungated word (the same selector,
+        `0x527c5082`, checked by raw call in the tests) and reverts `VoucherRequired` on a gated
+        one; `claim(word, mask, proof, deadline, sig)` takes the voucher and ignores it once the
+        gate has lifted, so a claim sent as the gate lifts doesn't fail for it. Both share
+        `_checkClaim` and `_finishClaim`.
+      - **A voucher has no nonce, on purpose.** It names the caller and the word, so reused it is
+        the same wallet claiming the same word again after dissolving it. A nonce would cost a
+        storage write on every gated claim to enforce what the server's count already holds.
+      - **The server counts vouchers ISSUED, never words held** (the audit's one note, at 70 of a
+        threshold of 80): a count of words held would let a player claim, move the word to another
+        wallet, and ask again. `POST /api/sets/voucher` signs only for a verified profile (the free
+        letters' own check), at most `per_player_limit` different words of a set per profile
+        across its linked wallets (table `set_vouchers`, migration 0022; one profile's requests
+        run one at a time), with a 10-minute deadline. The row is written before the voucher is
+        signed. A slot comes back only when the chain's `Claimed` history shows the voucher
+        expired unused; a used one is spent for good, whoever holds the word now. The same word
+        again is always a renewal, never a second word.
+      - **The caller must prove the wallet is theirs** (my addition; the spec didn't ask for it):
+        the wallet's profile session, or a Farcaster sign-in that Farcaster ties to the profile.
+        The free snack's voucher needs no proof because asking for a stranger's spends nothing.
+        This one spends the profile's one slot on a word the caller names, so without proof a
+        stranger could name your wallet and a word you don't want, again each time it expired, for
+        the whole first day. A web player with no session gets "sign in to your profile" and the
+        profile opens.
+      - **A release leaves out words somebody already holds** from its gate (`setGate` would revert
+        the whole batch), and no release is planned when ownership can't be read. Sepolia matters
+        here: words claimed before they were reserved.
+      - **The audit** (`solidity-auditor` on `Words.sol`, four scanners, 170 vectors; decisions #12
+        stands, no external audit): no finding at or above the threshold. `contracts/AUDIT.md` has
+        the pass, what was checked and dropped, and one older, unrelated detail two scanners saw
+        (`dissolve` logs the caller's word string unchecked; nothing reads it; the owner's call
+        whether to close it in the redeploy).
+      - **In the game:** a claim of a gated word asks for the voucher first; each refusal has its
+        own sentence with when the word opens to everyone (`components/game/setGate.ts`).
+      - **Dark until the redeploy.** The app asks the contract whether it has the gate; Sepolia's
+        doesn't, so the voucher route answers `not_gated`, the proof route never says a word is
+        gated, and a release is the root alone. Nothing a player sees changes.
+      - **The redeploy** is the whole suite (Staking, Rolls, Prestige, and the Jackpot hold the
+        Words address for good), it resets the testers' test build, and it carries the 3.0× caps.
+        `docs/web3-runtime-plan.md` has the plan and the proposed time (Thursday 2026-12-03, after
+        the 00:05 UTC keeper run pays the bounty week); it waits for the owner's word. The same
+        section lists what the mainnet deploy must include, since Words can't change afterwards:
+        the gate, the reserve root (`DICTIONARY_ROOT`), and the claim signer.
     - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available
-      yet", the set's name on a card's back, the reminders, the player docs); part 3, the
-      first-day gate (the Words change, its tests and audit, the voucher server), which needs a
-      redeploy of the whole suite and waits for the owner's word on a date.
+      yet", the set's name on a card's back, the reminders, the player docs).
 
 ## Pricing & launch economics (decided June 2026)
 

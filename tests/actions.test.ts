@@ -104,6 +104,30 @@ describe("claim composes operator + allowance + claim, in that order", () => {
     const decoded = decodeFunctionData({ abi: abis.erc20Abi, data: calls[1].data! });
     expect((decoded.args?.[0] as string).toLowerCase()).toBe(WORDS);
   });
+
+  // The first-day gate (decisions.md, "Reserved word sets"). Without a voucher the claim is the
+  // call it always was: the selector every deployed Words knows, gate or no gate.
+  it("without a voucher, sends the claim every deployed Words knows", () => {
+    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), approvedPlayer());
+    expect(calls[0].data!.slice(0, 10)).toBe("0x527c5082"); // claim(string,uint8,bytes32[])
+    expect(decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! }).args).toHaveLength(3);
+  });
+
+  it("with a voucher, sends the five-argument claim with the voucher as given", () => {
+    const sig = ("0x" + "ab".repeat(65)) as `0x${string}`;
+    const calls = A.claimCalls("crane", [PROOF], 0b00101, params(), approvedPlayer(), { deadline: 1_800_000_600n, sig });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].data!.slice(0, 10)).not.toBe("0x527c5082");
+    const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
+    expect(decoded.functionName).toBe("claim");
+    expect(decoded.args).toEqual(["CRANE", 5, [PROOF], 1_800_000_600n, sig]);
+  });
+
+  it("a voucher changes nothing about the approvals", () => {
+    const sig = ("0x" + "ab".repeat(65)) as `0x${string}`;
+    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), barePlayer(), { deadline: 1n, sig });
+    expect(calls.map((c) => c.to.toLowerCase())).toEqual([LETTERS, TOKEN, WORDS]);
+  });
 });
 
 describe("staking", () => {

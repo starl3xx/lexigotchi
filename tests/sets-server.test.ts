@@ -21,6 +21,8 @@ const world = vi.hoisted(() => ({
   chainRoot: "",
   gate: false,
   owned: new Set<string>(),
+  ownedUnreadable: false,
+  ids: new Map<string, string>(), // token id → word, filled as the tests name words
 }));
 
 vi.mock("@/lib/db/sets", () => {
@@ -71,8 +73,12 @@ vi.mock("@/lib/onchain/reads", async (orig) => ({
       }
       throw new Error(`unexpected read ${functionName}`);
     },
-    multicall: async ({ contracts }: { contracts: { functionName: string }[] }) =>
-      contracts.map((c) => (c.functionName === "gatedUntil" ? { status: "success", result: 1_900_000_000n } : false)),
+    multicall: async ({ contracts }: { contracts: { functionName: string; args: [bigint] }[] }) => {
+      if (world.ownedUnreadable && contracts.some((c) => c.functionName === "exists")) throw new Error("rpc down");
+      return contracts.map((c) =>
+        c.functionName === "gatedUntil" ? { status: "success", result: 1_900_000_000n } : world.owned.has(world.ids.get(String(c.args[0])) ?? ""),
+      );
+    },
     getBlockNumber: async () => 1000n,
     getLogs: async () => [],
     getBlock: async () => ({ number: 1000n, timestamp: 1_800_000_000n }),
@@ -102,6 +108,10 @@ beforeEach(async () => {
   world.migrated = true;
   world.fail = false;
   world.gate = false;
+  world.owned = new Set();
+  world.ownedUnreadable = false;
+  const { tokenIdOf } = await import("@/lib/onchain/tokenId");
+  world.ids = new Map(Object.values(words).map((w) => [tokenIdOf(w).toString(), w]));
   world.chainRoot = dictionaryRoot();
 });
 
@@ -159,10 +169,8 @@ describe("reserving", () => {
   });
 
   it("flags a word somebody already owns", async () => {
-    world.sets = [draft(1, "Secret", [words.A])];
-    const reads = await import("@/lib/onchain/reads");
-    const client = reads.getPublicClient() as unknown as { multicall: unknown };
-    vi.spyOn(reads, "getPublicClient").mockReturnValue({ ...(client as object), multicall: async () => [true] } as never);
+    world.sets = [draft(1, "Secret", [words.A, words.B])];
+    world.owned = new Set([words.A]);
     const { planReserve } = await import("@/lib/sets/server");
     const plan = await planReserve();
     expect(plan.ok && plan.alreadyClaimed).toEqual([words.A]);
@@ -310,9 +318,34 @@ describe("releasing", () => {
     if (!plan.ok) throw new Error("no plan");
     expect(plan.intents.map((i) => i.signature)).toEqual(["setGate(uint256[],uint64)", "setDictionaryRoot(bytes32)"]);
     const { tokenIdOf } = await import("@/lib/onchain/tokenId");
-    expect(plan.gate).toEqual({ until: now + 86_400, tokenIds: [words.A, words.B].map((w) => tokenIdOf(w).toString()) });
+    expect(plan.gate).toEqual({ until: now + 86_400, tokenIds: [words.A, words.B].map((w) => tokenIdOf(w).toString()), owned: [] });
     expect(plan.intents[0].args[0].value).toBe(`[${plan.gate!.tokenIds.join(",")}]`);
     expect(plan.intents[0].args[1].value).toBe(String(now + 86_400));
+  });
+
+  it("a word somebody already holds is left out of the gate (setGate would revert the whole release)", async () => {
+    const { server } = await reserved();
+    world.gate = true;
+    world.owned = new Set([words.A]);
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+    const plan = await server.planRelease(1, 1_800_000_000);
+    if (!plan.ok) throw new Error("no plan");
+    const { tokenIdOf } = await import("@/lib/onchain/tokenId");
+    expect(plan.gate?.tokenIds).toEqual([tokenIdOf(words.B).toString()]);
+    expect(plan.gate?.owned).toEqual([words.A]);
+    expect(plan.added).toEqual([words.A, words.B].sort()); // the root still adds every word
+    expect(plan.intents.map((i) => i.fn)).toEqual(["setGate", "setDictionaryRoot"]);
+  });
+
+  it("no release plan when ownership can't be read: a gate that might revert is not built", async () => {
+    const { server } = await reserved();
+    world.gate = true;
+    world.ownedUnreadable = true;
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+    const plan = await server.planRelease(1, 1_800_000_000);
+    expect(!plan.ok && plan.error).toBe("chain_unreadable");
   });
 
   it("a set with no gate hours gets no gate even where the contract has one", async () => {
@@ -350,6 +383,34 @@ describe("releasing", () => {
     server.forgetSets();
     const plan = await server.planRelease(2);
     expect(!plan.ok && plan.error).toBe("not_reserved");
+  });
+});
+
+describe("the proof route says when a word is inside its set's first day", () => {
+  const future = () => new Date(Date.now() + 3_600_000);
+  it("carries `gate` for a released set's word while its gate is up, on a Words that has the gate", async () => {
+    world.gate = true;
+    const until = future();
+    world.sets = [draft(1, "Out", [words.A], { status: "released", gateUntil: until })];
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const a = await (await GET(proofReq(words.A))).json();
+    expect(a.ok).toBe(true);
+    expect(a.gate).toBe(Math.floor(until.getTime() / 1000));
+    expect("gate" in (await (await GET(proofReq(words.Z))).json())).toBe(false); // a word of no set
+  });
+  it("says nothing once the gate has lifted, or where the contract has no gate", async () => {
+    world.gate = true;
+    world.sets = [draft(1, "Out", [words.A], { status: "released", gateUntil: new Date(Date.now() - 1000) })];
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    expect("gate" in (await (await GET(proofReq(words.A))).json())).toBe(false);
+
+    vi.resetModules();
+    world.gate = false; // this network's Words predates the gate: the plain claim is the claim
+    world.sets = [draft(1, "Out", [words.A], { status: "released", gateUntil: future() })];
+    const again = await import("@/app/api/dictionary/proof/route");
+    const body = await (await again.GET(proofReq(words.A))).json();
+    expect(body.ok).toBe(true);
+    expect("gate" in body).toBe(false);
   });
 });
 

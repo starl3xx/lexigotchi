@@ -199,10 +199,66 @@ done.
 Nobody can hold it, so that day's pot rolls over, as for any unowned word. A word is drawn once,
 ever, so a set word drawn before its release has had its draw.
 
-**Mainnet:** deploy Words with the RESERVE root, never the full dictionary's: set `DICTIONARY_ROOT`
-for `Deploy.s.sol` to the root `npm run sets -- reserve` prints against the mainnet database
-(the script takes it from the gate's PR on). The letter caps always come from the full dictionary.
-The first-day gate must be in the Words that is deployed: Words can't change afterwards.
+**The first-day gate.** For a set's first day (its `gateHours`), claiming one of its words also
+needs a voucher from the server: one word of the set per verified profile, across its linked
+wallets. It is in `Words.sol` (`setGate`, `gatedUntil`, `claimSigner`, a second `claim` that takes
+the voucher) and in the app (`POST /api/sets/voucher`, migration `0022_set_vouchers`). **A network
+has it only once its Words is deployed with it**, because Words can't change after deploy: the app
+asks the contract (`hasGate`), and until then a release opens a set to everyone at once and the
+release builder says so. Base Sepolia's Words (rehearsal #4) predates it.
+
+**Mainnet must include (Words can't change afterwards):**
+- **The gate.** Deploy the `Words.sol` that has it. A Words without it can never gate a release.
+- **The reserve root.** Set `DICTIONARY_ROOT` for `Deploy.s.sol` to the root `npm run sets -- reserve`
+  prints against the mainnet database, so no held-back word is claimable for even one block. Never
+  the full dictionary's root while any word is in an unreleased set. The letter caps always come
+  from the full dictionary.
+- **The claim signer.** `Deploy.s.sol` gives Words the same `SIGNER` as the other contracts; the
+  hosted `SIGNER_PRIVATE_KEY` signs the vouchers.
+- Run the `solidity-auditor` skill in DEEP mode on the final `Words.sol` first (`contracts/AUDIT.md`).
+
+### Base Sepolia redeploy for the gate (rehearsal #5): PROPOSED, waits for the owner's word
+
+A full redeploy of the suite: Staking, Rolls, Prestige, and the Jackpot hold the Words address for
+good, so Words can't be swapped alone. **It resets every tester's letters, words, stakes, and
+earnings on the test build.** It also carries the 3.0× letter supply caps (68,760; decisions.md
+#21), which have waited for a redeploy since 2026-11-25.
+
+Proposed time: **Thursday 2026-12-03, right after the 00:05 UTC keeper run.** Bounty weeks start on
+Thursdays, so that run pays the week that ends 2026-12-02, and the new suite starts on a week's
+first day with nothing owed on the old one.
+
+Before the day:
+1. The gate's PR is merged, and migrations 0021 and 0022 are run.
+2. The sets are in the Sets tab (placeholders are fine: a draft stays editable).
+3. A `heads-up` tester note goes out a day ahead: the test build resets on the day.
+
+On the day (about half an hour; the game shows the old suite until step 5 deploys):
+1. `npm run sets -- reserve`: take its root as `DICTIONARY_ROOT` (its row is stored by that run).
+2. A dry run, then `forge script script/Deploy.s.sol:Deploy --rpc-url https://sepolia.base.org
+   --broadcast`, with the rehearsal's environment: the registry's roles, `ANSWERCHAIN_HEAD` from
+   the same seeded list, `PRESTIGE_MAX_LEVEL=5`, `BOUNTY_CARVE_BPS=1500`, and `DICTIONARY_ROOT`.
+3. `DeployShopTestnet` against the new FeeRouter and Letters (the Shop's route and peg name the old
+   ones), then the one Test item again.
+4. Check on the chain: `Words.claimSigner()` is the signer, `Words.dictionaryRoot()` is the reserve
+   root, and `Letters.cap` sums to 68,760.
+5. A registry PR (`config/deployments.base-sepolia.json`: addresses, deploy block, the Shop's block).
+   Its merge deploys the app onto the new suite, with a `heads-up` tester note.
+
+After:
+1. The owner adds the new Letters and Words addresses to the CDP paymaster's allowlist.
+2. The Sets tab: **Check the chain** (the chain holds the reserve root from its first block).
+3. The gate, end to end, with a throwaway set: reveal it, release it (gate first, then root), claim
+   one word with a verified profile, see a second word refused and another profile succeed, and
+   see it open to everyone after the gate. Then the second tester note (the first-day rule).
+4. Read the first keeper run on the new suite (00:05 UTC the next day).
+
+To decide with the owner before the day: **the free-letter ledger** (`free_claims`). Its rows are
+per profile, not per deployment, so after a reset a tester who took the free pack and dailies has
+none left on the new suite unless those rows are cleared for chain 84532. Clearing them is a
+deletion in the production database, so it needs the owner's word. The other tables that name the
+old contracts (listings, sales, the wardrobe, reward leaves) are keyed by address or root and
+simply go quiet; each is checked on the day.
 
 ## The Shop (decisions.md #22)
 
