@@ -408,8 +408,10 @@ body {
 /* The ascend sheet (sheets/AscendSheet.tsx). A hit's rays turn behind the word for as long as it
    cheers, then fade with it: .asc-rays holds still (its box, and an oval fade so no edge shows) and
    only the square of rays inside it turns, a transform on one HTML element, so the letters in front
-   are never redrawn for it. Gold for Gilded 1 to 4; the foil's colors for Holographic. Under
-   reduced motion the rays are simply there, still, while the word's result shows. */
+   are never redrawn for it. The rays are an engraved "glory" (lib/cardArt/glory, decisions.md #48):
+   they are around the letters, so they are drawn like the cards. They were a flat gold fan. Gold
+   for Gilded 1 to 4; the foil's colors for Holographic. Under reduced motion the rays are simply
+   there, still, while the word's result shows. */
 .asc-rays {
   position: absolute;
   inset: 0;
@@ -428,12 +430,15 @@ body {
   aspect-ratio: 1;
   /* percentages of the box's WIDTH, both ways: half the square's side */
   margin: -65% 0 0 -65%;
-  background: repeating-conic-gradient(rgb(240 166 23 / 0.5) 0deg 8deg, transparent 8deg 30deg);
+  /* the engraved glory (lib/cardArt/glory), which the sheet gives as --asc-glory: one still picture */
+  background: var(--asc-glory) center / 100% 100% no-repeat;
 }
+/* Holographic: the foil's colours, seen through the same engraved lines. Deeper than the foil's
+   own pastels: a fine line in a pastel is lost on the paper. */
 .asc-rays-holo::before {
-  background: conic-gradient(#ff9ad5, #ffe28a, #8ff0d0, #8ec5ff, #c7a0ff, #ff9ad5);
-  -webkit-mask-image: repeating-conic-gradient(#000 0deg 8deg, transparent 8deg 30deg);
-  mask-image: repeating-conic-gradient(#000 0deg 8deg, transparent 8deg 30deg);
+  background: conic-gradient(#f0509f, #e8a50c, #18b48c, #3b82f6, #8b5cf6, #f0509f);
+  -webkit-mask: var(--asc-glory) center / 100% 100% no-repeat;
+  mask: var(--asc-glory) center / 100% 100% no-repeat;
 }
 @media (prefers-reduced-motion: no-preference) {
   /* in with the cheer, out before it ends (AscendSheet's CHEER_MS) */

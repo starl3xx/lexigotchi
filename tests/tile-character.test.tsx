@@ -22,7 +22,7 @@ beforeEach(() => {
 
 const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
 /** The loops: each may only ever be on a layer (a whole <svg>). */
-const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|hop|leghop|jump|legjump|brace|knock|zzz|sweat|ray)\b/;
+const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|hop|leghop|jump|legjump|brace|knock|zzz|sweat|ray|confetti)\b/;
 /**
  * What may run inside a layer: short, or one letter in a sheet, or a swap in steps (the peek, which
  * redraws nothing between its two halves). Never a sleeping word's zzz: a hungry word sleeps on the
@@ -30,9 +30,11 @@ const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|hop|leghop|j
  * processor core at rest in WebKit (5% with them still). And never a nervous letter's sweat: five
  * letters wait together in the ascend sheet, and their beads inside the top layers cost 27 points.
  * And never a raised letter's rays: turning inside the floor's drawing they cost 11% to 20% of a
- * core, and under 2% as a layer of their own (decisions.md #48).
+ * core, and under 2% as a layer of their own (decisions.md #48). And never a cheering letter's
+ * confetti: sixteen chips looping inside the top layer cost a cheering word 48% of a core, and 3%
+ * with them hidden; each piece is a small drawing of its own now (the same decision, part 8).
  */
-const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut", "animate-tc-confetti"]);
+const INSIDE = new Set(["animate-tc-peek-open", "animate-tc-peek-shut"]);
 const animated = (root: Element) => [...root.querySelectorAll("[class*='animate-tc-']")];
 const tcClasses = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("animate-tc-"));
 
@@ -238,6 +240,60 @@ describe("the loops run on layers", () => {
     }
     // every state moves a layer
     expect(els.some((el) => el.tagName.toLowerCase() === "svg")).toBe(true);
+  });
+
+  it("a cheering letter's confetti is sixteen small drawings of their own, over the letter, and none is inside a layer", () => {
+    const { container } = render(<TileCharacter char="q" state="celebrate" size={140} linkLeft />);
+    const host = container.querySelector('[data-piece="confetti"]')!;
+    expect(host.tagName.toLowerCase()).toBe("div");
+    const pieces = [...host.children] as SVGElement[];
+    expect(pieces).toHaveLength(16);
+    for (const p of pieces) {
+      expect(p.tagName.toLowerCase()).toBe("svg");
+      expect(p.classList.contains("animate-tc-confetti")).toBe(true);
+      // a small box of its own, placed by percent: its store is its own size, not a whole letter's
+      expect(parseFloat(p.style.width)).toBeLessThan(8);
+      expect(parseFloat(p.style.height)).toBeLessThan(8);
+      expect(p.style.left).toMatch(/%$/);
+      expect(p.style.top).toMatch(/%$/);
+      // unseen until its fall begins, and its fall is in its own box's percent
+      expect(p.style.opacity).toBe("0");
+      expect(p.style.getPropertyValue("--tc-fall")).toMatch(/^\d+%$/);
+      // nothing moves inside it
+      expect(p.querySelector("[class*='animate-']")).toBeNull();
+    }
+    // not all at once
+    expect(new Set(pieces.map((p) => p.style.animationDelay)).size).toBeGreaterThan(4);
+    // it is over everything, and no layer of the letter holds a piece of it
+    expect(host.parentElement!.lastElementChild).toBe(host);
+    for (const layer of container.querySelectorAll("svg[data-layer]")) expect(layer.querySelector("[class*='animate-tc-confetti']")).toBeNull();
+    // drawn like the cards: ink and gold, and the pale of gold; none of the old chips' five colours
+    const paints = new Set([...host.querySelectorAll("[fill],[stroke]")].flatMap((el) => [el.getAttribute("fill"), el.getAttribute("stroke")]).filter((c): c is string => !!c && c !== "none"));
+    expect([...paints].sort()).toEqual(["#2a1e1a", "#f0a617", "#fce8a8"]);
+  });
+
+  it("confetti held still (reduced motion, a list) is there and moves nothing; in one drawing it is a group at rest", () => {
+    const still = render(<TileCharacter char="q" state="celebrate" size={140} still />).container;
+    const pieces = [...still.querySelector('[data-piece="confetti"]')!.children] as SVGElement[];
+    expect(pieces).toHaveLength(16);
+    expect(animated(still)).toHaveLength(0);
+    for (const p of pieces) expect(p.style.opacity).toBe("");
+    // spread down the box, not in a row at the top
+    expect(new Set(pieces.map((p) => Math.round(parseFloat(p.style.top) / 10))).size).toBeGreaterThan(2);
+    const flat = render(<TileCharacter char="q" state="celebrate" size={140} detail="full" flat still />).container;
+    expect(flat.querySelectorAll("svg")).toHaveLength(1);
+    expect(flat.querySelectorAll('svg > [data-layer="confetti"] > g')).toHaveLength(16);
+    // In one drawing that moves (the docs' pictures) layers can't be had: each piece is a group with
+    // the same loop, and an unseen square gives it the box a piece's own drawing has.
+    const moving = render(<TileCharacter char="q" state="celebrate" size={140} detail="full" flat />).container;
+    const groups = [...moving.querySelectorAll('svg > [data-layer="confetti"] > g > g.animate-tc-confetti')] as SVGElement[];
+    expect(groups).toHaveLength(16);
+    for (const g of groups) {
+      expect(g.style.transformBox).toBe("fill-box");
+      const box = g.querySelector('rect[fill="none"]')!;
+      expect([box.getAttribute("width"), box.getAttribute("height")]).toEqual(["16", "16"]);
+      expect(g.style.getPropertyValue("--tc-fall")).toMatch(/^\d+%$/);
+    }
   });
 
   it("a sleeping letter's three z's are a layer each, rising in turn, and nothing loops inside a layer", () => {

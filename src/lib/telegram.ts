@@ -75,6 +75,16 @@ export function commandOf(m: TgMessage | undefined, bot = botUsername()): { name
   return { name: name.toLowerCase(), args: text.slice(mark.length).trim() };
 }
 
+/**
+ * True only where the bot may post to the group UNASKED (the daily recap, the Mythic-word alert):
+ * the production deployment, and nowhere else. A local server and a test are not production; and on
+ * Vercel a PREVIEW build also runs with NODE_ENV "production" and may hold the same secrets, so
+ * where VERCEL_ENV is set it must say "production" too.
+ */
+export function mayPostUnasked(): boolean {
+  return process.env.NODE_ENV === "production" && (process.env.VERCEL_ENV || "production") === "production";
+}
+
 export function telegramConfigured(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID && process.env.TELEGRAM_WEBHOOK_SECRET);
 }
@@ -217,6 +227,8 @@ const SEND_TIMEOUT_MS = 10_000;
 export interface SendOptions {
   /** Mentions in the text (or the caption) of people with no @username. */
   mentions?: TgMention[];
+  /** Stretches of the text to set in bold (UTF-16 offsets): formatting with no parse mode, so nothing in the text can be read as markup. */
+  bold?: { offset: number; length: number }[];
   /**
    * The message this one answers. If that message has been deleted by the time we answer, ours is
    * sent anyway, as an ordinary message.
@@ -248,7 +260,9 @@ export async function sendMessage(
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      ...(opts.mentions?.length ? { entities: opts.mentions } : {}),
+      ...(opts.mentions?.length || opts.bold?.length
+        ? { entities: [...(opts.bold ?? []).map((b) => ({ type: "bold", ...b })), ...(opts.mentions ?? [])] }
+        : {}),
       link_preview_options: { is_disabled: true },
       reply_parameters: replyTo(opts.replyTo),
     }),
@@ -271,7 +285,8 @@ export async function sendPhoto(
   const form = new FormData();
   form.set("chat_id", String(chatId));
   form.set("caption", caption);
-  if (opts.mentions?.length) form.set("caption_entities", JSON.stringify(opts.mentions));
+  const entities = [...(opts.bold ?? []).map((b) => ({ type: "bold", ...b })), ...(opts.mentions ?? [])];
+  if (entities.length) form.set("caption_entities", JSON.stringify(entities));
   const reply = replyTo(opts.replyTo);
   if (reply) form.set("reply_parameters", JSON.stringify(reply));
   form.set("photo", png, "card.png");

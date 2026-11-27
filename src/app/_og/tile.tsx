@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import type { Tier } from "@/lib/economy";
 import { finishFor, type Finish } from "@/lib/rarityFinish";
-import { facets, glintFlare, SCROLL_MIRRORS, SCROLL_PATH } from "@/components/game/TileFinish";
+import { facets, glintFlare, haloInk, SCROLL_MIRRORS, SCROLL_PATH } from "@/components/game/TileFinish";
 
 import {
   ARM_REST,
@@ -40,6 +40,8 @@ import {
   ringRects,
   type Hand,
   type RingPart,
+  haloPath,
+  tileOuter,
 } from "@/components/game/tileShapes";
 
 /**
@@ -133,20 +135,18 @@ function finishDefs(fin: Finish, u: (n: string) => string, bw: number): ReactEle
         <stop offset="0.75" stopColor="#8f9bff" />
         <stop offset="1" stopColor="#ff7ad9" />
       </linearGradient>
-      <radialGradient id={u("aura")} cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0.62" stopColor={fin.glow} stopOpacity="0.75" />
-        <stop offset="0.8" stopColor={fin.glow} stopOpacity="0.28" />
-        <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
-      </radialGradient>
     </defs>
   );
 }
 
-/** A soft glow hugging the tile, behind it (Legendary, Mythic). */
-function finishAura(fin: Finish, u: (n: string) => string): ReactElement | null {
+/**
+ * The glow behind a Legendary or Mythic tile: the engraved halo the game draws (TileFinish,
+ * FinishAura; its shape is tileShapes' haloPath, shared). It was a soft blur here too. `outer` is
+ * how far outside the tile's edge its own drawing ends (tileOuter). Every attribute given, for Satori.
+ */
+function finishAura(fin: Finish, outer: number): ReactElement | null {
   if (fin.material !== "amethyst" && fin.material !== "gold") return null;
-  const pad = fin.material === "amethyst" ? 26 : 22;
-  return <rect x={T.x - pad} y={T.y - pad} width={T.w + 2 * pad} height={T.h + 2 * pad} rx={T.r + pad} fill={`url(#${u("aura")})`} opacity={0.75} />;
+  return <path d={haloPath(outer)} fill="none" stroke={haloInk(fin)} strokeWidth={1.3} strokeLinecap="round" opacity={0.75} />;
 }
 
 /** The material over the face, under the letter: as TileFinish's FinishSurface draws it still. */
@@ -377,7 +377,8 @@ export function OgTile({
         {/* behind the arms: the rarity's aura, the case's ring or wooden edge, and the legs. The legs
             come over an UPPERCASE letter's ring and under its face, as the arms do (decisions.md #48). */}
         <g transform={tilt}>
-          {fin && finishAura(fin, u)}
+          {/* a whole character only: a tile on a rack has none, as in the game (the rig's "tile" detail) */}
+          {fin && limbs ? finishAura(fin, tileOuter(upper, g)) : null}
           {upper ? ringRects(g).map((r, i) => <rect key={`ring-${i}`} x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill="none" stroke={ringPaint(r.part)} strokeWidth={r.sw} />) : null}
           {limbs ? limb("leg-l", LEG_L) : null}
           {limbs ? limb("leg-r", LEG_R) : null}

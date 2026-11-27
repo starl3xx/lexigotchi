@@ -13,6 +13,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { MYTHICS } from "@/lib/economy";
+import { GLORY_CSS } from "@/lib/cardArt/glory";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import {
   FREE_DAILIES,
@@ -458,10 +459,17 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             </div>
           </div>
           <div className="relative flex min-h-[300px] items-center justify-center">
+            {/* the light behind the letter, engraved (lib/cardArt/glory): it is around the letter, so it
+                is drawn like the cards. It was a soft gold glow. Still, and its far ends fade. */}
             <div
               aria-hidden
-              className="absolute h-[300px] w-[300px] rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(240,166,23,0.35), transparent 68%)" }}
+              className="absolute h-[340px] w-[340px]"
+              style={{
+                background: `${GLORY_CSS} center / contain no-repeat`,
+                opacity: 0.75,
+                WebkitMaskImage: "radial-gradient(circle closest-side, #000 50%, transparent 100%)",
+                maskImage: "radial-gradient(circle closest-side, #000 50%, transparent 100%)",
+              }}
             />
             <TileCharacter char="w" upper gild={4} state="celebrate" detail="full" size={190} />
           </div>
