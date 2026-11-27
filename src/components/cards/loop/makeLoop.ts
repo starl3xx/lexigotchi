@@ -46,16 +46,23 @@ const STAMP_WAIT_MS = 4000;
  * The back's picture, and what it says of itself: whether the card's number is on it (../stamp,
  * NUMBERED_HEADER). Fetched, not set as an image's address, because only a fetch can read the
  * header; the picture is then made from the bytes that came with it.
+ *
+ * **The caller lets the bytes go (`release`) only when the video is made.** The picture's address
+ * stands for those bytes. WebKit may drop a picture's pixels and read them again from its address
+ * when it is drawn: with the address already let go, the back would be drawn blank, with no error,
+ * and the video would still be made (Bugbot on #257). If the picture can't be made, they go at once.
  */
-async function loadBack(src: string, signal?: AbortSignal): Promise<{ img: HTMLImageElement; numbered: boolean | null }> {
+export async function loadBack(src: string, signal?: AbortSignal): Promise<{ img: HTMLImageElement; numbered: boolean | null; release: () => void }> {
   const res = await fetch(src, { signal });
   if (!res.ok) throw new Error(`could not load ${src}`);
   const numbered = numberedFrom(res.headers);
   const url = URL.createObjectURL(await res.blob());
   try {
-    return { img: await loadImage(url, { signal }), numbered };
-  } finally {
+    const img = await loadImage(url, { signal });
+    return { img, numbered, release: () => URL.revokeObjectURL(url) };
+  } catch (err) {
     URL.revokeObjectURL(url);
+    throw err;
   }
 }
 
@@ -164,9 +171,42 @@ export async function makeLoop({
   // The holder's picture is asked for beside the card's two faces, with a limit of its own: it is
   // from another site, and a slow or silent one must not hold the video up. Late or refused: no stamp.
   const stampFace = stamp ? loadImage(stamp.src, { open: true, signal, ms: STAMP_WAIT_MS }).catch(() => null) : Promise.resolve(null);
-  const [frontImg, { img: backImg, numbered }] = await Promise.all([loadImage(front, { signal }), loadBack(back, signal), document.fonts.load('800 30px "Soehne"').catch(() => [])]).catch((err) => {
+  const backLoad = loadBack(back, signal);
+  const [frontImg, backLoaded] = await Promise.all([loadImage(front, { signal }), backLoad, document.fonts.load('800 30px "Soehne"').catch(() => [])]).catch((err) => {
+    // the front failed, or the video was called off: a back that did load is let go
+    backLoad.then((b) => b.release()).catch(() => {});
     throw signal?.aborted ? new LoopCancelled() : err;
   });
+  // the back's bytes are kept until the last frame is drawn (loadBack says why)
+  try {
+    return await film({ codec, frontImg, backImg: backLoaded.img, numbered: backLoaded.numbered, material, stamp, stampFace, signal, onProgress });
+  } finally {
+    backLoaded.release();
+  }
+}
+
+/** The frames, drawn and encoded: makeLoop, once both faces are in hand. */
+async function film({
+  codec,
+  frontImg,
+  backImg,
+  numbered,
+  material,
+  stamp,
+  stampFace,
+  signal,
+  onProgress,
+}: {
+  codec: string;
+  frontImg: HTMLImageElement;
+  backImg: HTMLImageElement;
+  numbered: boolean | null;
+  material: CardMaterial;
+  stamp?: LoopStamp;
+  stampFace: Promise<HTMLImageElement | null>;
+  signal?: AbortSignal;
+  onProgress?: (done: number) => void;
+}): Promise<Blob> {
   if (signal?.aborted) throw new LoopCancelled();
 
   // the one WebGL context is the video's while it's made

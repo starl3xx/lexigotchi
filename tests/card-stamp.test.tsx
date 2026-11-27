@@ -182,3 +182,52 @@ describe("a picture loaded for the video", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+describe("the back's picture, loaded for the video", () => {
+  // The picture is made from fetched bytes, and its address stands for them. WebKit may read a
+  // picture's pixels again from its address when it is drawn, so the address is kept until the
+  // video is made: let go as soon as the picture loaded, the back could be drawn blank.
+  const made: string[] = [];
+  const gone: string[] = [];
+  let fails = false;
+  beforeEach(() => {
+    made.length = 0;
+    gone.length = 0;
+    fails = false;
+    vi.stubGlobal("fetch", async () => new Response(new Blob(["png"]), { headers: { [NUMBERED_HEADER]: "1" } }));
+    URL.createObjectURL = () => (made.push(`blob:back-${made.length}`), made[made.length - 1]);
+    URL.revokeObjectURL = (u: string) => void gone.push(u);
+    // a picture that answers a moment after it is asked for (jsdom's never does)
+    vi.stubGlobal("Image", function () {
+      const img = document.createElement("img");
+      Object.defineProperty(img, "src", { set: () => setTimeout(() => (fails ? img.onerror?.(new Event("error")) : img.onload?.(new Event("load"))), 0), get: () => "" });
+      return img;
+    } as unknown as typeof Image);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps its bytes until the caller lets them go, and says what the picture said of itself", async () => {
+    const { loadBack } = await import("@/components/cards/loop/makeLoop");
+    const back = await loadBack("/s/GLYPH/back?v=8");
+    expect(back.numbered).toBe(true);
+    expect(made).toEqual(["blob:back-0"]);
+    // loaded, and still held
+    expect(gone).toEqual([]);
+    back.release();
+    expect(gone).toEqual(["blob:back-0"]);
+  });
+
+  it("lets them go at once when the picture can't be made", async () => {
+    const { loadBack } = await import("@/components/cards/loop/makeLoop");
+    fails = true;
+    await expect(loadBack("/s/GLYPH/back?v=8")).rejects.toThrow(/could not load/);
+    expect(gone).toEqual(["blob:back-0"]);
+  });
+
+  it("the maker lets them go only after the last frame, whatever way the video ends", () => {
+    const maker = readFileSync(join(process.cwd(), "src/components/cards/loop/makeLoop.ts"), "utf8");
+    expect(maker).toMatch(/try \{\n\s+return await film\(\{[^}]+\}\);\n\s+\} finally \{\n\s+backLoaded\.release\(\);\n\s+\}/);
+    // and a back that loaded beside a front that didn't is let go too
+    expect(maker).toContain("backLoad.then((b) => b.release()).catch(() => {});");
+  });
+});
