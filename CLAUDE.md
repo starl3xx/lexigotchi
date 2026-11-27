@@ -746,6 +746,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`useLetterSupply`, shared with the lookup sheet): a sold-out letter shows "Sold out" and the rest
   rise; "N left" shows only at a tenth of the chain's cap or less (`LOW_SHARE`). The docs' odds table
   (`docs-site/letters.mdx`) is pinned to the code by `tests/letter-odds.test.ts`.
+- **The jackpot's secret word is a card** (decisions.md #50, part 4; starl3xx: "a card has to be held, not
+  individual letters"): face down until it is revealed (`cards/FaceDownCard`: a back's stock and the seal;
+  it takes NO word and NO rarity, so nothing about the word can show, and its material is always
+  Common's), then face up (the winner's own card, or the word in the plain scene). Never show a word as
+  loose letters where a card would do. `tests/face-down-card.test.tsx` holds it.
 - **The Jackpot page carries the bounty** (starl3xx, 2026-11-25): one tab (the phone's "Win", the
   rail's "Jackpot"), the daily jackpot then the weekly bounty (`screens/BountySection.tsx`), side by
   side from `lg`. There is no `bounty` view. Today keeps both cards; its bounty card links with
