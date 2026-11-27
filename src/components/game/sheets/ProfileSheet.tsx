@@ -21,6 +21,7 @@ import { useDailyEligibility } from "../DailyUnlock";
 import { resolveIdentity, useProfile } from "../useProfile";
 import { ReminderToggle } from "../ReminderToggle";
 import { ReminderChoices } from "../ReminderChoices";
+import { TelegramCard } from "../TelegramCard";
 import { CardStampChoice } from "../../cards/CardStamp";
 import { WalletsCard } from "./WalletsCard";
 import { OnchainBadges } from "../OnchainBadges";
@@ -302,6 +303,10 @@ export function ProfileSheet() {
           code, or error never carries into another's session (Bugbot on #139). */}
       {p.emailEnabled && <EmailCard key={p.address ?? "none"} p={p} />}
 
+      {/* Reminders as a Telegram message from the game's bot, where that is set up (TelegramCard).
+          Keyed by wallet, like the email card: one wallet's link in progress never shows under another. */}
+      {p.telegramEnabled && p.address && <TelegramCard key={p.address} p={p} />}
+
       {/* The player's picture as a stamp on the back of their cards: theirs to turn off (cards/CardStamp).
           Only where there is a picture to stamp. */}
       {me.pfpUrl && <CardStampChoice />}
@@ -314,7 +319,7 @@ export function ProfileSheet() {
 
       {/* Which reminders, for every channel (ReminderChoices). With profiles on (the route is theirs)
           and a wallet: a choice is the account's. */}
-      {p.enabled && p.address && <ReminderChoices key={p.address} p={p} hasEmail={Boolean(p.profile?.email)} />}
+      {p.enabled && p.address && <ReminderChoices key={p.address} p={p} hasEmail={Boolean(p.profile?.email)} telegram={p.telegramEnabled} />}
 
       <button
         onClick={() => g.openSheet({ kind: "balance" })}

@@ -96,6 +96,31 @@ export async function telegramChats(accounts: readonly string[]): Promise<Map<st
   }
 }
 
+/**
+ * Whether linking can work here: the tables exist (migration 0020 has run). For the profile's
+ * config (`/api/profile/config`), so the profile shows its Telegram card only where a tap on it
+ * would work. A yes is kept for good (tables don't go away); a no, or a failed read, is asked
+ * again after a minute, so the card appears soon after the migration runs.
+ */
+let ready: { at: number; yes: boolean } | null = null;
+const READY_RECHECK_MS = 60_000;
+export async function telegramLinksReady(now = Date.now()): Promise<boolean> {
+  if (ready && (ready.yes || now - ready.at < READY_RECHECK_MS)) return ready.yes;
+  let yes = false;
+  try {
+    await getDb().select({ account: telegramLinks.account }).from(telegramLinks).limit(1);
+    yes = true;
+  } catch {
+    yes = false; // no table yet, no database, or it didn't answer: not ready, as far as a player can tell
+  }
+  ready = { at: now, yes };
+  return yes;
+}
+/** Tests only: forget what was learned. */
+export function resetTelegramLinksReady() {
+  ready = null;
+}
+
 /** Every link (the operator console's Players tab). Empty before the migration runs. Throws otherwise. */
 export async function allTelegramLinks(): Promise<TelegramLink[]> {
   try {

@@ -3,9 +3,9 @@
  * "What to tell me": the player's choice of reminders (lib/notify/kinds.ts), in their profile
  * (starl3xx, 2026-11-26: "A choice per kind of reminder, stored with the profile").
  *
- * One list for every way the game reaches them (email, their browser, Farcaster): how they are
- * reached is switched elsewhere (the email box, "Turn on reminders", adding the mini app), and this
- * says about what. A choice is the account's, so it needs the wallet's session to change: a tap
+ * One list for every way the game reaches them (email, their browser, Farcaster, Telegram): how
+ * they are reached is switched elsewhere (the email box, "Turn on reminders", adding the mini app,
+ * "Link Telegram"), and this says about what. A choice is the account's, so it needs the wallet's session to change: a tap
  * with none asks for the sign-in first, the same one the rest of the profile uses.
  *
  * Until the player's own choices load, the boxes show the defaults, which is what they get.
@@ -33,8 +33,11 @@ interface Stored {
   emailCadence: EmailCadence;
 }
 
-/** `hasEmail`: the player has an email saved, so how often it comes is theirs to choose too. */
-export function ReminderChoices({ p, hasEmail = false }: { p: ReminderChoicesProfile; hasEmail?: boolean }) {
+/**
+ * `hasEmail`: the player has an email saved, so how often it comes is theirs to choose too.
+ * `telegram`: reminders by Telegram are offered here, so the card names it among the ways.
+ */
+export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: ReminderChoicesProfile; hasEmail?: boolean; telegram?: boolean }) {
   const qc = useQueryClient();
   const key = ["reminderKinds", p.address, p.sessionToken];
   const [note, setNote] = useState<string | null>(null);
@@ -79,7 +82,9 @@ export function ReminderChoices({ p, hasEmail = false }: { p: ReminderChoicesPro
   return (
     <Card className="mb-3">
       <div className="font-display font-extrabold">What to tell me</div>
-      <p className="mt-0.5 text-xs text-ink/60">Your choice for every way we reach you: email, your browser, and Farcaster.</p>
+      <p className="mt-0.5 text-xs text-ink/60">
+        Your choice for every way we reach you: email, your browser, {telegram ? "Farcaster, and Telegram" : "and Farcaster"}.
+      </p>
       <ul className="mt-2 space-y-2">
         {REMINDER_KINDS.map((kind) => (
           <li key={kind}>

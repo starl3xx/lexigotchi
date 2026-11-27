@@ -50,6 +50,8 @@ export interface ProfileConfig {
   profiles: boolean;
   x: boolean;
   email: boolean;
+  /** A player can link their Telegram account for reminders there: the bot is set up and its tables exist. */
+  telegram?: boolean;
 }
 
 /** One wallet's public profile row (no email): what /api/world merges with Farcaster. */
