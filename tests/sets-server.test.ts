@@ -847,6 +847,26 @@ describe("the collab words a rarity is read with", () => {
     expect(got.words.size).toBe(0);
     log.mockRestore();
   });
+  it("a caller that PAYS gets this call's own read or a throw: never the copy kept from before a failure", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const server = await import("@/lib/sets/server");
+    expect([...(await server.collabStrict())]).toEqual([words.B]); // and this read is now the kept copy
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    // The ordinary read answers from the kept copy and calls it known: right for holding words back...
+    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    // ...and exactly what the keeper must not weigh an epoch with.
+    await expect(server.collabStrict()).rejects.toThrow(/couldn't be read/);
+    const { epochTiers } = await import("@/lib/keeper/tiers");
+    await expect(epochTiers("yield epoch 9", undefined, async () => {})).rejects.toThrow(/no epoch is opened/);
+    // Back up: the next run reads, and weighs by the collab words.
+    world.fail = false;
+    const { wordsByTier } = await import("@/lib/economy");
+    world.sets = [draft(2, "Shown", [wordsByTier("Common")[0]], { ...look, status: "revealed" })];
+    expect((await epochTiers("yield epoch 10", undefined, async () => {}))(wordsByTier("Common")[0])).toBe("Legendary");
+    log.mockRestore();
+  });
+
   it("a picture that only SHOWS a rarity falls back to the derived tiers; it never fails or waits long", async () => {
     world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
     const { collabSoon } = await import("@/lib/raritySoon");

@@ -15,7 +15,7 @@ import { MYTHICS, RANKED_WORDS, TIER_COUNTS, TIER_WEIGHT, TIERS, wordTier, words
 import { COLLAB_TIER, NO_COLLAB, collabWordsOf, raisedByCollab, tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
 import { STANDARD_FIELDS, publicSets, type WordSet } from "@/lib/sets/rules";
 import { bountyLeaves, yieldLeaves, yieldWeight, type KeeperWord } from "@/lib/keeper/shares";
-import { epochTiers } from "@/lib/keeper/tiers";
+import { TIER_READ_TRIES, epochTiers } from "@/lib/keeper/tiers";
 import { dailyEarnEstimate } from "@/lib/wordCost";
 import { earnsStaked, tierCount } from "@/lib/cardFacts";
 import { filterWords, oneLetterShort, pickDeals, rarestFirst, rarestFirstBy, sortWords, tierLowest, type WordForSale } from "@/lib/market/deals";
@@ -137,17 +137,28 @@ describe("earnings and bounty weights use the override", () => {
 });
 
 describe("the keeper opens no epoch on guessed rarities", () => {
-  it("refuses when the sets can't be read, or the read throws", async () => {
-    await expect(epochTiers("yield epoch 1", async () => ({ known: false, words: NO_COLLAB }))).rejects.toThrow(/no epoch is opened on guessed rarities/);
-    await expect(
-      epochTiers("bounty epoch 2", async () => {
-        throw new Error("db down");
-      }),
-    ).rejects.toThrow(/bounty epoch 2/);
+  const noWait = async () => {};
+  it("refuses when the sets can't be read, after trying a few times", async () => {
+    let asked = 0;
+    const down = async () => {
+      asked++;
+      throw new Error("db down");
+    };
+    await expect(epochTiers("bounty epoch 2", down, noWait)).rejects.toThrow(/bounty epoch 2: the collab sets couldn't be read, so no epoch is opened on guessed rarities/);
+    expect(asked).toBe(TIER_READ_TRIES);
   });
-  it("weighs by the collab words when they are known, and by the derived tiers when there are none", async () => {
-    expect((await epochTiers("yield", async () => ({ known: true, words: collab })))(COMMON)).toBe("Legendary");
-    expect(await epochTiers("yield", async () => ({ known: true, words: NO_COLLAB }))).toBe(wordTier);
+  it("a read that fails once and then answers is used: one blip doesn't cost a day", async () => {
+    let asked = 0;
+    const flaky = async () => {
+      if (++asked === 1) throw new Error("blip");
+      return collab;
+    };
+    expect((await epochTiers("yield", flaky, noWait))(COMMON)).toBe("Legendary");
+    expect(asked).toBe(2);
+  });
+  it("weighs by the collab words when they are read, and by the derived tiers when there are none", async () => {
+    expect((await epochTiers("yield", async () => collab, noWait))(COMMON)).toBe("Legendary");
+    expect(await epochTiers("yield", async () => NO_COLLAB, noWait)).toBe(wordTier);
   });
   it("is what the yield and bounty jobs weigh with (the job's own source)", () => {
     const src = readFileSync(join(__dirname, "..", "src/lib/keeper/jobs.ts"), "utf8");
@@ -175,6 +186,28 @@ describe("filters, sort order, and what the market records", () => {
     expect(sortWords(board, "rare", () => null, tier).map((l) => l.word)).toEqual([COMMON, plainLegend, wordsByTier("Common")[1]]); // 50 before 70 within the tier
     expect(tierLowest(board, "Legendary", () => false, undefined, tier)).toBe(50);
     expect(tierLowest(board, "Legendary", () => false)).toBe(70);
+  });
+  it("a tier is a band of the ranking: the tier never drops as the rank rises (what the tier-then-rank orders stand on)", () => {
+    const order = Object.fromEntries(TIERS.map((t, i) => [t.name, i])) as Record<Tier, number>;
+    const byRank = [...RANKED_WORDS].sort((a, b) => a.rank - b.rank);
+    for (let i = 1; i < byRank.length; i++) {
+      expect(order[byRank[i].tier], `${byRank[i - 1].word} → ${byRank[i].word}`).toBeGreaterThanOrEqual(order[byRank[i - 1].tier]);
+    }
+  });
+  it("so with the derived tiers the tier-aware orders ARE the old ones, over the whole dictionary", () => {
+    // No shortcut: a wrapper, so `rarestFirstBy` takes its tier-then-rank path.
+    const derived = (w: string) => wordTier(w);
+    const all = RANKED_WORDS.map((r) => r.word);
+    expect([...all].sort(rarestFirstBy(derived))).toEqual([...all].sort(rarestFirst));
+    // The Dictionary's "closest first" breaks ties rarest first: the same list as before the layer
+    // existed (ranking alone), for every word at one distance.
+    const open = () => "open" as const;
+    const same = all.map(() => ({ missing: 1, away: 0, need: [] })) as never;
+    const listed = listDictionary({ query: "", tier: "All", filter: "all", sort: "closest" }, open, same, derived).words;
+    const rank = new Map(RANKED_WORDS.map((r) => [r.word, r.rank]));
+    const expected = [...listed].sort((a, b) => (rank.get(b) ?? 0) - (rank.get(a) ?? 0) || a.localeCompare(b));
+    expect(listed).toEqual(expected);
+    expect(listed).toHaveLength(all.length);
   });
   it("the one word-by-word order is unchanged for every other word, and moves only a collab word", () => {
     const sample = RANKED_WORDS.filter((_, i) => i % 53 === 0).map((r) => r.word);
@@ -226,11 +259,24 @@ describe("filters, sort order, and what the market records", () => {
 // --- in a component: the tier follows the sets answer when it arrives ---------------------------
 const hook = vi.hoisted(() => ({ collab: undefined as ReadonlySet<string> | undefined }));
 vi.mock("@/components/game/useSets", () => ({ useSets: () => ({ collab: hook.collab }) }));
+const mode = vi.hoisted(() => ({ chain: true }));
+vi.mock("@/lib/onchain/gameMode", () => ({ isChainBacked: () => mode.chain }));
 
 describe("in the game", () => {
   afterEach(() => {
     cleanup();
     hook.collab = undefined;
+    mode.chain = true;
+  });
+  it("the practice game keeps the derived tiers on every screen: its bag holds them, and it has no sets", async () => {
+    const { useTierCounts, useTierOf } = await import("@/components/game/useRarity");
+    function Probe() {
+      return <p>{`${useTierOf()(COMMON)} ${useTierCounts().Legendary}`}</p>;
+    }
+    mode.chain = false;
+    hook.collab = collab;
+    render(<Probe />);
+    expect(screen.getByText(`Common ${TIER_COUNTS.Legendary}`)).toBeTruthy();
   });
   it("draws the derived tier until the sets answer arrives, then the game's tier, with no reload", async () => {
     const { useTierCounts, useTierOf } = await import("@/components/game/useRarity");
@@ -283,7 +329,7 @@ describe("who may still read the DERIVED tier", () => {
     // Each call of these in src (outside the file that defines it) must carry a tier argument.
     const need: [RegExp, string][] = [
       [/\bfilterWords\(/, "filterWords"],
-      [/\bsortWords\(filterWords/, "sortWords"],
+      [/\bsortWords\(filterWords\(.*\), sort, makeCost/, "sortWords"],
       [/\btierLowest\(/, "tierLowest"],
       [/\bpickDeals\(\{/, "pickDeals"],
       [/\boneLetterShort\(/, "oneLetterShort"],
@@ -302,7 +348,8 @@ describe("who may still read the DERIVED tier", () => {
           const call = src.split("\n").slice(i, i + 12).join("\n");
           const end = call.search(/\)\s*;|\}\);/);
           const text = end >= 0 ? call.slice(0, end + 3) : call;
-          if (!/\btier(Of)?\b/.test(text) && !(defines && /^\s*\*|^\s*\/\//.test(line))) missing.push(`${f}:${i + 1} ${name}`);
+          // `tierOf` by name: `tier`, `word.tier`, or a `{ q, tier }` filter must not pass for it.
+          if (!/\btierOf\b/.test(text) && !(defines && /^\s*\*|^\s*\/\//.test(line))) missing.push(`${f}:${i + 1} ${name}`);
         });
       }
     }

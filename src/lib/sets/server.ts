@@ -73,8 +73,12 @@ export function forgetSets(): void {
 /**
  * The sets, kept for a few seconds. A draft whose reveal time has come is revealed on the way
  * (one statement, so two servers reveal it once).
+ *
+ * `strict`: this call's OWN read, or a throw. Never the copy kept from an earlier read, which is
+ * what an ordinary caller gets when the database fails (right for holding words back, wrong for a
+ * caller that pays by what the sets say now).
  */
-export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook> {
+export async function loadSets(opts: { fresh?: boolean; strict?: boolean } = {}): Promise<SetsBook> {
   if (!process.env.DATABASE_URL) return { sets: [], migrated: false, collab: false, known: true };
   if (!opts.fresh && book && Date.now() - book.at < BOOK_TTL_MS) return book.value;
   try {
@@ -91,6 +95,7 @@ export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook
     return value;
   } catch (err) {
     console.error("[sets] the sets couldn't be read:", codeOf(err));
+    if (opts.strict) throw new Error(`the sets couldn't be read (${codeOf(err)})`);
     // What was read before still holds back everything it held back then: a set released since
     // stays closed a little longer, and nothing opens early.
     if (book) return book.value;
@@ -107,6 +112,19 @@ export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook
 export async function collabNow(): Promise<{ known: boolean; words: CollabWords }> {
   const book = await loadSets();
   return { known: book.known, words: book.known ? collabWordsOf(book.sets) : NO_COLLAB };
+}
+
+/**
+ * The same words for a caller that PAYS by rarity (the keeper): read now, by this call, or a
+ * throw. `collabNow` can answer from a copy kept before the database failed, and says "known";
+ * an epoch must not be weighed with that.
+ *
+ * With no database configured there are no sets at all, so there are no collab words: that is a
+ * fact, not a guess (and an epoch's proofs are stored in the same database before it is opened,
+ * so a keeper without one opens nothing).
+ */
+export async function collabStrict(): Promise<CollabWords> {
+  return collabWordsOf((await loadSets({ fresh: true, strict: true })).sets);
 }
 
 // --- the chain's root -------------------------------------------------------------------------

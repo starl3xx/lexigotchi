@@ -126,8 +126,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   by asks the second:** a component calls `useTierOf()` / `useTierCounts()`
   (`components/game/useRarity.ts`), a server render that only shows a rarity `collabSoon()`
   (`lib/raritySoon.ts`, falls back to derived), and the keeper `epochTiers()`
-  (`lib/keeper/tiers.ts`), which THROWS when the sets can't be read: no epoch is opened on guessed
-  rarities. `tests/rarity-override.test.tsx` lists the files that may still name `wordTier`; a new
+  (`lib/keeper/tiers.ts`), which reads with `collabStrict()` (this run's own read, never the sets
+  loader's kept copy) and THROWS when the sets can't be read: no epoch is opened on guessed
+  rarities. **`loadSets()` answers `known: true` from a kept copy after a failure**: right for
+  holding words back, wrong for anything that pays; a paying caller passes `{ strict: true }`. `tests/rarity-override.test.tsx` lists the files that may still name `wordTier`; a new
   one fails it, so add the file there with its reason or use the game's tier. The collab words
   are passed in, never read inside `rarity.ts`, and never reach `lib/economy.ts` or the sim.
 - **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /

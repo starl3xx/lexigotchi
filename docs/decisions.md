@@ -2789,16 +2789,29 @@ setter. All small, riding existing suite patterns.
         word moves); the keeper's daily yield and the bounty; the "earns about" estimates; the
         tier a sale is recorded at; the deal alert; the Telegram alert and `/word`.
       - **The keeper opens no epoch on guessed rarities** (mine). An epoch is money and can't be
-        reopened. If the sets can't be read, the yield and bounty jobs throw and the next run
-        tries again (`lib/keeper/tiers.ts`). Everything that only SHOWS a rarity falls back to
-        the derived tiers instead (`lib/raritySoon.ts`), which is what every word had before.
+        reopened, so it is weighed only with a read that run made itself (`collabStrict`: never
+        the copy the sets loader keeps from before a failure, which it calls "known"). The read
+        is tried three times; if it still fails the yield or bounty job throws
+        (`lib/keeper/tiers.ts`). What that costs: the keeper runs once a day and each job fails
+        alone, so a refused day has no yield epoch unless the job is run again that day (the pool
+        keeps the funds and the next days pay from a larger pool), and a refused bounty week is
+        retried daily. It adds no new way to lose a day: an epoch's proofs are stored in the same
+        database before it opens. Everything that only SHOWS a rarity falls back to the derived
+        tiers instead (`lib/raritySoon.ts`), which is what every word had before.
       - **Mid-epoch.** A reveal raises a word's weight from the next epoch the keeper opens: an
-        open epoch's tree is never rebuilt. A sale already recorded keeps the tier it sold at.
+        open epoch's tree is never rebuilt. A sale is recorded at the tier in force when it is
+        indexed (within moments of the sale), and a recorded sale is never rewritten.
+      - **The orders didn't move for any other word.** A tier is a band of the rarity ranking
+        (tested over the whole dictionary), so "tier, then rank" with the derived tiers is the
+        ranking itself: the Dictionary's and the Market's orders are what they were.
       - **Held to it by a test** (`tests/rarity-override.test.tsx`): the list of files that may
         still read the derived tier, with a reason each, and a check that the game's own calls
         of the functions with a default pass a tier.
       - Not changed by a collab: letter supply caps, mint odds, the word's rank number ("the
-        37th rarest word"), the practice game, and the admin's supply table (derived counts).
+        37th rarest word"), the practice game (it has no sets; its bag and its screens both show
+        the derived tiers), and two admin tables that say so: the supply table ("Words
+        (derived)") and the simulator's page. The spec asks for tier counts "anywhere" to come
+        from the one function; those two show what the full dictionary derives, on purpose.
     - **Two things the spec assumed that weren't so.** There is no token metadata server in this
       repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
       mean building that route: part 4. And a metadata refresh "at release" needs an owner call in
