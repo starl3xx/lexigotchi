@@ -31,7 +31,7 @@
  * Still, always: no tile bounces or shines on the back (the material is drawn once, by CSS here;
  * a later step draws it live where a card is in focus).
  */
-import { TileCharacter, useLowPower, usePrefersReducedMotion, type Gild } from "../game/TileCharacter";
+import { TileCharacter, type Gild } from "../game/TileCharacter";
 import { TierMark } from "../game/TierMark";
 import type { Tier } from "@/lib/economy";
 import type { CSSProperties, ReactNode } from "react";
@@ -44,18 +44,13 @@ import { rackPaths } from "@/lib/cardArt/rack";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
-import { MATERIAL_LINE, SCROLL_PATH_CARD, materialOf, type CardMaterial } from "./material";
+import { MATERIAL_LINE, collabPlate, materialOf, materialPlate } from "./material";
 import { CardStamp, useMyStamp } from "./CardStamp";
 import { useCardFacts, type CardFacts } from "./useCardFacts";
 import { useCardNumber } from "./useCardNumber";
-import dynamic from "next/dynamic";
-import { canDrawLive } from "./live/support";
 import { tileTierOf, useCollabLook } from "@/components/game/collabLooksContext";
 import { collabBack } from "@/lib/collabLook";
 import { collabLine } from "@/lib/cardFacts";
-
-// The live material loads the first time a back goes live: OGL stays out of the game's first download.
-const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.LiveMaterial), { ssr: false });
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -75,7 +70,7 @@ function sealImage(ink: string): string {
  * two colors, deepened until the back's cream type reads on them (lib/collabLook.ts `collabBack`),
  * as the CSS variables a material sets (globals.css, `.m-*`). Null for any other word.
  */
-function useCollabBack(word: string): { style: CSSProperties; line: string } | null {
+function useCollabBack(word: string): { style: CSSProperties; line: string; base: string; base2: string } | null {
   const look = useCollabLook(word);
   if (!look) return null;
   const b = collabBack(look);
@@ -83,7 +78,9 @@ function useCollabBack(word: string): { style: CSSProperties; line: string } | n
   const line2 = `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0.18)`;
   return {
     line: b.line,
-    style: { "--cb-base": b.base, "--cb-mat": `linear-gradient(165deg, ${b.base2}, ${b.base} 70%)`, "--cb-line": b.line, "--cb-line2": line2, "--rk-front": b.rack } as CSSProperties,
+    base: b.base,
+    base2: b.base2,
+    style: { "--cb-base": b.base, "--cb-line": b.line, "--cb-line2": line2, "--rk-front": b.rack } as CSSProperties,
   };
 }
 
@@ -93,33 +90,34 @@ function useBackInk(word: OwnedWord): string {
 }
 const MOOD: Record<string, string> = { fed: "full", peckish: "peckish", hungry: "hungry" };
 
+// One picture a plate: a rarity's, or a collab set's inks, built the first time a back in it shows.
+const plates = new Map<string, string>();
+function plateImage(key: string, make: () => string): string {
+  let url = plates.get(key);
+  if (!url) {
+    if (plates.size > 40) plates.clear(); // an admin dragging a color picker makes many inks
+    plates.set(key, (url = `url("${svgDataUri(svgDoc(make()))}")`));
+  }
+  return url;
+}
+
 /**
- * `live`: the back is showing on the card in focus (the Today stage, an opened word), so its
- * material is drawn live (./live), unless the player asked for less motion or the device is low-end.
+ * A card's back: an engraved plate in its rarity's inks, the game's seal in its lathe work, and the
+ * word's story lettered over them (decisions.md #58, part 2). It is paper and ink: a still picture,
+ * with no material, no frame line of its own (the plate's border is its frame), and nothing drawn
+ * live. A collab word's plate is in its set's two inks.
  */
-export function CardBack({ word, mini = false, live = false }: { word: OwnedWord; mini?: boolean; live?: boolean }) {
+export function CardBack({ word, mini = false }: { word: OwnedWord; mini?: boolean }) {
   const m = materialOf(word.tier);
-  const reduced = usePrefersReducedMotion();
-  const lowPower = useLowPower();
-  // A collab word's back is its set's colorway in place of its rarity's material: a plain deep
-  // ground in the two colors, with none of a material's metal, glitter, facets, fire, or scrollwork,
-  // and no live material (the shader paints a rarity's).
   const collab = useCollabBack(word.word);
-  const drawLive = live && !mini && !reduced && !lowPower && !collab && canDrawLive();
+  const plate = collab ? plateImage(`collab:${collab.base}:${collab.base2}:${collab.line}`, () => collabPlate(collab)) : plateImage(m, () => materialPlate(m));
   return (
     <div className={`cb ${collab ? "m-collab" : `m-${m}`}`} style={collab?.style}>
-      <div className="cb-mat">
+      <div className="cb-mat" style={{ backgroundImage: plate }}>
         <div className="cb-tex" />
-        {!collab && m === "rare" && <div className="cb-brush" />}
-        {!collab && m === "legendary" && <div className="cb-glitter" />}
-        {!collab && m === "mythic" && <Facets />}
-        {drawLive && <LiveMaterial material={m} />}
       </div>
-      <div className="cb-frame" />
-      {/* the game's seal, pressed into the material behind the facts */}
+      {/* the game's seal, pressed into the plate inside its lathe work, behind the facts */}
       <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(collab?.line ?? MATERIAL_LINE[m]) }} />
-      {!collab && m === "mythic" && <div className="cb-fire" />}
-      {!collab && m === "legendary" && !mini && (["tl", "tr", "bl", "br"] as const).map((k) => <Scroll key={k} corner={k} />)}
       {mini ? <MiniBody word={word} /> : <FullBody word={word} />}
     </div>
   );
@@ -316,33 +314,6 @@ function Pips({ level }: { level: number }) {
         <i key={i} className={i <= level ? "on" : ""} />
       ))}
     </span>
-  );
-}
-
-/** Gold's engraved scrollwork, in one corner of the back. */
-function Scroll({ corner }: { corner: "tl" | "tr" | "bl" | "br" }) {
-  return (
-    <span className={`cb-corner ${corner}`}>
-      <svg viewBox="0 0 40 40" aria-hidden>
-        <path d={SCROLL_PATH_CARD} fill="none" className="sc1" strokeWidth="2.4" transform="translate(1 1)" strokeLinecap="round" />
-        <path d={SCROLL_PATH_CARD} fill="none" className="sc2" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
-
-/** The facets of a brilliant cut, seen from above (Mythic's back). */
-function Facets() {
-  const rays: string[] = [];
-  for (let i = 0; i < 16; i++) {
-    const a = (Math.PI * 2 * i) / 16;
-    rays.push(`M 80 45 L ${(80 + Math.cos(a) * 120).toFixed(1)} ${(45 + Math.sin(a) * 120).toFixed(1)}`);
-  }
-  return (
-    <svg className="cb-facets" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden>
-      <path d={rays.join(" ")} className="fl" strokeWidth="0.35" fill="none" />
-      <path d="M 80 21 L 104 45 L 80 69 L 56 45 Z" className="ft" strokeWidth="0.4" />
-    </svg>
   );
 }
 

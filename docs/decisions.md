@@ -3163,9 +3163,47 @@ setter. All small, riding existing suite patterns.
       0.55: the strongest light anywhere, and at 0.9 s it hid the word. It is a veil at 0.10
       (`loopRenderer` `VEIL`): it scales down what is left of the dark, so it lifts the inks a
       little and can never pass the paper. Where and when the light crosses is unchanged.
+    - **Part 2, the backs (13A).** A back is an engraved PLATE (`lib/cardArt/plate`): printed
+      solid in the rarity's dark ink, its engraving in the rarity's light ink. A rarity is told by
+      its inks and by how much engraving its plate carries: Common has rules and a ruled ground;
+      Uncommon adds a border of lace with a lathe medallion in each corner; Rare adds lathe work
+      around the seal; Legendary adds a second ring and filigree in the border's corners, in a
+      second ink; Mythic adds a third ring, and its ink changes from violet to magenta and back
+      along the card (a banknote's "rainbow printing": printed, so it never moves). The drawings
+      are the ones he approved, character for character.
+      - **What went:** the five materials in the styles and in the shader, the live WebGL
+        drawing of a back, the light under the pointer and under a tilted phone, the tilt
+        prompt on iPhone, the back's own frame line, Legendary's corner scrolls, and Mythic's
+        spectral frame line. A back is one still picture.
+      - **What moved, to make room for the plate's border:** the seal is a fifth smaller and
+        sits inside the lathe work; the lettering is set in from the edge; the line at the foot
+        moved up. The styles, the server's picture, and the plate share these measures, and a
+        test holds them equal.
+      - **Everywhere:** the game (every size, and the Bag's thumbnail), the server's picture of
+        a back (which is now the WHOLE back, plate and all, so the video draws nothing under
+        it), the share video, and the jackpot's face-down card (Common's plate). `CARD_LOOK`
+        is 13.
+      - **A collab set's back** (#53) is Legendary's engraving printed in the set's two colors:
+        the field in one and the border in the other, flat. It was a soft blend of the two. My
+        translation of another session's design: the partner's two colors both stay.
+      - **The holder's stamp moved with the lettering** (#48, part 6; Bugbot on #315, and my own
+        review, found it left behind). With no number it stands in the top left of the plate's
+        FIELD, never on the lace; on a thumbnail it stands inside the field too; in the video it
+        stands right of the number by MEASUREMENT (`NUMBER_END`: the card's serif, #52, had
+        already made the number wider than the stamp's old place allowed). On a back under
+        340 px it is smaller and rides higher, clear of the ledger's first row; under 296 px (a
+        320 px phone) nothing fits beside the number, and it is left off the opened back, where
+        before it covered "Case". A test holds the styles, the video's arithmetic, and the
+        plate's field together.
+      - **A finding kept as a rule:** a line on a plate is never finer than about a pixel where
+        it is shown. The first ruled ground (7 units apart) smeared into streaks in the video
+        and read as brushed metal, the very thing the plate replaces.
+      - **Mythic's blended ink was in the drawings he approved**, so it is built. Whether a
+        printed spectrum is enough for the top rarity (13F) is still his to say.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
-      moving light on the back (13E), Mythic's rainbow (13F), and whether matte reaches the
-      letters' finishes, the Holographic stage, and the plastic case (part 16).
+      light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
+      rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and
+      the plastic case (part 16).
 
 ## Pricing & launch economics (decided June 2026)
 
