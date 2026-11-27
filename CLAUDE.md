@@ -1009,7 +1009,21 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   its envelope": it took five rounds of fixes and was removed. An envelope lost to a reload costs
   the ceremony only. **Mail opened late says
   less** (`Mail.plain`, `hadFor`): a commit that was already revealed when the card opened it, or
-  letters that went to a linked wallet, get no tags, no "new", and no word named.
+  letters that went to a linked wallet, get no tags, no "new", and no word named. **Sound**
+  (part 4; `lib/sound.ts`, `mail/mailCues.ts`, `useSound.ts`, `SoundToggle.tsx`): off until the
+  player turns it on (More, or the small switch under an envelope), kept per browser, and off
+  means off (no file fetched, no AudioContext). **Dark without its files:** `SOUND_READY` is
+  worked out at build time (next.config.mjs: `public/sfx/mail/drop.mp3` exists, or
+  `NEXT_PUBLIC_SOUND_BASE` is set), and the eight files are IGNORED BY GIT until the owner says
+  how they ship (the sound-effects terms forbid isolated audio files, and this repository is
+  public). Never commit them without his word. A cue comes from a STEP (`cuesForStep`, pure),
+  never from what the envelope shows when it appears, and letters make one cue a step. A new
+  sound goes through `play` from a step function like that one. A browser plays only after a
+  tap: `useSoundGestures` wakes the context on every tap while sound is on, and anything that
+  plays cues by itself later (an envelope: its stamp lands when the chain says so) keeps it
+  awake with `holdSound` while it is on screen, then lets it rest. To check sound without ears,
+  record `AudioBufferSourceNode.start` in Playwright, naming each buffer by the file it was
+  decoded from (two cues are the same length).
   **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
   commit is sent, the postmark and its number (`mailNumber`: the commit id plus one, one series for
   packs, free packs, and daily letters) when the commit is on chain, and the strip tears only when

@@ -2190,6 +2190,76 @@ setter. All small, riding existing suite patterns.
         real `/api/mint/free-daily` (it needs a verified identity), an atomic batch that reverts
         whole (the test wallet sends two transactions, never a batch), a real phone, a mini-app
         host.
+    - **Part 4, the mail's sounds** (`lib/sound.ts`, `mail/mailCues.ts`, `useSound.ts`,
+      `SoundToggle.tsx`). The owner's picks: "Paper and ink" for the drop, the stamp, the
+      postmark, the rustle, the tear, and the word; "A wooden tile" for a letter hopping out; "A
+      typewriter's bell" for the rare one; and "sound off by default".
+      - **Off until the player turns it on, and off means off.** The choice is kept per browser.
+        With sound off no sound file is fetched and no AudioContext is made (tested, and checked
+        in both engines).
+      - **Dark without its files, and the files are NOT in this repository yet.** ElevenLabs'
+        sound-effects terms (read 2026-11-26; the account is on the paid Creator plan) allow
+        commercial use built into a game, and forbid making the output available "as isolated
+        audio files". A web game always serves its sound files, which is the ordinary case. But
+        this repository is public, and eight mp3 files in it are isolated audio files that anyone
+        can take. That is the owner's call, so the files are ignored by git
+        (`/public/sfx/mail/*.mp3`), and `SOUND_READY` is worked out at build time
+        (next.config.mjs): the files are in the build, or `NEXT_PUBLIC_SOUND_BASE` names where
+        they are served from. Without them no switch shows and nothing here runs. The ways to
+        ship them: commit the eight files; or keep them out of git and serve them from storage
+        (`NEXT_PUBLIC_SOUND_BASE`); or ask ElevenLabs in writing first.
+      - **The files are the takes the owner heard:** the bytes the proposal page played, taken
+        from its `source/sounds.json` (kept with the artifact, with the originals as
+        generated). 86 KB in all. First 12 hex digits of each file's SHA-256: drop
+        `81d6dda2b38f`, stamp `9dd088eb3d7b`, postmark `d88493fade0a`, rustle `904d9bf8a324`,
+        tear `01925566caec`, word `9b04df2872e3`, hop `88e143a9d884`, rare `5f0d76e1fc1a`.
+      - **A cue comes from a step, never from what the envelope shows when it appears**
+        (`cuesForStep`, pure, tested). The sheet's stage is made again for every piece; a stored
+        envelope appears at "ready" and one that came back by itself appears mid-way. Read from
+        the first look, each would press its stamp and postmark a second time. A piece being sent
+        now drops in; a piece that appears further along is silent.
+      - **One cue a step for letters.** A tap that hurries five letters out, or reduced motion
+        showing them together, is one sound, not five at once.
+      - **My readings, his to change:** a hop's pitch climbs 7% with each letter out (as on the
+        proposal page); the bell rings ONCE, for the rare best letter that got the shake and the
+        shy peek (the page rang for every rare letter, and the sheet marks only the best); and
+        there is a second, small switch under the envelope, beside the one in More, because that
+        is where the sounds are.
+      - **A browser plays only after a tap,** and the cues fire later, from timers and the chain.
+        So while sound is on, every tap and key press wakes the context (`useSoundGestures`). It
+        is suspended 1.5 s after the last cue ends, except while an envelope is on screen
+        (`holdSound`): its stamp and postmark land when the chain says so, seconds or a minute
+        after the tap, and a browser (an iPhone's above all) may refuse to wake a rested context
+        without a tap. It rests when the envelope goes. A context that is not running is woken
+        whatever its state is called: WebKit's is "interrupted" after the app was in the
+        background (Bugbot on #287), and coming back to the page tries to wake it too.
+      - **A cue that is waiting its turn asks whether the envelope is still there** when its
+        moment comes. It was first cancelled when the component went, and React's development
+        double mount "goes" and comes back at once: the stamp, a beat after the drop, never
+        sounded there (found in a real browser, held by a test).
+      - **Checked without ears** (I cannot hear them): a recorder in the page noted every buffer
+        started, named by the file it was decoded from. In Chromium and WebKit: with sound off, a
+        whole pack made no context and fetched nothing; turned on in More, one context and eight
+        files, then drop, stamp, postmark, tear, five hops at 1, 1.07, 1.14, 1.21, 1.28, and the
+        word, each once and in order, with the context running, awake while the envelope was on
+        screen and resting once it had gone; and after a reload
+        with sound saved on, nothing until the first tap, then the same cues.
+      - **Cost with the sound awake:** the sealed envelope with sound on (the context running)
+        against off, two sittings: WebKit 3.7% against 3.7% and 4.7% against 14.0% of a core;
+        Chromium 5.8% against 6.4% and 9.9% against 6.5%. Run to run varies by more than any
+        difference between the two (this machine is shared): nothing measurable.
+      - **The bell,** with a temporary local pack (not committed), in both engines: a pack with a
+        q played four hops and then the bell, once, at the moment the q stood out of the envelope
+        (all five out, none peeking), not at the shake or the peek; a pack with a z and a q rang
+        once too, and the z hopped.
+      - **The dark state, which is what ships,** in both engines: with no sound files present,
+        More shows no Sound card, the envelope shows no switch, and a whole pack asked for no
+        sound file and made no AudioContext, even with "on" remembered from another build.
+      - **A file that failed to load is asked for again,** 30 s later at the soonest: one bad
+        moment on the network at the first tap does not silence a cue for the page's life, and a
+        wrong address does not make every tap fetch all eight again.
+      - **Not done:** nobody has listened to it in the game; a real phone and a mini-app host
+        (their sound rules are the strictest).
 
 50. **Four bigger pieces, built in parts** (starl3xx, 2026-11-26, on the review page "Four Bigger
     Pieces"). The card-and-letter review (#48) set four places apart: the landing page's hero
