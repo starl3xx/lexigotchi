@@ -38,12 +38,13 @@ export const GATE_RULES: readonly GateRule[] = ["verified", "allowlist", "token"
 /** A collab set has exactly this many words. */
 export const COLLAB_WORDS = 5;
 /**
- * Can a collab set be REVEALED yet? Not until its card and its rarity ship (decisions.md "Collab
+ * Can a collab set be REVEALED? Yes, since its rarity and its card shipped (decisions.md "Collab
  * sets", parts 2 and 3): a collab word is Legendary "from the moment its set is revealed" and has
- * its own card, and a set revealed before those exist would be neither. A draft can be made and
- * edited meanwhile. The PR that ships the card sets this to true.
+ * its own card, so no set could be revealed before both existed, and this was false until then.
+ * It stays a switch: set it to false and no collab set is revealed, by hand or on its date, while
+ * drafts can still be made and edited.
  */
-export const COLLAB_LIVE: boolean = false;
+export const COLLAB_LIVE: boolean = true;
 export const PARTNER_URL_MAX = 200;
 /** A list the operator pastes is bounded. */
 export const ALLOWLIST_MAX = 20_000;
@@ -184,7 +185,7 @@ export function revealProblems(s: Pick<WordSet, "type" | "words" | "partnerName"
   const out: string[] = [];
   if (s.words.length === 0) out.push("a set with no words can't be revealed");
   if (s.type === "collab") {
-    if (!collabLive) out.push("a collab set can be revealed once the collab card ships (a draft can be made and edited now)");
+    if (!collabLive) out.push("collab sets can't be revealed just now (a draft can be made and edited)");
     if (s.words.length !== COLLAB_WORDS) out.push(`a collab set has exactly ${COLLAB_WORDS} words (this one has ${s.words.length})`);
     if (!s.partnerName?.trim()) out.push("a collab set needs its partner's name");
     if (!s.colorA || !s.colorB) out.push("a collab set needs its two colors");

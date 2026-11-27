@@ -830,8 +830,7 @@ export function SetsTab() {
             <AdminCard title="A test collab">
               <p className="mb-2 text-xs text-ink/60">
                 A placeholder collab set for this test network, so the card can be seen: “Test collab”, two arbitrary colors, a plain stamp, and
-                five free words picked now. It names no real partner, it is made as a draft, and it can’t be made on mainnet. A collab set
-                can be revealed once the collab card ships; until then the draft is here to look at and edit.
+                five free words picked now. It names no real partner, it is made as a draft, and it can’t be made on mainnet.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button className={BTN} onClick={makeTestCollab} disabled={!data.collab || data.sets.some((s) => s.name === "Test collab")}>

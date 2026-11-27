@@ -315,8 +315,8 @@ async function main() {
     check("six words: not revealed either", JSON.stringify(await whyNot(co)) === JSON.stringify(["a collab set has exactly 5 words (this one has 6)"]));
     await removeWords(CHAIN, co, [K6]);
     check("it is still a draft", (await get(co))?.status === "draft");
-    const today = await whyNot(co, {});
-    check("today (the collab card hasn't shipped) even a whole collab isn't revealed, by hand or on its date", today?.length === 1 && /once the collab card ships/.test(today[0]) && (await get(co))?.status === "draft", today);
+    const off = await whyNot(co, { collabLive: false });
+    check("with collab reveals switched off even a whole collab isn't revealed by hand", off?.length === 1 && /can't be revealed just now/.test(off[0]) && (await get(co))?.status === "draft", off);
 
     // the allowlist
     check("a list is stored whole", (await replaceAllowlist(CHAIN, co, [X1, X2])) === 2 && (await get(co))?.allowlistCount === 2);
@@ -354,11 +354,11 @@ async function main() {
     ];
     await updateSet(CHAIN, co2.id, { revealAt: due });
     const dueNow = (await listSets(CHAIN)).sets.filter((s) => s.status === "draft" && s.revealAt);
-    // First as it is today: only the standard set is revealed, and every collab waits.
-    const todayIds = dueNow.filter((s) => revealProblems(s).length === 0).map((s) => s.id).sort();
-    const gotToday = (await revealDue(CHAIN, new Date())).sort();
-    check("today the scheduled reveal passes every collab by (the SQL and the rule agree)", JSON.stringify(gotToday) === JSON.stringify(todayIds) && JSON.stringify(gotToday) === JSON.stringify([cases[4]]), { gotToday, todayIds });
-    // Then as it will be once the card ships.
+    // First with collab reveals switched off: only the standard set is revealed, and every collab waits.
+    const todayIds = dueNow.filter((s) => revealProblems(s, false).length === 0).map((s) => s.id).sort();
+    const gotToday = (await revealDue(CHAIN, new Date(), { collabLive: false })).sort();
+    check("switched off, the scheduled reveal passes every collab by (the SQL and the rule agree)", JSON.stringify(gotToday) === JSON.stringify(todayIds) && JSON.stringify(gotToday) === JSON.stringify([cases[4]]), { gotToday, todayIds });
+    // Then switched on, as it is now.
     const expectIds = dueNow.filter((s) => s.id !== cases[4] && revealProblems(s, true).length === 0).map((s) => s.id).sort();
     const got = (await revealDue(CHAIN, new Date(), LIVE)).sort();
     check("the scheduled reveal reveals exactly the due drafts that are whole (the SQL and the rule agree)", JSON.stringify(got) === JSON.stringify(expectIds) && got.includes(cases[0]) && got.includes(co2.id) && !got.includes(cases[1]) && !got.includes(cases[2]), { got, expectIds, cases });

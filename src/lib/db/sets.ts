@@ -561,7 +561,7 @@ export async function revealDue(chainId: number, now: Date, opts: { collabLive?:
     lte(wordSets.revealAt, now),
     sql`exists (select 1 from ${setWords} where ${setWords.setId} = ${wordSets.id})`,
   ];
-  // Until the collab card ships no collab set is revealed at all (rules.ts COLLAB_LIVE).
+  // While collab reveals are switched off no collab set is revealed at all (rules.ts COLLAB_LIVE).
   const whole = !(opts.collabLive ?? COLLAB_LIVE)
     ? sql`${wordSets.type} <> 'collab'`
     : sql`(${wordSets.type} <> 'collab' or (

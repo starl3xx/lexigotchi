@@ -271,6 +271,30 @@ it is his to run, never the app's or an agent's). The other tables that name the
 (listings, sales, the wardrobe, reward leaves) are keyed by address or root and simply go quiet;
 each is checked on the day.
 
+## Collab sets (decisions.md #53)
+
+A collab set is a reserved set made with a partner: five words, Legendary from its reveal, on its
+own card (the set's two colors and its stamp). The code is live; nothing shows until a set exists.
+**No real partner, name, logo, or color goes in this repository**: they are typed in the console.
+
+To put the placeholder on the test build (the owner's steps, in this order):
+1. Run migration `0023_collab_sets` (with 0021 and 0022 if they haven't run).
+2. Console → Sets → **Make the Test collab draft**. It picks five free words, two arbitrary colors,
+   and a plain stamp. The button exists on a test network only; the server refuses it on mainnet.
+   The card's front and back are drawn live in the tab: look at them there.
+3. **Reveal** it (its words turn Legendary and its look shows from this moment), **Build the reserve
+   root** and send it, then **Build the release** and send it.
+4. Merge the two docs drafts (#286 sets, then #300 collabs). Each carries its tester note.
+
+For a real partner later: a draft with type Collab, the partner's name and link, the two colors,
+and the stamp (PNG or JPEG, **the mark made for a light background**: it stands on a pale plate).
+The first day can be open to every verified player, to a pasted list of wallets, or to holders of a
+token on Base; the player claims with the wallet that qualifies. To stop every collab reveal for a
+while, set `COLLAB_LIVE` to false in `lib/sets/rules.ts`.
+
+Not automatic: the release doesn't send a metadata refresh. For words somebody already holds, use
+the token ids the Sets tab copies with **Refresh words' metadata** (below), on a Words that has it.
+
 ## Token metadata (decisions.md #53)
 
 `GET /api/word/{tokenId}` serves a word's metadata: its name in its live case, its card's picture,
