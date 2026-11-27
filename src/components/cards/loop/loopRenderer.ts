@@ -75,6 +75,14 @@ void main() {
 /** How many ruled lines cross the shadow's plane (about five of them fall where the shadow shows). */
 export const SHADOW_ROWS = 12;
 /**
+ * How dark the shadow's ink is at its darkest (of 1), and how much of its row the heaviest line
+ * fills. The owner, 2026-11-27, of the shadow at 0.5 and 0.7: "the shadow on the card video is way
+ * too dark". It was a dark band under the card; at these it is a few faint ruled lines, a third as
+ * dark and two thirds as heavy. Kept as numbers so a test holds them light.
+ */
+export const SHADOW_INK = 0.16;
+export const SHADOW_WEIGHT = 0.45;
+/**
  * The shadow under the card, engraved (decisions.md #48, part 9): ruled lines in the shape of the
  * shadow, each as heavy as the shadow is dark there, the way an engraving makes tone, and the way
  * the shadow under every letter is drawn (tileShapes, SHADOW_LINES). It was a soft blot. The
@@ -96,9 +104,9 @@ void main() {
   vec2 q = (vUv - 0.5) * vec2(1.45, 2.6);
   float tone = exp(-dot(q, q) * 9.0 / uSpread);
   float f = abs(fract(vUv.y * ${SHADOW_ROWS}.0) - 0.5) * 2.0;
-  float w = tone * 0.7;
+  float w = tone * ${SHADOW_WEIGHT};
   float line = 1.0 - smoothstep(w - 0.14, w + 0.14, f);
-  gl_FragColor = vec4(0.106, 0.09, 0.078, line * 0.5 * smoothstep(0.03, 0.14, tone));
+  gl_FragColor = vec4(0.106, 0.09, 0.078, line * ${SHADOW_INK} * smoothstep(0.03, 0.14, tone));
 }
 `;
 
