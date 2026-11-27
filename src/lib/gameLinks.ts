@@ -31,13 +31,16 @@ export function goUrl(key: GoKey, site: string = SITE_URL): string {
 
 /**
  * A notice's link, for a channel that takes any address (email): the link itself when it is one of
- * the game's own pages, and the game's front door for anything else.
+ * the game's own pages, and the game's front door for anything else. The link comes back as the
+ * parser wrote it (quotes and spaces encoded), never as the text that was given: it goes into an
+ * `href`.
  */
 export function ownLink(url: string | undefined, site: string = SITE_URL): string {
   const home = `${site}/play`;
   if (!url) return home;
   try {
-    return new URL(url).origin === new URL(site).origin ? url : home;
+    const u = new URL(url);
+    return u.origin === new URL(site).origin ? u.href : home;
   } catch {
     return home;
   }

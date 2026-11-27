@@ -152,6 +152,8 @@ describe("a link into the game", () => {
     expect(ownLink("https://elsewhere.example/play?go=sets", site)).toBe("https://game.example/play");
     expect(ownLink("javascript:alert(1)", site)).toBe("https://game.example/play");
     expect(ownLink("not a url", site)).toBe("https://game.example/play");
+    // it goes into an href: the parser's own writing of it, so a quote can't close the attribute
+    expect(ownLink('https://game.example/play?go=sets"><b>', site)).not.toContain('"');
   });
 });
 
