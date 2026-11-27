@@ -156,7 +156,7 @@ function ItemView({ card, about, pictured, now, poolPct, word }: { card: ItemCar
 }
 
 /** A card face with the player's word standing on it, as the face picker shows it: clear, never
- *  greyed or fogged by hunger (the player is looking at the face). */
+ *  faded by hunger (the player is looking at the face). */
 function OnWord({ scene, w }: { scene: SceneId; w: OwnedWord }) {
   const number = useCardNumber(w.word);
   const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic

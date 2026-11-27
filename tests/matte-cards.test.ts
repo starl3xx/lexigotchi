@@ -396,3 +396,45 @@ describe("the stock is in every place a card is drawn: the game, the share pictu
     expect(maker + read("src/components/cards/loop/loopRenderer.ts")).not.toMatch(/weave|crosshatch/i);
   });
 });
+
+describe("a hungry word's card: the ink runs low (decisions.md #61: \"19B!\", \"no hunger states in any share cards\", \"agreed on frame and ribbon\")", () => {
+  const css = read("src/app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = (sel: string) => new RegExp(`(?:^|\\n)${sel.replace(/[.]/g, "\\.")} \\{([^}]*)\\}`).exec(css)?.[1]?.trim() ?? "";
+
+  it("the face is printed fainter and loses its colour: a little when peckish, most of the way when hungry", () => {
+    // the numbers he chose from, on real cards
+    expect(rule(".scene-peckish")).toBe("filter: saturate(0.55); opacity: 0.66;");
+    expect(rule(".scene-hungry")).toBe("filter: saturate(0.12); opacity: 0.34;");
+    expect(rule(".cf-dark .scene-peckish")).toBe("opacity: 0.82;");
+    expect(rule(".cf-dark .scene-hungry")).toBe("opacity: 0.6;");
+    // feeding brings the ink back with an ease, in colour and in strength alike
+    expect(rule(".scene-tone")).toBe("transition: filter 900ms var(--ease-out), opacity 900ms var(--ease-out);");
+    // it fades toward the card's own paper, which lies under the art
+    expect(css).toMatch(/\n\.cf \{[^}]*background: #fcf7ea;/);
+  });
+
+  it("there is no fog, and nothing else is laid over a card or its letters to show hunger", () => {
+    expect(css).not.toMatch(/fog/i);
+    const frame = read("src/components/scenes/SceneFrame.tsx");
+    expect(frame).not.toMatch(/scene-fog|cf-fog/);
+    // the tone goes on the art, and on nothing else in the front
+    expect(frame.match(/toneClass/g)).toHaveLength(2); // made once, used once
+    expect(frame).toContain("className={`cf-art ${toneClass} ${fade}`}");
+    expect(frame).toContain('<div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />');
+  });
+
+  it("nothing on a card is random noise any more: the fog's banks and the ribbon's grain were the last", () => {
+    expect(read("src/app/globals.css")).not.toMatch(/feTurbulence|fractalNoise/);
+    // the ribbon keeps its fine ruled lines
+    expect(css).toMatch(/\.cf-ribbon-in \{[^}]*background-image: repeating-linear-gradient\(0deg, color-mix\(in srgb, var\(--cf-ink\) 11%, transparent\) 0 1px, transparent 1px 3px\);/);
+  });
+
+  it("a share picture and a video never show hunger: a shared card is always drawn fed", () => {
+    for (const f of ["src/app/_og/wordCard.tsx", "src/app/s/[text]/card/route.tsx", "src/app/s/[text]/back/route.tsx", "src/app/e/[token]/card/route.tsx", "src/components/cards/ShareVideo.tsx", "src/components/cards/loop/liveFront.tsx", "src/components/cards/loop/makeLoop.ts"]) {
+      const src = read(f);
+      expect(src, f).not.toMatch(/scene-(peckish|hungry)|toneOf|SceneTone|daysUnfed|\bhunger\(/);
+    }
+    // the back's picture leaves out whether the word is staked or hungry, too
+    expect(read("src/lib/backPicture.ts")).not.toMatch(/hungry|peckish/i);
+  });
+});

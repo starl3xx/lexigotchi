@@ -303,21 +303,21 @@ describe("the dark stock face (decisions.md #57)", () => {
     expect(pale.querySelector(".cf")!.className).not.toContain("cf-dark");
   });
 
-  it("thins a hungry word's fog on a dark face: the fog is pale, and at full strength it turns the plate white", () => {
+  it("fades a hungry word's face less on a dark face: at the full amount a dark plate would stop being dark", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     const strength = (selector: string) => {
-      const m = css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.]/g, "\\.")} \\{ opacity: ([\\d.]+); \\}`));
+      const m = css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.]/g, "\\.")} \\{[^}]*opacity: ([\\d.]+); \\}`));
       expect(m, selector).not.toBeNull();
       return Number(m![1]);
     };
-    const peckish = strength(".scene-fog.is-peckish");
-    const hungry = strength(".scene-fog.is-hungry");
-    const darkPeckish = strength(".cf-dark .scene-fog.is-peckish");
-    const darkHungry = strength(".cf-dark .scene-fog.is-hungry");
-    expect(darkHungry).toBeLessThan(hungry);
-    expect(darkPeckish).toBeLessThan(peckish);
-    expect(darkPeckish).toBeLessThan(darkHungry); // hungrier is still foggier
-    expect(darkPeckish).toBeGreaterThan(0); // and a peckish word still has some
+    const peckish = strength(".scene-peckish");
+    const hungry = strength(".scene-hungry");
+    const darkPeckish = strength(".cf-dark .scene-peckish");
+    const darkHungry = strength(".cf-dark .scene-hungry");
+    expect(darkHungry).toBeGreaterThan(hungry); // more ink is left on a dark plate
+    expect(darkPeckish).toBeGreaterThan(peckish);
+    expect(darkHungry).toBeLessThan(darkPeckish); // hungrier is still fainter
+    expect(darkPeckish).toBeLessThan(1); // and a peckish word still shows it
   });
 
   it("has an id that share links and saved picks carry, so it never changes", () => {
@@ -444,13 +444,16 @@ describe("the front of a word's card (SceneFrame)", () => {
     expect(stands[0].transformOrigin).toBe("50% 88.82%"); // about its own feet
   });
 
-  it("greys and fogs the scene as the word gets hungry, inside the frame's window only", () => {
+  it("prints the face with less ink as the word gets hungry: the art only, never the frame, and nothing laid over the card", () => {
     expect(toneOf("hungry")).toBe("hungry");
     expect(toneOf("eating")).toBe("fed");
     const c = card({ tone: "hungry", state: "hungry" });
     expect(c.querySelector(".cf-art")!.className).toContain("scene-hungry");
     expect(c.querySelector(".cf-frame")!.className).not.toContain("scene-");
-    expect(c.querySelector(".cf-fog")!.className).toContain("is-hungry");
+    // the fog that used to roll over the scene and the word is gone (decisions.md #61)
+    expect(c.querySelector(".cf-fog, .scene-fog, [class*='fog']")).toBeNull();
+    expect(card({ tone: "peckish", state: "peckish" }).querySelector(".cf-art")!.className).toContain("scene-peckish");
+    expect(card().querySelector(".cf-art")!.className).not.toMatch(/scene-(peckish|hungry)/);
   });
 
   it("prints a card with no rarity as Common, and a thumbnail in the rarity it is shown for", () => {

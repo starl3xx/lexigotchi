@@ -560,82 +560,29 @@ body {
 @keyframes asc-rays-turn { to { transform: rotate(360deg); } }
 @keyframes asc-goal { 50% { transform: scale(1.18); } }
 
-/* A scene drains toward grey as its word gets hungry (SceneFrame's tone). A color change, not
-   motion, so it eases in under reduced motion too. */
-.scene-tone { transition: filter 900ms var(--ease-out); }
-.scene-peckish { filter: grayscale(0.55) brightness(0.97); }
-.scene-hungry { filter: grayscale(0.92) brightness(0.86) contrast(0.95); }
-
-/* Fog rolls in as a word gets hungry (SceneFrame), over the scene and the word inside the card's
-   window, under the ribbon, the speech bubble, and the arrows. Thin when peckish, thick when hungry, gone when fed.
-   How it's built (starl3xx asked for fog that is "much more foggy", 2026-11-24):
-   - Fog is mostly lost contrast, thicker toward the ground: a haze veil underneath, densest at
-     the floor.
-   - Over it, three banks of real cloud texture: fractal noise from SVG feTurbulence, stretched
-     sideways into drifting bands, turned white with its alpha taken from the noise, so the fog is
-     patchy, thick in places and thin in others. Each is an image, drawn once, never per frame.
-   - They drift at different speeds (back slow, front faster) for depth, and each breathes a
-     little, so the loops never line up into a pattern. Only transform and opacity move.
-   - Each strip is two tiles wide (background-size 50%) and slides by one tile, so it loops
-     without a seam; stitchTiles makes the noise itself tile. Each bank fades out at its top.
-   Under reduced motion the fog stands still: the same picture, no drift. */
-.scene-fog {
-  opacity: 0;
-  transition: opacity 1400ms var(--ease-out);
-}
-.scene-fog.is-peckish { opacity: 0.5; }
-.scene-fog.is-hungry { opacity: 1; }
-/* On a dark face (lib/cardArt/scenes, DARK_SCENES: the dark stock face, Outer Space) the fog is
-   thinner (decisions.md #57; starl3xx, 2026-11-27). The fog is pale, so at full strength it turns a
-   dark plate white: the face stops being a dark face at all, and the word goes with it. Only the
-   fog's strength changes, so nothing is redrawn. The grey tone, the sleeping letters, and the three
-   status marks still say hungry. */
-.cf-dark .scene-fog.is-peckish { opacity: 0.2; }
-.cf-dark .scene-fog.is-hungry { opacity: 0.42; }
-.scene-fog-haze {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgb(234 238 243 / 0.82), rgb(234 238 243 / 0.5) 40%, rgb(234 238 243 / 0.22) 80%, rgb(234 238 243 / 0.12));
-}
-.scene-fog-bank {
-  position: absolute;
-  left: 0;
-  width: 200%;
-  background-repeat: repeat-x;
-  background-size: 50% 100%;
-  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
-  mask-image: linear-gradient(to top, #000 55%, transparent);
-}
-/* the back bank: broad and dense, rolling slowly along the floor */
-.scene-fog-1 {
-  bottom: -12%;
-  height: 100%;
-  opacity: 0.95;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0045 0.011' numOctaves='4' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.96 0 0 0 0 0.98 2.6 0 0 0 -0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-}
-/* the middle bank: around the word */
-.scene-fog-2 {
-  bottom: -6%;
-  height: 72%;
-  opacity: 0.9;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.007 0.017' numOctaves='4' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.97 0 0 0 0 0.98 2.5 0 0 0 -0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-}
-/* the front wisps: thinner, quicker, a little higher */
-.scene-fog-3 {
-  bottom: 14%;
-  height: 60%;
-  opacity: 0.75;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011 0.028' numOctaves='4' seed='17' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.97 0 0 0 0 0.98 0 0 0 0 0.99 2.3 0 0 0 -0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-}
-@media (prefers-reduced-motion: no-preference) {
-  .scene-fog-1 { animation: scene-fog 120s linear infinite, scene-fog-breathe 11s ease-in-out infinite alternate; }
-  .scene-fog-2 { animation: scene-fog 76s linear infinite -20s, scene-fog-breathe 8s ease-in-out infinite alternate -3s; }
-  .scene-fog-3 { animation: scene-fog 46s linear infinite -9s, scene-fog-breathe 6.5s ease-in-out infinite alternate -1s; }
-}
-/* a still card (a card in a grid, a thumbnail) keeps its fog but doesn't drift it */
-.scene-still .scene-fog-bank { animation: none !important; }
-@keyframes scene-fog { to { transform: translateX(-50%); } }
-@keyframes scene-fog-breathe { from { opacity: 0.6; } }
+/* A HUNGRY WORD'S CARD: THE INK RUNS LOW (decisions.md #61; SceneFrame's tone). starl3xx, 2026-11-27,
+   of three directions on real cards: "19B!". A card is paper and ink, so as its word gets hungry
+   its face is printed with less ink: the art layer is shown fainter over the card's own paper
+   (.cf), lines and colour together, and its colour drains with it. A little when peckish, most of
+   the way when hungry. Feed the word and the ink comes back.
+   - It REPLACED THE FOG (three drifting banks of random noise over the scene AND the word, asked
+     for on 2026-11-24, and the grey filter under them): "fog doesn't feel right anymore (esp. w/the
+     new design language)". The fog was not drawn, it hid the word when the word most needed its
+     player, and one strength could not serve every face. Never lay anything over a card to show
+     hunger, and never over its letters.
+   - Only the art (.cf-art) takes it. The frame and the ribbon keep their ink in every state
+     ("agreed on frame and ribbon"), so a hungry card still names its rarity; the letters keep
+     their colour, and their own faces show the mood.
+   - A dark face (.cf-dark) fades less: at the full amount a dark plate would stop being dark.
+   - Still, and cheap: one filter and one strength on a picture that never moves. A change of
+     colour, not motion, so it eases in and out under reduced motion too.
+   - THE GAME ONLY. A share picture or a video never shows hunger ("no hunger states in any share
+     cards"): hunger changes every day, and X and Farcaster keep a picture for good. */
+.scene-tone { transition: filter 900ms var(--ease-out), opacity 900ms var(--ease-out); }
+.scene-peckish { filter: saturate(0.55); opacity: 0.66; }
+.scene-hungry { filter: saturate(0.12); opacity: 0.34; }
+.cf-dark .scene-peckish { opacity: 0.82; }
+.cf-dark .scene-hungry { opacity: 0.6; }
 
 /* ---------------------------------------------------------------------------------------------
    The Today stage (components/game/TodayStage.tsx; decisions.md #39): a word's card, and a placard
@@ -762,19 +709,13 @@ body {
    ratios 1, 1.5, 2, and 3, at the screen's own pixels, on a dark face, the pale stock face, and a
    back. The back's is the same crosshatch (.cb-tex). It lies under the letters, as it always has. */
 .cf-tex { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='6' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 -6L-6 0M6 -6L-6 6M12 -6L-6 12M18 -6L-6 18' stroke='%235a4a3a' stroke-opacity='0.09' stroke-width='0.7'/%3E%3Cpath d='M0.98 -6L-6 0.98M6.98 -6L-6 6.98M12.98 -6L-6 12.98M18.98 -6L-6 18.98' stroke='%23fff' stroke-opacity='0.11' stroke-width='0.7'/%3E%3Cpath d='M-6 -18L12 0M-6 -12L12 6M-6 -6L12 12M-6 0L12 18' stroke='%235a4a3a' stroke-opacity='0.063' stroke-width='0.7'/%3E%3Cpath d='M-6 -17.02L12 0.98M-6 -11.02L12 6.98M-6 -5.02L12 12.98M-6 0.98L12 18.98' stroke='%23fff' stroke-opacity='0.077' stroke-width='0.7'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
-/* The fog a hungry word's scene fills with stays inside the frame's window (the window is 42 of
-   1200 units in from the sides and 42 of 675 from the top and bottom): the card keeps its paper
-   and its ink. While the word is fed there is no fog to see, so its banks don't drift. */
-.cf-fog { left: 3.5%; right: 3.5%; top: 6.22%; bottom: 6.22%; border-radius: 1cqw; overflow: hidden; pointer-events: none; }
-.cf-fog.is-fed .scene-fog-bank { animation-play-state: paused; }
 /* The ribbon: "one of one", the card's number, the rarity, in the card's serif. It sizes to its
-   words. Its paper has a grain and fine ruled lines in the rarity's ink, and a second hairline
+   words. Its paper has fine ruled lines in the rarity's ink (no random grain: that went with the fog), and a second hairline
    inside its edge. Its two folded tails are drawn shapes (SceneFrame), so the notch carries the
    ink line too. */
 .cf-ribbon { left: 50%; bottom: max(3px, 1.05cqw); transform: translateX(-50%); font-family: var(--font-card); font-weight: 700; color: var(--cf-ink); line-height: 1; white-space: nowrap; pointer-events: none; font-size: clamp(12px, 2.05cqw, 16px); }
 .cf-ribbon-in { position: relative; display: flex; align-items: center; gap: 0.55em; padding: 0.45em 1.1em; border: max(1.5px, 0.22cqw) solid var(--cf-ink); border-radius: 2px; background-color: #fcf7ea;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.5 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, color-mix(in srgb, var(--cf-ink) 11%, transparent) 0 1px, transparent 1px 3px);
-  background-size: 120px 120px, auto;
+  background-image: repeating-linear-gradient(0deg, color-mix(in srgb, var(--cf-ink) 11%, transparent) 0 1px, transparent 1px 3px);
   box-shadow: inset 0 0 0 1.5px #fcf7ea, inset 0 0 0 2.5px color-mix(in srgb, var(--cf-ink) 34%, transparent); }
 .cf-rarity { display: flex; align-items: center; gap: 0.4em; }
 .cf-mark { width: 1.15em; height: 1.15em; }
@@ -1022,7 +963,7 @@ body {
 .sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }
 @keyframes sc-lift { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-2%) scale(1.035); } }
 /* the scene nobody can see holds still */
-.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"], .sc.is-back .sc-front .scene-fog-bank { animation-play-state: paused !important; }
+.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"] { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
   .sc-inner { transition: none; transform: none !important; }
   .sc-face { backface-visibility: visible; -webkit-backface-visibility: visible; transition: opacity 0.25s; }
