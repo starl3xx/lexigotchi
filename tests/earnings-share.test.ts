@@ -6,6 +6,7 @@
  * guard, so the earnings route signs a snapshot of what it computed, for one player's wallets, and
  * the card draws only from a token whose signature holds. Then: what the card and the post say.
  */
+import { createHmac } from "node:crypto";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { summarizeEarnings, type LeafStatus } from "@/lib/rewards/earnings";
@@ -18,7 +19,9 @@ import {
   earningsPostText,
   earningsShareUrl,
   encodeSnapshot,
+  aboutUsd,
   heroEarned,
+  heroStage,
   parseTz,
   payoutDateLabel,
   unitLabel,
@@ -37,8 +40,10 @@ const SECRET = "a-test-secret-for-the-earnings-share-cards";
 const CHAIN = 8453;
 /** The payout of 00:05 UTC on Nov 26, 2026. */
 const DAY = Math.floor(Date.UTC(2026, 10, 26) / 86_400_000);
+const WORDS_EARNED: [string, number][] = [["CRANE", 96_300], ["TEASE", 84_200]];
+/** A snapshot as a version 2 token reads back: a stage for every word, "not known" unless given. */
 const snap = (over: Partial<EarningsSnapshot> = {}): EarningsSnapshot => ({
-  chainId: CHAIN, latestDay: DAY, total: 2_400_000, latest: 180_500, words: [["CRANE", 96_300], ["TEASE", 84_200]], ...over,
+  chainId: CHAIN, latestDay: DAY, total: 2_400_000, latest: 180_500, words: WORDS_EARNED, stages: (over.words ?? WORDS_EARNED).map(() => null), ...over,
 });
 
 let token: typeof import("@/lib/earningsShareToken");
@@ -58,6 +63,31 @@ describe("the signed token", () => {
     // short enough for a link, and nothing in it names a wallet
     expect(t.length).toBeLessThan(250);
     expect(atob(t.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))).not.toMatch(/0x/i);
+  });
+
+  it("carries each named word’s stage and what the total was worth, both signed", () => {
+    const full = snap({ stages: [4, null], usdCents: 2_400_000 });
+    const t = token.signEarningsShare(full)!;
+    expect(token.readEarningsShare(t)).toEqual(full);
+    expect(t.length).toBeLessThan(250);
+    // a stage or a dollar figure the server didn't sign is no token
+    const [payload, mac] = t.split(".");
+    const forged = encodeSnapshot({ ...full, stages: [5, 5], usdCents: 99_999_999 });
+    expect(forged).not.toBe(payload);
+    expect(token.readEarningsShare(`${forged}.${mac}`)).toBeNull();
+  });
+
+  it("still reads a link posted before the stages and the dollars were in it", () => {
+    // version 1, as it was signed: six parts
+    const v1 = btoa(JSON.stringify([1, CHAIN, DAY, 2_400_000, 180_500, [["CRANE", 96_300], ["TEASE", 84_200]]])).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    // signed as the server signs: the first 16 bytes of an HMAC over the labelled payload
+    const mac = createHmac("sha256", Buffer.from(SECRET, "utf8")).update(`lexigotchi:earnings-share:v1|${v1}`).digest().subarray(0, 16).toString("base64url");
+    const read = token.readEarningsShare(`${v1}.${mac}`);
+    // the same sums and words, and no stages at all
+    expect(read).toEqual({ chainId: CHAIN, latestDay: DAY, total: 2_400_000, latest: 180_500, words: WORDS_EARNED });
+    // and it draws as it did: no gilding, no dollars
+    expect(heroStage(read!, "CRANE")).toBeNull();
+    expect(aboutUsd(read!, false)).toBeNull();
   });
 
   it("refuses an amount the server didn’t sign", () => {
@@ -138,6 +168,29 @@ describe("decodeSnapshot", () => {
     }
     expect(decodeSnapshot("not base64 json")).toBeNull();
   });
+
+  it("takes a version 2 snapshot: a stage for every word, and a dollar figure in whole cents", () => {
+    expect(decodeSnapshot(enc([2, CHAIN, DAY, 5, 1, [["CRANE", 5], ["TEASE", 4]], [3, -1], 1234]))).toEqual({
+      chainId: CHAIN, latestDay: DAY, total: 5, latest: 1, words: [["CRANE", 5], ["TEASE", 4]], stages: [3, null], usdCents: 1234,
+    });
+    // no dollar figure is 0, and reads back as none
+    expect(decodeSnapshot(enc([2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0], 0]))).toEqual({ chainId: CHAIN, latestDay: DAY, total: 5, latest: 1, words: [["CRANE", 5]], stages: [0] });
+    for (const bad of [
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0]], // seven parts
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [], 0], // a stage for every word
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [6], 0], // there are five stages
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [-2], 0],
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [1.5], 0],
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], ["4"], 0],
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0], -1],
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0], 12.5],
+      [2, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0], "$12"],
+      [1, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0], 0], // version 1 has six parts
+      [3, CHAIN, DAY, 5, 1, [["CRANE", 5]], [0], 0],
+    ]) {
+      expect(decodeSnapshot(enc(bad))).toBeNull();
+    }
+  });
 });
 
 describe("what the route signs (lib/rewards/share.ts)", () => {
@@ -153,7 +206,30 @@ describe("what the route signs (lib/rewards/share.ts)", () => {
       DAY,
     );
     const s = snapshotOf(summary, CHAIN);
-    expect(s).toEqual({ chainId: CHAIN, latestDay: DAY, total: 255_600, latest: 180_500, words: [["CRANE", 96_300], ["TEASE", 84_300]] });
+    expect(s).toEqual({ chainId: CHAIN, latestDay: DAY, total: 255_600, latest: 180_500, words: [["CRANE", 96_300], ["TEASE", 84_300]], stages: [null, null] });
+    // with what the chain said of each word, and what the total is worth
+    const more = snapshotOf(summary, CHAIN, { stageOf: (w) => (w === "CRANE" ? 4 : undefined), usdCents: 2556 });
+    expect(more.stages).toEqual([4, null]);
+    expect(more.usdCents).toBe(2556);
+    // a stage that is no stage is "not known", and no cents is no figure
+    expect(snapshotOf(summary, CHAIN, { stageOf: () => 9, usdCents: 0 })).toEqual(s);
+    expect(snapshotOf(summary, CHAIN, { stageOf: () => 2.5, usdCents: null })).toEqual(s);
+  });
+
+  it("puts a dollar figure on the picture only at a live, recent price, and never for test $WORD", async () => {
+    const { usdCentsOf, PRICE_FRESH_MS } = await import("@/lib/rewards/share");
+    const now = 1_800_000_000_000;
+    const live = { priceUsd: 0.01, fetchedAt: now - 60_000, source: "geckoterminal" };
+    expect(usdCentsOf(2_400_000, live, { testnet: false, now })).toBe(2_400_000); // $24,000.00
+    expect(usdCentsOf(1_999, { ...live, priceUsd: 0.000123 }, { testnet: false, now })).toBe(24); // rounded DOWN from 24.58
+    expect(usdCentsOf(2_400_000, live, { testnet: true, now })).toBeNull();
+    // the oracle's stand-ins: the constant it answers with when its source fails, and an old copy
+    expect(usdCentsOf(2_400_000, { priceUsd: 0.01, fetchedAt: null, source: "fallback" }, { testnet: false, now })).toBeNull();
+    expect(usdCentsOf(2_400_000, { ...live, fetchedAt: now - PRICE_FRESH_MS - 1 }, { testnet: false, now })).toBeNull();
+    expect(usdCentsOf(2_400_000, null, { testnet: false, now })).toBeNull();
+    // under a cent is no figure, and a price that is no number is none
+    expect(usdCentsOf(1, { ...live, priceUsd: 0.000001 }, { testnet: false, now })).toBeNull();
+    expect(usdCentsOf(2_400_000, { ...live, priceUsd: Number.NaN }, { testnet: false, now })).toBeNull();
   });
 
   it("names five words at most, never a token that is no dictionary word or earned under one $WORD", async () => {
@@ -197,6 +273,10 @@ describe("the earnings route’s `share`", () => {
     latestYieldDay: async () => DAY,
   }));
   vi.mock("@/lib/db/walletLinks", () => ({ accountsOf: async (ws: string[]) => new Map(ws.map((w) => [w, shares.accounts.get(w) ?? w])) }));
+  // what the route reads for the picture: each named word's stage, and a price
+  const extra = vi.hoisted(() => ({ stage: (_w: string): number | null => null, price: null as { priceUsd: number; fetchedAt: number | null; source: string } | null, asked: [] as string[] }));
+  vi.mock("@/lib/onchain/cardLevel", () => ({ cardLevelSoon: async (w: string) => (extra.asked.push(w), extra.stage(w)) }));
+  vi.mock("@/lib/oracle/wordPrice", () => ({ fetchWordPrice: async () => extra.price }));
   const ask = async (wallets: string) => {
     const { GET } = await import("@/app/api/rewards/earnings/route");
     return (await GET(new Request(`https://lexigotchi.test/api/rewards/earnings?wallets=${wallets}`))).json();
@@ -207,6 +287,25 @@ describe("the earnings route’s `share`", () => {
   beforeEach(() => {
     shares.rows = [paid("CRANE", A, 96_300n * 10n ** 18n), paid("TEASE", B, 84_200n * 10n ** 18n)];
     shares.accounts = new Map();
+    extra.stage = () => null;
+    extra.price = null;
+    extra.asked = [];
+  });
+
+  it("signs each named word’s stage and, at a live price, what the total is worth", async () => {
+    extra.stage = (w) => (w === "CRANE" ? 4 : null);
+    extra.price = { priceUsd: 0.01, fetchedAt: Date.now(), source: "geckoterminal" };
+    const read = token.readEarningsShare((await ask(A)).share)!;
+    expect(read.stages).toEqual([4]);
+    expect(read.usdCents).toBe(96_300); // 96,300 $WORD at a cent each
+    expect(extra.asked).toEqual(["CRANE"]);
+  });
+
+  it("signs no dollars at the oracle’s stand-in price, and a stage the chain didn’t give is “not known”", async () => {
+    extra.price = { priceUsd: 0.01, fetchedAt: null, source: "fallback" };
+    const read = token.readEarningsShare((await ask(A)).share)!;
+    expect(read.usdCents).toBeUndefined();
+    expect(read.stages).toEqual([null]);
   });
 
   it("signs the snapshot of one wallet’s earnings, and the token reads back as those sums", async () => {
@@ -264,10 +363,52 @@ describe("the card refuses a token it can’t verify", () => {
 });
 
 describe("what the card says", () => {
-  it("leads with the words, in the game’s $WORD, and never in dollars", () => {
+  it("leads with the words, in the game’s $WORD, and says no dollars the token doesn’t carry", () => {
     const t = earningsCardText(snap(), { testnet: false, hero: "CRANE" });
-    expect(t).toEqual({ kicker: "My words have earned", amount: "2.40M", unit: "$WORD", latest: "+180.5K on Nov 26", plate: "CRANE has earned 96.3K" });
-    expect(Object.values(t).join(" ").replace(/\$WORD/g, "")).not.toMatch(/\$|USD/);
+    expect(t).toEqual({
+      kicker: "My words have earned", amount: "2.40M", unit: "$WORD", usd: null,
+      latest: "+180.5K on Nov 26", plate: "CRANE has earned 96.3K",
+      ledger: [["Nov 26", "+180.5K"], ["CRANE", "96.3K"]],
+    });
+    expect(JSON.stringify(t).replace(/\$WORD/g, "")).not.toMatch(/\$|USD/);
+  });
+
+  it("says about what the total was worth when the token carries it: “about”, and short", () => {
+    expect(earningsCardText(snap({ usdCents: 2_400_000 }), { testnet: false }).usd).toBe("about $24.0K");
+    expect(aboutUsd(snap({ usdCents: 1234 }), false)).toBe("about $12");
+    expect(aboutUsd(snap({ usdCents: 9 }), false)).toBe("about $0.09");
+    expect(aboutUsd(snap({ usdCents: 88_880_000_000 }), false)).toBe("about $888.8M");
+    expect(aboutUsd(snap(), false)).toBeNull();
+    expect(aboutUsd(snap({ usdCents: 0 }), false)).toBeNull();
+  });
+
+  it("never puts dollars beside test $WORD, whatever a token carries", () => {
+    const t = earningsCardText(snap({ usdCents: 2_400_000 }), { testnet: true, hero: "CRANE" });
+    expect(t.usd).toBeNull();
+    expect(JSON.stringify(t).replace(/\$WORD/g, "")).not.toMatch(/\$|USD/);
+  });
+
+  it("the post never says dollars, on X or in a cast", () => {
+    for (const on of ["x", "fc"] as const) {
+      expect(earningsPostText(snap({ usdCents: 2_400_000 }), { testnet: false, hero: "CRANE", on }).replace(/\$WORD/g, "")).not.toMatch(/\$|USD|about/);
+    }
+  });
+
+  it("gilds the pictured word only at the stage the token signed for it", () => {
+    const s = snap({ stages: [4, null] });
+    expect(heroStage(s, "crane")).toBe(4);
+    expect(heroStage(s, "TEASE")).toBeNull(); // named, and its stage not known: drawn without
+    expect(heroStage(s, "GHOST")).toBeNull(); // not named: no gilding, as it gets no amount
+    expect(heroStage(s, null)).toBeNull();
+    expect(heroStage({ ...snap(), stages: undefined }, "CRANE")).toBeNull(); // a token from before the stages
+  });
+
+  it("the ledger has a row only for what there is to say", () => {
+    expect(earningsCardText(snap({ latest: 0 }), { testnet: false, hero: "CRANE" }).ledger).toEqual([["CRANE", "96.3K"]]);
+    expect(earningsCardText(snap(), { testnet: false }).ledger).toEqual([["Nov 26", "+180.5K"]]);
+    expect(earningsCardText(snap({ latest: 0 }), { testnet: false }).ledger).toEqual([]);
+    // the date is the sharer's calendar's, as the line's is
+    expect(earningsCardText(snap(), { testnet: false, tz: -360 }).ledger[0]).toEqual(["Nov 25", "+180.5K"]);
   });
 
   it("says “test $WORD” on a test network", () => {
