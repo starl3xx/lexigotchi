@@ -179,6 +179,18 @@ describe("the card's own colors", () => {
     expect(wrong).toEqual([]);
     expect(seen).toBeGreaterThanOrEqual(6); // SceneFrame, wordCard, CardCase, SceneCard, CardBack (twice), ShareVideo
   });
+
+  it("the video's back gets no rarity material under a collab's colorway (the back's third renderer)", () => {
+    // The shader lays the back's picture over a material by the picture's alpha. A collab's
+    // colorway is painted into that picture edge to edge, and the video is given the plain
+    // material all the same: never Legendary's gold light.
+    const video = readFileSync(join(__dirname, "..", "src/components/cards/ShareVideo.tsx"), "utf8");
+    expect(video).toContain('material: look ? "common" : materialOf(word.tier),');
+    expect(video.match(/materialOf\(word\.tier\)/g)).toHaveLength(2); // that line, and the stamp's ink (which asks the look first too)
+    const route = readFileSync(join(__dirname, "..", "src/app/s/[text]/back/route.tsx"), "utf8");
+    // the colorway covers the whole picture, in two opaque colors
+    expect(route).toMatch(/left: 0, top: 0, width: W, height: H, display: "flex", borderRadius: CARD_CORNER \* W, backgroundImage: `linear-gradient\(165deg, \$\{colorway\.base2\}, \$\{colorway\.base\}/);
+  });
 });
 
 describe("the card's front", () => {

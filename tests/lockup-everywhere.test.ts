@@ -148,6 +148,18 @@ describe("the pages a player lands on outside the game (part 3)", () => {
   });
 });
 
+describe("the operator console and the repository's README", () => {
+  it("the console's heading is the lockup and the word Operator", () => {
+    expect(read("src/components/admin/AdminConsole.tsx")).toMatch(/<Lockup alive height=\{44\} \/>\s*<span>Operator<\/span>/);
+  });
+  it("the README opens with the lockup, in the drawing for the reader's light or dark page", () => {
+    const md = read("README.md");
+    expect(md.startsWith("<picture>")).toBe(true);
+    expect(md).toContain('<source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-on-dark.svg">');
+    expect(md).toContain('<img src="docs/brand/lockup.svg" alt="Lexigotchi" height="64">');
+  });
+});
+
 describe("the name is never set in type again", () => {
   it("no player-facing file sets LEXIGOTCHI as text, but for the video's fallback and the email's alt text", () => {
     const files: string[] = [];
