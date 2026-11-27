@@ -36,6 +36,8 @@ export function SceneSheet({ word, fromWord = false }: { word: string; fromWord?
           gild={gild}
           tier={w.tier}
           number={number}
+          // the player is switching faces and watching this card: a new face slides in
+          change="slide"
           className="card-corner border-[3px] border-ink"
         />
         <p className="text-center text-sm text-ink/70">
