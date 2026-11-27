@@ -4,7 +4,7 @@
  * word. The house copy rules cover the file (tests/copy-rules.test.ts).
  */
 import { describe, it, expect } from "vitest";
-import { gateLeft, gateRefusalNote } from "@/components/game/setGate";
+import { firstDayWho, gateLeft, gateRefusalNote } from "@/components/game/setGate";
 
 const NOW = 1_800_000_000;
 const UNTIL = NOW + 5 * 3600;
@@ -21,6 +21,25 @@ describe("how long until the gate lifts", () => {
   it("minutes up to an hour and a half, so it never says “about 1 hours”", () => {
     expect(gateLeft(NOW + 5399, NOW)).toBe("about 90 minutes");
     expect(gateLeft(NOW + 5400, NOW)).toBe("about 2 hours");
+  });
+});
+
+describe("a first day with a rule of its own", () => {
+  it("names who it is open to: the operator's words, or the plain ones for the rule", () => {
+    expect(firstDayWho("token", "holders of a test token")).toBe("holders of a test token");
+    expect(firstDayWho("token", null)).toBe("holders of this set’s token");
+    expect(firstDayWho("allowlist", "")).toBe("players on this set’s list");
+    expect(firstDayWho(undefined, undefined)).toBe("players on this set’s list");
+  });
+  it("tells a verified player who isn't let in why, and when the word opens to everyone", () => {
+    const listed = gateRefusalNote("motel", { error: "not_on_list", rule: "allowlist", label: null, until: UNTIL }, NOW, 0);
+    expect(listed).toEqual({ text: "First day: this set is open to players on this set’s list. MOTEL opens to everyone in about 5 hours.", tone: "info", openProfile: false });
+    const token = gateRefusalNote("motel", { error: "not_on_list", rule: "token", label: "holders of a test token", until: UNTIL }, NOW, 0);
+    expect(token.text).toBe("First day: this set is open to holders of a test token. MOTEL opens to everyone in about 5 hours.");
+  });
+  it("and when another wallet of theirs IS let in, to claim with that one", () => {
+    const n = gateRefusalNote("motel", { error: "not_on_list", rule: "allowlist", label: null, linked: true, until: UNTIL }, NOW, 0);
+    expect(n.text).toBe("First day: this set is open to players on this set’s list. Claim MOTEL with the wallet of yours that qualifies.");
   });
 });
 

@@ -6,7 +6,8 @@
  * then a name and its words with a countdown, then words like any others, with the set's name on
  * them. For its first day a released set may be limited to one word per player.
  */
-import type { PublicSet } from "@/lib/sets/rules";
+import type { GateRule, PublicSet } from "@/lib/sets/rules";
+import { firstDayWho } from "./setGate";
 
 /** How long is left, for a countdown line. Null once the time has come. */
 export function leftText(ms: number): string | null {
@@ -25,6 +26,10 @@ export interface SetLines {
   status: string;
   /** The first-day rule, while it applies. */
   rule?: string;
+  /** Who the first day is open to, when the set has a rule of its own (an allowlist, or a token's holders). */
+  openTo?: string;
+  /** A collab set's partner: "A collaboration with …", and a link when there is one. */
+  partner?: { name: string; url: string | null };
   /** True while the first-day limit is up. */
   gated: boolean;
 }
@@ -34,26 +39,48 @@ export function firstDayRule(limit: number): string {
   return limit <= 1 ? "First day: one word per player" : `First day: ${limit} words per player`;
 }
 
-/** What a set says of itself right now. */
-export function setLines(set: PublicSet, nowMs: number): SetLines {
+/**
+ * What a set says of itself right now. `gate` is whether this network's Words can enforce a first
+ * day at all (the sets answer's `gate`): where it can't, a set opens to everyone at once, so
+ * nothing is said about who its first day is open to.
+ */
+export function setLines(set: PublicSet, nowMs: number, gate = true): SetLines {
   if (set.kind === "locked") return { title: "A new set is coming", status: "Locked", gated: false };
+  const partner = set.collab ? { name: set.collab.partner, url: set.collab.url } : undefined;
+  // `firstDay` may be missing in an answer kept from before this field existed: that is "verified".
+  const ruled = gate && (set.firstDay === "allowlist" || set.firstDay === "token");
+  const openTo = ruled ? firstDayWho(set.firstDay, set.firstDayLabel) : undefined;
   if (set.kind === "revealed") {
     const left = set.releaseAt ? leftText(Date.parse(set.releaseAt) - nowMs) : undefined;
     return {
       title: set.name,
       status: left === undefined ? "Unlocks soon" : left === null ? "Unlocks any moment now" : `Unlocks in ${left}`,
+      partner,
+      openTo,
       gated: false,
     };
   }
   const left = set.gateUntil ? leftText(Date.parse(set.gateUntil) - nowMs) : null;
-  if (left) return { title: set.name, status: `Opens to everyone in ${left}`, rule: firstDayRule(set.perPlayerLimit), gated: true };
-  return { title: set.name, status: "Unlocked", gated: false };
+  if (left) return { title: set.name, status: `Opens to everyone in ${left}`, rule: firstDayRule(set.perPlayerLimit), partner, openTo, gated: true };
+  // The first day is over (or there was none): who it was open to is no longer news.
+  return { title: set.name, status: "Unlocked", partner, gated: false };
 }
 
-/** What the first-day rule means, under its heading: how many words, and until when. */
-export function firstDayNote(limit: number): string {
+/**
+ * What the first-day rule means, under its heading: who may claim, how many words, and until when.
+ * Every first day asks for a verified player; a set with a rule of its own (an allowlist, or a
+ * token's holders) says who it is open to as well.
+ */
+export function firstDayNote(limit: number, rule: GateRule = "verified", label: string | null = null): string {
   const many = limit <= 1 ? "one word" : `up to ${limit} words`;
-  return `Each verified player can claim ${many} from this set until it opens to everyone. After that, every word that’s left is open to all.`;
+  const after = "After that, every word that’s left is open to all.";
+  if (rule === "verified") return `Each verified player can claim ${many} from this set until it opens to everyone. ${after}`;
+  return `The first day is open to ${firstDayWho(rule, label)}. Each of them who is verified can claim ${many} until the set opens to everyone. ${after}`;
+}
+
+/** Before a set unlocks: who its first day will be open to, when it has a rule of its own. */
+export function firstDayAhead(openTo: string): string {
+  return `Its first day is open to ${openTo}.`;
 }
 
 /**

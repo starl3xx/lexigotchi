@@ -38,7 +38,7 @@ describe("a word's card", () => {
     fireEvent.click(screen.getByRole("button", { name: "Turn CRANE over" }));
     expect(screen.getByTestId("back").textContent).toBe("CRANE");
     expect(screen.getByText("scene").closest(".sc-front")?.hasAttribute("inert")).toBe(true);
-    expect(screen.getByRole("button", { name: "Show CRANE’s scene" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show CRANE’s front" })).toBeTruthy();
   });
 
   it("gives the next word its scene, not the last word's back", () => {

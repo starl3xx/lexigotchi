@@ -403,6 +403,18 @@ describe("a word that can't look (the ascend sheet)", () => {
       expect(Math.hypot(Number(b.style.getPropertyValue("--fx")), Number(b.style.getPropertyValue("--fy")))).toBeCloseTo(1, 2);
     }
     expect(new Set(beads.map((b) => b.style.animationDelay)).size).toBe(10);
+    // Each bead's point is at its bottom, toward the tile, and its round end leads (the owner,
+    // 2026-11-27: "so it looks like its coming from the tile, not from above"). The path starts at
+    // the point; the bead is then turned to its own direction, which is up and outward, so the
+    // point (down, before the turn) is left facing the letter.
+    for (const b of beads) {
+      const d = b.querySelector("path")!.getAttribute("d")!;
+      const ys = [...d.matchAll(/-?\d+(?:\.\d+)? (-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
+      expect(d.startsWith("M 0 ")).toBe(true);
+      expect(ys[0]).toBe(Math.max(...ys)); // the point is the lowest part of the drop
+      expect(ys[0]).toBeGreaterThan(-Math.min(...ys)); // and it is the long end
+      expect(Number(b.style.getPropertyValue("--fy"))).toBeLessThan(0); // it flies up, round end first
+    }
     // a still frame shows none: a bead frozen in the air reads as an ear
     const still = render(<TileWord word="vivid" upper={UP} state="rolling" size={110} still />);
     expect(still.container.querySelectorAll(".animate-tc-sweat")).toHaveLength(0);

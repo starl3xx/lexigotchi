@@ -1996,7 +1996,11 @@ setter. All small, riding existing suite patterns.
         lines in the shape of the shadow, each as heavy as the shadow is dark there, as under
         every letter. It was a soft blot. It is narrower than the blot was: a ruled line shows
         to its very end, and the blot's faint ends ran under the game's name in the corner. No
-        derivative is asked of the device, so every device draws the same lines.
+        derivative is asked of the device, so every device draws the same lines. **It is
+        faint** (starl3xx, 2026-11-27, of the first one: "the shadow on the card video is way
+        too dark"): its ink went from 0.5 to 0.16 and its heaviest line from 0.7 of a row to
+        0.45 (`SHADOW_INK`, `SHADOW_WEIGHT`; a test holds them at or under 0.2 and 0.5). The
+        numbers are my reading of "way too dark", looked at on the frame he sent and mid-turn.
       - `CARD_LOOK` 10. The earnings picture's address carries it too.
       - **Seen and not seen (part 9):** the game's back with the new rack (an opened Legendary
         word, WebKit); the server's back drawn by the real route; the link picture and the tall
@@ -2700,6 +2704,128 @@ setter. All small, riding existing suite patterns.
       leaves for Google), nothing is clipped or outside the card, and the phone's shorter ribbon
       fits. The three pictures draw in it. Not seen: a real phone, Windows, the earnings share
       picture (it needs a link the server signs; it loads the same file through the same code).
+53. **Collab sets: a reserved set made with a partner, with its own card look, built in parts**
+    (starl3xx, 2026-11-26; he asked for this entry as #25, which is taken, and he calls reserved
+    sets "#24": they are #51). In the owner's words: "wait what if we offered crossover sets as
+    collaborations with other entities". "5 words only". "the card would be unique to that collab".
+    "maybe all collabs would have the same front like stock but slightly different colors or stamps
+    or something for the logo". "Collab only changes how the card looks... the word is the same...
+    and it's legendary rarity". This is plumbing: no real partner, name, logo, or color ships in
+    this repository. One entry: each part is added here as it ships.
+    - **The parts.** (1) The data, the first day's rule, and the admin fields: this part. (2) The
+      rarity override: a collab word is Legendary from its set's reveal, as a layer on top of the
+      derived tier. (3) The card: one collab stock tinted with the set's two colors, the stamp, the
+      partner back, on every surface, and the admin's live preview. (4) Token metadata with a
+      "Collab" trait, the player docs, the test set on Base Sepolia, and the tester note.
+    - **Part 1: a set's type.** A set is `standard` or `collab` (`word_sets.type`; migration
+      `0023_collab_sets`). A collab has a partner's name and https link, two colors (`#rrggbb`),
+      and a stamp. They are the set's identity: a draft's to edit, locked at the reveal with its
+      name (`rules.ts` `IDENTITY_KEYS`), and nothing of them reaches a browser before the reveal
+      (`publicSets` still gives a draft as a locked slot: not even that it is a collab).
+    - **A collab is revealed only when it is whole:** exactly five words, its partner's name, its
+      two colors, and its stamp (`revealProblems`). The reveal by hand refuses with what is missing;
+      the scheduled reveal leaves such a draft a draft, however late, and the admin says why. The
+      spec asked for the five-word check; the rest is mine, because a reveal locks the look, and a
+      card with no stamp could never get one. The rule is written twice (TypeScript, and SQL for
+      the one-statement scheduled reveal); `scripts/sets-db-check.ts` holds the two together.
+    - **No collab set can be revealed until its card ships** (`rules.ts` `COLLAB_LIVE`, false
+      until part 3; mine). A collab word is Legendary "from the moment its set is revealed" and
+      sits on its own card, and a set revealed before parts 2 and 3 would be neither. A draft can
+      be made and edited now; the reveal by hand and the scheduled reveal both pass it by, and the
+      admin says why.
+    - **The stamp** is a small raster picture (PNG or JPEG, 256 KB at most), kept in the
+      database (`set_stamps`). Never an SVG: an SVG can carry script, and this picture is drawn
+      into every card of the set. Not WebP for now: the server's pictures must be able to draw
+      it, and a revealed set's stamp can never be replaced. What it is comes from its own first bytes, on the way in and on
+      the way out. `GET /api/sets/{id}/stamp` serves it only for a revealed or released set; a
+      draft's answers as a set that doesn't exist. A file import carries no stamp and no
+      allowlist, so a draft that comes back under the same name keeps the ones it had.
+    - **The first day's rule** (item 4). `word_sets.gate_rule` is `verified` (every verified
+      player, the default), `allowlist` (wallets the operator pastes; `set_allowlist`), or `token`
+      (a contract on Base and a minimum balance, read when the voucher is asked for). It adds to
+      "verified", never replaces it: the voucher route checks it after verification and after the
+      proof of wallet control. **The wallet that claims must be the one the rule lets in** (mine):
+      if any wallet of the profile counted, one listed wallet could be linked into one verified
+      profile after another and let each of them in. The claiming wallet is also the one the
+      voucher's row is counted under, so a wallet that moves to another profile brings its word
+      with it. A player whose other wallet qualifies is told to claim with that one. It fails
+      closed: a list or a balance that can't be read is "try again", and a rule that is missing a
+      part lets nobody in (`lib/sets/firstDay.ts`). The token is read on Base MAINNET whatever network the
+      game runs on, as Coinbase's attestations are. The rule can change until the release, and no
+      release is built for a rule that can't be checked (`gate_rule`): an allowlist with nobody on
+      it, a token rule with no contract or minimum, or a contract whose `balanceOf` doesn't answer
+      on Base (a mistyped address would be "try again" for every player all day, and the rule is
+      final once released). A token's contract and a list's wallets never leave
+      the server; the Dictionary says who the day is open to in the operator's own words
+      (`gate_label`, e.g. "holders of …") or in plain ones, and only on a network whose Words has
+      the gate: where it doesn't, a set opens to everyone at once, so nothing is said of a first
+      day. One limit, stated plainly: a token can be moved to another verified player's wallet
+      during the day, and that player is then let in too.
+    - **A deploy never waits for a migration** (the owner runs them by hand). Before 0023 has run,
+      the sets read from 0021's columns as standard sets, plain sets are still made and imported
+      (a raw insert that names only 0021's columns: Drizzle's insert names every column of the
+      table), and anything a collab adds is refused with `not_migrated`. Proven on real Postgres
+      three ways: `scripts/sets-db-check.ts` with 0023 and without it, and the app itself on a
+      database with no sets tables at all (production's state on the day this merged): the sets
+      answer, a proof, the daily status, the admin's read, and the hourly job all answer as before.
+    - **"Test collab" (item 7) is the owner's button**, not something this code creates by
+      itself: it is a write to the production database. The Sets tab has it on a test network
+      only, and the server refuses it on mainnet. It makes a DRAFT (two arbitrary colors, a plain
+      stamp drawn in code, "Test partner"), with five words picked then and there from words no
+      set holds and nobody owns: one Mythic word when one is free, the rest from below Legendary,
+      so the test set shows both "Legendary from reveal" and "a higher rarity is kept". The words
+      are never written in this repository.
+    - **Two things the spec assumed that weren't so.** There is no token metadata server in this
+      repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
+      mean building that route: part 4. And a metadata refresh "at release" needs an owner call in
+      `Words`, which can't change after deploy; no token of a set exists at its release, so the
+      call matters only if a card's look changes later.
+    - **The owner's rulings, 2026-11-27.** The Base Sepolia redeploy for the gate: "Hold for now"
+      (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
+      "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
+      `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
+      refresh for a list of words; it gets tests and an audit pass, in part 4). The check on the
+      word that `dissolve` logs was not chosen.
+
+54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
+    about cards... the *front* of the card is its front regardless of the scene/face... the *face*
+    (not scene) is the background on the front of the card. the back is the back. standardize
+    across all surfaces, docs, etc").
+    - **The three words.** The FRONT is the side of a card with the word on it, whatever it
+      wears. The FACE (a "card face" where a sentence needs the noun) is the picture on the
+      front, behind the word: what a player picks, unlocks, or buys. The BACK is the other side,
+      with the word's story.
+    - **"Scene" had two meanings, and each got its own word.** Where it meant the side (the flip
+      button's "Show the scene") it is "front". Where it meant the picture ("Pick a scene") it is
+      "face". So the change was read line by line, never as a replace-all.
+    - **Every surface a player reads:** the game (the button under an opened card is "Face"; the
+      picker's title is "CRANE's card face"; the flip button says "Show the front"; the Market's
+      "Card faces, cases, and costumes stay with the seller"), the Shop's wording, the player docs
+      (the section is "Card faces", with the three words defined once, and an FAQ entry), and the
+      messaging guide's word list. The mechanics reference follows.
+    - **The guard.** `tests/copy-rules.test.ts` fails on "scene" in player-facing code and in the
+      player docs. The operator console is excused: it names the stored kind.
+    - **The code keeps "scene", and so does everything stored or posted** (my reading of "all
+      surfaces, docs, etc": what a person reads, not what the code is called). A share link's
+      `?scene=` is posted for good; kind `scene` is in `shop_items` and `word_picks`; `/api/scenes`
+      and the browser's `lexigotchi:scene:` key hold players' picks. Renaming the code's own names
+      (`SceneId`, `SceneFrame`, `useWordScene`) is a change to about a hundred files that other
+      work is in the middle of, for no player's benefit. It can be done on its own if the owner
+      wants it.
+    - **Two older code names use "face" for something else:** `?face=1` and `showcaseFacePath`
+      are the card's front alone, and `playerFaces` is a player's name and picture. They are
+      listed in CLAUDE.md so nobody takes one for the other.
+    - **My readings, not starl3xx's words:** the first face is named "Stock" in the picker and
+      "the stock face" in a sentence (his phrase, from the listing: "it shows the stock face");
+      the button under an opened card is "Face", not "Card face", because three buttons share a
+      phone's width there; "face down", of the jackpot's secret card, stays as plain English for
+      a card lying on its front.
+    - **What a player buys in the Shop stays with the player** (the same day: "shop items staying
+      with the player and not transferring on sale or dissolve or anything is something we should
+      be clear about in the docs"). The docs say it in a section of its own, and again where a
+      player reads about selling a word, buying one, and dissolving one. It was already how the
+      game works (#41): a purchase is the profile's, a pick is kept by profile, and nothing from
+      the Shop is a token that can move.
 
 ## Pricing & launch economics (decided June 2026)
 

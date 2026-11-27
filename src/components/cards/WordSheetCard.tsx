@@ -74,7 +74,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
       {back && <CardMore word={word} />}
       <div className={`sc-actions ${caseDoor ? "sc-actions-3" : ""}`}>
         <Button variant="ghost" onClick={() => g.openSheet({ kind: "scene", word: word.word, fromWord: true })}>
-          <Palette weight="fill" /> Scene
+          <Palette weight="fill" /> Face
         </Button>
         <Button variant={sharing ? "primary" : "ghost"} aria-expanded={sharing} onClick={() => setSharing((s) => !s)}>
           <ShareNetwork weight="fill" /> Share

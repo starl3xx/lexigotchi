@@ -130,6 +130,19 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
     90 days, or a Coinbase-verified wallet, as for the free letters) gets vouchers for one word of
     the set (its `per_player_limit`), per profile across linked wallets. After the gate, anyone
     claims as usual. The gate is set in the same batch as the release, before the root.
+  - **A first day can have a rule of its own** (decisions.md #53): open to every verified player
+    (the default), to the wallets on a list the operator imports, or to holders of a minimum
+    balance of one token on Base, read when the voucher is asked for. The rule adds to
+    “verified”; it never replaces it. The wallet that claims must be the one on the list, or the
+    one that holds the token. The Dictionary says who the day is open to.
+- **Collab sets** (decisions.md #53, built in parts): a set made with a partner. It has exactly
+  five words, the partner’s name and link, and a card look of its own (two colors and a stamp).
+  Collab changes how the card looks, and its words are Legendary rarity from the set’s reveal (a
+  word whose own rarity is higher keeps it); the word itself is the same word. A revealed or
+  released collab set shows in the Dictionary as a collaboration, with the partner’s name and
+  link. Nothing of a collab is shown before its reveal. (Shipped so far: the set’s type, partner,
+  colors, stamp, and first-day rule, as drafts. A collab set can be revealed once its rarity and
+  its card ship.)
 
 ---
 
@@ -260,8 +273,8 @@ A staked word's care state is a function of days since last fed:
 
 ## 12. Cards, Sharing, the Market, Dissolution
 
-- **Word cards:** every owned word is a card (`src/components/cards/`): the word standing in its
-  scene on the front, and a back in its rarity's material, turned over by the button in the top
+- **Word cards:** every owned word is a card (`src/components/cards/`): a front, with the word
+  on its face (the picture behind it), and a back in its rarity's material, turned over by the button in the top
   right corner. The back tells the word's story: its rarity (one of N) and dictionary number, its
   case and ascension stage, "Yours since" (the day it reached the player's profile; moves between
   their own wallets keep it), staked and mood, what it has earned, earns a day, and costs to make,
@@ -271,24 +284,29 @@ A staked word's care state is a function of days since last fed:
   changes of hands. The Bag opens on Words, as a grid of still cards; the Today stage and an opened
   word are the cards that move.
 - **Sharing:** open one of your own words and tap Share under its card, to post it on X first or
-  cast it on Farcaster, or to save its picture. Each share links to `/s/<word>?scene=<scene>`,
-  whose picture is the word's card, in that scene, on a dark table (1200×630 for X's large card,
+  cast it on Farcaster, or to save its picture. Each share links to `/s/<word>?scene=<id>`
+  (the link still says `scene`: it names the card's face), whose picture is the front of the word's
+  card, on that face, on a dark table (1200×630 for X's large card,
   3:2 for the Farcaster embed). The page and card draw dictionary words only, never free text (decisions.md
   #15). Offchain, read-only vanity: no NFT, no fee. The primary organic growth loop (every shared
   word is an ad). The Showcase screen that did this folded into the cards.
-- **Scenes and the card's front** (decisions.md #34): a word's card is an object: its own paper,
-  its scene in a window, a frame in the rarity's ink with the rarity's mark in its corners, and a
+- **Card faces and the card's front** (decisions.md #34, #54): a card's FRONT is the side with the
+  word on it, its FACE is the picture on the front behind the word (the code still calls it a
+  scene), and its BACK is the back. A word's card is an object: its own paper,
+  its face in a window, a frame in the rarity's ink with the rarity's mark in its corners, and a
   ribbon ("one of one", the card's number, the rarity). It shows on the Today stage, in the Bag,
   and on the share picture (`src/lib/scenes.ts`, `src/lib/cardArt/`, `src/components/scenes/`).
-  Every word starts on the stock card (grey, the rarity as an overtone); the Stage is free for
+  Every word starts on the stock face (grey, the rarity as an overtone); the Stage is free for
   everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
   unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
-  (decisions.md #41): drawn and ready, a player's only once their profile buys one, and not listed yet. The Shop can
+  (decisions.md #41): a player's only once their profile buys one, for every word they hold, and never the word's (a
+  sold word reaches its buyer on the stock face). Outer Space is listed on Base Sepolia; the
+  Bookshelf is not listed. The Shop can
   also sell a plastic case for a word's card (decisions.md #42): one case holds one word, the word
   shows in it on Today and when opened, and it turns with a drag. Not listed yet either.
-  A scene is a still engraving and
+  A face is a still engraving and
   never moves; the card in focus catches a faint light and leans a little toward a pointer.
-  A scene greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
+  A face greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
   keyed by the wallet holding the word; decisions.md #15).
 - **The Market** (decisions.md #18, #30): words and letters sell for $WORD through Seaport orders
@@ -297,7 +315,7 @@ A staked word's care state is a function of days since last fed:
   at a price each, and a buyer takes any number of them. The old one-for-one letter swap is retired.
   Recent sales are read from the chain (`src/lib/market/sales.ts`). The Market suggests prices and
   picks listings for each player (`src/lib/market/deals.ts`). A purchase celebrates once it shows: a
-  bought word in its scene (`sheets/CelebrateSheet`), bought letters over the word they newly finish
+  bought word on its card (`sheets/CelebrateSheet`), bought letters over the word they newly finish
   (`sheets/BoughtLettersSheet`). The sell form and
   each listing show the word's **cost to make** (`src/lib/wordCost.ts`: letters at
   `pack ÷ 5 ÷ (26 × odds)`, the expected rolls for each UPPERCASE letter, the claim, and the expected
