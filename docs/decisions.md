@@ -3511,6 +3511,46 @@ setter. All small, riding existing suite patterns.
       steps, the claim's allowance, and the console (the constructor, "Set a tier's claim
       multiple", the Treasury tab's fees by tier). The player docs change in a held PR that merges
       with the redeploy, with the tester note.
+61. **A hungry word's card: the ink runs low. No fog.** (starl3xx, 2026-11-27: "Now that we have
+    the cards mostly nailed down, how should we render when words are peckish and hungry? fog
+    doesn't feel right anymore (esp. w/the new design language)".) Until now a card showed hunger
+    in two ways, both his from 2026-11-24: its face went grey, and fog rolled in over the scene and
+    the word. The fog no longer fits, for three reasons. It is not drawn: it was three drifting
+    banks of random noise, on a face that is now a still picture in ruled linework. It covered
+    the letters, so a hungry word faded from its own card when it most needed its player. And
+    one strength could not serve every face: it turned the pale stock face white, and a dark
+    face needed a special thinner fog and still went to grey.
+    - **Three directions were drawn on real cards** (one Common word fed, peckish, and hungry,
+      on the two stock faces first, in the Bag on a phone, and on Today): 19A, the colour goes
+      and the drawing stays; 19B, the ink runs low; 19C, the face is left alone. I recommended
+      19A. **He chose 19B: "19B!"**
+    - **19B, as built.** A card is paper and ink, so a hungry word's face is printed with less
+      ink: the art layer is shown fainter over the card's own paper, lines and colour together,
+      and its colour drains with it. Peckish: 0.66 of its strength, at a little over half its
+      colour. Hungry: 0.34, nearly no colour. On a dark face it fades less (0.82 and 0.6), so
+      the plate stays dark. Feeding eases the ink back over 0.9 s; that is a change of colour
+      and not a movement, so it plays under reduced motion too. These are the numbers he chose
+      from: the proposal was drawn with the style rules that shipped.
+    - **The tone is on the GROUP of the face's pictures, never on a picture** (Bugbot on #328).
+      During a face change the old picture stays under the new one until it is in. A hungry
+      face is see-through, so with the tone on each picture the two added up to more ink than
+      one, and the card popped paler when the old one was dropped. As a group they are put
+      together at full strength and faded once. Checked in the game: for the 65 frames two
+      pictures were stacked, the group's strength eased smoothly and nothing added up.
+    - **"agreed on frame and ribbon":** only the art takes it. The frame and the ribbon keep
+      their ink in every state, so a hungry card still names its rarity. The letters keep their
+      colour and are never covered; their own faces show the mood.
+    - **"no hunger states in any share cards":** a share picture and a video never show hunger.
+      A shared card is always drawn fed. Hunger changes every day, and X and Farcaster keep a
+      picture for good. They never did show it; now a test holds that.
+    - **What went:** the fog layer in the front, its style rules and keyframes, the dark faces'
+      special fog strengths (#57), and the old grey filter.
+    - **Also in this change, mine:** the ribbon at a card's foot still carried a random grain,
+      which I missed when the stock's grain went (#58, part 4). It is gone, and the ribbon
+      keeps its fine ruled lines. No noise filter is left in the stylesheet; a test holds that.
+    - **Not measured:** the fog was three drifting layers and its replacement stands still, so
+      a hungry card should cost less to show. I have not measured it.
+    - **Not seen:** a dark face with colour (Outer Space) hungry, a collab card, a real phone.
 
 ## Pricing & launch economics (decided June 2026)
 

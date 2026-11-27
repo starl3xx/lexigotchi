@@ -738,9 +738,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   near-black plate "way too dark": **when drawing something dark for him, start lighter than seems
   right.** **A dark face needs two things** (`DARK_SCENES`: the dark stock face and Outer Space):
   (1) light where the word stands, on the wall behind it and the floor under it, because a letter's
-  arms, legs, and shoes are dark ink and vanish on a dark plate; (2) thinner fog for a hungry word
-  (globals.css, `.cf-dark .scene-fog`: 0.42 hungry, 0.2 peckish), because the fog is pale and at full
-  strength it turns the plate white. A new dark face joins `DARK_SCENES` and is looked at hungry.
+  arms, legs, and shoes are dark ink and vanish on a dark plate; (2) a hungry word's face fades LESS
+  (globals.css, `.cf-dark .scene-hungry`: 0.6 against 0.34, and peckish 0.82 against 0.66), because
+  at the full amount a dark plate stops being dark. A new dark face joins `DARK_SCENES` and is looked at hungry.
   The other faces: the Trophy Case and Spring
   open at `SCENE_UNLOCK_WORDS` = 3 words ever held (`state.wordsEverHeld`, so it stays open after a
   dissolve). Picture Day, Summer, Fall, and Winter are retired: a pick or link that names one reads
@@ -798,8 +798,16 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   while it follows (a transition restarted each frame cost a third of a core). Keep such effects
   faint (the owner: "much more subtle/transparent"). The Today stage walks the player's words with
   ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with the
-  next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry (`toneOf`,
-  `.scene-tone`/`.scene-fog` in globals.css), inside the window only: the frame keeps its ink.
+  next three as cards and a My Bag tile. **A hungry word's card: the ink runs low** (decisions.md #61; `toneOf`,
+  `.scene-tone` / `.scene-peckish` / `.scene-hungry` in globals.css): the face's art is printed fainter
+  over the card's own paper and loses its colour, a little when peckish and most of the way when
+  hungry, and feeding eases it back. Only the art: the frame and the ribbon keep their ink, and the
+  letters are never covered. **There is no fog** (it was three drifting banks of random noise over
+  the scene and the word; starl3xx, 2026-11-27: "fog doesn't feel right anymore"): never lay
+  anything over a card to show hunger. **The game only:** a share picture or a video never shows
+  hunger ("no hunger states in any share cards"). No noise filter is left in the stylesheet, and a
+  test holds that. To see real states in the practice game: CRANE starts peckish, the header's
+  "Skip a day" twice makes it hungry, and Feed makes it fed.
   **A face change** (decisions.md #59): a new face comes in over the old one, which is kept under
   it until it is in (`SceneFrame`; which face was showing is worked out WHILE rendering, never in
   an effect, which is one render late: a render with the new face in place and nothing under it). It fades in everywhere but the
@@ -894,7 +902,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   word: `WordSheetCard`); the Bag's grid (`BagWordCard`) is still and draws each card only as it
   nears the screen. **At rest the face turned away is `visibility: hidden`** (`.sc:not(.is-flipping)`):
   WebKit kept drawing the back, mirrored, over the front after a turn home. `TileCharacter`'s `still` stops the whole
-  character (idle bounce too), and a still `SceneFrame` stops its fog; lists pass `still`
+  character (idle bounce too); lists pass `still`
   (`WordTiles still`), and the Dictionary's 80 rows use flat `MiniTiles` (the rig there made each
   keystroke 2–4× slower). **The back's lettering** (decisions.md #35): the card's number is the
   headline in the card's serif (`cardDigits`; none while unknown), the facts are a ledger (a name in

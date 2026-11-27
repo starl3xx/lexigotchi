@@ -12,12 +12,12 @@
  *   pointer), and the letters, as ever.
  * - **Nothing is drawn over the art but the letters.** A host's overlay (the Today stage's bubble
  *   and arrows) goes on top of everything.
- * - **The scene shows how the word is doing** (starl3xx, 2026-11-24: "the scenes themselves should
- *   get visibly more grayscale when a word is peckish and hungry", and "a cool animated, opaque fog
- *   ... in addition to the grayscale"). Peckish: the color drains halfway and a thin fog drifts in.
- *   Hungry: nearly grey, and thick fog rolling over the scene and the word (globals.css, .scene-fog).
- *   Both stay inside the window: the card keeps its paper and its ink. The characters keep their
- *   color: their faces already show the mood.
+ * - **The face shows how the word is doing: its ink runs low** (decisions.md #61; starl3xx,
+ *   2026-11-27: "19B!"). Peckish: the art is printed a little fainter and loses some color.
+ *   Hungry: most of the way to bare paper. Only the art takes it (globals.css, .scene-tone): the
+ *   frame and the ribbon keep their ink, and the characters keep their color, since their faces
+ *   already show the mood. Nothing is laid over the card for it: the fog that used to roll over
+ *   the scene and the word is gone ("fog doesn't feel right anymore").
  * - **Words are only ever set in Söhne** (starl3xx, 2026-11-25): the ribbon letters what the card
  *   says about the word, in the card's serif (Source Serif 4, shipped with the game), and never
  *   the word itself.
@@ -114,7 +114,7 @@ export function SceneFrame({
   state?: TileState;
   gild?: Gild;
   /**
-   * How the word is doing: the scene greys and fogs as it gets hungry (pass toneOf(state)). Left
+   * How the word is doing: the face's ink runs low as it gets hungry (pass toneOf(state)). Left
    * "fed" on purpose where the player is choosing a scene (the scene sheet): they need to see it.
    */
   tone?: SceneTone;
@@ -275,7 +275,7 @@ export function SceneFrame({
   // The art's text is worked out from sines and cosines, which the server and a browser may round
   // one digit apart; either picture is right, so a mismatch on hydration is let be.
   const art = (id: SceneId, fade: string) => (
-    <div key={`art-${id}`} className={`cf-art ${toneClass} ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
+    <div key={`art-${id}`} className={`cf-art ${fade}`} style={{ backgroundImage: sceneArtImage(id, tier ?? PLAIN, mine) }} suppressHydrationWarning />
   );
   const no = cardNo(number);
   // A ribbon's folded tail, drawn (not clipped out of a box), so its notch has the ink line too.
@@ -299,8 +299,15 @@ export function SceneFrame({
       style={{ "--cf-ink": look.ink, "--cf-accent": look.accent, "--cf-ground": look.ground, ...(onSwipe ? { touchAction: "pan-y" } : {}) } as CSSProperties}
       {...swipe}
     >
-      {was && art(was, "")}
-      {art(scene, coming)}
+      {/* The face's art, as ONE GROUP, and the group takes the hunger tone (globals.css, .scene-tone).
+          During a face change the old picture stays under the new one until it is in. A hungry
+          face is see-through, so with the tone on each picture the two added up to more ink than
+          one, and the card popped paler when the old one was dropped (Bugbot on #328). As a group
+          they are put together at full strength first, and then faded once. */}
+      <div className={`cf-arts ${toneClass}`}>
+        {was && art(was, "")}
+        {art(scene, coming)}
+      </div>
       <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
       {/* The card's light (decisions.md #58, part 3): ruled lines that stand still on the card, shown
@@ -342,13 +349,6 @@ export function SceneFrame({
           )}
         </div>
       )}
-      {/* the fog: inside the window, over the scene and the word, under the ribbon (globals.css) */}
-      <div aria-hidden className={`cf-fog scene-fog is-${tone}`}>
-        <i className="scene-fog-haze" />
-        <i className="scene-fog-bank scene-fog-1" />
-        <i className="scene-fog-bank scene-fog-2" />
-        <i className="scene-fog-bank scene-fog-3" />
-      </div>
       {/* The ribbon, set into the frame's lower edge: "one of one", the number, the rarity, in that
           order (starl3xx, 2026-11-25). A phone-sized card drops "one of one" (globals.css). The
           word itself is never lettered here. */}

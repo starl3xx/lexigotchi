@@ -32,7 +32,7 @@ export function SceneSheet({ word, fromWord = false }: { word: string; fromWord?
           upper={w.upper}
           state={careState(w)}
           // No hunger tone here on purpose: the player is choosing a scene and needs to see it
-          // clear, not grey and fogged (the Today stage behind the sheet still shows the mood).
+          // clear, not faded by hunger (the Today stage behind the sheet still shows the mood).
           gild={gild}
           tier={w.tier}
           number={number}

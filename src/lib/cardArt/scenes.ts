@@ -589,8 +589,8 @@ export function frame(L: CardLook, tier: Tier): string {
 
 
 /** Faces printed on a dark plate: the card's own light is shown fainter over them (white shows far
- *  more on navy or pewter than on a pale face), and a hungry word's fog is thinner (the fog is pale,
- *  so on a dark plate it is a bright cloud that hides the word): globals.css, .cf-dark. */
+ *  more on navy or pewter than on a pale face), and a hungry word's face fades less (at the full
+ *  amount a dark plate would stop being dark): globals.css, .cf-dark. */
 export const DARK_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["darkstock", "space"]);
 
 /** Faces that are pale all over (the light stock card: grey engraving on paper). The card's light
