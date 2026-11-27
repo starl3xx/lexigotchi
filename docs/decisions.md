@@ -2117,6 +2117,53 @@ setter. All small, riding existing suite patterns.
         pack is on its way, a smart wallet's batched send, a real phone, and a mini-app host. The
         chain store's glue is still under no automated test; its rules are the tested pure parts.
 
+50. **Four bigger pieces, built in parts** (starl3xx, 2026-11-26, on the review page "Four Bigger
+    Pieces"). The card-and-letter review (#48) set four places apart: the landing page's hero
+    stage, the Market's letter shelf, the icons beside letters, and the jackpot's five "?" tiles.
+    The page drew each as it is beside card-style proposals. One entry: each part is added here as
+    it ships.
+    - **His answers, as he gave them:**
+      - "Yes to 1A, but note that there's currently an issue where the card part draws two
+        borders, one for the card and one underneath it (I think)". 1A: the hero is the word's
+        own card.
+      - "yes to 2C". The shelf has no plank: one fine double rule. (I had picked the ruled plank.)
+      - "yes to 3A, although I don't like the static cookie/circle thing in this (or They get
+        hungry)". The letters act the steps out, with no icons, and without the letter's eating
+        look in those two pictures.
+      - "I like 4B - it reinforces that a card has to be held, not individual letters". The
+        jackpot's secret word is one card, face down. (I had picked five tiles. **His reason is the
+        rule to keep: what a player holds is a card, so a word is shown as a card.**)
+    - **Part 1, a card's edge and its shadow are one shape** (the "two borders").
+      - **What it was.** A card that stands on the page has a 3 px ink edge and a block shadow in
+        the same ink. The shadow was the card's own `box-shadow`, and a browser never draws a
+        shadow under the box that casts it: it is cut away along the box's edge. So the outside of
+        the border and the inside of the cut were the same line, each softened on its own, and a
+        hairline of the page showed between them. It was not only on the review page. On the real
+        Today card it showed at the rounded corner at pixel ratios 1, 1.25, 1.5, and 2, and along
+        the whole bottom and right edges in Chromium at ratio 2 (about 1,500 pixels changed
+        between the before and after pictures there, all of them along the edge).
+      - **Now** (`.card-stand`, globals.css): the shadow is cast by a shape 1.5 px inside the
+        card's edge and spread by 1.5 px. It is the same shadow, the same size and corner, but
+        its cut lies under the card's 3 px ink border, where it can't be seen, and the outside of
+        the border rests on ink.
+      - **Why not a solid shape under the whole card.** That was my first idea. In the middle of a
+        turn the faces are edge-on and the page shows where the card was: a solid shape would
+        flash there as a dark slab. Held edge-on, the card shows the same L of shadow as before,
+        1.5 px wider.
+      - **Where:** Today's card and its blank, the celebrate sheet's card, and the share page's
+        card. The last three had the border, the clip, and the shadow on one box; the shadow is
+        now on a box of its own around it, because a box that clips would cut the shadow off.
+      - **Not changed, and open:** every card-like box and button in the interface (`.cel`) is
+        built the same way, a border and a block shadow of the same ink, so the same hairline is
+        there. The owner pointed at the card. `.press` moves that shadow, so changing it is its
+        own piece of work.
+      - **Seen and not seen (part 1):** before and after, the bottom right corner of each of the
+        three wrappers at pixel ratios 1, 1.5, and 2 in Chromium and WebKit (twelve pictures: a
+        hairline before, none after); the real Today card at rest and held edge-on; the real
+        share page at 1280 px (ratios 1 and 2) and 390 px (ratio 3), the card the same size as
+        before. Not seen: the celebrate sheet in the running game (its markup was drawn with the
+        game's styles on a test page), a real phone.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

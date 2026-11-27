@@ -9,6 +9,7 @@
  * and in the Bag, over what the player paid. Its card (the back, Scene, Share) is one tap away in
  * the word's own sheet, so this sheet doesn't repeat it.
  */
+import type { CSSProperties } from "react";
 import { SceneFrame } from "../../scenes/SceneFrame";
 import { useWordScene } from "../../scenes/useWordScene";
 import { TileWord, type Gild } from "../TileCharacter";
@@ -109,8 +110,11 @@ function BoughtWord({ w, price }: { w: OwnedWord; price: number }) {
     <Sheet open onClose={g.closeSheet} title="Congrats!">
       <div className="flex flex-col items-center gap-3 pb-2 text-center">
         {/* The card drops in once (the game's `drop`: a card with letters on it never grows); the word inside it celebrates. */}
-        <div className="card-corner animate-drop w-full overflow-hidden border-[3px] border-ink shadow-[0_5px_0_#1b1714]">
-          <SceneFrame scene={scene} word={w.word} upper={w.upper} state="celebrate" gild={gild} tier={w.tier} />
+        {/* its block shadow falls straight down (globals.css, .card-stand, says why the shadow is on a box of its own) */}
+        <div className="card-stand animate-drop w-full" style={{ "--card-sx": "0px" } as CSSProperties}>
+          <div className="card-corner overflow-hidden border-[3px] border-ink">
+            <SceneFrame scene={scene} word={w.word} upper={w.upper} state="celebrate" gild={gild} tier={w.tier} />
+          </div>
         </div>
         <div className="pt-1 font-display text-2xl font-extrabold">{w.word} is yours.</div>
         <p className="text-balance text-sm text-ink/70">

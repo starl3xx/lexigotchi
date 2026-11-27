@@ -549,9 +549,36 @@ body {
 :root { --card-r: 2.6% / 4.6222%; }
 .card-corner { border-radius: var(--card-r); }
 .tt { display: grid; width: 100%; min-width: 0; container: tt / inline-size; }
-.tt-card { position: relative; z-index: 1; border-radius: var(--card-r); box-shadow: 4px 5px 0 #1b1714; }
-/* the blank card of a player with no word yet: the same edge, without a card to turn */
+.tt-card { position: relative; z-index: 1; border-radius: var(--card-r); }
+/* the blank card of a player with no word yet: the same edge, without a card to turn (inside a
+   .card-stand, never on it: this clips, and the shadow is outside) */
 .tt-blank { overflow: hidden; border: 3px solid #1b1714; }
+/* A CARD STANDING ON THE PAGE (decisions.md #50): its block shadow, with no line between it and
+   the card's ink edge.
+   The edge and the shadow are the same ink. As the card's own box-shadow, the shadow is cut away
+   under the card (a browser never draws a shadow under the box that casts it), so at a rounded
+   corner the outside of the border and the inside of the cut are the same curve, each softened on
+   its own, and a hairline of the page shows between them: two borders, one under the other
+   (starl3xx, 2026-11-26; seen on Today's card at pixel ratios 1, 1.25, 1.5, and 2).
+   So the shadow is cast by a shape 1.5 px INSIDE the card's edge and spread by that 1.5 px: it is
+   the same shadow, but its cut now lies under the card's 3 px ink border, where it can't be seen,
+   and the border's outside rests on ink. It is still only a shadow, never a slab under the card:
+   in the middle of a turn, when the faces are edge-on, nothing new shows.
+   - Put .card-stand on the box the card's edge sits in, never on a box that clips (overflow) or
+     that has the border itself: the shadow is outside it, and it must be under the border.
+   - --card-sx / --card-sy: how far the shadow stands out (4 px right, 5 px down).
+   - 1.5 px must stay under the thinnest ink edge that stands on it (3 px). */
+.card-stand { position: relative; isolation: isolate; --card-sx: 4px; --card-sy: 5px; }
+.card-stand::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 1.5px;
+  /* the card's corner, less the 1.5 px this shape is inside it: the spread gives it back */
+  border-radius: calc(2.6% - 1.5px) / calc(4.6222% - 1.5px);
+  box-shadow: var(--card-sx) var(--card-sy) 0 1.5px #1b1714;
+  pointer-events: none;
+}
 .tt-plate { position: relative; z-index: 0; display: grid; gap: 12px; margin: -10px 14px 0; padding: 24px 14px 12px; border: 3px solid #1b1714; border-top: 0; border-radius: 0 0 16px 16px; background: #fbf4e3; box-shadow: 4px 5px 0 #1b1714; }
 .tt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .tt-pager { display: flex; align-items: center; justify-content: center; gap: 10px; }
