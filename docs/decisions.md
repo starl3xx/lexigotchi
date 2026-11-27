@@ -3037,10 +3037,17 @@ setter. All small, riding existing suite patterns.
         program runs no drawing code. No real mail program has shown it yet.
       - **The docs' logo** is the lockup, light and dark (`docs-site/logo`, set in `docs.json`).
         Still files: a file is never alive.
-    - **Still not built:** the share page, the earnings page, the page after linking X, and the
-      unsubscribe page carry no mark (they follow). An animated picture in email and a moving
-      logo in the docs: neither can be checked from here. The seal's own one-ink file is still
-      the dark-ground drawing only.
+    - **Part 3: the four pages a player lands on outside the game.** A word's share page and the
+      earnings share page carry the lockup at their head, alive, linking home. On the share page
+      it stands where a gold label in capitals said "A Lexigotchi showcase" (a decorative label
+      in capitals, which the house rules already ruled out; the page's title keeps the word).
+      The page after linking X and the unsubscribe page are written as strings and run no
+      script, so theirs is still (`lockupTag`). Where it sits on all four is my choice.
+      To let a page draw a living lockup without the letter rig, the two small motion hooks
+      moved out of the rig into `components/game/motionPrefs.ts` (the rig still offers them).
+    - **Still not built:** an animated picture in email and a moving logo in the docs: neither
+      can be checked from here. The seal's own one-ink file is still the dark-ground drawing
+      only.
 
 57. **The dark stock face: Stock (dark), on a pewter plate, free for everyone** (starl3xx,
     2026-11-27: "a new dark version of the stock face... give me an artifact w/a proposal").

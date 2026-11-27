@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { EMAIL_MARK, lockup, lockupDoc } from "@/lib/cardArt/logo";
+import { EMAIL_MARK, lockup, lockupDoc, lockupTag } from "@/lib/cardArt/logo";
 import { svgDoc } from "@/lib/cardArt/engrave";
 import { BLINK_S, FRONT_AWAY, MARK_BLINKS, MARK_LOOK, eyesAt, markEyes } from "@/components/cards/loop/score";
 import { LOOP_SECONDS } from "@/components/cards/loop/loopRenderer";
@@ -108,6 +108,43 @@ describe("the email's picture, and the docs' logo", () => {
     expect(JSON.parse(read("docs-site/docs.json")).logo).toEqual({ light: "/logo/lockup.svg", dark: "/logo/lockup-on-dark.svg", href: "https://lexigotchi.fun" });
     // a file is never alive: nothing in it moves by itself
     for (const f of ["lockup.svg", "lockup-on-dark.svg"]) expect(read(`docs-site/logo/${f}`)).not.toMatch(/<style|<animate|@keyframes|<script/);
+  });
+});
+
+describe("the pages a player lands on outside the game (part 3)", () => {
+  it("a word's share page and the earnings page carry the living lockup at their head, linking home", () => {
+    for (const f of ["src/app/s/[text]/page.tsx", "src/app/e/[token]/page.tsx"]) {
+      const src = read(f);
+      expect(src, f).toMatch(/<Link href="\/" aria-label="Lexigotchi: how it works">\s*<Lockup alive height=\{40\} \/>\s*<\/Link>/);
+      // it is the first thing in the page, above the card
+      expect(src.indexOf("<Lockup alive"), f).toBeLessThan(src.search(/<SceneFrame |<img src=\{earningsCardPath/));
+    }
+    // the share page's gold label in capitals is gone: the mark says whose page it is
+    expect(read("src/app/s/[text]/page.tsx")).not.toMatch(/uppercase tracking-wider|A Lexigotchi showcase\s*<\/p>/);
+  });
+
+  it("the page after linking X and the unsubscribe page carry it still: they are strings and run no script", () => {
+    for (const f of ["src/app/api/x/callback/route.ts", "src/app/api/email/unsubscribe/route.ts"]) {
+      const src = read(f);
+      expect(src, f).toContain("const MARK = lockupTag(34);");
+      expect(src, f).toMatch(/<body><main>\$\{MARK\}<h1>/);
+      expect(src, f).toContain("main>svg{display:block;margin:0 auto 16px}");
+      expect(src, f).not.toContain("<script");
+    }
+    const tag = lockupTag(34);
+    expect(tag).toMatch(/^<svg [^>]*width="160" height="34" role="img" aria-label="Lexigotchi">/);
+    expect(tag).toContain(lockup().markup);
+    expect(tag).not.toMatch(/<script|<style|lk-shut/);
+  });
+
+  it("the living lockup asks the motion hooks from their own small file, never from the letter rig", () => {
+    const src = read("src/components/brand/Lockup.tsx");
+    expect(src).toContain('from "../game/motionPrefs"');
+    expect(src).not.toMatch(/from "[^"]*TileCharacter"/);
+    // and the small file brings nothing of the rig with it
+    expect(read("src/components/game/motionPrefs.ts").match(/^import .*$/gm)).toEqual(['import { useEffect, useState } from "react";']);
+    // the rig still offers them, for everything that asks it
+    expect(read("src/components/game/TileCharacter.tsx")).toContain("export { useLowPower, usePrefersReducedMotion };");
   });
 });
 

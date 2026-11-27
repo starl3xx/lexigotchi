@@ -1044,8 +1044,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   share video's corner (four still pictures, `lockup({ pose })`, picked by `score.ts` `markEyes`),
   a SAVED picture's corner (`cornerMark`; a link card still carries no name), the game's link
   picture (`/embed-image`: the lockup alone, since under the LEXI letters the L tile showed twice),
-  the emails' header (a picture, see the email notes), and the docs' logo (`docs-site/logo`, still
-  files). `npm run brand:art` makes the email's picture and the docs' files too. **A file is never
+  the emails' header (a picture, see the email notes), the docs' logo (`docs-site/logo`, still
+  files), and the four pages a player lands on outside the game (part 3): a word's share page and
+  the earnings page (alive, at their head, linking home), the page after linking X and the
+  unsubscribe page (still, `lockupTag`: they are strings and run no script). `Lockup` asks the two
+  motion hooks from `components/game/motionPrefs.ts`, never from the letter rig, so a page that
+  draws no letters stays light. `npm run brand:art` makes the email's picture and the docs' files too. **A file is never
   alive:** no looping SVG, no animated picture in email, unless the owner asks and it can be checked.
   A new place that names the game draws the lockup: never set LEXIGOTCHI in type again.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,

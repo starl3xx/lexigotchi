@@ -1,3 +1,4 @@
+import { lockupTag } from "@/lib/cardArt/logo";
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { setEmailReminders } from "@/lib/db/profiles";
@@ -19,13 +20,16 @@ function params(req: Request): { address: string; ok: boolean } {
   return { address, ok: isAddress(address) && checkUnsubscribe(address, u.searchParams.get("t") ?? "") };
 }
 
+/** The game's lockup at the head of the page (decisions.md #56, part 3). Still: this page runs no script. */
+const MARK = lockupTag(34);
+
 const page = (title: string, body: string, form = "") =>
   new NextResponse(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title} · Lexigotchi</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4ead2;color:#1b1714;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:16px}
-main{max-width:380px;background:#fbf4e3;border:3px solid #1b1714;border-radius:20px;box-shadow:4px 4px 0 #1b1714;padding:24px;text-align:center}h1{margin:0 0 6px;font-size:22px}p{margin:0 0 16px;color:#1b1714b3}
+main{max-width:380px;background:#fbf4e3;border:3px solid #1b1714;border-radius:20px;box-shadow:4px 4px 0 #1b1714;padding:24px;text-align:center}main>svg{display:block;margin:0 auto 16px}h1{margin:0 0 6px;font-size:22px}p{margin:0 0 16px;color:#1b1714b3}
 button,a{display:inline-block;background:#bd3d35;color:#fbf4e3;font:800 16px inherit;text-decoration:none;border:3px solid #1b1714;border-radius:14px;padding:10px 18px;cursor:pointer}</style></head>
-<body><main><h1>${title}</h1><p>${body}</p>${form}</main></body></html>`,
+<body><main>${MARK}<h1>${title}</h1><p>${body}</p>${form}</main></body></html>`,
     { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
   );
 

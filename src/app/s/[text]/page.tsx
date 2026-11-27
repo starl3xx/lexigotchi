@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SceneFrame } from "@/components/scenes/SceneFrame";
+import { Lockup } from "@/components/brand/Lockup";
 import { WordStripLive } from "@/components/WordStrip";
 import { tierWith } from "@/lib/rarity";
 import { collabSoon } from "@/lib/raritySoon";
@@ -83,9 +84,10 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-8 bg-paper px-4 py-12 text-ink">
-      <p className="rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider shadow-[2px_2px_0_#1b1714]">
-        A Lexigotchi showcase
-      </p>
+      {/* the game's lockup, alive, where a gold label said "A Lexigotchi showcase" (decisions.md #56, part 3) */}
+      <Link href="/" aria-label="Lexigotchi: how it works">
+        <Lockup alive height={40} />
+      </Link>
       {/* the card stands on the page (globals.css, .card-stand): its block shadow is on a box of its own, under its ink edge */}
       <div className="card-stand w-full max-w-3xl" style={{ "--card-sy": "4px" } as CSSProperties}>
         <div className="card-corner overflow-hidden border-[3px] border-ink">
