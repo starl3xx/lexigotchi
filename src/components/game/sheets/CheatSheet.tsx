@@ -75,6 +75,7 @@ export function CheatSheet() {
             lowercase and UPPERCASE. Claim it for {price("claim")} and it’s yours alone. Each word has one owner.
           </li>
           <li>Some words are held back in sets that unlock later. The Dictionary shows which sets are coming.</li>
+          <li>A collab set is five words made with a partner, on their own style of card. They count as Legendary.</li>
         </Step>
 
         <Step n={4} icon={<Cookie weight="fill" size={18} />} title="Keep them fed">
