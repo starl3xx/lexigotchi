@@ -787,6 +787,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   reporter's name. In a private chat only someone in the beta group now may file one
   (`inBetaGroup`); 6 reports per 10 minutes per person; a report's words are never logged. Before
   0019 runs the bot answers that it couldn't save the report, and the tab says the migration is owed.
+  **The operator can post as the bot** from the console's Broadcast tab (`tabs/TelegramBroadcast.tsx`,
+  `POST /api/admin/telegram`, gated on the server like Players): the composer's text as a message,
+  or a poll. Every send is typed-to-confirm, goes out as typed (no parse mode, no link preview),
+  and is tried once (after a timeout it may be in the group). `pollError` in `lib/telegram.ts` is
+  the app's twin of the workflows' `pollProblem` (plain JavaScript, so they can't share code):
+  `tests/telegram-broadcast.test.ts` holds the two to the same answers.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and

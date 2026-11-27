@@ -4,6 +4,9 @@
  * the sim: an announcement must not quote a projected pot as a real one) and this week's bounty
  * theme (lib/themes.ts, the rotation the keeper pays on), fills a cast from a template, and opens
  * the Farcaster composer with the /play embed, so every announcement is a launchable card.
+ *
+ * The same text can go to the beta testers' Telegram group as the bot, and so can a poll
+ * (TelegramBroadcast, gated on the server).
  */
 import { useState } from "react";
 import type { LivePayload } from "@/app/api/admin/live/route";
@@ -14,6 +17,7 @@ import { utcDay } from "@/lib/sightings";
 import { fmtPct, fmtWordCompact } from "@/lib/admin/format";
 import { AdminCard, Banner, CopyButton, SectionLabel, useFetch } from "../ui";
 import { Info, Megaphone, ShareNetwork } from "../icons";
+import { TelegramBroadcast } from "./TelegramBroadcast";
 
 const LIMIT = 320; // Farcaster cast character limit
 
@@ -110,6 +114,8 @@ export function BroadcastTab() {
           </div>
         </div>
       </AdminCard>
+
+      <TelegramBroadcast text={text} />
     </div>
   );
 }

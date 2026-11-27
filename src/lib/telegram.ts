@@ -278,3 +278,53 @@ export async function sendPhoto(
   const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form, signal: AbortSignal.timeout(SEND_TIMEOUT_MS) });
   await sent("sendPhoto", res);
 }
+
+/** A poll to send: its question, its answers, and how it is asked. */
+export interface PollToSend {
+  question: string;
+  options: string[];
+  /** The group sees who chose what. Anonymous when false. */
+  named?: boolean;
+  /** A voter may pick more than one answer. */
+  multiple?: boolean;
+}
+
+// Telegram's limits for a poll (Bot API, sendPoll). The same numbers as the workflows' own check
+// (.github/scripts/tester-note.mjs `pollProblem`, which must stay plain JavaScript with nothing
+// installed); tests/telegram-broadcast.test.ts holds the two to the same answers.
+const POLL_QUESTION_MAX = 300;
+const POLL_OPTION_MAX = 100;
+const POLL_OPTIONS_MIN = 2;
+const POLL_OPTIONS_MAX = 12;
+/** The longest message Telegram takes. */
+export const MESSAGE_MAX = 4096;
+
+/** Why a poll can't be sent, or null when it can. */
+export function pollError(poll: Pick<PollToSend, "question" | "options">): string | null {
+  const { question, options } = poll;
+  if (!question) return "It has no question.";
+  if (question.length > POLL_QUESTION_MAX) return `Its question is ${question.length} characters (Telegram takes ${POLL_QUESTION_MAX}).`;
+  if (options.length < POLL_OPTIONS_MIN) return `It needs at least ${POLL_OPTIONS_MIN} answers.`;
+  if (options.length > POLL_OPTIONS_MAX) return `It has ${options.length} answers (Telegram takes ${POLL_OPTIONS_MAX}).`;
+  if (options.some((o) => !o)) return "One of its answers is empty.";
+  if (options.some((o) => o.length > POLL_OPTION_MAX)) return `One of its answers is over ${POLL_OPTION_MAX} characters.`;
+  if (new Set(options.map((o) => o.toLowerCase())).size < options.length) return "Two of its answers are the same.";
+  return null;
+}
+
+/** Send a poll to the chat. Throws with Telegram's own description on failure. */
+export async function sendPoll(chatId: string | number, poll: PollToSend, token = process.env.TELEGRAM_BOT_TOKEN ?? ""): Promise<void> {
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPoll`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      question: poll.question,
+      options: poll.options.map((text) => ({ text })),
+      is_anonymous: !poll.named,
+      allows_multiple_answers: Boolean(poll.multiple),
+    }),
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+  });
+  await sent("sendPoll", res);
+}
