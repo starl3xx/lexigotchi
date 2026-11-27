@@ -92,6 +92,7 @@ async function main() {
 
   check("a word is removed", (await removeWords(CHAIN, one, [C])) === 1 && (await wordsOf(one)).join() === [A, B].join());
   check("a word moves between drafts", (await moveWords(CHAIN, [B], two)) === 1 && (await wordsOf(two)).join() === [B, D].sort().join());
+  check("moving a word no set has moves nothing", (await moveWords(CHAIN, [G], two)) === 0 && (await wordsOf(two)).join() === [B, D].sort().join());
   await setHeadliner(CHAIN, two, D, true);
   check("a headliner is flagged", (await listSets(CHAIN)).sets.find((s) => s.id === two)?.words.find((w) => w.word === D)?.headliner === true);
   await updateSet(CHAIN, one, { name: "Uno", gateHours: 48, releaseAt: new Date("2027-01-02T00:00:00Z") });
@@ -174,8 +175,11 @@ async function main() {
   await new Promise((r) => setTimeout(r, 20));
   await saveRoot(CHAIN, "0xbb", [B], `release:${two}`);
   check("a root's words are kept, by the root in lowercase", JSON.stringify(await heldOfRoot(CHAIN, "0xAA")) === JSON.stringify([A, B]));
-  check("a root never built here is null", (await heldOfRoot(CHAIN, "0xcc")) === null);
   check("the newest root is the last built", (await newestRoot(CHAIN))?.root === "0xbb");
+  await new Promise((r) => setTimeout(r, 20));
+  await saveRoot(CHAIN, "0xaa", [A, B], "reserve"); // built again: it is the newest now, with its first words and note
+  check("a root built again is the newest", (await newestRoot(CHAIN))?.root === "0xaa" && JSON.stringify(await heldOfRoot(CHAIN, "0xaa")) === JSON.stringify([A, B]));
+  check("a root never built here is null", (await heldOfRoot(CHAIN, "0xcc")) === null);
   // the mark that a release was built: only on a revealed set
   const shown = (await listSets(CHAIN)).sets.find((s) => s.status === "revealed")!;
   check("a release root is recorded on a revealed set", (await setReleaseRoot(CHAIN, shown.id, "0xBB")) === true && (await listSets(CHAIN)).sets.find((s) => s.id === shown.id)?.releaseRoot === "0xbb");

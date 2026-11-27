@@ -169,12 +169,17 @@ export async function moveWords(chainId: number, words: readonly string[], toId:
       .from(setWords)
       .where(and(eq(setWords.chainId, chainId), inArray(setWords.word, [...words])));
     // Lock in id order, so two moves crossing each other can't deadlock.
-    const ids = [...new Set([toId, ...from.map((r) => r.setId)])].sort((a, b) => a - b);
+    const sources = [...new Set(from.map((r) => r.setId))];
+    const ids = [...new Set([toId, ...sources])].sort((a, b) => a - b);
     for (const id of ids) if (!editable(await lockSet(tx, chainId, id)).words) throw new SetError("locked");
+    if (sources.length === 0) return 0;
+    // Only out of the sets that were just locked and checked. The read above came before the
+    // locks, so a word may have gone to another set since (one this move never looked at, which may
+    // be revealed by now): that word stays where it is.
     const moved = await tx
       .update(setWords)
       .set({ setId: toId })
-      .where(and(eq(setWords.chainId, chainId), inArray(setWords.word, [...words])))
+      .where(and(eq(setWords.chainId, chainId), inArray(setWords.word, [...words]), inArray(setWords.setId, sources)))
       .returning({ word: setWords.word });
     return moved.length;
   });
@@ -297,13 +302,15 @@ export async function markReleased(
 
 /**
  * Keep a root this server built, with the words it leaves out. Called BEFORE the root's transaction
- * is shown to anyone. The same root again is the same row.
+ * is shown to anyone. The same root again is the same row (a root is its words: they can't differ),
+ * with its time moved to now: `newestRoot` is "the root most recently BUILT", and a reserve that
+ * returns to an earlier root has just built that one.
  */
 export async function saveRoot(chainId: number, root: string, held: readonly string[], note: string): Promise<void> {
   await getDb()
     .insert(dictionaryRoots)
     .values({ chainId, root: root.toLowerCase(), held: [...held], note })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({ target: [dictionaryRoots.chainId, dictionaryRoots.root], set: { createdAt: sql`now()` } });
 }
 
 /** The words a root leaves out, or null when this server never built that root. Missing table: null. */
@@ -321,7 +328,7 @@ export async function heldOfRoot(chainId: number, root: string): Promise<string[
   }
 }
 
-/** The newest root built: the best guess at what the chain holds while it can't be asked. */
+/** The root most recently built: the best guess at what the chain holds while it can't be asked. */
 export async function newestRoot(chainId: number): Promise<{ root: string; held: string[] } | null> {
   try {
     const rows = await getDb()
