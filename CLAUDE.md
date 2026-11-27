@@ -719,7 +719,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `/api/scenes` won't save one for a profile that hasn't bought it. Listing
   is the owner's (`Shop.addItem`, then the `shop_items` row). **Outer Space is listed on Base Sepolia**
   (starl3xx, 2026-11-27: "i want to introduce it as a Shop item on Testnet for $5 USDC"): item 2,
-  5 test USDC, no supply limit and no end, its row `kind` "scene", `art` "space". The Bookshelf is
+  5 test USDC, no end, its row `kind` "scene", `art` "space". **It is a limited edition of 5** since
+  the same day (the owner: "cap outer space at 5"; `updateItem(2, 5000000, 0, 0, 5)`, the price and
+  dates resent unchanged, read from the chain first). The Bookshelf is
   not listed. **List an item in three steps, so it never shows as a "Test item" card:** `addItem`
   with `active` false (take the id from `ItemAdded`), then the `shop_items` row (`shop` in
   LOWERCASE: the reader matches on it), then `setActive(id, true)`; check `/api/shop` after each.

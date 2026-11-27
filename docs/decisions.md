@@ -1256,7 +1256,7 @@ setter. All small, riding existing suite patterns.
       `kind` "scene" and `art` "bookshelf" or "space". Until then the picker doesn't show them.
     - **Outer Space is listed on the test network** (starl3xx, 2026-11-27: "i want to introduce
       it as a Shop item on Testnet for $5 USDC"). Item 2 of Base Sepolia's Shop: 5 test USDC, no
-      supply limit, no end date. Sent with the owner's word, in three steps so that it never
+      supply limit (until it was capped at 5 the same day: #55), no end date. Sent with the owner's word, in three steps so that it never
       showed as a "Test item" card: `addItem` switched off
       (`0x3bf3fcdadb6e5643c87b0e50e1befefa47a8ea3dd52ce458d02cafad4eea52db`), the `shop_items`
       row, then `setActive`
@@ -2910,8 +2910,13 @@ setter. All small, riding existing suite patterns.
       limit later (never below what has sold); the limit counts purchases, not players (the
       game sells a face once to a profile, but the contract would sell it to the same wallet
       twice); and `updateItem` resends the price and the dates with the limit.
-    - **The live item is not capped.** "Say only 25" was an example: capping Outer Space is an
-      owner transaction, and it waits for his word.
+    - **The live item was not capped by this change.** "Say only 25" was an example: capping
+      Outer Space is an owner transaction, and it waited for his word. **He gave it the same
+      day: "cap outer space at 5".** Sent as `updateItem(2, 5000000, 0, 0, 5)` (0x1382f701…0cc9),
+      with the price and the dates read from the chain first and resent unchanged. One had
+      sold (the owner's own), so the live Shop reads "Limited edition of 5. 4 left." When the
+      last is sold it reads "Sold out", and the face picker stops offering it to anyone who
+      doesn't have it.
     - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
       editions, paying, and that what a player buys stays with the player.
     - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
