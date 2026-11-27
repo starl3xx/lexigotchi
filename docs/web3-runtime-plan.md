@@ -220,19 +220,22 @@ predates it.
   hosted `SIGNER_PRIVATE_KEY` signs the vouchers.
 - Run the `solidity-auditor` skill in DEEP mode on the final `Words.sol` first (`contracts/AUDIT.md`).
 
-### Base Sepolia redeploy for the gate (rehearsal #5): PROPOSED, waits for the owner's word
+### Base Sepolia redeploy for the gate (rehearsal #5): ON HOLD (the owner, 2026-11-27: "Hold for now")
 
 A full redeploy of the suite: Staking, Rolls, Prestige, and the Jackpot hold the Words address for
 good, so Words can't be swapped alone. **It resets every tester's letters, words, stakes, and
 earnings on the test build.** It also carries the 3.0× letter supply caps (68,760; decisions.md
 #21), which have waited for a redeploy since 2026-11-25.
 
-Proposed time: **Thursday 2026-12-03, right after the 00:05 UTC keeper run.** Bounty weeks start on
-Thursdays, so that run pays the week that ends 2026-12-02, and the new suite starts on a week's
-first day with nothing owed on the old one.
+**No date is set.** The owner held it on 2026-11-27, so nothing here runs until he names a day.
+When he does, pick a **Thursday, right after the 00:05 UTC keeper run**: bounty weeks start on
+Thursdays, so that run pays the week that just ended, and the new suite starts on a week's first
+day with nothing owed on the old one. (The first proposal was Thursday 2026-12-03.)
 
 Before the day:
-1. The gate's PR is merged, and migrations 0021 and 0022 are run.
+1. The gate's PR is merged, and migrations 0021, 0022, and 0023 are run. `Words.sol` also has the
+   owner's metadata refresh by then (his choice, 2026-11-27; decisions.md #53), tested and audited:
+   Words can't change afterwards.
 2. The sets are in the Sets tab (placeholders are fine: a draft stays editable).
 3. A `heads-up` tester note goes out a day ahead: the test build resets on the day.
 
@@ -257,12 +260,13 @@ After:
    see it open to everyone after the gate. Then the second tester note (the first-day rule).
 4. Read the first keeper run on the new suite (00:05 UTC the next day).
 
-To decide with the owner before the day: **the free-letter ledger** (`free_claims`). Its rows are
-per profile, not per deployment, so after a reset a tester who took the free pack and dailies has
-none left on the new suite unless those rows are cleared for chain 84532. Clearing them is a
-deletion in the production database, so it needs the owner's word. The other tables that name the
-old contracts (listings, sales, the wardrobe, reward leaves) are keyed by address or root and
-simply go quiet; each is checked on the day.
+**The free-letter ledger** (`free_claims`): decided, "Clear them" (the owner, 2026-11-27). Its rows
+are per profile, not per deployment, so after a reset a tester who took the free pack and dailies
+would have none left on the new suite. On the day, right after the registry PR deploys, the owner
+runs `delete from free_claims where chain_id = 84532;` in the production database (a deletion, so
+it is his to run, never the app's or an agent's). The other tables that name the old contracts
+(listings, sales, the wardrobe, reward leaves) are keyed by address or root and simply go quiet;
+each is checked on the day.
 
 ## The Shop (decisions.md #22)
 

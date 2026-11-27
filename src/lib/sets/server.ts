@@ -33,7 +33,8 @@ import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
 import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
-import { dueToReveal, gateUntilFor, heldOf, releaseChange, reserveChange, type WordSet } from "./rules";
+import { tokenReadable } from "./firstDay";
+import { dueToReveal, gateUntilFor, heldOf, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
 // Short: after the owner changes the root (a reserve, a release), a proof from the old tree
@@ -53,6 +54,8 @@ export interface SetsBook {
   sets: WordSet[];
   /** False: migration 0021 hasn't run here (or there is no database at all). */
   migrated: boolean;
+  /** False: migration 0023 (what a collab set adds) hasn't run here. Every set then reads as a standard one. */
+  collab: boolean;
   /** False: the database is there and couldn't be read, and nothing is kept from before. */
   known: boolean;
 }
@@ -71,12 +74,14 @@ export function forgetSets(): void {
  * (one statement, so two servers reveal it once).
  */
 export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook> {
-  if (!process.env.DATABASE_URL) return { sets: [], migrated: false, known: true };
+  if (!process.env.DATABASE_URL) return { sets: [], migrated: false, collab: false, known: true };
   if (!opts.fresh && book && Date.now() - book.at < BOOK_TTL_MS) return book.value;
   try {
     let read = await listSets(NETWORK.id);
     const now = new Date();
-    if (read.sets.some((s) => dueToReveal(s, now) && s.words.length > 0)) {
+    // Only a set that CAN be revealed: a collab that is missing a part stays a draft however late
+    // it is, and must not make every read of the sets run the reveal again.
+    if (read.sets.some((s) => dueToReveal(s, now) && revealProblems(s).length === 0)) {
       await revealDue(NETWORK.id, now);
       read = await listSets(NETWORK.id);
     }
@@ -88,7 +93,7 @@ export async function loadSets(opts: { fresh?: boolean } = {}): Promise<SetsBook
     // What was read before still holds back everything it held back then: a set released since
     // stays closed a little longer, and nothing opens early.
     if (book) return book.value;
-    return { sets: [], migrated: true, known: false };
+    return { sets: [], migrated: true, collab: true, known: false };
   }
 }
 
@@ -155,7 +160,7 @@ export async function serving(): Promise<Serving> {
     // is claimable on the chain anyway until that root lands.) So a database outage can't stop
     // claims on a deployment that reserves nothing. Any other root needs its row: refuse.
     if (root === dictionaryRoot().toLowerCase()) {
-      return { ok: true, tree: treeWithout([]), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, known: false } };
+      return { ok: true, tree: treeWithout([]), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, collab: true, known: false } };
     }
     return { ok: false, error: "try_again" };
   }
@@ -300,7 +305,16 @@ export async function reconcile(): Promise<number[]> {
 
 // --- the owner's root changes -----------------------------------------------------------------
 
-export type PlanError = "not_migrated" | "chain_unreadable" | "dictionary_mismatch" | "not_found" | "not_revealed" | "empty" | "not_reserved" | "gate_too_far";
+export type PlanError =
+  | "not_migrated"
+  | "chain_unreadable"
+  | "dictionary_mismatch"
+  | "not_found"
+  | "not_revealed"
+  | "empty"
+  | "not_reserved"
+  | "gate_too_far"
+  | "gate_rule";
 
 const rootIntent = (root: string, note: string): TxIntent => ({
   contractKey: "words",
@@ -482,6 +496,15 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
     }
     const g = gateUntilFor(nowSec, set);
     if ("error" in g) return { ok: false, error: "gate_too_far", detail: g.error };
+    // A first day needs a rule that can be checked: a token rule with no contract, or an allowlist
+    // with nobody on it, would lock the set's words to everyone for the whole gate.
+    const rule = releaseProblems(set);
+    if (rule.length > 0) return { ok: false, error: "gate_rule", detail: rule.join("; ") };
+    // And a token rule's contract must answer on Base: a mistyped address fails every balance
+    // read, which is "try again" for every player all day, and the rule is final once released.
+    if (set.gateRule === "token" && set.gateToken && !(await tokenReadable(set.gateToken))) {
+      return { ok: false, error: "gate_rule", detail: "couldn’t read balanceOf on the token’s contract on Base: check the address, then build the release again" };
+    }
     // Words.setGate reverts on a word somebody holds, and the release with it: gate the rest. If
     // ownership can't be read, no plan: a batch that might revert is worse than waiting a minute.
     const owned = g.until !== null ? await claimedAmong(words) : [];

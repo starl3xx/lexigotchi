@@ -11,6 +11,10 @@
  *   says "First day: one word per player" and counts down to when it opens to everyone. Once it is
  *   simply unlocked it folds to its name (its words are in the list below like any others).
  *
+ * - A COLLAB set (one made with a partner; decisions.md, "Collab sets") says so under its name,
+ *   with the partner's name and link. A set whose first day has a rule of its own (an allowlist, or
+ *   a token's holders) says who that day is open to, before the unlock and during the day.
+ *
  * Nothing shows until the sets are known, and nothing shows when there are none.
  */
 import { useState } from "react";
@@ -19,7 +23,7 @@ import { wordTier } from "@/lib/economy";
 import { MiniTiles } from "./MiniTiles";
 import { Pill } from "./primitives";
 import { Lock } from "./ui/icons";
-import { firstDayNote, setLines } from "./sets";
+import { firstDayAhead, firstDayNote, setLines } from "./sets";
 import { useOpenWord } from "./useDictionary";
 import { useMinuteClock, useSets } from "./useSets";
 
@@ -27,10 +31,10 @@ const LOWER = [false, false, false, false, false];
 /** Words shown before "Show all": a set may hold dozens. */
 const PREVIEW = 8;
 
-function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; now: number }) {
+function SetCard({ set, now, gate }: { set: Exclude<PublicSet, { kind: "locked" }>; now: number; gate: boolean }) {
   const [all, setAll] = useState(false);
   const openWord = useOpenWord();
-  const lines = setLines(set, now);
+  const lines = setLines(set, now, gate);
   const released = set.kind === "released";
   // A set that is simply unlocked (its first day over, or it never had one) is old news: it stays
   // folded to its name, so the Dictionary's top doesn't fill with every set there has ever been.
@@ -42,11 +46,26 @@ function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; no
         <h3 className="font-display text-[15px] font-extrabold leading-tight">{lines.title}</h3>
         <span className={`text-xs font-bold ${released && !lines.gated ? "text-teal-ink" : "text-ink/60"}`}>{lines.status}</span>
       </div>
-      {lines.rule && (
-        <p className="mt-1 text-[13px] leading-snug text-ink/75">
-          <span className="font-extrabold text-gold-ink">{lines.rule}.</span> {set.kind === "released" ? firstDayNote(set.perPlayerLimit) : null}
+      {lines.partner && (
+        <p className="mt-0.5 text-[13px] leading-snug text-ink/75">
+          A collaboration with{" "}
+          {lines.partner.url ? (
+            // A partner's link is the operator's own entry, checked to be https; it still opens apart from the game.
+            <a href={lines.partner.url} target="_blank" rel="noopener noreferrer nofollow" className="font-extrabold text-ink underline underline-offset-2">
+              {lines.partner.name}
+            </a>
+          ) : (
+            <span className="font-extrabold text-ink">{lines.partner.name}</span>
+          )}
         </p>
       )}
+      {lines.rule && (
+        <p className="mt-1 text-[13px] leading-snug text-ink/75">
+          <span className="font-extrabold text-gold-ink">{lines.rule}.</span>{" "}
+          {set.kind === "released" ? firstDayNote(set.perPlayerLimit, lines.openTo ? set.firstDay : "verified", set.firstDayLabel) : null}
+        </p>
+      )}
+      {!lines.rule && lines.openTo && <p className="mt-1 text-[13px] leading-snug text-ink/75">{firstDayAhead(lines.openTo)}</p>}
       <div className={words.length > 0 ? "mt-2 flex flex-wrap gap-2" : "hidden"}>
         {words.map((w) =>
           released ? (
@@ -73,7 +92,7 @@ function SetCard({ set, now }: { set: Exclude<PublicSet, { kind: "locked" }>; no
 }
 
 export function SetsSection() {
-  const { known, sets } = useSets();
+  const { known, sets, gate } = useSets();
   const now = useMinuteClock();
   if (!known || sets.length === 0) return null;
   const locked = sets.filter((s) => s.kind === "locked").length;
@@ -91,7 +110,7 @@ export function SetsSection() {
           .slice()
           .sort((a, b) => order(a) - order(b))
           .map((s) => (
-            <SetCard key={s.id} set={s} now={now} />
+            <SetCard key={s.id} set={s} now={now} gate={gate} />
           ))}
         {Array.from({ length: locked }, (_, i) => (
           <div key={`locked-${i}`} className="flex items-center gap-3 rounded-xl border-2 border-dashed border-ink/30 p-3">
