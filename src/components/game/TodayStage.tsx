@@ -181,7 +181,7 @@ export function TodayStage() {
           // stage is the swipe to the next word
           <CardCase key={W} word={w} className="tt-case" since={cases.cased.get(W)} onFlip={setIsBack} front={stageFront} />
         ) : (
-          <SceneCard word={w} framed className="tt-card" flipped={isBack} onFlip={setIsBack} live={!state.sheet} front={stageFront} />
+          <SceneCard word={w} framed className="tt-card card-stand" flipped={isBack} onFlip={setIsBack} live={!state.sheet} front={stageFront} />
         )}
         {/* The placard: how the word stands, the one thing to do, and which of your words this is. */}
         <div className="tt-plate">
@@ -333,8 +333,10 @@ function EmptyStage() {
   return (
     <section aria-label="Your stage" aria-busy={shape === "loading"} className="tt">
       {/* a blank stock card where the player's first word will stand */}
-      <div className="tt-card tt-blank">
-        <SceneFrame scene="stock" word="" upper={[]} />
+      <div className="tt-card card-stand">
+        <div className="tt-blank card-corner">
+          <SceneFrame scene="stock" word="" upper={[]} />
+        </div>
       </div>
       {/* the placard: the one line for this player, and its one button */}
       <div className="tt-plate">
