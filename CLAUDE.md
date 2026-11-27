@@ -799,6 +799,23 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with the
   next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry (`toneOf`,
   `.scene-tone`/`.scene-fog` in globals.css), inside the window only: the frame keeps its ink.
+  **A face change** (decisions.md #59): a new face comes in over the old one, which is kept under
+  it until it is in (`SceneFrame`; which face was showing is worked out WHILE rendering, never in
+  an effect, which is one render late: a render with the new face in place and nothing under it). It fades in everywhere but the
+  face picker, which passes `change="slide"`: there it slides in over the old face from the side
+  it sits on in the picker (`lib/scenes` `swapSide`), each face one still picture moved whole,
+  while each letter glides to its place on the new ground (`.cf-stand`). It covers the old face
+  and never pushes it: a push slides the ground under still feet. **A face's picture is drawn
+  only inside the card's window: the paper border is the card's own ground and the frame is
+  line work over it.** So anything that moves a face must clip it to the window with a clip that
+  stands still (the slide's keyframes do: `clip-path` as seen from the picture's own place), or
+  a dark face shows through the side border. **A letter's stance is written in units of the
+  card's width**, so a transition on it must exist only while a face change is in flight
+  (`.cf-changing`): always on, it sets the letters drifting on every resize. Its curve is its
+  own (`--ease-swap`; the house ease-out is nearly done in a third of its time, so a slide on it
+  reads as a jump). `tests/face-change.test.tsx` holds it. **To judge any change that lasts under
+  a second from held frames, stall the timer that ends it first**: a held frame takes longer to
+  capture than the change lasts, and every frame after the first then shows it finished.
   **A pick is saved** in the browser always, and in table `word_scenes` (migration
   0011, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's
@@ -823,10 +840,22 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hold it). Its ink is the rarity's (`LIGHT_INK`: white, warm for Legendary, for Mythic a
   spectrum printed across the card). Measured against the old white band, made to pass again and
   again: a few points of a core more while it passes, in both engines, and under one point on
-  average. **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
-  of two sets of diagonal hairlines, three pixels a repeat, on both sides, and NO random grain (the
-  noise filter is gone: it was the one part of the paper that was not drawn). A picture, never a
-  slanted gradient. All four parts he chose are built. Still his to
+  average. **The stock is in EVERY place a card is drawn** (starl3xx, 2026-11-27: "crosshatch isn't in the
+  share cards images/videos, either... make sure those are all updated with the latest changes"):
+  `lib/cardArt/stock` is its one source. The game's styles hold its tile (`weaveTile`: a test compares
+  them character for character, so change the weave in the module and copy the tile into the two
+  rules), and the server's pictures of a front (`app/_og/wordCard`) and a back
+  (`app/s/[text]/back`) lay its sheet over the card (`weaveSheet`, in card units), under the letters;
+  the share video is made of those pictures. **A change to how a card looks is not done until the
+  game, the front picture, the back picture, and a real video all show it** (I left the stock out of
+  the pictures because they had never carried it; that was wrong). **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
+  of a diagonal CROSSHATCH, six pixels a repeat, on both sides, and NO random grain (the noise
+  filter is gone: it was the one part of the paper that was not drawn). A picture, never a
+  slanted gradient. **It must be SEEN at real size:** the first build drew the swatch he chose
+  (enlarged three times) at its true size, a third of a pixel at 7%, and he said "i can't see the
+  weave on any cards". Each direction is a dark hairline with a light one beside it, so both
+  directions show on dark art and on pale paper. **When he approves something from an enlarged
+  swatch, show it at real size too before building, and compare the build with what it replaces.** All four parts he chose are built. Still his to
   answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
   `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
@@ -888,8 +917,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   picked from an opened word returns to it). **A back is an engraved plate** (decisions.md #58, part 2; `lib/cardArt/plate` `backPlate`, through
   `cards/material` `materialPlate` / `collabPlate`): one still picture set on `.cb-mat`, in the rarity's
   inks (a collab set's two colors: the field in one, the border in the other, flat). A rarity is told
-  by its inks and by its plate's BORDER (rules; lace, for Uncommon and Rare; filigree; Mythic's blended
-  ink, a banknote's "rainbow printing", which is printed and never moves). **The game's emblem is the
+  by its INKS (Mythic's is blended along the card, a banknote's "rainbow printing", which is printed
+  and never moves). **There are two borders and only two:** Common's plain rules, and ONE border of
+  lace on every other back (starl3xx, 2026-11-27: "the 'border of lace' on uncommon and rare should
+  be the border on the back of every one but common"; the first plates gave each rarity engraving
+  of its own, with filigree corners for Legendary and Mythic). Never give a rarity a border, or
+  any other shape, of its own on a back: he made the emblem standard the same day. **The game's emblem is the
   same on every rarity, and nothing is drawn round it** (starl3xx, 2026-11-27, of the rings the first
   plates turned round the seal for Rare and up: "I don't like the Lexigotchi emblem on the back
   getting more rings for more rarity... that should look the same on all rarities, standard"): never

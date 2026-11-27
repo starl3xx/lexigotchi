@@ -19,6 +19,8 @@
   /* Motion. Strong ease-out for things responding to the player; a gentle overshoot only for the
      playful bits (a tile hopping, an icon wiggling). Nothing here runs longer than ~300 ms. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* a face sliding in over another (.scene-slide-*): it sets off at once and takes its time to settle */
+  --ease-swap: cubic-bezier(0.45, 0, 0.15, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-hop: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -468,6 +470,45 @@ body {
 @keyframes scene-fade-in { from { opacity: 0; } }
 @keyframes scene-fade-out { to { opacity: 0; } }
 
+/* A face change in the face picker (scenes/SceneFrame, change="slide"; decisions.md #59): the new
+   face slides in over the old one, which holds still under it, from the side the face sits on in
+   the picker. Each face is one still picture moved whole, under the card's frame; nothing moves
+   inside a picture.
+   THE CARD'S BORDER HOLDS STILL. A face's picture is drawn only inside the card's window (the rest
+   of it is clear), the paper border is the card's own ground, and the frame is line work over it.
+   A picture that simply slid would pass under the side border, and a dark face showed through it.
+   So the moving picture is clipped to the window, and the clip stands still while the picture
+   moves: each frame's clip-path is the window as seen from the picture's own place (the window is
+   3.5% in from each side, 6.2222% from top and bottom, its corner 1% of the width: lib/cardArt/looks
+   WINDOW). The picture's leading edge is the edge of its window, not of its box, so its shade is a
+   strip placed there (::before), never a box-shadow. The word stays where it stands, and each letter glides to its place on the
+   new ground (.cf-stand: a curved ground lowers and turns a letter), ONLY while a change is in
+   flight (.cf-changing, on the card for as long as the old face is kept): a stance is written in
+   units of the card's width, so a glide that was always on also ran on every resize, and the
+   letters drifted. Under reduced motion the new face fades in, as it always did, and the letters
+   are simply in place.
+   The curve is its own (--ease-swap), not the house --ease-out: that one covers nine tenths of the
+   way in the first third of the time, so the slide was over before it could be seen as one. */
+.scene-slide-next,
+.scene-slide-prev { animation: scene-fade-in 450ms var(--ease-out) both; }
+@media (prefers-reduced-motion: no-preference) {
+  .scene-slide-next { animation: scene-slide-next 520ms var(--ease-swap) both; }
+  .scene-slide-prev { animation: scene-slide-prev 520ms var(--ease-swap) both; }
+  .scene-slide-next::before,
+  .scene-slide-prev::before { content: ""; position: absolute; top: 6.2222%; bottom: 6.2222%; width: 12px; }
+  .scene-slide-next::before { right: 96.5%; background: linear-gradient(to left, rgb(27 23 20 / 0.26), transparent); }
+  .scene-slide-prev::before { left: 96.5%; background: linear-gradient(to right, rgb(27 23 20 / 0.26), transparent); }
+  .cf-changing .cf-stand { transition: transform 520ms var(--ease-swap); }
+}
+@keyframes scene-slide-next {
+  from { transform: translateX(100%); clip-path: inset(6.2222% 103.5% 6.2222% -96.5% round 1cqw); }
+  to { transform: translateX(0); clip-path: inset(6.2222% 3.5% 6.2222% 3.5% round 1cqw); }
+}
+@keyframes scene-slide-prev {
+  from { transform: translateX(-100%); clip-path: inset(6.2222% -96.5% 6.2222% 103.5% round 1cqw); }
+  to { transform: translateX(0); clip-path: inset(6.2222% 3.5% 6.2222% 3.5% round 1cqw); }
+}
+
 /* The ascend sheet (sheets/AscendSheet.tsx). A hit's rays turn behind the word for as long as it
    cheers, then fade with it: .asc-rays holds still (its box, and an oval fade so no edge shows) and
    only the square of rays inside it turns, a transform on one HTML element, so the letters in front
@@ -709,10 +750,18 @@ body {
 @container (max-width: 239px) { .cf-stamp { display: none; } }
 /* Card stock (decisions.md #58, part 4: "15A is good"): a playing card's finish, a fine weave pressed
    into the paper ON THE DIAGONAL. One small picture, repeated (never a slanted gradient: those
-   broke into dashes at most pixel ratios): two sets of hairlines, one a little stronger than the
-   other, three pixels a repeat. NO RANDOM GRAIN: it was the one part of the paper that was not
-   drawn (a noise filter under a square weave). The back's is the same weave (.cb-tex). */
-.cf-tex { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='3' height='3' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3L3 0M-.5 .5L.5 -.5M2.5 3.5L3.5 2.5' stroke='%235a4a3a' stroke-opacity='.07' stroke-width='.35'/%3E%3Cpath d='M0 0L3 3M-.5 2.5L.5 3.5M2.5 -.5L3.5 .5' stroke='%235a4a3a' stroke-opacity='.042' stroke-width='.35'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
+   broke into dashes at most pixel ratios), and NO RANDOM GRAIN: the grain was the one part of the
+   paper that was not drawn (a noise filter under a square weave).
+   IT MUST BE SEEN AT REAL SIZE. The owner chose it from a swatch enlarged three times, and the
+   first build drew it at its true size: hairlines a third of a pixel wide at 7%, which nobody can
+   see, and less than the old weave it replaced ("i can't see the weave on any cards"). So it is a
+   CROSSHATCH six pixels a repeat, and each direction is a dark hairline with a light one beside
+   it, as a line pressed into paper has a shadow and a lit edge: both directions then show on dark
+   art and on pale paper alike (a dark line alone is lost on a dark face, a light one on paper).
+   One direction is a little weaker than the other, as in his drawing. Check a change at pixel
+   ratios 1, 1.5, 2, and 3, at the screen's own pixels, on a dark face, the pale stock face, and a
+   back. The back's is the same crosshatch (.cb-tex). It lies under the letters, as it always has. */
+.cf-tex { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='6' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 -6L-6 0M6 -6L-6 6M12 -6L-6 12M18 -6L-6 18' stroke='%235a4a3a' stroke-opacity='0.09' stroke-width='0.7'/%3E%3Cpath d='M0.98 -6L-6 0.98M6.98 -6L-6 6.98M12.98 -6L-6 12.98M18.98 -6L-6 18.98' stroke='%23fff' stroke-opacity='0.11' stroke-width='0.7'/%3E%3Cpath d='M-6 -18L12 0M-6 -12L12 6M-6 -6L12 12M-6 0L12 18' stroke='%235a4a3a' stroke-opacity='0.063' stroke-width='0.7'/%3E%3Cpath d='M-6 -17.02L12 0.98M-6 -11.02L12 6.98M-6 -5.02L12 12.98M-6 0.98L12 18.98' stroke='%23fff' stroke-opacity='0.077' stroke-width='0.7'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
 /* The fog a hungry word's scene fills with stays inside the frame's window (the window is 42 of
    1200 units in from the sides and 42 of 675 from the top and bottom): the card keeps its paper
    and its ink. While the word is fed there is no fog to see, so its banks don't drift. */
@@ -1072,9 +1121,9 @@ body {
 .m-legendary { --cb-base: #2e2006; --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-front: #3a2806; }
 .m-mythic { --cb-base: #1d0d36; --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-front: #1d0d36; }
 .cb-gem { width: 1.15em; height: 1.15em; flex: none; }
-/* card stock, as the front's (.cf-tex): the same diagonal weave, pressed into a dark plate, so one
-   set of its hairlines is light and the other dark. No random grain. */
-.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='3' height='3' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3L3 0M-.5 .5L.5 -.5M2.5 3.5L3.5 2.5' stroke='%23fff' stroke-opacity='.07' stroke-width='.35'/%3E%3Cpath d='M0 0L3 3M-.5 2.5L.5 3.5M2.5 -.5L3.5 .5' stroke='%23000' stroke-opacity='.1' stroke-width='.35'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
+/* card stock, as the front's (.cf-tex): the same crosshatch, pressed into a dark plate (its dark
+   lines in black). No random grain. */
+.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='6' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 -6L-6 0M6 -6L-6 6M12 -6L-6 12M18 -6L-6 18' stroke='%23000' stroke-opacity='0.2' stroke-width='0.7'/%3E%3Cpath d='M0.98 -6L-6 0.98M6.98 -6L-6 6.98M12.98 -6L-6 12.98M18.98 -6L-6 18.98' stroke='%23fff' stroke-opacity='0.16' stroke-width='0.7'/%3E%3Cpath d='M-6 -18L12 0M-6 -12L12 6M-6 -6L12 12M-6 0L12 18' stroke='%23000' stroke-opacity='0.14' stroke-width='0.7'/%3E%3Cpath d='M-6 -17.02L12 0.98M-6 -11.02L12 6.98M-6 -5.02L12 12.98M-6 0.98L12 18.98' stroke='%23fff' stroke-opacity='0.11199999999999999' stroke-width='0.7'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
 
 /* A card, face down (cards/FaceDownCard; decisions.md #50, part 4): the day's secret word before
    it is revealed. A back's material and frame, and the game's seal in the middle, stronger than

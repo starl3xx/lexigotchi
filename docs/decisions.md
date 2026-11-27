@@ -2100,9 +2100,14 @@ setter. All small, riding existing suite patterns.
         Its letters are in the bag whatever the record says; another browser shows no envelope.
         The card on Today and Mint ("Your mail is waiting") counts these with the commits the
         server still has to open, and opens an envelope that only needs tearing first.
-      - **The short version** (my reading of the proposal's "by the tenth pack"): from the fourth
-        envelope torn in one sitting (`QUICK_AFTER`), plain letters come straight out, close
-        together; the best one still gets its peek. A tap hurries any envelope.
+      - **The short version**: from the TENTH envelope torn in one sitting (`QUICK_AFTER`),
+        plain letters come straight out, close together; the best one still gets its peek. A tap
+        hurries any envelope. (It started at the fourth, my own reading of the proposal's "by the
+        tenth pack". starl3xx, 2026-11-27: "how come the pack rip happens super quickly
+        sometimes? in terms of the letters popping up". Measured in the practice game: about
+        6.4 s for five letters on the first three envelopes of a sitting, about 1.2 s from the
+        fourth. He chose the proposal's number: "yes, move it to the 10th pack". A sitting is a
+        page load, and every piece of mail torn counts.)
       - **House rules kept.** A tile never changes size: the envelope's styles move and turn, and
         a test fails on a scale. The envelope is still pictures in the cards' engraving, each
         moved whole; the only loops are the pull tab's nudge and the blink (a swap in steps), each
@@ -3286,6 +3291,15 @@ setter. All small, riding existing suite patterns.
         Legendary (filigree, a second ink) and Mythic (the blended ink). If Rare should have a
         step of its own, it goes in the border, never on the emblem.
       - `CARD_LOOK` is 14.
+    - **Part 2, amended again the same day: one border of lace.** The owner, on the built
+      backs: "the 'border of lace' on uncommon and rare should be the border on the back of
+      every one but common". So there are two borders and only two: Common's plain rules, and
+      one border of lace, with a lathe medallion in each corner, on Uncommon, Rare, Legendary,
+      Mythic, and a collab set's back. Legendary's and Mythic's filigree corners are gone, and
+      so is Legendary's second ink. A rarity above Common is told by its inks alone; Mythic
+      keeps its blended ink, which is an ink. This also answers what Rare's own step should
+      be: none. With the emblem, that is twice in one day he has taken a per-rarity shape off
+      the back: **the back is one design, and a rarity is its inks.** `CARD_LOOK` is 15.
     - **Part 3, the front's light (12D).** Of five ways to show a reflection without shine he
       chose the ruled band, and of the first drawing of it: "I love the ruled band, but it's too
       strong rn... needs to be more subtle (more opacity or whatever you choose to achieve it)".
@@ -3324,15 +3338,102 @@ setter. All small, riding existing suite patterns.
       paper's own brown. On the back (`.cb-tex`, and the face-down card) it is the same weave
       with one set of lines light and one dark, at about the strength the back's weave had:
       his drawing was of the front's paper, so the back's inks are my translation.
-      - Only the game draws stock: no picture and no video carried it before, and none does
-        now, so `CARD_LOOK` stays.
-      - A page of cards is lighter for it: every front and back on screen ran a noise filter.
+      - As first built, only the game drew stock. That was wrong: see "the stock is everywhere" below.
+    - **Part 4, amended the day it shipped: the weave must be seen.** The owner, an hour after
+      it merged: "i can't see the weave on any cards". He was right, and the fault was mine:
+      the swatch he chose was enlarged three times, and I built it at its true size, hairlines
+      a third of a pixel wide at 7%. Nobody could see it, and it showed LESS than the square
+      weave it replaced, which had visible light lines. So the weave is now a crosshatch six
+      pixels a repeat, with lines about two thirds of a pixel wide, and each direction is a
+      dark hairline with a light one beside it (a line pressed into paper has a shadow and a
+      lit edge), so both directions show on dark art and on pale paper. It has about the
+      presence the old square weave had. Its exact strength is my choice, picked from four
+      tried on real cards at pixel ratios 1, 1.5, 2, and 3; he has not seen it.
+      - **Kept as a rule:** when he approves something from an enlarged swatch, show it at
+        real size too before building, and compare the build with what it replaces.
+    - **Part 4, amended again: the stock is everywhere a card is drawn.** The owner, after
+      the crosshatch reached the game ("the crosshatch looks so good"): "crosshatch isn't in
+      the share cards images/videos, either... make sure those are all updated with the latest
+      changes". I had left it out of the pictures because they had never carried stock, which
+      was the wrong test: a card is one object wherever it is drawn. Now `lib/cardArt/stock`
+      is the weave's one source. The game's styles hold its tile, and the server's picture of
+      a front and of a back lay its sheet over the card, in card units, under the letters and
+      the lettering. The share video is made of those two pictures, so it carries the
+      crosshatch on both sides; checked in a real video at full size, with the card turning.
+      In the front's picture the frame is now drawn before the letters, which is the game's
+      own order (nine pictures compared before and after: none changed). `CARD_LOOK` is 16.
+      - **Kept as a rule:** a change to how a card looks is not done until the game, the
+        front picture, the back picture, and a real video all show it.
     - **All four parts he chose are built** (the video, the backs, the front's light, the
       stock), with the emblem made standard on the way.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
       light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
       rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and
       the plastic case (part 16).
+
+59. **A face change slides in, in the face picker** (starl3xx, 2026-11-27, with a picture of the
+    picker: "when switching faces, the faces should have a nice swipe animation/transition rather
+    than just appearing/disappearing").
+    - **What it was.** A 450 ms cross-fade on the house ease-out, which is nearly all the way in
+      after a third of its time: it read as the new face appearing.
+    - **What it is.** In the face picker (`SceneFrame`'s new `change="slide"`, passed by
+      `sheets/SceneSheet` only) the new face slides in over the old one, which holds still under
+      it, from the side the face sits on in the picker (`lib/scenes` `swapSide`: a later face from
+      the right, an earlier one from the left). 520 ms on a curve of its own (`--ease-swap`): the
+      house ease-out covers nine tenths of the way in the first third, and the slide was over
+      before it could be seen as one.
+    - **The card's rules hold.** Each face is one still picture, moved whole; nothing moves
+      inside a picture (a face never moves: #34). The word stays where it stands, and each
+      letter glides to its place on the new ground (`.cf-stand`: a curved ground lowers and
+      turns a letter). Nothing is scaled (#48). All travel sits behind
+      `prefers-reduced-motion: no-preference`; under reduced motion the new face fades in as
+      before.
+    - **The card's border holds still** (found by enlarging a held frame's edge, after review
+      asked whether I had looked there). A face's picture is drawn only inside the card's
+      window; the paper border is the card's own ground, and the frame is line work over it.
+      My first slide moved the picture alone, so it passed under the side border and a dark
+      face showed through the ornaments. The moving picture is now clipped to the window, and
+      the clip stands still while the picture moves (each frame's `clip-path` is the window as
+      seen from the picture's own place; the numbers are `lib/cardArt/looks` `WINDOW`, and a test
+      works them out from it). The shade at the new face's leading edge is a strip at the edge
+      of its window, never a `box-shadow` (the box's edge is 3.5% further out).
+    - **The letters glide only while a change is in flight** (`.cf-changing` on the card, for as
+      long as the old face is kept; caught in review, then measured). A stance is written in
+      units of the card's width. With the glide always on, any change of the card's size also
+      ran it: narrowing the window set four of five letters on Spring's hill drifting for half
+      a second, in both engines. It would also have run in the Shop's closer look, which
+      doubles the card.
+    - **A letter turns about its feet on level ground too** (Bugbot on #317). The turning point
+      was set only together with a turn, so it was dropped the moment a word left a curved
+      face for a level one, and the letter swung about its middle for the length of the glide.
+      It is set always now. Checked in a browser mid-change, Outer Space to the Stage: all
+      five letters turn about their feet.
+    - **Why the new face covers the old instead of pushing it out** (my choice between two
+      readings of "swipe"): the letters stand in front of the picture, and their ground is part
+      of it. A push moves both pictures, so the ground slides under ten still feet for the whole
+      change; with a cover only the incoming picture moves, and the ground under a letter changes
+      once, as its edge passes.
+    - **Tidied on the way.** Which face was showing was worked out in an effect, one render
+      late: that render had the new face in place with nothing under it, and only the next one
+      put the old face under it and started the change. I read this in the code and did not see
+      it on a screen (React may run that effect before the first paint). With a slide, a frame
+      of the new face in place would be a visible jump, so it is worked out while rendering now
+      (as the word's own slide is) and the question does not arise.
+    - **Everywhere else is unchanged:** a face that changes with the WORD (Today's arrows) or
+      behind a sheet still fades in. My reading of "when switching faces": the place a player
+      switches faces. If he wants the slide on Today's arrows too, it is the same prop.
+    - **Seen and not seen.** Held still at chosen moments in Chromium and WebKit, in the practice
+      game's picker at 1,280 px, with the card's own timer stalled in the test browser (a held
+      frame takes longer to capture than the change lasts; my first frames, taken without that,
+      showed the finished change and I nearly read them as the curve being too fast, and one
+      showed a blank that was only the capture): the Stage to Spring and Stock (dark) to Spring
+      from the right, the Stage to Stock (dark) from the left, the letters part way down
+      Spring's hill as its edge passed, and the card's side border, enlarged, cream under its
+      ornaments while a dark face passed inside the window. With a read-only pretend wallet in
+      the live test game (every write to the server blocked in the browser): the Stage to
+      Outer Space with a Mythic word, before the window clip. A window narrowed with Spring
+      showing: no letter moved. Not seen: the motion itself by a person, a phone, Outer Space
+      after the window clip.
 
 ## Pricing & launch economics (decided June 2026)
 

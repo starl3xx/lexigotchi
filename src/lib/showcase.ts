@@ -134,8 +134,12 @@ export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null
  *     back now, its plate with it, and its lettering sits inside the plate's border.
  * 14: the game's emblem is the same on every back: no rings round it for a rarer word (the owner,
  *     2026-11-27). The back's picture changes for Rare, Legendary, Mythic, and collab words.
+ * 15: every back but Common's has the one border of lace (the owner, 2026-11-27). The back's
+ *     picture changes for Legendary, Mythic, and collab words: their corner scrollwork is gone.
+ * 16: every picture of a card carries the stock's crosshatch, front and back, as the game does (the
+ *     owner, 2026-11-27: "crosshatch isn't in the share cards images/videos, either").
  */
-export const CARD_LOOK = 14;
+export const CARD_LOOK = 16;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null, mark?: string | null): string {

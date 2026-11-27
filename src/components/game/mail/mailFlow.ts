@@ -212,8 +212,14 @@ const COUNT_WORDS = ["", "one", "two", "three", "four", "five"];
  * How many pieces of mail a player tears open in one sitting before the short version plays: the
  * plain letters then come out together, and the best one still comes out alone. A tap on the
  * letters hurries any version.
+ *
+ * Nine, so the TENTH envelope is the first short one (starl3xx, 2026-11-27: "yes, move it to the
+ * 10th pack"). It was three, my own reading of the proposal's "by the tenth pack": the fourth
+ * envelope of a sitting already came out in about 1.2 s where the first three took about 6.4 s,
+ * and he asked "how come the pack rip happens super quickly sometimes?". A sitting is a page
+ * load, and every piece of mail torn counts: packs, the free pack, daily letters, waiting mail.
  */
-export const QUICK_AFTER = 3;
+export const QUICK_AFTER = 9;
 
 /** Envelopes torn open since the page loaded: a sitting. */
 let tornThisSitting = 0;
