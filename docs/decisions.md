@@ -3316,6 +3316,19 @@ setter. All small, riding existing suite patterns.
       - **Not changed:** the round glare under the pointer (12F, his to answer) still lies
         over the letters. When it shows, how often, and for whom (never a hungry word, a card
         in a grid, or a player who asked for less motion) are as they were.
+    - **Part 4, the stock (15A).** A playing card's paper is pressed with a fine weave so the
+      cards slide. The game's stock already had a faint SQUARE weave made of two gradients,
+      under a random grain made by a noise filter. Now it is one small picture of two sets of
+      DIAGONAL hairlines, three pixels a repeat, with no grain: the grain was the one part of
+      the paper that was not drawn. On the front (`.cf-tex`) it is the drawing he saw, in the
+      paper's own brown. On the back (`.cb-tex`, and the face-down card) it is the same weave
+      with one set of lines light and one dark, at about the strength the back's weave had:
+      his drawing was of the front's paper, so the back's inks are my translation.
+      - Only the game draws stock: no picture and no video carried it before, and none does
+        now, so `CARD_LOOK` stays.
+      - A page of cards is lighter for it: every front and back on screen ran a noise filter.
+    - **All four parts he chose are built** (the video, the backs, the front's light, the
+      stock), with the emblem made standard on the way.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
       light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
       rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and
