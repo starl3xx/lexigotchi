@@ -29,7 +29,8 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import type { Tier } from "@/lib/economy";
-import { finishFor, type Finish } from "@/lib/rarityFinish";
+import { finishFor, mixHex, type Finish } from "@/lib/rarityFinish";
+import { haloPath } from "./tileShapes";
 
 /** "on": it has its moments · "off": a still frame (reduced motion, small sizes, a still scene) ·
  *  "rest": hungry, the shine gone until it is fed. Separately, `dim` (peckish) halves the shine,
@@ -208,14 +209,7 @@ export function FinishDefs({ tier, uid, bw, small, motion }: { tier?: Tier; uid:
           <stop offset="1" stopColor="#ff7ad9" />
         </linearGradient>
       )}
-      {/* glow for the aura (drawn above the smallest size) and the motes (only moving) */}
-      {rich && !small && (
-        <radialGradient id={f("aura")} cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0.62" stopColor={fin.glow} stopOpacity="0.75" />
-          <stop offset="0.8" stopColor={fin.glow} stopOpacity="0.28" />
-          <stop offset="1" stopColor={fin.glow} stopOpacity="0" />
-        </radialGradient>
-      )}
+      {/* glow for the motes (only moving). The halo behind the tile is line work and needs no paint (FinishAura). */}
       {rich && moving && (
         <radialGradient id={f("mote")} cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
@@ -227,22 +221,18 @@ export function FinishDefs({ tier, uid, bw, small, motion }: { tier?: Tier; uid:
   );
 }
 
-/** A soft glow hugging the tile, behind it. */
-export function FinishAura({ tier, uid, motion, dim }: { tier?: Tier; uid: string; motion: FinishMotion; dim: boolean }) {
+/** The halo's ink: between the material's light and its engraving shade, so it reads on pale paper and on a dark scene. */
+export const haloInk = (fin: Finish) => mixHex(fin.glow, fin.deep, 0.42);
+
+/**
+ * The glow behind a Legendary or Mythic tile: an engraved halo of fine rays standing off the tile
+ * (tileShapes, HALO, says how it is sized). It is around the letter, so it is drawn like the cards
+ * (decisions.md #48, part 8); it was a soft blur. Still: it never moves.
+ */
+export function FinishAura({ tier, outer, small, motion, dim }: { tier?: Tier; /** how far outside the tile's edge its own drawing ends (tileShapes, tileOuter) */ outer: number; /** a tile too small for it: rays a third of a pixel long are only a smudge */ small: boolean; motion: FinishMotion; dim: boolean }) {
   const fin = finishFor(tier);
-  if (!fin || motion === "rest" || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
-  const pad = fin.material === "amethyst" ? 26 : 22;
-  return (
-    <rect
-      x={T.x - pad}
-      y={T.y - pad}
-      width={T.w + 2 * pad}
-      height={T.h + 2 * pad}
-      rx={T.r + pad}
-      fill={`url(#${id(uid)("aura")})`}
-      opacity={dim ? 0.4 : 0.75}
-    />
-  );
+  if (!fin || small || motion === "rest" || (fin.material !== "amethyst" && fin.material !== "gold")) return null;
+  return <path data-halo="" d={haloPath(outer)} fill="none" stroke={haloInk(fin)} strokeWidth={1.3} strokeLinecap="round" opacity={dim ? 0.4 : 0.75} />;
 }
 
 /** Amethyst facets: four thin bevels between the face's edge and a big central table. (Also drawn

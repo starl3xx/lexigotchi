@@ -1865,6 +1865,57 @@ setter. All small, riding existing suite patterns.
         still front was asked for and the video was made. Not made in real Safari or on a
         phone, and not for a Holographic word in the game itself (the practice game has none):
         that one was compared letter by letter, above.
+    - **Part 8, what is around a letter in the game: the confetti, the glow, and the ascend
+      sheet's rays.** The rule (starl3xx): "anything on the letter/body should be its existing
+      colorful / flat design; anything NOT on the letter/body should be in the card style". The
+      review page listed these three as the next to change and pictured none of them, so **their
+      drawing is my reading**, kept faint as the owner asked of every effect round a card.
+      - **Confetti** (`TileCharacter`, `Confetti`): small engraved stars, beads, curls, and rings
+        in the cards' two inks (ink and gold). It was sixteen flat chips in five colours.
+        **Each piece is a small drawing of its own**, and its fall and turn run on that drawing.
+        The chips looped inside the top layer, which made WebKit redraw the whole layer on every
+        frame. A whole-letter layer for each piece would keep sixteen letters' worth of store, so
+        a piece's box is its own size (16 units), placed by percent, and its fall is in percent
+        of its own box. In one drawing (the docs' pictures, which move) there are no layers: each
+        piece is a group, with an unseen square that gives it the same box.
+      - **The glow behind a Legendary or Mythic tile** (`TileFinish`, `FinishAura`; shape in
+        `tileShapes`, `haloPath`): an engraved halo of fine rays in three lengths, all the way
+        round the tile. It was a rounded box filled with a soft radial gradient. It stands 3 units
+        off whatever the tile wears (a lowercase tile's outline, the pale ring, the gilding), and
+        never reaches past 28 units from the tile's edge: in a word two tiles' edges are 56.4 units
+        apart, so two neighbours' halos never cross. A tile in wide gilding has less room, so its
+        rays are shorter in the same proportions. Its ink is between the material's light and its
+        engraving shade, so it reads on paper and on a dark scene. Still; no moment.
+      - **The ascend sheet's rays** (`lib/cardArt/glory`, `.asc-rays`): an engraved glory, the
+        drawing behind a raised letter sized for a whole word: fine rays in three lengths between
+        twelve wedges. It was a flat gold fan (a conic gradient). One still picture, built as a
+        string like every scene, given to the styles as `--asc-glory` and turned as one element,
+        as before. Its middle hides behind the word, so it has no ring of beads (a ring showed as
+        two odd arcs of dots between letters). Holographic: the foil's colours seen through the
+        same lines, deeper than the foil's pastels, which a fine line loses on paper.
+      - **The light behind the landing page's big letter** is the same glory, still, its far ends
+        faded. It was a soft gold glow. The landing page's cheering letters take the new confetti
+        from the letter's own code. **Not changed, and the owner's to decide** (the review page
+        set these apart as bigger pieces): the landing page's hero stage (a flat curtain,
+        spotlight, and floor, where the engraved Stage scene exists), the Market's letter shelf,
+        the icon groups beside letters in the intro and on the landing page, and the jackpot's
+        five flat "?" tiles. **Left as they are:** the docs' pictures' paper panel and line arrows,
+        which are the game's interface style (the ink outline and offset shadow of every card and
+        button), not scenery round a letter.
+      - **Measured** (headless, this Mac, busy with other work; five letters holding hands, no
+        random life). A cheering word in WebKit: 47%, 44%, and 33% of a processor core before
+        (three runs), 13% after (three runs: 13.1, 13.0, 13.2). In Chromium: 49% before, 38%
+        after; slowed four times, 109% and 113% before, 105% and 118% after (that measure is
+        always near a whole core there). A Legendary and a Mythic word at rest, for the halo: in
+        WebKit 4.7% and 3.8% before, 3.4% and 3.8% after; in Chromium a Mythic word alternated
+        four times each way averaged 30.3% before and 29.9% after (single runs of one case there
+        ranged from 19% to 50% today, so nothing under ten points can be told from one run).
+      - **Seen and not seen (part 8):** the halo on paper and on dark, alone and in words, at 64
+        to 190 px; the confetti on one letter and on a word, in Chromium and WebKit, in the
+        running landing page (thirteen cheering letters), and in a docs picture, where it falls
+        inside the one file. The rays behind a still word as the sheet lays them out, gold and
+        Holographic. Not seen: the rays in the sheet after a real try (a try may miss, and the
+        practice game's result is chance), and nothing on a phone.
 
 ## Pricing & launch economics (decided June 2026)
 

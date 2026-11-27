@@ -135,6 +135,8 @@ export const CLASP = (() => {
 // ── the UPPERCASE ring and the gilding ───────────────────────────────────────────────────────────
 /** An UPPERCASE tile's blue border. */
 export const BORDER_UP = 12;
+/** A lowercase tile's ink outline (its stroke), centred on the tile's edge. */
+export const BORDER_LOW = 4;
 /** The pale ring outside it, on a letter that is not gilded. */
 export const RING_PB = 10;
 /**
@@ -160,6 +162,67 @@ export function ringParts(gild: number): { w: number; part: RingPart }[] {
 export function ringOuter(gild: number): number {
   return ringParts(gild).reduce((e, r) => e + r.w, BORDER_UP / 2);
 }
+/**
+ * The glow behind a Legendary or Mythic tile, engraved (decisions.md #48, part 8): a halo of fine
+ * ruled rays standing just off the tile, all the way round it, in three lengths. It was a soft blur
+ * (a rounded box filled with a radial gradient). The glow is around the letter, not on it, so it is
+ * drawn like the cards and not like the letter.
+ *
+ * - It starts `gap` units outside whatever the tile wears: a lowercase tile's own outline, an
+ *   UPPERCASE tile's pale ring, or its gilding. So it stands the same distance off every tile.
+ * - It never reaches past `reach` units from the tile's edge. In a word the letters stand 206.4
+ *   units apart (240, less the 14% they overlap to hold hands), so two tiles' edges are 56.4
+ *   apart: half of that each, and two neighbours' halos never cross. A tile in wide gilding has
+ *   less room, so its rays are shorter in the same proportions.
+ * - 16 rays along each side, and round each corner as many as keep that spacing.
+ */
+export const HALO = { gap: 3, reach: 28, lengths: [9, 4.5, 6.5, 4.5], side: 16 } as const;
+/** How far outside the tile's edge its own drawing ends: a lowercase tile's outline, or an UPPERCASE tile's rings. */
+export const tileOuter = (upper: boolean, gild: number): number => (upper ? ringOuter(gild) : BORDER_LOW / 2);
+const haloPaths = new Map<number, string>();
+/**
+ * The halo round a tile whose own drawing ends `outer` units outside its edge (tileOuter), as one
+ * path. Every number is rounded: the server draws this too, and engines differ in a sine's last digit.
+ */
+export function haloPath(outer: number): string {
+  const kept = haloPaths.get(outer);
+  if (kept) return kept;
+  const d = outer + HALO.gap;
+  const scale = Math.min(1, (HALO.reach - d) / HALO.lengths[0]);
+  const R = T.r + d;
+  const [x0, y0, x1, y1] = [T.x - d, T.y - d, T.x + T.w + d, T.y + T.h + d];
+  const run = T.w - 2 * T.r; // a side's straight part (the tile is square)
+  const corner = Math.max(4, Math.round(((Math.PI / 2) * R) / (run / HALO.side)));
+  const n2 = (v: number) => v.toFixed(2);
+  let k = 0;
+  let path = "";
+  const ray = (px: number, py: number, nx: number, ny: number) => {
+    const len = HALO.lengths[k++ % HALO.lengths.length] * scale;
+    path += `M ${n2(px)} ${n2(py)} L ${n2(px + nx * len)} ${n2(py + ny * len)}`;
+  };
+  // clockwise from the top side's left end: a side, then the corner after it
+  // each: start x, start y, step x, step y, normal x, normal y, the next corner's centre x, y
+  const sides: [number, number, number, number, number, number, number, number][] = [
+    [x0 + R, y0, 1, 0, 0, -1, x1 - R, y0 + R],
+    [x1, y0 + R, 0, 1, 1, 0, x1 - R, y1 - R],
+    [x1 - R, y1, -1, 0, 0, 1, x0 + R, y1 - R],
+    [x0, y1 - R, 0, -1, -1, 0, x0 + R, y0 + R],
+  ];
+  sides.forEach(([sx, sy, dx, dy, nx, ny, cx, cy], s) => {
+    for (let j = 0; j < HALO.side; j++) {
+      const at = ((j + 0.5) / HALO.side) * run;
+      ray(sx + dx * at, sy + dy * at, nx, ny);
+    }
+    const a0 = -Math.PI / 2 + (s * Math.PI) / 2; // the angle this corner starts from
+    for (let j = 0; j < corner; j++) {
+      const a = a0 + ((j + 0.5) / corner) * (Math.PI / 2);
+      ray(cx + R * Math.cos(a), cy + R * Math.sin(a), Math.cos(a), Math.sin(a));
+    }
+  });
+  haloPaths.set(outer, path);
+  return path;
+}
+
 /** Each ring as a rounded rectangle's numbers (a stroke of width `sw`), each abutting the last. */
 export function ringRects(gild: number): { x: number; y: number; w: number; h: number; rx: number; sw: number; part: RingPart }[] {
   let edge = BORDER_UP / 2; // the outer face of the blue border

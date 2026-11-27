@@ -16,7 +16,7 @@
  * dense-grid / word-row form). Auto-selected by size, overridable via `detail`.
  *
  * THE DRAWING IS UP TO FOUR STACKED LAYERS, each its own <svg>: the floor (shadow, shoes), the legs,
- * the body (rings, arms, tile, face), and the top (held hands, zzz, confetti), with a raised
+ * the body (rings, arms, tile, face), and the top (held hands, a snack), with a raised
  * letter's rays as a layer of their own behind them; an empty one isn't
  * drawn, so a small tile in a grid is the body alone. The loops (the breath,
  * a jump) are CSS transforms on the legs and body LAYERS, never on a shape inside one. A browser
@@ -42,6 +42,7 @@ import {
   ARM_REST,
   ARM_REST_R,
   ARM_WAVE,
+  BORDER_LOW,
   BORDER_UP,
   BOT,
   CLASP,
@@ -80,6 +81,7 @@ import {
   type Arm,
   type Hand,
   type RingPart,
+  tileOuter,
 } from "./tileShapes";
 
 export { WORD_LEAN, leanFor } from "./tileShapes";
@@ -158,7 +160,6 @@ const LHAW_INK = "#111827";
 // Holographic (stage 5): an iridescent foil in place of the gold, the stage-4 look reborn. One
 // gradient per tile (id from useId; its colours are tileShapes' HOLO_STOPS), drifting slowly unless
 // the viewer prefers reduced motion.
-const CONFETTI = ["#d8463f", "#f0a617", "#2a9d8f", "#3b82f6", "#7b1e26"];
 
 // the 6 rarest letters earn a little glint regardless of state
 const RAREST = new Set(LETTERS_BY_FREQUENCY.slice(-6));
@@ -675,60 +676,116 @@ function Glory() {
 }
 
 /**
- * Confetti for the celebrate state: 16 pieces that fall and tumble INSIDE the tile's own visible
- * box (the LOD crop, which is always centered on the tile), so a word row celebrates tile by tile
- * instead of spraying across its neighbors and the text above.
+ * Confetti for a cheering letter, engraved (decisions.md #48, part 8): small stars, beads, curls,
+ * and rings in the cards' two inks (ink and gold). It is not part of the letter, so it is drawn
+ * like the cards; it was sixteen flat chips in five colours.
  *
- * Each piece spins around ITS OWN center (`transform-box: fill-box`). Without that, a CSS rotate on
- * an SVG element turns around the viewport origin, the top-left corner, so every piece swung in a
- * wide circle instead of tumbling: the "travels in circles" bug.
+ * **Each piece is a small drawing of its own**, placed over the letter, and its fall and its turn
+ * run on that small drawing. The chips were sixteen shapes looping inside the top layer, and a
+ * loop inside a layer makes WebKit redraw the whole layer on every frame: a cheering word cost 48%
+ * of a processor core, and 3% with its confetti hidden (headless WebKit, five letters). A small
+ * drawing of its own slides, turns, and fades without a redraw, and keeps a store only its own
+ * size (a whole-letter layer for each of sixteen pieces would keep sixteen letters' worth).
+ *
+ * The pieces fall INSIDE the letter's own visible box (the LOD crop, always centred on the tile),
+ * so a word row cheers letter by letter instead of spraying across its neighbours and the text
+ * above. Each turns about its own middle: it is its own box.
  */
+const CONFETTI_N = 16;
+/** A piece's box, in the drawing's units: the piece is drawn round 0,0. */
+const CONFETTI_BOX = 16;
+type ConfettiKind = "star" | "bead" | "curl" | "ring";
+const CONFETTI_KINDS: readonly ConfettiKind[] = ["star", "bead", "curl", "ring", "star", "curl", "bead", "star"];
+function ConfettiPiece({ kind }: { kind: ConfettiKind }) {
+  if (kind === "star") return <path d={star4(0, 0, 7, 2.7)} fill={GOLD} stroke={INK} strokeWidth={1.1} strokeLinejoin="round" />;
+  if (kind === "curl") return <path d="M -6.2 2.2 C -3 -5 3 5 6.2 -2.2" fill="none" stroke={INK} strokeWidth={1.9} strokeLinecap="round" />;
+  if (kind === "ring") return <circle r={4.2} fill="none" stroke={GOLD} strokeWidth={2.1} />;
+  return (
+    <>
+      <circle r={4} fill={SHEEN} stroke={INK} strokeWidth={1.2} />
+      <circle r={1.6} fill={GOLD} />
+    </>
+  );
+}
+/** Where each piece starts, where it rests when nothing moves, what it is, and when its fall begins. */
+function confettiSpots(view: { x: number; y: number; w: number; h: number }, seed: number) {
+  const inset = 10;
+  const span = Math.max(1, Math.round(view.w - 2 * inset - CONFETTI_BOX)); // the right edge stays inside
+  return Array.from({ length: CONFETTI_N }, (_, i) => {
+    // spread across the visible width: 137 is coprime with typical spans, so no clustering
+    const x = view.x + inset + ((i * 137 + seed * 53) % span);
+    const y = view.y + 6 + ((i * 29 + seed * 7) % 22); // a ragged start, not a single row
+    return {
+      x,
+      y,
+      /** held still (reduced motion, a picture): spread down the box instead of in a row at the top */
+      rest: y + ((i * 53) % Math.max(1, Math.round(view.h * 0.45))),
+      kind: CONFETTI_KINDS[(i + seed) % CONFETTI_KINDS.length],
+      turn: (i * 47 + seed * 31) % 360,
+      delay: ((i + seed) % 8) * 0.18,
+    };
+  });
+}
 function Confetti({
   reduced,
+  flat,
   view,
   seed,
 }: {
   reduced: boolean;
+  /** one drawing (a picture): the pieces at rest, inside it */
+  flat: boolean;
   view: { x: number; y: number; w: number; h: number };
   /** Varies the pattern per letter, so a word's tiles don't celebrate in lockstep. */
   seed: number;
 }) {
-  const inset = 10;
-  const span = Math.max(1, Math.round(view.w - 2 * inset - 6)); // 6 = piece width: the right edge stays inside
-  const fall = Math.round(view.h * 0.72); // most of the visible height, at any LOD
+  const spots = confettiSpots(view, seed);
+  const half = CONFETTI_BOX / 2;
+  // most of the visible height, at any LOD, as a share of the piece's own box (a translate's percent is of its own box)
+  const fall = `${Math.round(((view.h * 0.72) / CONFETTI_BOX) * 100)}%`;
+  // One drawing (a picture in a single file: the docs'): layers can't be had, so each piece is a
+  // group. An unseen square gives the group the same box a piece's own drawing has, so the same
+  // keyframes move it the same distance and turn it about its own middle.
+  if (flat)
+    return (
+      <g key="confetti" data-layer="confetti">
+        {spots.map((s, i) => (
+          <g key={i} transform={`translate(${s.x + half} ${(reduced ? s.rest : s.y) + half})`}>
+            <g
+              className={reduced ? undefined : "animate-tc-confetti"}
+              transform={reduced ? `rotate(${s.turn})` : undefined}
+              style={reduced ? undefined : ({ transformBox: "fill-box", transformOrigin: "center", opacity: 0, animationDelay: `${s.delay.toFixed(2)}s`, "--tc-fall": fall } as CSSProperties)}
+            >
+              <rect x={-half} y={-half} width={CONFETTI_BOX} height={CONFETTI_BOX} fill="none" />
+              <ConfettiPiece kind={s.kind} />
+            </g>
+          </g>
+        ))}
+      </g>
+    );
+  const pct = (v: number) => `${(v * 100).toFixed(3)}%`;
   return (
-    <g>
-      {Array.from({ length: 16 }, (_, i) => {
-        // spread across the visible width — 137 is coprime with typical spans, so no clustering
-        const x = view.x + inset + ((i * 137 + seed * 53) % span);
-        const c = CONFETTI[(i + seed) % CONFETTI.length];
-        const delay = ((i + seed) % 8) * 0.18;
-        const startY = view.y + 6 + ((i * 29 + seed * 7) % 22); // a ragged start, not a single row
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={reduced ? startY + ((i * 53) % Math.max(1, Math.round(view.h * 0.45))) : startY}
-            width={6}
-            height={9}
-            rx={1.5}
-            fill={c}
-            opacity={reduced ? 1 : undefined}
-            className={reduced ? "" : "animate-tc-confetti"}
-            style={
-              reduced
-                ? undefined
-                : ({
-                    animationDelay: `${delay}s`,
-                    transformBox: "fill-box",
-                    transformOrigin: "center",
-                    "--tc-fall": `${fall}px`,
-                  } as CSSProperties)
-            }
-          />
-        );
-      })}
-    </g>
+    <div key="confetti" data-piece="confetti" aria-hidden style={{ ...LAYER, pointerEvents: "none" }}>
+      {spots.map((s, i) => (
+        <svg
+          key={i}
+          viewBox={`${-half} ${-half} ${CONFETTI_BOX} ${CONFETTI_BOX}`}
+          className={`overflow-visible ${reduced ? "" : "animate-tc-confetti"}`}
+          style={
+            {
+              position: "absolute",
+              left: pct((s.x - view.x) / view.w),
+              top: pct(((reduced ? s.rest : s.y) - view.y) / view.h),
+              width: pct(CONFETTI_BOX / view.w),
+              height: pct(CONFETTI_BOX / view.h),
+              ...(reduced ? { transform: `rotate(${s.turn}deg)` } : { opacity: 0, animationDelay: `${s.delay.toFixed(2)}s`, "--tc-fall": fall }),
+            } as CSSProperties
+          }
+        >
+          <ConfettiPiece kind={s.kind} />
+        </svg>
+      ))}
+    </div>
   );
 }
 
@@ -872,7 +929,7 @@ export function TileCharacter({
   // face colors per case
   const faceFill = upper ? "#ffffff" : TILE_FACE;
   const border = upper ? LHAW : INK;
-  const borderW = upper ? BORDER_UP : 4;
+  const borderW = upper ? BORDER_UP : BORDER_LOW;
   const letterFill = upper ? LHAW_INK : INK;
   const letterFont = "var(--font-body)"; // Söhne bold for both cases (design review)
   const letterWeight = 800;
@@ -982,7 +1039,7 @@ export function TileCharacter({
   const bodyBase = (
     <>
       {/* the rarity's aura, behind the tile */}
-      {!ringsApart && lod !== "tile" && <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />}
+      {!ringsApart && lod !== "tile" && <FinishAura tier={tier} outer={tileOuter(upper, g)} small={finSmall} motion={motion} dim={finDim} />}
 
       {/* UPPERCASE ring stack — pale-blue LHAW skin, or the gilding. A letter with legs draws it on
           a layer of its own, under the legs (ringsApart). */}
@@ -1168,7 +1225,7 @@ export function TileCharacter({
 
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
   const hasFloor = showLimbs;
-  const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating") || state === "celebrate";
+  const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating");
   // A still frame shows no sweat: a bead frozen in the air reads as an ear.
   const sweating = showFace && state === "rolling" && !reduced;
   const asleep = showFace && state === "hungry";
@@ -1240,7 +1297,7 @@ export function TileCharacter({
         "rings",
         leaned(
           <>
-            <FinishAura tier={tier} uid={uid} motion={motion} dim={finDim} />
+            <FinishAura tier={tier} outer={tileOuter(upper, g)} small={finSmall} motion={motion} dim={finDim} />
             <Rings gild={g} holo={holo} />
           </>,
         ),
@@ -1304,9 +1361,11 @@ export function TileCharacter({
           {showLimbs && linkLeft && <Clasp darts={darts} />}
           {/* per-state extras anchored to the scene */}
           {showFace && state === "eating" && <Snack />}
-          {state === "celebrate" && <Confetti reduced={reduced} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />}
         </>,
       ),
+
+    // a cheering letter's confetti: over everything, each piece a small drawing of its own (Confetti says why)
+    state === "celebrate" && <Confetti key="confetti" reduced={reduced} flat={flat} view={VIEW} seed={(((char.toUpperCase().charCodeAt(0) - 65) % 26) + 26) % 26} />,
 
     // a nervous letter's beads of sweat: a layer each, flying off along its own turn (SWEAT says
     // why). Unseen until its turn comes; a word's letters don't sweat in step, so each letter

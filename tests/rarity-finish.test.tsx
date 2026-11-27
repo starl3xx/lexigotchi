@@ -12,6 +12,8 @@ import { FINISH, finishFor, mixHex } from "@/lib/rarityFinish";
 import { OgTile } from "@/app/_og/tile";
 import { MOMENT_END_S } from "@/components/game/TileFinish";
 import { TileCharacter } from "@/components/game/TileCharacter";
+import { HALO, T, haloPath, tileOuter } from "@/components/game/tileShapes";
+import { LINK_OVERLAP } from "@/components/scenes/layout";
 import { CARD_LOOK, showcaseCardPath, showcaseCardUrl } from "@/lib/showcase";
 
 describe("the finishes", () => {
@@ -127,10 +129,61 @@ describe("a tile's finish definitions", () => {
   });
 });
 
+describe("the glow behind a Legendary or Mythic tile is an engraved halo", () => {
+  const halo = (html: string) => /<path data-halo=""[^>]*>/.exec(html)?.[0];
+  const rays = (d: string) => [...d.matchAll(/M (-?[\d.]+) (-?[\d.]+) L (-?[\d.]+) (-?[\d.]+)/g)].map((m) => m.slice(1).map(Number));
+  /** How far a point is outside the tile's rounded edge. */
+  const outside = (x: number, y: number) => {
+    const dx = Math.max(T.x + T.r - x, 0, x - (T.x + T.w - T.r));
+    const dy = Math.max(T.y + T.r - y, 0, y - (T.y + T.h - T.r));
+    return Math.hypot(dx, dy) - T.r;
+  };
+
+  it("is line work in one ink: no paint that points at a gradient, no blur", () => {
+    for (const tier of ["Legendary", "Mythic"] as const) {
+      const html = renderToStaticMarkup(<TileCharacter char="a" tier={tier} still detail="full" size={160} />);
+      const el = halo(html)!;
+      expect(el).toContain('fill="none"');
+      expect(el).toMatch(/stroke="#[0-9a-f]{6}"/);
+      expect(el).toContain('stroke-linecap="round"');
+      expect(html).not.toContain("rf-aura");
+      expect(html).not.toMatch(/<filter|feGaussianBlur/);
+    }
+    // only the two richest rarities glow, and never a tile too small to show it
+    for (const tier of [undefined, "Common", "Uncommon", "Rare"] as const) expect(halo(renderToStaticMarkup(<TileCharacter char="a" tier={tier} still detail="full" size={160} />))).toBeUndefined();
+    expect(halo(renderToStaticMarkup(<TileCharacter char="a" tier="Mythic" still size={52} />))).toBeUndefined();
+  });
+
+  it("stands the same distance off whatever the tile wears, and never reaches the next letter's", () => {
+    const cases: [boolean, number][] = [[false, 0], [false, 4], [true, 0], [true, 1], [true, 3], [true, 4], [true, 5]];
+    for (const [upper, gild] of cases) {
+      const outer = tileOuter(upper, gild);
+      const all = rays(haloPath(outer));
+      // 16 a side, and round each corner as many as keep that spacing: never fewer than the sides alone
+      expect(all.length).toBeGreaterThanOrEqual(4 * HALO.side + 16);
+      expect(all.length % 4).toBe(0);
+      for (const [x0, y0, x1, y1] of all) {
+        for (const v of [x0, y0, x1, y1]) expect(Number.isFinite(v)).toBe(true);
+        expect(outside(x0, y0), `${upper ? "UPPER" : "lower"} stage ${gild}: starts just off what the tile wears`).toBeCloseTo(outer + HALO.gap, 1);
+        const end = outside(x1, y1);
+        expect(end).toBeGreaterThan(outer + HALO.gap + 1);
+        expect(end).toBeLessThanOrEqual(HALO.reach + 0.02);
+      }
+    }
+    // In a word the letters stand 240 units apart less the overlap that joins their hands, so two
+    // tiles' edges are that less a tile's width apart: each halo keeps to its own half.
+    const between = 240 * (1 - LINK_OVERLAP) - T.w;
+    expect(2 * HALO.reach).toBeLessThanOrEqual(between);
+    // and the widest gilding still leaves the halo room to be seen
+    expect(HALO.reach - (tileOuter(true, 5) + HALO.gap)).toBeGreaterThan(4);
+  });
+});
+
 describe("a word's mood on its finish", () => {
   const draw = (state: "idle" | "peckish" | "hungry") =>
     renderToStaticMarkup(<TileCharacter char="a" tier="Legendary" state={state} still detail="full" size={120} />);
-  const auraOpacity = (html: string) => /<rect[^>]*fill="url\(#rf-aura-[^"]*\)"[^>]*opacity="([\d.]+)"/.exec(html)?.[1];
+  // the engraved halo behind a Legendary or Mythic tile (TileFinish, FinishAura)
+  const auraOpacity = (html: string) => /<path data-halo=""[^>]*opacity="([\d.]+)"/.exec(html)?.[1];
 
   it("dims a peckish word's shine even when it's drawn still (a list, reduced motion)", () => {
     expect(auraOpacity(draw("idle"))).toBe("0.75");

@@ -12,10 +12,11 @@
  * The rules are in ../ascendFlow.ts (pure, tested). The one that matters most: a try costs its fee
  * whatever it gives back, so another try is offered only after a result the chain has confirmed.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { HOLOGRAPHIC_LEVEL, stageName } from "@/lib/ascension";
 import { MISS_POINTS, STAGE_SHARE } from "@/lib/howItWorks";
 import { LINK_OVERLAP } from "@/components/scenes/layout";
+import { GLORY_CSS } from "@/lib/cardArt/glory";
 import type { Stage } from "@/lib/onchain/stageOverlay";
 import { TileWord, usePrefersReducedMotion, type Gild, type TileState } from "../TileCharacter";
 import { Button, Sheet } from "../primitives";
@@ -197,7 +198,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
       <div className="flex flex-col items-center gap-3 pb-2">
         {/* The word. Nothing is drawn over it while a try is out; a hit's rays turn behind it. */}
         <div ref={stage} className="relative flex w-full items-end justify-center pt-3" style={{ minHeight: Math.round(size * 1.5) }}>
-          {cheering && <div aria-hidden className={`asc-rays ${shown.level >= HOLOGRAPHIC_LEVEL ? "asc-rays-holo" : ""}`} />}
+          {cheering && <div aria-hidden className={`asc-rays ${shown.level >= HOLOGRAPHIC_LEVEL ? "asc-rays-holo" : ""}`} style={{ "--asc-glory": GLORY_CSS } as CSSProperties} />}
           <TileWord
             word={word.word}
             upper={word.upper}
