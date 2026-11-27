@@ -19,7 +19,12 @@
  */
 import type { Tier } from "./economy";
 
-export type FinishMaterial = "satin" | "foil" | "gold" | "amethyst";
+/**
+ * "collab" is not a rarity's material: it is the shared collab stock, tinted with a partner set's
+ * two colors (lib/collabLook.ts `collabFinish`). It has no entry in `FINISH`; a tile is given it
+ * in place of its rarity's material.
+ */
+export type FinishMaterial = "satin" | "foil" | "gold" | "amethyst" | "collab";
 
 export interface Finish {
   material: FinishMaterial;
