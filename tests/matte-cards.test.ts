@@ -11,6 +11,9 @@ import { VEIL, loopPose, LOOP_SECONDS } from "@/components/cards/loop/loopRender
 import { PLATE_BORDER, PLATE_SEAL, backPlate, type PlateRank } from "@/lib/cardArt/plate";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { MATERIAL_GROUND, MATERIAL_LINE, collabPlate, materialPlate, type CardMaterial } from "@/components/cards/material";
+import { LIGHT, LIGHT_INK, lightBand, lightLines, type LightInk } from "@/lib/cardArt/light";
+import { DARK_SCENES, PALE_SCENES } from "@/lib/cardArt/scenes";
+import { SCENES } from "@/lib/scenes";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
@@ -159,5 +162,101 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect([...new Set([...art.matchAll(/(?:stroke|fill)="(#[0-9a-f]{6})"/g)].map((x) => x[1]))].sort()).toEqual(["#102030", "#302010", "#f0e0c0"]);
     // a rarity's own plate has one ground
     expect(backPlate(0 as PlateRank, { ground: "#111111", line: "#eeeeee", second: "#eeeeee" })).not.toContain("evenodd");
+  });
+});
+
+describe("the front's light is a ruled band (part 3: \"I love the ruled band, but it's too strong rn... needs to be more subtle\")", () => {
+  const INKS: LightInk[] = ["white", "warm", "spectrum"];
+  const css = read("src/app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = (sel: string) => new RegExp(`(?:^|\\n)${sel.replace(/[.*+?^$(){}|[\]\\>]/g, "\\$&")} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+  const frame = read("src/components/scenes/SceneFrame.tsx");
+
+  it.each(INKS)("its lines are a picture in %s ink, drawn by the kit's rules, and nothing in it moves", (ink) => {
+    const art = lightLines(ink);
+    expect(art).not.toMatch(/<text|<filter|<style|<script|<image|<animate|href="(?!#)/);
+    expect(art).not.toMatch(/NaN|Infinity|undefined/);
+    const ids = [...art.matchAll(/ id="([\w-]+)"/g)].map((x) => x[1]);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const ref of art.matchAll(/url\(#([\w-]+)\)/g)) expect(ids, ref[1]).toContain(ref[1]);
+    // fine lines, leaning: the measures the owner saw
+    expect(art).toContain(`<pattern id="r" width="${LIGHT.pitch}" height="${LIGHT.pitch}" patternUnits="userSpaceOnUse" patternTransform="rotate(${LIGHT.lean})">`);
+    expect(art).toContain(`stroke-width="${LIGHT.weight}"`);
+    // at half strength in the picture itself, whichever way it is inked
+    expect(art).toContain(ink === "spectrum" ? `opacity="${LIGHT.ink}"` : `stroke-opacity="${LIGHT.ink}"`);
+    expect(svgDoc(art)).toContain("</svg>");
+  });
+
+  it("the ink is the rarity's: white, warm for Legendary, a spectrum printed across the card for Mythic", () => {
+    expect(LIGHT_INK).toEqual({ Common: "white", Uncommon: "white", Rare: "white", Legendary: "warm", Mythic: "spectrum" });
+    expect(lightLines("white")).toContain('stroke="#ffffff"');
+    expect(lightLines("warm")).toContain('stroke="#ffecb4"');
+    // the spectrum runs the width of the CARD, so the ink itself stands still: the band shows the part it passes over
+    expect(lightLines("spectrum")).toContain(`<linearGradient id="ink" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CARD_W}" y2="0">`);
+    // a collab word's card is its set's colors and no metal: the plain white, decided by the look first
+    expect(frame).toContain('const lightInk: LightInk = mine ? "white" : LIGHT_INK[tier ?? PLAIN];');
+  });
+
+  it("never a line over a letter: the front draws the band under its word, and only when its card says it is lit", () => {
+    const at = (s: string) => { const i = frame.indexOf(s); expect(i, s).toBeGreaterThan(-1); return i; };
+    const band = at('<i aria-hidden className="cf-light">');
+    expect(band).toBeGreaterThan(at('<div className="cf-tex" />'));
+    expect(band).toBeLessThan(at("className={`cf-word "));
+    expect(frame).toContain("const lit = useContext(CardLit);");
+    expect(frame).toMatch(/\{lit && \(\s*<i aria-hidden className="cf-light">\s*<i style=\{\{ backgroundImage: cardLightImage\(lightInk\) \}\} \/>\s*<\/i>\s*\)\}/);
+    // the card draws no band of its own over the whole front any more
+    const card = read("src/components/cards/SceneCard.tsx");
+    expect(card).toContain("<CardLit.Provider value={light.lit}>{front}</CardLit.Provider>");
+    expect(card).not.toMatch(/sc-sheen/);
+    expect(css).not.toMatch(/sc-sheen/);
+    expect(read("src/components/cards/useCardLight.ts")).not.toMatch(/CARD_SHEEN|linear-gradient/);
+  });
+
+  it("the band's measures in the styles are the drawing's", () => {
+    const { half, box } = lightBand();
+    expect([half, box]).toEqual([21.67, 54]);
+    const lean = 90 + LIGHT.lean; // the window's edges lean as the lines lean
+    const mask = `linear-gradient(${lean}deg, transparent calc(50% - ${half}cqw), #000 50%, transparent calc(50% + ${half}cqw))`;
+    const win = rule(".cf-light");
+    expect(win).toContain(`width: ${box}cqw`);
+    expect(win).toContain(`transform: translateX(-${box}cqw)`); // at rest it stands off the card
+    expect(win).toContain(`-webkit-mask-image: ${mask}`);
+    expect(win).toContain(`; mask-image: ${mask}`);
+    // the lines are the size of the card, and start where the window's travel puts them back on it
+    const lines = rule(".cf-light > i");
+    expect(lines).toContain("width: 100cqw");
+    expect(lines).toContain(`transform: translateX(${box}cqw)`);
+    // a picture, never slanted stripes made of a gradient (they broke into dashes at most pixel ratios)
+    expect(win + lines).not.toMatch(/repeating-linear-gradient/);
+  });
+
+  it("the lines stand still on the card: the window and the lines move by the same amount, opposite ways, in step", () => {
+    const { box } = lightBand();
+    expect(css).toContain(`@keyframes cf-light { from { transform: translateX(-${box}cqw); } to { transform: translateX(100cqw); } }`);
+    expect(css).toContain(`@keyframes cf-light-back { from { transform: translateX(${box}cqw); } to { transform: translateX(-100cqw); } }`);
+    // one clock for both, only in a moment, and only where motion is welcome
+    const a = /\.sc-moment \.cf-light \{ animation: cf-light ([^;]+); \}/.exec(css)?.[1];
+    const b = /\.sc-moment \.cf-light > i \{ animation: cf-light-back ([^;]+); \}/.exec(css)?.[1];
+    expect(a).toBe("1.3s cubic-bezier(0.3, 0, 0.2, 1) both");
+    expect(b).toBe(a);
+    const motion = css.slice(css.indexOf(".sc-ease { transition:") - 60, css.indexOf(".sc-moment .cf-light > i"));
+    expect(motion).toContain("@media (prefers-reduced-motion: no-preference) {");
+    // transforms only: a mask moved by its position, or anything else, is painted again on every frame
+    for (const k of css.matchAll(/@keyframes cf-light[\w-]* \{([\s\S]*?\})\s*\}/g)) expect(k[1].replace(/transform: translateX\([^)]*\);/g, "")).not.toMatch(/[a-z-]+:/);
+    expect(css).not.toMatch(/cf-light[^{]*\{[^}]*infinite/);
+  });
+
+  it("its strength follows the face: quiet on colour, quieter on a dark plate, and more on the pale stock card", () => {
+    const strength = (sel: string) => Number(/opacity: ([\d.]+)/.exec(rule(sel))?.[1]);
+    const [mid, dark, pale] = [strength(".cf-light"), strength(".cf-dark .cf-light"), strength(".cf-pale .cf-light")];
+    expect([mid, dark, pale]).toEqual([0.36, 0.16, 0.79]);
+    // what reaches the card: the picture's own half strength times these. As first drawn it was a full 0.5.
+    expect(mid * LIGHT.ink).toBeLessThan(0.2);
+    expect(dark).toBeLessThan(mid / 2);
+    // every face is sorted, or takes the middle; none is both dark and pale
+    const ids = new Set(SCENES.map((s) => s.id));
+    for (const id of [...DARK_SCENES, ...PALE_SCENES]) expect(ids.has(id), id).toBe(true);
+    for (const id of PALE_SCENES) expect(DARK_SCENES.has(id), id).toBe(false);
+    expect([...PALE_SCENES]).toEqual(["stock"]);
+    expect(frame).toContain('DARK_SCENES.has(scene) ? "cf-dark" : PALE_SCENES.has(scene) ? "cf-pale" : ""');
   });
 });
