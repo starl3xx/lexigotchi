@@ -27,7 +27,7 @@ import { CardMore } from "./CardBack";
 import { ShareVideo } from "./ShareVideo";
 import { useCardNumber } from "./useCardNumber";
 import { flipKey, useFlipOf } from "./useFlipOf";
-import { useCollabLook } from "@/components/game/collabLooks";
+import { useCollabLook } from "@/components/game/collabLooksContext";
 
 export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
   const g = useGame();

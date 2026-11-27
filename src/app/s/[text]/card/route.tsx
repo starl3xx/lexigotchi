@@ -8,7 +8,7 @@ import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W } from "@/lib/cardArt/engrave";
 import { TABLE, tableImage } from "@/lib/cardArt/table";
 import { isSuiteDeployed } from "@/lib/onchain/addresses";
-import { collabSoon } from "@/lib/raritySoon";
+import { collabSoonRead } from "@/lib/raritySoon";
 import { stampDataOf } from "@/lib/sets/stampData";
 import { cardNumberOf, cardNumberSoon } from "@/lib/onchain/cardNumbers";
 import { cardLevelOf, cardLevelSoon } from "@/lib/onchain/cardLevel";
@@ -68,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // The word's rarity, from the word itself: a link can't claim a tier. A house card (HEYOO) isn't
   // a dictionary word, so it has none and stays plain.
   const word = tiles.map((t) => t.char).join("");
-  const collab = await collabSoon();
+  const { looks: collab, known: setsRead } = await collabSoonRead();
   const tier = cardTier(tiles, collab);
   // A collab word's own look, and its set's stamp as bytes (never fetched from this site's own route).
   const mine = collab.get(word.toUpperCase());
@@ -127,9 +127,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         { name: "Soehne", data: soehneBold, weight: 800, style: "normal" },
         { name: CARD_SERIF, data: serifBold, weight: 700, style: "normal" },
       ],
-      // Kept long only when the address names the look the word has (`c`), and the stamp it has was
-      // drawn: a picture missing its stamp for a moment is asked again soon.
-      headers: { "cache-control": cardPictureCache({ waiting: waiting || (!!mine?.stamp && !stamp), level, hint, mark: parseLinkMark(url.searchParams.get("c")), look: mine?.mark ?? null }) },
+      // Kept long only when the address names the look the word has (`c`), the sets were read (a
+      // failed read draws a collab word in its rarity's look), and the stamp it has was drawn.
+      headers: { "cache-control": cardPictureCache({ waiting: waiting || !setsRead || (!!mine?.stamp && !stamp), level, hint, mark: parseLinkMark(url.searchParams.get("c")), look: mine?.mark ?? null }) },
     },
   );
 }

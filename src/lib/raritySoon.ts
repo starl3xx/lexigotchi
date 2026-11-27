@@ -11,11 +11,20 @@ import { NO_COLLAB } from "./rarity";
 import type { CollabLooks } from "./collabLook";
 
 export async function collabSoon(ms = 1200): Promise<CollabLooks> {
+  return (await collabSoonRead(ms)).looks;
+}
+
+/**
+ * The same, saying whether the sets were READ. A picture that is kept for a week must know: drawn
+ * while the sets couldn't be read, a collab word's card comes out in its rarity's look, and that
+ * picture must be asked for again soon (app/s/[text]/card), never kept as if it were right.
+ */
+export async function collabSoonRead(ms = 1200): Promise<{ looks: CollabLooks; known: boolean }> {
   try {
     const { collabNow } = await import("@/lib/sets/server");
     const got = await Promise.race([collabNow(), new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
-    return got?.known ? got.words : NO_COLLAB;
+    return got?.known ? { looks: got.words, known: true } : { looks: NO_COLLAB, known: false };
   } catch {
-    return NO_COLLAB;
+    return { looks: NO_COLLAB, known: false };
   }
 }

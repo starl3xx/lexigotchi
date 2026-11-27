@@ -11,7 +11,6 @@ import { Star } from "./ui/icons";
 import { stageName } from "@/lib/ascension";
 import type { Tier } from "@/lib/economy";
 import type { CollabLook } from "@/lib/collabLook";
-import { tileTierOf, useCollabLook } from "./collabLooks";
 import { hunger, wordCase, type CaseState, type OwnedWord } from "./state";
 import { caseBadgeText } from "./careNote";
 
@@ -98,9 +97,9 @@ export function WordTiles({
   /** The word's collab look, when the caller already holds it (a page outside the game); otherwise it is looked up by the word. */
   look?: CollabLook | null;
 }) {
-  // A collab word's tiles wear its set's two colors in place of its rarity's material (lib/collabLook.ts).
-  const mine = useCollabLook(word, look);
-  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} tier={tileTierOf(tier, mine)} still={still} />;
+  // A collab word's tiles wear its set's two colors in place of its rarity's material: TileWord
+  // looks the word's look up itself (lib/collabLook.ts).
+  return <TileWord word={word} upper={upper} state={state} gild={asGild(gild)} size={size} detail={detail} tier={tier} still={still} look={look} />;
 }
 
 const CASE_STYLE: Record<CaseState, string> = {

@@ -11,7 +11,7 @@ import type { CSSProperties } from "react";
 import type { Tier } from "@/lib/economy";
 import { FINISH, finishFor, type Finish } from "@/lib/rarityFinish";
 import { tintOf, type CollabLook } from "@/lib/collabLook";
-import { useCollabLook } from "./collabLooks";
+import { useCollabLook } from "./collabLooksContext";
 import type { LetterState } from "@/lib/wordNeed";
 
 /** "#rrggbb" at `a` opacity. */

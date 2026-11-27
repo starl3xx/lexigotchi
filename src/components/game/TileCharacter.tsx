@@ -34,6 +34,8 @@
 import { Fragment, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
 import { finishFor, mixHex, type TileTier } from "@/lib/rarityFinish";
+import type { CollabLook } from "@/lib/collabLook";
+import { tileTierOf, useCollabLook } from "./collabLooksContext";
 import { LINK_OVERLAP } from "@/components/scenes/layout";
 import {
   ARM_BRACE,
@@ -1631,10 +1633,11 @@ export function TileWord({
   size = 64,
   detail = "auto",
   className = "",
-  tier,
+  tier: rarity,
   still,
   states,
   gilds,
+  look,
 }: {
   word: string;
   upper: boolean[];
@@ -1643,8 +1646,15 @@ export function TileWord({
   size?: number;
   detail?: TileDetail;
   className?: string;
-  /** The word's rarity, worn as its tiles' material (lib/rarityFinish). */
+  /**
+   * The word's rarity, worn as its tiles' material (lib/rarityFinish). A COLLAB word wears its
+   * set's two colors in place of it (decisions.md, "Collab sets"): the look is the word's, so it
+   * is looked up here by the word, and no caller has to know. Only for a word drawn WITH its
+   * rarity: an example word (no `tier`) is never dressed as a set's.
+   */
   tier?: TileTier;
+  /** The word's collab look, when the caller already holds it (a page outside the game); `null` for none. */
+  look?: CollabLook | null;
   /** The finish without its motion. */
   still?: boolean;
   /**
@@ -1655,6 +1665,8 @@ export function TileWord({
   states?: readonly (TileState | undefined)[];
   gilds?: readonly (Gild | undefined)[];
 }) {
+  const mine = useCollabLook(word, look);
+  const tier: TileTier | undefined = typeof rarity === "string" ? tileTierOf(rarity, mine) : rarity;
   const letters = [...word];
   const stateAt = (i: number) => states?.[i] ?? state;
   // the word blinks and glances only while every letter is at rest

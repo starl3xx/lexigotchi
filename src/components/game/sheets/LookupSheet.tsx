@@ -39,6 +39,7 @@ import { useLetterSupply } from "../useLetterSupply";
 import { queueSpell } from "../spellHandoff";
 import { THEMES, fmtWord, useGame } from "../state";
 import { useTierOf } from "../useRarity";
+import { tileTierOf, useCollabLook } from "../collabLooksContext";
 
 const LOWER = [false, false, false, false, false];
 const ALL_UPPER = [true, true, true, true, true];
@@ -54,6 +55,8 @@ export function LookupSheet({ word }: { word: string }) {
   const world = useWorld();
   const d = useDictionary();
   const tier = tierOf(word);
+  // The letters drawn one by one below are the word's own: a collab word's wear its set's two colors.
+  const tileTier = tileTierOf(tier, useCollabLook(word));
   const status = d.statusOf(word);
   const listing = d.listings.get(word);
   // a word on the board is its seller's, whatever the minute-old world read says (useDictionary)
@@ -188,7 +191,7 @@ export function LookupSheet({ word }: { word: string }) {
               </span>
             ) : (
               <span key={k} className={need.letters[k] === "away" ? "lk-letter opacity-50" : "lk-letter"} style={{ margin: `0 ${-STAGE * 0.11}px` }}>
-                <TileCharacter char={ch} upper={need.upper[k]} size={STAGE} detail="full" tier={tier} index={k} still />
+                <TileCharacter char={ch} upper={need.upper[k]} size={STAGE} detail="full" tier={tileTier} index={k} still />
               </span>
             ),
           )

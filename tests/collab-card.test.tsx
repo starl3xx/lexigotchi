@@ -87,6 +87,52 @@ describe("the tiles", () => {
   });
 });
 
+describe("who draws a word's tiles", () => {
+  it("the word's row looks its look up itself, and only for a word drawn WITH its rarity", async () => {
+    const { TileWord } = await import("@/components/game/TileCharacter");
+    const { CollabLooksProvider } = await import("@/components/game/collabLooks");
+    const upper = [false, false, false, false, false];
+    const { container } = render(
+      <CollabLooksProvider>
+        <div id="word"><TileWord word="CRANE" upper={upper} size={48} tier="Legendary" still /></div>
+        <div id="example"><TileWord word="CRANE" upper={upper} size={48} still /></div>
+      </CollabLooksProvider>,
+    );
+    expect(container.querySelector("#word")!.innerHTML.toLowerCase()).toContain(A);
+    // an example word (the onboarding's CRANE) has no rarity and is never dressed as a set's
+    expect(container.querySelector("#example")!.innerHTML.toLowerCase()).not.toContain(A);
+  });
+  it("every tile drawn one by one with a rarity is given the word's look (the list of who may)", () => {
+    // `TileWord`, `WordTiles`, `MiniTiles`, `SceneFrame`, and the server's `wordCard` look a word's
+    // look up or are handed it. A file that draws `TileCharacter` or `OgTile` itself WITH a tier
+    // must pass what `tileTierOf` gave it: otherwise a collab word is gold there (the advisor
+    // found five such places before this test existed).
+    const { readdirSync, statSync } = require("fs") as typeof import("fs");
+    const root = join(__dirname, "..");
+    const files = (dir: string): string[] =>
+      readdirSync(join(root, dir)).flatMap((name: string) => {
+        const rel = `${dir}/${name}`;
+        return statSync(join(root, rel)).isDirectory() ? files(rel) : /\.tsx$/.test(name) ? [rel] : [];
+      });
+    const wrong: string[] = [];
+    let seen = 0;
+    for (const f of files("src")) {
+      if (f === "src/components/game/TileCharacter.tsx") continue; // the row passes its own letters' tier on
+      const src = readFileSync(join(root, f), "utf8");
+      // Each tag up to its own end: a prop like `linkLeft={i > 0}` holds a `>`, so the tag is read to its `/>`.
+      for (const m of src.matchAll(/<(TileCharacter|OgTile)\b/g)) {
+        const tag = src.slice(m.index, src.indexOf("/>", m.index) + 2);
+        const tier = /\btier=\{([^}]*)\}/.exec(tag);
+        if (!tier) continue; // no rarity: a loose letter, an example
+        seen++;
+        if (!/^(tileTier|tileTierOf\(.*\)|spec\.tier)$/.test(tier[1].trim())) wrong.push(`${f}: <${m[1]} tier={${tier[1]}}>`);
+      }
+    }
+    expect(wrong).toEqual([]);
+    expect(seen).toBeGreaterThanOrEqual(6); // SceneFrame, CardBack, LookupSheet, the video's letters, the server's card and back
+  });
+});
+
 describe("the card's front", () => {
   it("the stock card's wash takes the two colors, and the frame the look's ink; a rarity's card is what it was", () => {
     const L = collabCardLook(LOOK);

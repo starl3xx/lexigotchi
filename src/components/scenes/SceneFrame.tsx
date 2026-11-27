@@ -31,7 +31,7 @@ import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, type CardLook } from "@/lib/cardArt/looks";
 import { collabCardLook, type CollabLook } from "@/lib/collabLook";
-import { tileTierOf, useCollabLook } from "../game/collabLooks";
+import { tileTierOf, useCollabLook } from "../game/collabLooksContext";
 import { DARK_SCENES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 

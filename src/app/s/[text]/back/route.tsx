@@ -8,6 +8,7 @@ import { cardLevelOf } from "@/lib/onchain/cardLevel";
 import type { Tier } from "@/lib/economy";
 import { tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
 import { collabSoon } from "@/lib/raritySoon";
+import { tintOf } from "@/lib/collabLook";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
@@ -127,6 +128,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const collab = await collabSoon();
   const tier = tierWith(word, collab);
   const look = LOOK[tier];
+  // The rack's tiles are the word's own: a collab word's wear its set's two colors, as on its front.
+  const mine = collab.get(word.toUpperCase());
+  const tileTier = mine ? tintOf(mine) : tier;
   // The stage has its own read (lib/onchain/cardLevel), which the stage this address names can ask
   // to be read again: a video made the moment after an ascension must not draw the stage before it.
   const [{ number, finder, story }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
@@ -209,7 +213,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
               <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
                 {tiles.map((t, i) => (
                   <div key={i} style={{ display: "flex" }}>
-                    <OgTile char={t.char} upper={t.upper} w={74} limbs={false} tier={tier} gild={level ?? 0} index={i} uid={`b${i}`} />
+                    <OgTile char={t.char} upper={t.upper} w={74} limbs={false} tier={tileTier} gild={level ?? 0} index={i} uid={`b${i}`} />
                   </div>
                 ))}
               </div>

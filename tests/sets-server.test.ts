@@ -884,6 +884,24 @@ describe("the collab words a rarity is read with", () => {
     expect((await again.collabSoon()).size).toBe(0);
     log.mockRestore();
   });
+  it("a picture kept for a week is told whether the sets were READ: a failed read is never 'no collab words'", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const { collabSoonRead } = await import("@/lib/raritySoon");
+    const ok = await collabSoonRead();
+    expect(ok.known).toBe(true);
+    expect([...ok.looks.keys()]).toEqual([words.B]);
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const again = await import("@/lib/raritySoon");
+    expect(await again.collabSoonRead()).toMatchObject({ known: false });
+    log.mockRestore();
+    // and the card route keeps such a picture only briefly (its own source)
+    const { readFileSync } = await import("fs");
+    const { join } = await import("path");
+    expect(readFileSync(join(__dirname, "..", "src/app/s/[text]/card/route.tsx"), "utf8")).toContain("waiting: waiting || !setsRead ||");
+  });
+
   it("the server's card picture, the Telegram alert, and the word answer use them", async () => {
     const { wordsByTier, TIER_COUNTS } = await import("@/lib/economy");
     const common = wordsByTier("Common")[0];

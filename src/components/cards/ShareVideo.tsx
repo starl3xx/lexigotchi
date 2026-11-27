@@ -23,7 +23,7 @@ import type { SceneId } from "@/lib/scenes";
 import { canMakeLoop } from "./live/support";
 import { MATERIAL_LINE, materialOf } from "./material";
 import { useMyStamp } from "./CardStamp";
-import { tileTierOf, useCollabLook } from "@/components/game/collabLooks";
+import { tileTierOf, useCollabLook } from "@/components/game/collabLooksContext";
 
 /** A phone's share sheet that takes a video file. */
 function canShareVideo(): boolean {
