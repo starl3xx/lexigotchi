@@ -75,6 +75,19 @@ describe("Telegram reminders", () => {
     expect(screen.getByRole("button", { name: "Unlink" })).toBeTruthy();
   }, 8000);
 
+  it("never says a link expired once it has worked", async () => {
+    linkLifeMs = 4000; // long enough to link, short enough to wait out
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Link Telegram" }));
+    await screen.findByRole("button", { name: "Open Telegram" });
+    linked = { name: "ann_plays" };
+    await waitFor(() => expect(screen.getByText("ann_plays")).toBeTruthy(), { timeout: 5000 });
+    // past the link's life
+    await new Promise((r) => setTimeout(r, 4500));
+    expect(screen.queryByText(/expired/)).toBeNull();
+    expect(screen.getByText("ann_plays")).toBeTruthy();
+  }, 15000);
+
   it("gives up on a link that has expired: Link Telegram comes back, for a fresh one", async () => {
     linkLifeMs = 300;
     show();

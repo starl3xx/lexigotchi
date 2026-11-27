@@ -75,6 +75,11 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
     },
   });
   const linked = q.data ?? null;
+  // Linked: the link did its job. Forget it, or its expiry would fire later and say "expired"
+  // under "Linked to …" (Bugbot on #269).
+  useEffect(() => {
+    if (linked) setLink(null);
+  }, [linked]);
 
   /** One call to the profile's Telegram route, with the session (asking for the sign-in if there is none). */
   const call = async (method: "POST" | "DELETE"): Promise<{ url?: string; expiresAt?: string; error?: string; token?: string }> => {

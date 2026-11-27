@@ -212,7 +212,12 @@ export async function GET(req: Request) {
     let telegramResult: Awaited<ReturnType<typeof tellByTelegram>> = null;
     if (telegramRemindersOn()) {
       try {
-        const linked = (await allTelegramLinks()).map((l) => l.account).filter((account) => wantsDaily(account));
+        // Only a link that still names a profile: a wallet that joined another account after linking
+        // leaves its own row behind, and that player is reminded through their account's link, once
+        // (Bugbot on #269).
+        const linked = (await allTelegramLinks())
+          .map((l) => l.account.toLowerCase())
+          .filter((account) => links.accountOf(account).toLowerCase() === account && wantsDaily(account));
         const linkedKeys = await relatedDailyKeysMany(linked.map((account) => ({ fid: null, wallets: links.walletsOf(account) })));
         const uniqueKeys = [...new Set(linkedKeys.flat())];
         const used = await readDailyUsed(uniqueKeys);

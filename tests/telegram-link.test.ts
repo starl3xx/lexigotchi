@@ -377,6 +377,14 @@ describe("a reminder as a Telegram message", () => {
     expect(t.log.filter((l) => l.startsWith("release") || l.startsWith("forget"))).toEqual([]);
   });
 
+  it("gives the mark back and stops when Telegram says “not now”: a rate limit delivered nothing", async () => {
+    const { telegramNotes } = await import("@/lib/notify/telegram");
+    const t = deps({ chats: { "0xa": 11, "0xb": 22 }, send: () => { throw new Error("sendMessage: Too Many Requests: retry after 31"); } });
+    expect(await telegramNotes(notes(["0xa", "0xb"]), t.d)).toEqual({ sent: 0, skipped: 0, failed: 1, dropped: 1, gone: 0 });
+    // 0xa's mark is free again for the next pass; 0xb was never claimed
+    expect(t.log).toEqual(["claim 0xa daily-20784: claimed", "send 11 Your free letter is ready", "release 0xa daily-20784"]);
+  });
+
   it("stops the pass when Telegram doesn't answer: an outage costs one wait, not one per player", async () => {
     const { telegramNotes } = await import("@/lib/notify/telegram");
     // 0xa is sent; Telegram then stops answering at 0xb; 0xc and 0xd are never tried, nor claimed

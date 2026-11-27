@@ -109,7 +109,8 @@ describe("the daily-letter reminder obeys the choices", () => {
         return { sent: notes.length, skipped: 0, failed: 0, dropped: 0, gone: 0 };
       },
     }));
-    vi.doMock("@/lib/db/telegramLinks", () => ({ allTelegramLinks: async () => [{ account: A }, { account: B }] }));
+    // A2's row is a leftover: A2 linked Telegram on its own, then joined A's account.
+    vi.doMock("@/lib/db/telegramLinks", () => ({ allTelegramLinks: async () => [{ account: A }, { account: B }, { account: A2 }] }));
     vi.stubEnv("CRON_SECRET", "s3cret");
     vi.doMock("@/lib/db/reminderPrefs", () => ({ loadPrefs: async () => prefs }));
     vi.doMock("@/lib/db/queries", () => ({ notifiableFids: async () => [77, 78] }));
@@ -165,7 +166,8 @@ describe("the daily-letter reminder obeys the choices", () => {
     telegramArmed = true;
     sent = mockCron(prefsBookFrom([]));
     const body = await (await run()).json();
-    // the chain day is the send-once mark, so a retried cron can't remind twice
+    // the chain day is the send-once mark, so a retried cron can't remind twice; and A2's leftover
+    // row gets nothing of its own: that player is reminded once, through A's link
     expect(sent.telegram).toEqual([{ account: A, mark: "daily-500" }, { account: B, mark: "daily-500" }]);
     expect(body.telegram).toMatchObject({ targets: 2, result: { sent: 2 } });
     // the other channels are as they were

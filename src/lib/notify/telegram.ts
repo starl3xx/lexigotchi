@@ -8,14 +8,15 @@
  *   player's choices before it gets here, as it does for the other channels.
  * - **Once.** Each message's send-once mark (lib/db/reminderMarks.ts, under "telegram:<kind>" so it
  *   never meets the email's mark for the same event) is CLAIMED before the send. With no mark to
- *   keep, nothing is sent. Telegram's clear refusal gives the mark back; after a timeout the
- *   message may have arrived, so the mark stays.
+ *   keep, nothing is sent. Telegram's clear "not delivered" (a refusal, or a rate limit) gives
+ *   the mark back; after a timeout the message may have arrived, so the mark stays.
  * - **A person who blocked the bot, or left Telegram, is unlinked** (`forget`): Telegram says so
  *   in its refusal, and writing to them again would only fail again.
  * - **Production's own deployment only** (`telegramRemindersOn`), like the bot's other unasked
  *   posts (lib/telegram `mayPostUnasked`). `TELEGRAM_REMINDERS=off` mutes the channel.
  * - **It can't hurt its caller:** `tellByTelegram` never throws, and a pass STOPS at the first send
- *   that fails any other way than Telegram's own refusal (a timeout, a server error). Each send
+ *   that fails any other way than Telegram's refusal of that one message (a timeout, a server
+ *   error, a rate limit). Each send
  *   may wait ten seconds, and the callers are the keeper's jobs, which share one time limit: an
  *   outage must cost one wait, not one per linked player. The players not reached keep their marks
  *   unclaimed, so the next pass tells them.
@@ -73,8 +74,13 @@ export function telegramText(note: Pick<Notification, "title" | "body" | "target
 
 /** Telegram's words for "this person can't be written to any more": they blocked the bot, or their account is gone. */
 const GONE = /bot was blocked by the user|user is deactivated|chat not found|bot can't initiate conversation/i;
-/** Telegram's own "no": nothing was delivered. (A timeout or a server error says nothing either way.) */
+/** Telegram's "no" to this one message: nothing was delivered, and the next player's may still go. */
 const REFUSED = /Bad Request|Forbidden|Unauthorized/i;
+/**
+ * Telegram's "not now" to the bot (429): nothing was delivered either, and nothing more will be
+ * for a while. (A timeout or a server error says nothing either way about delivery.)
+ */
+const RATE_LIMITED = /Too Many Requests|retry after/i;
 
 /** The messages, over deps already chosen. Each player's failure is its own; never throws past `chats`. */
 export async function telegramNotes(notes: readonly TelegramNote[], deps: TelegramDeps): Promise<TelegramResult> {
@@ -101,10 +107,11 @@ export async function telegramNotes(notes: readonly TelegramNote[], deps: Telegr
         out.gone++;
         await deps.forget(chat).catch(() => {});
       }
-      if (REFUSED.test(why)) await deps.release(n.account, n.mark);
-      else {
-        // Telegram didn't answer. This player's mark stays (the message may have arrived), and
-        // nobody after them is tried this pass.
+      // Not delivered, by Telegram's own word: the mark goes back, so a later pass tells them.
+      if (REFUSED.test(why) || RATE_LIMITED.test(why)) await deps.release(n.account, n.mark);
+      if (!REFUSED.test(why)) {
+        // Telegram didn't answer, or said "not now": nobody after this player is tried this pass.
+        // (After no answer at all, this player's mark stays: the message may have arrived.)
         out.dropped = linked.length - i - 1;
         break;
       }
