@@ -831,6 +831,71 @@ describe("/api/admin/sets is gated, and nothing private leaves without the gate"
   });
 });
 
+describe("the collab words a rarity is read with", () => {
+  const look = { type: "collab", partnerName: "P", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0) } as const;
+  it("are the words of revealed and released collab sets, and are UNKNOWN when the sets can't be read", async () => {
+    world.sets = [draft(1, "Draft", [words.A], look), draft(2, "Shown", [words.B], { ...look, status: "revealed" }), draft(3, "Plain", [words.C], { status: "revealed" })];
+    const server = await import("@/lib/sets/server");
+    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    // Unreadable, with nothing kept from before: unknown, never "no collab words".
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fresh = await import("@/lib/sets/server");
+    const got = await fresh.collabNow();
+    expect(got.known).toBe(false);
+    expect(got.words.size).toBe(0);
+    log.mockRestore();
+  });
+  it("a caller that PAYS gets this call's own read or a throw: never the copy kept from before a failure", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const server = await import("@/lib/sets/server");
+    expect([...(await server.collabStrict())]).toEqual([words.B]); // and this read is now the kept copy
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    // The ordinary read answers from the kept copy and calls it known: right for holding words back...
+    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    // ...and exactly what the keeper must not weigh an epoch with.
+    await expect(server.collabStrict()).rejects.toThrow(/couldn't be read/);
+    const { epochTiers } = await import("@/lib/keeper/tiers");
+    await expect(epochTiers("yield epoch 9", undefined, async () => {})).rejects.toThrow(/no epoch is opened/);
+    // Back up: the next run reads, and weighs by the collab words.
+    world.fail = false;
+    const { wordsByTier } = await import("@/lib/economy");
+    world.sets = [draft(2, "Shown", [wordsByTier("Common")[0]], { ...look, status: "revealed" })];
+    expect((await epochTiers("yield epoch 10", undefined, async () => {}))(wordsByTier("Common")[0])).toBe("Legendary");
+    log.mockRestore();
+  });
+
+  it("a picture that only SHOWS a rarity falls back to the derived tiers; it never fails or waits long", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const { collabSoon } = await import("@/lib/raritySoon");
+    expect([...(await collabSoon())]).toEqual([words.B]);
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const again = await import("@/lib/raritySoon");
+    expect((await again.collabSoon()).size).toBe(0);
+    log.mockRestore();
+  });
+  it("the server's card picture, the Telegram alert, and the word answer use them", async () => {
+    const { wordsByTier, TIER_COUNTS } = await import("@/lib/economy");
+    const common = wordsByTier("Common")[0];
+    const collab = new Set([common]);
+    const { cardTier } = await import("@/app/_og/wordCard");
+    const tiles = [...common].map((char) => ({ char, upper: false }));
+    expect(cardTier(tiles, collab)).toBe("Legendary");
+    expect(cardTier(tiles, new Set())).toBe("Common");
+    expect(cardTier([..."HEYOO"].map((char) => ({ char, upper: true })), collab)).toBeUndefined(); // a house card has no rarity
+    const { wordText } = await import("@/lib/telegramCommands");
+    expect(wordText(common, undefined, false, false, collab)).toBe(`${common} is one of ${TIER_COUNTS.Legendary + 1} Legendary words.`);
+    expect(wordText(common, undefined, false)).toBe(`${common} is one of ${TIER_COUNTS.Common.toLocaleString("en-US")} Common words.`);
+    const { alertPost, isAlertWord, ALERT_TIERS } = await import("@/lib/telegramAlerts");
+    expect(isAlertWord(common, collab)).toBe(ALERT_TIERS.includes("Legendary"));
+    expect(alertPost({ word: common, upper: [false, false, false, false, false] }, "ann", collab).text).toContain(`one of the game’s ${TIER_COUNTS.Legendary + 1} Legendary words.`);
+  });
+});
+
 describe("collab sets: what leaves the server, and what the operator may store", () => {
   const post = (body: unknown) => new Request("http://localhost/api/admin/sets", { method: "POST", body: JSON.stringify(body) });
   const collab = { type: "collab", partnerName: "SecretPartner", partnerUrl: "https://partner.example/", colorA: "#123456", colorB: "#abcdef", stampAt: new Date(1_800_000_000_000) } as const;

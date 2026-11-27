@@ -8,6 +8,7 @@
  */
 import { yoursSince, type WordStory } from "./cardFacts";
 import { costToMake, dailyEarnEstimate } from "./wordCost";
+import type { Tier } from "./economy";
 import { stageFeeMultiple } from "./ascension";
 import { worldSoon } from "./worldSnapshot";
 import { readGameParams, type GameParams } from "./onchain/reads";
@@ -47,7 +48,7 @@ function pricesNow(): Promise<GameParams> {
  * its read didn't arrive. How many letters are UPPERCASE is the chain's count here (the world's),
  * never the link's casing: a link can't make a lowercase word look like an earner.
  */
-export async function readBackFacts(word: string, level: number | null, story: WordStory | null): Promise<{ since: number | null; perDay: number | "upper" | null; cost: number | null; drawn: number | "never" | null }> {
+export async function readBackFacts(word: string, level: number | null, story: WordStory | null, tier: (word: string) => Tier): Promise<{ since: number | null; perDay: number | "upper" | null; cost: number | null; drawn: number | "never" | null }> {
   // the world: a kept one at once (a little old beats none), else a new scan for a few seconds (worldSoon)
   const [world, params] = await Promise.all([worldSoon(WORLD_WAIT_MS), soon<GameParams>(pricesNow(), PRICE_WAIT_MS)]);
   const holder = world?.body.owners?.[word] ?? null;
@@ -63,7 +64,7 @@ export async function readBackFacts(word: string, level: number | null, story: W
   if (raised !== undefined && level !== null) {
     if (raised < word.length) perDay = "upper";
     // it is already in today's weight if it earns now: take its own part out before counting it in
-    else if (today) perDay = dailyEarnEstimate({ word, upper: [...word].map(() => true), prestigeLevel: level }, { pot: today.pot, weight: Math.max(0, today.weight - (world?.weights[word] ?? 0)) });
+    else if (today) perDay = dailyEarnEstimate({ word, upper: [...word].map(() => true), prestigeLevel: level }, { pot: today.pot, weight: Math.max(0, today.weight - (world?.weights[word] ?? 0)) }, tier);
   }
   let cost: number | null = null;
   if (params && raised !== undefined && level !== null) {

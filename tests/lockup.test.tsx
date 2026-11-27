@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The lockup (lib/cardArt/logo `lockup`, components/brand/Lockup; decisions.md #55): the tile that is
+ * The lockup (lib/cardArt/logo `lockup`, components/brand/Lockup; decisions.md #56): the tile that is
  * the name's L, then EXIGOTCHI, alive where it is drawn live. starl3xx, 2026-11-27: "9E is
  * amazing", "let's not use the seal in the lockup", and, of a one-ink drawing on a dark ground,
  * "any time the colors are inverted like this, the colors of the eyes need to be inverted".

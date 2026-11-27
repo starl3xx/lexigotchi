@@ -5,7 +5,7 @@
  * stage N = N × $0.50, snack $0.02), so a params change that moves them shows up here.
  */
 import { describe, expect, it } from "vitest";
-import { LETTER_ODDS } from "@/lib/economy";
+import { LETTER_ODDS, wordTier } from "@/lib/economy";
 import { yieldWeight } from "@/lib/keeper/shares";
 import {
   attemptsAtLevel,
@@ -80,25 +80,25 @@ describe("costToMake", () => {
 
 describe("dailyEarnEstimate", () => {
   it("earns nothing until all five letters are UPPERCASE", () => {
-    expect(dailyEarnEstimate({ word: "CRANE", upper: [true, true, true, true, false], prestigeLevel: 0 }, { pot: 100, weight: 9 })).toBeNull();
+    expect(dailyEarnEstimate({ word: "CRANE", upper: [true, true, true, true, false], prestigeLevel: 0 }, { pot: 100, weight: 9 }, wordTier)).toBeNull();
   });
 
   it("takes its weight's share of today's pot once it joins the words sharing it", () => {
     const crane = { word: "CRANE", upper: allUpper, prestigeLevel: 0 }; // Common: weight 1
-    expect(dailyEarnEstimate(crane, { pot: 100, weight: 0 })).toBeCloseTo(100, 9); // alone: the whole pot
-    expect(dailyEarnEstimate(crane, { pot: 100, weight: 9 })).toBeCloseTo(10, 9);
-    const gilded = dailyEarnEstimate({ ...crane, prestigeLevel: 1 }, { pot: 100, weight: 9 });
+    expect(dailyEarnEstimate(crane, { pot: 100, weight: 0 }, wordTier)).toBeCloseTo(100, 9); // alone: the whole pot
+    expect(dailyEarnEstimate(crane, { pot: 100, weight: 9 }, wordTier)).toBeCloseTo(10, 9);
+    const gilded = dailyEarnEstimate({ ...crane, prestigeLevel: 1 }, { pot: 100, weight: 9 }, wordTier);
     expect(gilded).toBeCloseTo((100 * 1.1) / (9 + 1.1), 9);
-    expect(dailyEarnEstimate(crane, { pot: 0, weight: 9 })).toBe(0);
+    expect(dailyEarnEstimate(crane, { pot: 0, weight: 9 }, wordTier)).toBe(0);
   });
 
   it("weighs words the same way the keeper does", () => {
     const base = { word: "CRANE", staked: true, upperAll: true, prestigeLevel: 0 };
-    expect(yieldWeight({ ...base, daysUnfed: 0 })).toBe(1);
-    expect(yieldWeight({ ...base, daysUnfed: 1 })).toBe(0.5); // peckish: half
-    expect(yieldWeight({ ...base, daysUnfed: 3 })).toBe(0); // hungry: nothing
-    expect(yieldWeight({ ...base, daysUnfed: 0, staked: false })).toBe(0);
-    expect(yieldWeight({ ...base, daysUnfed: 0, upperAll: false })).toBe(0);
+    expect(yieldWeight({ ...base, daysUnfed: 0 }, wordTier)).toBe(1);
+    expect(yieldWeight({ ...base, daysUnfed: 1 }, wordTier)).toBe(0.5); // peckish: half
+    expect(yieldWeight({ ...base, daysUnfed: 3 }, wordTier)).toBe(0); // hungry: nothing
+    expect(yieldWeight({ ...base, daysUnfed: 0, staked: false }, wordTier)).toBe(0);
+    expect(yieldWeight({ ...base, daysUnfed: 0, upperAll: false }, wordTier)).toBe(0);
   });
 });
 

@@ -5,7 +5,9 @@ import { OgTile } from "../../../_og/tile";
 import { CARD_SERIF, CARD_SERIF_FILE } from "../../../_og/wordCard";
 import { parseLinkStage, parseShowcase } from "@/lib/showcase";
 import { cardLevelOf } from "@/lib/onchain/cardLevel";
-import { wordTier, type Tier } from "@/lib/economy";
+import type { Tier } from "@/lib/economy";
+import { tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
+import { collabSoon } from "@/lib/raritySoon";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
@@ -121,13 +123,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   const tiles = parseShowcase((await params).text);
   if (!tiles) return new Response("Not a showcase", { status: 404 });
   const word = tiles.map((t) => t.char).join("");
-  const tier = wordTier(word);
+  // The tier the game treats it as: a collab word is Legendary on its back as on its front.
+  const collab = await collabSoon();
+  const tier = tierWith(word, collab);
   const look = LOOK[tier];
   // The stage has its own read (lib/onchain/cardLevel), which the stage this address names can ask
   // to be read again: a video made the moment after an ascension must not draw the stage before it.
   const [{ number, finder, story }, level] = await Promise.all([chainFactsOf(word), cardLevelOf(word, parseLinkStage(new URL(req.url).searchParams.get("g")))]);
   const live = isSuiteDeployed();
-  const more = live ? await readBackFacts(word, level, story) : { since: null, perDay: null, cost: null, drawn: null };
+  const more = live ? await readBackFacts(word, level, story, tierFn(collab)) : { since: null, perDay: null, cost: null, drawn: null };
   // A word released in a reserved set carries its set's name, as the game's back does. Only a
   // RELEASED set's: nothing of a set that isn't public can reach a picture. Unknown is left out.
   // Loaded here, at the moment of use: the sets module brings the database and the chain reads with
@@ -191,7 +195,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ display: "flex", fontFamily: SERIF, fontWeight: 700, fontSize: 2.7 * U, lineHeight: 1.05 }}>One of one</div>
               <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>
-                One of {fmt(tierCount(tier))} {tier} words
+                One of {fmt(tierCount(tier, tierCountsWith(collab)))} {tier} words
               </div>
             </div>
             {/* the tiles on their rack: the word itself, in Söhne, and nowhere else on the back */}

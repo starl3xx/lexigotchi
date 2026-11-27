@@ -14,7 +14,7 @@
  * chips wear each rarity's mark, rarest first, as Spell's do.
  */
 import { useMemo, useState } from "react";
-import { TIERS, wordTier, type Tier } from "@/lib/economy";
+import { TIERS, type Tier } from "@/lib/economy";
 import { cardNumber } from "@/lib/cardFacts";
 import { costToMake, type CostPrices } from "@/lib/wordCost";
 import { filterWords, sortWords, type CaseFilter, type WordSort } from "@/lib/market/deals";
@@ -28,6 +28,7 @@ import { useStoredChoice } from "../useStoredChoice";
 import { WordValue } from "../WordValue";
 import { shortAddress, useWorld } from "../useWorld";
 import { Versus, timeAgo, useAmount } from "./bits";
+import { useTierOf } from "../useRarity";
 
 const SORTS: readonly WordSort[] = ["deal", "low", "high", "new", "rare"];
 const SORT_LABEL: Record<WordSort, string> = {
@@ -55,6 +56,7 @@ export function useCostPrices(): CostPrices {
 }
 
 export function WordsBoard() {
+  const tierOf = useTierOf();
   const g = useGame();
   const [q, setQ] = useState("");
   const [tier, setTier] = useState<Tier | "all">("all");
@@ -74,10 +76,10 @@ export function WordsBoard() {
   };
   const tierCounts = useMemo(() => {
     const n = new Map<Tier, number>();
-    for (const l of listings) n.set(wordTier(l.word), (n.get(wordTier(l.word)) ?? 0) + 1);
+    for (const l of listings) n.set(tierOf(l.word), (n.get(tierOf(l.word)) ?? 0) + 1);
     return n;
-  }, [listings]);
-  const rows = sortWords(filterWords(listings, { q, tier, cases, within: mine ? g.state.balance : null }), sort, makeCost);
+  }, [listings, tierOf]);
+  const rows = sortWords(filterWords(listings, { q, tier, cases, within: mine ? g.state.balance : null }, tierOf), sort, makeCost, tierOf);
   const shown = rows.slice(0, limit);
   const narrowed = q.trim() !== "" || tier !== "all" || cases !== "all" || mine;
 
@@ -173,6 +175,7 @@ export function WordsBoard() {
 }
 
 function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; cost: number | null; prices: CostPrices; number?: number }) {
+  const tierOf = useTierOf();
   const g = useGame();
   const amount = useAmount();
   const openWord = useOpenWord();
@@ -181,7 +184,7 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
   const unfed = l.lastFedAt > 0 ? Math.floor((Date.now() / 1000 - l.lastFedAt) / 86_400) : 0;
   const shape = { word: l.word, upper: l.upper, prestigeLevel: l.prestigeLevel };
   const parts = costToMake(shape, prices);
-  const tier = wordTier(l.word);
+  const tier = tierOf(l.word);
   return (
     <li className={`flex items-start justify-between gap-3 border-b-2 border-dashed border-ink/15 py-3 ${mine ? "bg-gold/10 -mx-2 px-2 rounded-lg" : ""}`}>
       <div className="min-w-0">

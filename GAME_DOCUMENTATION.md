@@ -140,9 +140,12 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
   Collab changes how the card looks, and its words are Legendary rarity from the set’s reveal (a
   word whose own rarity is higher keeps it); the word itself is the same word. A revealed or
   released collab set shows in the Dictionary as a collaboration, with the partner’s name and
-  link. Nothing of a collab is shown before its reveal. (Shipped so far: the set’s type, partner,
-  colors, stamp, and first-day rule, as drafts. A collab set can be revealed once its rarity and
-  its card ship.)
+  link. Nothing of a collab is shown before its reveal. The Legendary rarity is a layer on top
+  of the word’s own (derived) tier: it applies to what a card shows, to earnings and the bounty,
+  to filters, sort order, and tier counts, and to the tier a sale is recorded at. It does not
+  change letter supply, mint odds, or the word’s rank. It takes effect from the next daily yield
+  and bounty the keeper opens after the reveal. (Shipped so far: the set’s type, partner, colors,
+  stamp, first-day rule, and the rarity layer. A collab set can be revealed once its card ships.)
 
 ---
 
@@ -301,7 +304,9 @@ A staked word's care state is a function of days since last fed:
   unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
   (decisions.md #41): a player's only once their profile buys one, for every word they hold, and never the word's (a
   sold word reaches its buyer on the stock face). Outer Space is listed on Base Sepolia; the
-  Bookshelf is not listed. The Shop can
+  Bookshelf is not listed. The Shop is a screen of its own (decisions.md #55), with two categories
+  (Card faces, Accessories), and an item with a supply limit is a limited edition: its card says
+  how many were made and how many are left. The Shop can
   also sell a plastic case for a word's card (decisions.md #42): one case holds one word, the word
   shows in it on Today and when opened, and it turns with a drag. Not listed yet either.
   A face is a still engraving and

@@ -2775,6 +2775,43 @@ setter. All small, riding existing suite patterns.
       set holds and nobody owns: one Mythic word when one is free, the rest from below Legendary,
       so the test set shows both "Legendary from reveal" and "a higher rarity is kept". The words
       are never written in this repository.
+    - **Part 2: Legendary from the reveal, as a layer** (`lib/rarity.ts`). `wordTier` is still
+      the tier derived from the full dictionary, and supply, mint odds, token ids, and the
+      simulator still use it. `tierWith(word, collab)` is the tier the game TREATS a word as: a
+      word of a revealed or released collab set is Legendary, unless its own tier is higher. The
+      collab words are always passed in (the server reads them from the sets, the game from the
+      sets answer), so a draft's words are never in them, on either side. Tier counts come from
+      the same rule (`tierCountsWith`): "one of N Legendary words" counts a raised word in
+      Legendary and no longer in its own tier.
+      - **Where it applies:** what a card, a tile, a badge, and a share picture show; the
+        Dictionary's, Spell's, and the Market's tier filters and counts; "rarest first"
+        everywhere (the one word-by-word order now has the game's tier on top, so only a collab
+        word moves); the keeper's daily yield and the bounty; the "earns about" estimates; the
+        tier a sale is recorded at; the deal alert; the Telegram alert and `/word`.
+      - **The keeper opens no epoch on guessed rarities** (mine). An epoch is money and can't be
+        reopened, so it is weighed only with a read that run made itself (`collabStrict`: never
+        the copy the sets loader keeps from before a failure, which it calls "known"). The read
+        is tried three times; if it still fails the yield or bounty job throws
+        (`lib/keeper/tiers.ts`). What that costs: the keeper runs once a day and each job fails
+        alone, so a refused day has no yield epoch unless the job is run again that day (the pool
+        keeps the funds and the next days pay from a larger pool), and a refused bounty week is
+        retried daily. It adds no new way to lose a day: an epoch's proofs are stored in the same
+        database before it opens. Everything that only SHOWS a rarity falls back to the derived
+        tiers instead (`lib/raritySoon.ts`), which is what every word had before.
+      - **Mid-epoch.** A reveal raises a word's weight from the next epoch the keeper opens: an
+        open epoch's tree is never rebuilt. A sale is recorded at the tier in force when it is
+        indexed (within moments of the sale), and a recorded sale is never rewritten.
+      - **The orders didn't move for any other word.** A tier is a band of the rarity ranking
+        (tested over the whole dictionary), so "tier, then rank" with the derived tiers is the
+        ranking itself: the Dictionary's and the Market's orders are what they were.
+      - **Held to it by a test** (`tests/rarity-override.test.tsx`): the list of files that may
+        still read the derived tier, with a reason each, and a check that the game's own calls
+        of the functions with a default pass a tier.
+      - Not changed by a collab: letter supply caps, mint odds, the word's rank number ("the
+        37th rarest word"), the practice game (it has no sets; its bag and its screens both show
+        the derived tiers), and two admin tables that say so: the supply table ("Words
+        (derived)") and the simulator's page. The spec asks for tier counts "anywhere" to come
+        from the one function; those two show what the full dictionary derives, on purpose.
     - **Two things the spec assumed that weren't so.** There is no token metadata server in this
       repository yet (only the `WORDS_URI` setting), so the "Collab" trait and the tokenURI art
       mean building that route: part 4. And a metadata refresh "at release" needs an owner call in
@@ -2784,8 +2821,16 @@ setter. All small, riding existing suite patterns.
       (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
       "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
       `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
-      refresh for a list of words; it gets tests and an audit pass, in part 4). The check on the
-      word that `dissolve` logs was not chosen.
+      refresh for a list of words). The check on the word that `dissolve` logs was not chosen.
+    - **The metadata refresh is in `Words.sol`** (its own PR, ahead of part 4, because it is the
+      one piece of the collab work that a contract must carry and Words can't change after
+      deploy). `refreshMetadata(uint256[])` emits `MetadataUpdate` for each word named;
+      `refreshAllMetadata()` emits `BatchMetadataUpdate(0, max)`, ERC-4906's "everything
+      changed", which word ids need because they are hashes and never a run. The second is mine:
+      he chose the list form, and a contract that says it speaks ERC-4906 should be able to say
+      "all of them" (a new metadata server, a change to how every card is drawn). Both are
+      owner-only and only emit events. Tests, and the audit's sixth pass (no finding at the
+      threshold). Nothing is deployed: it rides the Base Sepolia redeploy, which is on hold.
 
 54. **A card's words: front, face, back** (starl3xx, 2026-11-27: "let's standardize how we talk
     about cards... the *front* of the card is its front regardless of the scene/face... the *face*
@@ -2827,7 +2872,50 @@ setter. All small, riding existing suite patterns.
       game works (#41): a purchase is the profile's, a pick is kept by profile, and nothing from
       the Shop is a token that can move.
 
-55. **The lockup: the tile is the name's L, and its eyes are alive** (starl3xx, 2026-11-27: "we
+55. **The Shop is a screen of its own, with categories, and it can sell limited editions**
+    (starl3xx, 2026-11-27: "the Shop should be its own tab instead of a popup, since we'll
+    eventually add more things and categories (card faces and accessories for now)", and "I want to
+    make sure that we can make limited edition Shop sales, too... like, say only 25 of the Outer
+    Space face").
+    - **A screen, not a sheet.** `screens/ShopScreen.tsx` is the `shop` view: in the rail's
+      Collect group, with its title in the header, and under More on a phone. The sheet's body
+      moved as it was, with the guards Bugbot asked for on #235: nothing is listed when the Shop
+      couldn't say what its items are, and a face is sold only on a positive "you don't have it".
+      There is no `shop` sheet any more; the three callers navigate.
+    - **Anyone can look** (it is one of `PUBLIC_VIEWS`), as the sheet opened with no wallet. Buy
+      then reads "Connect a wallet to buy" and leads to Today, where a wallet connects.
+    - **Two categories, one switch:** Card faces and Accessories (`lib/shop/rules`, pure and
+      tested). The stored kind `scene` is a card face; a case and a costume are accessories. The
+      test network's placeholder is in neither: it is nothing a card wears, so it sits apart
+      under "Try paying". An empty category says so plainly and promises nothing.
+    - **Links land on a category:** the face picker's tile for a face on sale goes to Card
+      faces, and an opened word's Case button to Accessories.
+    - **Limited editions already worked, and now they show.** The contract has always held a
+      supply limit (`maxSupply`; `_buy` reverts `SoldOut`), and the face picker stops offering a
+      sold-out face. What is new is the card's line: "Limited edition of 25. 24 left.", then
+      "None left." beside "Sold out". Proven on a local fork of Base Sepolia: with the Outer
+      Space item capped at what had sold, a purchase reverted `SoldOut(2)`; capped at 25, the
+      supply check passed.
+    - **What a limited edition does not promise** (so the words don't): the owner can raise a
+      limit later (never below what has sold); the limit counts purchases, not players (the
+      game sells a face once to a profile, but the contract would sell it to the same wallet
+      twice); and `updateItem` resends the price and the dates with the limit.
+    - **The live item is not capped.** "Say only 25" was an example: capping Outer Space is an
+      owner transaction, and it waits for his word.
+    - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
+      editions, paying, and that what a player buys stays with the player.
+    - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
+      phone's bottom bar has five places, all taken); the categories are one switch at the top
+      of the screen; a costume, when one exists, is an accessory; the placeholder stays, under
+      "Try paying", until the owner switches item 1 off.
+    - **Seen and not seen:** the screen with no wallet at 390, 768, and 1,280 px in Chromium,
+      on a local chain build reading a local fork: both categories, the placeholder, a limited
+      edition with some left, and one sold out. And with a read-only pretend wallet at the
+      address that bought Outer Space (every write to the server blocked in the browser): the
+      balance row, and "You have it" with no Buy. Not seen: a purchase made from the new screen,
+      the two links from the picker and the Case button, a real phone.
+
+56. **The lockup: the tile is the name's L, and its eyes are alive** (starl3xx, 2026-11-27: "we
     have the 2 square logos (the "plain" one and the seal) but we don't have a horizontal lockup
     with the LEXIGOTCHI wordmark... i feel like that's a major oversight"; then, of the candidates
     on the design audit page, "9E is amazing" and "let's not use the seal in the lockup").

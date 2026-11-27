@@ -119,6 +119,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   0021's columns; `insertSet` uses a raw insert, because Drizzle's insert names EVERY column of
   the table). A new column on `word_sets` needs the same care, and `scripts/sets-db-check.ts`
   must pass on a database with and without the newest migration.
+- **A word's rarity has two names; use the right one** (decisions.md #53, part 2; `lib/rarity.ts`).
+  `wordTier(word)` is the DERIVED tier (the full dictionary's; supply, odds, the simulator).
+  `tierWith(word, collab)` is the tier the game TREATS it as: a collab word is Legendary from its
+  set's reveal, a higher own tier is kept. **Anything a player reads, sorts, filters, or is paid
+  by asks the second:** a component calls `useTierOf()` / `useTierCounts()`
+  (`components/game/useRarity.ts`), a server render that only shows a rarity `collabSoon()`
+  (`lib/raritySoon.ts`, falls back to derived), and the keeper `epochTiers()`
+  (`lib/keeper/tiers.ts`), which reads with `collabStrict()` (this run's own read, never the sets
+  loader's kept copy) and THROWS when the sets can't be read: no epoch is opened on guessed
+  rarities. **`loadSets()` answers `known: true` from a kept copy after a failure**: right for
+  holding words back, wrong for anything that pays; a paying caller passes `{ strict: true }`. `tests/rarity-override.test.tsx` lists the files that may still name `wordTier`; a new
+  one fails it, so add the file there with its reason or use the game's tier. The collab words
+  are passed in, never read inside `rarity.ts`, and never reach `lib/economy.ts` or the sim.
 - **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /
   `set_words` / `dictionary_roots`, migration 0021): themed groups of dictionary words held back
   and released later. A reserved word is one `Words.dictionaryRoot` leaves out; a release is a
@@ -450,8 +463,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `isSuiteDeployed` never waits on it; the admin keeps `SUITE_KEYS` apart from `CONTRACT_KEYS` the
   same way. App: **SHOP_ENABLED** = `NEXT_PUBLIC_SHOP_ENABLED=true` AND a test network AND the Shop
   deployed (`lib/shop/rules.ts` `shopOn`; mainnet is off whatever the setting says); `/api/shop` (the
-  registry + `shop_items` metadata), `sheets/ShopSheet` (the rail's Collect group and More, no entry
-  while off), `buyShopItem` (batched approve + buy where `wallet_getCapabilities` answers, else a USDC
+  registry + `shop_items` metadata), `screens/ShopScreen` (the `shop` view: a screen of its own since
+  decisions.md #55, in the rail's Collect group and under More on a phone, no entry while off; one of
+  the `PUBLIC_VIEWS`, so anyone can look), `buyShopItem` (batched approve + buy where `wallet_getCapabilities` answers, else a USDC
   permit, typed data WITH `EIP712Domain`, else approve, wait, buy; never sponsored until the CDP policy
   covers the Shop). An item shows only with a `shop_items` row; on a test network one without shows as
   a plain "Test item" card (a rule about networks, never a stored name). **Wardrobe** = table
@@ -466,7 +480,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **Test USDC** (Base Sepolia only): `MockUSDC` (Circle's permit domain "USD Coin" / "2", 6 decimals),
   25 a profile a UTC day through a signer voucher (`/api/faucet/usdc`, `usdcFaucetDigest`, the free
   snack's pattern), "Get test USDC" beside "Get test $WORD" (`TestFaucets`: Your $WORD and the $WORD
-  page), and in the Shop sheet when a tester can't afford an item; it never shows as dollars. The
+  page), and on the Shop's screen when a tester can't afford an item; it never shows as dollars. The
   Sepolia route is `MockUsdcWordAdapter` (the peg's rate; it mints test $WORD, so it needs no
   funding; its owner can `setBroken` to exercise a deferred swap). Admin: the Shop tab (revenue to
   date, $WORD to the pool, waiting USDC, sales per item, settings, the transaction builders;
@@ -549,7 +563,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
 - `/api/lhaw` + `LhawScreen` → the in-game **Let's Have A Word!** page (rail: "$WORD universe"): LHAW's
   live round, last round, rounds played, and $WORD supply, read server-side from LHAW's public API
   (cached a minute), plus how to play (from LHAW's FAQ.md; keep in step if LHAW changes a rule).
-  It, the Leaderboard, the Dictionary, and More are `PUBLIC_VIEWS` in GameApp: no wallet needed.
+  It, the Leaderboard, the Dictionary, More, and the Shop are `PUBLIC_VIEWS` in GameApp: no wallet needed.
 - **The Dictionary** (decisions.md #31; `screens/DictionaryScreen.tsx`, `useDictionary.ts`): each
   word is a card (flat `MiniTiles`, never the rig: 80 words a page) showing the word as it would
   be claimed, with a dashed slot for a letter the player lacks, and one line: "You can spell it",
@@ -624,6 +638,25 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   image** (`useSaveImage` in `useShare.ts`, the same-origin `showcaseCardPath`) keeps the X card: the
   share sheet on phones (bytes fetched ahead, since iOS opens the sheet only from the tap itself), a
   download on computers, the browser (press and hold) in a host with no share sheet.
+- **The Shop is a screen with categories** (decisions.md #55; starl3xx, 2026-11-27: "the Shop should be
+  its own tab instead of a popup, since we'll eventually add more things and categories (card faces
+  and accessories for now)"). `screens/ShopScreen.tsx` is the old sheet's body with its guards kept
+  (nothing listed while `metaKnown` is false; a face sold only on a positive "you don't have it").
+  The categories are a pure rule (`lib/shop/rules`: `SHOP_CATEGORIES`, `categoryOf`, `byCategory`,
+  tested): kind `scene` is Card faces, everything else (a case, a costume) is Accessories, and the
+  test network's placeholder is in neither (it sits under "Try paying"). A NEW kind needs its
+  category chosen in `categoryOf`. One switch for the categories, as the Market has for its parts;
+  a link lands on one with `nav("shop", "faces")` (the face picker's tile for a face on sale) or
+  `nav("shop", "accessories")` (an opened word's Case button). There is no `shop` sheet any more:
+  `nav` closes whatever sheet the link was in. On a phone the Shop is under More (the bottom bar
+  has no free place: my reading). **A limited edition** is an item with a supply limit
+  (`Shop.maxSupply`, set with `addItem` or later with `updateItem`, which RESENDS the price and
+  the dates with it): its card says "Limited edition of 25. 24 left." (`edition`, `editionLine`),
+  the contract refuses a purchase past it (`SoldOut`), and the picker stops offering a sold-out
+  face. Three things the words never promise: the owner can raise a limit later, the limit counts
+  purchases and not players (the game sells a face once to a profile; the contract would sell it
+  twice), and a sold-out item stays with everyone who has it. The player docs have a Shop page
+  (`docs-site/shop.mdx`): when an accessory is listed, its "None are in the Shop yet" goes.
 - **A card's words: front, face, back** (decisions.md #54; starl3xx, 2026-11-27: "the *front* of the
   card is its front regardless of the scene/face... the *face* (not scene) is the background on the
   front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it
@@ -663,9 +696,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   with `art` = the scene id (`lib/shop/scenes.ts`; nothing else grants one). `useShopScenes`
   (`game/useShop.ts`) gives `bought`, `onSale`, and `known`: **unknown is not "no"** (a saved Shop scene
   keeps showing while the wardrobe is loading, failed, or the Shop is off), and the picker offers one
-  only on a positive answer, and for sale only when `known` (`shopSceneOffer`; the Shop sheet's Buy
+  only on a positive answer, and for sale only when `known` (`shopSceneOffer`; the Shop screen's Buy
   for a scene the same, `sceneSale`: a scene is bought once). `/api/shop`'s `metaKnown: false` (the
-  database couldn't say what the items are) is "unknown" too, and the Shop sheet lists nothing then.
+  database couldn't say what the items are) is "unknown" too, and the Shop screen lists nothing then.
   `/api/scenes` won't save one for a profile that hasn't bought it. Listing
   is the owner's (`Shop.addItem`, then the `shop_items` row). **Outer Space is listed on Base Sepolia**
   (starl3xx, 2026-11-27: "i want to introduce it as a Shop item on Testnet for $5 USDC"): item 2,
@@ -954,7 +987,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
   its start block, and times each claim's block exactly). A heading is bold by an entity
   (`SendOptions.bold`), never a parse mode, over a line of hyphens measured as the update posts' are.
-- **The lockup** (decisions.md #55; `lib/cardArt/logo` `lockup`, `components/brand/Lockup.tsx`): A's
+- **The lockup** (decisions.md #56; `lib/cardArt/logo` `lockup`, `components/brand/Lockup.tsx`): A's
   tile standing where the name's L would, then EXIGOTCHI, as outlines (no font). **No seal in a
   lockup** (starl3xx, 2026-11-27). It is ALIVE where it is drawn live (the rail, the phone header,
   the intro, pre-launch, the landing header; the landing footer is still, and so is the game's own

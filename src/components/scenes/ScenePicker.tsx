@@ -48,7 +48,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
       <div role="radiogroup" aria-label={`${word}’s card face`} className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {scenes.map((s) => {
           const on = scene === s.id;
-          // In the Shop, not bought: the tile opens the Shop, where the scene is for sale.
+          // In the Shop, not bought: the tile goes to the Shop's Card faces, where the face is for sale.
           const forSale = isShopScene(s.id) && offerOf(s.id) === "buy" ? shop.onSale.get(s.id) : undefined;
           if (forSale) {
             const price = usdcLabel(forSale.priceUsdc, NETWORK.isTestnet);
@@ -58,7 +58,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
                 type="button"
                 title={`${s.blurb} In the Shop for ${price}.`}
                 aria-label={`${s.name}, in the Shop for ${price}`}
-                onClick={() => g.openSheet({ kind: "shop" })}
+                onClick={() => g.nav("shop", "faces")}
                 className="cel-sm press relative flex flex-col gap-1 rounded-xl bg-card p-1 text-left"
               >
                 <span className="card-corner block overflow-hidden border-2 border-ink">
