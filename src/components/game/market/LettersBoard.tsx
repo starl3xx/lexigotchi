@@ -95,7 +95,7 @@ export function LettersBoard({
                   </span>
                 )}
               </span>
-              <span className="mk-plank" />
+              <span className="mk-rule" />
               {s.lowest !== undefined ? (
                 <span className="mk-tag">
                   <span className="block font-display text-[11px] font-extrabold tabular-nums">{fmtWord(s.lowest)}</span>
@@ -107,14 +107,14 @@ export function LettersBoard({
             </button>
           );
         })}
-        {/* 26 letters in rows of 7 leave two places: the plank runs on, so the last row is a whole shelf. */}
+        {/* 26 letters in rows of 7 leave two places: the rule runs on, so the last row is a whole shelf. */}
         {[0, 1].map((k) => (
           <span key={k} className="mk-slot md:hidden" aria-hidden>
-            {/* An unseen tile, so the plank sits exactly where its neighbors' do. */}
+            {/* An unseen tile, so the rule sits exactly where its neighbors' do. */}
             <span className="invisible">
               <LetterTile char="a" size={38} />
             </span>
-            <span className="mk-plank" />
+            <span className="mk-rule" />
           </span>
         ))}
       </div>
