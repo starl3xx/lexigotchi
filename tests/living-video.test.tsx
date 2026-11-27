@@ -114,7 +114,10 @@ describe("what the video reads from the rig", () => {
  * drawing, and both cases.
  */
 describe("each piece of a letter stands alone", () => {
-  const TIERS_ALL = [undefined, "Common", "Uncommon", "Rare", "Legendary", "Mythic"] as const;
+  // Every rarity, and a collab word's two colors where a rarity goes (lib/rarityFinish.ts `TileTier`):
+  // the video's letters wear the collab stock as the game's do, and each of its pieces must stand alone too.
+  const COLLAB = { a: "#1f6f8b", b: "#f2a65a" };
+  const TIERS_ALL = [undefined, "Common", "Uncommon", "Rare", "Legendary", "Mythic", COLLAB] as const;
   const GILDS = [0, 1, 4, 5] as const;
   const LAYERS = ["floor", "rings", "legs", "body", "top"];
   /** Classes a piece may carry: each only MOVES its element in the game (a moment, a press), so without a page it is the letter at rest. */

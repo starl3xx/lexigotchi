@@ -128,7 +128,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **The two colors are any two colors: never draw in them as given.** Use `collabFinish` (the
   tint is thinned until the letter reads), `collabCardLook` (the ink is darkened until it reads on
   paper), `collabBack` (deepened until cream reads); `tests/collab-look.test.ts` sweeps the color
-  cube. The server's pictures get the stamp as bytes (`stampDataOf`), never by fetching the stamp
+  cube. A back is drawn by three renderers (the game's CSS, the server's picture, the video's
+  shader): a collab's ground is painted in the first two with the same gradient, INTO the server's
+  picture, and gets no live material. The stamp stands on a paper plate (it is any picture). The server's pictures get the stamp as bytes (`stampDataOf`), never by fetching the stamp
   route. **Every card picture's address names the look (`c`)**, as it names the stage: a reveal
   changes a card without changing the word, and a picture is kept a week. Never give a draft's
   word a different address or cache header (it would tell which words are in a draft).

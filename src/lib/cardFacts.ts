@@ -75,6 +75,11 @@ export function practiceNumbers(words: readonly { word: string; since?: number }
   return Object.fromEntries(sorted.map((w, i) => [w.word.toUpperCase(), i + 1]));
 }
 
+/** A collab word's line on its card's back: its partner, and that it is one of the set's five ("Test partner · 1 of 5"). */
+export function collabLine(partner: string, of = 5): string {
+  return `${partner} · 1 of ${of}`;
+}
+
 /** How many words share its tier: "one of 46 Mythic words". */
 export function tierCount(tier: Tier, counts: Readonly<Record<Tier, number>> = TIER_COUNTS): number {
   return counts[tier];

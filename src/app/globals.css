@@ -644,8 +644,11 @@ body {
    window's upper left. In card units (1200 wide): a 92-unit box, 62 in from the left and 60 from
    the top, clear of the corner piece (13 to 46), the word's row (from 200), the ribbon, and the
    turn-over button on the right. `contain`, so a wide or a tall stamp keeps its shape. A thumbnail
-   has none: under 240 px the box would be 18 px of smudge. */
-.cf-stamp { left: 5.17%; top: 8.9%; width: 7.67%; aspect-ratio: 1; object-fit: contain; pointer-events: none; user-select: none; }
+   has none: under 240 px the box would be 18 px of smudge.
+   It stands on a PLATE of the card's own paper, ruled in the frame's ink, like the frame's corner
+   pieces: a stamp is any picture, and without a plate a dark one was lost on Outer Space and a
+   pale one on the stock card. On paper, a mark made for a light ground always reads. */
+.cf-stamp { left: 5.17%; top: 8.9%; width: 7.67%; aspect-ratio: 1; object-fit: contain; pointer-events: none; user-select: none; box-sizing: border-box; padding: 0.7cqw; background: #fcf7ea; border: max(1.5px, 0.2cqw) solid var(--cf-ink); border-radius: 24%; }
 .cf-small .cf-stamp { display: none; }
 @container (max-width: 239px) { .cf-stamp { display: none; } }
 /* card stock: a fine grain and a faint linen weave */
@@ -1073,6 +1076,8 @@ body {
 .cb-stamp-ring { inset: 0; background-size: 100% 100%; }
 .cb-rule { width: 100%; height: max(2px, 0.3cqw); background: linear-gradient(90deg, var(--cb-line), transparent); }
 .cb-oneof { display: grid; gap: 0.2em; font-size: clamp(12px, 1.9cqw, 14px); line-height: 1.2; color: var(--cb-sub); }
+/* a collab word's partner and "1 of 5", under how many share its rarity: one line, cut with an ellipsis (a partner's name may be 60 characters) */
+.cb-collab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cb-text); }
 .cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; color: var(--cb-text); }
 /* The rack, engraved (lib/cardArt/rack; decisions.md #48): line work in the material's own line
    colour, like the frame and the seal. Its top face runs back behind the tiles, ruled; its front

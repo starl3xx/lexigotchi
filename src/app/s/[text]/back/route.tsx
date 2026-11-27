@@ -8,7 +8,8 @@ import { cardLevelOf } from "@/lib/onchain/cardLevel";
 import type { Tier } from "@/lib/economy";
 import { tierCountsWith, tierFn, tierWith } from "@/lib/rarity";
 import { collabSoon } from "@/lib/raritySoon";
-import { tintOf } from "@/lib/collabLook";
+import { collabBack, tintOf } from "@/lib/collabLook";
+import { collabLine } from "@/lib/cardFacts";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { PIP_Y, pipPath } from "@/components/game/tileShapes";
 import { cardDigits, shortTokenId, tierCount, type WordStory } from "@/lib/cardFacts";
@@ -127,9 +128,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   // The tier the game treats it as: a collab word is Legendary on its back as on its front.
   const collab = await collabSoon();
   const tier = tierWith(word, collab);
-  const look = LOOK[tier];
-  // The rack's tiles are the word's own: a collab word's wear its set's two colors, as on its front.
+  // A collab word's back is its set's colorway in place of its rarity's material (the game's
+  // CardBack does the same): the two colors, deepened until the cream type reads on them.
   const mine = collab.get(word.toUpperCase());
+  const colorway = mine ? collabBack(mine) : null;
+  const look = colorway ? { line: colorway.line, rackFront: colorway.rack } : LOOK[tier];
+  // The rack's tiles are the word's own: a collab word's wear its set's two colors, as on its front.
   const tileTier = mine ? tintOf(mine) : tier;
   // The stage has its own read (lib/onchain/cardLevel), which the stage this address names can ask
   // to be read again: a video made the moment after an ascension must not draw the stage before it.
@@ -154,6 +158,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
   return new ImageResponse(
     (
       <div style={{ position: "relative", display: "flex", width: W, height: H, fontFamily: "Soehne", color: TEXT, textShadow: SHADOW }}>
+        {/* A rarity's back is drawn over a clear ground: the video's shader paints the material
+            under it. A collab word's ground is its colorway, painted HERE, so the picture alone is
+            the whole back and the shader's material never shows under it. */}
+        {colorway && (
+          <div
+            style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", borderRadius: CARD_CORNER * W, backgroundImage: `linear-gradient(165deg, ${colorway.base2}, ${colorway.base} 70%)` }}
+          />
+        )}
         {/* the frame: a line in the material's colour, and a dotted line just outside it */}
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", left: 0, top: 0 }}>
           {/* each line runs parallel to the card's own corner: the corner (CARD_CORNER of the width) less the line's inset */}
@@ -162,6 +174,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         </svg>
         {/* Legendary's engraved scrollwork, in each corner (the game's back draws it: CardBack, Scroll) */}
         {tier === "Legendary" &&
+          !colorway &&
           ([
             ["tl", {}],
             ["tr", { transform: "scaleX(-1)" }],
@@ -201,6 +214,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
               <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>
                 One of {fmt(tierCount(tier, tierCountsWith(collab)))} {tier} words
               </div>
+              {/* a collab word: its partner, and its place among the set's five (the game's back says the same) */}
+              {mine && <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>{collabLine(mine.partner)}</div>}
             </div>
             {/* the tiles on their rack: the word itself, in Söhne, and nowhere else on the back */}
             <div style={{ position: "relative", display: "flex", width: 430, height: 118, marginTop: 0.6 * U, alignItems: "flex-end", justifyContent: "center" }}>

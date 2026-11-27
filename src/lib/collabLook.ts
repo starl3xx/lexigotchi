@@ -95,8 +95,8 @@ export function collabCardLook(look: Pick<CollabLook, "a" | "b">): CollabCardLoo
 
 // --- the card's back --------------------------------------------------------------------------
 
-/** The back's cream type (globals.css, `.cb`). */
-export const BACK_TEXT = "#fdf6e3";
+/** The back's cream type (globals.css, `.cb`, --cb-text; tests/collab-look.test.ts holds them equal). */
+export const BACK_TEXT = "#f7efdc";
 
 export interface CollabBack {
   /** the back's ground, deep */

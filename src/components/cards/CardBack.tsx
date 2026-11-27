@@ -34,7 +34,7 @@
 import { TileCharacter, useLowPower, usePrefersReducedMotion, type Gild } from "../game/TileCharacter";
 import { TierMark } from "../game/TierMark";
 import type { Tier } from "@/lib/economy";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { fmtWord, useGame, type OwnedWord } from "../game/state";
 import { ascensionLabel, cardDigits } from "@/lib/cardFacts";
 import { footSetName } from "@/lib/backPicture";
@@ -51,18 +51,45 @@ import { useCardNumber } from "./useCardNumber";
 import dynamic from "next/dynamic";
 import { canDrawLive } from "./live/support";
 import { tileTierOf, useCollabLook } from "@/components/game/collabLooksContext";
+import { collabBack } from "@/lib/collabLook";
+import { collabLine } from "@/lib/cardFacts";
 
 // The live material loads the first time a back goes live: OGL stays out of the game's first download.
 const LiveMaterial = dynamic(() => import("./live/LiveMaterial").then((m) => m.LiveMaterial), { ssr: false });
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-// One picture a material, built the first time a back of that material shows.
+// One picture an ink (a material's line, or a collab set's), built the first time a back in it shows.
 const seals = new Map<string, string>();
-function sealImage(material: CardMaterial): string {
-  let url = seals.get(material);
-  if (!url) seals.set(material, (url = `url("${svgDataUri(svgDoc(sealInk(MATERIAL_LINE[material]), SEAL, SEAL))}")`));
+function sealImage(ink: string): string {
+  let url = seals.get(ink);
+  if (!url) {
+    if (seals.size > 40) seals.clear(); // an admin dragging a color picker makes many inks
+    seals.set(ink, (url = `url("${svgDataUri(svgDoc(sealInk(ink), SEAL, SEAL))}")`));
+  }
   return url;
+}
+
+/**
+ * A collab word's back, in its set's colorway (decisions.md, "Collab sets", item 3): the partner's
+ * two colors, deepened until the back's cream type reads on them (lib/collabLook.ts `collabBack`),
+ * as the CSS variables a material sets (globals.css, `.m-*`). Null for any other word.
+ */
+function useCollabBack(word: string): { style: CSSProperties; line: string } | null {
+  const look = useCollabLook(word);
+  if (!look) return null;
+  const b = collabBack(look);
+  const n = parseInt(b.line.slice(1), 16);
+  const line2 = `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0.18)`;
+  return {
+    line: b.line,
+    style: { "--cb-base": b.base, "--cb-mat": `linear-gradient(165deg, ${b.base2}, ${b.base} 70%)`, "--cb-line": b.line, "--cb-line2": line2, "--rk-front": b.rack } as CSSProperties,
+  };
+}
+
+/** The ink of a back's frame, seal, and holder's stamp: its material's line, or its collab set's. */
+function useBackInk(word: OwnedWord): string {
+  return useCollabBack(word.word)?.line ?? MATERIAL_LINE[materialOf(word.tier)];
 }
 const MOOD: Record<string, string> = { fed: "full", peckish: "peckish", hungry: "hungry" };
 
@@ -74,21 +101,25 @@ export function CardBack({ word, mini = false, live = false }: { word: OwnedWord
   const m = materialOf(word.tier);
   const reduced = usePrefersReducedMotion();
   const lowPower = useLowPower();
-  const drawLive = live && !mini && !reduced && !lowPower && canDrawLive();
+  // A collab word's back is its set's colorway in place of its rarity's material: a plain deep
+  // ground in the two colors, with none of a material's metal, glitter, facets, fire, or scrollwork,
+  // and no live material (the shader paints a rarity's).
+  const collab = useCollabBack(word.word);
+  const drawLive = live && !mini && !reduced && !lowPower && !collab && canDrawLive();
   return (
-    <div className={`cb m-${m}`}>
+    <div className={`cb ${collab ? "m-collab" : `m-${m}`}`} style={collab?.style}>
       <div className="cb-mat">
         <div className="cb-tex" />
-        {m === "rare" && <div className="cb-brush" />}
-        {m === "legendary" && <div className="cb-glitter" />}
-        {m === "mythic" && <Facets />}
+        {!collab && m === "rare" && <div className="cb-brush" />}
+        {!collab && m === "legendary" && <div className="cb-glitter" />}
+        {!collab && m === "mythic" && <Facets />}
         {drawLive && <LiveMaterial material={m} />}
       </div>
       <div className="cb-frame" />
       {/* the game's seal, pressed into the material behind the facts */}
-      <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(m) }} />
-      {m === "mythic" && <div className="cb-fire" />}
-      {m === "legendary" && !mini && (["tl", "tr", "bl", "br"] as const).map((k) => <Scroll key={k} corner={k} />)}
+      <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(collab?.line ?? MATERIAL_LINE[m]) }} />
+      {!collab && m === "mythic" && <div className="cb-fire" />}
+      {!collab && m === "legendary" && !mini && (["tl", "tr", "bl", "br"] as const).map((k) => <Scroll key={k} corner={k} />)}
       {mini ? <MiniBody word={word} /> : <FullBody word={word} />}
     </div>
   );
@@ -153,6 +184,7 @@ function Number({ n, stamp }: { n: number | null; stamp?: ReactNode }) {
 function MiniBody({ word }: { word: OwnedWord }) {
   const number = useCardNumber(word.word);
   const stamp = useMyStamp();
+  const ink = useBackInk(word);
   return (
     <>
       <div className="cb-body">
@@ -165,7 +197,7 @@ function MiniBody({ word }: { word: OwnedWord }) {
         </div>
       </div>
       {/* the holder's stamp: on a thumbnail, beside the number's column, over the pressed seal */}
-      {stamp && <CardStamp src={stamp} ink={MATERIAL_LINE[materialOf(word.tier)]} place="mini" />}
+      {stamp && <CardStamp src={stamp} ink={ink} place="mini" />}
     </>
   );
 }
@@ -201,7 +233,7 @@ function FullBody({ word }: { word: OwnedWord }) {
   // The holder's stamp (./CardStamp): the player's own picture, beside the number, or in the top
   // left corner of a card with no number yet.
   const stamp = useMyStamp();
-  const ink = MATERIAL_LINE[materialOf(word.tier)];
+  const ink = useBackInk(word);
   const numbered = cardDigits(f.number) !== null;
   return (
     <>
@@ -216,6 +248,8 @@ function FullBody({ word }: { word: OwnedWord }) {
             <span>
               One of {fmt(f.ofTier)} {f.tier} words
             </span>
+            {/* a collab word: its partner, and its place among the set's five */}
+            {f.collab && <span className="cb-collab">{collabLine(f.collab)}</span>}
           </div>
           <Rack word={word} />
         </div>
@@ -331,6 +365,7 @@ export function CardMore({ word }: { word: OwnedWord }) {
       </Row>
       <Row label="Found by">{s.found}</Row>
       {f.set && <Row label="Set">{f.set}</Row>}
+      {f.collab && <Row label="Collab">{collabLine(f.collab)}</Row>}
       <Row label="Earned so far">{s.earned}</Row>
       <Row label="Earns staked">{s.perDay}</Row>
       <Row label="Cost to make">{s.cost}</Row>

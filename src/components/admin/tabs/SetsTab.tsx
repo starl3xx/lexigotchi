@@ -25,6 +25,10 @@ import { castCommand, safeBatchJson, type TxIntent } from "@/lib/admin/tx";
 import { NETWORK } from "@/lib/onchain/network";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { COLLAB_WORDS, STAMP_MAX_BYTES, STAMP_TYPES } from "@/lib/sets/rules";
+import { BACK_TEXT, collabBack, type CollabLook } from "@/lib/collabLook";
+import { collabLine } from "@/lib/cardFacts";
+import { SceneFrame } from "@/components/scenes/SceneFrame";
+import { WordTiles } from "@/components/game/LetterTile";
 import { useAdminApi, type AdminSendError } from "../useAdminApi";
 import { GatedState } from "../GatedState";
 import { AdminCard, Banner, ConfirmButton, CopyButton, ErrorState, Field, KeyVal, RefreshButton, Spinner, StatusBadge, TextField, type Tone } from "../ui";
@@ -70,18 +74,45 @@ function readStampFile(file: File): Promise<{ ok: true; data: string } | { ok: f
   });
 }
 
-/** The two colors side by side with the stamp on them: a stand-in until the card itself is drawn here. */
-function LookSwatch({ a, b, stamp }: { a: string; b: string; stamp: string | null }) {
+/**
+ * The collab card as it will be drawn, LIVE while the colors are typed: its front (the game's own
+ * card, so it is the real drawing: the collab stock, the frame's ink, the tiles, the stamp on its
+ * plate) and its back (the colorway, deepened until the cream type reads; the game's back needs a
+ * player's word, so this is a plain drawing of the same colors and lines). Both go through the
+ * same functions as the game (lib/collabLook.ts), so a color that is hard to read shows here as it
+ * will there: thinned on the tiles, darkened on the frame, deepened on the back.
+ */
+function LookPreview({ a, b, stamp, partner, words }: { a: string; b: string; stamp: string | null; partner: string; words: readonly string[] }) {
   const ok = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
+  if (!ok(a) || !ok(b)) return <p className="text-xs text-ink/55">Give the two colors (like #1f6f8b) to see the card.</p>;
+  const look: CollabLook = { setId: 0, partner: partner.trim() || "The partner", url: null, a: a.toLowerCase(), b: b.toLowerCase(), stamp, mark: "0-0" };
+  const word = words[0] ?? "LEXIS"; // one of the set's own words, or a stand-in before any is added
+  const upper = [true, true, false, false, true];
+  const back = collabBack(look);
   return (
-    <div
-      className="relative flex h-16 w-28 items-center justify-center overflow-hidden rounded-xl border-[3px] border-ink"
-      style={{ background: ok(a) && ok(b) ? `linear-gradient(135deg, ${a} 0 50%, ${b} 50% 100%)` : undefined }}
-      aria-label="The set’s two colors and its stamp"
-    >
-      {/* A data: address from this operator's own upload. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {stamp ? <img src={stamp} alt="" className="h-10 w-10 object-contain" /> : <span className="rounded-md bg-paper/90 px-1.5 py-0.5 text-[10px] font-bold text-ink/70">no stamp</span>}
+    <div className="grid w-full gap-3 sm:grid-cols-2" aria-label="The collab card’s front and back">
+      <figure className="m-0">
+        <div className="card-corner overflow-hidden border-2 border-ink">
+          <SceneFrame scene="stock" word={word} upper={upper} tier="Legendary" collab={look} animated={false} />
+        </div>
+        <figcaption className="mt-1 text-[11px] text-ink/55">Front. {stamp ? "" : "No stamp yet. "}A color that would hide the letters is thinned on the tiles.</figcaption>
+      </figure>
+      <figure className="m-0">
+        <div
+          className="card-corner relative flex aspect-video flex-col justify-center gap-1 overflow-hidden border-2 border-ink px-[6%]"
+          style={{ backgroundImage: `linear-gradient(165deg, ${back.base2}, ${back.base} 70%)`, color: BACK_TEXT }}
+        >
+          <span aria-hidden className="pointer-events-none absolute inset-[3%] rounded-[4%] border-2" style={{ borderColor: back.line }} />
+          <span className="text-[13px] font-bold" style={{ color: back.line }}>Legendary</span>
+          <span className="font-display text-2xl font-extrabold leading-none">No. 0000</span>
+          <span className="text-sm font-bold">One of one</span>
+          <span className="truncate text-xs">{collabLine(look.partner)}</span>
+          <span className="mt-1 self-start">
+            <WordTiles word={word} upper={upper} size={26} tier="Legendary" look={look} still />
+          </span>
+        </div>
+        <figcaption className="mt-1 text-[11px] text-ink/55">Back, in the same colors, deepened until the cream type reads.</figcaption>
+      </figure>
     </div>
   );
 }
@@ -478,7 +509,7 @@ function SetCard({
 
       {type === "collab" && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <LookSwatch a={colorA} b={colorB} stamp={set.stamp} />
+          <LookPreview a={colorA} b={colorB} stamp={set.stamp} partner={partnerName} words={set.words.map((w) => w.word)} />
           {draft && set.type === "collab" && (
             <span className="flex flex-wrap items-center gap-2">
               <label className={`${BTN} cursor-pointer`}>
@@ -490,7 +521,10 @@ function SetCard({
                   Remove it
                 </button>
               )}
-              <span className="text-[11px] text-ink/55">PNG or JPEG, at most {Math.round(STAMP_MAX_BYTES / 1024)} KB. Never an SVG.</span>
+              <span className="text-[11px] text-ink/55">
+                PNG or JPEG, at most {Math.round(STAMP_MAX_BYTES / 1024)} KB. Never an SVG. It stands on a pale plate on the card, so upload the mark made
+                for a light background.
+              </span>
             </span>
           )}
           {draft && set.type !== "collab" && <span className="text-xs text-ink/60">Save the set as a collab first, then upload its stamp.</span>}
