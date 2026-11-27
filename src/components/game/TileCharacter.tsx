@@ -936,11 +936,11 @@ export function TileCharacter({
   // `timing` is a layer's own delay, in place of the letter's phase in its word (a z's turn among the three).
   const layer = (key: string, children: ReactNode, anim = "", origin?: string, timing: CSSProperties | undefined = phase) =>
     flat ? (
-      <g key={key} className={anim || undefined} style={origin ? ({ transformBox: "view-box", transformOrigin: origin, ...timing } as CSSProperties) : undefined}>
+      <g key={key} data-layer={key} className={anim || undefined} style={origin ? ({ transformBox: "view-box", transformOrigin: origin, ...timing } as CSSProperties) : undefined}>
         {children}
       </g>
     ) : (
-      <svg key={key} viewBox={vb} aria-hidden className={`overflow-visible ${anim}`} style={origin ? { ...LAYER, transformOrigin: origin, ...timing } : LAYER}>
+      <svg key={key} data-layer={key} viewBox={vb} aria-hidden className={`overflow-visible ${anim}`} style={origin ? { ...LAYER, transformOrigin: origin, ...timing } : LAYER}>
         {children}
       </svg>
     );

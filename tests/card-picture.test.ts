@@ -44,6 +44,8 @@ describe("a word's share picture", () => {
     expect(await size(await get("CRAne", "?face=1&scene=spring"))).toEqual([1200, 675]);
     // the front alone is never the tall table, whatever else the link says
     expect(await size(await get("CRAne", "?face=1&ratio=3x2&saved=1"))).toEqual([1200, 675]);
+    // the front without its letters, for the share video's living ones: the same shape
+    expect(await size(await get("CRAne", "?face=1&letters=0&scene=spring"))).toEqual([1200, 675]);
   }, 30_000);
 
   it("draws a link to a retired scene, and one with no scene at all", async () => {
