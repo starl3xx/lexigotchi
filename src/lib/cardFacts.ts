@@ -75,9 +75,19 @@ export function practiceNumbers(words: readonly { word: string; since?: number }
   return Object.fromEntries(sorted.map((w, i) => [w.word.toUpperCase(), i + 1]));
 }
 
-/** A collab word's line on its card's back: its partner, and that it is one of the set's five ("Test partner · 1 of 5"). */
-export function collabLine(partner: string, of = 5): string {
-  return `${partner} · 1 of ${of}`;
+/** The longest a partner's name runs on the back's one line, beside "· 1 of 5" (a name may be 60 characters). */
+export const BACK_PARTNER_MAX = 26;
+
+/**
+ * A collab word's line: its partner, and that it is one of the set's five ("Test partner · 1 of 5").
+ * `short` is for the card's BACK, where it is ONE line in a narrow column: a long name is cut with
+ * an ellipsis here, in the text itself, so the game's back and the server's picture (which has no
+ * way to clip a line) agree and neither runs into the ledger beside it. The row under an opened
+ * card has room and wraps, so it gets the whole name.
+ */
+export function collabLine(partner: string, short = false, of = 5): string {
+  const name = short && partner.length > BACK_PARTNER_MAX ? `${partner.slice(0, BACK_PARTNER_MAX - 1).trimEnd()}…` : partner;
+  return `${name} · 1 of ${of}`;
 }
 
 /** How many words share its tier: "one of 46 Mythic words". */

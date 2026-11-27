@@ -215,7 +215,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
                 One of {fmt(tierCount(tier, tierCountsWith(collab)))} {tier} words
               </div>
               {/* a collab word: its partner, and its place among the set's five (the game's back says the same) */}
-              {mine && <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>{collabLine(mine.partner)}</div>}
+              {mine && <div style={{ display: "flex", fontSize: 1.9 * U, lineHeight: 1.2, color: SUB }}>{collabLine(mine.partner, true)}</div>}
             </div>
             {/* the tiles on their rack: the word itself, in Söhne, and nowhere else on the back */}
             <div style={{ position: "relative", display: "flex", width: 430, height: 118, marginTop: 0.6 * U, alignItems: "flex-end", justifyContent: "center" }}>

@@ -1076,8 +1076,11 @@ body {
 .cb-stamp-ring { inset: 0; background-size: 100% 100%; }
 .cb-rule { width: 100%; height: max(2px, 0.3cqw); background: linear-gradient(90deg, var(--cb-line), transparent); }
 .cb-oneof { display: grid; gap: 0.2em; font-size: clamp(12px, 1.9cqw, 14px); line-height: 1.2; color: var(--cb-sub); }
-/* a collab word's partner and "1 of 5", under how many share its rarity: one line, cut with an ellipsis (a partner's name may be 60 characters) */
-.cb-collab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cb-text); }
+/* a collab word's partner and "1 of 5", under how many share its rarity: one line. A long name is
+   cut in the text itself (lib/cardFacts collabLine), since the column sizes to its content and an
+   ellipsis here would never engage (Bugbot on #306); the width cap is the belt to that braces. */
+.cb-oneof { min-width: 0; max-width: 100%; }
+.cb-collab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%; color: var(--cb-text); }
 .cb-oneof b { font-family: var(--font-card); font-weight: 700; font-size: clamp(13px, 2.7cqw, 21px); line-height: 1.05; color: var(--cb-text); }
 /* The rack, engraved (lib/cardArt/rack; decisions.md #48): line work in the material's own line
    colour, like the frame and the seal. Its top face runs back behind the tiles, ruled; its front

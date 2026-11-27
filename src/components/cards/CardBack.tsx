@@ -249,7 +249,7 @@ function FullBody({ word }: { word: OwnedWord }) {
               One of {fmt(f.ofTier)} {f.tier} words
             </span>
             {/* a collab word: its partner, and its place among the set's five */}
-            {f.collab && <span className="cb-collab">{collabLine(f.collab)}</span>}
+            {f.collab && <span className="cb-collab">{collabLine(f.collab, true)}</span>}
           </div>
           <Rack word={word} />
         </div>

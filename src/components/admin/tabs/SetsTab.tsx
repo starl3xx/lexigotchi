@@ -106,7 +106,7 @@ function LookPreview({ a, b, stamp, partner, words }: { a: string; b: string; st
           <span className="text-[13px] font-bold" style={{ color: back.line }}>Legendary</span>
           <span className="font-display text-2xl font-extrabold leading-none">No. 0000</span>
           <span className="text-sm font-bold">One of one</span>
-          <span className="truncate text-xs">{collabLine(look.partner)}</span>
+          <span className="truncate text-xs">{collabLine(look.partner, true)}</span>
           <span className="mt-1 self-start">
             <WordTiles word={word} upper={upper} size={26} tier="Legendary" look={look} still />
           </span>
