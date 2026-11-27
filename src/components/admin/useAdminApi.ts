@@ -19,6 +19,15 @@ export interface AdminRefusal {
   who?: string;
 }
 
+/** A gated route's refusal of a POST: its code, and whatever reasons the route gave with it. */
+export interface AdminSendError {
+  ok: false;
+  error: string;
+  errors?: string[];
+  detail?: string;
+  words?: string[];
+}
+
 const SESSION_HEADER = "x-lexigotchi-session";
 
 export function useAdminApi<T>(path: string) {
@@ -90,7 +99,7 @@ export function useAdminApi<T>(path: string) {
    * or `{ ok: false, error }` when it refused or couldn't be reached. Never prompts.
    */
   const send = useCallback(
-    async <R,>(to: string, body: unknown): Promise<R | { ok: false; error: string }> => {
+    async <R,>(to: string, body: unknown): Promise<R | AdminSendError> => {
       try {
         const token = address ? ((qc.getQueryData(["profileToken", address]) as string | null | undefined) ?? null) : null;
         const res = await maybeAuthedFetch(to, {
@@ -100,7 +109,8 @@ export function useAdminApi<T>(path: string) {
           body: JSON.stringify(body),
         });
         const json = (await res.json().catch(() => null)) as (R & { ok?: boolean; error?: string }) | null;
-        if (!res.ok || !json || json.ok === false) return { ok: false, error: json?.error ?? `Failed (${res.status})` };
+        // The route's own body rides along: a refusal may list its reasons (`errors`, `detail`).
+        if (!res.ok || !json || json.ok === false) return { ...(json as object | null), ok: false, error: json?.error ?? `Failed (${res.status})` };
         return json;
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : "Failed" };

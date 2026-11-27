@@ -1663,6 +1663,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             if (proof.error === "dictionary_mismatch") {
               return void toast("The word list was just updated. Claims reopen shortly.", "info");
             }
+            // Held back in a reserved set (decisions.md, "Reserved word sets"): a plain "not yet".
+            if (proof.error === "not_released") {
+              return void toast(`${word.toUpperCase()} isn’t available yet`, "info");
+            }
             return void toast(`${word} isn’t claimable`, "bad");
           }
           const W = word.toUpperCase();

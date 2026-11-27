@@ -17,37 +17,85 @@ import { WORDS } from "@/lib/dictionary";
 
 type Tree = StandardMerkleTree<[string]>;
 
-let tree: Tree | undefined;
-let indexByWord: Map<string, number> | undefined;
-
-function build(): { tree: Tree; index: Map<string, number> } {
-  if (!tree || !indexByWord) {
-    // Identical construction to the derive script — leafEncoding ["string"], one word per leaf.
-    tree = StandardMerkleTree.of(
-      WORDS.map((w) => [w] as [string]),
-      ["string"],
-    );
-    indexByWord = new Map();
-    for (const [i, v] of tree.entries()) indexByWord.set(String(v[0]).toUpperCase(), i);
-  }
-  return { tree, index: indexByWord };
+/** A dictionary tree: the full one, or one that leaves some words out (reserved sets). */
+export interface DictionaryTree {
+  /** Should equal Words.dictionaryRoot() while the chain holds this tree. */
+  root: `0x${string}`;
+  /** How many words it holds. */
+  size: number;
+  has(word: string): boolean;
+  /** The Merkle proof for a word (UPPERCASE in the answer), or null when the tree doesn't hold it. */
+  proofFor(word: string): { word: string; proof: `0x${string}`[] } | null;
 }
 
-/** The computed root. Should equal Words.dictionaryRoot() on the target network. */
-export function dictionaryRoot(): `0x${string}` {
-  return build().tree.root as `0x${string}`;
+function buildTree(words: readonly string[]): DictionaryTree {
+  // Identical construction to the derive script — leafEncoding ["string"], one word per leaf.
+  const tree: Tree = StandardMerkleTree.of(
+    words.map((w) => [w] as [string]),
+    ["string"],
+  );
+  const index = new Map<string, number>();
+  for (const [i, v] of tree.entries()) index.set(String(v[0]).toUpperCase(), i);
+  return {
+    root: tree.root as `0x${string}`,
+    size: words.length,
+    has: (word) => index.has(word.trim().toUpperCase()),
+    proofFor(word) {
+      const key = word.trim().toUpperCase();
+      const i = index.get(key);
+      if (i === undefined) return null;
+      return { word: key, proof: tree.getProof(i) as `0x${string}`[] };
+    },
+  };
 }
 
 /**
- * Merkle proof for a word, or null when it isn't in the dictionary.
+ * Trees kept by the words they leave out. A reserved-sets deployment serves one tree at a time (the
+ * one the chain holds) and builds another only when the operator plans a root change, so a handful
+ * is plenty; the oldest is dropped past that.
+ */
+const KEEP = 6;
+const trees = new Map<string, DictionaryTree>();
+
+/**
+ * The tree of the dictionary WITHOUT `held` (reserved word sets: a held-back word is one the root
+ * leaves out). Words that aren't in the dictionary are ignored. `treeWithout([])` is the full tree.
+ */
+export function treeWithout(held: Iterable<string>): DictionaryTree {
+  const out = new Set<string>();
+  for (const w of held) out.add(w.trim().toUpperCase());
+  const left = out.size ? WORDS.filter((w) => !out.has(w)) : WORDS;
+  // Keyed by what is actually left out, so the same list in another order is the same tree.
+  const key = out.size ? WORDS.filter((w) => out.has(w)).join(",") : "";
+  const kept = trees.get(key);
+  if (kept) return kept;
+  const tree = buildTree(left);
+  trees.set(key, tree);
+  if (trees.size > KEEP) {
+    // Never drop the full tree: every deployment without sets serves it on every claim.
+    for (const k of trees.keys()) {
+      if (k !== "") {
+        trees.delete(k);
+        break;
+      }
+    }
+  }
+  return tree;
+}
+
+/** The FULL dictionary's root: what Words.dictionaryRoot() holds while no word is held back. */
+export function dictionaryRoot(): `0x${string}` {
+  return treeWithout([]).root;
+}
+
+/**
+ * Merkle proof for a word in the FULL tree, or null when it isn't in the dictionary.
  * Case-insensitive on input; the contract requires the UPPERCASE form, which is what's returned.
+ * The proof route serves from the tree the chain holds (lib/sets/server.ts), which is this one only
+ * while no word is held back.
  */
 export function proofFor(word: string): { word: string; proof: `0x${string}`[] } | null {
-  const { tree, index } = build();
-  const key = word.trim().toUpperCase();
-  const i = index.get(key);
-  if (i === undefined) return null;
-  return { word: key, proof: tree.getProof(i) as `0x${string}`[] };
+  return treeWithout([]).proofFor(word);
 }
 
 /** Throw unless the rebuilt tree matches the root the contract will verify against. */
