@@ -3291,6 +3291,15 @@ setter. All small, riding existing suite patterns.
         Legendary (filigree, a second ink) and Mythic (the blended ink). If Rare should have a
         step of its own, it goes in the border, never on the emblem.
       - `CARD_LOOK` is 14.
+    - **Part 2, amended again the same day: one border of lace.** The owner, on the built
+      backs: "the 'border of lace' on uncommon and rare should be the border on the back of
+      every one but common". So there are two borders and only two: Common's plain rules, and
+      one border of lace, with a lathe medallion in each corner, on Uncommon, Rare, Legendary,
+      Mythic, and a collab set's back. Legendary's and Mythic's filigree corners are gone, and
+      so is Legendary's second ink. A rarity above Common is told by its inks alone; Mythic
+      keeps its blended ink, which is an ink. This also answers what Rare's own step should
+      be: none. With the emblem, that is twice in one day he has taken a per-rarity shape off
+      the back: **the back is one design, and a rarity is its inks.** `CARD_LOOK` is 15.
     - **Part 3, the front's light (12D).** Of five ways to show a reflection without shine he
       chose the ruled band, and of the first drawing of it: "I love the ruled band, but it's too
       strong rn... needs to be more subtle (more opacity or whatever you choose to achieve it)".
