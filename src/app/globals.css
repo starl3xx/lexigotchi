@@ -488,6 +488,13 @@ body {
 }
 .scene-fog.is-peckish { opacity: 0.5; }
 .scene-fog.is-hungry { opacity: 1; }
+/* On a dark face (lib/cardArt/scenes, DARK_SCENES: the dark stock face, Outer Space) the fog is
+   thinner (decisions.md #57; starl3xx, 2026-11-27). The fog is pale, so at full strength it turns a
+   dark plate white: the face stops being a dark face at all, and the word goes with it. Only the
+   fog's strength changes, so nothing is redrawn. The grey tone, the sleeping letters, and the three
+   status marks still say hungry. */
+.cf-dark .scene-fog.is-peckish { opacity: 0.2; }
+.cf-dark .scene-fog.is-hungry { opacity: 0.42; }
 .scene-fog-haze {
   position: absolute;
   inset: 0;

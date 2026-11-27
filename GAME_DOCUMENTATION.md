@@ -299,8 +299,9 @@ A staked word's care state is a function of days since last fed:
   its face in a window, a frame in the rarity's ink with the rarity's mark in its corners, and a
   ribbon ("one of one", the card's number, the rarity). It shows on the Today stage, in the Bag,
   and on the share picture (`src/lib/scenes.ts`, `src/lib/cardArt/`, `src/components/scenes/`).
-  Every word starts on the stock face (grey, the rarity as an overtone); the Stage is free for
-  everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
+  Every word starts on the light stock face ("Stock (light)": pale grey, the rarity as an overtone);
+  the dark stock face ("Stock (dark)", decisions.md #57: the same engraving on a pewter plate) and
+  the Stage are free for everyone too; the Trophy Case and Spring unlock once a player has held 3 words, and stay
   unlocked. Picture Day, Summer, Fall, and Winter are retired. The Bookshelf and Outer Space are the Shop's
   (decisions.md #41): a player's only once their profile buys one, for every word they hold, and never the word's (a
   sold word reaches its buyer on the stock face). Outer Space is listed on Base Sepolia; the
@@ -311,7 +312,8 @@ A staked word's care state is a function of days since last fed:
   shows in it on Today and when opened, and it turns with a drag. Not listed yet either.
   A face is a still engraving and
   never moves; the card in focus catches a faint light and leans a little toward a pointer.
-  A face greys and fills with fog as its word gets hungry. Cosmetic and offchain: each word's pick
+  A face greys and fills with fog as its word gets hungry (thinner fog on the two dark faces, the
+  dark stock face and Outer Space, so the plate stays dark). Cosmetic and offchain: each word's pick
   is saved in the browser, and to the player's profile when they're signed in (table `word_scenes`,
   keyed by the wallet holding the word; decisions.md #15).
 - **The Market** (decisions.md #18, #30): words and letters sell for $WORD through Seaport orders

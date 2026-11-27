@@ -30,7 +30,7 @@ import type { SceneId } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS } from "@/lib/cardArt/looks";
-import { DARK_SCENES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -51,9 +51,9 @@ function picture(key: string, make: () => string): string {
   if (!url) pictures.set(key, (url = `url("${svgDataUri(svgDoc(make()))}")`));
   return url;
 }
-/** A scene's art as a CSS image. Only the stock card's art takes the rarity. */
+/** A face's art as a CSS image, kept per rarity for the faces that are printed in it (RARITY_FACES). */
 export function sceneArtImage(scene: SceneId, tier: Tier): string {
-  return picture(`art-${scene}-${scene === "stock" ? tier : ""}`, () => cardArt(scene, tier));
+  return picture(`art-${scene}-${RARITY_FACES.has(scene) ? tier : ""}`, () => cardArt(scene, tier));
 }
 /** The frame for a rarity as a CSS image. */
 export function cardFrameImage(tier: Tier): string {
