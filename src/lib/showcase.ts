@@ -128,8 +128,10 @@ export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null
  *     table under the card.
  * 11: the card's serif is Source Serif 4, in the game and here (decisions.md #52): the ribbon,
  *     the back's number and ledger, and the earnings tag's figures are lettered in it.
+ * 12: a saved picture's corner carries the game's lockup, where the name was plain type
+ *     (decisions.md #56, part 2). The earnings picture's corner too: its address carries this number.
  */
-export const CARD_LOOK = 11;
+export const CARD_LOOK = 12;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null, mark?: string | null): string {

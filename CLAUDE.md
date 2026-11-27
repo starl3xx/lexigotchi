@@ -505,8 +505,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `/api/admin/shop`) and the System switch list. **Switched on in production (the Sepolia build) by
   #208**, with `NEXT_PUBLIC_SHOP_ENABLED=true` in Vercel Production; unset it and merge to hide it.
   **The email's look is the card's** (decisions.md #47; `layout` in `lib/notify/email.ts`): the card's
-  paper, a rule and a dotted line for the frame, the serif wordmark, facts as a ledger
-  (`reminderEmail(..., facts)`), one ink button; tables and inline styles, no picture, font stacks
+  paper, a rule and a dotted line for the frame, the game's lockup, facts as a ledger
+  (`reminderEmail(..., facts)`), one ink button; tables and inline styles, ONE picture (the lockup,
+  decisions.md #56 part 2: a file the site serves, `public/brand/lockup-email.png`, with the card's
+  paper in it, its size given, and the name as its alt text lettered as the old header was), font stacks
   only, "light only". A new email kind uses `reminderEmail`, asks the choices, and takes its
   send-once mark first (`lib/db/reminderMarks.ts` `claimMark`, released if the send fails; no mark
   table = no send).
@@ -795,7 +797,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the two paths to the same pieces at the same times. Never gate motion on `hardwareConcurrency` (iOS reports
   2). Measure a change with CPU throttled 4× before shipping it (looping finishes hit 99%). The share
   card draws the still in `app/_og/tile.tsx` with Satori's rules (plain elements, shared geometry
-  from TileFinish). **No name on link cards; `?saved=1` adds the corner wordmark** (Save image, the
+  from TileFinish). **No name on link cards; `?saved=1` adds the game's lockup in the corner** (`app/_og/wordCard.tsx` `cornerMark`, for a word's card and the earnings picture; Save image, the
   Telegram welcome). The share loop is built (decisions.md #27; see Word cards).
   **Each tier also has a mark** (decisions.md #29; `lib/tierMark.ts` = the paths, colours, and
   corner counts; `components/game/TierMark.tsx`): a round bead for Common, then a cut stone with
@@ -850,7 +852,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   browser (WebCodecs H.264 + `mp4-muxer`, deprecated but 9 kB: swap in `makeLoop.ts` only). It
   takes the one WebGL context (`releaseLive`) and loses it after; OGL and the muxer load on the tap.
   Two taps (make, then share or save), offered only where the file can leave; the preview plays
-  twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the corner wordmark on every frame.
+  twice (`tests/share-loop.test.ts` fails on a looping `<video>`); the game's lockup in the corner of every frame, its eyes on the video's written score (`score.ts` `markEyes`; the name in type if its pictures fail to load).
 - **A word's status is three marks** (decisions.md #39; `components/game/stageMarks.ts` pure + tested,
   `StatusMarks.tsx`): **Fed, Jackpot, Earns**, always in that order, each in the colour of its meaning.
   In full on the Today placard and the word's sheet; as three icons beside the name in the Bag
@@ -1037,9 +1039,15 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   touching it, in the practice game (its header is the fullest). **The eyes never invert** (the same
   day): on any ground an eye is a light eyeball with a dark pupil, so one ink has a drawing for a
   light ground and one for a dark ground, and what is clear is CUT OUT with a mask, never painted
-  in a ground's colour. Where a mark must be square, use A. `tests/lockup.test.tsx` holds it. Not
-  built yet (the owner's word first): the lockup in the share pictures, the video's corner, the
-  docs' logo, and email.
+  in a ground's colour. Where a mark must be square, use A. `tests/lockup.test.tsx` holds it.
+  **It is also everywhere the name was set in type** (part 2; `tests/lockup-everywhere.test.ts`): the
+  share video's corner (four still pictures, `lockup({ pose })`, picked by `score.ts` `markEyes`),
+  a SAVED picture's corner (`cornerMark`; a link card still carries no name), the game's link
+  picture (`/embed-image`: the lockup alone, since under the LEXI letters the L tile showed twice),
+  the emails' header (a picture, see the email notes), and the docs' logo (`docs-site/logo`, still
+  files). `npm run brand:art` makes the email's picture and the docs' files too. **A file is never
+  alive:** no looping SVG, no animated picture in email, unless the owner asks and it can be checked.
+  A new place that names the game draws the lockup: never set LEXIGOTCHI in type again.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and

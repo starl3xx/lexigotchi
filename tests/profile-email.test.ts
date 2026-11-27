@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { checkUnsubscribe, codeEmail, codeMatches, hashCode, newCode, normalizeEmail, reminderEmail, unsubscribeToken, unsubscribeUrl } from "@/lib/notify/email";
 
@@ -60,18 +61,23 @@ describe("the email’s look (decisions.md #47: minimal, in the card’s languag
   // built in each test: the unsubscribe link needs the secret that beforeEach sets
   const sold = () => reminderEmail("p@example.com", A, { title: "Your word sold", body: "CRANE found a new home, for 2.40M $WORD. Your share is in your wallet." }, [["Sold", "CRANE"], ["For", "2.40M $WORD"], ["Your share", "2.16M $WORD"]])!;
 
-  it("is the card’s paper with its two frame lines, the wordmark, and one button", () => {
+  it("is the card’s paper with its two frame lines, the lockup, and one button", () => {
     const m = sold();
     expect(m.html).toContain("#fcf7ea"); // the card's own paper (lib/cardArt/looks CARD_PAPER)
     expect(m.html).toMatch(/border:1px solid #4a3a2c/);
     expect(m.html).toMatch(/border:1px dotted #4a3a2c/);
-    expect(m.html).toContain(">LEXIGOTCHI<");
+    // the game's lockup (decisions.md #56, part 2): a picture from the site, with its size, and the name as its
+    // words, lettered as the header was, for a mail program that doesn't show pictures
+    expect(m.html).toMatch(/<img src="https:\/\/lexigotchi\.fun\/brand\/lockup-email\.png" width="169" height="36" alt="LEXIGOTCHI" style="[^"]*font:700 12px\/36px [^"]*letter-spacing:3px;color:#4a3a2c">/);
     expect(m.html.match(/<a [^>]*background:#1b1714/g)).toHaveLength(1);
   });
 
-  it("carries no picture and no shipped font: stacks only, the card’s serif first where a device has it", () => {
+  it("carries one picture, the lockup, and no shipped font: stacks only, the card’s serif first where a device has it", () => {
     const m = sold();
-    expect(m.html).not.toMatch(/<img|@font-face|url\(/i);
+    expect(m.html.match(/<img /g)).toHaveLength(1);
+    expect(m.html).not.toMatch(/@font-face|url\(|data:/i);
+    // the picture is a file the site serves, and it carries the card's paper (a clear ground would vanish on a dark page)
+    expect(existsSync("public/brand/lockup-email.png")).toBe(true);
     expect(m.html).toContain("'Source Serif 4','Iowan Old Style','Palatino Linotype',Palatino");
     expect(m.html).toContain('content="light only"');
   });

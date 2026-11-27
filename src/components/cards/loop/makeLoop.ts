@@ -19,6 +19,8 @@ import type { LiveFront } from "./liveFront";
 import { releaseLive } from "../live/liveSurface";
 import { LOOP_SECONDS, attachLoop } from "./loopRenderer";
 import { svgDataUri } from "@/lib/cardArt/engrave";
+import { lockupDoc } from "@/lib/cardArt/logo";
+import { markEyes, type Eyes } from "./score";
 import { STAMP_FACE, STAMP_TURN, inkRgb, numberedFrom, oneInk, stampBox, stampRingSvg } from "../stamp";
 import { LoopCancelled, loadImage } from "./loadImage";
 import { VIDEO } from "../live/support";
@@ -71,11 +73,38 @@ export async function loadBack(src: string, signal?: AbortSignal): Promise<{ img
   }
 }
 
+/** The corner mark's height on the video, in pixels: its capitals are about as tall as the type they replace. */
+const MARK_HEIGHT = 52;
+const MARK_POSES: readonly Eyes[] = ["open", "shut", "left", "right"];
+type Mark = { eyes: Record<Eyes, HTMLImageElement>; w: number; h: number };
+
 /**
- * The game's name, quiet, in the bottom right corner. The video's corners are the game's paper,
- * not a scene (the saved card's corner is), so it's ink on paper, not cream with a halo.
+ * The game's lockup for the video's corner (decisions.md #56, part 2): one still picture for each
+ * way its eyes can stand, drawn by the logo's own source, so a frame only picks one. Null if a
+ * picture didn't load: the name is then set in type, as it was, because a video is always made.
  */
-function drawMark(g: CanvasRenderingContext2D) {
+async function loadMark(signal?: AbortSignal): Promise<Mark | null> {
+  try {
+    const docs = MARK_POSES.map((pose) => lockupDoc({ pose }));
+    const imgs = await Promise.all(docs.map((d) => loadImage(svgDataUri(d.svg), { signal, ms: STAMP_WAIT_MS })));
+    return { eyes: Object.fromEntries(MARK_POSES.map((p, i) => [p, imgs[i]])) as Record<Eyes, HTMLImageElement>, w: Math.round((MARK_HEIGHT * docs[0].width) / docs[0].height), h: MARK_HEIGHT };
+  } catch (err) {
+    if (err instanceof LoopCancelled) throw err;
+    return null;
+  }
+}
+
+/**
+ * The game's mark, quiet, in the bottom right corner, with its eyes as the score has them at
+ * time `t`. The video's corners are the game's paper, not a scene (the saved card's corner is),
+ * so the name is ink on paper.
+ */
+function drawMark(g: CanvasRenderingContext2D, mark: Mark | null, t: number) {
+  if (mark) {
+    // the name's baseline sits where the type's did: 26 px up, the drawing's air under it included
+    g.drawImage(mark.eyes[markEyes(t)], VIDEO_WIDTH - 31 - mark.w, VIDEO_HEIGHT - 16 - mark.h, mark.w, mark.h);
+    return;
+  }
   g.save();
   g.font = '800 24px "Soehne", system-ui, sans-serif';
   g.textAlign = "right";
@@ -206,6 +235,8 @@ export async function makeLoop({
   // The holder's picture is asked for beside the card's two faces, with a limit of its own: it is
   // from another site, and a slow or silent one must not hold the video up. Late or refused: no stamp.
   const stampFace = stamp ? loadImage(stamp.src, { open: true, signal, ms: STAMP_WAIT_MS }).catch(() => null) : Promise.resolve(null);
+  const markReady = loadMark(signal);
+  markReady.catch(() => {}); // a cancel is reported where it is awaited
   // The front: living letters on the card's stage, or (where that can't be drawn) the still picture.
   const frontFace = async (): Promise<{ img: TexImageSource; living: LiveFront | null }> => {
     if (live) {
@@ -228,7 +259,7 @@ export async function makeLoop({
   });
   // the back's bytes are kept until the last frame is drawn (loadBack says why)
   try {
-    return await film({ codec, frontImg: frontLoaded.img, living: frontLoaded.living, backImg: backLoaded.img, numbered: backLoaded.numbered, material, stamp, stampFace, signal, onProgress });
+    return await film({ codec, frontImg: frontLoaded.img, living: frontLoaded.living, backImg: backLoaded.img, numbered: backLoaded.numbered, material, stamp, stampFace, markReady, signal, onProgress });
   } finally {
     backLoaded.release();
   }
@@ -244,6 +275,7 @@ async function film({
   material,
   stamp,
   stampFace,
+  markReady,
   signal,
   onProgress,
 }: {
@@ -256,6 +288,8 @@ async function film({
   material: CardMaterial;
   stamp?: LoopStamp;
   stampFace: Promise<HTMLImageElement | null>;
+  /** The corner mark's pictures, loading since the start; null when one failed (the name is then set in type). */
+  markReady: Promise<Mark | null>;
   signal?: AbortSignal;
   onProgress?: (done: number) => void;
 }): Promise<Blob> {
@@ -266,6 +300,8 @@ async function film({
   const glCanvas = document.createElement("canvas");
   // the stamp sits where the back's picture says its number is; a picture that doesn't say gets none
   const backFace = stamp && numbered !== null ? await stampedBack(backImg, stamp, await stampFace, numbered) : backImg;
+  if (signal?.aborted) throw new LoopCancelled();
+  const mark = await markReady;
   if (signal?.aborted) throw new LoopCancelled();
   const loop = attachLoop(glCanvas, { front: frontImg, back: backFace, material, width: VIDEO_WIDTH, height: VIDEO_HEIGHT });
   // each frame: the turning card, then the name over it, on a plain canvas the encoder reads
@@ -294,7 +330,7 @@ async function film({
       }
       loop.render(i / VIDEO_FPS);
       g.drawImage(glCanvas, 0, 0);
-      drawMark(g);
+      drawMark(g, mark, i / VIDEO_FPS);
       const frame = new VideoFrame(out, { timestamp: Math.round((i * 1e6) / VIDEO_FPS), duration: Math.round(1e6 / VIDEO_FPS) });
       encoder.encode(frame, { keyFrame: i % (VIDEO_FPS * 2) === 0 });
       frame.close();

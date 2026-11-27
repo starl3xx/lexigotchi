@@ -1,3 +1,4 @@
+import { lockupDoc } from "@/lib/cardArt/logo";
 import type { ReactElement } from "react";
 import { OgTile } from "./tile";
 import { leanFor } from "@/components/game/tileShapes";
@@ -41,6 +42,20 @@ const PLAIN: Tier = "Common";
  * the bold file and names it this.
  */
 export const CARD_SERIF = "Source Serif 4";
+
+/**
+ * The game's lockup in the corner of a SAVED picture (decisions.md #56, part 2): the picture leaves
+ * the game alone, so it says whose it is. On the dark table, so the name is in paper. A link card
+ * carries no name (X and Farcaster show the site under it).
+ */
+const cornerDoc = lockupDoc({ tone: "dark" });
+const cornerSrc = `data:image/svg+xml;base64,${Buffer.from(cornerDoc.svg).toString("base64")}`;
+export function cornerMark(tall: boolean) {
+  const h = tall ? 40 : 36;
+  const w = Math.round((h * cornerDoc.width) / cornerDoc.height);
+  // the drawing has air under the name's baseline (a quarter of its height), so it sits lower than the type did
+  return <img src={cornerSrc} width={w} height={h} style={{ position: "absolute", right: tall ? 30 : 24, bottom: tall ? 12 : 5, opacity: 0.94 }} />;
+}
 /** The file every picture loads for it: a plain TTF, because the renderer can't read the game's woff2. */
 export const CARD_SERIF_FILE = "public/fonts/sourceserif4-bold.ttf";
 

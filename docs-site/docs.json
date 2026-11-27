@@ -14,6 +14,11 @@
       "dark": "#14212b"
     }
   },
+  "logo": {
+    "light": "/logo/lockup.svg",
+    "dark": "/logo/lockup-on-dark.svg",
+    "href": "https://lexigotchi.fun"
+  },
   "favicon": "/favicon.png",
   "navbar": {
     "links": [

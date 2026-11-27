@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ImageResponse } from "next/og";
-import { CARD_SERIF, CARD_SERIF_FILE, wordCard } from "../../../_og/wordCard";
+import { CARD_SERIF, CARD_SERIF_FILE, cornerMark, wordCard } from "../../../_og/wordCard";
 import { NO_LOOKS } from "@/lib/collabLook";
 import { stampDataOf } from "@/lib/sets/stampData";
 import { collabSoonRead } from "@/lib/raritySoon";
@@ -191,11 +191,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
         <img src={tableImage(CARD_W, H)} width={CARD_W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
         {tiles && wordCard({ tiles, scene, cardW, collab, stamp, gild: heroStage(snapshot, word) ?? 0 })}
         {tag(text, tagW, tall && !!tiles)}
-        {saved && (
-          <div style={{ position: "absolute", right: tall ? 34 : 28, bottom: tall ? 26 : 12, display: "flex", fontSize: tall ? 26 : 20, fontWeight: 800, letterSpacing: -0.5, color: "#fbf4e3", opacity: 0.85 }}>
-            LEXIGOTCHI
-          </div>
-        )}
+        {saved && cornerMark(tall)}
       </div>
     ),
     {

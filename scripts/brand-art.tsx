@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import { svgDoc } from "../src/lib/cardArt/engrave";
-import { LOGO, logoA, logoB, lockup, nameAlone } from "../src/lib/cardArt/logo";
+import { EMAIL_MARK, LOGO, logoA, logoB, lockup, nameAlone } from "../src/lib/cardArt/logo";
 import { SEAL, sealInk } from "../src/lib/cardArt/seal";
 
 const ROOT = process.cwd();
@@ -78,6 +78,23 @@ async function main() {
     await shot(b, size, join(OUT, `logo-b-${size}.png`));
   }
   for (const size of ROUND_SIZES) await shot(bRound, size, join(OUT, `logo-b-round-${size}.png`));
+
+  // The emails' header (lib/notify/email): the lockup on the card's own paper, three pixels to the point. The paper
+  // is IN the picture: a clear ground would vanish in a mail program that turns a page dark.
+  {
+    const l = lockup();
+    const height = EMAIL_MARK.height * 3;
+    const width = EMAIL_MARK.width * 3;
+    await page.setViewportSize({ width, height });
+    await page.setContent(`<body style="margin:0;background:${EMAIL_MARK.paper}"><img src="${uri(doc(l))}" style="position:absolute;left:0;top:0;width:${width}px;height:${height}px"></body>`);
+    await page.waitForFunction(() => Array.from(document.images).every((i) => i.complete && i.naturalWidth > 0));
+    mkdirSync(join(ROOT, "public", "brand"), { recursive: true });
+    await page.screenshot({ path: join(ROOT, "public", "brand", "lockup-email.png"), clip: { x: 0, y: 0, width, height } });
+  }
+  // The player docs' logo (docs-site/docs.json): the same two drawings, where the docs platform reads them.
+  mkdirSync(join(ROOT, "docs-site", "logo"), { recursive: true });
+  writeFileSync(join(ROOT, "docs-site", "logo", "lockup.svg"), doc(lockup()) + "\n");
+  writeFileSync(join(ROOT, "docs-site", "logo", "lockup-on-dark.svg"), doc(lockup({ tone: "dark" })) + "\n");
 
   // The lockup and the name alone as pictures, on a clear ground: every drawing, at each height.
   const wide: [string, { markup: string; width: number; height: number }][] = [

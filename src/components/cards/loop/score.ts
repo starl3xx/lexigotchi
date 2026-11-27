@@ -58,6 +58,21 @@ export function eyesAt(i: number, n: number, t: number): Eyes {
   return "open";
 }
 
+/**
+ * The eyes of the game's mark in the video's corner at time `t` (decisions.md #56, part 2). The mark
+ * is a letter too, so it lives by the same written score, never by a clock or by chance. It keeps
+ * still while the word's own letters are doing things, and has its moments while the card's back
+ * is up: a blink, a long look up at the card, a blink. Open at 0 and at 6, so the loop has no jump.
+ */
+export const MARK_BLINKS: readonly number[] = [2.7, 4.5];
+export const MARK_LOOK: readonly [number, number] = [3.2, 4.2];
+export function markEyes(t: number): Eyes {
+  const s = wrap(t);
+  if (MARK_BLINKS.some((b) => s >= b && s < b + BLINK_S)) return "shut";
+  // the card is up and to the mark's left
+  return s >= MARK_LOOK[0] && s < MARK_LOOK[1] ? "left" : "open";
+}
+
 /** How far letter `i` has risen at time `t`, 0 to 1: the game's breath (ease in, ease out), each letter a little behind the last. */
 export function breathAt(i: number, t: number): number {
   const p = wrap(t + i * BREATH_STEP_S) % BREATH_S / BREATH_S;
