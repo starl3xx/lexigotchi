@@ -11,7 +11,7 @@
  * a rare letter, never with earning; the jackpot always says "staked and fed".
  */
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { MYTHICS } from "@/lib/economy";
 import { GLORY_CSS } from "@/lib/cardArt/glory";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -32,6 +32,7 @@ import { isChainBacked, isRealEconomy } from "@/lib/onchain/gameMode";
 import { NETWORK } from "@/lib/onchain/network";
 import { VERIFY_URL } from "@/lib/onchain/verifications";
 import { TileCharacter, TileWord } from "@/components/game/TileCharacter";
+import { SceneFrame } from "@/components/scenes/SceneFrame";
 import { TierMark } from "@/components/game/TierMark";
 import { WordStripLive } from "@/components/WordStrip";
 import {
@@ -115,43 +116,29 @@ function SectionHead({ kicker, title, children }: { kicker: string; title: strin
 }
 
 /**
- * The hero stage: a vaudeville proscenium (curtain valance, spotlight, wooden floor) with the
- * rarest word in the dictionary mid-raise, two letters already UPPERCASE, in its Mythic amethyst
- * (lib/rarityFinish). Three renders at three sizes
- * rather than a CSS scale: TileWord lays out in pixels, and a transform would not shrink its box.
+ * The hero: the rarest word's own card, as its holder would see it (decisions.md #50, part 2;
+ * starl3xx: "Yes to 1A"). The engraved Stage scene, the Mythic frame, and the ribbon that says one
+ * of one, with the word mid-raise: two letters already UPPERCASE, in its Mythic amethyst.
+ *
+ * It was a flat stage built here: a valance of half circles, a soft spotlight, and a tan floor,
+ * with the word at three fixed sizes, one for each width (TileWord lays out in pixels). A card
+ * sizes its letters to itself, so this is one render at every width.
+ *
+ * The label is under the card, as the placard is under Today's: nothing is drawn over a card's art
+ * but its letters. The card stands on the page with its block shadow on a box of its own
+ * (globals.css, .card-stand, says why), a little deeper here than in the game, as this page's
+ * other boxes are.
  */
 function Stage() {
   const upper = [true, true, false, false, false];
   return (
-    <div className="relative overflow-hidden rounded-[28px] border-[3px] border-ink bg-night shadow-[8px_8px_0_#1b1714]">
-      <div aria-hidden className="absolute inset-x-0 top-0 h-6 bg-curtain" />
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-6 h-5"
-        style={{
-          background:
-            "radial-gradient(circle at 50% 0, #7b1e26 0 13px, #1b1714 13px 16px, transparent 16.5px) 0 0 / 36px 20px repeat-x",
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse 55% 75% at 50% 25%, rgba(252,232,168,0.30), transparent 72%)" }}
-      />
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-16 border-t-[3px] border-ink bg-edgeWood" />
-      <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-16 opacity-25"
-        style={{ background: "repeating-linear-gradient(90deg, transparent 0 46px, #1b1714 46px 48px)" }}
-      />
-
-      <div className="relative flex min-h-[240px] items-end justify-center px-4 pb-9 pt-16 sm:min-h-[400px]">
-        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={58} className="sm:hidden" />
-        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={96} className="hidden sm:flex lg:hidden xl:flex" />
-        <TileWord word={RAREST_WORD} upper={upper} tier="Mythic" detail="full" size={78} className="hidden lg:flex xl:hidden" />
+    <div className="flex flex-col items-center gap-4">
+      <div className="card-stand w-full" style={{ "--card-sx": "8px", "--card-sy": "8px" } as CSSProperties}>
+        <div className="card-corner overflow-hidden border-[3px] border-ink">
+          <SceneFrame scene="stage" word={RAREST_WORD} upper={upper} tier="Mythic" />
+        </div>
       </div>
-
-      <p className="absolute left-1/2 top-12 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[2px_2px_0_#1b1714] sm:top-14 sm:text-sm">
+      <p className="whitespace-nowrap rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[2px_2px_0_#1b1714] sm:text-sm">
         The rarest word: {RAREST_WORD}
       </p>
     </div>

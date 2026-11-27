@@ -42,6 +42,21 @@ describe("landing page", () => {
     }
   });
 
+  it("shows the rarest word as its own card: the engraved Stage, one render at every width, the label under it", () => {
+    const src = readFileSync(resolve(ROOT, "src/components/landing/LandingPage.tsx"), "utf8");
+    const hero = src.slice(src.indexOf("function Stage()"), src.indexOf("const STEP_VISUALS"));
+    expect(hero).toContain('<SceneFrame scene="stage" word={RAREST_WORD} upper={upper} tier="Mythic" />');
+    // a card sizes its letters to itself: the word is not drawn once for each screen width
+    expect(hero).not.toContain("TileWord");
+    expect(hero).not.toMatch(/sm:hidden|lg:hidden|xl:flex/);
+    // it stands on the page as a card does, with its corner, and nothing is drawn over its art
+    expect(hero).toMatch(/className="card-stand w-full"[\s\S]*className="card-corner overflow-hidden border-\[3px\] border-ink"/);
+    expect(hero).not.toContain("absolute");
+    expect(hero.indexOf("The rarest word")).toBeGreaterThan(hero.indexOf("<SceneFrame"));
+    // the flat stage is gone
+    expect(src).not.toMatch(/bg-curtain|radial-gradient\(circle at 50% 0, #7b1e26/);
+  });
+
   it("keeps the mini-app launch card on shared root links, launching the game at /play", () => {
     const other = metadata.other as Record<string, string>;
     const embed = JSON.parse(other["fc:miniapp"]);
