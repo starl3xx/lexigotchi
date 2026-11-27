@@ -627,7 +627,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Söhne, a row of dots, a value in the serif), and **the game's seal is pressed into the material in
   one ink** behind them (`lib/cardArt/seal.ts`, one picture for the game's back and the server's; its
   lines stop at the eyes, and in one ink the eyeball is ink and the pupil clear with its pie cut:
-  the owner's three notes, held by `tests/card-seal.test.ts`). **One back at every size**
+  the owner's three notes, held by `tests/card-seal.test.ts`). **The holder's picture is stamped on the back** (decisions.md #48; `cards/stamp.ts`, `cards/CardStamp.tsx`, `.cb-stamp`): the player's own picture in ONE INK (the material's line colour) in an engraved ring, beside the number (in the number's own line, so it follows the digits), the top left corner on a card with no number, over the seal on a thumbnail. "Show my picture on my cards" in the profile turns it off, and the choice is kept on the device (`useCardStamp`): only the player's own browser ever draws a stamp, so no server holds the choice and none fetches a picture. The video draws it onto the back's picture itself (`makeLoop`, `stampedBack`). **One back at every size**
   (decisions.md #37; globals.css `.cb`, by container width): two columns (the rarity over the
   number, "One of one", the count, the rack; the ledger) with a line along the bottom, all of it from
   470 px; the first four facts under 470 px (an opened card's `CardMore` lists the rest: keep the two

@@ -9,6 +9,15 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@t
 import { readFileSync } from "node:fs";
 import type { OwnedWord } from "@/components/game/state";
 
+/**
+ * A turn settles frame by frame on the real clock, in well under a second on an idle machine. On a
+ * busy one (other suites and browsers running beside this) the frames come late: three seconds was
+ * not always enough, and these tests failed for no reason of their own. The wait is long, and it
+ * ends the moment the case has settled, so a passing run is no slower.
+ */
+const SETTLE_MS = 20_000;
+vi.setConfig({ testTimeout: 60_000 });
+
 let number: number | null = 20;
 let found: { kind: "you" } | { kind: "unknown" } | { kind: "other"; address: string; name?: string } = { kind: "you" };
 
@@ -138,16 +147,16 @@ describe("a card in its case", () => {
     // the turn is drawn a frame at a time: the back shows once the case is past edge-on, and the
     // case comes to rest on it, the pressed button's twin holding the focus
     const slab = side(".cc-slab") as HTMLElement;
-    await waitFor(() => expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(1).toFixed(1)}deg)`), { timeout: 3000 });
+    await waitFor(() => expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(1).toFixed(1)}deg)`), { timeout: SETTLE_MS });
     expect((side(".cc-backface") as HTMLElement).style.visibility).toBe("visible");
     expect((side(".cc-frontface") as HTMLElement).style.visibility).toBe("hidden");
     const home = screen.getByRole("button", { name: "Show JAZZY’s scene" });
     // (the last frames round to the rest angle before the turn's end hands the focus over)
-    await waitFor(() => expect(document.activeElement).toBe(home), { timeout: 3000 });
+    await waitFor(() => expect(document.activeElement).toBe(home), { timeout: SETTLE_MS });
     fireEvent.click(home);
     expect(onFlip).toHaveBeenLastCalledWith(false);
     // it goes on round the same way, to the front again
-    await waitFor(() => expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(2).toFixed(1)}deg)`), { timeout: 3000 });
+    await waitFor(() => expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(2).toFixed(1)}deg)`), { timeout: SETTLE_MS });
     expect((side(".cc-frontface") as HTMLElement).style.visibility).toBe("visible");
     // no flip of the card inside the case
     expect(container.querySelector(".sc-inner")).toBeNull();
@@ -172,7 +181,7 @@ describe("a card in its case", () => {
     expect(slab.style.transform).toBe(`rotateX(${CASE_REST.x.toFixed(1)}deg) rotateY(${restAngle(1).toFixed(1)}deg)`);
     expect((container.querySelector(".cc-backface") as HTMLElement).style.visibility).toBe("visible");
     const home = screen.getByRole("button", { name: "Show JAZZY’s scene" });
-    await waitFor(() => expect(document.activeElement).toBe(home), { timeout: 3000 });
+    await waitFor(() => expect(document.activeElement).toBe(home), { timeout: SETTLE_MS });
     expect(sent).toEqual([{ label: "Show JAZZY’s scene", inert: false }]);
   });
 
@@ -208,7 +217,7 @@ describe("a card in its case", () => {
     expect(slab.style.transform).toContain(`rotateX(${CASE_REST.x.toFixed(1)}deg)`);
     pointer(stage, "pointerup", { x: 90, y: 204 }, "touch", 0);
     expect(onFlip).toHaveBeenLastCalledWith(true);
-    await waitFor(() => expect(angleOf(slab)).toBe(restAngle(-1)), { timeout: 3000 });
+    await waitFor(() => expect(angleOf(slab)).toBe(restAngle(-1)), { timeout: SETTLE_MS });
   });
 
   it("leaves a finger's up-and-down move to the page, even one that drifts sideways", () => {
@@ -257,7 +266,7 @@ describe("a card in its case", () => {
     // let go outside the case (no release reaches it), then the mouse passes over again
     pointer(stage, "pointermove", { x: 100, y: 200 }, "mouse", 0);
     await waitFor(() => expect(container.querySelector(".cc")!.classList.contains("is-dragging")).toBe(false));
-    await waitFor(() => expect(angleOf(slab)).toBe(restAngle(0)), { timeout: 3000 });
+    await waitFor(() => expect(angleOf(slab)).toBe(restAngle(0)), { timeout: SETTLE_MS });
     const rested = slab.style.transform;
     pointer(stage, "pointermove", { x: 40, y: 200 }, "mouse", 0);
     expect(slab.style.transform).toBe(rested);
