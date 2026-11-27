@@ -142,8 +142,8 @@ export function NotificationsTab() {
         <AdminCard title="Every reminder channel">
           <p className="mb-2 text-xs text-ink/60">
             The keeper (00:05 UTC) sends hunger warnings on each channel that is on: Farcaster first, browser push for wallets
-            Farcaster can&apos;t reach, and email to wallets that opted in. The 13:00 UTC cron sends the daily-letter reminder. Each
-            channel has its own switch.
+            Farcaster can&apos;t reach, email to wallets that opted in, and a Telegram message to profiles that linked it. The
+            13:00 UTC cron sends the daily-letter reminder. Each channel has its own switch.
           </p>
           <div className="divide-y divide-ink/10">
             {data.channels.map((c) => (

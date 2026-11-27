@@ -787,6 +787,24 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   reporter's name. In a private chat only someone in the beta group now may file one
   (`inBetaGroup`); 6 reports per 10 minutes per person; a report's words are never logged. Before
   0019 runs the bot answers that it couldn't save the report, and the tab says the migration is owed.
+  **A player can link Telegram to their profile, and get reminders there** (`lib/telegramLink.ts`,
+  `lib/db/telegramLinks.ts`, tables `telegram_links` + `telegram_link_codes`, migration 0020;
+  `components/game/TelegramCard.tsx` in the profile sheet). "Link Telegram" makes a single-use code
+  under the profile's session (`POST /api/profile/telegram`, 15 minutes) and shows "Open Telegram",
+  its OWN tap (a browser opens another app only from the tap itself); the link is
+  `t.me/<bot>?start=<code>`, and the bot's `/start <code>` links whoever presses Start. The code is
+  the proof, so GET never returns one. One Telegram account names one profile and a profile has
+  one: a new link replaces the old on both sides, in one transaction. `/unlink` (or Unlink in the
+  profile) stops it. Never public. **Telegram is a fourth reminder channel**
+  (`lib/notify/telegram.ts`): like email it goes to a linked player whatever else reached them,
+  under a send-once mark of its own (`telegram:<kind>` in `reminder_marks`, claimed BEFORE the send,
+  given back only on Telegram's clear refusal). Wired into `notifyPlayers` (sold, payday, bounty,
+  deal), the keeper's hunger warning and jackpot win, and the daily-letter cron; every caller has
+  already dropped players who turned the kind off. A player who blocked the bot is unlinked.
+  Armed on the production deployment with the bot's token; `TELEGRAM_REMINDERS=off` mutes it. The
+  profile offers the card only where the bot is set up AND the tables exist
+  (`/api/profile/config` `telegram`, `telegramLinksReady`), so nothing shows before 0020 runs. The
+  Players tab says WHETHER a wallet's account linked Telegram, never which account.
   **The operator can post as the bot** from the console's Broadcast tab (`tabs/TelegramBroadcast.tsx`,
   `POST /api/admin/telegram`, gated on the server like Players): the composer's text as a message,
   or a poll. Every send is typed-to-confirm, goes out as typed (no parse mode, no link preview),

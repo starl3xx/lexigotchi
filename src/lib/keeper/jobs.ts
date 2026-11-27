@@ -52,6 +52,7 @@ import { notifyPaid, shareKey, type LandedShare } from "@/lib/notify/paid";
 import { DEAL_AGAIN_SECONDS, DEAL_DAILY_SECONDS, tellDeals } from "@/lib/notify/deals";
 import { notifyPlayers } from "@/lib/notify/players";
 import { claimMark, claimMarkEvery, releaseMark } from "@/lib/db/reminderMarks";
+import { tellByTelegram, telegramRemindersOn } from "@/lib/notify/telegram";
 import { sendDigests, weekEarned, weekSold, wordsNeedingCare } from "@/lib/notify/digest";
 import { loadShares } from "@/lib/rewards/load";
 import { salesBySellers } from "@/lib/db/market";
@@ -198,6 +199,8 @@ export function createKeeper(opts: { dry: boolean }) {
       }
       // Email first and independently: a player who opted in hears about a win however else we reach them.
       await notifyWinnerEmail(links.accountOf(winner), jackpotWon(word, `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`));
+      // And by Telegram, as independently: a winner who linked it hears there too.
+      await notifyWinnerTelegram(links.accountOf(winner), jackpotWon(word, `${(amount / 10n ** 18n).toLocaleString("en-US")} $WORD`));
 
       const profiles = await lookupProfiles(await notifiableFids());
       const fidOf = accountFidLookup(fidLookupFrom(profiles), links);
@@ -563,6 +566,7 @@ export function createKeeper(opts: { dry: boolean }) {
     await notifyHungerFarcaster(words, fids, fidOf);
     await notifyHungerBrowsers(words, subs, fidOf, links.accountOf);
     await notifyHungerEmail(words, links.accountOf);
+    await notifyHungerTelegram(words, links.accountOf);
   }
 
   /** The `notify` job: the hunger warnings, which players are owed, then the deal alerts. A failed first step still runs the second. */
@@ -710,6 +714,29 @@ export function createKeeper(opts: { dry: boolean }) {
       onSent: (batch) => markEmailSent("hunger", batch.flatMap((m) => (m.address ? [m.address] : [])), today),
     });
     console.log(`  email: ${res.sent} sent, ${res.failed} failed`);
+  }
+
+  /**
+   * The hunger warning by Telegram message, one per account, for players who linked Telegram
+   * (lib/notify/telegram.ts). One a UTC day, like the email: the day is the send-once mark, so a
+   * retried run can't warn twice. Never throws.
+   */
+  async function notifyHungerTelegram(words: readonly KeeperWord[], accountOf: (address: string) => string) {
+    if (!telegramRemindersOn()) return;
+    const targets = hungerTargetsByAddress(words, undefined, undefined, accountOf);
+    if (targets.length === 0) return;
+    const today = Math.floor(Date.now() / 86_400_000);
+    if (DRY) return void console.log(`  [dry] notify (telegram): ${targets.length} account(s) would be checked for a link`);
+    const res = await tellByTelegram("hunger", targets.map((t) => ({ account: t.address, note: hungerWarning(t), mark: String(today) })));
+    if (res) console.log(`notify (telegram): ${res.sent} sent, ${res.skipped} already told, ${res.failed} failed${res.gone ? `, ${res.gone} unlinked` : ""}`);
+  }
+
+  /** The jackpot win by Telegram message, to a winner who linked Telegram. Never throws. */
+  async function notifyWinnerTelegram(account: string, note: { title: string; body: string; notificationId?: string }) {
+    if (!telegramRemindersOn() || !note.notificationId) return;
+    if (DRY) return void console.log("  [dry] would tell the winner by Telegram, if they linked it");
+    const res = await tellByTelegram("jackpot", [{ account, note, mark: note.notificationId }]);
+    if (res?.sent) console.log("resolve: winner told by Telegram");
   }
 
   async function notifyWinnerEmail(winner: string, note: { title: string; body: string }) {

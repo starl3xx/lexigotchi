@@ -682,3 +682,38 @@ export const testerReports = pgTable(
   (t) => [index("tester_reports_created_idx").on(t.createdAt)],
 );
 export type TesterReport = typeof testerReports.$inferSelect;
+
+/**
+ * A profile's Telegram account (lib/db/telegramLinks.ts, migration 0020): where @lexigotchi_bot
+ * sends that player's reminders, as a private message. One Telegram account names one profile, and
+ * a profile has one: a new link replaces the old one on both sides.
+ *
+ * `telegramId` is the person's Telegram id, which is also the id of their private chat with the
+ * bot. A bot can only write to someone who started it, which the link's own `/start` does.
+ * `name` is theirs as it was at linking (a username without the "@", else a first name), for the
+ * profile to say which account is linked. Never public: no route but the player's own gives it.
+ */
+export const telegramLinks = pgTable(
+  "telegram_links",
+  {
+    /** The profile's account (its first wallet), lowercase. */
+    account: text("account").primaryKey(),
+    telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
+    name: text("name").notNull(),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("telegram_links_telegram_id_idx").on(t.telegramId)],
+);
+export type TelegramLink = typeof telegramLinks.$inferSelect;
+
+/**
+ * One "Link Telegram" attempt: a code made under the profile's session, carried to the bot inside
+ * a `t.me/<bot>?start=<code>` link, and used up by the bot's `/start`. Single use and short-lived.
+ */
+export const telegramLinkCodes = pgTable("telegram_link_codes", {
+  code: text("code").primaryKey(),
+  account: text("account").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});
