@@ -1,9 +1,16 @@
 /**
  * The Reports tab's rows: a beta tester's report (the bot's `/bug`: lib/telegramReports) as the
- * operator console shows it. Pure, so the tab can import the types and the tests the functions.
+ * operator console shows it.
+ *
+ * PURE, and it must stay so: the tab (a client component) imports VALUES from here, so this file
+ * may import only TYPES from the database's modules. A value import of one of them puts the
+ * Postgres driver in the browser bundle, and the build fails (it did: #265's first build).
+ * tests/telegram-reports.test.ts holds the rule.
  */
 import type { TesterReport } from "@/lib/db/schema";
-import { REPORT_STATUSES, type ReportStatus } from "@/lib/db/testerReports";
+
+export type ReportStatus = "open" | "fixed" | "closed";
+export const REPORT_STATUSES: readonly ReportStatus[] = ["open", "fixed", "closed"];
 
 /** A report as the console shows it. */
 export interface ReportRow {

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkAdmin, refusalBody } from "@/lib/admin/serverAuth";
 import { isMissingTable } from "@/lib/db/profiles";
-import { listReports, REPORT_STATUSES, setReportStatus, type ReportStatus } from "@/lib/db/testerReports";
-import { reportRow, type ReportMoved, type ReportsPayload } from "@/lib/admin/reportRows";
+import { listReports, setReportStatus } from "@/lib/db/testerReports";
+import { REPORT_STATUSES, reportRow, type ReportMoved, type ReportsPayload, type ReportStatus } from "@/lib/admin/reportRows";
 import { telegramConfigured } from "@/lib/telegram";
 import { tellFixed } from "@/lib/telegramReports";
 
