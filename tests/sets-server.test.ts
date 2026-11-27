@@ -836,7 +836,11 @@ describe("the collab words a rarity is read with", () => {
   it("are the words of revealed and released collab sets, and are UNKNOWN when the sets can't be read", async () => {
     world.sets = [draft(1, "Draft", [words.A], look), draft(2, "Shown", [words.B], { ...look, status: "revealed" }), draft(3, "Plain", [words.C], { status: "revealed" })];
     const server = await import("@/lib/sets/server");
-    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    const now = await server.collabNow();
+    expect(now.known).toBe(true);
+    expect([...now.words.keys()]).toEqual([words.B]);
+    // The same object carries the word's card look: one lookup for the rarity and the card.
+    expect(now.words.get(words.B)).toMatchObject({ setId: 2, partner: "P", a: "#112233", b: "#aabbcc" });
     // Unreadable, with nothing kept from before: unknown, never "no collab words".
     vi.resetModules();
     world.fail = true;
@@ -850,11 +854,13 @@ describe("the collab words a rarity is read with", () => {
   it("a caller that PAYS gets this call's own read or a throw: never the copy kept from before a failure", async () => {
     world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
     const server = await import("@/lib/sets/server");
-    expect([...(await server.collabStrict())]).toEqual([words.B]); // and this read is now the kept copy
+    expect([...(await server.collabStrict()).keys()]).toEqual([words.B]); // and this read is now the kept copy
     world.fail = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     // The ordinary read answers from the kept copy and calls it known: right for holding words back...
-    expect(await server.collabNow()).toEqual({ known: true, words: new Set([words.B]) });
+    const kept = await server.collabNow();
+    expect(kept.known).toBe(true);
+    expect([...kept.words.keys()]).toEqual([words.B]);
     // ...and exactly what the keeper must not weigh an epoch with.
     await expect(server.collabStrict()).rejects.toThrow(/couldn't be read/);
     const { epochTiers } = await import("@/lib/keeper/tiers");
@@ -870,7 +876,7 @@ describe("the collab words a rarity is read with", () => {
   it("a picture that only SHOWS a rarity falls back to the derived tiers; it never fails or waits long", async () => {
     world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
     const { collabSoon } = await import("@/lib/raritySoon");
-    expect([...(await collabSoon())]).toEqual([words.B]);
+    expect([...(await collabSoon()).keys()]).toEqual([words.B]);
     vi.resetModules();
     world.fail = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -878,6 +884,24 @@ describe("the collab words a rarity is read with", () => {
     expect((await again.collabSoon()).size).toBe(0);
     log.mockRestore();
   });
+  it("a picture kept for a week is told whether the sets were READ: a failed read is never 'no collab words'", async () => {
+    world.sets = [draft(2, "Shown", [words.B], { ...look, status: "revealed" })];
+    const { collabSoonRead } = await import("@/lib/raritySoon");
+    const ok = await collabSoonRead();
+    expect(ok.known).toBe(true);
+    expect([...ok.looks.keys()]).toEqual([words.B]);
+    vi.resetModules();
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const again = await import("@/lib/raritySoon");
+    expect(await again.collabSoonRead()).toMatchObject({ known: false });
+    log.mockRestore();
+    // and the card route keeps such a picture only briefly (its own source)
+    const { readFileSync } = await import("fs");
+    const { join } = await import("path");
+    expect(readFileSync(join(__dirname, "..", "src/app/s/[text]/card/route.tsx"), "utf8")).toContain("waiting: waiting || !setsRead ||");
+  });
+
   it("the server's card picture, the Telegram alert, and the word answer use them", async () => {
     const { wordsByTier, TIER_COUNTS } = await import("@/lib/economy");
     const common = wordsByTier("Common")[0];
@@ -942,6 +966,25 @@ describe("collab sets: what leaves the server, and what the operator may store",
     expect(shown.headers.get("content-type")).toBe("image/png");
     expect(shown.headers.get("x-content-type-options")).toBe("nosniff");
     expect(Buffer.from(await shown.arrayBuffer()).equals(PNG)).toBe(true);
+  });
+
+  it("the server's pictures are handed a revealed set's stamp as bytes; a draft's, and stored markup, never", async () => {
+    world.sets = [draft(1, "SecretName", [words.A], collab)];
+    world.stamps.set(1, { mime: "image/png", base64: PNG.toString("base64") });
+    const { stampDataOf } = await import("@/lib/sets/stampData");
+    const look = { setId: 1, mark: "1-1800000000", stamp: "/api/sets/1/stamp?v=1800000000" };
+    expect(await stampDataOf(look)).toBeNull(); // a draft: as private as its name
+    world.sets[0].status = "revealed";
+    expect(await stampDataOf(look)).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // a revealed set's stamp can't change: it is read once and kept
+    world.stamps.delete(1);
+    expect(await stampDataOf(look)).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    // a set with no stamp asks for nothing
+    expect(await stampDataOf({ setId: 2, mark: "2-0", stamp: null })).toBeNull();
+    // and bytes that are no picture are never handed to the renderer, whatever the row says they are
+    world.sets.push(draft(3, "Shown", [words.B], { ...collab, status: "revealed" }));
+    world.stamps.set(3, { mime: "image/png", base64: Buffer.from("<svg onload=alert(1)>").toString("base64") });
+    expect(await stampDataOf({ setId: 3, mark: "3-1", stamp: "/api/sets/3/stamp?v=1" })).toBeNull();
   });
 
   it("serves a stamp as what its bytes are, never as what the row says: stored markup is served as nothing", async () => {

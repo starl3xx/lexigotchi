@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import type { Tier } from "@/lib/economy";
-import { finishFor, type Finish } from "@/lib/rarityFinish";
+import { finishFor, polished, type Finish, type TileTier } from "@/lib/rarityFinish";
 import { facets, glintFlare, haloInk, SCROLL_MIRRORS, SCROLL_PATH } from "@/components/game/TileFinish";
 
 import {
@@ -189,7 +189,7 @@ function finishSurface(fin: Finish, u: (n: string) => string, bw: number): React
   }
   // the hot spot a light makes, where the app's resting light sits (TileFinish's POINTER at its
   // default, 0.35 / 0.3: 21 left of and 20 above its centre)
-  if (fin.material !== "satin") {
+  if (polished(fin)) {
     parts.push(<ellipse key="hot" cx={T.x + 60 - 21} cy={T.y + 50 - 20} rx={66} ry={54} fill={url("hot")} opacity={fin.material === "foil" ? 0.9 : 0.7} />);
   }
   return <g clipPath={url("clip")}>{parts}</g>;
@@ -304,7 +304,7 @@ export function OgTile({
   w?: number;
   limbs?: boolean;
   /** The word's rarity, worn as the tile's material (lib/rarityFinish), as a still. */
-  tier?: Tier;
+  tier?: TileTier;
   /**
    * The word's ascension stage, worn by its UPPERCASE letters as in the game (decisions.md #48):
    * slim rings, black diamond pips, laurels from Gilded 4, the foil at Holographic. The caller

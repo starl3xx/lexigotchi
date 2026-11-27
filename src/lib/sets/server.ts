@@ -34,8 +34,9 @@ import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
 import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
 import { tokenReadable } from "./firstDay";
-import { NO_COLLAB, collabWordsOf, type CollabWords } from "@/lib/rarity";
-import { dueToReveal, gateUntilFor, heldOf, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
+import { NO_COLLAB } from "@/lib/rarity";
+import { collabLooksOf, type CollabLooks } from "@/lib/collabLook";
+import { dueToReveal, gateUntilFor, heldOf, publicSets, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
 
 const BOOK_TTL_MS = 15_000;
 // Short: after the owner changes the root (a reserve, a release), a proof from the old tree
@@ -109,9 +110,10 @@ export async function loadSets(opts: { fresh?: boolean; strict?: boolean } = {})
  * only shows a rarity may fall back to the derived tiers, and a caller that PAYS by rarity (the
  * keeper's yield and bounty) must not open an epoch on a guess.
  */
-export async function collabNow(): Promise<{ known: boolean; words: CollabWords }> {
+export async function collabNow(): Promise<{ known: boolean; words: CollabLooks }> {
   const book = await loadSets();
-  return { known: book.known, words: book.known ? collabWordsOf(book.sets) : NO_COLLAB };
+  // Through `publicSets`, like everything a visitor may be told: a draft has no look to give.
+  return { known: book.known, words: book.known ? collabLooksOf(publicSets(book.sets)) : NO_COLLAB };
 }
 
 /**
@@ -123,8 +125,8 @@ export async function collabNow(): Promise<{ known: boolean; words: CollabWords 
  * fact, not a guess (and an epoch's proofs are stored in the same database before it is opened,
  * so a keeper without one opens nothing).
  */
-export async function collabStrict(): Promise<CollabWords> {
-  return collabWordsOf((await loadSets({ fresh: true, strict: true })).sets);
+export async function collabStrict(): Promise<CollabLooks> {
+  return collabLooksOf(publicSets((await loadSets({ fresh: true, strict: true })).sets));
 }
 
 // --- the chain's root -------------------------------------------------------------------------

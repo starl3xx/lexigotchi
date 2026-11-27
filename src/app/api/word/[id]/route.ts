@@ -21,7 +21,9 @@ import { wordsAbi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { wordOfTokenId } from "@/lib/market/sales";
-import { tierWith, collabWordsOf, NO_COLLAB } from "@/lib/rarity";
+import { tierWith, NO_COLLAB, type CollabWords } from "@/lib/rarity";
+import { collabLooksOf } from "@/lib/collabLook";
+import { publicSets } from "@/lib/sets/rules";
 import { SITE_URL } from "@/lib/site";
 import { parseTokenId, wordMetadata } from "@/lib/wordMetadata";
 
@@ -72,21 +74,28 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   // `loadSets` answers as known.)
   let setName: string | null = null;
   let collabPartner: string | null = null;
-  let collab = NO_COLLAB;
+  let collabMark: string | null = null;
+  let collab: CollabWords = NO_COLLAB;
   try {
     const { loadSets } = await import("@/lib/sets/server");
     const book = await loadSets();
     if (!book.known) return no("try_again", 503);
-    collab = collabWordsOf(book.sets);
+    // One lookup for the rarity, the trait, and the picture's address: what any visitor is told.
+    const looks = collabLooksOf(publicSets(book.sets));
+    collab = looks;
     const mine = book.sets.find((s) => s.status !== "draft" && s.words.some((w) => w.word === word));
     if (mine?.status === "released") setName = mine.name;
-    if (mine?.type === "collab") collabPartner = mine.partnerName;
+    const look = looks.get(word);
+    if (look) {
+      collabPartner = look.partner;
+      collabMark = look.mark;
+    }
   } catch {
     return no("try_again", 503);
   }
 
   const number = await cardNumberOf(word).catch(() => null);
-  const body = wordMetadata({ word, upper, level, number, tier: tierWith(word, collab), setName, collabPartner }, SITE_URL);
+  const body = wordMetadata({ word, upper, level, number, tier: tierWith(word, collab), setName, collabPartner, collabMark }, SITE_URL);
   // A minute: the word's case and stage can change with any transaction, and the picture's
   // address inside changes with them.
   return NextResponse.json(body, { headers: { ...OPEN, "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } });

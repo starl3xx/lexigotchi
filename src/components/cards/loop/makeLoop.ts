@@ -22,6 +22,7 @@ import { svgDataUri } from "@/lib/cardArt/engrave";
 import { STAMP_FACE, STAMP_TURN, inkRgb, numberedFrom, oneInk, stampBox, stampRingSvg } from "../stamp";
 import { LoopCancelled, loadImage } from "./loadImage";
 import { VIDEO } from "../live/support";
+import type { TileTier } from "@/lib/rarityFinish";
 
 // The frame, rate, and H.264 profiles (the plainest first: every browser that encodes H.264 takes
 // Baseline) are ../live/support's, which asks whether the browser can make the video at all.
@@ -167,7 +168,8 @@ export interface LoopLive {
   stage: string;
   word: string;
   upper: readonly boolean[];
-  tier?: Tier;
+  /** The word's rarity, or its collab colors in place of it (lib/rarityFinish.ts `TileTier`). */
+  tier?: TileTier;
   gild: number;
   scene: SceneId;
 }
