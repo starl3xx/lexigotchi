@@ -1,0 +1,7 @@
+[
+  { "command": "help", "description": "What I can do" },
+  { "command": "status", "description": "Is the game up?" },
+  { "command": "jackpot", "description": "Today’s pot and the last draw" },
+  { "command": "bounty", "description": "This week’s theme and pool" },
+  { "command": "word", "description": "Who holds a word. Try /word CRANE" }
+]
