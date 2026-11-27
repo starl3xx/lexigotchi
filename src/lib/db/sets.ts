@@ -554,12 +554,14 @@ export async function revealSet(chainId: number, id: number, now: Date, opts: { 
  * late it is: the admin shows what it is missing. The rule is written twice, here in SQL and in
  * rules.ts `revealProblems`; scripts/sets-db-check.ts holds the two together.
  */
-export async function revealDue(chainId: number, now: Date, opts: { collabLive?: boolean } = {}): Promise<number[]> {
+export async function revealDue(chainId: number, now: Date, opts: { collabLive?: boolean; /** reveal none but these sets (the ones the chain holds back: lib/sets/server) */ only?: readonly number[] } = {}): Promise<number[]> {
+  if (opts.only && opts.only.length === 0) return [];
   const due = [
     eq(wordSets.chainId, chainId),
     eq(wordSets.status, "draft"),
     lte(wordSets.revealAt, now),
     sql`exists (select 1 from ${setWords} where ${setWords.setId} = ${wordSets.id})`,
+    ...(opts.only ? [inArray(wordSets.id, [...opts.only])] : []),
   ];
   // While collab reveals are switched off no collab set is revealed at all (rules.ts COLLAB_LIVE).
   const whole = !(opts.collabLive ?? COLLAB_LIVE)

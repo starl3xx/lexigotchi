@@ -147,6 +147,18 @@ async function main() {
   const later = await createSet(CHAIN, base("Later", { revealAt: new Date(Date.now() + 3_600_000) }));
   await addWords(CHAIN, later, [E]);
   await updateSet(CHAIN, empty, { revealAt: new Date(Date.now() - 1000) });
+  // Held to a list (the sets the chain holds back already: lib/sets/server notReservedYet): an
+  // empty list reveals nothing, and a due set left off the list stays a draft.
+  const held = await createSet(CHAIN, base("Due, on the chain", { revealAt: new Date(Date.now() - 1000) }));
+  await addWords(CHAIN, held, [WORDS[3900]]); // far from every other word this script uses
+  const none = await revealDue(CHAIN, new Date(), { only: [] });
+  check("the scheduled reveal held to no sets reveals none", none.length === 0 && (await statusOf(due)) === "draft" && (await statusOf(held)) === "draft", none);
+  const some = await revealDue(CHAIN, new Date(), { only: [held, later] });
+  check(
+    "the scheduled reveal held to a list reveals the due sets on it, and no due set off it",
+    some.join() === String(held) && (await statusOf(held)) === "revealed" && (await statusOf(due)) === "draft" && (await statusOf(later)) === "draft",
+    some,
+  );
   const twice = await Promise.all([revealDue(CHAIN, new Date()), revealDue(CHAIN, new Date())]);
   check("a due draft is revealed once, however many servers notice", twice.flat().join() === String(due), twice);
   check("a draft not due yet, and an empty one, stay drafts", (await statusOf(later)) === "draft" && (await statusOf(empty)) === "draft");

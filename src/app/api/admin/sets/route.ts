@@ -56,7 +56,7 @@ import {
 } from "@/lib/sets/rules";
 import { TEST_COLLAB, pickTestWords, placeholderStamp } from "@/lib/sets/testCollab";
 import { wordTier } from "@/lib/economy";
-import { claimedAmong, forgetSets, hasGate, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
+import { claimedAmong, forgetSets, hasGate, loadSets, notReservedYet, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
 import { setStats, type SetClaim, type SetStats } from "@/lib/sets/stats";
 
 export const runtime = "nodejs";
@@ -340,6 +340,19 @@ export async function POST(req: Request) {
       case "reveal": {
         const id = idOf(body.id);
         if (!id) return json({ ok: false, error: "bad_request" }, 400);
+        // A reveal names the set's words to everyone, so the chain must hold them back FIRST
+        // (lib/sets/server notReservedYet): the reserve root, then the reveal. A set that isn't a
+        // draft, or isn't there, is left to revealSet's own refusal.
+        const mine = (await loadSets({ fresh: true })).sets.find((s) => s.id === id);
+        if (mine?.status === "draft" && mine.words.length > 0) {
+          const missing = await notReservedYet(mine.words.map((w) => w.word), { fresh: true });
+          if (missing === null) {
+            return json({ ok: false, error: "try_again", errors: ["the chain’s dictionary root couldn’t be read (or isn’t one this server built), so the set can’t be shown to be held back: try again"] }, 503);
+          }
+          if (missing > 0) {
+            return json({ ok: false, error: "not_reserved", errors: [`${missing} of this set’s ${mine.words.length} words are not held back on the chain yet: send the reserve root first, then reveal`] }, 409);
+          }
+        }
         await revealSet(chainId, id, new Date());
         forgetSets();
         return json({ ok: true });

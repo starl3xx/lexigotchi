@@ -166,7 +166,11 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `serving`): every root the server builds is stored with the words it leaves out BEFORE its
   transaction is shown, and `/api/dictionary/proof` serves from the tree behind the root the chain
   holds now; a word is offered only when it is in that tree AND in no unreleased set, so a draft
-  edit never stops a claim (the admin says "root out of date"). `planReserve` moves the chain to
+  edit never stops a claim (the admin says "root out of date"). **A set is revealed only once the
+  chain holds its words back** (`notReservedYet`; a reveal names the words, and a word the chain's
+  root still has can be claimed straight from the contract): by hand a reveal is refused until the
+  reserve root lands, on its date the set is passed by until then, and "can't tell" is never "held
+  back". The order is always draft, reserve root, reveal, release. `planReserve` moves the chain to
   what the sets hold back; `planRelease` adds exactly one revealed set's words, never removes one,
   refuses a set not fully held back on the chain, and puts `setGate` BEFORE `setDictionaryRoot`
   where the network's Words has the gate (`hasGate` asks the contract). A set is marked released
