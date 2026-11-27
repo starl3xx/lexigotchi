@@ -619,7 +619,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   root). They replace the old in-game FAQ and `FAQ.md`. Keep every number in step with `params.ts`
   and `economy.ts` (prices, odds, hunger days, splits, tier counts); the copy-rules test covers
   the pages, including the rule that a dollar sign in body text is written `\$` (Mintlify reads
-  `$…$` as math). Pictures in `docs-site/images/` come from `npm run docs:art`
+  `$…$` as math). Pictures in `docs-site/images/` come from `npm run docs:art` (`tests/docs-art.test.ts` fails when one
+  no longer matches what the rig draws: a change to the rig, the rig's keyframes, or the fee splits
+  needs the script rerun in the same PR)
   (`scripts/docs-art.tsx`, the real character rig and `params.ts` splits): rerun it after changing
   either. Screenshots (`screen-*.jpg`) come from `npm run docs:shots` against a practice-mode dev
   server: never a wallet, so no real address is pictured. Separate from `docs/`, which is internal.
