@@ -26,7 +26,14 @@ vi.mock("@/lib/db/sets", () => ({
   },
   revealDue: async () => [],
 }));
-vi.mock("@/lib/onchain/cardNumbers", () => ({ cardNumberSoon: async () => world.number }));
+// The WAITING read of the number: the quick one answers "none yet" on a cold server, and a
+// marketplace keeps the first answer it is given.
+vi.mock("@/lib/onchain/cardNumbers", () => ({
+  cardNumberOf: async () => world.number,
+  cardNumberSoon: async () => {
+    throw new Error("the metadata must wait for the number, not use the quick read");
+  },
+}));
 vi.mock("@/lib/onchain/reads", async (orig) => ({
   ...(await orig<typeof import("@/lib/onchain/reads")>()),
   getPublicClient: () => ({
@@ -160,14 +167,18 @@ describe("GET /api/word/{id}", () => {
     expect(trait(body, "Collab")).toBeUndefined();
   });
 
-  it("when the sets can't be read: the word's own facts, without the set traits", async () => {
+  it("when the sets can't be read it is 503, never a collab word's metadata without its rarity and trait", async () => {
     world.sets = [set(1, "Shown", "released", [COMMON], collabLook)];
     world.setsFail = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await get(idOf(COMMON))).toMatchObject({ status: 503, body: { error: "try_again" }, cache: "no-store" });
+    log.mockRestore();
+  });
+
+  it("a word with no number yet still has its metadata, without the trait", async () => {
+    world.number = null;
     const { status, body } = await get(idOf(COMMON));
     expect(status).toBe(200);
-    expect(trait(body, "Rarity")).toBe("Common");
-    expect(trait(body, "Collab")).toBeUndefined();
-    log.mockRestore();
+    expect(trait(body, "Number")).toBeUndefined();
   });
 });

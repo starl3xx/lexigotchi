@@ -7,8 +7,11 @@
  * - The chain's state decides the name, the picture, and the case and ascension traits. When the
  *   chain can't be read the answer is 503, never a guess a marketplace would keep.
  * - "Set" and "Collab" follow what any visitor may see: a draft set adds nothing here. If the sets
- *   can't be read, those two traits are left out and the rarity is the derived one; the answer is
- *   kept for a minute only, so it mends itself.
+ *   can't be read the answer is 503 too. A marketplace keeps the first 200 it gets, whatever the
+ *   cache header says, and a collab word served with its derived rarity and no Collab trait would
+ *   stay that way there; an indexer asks again after a 503.
+ * - The card's number is WAITED for (`cardNumberOf`), for the same reason: a first answer without
+ *   it would be the one that is kept.
  *
  * (`/api/word` itself, with no id, is the $WORD token's numbers: another thing entirely.)
  */
@@ -16,7 +19,7 @@ import { NextResponse } from "next/server";
 import { addressOf, isSuiteDeployed } from "@/lib/onchain/addresses";
 import { wordsAbi } from "@/lib/onchain/abis";
 import { getPublicClient } from "@/lib/onchain/reads";
-import { cardNumberSoon } from "@/lib/onchain/cardNumbers";
+import { cardNumberOf } from "@/lib/onchain/cardNumbers";
 import { wordOfTokenId } from "@/lib/market/sales";
 import { tierWith, collabWordsOf, NO_COLLAB } from "@/lib/rarity";
 import { SITE_URL } from "@/lib/site";
@@ -64,24 +67,25 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   }
   if (!held) return no("not_minted", 404);
 
-  // What the sets say of it, as any visitor may be told. Unreadable: no set traits, the derived tier.
+  // What the sets say of it, as any visitor may be told. Unreadable: 503, never a rarity and
+  // traits a marketplace would keep wrong. (No database configured: there are no sets, which
+  // `loadSets` answers as known.)
   let setName: string | null = null;
   let collabPartner: string | null = null;
   let collab = NO_COLLAB;
   try {
     const { loadSets } = await import("@/lib/sets/server");
     const book = await loadSets();
-    if (book.known) {
-      collab = collabWordsOf(book.sets);
-      const mine = book.sets.find((s) => s.status !== "draft" && s.words.some((w) => w.word === word));
-      if (mine?.status === "released") setName = mine.name;
-      if (mine?.type === "collab") collabPartner = mine.partnerName;
-    }
+    if (!book.known) return no("try_again", 503);
+    collab = collabWordsOf(book.sets);
+    const mine = book.sets.find((s) => s.status !== "draft" && s.words.some((w) => w.word === word));
+    if (mine?.status === "released") setName = mine.name;
+    if (mine?.type === "collab") collabPartner = mine.partnerName;
   } catch {
-    // as above: the set traits are left out
+    return no("try_again", 503);
   }
 
-  const number = await cardNumberSoon(word).catch(() => null);
+  const number = await cardNumberOf(word).catch(() => null);
   const body = wordMetadata({ word, upper, level, number, tier: tierWith(word, collab), setName, collabPartner }, SITE_URL);
   // A minute: the word's case and stage can change with any transaction, and the picture's
   // address inside changes with them.
