@@ -30,7 +30,7 @@ import {
 } from "../state";
 import { careNote } from "../careNote";
 import { useEatingFlash } from "../useEatingFlash";
-import { earningLine, earningStatus, payoutWhen } from "../earnings";
+import { earningLine, earningStatus, earningsRowTarget, payoutWhen } from "../earnings";
 import { SellWord } from "../market/SellWord";
 import { ascendDoor } from "../ascendFlow";
 
@@ -278,7 +278,8 @@ export function WordSheet({ word: wordKey }: { word: string }) {
 
 /**
  * The word's earnings, in one tappable row: what it has earned for the player and at the latest
- * payout, or the one thing that would make it earn. Opens Your earnings.
+ * payout, or the one thing that would make it earn. Opens Your earnings, or, on a row that says how
+ * many letters are left to raise, the roll for the next one (earningsRowTarget).
  */
 function EarningsRow({ word, h }: { word: OwnedWord; h: Hunger }) {
   const g = useGame();
@@ -286,9 +287,14 @@ function EarningsRow({ word, h }: { word: OwnedWord; h: Hunger }) {
   const mineE = e?.byWord[word.word];
   const status = earningStatus(word, h);
   const when = e?.latestAt ? payoutWhen(e.latestAt) : null;
+  const target = earningsRowTarget(word, { earned: mineE?.total ?? 0, status, pity: g.state.pity, rollProb: g.rollProb });
   return (
     <button
-      onClick={() => g.openSheet({ kind: "earnings" })}
+      onClick={() =>
+        target.kind === "roll"
+          ? g.openSheet({ kind: "roll", target: { kind: "word", word: word.word, pos: target.pos } })
+          : g.openSheet({ kind: "earnings" })
+      }
       className="cel-sm press mb-3 flex w-full items-center gap-2.5 rounded-xl bg-card px-3 py-2 text-left text-sm"
     >
       <Coins weight="fill" size={18} className="shrink-0 text-gold-ink" />

@@ -10,6 +10,7 @@ import {
   earningLine,
   earningStatus,
   earningsFromJson,
+  earningsRowTarget,
   earningsLineText,
   payoutWhen,
   practiceEarnings,
@@ -83,6 +84,43 @@ describe("earningStatus and earningLine", () => {
     // already staked: never asked to stake it again (Bugbot on #177)
     expect(earningLine("CRANE", { kind: "raise", left: 2, staked: true })).toBe("Raise 2 more letters to UPPERCASE, and CRANE earns $WORD every day.");
     expect(earningLine("VIVID", { kind: "paused" })).toBe("VIVID is hungry, so it earns nothing until you feed it.");
+  });
+});
+
+describe("earningsRowTarget (the word sheet's earnings row)", () => {
+  // Odds rise with pity, as the game's do: 40% base, 15 points a miss.
+  const rollProb = (p: number) => Math.min(0.85, 0.4 + 0.15 * p);
+  const NO_PITY = Array.from({ length: 26 }, () => 0);
+  const pityOn = (letter: string, misses: number) => NO_PITY.map((p, i) => (i === letter.charCodeAt(0) - 65 ? misses : p));
+  const target = (w: OwnedWord, o: { earned?: number; pity?: number[]; h?: "fed" | "hungry" } = {}) =>
+    earningsRowTarget(w, { earned: o.earned ?? 0, status: earningStatus(w, o.h ?? "fed"), pity: o.pity ?? NO_PITY, rollProb });
+  const AFFIX = (o: Partial<OwnedWord> = {}) => word("AFFIX", { upper: [false, false, false, false, false], ...o });
+
+  it("a row with letters left to raise opens the roll for the first, staked or not", () => {
+    expect(target(AFFIX())).toEqual({ kind: "roll", pos: 0 });
+    expect(target(AFFIX({ staked: false }))).toEqual({ kind: "roll", pos: 0 });
+    expect(target(AFFIX({ upper: [true, true, false, false, false] }))).toEqual({ kind: "roll", pos: 2 });
+  });
+
+  it("names the letter Next steps would: the best odds, so a letter with misses behind it", () => {
+    expect(target(AFFIX(), { pity: pityOn("I", 2) })).toEqual({ kind: "roll", pos: 3 });
+    // a raised letter is never picked, whatever its pity
+    expect(target(AFFIX({ upper: [false, false, false, true, false] }), { pity: pityOn("I", 2) })).toEqual({ kind: "roll", pos: 0 });
+  });
+
+  it("a caretaker's row takes the first lowercase letter: the staker's pity isn't this wallet's", () => {
+    expect(target(AFFIX({ mine: false, care: true }), { pity: pityOn("X", 3) })).toEqual({ kind: "roll", pos: 0 });
+  });
+
+  it("every other row opens Your earnings", () => {
+    // a linked wallet's word: this wallet can't roll it
+    expect(target(AFFIX({ mine: false }))).toEqual({ kind: "earnings" });
+    // a word that has earned shows what it earned, whatever its letters
+    expect(target(AFFIX(), { earned: 100 })).toEqual({ kind: "earnings" });
+    // fully raised: earning, hungry, or waiting to be staked (a row tap never sends anything)
+    expect(target(word("VIVID"))).toEqual({ kind: "earnings" });
+    expect(target(word("VIVID"), { h: "hungry" })).toEqual({ kind: "earnings" });
+    expect(target(word("VIVID", { staked: false }))).toEqual({ kind: "earnings" });
   });
 });
 

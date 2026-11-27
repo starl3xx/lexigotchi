@@ -14,6 +14,7 @@ import { TIER_WEIGHT } from "@/lib/economy";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { hungerFactor } from "@/lib/keeper/shares";
 import type { Hunger, OwnedWord } from "./state";
+import { letterToRaise } from "./todaySteps";
 
 export interface WordEarned {
   /** Everything this word has earned for the player. */
@@ -108,6 +109,28 @@ export function earningStatus(word: Pick<OwnedWord, "upper" | "staked">, h: Hung
   if (h === "hungry") return { kind: "paused" };
   if (h === "peckish") return { kind: "half" };
   return { kind: "earning" };
+}
+
+/** Where a word's earnings row leads (sheets/WordSheet): Your earnings, or the roll for one letter. */
+export type EarningsRowTarget = { kind: "earnings" } | { kind: "roll"; pos: number };
+
+/**
+ * A row that says how many letters are left to raise opens the roll for the next one, the letter
+ * Next steps would pick (letterToRaise): the row names the step, so a tap takes it (a beta tester,
+ * 2026-11-26). Every other row opens Your earnings:
+ * - a word that has earned shows what it earned, whatever its letters;
+ * - "Stake it" stays a pointer: a row tap never sends anything, and Stake sits just below;
+ * - a linked wallet's word can't be rolled from this wallet (its raise card is off too).
+ * A caretaker rolls with the staker's pity, which isn't read here, so its row takes the first
+ * lowercase letter; the roll sheet reads the staker's odds itself.
+ */
+export function earningsRowTarget(
+  word: Pick<OwnedWord, "word" | "upper" | "mine" | "care">,
+  o: { earned: number; status: EarningStatus; pity: readonly number[]; rollProb: (pity: number) => number },
+): EarningsRowTarget {
+  if (o.earned > 0 || o.status.kind !== "raise" || !(word.mine || word.care)) return { kind: "earnings" };
+  const next = letterToRaise(word, word.care ? [] : o.pity, o.rollProb);
+  return next ? { kind: "roll", pos: next.pos } : { kind: "earnings" };
 }
 
 /**
