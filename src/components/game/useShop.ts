@@ -228,6 +228,12 @@ export function useShopBuy(): { buyingId: number | null; buy: (item: { id: numbe
   });
   const { mutateAsync } = useMutation({
     mutationKey: BUY_KEY,
+    // A purchase runs AT THE TAP or not at all. By default a mutation waits while the browser is
+    // offline and runs when the network returns: a tap made offline showed nothing, and seconds
+    // after the network came back the wallet was asked to pay, with no new tap (seen in review).
+    // "always" runs it at once, as the direct call did: offline, its first read fails and says so.
+    networkMode: "always",
+    retry: false,
     mutationFn: (item: { id: number; priceUsdc: bigint }) => g.buyShopItem(item),
     onSettled: (ok) => {
       if (ok) {
@@ -237,7 +243,18 @@ export function useShopBuy(): { buyingId: number | null; buy: (item: { id: numbe
       void qc.invalidateQueries({ queryKey: ["shop", "usdc"] });
     },
   });
-  const buy = useCallback((item: { id: number; priceUsdc: bigint }) => mutateAsync(item).catch(() => false), [mutateAsync]);
+  const { toast } = g;
+  // The purchase says for itself how it ended (a toast for each outcome it knows). What it can't
+  // say is that it never got going: its first read threw (offline, or the RPC didn't answer).
+  // That used to be silent: a tap on Buy with nothing after it.
+  const buy = useCallback(
+    (item: { id: number; priceUsdc: bigint }) =>
+      mutateAsync(item).catch(() => {
+        toast("Couldn’t reach the Shop. Check your connection and try again.", "bad");
+        return false;
+      }),
+    [mutateAsync, toast],
+  );
   const buying = g.busy?.label === SHOP_BUY_LABEL;
   const started = inFlight.filter((id): id is number => id !== null);
   return { buyingId: buying ? (started.at(-1) ?? null) : null, buy };

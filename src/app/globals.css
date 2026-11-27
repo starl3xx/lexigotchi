@@ -168,6 +168,13 @@ body {
   box-shadow: 0 0 0 theme(colors.ink);
   transition-duration: 70ms;
 }
+/* A press that HOLDS another press (a Shop item's card, with its own Buy inside it) doesn't press
+   in when the inner one is what is pressed: the whole card going down under a press on Buy read
+   as the card being pressed. It stays as it was under the pointer (the three rules named
+   "a press inside a press" in this file). A browser without :has presses both, as before. */
+.press:has(.press:active):active:not(:disabled) {
+  box-shadow: var(--sh, 3px) var(--sh, 3px) 0 theme(colors.ink);
+}
 .press-icon {
   transition: transform 280ms var(--ease-hop);
 }
@@ -324,6 +331,10 @@ body {
   .press:active:not(:disabled) {
     transform: translate(var(--sh, 3px), var(--sh, 3px));
   }
+  /* a press inside a press: the outer one holds still */
+  .press:has(.press:active):active:not(:disabled) {
+    transform: none;
+  }
   .tile-press:active {
     transform: translateY(2px);
     transition-duration: 70ms;
@@ -338,6 +349,11 @@ body {
   @media (hover: hover) and (pointer: fine) {
     .press:hover:not(:disabled):not(:active) {
       transform: translateY(-2px);
+    }
+    /* a press inside a press: the outer one stays lifted under the pointer */
+    .press:has(.press:active):hover:active:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--sh, 3px) calc(var(--sh, 3px) + 2px) 0 theme(colors.ink);
     }
     .press:hover .press-icon {
       transform: rotate(-9deg) scale(1.12);

@@ -3037,6 +3037,14 @@ setter. All small, riding existing suite patterns.
       good, and after Hide on the status pill Buy must be live again. My first version counted
       the pending promise and would have left every Buy disabled until a reload (caught in
       review, before it shipped).
+    - **A purchase runs at the tap or not at all** (`networkMode: "always"` on the shared
+      purchase; caught in review, then seen). The purchase became a query-library mutation so
+      that every Buy could know one was in flight, and by default such a mutation made OFFLINE
+      is held and run when the network returns. Seen in a browser: a tap on Buy while offline
+      showed nothing, and eight seconds after reconnecting the wallet was asked to sign, with
+      no new tap. Now it runs at once, as the direct call did. Offline, its first read fails,
+      and that is said ("Couldn’t reach the Shop. Check your connection and try again."): a
+      purchase whose first read threw used to be silent, before this change too.
     - **A thing with no picture** (a costume with no art yet) opens in the usual dialog, one
       column: the wide dialog is for a picture.
     - **Only a button sits above the card's open button** (`lib/shop/offer` `offerIsButton`,

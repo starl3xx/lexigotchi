@@ -218,6 +218,23 @@ describe("one Buy for every place that shows one", () => {
     // and ShopBuy draws a button for exactly those answers
     expect(read("shop/ShopBuy.tsx")).toMatch(/if \(!offerIsButton\(o\)\) \{\s*return \(\s*<div/);
   });
+  it("the card doesn't press in when its own Buy is what is pressed (a press inside a press)", () => {
+    // measured with motion on: a press on Buy pushed the whole card into its shadow too
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toMatch(/\.press:has\(\.press:active\):active:not\(:disabled\) \{\s*box-shadow: var\(--sh, 3px\) var\(--sh, 3px\) 0/);
+    expect(css).toMatch(/\.press:has\(\.press:active\):active:not\(:disabled\) \{\s*transform: none;/);
+    // the card is such a press, and its Buy is a press inside it
+    expect(read("screens/ShopScreen.tsx")).toMatch(/className=\{`cel-sm isolate [^`]*\$\{opens \? "press" : ""\}`\}/);
+  });
+  it("a purchase runs at the tap or not at all: it never waits for the network and pays later", () => {
+    // By default a mutation made offline is held and run when the network returns. Seen in a
+    // browser: a tap offline showed nothing, and seconds after reconnecting the wallet was asked
+    // to sign with no new tap.
+    const hooks = read("useShop.ts");
+    expect(hooks).toMatch(/mutationKey: BUY_KEY,[\s\S]{0,700}networkMode: "always",\s*retry: false,/);
+    // and a purchase that never got going says so, instead of a tap with nothing after it
+    expect(hooks).toMatch(/mutateAsync\(item\)\.catch\(\(\) => \{\s*toast\(/);
+  });
   it("an item's view opens only a real item: never the test network's placeholder", () => {
     expect(read("sheets/ShopItemSheet.tsx")).toMatch(/c\.kind === "item" && c\.item\.id === id/);
     expect(read("screens/ShopScreen.tsx")).toMatch(/const opens = card\.kind === "item";/);
