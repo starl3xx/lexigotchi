@@ -4,7 +4,7 @@
  */
 import { writeFileSync } from "fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { backFoot, backLedger, type BackFacts } from "@/lib/backPicture";
+import { backFoot, backLedger, type BackFacts, footSetName, FOOT_SET_MAX } from "@/lib/backPicture";
 import { cardDate, type WordStory } from "@/lib/cardFacts";
 
 const HOLDER = "0x00000000000000000000000000000000000000a1";
@@ -80,6 +80,16 @@ describe("what the back's picture says", () => {
     ]);
     expect(backFoot(FACTS)).toEqual(["Never drawn for the jackpot", "0x9c1e…41d7"]);
     expect(backFoot({ ...FACTS, drawn: 7 })[0]).toBe("Drawn for the jackpot (draw 7)");
+    // a word released in a reserved set carries its set's name, first on the line
+    expect(backFoot({ ...FACTS, set: "Spring" })).toEqual(["Set: Spring", "Never drawn for the jackpot", "0x9c1e…41d7"]);
+    expect(backFoot({ ...FACTS, set: null })).toEqual(["Never drawn for the jackpot", "0x9c1e…41d7"]);
+    // the bottom line is ONE line: a long name (a set's may be 60 characters) is cut, so the
+    // jackpot and the token after it stay on the card
+    const long = "A".repeat(60);
+    expect(footSetName("Spring")).toBe("Spring");
+    expect(footSetName(long)).toHaveLength(FOOT_SET_MAX);
+    expect(footSetName(long).endsWith("…")).toBe(true);
+    expect(backFoot({ ...FACTS, set: long })[0]).toBe(`Set: ${"A".repeat(FOOT_SET_MAX - 1)}…`);
   });
 
   it("never says \"you\", and never an amount a player earned or a state that changes by the day", () => {

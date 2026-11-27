@@ -3,6 +3,7 @@
 import { Backpack, BookOpen, Coins, Planet, Ranking, Sparkle, Storefront, TextAa, Trophy } from "./ui/icons";
 import { useGame, type View } from "./state";
 import { WORD_COUNT } from "@/lib/dictionary";
+import { useSets } from "./useSets";
 
 const TILES: { Icon: typeof Sparkle; label: string; sub: string; to: View }[] = [
   { Icon: Sparkle, label: "Mint letters", sub: "packs & daily", to: "mint" },
@@ -22,7 +23,12 @@ const MORE_TILES: typeof TILES = [
 
 export function QuickGrid({ extended = false }: { extended?: boolean }) {
   const { nav } = useGame();
-  const tiles = extended ? [...TILES, ...MORE_TILES] : TILES;
+  // The Dictionary's count is the words the game offers now: the dictionary less those held back
+  // in sets that haven't unlocked (decisions.md, "Reserved word sets"). Until that is known, all of it.
+  const { released } = useSets();
+  const tiles = (extended ? [...TILES, ...MORE_TILES] : TILES).map((t) =>
+    t.to === "dictionary" && released !== undefined ? { ...t, sub: `${released.toLocaleString("en-US")} words` } : t,
+  );
   return (
     <div className={`grid grid-cols-2 gap-3 md:grid-cols-3 ${extended ? "lg:grid-cols-4" : "xl:grid-cols-6"}`}>
       {tiles.map((t) => (

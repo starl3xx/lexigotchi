@@ -29,6 +29,7 @@ import { hunger, useGame, type Hunger, type OwnedWord } from "../game/state";
 import { useCostToMake } from "../game/WordValue";
 import { usePlayerWallets } from "../game/usePlayerWallets";
 import { useWorld } from "../game/useWorld";
+import { useSets } from "../game/useSets";
 
 export interface CardFacts {
   tier: Tier;
@@ -55,6 +56,8 @@ export interface CardFacts {
   drawn: number | "never" | null;
   points: number;
   token: string;
+  /** The reserved set it was released in (decisions.md, "Reserved word sets"), or null: none, or not known yet. */
+  set: string | null;
 }
 
 export function useCardFacts(word: OwnedWord): CardFacts {
@@ -63,6 +66,8 @@ export function useCardFacts(word: OwnedWord): CardFacts {
   const wallets = usePlayerWallets();
   const world = useWorld();
   const cost = useCostToMake(word);
+  // The set this word was released in, if any. Unknown reads as none: the back just has no set line.
+  const setName = useSets().setNameOf(word.word);
   const practiceWords = g.state.words;
   const practice = useMemo(() => (chain ? {} : practiceNumbers(practiceWords)), [chain, practiceWords]);
   const story = useQuery({
@@ -114,6 +119,7 @@ export function useCardFacts(word: OwnedWord): CardFacts {
       drawn: !chain ? "never" : drawnMap ? (drawnMap[word.word] ?? "never") : null,
       points: wordPoints(word.word),
       token: shortTokenId(word.word),
+      set: setName ?? null,
     };
-  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice]);
+  }, [word, chain, wallets, story.data, world.data, g.earnings, cost, practice, setName]);
 }

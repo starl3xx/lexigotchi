@@ -120,6 +120,10 @@ export function LookupSheet({ word }: { word: string }) {
         .
       </>
     ) : null;
+  } else if (status === "held") {
+    // Held back in a set that hasn't unlocked: a plain "not yet", and nothing to do about it here.
+    lead = `${word} isn’t available yet.`;
+    sub = "Some words unlock later, in sets. The Dictionary shows which sets are coming.";
   } else if (status === "taken" || status === "mineAway") {
     lead = status === "mineAway" ? `${word} is yours, in a linked wallet.` : `${word} has an owner.`;
     sub = status === "mineAway" ? "Connect that wallet to open its card." : "There’s only one of each word.";

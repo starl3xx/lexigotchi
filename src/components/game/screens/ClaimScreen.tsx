@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { wordScore, wordTier, type Tier } from "@/lib/economy";
-import { isTaken } from "@/lib/dictionaryList";
+import { cantClaim } from "@/lib/dictionaryList";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
 import { TierMark } from "../TierMark";
 import { useWorld } from "../useWorld";
@@ -120,7 +120,9 @@ export function ClaimScreen() {
   // board has an owner, its seller, even before the minute-old world read knows it (decisions.md
   // #32). So this list is exactly the Dictionary's "Can spell", and neither offers a claim that reverts.
   const { statusOf } = useDictionary();
-  const taken = useCallback((w: string) => isTaken(statusOf(w)), [statusOf]);
+  // "Taken" here is "a claim can't go through": someone has it, or it is held back in a set that
+  // hasn't unlocked (lib/dictionaryList `cantClaim`). Neither is offered.
+  const taken = useCallback((w: string) => cantClaim(statusOf(w)), [statusOf]);
   const spellable = useMemo(
     () => spellableNow(bag.lower, bag.upper, owned, Infinity).filter((w) => !taken(w)),
     [bag, owned, taken],
@@ -204,7 +206,7 @@ export function ClaimScreen() {
                 // Someone else's word: say so, rather than offer a claim the contract reverts.
                 taken(w) ? (
                   <span key={w} className="rounded-lg border-2 border-ink/30 px-2 py-1 text-sm font-bold text-ink/55">
-                    {w} is already owned
+                    {statusOf(w) === "held" ? `${w} isn’t available yet` : `${w} is already owned`}
                   </span>
                 ) : (
                   <button

@@ -317,6 +317,43 @@ export function remindersOn(): Notification {
   };
 }
 
+// ── Reserved word sets ────────────────────────────────────────────────────────────────
+// RECEIPTS of a set's three moments (decisions.md, "Reserved word sets"), each keyed by the set and
+// the moment: a set is revealed once, unlocks once, and its first day ends once. The titles are
+// fixed (the 32-character cap is provable); the body carries the set's name, which is at most 60
+// characters (lib/sets/rules.ts NAME_MAX), and every body fits the cap with a name that long.
+const SET_REVEALED_TITLES = ["A new set is revealed"] as const;
+const SET_UNLOCKED_TITLES = ["A new set just unlocked"] as const;
+const SET_OPEN_TITLES = ["A set is open to everyone"] as const;
+
+/** A set is revealed: its name and words show, and it counts down to its unlock. */
+export function setRevealed(set: { id: number; name: string }): Notification {
+  return {
+    title: SET_REVEALED_TITLES[0],
+    body: `${set.name} is revealed. See its words in the Dictionary.`,
+    notificationId: `set-revealed-${set.id}`,
+  };
+}
+
+/** A set unlocked. `firstDay`: the one-word rule applies today (the limit, when it isn't one). */
+export function setUnlocked(set: { id: number; name: string }, firstDay: { limit: number } | null): Notification {
+  const rule = firstDay ? (firstDay.limit <= 1 ? " First day: one word per player." : ` First day: ${firstDay.limit} words per player.`) : " Its words are open to claim.";
+  return {
+    title: SET_UNLOCKED_TITLES[0],
+    body: `${set.name} is unlocked.${rule}`,
+    notificationId: `set-unlocked-${set.id}`,
+  };
+}
+
+/** A set's first day ended: every word that's left is open to all. */
+export function setOpen(set: { id: number; name: string }): Notification {
+  return {
+    title: SET_OPEN_TITLES[0],
+    body: `${set.name} is open to everyone now. Claim any word that’s left.`,
+    notificationId: `set-open-${set.id}`,
+  };
+}
+
 /** Every template pool, for the length guardrail test and the admin console's preview. */
 export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   hunger: HUNGER_TITLES,
@@ -332,6 +369,9 @@ export const ALL_TITLE_POOLS: Record<string, readonly string[]> = {
   soldWord: SOLD_WORD_TITLES,
   soldMany: SOLD_MANY_TITLES,
   remindersOn: [remindersOn().title],
+  setRevealed: SET_REVEALED_TITLES,
+  setUnlocked: SET_UNLOCKED_TITLES,
+  setOpen: SET_OPEN_TITLES,
 };
 
 /** True when a notification is within every published limit before clamping saves it. */

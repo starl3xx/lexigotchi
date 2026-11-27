@@ -227,6 +227,31 @@ describe("releasing", () => {
     return { server, reserveRoot: plan.root };
   }
 
+  it("the game's first answer after a release agrees with itself: the set is released AND its words are let go", async () => {
+    const { server } = await reserved();
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+    const plan = await server.planRelease(1);
+    if (!plan.ok) throw new Error("no plan");
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    // Before the transaction lands: revealed, and still held.
+    const before = await (await GET()).json();
+    expect(before.sets.find((x: { id?: number }) => x.id === 1).kind).toBe("revealed");
+    expect(before.held).toContain(words.A);
+
+    // It lands. The answer is built by ONE request that first read the sets as they were kept
+    // (revealed) and then noticed the release: it must not say "revealed" beside a `held` list that
+    // has already dropped the set's words (the game would count down on a set it lets you claim).
+    world.chainRoot = plan.root;
+    // Eleven seconds on: the chain's root is asked again (kept 10 s), the sets are not (kept 15 s).
+    const at = Date.now() + 11_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(at);
+    const after = await (await GET()).json();
+    clock.mockRestore();
+    expect(after.held).toEqual([words.C]); // the released set's words are let go; the other set stays held back
+    expect(after.sets.find((x: { id?: number }) => x.id === 1).kind).toBe("released");
+  });
+
   it("only a revealed set can be released", async () => {
     const { server } = await reserved();
     expect(await server.planRelease(1)).toEqual({ ok: false, error: "not_revealed" });
@@ -577,6 +602,72 @@ describe("the counts that say \"of the dictionary\"", () => {
     expect(offered).toHaveLength(WORD_COUNT - 2);
     expect(offered).not.toContain(words.A);
     expect(offered).toContain(words.C);
+  });
+});
+
+describe("GET /api/dictionary/sets: what any visitor is told", () => {
+  it("a draft is a locked slot; NOTHING else of an unrevealed set is in the answer", async () => {
+    world.sets = [
+      draft(1, "SecretName", [words.A, words.B], { revealAt: new Date("2027-03-04T05:06:07Z"), releaseAt: new Date("2027-04-05T06:07:08Z") }),
+      draft(2, "Shown", [words.C], { status: "revealed", releaseAt: new Date("2026-12-24T00:00:00Z") }),
+      draft(3, "EmptyDraft", []),
+    ];
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toContain("s-maxage=10"); // short: a stale held list keeps a released set closed in Spell
+    const text = await res.text();
+    const body = JSON.parse(text);
+    expect(body.sets).toEqual([
+      { kind: "locked" },
+      { kind: "revealed", id: 2, name: "Shown", words: [{ word: words.C, headliner: false }], releaseAt: "2026-12-24T00:00:00.000Z" },
+    ]);
+    // Nothing of an unrevealed SET reaches a client response: not a draft's name, a date of it,
+    // or how many words it has. (An empty draft isn't even a slot.)
+    for (const secret of ["SecretName", "EmptyDraft", "2027-03-04", "2027-04-05"]) expect(text).not.toContain(secret);
+    const { WORD_COUNT } = await import("@/lib/dictionary");
+    expect(body.released).toBe(WORD_COUNT - 3);
+    expect(body.total).toBe(WORD_COUNT);
+    expect(body.gate).toBe(false);
+    expect(Object.keys(body).sort()).toEqual(["gate", "held", "ok", "released", "sets", "total"]);
+    // The words held back now are ONE flat list, A to Z, of every unreleased set together (the
+    // owner's choice, 2026-11-26: the app must leave them out of Spell and the Dictionary, and
+    // which words are held back can't be kept secret). It says nothing of which set a word is in:
+    // a draft's words appear here and NOWHERE else in the answer.
+    expect(body.held).toEqual([words.A, words.B, words.C].sort());
+    const rest = JSON.stringify({ ...body, held: undefined });
+    expect(rest).not.toContain(words.A);
+    expect(rest).not.toContain(words.B);
+  });
+
+  it("a released set shows its words and its gate", async () => {
+    const until = new Date(Date.now() + 3_600_000);
+    world.sets = [draft(1, "Out", [words.A], { status: "released", releasedAt: new Date(0), gateUntil: until, perPlayerLimit: 2 })];
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    const body = await (await GET()).json();
+    expect(body.sets).toEqual([
+      { kind: "released", id: 1, name: "Out", words: [{ word: words.A, headliner: false }], releasedAt: new Date(0).toISOString(), gateUntil: until.toISOString(), perPlayerLimit: 2 },
+    ]);
+  });
+
+  it("still shows the sets when the chain's root can't be served, with no count", async () => {
+    world.sets = [draft(2, "Shown", [words.C], { status: "revealed" })];
+    world.chainRoot = "0x" + "ab".repeat(32); // a root this server can't serve
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    const body = await (await GET()).json();
+    expect(body.sets).toHaveLength(1);
+    expect(body.released).toBeNull();
+    expect(body.held).toBeNull(); // unknown, never "nothing is held"
+  });
+
+  it("can't read the sets is 503, never 'no sets'", async () => {
+    world.fail = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { GET } = await import("@/app/api/dictionary/sets/route");
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    log.mockRestore();
   });
 });
 

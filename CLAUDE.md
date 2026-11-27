@@ -154,6 +154,23 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`claimCalls(..., voucher)`; without one it is the old call, byte for byte), and every refusal
   has its own sentence (`components/game/setGate.ts`). A release leaves words somebody already
   holds out of its gate (`setGate` reverts on one).
+  **In the game** (`GET /api/dictionary/sets`, `components/game/useSets.ts`, `sets.ts` pure,
+  `SetsSection.tsx` at the top of the Dictionary): the route gives `publicSets` and two counts, so
+  the app itself knows nothing of a draft's name, grouping, or dates. It also carries `held`: the
+  words held back now as ONE UNLABELED LIST (the owner's choice, 2026-11-26: the screens must leave
+  them out, and which words are held back can't be secret). **One rule hides them:**
+  `lib/dictionaryList` `entryStatus` answers `held` (after the owners, never `open`), so Spell, the
+  Dictionary, the word view, the Market's picks, and Today's next steps (`useTakenWords`) all leave
+  a held word out through the status they share; use `cantClaim(status)` where a claim is offered,
+  never a list of your own. Unknown is not "none": no section while the read is loading or failed,
+  and nothing is called held until the list is known. A released set's words carry its name on the card's back
+  (`useCardFacts().set`, `backFoot`), a RELEASED set's only. **Reminders** (`lib/notify/sets.ts`,
+  the hourly `/api/cron/sets`, kind `sets` = "A new set of words", on by default): revealed,
+  unlocked, first day over; one mark per set and moment in `reminder_marks` (account "all"),
+  claimed first and given back when it reached nobody; nothing older than six hours is announced;
+  `SET_REMINDERS=off` mutes them. The same route reveals what is due and marks releases. The
+  "A new set of words" choice shows in the profile only once a set exists. Never name a reserved
+  word in public copy.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`
