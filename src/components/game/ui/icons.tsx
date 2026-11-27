@@ -61,6 +61,8 @@ export {
   ArrowRight,
   Bell,
   BellSlash,
+  SpeakerHigh,
+  SpeakerSlash,
   EnvelopeSimple,
   TelegramLogo,
   CheckCircle,

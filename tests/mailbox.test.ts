@@ -47,6 +47,14 @@ describe("reading a stored value", () => {
     expect(parseMailbox(JSON.stringify([...bad, piece(8)]))).toEqual([piece(8)]);
   });
 
+  it("keeps “plain” only when it is true (a piece whose bag-before isn't known says nothing about new)", () => {
+    const plain = { ...piece(4), plain: true as const };
+    expect(parseMailbox(JSON.stringify([plain]))).toEqual([plain]);
+    expect(parseMailbox(JSON.stringify([{ ...piece(4), plain: false }]))).toEqual([piece(4)]);
+    expect(parseMailbox(JSON.stringify([{ ...piece(4), plain: "yes" }]))).toEqual([piece(4)]);
+    expect("plain" in parseMailbox(JSON.stringify([piece(4)]))[0]).toBe(false);
+  });
+
   it("a piece is its number: the same one stored twice is one piece", () => {
     expect(parseMailbox(JSON.stringify([piece(4), piece(4, [1])]))).toEqual([piece(4)]);
   });

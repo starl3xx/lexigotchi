@@ -1009,8 +1009,38 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   touching the route, the relayer, or `Letters.reveal`. **A pack comes by mail** (decisions.md #49,
   part 2; `sheets/MailSheet.tsx`, sheet kind `mail`; rules in `mail/mailFlow.ts`, pure, tested; art
   in `lib/cardArt/mail.ts`, the cards' engraving, each piece a still picture moved whole): a paid
-  pack and the free pack. The daily letter keeps the `pack` sheet ("Fresh pull") until it comes by
-  mail too. The piece in hand is `g.mail` (both stores), because the purchase outlives the sheet.
+  pack, the free pack, and the daily letter (one letter: "Contents: 1 letter", never "Paid"). The
+  piece in hand is `g.mail` (both stores), because the purchase outlives the sheet. **The daily
+  letter is NOT the pack's flow with a count of one** (part 3): its commit and reveal ride one send
+  with a PREDICTED commit id, and the wallet's "sent" can't say which of them landed. Its marks
+  follow `lib/onchain/dailySend` (`dailyPlan`, pure, tested): the number only once the chain says
+  that id is this wallet's one-letter commit (never print the predicted id), the tear only once
+  the chain says "revealed", the letter from the route's "already" answer (the chain's), the
+  server asked to open it only when the wallet's own reveal can no longer land (two reveals for
+  one commit means one reverts), and the envelope leaves only when `dailyUsed` says nothing was
+  committed AND the send is known to have failed (a send that is only slow is "unsure": the note
+  stays). **Hiding the daily's letter is a DISPLAY rule** (`lib/dailyNote` `dailySealed`, pure,
+  tested): the letter goes on the stored note at the send, and the tile beside "claimed" is
+  hidden only while a sealed one-letter envelope stands in this browser (in hand, kept as mail,
+  or a one-letter commit still to be opened). Never bring back "a note with no letter must find
+  its envelope": it took five rounds of fixes and was removed. An envelope lost to a reload costs
+  the ceremony only. **Mail opened late says
+  less** (`Mail.plain`, `hadFor`): a commit that was already revealed when the card opened it, or
+  letters that went to a linked wallet, get no tags, no "new", and no word named. **Sound**
+  (part 4; `lib/sound.ts`, `mail/mailCues.ts`, `useSound.ts`, `SoundToggle.tsx`): off until the
+  player turns it on (More, or the small switch under an envelope), kept per browser, and off
+  means off (no file fetched, no AudioContext). **Dark without its files:** `SOUND_READY` is
+  worked out at build time (next.config.mjs: `public/sfx/mail/drop.mp3` exists, or
+  `NEXT_PUBLIC_SOUND_BASE` is set), and the eight files are IGNORED BY GIT until the owner says
+  how they ship (the sound-effects terms forbid isolated audio files, and this repository is
+  public). Never commit them without his word. A cue comes from a STEP (`cuesForStep`, pure),
+  never from what the envelope shows when it appears, and letters make one cue a step. A new
+  sound goes through `play` from a step function like that one. A browser plays only after a
+  tap: `useSoundGestures` wakes the context on every tap while sound is on, and anything that
+  plays cues by itself later (an envelope: its stamp lands when the chain says so) keeps it
+  awake with `holdSound` while it is on screen, then lets it rest. To check sound without ears,
+  record `AudioBufferSourceNode.start` in Playwright, naming each buffer by the file it was
+  decoded from (two cues are the same length).
   **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
   commit is sent, the postmark and its number (`mailNumber`: the commit id plus one, one series for
   packs, free packs, and daily letters) when the commit is on chain, and the strip tears only when

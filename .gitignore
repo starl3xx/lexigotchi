@@ -54,5 +54,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# The mail's sound files are NOT in the repository until the owner says how they ship (the
+# sound-effects terms forbid making them available as isolated audio files, and this repository
+# is public: decisions.md #49, part 4). Sound is dark in a build without them.
+/public/sfx/mail/*.mp3
+
 # keeper epoch trees (operational state; deterministic, regenerable with --dry)
 keeper-output/
