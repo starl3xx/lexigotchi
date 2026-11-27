@@ -11,21 +11,20 @@
  *   no backs until someone looks.
  * - While the back is up the front can't be reached (inert), and the host is told (`onFlip`), so it
  *   can hold the scene still: nobody sees it.
- * - The card in focus catches the light (./useCardLight): a faint band crosses its front now and
- *   then, and it leans a little toward the pointer. A card in a grid (`small`) never does, nor one
- *   whose word is hungry (its shine is gone until it is fed). The lean is outside the flip
+ * - The card in focus catches the light (./useCardLight): a faint band of ruled lines crosses its
+ *   front now and then, and it leans a little toward the pointer. The band is drawn by the front
+ *   itself, under its letters (scenes/SceneFrame, told through scenes/cardLit). A card in a grid
+ *   (`small`) never does, nor one whose word is hungry (its light is gone until it is fed). The lean is outside the flip
  *   (`.sc-lean` holds `.sc-inner`), and it rests while the back is up or the card is turning.
  *
  * Controlled (`flipped` + `onFlip`) or not (it keeps its own state).
  */
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hunger, type OwnedWord } from "../game/state";
 import { CardBack } from "./CardBack";
-import { askForTilt } from "./live/tilt";
-import { canDrawLive } from "./live/support";
 import { useLowPower, usePrefersReducedMotion } from "../game/TileCharacter";
-import { CARD_SHEEN, useCardLight } from "./useCardLight";
-import { useCollabLook } from "@/components/game/collabLooksContext";
+import { useCardLight } from "./useCardLight";
+import { CardLit } from "../scenes/cardLit";
 
 /** How long the turn takes (globals.css, `.sc-inner`'s transition and `.sc.is-flipping`). */
 export const FLIP_MS = 850;
@@ -73,8 +72,6 @@ export function SceneCard({
   const flip = () => {
     const next = !back;
     if (next) setSeen(word.word);
-    // the tap that turns a card in focus over is the one iOS lets ask for the tilt (live/tilt)
-    if (next && !small && live && !reduced && !lowPower && canDrawLive()) askForTilt();
     setOwn({ word: word.word, back: next });
     onFlip?.(next);
     setTurning(true);
@@ -89,26 +86,22 @@ export function SceneCard({
   const light = useCardLight({ root, lean, glare, tier: word.tier, active: live && !small && !back && !turning && !reduced && !lowPower && hunger(word) !== "hungry" });
 
   const W = word.word;
-  const mine = useCollabLook(W);
   return (
     <div
       ref={root}
       className={`sc ${back ? "is-back" : ""} ${turning ? "is-flipping" : ""} ${small ? "sc-small" : ""} ${framed ? "sc-framed" : ""} ${light.lit ? "is-lit" : ""} ${light.sheen ? "sc-moment" : ""} ${className}`}
-      // the band of light over the card: its rarity's (warm for Legendary), or the plain white one
-      // for a collab word, whose card is its set's colors and no metal
-      style={{ "--sc-sheen": mine ? CARD_SHEEN.Common : CARD_SHEEN[word.tier] } as CSSProperties}
       {...light.handlers}
     >
       <div ref={lean} className="sc-lean">
         <div className="sc-inner">
           <div className="sc-face sc-front" inert={back} aria-hidden={back || undefined}>
-            {front}
+            {/* the front draws the band of light itself, under its letters; the card says when */}
+            <CardLit.Provider value={light.lit}>{front}</CardLit.Provider>
             {light.lit && <i ref={glare} aria-hidden className="sc-glare" />}
-            {light.lit && <i aria-hidden className="sc-sheen" />}
           </div>
           {showBack && (
             <div className="sc-face sc-back" inert={!back} aria-hidden={!back || undefined}>
-              <CardBack word={word} mini={small} live={back && live} />
+              <CardBack word={word} mini={small} />
             </div>
           )}
         </div>

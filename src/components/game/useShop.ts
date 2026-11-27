@@ -8,12 +8,18 @@
  * as "nothing bought". A wardrobe that answers with an error is `null`, for the same reason.
  */
 import { useCallback, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { shopAddress } from "@/lib/onchain/addresses";
-import { casesState, type CasesState } from "@/lib/shop/cases";
+import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAccount } from "wagmi";
+import { erc20Abi } from "@/lib/onchain/abis";
+import { shopAddress, usdcAddress } from "@/lib/onchain/addresses";
+import { NETWORK } from "@/lib/onchain/network";
+import { getPublicClient } from "@/lib/onchain/reads";
+import { casesState, isCaseItem, type CasesState } from "@/lib/shop/cases";
 import { shopEnabled } from "@/lib/shop/config";
-import type { ItemMeta, RegistryItem } from "@/lib/shop/rules";
-import { boughtScenes, scenesOnSale } from "@/lib/shop/scenes";
+import { SHOP_BUY_LABEL } from "@/lib/shop/buy";
+import { buyOffer, type BuyOffer } from "@/lib/shop/offer";
+import { availability, edition, shopCards, type Availability, type ItemMeta, type RegistryItem, type ShopCard } from "@/lib/shop/rules";
+import { boughtScenes, sceneOfItem, sceneSale, scenesOnSale } from "@/lib/shop/scenes";
 import type { SceneId } from "@/lib/scenes";
 import { useGame } from "./state";
 import { usePlayerWallets } from "./usePlayerWallets";
@@ -183,4 +189,153 @@ export function useWordCases(): WordCases {
       : { held: NO_CASES, shown: NO_CASES, bought: 0, left: 0, onSale: null };
     return { ...known, cased: known.shown, set };
   }, [state.chainBacked, registry, wardrobe, listed, set]);
+}
+
+/** The connected wallet's USDC (6-decimal units): one read for the Shop's screen and an item's view. */
+export function useUsdcBalance() {
+  const { address } = useAccount();
+  const usdc = usdcAddress();
+  return useQuery({
+    queryKey: ["shop", "usdc", address],
+    enabled: !!address && !!usdc,
+    staleTime: 10_000,
+    queryFn: async () =>
+      (await getPublicClient().readContract({ address: usdc!, abi: erc20Abi, functionName: "balanceOf", args: [address!] })) as bigint,
+  });
+}
+
+const BUY_KEY = ["shop", "buy"] as const;
+
+/**
+ * Buy a thing from the Shop, from wherever it is shown. `buyingId` is the item being bought NOW,
+ * known to every Buy on the page: an item's card and its own view both show one, the view is a
+ * sheet that can be closed mid-purchase, and the card behind it must not offer a second Buy then.
+ * (The action gate would refuse the second send; the button should not offer it.) What the Shop
+ * and the player hold is read again when the purchase settles, even if its sheet has gone.
+ *
+ * **In flight means the action gate says so** (`g.busy`, lib/onchain/actionGate), never the
+ * purchase's own promise alone. A wallet that never answers leaves that promise pending for
+ * good; the player presses Hide on the status pill, which releases the gate, and Buy must be
+ * live again then. Counting the pending promise by itself left every Buy disabled until a reload.
+ * The promise only says WHICH item (the newest one started).
+ */
+export function useShopBuy(): { buyingId: number | null; buy: (item: { id: number; priceUsdc: bigint }) => Promise<boolean> } {
+  const g = useGame();
+  const qc = useQueryClient();
+  const inFlight = useMutationState({
+    filters: { mutationKey: BUY_KEY, status: "pending" },
+    select: (m) => (m.state.variables as { id: number } | undefined)?.id ?? null,
+  });
+  const { mutateAsync } = useMutation({
+    mutationKey: BUY_KEY,
+    // A purchase runs AT THE TAP or not at all. By default a mutation waits while the browser is
+    // offline and runs when the network returns: a tap made offline showed nothing, and seconds
+    // after the network came back the wallet was asked to pay, with no new tap (seen in review).
+    // "always" runs it at once, as the direct call did: offline, its first read fails and says so.
+    networkMode: "always",
+    retry: false,
+    mutationFn: (item: { id: number; priceUsdc: bigint }) => g.buyShopItem(item),
+    onSettled: (ok) => {
+      if (ok) {
+        void qc.invalidateQueries({ queryKey: ["shop", "wardrobe"] });
+        void qc.invalidateQueries({ queryKey: ["shop", "registry"] });
+      }
+      void qc.invalidateQueries({ queryKey: ["shop", "usdc"] });
+    },
+  });
+  const { toast } = g;
+  // The purchase says for itself how it ended (a toast for each outcome it knows). What it can't
+  // say is that it never got going: its first read threw (offline, or the RPC didn't answer).
+  // That used to be silent: a tap on Buy with nothing after it.
+  const buy = useCallback(
+    (item: { id: number; priceUsdc: bigint }) =>
+      mutateAsync(item).catch(() => {
+        toast("Couldn’t reach the Shop. Check your connection and try again.", "bad");
+        return false;
+      }),
+    [mutateAsync, toast],
+  );
+  const buying = g.busy?.label === SHOP_BUY_LABEL;
+  const started = inFlight.filter((id): id is number => id !== null);
+  return { buyingId: buying ? (started.at(-1) ?? null) : null, buy };
+}
+
+/** One shown item, as this player sees it: what it is, what they have, and what the Shop offers. */
+export interface ItemAbout {
+  name: string;
+  status: Availability;
+  /** How many of this item the profile's wardrobe holds, as far as it has answered. */
+  owned: number;
+  /** They have it: this item in their wardrobe, or (a card face) the face from any item. */
+  have: boolean;
+  /** The card face it is, or null. */
+  scene: SceneId | null;
+  isCase: boolean;
+  limited: { made: number; left: number } | null;
+  offer: BuyOffer;
+}
+
+/**
+ * The Shop as this player sees it: the shown items, whether the Shop could say what they are, and
+ * each item's `about`. One place for the Shop's screen and an item's view (sheets/ShopItemSheet),
+ * so a card and the view it opens can never say different things about the same item.
+ *
+ * `known` is false with no answer, or one that couldn't say what the items are (`metaKnown`):
+ * nothing is listed then. Listing would show a real item as the test network's placeholder, and
+ * sell a face to someone who has it (decisions.md #41).
+ */
+export function useShopView() {
+  const { address } = useAccount();
+  const shopQ = useShopRegistry();
+  const wardrobeQ = useWardrobe();
+  const scenes = useShopScenes();
+  const balanceQ = useUsdcBalance();
+  const testnet = NETWORK.isTestnet;
+  const shop = shopQ.data;
+  const balance = balanceQ.data;
+  const paused = shop?.paused === true;
+  const now = Math.floor(Date.now() / 1000);
+  const cards = useMemo(() => {
+    const items = shop?.items ?? [];
+    const meta = new Map(items.map((it) => [it.id, it.meta]));
+    return shopCards(items, (id) => meta.get(id) ?? null, testnet);
+  }, [shop, testnet]);
+  const checking = wardrobeQ.isLoading || shopQ.isLoading;
+  const wardrobe = wardrobeQ.data;
+
+  const about = (card: ShopCard): ItemAbout => {
+    const status = availability(card.item, now);
+    const owned = wardrobe?.get(card.item.id) ?? 0;
+    const scene = card.kind === "item" ? sceneOfItem(card.meta) : null;
+    // A face is bought once: a second one gets the player nothing. So it is sold only on a
+    // positive "you don't have it" (lib/shop/scenes, sceneSale), from the wardrobe AND from every
+    // item that sells this face, not this item alone.
+    const sale = scene ? sceneSale({ known: scenes.known, bought: scenes.bought.has(scene), checking }) : "sell";
+    return {
+      name: card.kind === "item" ? card.meta.name : card.name,
+      status,
+      owned,
+      have: owned > 0 || sale === "have",
+      scene,
+      isCase: card.kind === "item" && isCaseItem(card.meta),
+      limited: edition(card.item),
+      offer: buyOffer({ sale, status, wallet: !!address, paused, short: balance !== undefined && balance < card.item.priceUsdc }),
+    };
+  };
+
+  return {
+    loading: shopQ.isLoading,
+    known: !!shop && shop.metaKnown,
+    paused,
+    cards,
+    about,
+    now,
+    /** The connected wallet's USDC; undefined with no wallet or before the read. */
+    balance,
+    refetchBalance: balanceQ.refetch,
+    wallet: !!address,
+    testnet,
+    /** The share of a purchase that buys $WORD for the Rewards Pool, in percent. */
+    poolPct: Math.round((10_000 - (shop?.revenueBps ?? 8_000)) / 100),
+  };
 }

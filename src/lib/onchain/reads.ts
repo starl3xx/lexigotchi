@@ -16,7 +16,7 @@
 import { createPublicClient, formatUnits, getAbiItem, type PublicClient } from "viem";
 import { rpcTransport } from "./transport";
 import { ACTIVE_CHAIN } from "./chain";
-import { addressOf, wordTokenAddress, deployBlock } from "./addresses";
+import { addressOf, wordTokenAddress, deployBlock, wordsHaveClaimTiers } from "./addresses";
 import { lettersAbi, wordsAbi, rollsAbi, stakingAbi, prestigeAbi, feeRouterAbi, erc20Abi, erc1155ApprovalAbi } from "./abis";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -62,6 +62,13 @@ export interface GameParams {
     prestigeFee: number;
     prestigeSnackCost: number;
   };
+  /**
+   * Words.tierMultiplierBps, Common to Mythic: each tier's claim fee in basis points of `claim` (the
+   * base). Null on a Words without the ladder (the registry's `claimTiers`), which charges every
+   * word the base. Use `claimFeeWei` / `claimFeeWord` (lib/claimFee.ts), never `wei.claim` alone,
+   * for what a particular word costs (decisions.md #60).
+   */
+  claimTierBps: readonly number[] | null;
   maxPrestigeLevel: number;
   peckishAfterSeconds: number;
   hungryAfterSeconds: number;
@@ -122,6 +129,7 @@ export async function readGameParams(): Promise<GameParams> {
       prestigeFee: toWholeWord(prestigeFee),
       prestigeSnackCost: toWholeWord(prestigeSnackCost),
     },
+    claimTierBps: await readClaimTierBps(words),
     maxPrestigeLevel: Number(maxLevel),
     peckishAfterSeconds: Number(peckish),
     hungryAfterSeconds: Number(hungry),
@@ -129,6 +137,20 @@ export async function readGameParams(): Promise<GameParams> {
     freePackOpen: freePack,
     unreservedSupply: await readUnreservedSupply(letters),
   };
+}
+
+/**
+ * The claim fee's tier multipliers, on a network whose Words has them (the REGISTRY says, never a
+ * failed read: a Words with the ladder whose read failed must not show the base as every fee). A
+ * failed read on such a network throws, as the batch above does.
+ */
+async function readClaimTierBps(words: `0x${string}`): Promise<readonly number[] | null> {
+  if (!wordsHaveClaimTiers()) return null;
+  const r = await getPublicClient().multicall({
+    allowFailure: false,
+    contracts: [0, 1, 2, 3, 4].map((t) => ({ address: words, abi: wordsAbi, functionName: "tierMultiplierBps" as const, args: [BigInt(t)] as const })),
+  });
+  return (r as unknown as number[]).map((n) => Number(n));
 }
 
 /** Separate from the batch above so an older deployment (no such view) degrades to null. */

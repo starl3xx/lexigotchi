@@ -123,10 +123,6 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
         // the front's letters, alive: drawn by the game's own rig over the card without its letters
         // (the letters wear the word's collab colors in place of its rarity's material, as in the game)
         live: { stage: showcaseStagePath(text, scene, word.prestigeLevel, look?.mark), word: word.word, upper: word.upper, tier: tileTierOf(word.tier, look), gild: word.prestigeLevel, scene },
-        // The back's material, under its picture. A collab word's back is its set's colorway, painted
-        // INTO that picture edge to edge, so nothing of a material shows: it is given the plain one
-        // all the same, never Legendary's gold light (the game's back gives a collab none either).
-        material: look ? "common" : materialOf(word.tier),
         // the holder's stamp on the video's back, in the back's own line: a collab word's colorway's, or its rarity's material's
         stamp: stampSrc ? { src: stampSrc, ink: look ? collabBack(look).line : MATERIAL_LINE[materialOf(word.tier)] } : undefined,
         signal: ctl.signal,

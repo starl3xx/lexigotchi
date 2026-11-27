@@ -9,6 +9,7 @@
  * (params.ts / Deploy.s.sol); $WORD-denominated prices are computed at the current peg.
  */
 import { DEFAULT_PARAMS } from "@/lib/params";
+import { CLAIM_MULTIPLE_BPS, TIERS } from "@/lib/economy";
 import { usdToWordWei } from "./format";
 import type { ContractKey } from "./deployments";
 
@@ -26,6 +27,7 @@ export type SolType =
   | "bool"
   | "string"
   | "uint32[26]"
+  | "uint32[5]" // Words' claim-fee tier multipliers (decisions.md #60)
   | "(uint16,uint16,uint16,uint16)";
 
 export interface FnArg {
@@ -379,7 +381,13 @@ export const CONTRACTS: ContractDef[] = [
       { name: "feeRouter", type: "address" },
       { name: "letters", type: "address" },
       { name: "dictionaryRoot", type: "bytes32", help: "Merkle root from economy.json, or the RESERVE root when words are held back in sets (Sets tab; Deploy env DICTIONARY_ROOT)" },
-      { name: "claimPrice", type: "uint256", default: WEI.claim },
+      { name: "claimPrice", type: "uint256", default: WEI.claim, help: "the BASE claim fee: a Common word's (decisions.md #60)" },
+      {
+        name: "tierMultiplierBps",
+        type: "uint32[5]",
+        default: `[${CLAIM_MULTIPLE_BPS.join(",")}]`,
+        help: "each tier's claim fee in basis points of the base, Common to Mythic (economy.json claimTierMultiplierBps; 10000 = 1x, allowed 1x to 20x)",
+      },
       { name: "claimSigner", type: "address", help: "the backend signer (Deploy env SIGNER): vouches for first-day claims of a newly released set" },
       { name: "initialOwner", type: "address" },
     ],
@@ -387,11 +395,23 @@ export const CONTRACTS: ContractDef[] = [
       {
         fn: "setClaimPrice",
         signature: "setClaimPrice(uint256)",
-        title: "Set claim price",
-        desc: "Re-peg the $WORD price to claim a word (USD target: $0.50).",
+        title: "Set base claim price",
+        desc: `Re-peg the BASE claim fee, a Common word's (USD target: $${P.claim.toFixed(2)}). Every tier's fee is a multiple of it (decisions.md #60), so this moves the whole ladder.`,
         kind: "owner",
         group: "Pricing",
         args: [{ name: "price", type: "uint256", help: "$WORD wei", default: WEI.claim }],
+      },
+      {
+        fn: "setTierMultiplier",
+        signature: "setTierMultiplier(uint8,uint32)",
+        title: "Set a tier's claim multiple",
+        desc: `One tier's claim fee as a multiple of the base, in basis points (10000 = 1x; Words refuses below 1x or above 20x). Tiers: ${TIERS.map((t, i) => `${i} ${t.name} (${CLAIM_MULTIPLE_BPS[i]})`).join(", ")}. Only on a Words deployed with the claim fee by rarity (the registry's claimTiers).`,
+        kind: "owner",
+        group: "Pricing",
+        args: [
+          { name: "tier", type: "uint8", help: "0 Common, 1 Uncommon, 2 Rare, 3 Legendary, 4 Mythic", default: "2" },
+          { name: "bps", type: "uint32", help: "basis points of the base: 10000 = 1x, 200000 = 20x", default: String(CLAIM_MULTIPLE_BPS[2]) },
+        ],
       },
       {
         fn: "setDictionaryRoot",

@@ -2100,9 +2100,14 @@ setter. All small, riding existing suite patterns.
         Its letters are in the bag whatever the record says; another browser shows no envelope.
         The card on Today and Mint ("Your mail is waiting") counts these with the commits the
         server still has to open, and opens an envelope that only needs tearing first.
-      - **The short version** (my reading of the proposal's "by the tenth pack"): from the fourth
-        envelope torn in one sitting (`QUICK_AFTER`), plain letters come straight out, close
-        together; the best one still gets its peek. A tap hurries any envelope.
+      - **The short version**: from the TENTH envelope torn in one sitting (`QUICK_AFTER`),
+        plain letters come straight out, close together; the best one still gets its peek. A tap
+        hurries any envelope. (It started at the fourth, my own reading of the proposal's "by the
+        tenth pack". starl3xx, 2026-11-27: "how come the pack rip happens super quickly
+        sometimes? in terms of the letters popping up". Measured in the practice game: about
+        6.4 s for five letters on the first three envelopes of a sitting, about 1.2 s from the
+        fourth. He chose the proposal's number: "yes, move it to the 10th pack". A sitting is a
+        page load, and every piece of mail torn counts.)
       - **House rules kept.** A tile never changes size: the envelope's styles move and turn, and
         a test fails on a scale. The envelope is still pictures in the cards' engraving, each
         moved whole; the only loops are the pull tab's nudge and the blink (a swap in steps), each
@@ -2896,7 +2901,8 @@ setter. All small, riding existing suite patterns.
       `Words`, which can't change after deploy; no token of a set exists at its release, so the
       call matters only if a card's look changes later.
     - **The owner's rulings, 2026-11-27.** The Base Sepolia redeploy for the gate: "Hold for now"
-      (no date; the plan in web3-runtime-plan.md waits). The free-letter ledger at that reset:
+      (no date; the plan in web3-runtime-plan.md waits). Later the same day, with the claim fee by
+      rarity (#60) added to it: "let's do it this coming tuesday" (Tuesday 2026-12-01). The free-letter ledger at that reset:
       "Clear them" (the owner deletes the `free_claims` rows of chain 84532 on the day). Extras for
       `Words` before it is redeployed: "Metadata refresh function" (an owner-only ERC-4906
       refresh for a list of words). The check on the word that `dissolve` logs was not chosen.
@@ -2982,7 +2988,8 @@ setter. All small, riding existing suite patterns.
       test network's placeholder is in neither: it is nothing a card wears, so it sits apart
       under "Try paying". An empty category says so plainly and promises nothing.
     - **Links land on a category:** the face picker's tile for a face on sale goes to Card
-      faces, and an opened word's Case button to Accessories.
+      faces (and, since the item's view below, opens that face there), and an opened word's Case
+      button to Accessories.
     - **Limited editions already worked, and now they show.** The contract has always held a
       supply limit (`maxSupply`; `_buy` reverts `SoldOut`), and the face picker stops offering a
       sold-out face. What is new is the card's line: "Limited edition of 25. 24 left.", then
@@ -3002,6 +3009,78 @@ setter. All small, riding existing suite patterns.
       doesn't have it.
     - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
       editions, paying, and that what a player buys stays with the player.
+    - **An item opens** (starl3xx, 2026-11-27, later the same day: "in the shop I should be able
+      to click items and see more info about them, see them at higher size, etc").
+      `sheets/ShopItemSheet.tsx`, sheet kind `shopItem` (the item's id, and optionally a word).
+      One tap anywhere on an item's card opens it (the card's picture and words are one button,
+      stretched over the card; Buy stays a button of its own above it). The view shows:
+      - **the thing large**: a wide dialog on a computer (`Sheet`'s new `wide`: up to 720 px
+        from md and 1,000 px from lg, where the picture and the facts stand side by side; the
+        560 px default is unchanged), and "Look closer", the card at twice that width in a box
+        that pans (a finger or a trackpad scrolls it; a mouse drags it). On a phone the dialog
+        is no wider than the Shop's own card, so the closer look IS the phone's larger size.
+        The change of size is a cut, never an animation (#48);
+      - **a card face on the player's own word**: a row of their words under the picture, the
+        first one showing (or the word the face picker was dressing), and "No word". It is a
+        preview: it draws the face directly and saves nothing. No wallet or no words: the face
+        alone, never a made-up word;
+      - **what it is**: its kind, its price, the face's own line, the card's words, the limited
+        edition line, when a sale ends or starts if the item has such a date
+        (`lib/shop/offer` `saleWindow`: an item with no end says nothing, because the owner can
+        set one later), "You have it", that it stays with the profile, where the money goes,
+        and a link to the docs' Shop page;
+      - **the same Buy as the card**; and, for a face the player has, **"Put it on WORD"**,
+        the face picker's own save (`useWordScene`), offered only on a positive "you have it".
+    - **One rule decides Buy for the card and the view** (`lib/shop/offer` `buyOffer`, pure,
+      tested; drawn by `shop/ShopBuy`): have it, not known yet, not on sale, no wallet, then Buy
+      (held back while paused or short). Two copies of that ladder would one day disagree, and
+      the wrong one would sell a face to someone who has it. `useShopView` (game/useShop) is the
+      one place both read the Shop from. **A purchase in flight is known to every Buy on the
+      page** (`useShopBuy`, a shared mutation): the view is a sheet that can be closed
+      mid-purchase, and the card behind it must not offer a second Buy. **"In flight" is the
+      action gate's word** (`g.busy` with the purchase's label, `SHOP_BUY_LABEL`), never the
+      purchase's own promise alone: a wallet that never answers leaves the promise pending for
+      good, and after Hide on the status pill Buy must be live again. My first version counted
+      the pending promise and would have left every Buy disabled until a reload (caught in
+      review, before it shipped).
+    - **A purchase runs at the tap or not at all** (`networkMode: "always"` on the shared
+      purchase; caught in review, then seen). The purchase became a query-library mutation so
+      that every Buy could know one was in flight, and by default such a mutation made OFFLINE
+      is held and run when the network returns. Seen in a browser: a tap on Buy while offline
+      showed nothing, and eight seconds after reconnecting the wallet was asked to sign, with
+      no new tap. Now it runs at once, as the direct call did. Offline, its first read fails,
+      and that is said ("Couldn’t reach the Shop. Check your connection and try again."): a
+      purchase whose first read threw used to be silent, before this change too.
+    - **A thing with no picture** (a costume with no art yet) opens in the usual dialog, one
+      column: the wide dialog is for a picture.
+    - **Only a button sits above the card's open button** (`lib/shop/offer` `offerIsButton`,
+      Bugbot on #316). The card's foot is either a button (Buy, or the way to a wallet) or a line
+      of words that says why there is no Buy. I had lifted the whole foot above the card's own
+      button, so a tap on "Sold out" or "Not on sale yet" did nothing, on the very cards a
+      player is most likely to tap for more. Now only a button is lifted. Checked with a mouse
+      at each line's own place, in Chromium and WebKit, at 390 and 1,280 px.
+    - **The view reads the Shop live, by id.** An item that has gone, or a Shop that couldn't
+      say what its items are, says so; the view never falls back to a placeholder card, and the
+      test network's placeholder opens nothing.
+    - **My readings of "etc":** the preview on the player's words, the closer look, "Put it on
+      WORD", the docs link, and that the face picker's tile now opens the item (on the word
+      being dressed) instead of only the category. Not built: a case's or a costume's own
+      larger view beyond its picture and words (none is listed).
+    - **Seen and not seen (the item's view):** in Chromium and WebKit, on my own dev server
+      against the live test Shop, with every write to the server blocked in the browser.
+      At 390, 768, and 1,280 px: with no wallet (Connect a wallet to buy), and as a read-only
+      pretend wallet at an address that has the face and 18 words (You have it, the words row,
+      the closer look, and "Put it on NOVEL", which then read "NOVEL's card has this face":
+      saved in that browser only). At 390 and 1,280 px, as a pretend wallet that has words and
+      not the face: the face picker's tile landed on the Shop with the item open on the word
+      being dressed, and Buy live; a mouse click on the card's edition line, its top padding,
+      and its bottom padding each opened the view, and a click on Buy did not; and with a
+      wallet that never answers the signature request, the card and the view both read
+      "Buying…", and after Hide the card's Buy was live again. With a Shop answer MADE UP in
+      the test browser (nothing listed anywhere): a sale with an end date ("On sale until
+      November 30 at 3:31 PM."), a sold-out face, a case, and a costume not yet on sale.
+      Not seen: a purchase that completes from the view, a finger on the closer look (a mouse
+      and scripted scrolling only), a real phone.
     - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
       phone's bottom bar has five places, all taken); the categories are one switch at the top
       of the screen; a costume, when one exists, is an accessory; the placeholder stays, under
@@ -3138,6 +3217,340 @@ setter. All small, riding existing suite patterns.
     - **Set aside:** the rarity's own plate and black and gold, from the first round. Either
       could be a Shop face later. The proposal's drawings are on a local branch that is never
       pushed.
+
+58. **The cards are matte** (starl3xx, 2026-11-27, opening a deep dive on the design audit's part
+    2: "the cards have *reflections* but they shouldn't be super *shiny* -- the cards are matte
+    finish in videos and all outputs and UI locations... and the effect(s) we use to achieve these
+    should be, yes, “Neo-Victorian engraving illustration: ruled linework in ink, on paper.” with
+    the additional notes that the "paper" is like a playing card, and playing card backs are
+    another source of inspo, along with like US dollar bills, especially the engraving and filigree
+    and stuff"). The review page is "Lexigotchi Matte Cards"; its parts are numbered 10 to 16.
+    - **The rule, as four sentences.** A card is paper and ink: nothing on it is metal, glass, or
+      a gem. Light is drawn in lines, and it is quiet: a band of fine ruled lines, or the card's
+      own lines in a lighter ink; never a soft white wash, and never a line over a letter. No hot
+      spot, no glitter. The same in the game, the video, and every picture.
+    - **What it replaces.** #25 and #26 made each rarity's back a material (walnut, satin jade,
+      sapphire foil, polished gold, cut amethyst) with a light that follows the pointer; #34 gave
+      the front a soft white band and a round glare; #27 gave the video a glare. He approved
+      those two days before. This rule is later, and it wins.
+    - **What he chose, of the page's choices** (four messages the same day): the front's light is
+      the ruled band, "but it's too strong rn... needs to be more subtle" (12D); "13A dark plate
+      is definitely the way to go" (the back is an engraved plate in the rarity's ink, on a dark
+      ground); "14A is good" (the video: no glare, a veil); "15A is good" (the stock's weave on
+      the diagonal, no random grain).
+    - **Part 1, the video (14A).** The light that crosses the turning card was white ADDED at
+      0.55: the strongest light anywhere, and at 0.9 s it hid the word. It is a veil at 0.10
+      (`loopRenderer` `VEIL`): it scales down what is left of the dark, so it lifts the inks a
+      little and can never pass the paper. Where and when the light crosses is unchanged.
+    - **Part 2, the backs (13A).** A back is an engraved PLATE (`lib/cardArt/plate`): printed
+      solid in the rarity's dark ink, its engraving in the rarity's light ink. A rarity is told by
+      its inks and by how much engraving its plate carries: Common has rules and a ruled ground;
+      Uncommon adds a border of lace with a lathe medallion in each corner; Rare adds lathe work
+      around the seal; Legendary adds a second ring and filigree in the border's corners, in a
+      second ink; Mythic adds a third ring, and its ink changes from violet to magenta and back
+      along the card (a banknote's "rainbow printing": printed, so it never moves). The drawings
+      are the ones he approved, character for character.
+      - **What went:** the five materials in the styles and in the shader, the live WebGL
+        drawing of a back, the light under the pointer and under a tilted phone, the tilt
+        prompt on iPhone, the back's own frame line, Legendary's corner scrolls, and Mythic's
+        spectral frame line. A back is one still picture.
+      - **What moved, to make room for the plate's border:** the seal is a fifth smaller and
+        sits inside the lathe work; the lettering is set in from the edge; the line at the foot
+        moved up. The styles, the server's picture, and the plate share these measures, and a
+        test holds them equal.
+      - **Everywhere:** the game (every size, and the Bag's thumbnail), the server's picture of
+        a back (which is now the WHOLE back, plate and all, so the video draws nothing under
+        it), the share video, and the jackpot's face-down card (Common's plate). `CARD_LOOK`
+        is 13.
+      - **A collab set's back** (#53) is Legendary's engraving printed in the set's two colors:
+        the field in one and the border in the other, flat. It was a soft blend of the two. My
+        translation of another session's design: the partner's two colors both stay.
+      - **The holder's stamp moved with the lettering** (#48, part 6; Bugbot on #315, and my own
+        review, found it left behind). With no number it stands in the top left of the plate's
+        FIELD, never on the lace; on a thumbnail it stands inside the field too; in the video it
+        stands right of the number by MEASUREMENT (`NUMBER_END`: the card's serif, #52, had
+        already made the number wider than the stamp's old place allowed). On a back under
+        340 px it is smaller and rides higher, clear of the ledger's first row; under 296 px (a
+        320 px phone) nothing fits beside the number, and it is left off the opened back, where
+        before it covered "Case". A test holds the styles, the video's arithmetic, and the
+        plate's field together.
+      - **A finding kept as a rule:** a line on a plate is never finer than about a pixel where
+        it is shown. The first ruled ground (7 units apart) smeared into streaks in the video
+        and read as brushed metal, the very thing the plate replaces.
+      - **Mythic's blended ink was in the drawings he approved**, so it is built. Whether a
+        printed spectrum is enough for the top rarity (13F) is still his to say.
+    - **Part 2, amended the day it shipped: the emblem is standard.** The first plates turned
+      lathe work round the seal for the rarer words: one ring for Rare, two for Legendary, three
+      for Mythic. The owner, on seeing it live: "I don't like the Lexigotchi emblem on the back
+      getting more rings for more rarity... I think that should look the same on all rarities,
+      standard". So the plate draws nothing round the seal, and the seal stands alone on every
+      back, as it always had before the plates. A rarity is told by its inks and its border.
+      - **My reading:** "standard" is the seal with no ring, the emblem as every back had it
+        before. One ring on every back is the other reading: it is a small change if he wants it.
+      - **A consequence he has not ruled on:** Rare's own step WAS the ring, so a Rare plate
+        now carries Uncommon's engraving in its own sapphire inks. The border still steps for
+        Legendary (filigree, a second ink) and Mythic (the blended ink). If Rare should have a
+        step of its own, it goes in the border, never on the emblem.
+      - `CARD_LOOK` is 14.
+    - **Part 2, amended again the same day: one border of lace.** The owner, on the built
+      backs: "the 'border of lace' on uncommon and rare should be the border on the back of
+      every one but common". So there are two borders and only two: Common's plain rules, and
+      one border of lace, with a lathe medallion in each corner, on Uncommon, Rare, Legendary,
+      Mythic, and a collab set's back. Legendary's and Mythic's filigree corners are gone, and
+      so is Legendary's second ink. A rarity above Common is told by its inks alone; Mythic
+      keeps its blended ink, which is an ink. This also answers what Rare's own step should
+      be: none. With the emblem, that is twice in one day he has taken a per-rarity shape off
+      the back: **the back is one design, and a rarity is its inks.** `CARD_LOOK` is 15.
+    - **Part 3, the front's light (12D).** Of five ways to show a reflection without shine he
+      chose the ruled band, and of the first drawing of it: "I love the ruled band, but it's too
+      strong rn... needs to be more subtle (more opacity or whatever you choose to achieve it)".
+      So the band of light that crosses the card in focus (#34) is DRAWN: a ground of fine
+      leaning lines the size of the card stands still on it (`lib/cardArt/light`, a picture),
+      and a soft-edged window crosses the front and shows the part under it. It was a soft
+      white gradient over the whole front, letters and all.
+      - **Quieter in three ways, which were mine to choose.** The lines are about a third as
+        strong as first drawn, and the band is wider and softer at its edges. It passes UNDER
+        the letters (the front draws it, not the card): never a line over a letter. And its
+        strength follows the face, because one number can't serve: 0.36 on a face with colour,
+        0.16 on a dark plate (Stock (dark), Outer Space), 0.79 on the pale stock card, where a
+        light line shows only by breaking the grey engraving and is still the quietest of the
+        three. A face nobody has sorted takes the middle.
+      - **The rarity's ink is kept, as lines:** white for most, warm for Legendary, and for
+        Mythic a spectrum printed across the card, of which the band shows the part it passes
+        over. On the old band the spectrum travelled with the light. Nobody asked for either;
+        it is today's behaviour carried over, and 13F (is a printed rainbow enough for Mythic)
+        covers it.
+      - **How it moves:** two elements slide, the window one way and the lines inside it the
+        other way by the same amount, so the lines stay where they are on the card. Transforms
+        only. Measured (the two captures' fine pattern at two moments of a pass agree, r 0.99,
+        in Chromium and WebKit). A mask moved by its position would be painted on every frame.
+      - **Cost, against the old band, each made to pass again and again:** WebKit 8 to 14% of a
+        core against 7 to 10% (at rest 3 to 6% for both); with the card leaning, 24 to 28%
+        against 29%; Chromium slowed four times, 105% against 101%. So a few points more while
+        it passes, and it passes for 1.3 s every 6 to 11 s: under one point on average.
+      - **Not changed:** the round glare under the pointer (12F, his to answer) still lies
+        over the letters. When it shows, how often, and for whom (never a hungry word, a card
+        in a grid, or a player who asked for less motion) are as they were.
+    - **Part 4, the stock (15A).** A playing card's paper is pressed with a fine weave so the
+      cards slide. The game's stock already had a faint SQUARE weave made of two gradients,
+      under a random grain made by a noise filter. Now it is one small picture of two sets of
+      DIAGONAL hairlines, three pixels a repeat, with no grain: the grain was the one part of
+      the paper that was not drawn. On the front (`.cf-tex`) it is the drawing he saw, in the
+      paper's own brown. On the back (`.cb-tex`, and the face-down card) it is the same weave
+      with one set of lines light and one dark, at about the strength the back's weave had:
+      his drawing was of the front's paper, so the back's inks are my translation.
+      - As first built, only the game drew stock. That was wrong: see "the stock is everywhere" below.
+    - **Part 4, amended the day it shipped: the weave must be seen.** The owner, an hour after
+      it merged: "i can't see the weave on any cards". He was right, and the fault was mine:
+      the swatch he chose was enlarged three times, and I built it at its true size, hairlines
+      a third of a pixel wide at 7%. Nobody could see it, and it showed LESS than the square
+      weave it replaced, which had visible light lines. So the weave is now a crosshatch six
+      pixels a repeat, with lines about two thirds of a pixel wide, and each direction is a
+      dark hairline with a light one beside it (a line pressed into paper has a shadow and a
+      lit edge), so both directions show on dark art and on pale paper. It has about the
+      presence the old square weave had. Its exact strength is my choice, picked from four
+      tried on real cards at pixel ratios 1, 1.5, 2, and 3; he has not seen it.
+      - **Kept as a rule:** when he approves something from an enlarged swatch, show it at
+        real size too before building, and compare the build with what it replaces.
+    - **Part 4, amended again: the stock is everywhere a card is drawn.** The owner, after
+      the crosshatch reached the game ("the crosshatch looks so good"): "crosshatch isn't in
+      the share cards images/videos, either... make sure those are all updated with the latest
+      changes". I had left it out of the pictures because they had never carried stock, which
+      was the wrong test: a card is one object wherever it is drawn. Now `lib/cardArt/stock`
+      is the weave's one source. The game's styles hold its tile, and the server's picture of
+      a front and of a back lay its sheet over the card, in card units, under the letters and
+      the lettering. The share video is made of those two pictures, so it carries the
+      crosshatch on both sides; checked in a real video at full size, with the card turning.
+      In the front's picture the frame is now drawn before the letters, which is the game's
+      own order (nine pictures compared before and after: none changed). `CARD_LOOK` is 16.
+      - **Kept as a rule:** a change to how a card looks is not done until the game, the
+        front picture, the back picture, and a real video all show it.
+    - **All four parts he chose are built** (the video, the backs, the front's light, the
+      stock), with the emblem made standard on the way.
+    - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
+      light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
+      rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and
+      the plastic case (part 16).
+
+59. **A face change slides in, in the face picker** (starl3xx, 2026-11-27, with a picture of the
+    picker: "when switching faces, the faces should have a nice swipe animation/transition rather
+    than just appearing/disappearing").
+    - **What it was.** A 450 ms cross-fade on the house ease-out, which is nearly all the way in
+      after a third of its time: it read as the new face appearing.
+    - **What it is.** In the face picker (`SceneFrame`'s new `change="slide"`, passed by
+      `sheets/SceneSheet` only) the new face slides in over the old one, which holds still under
+      it, from the side the face sits on in the picker (`lib/scenes` `swapSide`: a later face from
+      the right, an earlier one from the left). 520 ms on a curve of its own (`--ease-swap`): the
+      house ease-out covers nine tenths of the way in the first third, and the slide was over
+      before it could be seen as one.
+    - **The card's rules hold.** Each face is one still picture, moved whole; nothing moves
+      inside a picture (a face never moves: #34). The word stays where it stands, and each
+      letter glides to its place on the new ground (`.cf-stand`: a curved ground lowers and
+      turns a letter). Nothing is scaled (#48). All travel sits behind
+      `prefers-reduced-motion: no-preference`; under reduced motion the new face fades in as
+      before.
+    - **The card's border holds still** (found by enlarging a held frame's edge, after review
+      asked whether I had looked there). A face's picture is drawn only inside the card's
+      window; the paper border is the card's own ground, and the frame is line work over it.
+      My first slide moved the picture alone, so it passed under the side border and a dark
+      face showed through the ornaments. The moving picture is now clipped to the window, and
+      the clip stands still while the picture moves (each frame's `clip-path` is the window as
+      seen from the picture's own place; the numbers are `lib/cardArt/looks` `WINDOW`, and a test
+      works them out from it). The shade at the new face's leading edge is a strip at the edge
+      of its window, never a `box-shadow` (the box's edge is 3.5% further out).
+    - **The letters glide only while a change is in flight** (`.cf-changing` on the card, for as
+      long as the old face is kept; caught in review, then measured). A stance is written in
+      units of the card's width. With the glide always on, any change of the card's size also
+      ran it: narrowing the window set four of five letters on Spring's hill drifting for half
+      a second, in both engines. It would also have run in the Shop's closer look, which
+      doubles the card.
+    - **A letter turns about its feet on level ground too** (Bugbot on #317). The turning point
+      was set only together with a turn, so it was dropped the moment a word left a curved
+      face for a level one, and the letter swung about its middle for the length of the glide.
+      It is set always now. Checked in a browser mid-change, Outer Space to the Stage: all
+      five letters turn about their feet.
+    - **Why the new face covers the old instead of pushing it out** (my choice between two
+      readings of "swipe"): the letters stand in front of the picture, and their ground is part
+      of it. A push moves both pictures, so the ground slides under ten still feet for the whole
+      change; with a cover only the incoming picture moves, and the ground under a letter changes
+      once, as its edge passes.
+    - **Tidied on the way.** Which face was showing was worked out in an effect, one render
+      late: that render had the new face in place with nothing under it, and only the next one
+      put the old face under it and started the change. I read this in the code and did not see
+      it on a screen (React may run that effect before the first paint). With a slide, a frame
+      of the new face in place would be a visible jump, so it is worked out while rendering now
+      (as the word's own slide is) and the question does not arise.
+    - **Everywhere else is unchanged:** a face that changes with the WORD (Today's arrows) or
+      behind a sheet still fades in. My reading of "when switching faces": the place a player
+      switches faces. If he wants the slide on Today's arrows too, it is the same prop.
+    - **Seen and not seen.** Held still at chosen moments in Chromium and WebKit, in the practice
+      game's picker at 1,280 px, with the card's own timer stalled in the test browser (a held
+      frame takes longer to capture than the change lasts; my first frames, taken without that,
+      showed the finished change and I nearly read them as the curve being too fast, and one
+      showed a blank that was only the capture): the Stage to Spring and Stock (dark) to Spring
+      from the right, the Stage to Stock (dark) from the left, the letters part way down
+      Spring's hill as its edge passed, and the card's side border, enlarged, cream under its
+      ornaments while a dark face passed inside the window. With a read-only pretend wallet in
+      the live test game (every write to the server blocked in the browser): the Stage to
+      Outer Space with a Mythic word, before the window clip. A window narrowed with Spring
+      showing: no letter moved. Not seen: the motion itself by a person, a phone, Outer Space
+      after the window clip.
+
+60. **The claim fee follows the word's rarity: the "gentle ladder"** (starl3xx, 2026-11-27; asked
+    for as "#26", a number already taken). His words: "as I play the testnet game, I'm wondering if
+    the cost to claim words is high enough", and then, choosing the gentle ladder, "i like gentle
+    fee... note that the prompt needs to include updates to the docs and everywhere else".
+    - **Why.** A flat $0.50 priced a Mythic word the same as the cheapest Common, and claiming
+      the whole dictionary once took in about $2,300 ($2,292). The fee is now the base claim fee
+      times the tier's earning weight, so a new player's first word, a Common one, is still
+      $0.50, and the dictionary takes about $4,200 ($4,195.50): claim revenue roughly doubles.
+    - **The ladder** (USD targets, each DERIVED as the base × `TIERS`' weight over Common's,
+      `CLAIM_MULTIPLE` in `lib/economy.ts`; never typed):
+
+      | Tier | Multiple | Claim fee |
+      |---|---|---|
+      | Common | 1× | $0.50 |
+      | Uncommon | 2× | $1.00 |
+      | Rare | 3× | $1.50 |
+      | Legendary | 5× | $2.50 |
+      | Mythic | 8× | $4.00 |
+
+      A collab set's words (#53) are Legendary from its reveal, so they pay the Legendary fee; a
+      word whose own tier is higher keeps it (and its fee).
+    - **The contract (`Words.sol`).** Each dictionary leaf is (word, tier), OpenZeppelin leaf types
+      `["string","uint8"]`, tier 0 Common … 4 Mythic (`TIER_INDEX`). `claim(word, tier, upperMask,
+      proof)` and the gated `claim(…, deadline, sig)` name the tier and the proof checks it, so a
+      claimer can't understate it. `claimPrice` stays the base (Common's), owner-settable and
+      still moved by the price keeper within its clamp; `tierMultiplierBps[tier]` is each tier's
+      multiple in basis points of the base (deploy 10,000 / 20,000 / 30,000 / 50,000 / 80,000,
+      read by `Deploy.s.sol` from `config/economy.json`); the fee is `claimFee(tier)` = base ×
+      multiplier ÷ 10,000. The fee still routes through `FeeSource.CLAIM` with the 75/10/10/5
+      split. The token id is still `keccak256(word)`. The voucher (#51) is unchanged: it names
+      the caller and the word, and the proof already fixes the tier. A new event,
+      `ClaimFeePaid(tokenId, payer, tier, fee)`, is emitted beside `Claimed`, which is unchanged:
+      a changed `Claimed` would silently empty every scanner reading the older contract.
+    - **My readings, for him to accept or strike:** a multiplier may be set between 1× and 20×
+      (`MIN_TIER_MULTIPLIER`, `MAX_TIER_MULTIPLIER`; `TierMultiplierSet` on each change), so no
+      tier costs less than the base and one mistaken call can't charge more than 20×; the order
+      of the tiers isn't enforced (as the base itself isn't).
+    - **One tree function for the chain and the game.** `lib/onchain/dictionaryTree` builds both
+      formats, and `lib/sets/server` `treeFor` builds every tree it serves or plans in the
+      network's format with the revealed collab words (`tierWith`), so a leaf's tier is the tier
+      the game shows. A collab set's words are held back until its release (#51: the reserve root
+      comes before the reveal), so its release root is the first to hold them, as Legendary. The
+      plan builders read the sets strictly. `derive:contracts` uses the same module.
+    - **Base Sepolia keeps the older Words until the held redeploy (rehearsal #5).** The registry's
+      `"claimTiers"` says which contract a network has (never a contract read). False: word-only
+      leaves, the older three-argument claim byte for byte, the flat base for every word, and copy
+      that says so. The redeploy carries this with the gate, the 3.0× caps, and the metadata
+      refresh, and the mainnet deploy must include it (`docs/web3-runtime-plan.md`). He set its
+      date the same day: "let's do it this coming tuesday... and send a note to the TG group via
+      the bot, with upgrades that will be included" (Tuesday 2026-12-01; the note is #326's).
+    - **The simulation** (`npm run sim -- --days 365 --population 1500`, seeds 7 / 11 / 23; flat
+      is `--claim-flat`; no other param changed). Flat → ladder:
+      - Claim revenue: $2,292 → $4,180–4,188 (+82–83%). By tier: Common $1,146 → $1,146;
+        Uncommon $688 → $1,375; Rare $344 → $1,031; Legendary $92 → $460; Mythic $22.50–23 →
+        $168–176 (Mythic claims 45–46 → 42–44 of 46).
+      - The dictionary reaches 99% on day 51–52 → 57–58 (about 6 days later, +10–12%).
+      - Letters mint out on day 60 → 60–61. Solvency holds in every run. Burned +3–5%. The
+        Rewards Pool on day 365: +0–4%; at its peak: +11–16%. $WORD bought to play: +0–3%.
+      - Each group's share of the words held: casual 44–46% → 38–41% (−10 to −12%); collector
+        53–55% → 55–58% (+4%); gambler about 1% → about 3.5–3.8%; whale 0% → 0.2%; staker 0%.
+      - **With the bounty lever on, casual players' share of the weekly bounty falls by about
+        60%:** from 30–36% to 12–13% at 365 days and 1,500 players (and 15–18% → 7–8% at 120
+        days and 400). They still hold about as many words, but cheaper ones, and the bounty
+        weighs a theme word by its tier. He asked "we're only changing the cost of claiming
+        words, right?" (yes: nothing else changed), then: "accept it and note it... the cost
+        isn't that substantive tbh". `tests/loop.test.ts`'s floor for that share went from 10% to
+        5%; its check that casuals get more of the bounty than of the yield stays.
+    - **Every place that states or uses the claim price** moved to the word's own fee: Spell (the
+      intro, "Rare word: … to claim", each suggestion's button, "Need …" opening the balance sheet
+      with that word's fee), Next steps, the bought-letters and mail sheets, the Dictionary card
+      ("Unclaimed · … to claim"), the word view ("To claim"), a set's words, the cost to make
+      (the Market, the sell form, the card back's picture), the cheat sheet, the how-it-works
+      steps, the claim's allowance, and the console (the constructor, "Set a tier's claim
+      multiple", the Treasury tab's fees by tier). The player docs change in a held PR that merges
+      with the redeploy, with the tester note.
+61. **A hungry word's card: the ink runs low. No fog.** (starl3xx, 2026-11-27: "Now that we have
+    the cards mostly nailed down, how should we render when words are peckish and hungry? fog
+    doesn't feel right anymore (esp. w/the new design language)".) Until now a card showed hunger
+    in two ways, both his from 2026-11-24: its face went grey, and fog rolled in over the scene and
+    the word. The fog no longer fits, for three reasons. It is not drawn: it was three drifting
+    banks of random noise, on a face that is now a still picture in ruled linework. It covered
+    the letters, so a hungry word faded from its own card when it most needed its player. And
+    one strength could not serve every face: it turned the pale stock face white, and a dark
+    face needed a special thinner fog and still went to grey.
+    - **Three directions were drawn on real cards** (one Common word fed, peckish, and hungry,
+      on the two stock faces first, in the Bag on a phone, and on Today): 19A, the colour goes
+      and the drawing stays; 19B, the ink runs low; 19C, the face is left alone. I recommended
+      19A. **He chose 19B: "19B!"**
+    - **19B, as built.** A card is paper and ink, so a hungry word's face is printed with less
+      ink: the art layer is shown fainter over the card's own paper, lines and colour together,
+      and its colour drains with it. Peckish: 0.66 of its strength, at a little over half its
+      colour. Hungry: 0.34, nearly no colour. On a dark face it fades less (0.82 and 0.6), so
+      the plate stays dark. Feeding eases the ink back over 0.9 s; that is a change of colour
+      and not a movement, so it plays under reduced motion too. These are the numbers he chose
+      from: the proposal was drawn with the style rules that shipped.
+    - **The tone is on the GROUP of the face's pictures, never on a picture** (Bugbot on #328).
+      During a face change the old picture stays under the new one until it is in. A hungry
+      face is see-through, so with the tone on each picture the two added up to more ink than
+      one, and the card popped paler when the old one was dropped. As a group they are put
+      together at full strength and faded once. Checked in the game: for the 65 frames two
+      pictures were stacked, the group's strength eased smoothly and nothing added up.
+    - **"agreed on frame and ribbon":** only the art takes it. The frame and the ribbon keep
+      their ink in every state, so a hungry card still names its rarity. The letters keep their
+      colour and are never covered; their own faces show the mood.
+    - **"no hunger states in any share cards":** a share picture and a video never show hunger.
+      A shared card is always drawn fed. Hunger changes every day, and X and Farcaster keep a
+      picture for good. They never did show it; now a test holds that.
+    - **What went:** the fog layer in the front, its style rules and keyframes, the dark faces'
+      special fog strengths (#57), and the old grey filter.
+    - **Also in this change, mine:** the ribbon at a card's foot still carried a random grain,
+      which I missed when the stock's grain went (#58, part 4). It is gone, and the ribbon
+      keeps its fine ruled lines. No noise filter is left in the stylesheet; a test holds that.
+    - **Not measured:** the fog was three drifting layers and its replacement stands still, so
+      a hungry card should cost less to show. I have not measured it.
+    - **Not seen:** a dark face with colour (Outer Space) hungry, a collab card, a real phone.
 
 ## Pricing & launch economics (decided June 2026)
 

@@ -6,7 +6,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
-import { LOOP_SECONDS, loopLight, loopPose } from "@/components/cards/loop/loopRenderer";
+import { LOOP_SECONDS, loopPose } from "@/components/cards/loop/loopRenderer";
 import { showcaseBackPath, CARD_LOOK } from "@/lib/showcase";
 
 describe("the card's turn", () => {
@@ -28,10 +28,6 @@ describe("the card's turn", () => {
     const start = loopPose(0);
     expect(end.turn % 360).toBeCloseTo(start.turn % 360, 3);
     for (const k of ["tiltX", "tiltY", "lift", "glare"] as const) expect(end[k]).toBeCloseTo(start[k], 3);
-    const [lx0, ly0] = loopLight(0);
-    const [lx1, ly1] = loopLight(LOOP_SECONDS);
-    expect(lx1).toBeCloseTo(lx0, 6);
-    expect(ly1).toBeCloseTo(ly0, 6);
   });
 
   it("lifts the card as it turns, and rests it flat between", () => {

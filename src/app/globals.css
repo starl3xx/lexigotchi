@@ -19,6 +19,8 @@
   /* Motion. Strong ease-out for things responding to the player; a gentle overshoot only for the
      playful bits (a tile hopping, an icon wiggling). Nothing here runs longer than ~300 ms. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* a face sliding in over another (.scene-slide-*): it sets off at once and takes its time to settle */
+  --ease-swap: cubic-bezier(0.45, 0, 0.15, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-hop: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -70,6 +72,46 @@ body {
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: padding-box;
+}
+
+/* A Shop item's closer look (sheets/ShopItemSheet): the card at twice the width in a box that pans.
+   No scrollbars: on a browser that always shows them they would sit on the picture, and the
+   picture itself is what moves. Only WHILE it is a closer look (.is-close) does a finger pan the
+   picture and stop at its edge; at rest a finger on the picture scrolls the sheet as anywhere. */
+.shop-closer {
+  scrollbar-width: none;
+}
+.shop-closer.is-close {
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+.shop-closer::-webkit-scrollbar {
+  display: none;
+}
+/* The row of the player's words under it. On a phone it is one line that a finger slides, with no
+   scrollbar; from md it wraps to a few lines and scrolls down, with the thin ink scrollbar, so a
+   mouse can see there is more. */
+.shop-words {
+  scrollbar-width: none;
+}
+.shop-words::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .shop-words {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(27 23 20 / 0.3) transparent;
+  }
+  .shop-words::-webkit-scrollbar {
+    display: block;
+    width: 10px;
+  }
+  .shop-words::-webkit-scrollbar-thumb {
+    background: rgb(27 23 20 / 0.3);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
 }
 
 /* A 44 × 44 px tap area centered on a smaller round control, so the 28–32 px header circles keep
@@ -127,6 +169,13 @@ body {
 .press:active:not(:disabled) {
   box-shadow: 0 0 0 theme(colors.ink);
   transition-duration: 70ms;
+}
+/* A press that HOLDS another press (a Shop item's card, with its own Buy inside it) doesn't press
+   in when the inner one is what is pressed: the whole card going down under a press on Buy read
+   as the card being pressed. It stays as it was under the pointer (the three rules named
+   "a press inside a press" in this file). A browser without :has presses both, as before. */
+.press:has(.press:active):active:not(:disabled) {
+  box-shadow: var(--sh, 3px) var(--sh, 3px) 0 theme(colors.ink);
 }
 .press-icon {
   transition: transform 280ms var(--ease-hop);
@@ -284,6 +333,10 @@ body {
   .press:active:not(:disabled) {
     transform: translate(var(--sh, 3px), var(--sh, 3px));
   }
+  /* a press inside a press: the outer one holds still */
+  .press:has(.press:active):active:not(:disabled) {
+    transform: none;
+  }
   .tile-press:active {
     transform: translateY(2px);
     transition-duration: 70ms;
@@ -298,6 +351,11 @@ body {
   @media (hover: hover) and (pointer: fine) {
     .press:hover:not(:disabled):not(:active) {
       transform: translateY(-2px);
+    }
+    /* a press inside a press: the outer one stays lifted under the pointer */
+    .press:has(.press:active):hover:active:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--sh, 3px) calc(var(--sh, 3px) + 2px) 0 theme(colors.ink);
     }
     .press:hover .press-icon {
       transform: rotate(-9deg) scale(1.12);
@@ -412,6 +470,45 @@ body {
 @keyframes scene-fade-in { from { opacity: 0; } }
 @keyframes scene-fade-out { to { opacity: 0; } }
 
+/* A face change in the face picker (scenes/SceneFrame, change="slide"; decisions.md #59): the new
+   face slides in over the old one, which holds still under it, from the side the face sits on in
+   the picker. Each face is one still picture moved whole, under the card's frame; nothing moves
+   inside a picture.
+   THE CARD'S BORDER HOLDS STILL. A face's picture is drawn only inside the card's window (the rest
+   of it is clear), the paper border is the card's own ground, and the frame is line work over it.
+   A picture that simply slid would pass under the side border, and a dark face showed through it.
+   So the moving picture is clipped to the window, and the clip stands still while the picture
+   moves: each frame's clip-path is the window as seen from the picture's own place (the window is
+   3.5% in from each side, 6.2222% from top and bottom, its corner 1% of the width: lib/cardArt/looks
+   WINDOW). The picture's leading edge is the edge of its window, not of its box, so its shade is a
+   strip placed there (::before), never a box-shadow. The word stays where it stands, and each letter glides to its place on the
+   new ground (.cf-stand: a curved ground lowers and turns a letter), ONLY while a change is in
+   flight (.cf-changing, on the card for as long as the old face is kept): a stance is written in
+   units of the card's width, so a glide that was always on also ran on every resize, and the
+   letters drifted. Under reduced motion the new face fades in, as it always did, and the letters
+   are simply in place.
+   The curve is its own (--ease-swap), not the house --ease-out: that one covers nine tenths of the
+   way in the first third of the time, so the slide was over before it could be seen as one. */
+.scene-slide-next,
+.scene-slide-prev { animation: scene-fade-in 450ms var(--ease-out) both; }
+@media (prefers-reduced-motion: no-preference) {
+  .scene-slide-next { animation: scene-slide-next 520ms var(--ease-swap) both; }
+  .scene-slide-prev { animation: scene-slide-prev 520ms var(--ease-swap) both; }
+  .scene-slide-next::before,
+  .scene-slide-prev::before { content: ""; position: absolute; top: 6.2222%; bottom: 6.2222%; width: 12px; }
+  .scene-slide-next::before { right: 96.5%; background: linear-gradient(to left, rgb(27 23 20 / 0.26), transparent); }
+  .scene-slide-prev::before { left: 96.5%; background: linear-gradient(to right, rgb(27 23 20 / 0.26), transparent); }
+  .cf-changing .cf-stand { transition: transform 520ms var(--ease-swap); }
+}
+@keyframes scene-slide-next {
+  from { transform: translateX(100%); clip-path: inset(6.2222% 103.5% 6.2222% -96.5% round 1cqw); }
+  to { transform: translateX(0); clip-path: inset(6.2222% 3.5% 6.2222% 3.5% round 1cqw); }
+}
+@keyframes scene-slide-prev {
+  from { transform: translateX(-100%); clip-path: inset(6.2222% -96.5% 6.2222% 103.5% round 1cqw); }
+  to { transform: translateX(0); clip-path: inset(6.2222% 3.5% 6.2222% 3.5% round 1cqw); }
+}
+
 /* The ascend sheet (sheets/AscendSheet.tsx). A hit's rays turn behind the word for as long as it
    cheers, then fade with it: .asc-rays holds still (its box, and an oval fade so no edge shows) and
    only the square of rays inside it turns, a transform on one HTML element, so the letters in front
@@ -463,82 +560,32 @@ body {
 @keyframes asc-rays-turn { to { transform: rotate(360deg); } }
 @keyframes asc-goal { 50% { transform: scale(1.18); } }
 
-/* A scene drains toward grey as its word gets hungry (SceneFrame's tone). A color change, not
-   motion, so it eases in under reduced motion too. */
-.scene-tone { transition: filter 900ms var(--ease-out); }
-.scene-peckish { filter: grayscale(0.55) brightness(0.97); }
-.scene-hungry { filter: grayscale(0.92) brightness(0.86) contrast(0.95); }
-
-/* Fog rolls in as a word gets hungry (SceneFrame), over the scene and the word inside the card's
-   window, under the ribbon, the speech bubble, and the arrows. Thin when peckish, thick when hungry, gone when fed.
-   How it's built (starl3xx asked for fog that is "much more foggy", 2026-11-24):
-   - Fog is mostly lost contrast, thicker toward the ground: a haze veil underneath, densest at
-     the floor.
-   - Over it, three banks of real cloud texture: fractal noise from SVG feTurbulence, stretched
-     sideways into drifting bands, turned white with its alpha taken from the noise, so the fog is
-     patchy, thick in places and thin in others. Each is an image, drawn once, never per frame.
-   - They drift at different speeds (back slow, front faster) for depth, and each breathes a
-     little, so the loops never line up into a pattern. Only transform and opacity move.
-   - Each strip is two tiles wide (background-size 50%) and slides by one tile, so it loops
-     without a seam; stitchTiles makes the noise itself tile. Each bank fades out at its top.
-   Under reduced motion the fog stands still: the same picture, no drift. */
-.scene-fog {
-  opacity: 0;
-  transition: opacity 1400ms var(--ease-out);
-}
-.scene-fog.is-peckish { opacity: 0.5; }
-.scene-fog.is-hungry { opacity: 1; }
-/* On a dark face (lib/cardArt/scenes, DARK_SCENES: the dark stock face, Outer Space) the fog is
-   thinner (decisions.md #57; starl3xx, 2026-11-27). The fog is pale, so at full strength it turns a
-   dark plate white: the face stops being a dark face at all, and the word goes with it. Only the
-   fog's strength changes, so nothing is redrawn. The grey tone, the sleeping letters, and the three
-   status marks still say hungry. */
-.cf-dark .scene-fog.is-peckish { opacity: 0.2; }
-.cf-dark .scene-fog.is-hungry { opacity: 0.42; }
-.scene-fog-haze {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgb(234 238 243 / 0.82), rgb(234 238 243 / 0.5) 40%, rgb(234 238 243 / 0.22) 80%, rgb(234 238 243 / 0.12));
-}
-.scene-fog-bank {
-  position: absolute;
-  left: 0;
-  width: 200%;
-  background-repeat: repeat-x;
-  background-size: 50% 100%;
-  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
-  mask-image: linear-gradient(to top, #000 55%, transparent);
-}
-/* the back bank: broad and dense, rolling slowly along the floor */
-.scene-fog-1 {
-  bottom: -12%;
-  height: 100%;
-  opacity: 0.95;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0045 0.011' numOctaves='4' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.96 0 0 0 0 0.98 2.6 0 0 0 -0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-}
-/* the middle bank: around the word */
-.scene-fog-2 {
-  bottom: -6%;
-  height: 72%;
-  opacity: 0.9;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.007 0.017' numOctaves='4' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.97 0 0 0 0 0.98 2.5 0 0 0 -0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-}
-/* the front wisps: thinner, quicker, a little higher */
-.scene-fog-3 {
-  bottom: 14%;
-  height: 60%;
-  opacity: 0.75;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011 0.028' numOctaves='4' seed='17' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.97 0 0 0 0 0.98 0 0 0 0 0.99 2.3 0 0 0 -0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-}
-@media (prefers-reduced-motion: no-preference) {
-  .scene-fog-1 { animation: scene-fog 120s linear infinite, scene-fog-breathe 11s ease-in-out infinite alternate; }
-  .scene-fog-2 { animation: scene-fog 76s linear infinite -20s, scene-fog-breathe 8s ease-in-out infinite alternate -3s; }
-  .scene-fog-3 { animation: scene-fog 46s linear infinite -9s, scene-fog-breathe 6.5s ease-in-out infinite alternate -1s; }
-}
-/* a still card (a card in a grid, a thumbnail) keeps its fog but doesn't drift it */
-.scene-still .scene-fog-bank { animation: none !important; }
-@keyframes scene-fog { to { transform: translateX(-50%); } }
-@keyframes scene-fog-breathe { from { opacity: 0.6; } }
+/* A HUNGRY WORD'S CARD: THE INK RUNS LOW (decisions.md #61; SceneFrame's tone). starl3xx, 2026-11-27,
+   of three directions on real cards: "19B!". A card is paper and ink, so as its word gets hungry
+   its face is printed with less ink: the art layer is shown fainter over the card's own paper
+   (.cf), lines and colour together, and its colour drains with it. A little when peckish, most of
+   the way when hungry. Feed the word and the ink comes back.
+   - It REPLACED THE FOG (three drifting banks of random noise over the scene AND the word, asked
+     for on 2026-11-24, and the grey filter under them): "fog doesn't feel right anymore (esp. w/the
+     new design language)". The fog was not drawn, it hid the word when the word most needed its
+     player, and one strength could not serve every face. Never lay anything over a card to show
+     hunger, and never over its letters.
+   - Only the art takes it, AS A GROUP (.cf-arts, which holds the face's picture and, during a face
+     change, the old picture under the new one). Never put the tone on a picture itself: two
+     see-through pictures add up to more ink than one, and the card pops paler when the old one is
+     dropped (Bugbot on #328). The frame and the ribbon keep their ink in every state
+     ("agreed on frame and ribbon"), so a hungry card still names its rarity; the letters keep
+     their colour, and their own faces show the mood.
+   - A dark face (.cf-dark) fades less: at the full amount a dark plate would stop being dark.
+   - Still, and cheap: one filter and one strength on a picture that never moves. A change of
+     colour, not motion, so it eases in and out under reduced motion too.
+   - THE GAME ONLY. A share picture or a video never shows hunger ("no hunger states in any share
+     cards"): hunger changes every day, and X and Farcaster keep a picture for good. */
+.scene-tone { transition: filter 900ms var(--ease-out), opacity 900ms var(--ease-out); }
+.scene-peckish { filter: saturate(0.55); opacity: 0.66; }
+.scene-hungry { filter: saturate(0.12); opacity: 0.34; }
+.cf-dark .scene-peckish { opacity: 0.82; }
+.cf-dark .scene-hungry { opacity: 0.6; }
 
 /* ---------------------------------------------------------------------------------------------
    The Today stage (components/game/TodayStage.tsx; decisions.md #39): a word's card, and a placard
@@ -640,6 +687,9 @@ body {
 .cf { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; container-type: inline-size; background: #fcf7ea; }
 .cf > * { position: absolute; }
 .cf-art, .cf-frame, .cf-tex { inset: 0; background-size: 100% 100%; pointer-events: none; }
+/* the face's art layers stand in one group, which takes the hunger tone (above, .scene-tone) */
+.cf-arts { inset: 0; pointer-events: none; }
+.cf-arts > .cf-art { position: absolute; }
 /* A collab set's stamp (components/scenes/SceneFrame): ONE fixed place on every collab card, the
    window's upper left. In card units (1200 wide): a 92-unit box, 62 in from the left and 60 from
    the top, clear of the corner piece (13 to 46), the word's row (from 200), the ribbon, and the
@@ -651,27 +701,27 @@ body {
 .cf-stamp { left: 5.17%; top: 8.9%; width: 7.67%; aspect-ratio: 1; object-fit: contain; pointer-events: none; user-select: none; box-sizing: border-box; padding: 0.7cqw; background: #fcf7ea; border: max(1.5px, 0.2cqw) solid var(--cf-ink); border-radius: 24%; }
 .cf-small .cf-stamp { display: none; }
 @container (max-width: 239px) { .cf-stamp { display: none; } }
-/* card stock: a fine grain and a faint linen weave */
-.cf-tex {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.24 -0.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.1) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(90deg, rgb(70 45 20 / 0.035) 0 1px, transparent 1px 4px);
-  background-size: 240px 240px, auto, auto;
-}
-/* The fog a hungry word's scene fills with stays inside the frame's window (the window is 42 of
-   1200 units in from the sides and 42 of 675 from the top and bottom): the card keeps its paper
-   and its ink. While the word is fed there is no fog to see, so its banks don't drift. */
-.cf-fog { left: 3.5%; right: 3.5%; top: 6.22%; bottom: 6.22%; border-radius: 1cqw; overflow: hidden; pointer-events: none; }
-.cf-fog.is-fed .scene-fog-bank { animation-play-state: paused; }
+/* Card stock (decisions.md #58, part 4: "15A is good"): a playing card's finish, a fine weave pressed
+   into the paper ON THE DIAGONAL. One small picture, repeated (never a slanted gradient: those
+   broke into dashes at most pixel ratios), and NO RANDOM GRAIN: the grain was the one part of the
+   paper that was not drawn (a noise filter under a square weave).
+   IT MUST BE SEEN AT REAL SIZE. The owner chose it from a swatch enlarged three times, and the
+   first build drew it at its true size: hairlines a third of a pixel wide at 7%, which nobody can
+   see, and less than the old weave it replaced ("i can't see the weave on any cards"). So it is a
+   CROSSHATCH six pixels a repeat, and each direction is a dark hairline with a light one beside
+   it, as a line pressed into paper has a shadow and a lit edge: both directions then show on dark
+   art and on pale paper alike (a dark line alone is lost on a dark face, a light one on paper).
+   One direction is a little weaker than the other, as in his drawing. Check a change at pixel
+   ratios 1, 1.5, 2, and 3, at the screen's own pixels, on a dark face, the pale stock face, and a
+   back. The back's is the same crosshatch (.cb-tex). It lies under the letters, as it always has. */
+.cf-tex { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='6' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 -6L-6 0M6 -6L-6 6M12 -6L-6 12M18 -6L-6 18' stroke='%235a4a3a' stroke-opacity='0.09' stroke-width='0.7'/%3E%3Cpath d='M0.98 -6L-6 0.98M6.98 -6L-6 6.98M12.98 -6L-6 12.98M18.98 -6L-6 18.98' stroke='%23fff' stroke-opacity='0.11' stroke-width='0.7'/%3E%3Cpath d='M-6 -18L12 0M-6 -12L12 6M-6 -6L12 12M-6 0L12 18' stroke='%235a4a3a' stroke-opacity='0.063' stroke-width='0.7'/%3E%3Cpath d='M-6 -17.02L12 0.98M-6 -11.02L12 6.98M-6 -5.02L12 12.98M-6 0.98L12 18.98' stroke='%23fff' stroke-opacity='0.077' stroke-width='0.7'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
 /* The ribbon: "one of one", the card's number, the rarity, in the card's serif. It sizes to its
-   words. Its paper has a grain and fine ruled lines in the rarity's ink, and a second hairline
+   words. Its paper has fine ruled lines in the rarity's ink (no random grain: that went with the fog), and a second hairline
    inside its edge. Its two folded tails are drawn shapes (SceneFrame), so the notch carries the
    ink line too. */
 .cf-ribbon { left: 50%; bottom: max(3px, 1.05cqw); transform: translateX(-50%); font-family: var(--font-card); font-weight: 700; color: var(--cf-ink); line-height: 1; white-space: nowrap; pointer-events: none; font-size: clamp(12px, 2.05cqw, 16px); }
 .cf-ribbon-in { position: relative; display: flex; align-items: center; gap: 0.55em; padding: 0.45em 1.1em; border: max(1.5px, 0.22cqw) solid var(--cf-ink); border-radius: 2px; background-color: #fcf7ea;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.5 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, color-mix(in srgb, var(--cf-ink) 11%, transparent) 0 1px, transparent 1px 3px);
-  background-size: 120px 120px, auto;
+  background-image: repeating-linear-gradient(0deg, color-mix(in srgb, var(--cf-ink) 11%, transparent) 0 1px, transparent 1px 3px);
   box-shadow: inset 0 0 0 1.5px #fcf7ea, inset 0 0 0 2.5px color-mix(in srgb, var(--cf-ink) 34%, transparent); }
 .cf-rarity { display: flex; align-items: center; gap: 0.4em; }
 .cf-mark { width: 1.15em; height: 1.15em; }
@@ -916,13 +966,10 @@ body {
 .sc:not(.is-flipping):not(.is-back) .sc-back, .sc.is-back:not(.is-flipping) .sc-front { visibility: hidden; }
 .sc-framed .sc-face { border: 3px solid #1b1714; border-radius: var(--card-r); }
 .sc-framed.sc-small .sc-face { border-width: 2px; }
-/* the same two widths, for the back's frame line (below, --cb-frame-r) */
-.sc-framed .cb { --cb-edge: 3px; }
-.sc-framed.sc-small .cb { --cb-edge: 2px; }
 .sc.is-flipping { animation: sc-lift 0.85s cubic-bezier(0.2, 0.75, 0.25, 1); }
 @keyframes sc-lift { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-2%) scale(1.035); } }
 /* the scene nobody can see holds still */
-.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"], .sc.is-back .sc-front .scene-fog-bank { animation-play-state: paused !important; }
+.sc.is-back .sc-front [class*="rf-"], .sc.is-back .sc-front [class*="animate-"] { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
   .sc-inner { transition: none; transform: none !important; }
   .sc-face { backface-visibility: visible; -webkit-backface-visibility: visible; transition: opacity 0.25s; }
@@ -940,28 +987,47 @@ body {
 .sc-flip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #1b1714; }
 .sc-flip:focus-visible { outline: 3px solid #d8463f; outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) { .sc-flip:hover { transform: translate(-1px, -1px) rotate(-18deg); box-shadow: 3px 3px 0 #1b1714; } }
-/* ---- the card's own light (SceneCard; decisions.md #34): the only motion a still scene has ----
+/* ---- the card's own light (SceneCard; decisions.md #34, #58): the only motion a still scene has ----
    - the lean: the card turns a few degrees toward the pointer (.sc-lean's transform, written by
      SceneCard with no transition while it follows: a transition restarted on every frame cost a
      third of a processor core in WebKit; it eases only as the pointer arrives and leaves, .sc-ease);
    - the glare: a faint round light that follows the pointer across the front;
-   - the sheen: a faint band of light that crosses the front in a moment (.sc-moment), then rests
-     unseen. White for most cards, warm for Legendary, a spectrum for Mythic (--sc-sheen).
-   Each is one element sliding or turning: a transform, so the scene and the letters are not
-   redrawn. No loop. Kept faint on purpose (starl3xx, 2026-11-25: "much more subtle/transparent"). */
-.sc-glare, .sc-sheen { position: absolute; pointer-events: none; z-index: 2; }
+   - the band: a reflection DRAWN IN LINES (decisions.md #58, part 3: the cards are matte). A ground
+     of fine ruled lines stands still on the card (.cf-light > i: a picture, lib/cardArt/light, in
+     the rarity's ink), and a soft-edged window crosses the front in a moment (.sc-moment) and
+     shows the part of it under it, then rests off the card. The front draws it UNDER its letters
+     (SceneFrame): never a line over a letter. It was a soft band of white over the whole front.
+   The band is two elements sliding: the window one way, the lines inside it the other way by the
+   same amount, so the lines stay where they are on the card. Transforms only, so the scene and the
+   letters are not redrawn, and nothing is painted again as it crosses (a mask moved by its
+   position is painted on every frame). No loop.
+   Its measures are the drawing's (lib/cardArt/light, lightBand; a test holds them equal): the
+   window is 54cqw wide, and its light fades to nothing 21.67cqw either side of its middle, along a
+   line that leans as the ruled lines lean (100deg here is their 10 degrees).
+   ITS STRENGTH FOLLOWS THE FACE, because one number can't serve: light lines are loud on a dark
+   face and lost on a pale one. A face with colour takes the middle; a dark plate (.cf-dark) under
+   half of it; the pale stock card (.cf-pale) about double, where a light line shows only by
+   breaking the grey engraving under it, and is still the quietest of the three. A face nobody has
+   sorted takes the middle. Kept quiet on purpose (starl3xx, 2026-11-25: "much more
+   subtle/transparent"; 2026-11-27, of this band as first drawn: "it's too strong rn"). */
+.sc-glare { position: absolute; pointer-events: none; z-index: 2; }
 .sc-glare { left: 50%; top: 50%; width: 76%; aspect-ratio: 1; margin: -38% 0 0 -38%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.16) 55%, transparent); opacity: 0; }
-.sc-sheen { top: -20%; bottom: -20%; left: 0; width: 30%; background: var(--sc-sheen); opacity: 0; transform: translateX(-160%) skewX(-16deg); }
+.cf-light { top: 0; bottom: 0; left: 0; width: 54cqw; pointer-events: none; opacity: 0.36; transform: translateX(-54cqw); -webkit-mask-image: linear-gradient(100deg, transparent calc(50% - 21.67cqw), #000 50%, transparent calc(50% + 21.67cqw)); mask-image: linear-gradient(100deg, transparent calc(50% - 21.67cqw), #000 50%, transparent calc(50% + 21.67cqw)); }
+.cf-light > i { position: absolute; top: 0; left: 0; width: 100cqw; height: 100%; background-size: 100% 100%; transform: translateX(54cqw); }
+.cf-pale .cf-light { opacity: 0.79; }
+.cf-dark .cf-light { opacity: 0.16; }
 @media (prefers-reduced-motion: no-preference) {
   .sc-ease { transition: transform 240ms var(--ease-out); }
   .sc-glare { transition: opacity 260ms ease; }
   .sc-ease .sc-glare { transition: opacity 260ms ease, transform 240ms var(--ease-out); }
-  .sc-moment .sc-sheen { animation: sc-sheen 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
+  .sc-moment .cf-light { animation: cf-light 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
+  .sc-moment .cf-light > i { animation: cf-light-back 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
   @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .sc-glare { opacity: var(--sc-glare-a, 0.3); } }
 }
-/* over a scene on a dark plate (Outer Space), the same white shows far more: the light is fainter */
-.sc:has(.cf-dark) { --sc-sheen-a: 0.13; --sc-glare-a: 0.12; }
-@keyframes sc-sheen { 0% { opacity: 0; transform: translateX(-160%) skewX(-16deg); } 12%, 86% { opacity: var(--sc-sheen-a, 0.34); } 100% { opacity: 0; transform: translateX(440%) skewX(-16deg); } }
+/* over a face on a dark plate, the same white shows far more: the glare is fainter */
+.sc:has(.cf-dark) { --sc-glare-a: 0.12; }
+@keyframes cf-light { from { transform: translateX(-54cqw); } to { transform: translateX(100cqw); } }
+@keyframes cf-light-back { from { transform: translateX(54cqw); } to { transform: translateX(-100cqw); } }
 
 /* A list's word as flat tiles (components/game/MiniTiles.tsx): the rig's colors, the finish baked
    into a background per tier. A lowercase tile sits on its wooden edge; an UPPERCASE one wears the
@@ -983,49 +1049,28 @@ body {
 .need-letter { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 0.15em; border-radius: 0.3em; border: 1.5px solid #2a1e1a; background: #f8efdd; box-shadow: 0 1.5px 0 #c7ae84; font-weight: 800; line-height: 1; vertical-align: -0.12em; color: #2a1e1a; }
 
 /* ---- the back ---- */
-/* The back's frame line runs parallel to the card's corner: the card's 2.6%, less the ink border
-   that lies between the card's edge and the back, less the line's own inset (it was a radius of its
-   own, which stopped following the card under 364 px and over 636).
-   --cb-edge is that ink border: 3 px on a framed card and 2 px on a thumbnail (.sc-framed .sc-face,
-   whose border the back sits inside), and none in a plastic case, whose ink is drawn over the card.
-   It counts 94.8%, not 100: the back is narrower than the card by the border on each side, so
-   2.6cqw here is already 5.2% of the border short of the card's corner (Bugbot on #252). */
-.cb { --cb-frame-r: max(2px, calc(2.6cqw - 0.948 * var(--cb-edge, 0px) - clamp(5px, 1.8cqw, 12px))); --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
+/* A back is an engraved PLATE (lib/cardArt/plate; decisions.md #58, part 2: "the cards are matte",
+   "13A dark plate is definitely the way to go"): one picture, set on .cb-mat by the component, that
+   holds the ground, the border, the lace, and the filigree. It is paper and ink:
+   no material, no light of its own, and no frame line here (the plate's border is the frame).
+   The lettering and the seal are laid over it BY THE PLATE'S OWN MEASURES: the field inside the
+   border starts 63 of 1200 units in, and the seal stands in the field (plate.ts PLATE_BORDER,
+   PLATE_SEAL; tests/matte-cards.test.ts holds these rules to them). */
+.cb { --cb-text: #f7efdc; --cb-sub: rgba(247, 239, 220, 0.74); position: absolute; inset: 0; color: var(--cb-text); overflow: hidden; background: var(--cb-base); }
 .cb > * { position: absolute; }
-.cb-mat { inset: 0; background: var(--cb-mat); }
+.cb-mat { inset: 0; background-color: var(--cb-base); background-size: 100% 100%; background-repeat: no-repeat; }
 .cb-mat > * { position: absolute; inset: 0; }
-/* the live material (cards/live): over the CSS one, shown once its first frame lands */
-.cb-gl { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.3s ease-out; }
-.cb-gl.is-ready { opacity: 1; }
-/* a finger dragging sideways across a back moves its light; up and down still scrolls the page */
-.sc-back { touch-action: pan-y; }
-/* the frame: a line in the material's colour, with a dotted line just outside it (the front's
-   chain border, said quietly) */
-.cb-frame { inset: clamp(5px, 1.8cqw, 12px); border-radius: var(--cb-frame-r); border: max(1.5px, 0.3cqw) solid var(--cb-line); box-shadow: inset 0 0 0 3px var(--cb-line2); outline: max(1.5px, 0.28cqw) dotted var(--cb-line); outline-offset: max(1.5px, 0.42cqw); pointer-events: none; }
-/* the materials, deep */
-.m-common { --cb-base: #2a2019; --cb-mat: linear-gradient(165deg, #3b2d22, #2a2019 70%), #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-front: #2a1e15; }
-.m-uncommon { --cb-base: #0e3a31; --cb-mat: linear-gradient(165deg, #1f5c4d, #0e3a31 70%); --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-front: #0c3028; }
-.m-rare { --cb-base: #0b1f40; --cb-mat: linear-gradient(165deg, #1d4485, #0b1f40 70%); --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --rk-front: #0b1d3d; }
-.m-legendary { --cb-base: #2e2006; --cb-mat: linear-gradient(135deg, #2e2006, #6b4a10 38%, #2e2006 66%, #5a3e0c); --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-front: #3a2806; }
-.m-mythic { --cb-base: #1d0d36; --cb-mat: linear-gradient(165deg, #47237a, #1d0d36 70%); --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-front: #1d0d36; }
-.cb-brush { background: repeating-linear-gradient(-32deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 4px); }
-.cb-glitter { background-image: radial-gradient(circle, rgba(255, 238, 180, 0.9) 0 0.9px, transparent 1.3px), radial-gradient(circle, rgba(255, 250, 220, 0.7) 0 0.7px, transparent 1.1px); background-size: 19px 19px, 13px 13px; background-position: 0 0, 7px 9px; opacity: 0.7; }
-.cb-facets { width: 100%; height: 100%; }
-.cb-facets .fl { stroke: rgba(255, 255, 255, 0.22); }
-.cb-facets .ft { fill: rgba(255, 255, 255, 0.07); stroke: rgba(255, 255, 255, 0.3); }
-/* Mythic's fire: a spectral line inside the frame, still (a looping hue shift repaints every frame) */
-.cb-fire { inset: clamp(5px, 1.8cqw, 12px); border-radius: var(--cb-frame-r); padding: 2.5px; background: linear-gradient(135deg, #ff7ad9, #ffd84d, #6ff2ff, #8f9bff, #ff7ad9); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0.38; pointer-events: none; }
-.cb-corner { width: clamp(16px, 6cqw, 38px); height: clamp(16px, 6cqw, 38px); pointer-events: none; }
-.cb-corner svg { width: 100%; height: 100%; display: block; }
-.cb-corner .sc1 { stroke: rgba(255, 244, 200, 0.55); }
-.cb-corner .sc2 { stroke: #e9b949; }
-.cb-corner.tl { left: clamp(8px, 2.6cqw, 16px); top: clamp(8px, 2.6cqw, 16px); }
-.cb-corner.tr { right: clamp(8px, 2.6cqw, 16px); top: clamp(8px, 2.6cqw, 16px); transform: scaleX(-1); }
-.cb-corner.bl { left: clamp(8px, 2.6cqw, 16px); bottom: clamp(8px, 2.6cqw, 16px); transform: scaleY(-1); }
-.cb-corner.br { right: clamp(8px, 2.6cqw, 16px); bottom: clamp(8px, 2.6cqw, 16px); transform: scale(-1, -1); }
+/* each rarity's inks: the ground its plate is printed in (components/cards/material MATERIAL_GROUND
+   is the same five), and its line */
+.m-common { --cb-base: #2a2019; --cb-line: #9a8164; --cb-line2: rgba(255, 255, 255, 0.06); --rk-front: #2a1e15; }
+.m-uncommon { --cb-base: #0e3a31; --cb-line: #5cc4a9; --cb-line2: rgba(92, 196, 169, 0.18); --rk-front: #0c3028; }
+.m-rare { --cb-base: #0b1f40; --cb-line: #7fb0ef; --cb-line2: rgba(127, 176, 239, 0.18); --rk-front: #0b1d3d; }
+.m-legendary { --cb-base: #2e2006; --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-front: #3a2806; }
+.m-mythic { --cb-base: #1d0d36; --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-front: #1d0d36; }
 .cb-gem { width: 1.15em; height: 1.15em; flex: none; }
-/* card stock: a faint linen weave and grain */
-.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 3px); }
+/* card stock, as the front's (.cf-tex): the same crosshatch, pressed into a dark plate (its dark
+   lines in black). No random grain. */
+.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='6' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 -6L-6 0M6 -6L-6 6M12 -6L-6 12M18 -6L-6 18' stroke='%23000' stroke-opacity='0.2' stroke-width='0.7'/%3E%3Cpath d='M0.98 -6L-6 0.98M6.98 -6L-6 6.98M12.98 -6L-6 12.98M18.98 -6L-6 18.98' stroke='%23fff' stroke-opacity='0.16' stroke-width='0.7'/%3E%3Cpath d='M-6 -18L12 0M-6 -12L12 6M-6 -6L12 12M-6 0L12 18' stroke='%23000' stroke-opacity='0.14' stroke-width='0.7'/%3E%3Cpath d='M-6 -17.02L12 0.98M-6 -11.02L12 6.98M-6 -5.02L12 12.98M-6 0.98L12 18.98' stroke='%23fff' stroke-opacity='0.11199999999999999' stroke-width='0.7'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
 
 /* A card, face down (cards/FaceDownCard; decisions.md #50, part 4): the day's secret word before
    it is revealed. A back's material and frame, and the game's seal in the middle, stronger than
@@ -1033,12 +1078,15 @@ body {
    container the back measures itself in, as .sc is); the face inside it has the ink edge and the
    clip, so the box itself can stand on .card-stand. */
 .fd { width: 100%; aspect-ratio: 16 / 9; container-type: inline-size; }
-.fd-face { position: absolute; inset: 0; overflow: hidden; border: 3px solid #1b1714; background: #1b1714; --cb-edge: 3px; }
+.fd-face { position: absolute; inset: 0; overflow: hidden; border: 3px solid #1b1714; background: #1b1714; }
 .fd-seal { left: 50%; top: 50%; height: 74%; aspect-ratio: 1; transform: translate(-50%, -50%); background-size: 100% 100%; opacity: 0.5; pointer-events: none; }
 
-/* The game's seal, pressed into the material in one ink, behind the facts (lib/cardArt/seal): one
-   picture in the material's own line colour. Faint: it is a mark in the stock, not a picture on it. */
-.cb-seal { right: 4cqw; top: 50%; width: 42cqw; aspect-ratio: 1; transform: translateY(-50%); background-size: 100% 100%; opacity: 0.14; pointer-events: none; }
+/* The game's seal, pressed into the plate in one ink, behind the facts (lib/cardArt/seal): one
+   picture in the plate's own line colour, THE SAME ON EVERY RARITY: nothing is drawn round it for
+   a rarer word (the owner, 2026-11-27). It stands in the plate's field, so its place is the
+   plate's (PLATE_SEAL: 400 of 1200 units wide, its centre 868 along): a third of the card wide,
+   11 from the right. Faint: it is a mark in the stock, not a picture on it. */
+.cb-seal { right: 11cqw; top: 50%; width: 33.333cqw; aspect-ratio: 1; transform: translateY(-50%); background-size: 100% 100%; opacity: 0.2; pointer-events: none; }
 
 /* The words and tiles (CardBack; decisions.md #35, #37), lettered straight on the material with a
    soft shadow. One design at every size, measured in the card's own width (cqw), so a back on a
@@ -1050,7 +1098,7 @@ body {
    - a thumbnail (.sc-small): the left column alone, with the seal beside it.
    --font-card is the card's serif: for what the card says about the word (its number, its rarity,
    its facts' values), never for the word, which is only ever its tiles. */
-.cb-body { inset: 6.5cqw 5.5cqw 5.5cqw; display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 4cqw; align-items: center; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
+.cb-body { inset: 7.5cqw 7.3cqw 8.3cqw; display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 4cqw; align-items: center; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
 .cb-wordcol { display: grid; gap: 1.1cqw; align-content: center; justify-items: start; min-width: 0; }
 /* lettering in the material's line colour, lifted a little toward the text's cream so it reads on
    the darkest back (Common's line is a muted tan) */
@@ -1069,8 +1117,11 @@ body {
 .cb-stamp { position: absolute; display: block; aspect-ratio: 1; z-index: 2; pointer-events: none; text-shadow: none; filter: drop-shadow(0 1.5px 1.5px rgb(0 0 0 / 0.4)); }
 .cb-stamp > * { position: absolute; display: block; }
 .cb-stamp-number { left: calc(100% + 1.1cqw); top: 50%; width: 10.2cqw; transform: translateY(-54%) rotate(-8deg); }
-.cb-stamp-corner { left: 9cqw; top: 3.2cqw; width: 8.6cqw; transform: rotate(-8deg); }
-.cb-stamp-mini { right: 6cqw; top: 9cqw; width: 19cqw; transform: rotate(-8deg); }
+/* the corner's and the thumbnail's stamps stand INSIDE the plate's field (its border ends 5.25cqw in:
+   lib/cardArt/plate, PLATE_BORDER.field), clear of the lace. The corner's place is the share
+   video's too (cards/stamp, stampBox): a test holds the two equal. */
+.cb-stamp-corner { left: 7.6cqw; top: 6.3cqw; width: 8.6cqw; transform: rotate(-8deg); }
+.cb-stamp-mini { right: 8cqw; top: 8.6cqw; width: 19cqw; transform: rotate(-8deg); }
 .cb-stamp-face { inset: 13%; border-radius: 50%; overflow: hidden; isolation: isolate; }
 .cb-stamp-face img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) contrast(1.25) brightness(1.05); mix-blend-mode: multiply; }
 .cb-stamp-ring { inset: 0; background-size: 100% 100%; }
@@ -1113,7 +1164,7 @@ body {
 .cb-pips i { width: 6px; height: 6px; transform: rotate(45deg); border: 1.2px solid color-mix(in srgb, var(--cb-line) 55%, transparent); background: transparent; display: block; }
 .cb-pips i.on { border-color: var(--cb-line); background: var(--cb-line); }
 /* the line along the bottom, inside the frame: its parts in a row, a middle dot before each but the first */
-.cb-foot { left: 5.5cqw; right: 5.5cqw; bottom: 2.9cqw; font-size: 12px; line-height: 1.15; color: var(--cb-sub); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
+.cb-foot { left: 11cqw; right: 11cqw; bottom: 6.1cqw; font-size: 12px; line-height: 1.15; color: var(--cb-sub); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.45); }
 .cb-foot > * + *::before { content: " · "; white-space: pre; }
 .cb-foot b { color: var(--cb-text); font-weight: 400; }
 .cb-id { font-variant-numeric: tabular-nums; color: var(--cb-sub); }
@@ -1217,24 +1268,36 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
    share and sits low, clear of the corner button, and a long value ("Mixed · 3 of 5 raised")
    breaks onto a second line, never off the card. */
 @container (max-width: 339px) {
-  .cb-body { grid-template-columns: 0.72fr 1.28fr; gap: 3cqw; inset: 6cqw 4.5cqw 5cqw; }
+  .cb-body { grid-template-columns: 0.72fr 1.28fr; gap: 3cqw; inset: 7.5cqw 7cqw 7.5cqw; }
   .cb-stats { align-self: end; gap: 4px; }
   .cb-stat dd { min-width: 0; white-space: normal; text-align: right; justify-content: flex-end; }
+  /* the stamp beside the number: here the number fills its column and the ledger begins under the
+     stamp's right half, so the stamp is smaller and rides higher, clear of the ledger's first row
+     (at the full size it covered "Case" on a 360 px phone once the plate's border moved the
+     lettering in: Bugbot on #315) */
+  .cb-stamp-number { width: 8.6cqw; left: calc(100% + 0.6cqw); transform: translateY(-76%) rotate(-8deg); }
+}
+/* Under 296 px (a bare card on a 320 px phone) the ledger's first row comes up beside the number,
+   and no stamp fits there: it is left off the opened back (it covered "Case" there before the
+   plates too). The Bag's thumbnail and the share video still carry it. */
+@container (max-width: 295px) {
+  .cb-body .cb-stamp-number { display: none; }
+  /* and the corner's stamp (a back with no number yet) is smaller: the rarity's line stands higher here */
+  .cb-stamp-corner { top: 6cqw; width: 7.4cqw; }
 }
 /* a card in its case on the narrowest phones (about 236 px): the number gives way to the ledger,
    and the row of dots makes room for the value */
 @container (max-width: 279px) {
-  .cc-card .cb-body { grid-template-columns: 0.66fr 1.34fr; gap: 2.5cqw; inset: 6cqw 3.5cqw 5cqw; }
+  .cc-card .cb-body { grid-template-columns: 0.66fr 1.34fr; gap: 2.5cqw; inset: 7.5cqw 6.6cqw 7.5cqw; }
   .cc-card .cb-no { font-size: clamp(22px, 9.5cqw, 84px); }
   .cc-card .cb-stat { justify-content: space-between; gap: 0.3em; }
   .cc-card .cb-stat > i { display: none; }
 }
 /* a thumbnail's back (CardBack mini, the Bag's grid): the left column alone, the seal beside it */
-.sc-small .cb-body { grid-template-columns: 1fr; inset: 6cqw 5.5cqw 5cqw; }
+.sc-small .cb-body { grid-template-columns: 1fr; inset: 7.5cqw 7.3cqw 7.5cqw; }
 .sc-small .cb-wordcol { gap: 1.2cqw; }
 .sc-small .cb-no { font-size: clamp(18px, 10.5cqw, 40px); }
 .sc-small .cb-rackwrap { width: 58%; }
-.sc-small .cb-seal { right: 3cqw; width: 47cqw; }
 /* the Bag's grid on a phone (about 175 px): the rarity, the number, and the tiles */
 @container (max-width: 239px) {
   .sc-small .cb-mini, .sc-small .cb-rule { display: none; }

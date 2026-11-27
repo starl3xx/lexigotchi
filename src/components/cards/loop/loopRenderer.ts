@@ -1,17 +1,15 @@
 /**
  * The share loop's turning card (decisions.md #27), on OGL: the word's card face on
- * its front, its back (the `/s/<word>/back` picture over the material, drawn by the same shader as
- * the live back: ../live/materialGlsl), turning over and home again in six seconds. `render(t)`
+ * its front, and its back (the `/s/<word>/back` picture: the back's engraved plate with the word's
+ * story on it, one picture), turning over and home again in six seconds. `render(t)`
  * draws the frame at time t, the same frame every time, so the video is the same however fast the
  * device: ./makeLoop steps it and encodes each frame.
  *
  * From the "Scene Cards" mock (approved 2026-11-25: "front, rotates, shows back, on a like 5-8s
- * loop"): the scene, a turn with a lift and a glare as it passes edge-on, the back catching the
- * light, and the turn home.
+ * loop"): the scene, a turn with a lift and the light crossing it as it passes edge-on, the back
+ * catching the light, and the turn home. The light is a VEIL, never a glare (VEIL, below).
  */
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
-import { MATERIAL_GLSL, MAT_INDEX } from "../live/materialGlsl";
-import type { CardMaterial } from "../material";
 import { CARD_CORNER } from "@/lib/cardArt/looks";
 
 export const LOOP_SECONDS = 6;
@@ -34,18 +32,24 @@ varying vec2 vUv;
 void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
 `;
 
+/**
+ * How strong the light is as it crosses the turning card, of 1 (decisions.md #58, part 1). A card is
+ * matte (starl3xx, 2026-11-27: "the cards have *reflections* but they shouldn't be super *shiny* --
+ * the cards are matte finish in videos and all outputs and UI locations"; and of frames made with
+ * this veil: "14A is good"). It was a glare: white ADDED at 0.55, the strongest light anywhere, and
+ * at 0.9 s it hid the word. A veil lifts the inks a little and can never go past the paper, the way
+ * a matte card takes light. Kept as a number so a test holds it faint.
+ */
+export const VEIL = 0.1;
+
 const FRAG = /* glsl */ `
 precision highp float;
 uniform sampler2D tFront;
 uniform sampler2D tBack;
-uniform float uTime;
-uniform vec2 uLight;
-uniform float uMat;
 uniform float uAspect;
 uniform float uGlare;
 uniform float uGlareX;
 varying vec2 vUv;
-${MATERIAL_GLSL}
 float rounded(vec2 uv, float r) {
   vec2 q = abs(vec2((uv.x - 0.5) * uAspect, uv.y - 0.5)) - vec2(0.5 * uAspect - r, 0.5 - r);
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
@@ -57,15 +61,13 @@ void main() {
   if (gl_FrontFacing) {
     col = texture2D(tFront, vUv).rgb;
   } else {
-    // the back: its material, with its words and tiles over it
-    vec2 buv = vec2(1.0 - vUv.x, vUv.y);
-    vec3 m = material(buv, uLight, uTime, uMat, uAspect, 1.0 / 675.0);
-    vec4 c = texture2D(tBack, buv);
-    col = mix(m, c.rgb, c.a);
+    // the back: one picture, the engraved plate with the story of the word on it. Paper and ink: no
+    // material is drawn here, and nothing on it catches a light of its own (decisions.md #58, part 2).
+    col = texture2D(tBack, vec2(1.0 - vUv.x, vUv.y)).rgb;
   }
-  // the light catching the card as it turns
+  // the light catching the card as it turns: a veil over a matte card (VEIL), never white added to it
   float g = exp(-pow((vUv.x - uGlareX) * 3.2 + (vUv.y - 0.5) * 1.2, 2.0) * 6.0) * uGlare;
-  col += g * vec3(1.0, 0.97, 0.9) * 0.55;
+  col = 1.0 - (1.0 - col) * (1.0 - g * ${VEIL.toFixed(2)});
   // its ink edge (sd runs negative inside; the last sliver before the edge is ink)
   col = mix(col, vec3(0.106, 0.09, 0.078), smoothstep(-0.014, -0.006, sd));
   gl_FragColor = vec4(col, 1.0);
@@ -113,7 +115,7 @@ void main() {
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
-/** Where the card is at time t of the loop: its turn (degrees), lift, tilt, and the glare. */
+/** Where the card is at time t of the loop: its turn (degrees), lift, tilt, and the light crossing it (`glare`: how much of the veil, and where). */
 export function loopPose(t: number) {
   const s = ((t % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS;
   const turn1 = ease(clamp01((s - 1.8) / 0.9));
@@ -124,7 +126,7 @@ export function loopPose(t: number) {
   // video loops without a jump at its seam (Bugbot on #214: the tilt used to snap ~5°).
   const tiltY = Math.sin(s * ONCE) * 5;
   const tiltX = Math.sin(s * ONCE + 1) * 3;
-  // a glare crossing the front early on, and crossing as each turn passes edge-on
+  // the light crossing the front early on, and crossing as each turn passes edge-on
   const g1 = Math.max(0, 1 - Math.abs(s - 0.9) / 0.6);
   const g2 = Math.sin(Math.PI * clamp01((s - 1.8) / 0.9));
   const g3 = Math.max(0, 1 - Math.abs(s - 3.6) / 0.7);
@@ -133,12 +135,6 @@ export function loopPose(t: number) {
   const glareX =
     s < 1.8 ? (s - 0.3) / 1.2 : s < 2.7 ? 1.1 - clamp01((s - 1.8) / 0.9) * 1.2 : s < 4.7 ? (s - 2.9) / 1.4 : 1.1 - clamp01((s - 4.7) / 0.9) * 1.2;
   return { s, turn, lift, tiltX, tiltY, glare, glareX };
-}
-
-/** The back's light during the loop: one slow orbit a loop, so the material is never dead still, and
- *  it comes round to where it started. */
-export function loopLight(t: number): [number, number] {
-  return [0.5 + 0.24 * Math.cos(t * ONCE), 0.55 + 0.15 * Math.sin(t * ONCE)];
 }
 
 export interface LoopRenderer {
@@ -153,7 +149,7 @@ export interface LoopRenderer {
 /** A turning card on `canvas`, `width`×`height` pixels, its two faces from `front` and `back`. */
 export function attachLoop(
   canvas: HTMLCanvasElement,
-  { front, back, material, width, height }: { front: TexImageSource; back: TexImageSource; material: CardMaterial; width: number; height: number },
+  { front, back, width, height }: { front: TexImageSource; back: TexImageSource; width: number; height: number },
 ): LoopRenderer {
   // The frame is read the moment it's drawn (./makeLoop): keep it until then.
   const renderer = new Renderer({ canvas, width, height, dpr: 1, alpha: false, antialias: true, preserveDrawingBuffer: true });
@@ -171,9 +167,6 @@ export function attachLoop(
     uniforms: {
       tFront: { value: tFront },
       tBack: { value: tBack },
-      uTime: { value: 0 },
-      uLight: { value: [0.5, 0.5] },
-      uMat: { value: MAT_INDEX[material] },
       uAspect: { value: CARD_ASPECT },
       uGlare: { value: 0 },
       uGlareX: { value: 0 },
@@ -202,10 +195,6 @@ export function attachLoop(
       card.position.z = p.lift * 0.22;
       card.position.y = p.lift * 0.03;
       shadowProgram.uniforms.uSpread.value = 1 + p.lift * 0.5;
-      const [lx, ly] = loopLight(p.s);
-      // the glitter and the fire turn with the light, which comes round; a clock wouldn't
-      program.uniforms.uTime.value = 0;
-      program.uniforms.uLight.value = [lx, 1 - ly];
       program.uniforms.uGlare.value = p.glare;
       program.uniforms.uGlareX.value = p.glareX;
       renderer.render({ scene, camera });

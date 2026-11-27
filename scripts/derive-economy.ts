@@ -22,7 +22,9 @@ import {
   Q_WORDS,
   DOUBLED_ULTRA_RARES,
   wordsByTier,
+  CLAIM_MULTIPLE,
 } from "../src/lib/economy";
+import { DEFAULT_PARAMS, claimFeeUsd } from "../src/lib/params";
 
 const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
@@ -63,14 +65,26 @@ ${DOUBLED_ULTRA_RARES.join(", ")}.
 Word rarity score = −Σ log₁₀(letter frequency) over its 5 letters; tiers cut at the
 50th / 80th / 95th / 99th percentiles (floor cuts, alphabetical tiebreak).
 
-| Tier | Words | Share | Stake weight |
-|---|---:|---:|---:|
+| Tier | Words | Share | Stake weight | Claim fee | All its words, claimed once |
+|---|---:|---:|---:|---:|---:|
 `;
 
+// The claim fee by rarity (decisions.md #60): the base (a Common word's) × the tier's earning
+// weight over Common's.
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+let ladderTotal = 0;
 for (const t of TIERS) {
   const count = TIER_COUNTS[t.name];
-  md += `| ${t.name} | ${count.toLocaleString()} | ${pct(count / WORD_COUNT)} | ${t.weight} |\n`;
+  const fee = claimFeeUsd(t.name);
+  ladderTotal += count * fee;
+  md += `| ${t.name} | ${count.toLocaleString()} | ${pct(count / WORD_COUNT)} | ${t.weight} | ${usd(fee)} (${CLAIM_MULTIPLE[t.name]}×) | ${usd(count * fee)} |\n`;
 }
+
+md += `
+> The claim fee is the base (${usd(DEFAULT_PARAMS.prices.claim)}, a Common word's) times the tier's stake weight over
+> Common's (decisions.md #60). Claiming the whole dictionary once: ${usd(ladderTotal)}, against
+> ${usd(WORD_COUNT * DEFAULT_PARAMS.prices.claim)} at the old flat fee.
+`;
 
 md += `
 > Note: the cuts fall at floor(N × .50/.80/.95/.99), so each count is exact, and \`npm test\` pins all five.

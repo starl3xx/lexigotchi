@@ -38,6 +38,7 @@ import { useDictionary } from "../useDictionary";
 import { useLetterSupply } from "../useLetterSupply";
 import { queueSpell } from "../spellHandoff";
 import { THEMES, fmtWord, useGame } from "../state";
+import { aTierWord, claimLadderLive } from "@/lib/claimFee";
 import { useTierOf } from "../useRarity";
 import { tileTierOf, useCollabLook } from "../collabLooksContext";
 
@@ -307,6 +308,12 @@ export function LookupSheet({ word }: { word: string }) {
         ) : null}
         <Fact label="Points">{wordPoints(word)}</Fact>
         {open && <Fact label="Owner">Nobody yet</Fact>}
+        {/* The claim fee for THIS word, by its tier (decisions.md #60). */}
+        {open && (
+          <Fact label="To claim">
+            {fmtWord(g.claimFee(word))} $WORD{claimLadderLive() ? ` (${aTierWord(tier)})` : ""}
+          </Fact>
+        )}
         {open && drawn !== null && <Fact label="The daily word">{drawn === "never" ? "Not drawn yet" : `Drawn already (draw ${drawn})`}</Fact>}
         {open && cost && <Fact label="Cost to make">~{fmtWord(cost.total)} $WORD</Fact>}
         {open && earns ? <Fact label="Earns staked">~{fmtWord(earns)} $WORD a day, once all UPPERCASE</Fact> : null}

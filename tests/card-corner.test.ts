@@ -5,6 +5,8 @@
  * pictures, and the share video. A corner was a fixed 16, 12, or 8 px, so it ran from 2.1% of the
  * width on the share page to 7.1% in the scene picker, and cut into the frame's corner pieces.
  */
+import { PLATE_BORDER } from "@/lib/cardArt/plate";
+import { materialPlate } from "@/components/cards/material";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { describe, it, expect } from "vitest";
@@ -52,24 +54,16 @@ describe("the card's corner is 2.6% of its width", () => {
     expect(rule(".sc-framed.sc-small .sc-face")).not.toContain("border-radius");
   });
 
-  it("the back's frame line runs parallel to it: the corner, less the ink border the back sits inside, less the line's inset", () => {
-    // The back is narrower than the card by the border on each side, so the card's corner is
-    // 2.6cqw plus 5.2% of the border, and the border counts 100% - 5.2%.
-    const counts = +(1 - 2 * CARD_CORNER).toFixed(3);
-    expect(rule(".cb")).toContain(`--cb-frame-r: max(2px, calc(${CARD_CORNER * 100}cqw - ${counts} * var(--cb-edge, 0px) - clamp(5px, 1.8cqw, 12px)))`);
-    // --cb-edge is the face's own border, at both of its widths; a cased card has none (its ink is an overlay)
-    const framed = rule(".sc-framed .sc-face").match(/border:\s*(\d+px)/)?.[1];
-    const small = rule(".sc-framed.sc-small .sc-face").match(/border-width:\s*(\d+px)/)?.[1];
-    expect(framed).toBe("3px");
-    expect(small).toBe("2px");
-    expect(rule(".sc-framed .cb")).toContain(`--cb-edge: ${framed}`);
-    expect(rule(".sc-framed.sc-small .cb")).toContain(`--cb-edge: ${small}`);
-    expect(css).not.toMatch(/\.cc-card[^{]*\.cb\s*\{[^}]*--cb-edge/);
-    for (const selector of [".cb-frame", ".cb-fire"]) {
-      const body = rule(selector);
-      expect(body).toContain("inset: clamp(5px, 1.8cqw, 12px)");
-      expect(body).toContain("border-radius: var(--cb-frame-r)");
-    }
+  it("the back's border is its plate's, drawn as the front's frame is: an edge rule with the same corner", () => {
+    // The back had a frame line of its own in the styles, with a corner worked out from the card's.
+    // A back is an engraved plate now (decisions.md #58): its border is in the drawing, as the
+    // front's frame is, and the two edge rules share one corner so a card's two sides agree.
+    const front = /<rect x="13" y="13" [^>]*rx="(\d+)"/.exec(cardFrame("Common"))?.[1];
+    const back = new RegExp(`<rect x="${PLATE_BORDER.edge}" y="${PLATE_BORDER.edge}" [^>]*rx="(\\d+)"`).exec(materialPlate("common"))?.[1];
+    expect(front).toBe("18");
+    expect(back).toBe(front);
+    // and no style rule draws a frame line on a back any more
+    expect(css).not.toMatch(/\.cb-frame|\.cb-fire|--cb-frame-r|--cb-edge/);
   });
 
   it("nothing that clips a card rounds it with a Tailwind class: every wrapper of a card takes .card-corner", () => {
@@ -78,6 +72,7 @@ describe("the card's corner is 2.6% of its width", () => {
       "src/components/game/sheets/SceneSheet.tsx": /className="card-corner border-\[3px\]/,
       "src/components/scenes/ScenePicker.tsx": /card-corner block overflow-hidden/,
       "src/components/game/screens/ShopScreen.tsx": /className="card-corner mb-2 overflow-hidden/,
+      "src/components/game/sheets/ShopItemSheet.tsx": /className="card-corner overflow-hidden border-\[3px\] border-ink"/,
       "src/components/game/sheets/CelebrateSheet.tsx": /className="card-corner overflow-hidden border-\[3px\] border-ink"/,
       "src/app/s/[text]/page.tsx": /className="card-corner overflow-hidden border-\[3px\] border-ink"/,
     };
@@ -111,9 +106,8 @@ describe("the card's corner is 2.6% of its width", () => {
 
   it("is the same number on the server's pictures and in the share video", () => {
     expect(read("src/app/_og/wordCard.tsx")).toContain("borderRadius: Math.round(CARD_CORNER * cardW)");
-    const back = read("src/app/s/[text]/back/route.tsx");
-    expect(back).toContain("rx={CARD_CORNER * W - 13}");
-    expect(back).toContain("rx={CARD_CORNER * W - 21.5}");
+    // the server's picture of a back clips its plate to the card's own corner
+    expect(read("src/app/s/[text]/back/route.tsx")).toContain("<img src={plate} width={W} height={H} style={{ position: \"absolute\", left: 0, top: 0, borderRadius: CARD_CORNER * W }} />");
     // the video's shader measures in the card's height
     expect(Number(LOOP_CORNER)).toBeCloseTo((CARD_CORNER * CARD_W) / CARD_H, 4);
     expect(read("src/components/cards/loop/loopRenderer.ts")).toContain("rounded(vUv, ${LOOP_CORNER})");

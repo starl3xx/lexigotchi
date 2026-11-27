@@ -78,6 +78,17 @@ export const SCENES: readonly SceneMeta[] = [
   { id: "space", name: "Outer Space", blurb: "A small world under the stars." },
 ];
 
+/**
+ * The side a face comes in from when a word's face changes in the face picker (starl3xx,
+ * 2026-11-27: "when switching faces, the faces should have a nice swipe animation/transition
+ * rather than just appearing/disappearing"): a face later in the picker's order comes in from
+ * the right ("next"), an earlier one from the left ("prev"), as the faces of a row would if the
+ * row were pulled across. The picker lists the faces in SCENE_IDS' order.
+ */
+export function swapSide(from: SceneId, to: SceneId): "next" | "prev" {
+  return SCENE_IDS.indexOf(to) >= SCENE_IDS.indexOf(from) ? "next" : "prev";
+}
+
 export function isSceneId(raw: unknown): raw is SceneId {
   return typeof raw === "string" && (SCENE_IDS as readonly string[]).includes(raw);
 }

@@ -13,6 +13,7 @@ import { tierMarkPaths } from "@/lib/tierMark";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_CORNER, CARD_LOOKS, CARD_PAPER } from "@/lib/cardArt/looks";
 import { cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { weaveSheet } from "@/lib/cardArt/stock";
 
 /**
  * A word's card as a picture draws it (decisions.md #34): the card's own paper, the scene's art in
@@ -141,6 +142,11 @@ export function wordCard({
       }}
     >
       <img src={image(cardArt(scene, tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      <img src={image(cardFrame(tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
+      {/* The card's stock (lib/cardArt/stock): the crosshatch the game presses into every card, over
+          the art and the frame and UNDER the letters, as in the game. The frame is drawn before the
+          letters for it, which is the game's own order (no picture changed when it moved). */}
+      <img src={image(weaveSheet("front"))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
       <div style={{ position: "absolute", left: L.rowLeft, top: L.rowTop, display: "flex", alignItems: "flex-end" }}>
         {(letters ? tiles : []).map((t, i) => {
           const f = footings[i];
@@ -159,7 +165,6 @@ export function wordCard({
           );
         })}
       </div>
-      <img src={image(cardFrame(tier ?? PLAIN, collabLook))} width={cardW} height={cardH} style={{ position: "absolute", left: 0, top: 0 }} />
       {/* The set's stamp, where the game draws it (globals.css, .cf-stamp): a 92-unit box, 62 in and 60 down. */}
       {mine && stamp && (
         // on a plate of the card's paper, ruled in the frame's ink (globals.css says why): 92 across, 8.4 of padding, a 2.4 rule
