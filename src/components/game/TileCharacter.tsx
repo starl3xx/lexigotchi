@@ -823,8 +823,13 @@ function Z({ z }: { z: (typeof ZS)[number] }) {
  * A bead flies along its own turn: `fx`, `fy` are that direction (the turn's sine, and minus its
  * cosine, typed so the server and the browser can't disagree in a last digit), which tcSweat reads
  * as --fx / --fy. `d` is the second bead's wait, so the two don't fly together.
+ *
+ * **The bead's point is at its bottom, toward the tile** (starl3xx, 2026-11-27: "flip the sweat
+ * drops... the point at the bottom so it looks like its coming from the tile, not from above"). It
+ * was drawn point up, the way a drop falls, so it read as rain landing on the letter. A drop thrown
+ * off something leads with its round end and trails its point. The path starts at the point.
  */
-const BEAD = "M 0 -7 C 4 -1 5 3 0 5 C -5 3 -4 -1 0 -7 Z";
+const BEAD = "M 0 7 C 4 1 5 -3 0 -5 C -5 -3 -4 1 0 7 Z";
 const SWEAT = [
   { dx: -58, turn: -40, fx: -0.643, fy: -0.766, d: 0 },
   { dx: 58, turn: 40, fx: 0.643, fy: -0.766, d: 0.7 },
