@@ -216,6 +216,16 @@ describe("when each letter comes out", () => {
     expect(nextTearIsQuick()).toBe(false);
     resetSitting();
   });
+
+  it("the TENTH envelope of a sitting is the first short one (the owner's number)", () => {
+    // starl3xx, 2026-11-27: "yes, move it to the 10th pack". It was the fourth, my own default.
+    resetSitting();
+    const sitting = Array.from({ length: 12 }, () => nextTearIsQuick());
+    expect(sitting.indexOf(true) + 1).toBe(10);
+    expect(sitting.slice(0, 9).some(Boolean)).toBe(false);
+    expect(sitting.slice(9).every(Boolean)).toBe(true);
+    resetSitting();
+  });
 });
 
 describe("the bag as the chain has it", () => {

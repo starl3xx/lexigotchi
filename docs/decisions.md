@@ -2100,9 +2100,14 @@ setter. All small, riding existing suite patterns.
         Its letters are in the bag whatever the record says; another browser shows no envelope.
         The card on Today and Mint ("Your mail is waiting") counts these with the commits the
         server still has to open, and opens an envelope that only needs tearing first.
-      - **The short version** (my reading of the proposal's "by the tenth pack"): from the fourth
-        envelope torn in one sitting (`QUICK_AFTER`), plain letters come straight out, close
-        together; the best one still gets its peek. A tap hurries any envelope.
+      - **The short version**: from the TENTH envelope torn in one sitting (`QUICK_AFTER`),
+        plain letters come straight out, close together; the best one still gets its peek. A tap
+        hurries any envelope. (It started at the fourth, my own reading of the proposal's "by the
+        tenth pack". starl3xx, 2026-11-27: "how come the pack rip happens super quickly
+        sometimes? in terms of the letters popping up". Measured in the practice game: about
+        6.4 s for five letters on the first three envelopes of a sitting, about 1.2 s from the
+        fourth. He chose the proposal's number: "yes, move it to the 10th pack". A sitting is a
+        page load, and every piece of mail torn counts.)
       - **House rules kept.** A tile never changes size: the envelope's styles move and turn, and
         a test fails on a scale. The envelope is still pictures in the cards' engraving, each
         moved whole; the only loops are the pull tab's nudge and the blink (a swap in steps), each
