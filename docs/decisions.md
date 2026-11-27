@@ -2034,6 +2034,88 @@ setter. All small, riding existing suite patterns.
         naming letters (the public RPC behind the fork refuses the log range; the production RPC
         serves the same range for the daily letter's lookup). Not tried: a real wallet in a
         browser. The sheet is unchanged in this part: "Fresh pull" still shows the letters.
+        After the merge, production answered `relayed: "already"` for the fixture's pack (commit
+        177) with its five letters from the chain, and sent nothing.
+    - **Part 2, the envelope** (`sheets/MailSheet.tsx`, sheet kind `mail`; rules in
+      `mail/mailFlow.ts`, pure, tested; art in `lib/cardArt/mail.ts`). A paid pack and the free
+      pack come by mail. The daily letter keeps the old "Fresh pull" sheet until its own part (my
+      order, not the owner's: the daily's commit and reveal ride one send, so its envelope needs
+      its own waiting rule, and a predicted number must never be printed).
+      - **The tap is answered by the envelope, and each mark on it is a true step.** The sheet
+        opens when the wallet does. The stamp goes on when the commit is sent ("Paid. It's in the
+        mail."; a free pack is never "Paid"). The postmark and its number land when the commit is
+        on chain. The strip can be torn only when the chain says the pack is revealed, also when
+        the wallet sent the reveal itself. If the wallet send fails, the envelope leaves.
+      - **The number is the commit id plus one** (`mailNumber`): the contract counts packs, free
+        packs, and daily letters in one list from zero, which is the owner's "one series for all
+        mail". It starts again on a redeploy. Practice has no chain, so its number is the player's
+        own count (my reading).
+      - **The order letters come out in is the chain's, except that the best comes last**
+        (`revealOrder`): plain letters as minted, then a letter that finishes a word, then a rare
+        one (the six rarest letters, as the rig and the old sheet mark them; the rarest of them
+        last). Only a rare best letter gets the shake, the shy
+        peek in the rig's nervous state (the loan from option C), and sparkles. "Finishes a word"
+        is the game's one rule (`lib/wordNeed`): the word was exactly one letter short before.
+      - **The loan from option B:** on a long wait the eyes at the window close one by one ("They
+        nodded off. Any second now.") and open when the letters exist.
+      - **The count** names what came out, the rarity from the Mint's own odds (`letterOdds`,
+        never claimed without supply), and the word the letters newly finish, with its claim.
+        "Newly" is `newlySpellableWith`, the bought-letters rule for several letters at once:
+        measured from what the bag held before, and nothing is named until the bag shows every
+        letter, nor while the world's owners load.
+      - **The purchase outlives the sheet.** Closed mid-way, the envelope opens again when it
+        lands (the reducer's `arrive`), or a toast says "Your mail is here." when another sheet is
+        open. A pack that lands while a different envelope is in hand is kept and said in a toast.
+      - **Where unopened mail lives** (my reading; nothing depends on it). The server now reveals
+        at once, so the chain has no "unopened" state for a pack that arrived. An envelope that
+        was never torn is a record in the browser (`lib/mailbox`: the chain, the Letters address,
+        the wallet; the newest 12), written when the pack can be torn and removed at the tear.
+        Its letters are in the bag whatever the record says; another browser shows no envelope.
+        The card on Today and Mint ("Your mail is waiting") counts these with the commits the
+        server still has to open, and opens an envelope that only needs tearing first.
+      - **The short version** (my reading of the proposal's "by the tenth pack"): from the fourth
+        envelope torn in one sitting (`QUICK_AFTER`), plain letters come straight out, close
+        together; the best one still gets its peek. A tap hurries any envelope.
+      - **House rules kept.** A tile never changes size: the envelope's styles move and turn, and
+        a test fails on a scale. The envelope is still pictures in the cards' engraving, each
+        moved whole; the only loops are the pull tab's nudge and the blink (a swap in steps), each
+        on a whole picture. All travel sits behind `prefers-reduced-motion: no-preference`; with
+        reduced motion the letters are simply out. The drag writes straight to the element.
+      - **Cost at rest, measured in the practice game** (a share of one core, my own browser's
+        processes only): WebKit, the sealed envelope 3.6%, the count 7.7%, against 6.8% for Today
+        with a word on stage. Headless Chromium (it draws in software): 11.5% and 36.6%, against
+        41.9% for Today.
+      - **The order and the tags come from what the chain minted, not from the bag's read**
+        (`bagWithMail`): the game's read of the bag is often seconds behind a reveal, and the tear
+        comes inside them, so "this k finishes FUNKY" is worked out from what the bag held plus the
+        piece's letters. Only the count's claim waits for the bag itself (the claim checks it).
+        For the same reason "Rip another" measures the next piece from a bag never smaller than
+        what the last piece left in it (`hadWithOwed`, for 60 s or until the read shows it), or
+        the next envelope would call the last one's letters new again. It errs high, and a high
+        count names nothing as new.
+      - **An envelope is never left mid-step** (`mailGuard`). If the flow throws before the commit
+        is sent, the envelope leaves and a toast says nothing was spent. If it throws after, the
+        envelope says the pack is paid for and safe, and the open commits are read again on a
+        stagger so the card shows it (they were re-read only on focus). The RPC's own error goes to
+        the console, never into a toast. No "Pack sent" toast: the stamp says it. A commit still on
+        its way is not counted as waiting mail (the card's Open could only say "Still working on").
+      - **Seen and not seen (part 2).** In the practice game, WebKit and Chromium, at 360, 424,
+        768, and 1280 px: the tap, each mark, the tear by tap and by drag, closing mid-way, the
+        waiting card, a claim at the count, reduced motion (nothing animates after the tear), and,
+        with temporary local changes that were not committed, a long wait with the dozing, a pack
+        with a q, the numbers 4,512 and 123,456 in the postmark, and a 30-letter handle (cut with
+        an ellipsis, clear of the postmark). **With a real wallet path, on a local fork of Base
+        Sepolia** (Anvil's public test keys, the game's server with no database; the browser's
+        wallet sends through the game's own send path): a pack with one confirmation and the
+        server's reveal (2 sends with the approval, 1 after), "Rip another" straight after a
+        reveal, closing while "Paid" and seeing the sheet return by itself, closing untorn and
+        opening from the card, a refused wallet prompt (the envelope leaves, "Cancelled"), and the
+        page losing its chain reads right after the commit (the envelope said the pack waits, and
+        the card then opened it through the server). It also showed the route answering "already"
+        with a pack's letters on a fork, which part 1 could not. Not driven: the free pack (it
+        needs a verified identity), a pack opened for a linked wallet, a wallet changed while a
+        pack is on its way, a smart wallet's batched send, a real phone, and a mini-app host. The
+        chain store's glue is still under no automated test; its rules are the tested pure parts.
 
 50. **Four bigger pieces, built in parts** (starl3xx, 2026-11-26, on the review page "Four Bigger
     Pieces"). The card-and-letter review (#48) set four places apart: the landing page's hero
@@ -2106,6 +2188,105 @@ setter. All small, riding existing suite patterns.
         reports the same lean as Chromium), so it shows no gap before or after. Not seen: real
         Safari, a real phone (a touch has no pointer to lean to), the celebrate sheet in the
         running game.
+
+51. **Reserved word sets: words held back at launch and released later, built in parts** (starl3xx,
+    2026-11-26; he asked for this entry as #24, which the messaging guide already holds). In the
+    owner's words: "we set aside a portion of the total dictionary into packs of themed words".
+    "on launch (or ASAP in testnet) we'd make sure something like 200 words (not sure on the total
+    number) are reserved and grouped into themes. then we can release these new words into the
+    ecosystem at later points (sort of an anti-whale mechanism, in a way)". "I'll refine the actual
+    words (for these lists and overall) in the coming days... most important rn is the plumbing and
+    the ability to release them in the game". "I like the gated idea on #8". They are called
+    **sets**. This is plumbing: the words and themes are placeholders, so everything about a set is
+    editable data until the set is released. One entry: each part is added here as it ships.
+    - **How a word is held back.** `Words.claim` checks a Merkle proof against `dictionaryRoot`,
+      and the owner can call `setDictionaryRoot`. A reserved word is one the current root leaves
+      out. Releasing a set is publishing a root that includes its words. No contract change is
+      needed for that; the first-day gate (part 3) is the contract change.
+    - **Where the lists live.** In the database, never in this repository, which is public:
+      `word_sets` (name, status draft → revealed → released, `reveal_at`, `release_at`,
+      `gate_hours` 24, `per_player_limit` 1, order) and `set_words` (the word is the key, so a
+      word is in one set at most; a headliner flag). A draft is fully editable (add, remove, move,
+      rename, reorder, delete). A revealed set's name and words are locked; its dates and gate
+      settings can still move. A released set is permanent. The admin imports and exports the
+      unreleased sets as JSON; an import replaces every draft, all or nothing. The lists are never
+      committed and never logged.
+    - **A limit on secrecy, stated plainly.** The full dictionary is public (this repository, and
+      the app's own bundle), and the game answers "not available yet" for a held-back word. So
+      anyone who asks about every word can work out WHICH words are held back. That can be made
+      slow (one word a request, a limit per address on the proof route) and never secret. What does
+      stay private until a set is revealed: its name, which words it groups, its headliners, and
+      its dates. `publicSets` (lib/sets/rules.ts) is the one place that decides what a player's
+      browser is told, and it gives a draft as a locked slot with nothing in it.
+    - **Proofs follow the chain, not the sets table** (my design; the spec said only "build the
+      Merkle tree from" the claimable dictionary). A draft edit changes the sets at once and the
+      chain only when the owner sends a transaction. If proofs came from the sets table, every
+      edit would stop every claim (`dictionary_mismatch`) until that transaction landed. So each
+      root the server builds is stored with the words it leaves out (`dictionary_roots`, written
+      before the transaction is shown, never deleted, as `reward_leaves` is), and a proof comes
+      from the tree behind the root the chain holds now. A word is offered only when BOTH agree:
+      it is in the chain's tree, and it is in no unreleased set. The admin says "root out of date"
+      while the two differ.
+    - **Two builders, where the spec named one.** RESERVE moves the chain's root to what the sets
+      hold back (it removes words, and may let some go); it flags any word a player already owns,
+      which matters on Sepolia. RELEASE adds exactly one revealed set's words to the tree the
+      chain holds and can never remove a word, whatever draft edits are waiting. A release is
+      refused until every word of the set is held back on the chain: otherwise it would be a root
+      that changes nothing, and the set would be marked released with no transaction behind it. A
+      set is marked released from the chain, never by hand: a release was built for it
+      (`word_sets.release_root`), and the chain's root now holds none of its words back.
+      `npm run sets -- status | commitment | reserve | release <id> | confirm` runs the same code
+      and sends nothing: it prints the calls.
+    - **The gate goes first.** Where the network's Words has the gate, a release is two calls:
+      `setGate` on the set's words, THEN `setDictionaryRoot`, as one Safe batch or as two `cast`
+      commands joined so the second runs only if the first succeeded. There is no moment when a set
+      word is claimable without its gate. Until the redeploy that carries the gate, a release is
+      the root alone and the set opens to everyone at once (the builder says so).
+    - **The commitment.** keccak256 of the canonical JSON of every unreleased set: each set's name,
+      words, and headliners; sets by name, words A to Z, fixed keys, no whitespace. Shown in the
+      admin and printed by `npm run sets -- commitment`. I left the dates, the gate settings, and
+      the order out of it (my choice): they can move without the lists changing, and a promise
+      that breaks when a release slips a day is no use. It changes with any edit to a name, a
+      word, or a headliner, and at every release.
+    - **Derived from the FULL dictionary, and tested never to move** (`tests/sets-derivations`):
+      letter supply caps, mint odds, rarity tiers and ranks, token ids, and the jackpot's frozen
+      answer pool. A reserved word needs its letters to exist, and comes back with the tier and
+      the token id it always had.
+    - **Counted over RELEASED words only:** the free-letter stop at 95% and its
+      `dictionaryFull` answer, the admin's "dictionary claimed" and Supply tab, the keeper's deal
+      alert (a letter that "finishes" a held-back word is no deal), the dictionary-share
+      achievement, and the bot's `/word` ("It isn't available yet."). Spell, the Dictionary, and
+      the Market's picks follow in part 2. **No change was needed** for the leaderboard's totals
+      or the bounty's theme matching: both count words players own, and a held-back word can't be
+      owned. (One Sepolia-only exception: a word claimed before it was reserved stays owned and
+      still counts; the admin flags it.)
+    - **The jackpot needs no special case.** The daily answers were committed before launch and
+      may include a held-back word. `Jackpot.resolve` pays only a word that exists, is staked, and
+      is fed; a word nobody can claim doesn't exist, so the pot rolls over as it does for any
+      unowned word (`test_Jackpot_rollsOverOnAWordHeldBackFromTheRoot`). The keeper reveals the
+      next link whatever the word is. The answer chain is not changed. One consequence to say in
+      the player docs: a word is drawn once, ever (#20), so a set word drawn before its release
+      has had its draw.
+    - **Part 1 (this entry's first PR): the server and the admin.** Migration 0021, the rules, the
+      proof route, the builders and the script, the admin's Sets tab (gated on the server like
+      Players, never cached), and the tests. It merges dark: with no tables, or no sets, every
+      answer is what it was (checked against a real database that stops at migration 0020). A
+      database that is there and fails refuses (`try_again`) only when nothing was read before AND
+      the chain holds words back; while the chain holds the full dictionary's root nothing is held
+      back there, so a claim is served as it always was, and after a good read the last read keeps
+      holding back what it held.
+    - **After a re-vendor.** A stored root's words no longer give that root once the bundled
+      dictionary grows, so the server checks that the tree it would serve IS the chain's root and
+      answers `dictionary_mismatch` otherwise, as a re-vendor always did. RESERVE is the way out:
+      it is built from the sets and the dictionary alone, so it also works from a root nobody here
+      built. The new root after a re-vendor is the reserve root, never `derive:contracts`'s, which
+      holds nothing back and would release every set at once (the runbook says so).
+    - **Owner steps after part 1:** run migration 0021; paste the JSON into Sets; send the reserve
+      root (`setDictionaryRoot`) from the owner wallet.
+    - **Still to come:** part 2, the game (the Dictionary's Sets section, Spell's "not available
+      yet", the set's name on a card's back, the reminders, the player docs); part 3, the
+      first-day gate (the Words change, its tests and audit, the voucher server), which needs a
+      redeploy of the whole suite and waits for the owner's word on a date.
 
 ## Pricing & launch economics (decided June 2026)
 

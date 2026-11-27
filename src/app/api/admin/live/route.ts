@@ -5,6 +5,7 @@ import { isSuiteDeployed, roleAddresses, wordTokenAddress } from "@/lib/onchain/
 import { NETWORK } from "@/lib/onchain/network";
 import { scanWorld } from "@/lib/world";
 import { WORD_COUNT } from "@/lib/dictionary";
+import { releasedWordCount } from "@/lib/sets/server";
 import { freeLetterTotals } from "@/lib/db/freeClaims";
 import { freeLetterBudget } from "@/lib/freeLetters";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -27,7 +28,11 @@ export interface LivePayload {
   buckets?: { pool: number; jackpot: number; bounty: number };
   treasury?: { address: string; word: number } | null;
   letters?: { minted: number; cap: number };
-  words?: { claimed: number; dictionary: number; uppercase: number; staked: number };
+  /**
+   * `dictionary` is the words the game offers NOW (the whole dictionary less every word held back
+   * in a reserved set); `held` is how many are held back. Counts only: never which words.
+   */
+  words?: { claimed: number; dictionary: number; held: number; uppercase: number; staked: number };
   /** Wallets holding at least one letter or word (the game's own contracts left out). */
   holders?: number;
   /**
@@ -55,7 +60,7 @@ let inflight: Promise<LivePayload> | null = null;
 async function build(): Promise<LivePayload> {
   const treasury = roleAddresses().treasury ?? null;
   const client = getPublicClient();
-  const [buckets, supply, world, treasuryWei, ledger] = await Promise.all([
+  const [buckets, supply, world, treasuryWei, ledger, released] = await Promise.all([
     readFeeBuckets(),
     readLetterSupply(),
     scanWorld(),
@@ -63,6 +68,7 @@ async function build(): Promise<LivePayload> {
       ? client.readContract({ address: wordTokenAddress(), abi: erc20Abi, functionName: "balanceOf", args: [treasury] })
       : Promise.resolve(null),
     freeLetterTotals(NETWORK.id).catch(() => null),
+    releasedWordCount(),
   ]);
   const budget = freeLetterBudget();
   const holders = new Set<string>([...Object.keys(world.letters), ...world.words.map((w) => w.owner)]);
@@ -76,7 +82,8 @@ async function build(): Promise<LivePayload> {
     letters: { minted: supply.minted.reduce((a, b) => a + b, 0), cap: supply.caps.reduce((a, b) => a + b, 0) },
     words: {
       claimed: world.words.length,
-      dictionary: WORD_COUNT,
+      dictionary: released,
+      held: WORD_COUNT - released,
       uppercase: world.words.filter((w) => w.raised >= 5).length,
       staked: world.words.filter((w) => w.staked).length,
     },

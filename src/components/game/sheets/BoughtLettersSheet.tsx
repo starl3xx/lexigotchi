@@ -45,11 +45,29 @@ export function newlySpellable(
   had: number,
   taken: ReadonlySet<string>,
 ): { word: string; cases: boolean[] }[] {
-  const i = letterId % 26;
+  return newlySpellableWith(lower, upper, [{ letterId, count, had }], taken);
+}
+
+/**
+ * The same, for several letters arriving at once (a pack in the mail): the words the bag can spell
+ * now and could not before ANY of them came. The same two rules hold for each letter: "before" is
+ * the bag with that letter set back to `had`, and nothing at all is named until the bag shows
+ * `had + count` of every one of them (a bag that hasn't caught up with the chain would call words
+ * the player could already spell new).
+ */
+export function newlySpellableWith(
+  lower: readonly number[],
+  upper: readonly number[],
+  added: readonly { letterId: number; count: number; had: number }[],
+  taken: ReadonlySet<string>,
+): { word: string; cases: boolean[] }[] {
   const before = { lower: lower.slice(), upper: upper.slice() };
-  const side = isUpperId(letterId) ? before.upper : before.lower;
-  if ((side[i] ?? 0) < had + count) return [];
-  side[i] = had;
+  for (const { letterId, count, had } of added) {
+    const i = letterId % 26;
+    const side = isUpperId(letterId) ? before.upper : before.lower;
+    if ((side[i] ?? 0) < had + count) return [];
+    side[i] = had;
+  }
   const was = new Set(spellableNow(before.lower, before.upper, taken, Infinity));
   return spellableNow(lower, upper, taken, Infinity)
     .filter((w) => !was.has(w))

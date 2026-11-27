@@ -102,6 +102,34 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   Formulas: caps = `floor(slots × DEMAND_MULTIPLE)` (3.0 since decisions.md #21 → 68,760; Sepolia's
   deployed Letters keeps 2.5× → 57,294 until a redeploy); tiers = `floor` percentile cuts + alphabetical
   tiebreak. Tested against the spec.
+- **Reserved word sets** (decisions.md #51; `src/lib/sets/`, `lib/db/sets.ts`, tables `word_sets` /
+  `set_words` / `dictionary_roots`, migration 0021): themed groups of dictionary words held back
+  and released later. A reserved word is one `Words.dictionaryRoot` leaves out; a release is a
+  root that includes the set's words. **The lists are PRIVATE and live only in the database** (the
+  repository is public): never commit, log, or paste a set's name or words, and never log a
+  driver's error from a sets query whole (its text carries the statement's parameters: log
+  `codeOf(err)`). `publicSets` (`rules.ts`, pure) is the ONE place a set's contents become public:
+  a draft is a locked slot with nothing in it. What can't be hidden is WHICH words are held back
+  (the dictionary is public and the game says "not available yet"), so that is only kept slow: one
+  word a request, and `allow("proof", ip)`. **Proofs follow the chain** (`lib/sets/server.ts`
+  `serving`): every root the server builds is stored with the words it leaves out BEFORE its
+  transaction is shown, and `/api/dictionary/proof` serves from the tree behind the root the chain
+  holds now; a word is offered only when it is in that tree AND in no unreleased set, so a draft
+  edit never stops a claim (the admin says "root out of date"). `planReserve` moves the chain to
+  what the sets hold back; `planRelease` adds exactly one revealed set's words, never removes one,
+  refuses a set not fully held back on the chain, and puts `setGate` BEFORE `setDictionaryRoot`
+  where the network's Words has the gate (`hasGate` asks the contract). A set is marked released
+  from the chain (`reconcile`), never by hand. Admin: the **Sets** tab (`/api/admin/sets`, gated
+  on the server and `no-store`, like Players); `npm run sets -- status | commitment | reserve |
+  release <id> | confirm` prints the same plans and sends nothing. **Full dictionary, always:**
+  caps, mint odds, tiers, token ids, the answer pool (`tests/sets-derivations.test.ts` fails if one
+  of those modules imports `lib/sets`). **Released words only:** anything that says "of the
+  dictionary" to a player (`releasedWordCount` / `releasedWords`: the free-letter stop, the deal
+  alert, the dictionary-share achievement, the admin's numbers). No tables or no database = no
+  sets and the old behavior; a failed read with nothing kept answers `try_again`, never the full
+  tree. `scripts/sets-db-check.ts` proves the SQL on a throwaway local Postgres (rerun it after
+  touching `lib/db/sets.ts`). The jackpot needs no special case: a held-back answer rolls over
+  like any unowned word.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`
@@ -928,7 +956,37 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   reveal would show the letters before the price is paid. Without `relay: true` the route answers
   exactly as before (`tests/mint-relay-route.test.ts`). `scripts/pack-relay-fork-check.ts` proves it
   against the deployed Letters on an Anvil fork (no real keys, no `DATABASE_URL`): rerun it after
-  touching the route, the relayer, or `Letters.reveal`. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
+  touching the route, the relayer, or `Letters.reveal`. **A pack comes by mail** (decisions.md #49,
+  part 2; `sheets/MailSheet.tsx`, sheet kind `mail`; rules in `mail/mailFlow.ts`, pure, tested; art
+  in `lib/cardArt/mail.ts`, the cards' engraving, each piece a still picture moved whole): a paid
+  pack and the free pack. The daily letter keeps the `pack` sheet ("Fresh pull") until it comes by
+  mail too. The piece in hand is `g.mail` (both stores), because the purchase outlives the sheet.
+  **Each mark on the envelope is a true step:** the sheet opens with the wallet, the stamp when the
+  commit is sent, the postmark and its number (`mailNumber`: the commit id plus one, one series for
+  packs, free packs, and daily letters) when the commit is on chain, and the strip tears only when
+  the chain says the pack is revealed. Never show a mark early, and never print a predicted number.
+  The best letter comes out last (`revealOrder`); the count names newly spellable words with
+  `newlySpellableWith` (the bought-letters rule: nothing named until the bag shows every letter).
+  **Unopened mail is two things** (`pendingReveals`, the "Your mail is waiting" card on Today and
+  Mint): a commit the server still has to open, and an envelope that arrived and was never torn,
+  which is a record in the browser only (`lib/mailbox`, per chain, Letters address, and wallet):
+  ceremony, never state, since those letters are in the bag. `settleMail` takes each pack's own
+  `had` and `mine` (another envelope may be in hand when it lands) and writes to the box of the
+  wallet that bought it. **Every flow that opens an envelope runs inside `mailGuard`**: a throw
+  before the commit is sent drops the envelope ("nothing was spent"); after, the envelope says the
+  pack is safe and waits, and the open commits are re-read on a stagger so the card shows it. An
+  envelope left on "Minting your letters…" is the bug it prevents. **The bag's read lags a reveal
+  by seconds**, so the order and tags come from `bagWithMail` (what the bag held plus the piece's
+  letters), the next piece's `had` from `bagBefore` (never less than the last piece left, for
+  60 s), and only the count's claim waits for the bag itself. To run the real-wallet path with no
+  real key or database: an Anvil fork, the fork's Letters told to trust a test signer (as
+  `scripts/pack-relay-fork-check.ts` does), a dev server with `NEXT_PUBLIC_RPC_URL` at the fork and
+  every `.env.local` secret overridden EMPTY on the command line (`/api/health/db` must answer
+  `ok: false`), and a browser wallet that forwards to the fork; `evm_setIntervalMining` makes
+  the steps slow enough to see. Say "mail", never "post" (docs/messaging.md). Letters from the Market
+  never come by mail. Its styles sit ABOVE the cards' section in globals.css (a card test reads the
+  file's tail), and `tests/mail-sheet.test.tsx` fails on a scale, on travel outside the
+  no-preference block, and on any loop but the pull tab's nudge and the blink. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this
   network's registry has the whole suite, the practice (mock) store otherwise. Mainnet's registry is
   empty until the deploy, so production flips to the real game in the same deploy that commits the
   mainnet addresses; `NEXT_PUBLIC_CHAIN_GAME=0` is the emergency brake back to practice. In the

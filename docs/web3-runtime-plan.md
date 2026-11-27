@@ -149,11 +149,60 @@ theirs grows:
    count, letter caps, tiers, Mythic words). Then run `npm run derive` and `npm run derive:contracts`.
 2. Merge, then send `Words.setDictionaryRoot(<new root>)` from the owner wallet right away. Until it
    lands, the claim route answers "the word list was just updated" instead of serving proofs the
-   contract would reject.
+   contract would reject. **While any word is held back in a reserved set, the new root is the one
+   `npm run sets -- reserve` prints** (or the console's Sets tab builds), never the one
+   `derive:contracts` writes: that one holds nothing back, and would release every set at once.
 3. The letter supply caps live onchain (`Letters.cap`) and have no setter, so new words don't add
    letters after deploy. Their letters come from the existing supply.
 4. The jackpot schedule doesn't move: it shuffles the frozen `src/lib/answerPool.ts`, never the
    live list.
+
+## Reserved word sets (decisions.md #51)
+
+Themed groups of dictionary words held back from the game and released later. A word is held back
+by being left out of `Words.dictionaryRoot`; a set is released by a root that includes its words.
+**The lists are private and live only in the database.** Never paste one into a PR, an issue, a
+commit, or a chat that others read. What can't be hidden is which words are held back: the
+dictionary is public, and the game answers "not available yet" for any word asked.
+
+**Switching it on (the owner, in this order):**
+1. Run migration `0021_reserved_sets` (`npm run db:migrate`, after pulling main). Before it, there
+   are no sets and the game is as it was; the Sets tab says the migration is owed.
+2. Open `/admin`, the **Sets** tab, signed in with an operator wallet. Paste the sets as JSON
+   (`{ "sets": [ { "name", "words": [...], "headliners": [...], "revealAt", "releaseAt",
+   "gateHours", "perPlayerLimit" } ] }`) and import. An import replaces every DRAFT set, all or
+   nothing. From this moment the game refuses those words ("not available yet").
+3. Press **Build the reserve root** (or `npm run sets -- reserve`) and send the
+   `setDictionaryRoot` it prints from the owner wallet. Only this makes it final: until it lands,
+   a held-back word can still be claimed by someone who builds the proof by hand. The tab says
+   "Root out of date" for as long.
+4. Publish the commitment hash if you want to prove later that the lists didn't change. It moves
+   with any edit to a name, a word, or a headliner.
+
+**After any edit to a draft's words:** the tab says "Root out of date" again. Nothing breaks
+meanwhile (proofs come from the tree the chain holds). Send the new reserve root when the edits are
+done.
+
+**Releasing a set:**
+1. The set must be revealed (by its `revealAt`, or **Reveal now**; its name and words then lock) and
+   every word of it must be held back on the chain (send the reserve root first if the tab warns).
+2. Press **Build the release** (or `npm run sets -- release <id>`) near the release time. It shows
+   the words added (never any removed) and prints the calls. Where this network's Words has the
+   first-day gate, the calls are `setGate` FIRST, then `setDictionaryRoot`: as one Safe batch, or as
+   two `cast` commands joined so the root is sent only if the gate succeeded. Never send the root
+   alone on a network with the gate.
+3. After it confirms, press **Check the chain** (or `npm run sets -- confirm`). The set is marked
+   released from the chain's own root; the server also notices by itself within seconds of the next
+   claim.
+
+**The jackpot:** the daily answers were committed before launch and may include a held-back word.
+Nobody can hold it, so that day's pot rolls over, as for any unowned word. A word is drawn once,
+ever, so a set word drawn before its release has had its draw.
+
+**Mainnet:** deploy Words with the RESERVE root, never the full dictionary's: set `DICTIONARY_ROOT`
+for `Deploy.s.sol` to the root `npm run sets -- reserve` prints against the mainnet database
+(the script takes it from the gate's PR on). The letter caps always come from the full dictionary.
+The first-day gate must be in the Words that is deployed: Words can't change afterwards.
 
 ## The Shop (decisions.md #22)
 

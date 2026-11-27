@@ -52,6 +52,8 @@ export interface AchievementLeaf {
 export function computeAchievements(
   words: readonly KeeperWord[],
   letterCounts: ReadonlyMap<string, readonly number[]>,
+  /** The words the game offers now (the dictionary less every word held back in a reserved set). */
+  dictionarySize: number = WORD_COUNT,
 ): AchievementLeaf[] {
   const out: AchievementLeaf[] = [];
   const wordsByOwner = new Map<string, KeeperWord[]>();
@@ -66,7 +68,7 @@ export function computeAchievements(
     if (owned.some((w) => w.prestigeLevel >= 1)) {
       out.push({ recipient, achievement: ACHIEVEMENT.ASCENDED, value: 1 });
     }
-    const pct = Math.floor((owned.length / WORD_COUNT) * 100);
+    const pct = Math.floor((owned.length / Math.max(1, dictionarySize)) * 100);
     for (const m of DICTIONARY_MILESTONES) {
       if (pct >= m) out.push({ recipient, achievement: ACHIEVEMENT.DICTIONARY_PCT, value: m });
     }

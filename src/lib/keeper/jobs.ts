@@ -27,7 +27,7 @@ import { scanAllWords } from "@/lib/keeper/scan";
 import { yieldLeaves, bountyLeaves, leavesTotal } from "@/lib/keeper/shares";
 import { computeAchievements, type AchievementLeaf } from "@/lib/keeper/achievements";
 import { readLetterCounts, readWalletBalances } from "@/lib/onchain/reads";
-import { WORDS } from "@/lib/dictionary";
+import { releasedWordCount, releasedWords } from "@/lib/sets/server";
 import { encodeAbiParameters, parseEventLogs } from "viem";
 import { buildEpochFile, verifyEntry } from "@/lib/keeper/tree";
 import { DEFAULT_PARAMS } from "@/lib/params";
@@ -510,7 +510,7 @@ export function createKeeper(opts: { dry: boolean }) {
     const letterCounts = new Map<string, number[]>();
     for (const h of holders) letterCounts.set(h, await readLetterCounts(h as `0x${string}`));
 
-    const proposed = computeAchievements(words, letterCounts);
+    const proposed = computeAchievements(words, letterCounts, await releasedWordCount());
     const w = wallet();
     const seen = await alreadyAttested(w.account.address);
     const fresh = proposed.filter(
@@ -643,7 +643,9 @@ export function createKeeper(opts: { dry: boolean }) {
       const prefs = await loadPrefs();
       const accounts = prefs.chose("deal", true);
       if (accounts.length === 0) return void console.log("deals: nobody turned the deal alert on");
-      const [links, words, book, now] = await Promise.all([loadLinkMap(), scanAllWords(), readLetterBook(), readChainTime()]);
+      const [links, words, book, now, offered] = await Promise.all([loadLinkMap(), scanAllWords(), readLetterBook(), readChainTime(), releasedWords()]);
+      // A word held back in a reserved set can't be claimed: a deal that "finishes" one is no deal.
+      if (!offered) return void console.log("deals: the words on offer couldn’t be read; no alert this run");
       const claimed = new Set(words.map((w) => w.word.toUpperCase()));
       const day = Math.floor(now / 86_400);
       const { notes, told } = await tellDeals(
@@ -655,7 +657,7 @@ export function createKeeper(opts: { dry: boolean }) {
             const balances = await readWalletBalances(wallets as `0x${string}`[]);
             return Object.fromEntries(Object.entries(balances).map(([w, b]) => [w, b.letters]));
           },
-          unclaimed: WORDS.filter((w) => !claimed.has(w)),
+          unclaimed: offered.filter((w) => !claimed.has(w)),
           book,
           marks: {
             claimDay: (account) => claimMarkEvery(account, "deal-day", "last", DEAL_DAILY_SECONDS),
