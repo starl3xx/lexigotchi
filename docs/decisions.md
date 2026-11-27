@@ -2925,6 +2925,49 @@ setter. All small, riding existing suite patterns.
       balance row, and "You have it" with no Buy. Not seen: a purchase made from the new screen,
       the two links from the picker and the Case button, a real phone.
 
+56. **The lockup: the tile is the name's L, and its eyes are alive** (starl3xx, 2026-11-27: "we
+    have the 2 square logos (the "plain" one and the seal) but we don't have a horizontal lockup
+    with the LEXIGOTCHI wordmark... i feel like that's a major oversight"; then, of the candidates
+    on the design audit page, "9E is amazing" and "let's not use the seal in the lockup").
+    - **What it is.** Logo A's tile standing where the name's first letter would, then EXIGOTCHI:
+      one word. A separate mark beside the full name read as two things. The name's letters are
+      outlines of Söhne Fett, the face of the L inside the tile, so the lockup needs no font. One
+      source draws it (`lockup()` in `src/lib/cardArt/logo.ts`, beside `logoA` and `logoB`); the
+      measures are the approved drawing's (the capitals 100, the tile 172 and centred on them, 15
+      between, the name set tight), and the built drawing matches it to within the rounding of a
+      line's edge.
+    - **No seal in a lockup.** B stays what it was: pressed into a card's back, and round marks.
+    - **Alive where it is drawn live** (`src/components/brand/Lockup.tsx`): the eyes blink and
+      glance, as a letter's do. A blink is the letters' own (the eye keeps its shape and its lashes
+      come down: a swap of two drawings), not the squash the audit page showed: the mark is a
+      letter, and it stands beside letters that blink this way. Both are MOMENTS set off by one
+      timer, never a loop inside the drawing. A lockup nobody sees does nothing (a hidden tab, the
+      copy this width hides), and reduced motion and a low-power device get a still one. Measured
+      in WebKit on a still screen: about one point of a core (0.6 to 0.8% without it, 1.4 to 2.7%
+      with it).
+    - **Where.** The game's rail and its phone header, the intro, the pre-launch screen, and the
+      landing page's header, alive; the landing page's footer, still (one living mark on a page that
+      shows two). While the intro is up, the game's own lockup behind it is still.
+      They set the name in plain type before, or (the landing page) a tile with no eyes beside
+      live type in the heavier Extrafett; the name is Fett now, as the L in the mark is.
+    - **The phone header's lockup gives way.** At its full 28 px it is 132 px wide, 41 more than
+      the plain name was, and it pushed the profile button off a 390 px screen. It shrinks to no
+      less than the old name's 91 px when the row is tight, so the header fits exactly as it did.
+    - **The eyes never invert** (the same day, of a one-ink drawing set light on dark: "any time
+      the colors are inverted like this, the colors of the eyes need to be inverted"). On any
+      ground an eye is a light eyeball with a dark pupil. So one ink has two drawings, one for a
+      light ground and one for a dark one, and what is clear in them is cut out, never painted in
+      a ground's colour (as in the seal).
+    - **The files** (`docs/brand`, by `npm run brand:art`): the lockup on a light ground, on a
+      dark one, and in one ink for each, and the name alone; each as a drawing and as pictures 512
+      and 128 px tall. `tests/lockup.test.tsx` holds the drawing, the eye rule, the moments, and
+      the six places.
+    - **Not built, and his to decide:** the lockup in the pictures that name the game (a saved
+      card's corner, the earnings picture, the game's link picture), the share video's corner
+      (alive there only on a written score, as the letters are), the docs' logo, and the emails
+      (which carry no picture today, by rule). The seal's own one-ink file is still the dark-ground
+      drawing only.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
