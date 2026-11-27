@@ -163,7 +163,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
   const signInFirst = !profile.signedIn && <p className="text-center text-xs text-ink/55">Your wallet asks you to sign in first.</p>;
   const shopButton = (label: string, variant: "primary" | "ghost") =>
     cases.onSale && (
-      <Button full variant={variant} onClick={() => g.openSheet({ kind: "shop" })}>
+      <Button full variant={variant} onClick={() => g.nav("shop", "accessories")}>
         {label} in the Shop: {usdcLabel(cases.onSale.priceUsdc, NETWORK.isTestnet)}
       </Button>
     );

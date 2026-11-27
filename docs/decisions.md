@@ -2827,6 +2827,49 @@ setter. All small, riding existing suite patterns.
       game works (#41): a purchase is the profile's, a pick is kept by profile, and nothing from
       the Shop is a token that can move.
 
+55. **The Shop is a screen of its own, with categories, and it can sell limited editions**
+    (starl3xx, 2026-11-27: "the Shop should be its own tab instead of a popup, since we'll
+    eventually add more things and categories (card faces and accessories for now)", and "I want to
+    make sure that we can make limited edition Shop sales, too... like, say only 25 of the Outer
+    Space face").
+    - **A screen, not a sheet.** `screens/ShopScreen.tsx` is the `shop` view: in the rail's
+      Collect group, with its title in the header, and under More on a phone. The sheet's body
+      moved as it was, with the guards Bugbot asked for on #235: nothing is listed when the Shop
+      couldn't say what its items are, and a face is sold only on a positive "you don't have it".
+      There is no `shop` sheet any more; the three callers navigate.
+    - **Anyone can look** (it is one of `PUBLIC_VIEWS`), as the sheet opened with no wallet. Buy
+      then reads "Connect a wallet to buy" and leads to Today, where a wallet connects.
+    - **Two categories, one switch:** Card faces and Accessories (`lib/shop/rules`, pure and
+      tested). The stored kind `scene` is a card face; a case and a costume are accessories. The
+      test network's placeholder is in neither: it is nothing a card wears, so it sits apart
+      under "Try paying". An empty category says so plainly and promises nothing.
+    - **Links land on a category:** the face picker's tile for a face on sale goes to Card
+      faces, and an opened word's Case button to Accessories.
+    - **Limited editions already worked, and now they show.** The contract has always held a
+      supply limit (`maxSupply`; `_buy` reverts `SoldOut`), and the face picker stops offering a
+      sold-out face. What is new is the card's line: "Limited edition of 25. 24 left.", then
+      "None left." beside "Sold out". Proven on a local fork of Base Sepolia: with the Outer
+      Space item capped at what had sold, a purchase reverted `SoldOut(2)`; capped at 25, the
+      supply check passed.
+    - **What a limited edition does not promise** (so the words don't): the owner can raise a
+      limit later (never below what has sold); the limit counts purchases, not players (the
+      game sells a face once to a profile, but the contract would sell it to the same wallet
+      twice); and `updateItem` resends the price and the dates with the limit.
+    - **The live item is not capped.** "Say only 25" was an example: capping Outer Space is an
+      owner transaction, and it waits for his word.
+    - **The player docs have a Shop page** (`docs-site/shop.mdx`): what is in it, limited
+      editions, paying, and that what a player buys stays with the player.
+    - **My readings, not starl3xx's words:** "tab" is a screen in the rail and under More (the
+      phone's bottom bar has five places, all taken); the categories are one switch at the top
+      of the screen; a costume, when one exists, is an accessory; the placeholder stays, under
+      "Try paying", until the owner switches item 1 off.
+    - **Seen and not seen:** the screen with no wallet at 390, 768, and 1,280 px in Chromium,
+      on a local chain build reading a local fork: both categories, the placeholder, a limited
+      edition with some left, and one sold out. And with a read-only pretend wallet at the
+      address that bought Outer Space (every write to the server blocked in the browser): the
+      balance row, and "You have it" with no Buy. Not seen: a purchase made from the new screen,
+      the two links from the picker and the Case button, a real phone.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):
