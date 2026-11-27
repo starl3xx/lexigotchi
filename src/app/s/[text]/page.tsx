@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -76,8 +77,11 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
       <p className="rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider shadow-[2px_2px_0_#1b1714]">
         A Lexigotchi showcase
       </p>
-      <div className="card-corner w-full max-w-3xl overflow-hidden border-[3px] border-ink shadow-[4px_4px_0_#1b1714]">
-        <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} />
+      {/* the card stands on the page (globals.css, .card-stand): its block shadow is on a box of its own, under its ink edge */}
+      <div className="card-stand w-full max-w-3xl" style={{ "--card-sy": "4px" } as CSSProperties}>
+        <div className="card-corner overflow-hidden border-[3px] border-ink">
+          <SceneFrame scene={scene} word={word} upper={upper} tier={tier} number={number} gild={(stage ?? 0) as Gild} />
+        </div>
       </div>
       <h1 className="sr-only">{text}</h1>
       <p className="max-w-md text-center text-lg font-semibold text-ink/75">
