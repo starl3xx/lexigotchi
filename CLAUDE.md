@@ -823,7 +823,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hold it). Its ink is the rarity's (`LIGHT_INK`: white, warm for Legendary, for Mythic a
   spectrum printed across the card). Measured against the old white band, made to pass again and
   again: a few points of a core more while it passes, in both engines, and under one point on
-  average. Still to come: the stock's diagonal weave. Still his to
+  average. **The stock is a playing card's weave** (part 4; `.cf-tex`, `.cb-tex`): one small picture
+  of two sets of diagonal hairlines, three pixels a repeat, on both sides, and NO random grain (the
+  noise filter is gone: it was the one part of the paper that was not drawn). A picture, never a
+  slanted gradient. All four parts he chose are built. Still his to
   answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
   `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),

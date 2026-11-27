@@ -707,14 +707,12 @@ body {
 .cf-stamp { left: 5.17%; top: 8.9%; width: 7.67%; aspect-ratio: 1; object-fit: contain; pointer-events: none; user-select: none; box-sizing: border-box; padding: 0.7cqw; background: #fcf7ea; border: max(1.5px, 0.2cqw) solid var(--cf-ink); border-radius: 24%; }
 .cf-small .cf-stamp { display: none; }
 @container (max-width: 239px) { .cf-stamp { display: none; } }
-/* card stock: a fine grain and a faint linen weave */
-.cf-tex {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.24 -0.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.1) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(90deg, rgb(70 45 20 / 0.035) 0 1px, transparent 1px 4px);
-  background-size: 240px 240px, auto, auto;
-}
+/* Card stock (decisions.md #58, part 4: "15A is good"): a playing card's finish, a fine weave pressed
+   into the paper ON THE DIAGONAL. One small picture, repeated (never a slanted gradient: those
+   broke into dashes at most pixel ratios): two sets of hairlines, one a little stronger than the
+   other, three pixels a repeat. NO RANDOM GRAIN: it was the one part of the paper that was not
+   drawn (a noise filter under a square weave). The back's is the same weave (.cb-tex). */
+.cf-tex { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='3' height='3' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3L3 0M-.5 .5L.5 -.5M2.5 3.5L3.5 2.5' stroke='%235a4a3a' stroke-opacity='.07' stroke-width='.35'/%3E%3Cpath d='M0 0L3 3M-.5 2.5L.5 3.5M2.5 -.5L3.5 .5' stroke='%235a4a3a' stroke-opacity='.042' stroke-width='.35'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
 /* The fog a hungry word's scene fills with stays inside the frame's window (the window is 42 of
    1200 units in from the sides and 42 of 675 from the top and bottom): the card keeps its paper
    and its ink. While the word is fed there is no fog to see, so its banks don't drift. */
@@ -1074,8 +1072,9 @@ body {
 .m-legendary { --cb-base: #2e2006; --cb-line: #e9b949; --cb-line2: rgba(233, 185, 73, 0.2); --rk-front: #3a2806; }
 .m-mythic { --cb-base: #1d0d36; --cb-line: #b48cf0; --cb-line2: rgba(180, 140, 240, 0.2); --rk-front: #1d0d36; }
 .cb-gem { width: 1.15em; height: 1.15em; flex: none; }
-/* card stock: a faint linen weave and grain */
-.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 3px); }
+/* card stock, as the front's (.cf-tex): the same diagonal weave, pressed into a dark plate, so one
+   set of its hairlines is light and the other dark. No random grain. */
+.cb-tex { opacity: 0.55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpattern id='w' width='3' height='3' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3L3 0M-.5 .5L.5 -.5M2.5 3.5L3.5 2.5' stroke='%23fff' stroke-opacity='.07' stroke-width='.35'/%3E%3Cpath d='M0 0L3 3M-.5 2.5L.5 3.5M2.5 -.5L3.5 .5' stroke='%23000' stroke-opacity='.1' stroke-width='.35'/%3E%3C/pattern%3E%3Crect width='48' height='48' fill='url(%23w)'/%3E%3C/svg%3E"); background-size: 48px 48px; }
 
 /* A card, face down (cards/FaceDownCard; decisions.md #50, part 4): the day's secret word before
    it is revealed. A back's material and frame, and the game's seal in the middle, stronger than
