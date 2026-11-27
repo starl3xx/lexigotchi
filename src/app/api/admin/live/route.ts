@@ -9,6 +9,7 @@ import { releasedWordCount } from "@/lib/sets/server";
 import { freeLetterTotals } from "@/lib/db/freeClaims";
 import { freeLetterBudget } from "@/lib/freeLetters";
 import { DEFAULT_PARAMS } from "@/lib/params";
+import { readClaimRevenue, type ClaimRevenue } from "@/lib/onchain/claimRevenue";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -51,6 +52,11 @@ export interface LivePayload {
     dailyLimit: number;
     stopFraction: number;
   } | null;
+  /**
+   * Claim fees paid, by the claimed word's tier (decisions.md #60; Words' ClaimFeePaid events since
+   * deploy). Null on a Words without the claim fee by rarity, or when the events can't be read.
+   */
+  claimRevenue?: ClaimRevenue | null;
 }
 
 const TTL_MS = 60_000;
@@ -60,7 +66,7 @@ let inflight: Promise<LivePayload> | null = null;
 async function build(): Promise<LivePayload> {
   const treasury = roleAddresses().treasury ?? null;
   const client = getPublicClient();
-  const [buckets, supply, world, treasuryWei, ledger, released] = await Promise.all([
+  const [buckets, supply, world, treasuryWei, ledger, released, claimRevenue] = await Promise.all([
     readFeeBuckets(),
     readLetterSupply(),
     scanWorld(),
@@ -69,6 +75,7 @@ async function build(): Promise<LivePayload> {
       : Promise.resolve(null),
     freeLetterTotals(NETWORK.id).catch(() => null),
     releasedWordCount(),
+    readClaimRevenue().catch(() => null),
   ]);
   const budget = freeLetterBudget();
   const holders = new Set<string>([...Object.keys(world.letters), ...world.words.map((w) => w.owner)]);
@@ -97,6 +104,7 @@ async function build(): Promise<LivePayload> {
           stopFraction: DEFAULT_PARAMS.freeLetters.freeStopClaimedFraction,
         }
       : null,
+    claimRevenue,
   };
 }
 

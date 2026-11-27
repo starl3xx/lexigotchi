@@ -77,7 +77,8 @@ const ENV: EnvField[] = [
   { key: "PACK_PRICE", label: "Pack price", group: G.prices, required: true, type: "word", default: peg(P.pack), help: pegHint(P.pack) },
   { key: "DAILY_PRICE", label: "Daily single", group: G.prices, required: true, type: "word", default: "0", help: "FREE + FID-gated — keep 0" },
   { key: "ROLL_PRICE", label: "Roll price", group: G.prices, required: true, type: "word", default: peg(P.roll), help: pegHint(P.roll) },
-  { key: "CLAIM_PRICE", label: "Claim price", group: G.prices, required: true, type: "word", default: peg(P.claim), help: pegHint(P.claim) },
+  // The BASE claim fee, a Common word's: rarer words pay a multiple, read from economy.json (decisions.md #60).
+  { key: "CLAIM_PRICE", label: "Base claim price (Common)", group: G.prices, required: true, type: "word", default: peg(P.claim), help: `${pegHint(P.claim)} · rarer tiers pay a multiple (economy.json claimTierMultiplierBps)` },
   { key: "SNACK_PRICE", label: "Snack price", group: G.prices, required: true, type: "word", default: peg(P.snack), help: pegHint(P.snack) },
   { key: "PRESTIGE_FEE", label: "Prestige base fee (Gilded 1)", group: G.prices, required: true, type: "word", default: peg(DEFAULT_PARAMS.prestige.commitFeeUsd), help: pegHint(DEFAULT_PARAMS.prestige.commitFeeUsd) },
 

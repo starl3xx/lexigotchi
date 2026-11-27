@@ -13,7 +13,7 @@
  * way to source the $WORD.
  */
 
-import { DEMAND_MULTIPLE } from "./economy";
+import { CLAIM_MULTIPLE, DEMAND_MULTIPLE, type Tier } from "./economy";
 
 /**
  * FALLBACK $WORD price, USD — a GeckoTerminal snapshot of the WORD/WETH pool on Base
@@ -64,9 +64,16 @@ export interface Params {
     pack: number; // pack of 5 letters, full price (volume loop)
     dailyMint: number; // 1 free single per FID per day (habit loop)
     roll: number; // flat upgrade-roll fee (v0.1 §5.3; rarity-scaled is P2)
-    claim: number; // flat claim fee (v0.1 §5.4; tier-scaled is P2)
+    claim: number; // the BASE claim fee: a Common word's (decisions.md #60); see `claimMultiple`
     snack: number; // one snack feeds one staked word for one day
   };
+
+  /**
+   * The claim fee by rarity (decisions.md #60, the "gentle ladder"): a word of tier T costs
+   * `prices.claim × claimMultiple[T]` (`claimFeeUsd`). Derived from the tiers' earning weights
+   * (`CLAIM_MULTIPLE`); on chain, `Words.tierMultiplierBps`. All 1s is the old flat fee.
+   */
+  claimMultiple: Record<Tier, number>;
 
   /**
    * One-time treasury bootstrap of the faucets at launch, in USD (decision: bootstrap the
@@ -315,9 +322,10 @@ export const DEFAULT_PARAMS: Params = {
     pack: 1.0, // ≈ 4.22M $WORD at the current peg (5 letters → $0.20/letter primary)
     dailyMint: 0, // FREE — zero-friction daily habit hook (no $WORD needed); $WORD is for everything else
     roll: 0.25, // ≈ 1.06M $WORD — the core sink; ~1.97 rolls/success ≈ $0.49 per UPPERCASE letter
-    claim: 0.5, // ≈ 2.11M $WORD — a commitment
+    claim: 0.5, // ≈ 2.11M $WORD — a Common word; rarer words pay a multiple (claimMultiple)
     snack: 0.02, // ≈ 84K $WORD — trivial daily care
   },
+  claimMultiple: { ...CLAIM_MULTIPLE },
   seed: {
     // Compliance (pricing review): do NOT seed the chance-based jackpot from treasury — an
     // operator-funded prize is the core lottery risk. Bootstrap the YIELD pool only; the
@@ -410,6 +418,20 @@ export const DEFAULT_PARAMS: Params = {
 };
 
 /** Probability of a successful roll given a pity streak (consecutive prior failures). */
+/** What claiming a word of `tier` costs, in USD: the base claim fee times the tier's multiple. */
+export function claimFeeUsd(tier: Tier, p: Params = DEFAULT_PARAMS): number {
+  return p.prices.claim * p.claimMultiple[tier];
+}
+
+/** Every tier at 1×: the flat claim fee before decisions.md #60 (the sim's comparison run). */
+export const FLAT_CLAIM_MULTIPLE: Readonly<Record<Tier, number>> = Object.freeze({
+  Common: 1,
+  Uncommon: 1,
+  Rare: 1,
+  Legendary: 1,
+  Mythic: 1,
+});
+
 export function rollSuccessProbability(pityStreak: number, p: Params = DEFAULT_PARAMS): number {
   return Math.min(p.roll.pityCap, p.roll.baseSuccess + p.roll.pityStep * pityStreak);
 }

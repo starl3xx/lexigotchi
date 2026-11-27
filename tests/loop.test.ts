@@ -118,7 +118,12 @@ describe("renewable late-game loop levers (sim)", () => {
     expect(totalBounty).toBeGreaterThan(0);
     const casualBountyShare = casual.bountyEarned / totalBounty;
     const casualYieldShare = totalYield > 0 ? casual.yieldEarned / totalYield : 0;
-    expect(casualBountyShare).toBeGreaterThan(0.1); // casuals get a real slice of the bounty
+    // Casuals get a real slice of the bounty. The floor was 10% until the claim fee by rarity
+    // (decisions.md #60): at its prices a casual claims cheaper words, and the bounty weighs a theme
+    // word by its tier, so their share fell to about 7-8% here (about 12% at 365 days and 1,500
+    // players, from about 33%). The owner accepted it: "accept it and note it... the cost isn't
+    // that substantive tbh" (starl3xx, 2026-11-27).
+    expect(casualBountyShare).toBeGreaterThan(0.05);
     expect(casualBountyShare).toBeGreaterThan(casualYieldShare); // …far more than of yield
   });
 

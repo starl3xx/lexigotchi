@@ -125,6 +125,7 @@ import { useTierOf } from "./useRarity";
 import { lowercaseIndexesOf, moveCalls, movePlan, planIsEmpty } from "@/lib/onchain/move";
 import { NETWORK, networkById } from "@/lib/onchain/network";
 import type { Tier } from "@/lib/economy";
+import { PRACTICE_TIER_BPS, aTierWord, claimFeeWord, claimLadderLive, isTier } from "@/lib/claimFee";
 import { guardedAction, NOT_STARTED } from "@/lib/onchain/guardedAction";
 import { createActionGate, type Busy, type SetPhase } from "@/lib/onchain/actionGate";
 import type { Call, Eip1193Provider, SendResult } from "@/lib/onchain/sendCalls";
@@ -1559,6 +1560,11 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
     open: waitingPacks.map((c) => ({ count: c.count, mine: c.buyer.toLowerCase() === address?.toLowerCase(), number: mailNumber(c.commitId) })),
     mail: seenToday?.mail,
   });
+  /** A tier's claim fee in whole $WORD: the chain's, or (before the params load) the ladder as decided. */
+  const claimFeeFor = (tier: Tier): number =>
+    chain.params
+      ? claimFeeWord(chain.params.word.claim, chain.params.claimTierBps, tier)
+      : claimFeeWord(MOCK_PRICE.claim, claimLadderLive() ? PRACTICE_TIER_BPS : null, tier);
   const api: GameApi = useMemo(
     () => ({
       state: dailyIsSealed && state.dailyLetter !== null ? { ...state, dailyLetter: null } : state,
@@ -1583,6 +1589,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       // The word ladder: a stage-N attempt costs N × Prestige.prestigeFee (the contract's stageFee).
       prestigePrice: (level: number) =>
         (chain.params ? chainPrice(chain.params.word, "prestige") : MOCK_PRICE.prestige) * stageFeeMultiple(level),
+      // The claim fee by rarity (decisions.md #60): the contract's base times its multiplier for the
+      // word's tier as the game shows it. A Words without the ladder reads null multipliers: flat.
+      claimFee: (word: string) => claimFeeFor(tierOf(word)),
+      tierClaimFee: (tier: Tier) => claimFeeFor(tier),
 
       /**
        * The free daily. Two identities can earn the voucher — a Farcaster FID, or a Coinbase-
@@ -2058,6 +2068,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
             return void toast(`${word} isn’t claimable`, "bad");
           }
           const W = word.toUpperCase();
+          // The claim fee by rarity (decisions.md #60): the claim names the tier its LEAF has, which
+          // the proof route sends with the proof, and pays that tier's fee. A Words with the ladder
+          // and an answer without a tier can't be claimed (the proof would fail): say "try again".
+          const tiered = chain.params.claimTierBps !== null;
+          const leafTier: Tier | null = tiered ? (isTier(proof.tierName) ? proof.tierName : null) : null;
+          if (tiered && leafTier === null) return void toast("Couldn’t check that word just now. Try again in a moment.", "info");
+          const fee = leafTier === null ? chain.params.word.claim : claimFeeWord(chain.params.word.claim, chain.params.claimTierBps, leafTier);
+          // The screen priced the word by the game's tier, which is the leaf's; should they ever
+          // differ (a collab set revealed a moment ago), the leaf's is what the contract takes.
+          if (state.balance < fee) {
+            dispatch({ t: "sheet", sheet: { kind: "balance", need: { amount: fee, action: leafTier ? aTierWord(leafTier) : "a claim" } } });
+            return;
+          }
           // The first day after a set's release (decisions.md, "Reserved word sets"): the claim
           // needs the server's voucher, one word of the set per player. The server says when a
           // word is gated (`proof.gate`, read from the chain), and the voucher route decides by the
@@ -2077,7 +2100,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           const landed = await sendAndSettle(
             run,
             `Claim ${word}`,
-            () => claimCalls(proof.word, proof.proof, caseMask(cases), chain.params!, chain.player!, voucher),
+            () => claimCalls(proof.word, proof.proof, leafTier, caseMask(cases), chain.params!, chain.player!, voucher),
             (ws) => ws.some((x) => x.word === W),
             {
               done: () => `${W} is yours. It’s in your Bag.`,

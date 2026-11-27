@@ -199,7 +199,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the redeploy the voucher route answers `not_gated`, the proof route never says `gate`, and a
   release is the root alone. The redeploy is
   the whole suite and resets the test build: never run it without the owner's word on the plan and
-  the date (`docs/web3-runtime-plan.md`, "rehearsal #5"). `POST /api/sets/voucher`
+  the date (`docs/web3-runtime-plan.md`, "rehearsal #5"; the date he set on 2026-11-27: Tuesday
+  2026-12-01, after the 00:05 UTC keeper run). `POST /api/sets/voucher`
   (`lib/sets/voucher.ts` pure, `lib/db/setVouchers.ts`, table `set_vouchers`, migration 0022): a
   verified profile (`resolveFreeIdentity`) that PROVES the wallet is its own (its profile session,
   or a Farcaster sign-in Farcaster ties to the profile: unlike the free snack, this voucher spends
@@ -1380,7 +1381,26 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
-- **A claim may mix cases** (decisions.md #17): `Words.claim(word, uint8 upperMask, proof)` names
+- **The claim fee follows the word's rarity** (decisions.md #60, the "gentle ladder"): the base
+  (`Words.claimPrice`, a Common word's $0.50, moved by the price keeper) × the tier's multiplier
+  (`Words.tierMultiplierBps`: 1×, 2×, 3×, 5×, 8×, the tiers' earning weights; owner-set within 1×
+  to 20×). Derived, never typed: `CLAIM_MULTIPLE` / `CLAIM_MULTIPLE_BPS` (`lib/economy.ts`) feed
+  params (`claimMultiple`, `claimFeeUsd`), `config/economy.json` (`claimTierMultiplierBps`, which
+  `Deploy.s.sol` reads), and the sim (`--claim-flat` reruns the old flat fee). **Each dictionary leaf
+  is (word, tier)** (`lib/onchain/dictionaryTree`, format `"tiered"`, OZ types `["string","uint8"]`,
+  tier = `TIER_INDEX`), and `Words.claim(word, tier, upperMask, proof)` names it, so the proof checks
+  it. The leaf's tier is the GAME's (`tierWith`: a collab word is Legendary), because every tree the
+  server serves or plans is built by `lib/sets/server` `treeFor` with the revealed collab words; the
+  plan builders read the sets strictly. **The claim names the tier the proof route returned**
+  (`tierName`), never the client's lookup. The app prices a word with `g.claimFee(word)` /
+  `g.tierClaimFee(tier)`, never `price("claim")` (the base). **Base Sepolia's Words predates it**:
+  the registry's `"claimTiers"` (`wordsHaveClaimTiers`) is false there, so the tree is word-only,
+  the call is `LEGACY_CLAIM_ABI`'s three-argument claim byte for byte, `GameParams.claimTierBps` is
+  null, and every fee is the base. Copy about the ladder in general asks `claimLadderLive()` (true
+  in the practice game). Each claim emits `ClaimFeePaid` beside the unchanged `Claimed`; the
+  console's Treasury tab sums it by tier (`lib/onchain/claimRevenue`). The redeploy that switches it
+  on is rehearsal #5 (`docs/web3-runtime-plan.md`).
+- **A claim may mix cases** (decisions.md #17): `Words.claim(word, tier, upperMask, proof)` names
   each letter's case (bit k ⇒ position k UPPERCASE); in the app, `claim(word, cases)` with
   `claimCase` / `canSpellAs` / `caseMask` (`state.tsx`). Spell has one tray and no case switch: the
   rack claims exactly the tiles picked, and the word list and Today's next steps claim UPPERCASE

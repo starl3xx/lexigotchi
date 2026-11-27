@@ -3,7 +3,25 @@
   "demandMultiple": 3,
   "wordCount": 4584,
   "totalSupplyCap": 68760,
-  "dictionaryRoot": "0xdd0d993a450a363898fd08b9e590248c3a40d2bcf8b1c3743eb34f54973b862f",
+  "dictionaryRoot": "0x292d3d24ca038e28b7550ad2115ed5257dfde1d554c770c54e058eeda94e358d",
+  "leafTypes": [
+    "string",
+    "uint8"
+  ],
+  "tiers": [
+    "Common",
+    "Uncommon",
+    "Rare",
+    "Legendary",
+    "Mythic"
+  ],
+  "claimTierMultiplierBps": [
+    10000,
+    20000,
+    30000,
+    50000,
+    80000
+  ],
   "caps": [
     5850,
     1608,

@@ -18,7 +18,7 @@ import {
   type CostPrices,
 } from "@/lib/wordCost";
 
-const USD: CostPrices = { pack: 1, roll: 0.25, claim: 0.5, prestigeFee: (level) => 0.5 * (level + 1), prestigeSnack: 0.02 };
+const USD: CostPrices = { pack: 1, roll: 0.25, claim: () => 0.5, prestigeFee: (level) => 0.5 * (level + 1), prestigeSnack: 0.02 };
 const allUpper = [true, true, true, true, true];
 const allLower = [false, false, false, false, false];
 

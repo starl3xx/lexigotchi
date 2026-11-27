@@ -117,6 +117,29 @@ export const TIER_WEIGHT: Readonly<Record<Tier, number>> = Object.freeze(
   Object.fromEntries(TIERS.map((t) => [t.name, t.weight])) as Record<Tier, number>,
 );
 
+/**
+ * A tier's number in a dictionary leaf and in `Words.sol` (0 Common … 4 Mythic): its place in
+ * TIERS. The leaf is (word, tier), so this order is part of the deployed contract: never reorder.
+ */
+export const TIER_INDEX: Readonly<Record<Tier, number>> = Object.freeze(
+  Object.fromEntries(TIERS.map((t, i) => [t.name, i])) as Record<Tier, number>,
+);
+
+/**
+ * The claim fee's multiple of the base fee, per tier (decisions.md #60, the "gentle ladder"): the
+ * tier's earning weight over Common's, so Common 1×, Uncommon 2×, Rare 3×, Legendary 5×, Mythic 8×.
+ * Derived, never typed: change a weight and the ladder, the contract config, and the docs follow.
+ */
+export const CLAIM_MULTIPLE: Readonly<Record<Tier, number>> = Object.freeze(
+  Object.fromEntries(TIERS.map((t) => [t.name, t.weight / TIERS[0].weight])) as Record<Tier, number>,
+);
+
+/** The same multiples in basis points of the base (10,000 = 1×), in TIER_INDEX order: what
+ *  `Words.tierMultiplierBps` holds at deploy (`npm run derive:contracts` writes them). */
+export const CLAIM_MULTIPLE_BPS: readonly number[] = Object.freeze(
+  TIERS.map((t) => Math.round((t.weight / TIERS[0].weight) * 10_000)),
+);
+
 /** Letter frequency (slot share) used by the rarity score. */
 const LETTER_FREQUENCY = LETTER_ODDS;
 

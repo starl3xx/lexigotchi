@@ -13,7 +13,8 @@ import { HOLOGRAPHIC_LEVEL, stageName } from "@/lib/ascension";
 import { WORD_COUNT } from "@/lib/dictionary";
 import { LETTERS_BY_FREQUENCY, LETTER_SUPPLY_CAP, TIERS, TIER_COUNTS } from "@/lib/economy";
 import { FREE_LETTERS } from "@/lib/freeLetters";
-import { DEFAULT_PARAMS } from "@/lib/params";
+import { DEFAULT_PARAMS, claimFeeUsd } from "@/lib/params";
+import { claimLadderLive } from "@/lib/claimFee";
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
 /** A USD target from params, as the player reads it ($0.50). The live $WORD amount moves with the price. */
@@ -60,6 +61,11 @@ export const MISS_POINTS = Math.round(DEFAULT_PARAMS.prestige.pityStep * 100);
 /** "a day" or "3 days", for the care rules. */
 export const days = (n: number) => (n === 1 ? "a day" : `${n} days`);
 
+/** A Common word's claim fee in USD, "$0.50": the bottom of the claim ladder (decisions.md #60). */
+export const CLAIM_FROM = usd(claimFeeUsd("Common"));
+/** The top of it, a Mythic word's, "$4.00". */
+export const CLAIM_TOP = usd(claimFeeUsd(TOP));
+
 // ---------------------------------------------------------------------------
 // The four steps
 // ---------------------------------------------------------------------------
@@ -89,7 +95,7 @@ export const HOW_IT_WORKS: readonly HowItWorksStep[] = [
     n: 3,
     id: "spell",
     title: "Spell words",
-    body: `Five letters make a word from the ${WORDS}-word dictionary, and that word is yours alone: every word has one owner. Claiming one costs about ${usd(DEFAULT_PARAMS.prices.claim)} in $WORD.`,
+    body: `Five letters make a word from the ${WORDS}-word dictionary, and that word is yours alone: every word has one owner. ${claimLadderLive() ? `Claiming one costs from ${CLAIM_FROM} in $WORD, and a rarer word costs more.` : `Claiming one costs about ${CLAIM_FROM} in $WORD.`}`,
   },
   {
     n: 4,

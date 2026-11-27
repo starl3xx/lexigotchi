@@ -13,7 +13,7 @@ import {
 } from "@/lib/market/deals";
 import type { LetterAsk, LetterBook } from "@/lib/market/types";
 
-const prices: CostPrices = { pack: 5_000_000, roll: 1_000_000, claim: 2_000_000, prestigeSnack: 100_000, prestigeFee: () => 3_000_000 };
+const prices: CostPrices = { pack: 5_000_000, roll: 1_000_000, claim: () => 2_000_000, prestigeSnack: 100_000, prestigeFee: () => 3_000_000 };
 const ask = (letterId: number, unitPrice: number, available = 1, maker = "0xseller"): LetterAsk => ({ orderHash: `h${letterId}-${unitPrice}-${maker}`, maker, letterId, unitPrice, available, listedAt: "2026-11-25T00:00:00.000Z" });
 const bookOf = (...asks: LetterAsk[]): Record<number, LetterBook> => {
   const b: Record<number, LetterBook> = {};

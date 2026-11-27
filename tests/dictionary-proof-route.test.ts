@@ -35,6 +35,40 @@ describe("GET /api/dictionary/proof", () => {
     expect((await res.json()).error).toBe("dictionary_mismatch");
   });
 
+  it("on a Words without the claim fee by rarity, sends no tier (the older claim names none)", async () => {
+    const { dictionaryRoot } = await import("@/lib/onchain/dictionaryTree");
+    chainRoot = dictionaryRoot();
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const body = await (await GET(get("crane"))).json();
+    expect(body.ok).toBe(true);
+    expect("tier" in body).toBe(false);
+  });
+
+  // decisions.md #60: on a Words with the ladder the leaf is (word, tier), and the answer carries
+  // the tier the claim must name: the tree's own, so the fee shown and the fee taken agree.
+  it("on a Words with the claim fee by rarity, serves the tier with a proof that verifies", async () => {
+    vi.doMock("@/lib/onchain/addresses", async (orig) => ({
+      ...(await orig<typeof import("@/lib/onchain/addresses")>()),
+      wordsHaveClaimTiers: () => true,
+    }));
+    const { dictionaryRoot } = await import("@/lib/onchain/dictionaryTree");
+    const { wordTier, TIER_INDEX } = await import("@/lib/economy");
+    const { StandardMerkleTree } = await import("@openzeppelin/merkle-tree");
+    chainRoot = dictionaryRoot("tiered");
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const body = await (await GET(get("crane"))).json();
+    expect(body.ok).toBe(true);
+    expect(body.tierName).toBe(wordTier("CRANE"));
+    expect(body.tier).toBe(TIER_INDEX[wordTier("CRANE")]);
+    expect(StandardMerkleTree.verify(chainRoot, ["string", "uint8"], ["CRANE", body.tier], body.proof)).toBe(true);
+    // The word-only root is a mismatch there: the chain's tree is the tiered one.
+    vi.resetModules();
+    chainRoot = dictionaryRoot("word");
+    const again = await (await import("@/app/api/dictionary/proof/route")).GET(get("crane"));
+    expect((await again.json()).error).toBe("dictionary_mismatch");
+    vi.doUnmock("@/lib/onchain/addresses");
+  });
+
   it("still 404s a word that isn't in the dictionary at all", async () => {
     const { GET } = await import("@/app/api/dictionary/proof/route");
     expect((await GET(get("qqqqq"))).status).toBe(404);

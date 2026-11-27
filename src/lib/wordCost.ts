@@ -13,7 +13,7 @@
  *   one time in 500) costs about 50× an E. Counting packs until you happen to draw the letter would
  *   charge a single Q for the ~499 other letters that came with it.
  * - Raises: each UPPERCASE letter took the average number of rolls (40% first try, +15 points a miss).
- * - Claim: the claim fee.
+ * - Claim: the claim fee for THIS word, by its tier (decisions.md #60: rarer words cost more).
  * - Ascension: each stage the word has reached took the average number of attempts at that stage's
  *   odds, each paying the stage's fee plus the snack an attempt burns. Failed attempts toward the NEXT
  *   stage are not counted: they don't change what the word is.
@@ -29,7 +29,8 @@ import { DEFAULT_PARAMS, type Params } from "./params";
 export interface CostPrices {
   pack: number;
   roll: number;
-  claim: number;
+  /** The claim fee for `word`: by its tier as the game shows it (the game's `claimFee`). */
+  claim: (word: string) => number;
   /** The fee for an ascension attempt FROM `level` (level 0 is the attempt at Gilded 1). */
   prestigeFee: (level: number) => number;
   /** The snack each ascension attempt burns. */
@@ -93,7 +94,7 @@ export function costToMake(w: WordShape, prices: CostPrices, p: Params = DEFAULT
   for (let level = 0; level < w.prestigeLevel; level++) {
     ascension += attemptsAtLevel(level, p) * (prices.prestigeFee(level) + prices.prestigeSnack);
   }
-  const claim = prices.claim;
+  const claim = prices.claim(w.word);
   return { letters, raises, claim, ascension, total: letters + raises + claim + ascension };
 }
 

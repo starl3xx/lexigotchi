@@ -24,8 +24,8 @@
  */
 import { getAbiItem } from "viem";
 import { WORDS, WORD_COUNT, isWord } from "@/lib/dictionary";
-import { dictionaryRoot, treeWithout, type DictionaryTree } from "@/lib/onchain/dictionaryTree";
-import { addressOf, deployBlock, isSuiteDeployed, wordsHaveGate } from "@/lib/onchain/addresses";
+import { dictionaryRoot, treeWithout, type DictionaryTree, type LeafFormat } from "@/lib/onchain/dictionaryTree";
+import { addressOf, deployBlock, isSuiteDeployed, wordsHaveClaimTiers, wordsHaveGate } from "@/lib/onchain/addresses";
 import { getPublicClient } from "@/lib/onchain/reads";
 import { getLogsAdaptive } from "@/lib/onchain/logs";
 import { wordsAbi } from "@/lib/onchain/abis";
@@ -34,7 +34,7 @@ import { NETWORK } from "@/lib/onchain/network";
 import type { TxIntent } from "@/lib/admin/tx";
 import { heldOfRoot, listSets, markReleased, newestRoot, revealDue, saveRoot, setReleaseRoot } from "@/lib/db/sets";
 import { tokenReadable } from "./firstDay";
-import { NO_COLLAB } from "@/lib/rarity";
+import { NO_COLLAB, type CollabWords } from "@/lib/rarity";
 import { collabLooksOf, type CollabLooks } from "@/lib/collabLook";
 import { dueToReveal, gateUntilFor, heldOf, publicSets, releaseChange, releaseProblems, reserveChange, revealProblems, type WordSet } from "./rules";
 
@@ -49,6 +49,30 @@ function codeOf(err: unknown): string {
   const e = err as { code?: string; cause?: { code?: string }; name?: string } | null;
   return String(e?.code ?? e?.cause?.code ?? e?.name ?? "error").slice(0, 40);
 }
+
+// --- the tree's shape -------------------------------------------------------------------------
+
+/**
+ * How this network's Words hashes a dictionary leaf (decisions.md #60): (word, tier) where its Words
+ * charges the claim fee by rarity, the word alone where it doesn't. The registry's answer.
+ */
+export function leafFormat(): LeafFormat {
+  return wordsHaveClaimTiers() ? "tiered" : "word";
+}
+
+/**
+ * The tree without `held`, in this network's format, with the collab layer's tiers in its leaves.
+ * EVERY tree this server serves or plans is built here, so a root and the proofs from it always
+ * name the tier the game shows (lib/rarity.ts `tierWith`). The collab words only touch a leaf the
+ * tree holds, and a collab set's words are held back until its release (a reveal waits for the
+ * reserve root), so a root built before a collab reveal rebuilds the same with or without them.
+ */
+function treeFor(held: Iterable<string>, collab: CollabWords): DictionaryTree {
+  return treeWithout(held, { format: leafFormat(), collab });
+}
+
+/** The collab words of a read of the sets: every revealed or released collab set's words. */
+const collabOf = (book: { sets: WordSet[] }): CollabWords => collabLooksOf(publicSets(book.sets));
 
 // --- the sets ---------------------------------------------------------------------------------
 
@@ -161,7 +185,7 @@ const heldByRoot = new Map<string, string[]>();
 
 /** The words `root` leaves out; null when this server never built that root. Throws on a failed read. */
 async function heldBehind(root: string): Promise<string[] | null> {
-  if (root === dictionaryRoot().toLowerCase()) return [];
+  if (root === dictionaryRoot(leafFormat()).toLowerCase()) return [];
   const kept = heldByRoot.get(root);
   if (kept) return kept;
   if (!process.env.DATABASE_URL) return null;
@@ -221,8 +245,10 @@ export async function serving(): Promise<Serving> {
     // database: serve it as it was always served. (A word waiting in a set for its reserve root
     // is claimable on the chain anyway until that root lands.) So a database outage can't stop
     // claims on a deployment that reserves nothing. Any other root needs its row: refuse.
-    if (root === dictionaryRoot().toLowerCase()) {
-      return { ok: true, tree: treeWithout([]), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, collab: true, known: false } };
+    // (The full root by the derived tiers: once a collab set is released the chain's root is
+    // another, and needs the sets to rebuild.)
+    if (root === dictionaryRoot(leafFormat()).toLowerCase()) {
+      return { ok: true, tree: treeFor([], NO_COLLAB), chainRoot: root, chainHeld: new Set(), held: new Set(), book: { sets: [], migrated: true, collab: true, known: false } };
     }
     return { ok: false, error: "try_again" };
   }
@@ -239,8 +265,9 @@ export async function serving(): Promise<Serving> {
     // The stored words must still GIVE that root. After a re-vendor (the bundled dictionary grew)
     // they don't: the tree built here has leaves the chain's root has never seen, and every proof
     // from it would revert. Same answer as a re-vendor always got, until the owner sends the new
-    // reserve root.
-    if (treeWithout(found).root.toLowerCase() !== root) return { ok: false, error: "dictionary_mismatch" };
+    // reserve root. With the claim fee by rarity the leaves also carry the game's tiers, so this
+    // check also refuses a tree whose tiers disagree with the chain's (a proof from it would fail).
+    if (treeFor(found, collabOf(sets)).root.toLowerCase() !== root) return { ok: false, error: "dictionary_mismatch" };
     chainHeld = found;
     // A new root on the chain may be a release: mark it, once per root this server sees.
     if (root !== lastReconciled && sets.sets.some((s) => s.status === "revealed")) {
@@ -262,7 +289,7 @@ export async function serving(): Promise<Serving> {
   }
   const held = new Set(chainHeld);
   for (const w of heldOf(sets.sets)) held.add(w);
-  return { ok: true, tree: treeWithout(chainHeld), chainRoot: root, chainHeld: new Set(chainHeld), held, book: sets };
+  return { ok: true, tree: treeFor(chainHeld, collabOf(sets)), chainRoot: root, chainHeld: new Set(chainHeld), held, book: sets };
 }
 
 /**
@@ -394,12 +421,12 @@ const rootIntent = (root: string, note: string): TxIntent => ({
  * `exact` says the tree those words give IS that root (false after a re-vendor: the dictionary
  * here has grown since the root was built).
  */
-async function chainNow(): Promise<{ root: string; held: Set<string> | null; exact: boolean } | { error: PlanError }> {
+async function chainNow(collab: CollabWords): Promise<{ root: string; held: Set<string> | null; exact: boolean } | { error: PlanError }> {
   const root = await readChainRoot({ fresh: true });
   if (!root) return { error: "chain_unreadable" };
   const held = await heldBehind(root);
   if (!held) return { root, held: null, exact: false };
-  return { root, held: new Set(held), exact: treeWithout(held).root.toLowerCase() === root };
+  return { root, held: new Set(held), exact: treeFor(held, collab).root.toLowerCase() === root };
 }
 
 /** Which of `words` are claimed on the chain right now. Null when it can't be read. */
@@ -456,12 +483,15 @@ export interface ReservePlan {
  */
 export async function planReserve(): Promise<ReservePlan | { ok: false; error: PlanError }> {
   await reconcile().catch(() => []); // never hold back again a set the chain has already released
-  const sets = await loadSets({ fresh: true });
+  // Strict: a root's leaves carry the collab tiers, which a claim then PAYS by (decisions.md #60),
+  // so the root is built from this read of the sets or not at all (a failed read throws).
+  const sets = await loadSets({ fresh: true, strict: true });
   if (!sets.known || !sets.migrated) return { ok: false, error: "not_migrated" };
-  const chain = await chainNow();
+  const collab = collabOf(sets);
+  const chain = await chainNow(collab);
   if ("error" in chain) return { ok: false, error: chain.error };
   const change = reserveChange(chain.held ?? new Set(), heldOf(sets.sets));
-  const tree = treeWithout(change.held);
+  const tree = treeFor(change.held, collab);
   const root = tree.root.toLowerCase();
   await saveRoot(NETWORK.id, root, change.held, "reserve");
   heldByRoot.set(root, change.held);
@@ -513,13 +543,15 @@ export interface ReleasePlan {
  */
 export async function planRelease(setId: number, nowSec = Math.floor(Date.now() / 1000)): Promise<ReleasePlan | { ok: false; error: PlanError; detail?: string }> {
   await reconcile().catch(() => []);
-  const sets = await loadSets({ fresh: true });
+  // Strict, as in planReserve: the new root's leaves carry this read's collab tiers.
+  const sets = await loadSets({ fresh: true, strict: true });
   if (!sets.known || !sets.migrated) return { ok: false, error: "not_migrated" };
+  const collab = collabOf(sets);
   const set = sets.sets.find((s) => s.id === setId);
   if (!set) return { ok: false, error: "not_found" };
   if (set.status !== "revealed") return { ok: false, error: "not_revealed" };
   if (set.words.length === 0) return { ok: false, error: "empty" };
-  const chain = await chainNow();
+  const chain = await chainNow(collab);
   if ("error" in chain) return { ok: false, error: chain.error };
   // A release is "the chain's tree, plus this set's words", so the chain's tree must be one this
   // server can rebuild exactly. Otherwise it can't promise that nothing is removed (a root never
@@ -539,7 +571,8 @@ export async function planRelease(setId: number, nowSec = Math.floor(Date.now() 
       detail: `${change.neverHeld.length} of this set’s ${words.length} words are not held back on the chain: send the reserve root first`,
     };
   }
-  const tree = treeWithout(change.held);
+  // A collab set's words go in as Legendary (its set is revealed, so `collab` has them).
+  const tree = treeFor(change.held, collab);
   const root = tree.root.toLowerCase();
 
   const intents: TxIntent[] = [];
