@@ -59,7 +59,8 @@ mint-out/recoup/burn are computed on the real price path. This is the highest-va
   cap multiple does NOT help (completion is claim-race-gated, not supply-gated). Add a
   **renewable late-game loop**: UPPERCASE evolution stages / gilded traits, a rotating weekly
   featured-word bounty, or seasonal answer-chains.
-- **Don't cut claim price for accessibility** (it hurts staker recoup). Fix casual access via
+- **Don't cut claim price for accessibility** (it hurts staker recoup; 2026-11-27: a Common word's
+  claim stays $0.50 under decisions.md #60's ladder, so a newcomer's first word costs the same). Fix casual access via
   the **secondary letter market** (which the sim still omits — model it before launch) and a
   more generous daily/free-snack cadence.
 - **Re-cut KPIs to the funnel:** ~2,000 players → 1,000 *active*; ~4,500–5,000 → 1,000 *unique
@@ -73,6 +74,13 @@ mint-out/recoup/burn are computed on the real price path. This is the highest-va
 - The **USD-pegged** decision (correct response to a micro-cap whose price will move).
 - The **cheap price ladder** (daily $0.05 / pack $0.60 / roll $0.15 / claim $0.50 / snack $0.02).
   *(Original figures; later revised to pack $1.00 / roll $0.25 — see `decisions.md`.)*
+  *(2026-11-27: the claim is no longer flat. It is $0.50 for a Common word times the tier's earning
+  weight: Common $0.50, Uncommon $1.00, Rare $1.50, Legendary $2.50, Mythic $4.00 — decisions.md
+  #60. The flat $0.50 priced a Mythic like the cheapest Common and took in about $2,300 across the
+  whole dictionary; the ladder keeps a first Common at $0.50 and takes about $4,200. The sim's
+  cost of it: casual players' share of the weekly bounty fell from about 33% to about 12% at 365
+  days, because they claim cheaper words and the bounty weighs a word by its tier. Accepted by
+  the owner.)*
 - **Solvency by construction** (unanimously confirmed sound).
 - Roll odds, hunger gating, UPPERCASE-yield split (product suggests *also* a small base yield
   for any staked+fed word at 0.25–0.5× — worth modeling, not required).

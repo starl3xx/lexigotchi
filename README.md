@@ -71,7 +71,9 @@ served at `/.well-known/farcaster.json`.
 2. **Raise** a letter to UPPERCASE with a roll — 40% on the first try, +15 points per miss, up to 85%. A failed
    roll never harms your letter.
 3. **Claim** a word by escrowing the 5 letters that spell it, in any mix of lowercase and UPPERCASE →
-   one ERC-721 per word (`tokenId = keccak256(word)`); case is derived from the escrow.
+   one ERC-721 per word (`tokenId = keccak256(word)`); case is derived from the escrow. The claim fee
+   follows the word's rarity, from $0.50 for a Common word to $4.00 for a Mythic one (the tier's
+   earning weight × the base; decisions.md #60).
 4. **Stake & Snack** — UPPERCASE words draw yield; any staked, fed word is a jackpot ticket. Feed
    snacks or they get hungry.
 5. **Win** — Lexigotchi reveals a secret word daily from its own pre-committed hash-chain; hold it

@@ -227,6 +227,14 @@ predates it.
   from the full dictionary.
 - **The claim signer.** `Deploy.s.sol` gives Words the same `SIGNER` as the other contracts; the
   hosted `SIGNER_PRIVATE_KEY` signs the vouchers.
+- **The claim fee by rarity** (decisions.md #60). Deploy the `Words.sol` whose leaves are
+  (word, tier) and whose `claim` names the tier: `claimFee(tier)` = `claimPrice` × `tierMultiplierBps`.
+  `Deploy.s.sol` reads the multipliers (1×, 2×, 3×, 5×, 8×) and the tiered root from
+  `config/economy.json`; the reserve root from `npm run sets -- reserve` is built in the same format
+  once the registry says `"claimTiers": true`, so run that command on the branch that records it.
+  Record **`"claimTiers": true`** in `config/deployments.json` with the addresses: until then the app
+  sends the older three-argument claim and serves word-only proofs, which a Words with the ladder
+  refuses.
 - Run the `solidity-auditor` skill in DEEP mode on the final `Words.sol` first (`contracts/AUDIT.md`).
 
 ### Base Sepolia redeploy for the gate (rehearsal #5): ON HOLD (the owner, 2026-11-27: "Hold for now")
@@ -234,7 +242,8 @@ predates it.
 A full redeploy of the suite: Staking, Rolls, Prestige, and the Jackpot hold the Words address for
 good, so Words can't be swapped alone. **It resets every tester's letters, words, stakes, and
 earnings on the test build.** It also carries the 3.0× letter supply caps (68,760; decisions.md
-#21), which have waited for a redeploy since 2026-11-25.
+#21), which have waited for a redeploy since 2026-11-25, and the claim fee by rarity (decisions.md
+#60: (word, tier) leaves, `claim` names the tier, Common 1× … Mythic 8× the base).
 
 **No date is set.** The owner held it on 2026-11-27, so nothing here runs until he names a day.
 When he does, pick a **Thursday, right after the 00:05 UTC keeper run**: bounty weeks start on
@@ -249,17 +258,25 @@ Before the day:
 3. A `heads-up` tester note goes out a day ahead: the test build resets on the day.
 
 On the day (about half an hour; the game shows the old suite until step 5 deploys):
-1. `npm run sets -- reserve`: take its root as `DICTIONARY_ROOT` (its row is stored by that run).
+1. On the registry PR's branch, with **`"claimTiers": true`** already in
+   `config/deployments.base-sepolia.json` (the old addresses still in place): `npm run sets --
+   reserve`, and take its root as `DICTIONARY_ROOT` (its row is stored by that run). The root is
+   built in the format the registry names, so run on main's registry and it is a word-only root
+   that the new Words refuses for every claim. With no sets at all, leave `DICTIONARY_ROOT` unset:
+   `config/economy.json`'s root is the tiered full dictionary.
 2. A dry run, then `forge script script/Deploy.s.sol:Deploy --rpc-url https://sepolia.base.org
    --broadcast`, with the rehearsal's environment: the registry's roles, `ANSWERCHAIN_HEAD` from
    the same seeded list, `PRESTIGE_MAX_LEVEL=5`, `BOUNTY_CARVE_BPS=1500`, and `DICTIONARY_ROOT`.
 3. `DeployShopTestnet` against the new FeeRouter and Letters (the Shop's route and peg name the old
    ones), then the one Test item again.
 4. Check on the chain: `Words.claimSigner()` is the signer, `Words.dictionaryRoot()` is the reserve
-   root, and `Letters.cap` sums to 68,760.
+   root, `Letters.cap` sums to 68,760, and `Words.tierMultiplierBps(0…4)` reads 10000, 20000,
+   30000, 50000, 80000 (`Words.claimFee(4)` = 8 × `claimPrice`).
 5. A registry PR (`config/deployments.base-sepolia.json`: addresses, deploy block, the Shop's block,
-   and **`"wordsGate": true`**). Its merge deploys the app onto the new suite and switches the
-   gate's code paths on, with a `heads-up` tester note.
+   **`"wordsGate": true`**, and **`"claimTiers": true`**). Its merge deploys the app onto the new
+   suite and switches the gate's and the ladder's code paths on, with a `heads-up` tester note.
+   Then merge the held player-docs PR for the ladder; it carries its own tester note (the claim
+   fee by rarity).
 
 After:
 1. The owner adds the new Letters and Words addresses to the CDP paymaster's allowlist.
@@ -267,7 +284,9 @@ After:
 3. The gate, end to end, with a throwaway set: reveal it, release it (gate first, then root), claim
    one word with a verified profile, see a second word refused and another profile succeed, and
    see it open to everyone after the gate. Then the second tester note (the first-day rule).
-4. Read the first keeper run on the new suite (00:05 UTC the next day).
+4. The ladder, end to end: claim a Common and a Rare word, and see each pay its tier's fee (Spell
+   says "Rare word: … to claim"; the console's Treasury tab lists the fees by tier).
+5. Read the first keeper run on the new suite (00:05 UTC the next day).
 
 **The free-letter ledger** (`free_claims`): decided, "Clear them" (the owner, 2026-11-27). Its rows
 are per profile, not per deployment, so after a reset a tester who took the free pack and dailies
