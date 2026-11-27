@@ -33,7 +33,7 @@
  */
 import { Fragment, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { LETTERS_BY_FREQUENCY, scrabbleValue, type Tier } from "@/lib/economy";
-import { finishFor, mixHex } from "@/lib/rarityFinish";
+import { finishFor, mixHex, type TileTier } from "@/lib/rarityFinish";
 import { LINK_OVERLAP } from "@/components/scenes/layout";
 import {
   ARM_BRACE,
@@ -126,7 +126,7 @@ export interface TileCharacterProps {
   fluid?: boolean;
   /** The rarity of the word this letter is part of, worn as the tile's material (lib/rarityFinish,
    *  ./TileFinish). Loose letters have none. */
-  tier?: Tier;
+  tier?: TileTier;
   /** A still frame: the character and its finish hold still (a still scene, a card in a grid, a thumbnail). */
   still?: boolean;
   /** The letter's place in its word, so the finish's light passes along the word in turn. */
@@ -335,7 +335,7 @@ const MOMENT_MS = Math.ceil(MOMENT_END_S * 1000) + 100;
  * moment begun on the last one isn't the new word's, so the new tiles start without it and get a
  * fresh first moment, rather than inheriting a class whose timer would end their pass mid-way.
  */
-export function useFinishMoment(tier: Tier | undefined, active: boolean, word = ""): [boolean, () => void] {
+export function useFinishMoment(tier: TileTier | undefined, active: boolean, word = ""): [boolean, () => void] {
   const reduced = usePrefersReducedMotion();
   const lowPower = useLowPower();
   const period = finishFor(tier)?.period;
@@ -1644,7 +1644,7 @@ export function TileWord({
   detail?: TileDetail;
   className?: string;
   /** The word's rarity, worn as its tiles' material (lib/rarityFinish). */
-  tier?: Tier;
+  tier?: TileTier;
   /** The finish without its motion. */
   still?: boolean;
   /**

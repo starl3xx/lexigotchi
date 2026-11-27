@@ -28,8 +28,7 @@
  * clip differently.
  */
 import type { CSSProperties, ReactNode } from "react";
-import type { Tier } from "@/lib/economy";
-import { finishFor, mixHex, type Finish } from "@/lib/rarityFinish";
+import { finishFor, mixHex, type Finish, type TileTier } from "@/lib/rarityFinish";
 import { haloPath } from "./tileShapes";
 
 /** "on": it has its moments · "off": a still frame (reduced motion, small sizes, a still scene) ·
@@ -112,7 +111,7 @@ export function Glint({ x, y, s, color, delay, anim, cls = "rf-glint", style, wa
   );
 }
 
-export function FinishDefs({ tier, uid, bw, small, motion }: { tier?: Tier; uid: string; bw: number; small: boolean; motion: FinishMotion }) {
+export function FinishDefs({ tier, uid, bw, small, motion }: { tier?: TileTier; uid: string; bw: number; small: boolean; motion: FinishMotion }) {
   const fin = finishFor(tier);
   if (!fin) return null;
   const f = id(uid);
@@ -230,12 +229,12 @@ export const haloInk = (fin: Finish) => mixHex(fin.glow, fin.deep, 0.42);
  * (decisions.md #48, part 8); it was a soft blur. Still: it never moves.
  */
 /** Whether a tile of this rarity and mood has a halo at all (a Legendary or Mythic one that is not asleep). */
-export function finishHasAura(tier: Tier | undefined, motion: FinishMotion): boolean {
+export function finishHasAura(tier: TileTier | undefined, motion: FinishMotion): boolean {
   const fin = finishFor(tier);
   return !!fin && motion !== "rest" && (fin.material === "amethyst" || fin.material === "gold");
 }
 
-export function FinishAura({ tier, outer, small, motion, dim }: { tier?: Tier; /** how far outside the tile's edge its own drawing ends (tileShapes, tileOuter) */ outer: number; /** a tile too small for it: rays a third of a pixel long are only a smudge */ small: boolean; motion: FinishMotion; dim: boolean }) {
+export function FinishAura({ tier, outer, small, motion, dim }: { tier?: TileTier; /** how far outside the tile's edge its own drawing ends (tileShapes, tileOuter) */ outer: number; /** a tile too small for it: rays a third of a pixel long are only a smudge */ small: boolean; motion: FinishMotion; dim: boolean }) {
   const fin = finishFor(tier);
   if (!fin || small || !finishHasAura(tier, motion)) return null;
   return <path data-halo="" d={haloPath(outer)} fill="none" stroke={haloInk(fin)} strokeWidth={1.3} strokeLinecap="round" opacity={dim ? 0.4 : 0.75} />;
@@ -278,7 +277,7 @@ function Scroll({ fin }: { fin: Finish }) {
 }
 
 /** The material, under the letter. */
-export function FinishSurface({ tier, uid, bw, small, motion }: { tier?: Tier; uid: string; bw: number; small: boolean; motion: FinishMotion }) {
+export function FinishSurface({ tier, uid, bw, small, motion }: { tier?: TileTier; uid: string; bw: number; small: boolean; motion: FinishMotion }) {
   const fin = finishFor(tier);
   if (!fin) return null;
   const f = id(uid);
@@ -384,7 +383,7 @@ function moteSpots(fin: Finish): { x: number; y: number; r: number }[] {
 }
 
 /** Light under the letter: the face brightening and the broad glow of the light passing. */
-export function FinishLight({ tier, uid, bw, motion, dim, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; dim: boolean; index: number }) {
+export function FinishLight({ tier, uid, bw, motion, dim, index }: { tier?: TileTier; uid: string; bw: number; motion: FinishMotion; dim: boolean; index: number }) {
   const fin = finishFor(tier);
   if (!fin || motion !== "on") return null;
   const f = id(uid);
@@ -398,7 +397,7 @@ export function FinishLight({ tier, uid, bw, motion, dim, index }: { tier?: Tier
 }
 
 /** Light over the letter. */
-export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier?: Tier; uid: string; bw: number; motion: FinishMotion; dim: boolean; small: boolean; index: number }) {
+export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier?: TileTier; uid: string; bw: number; motion: FinishMotion; dim: boolean; small: boolean; index: number }) {
   const fin = finishFor(tier);
   if (!fin || motion === "rest") return null;
   const f = id(uid);
@@ -445,13 +444,13 @@ export function FinishShine({ tier, uid, bw, motion, dim, small, index }: { tier
 }
 
 /** Whether a tile has motes: a moving Legendary or Mythic one, not peckish, on every other tile. */
-export function finishHasMotes(tier: Tier | undefined, motion: FinishMotion, dim: boolean, index: number): boolean {
+export function finishHasMotes(tier: TileTier | undefined, motion: FinishMotion, dim: boolean, index: number): boolean {
   const fin = finishFor(tier);
   return !!fin && motion === "on" && !dim && index % 2 === 0 && (fin.material === "amethyst" || fin.material === "gold");
 }
 
 /** Glowing motes drifting up around the word: on every other tile only, a few each. */
-export function FinishMotes({ tier, uid, motion, dim, seed, index }: { tier?: Tier; uid: string; motion: FinishMotion; dim: boolean; seed: number; index: number }) {
+export function FinishMotes({ tier, uid, motion, dim, seed, index }: { tier?: TileTier; uid: string; motion: FinishMotion; dim: boolean; seed: number; index: number }) {
   const fin = finishFor(tier);
   if (!fin || !finishHasMotes(tier, motion, dim, index)) return null;
   const spots = moteSpots(fin);
@@ -528,7 +527,7 @@ export function finishFace(bw: number) {
 }
 
 /** A moving tile's moment as layers (`motion` "on" only: a still tile has no moment). */
-export function momentPieces({ tier, uid, bw, dim, seed, index }: { tier?: Tier; uid: string; bw: number; dim: boolean; seed: number; index: number }): Moment | null {
+export function momentPieces({ tier, uid, bw, dim, seed, index }: { tier?: TileTier; uid: string; bw: number; dim: boolean; seed: number; index: number }): Moment | null {
   const fin = finishFor(tier);
   if (!fin) return null;
   const f = id(uid);

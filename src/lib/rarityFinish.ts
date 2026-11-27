@@ -18,6 +18,7 @@
  * reads from a still frame alone (small word lists, reduced motion, slow devices, the share card).
  */
 import type { Tier } from "./economy";
+import { READS, contrast, luminance, mixHex } from "./contrast";
 
 /**
  * "collab" is not a rarity's material: it is the shared collab stock, tinted with a partner set's
@@ -48,11 +49,67 @@ export const FINISH: Partial<Record<Tier, Finish>> = {
   Mythic: { material: "amethyst", face: ["#eedfff", "#cdaaf8", "#a77ce8"], alpha: 0.66, glow: "#d6b2ff", deep: "#5d34a8", period: 7 },
 };
 
-export const finishFor = (tier: Tier | undefined): Finish | undefined => (tier ? FINISH[tier] : undefined);
-
-/** Two hex colors mixed: t = 0 is `a`, 1 is `b`. */
-export function mixHex(a: string, b: string, t: number): string {
-  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const [x, y] = [p(a), p(b)];
-  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("")}`;
+/**
+ * A collab set's two colors, "#rrggbb" each, as a tile is given them (lib/collabLook.ts). A tile's
+ * `tier` prop takes this IN PLACE of a rarity: the collab stock takes the place of the rarity's
+ * material (decisions.md, "Collab sets", item 3). The tile's border still follows its case, and
+ * its rings and rainbow its ascension: neither reads this.
+ */
+export interface CollabTint {
+  a: string;
+  b: string;
 }
+
+/** What a tile's material is chosen by: its word's rarity, or its word's collab colors. */
+export type TileTier = Tier | CollabTint;
+
+/** A tile's own face and letter ink by case (TileCharacter.tsx; tests/collab-look.test.ts holds them equal). */
+export const TILE_CASE = {
+  upper: { face: "#ffffff", ink: "#111827" },
+  lower: { face: "#f8efdd", ink: "#2a1e1a" },
+} as const;
+
+/** How strongly the collab stock tints a tile, strongest first. The last is barely a tint: a letter reads on it over any color. */
+const TINTS = [0.62, 0.5, 0.4, 0.3, 0.22, 0.14, 0.08];
+
+/**
+ * The collab stock on a TILE: the two colors as one diagonal tint over the tile's own face. The
+ * two colors are ANY two colors (an operator types them), and the letter keeps its own ink (it
+ * belongs to the case, as the border does), so the tint is thinned until the letter reads on both
+ * cases, at both ends of the tint and in its middle. It has no metal, foil, or facets, no halo and
+ * no motes: it is a stock, not a material. A light still passes over it.
+ */
+export function collabFinish(tint: CollabTint): Finish {
+  const mid = mixHex(tint.a, tint.b, 0.5);
+  const stops = [tint.a, mid, tint.b];
+  const reads = (alpha: number) =>
+    (["upper", "lower"] as const).every((k) => stops.every((c) => contrast(TILE_CASE[k].ink, mixHex(TILE_CASE[k].face, c, alpha)) >= READS));
+  const alpha = TINTS.find(reads) ?? TINTS[TINTS.length - 1];
+  const [dark, light] = luminance(tint.a) <= luminance(tint.b) ? [tint.a, tint.b] : [tint.b, tint.a];
+  return {
+    material: "collab",
+    face: stops,
+    alpha,
+    // the light it gives off, and the shade for what is drawn around it: from its own two colors
+    glow: mixHex(light, "#ffffff", 0.45),
+    deep: mixHex(dark, "#1b1714", 0.35),
+    period: 9,
+  };
+}
+
+/** A list of words draws hundreds of tiles: each pair of colors is worked out once. */
+const collabFinishes = new Map<string, Finish>();
+
+export function finishFor(tier: TileTier | undefined): Finish | undefined {
+  if (!tier) return undefined;
+  if (typeof tier === "string") return FINISH[tier];
+  const key = `${tier.a}${tier.b}`;
+  let fin = collabFinishes.get(key);
+  if (!fin) {
+    if (collabFinishes.size > 200) collabFinishes.clear(); // an admin dragging a color picker makes many pairs
+    collabFinishes.set(key, (fin = collabFinish(tier)));
+  }
+  return fin;
+}
+
+export { mixHex };

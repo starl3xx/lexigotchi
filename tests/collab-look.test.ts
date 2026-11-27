@@ -7,9 +7,10 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
-import { BACK_TEXT, READS, SHOWS, TILE_CASE, collabBack, collabCardLook, collabFinish, collabLooksOf, contrast, lookOf, luminance } from "@/lib/collabLook";
+import { BACK_TEXT, collabBack, collabCardLook, collabLooksOf, lookOf } from "@/lib/collabLook";
+import { READS, SHOWS, contrast, luminance, mixHex } from "@/lib/contrast";
 import { CARD_PAPER, GRAPHITE } from "@/lib/cardArt/looks";
-import { mixHex } from "@/lib/rarityFinish";
+import { FINISH, TILE_CASE, collabFinish, finishFor } from "@/lib/rarityFinish";
 import { STANDARD_FIELDS, publicSets, type WordSet } from "@/lib/sets/rules";
 import { collabWordsOf } from "@/lib/rarity";
 
@@ -66,6 +67,13 @@ describe("the tile: the letter always reads", () => {
     expect(fin.face).toEqual(["#1f6f8b", mixHex("#1f6f8b", "#f2a65a", 0.5), "#f2a65a"]);
     expect(fin.period).toBeGreaterThan(0);
     for (const c of [fin.glow, fin.deep]) expect(c).toMatch(/^#[0-9a-f]{6}$/);
+  });
+  it("a tile is given it IN PLACE of a rarity: the two colors where a tier would go", () => {
+    expect(finishFor({ a: "#1f6f8b", b: "#f2a65a" })).toEqual(collabFinish({ a: "#1f6f8b", b: "#f2a65a" }));
+    expect(finishFor({ a: "#1f6f8b", b: "#f2a65a" })).toBe(finishFor({ a: "#1f6f8b", b: "#f2a65a" })); // worked out once a pair
+    expect(finishFor("Legendary")).toBe(FINISH.Legendary); // a rarity is what it was
+    expect(finishFor("Common")).toBeUndefined();
+    expect(finishFor(undefined)).toBeUndefined();
   });
   it("uses the tile's own face and ink, as TileCharacter draws them", () => {
     const src = readFileSync(join(__dirname, "..", "src/components/game/TileCharacter.tsx"), "utf8");

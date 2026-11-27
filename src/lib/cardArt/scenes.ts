@@ -27,7 +27,20 @@ const clip = (id: string) => `<clipPath id="${id}"><rect x="${WIN.x}" y="${WIN.y
  * over a tiled floor drawn in perspective, with the rarity as an overtone: a wash of its tint
  * behind the word, and its ink on the medallion's beads and the line where wall meets floor.
  */
-export function stock(L: CardLook): string {
+/**
+ * The stock card's wash of colour behind the word. A rarity's is one tint, fading out. A collab
+ * set's is its two colors (lib/collabLook.ts `collabCardLook`): the first behind the word, the
+ * second toward the card's edges, a little stronger there so both show. The card stays grey first.
+ */
+function wash(L: CardLook & { tint2?: string }): string {
+  const at = (v: number) => n1(v * L.wash * 100) / 100;
+  const stops = L.tint2
+    ? [`<stop offset="0" stop-color="${L.tint}" stop-opacity="${at(0.28)}"/>`, `<stop offset="0.5" stop-color="${L.tint}" stop-opacity="${at(0.13)}"/>`, `<stop offset="0.72" stop-color="${L.tint2}" stop-opacity="${at(0.16)}"/>`, `<stop offset="1" stop-color="${L.tint2}" stop-opacity="${at(0.3)}"/>`]
+    : [`<stop offset="0" stop-color="${L.tint}" stop-opacity="${at(0.28)}"/>`, `<stop offset="0.55" stop-color="${L.tint}" stop-opacity="${at(0.11)}"/>`, `<stop offset="1" stop-color="${L.tint}" stop-opacity="${at(0.03)}"/>`];
+  return `<radialGradient id="tint" cx="0.5" cy="0.56" r="0.72">${stops.join("")}</radialGradient>`;
+}
+
+export function stock(L: CardLook & { tint2?: string }): string {
   const cx = W / 2;
   const cy = 296;
   const yh = FEET_Y - 64; // where the wall meets the floor (the floor's horizon)
@@ -56,7 +69,7 @@ export function stock(L: CardLook): string {
   for (const y of rows) lines += `M${X0} ${n1(y)}H${X1}`;
   return `<defs>${clip("w")}${hatch("far", 0, 4, g, 1, 0.26)}
     <radialGradient id="glow" cx="0.5" cy="0.42" r="0.55"><stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
-    <radialGradient id="tint" cx="0.5" cy="0.56" r="0.72"><stop offset="0" stop-color="${L.tint}" stop-opacity="${n1(0.28 * L.wash * 100) / 100}"/><stop offset="0.55" stop-color="${L.tint}" stop-opacity="${n1(0.11 * L.wash * 100) / 100}"/><stop offset="1" stop-color="${L.tint}" stop-opacity="${n1(0.03 * L.wash * 100) / 100}"/></radialGradient>
+    ${wash(L)}
     <linearGradient id="deep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${g}" stop-opacity="0.16"/><stop offset="0.5" stop-color="${g}" stop-opacity="0"/></linearGradient>
     <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${NEUTRAL.floor}" stop-opacity="0.9"/><stop offset="0.4" stop-color="${NEUTRAL.floor}" stop-opacity="0"/></linearGradient></defs>
   <g clip-path="url(#w)">
@@ -502,14 +515,18 @@ const ART: Record<SceneId, (L: CardLook) => string> = {
   space: () => space(),
 };
 
-/** A scene's art (the window's picture) for a word of this rarity, as SVG markup for svgDoc. */
-export function cardArt(scene: SceneId, tier: Tier): string {
-  return ART[scene](CARD_LOOKS[tier]);
+/**
+ * A scene's art (the window's picture) for a word of this rarity, as SVG markup for svgDoc. `look`
+ * is a collab word's own look in place of its rarity's (lib/collabLook.ts): the stock card is then
+ * the collab stock, in the set's two colors.
+ */
+export function cardArt(scene: SceneId, tier: Tier, look?: CardLook & { tint2?: string }): string {
+  return ART[scene](look ?? CARD_LOOKS[tier]);
 }
 
-/** The frame for a word of this rarity, as SVG markup for svgDoc. */
-export function cardFrame(tier: Tier): string {
-  return frame(CARD_LOOKS[tier], tier);
+/** The frame for a word of this rarity, as SVG markup for svgDoc. A collab word's is printed in its look's ink; its corners still carry its rarity's mark. */
+export function cardFrame(tier: Tier, look?: CardLook): string {
+  return frame(look ?? CARD_LOOKS[tier], tier);
 }
 
 /**

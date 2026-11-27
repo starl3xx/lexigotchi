@@ -633,6 +633,14 @@ body {
 .cf { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; container-type: inline-size; background: #fcf7ea; }
 .cf > * { position: absolute; }
 .cf-art, .cf-frame, .cf-tex { inset: 0; background-size: 100% 100%; pointer-events: none; }
+/* A collab set's stamp (components/scenes/SceneFrame): ONE fixed place on every collab card, the
+   window's upper left. In card units (1200 wide): a 92-unit box, 62 in from the left and 60 from
+   the top, clear of the corner piece (13 to 46), the word's row (from 200), the ribbon, and the
+   turn-over button on the right. `contain`, so a wide or a tall stamp keeps its shape. A thumbnail
+   has none: under 240 px the box would be 18 px of smudge. */
+.cf-stamp { left: 5.17%; top: 8.9%; width: 7.67%; aspect-ratio: 1; object-fit: contain; pointer-events: none; user-select: none; }
+.cf-small .cf-stamp { display: none; }
+@container (max-width: 239px) { .cf-stamp { display: none; } }
 /* card stock: a fine grain and a faint linen weave */
 .cf-tex {
   background-image:

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import type { Tier } from "@/lib/economy";
-import { finishFor, type Finish } from "@/lib/rarityFinish";
+import { finishFor, type Finish, type TileTier } from "@/lib/rarityFinish";
 import { facets, glintFlare, haloInk, SCROLL_MIRRORS, SCROLL_PATH } from "@/components/game/TileFinish";
 
 import {
@@ -304,7 +304,7 @@ export function OgTile({
   w?: number;
   limbs?: boolean;
   /** The word's rarity, worn as the tile's material (lib/rarityFinish), as a still. */
-  tier?: Tier;
+  tier?: TileTier;
   /**
    * The word's ascension stage, worn by its UPPERCASE letters as in the game (decisions.md #48):
    * slim rings, black diamond pips, laurels from Gilded 4, the foil at Holographic. The caller

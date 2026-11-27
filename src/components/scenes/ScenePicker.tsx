@@ -62,7 +62,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
                 className="cel-sm press relative flex flex-col gap-1 rounded-xl bg-card p-1 text-left"
               >
                 <span className="card-corner block overflow-hidden border-2 border-ink">
-                  <SceneThumb scene={s.id} tier={tier} />
+                  <SceneThumb scene={s.id} tier={tier} word={word} />
                 </span>
                 <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
                   <ShoppingBag weight="fill" size={11} className="shrink-0 text-candy-ink" aria-hidden />
@@ -84,7 +84,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
               className={`cel-sm press relative flex flex-col gap-1 rounded-xl p-1 text-left disabled:cursor-not-allowed ${on ? "bg-ink text-paper" : "bg-card"}`}
             >
               <span className={`card-corner block overflow-hidden border-2 border-ink ${open ? "" : "opacity-45 grayscale"}`}>
-                <SceneThumb scene={s.id} tier={tier} />
+                <SceneThumb scene={s.id} tier={tier} word={word} />
               </span>
               <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
                 {!open && <Lock weight="fill" size={11} className="shrink-0" aria-label="locked" />}

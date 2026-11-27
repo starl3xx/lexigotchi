@@ -67,6 +67,7 @@ import {
 import { useWordPrice } from "@/lib/oracle/useWordPrice";
 import { useWalletSighting } from "./useWalletSighting";
 import { WordStripLive } from "@/components/WordStrip";
+import { CollabLooksProvider } from "./collabLooks";
 
 // Bump the version suffix whenever the onboarding flow materially changes, so players who already
 // dismissed an older version see the new one once (v2 added the "Roll to upgrade" step).
@@ -85,11 +86,13 @@ export function GameApp() {
   if (PRELAUNCH) return <PreLaunchScreen />;
   const Provider = isChainBacked() ? ChainGameProvider : GameProvider;
   return (
-    <Provider>
-      <SceneSync />
-      <EarningsNote />
-      <OnboardingHost />
-    </Provider>
+    <CollabLooksProvider>
+      <Provider>
+        <SceneSync />
+        <EarningsNote />
+        <OnboardingHost />
+      </Provider>
+    </CollabLooksProvider>
   );
 }
 
