@@ -748,6 +748,20 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (`/status` is not the System tab), sent with no parse mode, a fact that couldn't be read is left
   out (never zero or "nobody"), and a player's name is never written with an "@" (in Telegram that
   mentions someone else). 10 commands a minute per person (`allow("telegram", …)`).
+  **The bot posts game news by itself**, from two Vercel crons (vercel.json):
+  the **daily recap** (`lib/telegramRecap.ts`, `/api/cron/telegram-recap`, 00:20 UTC and again at
+  02:20 for a late draw): how the day's jackpot draw went, the pot now, the words made the day
+  before, and a new bounty theme on a week's first day; and the **Mythic-word alert** (starl3xx,
+  2026-11-26; `lib/telegramAlerts.ts`, `/api/cron/telegram-alerts`, every five minutes): a post
+  with the word's card when someone makes a Mythic word (`ALERT_TIERS`), only while the claim is
+  under half an hour old, so nothing is announced late. Both post to real people unasked, so both:
+  run in production only, CLAIM a send-once mark in `reminder_marks` before sending (the chain day;
+  the claim's own event) and post nothing when no mark can be kept, give the mark back only on
+  Telegram's clear refusal, and are muted by `TELEGRAM_RECAP=off` / `TELEGRAM_ALERTS=off`. The
+  recap waits for the day's draw (no draw, no recap). `lib/onchain/claims.ts` reads the words made
+  in a stretch of time (a log has a block number, not a time: it measures the chain's pace, checks
+  its start block, and times each claim's block exactly). A heading is bold by an entity
+  (`SendOptions.bold`), never a parse mode, over a line of hyphens measured as the update posts' are.
 - **The logos** (decisions.md #40): **A** is the primary logo and the app icon (the tile on paper,
   with the letters' eyes); **B** is the seal (a gilded tile on engraved blue; in one ink it is pressed
   into every card's back). One source draws them: `src/lib/cardArt/logo.ts` (`logoA`, `logoB`) and
