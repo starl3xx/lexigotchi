@@ -3,15 +3,46 @@
  * The Jackpot page (the phone's "Win" tab): the daily jackpot, then the weekly bounty
  * (BountySection). Lexigotchi picks a secret word; hold it staked & fed → take the pot. Each half
  * is its own column from `lg`, the jackpot on the left; a phone stacks them, the jackpot first.
+ *
+ * **The secret word is a card** (decisions.md #50, part 4; starl3xx: "it reinforces that a card
+ * has to be held, not individual letters"): face down until it is revealed (cards/FaceDownCard,
+ * which is given nothing about the word), then face up. It was five dark tiles with a "?" on
+ * each, and then the word as loose letters. A player who held it sees their own card: their
+ * scene, their cases, their gilding.
  */
+import type { ReactNode } from "react";
 import { Button, Card, Countdown, SectionTitle, TweenNumber } from "../primitives";
-import { WordTiles } from "../LetterTile";
 import { Confetti, DiceFive, Gift, SmileyMeh, Star } from "../ui/icons";
-import { fmtWord, hunger, jackpotEligible, useGame } from "../state";
+import { fmtWord, hunger, jackpotEligible, useGame, type OwnedWord } from "../state";
 import { BountySection } from "./BountySection";
+import { FaceDownCard } from "../../cards/FaceDownCard";
+import { SceneFrame } from "../../scenes/SceneFrame";
+import { useWordScene } from "../../scenes/useWordScene";
+import type { Gild } from "../TileCharacter";
 import { wordTier } from "@/lib/economy";
+import { DEFAULT_SCENE } from "@/lib/scenes";
 
 const PAST = ["MOTEL", "GRAPE", "QUILT"];
+
+/** A card face up on the Jackpot page: it stands on the page as a card does, and it arrives without changing size. */
+function FaceUp({ wide = false, children }: { wide?: boolean; children: ReactNode }) {
+  return (
+    <div className={`card-stand animate-drop mx-auto my-3 w-full ${wide ? "max-w-[20rem]" : "max-w-[15rem]"}`}>
+      <div className="card-corner overflow-hidden border-[3px] border-ink">{children}</div>
+    </div>
+  );
+}
+
+/** The winner's own card, as they hold it: their scene, their cases, their gilding, and the letters cheering. */
+function WonCard({ word }: { word: OwnedWord }) {
+  const { scene } = useWordScene(word.word);
+  const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
+  return (
+    <FaceUp wide>
+      <SceneFrame scene={scene} word={word.word} upper={word.upper} state="celebrate" gild={gild} tier={word.tier} />
+    </FaceUp>
+  );
+}
 
 export function JackpotScreen() {
   const g = useGame();
@@ -33,16 +64,7 @@ export function JackpotScreen() {
                 <TweenNumber value={state.jackpotPot} format={fmtWord} />
               </div>
               <div className="text-xs text-ink/60">$WORD · draws in <Countdown /></div>
-              <div className="my-4 flex justify-center gap-1.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex h-12 w-12 items-center justify-center rounded-lg border-[3px] border-ink bg-ink/80 font-display text-2xl text-paper"
-                  >
-                    ?
-                  </div>
-                ))}
-              </div>
+              <FaceDownCard label="Today’s secret word: a card, face down" className="mx-auto my-4 max-w-[15rem]" />
               <Button
                 full
                 size="lg"
@@ -67,16 +89,15 @@ export function JackpotScreen() {
               <p className="text-sm text-ink/70">
                 You held <strong>{state.jackpotWord}</strong>, staked &amp; fed. The pot is yours.
               </p>
-              <div className="my-3 flex justify-center">
-                <WordTiles word={state.jackpotWord} upper={Array(5).fill(true)} state="celebrate" size={54} detail="bust" tier={wordTier(state.jackpotWord)} />
-              </div>
+              {ownedAnswer && <WonCard word={ownedAnswer} />}
             </div>
           ) : (
             <div className="py-2">
               <p className="text-sm text-ink/60">Today’s secret word was</p>
-              <div className="my-2 flex justify-center">
-                <WordTiles word={state.jackpotWord} upper={Array(5).fill(false)} size={40} tier={wordTier(state.jackpotWord)} />
-              </div>
+              {/* nobody's card: the word in the plain scene, in lowercase, with its rarity's frame */}
+              <FaceUp>
+                <SceneFrame scene={DEFAULT_SCENE} word={state.jackpotWord} upper={Array(5).fill(false)} tier={wordTier(state.jackpotWord)} small animated={false} />
+              </FaceUp>
               <p className="text-sm">
                 {ownedAnswer
                   ? "You owned it, but it wasn’t staked and fed. Feed your words!"
