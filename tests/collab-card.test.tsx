@@ -152,6 +152,35 @@ describe("who draws a word's tiles", () => {
   });
 });
 
+describe("the card's own colors", () => {
+  it("every color picked by a word's rarity asks for its collab look first (the list of where)", () => {
+    // The tiles are held by the scan above; these are the card's other inks, each from a table
+    // keyed by tier: the frame's and the case's ink, the back's line, the band of light. A collab
+    // word is Legendary, so any of these read by tier alone comes out gold (a review found the
+    // video's stamp, the case's label, and the sheen that way).
+    const { readdirSync, statSync } = require("fs") as typeof import("fs");
+    const root = join(__dirname, "..");
+    const files = (dir: string): string[] =>
+      readdirSync(join(root, dir)).flatMap((name: string) => {
+        const rel = `${dir}/${name}`;
+        return statSync(join(root, rel)).isDirectory() ? files(rel) : /\.tsx?$/.test(name) ? [rel] : [];
+      });
+    const wrong: string[] = [];
+    let seen = 0;
+    for (const f of [...files("src/components"), ...files("src/app")]) {
+      const src = readFileSync(join(root, f), "utf8");
+      src.split("\n").forEach((line, i) => {
+        if (!/\b(CARD_LOOKS|MATERIAL_LINE|CARD_SHEEN)\[[^\]"']*tier/.test(line)) return; // keyed by a word's tier
+        seen++;
+        // the same line decides by the look first: `mine ? … :`, `look ? … :`, `collab?.… ??`, `… ?? CARD_LOOKS[…]`
+        if (!/\b(mine|look|collab|collabLook)\b[^;]*(\?|\?\?)|\?\?\s*(CARD_LOOKS|MATERIAL_LINE)\[/.test(line)) wrong.push(`${f}:${i + 1} ${line.trim().slice(0, 90)}`);
+      });
+    }
+    expect(wrong).toEqual([]);
+    expect(seen).toBeGreaterThanOrEqual(6); // SceneFrame, wordCard, CardCase, SceneCard, CardBack (twice), ShareVideo
+  });
+});
+
 describe("the card's front", () => {
   it("the stock card's wash takes the two colors, and the frame the look's ink; a rarity's card is what it was", () => {
     const L = collabCardLook(LOOK);
