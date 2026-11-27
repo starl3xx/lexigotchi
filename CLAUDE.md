@@ -790,8 +790,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   listed yet (the owner's: `Shop.addItem`, then a `shop_items` row of kind "case"). **Curved ground is one rule:** a
   scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
   is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands
-  stay joined. **The card's own light** (`cards/useCardLight`, `.sc-sheen`/`.sc-glare`/`.sc-lean`) is
-  the only motion: a faint band of light in moments, and a lean toward a mouse pointer, on the card in
+  stay joined. **The card's own light** (`cards/useCardLight`, `.cf-light`/`.sc-glare`/`.sc-lean`) is
+  the only motion: a faint band of RULED LINES in moments (decisions.md #58, part 3: see "The cards
+  are matte"), and a lean toward a mouse pointer, on the card in
   focus only, never for a hungry word; the lean's transform is written directly with no transition
   while it follows (a transition restarted each frame cost a third of a core). Keep such effects
   faint (the owner: "much more subtle/transparent"). The Today stage walks the player's words with
@@ -825,8 +826,21 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   ink. Light on a card is DRAWN in lines and is quiet; never a soft white wash, a hot spot, or
   glitter, and never a line over a letter. Its references are a playing card's stock and back, and
   banknote engraving. Being built in parts: **the video's light is a veil** (`loopRenderer` `VEIL`
-  0.1: it lifts the inks and can't pass the paper; it was white added at 0.55). **The backs are dark engraved plates** (part 2, below under Word cards). Still to come: the
-  front's ruled band, the stock's diagonal weave. Still his to
+  0.1: it lifts the inks and can't pass the paper; it was white added at 0.55). **The backs are dark engraved plates** (part 2, below under Word cards). **The front's light is a
+  ruled band** (part 3; `lib/cardArt/light`, `.cf-light`): a picture of fine leaning lines the size
+  of the card STANDS STILL on it, and a soft window crosses the front and shows the part under it.
+  The FRONT draws it, under its letters (`SceneFrame`; the card says when through the
+  `scenes/cardLit` context, since a front is handed to a card already made): never a line over a
+  letter. It is two elements sliding, the window one way and the lines the other by the same
+  amount: transforms only, so nothing is painted again as it crosses (never move it by a mask's
+  position). **Its strength follows the face** (0.36; `.cf-dark` 0.16; `.cf-pale`, the light
+  stock card, 0.79, where a light line shows only by breaking the engraving): a new face joins
+  `DARK_SCENES` or `PALE_SCENES` or takes the middle, and is looked at with the band HELD
+  (pause both animations with a negative delay; reduced motion removes the band, it does not
+  hold it). Its ink is the rarity's (`LIGHT_INK`: white, warm for Legendary, for Mythic a
+  spectrum printed across the card). Measured against the old white band, made to pass again and
+  again: a few points of a core more while it passes, in both engines, and under one point on
+  average. Still to come: the stock's diagonal weave. Still his to
   answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
   `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),

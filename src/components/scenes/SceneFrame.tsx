@@ -22,7 +22,7 @@
  *   says about the word, in the card's serif (Source Serif 4, shipped with the game), and never
  *   the word itself.
  */
-import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useContext, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { TileCharacter, leanFor, useFinishMoment, useGaze, usePrefersReducedMotion, useWordLife, type Gild, type TileState } from "../game/TileCharacter";
 import { TierMark } from "../game/TierMark";
 import type { Tier } from "@/lib/economy";
@@ -32,7 +32,9 @@ import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, type CardLook } from "@/lib/cardArt/looks";
 import { collabCardLook, type CollabLook } from "@/lib/collabLook";
 import { tileTierOf, useCollabLook } from "../game/collabLooksContext";
-import { DARK_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, PALE_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
+import { LIGHT_INK, lightLines, type LightInk } from "@/lib/cardArt/light";
+import { CardLit } from "./cardLit";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -66,6 +68,10 @@ const cardLookOf = (look: CollabLook | undefined): (CardLook & { tint2?: string 
 /** A face's art as a CSS image, kept per rarity (and per collab look) for the faces that are printed in it (RARITY_FACES). */
 export function sceneArtImage(scene: SceneId, tier: Tier, look?: CollabLook): string {
   return picture(`art-${scene}-${RARITY_FACES.has(scene) ? tier + lookKey(look) : ""}`, () => cardArt(scene, tier, cardLookOf(look)));
+}
+/** The card's light as a CSS image (lib/cardArt/light): the ruled lines a passing band shows, in one of three inks. */
+export function cardLightImage(ink: LightInk): string {
+  return picture(`light-${ink}`, () => lightLines(ink));
 }
 /** The frame for a rarity as a CSS image: in a collab word's own ink when it has a look. */
 export function cardFrameImage(tier: Tier, look?: CollabLook): string {
@@ -145,6 +151,10 @@ export function SceneFrame({
   // stock card's wash, the ribbon, and the tiles. Its rarity (Legendary) still names the ribbon.
   const mine = useCollabLook(word, collab);
   const look = cardLookOf(mine) ?? CARD_LOOKS[tier ?? PLAIN];
+  // The card's light (./cardLit): only the card in focus has one. Its ink is the rarity's, or the
+  // plain white for a collab word, whose card is its set's colors and no metal.
+  const lit = useContext(CardLit);
+  const lightInk: LightInk = mine ? "white" : LIGHT_INK[tier ?? PLAIN];
   // The word's row in percent of the card, so it draws on the first paint and on the server (the
   // share page), with nothing measured first.
   const L = wordLayout(word.length);
@@ -285,7 +295,7 @@ export function SceneFrame({
       // `cf-changing`: only while a face change is in flight do the letters glide to their new
       // stances (globals.css, .cf-stand). A stance is written in units of the card's width, so a
       // glide that was always on also ran on every resize: the letters drifted for half a second.
-      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : ""} ${was ? "cf-changing" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
+      className={`cf ${small ? "cf-small" : ""} ${DARK_SCENES.has(scene) ? "cf-dark" : PALE_SCENES.has(scene) ? "cf-pale" : ""} ${was ? "cf-changing" : ""} ${offscreen ? "scene-offscreen" : ""} ${animated ? "" : "scene-still"} ${className}`}
       style={{ "--cf-ink": look.ink, "--cf-accent": look.accent, "--cf-ground": look.ground, ...(onSwipe ? { touchAction: "pan-y" } : {}) } as CSSProperties}
       {...swipe}
     >
@@ -293,6 +303,14 @@ export function SceneFrame({
       {art(scene, coming)}
       <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
+      {/* The card's light (decisions.md #58, part 3): ruled lines that stand still on the card, shown
+          through a band that crosses it in a moment (globals.css, .cf-light). Over the art, the
+          frame, and the stock; UNDER the word, so no line ever crosses a letter. */}
+      {lit && (
+        <i aria-hidden className="cf-light">
+          <i style={{ backgroundImage: cardLightImage(lightInk) }} />
+        </i>
+      )}
       {/* The set's stamp, in ONE fixed place on every collab card: the window's upper left, clear of
           the word, the ribbon, and the turn-over button. A picture the operator uploaded, served by
           this site (never an SVG). A thumbnail is too small for it (globals.css). */}
