@@ -129,7 +129,7 @@ import { readUntil } from "@/lib/onchain/settle";
 import { knownPityAfter, overlayPity, pruneNotes, type PityNote } from "@/lib/onchain/pityOverlay";
 import { overlayStage, pruneStageNotes, pruneUnfinished, type Stage, type StageNote } from "@/lib/onchain/stageOverlay";
 import { answerLost, ascendResult, revealPlan, type RevealAnswer } from "@/lib/onchain/ascendResult";
-import { openPacks, packRevealPlan, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
+import { failedAsk, openPacks, packRevealPlan, type PackRevealAnswer, type PackRevealPlan } from "@/lib/onchain/packReveal";
 import { authedPostJson, maybeAuthedPostJson } from "./campaignClient";
 import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
@@ -936,13 +936,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       };
 
       const first = await ask();
-      // An error the server STATED (rate_limited, unknown_commit, …) means it refused before sending.
-      if (!first?.ok && !answerLost(first?.error)) {
+      // What a failed ask means (lib/onchain/packReveal `failedAsk`). An error the server STATED
+      // (rate_limited, unknown_commit, …) means it refused before sending. Two do not: a lost answer
+      // says nothing about whether the server sent the reveal (it holds the request while the reveal
+      // mines, up to about 20 s), and "already revealed" says the pack is OPEN (a server from before
+      // the relay answers an opened commit that way). Both are "ask the chain".
+      const failed = first?.ok ? null : failedAsk(first?.error);
+      if (failed === "refused") {
         toast(authError(first?.error, "Draw"), "bad");
         return "waiting";
       }
-      // A lost answer says nothing about whether the server sent the reveal: it holds the request
-      // while the reveal mines (up to about 20 s). So that is "ask the chain", never "nothing happened".
       const plan: PackRevealPlan = first?.ok ? packRevealPlan(first.reveal) : { do: "read" };
       if (plan.do === "show") return opened(plan.letters);
       if (plan.do === "wallet") {
@@ -960,9 +963,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       const landed = await readUntil(() => orThrowAfter(readLetterCommitRevealed(commitId), 5_000), (revealed) => revealed, PACK_SETTLE_MS);
       if (!landed) {
         for (const delay of [0, 4_000, 12_000]) setTimeout(reread, delay);
-        // The server said it broadcast: the chain finishes it. A lost answer said nothing: the pack
-        // waits, and opening it again asks the server about THIS commit (never the wallet first).
-        return first?.ok ? "finishing" : "waiting";
+        // The server said it broadcast, or that the pack is open: the chain finishes it. A lost
+        // answer said nothing: the pack waits, and opening it again asks the server about THIS
+        // commit (never the wallet first).
+        return failed === "lost" ? "waiting" : "finishing";
       }
       const again = await ask();
       const after = again?.ok ? packRevealPlan(again.reveal) : null;

@@ -5,7 +5,7 @@
  * is known to be on chain.
  */
 import { describe, it, expect } from "vitest";
-import { openPacks, packRevealPlan } from "@/lib/onchain/packReveal";
+import { failedAsk, openPacks, packRevealPlan } from "@/lib/onchain/packReveal";
 
 const SIG = `0x${"11".repeat(65)}` as const;
 const FIVE = [17, 8, 3, 3, 0];
@@ -78,5 +78,21 @@ describe("openPacks", () => {
 
   it("an id from another list changes nothing", () => {
     expect(openPacks(pending, new Set(["9"]))).toEqual(pending);
+  });
+});
+
+describe("failedAsk: what a failed request to open a pack means", () => {
+  it("“already revealed” is not a refusal: the pack is open (a server from before the relay answers that way)", () => {
+    expect(failedAsk("already_revealed")).toBe("open");
+  });
+
+  it("a lost answer is lost: the fetch failed, or no JSON came back", () => {
+    expect(failedAsk("request_failed")).toBe("lost");
+    expect(failedAsk("http_502")).toBe("lost");
+    expect(failedAsk("http_504")).toBe("lost");
+  });
+
+  it("anything else the server stated is a refusal before it sent anything", () => {
+    for (const e of ["rate_limited", "unknown_commit", "bad_commit_id", "no_supply", "http_404", "http_429", undefined]) expect(failedAsk(e)).toBe("refused");
   });
 });

@@ -54,6 +54,21 @@ export function packRevealPlan(r: PackRevealAnswer | null | undefined): PackReve
 }
 
 /**
+ * What a FAILED request to open a pack means.
+ * - "open": the server says the commit is opened already (`already_revealed`). A server from before
+ *   the relay answers an opened commit that way, and a deploy can put the new game in front of the
+ *   old server for a while. That is not a refusal: the pack is open, and the chain has its letters.
+ * - "lost": the answer never arrived (the fetch failed, or no JSON came back). The server holds the
+ *   request while the reveal mines, so it may have sent one. Ask the chain.
+ * - "refused": the server stated another error (rate_limited, unknown_commit, …), before sending
+ *   anything. The pack waits.
+ */
+export function failedAsk(error: string | undefined): "open" | "lost" | "refused" {
+  if (error === "already_revealed") return "open";
+  return error === "request_failed" || /^http_5\d\d$/.test(error ?? "") ? "lost" : "refused";
+}
+
+/**
  * Pack commits to leave out of every search for an open one: the ids this browser has SEEN revealed.
  *
  * "Rip another" commits a new pack seconds after a reveal, and an RPC node a block behind can still
