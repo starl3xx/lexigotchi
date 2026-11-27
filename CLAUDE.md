@@ -940,7 +940,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   which is a record in the browser only (`lib/mailbox`, per chain, Letters address, and wallet):
   ceremony, never state, since those letters are in the bag. `settleMail` takes each pack's own
   `had` and `mine` (another envelope may be in hand when it lands) and writes to the box of the
-  wallet that bought it. Say "mail", never "post" (docs/messaging.md). Letters from the Market
+  wallet that bought it. **Every flow that opens an envelope runs inside `mailGuard`**: a throw
+  before the commit is sent drops the envelope ("nothing was spent"); after, the envelope says the
+  pack is safe and waits, and the open commits are re-read on a stagger so the card shows it. An
+  envelope left on "Minting your letters…" is the bug it prevents. **The bag's read lags a reveal
+  by seconds**, so the order and tags come from `bagWithMail` (what the bag held plus the piece's
+  letters), the next piece's `had` from `bagBefore` (never less than the last piece left, for
+  60 s), and only the count's claim waits for the bag itself. To run the real-wallet path with no
+  real key or database: an Anvil fork, the fork's Letters told to trust a test signer (as
+  `scripts/pack-relay-fork-check.ts` does), a dev server with `NEXT_PUBLIC_RPC_URL` at the fork and
+  every `.env.local` secret overridden EMPTY on the command line (`/api/health/db` must answer
+  `ok: false`), and a browser wallet that forwards to the fork; `evm_setIntervalMining` makes
+  the steps slow enough to see. Say "mail", never "post" (docs/messaging.md). Letters from the Market
   never come by mail. Its styles sit ABOVE the cards' section in globals.css (a card test reads the
   file's tail), and `tests/mail-sheet.test.tsx` fails on a scale, on travel outside the
   no-preference block, and on any loop but the pull tab's nudge and the blink. **Which game runs** (`src/lib/onchain/gameMode.ts`): the chain store wherever this

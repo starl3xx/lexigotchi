@@ -2085,11 +2085,37 @@ setter. All small, riding existing suite patterns.
         processes only): WebKit, the sealed envelope 3.6%, the count 7.7%, against 6.8% for Today
         with a word on stage. Headless Chromium (it draws in software): 11.5% and 36.6%, against
         41.9% for Today.
-      - **Seen and not seen (part 2):** driven in the practice game in WebKit and Chromium at 360,
-        424, 768, and 1280 px: the tap, each mark, the tear by tap and by drag, closing mid-way,
-        the waiting card, a long wait with the dozing, and a pack with a q (with a temporary local
-        change, not committed). Not driven: the chain store's flow with a real wallet (its rules
-        are the tested pure parts; its glue is not under test), a real phone, and a mini-app host.
+      - **The order and the tags come from what the chain minted, not from the bag's read**
+        (`bagWithMail`): the game's read of the bag is often seconds behind a reveal, and the tear
+        comes inside them, so "this k finishes FUNKY" is worked out from what the bag held plus the
+        piece's letters. Only the count's claim waits for the bag itself (the claim checks it).
+        For the same reason "Rip another" measures the next piece from a bag never smaller than
+        what the last piece left in it (`hadWithOwed`, for 60 s or until the read shows it), or
+        the next envelope would call the last one's letters new again. It errs high, and a high
+        count names nothing as new.
+      - **An envelope is never left mid-step** (`mailGuard`). If the flow throws before the commit
+        is sent, the envelope leaves and a toast says nothing was spent. If it throws after, the
+        envelope says the pack is paid for and safe, and the open commits are read again on a
+        stagger so the card shows it (they were re-read only on focus). The RPC's own error goes to
+        the console, never into a toast. No "Pack sent" toast: the stamp says it. A commit still on
+        its way is not counted as waiting mail (the card's Open could only say "Still working on").
+      - **Seen and not seen (part 2).** In the practice game, WebKit and Chromium, at 360, 424,
+        768, and 1280 px: the tap, each mark, the tear by tap and by drag, closing mid-way, the
+        waiting card, a claim at the count, reduced motion (nothing animates after the tear), and,
+        with temporary local changes that were not committed, a long wait with the dozing, a pack
+        with a q, the numbers 4,512 and 123,456 in the postmark, and a 30-letter handle (cut with
+        an ellipsis, clear of the postmark). **With a real wallet path, on a local fork of Base
+        Sepolia** (Anvil's public test keys, the game's server with no database; the browser's
+        wallet sends through the game's own send path): a pack with one confirmation and the
+        server's reveal (2 sends with the approval, 1 after), "Rip another" straight after a
+        reveal, closing while "Paid" and seeing the sheet return by itself, closing untorn and
+        opening from the card, a refused wallet prompt (the envelope leaves, "Cancelled"), and the
+        page losing its chain reads right after the commit (the envelope said the pack waits, and
+        the card then opened it through the server). It also showed the route answering "already"
+        with a pack's letters on a fork, which part 1 could not. Not driven: the free pack (it
+        needs a verified identity), a pack opened for a linked wallet, a wallet changed while a
+        pack is on its way, a smart wallet's batched send, a real phone, and a mini-app host. The
+        chain store's glue is still under no automated test; its rules are the tested pure parts.
 
 ## Pricing & launch economics (decided June 2026)
 

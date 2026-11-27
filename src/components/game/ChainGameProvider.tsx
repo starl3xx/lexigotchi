@@ -1149,7 +1149,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
           sent = true;
         });
       } catch (err) {
-        console.warn("[mail] the pack's flow failed", sent ? "after its commit was sent" : "before anything was sent", err);
+        console.warn("[mail] the pack flow failed", sent ? "after its commit was sent" : "before anything was sent", err);
         if (sent) {
           settleMail(seq, piece, 0n, { got: "waiting" }, waiting); // the envelope says it, or a toast if its sheet has gone
         } else {
