@@ -179,13 +179,19 @@ dictionary is public, and the game answers "not available yet" for any word aske
 4. Publish the commitment hash if you want to prove later that the lists didn't change. It moves
    with any edit to a name, a word, or a headliner.
 
+**The reserve root comes before any reveal.** A reveal names a set's words to everyone, and a
+word the chain doesn't hold back yet can be claimed by hand. So the server reveals a set only once
+the chain's root leaves every one of its words out: **Reveal now** is refused until then ("send
+the reserve root first, then reveal"), and a set past its `revealAt` stays a draft and is revealed
+by itself soon after the root lands. It is refused too while the chain can't be read.
+
 **After any edit to a draft's words:** the tab says "Root out of date" again. Nothing breaks
 meanwhile (proofs come from the tree the chain holds). Send the new reserve root when the edits are
 done.
 
 **Releasing a set:**
-1. The set must be revealed (by its `revealAt`, or **Reveal now**; its name and words then lock) and
-   every word of it must be held back on the chain (send the reserve root first if the tab warns).
+1. The set must be revealed (by its `revealAt`, or **Reveal now**; its name and words then lock). A
+   reveal needs every word of the set held back on the chain already (the reserve root, above).
 2. Press **Build the release** (or `npm run sets -- release <id>`) near the release time. It shows
    the words added (never any removed) and prints the calls. Where this network's Words has the
    first-day gate, the calls are `setGate` FIRST, then `setDictionaryRoot`: as one Safe batch, or as
@@ -282,8 +288,9 @@ To put the placeholder on the test build (the owner's steps, in this order):
 2. Console → Sets → **Make the Test collab draft**. It picks five free words, two arbitrary colors,
    and a plain stamp. The button exists on a test network only; the server refuses it on mainnet.
    The card's front and back are drawn live in the tab: look at them there.
-3. **Reveal** it (its words turn Legendary and its look shows from this moment), **Build the reserve
-   root** and send it, then **Build the release** and send it.
+3. **Build the reserve root** and send it FIRST (until it lands the five words can be claimed by
+   hand, and the console refuses to reveal). Then **Reveal** it (its words turn Legendary and its
+   look shows from this moment), then **Build the release** and send it.
 4. Merge the two docs drafts (#286 sets, then #300 collabs). Each carries its tester note.
 
 For a real partner later: a draft with type Collab, the partner's name and link, the two colors,

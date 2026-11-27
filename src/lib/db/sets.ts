@@ -34,7 +34,14 @@ import {
   type WordSet,
 } from "@/lib/sets/rules";
 
-export type SetErrorCode = "not_found" | "locked" | "word_taken" | "empty" | "not_migrated" | "not_ready";
+export type SetErrorCode = "not_found" | "locked" | "word_taken" | "empty" | "not_migrated" | "not_ready" | "not_reserved" | "not_due";
+
+/**
+ * The words the chain's dictionary root leaves out right now (lib/sets/server `heldOnChain`), which
+ * every reveal is checked against. "unchecked" is for the proofs on a throwaway database
+ * (scripts/sets-db-check.ts), where there is no chain: never pass it from the app.
+ */
+export type HeldOnChain = ReadonlySet<string> | "unchecked";
 
 export class SetError extends Error {
   constructor(
@@ -517,11 +524,31 @@ async function replaceDraftsTx(chainId: number, sets: readonly ImportSet[]): Pro
  * stamp (`not_ready`, with what is missing). Checked under the set's lock, so an edit can't slip in
  * between the check and the reveal.
  */
-export async function revealSet(chainId: number, id: number, now: Date, opts: { collabLive?: boolean } = {}): Promise<void> {
+export async function revealSet(
+  chainId: number,
+  id: number,
+  now: Date,
+  held: HeldOnChain,
+  opts: { collabLive?: boolean; /** the scheduled reveal: only a set whose `revealAt` has come by then */ dueBy?: Date } = {},
+): Promise<void> {
   await getDb().transaction(async (tx) => {
     if ((await lockSet(tx, chainId, id)) !== "draft") throw new SetError("locked");
+    // Read AFTER the lock: every edit of a draft takes the same lock, so these are the words and
+    // the date the set is revealed with.
     const words = await tx.select({ word: setWords.word, headliner: setWords.headliner }).from(setWords).where(eq(setWords.setId, id));
     if (words.length === 0) throw new SetError("empty");
+    if (opts.dueBy) {
+      const [row] = await tx.select({ revealAt: wordSets.revealAt }).from(wordSets).where(eq(wordSets.id, id));
+      if (!row?.revealAt || row.revealAt > opts.dueBy) throw new SetError("not_due");
+    }
+    // A reveal names these words to everyone, and a word the chain's root still has can be claimed
+    // straight from the contract: so every one of them must be held back on the chain already.
+    if (held !== "unchecked") {
+      const missing = words.filter((w) => !held.has(w.word)).length;
+      if (missing > 0) {
+        throw new SetError("not_reserved", [], [`${missing} of this set’s ${words.length} words are not held back on the chain yet: send the reserve root first, then reveal`]);
+      }
+    }
     // Before migration 0023 every set is a standard one. A savepoint, because a failed statement
     // would otherwise end this transaction.
     let look: Pick<WordSet, "type" | "partnerName" | "colorA" | "colorB" | "stampAt"> = STANDARD_FIELDS;
@@ -547,14 +574,17 @@ export async function revealSet(chainId: number, id: number, now: Date, opts: { 
 }
 
 /**
- * Reveal every draft whose time has come, and say which. One statement, so two servers that notice
- * at once reveal a set once: only the first gets its id back.
+ * Reveal every draft whose time has come, and say which. The due sets are found in one read, and
+ * each is then revealed by `revealSet`, under its own row lock: the one function that reveals a
+ * set, so what it checks (still a draft, still due, whole, every word held back on the chain) is
+ * true of the set as it is at that moment. A word added while this ran can't ride along, and two
+ * servers that notice at once reveal a set once: the second finds it locked and leaves it.
  *
  * A collab set that isn't whole (the same four things `revealSet` asks for) is left a draft, however
  * late it is: the admin shows what it is missing. The rule is written twice, here in SQL and in
  * rules.ts `revealProblems`; scripts/sets-db-check.ts holds the two together.
  */
-export async function revealDue(chainId: number, now: Date, opts: { collabLive?: boolean } = {}): Promise<number[]> {
+export async function revealDue(chainId: number, now: Date, held: HeldOnChain, opts: { collabLive?: boolean } = {}): Promise<number[]> {
   const due = [
     eq(wordSets.chainId, chainId),
     eq(wordSets.status, "draft"),
@@ -570,23 +600,34 @@ export async function revealDue(chainId: number, now: Date, opts: { collabLive?:
     and ${wordSets.colorA} is not null and ${wordSets.colorB} is not null
     and exists (select 1 from ${setStamps} where ${setStamps.setId} = ${wordSets.id})
   ))`;
-  const run = (conditions: typeof due) =>
+  const find = (conditions: typeof due) =>
     getDb()
-      .update(wordSets)
-      .set({ status: "revealed", revealedAt: now, ...touch })
+      .select({ id: wordSets.id })
+      .from(wordSets)
       .where(and(...conditions))
-      .returning({ id: wordSets.id });
+      .orderBy(asc(wordSets.id));
   try {
     let rows: { id: number }[];
     try {
-      rows = await run([...due, whole]);
+      rows = await find([...due, whole]);
     } catch (err) {
       if (!lacksCollab(err)) throw err;
       // Before migration 0023 every set is a standard one. (Before 0021 this throws "missing
       // table" again, to the catch below.)
-      rows = await run(due);
+      rows = await find(due);
     }
-    return rows.map((r) => r.id);
+    const revealed: number[] = [];
+    for (const { id } of rows) {
+      try {
+        await revealSet(chainId, id, now, held, { collabLive: opts.collabLive, dueBy: now });
+        revealed.push(id);
+      } catch (err) {
+        // Another server revealed it first, or it changed since the read above (a word the chain
+        // doesn't hold back, a later date, a part taken away): it stays as it is.
+        if (!(err instanceof SetError)) throw err;
+      }
+    }
+    return revealed;
   } catch (err) {
     if (isMissingTable(err)) return [];
     throw err;
