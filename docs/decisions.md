@@ -3167,6 +3167,46 @@ setter. All small, riding existing suite patterns.
       moving light on the back (13E), Mythic's rainbow (13F), and whether matte reaches the
       letters' finishes, the Holographic stage, and the plastic case (part 16).
 
+59. **A face change slides in, in the face picker** (starl3xx, 2026-11-27, with a picture of the
+    picker: "when switching faces, the faces should have a nice swipe animation/transition rather
+    than just appearing/disappearing").
+    - **What it was.** A 450 ms cross-fade on the house ease-out, which is nearly all the way in
+      after a third of its time: it read as the new face appearing.
+    - **What it is.** In the face picker (`SceneFrame`'s new `change="slide"`, passed by
+      `sheets/SceneSheet` only) the new face slides in over the old one, which holds still under
+      it, from the side the face sits on in the picker (`lib/scenes` `swapSide`: a later face from
+      the right, an earlier one from the left). 520 ms on a curve of its own (`--ease-swap`): the
+      house ease-out covers nine tenths of the way in the first third, and the slide was over
+      before it could be seen as one.
+    - **The card's rules hold.** Each face is one still picture, moved whole, under the card's
+      frame, which stays; nothing moves inside a picture (a face never moves: #34). The word
+      stays where it stands, and each letter glides to its place on the new ground
+      (`.cf-stand`: a curved ground lowers and turns a letter). Nothing is scaled (#48). All
+      travel sits behind `prefers-reduced-motion: no-preference`; under reduced motion the new
+      face fades in as before.
+    - **Why the new face covers the old instead of pushing it out** (my choice between two
+      readings of "swipe"): the letters stand in front of the picture, and their ground is part
+      of it. A push moves both pictures, so the ground slides under ten still feet for the whole
+      change; with a cover only the incoming picture moves, and the ground under a letter changes
+      once, as its edge passes.
+    - **Tidied on the way.** Which face was showing was worked out in an effect, one render
+      late: that render had the new face in place with nothing under it, and only the next one
+      put the old face under it and started the change. I read this in the code and did not see
+      it on a screen (React may run that effect before the first paint). With a slide, a frame
+      of the new face in place would be a visible jump, so it is worked out while rendering now
+      (as the word's own slide is) and the question does not arise.
+    - **Everywhere else is unchanged:** a face that changes with the WORD (Today's arrows) or
+      behind a sheet still fades in. My reading of "when switching faces": the place a player
+      switches faces. If he wants the slide on Today's arrows too, it is the same prop.
+    - **Seen and not seen.** Held still at chosen moments in Chromium and WebKit, in the practice
+      game's picker at 1,280 px, with the card's own timer stalled in the test browser (a held
+      frame takes longer to capture than the change lasts; my first frames, taken without that,
+      showed the finished change and I nearly read them as the curve being too fast, and one
+      showed a blank that was only the capture): the Stage to Spring from the right, Spring to
+      Stock (dark) from the left, the letters part way down Spring's hill as its edge passed.
+      Not seen: the motion itself by a person, a phone, Outer Space in the picker (the practice
+      game has no Shop).
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

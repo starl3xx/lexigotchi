@@ -26,7 +26,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEve
 import { TileCharacter, leanFor, useFinishMoment, useGaze, usePrefersReducedMotion, useWordLife, type Gild, type TileState } from "../game/TileCharacter";
 import { TierMark } from "../game/TierMark";
 import type { Tier } from "@/lib/economy";
-import type { SceneId } from "@/lib/scenes";
+import { swapSide, type SceneId } from "@/lib/scenes";
 import { cardNo } from "@/lib/cardFacts";
 import { CARD_H, CARD_W, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, type CardLook } from "@/lib/cardArt/looks";
@@ -94,6 +94,7 @@ export function SceneFrame({
   number,
   small = false,
   collab,
+  change = "fade",
 }: {
   /**
    * The word's rarity: its tiles' material (lib/rarityFinish, decisions.md #23), the ink of the
@@ -130,6 +131,13 @@ export function SceneFrame({
    * `null` for a card that is no word of a set. Otherwise it is looked up by the word.
    */
   collab?: CollabLook | null;
+  /**
+   * How a new face takes the old one's place. "fade": it fades in over it (the Today stage's next
+   * word, a pick made behind a sheet). "slide": it slides in over it from the side it sits on in
+   * the face picker, where the player is switching faces and watching this card (decisions.md
+   * #59). Under reduced motion both are the fade.
+   */
+  change?: "fade" | "slide";
 }) {
   const ribbonId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   // A collab word's card is the collab stock in its set's two colors, with the set's stamp
@@ -150,19 +158,22 @@ export function SceneFrame({
   if (entered.word !== word) setEntered({ word, enter });
   const slide = entered.word === word ? entered.enter : enter;
 
-  // A new scene fades in over the old one (a pick in the scene sheet, or the next word's home).
-  const [wasState, setWas] = useState<SceneId | null>(null);
-  const last = useRef(scene);
+  // A new face comes in over the old one (a pick in the face sheet, or the next word's home): the
+  // old one stays underneath until the new one is in. Which face was showing is worked out WHILE
+  // rendering, never in an effect: an effect is one render late, and that render has the new face
+  // in place with nothing under it. If it reaches the screen, a slide starts with a jump.
+  const [swap, setSwap] = useState<{ shown: SceneId; was: SceneId | null; side: "next" | "prev"; n: number }>({ shown: scene, was: null, side: "next", n: 0 });
+  if (swap.shown !== scene) setSwap({ shown: scene, was: swap.shown, side: swapSide(swap.shown, scene), n: swap.n + 1 });
   useEffect(() => {
-    if (last.current === scene) return;
-    setWas(last.current);
-    last.current = scene;
-    const id = window.setTimeout(() => setWas(null), SCENE_FADE_MS);
+    if (swap.n === 0) return;
+    // `n` names this change: a later change's old face is never cleared by this one's timer
+    const id = window.setTimeout(() => setSwap((s) => (s.n === swap.n ? { ...s, was: null } : s)), SCENE_SWAP_MS);
     return () => window.clearTimeout(id);
-  }, [scene]);
-  // Flipping A → B → A inside the fade renders once with the old scene equal to the new one, before
-  // the effect catches up: never draw a scene twice (same key; Bugbot on #164).
-  const was = wasState !== scene ? wasState : null;
+  }, [swap.n]);
+  // Flipping A → B → A inside the change would draw one face twice, as the old and the new: never
+  // draw a face twice (same key; Bugbot on #164).
+  const was = swap.was !== scene ? swap.was : null;
+  const coming = was ? (change === "slide" ? `scene-slide-${swap.side}` : "scene-fade-in") : "";
 
   // Nothing moves where it can't be seen: while the card is off screen its tiles and their finishes
   // hold still (globals.css, .scene-offscreen), which keeps a long page cheap.
@@ -224,7 +235,7 @@ export function SceneFrame({
           f.drop || f.deg ? { transform: `translateY(${((f.drop / CARD_W) * 100).toFixed(3)}cqw) rotate(${f.deg.toFixed(2)}deg)`, transformOrigin: `50% ${(FOOT_SHARE * 100).toFixed(2)}%` } : undefined;
         return (
           // display: flex, so no line box sits under the tile and the feet land on the line exactly
-          <div key={i} style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
+          <div key={i} className="cf-stand" style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
             <TileCharacter
               char={ch}
               upper={upper[i] ?? false}
@@ -270,7 +281,7 @@ export function SceneFrame({
       {...swipe}
     >
       {was && art(was, "")}
-      {art(scene, was ? "scene-fade-in" : "")}
+      {art(scene, coming)}
       <div className="cf-frame" style={{ backgroundImage: cardFrameImage(tier ?? PLAIN, mine) }} suppressHydrationWarning />
       <div className="cf-tex" />
       {/* The set's stamp, in ONE fixed place on every collab card: the window's upper left, clear of
@@ -339,8 +350,9 @@ export function SceneFrame({
   );
 }
 
-/** How long a new scene takes to fade in over the old one (globals.css, .scene-fade-in). */
-const SCENE_FADE_MS = 450;
+/** How long a new face takes to come in over the old one (globals.css, .scene-fade-in and
+ *  .scene-slide-*): the old face is kept underneath for this long, then dropped. */
+const SCENE_SWAP_MS = 540;
 
 /** A still thumbnail of a scene, for the picker: the art in the frame, no word. The stock card
  *  shows in the rarity of the word being dressed. */

@@ -785,6 +785,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with the
   next three as cards and a My Bag tile. The scene greys and fogs as its word gets hungry (`toneOf`,
   `.scene-tone`/`.scene-fog` in globals.css), inside the window only: the frame keeps its ink.
+  **A face change** (decisions.md #59): a new face comes in over the old one, which is kept under
+  it until it is in (`SceneFrame`; which face was showing is worked out WHILE rendering, never in
+  an effect, which is one render late: a render with the new face in place and nothing under it). It fades in everywhere but the
+  face picker, which passes `change="slide"`: there it slides in over the old face from the side
+  it sits on in the picker (`lib/scenes` `swapSide`), under the frame, each face one still picture
+  moved whole, while each letter glides to its place on the new ground (`.cf-stand`). It covers
+  the old face and never pushes it: a push slides the ground under still feet. Its curve is its
+  own (`--ease-swap`; the house ease-out is nearly done in a third of its time, so a slide on it
+  reads as a jump). `tests/face-change.test.tsx` holds it. **To judge any change that lasts under
+  a second from held frames, stall the timer that ends it first**: a held frame takes longer to
+  capture than the change lasts, and every frame after the first then shows it finished.
   **A pick is saved** in the browser always, and in table `word_scenes` (migration
   0011, `/api/scenes`, `lib/db/wordScenes.ts`, `lib/sceneSaves.ts`) under a profile session the
   player already has: keyed by the wallet holding the word, writable by any wallet in the session's

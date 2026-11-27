@@ -19,6 +19,8 @@
   /* Motion. Strong ease-out for things responding to the player; a gentle overshoot only for the
      playful bits (a tile hopping, an icon wiggling). Nothing here runs longer than ~300 ms. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* a face sliding in over another (.scene-slide-*): it sets off at once and takes its time to settle */
+  --ease-swap: cubic-bezier(0.45, 0, 0.15, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-hop: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -411,6 +413,24 @@ body {
 @keyframes scene-in-prev { from { opacity: 0; transform: translateX(-32px); } }
 @keyframes scene-fade-in { from { opacity: 0; } }
 @keyframes scene-fade-out { to { opacity: 0; } }
+
+/* A face change in the face picker (scenes/SceneFrame, change="slide"; decisions.md #59): the new
+   face slides in over the old one, which holds still under it, from the side the face sits on in
+   the picker. Each face is one still picture moved whole, under the card's frame; nothing moves
+   inside a picture. The word stays where it stands, and each letter glides to its place on the
+   new ground (.cf-stand: a curved ground lowers and turns a letter). Under reduced motion the new
+   face fades in, as it always did, and the letters are simply in place.
+   The curve is its own (--ease-swap), not the house --ease-out: that one covers nine tenths of the
+   way in the first third of the time, so the slide was over before it could be seen as one. */
+.scene-slide-next,
+.scene-slide-prev { animation: scene-fade-in 450ms var(--ease-out) both; }
+@media (prefers-reduced-motion: no-preference) {
+  .scene-slide-next { animation: scene-slide-next 520ms var(--ease-swap) both; box-shadow: -10px 0 14px -6px rgb(27 23 20 / 0.3); }
+  .scene-slide-prev { animation: scene-slide-prev 520ms var(--ease-swap) both; box-shadow: 10px 0 14px -6px rgb(27 23 20 / 0.3); }
+  .cf-stand { transition: transform 520ms var(--ease-swap); }
+}
+@keyframes scene-slide-next { from { transform: translateX(100%); } }
+@keyframes scene-slide-prev { from { transform: translateX(-100%); } }
 
 /* The ascend sheet (sheets/AscendSheet.tsx). A hit's rays turn behind the word for as long as it
    cheers, then fade with it: .asc-rays holds still (its box, and an oval fade so no edge shows) and
