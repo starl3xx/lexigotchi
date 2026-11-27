@@ -39,6 +39,7 @@ import { fmtWord, useGame, type OwnedWord } from "../game/state";
 import { ascensionLabel, cardDigits } from "@/lib/cardFacts";
 import { svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { SEAL, sealInk } from "@/lib/cardArt/seal";
+import { rackPaths } from "@/lib/cardArt/rack";
 import { tokenIdOf } from "@/lib/onchain/tokenId";
 import { addressOf } from "@/lib/onchain/addresses";
 import { NETWORK } from "@/lib/onchain/network";
@@ -91,15 +92,18 @@ export function CardBack({ word, mini = false, live = false }: { word: OwnedWord
   );
 }
 
+/** The rack's shapes, in its own 100 × 20 box: the styles keep every line one weight however the box is stretched. */
+const RACK = rackPaths();
+
 function Rack({ word }: { word: OwnedWord }) {
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   return (
     <div className="cb-rackwrap">
-      {/* a tile rack in perspective: its top runs back behind the tiles, its lip stands in front */}
+      {/* a tile rack in perspective, engraved (lib/cardArt/rack): its top runs back behind the tiles,
+          ruled; its front stands before them, in shadow under closer ruling */}
       <svg className="cb-rack cb-rack-back" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden>
-        <polygon points="5,4 95,4 100,13 0,13" className="rk-top" />
-        <polygon points="5,4 95,4 95.6,5 4.4,5" className="rk-far" />
-        <rect x="1.5" y="10.6" width="97" height="1.4" className="rk-groove" />
+        <path d={RACK.top} className="rk-top" />
+        <path d={RACK.topRules} className="rk-rule" />
       </svg>
       <div className="cb-tiles">
         {[...word.word].map((ch, i) => (
@@ -109,8 +113,9 @@ function Rack({ word }: { word: OwnedWord }) {
         ))}
       </div>
       <svg className="cb-rack cb-rack-front" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden>
-        <path d="M0 13 L100 13 L100 18 Q100 20 98 20 L2 20 Q0 20 0 18 Z" className="rk-front" />
-        <rect x="0" y="13" width="100" height="0.9" className="rk-lip" />
+        <path d={RACK.front} className="rk-front" />
+        <path d={RACK.frontRules} className="rk-rule rk-rule-front" />
+        <path d={RACK.edge} className="rk-edge" />
       </svg>
     </div>
   );

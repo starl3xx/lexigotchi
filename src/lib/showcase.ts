@@ -108,8 +108,10 @@ export function showcaseUrl(text: string, scene?: SceneId, stage?: number | null
  *    and the back's frame lines.
  * 9: the glow behind a Legendary or Mythic letter is an engraved halo, as in the game
  *    (decisions.md #48, part 8).
+ * 10: what is around a card, engraved (decisions.md #48, part 9): the rack on the back and the
+ *     table under the card.
  */
-export const CARD_LOOK = 9;
+export const CARD_LOOK = 10;
 
 /** The card picture. X: 1200×630 (1.91:1). Farcaster: 1200×800 (3:2, the embed spec). */
 export function showcaseCardUrl(text: string, ratio: "x" | "fc" = "x", scene?: SceneId, saved = false, stage?: number | null): string {

@@ -1952,6 +1952,35 @@ setter. All small, riding existing suite patterns.
         the third try). The halo where it is smallest: in card thumbnails 170 and 315 px wide
         and in rows of 16, 30, and 54 px, where it is a faint fuzz or nothing, and no two cross.
         Not seen: anything on a phone.
+    - **Part 9, what is around a card and a letter in the pictures.** The same rule, for the
+      pictures the server draws and the video. The review page listed these and pictured none,
+      so **their drawing is my reading**, kept faint.
+      - **The rack on a card's back** (`lib/cardArt/rack`): line work in the material's own line
+        colour, like the frame and the seal. Its top face is ruled closer toward the back, the
+        way a surface that runs away is ruled; its front is kept dark, under closer ruling; one
+        bright line marks the edge the tiles stand behind. It was two flat tones with a drop
+        shadow. One set of shapes: the game stretches the rack to the row and keeps every line
+        one weight (`vector-effect`); the server's picture asks for the shapes in its own pixels,
+        since its renderer is not asked to keep a stretched line's weight.
+        The tiles on the game's rack lost their soft drop shadow too: the rack's ruling is their
+        ground, and the server's picture never had one.
+      - **The table a card lies on** (`lib/cardArt/table`; link pictures, saved pictures, the
+        Telegram welcome, the earnings picture): a ruled ground, fine rays from behind the card,
+        and two woven bands, in one lighter ink on the dark. It was a soft pool of light (a
+        radial gradient). The old pool of light is kept the engraver's way: there is more line
+        near the card and less toward the corners.
+      - **The shadow under the video's card** (`loop/loopRenderer`, the shadow's shader): ruled
+        lines in the shape of the shadow, each as heavy as the shadow is dark there, as under
+        every letter. It was a soft blot. It is narrower than the blot was: a ruled line shows
+        to its very end, and the blot's faint ends ran under the game's name in the corner. No
+        derivative is asked of the device, so every device draws the same lines.
+      - `CARD_LOOK` 10. The earnings picture's address carries it too.
+      - **Seen and not seen (part 9):** the game's back with the new rack (an opened Legendary
+        word, WebKit); the server's back drawn by the real route; the link picture and the tall
+        saved picture from the running routes; the video's shadow at rest and lifted, in Chrome
+        and WebKit, from the game's own maker; the earnings picture, drawn by its real route from a
+        made-up snapshot signed with a throwaway key; a Bag thumbnail's rack at 170 and 315 px.
+        Not seen: anything on a phone.
 
 49. **Packs come by mail, built in parts** (starl3xx, 2026-11-26: "the letter upgrade roll
     animation is amazing, as is the ascension upgrade. what's missing now is anything at all
