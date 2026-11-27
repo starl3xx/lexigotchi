@@ -580,7 +580,16 @@ export function frame(L: CardLook, tier: Tier): string {
  *  so on a dark plate it is a bright cloud that hides the word): globals.css, .cf-dark. */
 export const DARK_SCENES: ReadonlySet<SceneId> = new Set<SceneId>(["darkstock", "space"]);
 
-/** Each face's art for the window. Only the two stock faces take the rarity: a place has inks of its own. */
+/**
+ * The faces printed in the word's rarity: the two stock faces. Every other face is a place with
+ * inks of its own, the same picture for every word. **Anything that keeps a face's picture must
+ * keep these per rarity** (SceneFrame's `sceneArtImage` does): the cache once named the light stock
+ * alone, and every dark stock card on a page took the colour of the first rarity drawn (Bugbot on
+ * #303). A new face that takes the rarity joins this list, and a test holds the list to the drawings.
+ */
+export const RARITY_FACES: ReadonlySet<SceneId> = new Set<SceneId>(["stock", "darkstock"]);
+
+/** Each face's art for the window. Only the faces in RARITY_FACES take the rarity. */
 const ART: Record<SceneId, (L: CardLook) => string> = {
   stock,
   darkstock: darkStock,

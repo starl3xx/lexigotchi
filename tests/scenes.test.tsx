@@ -31,10 +31,10 @@ import {
 import { TIERS as TIER_LIST, type Tier } from "@/lib/economy";
 import { CARD_H, CARD_W, beadRing, beadsOnCurve, svgDataUri, svgDoc } from "@/lib/cardArt/engrave";
 import { CARD_LOOKS, FEET_Y, WINDOW } from "@/lib/cardArt/looks";
-import { DARK_SCENES, GROUND, PEWTER, cardArt, cardFrame, footingFor, groundOf } from "@/lib/cardArt/scenes";
+import { DARK_SCENES, GROUND, PEWTER, RARITY_FACES, cardArt, cardFrame, footingFor, groundOf } from "@/lib/cardArt/scenes";
 import { tierMarkPaths } from "@/lib/tierMark";
 import { FOOT_SHARE, wordFootings, wordLayout } from "@/components/scenes/layout";
-import { SceneFrame, SceneThumb, toneOf } from "@/components/scenes/SceneFrame";
+import { SceneFrame, SceneThumb, sceneArtImage, toneOf } from "@/components/scenes/SceneFrame";
 
 const TIERS: Tier[] = TIER_LIST.map((t) => t.name);
 // jsdom has no matchMedia; this viewer doesn't ask for reduced motion
@@ -204,6 +204,24 @@ describe("the card's art (lib/cardArt)", () => {
     expect(cardArt("darkstock", "Rare")).not.toBe(cardArt("darkstock", "Mythic"));
     expect(cardArt("darkstock", "Rare")).toContain(CARD_LOOKS.Rare.tint);
     for (const scene of ["stage", "trophy", "spring", "bookshelf", "space"] as const) expect(cardArt(scene, "Rare")).toBe(cardArt(scene, "Mythic"));
+    // the list that says so is true of every face: a face changes with the rarity exactly when it is listed
+    expect([...RARITY_FACES].sort()).toEqual(["darkstock", "stock"]);
+    for (const scene of SCENE_IDS) expect(cardArt(scene, "Rare") !== cardArt(scene, "Mythic"), scene).toBe(RARITY_FACES.has(scene));
+  });
+
+  it("keeps a face's picture per rarity where the rarity is printed, whichever rarity is drawn first (Bugbot on #303)", () => {
+    // The game builds each picture once and then only names it. Keyed by face alone, the first
+    // rarity drawn would colour every card on that face.
+    for (const scene of SCENE_IDS) {
+      const first = sceneArtImage(scene, "Mythic");
+      const next = sceneArtImage(scene, "Common");
+      expect(first !== next, scene).toBe(RARITY_FACES.has(scene));
+      expect(sceneArtImage(scene, "Mythic"), scene).toBe(first); // and each is still built once
+    }
+    // the picture kept for a Common dark stock card is Common's own drawing, not the Mythic one made before it
+    const common = sceneArtImage("darkstock", "Common");
+    expect(common).toBe(`url("${svgDataUri(svgDoc(cardArt("darkstock", "Common")))}")`);
+    expect(common).not.toBe(`url("${svgDataUri(svgDoc(cardArt("darkstock", "Mythic")))}")`);
   });
 
   it("washes the stock card with the rarity more lightly for a color that reads stronger (the green was too much)", () => {

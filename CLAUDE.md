@@ -669,7 +669,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   the word: the thing a player picks, unlocks, or buys. The BACK is the back. Every surface a player
   reads says so, and `tests/copy-rules.test.ts` fails on "scene" in the app and the player docs.
   The two stock faces are "Stock (light)" and "Stock (dark)" in the picker (the owner's names,
-  2026-11-27), and "the light stock face" / "the dark stock face" in a sentence. **The code still
+  2026-11-27), and a sentence a player reads names them the same way ("its new owner gets it on
+  Stock (light)"). **The code still
   says "scene" for a face** (`SceneId`, `lib/scenes.ts`, `SceneFrame`, `useWordScene`, the `scene`
   sheet, and these notes below), and so does everything stored or posted, which can never change:
   `?scene=` in share links, kind `scene` in `shop_items` and `word_picks`, `/api/scenes`, the

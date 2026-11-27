@@ -2974,8 +2974,8 @@ setter. All small, riding existing suite patterns.
       for the dark stock, but it's way too dark" (it was close to black). A second round showed
       A in three lighter steps, and of the lightest: "i actually really like pewter". Then, asked:
       everyone gets it, and the fog is thinner on every dark face. Its name is his: "Maybe it
-      should be Stock (light) and Stock (dark)". The two are named so in the picker, and are "the
-      light stock face" and "the dark stock face" in a sentence.
+      should be Stock (light) and Stock (dark)". The two are named so in the picker, and a sentence
+      a player reads uses the same names ("its new owner gets it on Stock (light)").
     - **What it is.** The light stock's own engraving (the sunburst, the woven medallion, the
       tiled floor) on a pewter plate in pale line. `stockPlan` in `lib/cardArt/scenes.ts` is the
       one drawing both faces share, so they can't drift apart. The rarity is an overtone and
@@ -3007,6 +3007,12 @@ setter. All small, riding existing suite patterns.
       hungry and a peckish word on the dark stock face and on Outer Space, with the fog as it
       was and thinned. Not seen: the card's moving light over pewter in WebKit, the share video
       with this face, a real phone.
+    - **Bugbot on #303, a real bug:** the game keeps each face's picture, and the cache named
+      only the light stock by rarity. Every dark stock card on a page took the colour of the
+      first rarity drawn (in my own Bag pictures a Common word wore a Legendary word's gold,
+      and I read it as the plate). `RARITY_FACES` now says which faces take the rarity; the
+      cache reads it, and a test holds the list to the drawings and the cache to the list.
+      The server's pictures were never wrong: they are drawn for each request.
     - **Set aside:** the rarity's own plate and black and gold, from the first round. Either
       could be a Shop face later. The proposal's drawings are on a local branch that is never
       pushed.
