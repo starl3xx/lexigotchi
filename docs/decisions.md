@@ -3186,6 +3186,15 @@ setter. All small, riding existing suite patterns.
       - **A collab set's back** (#53) is Legendary's engraving printed in the set's two colors:
         the field in one and the border in the other, flat. It was a soft blend of the two. My
         translation of another session's design: the partner's two colors both stay.
+      - **The holder's stamp moved with the lettering** (#48, part 6; Bugbot on #315, and my own
+        review, found it left behind). With no number it stands in the top left of the plate's
+        FIELD, never on the lace; on a thumbnail it stands inside the field too; in the video it
+        stands right of the number by MEASUREMENT (`NUMBER_END`: the card's serif, #52, had
+        already made the number wider than the stamp's old place allowed). On a back under
+        340 px it is smaller and rides higher, clear of the ledger's first row; under 296 px (a
+        320 px phone) nothing fits beside the number, and it is left off the opened back, where
+        before it covered "Case". A test holds the styles, the video's arithmetic, and the
+        plate's field together.
       - **A finding kept as a rule:** a line on a plate is never finer than about a pixel where
         it is shown. The first ruled ground (7 units apart) smeared into streaks in the video
         and read as brushed metal, the very thing the plate replaces.

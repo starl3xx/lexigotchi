@@ -1046,8 +1046,11 @@ body {
 .cb-stamp { position: absolute; display: block; aspect-ratio: 1; z-index: 2; pointer-events: none; text-shadow: none; filter: drop-shadow(0 1.5px 1.5px rgb(0 0 0 / 0.4)); }
 .cb-stamp > * { position: absolute; display: block; }
 .cb-stamp-number { left: calc(100% + 1.1cqw); top: 50%; width: 10.2cqw; transform: translateY(-54%) rotate(-8deg); }
-.cb-stamp-corner { left: 9cqw; top: 3.2cqw; width: 8.6cqw; transform: rotate(-8deg); }
-.cb-stamp-mini { right: 6cqw; top: 9cqw; width: 19cqw; transform: rotate(-8deg); }
+/* the corner's and the thumbnail's stamps stand INSIDE the plate's field (its border ends 5.25cqw in:
+   lib/cardArt/plate, PLATE_BORDER.field), clear of the lace. The corner's place is the share
+   video's too (cards/stamp, stampBox): a test holds the two equal. */
+.cb-stamp-corner { left: 7.6cqw; top: 6.3cqw; width: 8.6cqw; transform: rotate(-8deg); }
+.cb-stamp-mini { right: 8cqw; top: 8.6cqw; width: 19cqw; transform: rotate(-8deg); }
 .cb-stamp-face { inset: 13%; border-radius: 50%; overflow: hidden; isolation: isolate; }
 .cb-stamp-face img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) contrast(1.25) brightness(1.05); mix-blend-mode: multiply; }
 .cb-stamp-ring { inset: 0; background-size: 100% 100%; }
@@ -1197,6 +1200,19 @@ a.cb-id { text-decoration: underline; text-underline-offset: 2px; }
   .cb-body { grid-template-columns: 0.72fr 1.28fr; gap: 3cqw; inset: 7.5cqw 7cqw 7.5cqw; }
   .cb-stats { align-self: end; gap: 4px; }
   .cb-stat dd { min-width: 0; white-space: normal; text-align: right; justify-content: flex-end; }
+  /* the stamp beside the number: here the number fills its column and the ledger begins under the
+     stamp's right half, so the stamp is smaller and rides higher, clear of the ledger's first row
+     (at the full size it covered "Case" on a 360 px phone once the plate's border moved the
+     lettering in: Bugbot on #315) */
+  .cb-stamp-number { width: 8.6cqw; left: calc(100% + 0.6cqw); transform: translateY(-76%) rotate(-8deg); }
+}
+/* Under 296 px (a bare card on a 320 px phone) the ledger's first row comes up beside the number,
+   and no stamp fits there: it is left off the opened back (it covered "Case" there before the
+   plates too). The Bag's thumbnail and the share video still carry it. */
+@container (max-width: 295px) {
+  .cb-body .cb-stamp-number { display: none; }
+  /* and the corner's stamp (a back with no number yet) is smaller: the rarity's line stands higher here */
+  .cb-stamp-corner { top: 6cqw; width: 7.4cqw; }
 }
 /* a card in its case on the narrowest phones (about 236 px): the number gives way to the ledger,
    and the row of dots makes room for the value */
