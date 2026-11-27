@@ -32,6 +32,7 @@ const world = vi.hoisted(() => ({
   revealAsked: [] as (string[] | null)[], // what the chain held back, as each scheduled reveal was told
   tokenDown: false, // a token rule's contract can't be read on Base
   tokenAsked: [] as string[],
+  tiers: false, // this network's Words charges the claim fee by rarity (decisions.md #60)
 }));
 
 // A token rule's contract is asked on Base MAINNET, whatever network the game is on.
@@ -135,7 +136,11 @@ vi.mock("@/lib/db/sets", () => {
 });
 
 // Whether this network's Words has the gate is the registry's fact (config/deployments*.json).
-vi.mock("@/lib/onchain/addresses", async (orig) => ({ ...(await orig<typeof import("@/lib/onchain/addresses")>()), wordsHaveGate: () => world.gate }));
+vi.mock("@/lib/onchain/addresses", async (orig) => ({
+  ...(await orig<typeof import("@/lib/onchain/addresses")>()),
+  wordsHaveGate: () => world.gate,
+  wordsHaveClaimTiers: () => world.tiers,
+}));
 
 vi.mock("@/lib/onchain/reads", async (orig) => ({
   ...(await orig<typeof import("@/lib/onchain/reads")>()),
@@ -196,6 +201,7 @@ beforeEach(async () => {
   world.owned = new Set();
   world.ownedUnreadable = false;
   world.collab = true;
+  world.tiers = false;
   world.stamps = new Map();
   world.lists = new Map();
   world.made = [];
@@ -1204,5 +1210,58 @@ describe("collab sets: what leaves the server, and what the operator may store",
     expect(body.sets[0].type).toBe("standard");
     expect(await (await POST(post({ action: "testCollab" }))).json()).toEqual({ ok: false, error: "not_migrated" });
     expect(world.made).toEqual([]);
+  });
+});
+
+describe("the claim fee by rarity (decisions.md #60): every root's leaves carry the game's tier", () => {
+  const look = { type: "collab", partnerName: "P", colorA: "#112233", colorB: "#aabbcc", stampAt: new Date(0) } as const;
+  const tiered = (root: string, word: string, tier: number, proof: string[]) => StandardMerkleTree.verify(root, ["string", "uint8"], [word, tier], proof);
+
+  it("a collab set's release puts its words in as Legendary, and the proof route says so", async () => {
+    world.tiers = true;
+    const { wordTier, TIER_INDEX } = await import("@/lib/economy");
+    const { RANKED_WORDS } = await import("@/lib/economy");
+    // Two Common words for the collab set, one for a plain set beside it.
+    const commons = RANKED_WORDS.filter((r) => r.tier === "Common").map((r) => r.word);
+    const [ca, cb, plain] = [commons[10], commons[11], commons[12]];
+    world.sets = [draft(1, "Collab", [ca, cb], look), draft(2, "Plain", [plain])];
+    const server = await import("@/lib/sets/server");
+    expect(server.leafFormat()).toBe("tiered");
+    const reserve = await server.planReserve();
+    if (!reserve.ok) throw new Error("no reserve plan");
+    world.chainRoot = reserve.root;
+    world.sets[0].status = "revealed";
+    server.forgetSets();
+    const plan = await server.planRelease(1);
+    if (!plan.ok) throw new Error(`no release plan: ${plan.error}`);
+    world.chainRoot = plan.root;
+    server.forgetSets();
+
+    const { GET } = await import("@/app/api/dictionary/proof/route");
+    const a = await (await GET(proofReq(ca))).json();
+    expect(a.ok).toBe(true);
+    expect(wordTier(ca)).toBe("Common"); // its own tier
+    expect(a.tierName).toBe("Legendary"); // the game's, in its leaf
+    expect(a.tier).toBe(TIER_INDEX.Legendary);
+    expect(tiered(plan.root, ca, TIER_INDEX.Legendary, a.proof)).toBe(true);
+    expect(tiered(plan.root, ca, TIER_INDEX.Common, a.proof)).toBe(false); // claiming it as Common fails
+    // A word outside every set keeps its own tier.
+    const other = commons[40];
+    const o = await (await GET(proofReq(other))).json();
+    expect(o.tierName).toBe("Common");
+    expect(tiered(plan.root, other, 0, o.proof)).toBe(true);
+    // The plain set is still held back.
+    expect((await (await GET(proofReq(plain))).json()).error).toBe("not_released");
+  });
+
+  it("the reserve root is built in the network's format: (word, tier) leaves where its Words has the ladder", async () => {
+    world.tiers = true;
+    world.sets = [draft(1, "First", [words.A])];
+    const server = await import("@/lib/sets/server");
+    const plan = await server.planReserve();
+    if (!plan.ok) throw new Error("no plan");
+    const { treeWithout } = await import("@/lib/onchain/dictionaryTree");
+    expect(plan.root).toBe(treeWithout([words.A], { format: "tiered" }).root.toLowerCase());
+    expect(plan.root).not.toBe(treeWithout([words.A]).root.toLowerCase());
   });
 });

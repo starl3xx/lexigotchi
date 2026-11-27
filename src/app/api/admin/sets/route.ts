@@ -56,7 +56,7 @@ import {
 } from "@/lib/sets/rules";
 import { TEST_COLLAB, pickTestWords, placeholderStamp } from "@/lib/sets/testCollab";
 import { wordTier } from "@/lib/economy";
-import { claimedAmong, forgetSets, hasGate, heldOnChain, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
+import { claimedAmong, forgetSets, hasGate, heldOnChain, leafFormat, loadSets, planRelease, planReserve, reconcile, serving } from "@/lib/sets/server";
 import { setStats, type SetClaim, type SetStats } from "@/lib/sets/stats";
 
 export const runtime = "nodejs";
@@ -175,7 +175,7 @@ export async function GET(req: Request) {
       chain: {
         deployed: isSuiteDeployed(),
         root: s.ok ? s.chainRoot : null,
-        fullRoot: dictionaryRoot(),
+        fullRoot: dictionaryRoot(leafFormat()),
         known: s.ok,
         held: s.ok ? s.chainHeld.size : 0,
         gate: hasGate(),

@@ -10,13 +10,15 @@
  * five letters were raised. A tester with four raised letters saw UPPERCASE locked and those letters
  * missing from the tray, with nothing saying why.
  *
- * A claim COSTS $WORD (params `prices.claim`, the contract's live price via g.price) on top of the 5
- * letters it locks inside the Word NFT. A tester found out from the wallet's "−2.3M WORD" line, so
- * the fee is said up front: in the intro, on every Claim button, and, when the balance is short,
- * with a way to get more.
+ * A claim COSTS $WORD on top of the 5 letters it locks inside the Word NFT, and the fee follows the
+ * word's rarity (decisions.md #60: the base, a Common word's, times the tier's earning weight;
+ * `g.claimFee(word)`, the contract's live numbers). A tester found out from the wallet's "−2.3M
+ * WORD" line, so the fee is said up front: in the intro, on every Claim button with the word's
+ * tier ("Rare word: … to claim"), and, when the balance is short, with a way to get exactly that.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Tier } from "@/lib/economy";
+import { TIERS, type Tier } from "@/lib/economy";
+import { claimLadderLive } from "@/lib/claimFee";
 import { rarestByScore } from "@/lib/rarity";
 import { cantClaim } from "@/lib/dictionaryList";
 import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } from "../primitives";
@@ -163,19 +165,36 @@ export function ClaimScreen() {
       return [...prev, { i: t.i, upper: t.upper }];
     });
 
-  const fee = g.price("claim");
-  const feeText = showsUsd(state) ? `${fmtWord(fee)} $WORD (${fmtUsd(fee)})` : `${fmtWord(fee)} $WORD`;
-  const canClaim = g.canAfford(fee);
-  const getWord = () => g.openSheet({ kind: "balance", need: { amount: fee, action: "a claim" } });
+  // The claim fee by rarity (decisions.md #60): each word's own, by the tier the game shows.
+  const usd = showsUsd(state);
+  const amountText = (fee: number) => (usd ? `${fmtWord(fee)} $WORD (${fmtUsd(fee)})` : `${fmtWord(fee)} $WORD`);
+  const ladder = claimLadderLive();
+  const baseFee = g.tierClaimFee("Common");
+  const topFee = g.tierClaimFee(TIERS[TIERS.length - 1].name);
+  const feeOf = (w: string) => g.claimFee(w);
+  const canClaimWord = (w: string) => g.canAfford(feeOf(w));
+  // The balance sheet opens with exactly what this word needs (its Buy pre-fills from it).
+  const getWordFor = (w: string) => g.openSheet({ kind: "balance", need: { amount: feeOf(w), action: `a ${tierOf(w)} word` } });
 
   return (
     <div className="space-y-3">
       <div>
         <h1 className="font-display text-2xl font-extrabold md:hidden">Spell a word</h1>
         <p className="text-sm text-ink/60">
-          Any five letters, any mix of lowercase and UPPERCASE. Claiming a dictionary word costs{" "}
-          <strong className="font-bold text-ink">{feeText}</strong> and locks its five letters inside it. The
-          word is yours alone: every word has one owner.
+          Any five letters, any mix of lowercase and UPPERCASE.{" "}
+          {ladder ? (
+            <>
+              Claiming a dictionary word costs from <strong className="font-bold text-ink">{amountText(baseFee)}</strong> for a
+              Common word to {amountText(topFee)} for a {TIERS[TIERS.length - 1].name} one: rarer words cost more. It locks the
+              word’s five letters inside it.
+            </>
+          ) : (
+            <>
+              Claiming a dictionary word costs <strong className="font-bold text-ink">{amountText(baseFee)}</strong> and locks its
+              five letters inside it.
+            </>
+          )}{" "}
+          The word is yours alone: every word has one owner.
         </p>
       </div>
 
@@ -216,7 +235,7 @@ export function ClaimScreen() {
                   <button
                     key={w}
                     onClick={() => claim(w, rackCases(w, rack))}
-                    disabled={!canClaim || !ownersKnown}
+                    disabled={!canClaimWord(w) || !ownersKnown}
                     className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink bg-teal px-2 py-1 font-display text-sm font-extrabold text-ink shadow-[2px_2px_0_#1b1714] disabled:opacity-40"
                   >
                     {ownersKnown ? (
@@ -234,8 +253,19 @@ export function ClaimScreen() {
             <span className="text-sm font-bold text-candy-ink">not a dictionary word</span>
           )}
         </div>
-        {/* The fee only when the rack spells a word you could claim, not one someone else owns. */}
-        {rack.length === 5 && spelled.some((w) => !taken(w)) && <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} />}
+        {/* The fee only for a word the rack spells that you could claim, not one someone else owns:
+            the word's tier, its fee, and a way to get exactly that when the balance is short. */}
+        {rack.length === 5 &&
+          spelled
+            .filter((w) => !taken(w))
+            .map((w) => (
+              <FeeLine
+                key={w}
+                text={`${tierOf(w)} word: ${amountText(feeOf(w))} to claim${spelled.filter((x) => !taken(x)).length > 1 ? ` ${w}` : ""}.`}
+                canClaim={canClaimWord(w)}
+                onGetWord={() => getWordFor(w)}
+              />
+            ))}
         {rack.length > 0 && (
           <button onClick={() => setRack([])} className="mx-auto mt-2 block text-xs font-bold text-ink/50 underline">
             clear rack
@@ -314,7 +344,24 @@ export function ClaimScreen() {
             <p className="-mt-1 mb-1 text-xs text-ink/60">One at a time: each word uses five of your letters, so spelling one can use letters another needs.</p>
           )}
           {show === "upper" && <p className="-mt-1 mb-1 text-xs text-ink/60">All five raised: each earns $WORD from day one once staked.</p>}
-          <FeeLine feeText={feeText} canClaim={canClaim} onGetWord={getWord} each />
+          <p className="text-xs text-ink/60">
+            {ladder ? (
+              <>
+                The claim fee follows the word’s rarity:{" "}
+                {TIERS.map((t, i) => (
+                  <span key={t.name}>
+                    {i > 0 ? " · " : ""}
+                    {t.name} <strong className="font-bold text-ink">{fmtWord(g.tierClaimFee(t.name))}</strong>
+                  </span>
+                ))}{" "}
+                $WORD.
+              </>
+            ) : (
+              <>
+                Each claim costs <strong className="font-bold text-ink">{amountText(baseFee)}</strong>.
+              </>
+            )}
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Segmented
               className="w-full sm:w-64"
@@ -349,9 +396,16 @@ export function ClaimScreen() {
                     <div className="font-display text-sm font-extrabold">{w}</div>
                     <TierBadge tier={tierOf(w)} />
                   </div>
-                  <Button size="sm" variant="teal" disabled={!canClaim || !ownersKnown} onClick={() => claim(w, cases)}>
-                    {ownersKnown ? `Claim · ${fmtWord(fee)}` : ownerWait}
-                  </Button>
+                  {ownersKnown && !canClaimWord(w) ? (
+                    // Short of THIS word's fee: the way to get exactly that, never a dead button.
+                    <Button size="sm" variant="ghost" onClick={() => getWordFor(w)} title={`${tierOf(w)} word: ${amountText(feeOf(w))} to claim`}>
+                      Need {fmtWord(feeOf(w))}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="teal" disabled={!ownersKnown} onClick={() => claim(w, cases)} title={`${tierOf(w)} word: ${amountText(feeOf(w))} to claim`}>
+                      {ownersKnown ? `Claim · ${fmtWord(feeOf(w))}` : ownerWait}
+                    </Button>
+                  )}
                 </div>
               );
             })}
@@ -379,11 +433,11 @@ function FilterLabel({ name, count }: { name: string; count: number }) {
 const SPELL_TIERS: (Tier | "All")[] = ["All", "Mythic", "Legendary", "Rare", "Uncommon", "Common"];
 const SPELL_PAGE = 60;
 
-/** The claim fee, said plainly; when the balance can't cover it, the way to get more. */
-function FeeLine({ feeText, canClaim, onGetWord, each = false }: { feeText: string; canClaim: boolean; onGetWord: () => void; each?: boolean }) {
+/** A word's claim fee, said plainly with its tier; when the balance can't cover it, the way to get more. */
+function FeeLine({ text, canClaim, onGetWord }: { text: string; canClaim: boolean; onGetWord: () => void }) {
   return (
-    <div className={`text-xs text-ink/60 ${each ? "" : "mt-1 text-center"}`}>
-      {each ? "Each claim costs" : "Claiming costs"} <strong className="font-bold text-ink">{feeText}</strong>.
+    <div className="mt-1 text-center text-xs text-ink/60">
+      <strong className="font-bold text-ink">{text}</strong>
       {!canClaim && (
         <>
           {" "}You don’t have enough.{" "}

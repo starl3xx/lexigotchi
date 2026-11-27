@@ -25,6 +25,7 @@ import {
   rollSuccessProbability,
   prestigeSuccessProbability,
   prestigeStageFeeUsd,
+  claimFeeUsd,
   type Params,
 } from "../params";
 import { Rng } from "../rng";
@@ -202,6 +203,14 @@ class World {
   jackpotWins: { day: number; word: string; amount: number }[] = [];
   /** Gross claims ever made (monotonic; survives dissolution+re-claim) — claim velocity. */
   claimsEver = 0;
+  /** Claim fees paid, by the claimed word's tier (decisions.md #60): count and USD, cumulative. */
+  claimRevenue: Record<Tier, { claims: number; usd: number }> = {
+    Common: { claims: 0, usd: 0 },
+    Uncommon: { claims: 0, usd: 0 },
+    Rare: { claims: 0, usd: 0 },
+    Legendary: { claims: 0, usd: 0 },
+    Mythic: { claims: 0, usd: 0 },
+  };
   /** Words dissolved cumulatively (names freed back to the claimable pool). */
   dissolutionsTotal = 0;
   /** Letters cleared on the secondary swap market, cumulative. */
@@ -330,6 +339,11 @@ function findClaimable(
   crown: boolean,
   preferSet?: Set<string>,
 ): { word: string; upper: ClaimedWord["upper"] } | null {
+  // The claim fee is the word's tier's (decisions.md #60): a word the player can't pay for today is
+  // passed over like one they can't spell. With a flat fee the caller has already checked the one
+  // price, so this skips nothing and the search (and its draws) is the flat run's exactly.
+  const budget = player.balance;
+  const p = world.params;
   claimGen++;
   let best: { word: string; upper: ClaimedWord["upper"]; tier: number } | null = null;
   let firstAny: { word: string; upper: ClaimedWord["upper"] } | null = null; // fallback when chasing a theme
@@ -342,6 +356,7 @@ function findClaimable(
       const info = WORD_INFO[widx];
       if (world.claims.has(info.word)) continue;
       if (!canSpell(info, player)) continue;
+      if (claimFeeUsd(info.tier, p) > budget) continue;
       const upper = claimCase(info.word, player);
       // theme chase (lever: bounty): a matching claimable word wins immediately, over tier/first
       if (preferSet && preferSet.has(info.word)) return { word: info.word, upper };
@@ -694,8 +709,12 @@ function playerTurn(player: Player, world: World, day: number): void {
     const prefer = bountyOn && rng.chance(p.bounty.chaseProbability) ? themeSet! : undefined;
     const found = findClaimable(player, world, cfg.crownHunter, prefer);
     if (!found) break;
-    spend(p.prices.claim);
-    world.ledger.route(p.prices.claim, p.splits.claim);
+    const tier = wordTier(found.word);
+    const fee = claimFeeUsd(tier, p); // base × the tier's multiple (decisions.md #60)
+    spend(fee);
+    world.ledger.route(fee, p.splits.claim);
+    world.claimRevenue[tier].claims += 1;
+    world.claimRevenue[tier].usd += fee;
     escrowClaim(player, found.word, found.upper);
     world.claims.set(found.word, player.id);
     world.claimsEver += 1;
@@ -1218,5 +1237,6 @@ function summarize(world: World, days: DayMetrics[], cfg: SimConfig): SimResult 
     notes,
     poolEquilibrium,
     jackpotWins: world.jackpotWins,
+    claimRevenue: world.claimRevenue,
   };
 }

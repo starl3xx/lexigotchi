@@ -41,7 +41,11 @@ const params = () => ({
   hungryAfterSeconds: 259200,
   freeDailySnack: true,
   freePackOpen: true,
+  claimTierBps: null,
 }) as unknown as import("@/lib/onchain/reads").GameParams;
+
+/** A Words with the claim fee by rarity (decisions.md #60): the ladder's defaults. */
+const tieredParams = () => ({ ...params(), claimTierBps: [10_000, 20_000, 30_000, 50_000, 80_000] }) as import("@/lib/onchain/reads").GameParams;
 
 const barePlayer = () => ({
   balanceWei: 0n,
@@ -71,7 +75,7 @@ describe("free paths need no approvals", () => {
 
 describe("claim composes operator + allowance + claim, in that order", () => {
   it("emits all three for a fresh player", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), barePlayer());
+    const calls = A.claimCalls("CRANE", [PROOF], null, 0, params(), barePlayer());
     expect(calls).toHaveLength(3);
     expect(calls[0].to.toLowerCase()).toBe(LETTERS); // setApprovalForAll on the 1155
     expect(calls[1].to.toLowerCase()).toBe(TOKEN); // $WORD allowance
@@ -79,54 +83,82 @@ describe("claim composes operator + allowance + claim, in that order", () => {
   });
 
   it("drops both approvals once they exist", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), approvedPlayer());
+    const calls = A.claimCalls("CRANE", [PROOF], null, 0, params(), approvedPlayer());
     expect(calls).toHaveLength(1);
     expect(calls[0].to.toLowerCase()).toBe(WORDS);
   });
 
   // A claim names each letter's case (decisions.md #17): CRANE with its C and A raised is bits 0 and 2.
   it("sends the case mask as Words.claim's upperMask", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], 0b00101, params(), approvedPlayer());
-    const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
+    const calls = A.claimCalls("CRANE", [PROOF], null, 0b00101, params(), approvedPlayer());
+    const decoded = decodeFunctionData({ abi: A.LEGACY_CLAIM_ABI, data: calls[0].data! });
     expect(decoded.functionName).toBe("claim");
     expect(decoded.args?.[1]).toBe(5);
   });
 
   // The contract requires 'A'..'Z'; the merkle leaf and tokenId are over the same uppercase string.
   it("uppercases the word regardless of input casing", () => {
-    const calls = A.claimCalls("crane", [PROOF], 0, params(), approvedPlayer());
-    const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
+    const calls = A.claimCalls("crane", [PROOF], null, 0, params(), approvedPlayer());
+    const decoded = decodeFunctionData({ abi: A.LEGACY_CLAIM_ABI, data: calls[0].data! });
     expect(decoded.args?.[0]).toBe("CRANE");
   });
 
   it("approves $WORD to WORDS, not to the fee router", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), barePlayer());
+    const calls = A.claimCalls("CRANE", [PROOF], null, 0, params(), barePlayer());
     const decoded = decodeFunctionData({ abi: abis.erc20Abi, data: calls[1].data! });
     expect((decoded.args?.[0] as string).toLowerCase()).toBe(WORDS);
   });
 
-  // The first-day gate (decisions.md, "Reserved word sets"). Without a voucher the claim is the
-  // call it always was: the selector every deployed Words knows, gate or no gate.
-  it("without a voucher, sends the claim every deployed Words knows", () => {
-    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), approvedPlayer());
+  // A Words from before the claim fee by rarity (decisions.md #60; Base Sepolia until the held
+  // redeploy): the call is the one that contract knows, byte for byte, at the flat price.
+  it("on a Words without the ladder, sends the three-argument claim that Words knows", () => {
+    const calls = A.claimCalls("CRANE", [PROOF], null, 0, params(), approvedPlayer());
     expect(calls[0].data!.slice(0, 10)).toBe("0x527c5082"); // claim(string,uint8,bytes32[])
-    expect(decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! }).args).toHaveLength(3);
+    expect(decodeFunctionData({ abi: A.LEGACY_CLAIM_ABI, data: calls[0].data! }).args).toHaveLength(3);
   });
 
-  it("with a voucher, sends the five-argument claim with the voucher as given", () => {
+  it("on a Words without the ladder, a voucher sends the older five-argument claim", () => {
     const sig = ("0x" + "ab".repeat(65)) as `0x${string}`;
-    const calls = A.claimCalls("crane", [PROOF], 0b00101, params(), approvedPlayer(), { deadline: 1_800_000_600n, sig });
+    const calls = A.claimCalls("crane", [PROOF], null, 0b00101, params(), approvedPlayer(), { deadline: 1_800_000_600n, sig });
     expect(calls).toHaveLength(1);
-    expect(calls[0].data!.slice(0, 10)).not.toBe("0x527c5082");
-    const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
-    expect(decoded.functionName).toBe("claim");
+    expect(calls[0].data!.slice(0, 10)).toBe("0x67a6f93d"); // claim(string,uint8,bytes32[],uint256,bytes)
+    const decoded = decodeFunctionData({ abi: A.LEGACY_CLAIM_ABI, data: calls[0].data! });
     expect(decoded.args).toEqual(["CRANE", 5, [PROOF], 1_800_000_600n, sig]);
   });
 
   it("a voucher changes nothing about the approvals", () => {
     const sig = ("0x" + "ab".repeat(65)) as `0x${string}`;
-    const calls = A.claimCalls("CRANE", [PROOF], 0, params(), barePlayer(), { deadline: 1n, sig });
+    const calls = A.claimCalls("CRANE", [PROOF], null, 0, params(), barePlayer(), { deadline: 1n, sig });
     expect(calls.map((c) => c.to.toLowerCase())).toEqual([LETTERS, TOKEN, WORDS]);
+  });
+
+  // The claim fee by rarity (decisions.md #60): the claim names the leaf's tier, and the allowance
+  // covers that tier's fee.
+  it("on a Words with the ladder, sends the tier with the claim", () => {
+    const calls = A.claimCalls("CRANE", [PROOF], "Rare", 0b00101, tieredParams(), approvedPlayer());
+    expect(calls[0].data!.slice(0, 10)).toBe("0xee9681f9"); // claim(string,uint8,uint8,bytes32[])
+    const decoded = decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! });
+    expect(decoded.args).toEqual(["CRANE", 2, 5, [PROOF]]);
+  });
+
+  it("on a Words with the ladder, a voucher sends the tier too", () => {
+    const sig = ("0x" + "ab".repeat(65)) as `0x${string}`;
+    const calls = A.claimCalls("CRANE", [PROOF], "Mythic", 0, tieredParams(), approvedPlayer(), { deadline: 9n, sig });
+    expect(calls[0].data!.slice(0, 10)).toBe("0x4c73a540"); // claim(string,uint8,uint8,bytes32[],uint256,bytes)
+    expect(decodeFunctionData({ abi: abis.wordsAbi, data: calls[0].data! }).args).toEqual(["CRANE", 4, 0, [PROOF], 9n, sig]);
+  });
+
+  it("the allowance covers the tier's fee, not the base", () => {
+    // An allowance of exactly the base: enough for a Common word, short of a Mythic one (8x).
+    const base = params().wei.claim;
+    const holdsBase = { ...approvedPlayer(), allowance: { ...approvedPlayer().allowance, words: base } };
+    expect(A.claimCalls("CRANE", [PROOF], "Common", 0, tieredParams(), holdsBase)).toHaveLength(1);
+    const mythic = A.claimCalls("CRANE", [PROOF], "Mythic", 0, tieredParams(), holdsBase);
+    expect(mythic.map((c) => c.to.toLowerCase())).toEqual([TOKEN, WORDS]);
+  });
+
+  it("refuses a claim with no tier on a Words with the ladder (the proof would fail)", () => {
+    expect(() => A.claimCalls("CRANE", [PROOF], null, 0, tieredParams(), approvedPlayer())).toThrow(/rarity/);
   });
 });
 

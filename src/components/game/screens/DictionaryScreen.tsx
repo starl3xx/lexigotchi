@@ -208,7 +208,8 @@ export function DictionaryScreen() {
                 ) : status === "unknown" ? (
                   <span className="text-ink/55">{d.checkFailed ? "Can’t check the owner yet" : "Checking who owns it…"}</span>
                 ) : !need ? (
-                  <span className="text-ink/60">Unclaimed</span>
+                  // An open word says what it costs to claim: its tier's fee (decisions.md #60).
+                  <span className="text-ink/60">Unclaimed · {fmtWord(g.claimFee(w))} to claim</span>
                 ) : spellable ? (
                   <span className="inline-flex items-center gap-1 font-extrabold text-teal-ink">
                     <Check weight="bold" size={13} /> You can spell it

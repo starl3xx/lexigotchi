@@ -99,7 +99,8 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
   const first = fresh[0];
   const name = letterLabel(letterId);
   const shown = count <= ROW ? count : ROW - 1;
-  const claim = g.price("claim");
+  // The fee for THIS word, by its tier (decisions.md #60).
+  const claim = first ? g.claimFee(first.word) : g.tierClaimFee("Common");
 
   return (
     <Sheet open onClose={g.closeSheet} title="Congrats!">
@@ -158,7 +159,7 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
                   Claim {first.word} · {fmtWord(claim)}
                 </Button>
               ) : (
-                <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: "a claim" } })}>
+                <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: `a ${tierOf(first.word)} word` } })}>
                   Get $WORD to claim it
                 </Button>
               )}

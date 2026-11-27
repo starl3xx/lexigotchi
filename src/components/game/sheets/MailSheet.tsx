@@ -388,7 +388,8 @@ function MailStage({ mail }: { mail: Mail }) {
   const lift = torn ? 0 : LIFT;
 
   const first = fresh[0];
-  const claim = g.price("claim");
+  // The fee for THIS word, by its tier (decisions.md #60).
+  const claim = first ? g.claimFee(first.word) : g.tierClaimFee("Common");
   const packPrice = g.price("pack");
   const again = () => {
     if (!g.canAfford(packPrice)) return g.openSheet({ kind: "balance", need: { amount: packPrice, action: "a pack" } });
@@ -540,7 +541,7 @@ function MailStage({ mail }: { mail: Mail }) {
                     Claim {first.word} · {fmtWord(claim)}
                   </Button>
                 ) : (
-                  <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: "a claim" } })}>
+                  <Button variant="primary" className="flex-1" onClick={() => g.openSheet({ kind: "balance", need: { amount: claim, action: `a ${tierOf(first.word)} word` } })}>
                     Get $WORD to claim it
                   </Button>
                 )}

@@ -82,7 +82,7 @@ contract LexigotchiTest is Test {
         letters = new LettersHarness(word, feeRouter, cap, PACK, DAILY, signer, "ipfs://letters/", address(this));
 
         _buildTree();
-        words = new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, signer, address(this));
+        words = new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, _ladder(), signer, address(this));
         rolls = new Rolls(word, feeRouter, ILetters(address(letters)), IWords(address(words)), ROLL, signer);
         staking = new Staking(word, feeRouter, IWords(address(words)), SNACK, 1 days, 3 days, signer, address(this));
         prestige =
@@ -578,7 +578,7 @@ contract LexigotchiTest is Test {
         word.approve(address(words), type(uint256).max);
         letters.setApprovalForAll(address(words), true);
         vm.expectRevert(Words.AlreadyClaimed.selector);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
         vm.stopPrank();
     }
 
@@ -588,7 +588,7 @@ contract LexigotchiTest is Test {
         word.approve(address(words), type(uint256).max);
         letters.setApprovalForAll(address(words), true);
         vm.expectRevert(Words.NotInDictionary.selector);
-        words.claim("ZZZZZ", 0, _proof(0)); // wrong proof / not a leaf
+        words.claim("ZZZZZ", 0, 0, _proof(0)); // wrong proof / not a leaf
         vm.stopPrank();
     }
 
@@ -606,7 +606,7 @@ contract LexigotchiTest is Test {
         vm.startPrank(bob);
         word.approve(address(words), type(uint256).max);
         letters.setApprovalForAll(address(words), true);
-        uint256 reId = words.claim("CRANE", 0, _proof(0));
+        uint256 reId = words.claim("CRANE", 0, 0, _proof(0));
         vm.stopPrank();
         assertEq(words.ownerOf(reId), bob, "bob re-claimed");
     }
@@ -630,7 +630,7 @@ contract LexigotchiTest is Test {
         vm.expectEmit(true, true, false, true, address(words));
         emit Words.Claimed(id, alice, "CRANE", C_A_RAISED);
         vm.prank(alice);
-        uint256 tokenId = words.claim("CRANE", C_A_RAISED, _proof(0));
+        uint256 tokenId = words.claim("CRANE", 0, C_A_RAISED, _proof(0));
 
         assertEq(uint8(words.caseOf(tokenId)), uint8(CaseState.Mixed), "starts Mixed");
         (uint8 c, bool cUp) = words.escrowLetter(tokenId, 0);
@@ -657,7 +657,7 @@ contract LexigotchiTest is Test {
         _approveAll(alice);
         vm.prank(alice);
         vm.expectRevert();
-        words.claim("CRANE", C_A_RAISED, _proof(0));
+        words.claim("CRANE", 0, C_A_RAISED, _proof(0));
     }
 
     function test_Claim_rejectsMaskBeyondFivePositions() public {
@@ -665,7 +665,7 @@ contract LexigotchiTest is Test {
         _approveAll(alice);
         vm.prank(alice);
         vm.expectRevert(Words.BadCaseMask.selector);
-        words.claim("CRANE", 0x20, _proof(0));
+        words.claim("CRANE", 0, 0x20, _proof(0));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -691,46 +691,46 @@ contract LexigotchiTest is Test {
         // No voucher: the plain claim is refused while the gate is up.
         vm.prank(alice);
         vm.expectRevert(Words.VoucherRequired.selector);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
 
         // Another key's signature.
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, _signClaimAs(0xBADBAD, address(words), alice, id, dl));
+        words.claim("CRANE", 0, 0, _proof(0), dl, _signClaimAs(0xBADBAD, address(words), alice, id, dl));
 
         // Someone else's voucher: bob's, read out of the mempool, is no use to alice.
         bytes memory bobs = _signClaim(bob, id, dl);
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, bobs);
+        words.claim("CRANE", 0, 0, _proof(0), dl, bobs);
 
         // A voucher for another word.
         bytes memory forMotel = _signClaim(alice, _tokenId("MOTEL"), dl);
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, forMotel);
+        words.claim("CRANE", 0, 0, _proof(0), dl, forMotel);
 
         // A deadline other than the one signed.
         bytes memory good = _signClaim(alice, id, dl);
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl + 1, good);
+        words.claim("CRANE", 0, 0, _proof(0), dl + 1, good);
 
         // A voucher made out to another contract (another deployment's Words), same signer.
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, _signClaimAs(SIGNER_PK, address(staking), alice, id, dl));
+        words.claim("CRANE", 0, 0, _proof(0), dl, _signClaimAs(SIGNER_PK, address(staking), alice, id, dl));
 
         // Nothing at all where the signature goes.
         vm.prank(alice);
         vm.expectRevert(); // OpenZeppelin's own "invalid signature length"
-        words.claim("CRANE", 0, _proof(0), dl, "");
+        words.claim("CRANE", 0, 0, _proof(0), dl, "");
 
         // Expired.
         vm.warp(dl + 1);
         vm.prank(alice);
         vm.expectRevert(Words.VoucherExpired.selector);
-        words.claim("CRANE", 0, _proof(0), dl, good);
+        words.claim("CRANE", 0, 0, _proof(0), dl, good);
 
         // A good one, still inside the gate.
         uint256 dl2 = block.timestamp + 600;
@@ -738,7 +738,7 @@ contract LexigotchiTest is Test {
         vm.expectEmit(true, true, false, true, address(words));
         emit Words.Claimed(id, alice, "CRANE", 0);
         vm.prank(alice);
-        assertEq(words.claim("CRANE", 0, _proof(0), dl2, fresh), id);
+        assertEq(words.claim("CRANE", 0, 0, _proof(0), dl2, fresh), id);
         assertEq(words.ownerOf(id), alice);
     }
 
@@ -759,11 +759,11 @@ contract LexigotchiTest is Test {
         _approveAll(alice);
         vm.prank(alice);
         vm.expectRevert(Words.VoucherRequired.selector);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
 
         vm.warp(until); // open
         vm.prank(alice);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
         assertEq(words.ownerOf(crane), alice);
 
         // A claim sent with a voucher just as the gate lifts doesn't fail for the voucher: an
@@ -771,7 +771,7 @@ contract LexigotchiTest is Test {
         _fundLower(bob, "MOTEL");
         _approveAll(bob);
         vm.prank(bob);
-        words.claim("MOTEL", 0, _proof(1), 0, hex"00");
+        words.claim("MOTEL", 0, 0, _proof(1), 0, hex"00");
         assertEq(words.ownerOf(motel), bob);
     }
 
@@ -810,7 +810,7 @@ contract LexigotchiTest is Test {
         _fundLower(bob, "MOTEL");
         _approveAll(bob);
         vm.prank(bob);
-        words.claim("MOTEL", 0, _proof(1));
+        words.claim("MOTEL", 0, 0, _proof(1));
     }
 
     function testFuzz_Gate_neverPastTheCap(uint64 until) public {
@@ -839,17 +839,17 @@ contract LexigotchiTest is Test {
         words.setGate(_ids(id), uint64(block.timestamp + 1 days)); // 1: the gate, on a word not in the root
         vm.prank(alice);
         vm.expectRevert(Words.NotInDictionary.selector); // still held back
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
 
         words.setDictionaryRoot(dictRoot); // 2: the release
         vm.prank(alice);
         vm.expectRevert(Words.VoucherRequired.selector); // released, and gated from its first block
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
 
         uint256 dl = block.timestamp + 600;
         bytes memory sig = _signClaim(alice, id, dl);
         vm.prank(alice);
-        words.claim("CRANE", 0, _proof(0), dl, sig);
+        words.claim("CRANE", 0, 0, _proof(0), dl, sig);
         assertEq(words.ownerOf(id), alice);
     }
 
@@ -866,10 +866,10 @@ contract LexigotchiTest is Test {
         bytes memory sig = _signClaim(alice, id, dl);
 
         vm.prank(alice);
-        words.claim("CRANE", 0, _proof(0), dl, sig);
+        words.claim("CRANE", 0, 0, _proof(0), dl, sig);
         vm.prank(alice);
         vm.expectRevert(Words.AlreadyClaimed.selector); // a held word is never claimed twice
-        words.claim("CRANE", 0, _proof(0), dl, sig);
+        words.claim("CRANE", 0, 0, _proof(0), dl, sig);
 
         vm.prank(alice);
         words.dissolve(id, "CRANE");
@@ -878,44 +878,45 @@ contract LexigotchiTest is Test {
         _approveAll(bob);
         vm.prank(bob);
         vm.expectRevert(Words.VoucherRequired.selector);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
         vm.prank(bob);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, sig);
+        words.claim("CRANE", 0, 0, _proof(0), dl, sig);
         // ...and alice's own still claims her the same word, until its deadline.
         vm.prank(alice);
-        words.claim("CRANE", 0, _proof(0), dl, sig);
+        words.claim("CRANE", 0, 0, _proof(0), dl, sig);
         assertEq(words.ownerOf(id), alice);
     }
 
-    /// An ungated word claims exactly as before the gate existed: the same selector and arguments,
-    /// the same event, the same escrow, fee, and token, and the same reverts in the same order.
+    /// An ungated word claims exactly as a claim without the gate would: the same selector and
+    /// arguments, the same event, the same escrow, fee, and token, and the same reverts in the same
+    /// order.
     function test_Gate_ungatedClaimIsUnchanged() public {
         vm.warp(1755000000);
-        // The selector every deployed client and wallet already calls.
-        assertEq(bytes4(keccak256("claim(string,uint8,bytes32[])")), bytes4(0x527c5082));
+        // The selector the app calls (decisions.md #60 added the tier; the gate added nothing).
+        assertEq(bytes4(keccak256("claim(string,uint8,uint8,bytes32[])")), bytes4(0xee9681f9));
         uint256 id = _tokenId("CRANE");
         assertEq(words.gatedUntil(id), 0, "never gated");
 
         // The reverts, in the order they were always checked.
         vm.startPrank(alice);
         vm.expectRevert(Words.WrongLength.selector);
-        words.claim("CRAN", 0, _proof(0));
+        words.claim("CRAN", 0, 0, _proof(0));
         vm.expectRevert(Words.BadCaseMask.selector);
-        words.claim("CRANE", 0x20, _proof(0));
+        words.claim("CRANE", 0, 0x20, _proof(0));
         vm.expectRevert(Words.NotInDictionary.selector);
-        words.claim("ZZZZZ", 0, _proof(0));
+        words.claim("ZZZZZ", 0, 0, _proof(0));
         vm.stopPrank();
 
         _fundLower(alice, "CRANE");
         _approveAll(alice);
         uint256 balBefore = word.balanceOf(alice);
-        // By the raw call a client built before the gate sends: nothing about it changed.
+        // By the raw call the app sends: the word, its tier, the case mask, the proof.
         vm.expectEmit(true, true, false, true, address(words));
         emit Words.Claimed(id, alice, "CRANE", 0);
         vm.prank(alice);
         (bool ok, bytes memory ret) =
-            address(words).call(abi.encodeWithSelector(bytes4(0x527c5082), "CRANE", uint8(0), _proof(0)));
+            address(words).call(abi.encodeWithSelector(bytes4(0xee9681f9), "CRANE", uint8(0), uint8(0), _proof(0)));
         assertTrue(ok);
         assertEq(abi.decode(ret, (uint256)), id);
         assertEq(words.ownerOf(id), alice);
@@ -928,13 +929,13 @@ contract LexigotchiTest is Test {
 
         vm.prank(bob);
         vm.expectRevert(Words.AlreadyClaimed.selector);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
 
         // The other overload on an ungated word is the same claim: the voucher isn't read.
         _fundLower(bob, "MOTEL");
         _approveAll(bob);
         vm.prank(bob);
-        words.claim("MOTEL", 0, _proof(1), 0, "");
+        words.claim("MOTEL", 0, 0, _proof(1), 0, "");
         assertEq(words.ownerOf(_tokenId("MOTEL")), bob);
     }
 
@@ -1002,7 +1003,7 @@ contract LexigotchiTest is Test {
         vm.warp(1755000000);
         assertEq(words.claimSigner(), signer);
         vm.expectRevert(Words.ZeroAddress.selector);
-        new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, address(0), address(this));
+        new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, _ladder(), address(0), address(this));
 
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
@@ -1024,9 +1025,9 @@ contract LexigotchiTest is Test {
         bytes memory old = _signClaim(alice, id, dl);
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, old);
+        words.claim("CRANE", 0, 0, _proof(0), dl, old);
         vm.prank(alice);
-        words.claim("CRANE", 0, _proof(0), dl, _signClaimAs(newPk, address(words), alice, id, dl));
+        words.claim("CRANE", 0, 0, _proof(0), dl, _signClaimAs(newPk, address(words), alice, id, dl));
     }
 
     /// A voucher of another kind from the same key can't pass for a gated claim: a free-snack
@@ -1050,7 +1051,7 @@ contract LexigotchiTest is Test {
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(alice);
             vm.expectRevert(Words.BadSignature.selector);
-            words.claim("CRANE", 0, _proof(0), dl, others[i]);
+            words.claim("CRANE", 0, 0, _proof(0), dl, others[i]);
         }
     }
 
@@ -1066,7 +1067,7 @@ contract LexigotchiTest is Test {
         vm.chainId(block.chainid + 1);
         vm.prank(alice);
         vm.expectRevert(Words.BadSignature.selector);
-        words.claim("CRANE", 0, _proof(0), dl, sig);
+        words.claim("CRANE", 0, 0, _proof(0), dl, sig);
     }
 
     function test_Words_tokenURI_ownerSetBase() public {
@@ -1236,14 +1237,14 @@ contract LexigotchiTest is Test {
         _approveAll(alice);
         vm.prank(alice);
         vm.expectRevert(Words.NotInDictionary.selector);
-        words.claim("CRANE", 0, _proof(0));
+        words.claim("CRANE", 0, 0, _proof(0));
 
         // A word still in the root claims with a proof from the new tree.
         _fundLower(bob, "MOTEL");
         bytes32[] memory motel = new bytes32[](1);
         motel[0] = n23;
         vm.prank(bob);
-        words.claim("MOTEL", 0, motel);
+        words.claim("MOTEL", 0, 0, motel);
 
         uint256 pot = feeRouter.jackpotBalance();
         assertGt(pot, 0, "a pot to roll");
@@ -1256,7 +1257,7 @@ contract LexigotchiTest is Test {
         // Released later: the root includes it again, and it claims as any word does.
         words.setDictionaryRoot(dictRoot);
         vm.prank(alice);
-        uint256 tokenId = words.claim("CRANE", 0, _proof(0));
+        uint256 tokenId = words.claim("CRANE", 0, 0, _proof(0));
         assertEq(words.ownerOf(tokenId), alice);
     }
 
@@ -1593,6 +1594,223 @@ contract LexigotchiTest is Test {
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Claim fee by rarity (decisions.md #60, "gentle ladder"): leaf = (word, tier)
+    // ---------------------------------------------------------------------------------------------
+
+    // A tree built by the app's own library: OpenZeppelin's StandardMerkleTree of (word, tier) with
+    // leaf types ["string", "uint8"] (@openzeppelin/merkle-tree, as lib/onchain/dictionaryTree builds
+    // it). If the contract's leaf ever stops matching the JS encoding, every proof below fails.
+    bytes32 constant TIER_ROOT = 0x0a77afed76edc7751adace164eee97d75b3198c1fadcb295d1d9ad6042f5dca9;
+
+    function _tierWord(uint8 tier) internal pure returns (string memory) {
+        if (tier == 0) return "AMBER";
+        if (tier == 1) return "BRISK";
+        if (tier == 2) return "CHAMP";
+        if (tier == 3) return "DWELT";
+        return "FJORD";
+    }
+
+    function _tierProof(uint8 tier) internal pure returns (bytes32[] memory p) {
+        if (tier == 3) {
+            p = new bytes32[](2);
+            p[0] = 0x1d052307476288697e47bdfb6170733474e6ed65ee7c3e11c0fd1fbb56ae12ad;
+            p[1] = 0xa99e556ad1804fe82a8d6b486dff26de4c36b553fd83fbf0b8d346babd49f12e;
+            return p;
+        }
+        p = new bytes32[](3);
+        if (tier == 0) {
+            p[0] = 0x6d230cc74021fa5285b5ab5624bc75ffbab78546b003406a4b0ae4bbd3e49b26;
+            p[1] = 0xa52f23acd67c4ecf3af88c11bec1a2ff4174c90c01bd0ef66267a0bbf09cc102;
+            p[2] = 0x78dbef162b3ca14374de1a1597dbdbbc399154df3ad0e6b4fa3de347fe021118;
+        } else if (tier == 1) {
+            p[0] = 0x83633decfc7881abaf2c0c266c5c1ebb676797358b902cd840eda8b10fcfd034;
+            p[1] = 0x34eb40fbc2acfe1ac35dbb5b9b371bd893116daa2231642363bfb7669fac436a;
+            p[2] = 0x78dbef162b3ca14374de1a1597dbdbbc399154df3ad0e6b4fa3de347fe021118;
+        } else if (tier == 2) {
+            p[0] = 0x800b627c2f40209742f6f73d4109b14ac9a9a1b5446a059377ca1dc48639f377;
+            p[1] = 0xa52f23acd67c4ecf3af88c11bec1a2ff4174c90c01bd0ef66267a0bbf09cc102;
+            p[2] = 0x78dbef162b3ca14374de1a1597dbdbbc399154df3ad0e6b4fa3de347fe021118;
+        } else {
+            p[0] = 0x1ad4a2575a658c86c530fadf5bf3819db730527a6d97817a679b34a74f0172a2;
+            p[1] = 0xf0e3cc33f0f78bc9f2595d2a9eb8aa74ac13da79202de9170a55529dc8922a0c;
+            p[2] = 0xa99e556ad1804fe82a8d6b486dff26de4c36b553fd83fbf0b8d346babd49f12e;
+        }
+    }
+
+    /// The ladder Deploy.s.sol passes (config/economy.json, derived from TIERS' earning weights).
+    function _ladder() internal pure returns (uint32[5] memory m) {
+        m = [uint32(10_000), 20_000, 30_000, 50_000, 80_000];
+    }
+
+    function _claimTier(address who, uint8 tier) internal returns (uint256 tokenId, uint256 paid) {
+        string memory w = _tierWord(tier);
+        _fundLower(who, w);
+        _approveAll(who);
+        uint256 before = word.balanceOf(who);
+        vm.prank(who);
+        tokenId = words.claim(w, tier, 0, _tierProof(tier));
+        paid = before - word.balanceOf(who);
+    }
+
+    function test_ClaimFee_eachTierPaysItsMultiple() public {
+        words.setDictionaryRoot(TIER_ROOT);
+        uint32[5] memory m = _ladder();
+        for (uint8 t = 0; t < 5; t++) {
+            uint256 expected = (CLAIM * m[t]) / 10_000;
+            assertEq(words.claimFee(t), expected, "claimFee(tier) = base x multiplier");
+            string memory w = _tierWord(t);
+            uint256 id = _tokenId(w);
+            _fundLower(alice, w);
+            _approveAll(alice);
+            uint256 before = word.balanceOf(alice);
+            vm.expectEmit(true, true, false, true, address(words));
+            emit Words.Claimed(id, alice, w, 0);
+            vm.expectEmit(true, true, false, true, address(words));
+            emit Words.ClaimFeePaid(id, alice, t, expected);
+            vm.prank(alice);
+            assertEq(words.claim(w, t, 0, _tierProof(t)), id, "tokenId is still keccak256(word)");
+            assertEq(before - word.balanceOf(alice), expected, "paid the tier's fee, once");
+        }
+        // The ladder in whole bases: Common 1x, Uncommon 2x, Rare 3x, Legendary 5x, Mythic 8x.
+        assertEq(words.claimFee(0), CLAIM);
+        assertEq(words.claimFee(4), CLAIM * 8);
+    }
+
+    function test_ClaimFee_aWrongTierFailsTheProof() public {
+        words.setDictionaryRoot(TIER_ROOT);
+        _fundLower(alice, "DWELT"); // Legendary (3)
+        _approveAll(alice);
+        vm.startPrank(alice);
+        // Understated, overstated: the leaf (DWELT, t) isn't in the tree for any t but 3.
+        for (uint8 t = 0; t < 5; t++) {
+            if (t == 3) continue;
+            vm.expectRevert(Words.NotInDictionary.selector);
+            words.claim("DWELT", t, 0, _tierProof(3));
+        }
+        // A tier outside the five is refused before the proof is read.
+        vm.expectRevert(Words.BadTier.selector);
+        words.claim("DWELT", 5, 0, _tierProof(3));
+        // The gated overload checks the same proof.
+        vm.expectRevert(Words.NotInDictionary.selector);
+        words.claim("DWELT", 0, 0, _tierProof(3), block.timestamp, "");
+        // The right tier claims.
+        words.claim("DWELT", 3, 0, _tierProof(3));
+        vm.stopPrank();
+        assertEq(words.ownerOf(_tokenId("DWELT")), alice);
+        vm.expectRevert(Words.BadTier.selector);
+        words.claimFee(5);
+    }
+
+    function test_ClaimFee_multiplierAndBaseBothMoveTheFee() public {
+        words.setDictionaryRoot(TIER_ROOT);
+        vm.expectEmit(true, false, false, true, address(words));
+        emit Words.TierMultiplierSet(2, 40_000);
+        words.setTierMultiplier(2, 40_000); // Rare: 3x -> 4x
+        assertEq(words.tierMultiplierBps(2), 40_000);
+        assertEq(words.claimFee(2), CLAIM * 4);
+        words.setClaimPrice(CLAIM * 3); // the base triples
+        assertEq(words.claimFee(2), CLAIM * 12, "base x multiplier");
+        assertEq(words.claimFee(0), CLAIM * 3, "Common pays the base");
+        (, uint256 paid) = _claimTier(alice, 2);
+        assertEq(paid, CLAIM * 12, "the claim pays what claimFee said");
+
+        // Bounds: never below the base, never above 20x, never a sixth tier, owner only.
+        vm.expectRevert(Words.BadMultiplier.selector);
+        words.setTierMultiplier(1, 9_999);
+        vm.expectRevert(Words.BadMultiplier.selector);
+        words.setTierMultiplier(1, 200_001);
+        vm.expectRevert(Words.BadTier.selector);
+        words.setTierMultiplier(5, 20_000);
+        words.setTierMultiplier(1, 200_000); // the cap itself is allowed
+        words.setTierMultiplier(1, 10_000); // and so is 1x
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        words.setTierMultiplier(1, 20_000);
+    }
+
+    function test_ClaimFee_constructorRefusesABadLadder() public {
+        uint32[5] memory m = _ladder();
+        m[4] = 200_001;
+        vm.expectRevert(Words.BadMultiplier.selector);
+        new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, m, signer, address(this));
+        m[4] = 80_000;
+        m[0] = 0; // a free tier
+        vm.expectRevert(Words.BadMultiplier.selector);
+        new Words(word, feeRouter, ILetters(address(letters)), dictRoot, CLAIM, m, signer, address(this));
+        // The deployed ladder, as set.
+        for (uint8 t = 0; t < 5; t++) {
+            assertEq(words.tierMultiplierBps(t), _ladder()[t]);
+        }
+    }
+
+    function test_ClaimFee_repegScalesEveryTier() public {
+        address pk = makeAddr("priceKeeper");
+        words.setPriceKeeper(pk);
+        words.setMaxMoveBps(2000); // the deploy's +/-20% clamp
+        vm.warp(1755000000);
+        uint256 next = (CLAIM * 11_000) / 10_000; // +10%, inside the default clamp
+        vm.prank(pk);
+        words.repegClaimPrice(next);
+        assertEq(words.claimPrice(), next);
+        uint32[5] memory m = _ladder();
+        for (uint8 t = 0; t < 5; t++) {
+            assertEq(words.claimFee(t), (next * m[t]) / 10_000, "one repeg moves every tier");
+        }
+        words.setDictionaryRoot(TIER_ROOT);
+        (, uint256 paid) = _claimTier(alice, 4);
+        assertEq(paid, next * 8, "a Mythic pays 8x the repegged base");
+    }
+
+    function test_ClaimFee_gatedClaimPaysTheTierFee() public {
+        vm.warp(1755000000);
+        words.setDictionaryRoot(TIER_ROOT);
+        uint256 id = _tokenId("FJORD"); // Mythic (4)
+        words.setGate(_ids(id), uint64(block.timestamp + 1 days));
+        _fundLower(alice, "FJORD");
+        _approveAll(alice);
+        vm.prank(alice);
+        vm.expectRevert(Words.VoucherRequired.selector);
+        words.claim("FJORD", 4, 0, _tierProof(4));
+
+        uint256 dl = block.timestamp + 1 hours;
+        // The voucher is the gate's as it always was: (contract, chain, kind, caller, tokenId, deadline).
+        bytes memory sig = _signClaim(alice, id, dl);
+        uint256 before = word.balanceOf(alice);
+        vm.expectEmit(true, true, false, true, address(words));
+        emit Words.ClaimFeePaid(id, alice, 4, CLAIM * 8);
+        vm.prank(alice);
+        words.claim("FJORD", 4, 0, _tierProof(4), dl, sig);
+        assertEq(before - word.balanceOf(alice), CLAIM * 8, "the gated claim pays the Mythic fee");
+    }
+
+    function test_ClaimFee_dissolveAndReclaimPaysTheTierAgain() public {
+        words.setDictionaryRoot(TIER_ROOT);
+        (uint256 id, uint256 first) = _claimTier(alice, 3);
+        assertEq(first, CLAIM * 5);
+        vm.prank(alice);
+        words.dissolve(id, "DWELT");
+        // Alice has her five letters back; claiming again pays the Legendary fee again.
+        uint256 before = word.balanceOf(alice);
+        vm.prank(alice);
+        assertEq(words.claim("DWELT", 3, 0, _tierProof(3)), id, "the same id");
+        assertEq(before - word.balanceOf(alice), CLAIM * 5, "paid again, at the tier's fee");
+    }
+
+    function test_ClaimFee_splitIsUnchanged() public {
+        words.setDictionaryRoot(TIER_ROOT);
+        uint256 jp = feeRouter.jackpotBalance();
+        uint256 pool = feeRouter.poolBalance();
+        uint256 tr = word.balanceOf(treasury);
+        uint256 supply = word.totalSupply();
+        (, uint256 paid) = _claimTier(alice, 4);
+        assertEq(paid, CLAIM * 8);
+        assertEq(feeRouter.poolBalance() - pool, (paid * 7500) / 10000, "pool 75%");
+        assertEq(feeRouter.jackpotBalance() - jp, (paid * 1000) / 10000, "jackpot 10%");
+        assertEq(word.balanceOf(treasury) - tr, (paid * 500) / 10000, "treasury 5%");
+        assertEq(supply - word.totalSupply(), (paid * 1000) / 10000, "burn 10%");
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Merkle epochs — yield + bounty (funding + solvency + double-claim guard)
     // ---------------------------------------------------------------------------------------------
 
@@ -1709,21 +1927,23 @@ contract LexigotchiTest is Test {
         _fundLower(who, WORDS_[wordIndex]);
         _approveAll(who);
         vm.prank(who);
-        tokenId = words.claim(WORDS_[wordIndex], 0, _proof(wordIndex));
+        tokenId = words.claim(WORDS_[wordIndex], 0, 0, _proof(wordIndex));
     }
 
     function _claimUpper(address who, uint256 wordIndex) internal returns (uint256 tokenId) {
         _fundUpper(who, WORDS_[wordIndex]);
         _approveAll(who);
         vm.prank(who);
-        tokenId = words.claim(WORDS_[wordIndex], 0x1F, _proof(wordIndex));
+        tokenId = words.claim(WORDS_[wordIndex], 0, 0x1F, _proof(wordIndex));
     }
 
     // --- Merkle (4 leaves, sorted-pair, matching OZ MerkleProof) ---
 
     function _buildTree() internal {
         for (uint256 i = 0; i < 4; i++) {
-            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(WORDS_[i]))));
+            // Leaf = (word, tier): the four fixture words are all Common (tier 0), so every claim in
+            // the older tests pays the base fee exactly as before (decisions.md #60).
+            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(WORDS_[i], uint8(0)))));
         }
         bytes32 n01 = _hashPair(leaves[0], leaves[1]);
         bytes32 n23 = _hashPair(leaves[2], leaves[3]);
@@ -2509,7 +2729,7 @@ contract LexigotchiTest is Test {
         vm.startPrank(bob);
         letters.safeBatchTransferFrom(alice, bob, ids, amounts, "");
         word.transferFrom(alice, bob, CLAIM);
-        uint256 t = words.claim("CRANE", 0, _proof(0));
+        uint256 t = words.claim("CRANE", 0, 0, _proof(0));
         vm.stopPrank();
         assertEq(words.ownerOf(t), bob, "the word lands in the acting wallet");
         assertEq(word.balanceOf(bob), bobBal, "the fee came from alice's wallet, through bob");

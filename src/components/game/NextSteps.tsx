@@ -11,12 +11,14 @@ import { pickStage } from "./stagePick";
 import { nextSteps, type NextStep } from "./todaySteps";
 import { useTakenWords } from "./useTodayPlan";
 import { useForSale } from "./useForSale";
+import { useTierOf } from "./useRarity";
 
 /** Rows shown before "Show more": a list of five read as a to-do list, not a nudge. */
 const SHOWN = 3;
 
 export function NextSteps() {
   const g = useGame();
+  const tierOf = useTierOf();
   const { state } = g;
   const [all, setAll] = useState(false);
   const taken = useTakenWords();
@@ -44,7 +46,6 @@ export function NextSteps() {
   const visible = all ? steps : steps.slice(0, SHOWN);
   const hidden = steps.length - visible.length;
 
-  const claim = g.price("claim");
   const roll = g.price("roll");
   const getWord = (amount: number, action: string) => g.openSheet({ kind: "balance", need: { amount, action } });
 
@@ -65,13 +66,14 @@ export function NextSteps() {
                 Stake
               </Button>
             )}
+            {/* The claim fee for THIS word, by its tier (decisions.md #60). */}
             {s.kind === "spell" &&
-              (g.canAfford(claim) ? (
+              (g.canAfford(g.claimFee(s.word)) ? (
                 <Button size="sm" variant="teal" onClick={() => g.claim(s.word, s.cases)}>
-                  Claim · {fmtWord(claim)}
+                  Claim · {fmtWord(g.claimFee(s.word))}
                 </Button>
               ) : (
-                <Button size="sm" variant="ghost" onClick={() => getWord(claim, "a claim")}>
+                <Button size="sm" variant="ghost" onClick={() => getWord(g.claimFee(s.word), `a ${tierOf(s.word)} word`)}>
                   Get $WORD
                 </Button>
               ))}

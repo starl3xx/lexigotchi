@@ -15,7 +15,7 @@ export function useCostToMake(w: WordShape): CostToMake | null {
   const prices = {
     pack: g.price("pack"),
     roll: g.price("roll"),
-    claim: g.price("claim"),
+    claim: g.claimFee, // by the word's tier (decisions.md #60)
     prestigeSnack: g.price("prestigeSnack"),
     prestigeFee: g.prestigePrice,
   };
