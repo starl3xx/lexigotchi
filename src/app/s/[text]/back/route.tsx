@@ -33,7 +33,7 @@ import { playerFaces } from "@/lib/profile/faces";
  * video draws nothing under it (a back is paper and ink; decisions.md #58, part 2). Laid out as the game's back is at its
  * full size (components/cards/CardBack; decisions.md #35, #37): the rarity over the card's number
  * (the headline), "One of one", the tiles on their rack, the facts as a ledger, the game's seal
- * pressed in behind them, inside the plate's lathe work. The card's serif here is Source Serif 4, as
+ * pressed in behind them, in the plate's field, the same on every rarity. The card's serif here is Source Serif 4, as
  * in the game (the server has no fonts of its own; the share picture's route says more). The plate is the
  * game's own (lib/cardArt/plate, through components/cards/material), so the video and the game match.
  *
@@ -163,7 +163,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ text: st
         {/* the plate: the back's ground and its engraving, the game's own drawing (a rarity's inks, or a
             collab set's two). It is the whole ground, so the picture alone is the whole back. */}
         <img src={plate} width={W} height={H} style={{ position: "absolute", left: 0, top: 0, borderRadius: CARD_CORNER * W }} />
-        {/* the game's seal, pressed into the plate inside its lathe work, behind the facts */}
+        {/* the game's seal, pressed into the plate's field, behind the facts: the same on every rarity */}
         <img src={seal(look.line)} width={PLATE_SEAL.d} height={PLATE_SEAL.d} style={{ position: "absolute", left: PLATE_SEAL.cx - PLATE_SEAL.d / 2, top: PLATE_SEAL.cy - PLATE_SEAL.d / 2, opacity: 0.2 }} />
         <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", alignItems: "center", padding: `${7.5 * U}px ${7.3 * U}px ${8.3 * U}px`, gap: 4 * U }}>
           {/* the left column: the rarity, the number (the headline), "One of one", how many share the rarity, the tiles */}

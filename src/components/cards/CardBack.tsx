@@ -102,7 +102,7 @@ function plateImage(key: string, make: () => string): string {
 }
 
 /**
- * A card's back: an engraved plate in its rarity's inks, the game's seal in its lathe work, and the
+ * A card's back: an engraved plate in its rarity's inks, the game's seal (the same on every rarity), and the
  * word's story lettered over them (decisions.md #58, part 2). It is paper and ink: a still picture,
  * with no material, no frame line of its own (the plate's border is its frame), and nothing drawn
  * live. A collab word's plate is in its set's two inks.
@@ -116,7 +116,7 @@ export function CardBack({ word, mini = false }: { word: OwnedWord; mini?: boole
       <div className="cb-mat" style={{ backgroundImage: plate }}>
         <div className="cb-tex" />
       </div>
-      {/* the game's seal, pressed into the plate inside its lathe work, behind the facts */}
+      {/* the game's seal, pressed into the plate's field, behind the facts: the same on every rarity */}
       <div aria-hidden className="cb-seal" style={{ backgroundImage: sealImage(collab?.line ?? MATERIAL_LINE[m]) }} />
       {mini ? <MiniBody word={word} /> : <FullBody word={word} />}
     </div>

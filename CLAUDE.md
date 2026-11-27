@@ -691,6 +691,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   purchases and not players (the game sells a face once to a profile; the contract would sell it
   twice), and a sold-out item stays with everyone who has it. The player docs have a Shop page
   (`docs-site/shop.mdx`): when an accessory is listed, its "None are in the Shop yet" goes.
+  **An item opens** (the same decision; starl3xx: "I should be able to click items and see more
+  info about them, see them at higher size, etc"): one tap on its card opens
+  `sheets/ShopItemSheet` (sheet kind `shopItem`, a `wide` dialog on a computer): the thing large,
+  "Look closer" (twice the width in a box that pans: a cut, never an animated scale), a card face
+  shown on any of the player's own words (a preview: it saves nothing, and with no words the face
+  shows alone), its facts, the card's own Buy, and "Put it on WORD" for a face they have.
+  **Whether a thing sells is ONE rule** (`lib/shop/offer` `buyOffer`, tested), drawn by ONE
+  component (`shop/ShopBuy`) and read from ONE place (`useShopView`): never give a new surface a
+  Buy ladder of its own, and never start a purchase but through `useShopBuy`, which tells every
+  Buy on the page that one is in flight (the view can be closed mid-purchase). The view reads the
+  item live by id, and an item that has gone says so: it never falls back to a placeholder card.
+  The face picker's tile for a face on sale opens that item, on the word being dressed
+  (`nav("shop", "faces")`, then `openSheet`: `nav` closes the picker first).
 - **A card's words: front, face, back** (decisions.md #54; starl3xx, 2026-11-27: "the *front* of the
   card is its front regardless of the scene/face... the *face* (not scene) is the background on the
   front of the card. the back is the back"). The FRONT is the side with the word on it, whatever it
@@ -858,9 +871,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   picked from an opened word returns to it). **A back is an engraved plate** (decisions.md #58, part 2; `lib/cardArt/plate` `backPlate`, through
   `cards/material` `materialPlate` / `collabPlate`): one still picture set on `.cb-mat`, in the rarity's
   inks (a collab set's two colors: the field in one, the border in the other, flat). A rarity is told
-  by its inks and by how much engraving its plate carries (rules; lace; lathe work round the seal; a
-  second ring and filigree; a third ring and Mythic's blended ink, a banknote's "rainbow printing",
-  which is printed and never moves). **It replaced the backs' materials and their live WebGL drawing**
+  by its inks and by its plate's BORDER (rules; lace, for Uncommon and Rare; filigree; Mythic's blended
+  ink, a banknote's "rainbow printing", which is printed and never moves). **The game's emblem is the
+  same on every rarity, and nothing is drawn round it** (starl3xx, 2026-11-27, of the rings the first
+  plates turned round the seal for Rare and up: "I don't like the Lexigotchi emblem on the back
+  getting more rings for more rarity... that should look the same on all rarities, standard"): never
+  mark a rarity on, in, or around the emblem. **It replaced the backs' materials and their live WebGL drawing**
   (#25, #26: satin, foil, gold, a gem, a light under the pointer, a tilt prompt on iPhone): all of
   that code is gone, and nothing on a back moves or asks a phone for anything. The lettering and the
   seal are laid out BY THE PLATE'S MEASURES (`PLATE_BORDER`, `PLATE_SEAL`), in three places that a

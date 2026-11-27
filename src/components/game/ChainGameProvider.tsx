@@ -90,7 +90,7 @@ import { letterLabel } from "@/lib/market/deals";
 import { fetchLetterOrder, fetchWordOrder, useChainMarket } from "./market/useChainMarket";
 import { getPublicClient, toWordWei } from "@/lib/onchain/reads";
 import { addressOf, shopAddress, usdcAddress, wordTokenAddress } from "@/lib/onchain/addresses";
-import { approveCall, buyCall, buyRoute, buyWithPermitCall, isUnsupported, permitTypedDataJson, type BuyRoute } from "@/lib/shop/buy";
+import { SHOP_BUY_LABEL, approveCall, buyCall, buyRoute, buyWithPermitCall, isUnsupported, permitTypedDataJson, type BuyRoute } from "@/lib/shop/buy";
 import { TEST_USDC_FAUCET, fmtUsdc } from "@/lib/shop/rules";
 import { THEMES, themeForPeriod } from "@/lib/themes";
 import { useViewer } from "./useViewer";
@@ -2730,7 +2730,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         }
         const me = address;
         return track(
-          "Buying",
+          SHOP_BUY_LABEL,
           async (run, phase) => {
             const client = getPublicClient();
             // Read fresh, in one block: the price may have changed since the sheet loaded.
