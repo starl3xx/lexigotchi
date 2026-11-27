@@ -3200,6 +3200,19 @@ setter. All small, riding existing suite patterns.
         and read as brushed metal, the very thing the plate replaces.
       - **Mythic's blended ink was in the drawings he approved**, so it is built. Whether a
         printed spectrum is enough for the top rarity (13F) is still his to say.
+    - **Part 2, amended the day it shipped: the emblem is standard.** The first plates turned
+      lathe work round the seal for the rarer words: one ring for Rare, two for Legendary, three
+      for Mythic. The owner, on seeing it live: "I don't like the Lexigotchi emblem on the back
+      getting more rings for more rarity... I think that should look the same on all rarities,
+      standard". So the plate draws nothing round the seal, and the seal stands alone on every
+      back, as it always had before the plates. A rarity is told by its inks and its border.
+      - **My reading:** "standard" is the seal with no ring, the emblem as every back had it
+        before. One ring on every back is the other reading: it is a small change if he wants it.
+      - **A consequence he has not ruled on:** Rare's own step WAS the ring, so a Rare plate
+        now carries Uncommon's engraving in its own sapphire inks. The border still steps for
+        Legendary (filigree, a second ink) and Mythic (the blended ink). If Rare should have a
+        step of its own, it goes in the border, never on the emblem.
+      - `CARD_LOOK` is 14.
     - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
       light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
       rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and

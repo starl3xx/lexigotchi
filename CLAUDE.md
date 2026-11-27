@@ -858,9 +858,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   picked from an opened word returns to it). **A back is an engraved plate** (decisions.md #58, part 2; `lib/cardArt/plate` `backPlate`, through
   `cards/material` `materialPlate` / `collabPlate`): one still picture set on `.cb-mat`, in the rarity's
   inks (a collab set's two colors: the field in one, the border in the other, flat). A rarity is told
-  by its inks and by how much engraving its plate carries (rules; lace; lathe work round the seal; a
-  second ring and filigree; a third ring and Mythic's blended ink, a banknote's "rainbow printing",
-  which is printed and never moves). **It replaced the backs' materials and their live WebGL drawing**
+  by its inks and by its plate's BORDER (rules; lace, for Uncommon and Rare; filigree; Mythic's blended
+  ink, a banknote's "rainbow printing", which is printed and never moves). **The game's emblem is the
+  same on every rarity, and nothing is drawn round it** (starl3xx, 2026-11-27, of the rings the first
+  plates turned round the seal for Rare and up: "I don't like the Lexigotchi emblem on the back
+  getting more rings for more rarity... that should look the same on all rarities, standard"): never
+  mark a rarity on, in, or around the emblem. **It replaced the backs' materials and their live WebGL drawing**
   (#25, #26: satin, foil, gold, a gem, a light under the pointer, a tilt prompt on iPhone): all of
   that code is gone, and nothing on a back moves or asks a phone for anything. The lettering and the
   seal are laid out BY THE PLATE'S MEASURES (`PLATE_BORDER`, `PLATE_SEAL`), in three places that a

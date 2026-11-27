@@ -11,15 +11,22 @@
  * never by a material: the backs were walnut, satin, brushed foil, polished gold, and a cut gem,
  * with a hot spot and glitter (decisions.md #25, #26), and this replaces them.
  *
- * The engraving, each rank keeping the last one's and adding its own:
+ * The engraving is in the plate's BORDER, each rank keeping the last one's and adding its own:
  *   0  rules, and a ruled ground (fine even lines that make a tone, as an engraver does)
  *   1  + a border of LACE (braided waves, as on a banknote's edge), a lathe medallion in each corner
- *   2  + LATHE WORK around the seal: one wavy ring turned many times, so its copies weave
- *   3  + a second ring, and FILIGREE in the border's corners, both in a second ink
- *   4  + a third ring, so the rings weave a moiré; and the ink changes along the card
+ *   2  as 1, in its own inks (its step was lathe work round the seal: see below)
+ *   3  + FILIGREE in the border's corners, in a second ink
+ *   4  + the ink changes along the card
  *
  * Rank 4's changing ink is a banknote's "rainbow printing": one plate, the ink blended across it.
  * It is printed, so it never moves.
+ *
+ * THE GAME'S EMBLEM IS THE SAME ON EVERY RARITY, AND THE PLATE DRAWS NOTHING ROUND IT. As first
+ * built, ranks 2, 3, and 4 turned one, two, and three rings of lathe work around the seal.
+ * starl3xx, the day it shipped: "I don't like the Lexigotchi emblem on the back getting more rings
+ * for more rarity... I think that should look the same on all rarities, standard". So the seal
+ * stands alone on every back, as it always had before the plates, and a rarity is told by its inks
+ * and its border. Never mark a rarity on, in, or around the emblem.
  *
  * The drawing keeps the engraving kit's rules (./engrave: plain shapes, gradients, patterns, clip
  * paths, and `<use>`; no text, no filter, nothing fetched; every number finite and rounded), so the
@@ -41,14 +48,15 @@ export interface PlateInks {
   band?: string;
   /** The light ink of its engraving. */
   line: string;
-  /** A second light ink, from rank 3: the filigree, the second ring, and (rank 4) the far end of the blend. */
+  /** A second light ink, from rank 3: the filigree, and (rank 4) the far end of the blend. */
   second: string;
 }
 
 /**
- * Where the game's seal sits on a back, in card units: its centre and its width. The lathe work is
- * drawn around it, so the styles (globals.css, .cb-seal) and the server's picture of a back
- * (app/s/[text]/back) place the seal by these (tests/matte-cards.test.ts holds the three equal).
+ * Where the game's seal sits on a back, in card units: its centre and its width, the same on every
+ * rarity. It stands inside the plate's field, clear of the border, so the styles (globals.css,
+ * .cb-seal) and the server's picture of a back (app/s/[text]/back) place it by these
+ * (tests/matte-cards.test.ts holds them equal). The plate itself draws nothing here.
  */
 export const PLATE_SEAL = { cx: 868, cy: 337.5, d: 400 } as const;
 
@@ -58,9 +66,8 @@ export const PLATE_SEAL = { cx: 868, cy: 337.5, d: 400 } as const;
  */
 export const PLATE_BORDER = { edge: 16, lace: [25, 55], field: 63 } as const;
 
-/** How strong the engraving is over its ground, of 1: the lines, and the lathe work the lettering lies over. */
+/** How strong the fine engraving (the lace) is over its ground, of 1. */
 const SOFT = 0.62;
-const MEDAL = 0.5;
 
 /** A braid of sine waves along a straight run: a banknote's lace. `strands` waves, evenly out of step. */
 function lace(x0: number, y0: number, x1: number, y1: number, amp: number, waves: number, strands: number): string {
@@ -143,7 +150,7 @@ export function backPlate(rank: PlateRank, inks: PlateInks, blend = false): stri
   if (inks.band) out.push(`<path fill-rule="evenodd" fill="${inks.band}" d="M0 0H${W}V${H}H0ZM${inner - 6 + 11} ${inner - 6}h${W - 2 * inner + 12 - 22}a11 11 0 0 1 11 11v${H - 2 * inner + 12 - 22}a11 11 0 0 1 -11 11h${-(W - 2 * inner + 12 - 22)}a11 11 0 0 1 -11 -11v${-(H - 2 * inner + 12 - 22)}a11 11 0 0 1 11 -11Z"/>`);
   const turn = (ref: string, n: number, span: number, cx: number, cy: number) => Array.from({ length: n }, (_, t) => `<use href="#${ref}" xlink:href="#${ref}" transform="rotate(${n1((t * span) / n)} ${cx} ${cy})"/>`).join("");
   // the ruled ground: an engraver's tone, fine and even (and never finer: the note at the top says why)
-  defs.push(`<pattern id="rule" width="11" height="11" patternUnits="userSpaceOnUse"><line x1="0" y1="5.5" x2="11" y2="5.5" stroke="${A}" stroke-width="1.5"/></pattern>`, `<clipPath id="field"><rect x="${inner}" y="${inner}" width="${W - 2 * inner}" height="${H - 2 * inner}" rx="8"/></clipPath>`);
+  defs.push(`<pattern id="rule" width="11" height="11" patternUnits="userSpaceOnUse"><line x1="0" y1="5.5" x2="11" y2="5.5" stroke="${A}" stroke-width="1.5"/></pattern>`);
   out.push(`<rect x="${inner}" y="${inner}" width="${W - 2 * inner}" height="${H - 2 * inner}" rx="8" fill="url(#rule)" opacity="${n1(0.3 * SOFT * 10) / 10}"/>`);
   // the border: rules, and from rank 1 a band of lace between them
   out.push(`<rect x="${o}" y="${o}" width="${W - 2 * o}" height="${H - 2 * o}" rx="18" fill="none" stroke="${stroke}" stroke-width="3.2"/><rect x="${o + 6}" y="${o + 6}" width="${W - 2 * o - 12}" height="${H - 2 * o - 12}" rx="13" fill="none" stroke="${stroke}" stroke-width="0.9"/>`);
@@ -164,23 +171,6 @@ export function backPlate(rank: PlateRank, inks: PlateInks, blend = false): stri
       });
   } else {
     out.push(`<rect x="${(lo + li) / 2}" y="${(lo + li) / 2}" width="${W - lo - li}" height="${H - lo - li}" rx="12" fill="none" stroke="${stroke}" stroke-width="0.9"/>`);
-  }
-  if (rank >= 2) {
-    // lathe work around the seal: one rosette turned many times, ring inside ring
-    const { cx, cy } = PLATE_SEAL;
-    const ring = (r: number, w: number) => `<circle cx="${cx}" cy="${cy}" r="${r}" stroke-width="${w}"/>`;
-    defs.push(`<path id="w" d="${rosette(cx, cy, 222, 12, 36, 900)}"/>`);
-    let medal = `<g stroke="${stroke}" stroke-width="1">${turn("w", 5, 10, cx, cy)}${ring(236, 1.8)}${ring(207, 1.4)}</g>`;
-    if (rank >= 3) {
-      defs.push(`<path id="w2" d="${rosette(cx, cy, 190, 12, 24, 720)}"/>`);
-      medal += `<g stroke="${rank === 3 ? B : stroke}" stroke-width="0.9">${turn("w2", 6, 15, cx, cy)}${ring(176, 1.2)}</g>`;
-    }
-    if (rank >= 4) {
-      // a third, finer turn, so the rings weave a moiré
-      defs.push(`<path id="w3" d="${rosette(cx, cy, 160, 11, 40, 900)}"/>`);
-      medal += `<g stroke="${stroke}" stroke-width="0.8">${turn("w3", 4, 9, cx, cy)}${ring(147, 1)}</g>`;
-    }
-    out.push(`<g clip-path="url(#field)" fill="none" opacity="${MEDAL}">${medal}</g>`);
   }
   if (rank >= 3) {
     const fl = filigree(96);

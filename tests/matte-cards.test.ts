@@ -60,18 +60,39 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect(svgDoc(art)).toContain("</svg>");
   });
 
-  it("a rarity is told by how much engraving its plate carries, each keeping the last one's", () => {
+  it("a rarity is told by its inks and its border, each plate keeping the last one's engraving", () => {
     const [common, uncommon, rare, legendary, mythic] = MATERIALS.map(materialPlate);
-    const has = (art: string) => ({ lace: /stroke-width="1\.15"/.test(art), medallions: /id="c0"/.test(art), ring: / id="w"/.test(art), ring2: / id="w2"/.test(art), ring3: / id="w3"/.test(art), filigree: /stroke-linecap="round"/.test(art), blend: /id="iris"/.test(art) });
-    expect(has(common)).toEqual({ lace: false, medallions: false, ring: false, ring2: false, ring3: false, filigree: false, blend: false });
-    expect(has(uncommon)).toEqual({ lace: true, medallions: true, ring: false, ring2: false, ring3: false, filigree: false, blend: false });
-    expect(has(rare)).toEqual({ lace: true, medallions: true, ring: true, ring2: false, ring3: false, filigree: false, blend: false });
+    const has = (art: string) => ({ lace: /stroke-width="1\.15"/.test(art), medallions: /id="c0"/.test(art), filigree: /stroke-linecap="round"/.test(art), blend: /id="iris"/.test(art) });
+    expect(has(common)).toEqual({ lace: false, medallions: false, filigree: false, blend: false });
+    expect(has(uncommon)).toEqual({ lace: true, medallions: true, filigree: false, blend: false });
+    // Rare's own step was the ring round the seal, which went: its plate is Uncommon's engraving in its own inks
+    expect(has(rare)).toEqual(has(uncommon));
+    expect(rare).not.toBe(uncommon);
     // from Legendary the corners carry filigree where the medallions were
-    expect(has(legendary)).toEqual({ lace: true, medallions: false, ring: true, ring2: true, ring3: false, filigree: true, blend: false });
-    expect(has(mythic)).toEqual({ lace: true, medallions: false, ring: true, ring2: true, ring3: true, filigree: true, blend: true });
-    // each is a bigger drawing than the last
-    const sizes = [common, uncommon, rare, legendary, mythic].map((a) => a.length);
-    expect([...sizes].sort((a, b) => a - b)).toEqual(sizes);
+    expect(has(legendary)).toEqual({ lace: true, medallions: false, filigree: true, blend: false });
+    expect(has(mythic)).toEqual({ lace: true, medallions: false, filigree: true, blend: true });
+    // (the drawings' sizes say nothing: a corner of filigree is a shorter drawing than the lace it takes the place of)
+  });
+
+  it("the game's emblem is the same on every rarity: no plate draws anything round the seal", () => {
+    // starl3xx, 2026-11-27: "I don't like the Lexigotchi emblem on the back getting more rings for
+    // more rarity... I think that should look the same on all rarities, standard". The first plates
+    // turned one, two, and three rings of lathe work round the seal for Rare, Legendary, and Mythic.
+    const near = (x: number, y: number) => Math.hypot(x - PLATE_SEAL.cx, y - PLATE_SEAL.cy) < PLATE_SEAL.d / 2 + 60;
+    for (const m of MATERIALS) {
+      const art = materialPlate(m);
+      // nothing is centred on the seal, or turned about it
+      expect(art, m).not.toContain(`cx="${PLATE_SEAL.cx}"`);
+      expect(art, m).not.toMatch(new RegExp(`rotate\\([\\d.]+ ${PLATE_SEAL.cx} `));
+      expect(art, m).not.toMatch(/ id="w\d?"/);
+      // and no path of the border's engraving wanders into the seal's place
+      for (const d of art.matchAll(/ d="([^"]+)"/g)) for (const p of d[1].matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) expect(near(Number(p[1]), Number(p[2])), m).toBe(false);
+    }
+    // the seal's picture is one ink and one strength for every rarity, in the game and on the server
+    const back = read("src/components/cards/CardBack.tsx");
+    expect(back).toMatch(/className="cb-seal" style=\{\{ backgroundImage: [^}]*\}\}/);
+    expect(css).not.toMatch(/\.m-(common|uncommon|rare|legendary|mythic|collab) \.cb-seal/);
+    expect(read("src/app/s/[text]/back/route.tsx")).toContain("<img src={seal(look.line)} width={PLATE_SEAL.d} height={PLATE_SEAL.d}");
   });
 
   it("Mythic's spectrum is printed into its ink, so nothing in it can move", () => {
@@ -92,12 +113,12 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
 
   it("the lettering and the seal are laid out by the plate's own measures, in the styles and on the server", () => {
     const pct = (n: number) => +((n / CARD_W) * 100).toFixed(3);
-    // the seal sits in the lathe work: its width and its place are the plate's
+    // the seal stands in the plate's field: its width and its place are the plate's
     const seal = rule(".cb-seal");
     expect(seal).toContain(`width: ${pct(PLATE_SEAL.d)}cqw`);
     expect(seal).toContain(`right: ${pct(CARD_W - PLATE_SEAL.cx - PLATE_SEAL.d / 2)}cqw`);
     expect(PLATE_SEAL.cy).toBe(CARD_H / 2);
-    expect(css).not.toMatch(/\.sc-small \.cb-seal/); // a thumbnail's seal sits where the plate's lathe work is too
+    expect(css).not.toMatch(/\.sc-small \.cb-seal/); // a thumbnail's seal stands where every other back's does
     // the lettering starts inside the field, at every size the styles name
     const field = pct(PLATE_BORDER.field);
     for (const m of css.matchAll(/\.cb-body \{[^}]*inset: ([\d.]+)cqw ([\d.]+)cqw ([\d.]+)cqw/g)) for (const v of m.slice(1, 4)) expect(Number(v)).toBeGreaterThan(field);
@@ -133,8 +154,8 @@ describe("a card's back is an engraved plate (part 2: \"13A dark plate is defini
     expect(art).toContain('<rect width="1200" height="675" fill="#102030"/>');
     expect(art).toMatch(/<path fill-rule="evenodd" fill="#302010" d="M0 0H1200V675H0Z/);
     expect(art).not.toMatch(/Gradient/);
-    // Legendary's engraving, in the set's one line ink
-    expect(art).toMatch(/ id="w2"/);
+    // Legendary's engraving (its filigree), in the set's one line ink
+    expect(art).toMatch(/stroke-linecap="round"/);
     expect([...new Set([...art.matchAll(/(?:stroke|fill)="(#[0-9a-f]{6})"/g)].map((x) => x[1]))].sort()).toEqual(["#102030", "#302010", "#f0e0c0"]);
     // a rarity's own plate has one ground
     expect(backPlate(0 as PlateRank, { ground: "#111111", line: "#eeeeee", second: "#eeeeee" })).not.toContain("evenodd");
