@@ -6,7 +6,7 @@ import { readPity } from "@/lib/onchain/reads";
 import { NETWORK } from "@/lib/onchain/network";
 import { TileSolo } from "../TileCharacter";
 import { Button, PityMeter, Sheet } from "../primitives";
-import { Crown } from "../ui/icons";
+import { EngravedMark } from "../EngravedMark";
 import { charToIdx, fmtWord, idxToChar, mineLower, useGame, type RollTarget } from "../state";
 
 type Phase = "ready" | "rolling" | "win" | "miss" | "stranded";
@@ -111,7 +111,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
         {phase === "win" && (
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
-              RAISED! <Crown weight="fill" />
+              RAISED! <EngravedMark kind="crown" size={26} className="text-ink" />
             </div>
             <p className="text-sm text-ink/60">Now UPPERCASE: the blue game tile. Spell it into any word, and once all five of a word’s letters are raised, it earns $WORD.</p>
           </div>

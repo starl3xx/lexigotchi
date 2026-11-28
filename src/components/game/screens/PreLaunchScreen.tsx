@@ -26,7 +26,8 @@ import { confirmShareCast, fetchCampaignStatus } from "../campaignClient";
 import { TileCharacter, TileWord } from "../TileCharacter";
 import { Button } from "../primitives";
 import { Lockup } from "../../brand/Lockup";
-import { Check, CircleNotch, Gift, Plus, ShareNetwork, Sparkle } from "../ui/icons";
+import { Check, CircleNotch, Gift, Plus, ShareNetwork } from "../ui/icons";
+import { EngravedMark } from "../EngravedMark";
 
 /** What the player posts. Embeds the /play link so the cast renders a launchable Lexigotchi card. */
 const SHARE_TEXT =
@@ -143,7 +144,8 @@ export function PreLaunchScreen() {
         <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5">
           <Lockup alive height={28} />
           <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-xs font-extrabold text-ink">
-            <Sparkle weight="fill" size={11} /> Coming soon
+            {/* on a gold chip a gold mark is lost: this one is filled with the twinkle's own cream */}
+            <EngravedMark kind="twinkle" size={13} fill="#fff6dd" /> Coming soon
           </span>
         </header>
 

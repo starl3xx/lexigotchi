@@ -5,7 +5,8 @@
  */
 import { useState, type ReactNode } from "react";
 import { Button, Card, SectionTitle } from "./primitives";
-import { Coins, Crown, Sparkle, Ticket, TextAa } from "./ui/icons";
+import { Coins, Sparkle, Ticket, TextAa } from "./ui/icons";
+import { EngravedMark } from "./EngravedMark";
 import { fmtWord, hunger, mineLower, mineUpper, useGame } from "./state";
 import { pickStage } from "./stagePick";
 import { nextSteps, type NextStep } from "./todaySteps";
@@ -177,7 +178,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
     }
     case "roll":
       return {
-        icon: <Crown weight="fill" size={20} />,
+        icon: <EngravedMark kind="crown" size={20} className="text-ink" />,
         text: (
           <>
             Roll the <strong className="font-display">{s.letter}</strong> in <strong className="font-display">{s.word}</strong> to

@@ -20,7 +20,7 @@ import { GLORY_CSS } from "@/lib/cardArt/glory";
 import type { Stage } from "@/lib/onchain/stageOverlay";
 import { TileWord, usePrefersReducedMotion, type Gild, type TileState } from "../TileCharacter";
 import { Button, Sheet } from "../primitives";
-import { Star } from "../ui/icons";
+import { EngravedMark } from "../EngravedMark";
 import { fmtWord, useGame, wordCase, type ActionOutcome } from "../state";
 import { nextTry, phaseAfter, resultToast, shownStage, stageAfter, waveOf, type AscendPhase } from "../ascendFlow";
 
@@ -222,7 +222,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
           {phase === "hit" && landed && (
             <div className="w-full text-center">
               <div className="flex items-center justify-center gap-1.5 font-display text-2xl font-extrabold text-gold-deep">
-                {stageName(shown.level)}! <Star weight="fill" />
+                {stageName(shown.level)}! <EngravedMark kind="star" size={26} className="text-ink" />
               </div>
               <p className="text-sm text-ink/60">
                 {word.word} climbed a stage, and its share of earnings and the bounty grew {STAGE_SHARE}.
@@ -373,7 +373,7 @@ function Ladder({ level, max, goal, pulsing }: { level: number; max: number; goa
                 next ? `border-gold-deep bg-gold/15 ${pulsing ? "asc-goal" : ""}` : "border-transparent"
               }`}
             >
-              <Star weight={has ? "fill" : "regular"} size={16} className={has ? "text-gold-deep" : next ? "text-gold-ink" : "text-ink/30"} />
+              <EngravedMark kind="star" size={16} earned={has} className={has ? "text-ink" : next ? "text-gold-ink" : "text-ink/30"} />
             </span>
           );
         })}

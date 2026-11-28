@@ -7,7 +7,7 @@
  */
 import { TileCharacter, TileWord, type Gild, type TileDetail, type TilePose, type TileState } from "./TileCharacter";
 import { Pill } from "./primitives";
-import { Star } from "./ui/icons";
+import { EngravedMark } from "./EngravedMark";
 import { stageName } from "@/lib/ascension";
 import type { Tier } from "@/lib/economy";
 import type { CollabLook } from "@/lib/collabLook";
@@ -114,9 +114,9 @@ export function CaseBadge({ word }: { word: OwnedWord }) {
 export function PrestigeStars({ level }: { level: number }) {
   if (level <= 0) return null;
   return (
-    <span className="inline-flex text-gold-ink" title={stageName(level)} aria-label={stageName(level)}>
+    <span className="inline-flex text-ink" title={stageName(level)} aria-label={stageName(level)}>
       {Array.from({ length: level }).map((_, i) => (
-        <Star key={i} weight="fill" size={11} />
+        <EngravedMark key={i} kind="star" size={12} />
       ))}
     </span>
   );
