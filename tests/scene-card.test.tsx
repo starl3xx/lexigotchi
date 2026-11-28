@@ -96,6 +96,26 @@ describe("a phone's back and the rows under it", () => {
   });
 });
 
+describe("the letters stay put when the card leans", () => {
+  it("the card's faces contain their paint, so a letter's place is rounded the same way at rest and while the card leans", () => {
+    // starl3xx, 2026-11-27, with a recording: "when I mouse over a card, the letters shift down a
+    // pixel or two and then pop back when my mouse isn't over the card anymore". In Chromium a
+    // letter's place was rounded from the page at rest and from the card while it leaned; where
+    // the two disagreed the letters jumped one pixel. Containment makes the face the start of
+    // the rounding in both states. jsdom draws nothing, so the rule itself is held here; the
+    // jump was measured in Chrome (the stylesheet's comment says how).
+    const css = readFileSync("src/app/globals.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const face = /\n\.sc-face \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(face).toContain("contain: paint;");
+    // what makes containment harmless here: the face already clips, and is already its own layer
+    expect(face).toContain("overflow: hidden;");
+    expect(face).toContain("transform: translateZ(0);");
+    // the back is a face too
+    const { container } = render(<SceneCard word={word("CRANE")} front={<p>scene</p>} />);
+    expect(container.querySelector(".sc-front")!.className).toContain("sc-face");
+  });
+});
+
 describe("the card's own light (decisions.md #34)", () => {
   // One frame at a time: the card asks for a frame, and the test runs it.
   let frames: FrameRequestCallback[] = [];
