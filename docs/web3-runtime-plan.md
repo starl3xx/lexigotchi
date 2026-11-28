@@ -192,6 +192,9 @@ done.
 **Releasing a set:**
 1. The set must be revealed (by its `revealAt`, or **Reveal now**; its name and words then lock). A
    reveal needs every word of the set held back on the chain already (the reserve root, above).
+   From its reveal a set shows on Today, and its words open so players can see which letters they
+   need (decisions.md #62). Give the set a `releaseAt` if players should see a countdown: without
+   one, Today and the Dictionary say "Unlocks soon".
 2. Press **Build the release** (or `npm run sets -- release <id>`) near the release time. It shows
    the words added (never any removed) and prints the calls. Where this network's Words has the
    first-day gate, the calls are `setGate` FIRST, then `setDictionaryRoot`: as one Safe batch, or as

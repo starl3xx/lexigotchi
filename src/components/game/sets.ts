@@ -83,6 +83,74 @@ export function firstDayAhead(openTo: string): string {
   return `Its first day is open to ${openTo}.`;
 }
 
+/** A set that anyone may see: revealed or released. A locked slot is not one. */
+export type ShownSet = Exclude<PublicSet, { kind: "locked" }>;
+
+/** How long a set stays news after it unlocks, when no first day is running. */
+export const FRESH_MS = 24 * 3_600_000;
+
+/**
+ * Where a set is in its life, for every place that decides whether it is still news (Today's card,
+ * and the Dictionary's order and fold; decisions.md, "A set's moments in the game"):
+ * - `revealed`: named, and counting down to its unlock.
+ * - `firstDay`: unlocked, with its first-day limit still up.
+ * - `fresh`: unlocked within the last day, with no first day running. On a network whose Words has
+ *   no gate, every unlock is this (a release there records no first day at all).
+ * - `old`: everything after. Its words are words like any others.
+ */
+export type SetPhase = "revealed" | "firstDay" | "fresh" | "old";
+
+export function setPhase(set: ShownSet, nowMs: number): SetPhase {
+  if (set.kind === "revealed") return "revealed";
+  if (set.gateUntil && Date.parse(set.gateUntil) > nowMs) return "firstDay";
+  // A release a moment "ahead" of this device's clock is still fresh: only its age can make it old.
+  const at = set.releasedAt ? Date.parse(set.releasedAt) : NaN;
+  return Number.isFinite(at) && nowMs - at < FRESH_MS ? "fresh" : "old";
+}
+
+/** What is open to claim comes first, then what is coming, then old news. */
+const PHASE_ORDER: Record<SetPhase, number> = { firstDay: 0, fresh: 1, revealed: 2, old: 3 };
+
+/** The shown sets, soonest news first: the Dictionary's order. Locked slots are not in it. */
+export function byNews(sets: readonly PublicSet[], nowMs: number): ShownSet[] {
+  const shown = sets.filter((s): s is ShownSet => s.kind !== "locked");
+  // A revealed set with a time comes before one without: its unlock is the nearer news.
+  const when = (s: ShownSet) => (s.kind === "revealed" && s.releaseAt ? Date.parse(s.releaseAt) : Infinity);
+  return shown
+    .map((s, i) => ({ s, i, p: PHASE_ORDER[setPhase(s, nowMs)] }))
+    .sort((a, b) => a.p - b.p || when(a.s) - when(b.s) || a.i - b.i)
+    .map((x) => x.s);
+}
+
+/** The sets Today shows: every one that is still news. Old sets, and locked slots, stay in the Dictionary. */
+export function todaySets(sets: readonly PublicSet[], nowMs: number): ShownSet[] {
+  return byNews(sets, nowMs).filter((s) => setPhase(s, nowMs) !== "old");
+}
+
+/**
+ * A set's row on Today, in one line: what is happening with it now, in the Dictionary's own words
+ * (setLines), with what a player can do about it once it is unlocked.
+ */
+export function todayLine(set: ShownSet, nowMs: number, gate = true): string {
+  const lines = setLines(set, nowMs, gate);
+  const phase = setPhase(set, nowMs);
+  if (phase === "firstDay" && lines.rule) return `${lines.rule}. ${lines.status}.`;
+  if (phase === "fresh") return "Unlocked. Its words are open to claim.";
+  return `${lines.status}.`;
+}
+
+/** The REVEALED set that holds `word`, or null: the only held words a player may be told about. */
+export function revealedSetOf(sets: readonly PublicSet[], word: string): Extract<PublicSet, { kind: "revealed" }> | null {
+  const W = word.toUpperCase();
+  for (const s of sets) if (s.kind === "revealed" && s.words.some((w) => w.word === W)) return s;
+  return null;
+}
+
+/** Under a revealed word's first line: the set it waits in, and when that unlocks. */
+export function aheadLine(word: string, set: Extract<PublicSet, { kind: "revealed" }>, nowMs: number): string {
+  return `${word.toUpperCase()} is in the set ${set.name}. ${setLines(set, nowMs).status}.`;
+}
+
 /**
  * How often to ask the server about the sets, in milliseconds. Every minute as a rule, but every
  * few seconds while a revealed set is about to unlock or is past its time: the game refuses a held
