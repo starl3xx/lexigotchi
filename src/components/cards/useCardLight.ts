@@ -129,8 +129,11 @@ export function useCardLight({
     },
     [band],
   );
-  /** Where a timed pass has carried the window by now, in the same measure; null if it can't be read. */
-  const passing = (b: { win: HTMLElement; lines: HTMLElement }) => {
+  /**
+   * Where the window stands NOW, in the same measure, read from the screen: a timed pass, or the
+   * slide off after the pointer's last visit, may be carrying it. Null if it can't be read.
+   */
+  const standing = (b: { win: HTMLElement; lines: HTMLElement }) => {
     const card = b.lines.offsetWidth; // the lines are as wide as the card
     if (!card || typeof DOMMatrixReadOnly === "undefined") return null;
     const left = (new DOMMatrixReadOnly(getComputedStyle(b.win).transform).m41 / card) * 100;
@@ -178,33 +181,49 @@ export function useCardLight({
     [],
   );
 
+  /**
+   * A mouse arrives: it came onto the card, or it moved on a card that was lit under it (a card
+   * turned back to its front is told of no "enter"). The band comes to the pointer FROM WHERE IT
+   * IS, eased: part way across, if a timed pass or the slide off after the last visit was
+   * carrying it, or else from off the side the pointer is nearer. Never a jump (Bugbot on #335:
+   * a pointer back within the slide threw the band off the card first, and a card lit under a
+   * still pointer had its band pop in).
+   */
+  const arrive = (e: Move) => {
+    held.current = true;
+    window.clearTimeout(letGo.current);
+    const b = band();
+    const seen = read(e);
+    if (b && seen) {
+      const now = standing(b);
+      const onCard = now !== null && now > OFF_LEFT + 0.5 && now < OFF_RIGHT - 0.5;
+      // A timed pass ends here, at once: its animation outranks the pointer for as long as it
+      // runs. (The class is React's, and the render that follows takes it off too.)
+      root.current?.classList.remove("sc-moment");
+      // written with no transition first, so the ease that follows starts from there
+      lean.current?.classList.remove("sc-ease");
+      stand(onCard ? now : at.current.x < 0 ? OFF_LEFT : OFF_RIGHT);
+      void b.win.offsetWidth;
+    }
+    window.clearTimeout(ending.current);
+    busy.current = false;
+    setSheen(false);
+    ease(240);
+    if (b && seen) stand(under(at.current.x));
+  };
+
   const handlers = lit
     ? {
         onPointerEnter: (e: Move) => {
           // a touch has no pointer to hold the band: it passes, as it does on its own beat
           if (!isMouse(e)) return play();
-          held.current = true;
-          window.clearTimeout(letGo.current);
-          const b = band();
-          if (b && read(e)) {
-            // The band starts from where it is: part way across, if the pointer arrived during a
-            // timed pass, or else off the side the pointer came in from. Written with no
-            // transition first, so the ease that follows starts there.
-            lean.current?.classList.remove("sc-ease");
-            stand((busy.current ? passing(b) : null) ?? (at.current.x < 0 ? OFF_LEFT : OFF_RIGHT));
-            void b.win.offsetWidth;
-          }
-          // the timed pass ends here: its animation would outrank the pointer for as long as it ran
-          window.clearTimeout(ending.current);
-          busy.current = false;
-          setSheen(false);
-          ease(240);
-          if (b) stand(under(at.current.x));
+          arrive(e);
         },
         onPointerMove: (e: Move) => {
           if (!isMouse(e)) return; // a touch has no pointer to lean to
-          if (!read(e)) return;
-          held.current = true; // a card lit under a pointer that never left it (turned back to its front)
+          // not held yet: the card was lit under a pointer that never left it, and this is its arrival
+          if (!held.current) arrive(e);
+          else if (!read(e)) return;
           if (frame.current) return;
           frame.current = window.requestAnimationFrame(() => {
             frame.current = 0;

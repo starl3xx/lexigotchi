@@ -129,6 +129,7 @@ describe("the card's own light (decisions.md #34)", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
   const box = (el: Element) => {
     el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 450, right: 800, bottom: 450, x: 0, y: 0, toJSON: () => ({}) });
@@ -149,14 +150,35 @@ describe("the card's own light (decisions.md #34)", () => {
     const win = c.querySelector<HTMLElement>(".sc-front .cf-light");
     return win ? { win: win.style.transform, lines: (win.firstElementChild as HTMLElement).style.transform } : null;
   };
+  /**
+   * jsdom lays nothing out and animates nothing, so where the band is NOW is told to it: the card
+   * is 800 px wide, and the window's left edge is `px` into it on the screen (a pass or a slide
+   * may be carrying it). Returns what was written to the window BEFORE the ease began.
+   */
+  const seeBandAt = (c: HTMLElement, px: number) => {
+    const win = c.querySelector<HTMLElement>(".sc-front .cf-light")!;
+    const first: string[] = [];
+    Object.defineProperty(win.firstElementChild!, "offsetWidth", { configurable: true, get: () => 800 });
+    // the card reads the window's width to make the browser take the first place in, before the ease
+    Object.defineProperty(win, "offsetWidth", { configurable: true, get: () => (first.push(win.style.transform), 432) });
+    vi.stubGlobal("DOMMatrixReadOnly", class { m41: number; constructor(t: string) { this.m41 = Number(/matrix\(1, 0, 0, 1, (-?[\d.]+), 0\)/.exec(t)?.[1] ?? 0); } });
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((el, pseudo) => (el === win ? ({ transform: `matrix(1, 0, 0, 1, ${px}, 0)` } as CSSStyleDeclaration) : real(el, pseudo)));
+    return first;
+  };
 
   it("is on for the card in focus, and leans it toward the pointer with no transition while it follows", () => {
+    vi.useFakeTimers();
     const { container } = render(<SceneCard word={word("CRANE")} front={<Front />} />);
     const { sc, lean, told } = parts(container);
     expect(sc.className).toContain("is-lit");
     // the band of light is the front's to draw, under its letters: the card tells it, and draws none itself
     expect(told).toBe("yes");
     expect(container.querySelector(".sc-sheen")).toBeNull();
+    // the pointer arrives (eased, for a moment), and from then on it is followed
+    fireEvent.pointerEnter(sc, { clientX: 400, clientY: 225, pointerType: "mouse" });
+    expect(lean.className).toContain("sc-ease");
+    act(() => void vi.advanceTimersByTime(300));
     fireEvent.pointerMove(sc, { clientX: 800, clientY: 0, pointerType: "mouse" }); // the upper right corner
     expect(lean.style.transform).toBe(""); // nothing until the frame
     frame();
@@ -229,6 +251,56 @@ describe("the card's own light (decisions.md #34)", () => {
     fireEvent.pointerEnter(sc, { clientX: 700, clientY: 200, pointerType: "mouse" });
     expect(sc.className).not.toContain("sc-moment");
     expect(band(container)!.win).toBe("translateX(60.50cqw)");
+  });
+
+  it("comes to the pointer from where it is: a pointer back within the slide off takes the band part way across, never from off the card", () => {
+    vi.useFakeTimers();
+    const { container } = render(<SceneCard word={word("CRANE")} front={<LitFront />} />);
+    const { sc, lean } = parts(container);
+    fireEvent.pointerEnter(sc, { clientX: 600, clientY: 200, pointerType: "mouse" });
+    fireEvent.pointerLeave(sc); // it slides off the right side
+    expect(band(container)!.win).toBe("translateX(100.00cqw)");
+    // 80 ms on the pointer is back, and the window is still on the card: its left edge 560 px into the 800
+    act(() => void vi.advanceTimersByTime(80));
+    const first = seeBandAt(container, 560);
+    fireEvent.pointerEnter(sc, { clientX: 200, clientY: 200, pointerType: "mouse" });
+    expect(first).toEqual(["translateX(70.00cqw)"]); // where it was, with no transition
+    expect(lean.className).toContain("sc-ease");
+    expect(band(container)).toEqual({ win: "translateX(-2.00cqw)", lines: "translateX(2.00cqw)" }); // and from there, eased, to the pointer
+    // the slide's own end no longer lets go of it
+    act(() => void vi.advanceTimersByTime(400));
+    expect(band(container)!.win).toBe("translateX(-2.00cqw)");
+  });
+
+  it("a band that rests off the card comes in from the side the pointer is nearer", () => {
+    const { container } = render(<SceneCard word={word("CRANE")} front={<LitFront />} />);
+    const { sc } = parts(container);
+    const first = seeBandAt(container, -432); // at rest: its whole width off the left side
+    fireEvent.pointerEnter(sc, { clientX: 600, clientY: 200, pointerType: "mouse" });
+    expect(first).toEqual(["translateX(100.00cqw)"]);
+    expect(band(container)!.win).toBe("translateX(48.00cqw)");
+  });
+
+  it("a card lit under a pointer that never left it: the first move is the arrival, eased, and it ends a pass in flight", () => {
+    vi.useFakeTimers();
+    // covered, then uncovered under the pointer: no "enter" is told
+    const { container, rerender } = render(<SceneCard word={word("CRANE")} front={<LitFront />} live={false} />);
+    rerender(<SceneCard word={word("CRANE")} front={<LitFront />} />);
+    const { sc, lean } = parts(container);
+    act(() => void vi.advanceTimersByTime(1250));
+    expect(sc.className).toContain("sc-moment"); // a timed pass is in flight
+    const first = seeBandAt(container, 240); // and has carried the window 240 px in
+    fireEvent.pointerMove(sc, { clientX: 600, clientY: 200, pointerType: "mouse" });
+    expect(sc.className).not.toContain("sc-moment");
+    expect(first).toEqual(["translateX(30.00cqw)"]);
+    expect(lean.className).toContain("sc-ease"); // eased in, never popped in
+    expect(band(container)!.win).toBe("translateX(48.00cqw)");
+    // and the same move leans the card, on its frame
+    frame();
+    expect(lean.style.transform).toBe("rotateX(0.28deg) rotateY(1.75deg)");
+    // the pass does not come back while the pointer stays
+    act(() => void vi.advanceTimersByTime(13000));
+    expect(sc.className).not.toContain("sc-moment");
   });
 
   it("a touch does not hold the band: on a phone it passes by itself, as before", () => {
