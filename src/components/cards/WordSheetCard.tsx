@@ -28,8 +28,9 @@ import { ShareVideo } from "./ShareVideo";
 import { useCardNumber } from "./useCardNumber";
 import { flipKey, useFlipOf } from "./useFlipOf";
 import { useCollabLook } from "@/components/game/collabLooksContext";
+import type { WakeAct } from "@/components/game/wake/useWakeAct";
 
-export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boolean }) {
+export function WordSheetCard({ word, act }: { word: OwnedWord; /** its part in a wake (game/wake) */ act: WakeAct }) {
   const g = useGame();
   const { scene } = useWordScene(word.word);
   const number = useCardNumber(word.word);
@@ -46,7 +47,9 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
   const [back, setBack] = useFlipOf(flipKey(word.word, cased));
   // while the share loop is made, it holds the one WebGL context: the live back waits
   const [making, setMaking] = useState(false);
-  const face = eating ? "eating" : careState(word);
+  const face = careState(word);
+  // what the letters wear while the word is woken; a tap on the card ends the act
+  const woke = { states: act.states, armsUp: act.armsUp, moments: act.moments, tone: act.tone ?? toneOf(face) };
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   return (
     // the card's width decides, by container query, whether the rows a phone-sized back leaves out
@@ -60,7 +63,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
           drag
           since={cases.cased.get(word.word)}
           onFlip={setBack}
-          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} number={number} animated={!back} />}
+          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} {...woke} gild={gild} tier={word.tier} number={number} animated={!back} onWord={act.acting ? act.hurry : undefined} wordLabel={act.acting ? `${word.word} is awake again` : undefined} />}
         />
       ) : (
         <SceneCard
@@ -69,7 +72,7 @@ export function WordSheetCard({ word, eating }: { word: OwnedWord; eating: boole
           flipped={back}
           live={!making}
           onFlip={setBack}
-          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} number={number} animated={!back} />}
+          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} {...woke} gild={gild} tier={word.tier} number={number} animated={!back} onWord={act.acting ? act.hurry : undefined} wordLabel={act.acting ? `${word.word} is awake again` : undefined} />}
         />
       )}
       {back && <CardMore word={word} />}

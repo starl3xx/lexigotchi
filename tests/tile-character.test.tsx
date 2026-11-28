@@ -20,7 +20,7 @@ beforeEach(() => {
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
 });
 
-const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
+const STATES: TileState[] = ["idle", "peckish", "hungry", "glad", "rolling", "upgrade", "celebrate"];
 /** The loops: each may only ever be on a layer (a whole <svg>). */
 const LOOP = /animate-tc-(breathe|legbreathe|sigh|legsigh|sleep|eat|hop|leghop|jump|legjump|brace|knock|zzz|sweat|ray|confetti)\b/;
 /**

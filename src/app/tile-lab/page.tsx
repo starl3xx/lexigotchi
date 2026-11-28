@@ -7,12 +7,12 @@ import { useState } from "react";
 import { TileCharacter, TileWord, type TileState } from "@/components/game/TileCharacter";
 import { ALPHABET } from "@/lib/economy";
 
-const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
+const STATES: TileState[] = ["idle", "peckish", "hungry", "glad", "rolling", "upgrade", "celebrate"];
 const MEANS: Record<TileState, string> = {
   idle: "awake",
   peckish: "sleepy: 1–2d since it was woken · earns half",
   hungry: "asleep: 3+d · earns nothing, sits out the jackpot",
-  eating: "just woken",
+  glad: "just woken",
   rolling: "mid roll",
   upgrade: "roll succeeded → UPPERCASE",
   celebrate: "win / jackpot",

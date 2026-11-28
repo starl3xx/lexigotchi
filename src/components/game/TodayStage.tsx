@@ -14,7 +14,7 @@
  * It replaces the old "N words need feeding" card: hunger was a text badge two taps away, and it
  * is the reason a tamagotchi gets opened every day.
  */
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Gild } from "./TileCharacter";
 import { WordTiles, careState } from "./LetterTile";
 import { Button, HungerBadge, Pill } from "./primitives";
@@ -37,11 +37,12 @@ import { useWordScene } from "../scenes/useWordScene";
 import { useCardNumber } from "../cards/useCardNumber";
 import { StatusMarks } from "./StatusMarks";
 import { markInput, stageMarks } from "./stageMarks";
+import { usePrefersReducedMotion } from "./motionPrefs";
+import type { OwnedWord } from "./state";
+import type { StageMood } from "./stagePick";
+import { useWakeAct } from "./wake/useWakeAct";
+import { useWake, useWakeRun } from "./wake/wakeRun";
 
-/** How long a fed word chews on stage before the next word takes its place. */
-const EAT_MS = 1800;
-/** A chain feed settles within ~20 s (lib/onchain/settle.ts); stop waiting a little after that. */
-const FED_WAIT_MS = 30_000;
 /** Word cards under the stage; the fourth tile is the Bag, with all of them. */
 const UP_NEXT = 3;
 /** The placard's buttons: each on one line; the main one takes the room, and the row wraps before a label does. */
@@ -49,6 +50,36 @@ const PRIMARY = "flex-1 whitespace-nowrap !px-3";
 const SECOND = "shrink-0 whitespace-nowrap !px-3";
 /** The pager draws a dot a word up to this many; past it, the count alone says where you are. */
 const PAGER_DOTS = 8;
+
+/**
+ * A word waiting under the stage: its letters, its name, and how it is. A tap puts it on stage.
+ * It has a small part in a wake (./wake): it keeps the look it had until its turn, then its
+ * letters hop once and its badge says awake.
+ */
+function UpNextCard({ word: o, mood: m, onShow }: { word: OwnedWord; mood: StageMood; onShow: () => void }) {
+  const act = useWakeAct(o.word, false);
+  // held: the wake is on its way, or it is not this card's turn yet
+  const held = act.states !== undefined;
+  return (
+    <button
+      onClick={onShow}
+      aria-label={`Put ${o.word} on stage`}
+      className={`cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-card px-2.5 py-2 text-left ${act.hop ? "wk-hop" : ""}`}
+    >
+      <WordTiles word={o.word} upper={o.upper} size={16} state={held ? act.states![0] : careState(o)} detail="bust" tier={o.tier} still />
+      <span className="flex w-full min-w-0 items-center gap-1.5">
+        <span className="truncate font-display text-sm font-extrabold">{o.word}</span>
+        {m === "forSale" ? (
+          <Pill className="bg-gold/25 text-gold-ink">for sale</Pill>
+        ) : m === "unstaked" ? (
+          <Pill className="bg-ink/10">not staked</Pill>
+        ) : (
+          <HungerBadge state={held ? (act.states![0] === "hungry" ? "hungry" : "peckish") : hunger(o)} />
+        )}
+      </span>
+    </button>
+  );
+}
 
 export function TodayStage() {
   const g = useGame();
@@ -59,43 +90,31 @@ export function TodayStage() {
   // Every word Feed all would feed (yours and the ones you care for), whichever word is on stage.
   const toFeed = state.status === "ready" ? wordsToFeed(state.words) : [];
 
-  // A fed star chews before it steps aside. Once fed it is no longer the neediest word, so the
-  // stage would hand the spot to the next one at once and the feed would go unseen. Hold the word
-  // we fed on stage, eating, for EAT_MS after its hunger reads back as full (a chain feed lands
-  // seconds after the tap).
-  const [fed, setFed] = useState<string | null>(null);
-  const [eatingWord, setEatingWord] = useState<string | null>(null);
-  const fedNow = fed ? state.words.find((w) => w.word === fed) : undefined;
-  const fedIsFull = !!fedNow && hunger(fedNow) === "fed";
-  useEffect(() => {
-    if (!fed || !fedIsFull) return;
-    setEatingWord(fed);
-    setFed(null);
-  }, [fed, fedIsFull]);
-  // A feed that never lands (wallet closed, rejected) stops waiting after FED_WAIT_MS.
-  useEffect(() => {
-    if (!fed) return;
-    const id = window.setTimeout(() => setFed(null), FED_WAIT_MS);
-    return () => window.clearTimeout(id);
-  }, [fed]);
+  // A woken star takes its bow before it steps aside (./wake; decisions.md #64). Once awake it
+  // is no longer the neediest word, so the stage would hand the spot to the next one at once and
+  // the wake would go unseen. The wake in hand names the word that was on stage when the player
+  // pressed Wake: it holds the stage from the tap until its act ends (or the wake comes to nothing).
+  const wake = useWake();
+  const reduced = usePrefersReducedMotion();
+  const held = useWakeRun()?.focus ?? null;
 
   // The word the player put on stage (arrows, swipe, keys, or a card). Until they choose one, the
-  // stage shows the neediest word, holding a fed one while it eats.
+  // stage shows the neediest word, holding a woken one while it takes its bow.
   const [chosen, setChosen] = useState<string | null>(null);
   // Which side the next word slides in from (SceneFrame). None on first show.
   const [enter, setEnter] = useState<"next" | "prev" | null>(null);
+  // The act is over: the next sleepy word steps up, from the right.
+  const wasHeld = useRef<string | null>(null);
   useEffect(() => {
-    if (!eatingWord) return;
-    const id = window.setTimeout(() => {
-      // The meal is over: the next hungry word steps up, from the right.
+    if (held) wasHeld.current = held;
+    else if (wasHeld.current) {
+      wasHeld.current = null;
       setEnter("next");
-      setEatingWord(null);
-    }, EAT_MS);
-    return () => window.clearTimeout(id);
-  }, [eatingWord]);
+    }
+  }, [held]);
 
   const indexOf = (name: string | null) => (name ? items.findIndex((i) => i.word.word === name) : -1);
-  const featured = indexOf(chosen) >= 0 ? chosen : indexOf(eatingWord) >= 0 ? eatingWord : (items[0]?.word.word ?? null);
+  const featured = indexOf(chosen) >= 0 ? chosen : indexOf(held) >= 0 ? held : (items[0]?.word.word ?? null);
   const idx = indexOf(featured);
   const item = idx >= 0 ? items[idx] : null;
   // The featured word stands in its own scene (scenes/useWordScene: the player's pick, else the stock card).
@@ -108,14 +127,16 @@ export function TodayStage() {
   // next word opens on its scene, and so does a card that has just gone into a case or come out.
   const [isBack, setIsBack] = useFlipOf(item ? flipKey(item.word.word, casedNow) : null);
 
+  // This card's part in a wake: what its letters wear from the tap to the bow.
+  const act = useWakeAct(item?.word.word ?? "", true);
+
   if (!item) return state.status === "ready" ? <EmptyStage /> : null;
   const w = item.word;
   const W = w.word;
-  const eating = W === eatingWord;
-  const mood = eating ? "full" : item.mood;
+  const mood = item.mood;
   const gild = Math.max(0, Math.min(5, Math.round(w.prestigeLevel))) as Gild; // 5 = Holographic
   const open = () => g.openSheet({ kind: "word", word: W });
-  const face = eating ? "eating" : mood === "unstaked" || mood === "forSale" ? "idle" : careState(w);
+  const face = mood === "unstaked" || mood === "forSale" ? "idle" : careState(w);
   const many = items.length > 1;
   const cased = casedNow;
   // What the star earned at the latest payout, for its line (only when it earned something).
@@ -140,7 +161,7 @@ export function TodayStage() {
     e.preventDefault();
   };
 
-  const marks = stageMarks(markInput(w, mood, { justFed: eating, earned: earnedLatest }));
+  const marks = stageMarks(markInput(w, mood, { justFed: act.acting, earned: earnedLatest }));
   // The pager's arrows: beside the count on the placard, off the art.
   const pagerArrow = (step: 1 | -1) => {
     const Icon = step === 1 ? CaretRight : CaretLeft;
@@ -157,13 +178,17 @@ export function TodayStage() {
       word={W}
       upper={w.upper}
       state={face}
-      tone={toneOf(face)}
+      states={act.states}
+      armsUp={act.armsUp}
+      moments={act.moments}
+      tone={act.tone ?? toneOf(face)}
       gild={gild}
       tier={w.tier}
       number={number}
       enter={enter}
       animated={!isBack && !state.sheet}
-      onWord={open}
+      // a tap on the word opens it; while it takes its bow, a tap ends the act
+      onWord={act.acting ? act.hurry : open}
       wordLabel={`Open ${W}`}
       onSwipe={many ? go : undefined}
     />
@@ -187,7 +212,7 @@ export function TodayStage() {
         <div className="tt-plate">
           {/* the same status as one sentence, for a screen reader, said again when it changes */}
           <p className="sr-only" aria-live="polite">
-            {eating ? `${W} is awake again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
+            {act.acting ? `${W} is awake again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
           </p>
           <StatusMarks marks={marks} />
           <div className="tt-actions">
@@ -196,10 +221,7 @@ export function TodayStage() {
                 <Button
                   variant="teal"
                   className={PRIMARY}
-                  onClick={() => {
-                    setFed(W);
-                    g.feed(W);
-                  }}
+                  onClick={() => wake([w], { focus: W, reduced })}
                 >
                   <Alarm weight="fill" /> Wake {W}
                 </Button>
@@ -207,10 +229,7 @@ export function TodayStage() {
                   <Button
                     variant="ghost"
                     className={SECOND}
-                    onClick={() => {
-                      setFed(W);
-                      g.feedAll();
-                    }}
+                    onClick={() => wake(toFeed, { all: true, focus: W, reduced })}
                   >
                     Wake all {toFeed.length}
                   </Button>
@@ -235,7 +254,7 @@ export function TodayStage() {
             {/* The star is full (or waiting to be staked) but others want food: Feed all stays one tap
                 away, whichever word the pager has put on stage. */}
             {mood !== "hungry" && mood !== "peckish" && toFeed.length > 0 && (
-              <Button variant="ghost" className={SECOND} onClick={() => g.feedAll()}>
+              <Button variant="ghost" className={SECOND} onClick={() => wake(toFeed, { all: true, reduced })}>
                 <Alarm weight="fill" /> {feedAllLabel(toFeed)}
               </Button>
             )}
@@ -278,24 +297,7 @@ export function TodayStage() {
       {/* Up next: the words → brings, then the Bag. A card puts its word on stage. */}
       <div className="grid grid-cols-2 gap-2">
         {upNext(items, idx, UP_NEXT).map(({ word: o, mood: m }) => (
-          <button
-            key={o.word}
-            onClick={() => show(o.word, "next")}
-            aria-label={`Put ${o.word} on stage`}
-            className="cel-sm press flex min-w-0 flex-col items-start gap-1 rounded-xl bg-card px-2.5 py-2 text-left"
-          >
-            <WordTiles word={o.word} upper={o.upper} size={16} state={careState(o)} detail="bust" tier={o.tier} still />
-            <span className="flex w-full min-w-0 items-center gap-1.5">
-              <span className="truncate font-display text-sm font-extrabold">{o.word}</span>
-              {m === "forSale" ? (
-                <Pill className="bg-gold/25 text-gold-ink">for sale</Pill>
-              ) : m === "unstaked" ? (
-                <Pill className="bg-ink/10">not staked</Pill>
-              ) : (
-                <HungerBadge state={hunger(o)} />
-              )}
-            </span>
-          </button>
+          <UpNextCard key={o.word} word={o} mood={m} onShow={() => show(o.word, "next")} />
         ))}
         <button
           onClick={() => g.nav("bag")}

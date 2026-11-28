@@ -1458,6 +1458,20 @@ bot posts). The hard rules:
   $WORD. A second (decisions.md #38, amended): the earnings share PICTURE says "about $X" under
   the player's total, signed by the server at a live price, never for test $WORD. Nowhere else
   (a post's own words, reminders, landing, docs, bot posts) gets a dollar figure for $WORD.
+- **Waking a word is an act** (decisions.md #64; `components/game/wake/`): the wake passes along
+  the word a letter at a time as the card's ink comes back, the word raises its joined hands, and
+  it bows. **Nothing looks awake before the chain says so:** while a wake is on its way a card
+  HOLDS the look it had (the words list can turn awake a moment before the card is told), and the
+  letters do the waiting (one sleeper at a time half opens its eyes). `wake/wakeFlow.ts` is the
+  rules, pure and tested (`tests/wake-flow.test.ts`); `wake/wakeRun.ts` is the wake in hand,
+  outside any screen, since a wake outlives the screen it was started on; `wake/useWakeAct.ts` is
+  one card's part. **Every Wake button calls `useWake`, never `g.feed` / `g.feedAll` on its own**
+  (those answer `landed`, `pending`, or `none`, which is how a card knows a wake came to nothing).
+  The card in focus plays the whole act; a small card is a still picture and hops once at its
+  turn. No tile is scaled: `.wk-rise` / `.wk-bow` are moments on the box around a letter, in the
+  hover's own way; the raised hands are a second drawing of the arms (`armsUp`); a small card's
+  hop is the `translate` property on the tile, never a `transform` (the stance is the box's
+  transform). The rig's state for a woken letter is `glad`. No sound, and no hook for one.
 - **The jackpot always carries "staked and awake".**
 - **Care is sleep** (decisions.md #63; starl3xx, 2026-11-27: "what if instead of *feeding* them, we
   need to *wake* them? they get sleepy and then asleep - then we don't need an image or anything to

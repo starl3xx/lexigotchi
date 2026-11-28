@@ -12,6 +12,7 @@
  */
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { SceneFrame, toneOf } from "../scenes/SceneFrame";
+import { useWakeAct } from "../game/wake/useWakeAct";
 import { useWordScene } from "../scenes/useWordScene";
 import type { Gild } from "../game/TileCharacter";
 import { careState, PrestigeStars } from "../game/LetterTile";
@@ -51,6 +52,8 @@ export function BagWordCard({ word, price, cased = false }: { word: OwnedWord; p
   const box = useRef<HTMLDivElement>(null);
   const near = useNear(box);
   const face = careState(word);
+  // A small part in a wake (game/wake): the card keeps its look until its turn, then its letters hop once.
+  const act = useWakeAct(word.word, false);
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   const h = hunger(word);
   const latest = g.earnings?.byWord[word.word]?.latest ?? 0;
@@ -69,7 +72,7 @@ export function BagWordCard({ word, price, cased = false }: { word: OwnedWord; p
         onOpen={() => g.openSheet({ kind: "word", word: word.word })}
         front={
           near ? (
-            <SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} tone={toneOf(face)} gild={gild} tier={word.tier} animated={false} small />
+            <SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} states={act.states} tone={act.tone ?? toneOf(face)} gild={gild} tier={word.tier} animated={false} small className={act.hop ? "wk-hop" : ""} />
           ) : (
             <div className="aspect-[16/9] w-full bg-[#fcf7ea]" />
           )

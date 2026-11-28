@@ -144,6 +144,7 @@ import type { DailyStatus } from "@/app/api/mint/daily-status/route";
 import type { PublicFace } from "@/lib/profile/rules";
 import { usePlayerWallets } from "./usePlayerWallets";
 import { wordsToFeed } from "./feedAll";
+import type { WakeOutcome } from "./wake/wakeFlow";
 
 const EMPTY_26 = Array.from({ length: 26 }, () => 0);
 
@@ -792,8 +793,12 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       landed: (words: BagWord[]) => boolean,
       // `done` answers null when the caller says it another way (a bought word gets a sheet).
       says: { done: (words: BagWord[]) => string | null; pending: string },
+      // called once the send has gone out: a caller that must tell "nothing was sent" from "sent,
+      // not seen yet" (a wake) can, since both end as false
+      sent?: () => void,
     ) => {
       if (!(await run(label, build, { settles: true }))) return false;
+      sent?.();
       let last: BagWord[] = [];
       const seen = await readUntil(
         async () => (last = (await wordsQ.refetch({ cancelRefetch: false })).data?.words ?? []),
@@ -2138,15 +2143,16 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
       },
 
       feed: (word: string) => {
-        if (!chain.params || !chain.player) return;
+        if (!chain.params || !chain.player) return Promise.resolve<WakeOutcome>("none");
         // A feed moves Staking.lastFed, which the word's card reads (via the words list) for its mood.
         const w = state.words.find((x) => x.word === word);
         const before = w?.lastFedAt ?? 0;
         // The day's free snack is the staker's profile's: ask for its voucher, else feed paid.
         const staker = w?.mine ? address : w?.holder;
-        void track(`Waking ${word}`, async (run) => {
+        return track<WakeOutcome>(`Waking ${word}`, async (run) => {
           const voucher = await snackVoucher(staker);
-          return sendAndSettle(
+          let sent = false;
+          const seen = await sendAndSettle(
             run,
             `Wake ${word}`,
             () =>
@@ -2158,26 +2164,32 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               done: () => `${word} is awake.`,
               pending: `Sent. ${word} will show as awake once the chain confirms it.`,
             },
+            () => (sent = true),
           );
-        }, false);
+          return seen ? "landed" : sent ? "pending" : "none";
+        }, "none").catch((): WakeOutcome => "none");
       },
 
       feedAll: () => {
-        if (!chain.params || !chain.player) return;
+        if (!chain.params || !chain.player) return Promise.resolve<WakeOutcome>("none");
         // Only words that are actually hungry — feed() has no on-chain guard, so feeding a fed word
         // burns a snack for nothing and there is no revert to catch.
         // Mine, or a staker's word this wallet cares for (Staking.setCaretaker): feed() accepts both.
         // Any other linked wallet's word would revert the batch.
         const hungryWords = wordsToFeed(state.words);
         const hungry = hungryWords.map((w) => tokenIdOf(w.word));
-        if (hungry.length === 0) return void toast("Everyone’s awake", "info");
+        if (hungry.length === 0) {
+          toast("Everyone’s awake", "info");
+          return Promise.resolve<WakeOutcome>("none");
+        }
         const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
         // One voucher, for the first word's staker's profile: it frees that word, the rest are paid.
         const first = hungryWords[0];
         const firstStaker = first.mine ? address : first.holder;
-        void track("Waking your words", async (run) => {
+        return track<WakeOutcome>("Waking your words", async (run) => {
           const voucher = await snackVoucher(firstStaker);
-          return sendAndSettle(
+          let sent = false;
+          const seen = await sendAndSettle(
             run,
             "Wake all",
             () =>
@@ -2189,8 +2201,10 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
               done: () => (before.size === 1 ? `${[...before.keys()][0]} is awake.` : "Your words are awake."),
               pending: "Sent. Your words will show as awake once the chain confirms it.",
             },
+            () => (sent = true),
           );
-        }, false);
+          return seen ? "landed" : sent ? "pending" : "none";
+        }, "none").catch((): WakeOutcome => "none");
       },
 
       reloadWords: () => void wordsQ.refetch(),

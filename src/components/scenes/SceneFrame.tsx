@@ -43,7 +43,7 @@ export const SCENE_ASPECT = CARD_W / CARD_H;
 export type SceneTone = "fed" | "peckish" | "hungry";
 const TONE_CLASS: Record<SceneTone, string> = { fed: "", peckish: "scene-peckish", hungry: "scene-hungry" };
 
-/** The scene's tone from the characters' state, so the two always agree (a word eating is fed). */
+/** The scene's tone from the characters' state, so the two always agree (a word just woken is awake). */
 export function toneOf(state: TileState): SceneTone {
   return state === "hungry" ? "hungry" : state === "peckish" ? "peckish" : "fed";
 }
@@ -101,7 +101,19 @@ export function SceneFrame({
   small = false,
   collab,
   change = "fade",
+  states,
+  armsUp = false,
+  moments,
 }: {
+  /**
+   * A state for single letters, as TileWord takes: letter i wears `states[i]`, the rest `state`.
+   * For a change that passes along the word a letter at a time (a wake: components/game/wake).
+   */
+  states?: readonly (TileState | undefined)[];
+  /** A curtain call: the word's joined hands raised (TileCharacter, `armsUp`). */
+  armsUp?: boolean;
+  /** A class for the box around each letter, for a moment (globals.css: wk-rise, wk-bow, tc-blink). */
+  moments?: readonly (string | undefined)[];
   /**
    * The word's rarity: its tiles' material (lib/rarityFinish, decisions.md #23), the ink of the
    * card's frame, and the stock card's overtone. A card with none is printed as Common, with no
@@ -231,7 +243,12 @@ export function SceneFrame({
   const reduced = usePrefersReducedMotion();
   const wordRow = useRef<HTMLDivElement>(null);
   const lively = animated && !offscreen && !!word && !reduced;
-  useWordLife(wordRow, lively && (state === "idle" || state === "peckish"));
+  // the word blinks and glances only while every letter is at rest (as TileWord's does)
+  const calm = [...word].every((_, i) => {
+    const s = states?.[i] ?? state;
+    return s === "idle" || s === "peckish";
+  });
+  useWordLife(wordRow, lively && calm);
   const gaze = useGaze(wordRow, lively && !!onWord);
 
   // The characters hold hands (each overlaps the last, as in TileWord), sized in percent of the
@@ -251,12 +268,13 @@ export function SceneFrame({
         };
         return (
           // display: flex, so no line box sits under the tile and the feet land on the line exactly
-          <div key={i} className="cf-stand" style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
+          <div key={i} className={moments?.[i] ? `cf-stand ${moments[i]}` : "cf-stand"} style={{ display: "flex", width: pct(L.tileW, L.rowW), flexShrink: 0, marginLeft: i ? `-${pct(L.overlap, L.rowW)}` : 0, ...stand }}>
             <TileCharacter
               char={ch}
               upper={upper[i] ?? false}
-              state={state}
+              state={states?.[i] ?? state}
               gild={gild}
+              armsUp={armsUp}
               linkLeft={i > 0}
               linkRight={i < all.length - 1}
               lean={leanFor(word, i)}

@@ -151,10 +151,6 @@ const config: Config = {
           "0%,100%": { transform: "rotate(0deg)" },
           "50%": { transform: "rotate(-0.7deg) translateY(calc(var(--uy) * 0.8))" },
         },
-        tcEat: {
-          "0%,100%": { transform: "rotate(-3deg)" },
-          "50%": { transform: "rotate(3deg)" },
-        },
         // a raised letter: two hops, then it stands in its pose (it used to pulse 13% bigger). The
         // legs stretch by the body's rise over their own length (52 units), so the feet stay down.
         tcHop: {
@@ -242,7 +238,6 @@ const config: Config = {
         "tc-sigh": "tcSigh 5.2s ease-in-out infinite",
         "tc-legsigh": "tcLegSigh 5.2s ease-in-out infinite",
         "tc-sleep": "tcSleep 5.6s ease-in-out infinite",
-        "tc-eat": "tcEat 0.5s ease-in-out infinite",
         "tc-hop": "tcHop 1.7s linear infinite",
         "tc-leghop": "tcLegHop 1.7s linear infinite",
         "tc-jump": "tcJump 0.75s ease-in-out infinite",

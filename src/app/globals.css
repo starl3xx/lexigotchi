@@ -448,6 +448,29 @@ body {
     .tc-perks:hover .tc-brow { transform: translateY(-3px); }
   }
 }
+/* Waking a word (components/game/wake; decisions.md #64): moments on the box around a letter, in
+   the rise's own way (.tc-perk above). A letter is moved and never scaled: its legs take up the
+   rise and the dip, as they do for the hover and the press. The wake puts .wk-rise on a letter as
+   it wakes and on every letter for the stretch, and .wk-bow (with the rig's own .tc-blink, which
+   shuts the eyes) for the bow. Under prefers-reduced-motion none of it exists, and the letters
+   still wake one by one: that is a change of picture.
+   A SMALL CARD is a still picture, and Today's word chips have no card at all: their letters hop
+   once, as pictures (.wk-hop on the card or the chip), each in its place in the word (--i). The
+   hop is the `translate` property on the tile itself, never a `transform`: a letter's stance on
+   curved ground is the transform of the box around it, and it stays through the hop. */
+@media (prefers-reduced-motion: no-preference) {
+  .wk-rise .tc-perk { transform: translateY(-6px); }
+  .wk-rise .tc-perk-layer { transform: translateY(calc(var(--uy) * -6)); }
+  .wk-rise .tc-legs-perk { transform: scaleY(1.115); }
+  .wk-bow .tc-perk { transform: translateY(11px); transition-duration: 220ms; transition-delay: 0s; }
+  .wk-bow .tc-perk-layer { transform: translateY(calc(var(--uy) * 11)); transition-duration: 220ms; transition-delay: 0s; }
+  .wk-bow .tc-legs-perk { transform: scaleY(0.79); transition-duration: 220ms; transition-delay: 0s; }
+  .wk-hop [data-tc] { animation: wk-hop 420ms cubic-bezier(0.3, 0.7, 0.4, 1) both; animation-delay: calc(var(--i, 0) * 55ms); }
+}
+@keyframes wk-hop {
+  0%, 100% { translate: 0 0; }
+  40% { translate: 0 -13%; }
+}
 @keyframes tc-spark {
   0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
   30% { transform: scale(0.5) rotate(0deg); opacity: 0.35; }
