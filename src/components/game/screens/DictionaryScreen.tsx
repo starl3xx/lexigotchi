@@ -96,7 +96,7 @@ export function DictionaryScreen() {
     <button key={value} onClick={() => setFilter(value)} disabled={off} className="group round-btn rounded-full disabled:opacity-40">
       <Pill className={activeFilter === value ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
         {label}
-        {count !== undefined && <span className={activeFilter === value ? "text-paper/60" : "text-ink/40"}>·{count.toLocaleString("en-US")}</span>}
+        {count !== undefined && <span className={activeFilter === value ? "text-paper/70" : "text-ink/70"}>·{count.toLocaleString("en-US")}</span>}
       </Pill>
     </button>
   );
@@ -105,7 +105,7 @@ export function DictionaryScreen() {
     <div className="space-y-3">
       <div className="flex items-baseline justify-between md:justify-end">
         <h1 className="font-display text-2xl font-extrabold md:hidden">Dictionary</h1>
-        <span className="text-xs text-ink/55">
+        <span className="text-xs text-ink/70">
           you own {d.ownedSet.size}
           {d.claimedCount > 0 && <> · {d.claimedCount.toLocaleString("en-US")} claimed</>} · {(d.offered ?? WORD_COUNT).toLocaleString("en-US")} words
         </span>
@@ -117,7 +117,7 @@ export function DictionaryScreen() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="search the dictionary…"
-        className="w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 font-display text-sm font-bold placeholder:font-body placeholder:font-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
+        className="w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 font-display text-sm font-medium placeholder:font-body placeholder:font-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
       />
 
       {counting && (
@@ -157,7 +157,7 @@ export function DictionaryScreen() {
               {t !== "All" && <TierMark tier={t} size={12} />}
               {t}
               {/* the count stays readable on the selected (ink) chip, as Spell's does */}
-              {t !== "All" && <span className={tier === t ? "text-paper/60" : "text-ink/40"}>·{tierCounts[t as Tier]}</span>}
+              {t !== "All" && <span className={tier === t ? "text-paper/70" : "text-ink/70"}>·{tierCounts[t as Tier]}</span>}
             </Pill>
           </button>
         ))}
@@ -196,24 +196,24 @@ export function DictionaryScreen() {
                 <TierBadge tier={wTier} />
                 {/* A word nobody has says what it costs to claim, whatever the player holds: its
                     tier's fee (decisions.md #60). */}
-                {status === "open" && <span className="text-xs tabular-nums text-ink/60">{fmtWord(g.claimFee(w))} to claim</span>}
+                {status === "open" && <span className="text-xs tabular-nums text-ink/70">{fmtWord(g.claimFee(w))} to claim</span>}
               </span>
               <span className="flex w-full min-w-0 items-center gap-1.5 text-[13px] leading-snug">
                 {status === "mine" || status === "mineAway" ? (
-                  <span className="font-extrabold text-teal-ink">{status === "mine" ? "Yours" : "Yours, in another wallet"}</span>
+                  <span className="font-medium text-teal-ink">{status === "mine" ? "Yours" : "Yours, in another wallet"}</span>
                 ) : status === "sale" && listing ? (
-                  <span className="font-bold text-gold-ink">For sale · {fmtWord(listing.price)} $WORD</span>
+                  <span className="font-medium text-gold-ink">For sale · {fmtWord(listing.price)} $WORD</span>
                 ) : (status === "taken" || status === "sale") && holder ? (
                   // a flex box, so a long name is cut short before it reaches the card number
                   <span className="flex min-w-0 text-ink/70">
                     <PlayerChip address={holder.address} profile={holder.profile} size={16} />
                   </span>
                 ) : status === "unknown" ? (
-                  <span className="text-ink/55">{d.checkFailed ? "Can’t check the owner yet" : "Checking who owns it…"}</span>
+                  <span className="text-ink/70">{d.checkFailed ? "Can’t check the owner yet" : "Checking who owns it…"}</span>
                 ) : !need ? (
-                  <span className="text-ink/60">Unclaimed</span>
+                  <span className="text-ink/70">Unclaimed</span>
                 ) : spellable ? (
-                  <span className="inline-flex items-center gap-1 font-extrabold text-teal-ink">
+                  <span className="inline-flex items-center gap-1 font-medium text-teal-ink">
                     <Check weight="bold" size={13} /> You can spell it
                   </span>
                 ) : (
@@ -222,7 +222,7 @@ export function DictionaryScreen() {
                   </span>
                 )}
                 {number && status !== "open" && status !== "unknown" ? (
-                  <span className="fact shrink-0 text-ink/60">{cardNumber(number)}</span>
+                  <span className="fact shrink-0 text-ink/70">{cardNumber(number)}</span>
                 ) : null}
               </span>
             </button>
@@ -234,7 +234,7 @@ export function DictionaryScreen() {
           Show {Math.min(PAGE, list.words.length - shown)} more · {(list.words.length - shown).toLocaleString("en-US")} left
         </Button>
       )}
-      {list.words.length === 0 && <p className="py-8 text-center text-sm text-ink/55">no words match.</p>}
+      {list.words.length === 0 && <p className="py-8 text-center text-sm text-ink/70">no words match.</p>}
     </div>
   );
 }

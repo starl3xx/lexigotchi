@@ -50,7 +50,7 @@ export function LhawScreen() {
             <Stat label={`Round ${d.live.round} pot`} big fig>
               {d.live.potWord != null ? `${fmtWord(d.live.potWord)} $WORD` : usd(d.live.potUsd)}
               {d.live.potWord != null && d.live.potUsd != null && (
-                <span className="ml-1 text-sm font-bold text-ink/55">({usd(d.live.potUsd)})</span>
+                <span className="ml-1 text-sm font-medium text-ink/70">({usd(d.live.potUsd)})</span>
               )}
             </Stat>
             <Stat label="Guesses so far" fig>{d.live.guesses.toLocaleString("en-US")}</Stat>
@@ -85,7 +85,7 @@ export function LhawScreen() {
 
       <Card>
         <SectionTitle>How to play</SectionTitle>
-        <ul className="ml-1 list-disc space-y-1.5 pl-4 text-sm leading-snug text-ink/80 marker:text-ink/30">
+        <ul className="ml-1 list-disc space-y-1.5 pl-4 text-sm leading-snug text-ink/70 marker:text-ink/40">
           <li>
             <strong>Everyone hunts the same secret word.</strong> Every wrong guess removes that word for
             everybody, so the field narrows together.
@@ -111,7 +111,7 @@ export function LhawScreen() {
 
       <Card>
         <SectionTitle>One universe</SectionTitle>
-        <div className="space-y-2.5 text-sm text-ink/80">
+        <div className="space-y-2.5 text-sm text-ink/70">
           <Line icon={<BookOpen weight="bold" size={18} />}>
             <strong>Same dictionary.</strong> Lexigotchi’s {WORD_COUNT.toLocaleString("en-US")} words are Let’s Have
             A Word!’s, so every word you can claim here is a word you can guess there.
@@ -139,10 +139,10 @@ export function LhawScreen() {
  * Söhne (decisions.md #66, part 3). So the serif is asked for by what the value IS.
  */
 function Stat({ label, big = false, fig = false, children }: { label: string; big?: boolean; fig?: boolean; children: ReactNode }) {
-  const value = big ? (fig ? "fig text-2xl text-gold-deep" : "font-display text-2xl font-extrabold text-gold-deep") : fig ? "fact text-sm" : "text-sm font-bold";
+  const value = big ? (fig ? "fig text-2xl text-gold-deep" : "font-display text-2xl font-extrabold text-gold-deep") : fig ? "fact text-sm" : "text-sm font-medium";
   return (
     <div>
-      <div className="text-xs font-bold text-ink/60">{label}</div>
+      <div className="text-xs font-medium text-ink/70">{label}</div>
       <div className={value}>{children}</div>
     </div>
   );
@@ -151,7 +151,7 @@ function Stat({ label, big = false, fig = false, children }: { label: string; bi
 function Line({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <div className="flex gap-2.5">
-      <span className="mt-0.5 shrink-0 text-ink/60" aria-hidden>
+      <span className="mt-0.5 shrink-0 text-ink/70" aria-hidden>
         {icon}
       </span>
       <p className="leading-snug">{children}</p>
@@ -160,5 +160,5 @@ function Line({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 }
 
 function Empty({ loading }: { loading: boolean }) {
-  return <p className="text-sm text-ink/55">{loading ? "Loading…" : "Let’s Have A Word! didn’t answer. Try again in a minute."}</p>;
+  return <p className="text-sm text-ink/70">{loading ? "Loading…" : "Let’s Have A Word! didn’t answer. Try again in a minute."}</p>;
 }

@@ -1610,7 +1610,22 @@ bot posts). The hard rules:
   the figure ITSELF, never on a slot that several things share (the Let's Have A Word! page shows
   a WORD where it shows a figure): a ledger row asks for it with `fact`, a stat with `fig`. A
   number inside a sentence or a button stays one face with its sentence.
-  `tests/serif-figures.test.tsx` holds it. **When a mark is proposed large, draw it at
+  `tests/serif-figures.test.tsx` holds it. **Three weights, one grey, a 12 px floor, no
+  decorative capitals** (part 4; `tests/type-rules.test.ts` fails on anything else). Söhne is
+  `font-normal` for reading, `font-medium` for labels and for emphasis inside a sentence, and
+  `font-extrabold` for headings and buttons ONLY: never `font-bold`, `font-semibold`, or
+  `font-black`. A heading is a heading tag or a title by its role (an item's name, a result); a
+  button is one drawn as a button (a cel, or a press that is not a round chip). A row of the
+  rail, a tab, a filter chip, a pill, a quiet text button, a link, and a toast are labels:
+  medium. A `<strong>` in running text is medium by a base rule; a WORD's or a player's name in
+  a sentence takes no weight at all (a word is already in capitals). **Secondary text is
+  `text-ink/70` and no other strength** (`text-paper/70` on a dark ground); `text-ink/40` is
+  only for what is not text (an icon, a mark not yet earned, a placeholder, a disabled control).
+  Running text is never under `text-xs`; the test lists the chips, tags, and compact figures
+  that may be. No `uppercase` on a label. **A letter drawn as plain text names its own face**
+  (`.mini-tile`, `.need-letter`, `.lk-slot`), so it never inherits the serif. Not the interface,
+  and exempt: what is on a letter, a card's own lettering, the server's pictures, the operator
+  console. **When a mark is proposed large, draw it at
   every size the game shows it before building** (the twinkle was shown at 52 px and is used at
   13). **After changing tailwind.config.ts,
   touch `src/app/globals.css`:** a running dev server kept serving the old stylesheet (the new
@@ -1621,7 +1636,8 @@ bot posts). The hard rules:
   cream-labeled fills use `candy.deep` (tailwind.config.ts says why: contrast). `.cel` is for the one
   main card on a screen and for the player's own item in a list; repeated list items use `.cel-sm`.
   No decorative all-caps labels: capitals mean a raised letter in this game. Text floor is 12 px
-  (`text-xs`), except compact chips and the header's balance line.
+  (`text-xs`), except compact chips and the header's balance line. (Both are held by a test now:
+  see "The design language" above, part 4.)
   Raised surfaces (cards, list tiles, ghost buttons, chips, inputs) use `bg-card`, a shade lighter
   than the paper page; the page, sheets, and full-screen overlays stay `bg-paper`.
 - **Interaction and motion (globals.css).** Anything clickable answers the pointer: `.press` (a cel

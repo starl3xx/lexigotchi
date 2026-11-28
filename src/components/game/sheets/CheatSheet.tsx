@@ -37,7 +37,7 @@ export function CheatSheet() {
 
   return (
     <Sheet open onClose={g.closeSheet} title="Cheat sheet">
-      <p className="mb-4 text-sm text-ink/60">
+      <p className="mb-4 text-sm text-ink/70">
         The whole game in four steps: collect letters, raise them, spell words only you can own, and wake them every day.
       </p>
 
@@ -126,7 +126,7 @@ export function CheatSheet() {
       <Button full size="lg" variant="primary" className="mt-5" onClick={g.closeSheet}>
         Got it
       </Button>
-      <div className="mt-3 flex items-center justify-center gap-4 text-xs font-bold text-ink/55">
+      <div className="mt-3 flex items-center justify-center gap-4 text-xs font-medium text-ink/70">
         <button
           onClick={() => {
             g.closeSheet();
@@ -152,12 +152,12 @@ function Step({ n, icon, title, children }: { n: number; icon: ReactNode; title:
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-gold text-sm">
           {n}
         </span>
-        <span className="text-ink/80" aria-hidden>
+        <span className="text-ink/70" aria-hidden>
           {icon}
         </span>
         {title}
       </h3>
-      <ul className="ml-1 list-disc space-y-1.5 pl-4 text-sm leading-snug text-ink/80 marker:text-ink/30">{children}</ul>
+      <ul className="ml-1 list-disc space-y-1.5 pl-4 text-sm leading-snug text-ink/70 marker:text-ink/40">{children}</ul>
     </section>
   );
 }

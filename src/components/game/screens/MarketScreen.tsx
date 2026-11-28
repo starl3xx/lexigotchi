@@ -104,7 +104,7 @@ export function MarketScreen() {
     <div className="space-y-4">
       <div>
         <h1 className="font-display text-2xl font-extrabold md:hidden">Market</h1>
-        <p className="text-sm text-ink/60">Buy and sell words and letters for $WORD. A sale happens the moment someone buys.</p>
+        <p className="text-sm text-ink/70">Buy and sell words and letters for $WORD. A sale happens the moment someone buys.</p>
       </div>
 
       {g.market.unavailable && (
@@ -115,7 +115,7 @@ export function MarketScreen() {
 
       {g.market.sales.length > 0 && (
         <div className="-mx-1 flex items-center gap-3 overflow-x-auto overflow-y-hidden px-1 pb-1" aria-label="Just sold">
-          <button type="button" onClick={() => setTab("sold")} className="shrink-0 font-display text-sm font-extrabold underline decoration-2 underline-offset-2">
+          <button type="button" onClick={() => setTab("sold")} className="shrink-0 font-display text-sm font-medium underline decoration-2 underline-offset-2">
             Just sold
           </button>
           {g.market.sales.slice(0, 8).map((s) => (
@@ -184,7 +184,7 @@ export function MarketScreen() {
       {tab === "sell" && <SellDesk kind={sellKind} setKind={setSellKind} letter={sellLetter} setLetter={setSellLetter} />}
       {tab === "sold" && <SoldList />}
 
-      <p className="border-t-2 border-ink/15 pt-3 text-xs text-ink/55">
+      <p className="border-t-2 border-ink/15 pt-3 text-xs text-ink/70">
         The buyer pays the price in $WORD: 90% goes to the seller, and 10% to the Rewards Pool, which pays staked words. A word arrives with
         its letters, case, and ascension. “To make” is about what a thing costs to build at today’s prices, with the average number of tries.
         {/* The Customization Spec: taste stays with the player (decisions.md #22). Only once there's a Shop. */}
@@ -225,7 +225,7 @@ function DealRow({
               <WordTiles word={l.word} upper={[...l.upper]} size={22} tier={tierOf(l.word)} still />
             </button>
             <TierBadge tier={tierOf(l.word)} />
-            {number ? <span className="fact text-xs text-ink/60">{cardNumber(number)}</span> : null}
+            {number ? <span className="fact text-xs text-ink/70">{cardNumber(number)}</span> : null}
           </div>
           <p className="mt-0.5 text-xs text-ink/70">
             <strong className="text-teal-ink">{pct(d.under)[0].toUpperCase() + pct(d.under).slice(1)}</strong>
@@ -276,7 +276,7 @@ function DealRow({
                 <MiniTiles word={d.word} upper={need.upper} letters={need.letters} tier={tierOf(d.word)} />
               </button>
               {d.alsoFinishes > 0 && (
-                <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${name.toLowerCase()}`)}>
+                <button type="button" className="font-medium text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${name.toLowerCase()}`)}>
                   and {d.alsoFinishes.toLocaleString("en-US")} more word{d.alsoFinishes === 1 ? "" : "s"}
                 </button>
               )}
@@ -295,7 +295,7 @@ function DealRow({
           <strong className="block font-display text-sm leading-tight text-ink">
             {isUpperId(a.letterId) ? `An UPPERCASE ${name}` : `A lowercase ${name}`} for less
           </strong>
-          <span className="font-bold text-teal-ink">{pct(d.under)}</span>, about {fmtWord(make)}
+          <span className="font-medium text-teal-ink">{pct(d.under)}</span>, about {fmtWord(make)}
         </span>
       </button>
       {buy}

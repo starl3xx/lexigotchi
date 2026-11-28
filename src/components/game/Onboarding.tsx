@@ -72,7 +72,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <div className="relative flex items-center justify-between px-4 pt-5">
         <Lockup alive height={32} />
         {!last && (
-          <button onClick={onDone} className="round-btn rounded-lg px-2 py-1 text-sm font-bold text-ink/45 hover:text-ink">
+          <button onClick={onDone} className="round-btn rounded-lg px-2 py-1 text-sm font-medium text-ink/70 hover:text-ink">
             Skip
           </button>
         )}
@@ -82,7 +82,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div className="flex min-h-[180px] items-center justify-center">{s.visual}</div>
         <div>
           <div className="mb-2 inline-flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-candy-deep text-sm font-extrabold text-paper">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-candy-deep text-sm font-medium text-paper">
               {s.n}
             </span>
             <h2 className="font-display text-2xl font-extrabold">{s.title}</h2>

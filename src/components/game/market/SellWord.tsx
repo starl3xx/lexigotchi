@@ -56,16 +56,16 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
           <span className="min-w-0">
             For sale at <strong className="font-display">{amount(listing.price)}</strong>
           </span>
-          <span className="flex shrink-0 gap-3 text-xs font-bold">
+          <span className="flex shrink-0 gap-3 text-xs font-medium">
             <button type="button" onClick={() => setOpen(true)} className="text-teal-ink underline">
               Change the price
             </button>
-            <button type="button" onClick={() => g.cancelWordListing(listing.orderHash)} className="text-ink/55 underline">
+            <button type="button" onClick={() => g.cancelWordListing(listing.orderHash)} className="text-ink/70 underline">
               Take off sale
             </button>
           </span>
         </div>
-        <p className="mt-1 text-xs text-ink/60">
+        <p className="mt-1 text-xs text-ink/70">
           It sells the moment someone buys it. You get {fmtWord(listing.price - Math.ceil(listing.price * SALE_FEE))} $WORD.
         </p>
         <WordValue word={word} cost={cost} compact />
@@ -73,7 +73,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
     );
   }
   if (word.staked) {
-    return <p className="mb-3 text-center text-xs text-ink/55">To sell {word.word}, unstake it first.</p>;
+    return <p className="mb-3 text-center text-xs text-ink/70">To sell {word.word}, unstake it first.</p>;
   }
   if (!open) {
     return (
@@ -97,7 +97,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
       <FormHead title={listing ? `Change the price of ${word.word}` : `Sell ${word.word}`} onClose={close} />
       <WordValue word={word} cost={cost} />
       <PriceIdeas ideas={ideas} current={price} onPick={(n) => setText(priceText(n))} />
-      <label className="mt-3 block text-xs font-bold text-ink/60" htmlFor={`sell-${word.word}`}>
+      <label className="mt-3 block text-xs font-medium text-ink/70" htmlFor={`sell-${word.word}`}>
         {listing ? "New price, in $WORD" : "Price, in $WORD"}
       </label>
       <div className="mt-1 flex gap-2">
@@ -107,7 +107,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
         </Button>
       </div>
       <PriceHint text={text} />
-      <p className="mt-2 text-xs text-ink/60">
+      <p className="mt-2 text-xs text-ink/70">
         {price > 0
           ? `The buyer pays ${amount(price)}. You get ${fmtWord(price - fee)} $WORD, and ${fmtWord(fee)} goes to the Rewards Pool.`
           : `The buyer pays your price. You get ${100 - SALE_FEE * 100}%, and ${SALE_FEE * 100}% goes to the Rewards Pool.`}{" "}
@@ -119,7 +119,7 @@ export function SellWord({ word, startOpen = false, onClose }: { word: OwnedWord
       </p>
       {/* Against the rounded figure the first idea offers, so taking it never reads as too low. */}
       {cost && price > 0 && price < roundPrice(cost.total) && (
-        <p className="mt-1 text-xs font-bold text-gold-ink">That’s less than it costs to make, about {fmtWord(cost.total)} $WORD. It’s your call.</p>
+        <p className="mt-1 text-xs font-medium text-gold-ink">That’s less than it costs to make, about {fmtWord(cost.total)} $WORD. It’s your call.</p>
       )}
       <Button type="button" size="sm" variant="ghost" className="mt-2" onClick={close}>
         Cancel

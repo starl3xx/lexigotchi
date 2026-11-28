@@ -13,5 +13,11 @@ export const metadata: Metadata = {
  * app-wide. Auth is enforced client-side by <AdminGate>.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <Providers>{children}</Providers>;
+  // "operator": the console is not the game's interface, and the game's type rules name it to leave
+  // it alone (globals.css). "contents", so the wrapper is no box of its own.
+  return (
+    <Providers>
+      <div className="operator contents">{children}</div>
+    </Providers>
+  );
 }

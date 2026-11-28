@@ -143,7 +143,7 @@ export function PreLaunchScreen() {
         {/* header — brand + "coming soon" badge */}
         <header className="relative z-10 flex items-center justify-between border-b-[3px] border-ink bg-paper-dark/70 px-4 py-2.5">
           <Lockup alive height={28} />
-          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-xs font-extrabold text-ink">
+          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-xs font-medium text-ink">
             {/* on a gold chip a gold mark is lost: this one is filled with the twinkle's own cream */}
             <EngravedMark kind="twinkle" size={13} fill="#fff6dd" /> Coming soon
           </span>
@@ -161,13 +161,13 @@ export function PreLaunchScreen() {
 
           {/* what every verified player gets at launch (not exclusive to this campaign) */}
           <div className="cel mt-6 rounded-2xl bg-wash-gold p-4">
-            <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-extrabold text-gold-ink">
+            <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-gold-ink">
               <Gift weight="fill" size={14} /> Free letters at launch
             </div>
             <div className="flex items-end justify-center py-1">
               <TileWord word="early" upper={[false, false, false, false, false]} detail="bust" size={48} />
             </div>
-            <p className="mt-2 text-center text-xs leading-relaxed text-ink/65">
+            <p className="mt-2 text-center text-xs leading-relaxed text-ink/70">
               Every verified player gets a <strong>free pack of 5</strong> plus <strong>10 free daily letters</strong>: prove you’re one person
               when the game opens.
             </p>
@@ -175,7 +175,7 @@ export function PreLaunchScreen() {
 
           {/* web heads-up — adding requires a Farcaster client */}
           {!inFarcaster && !loading && (
-            <div className="mt-4 rounded-xl border-2 border-gold/50 bg-gold/10 px-3 py-2 text-xs leading-relaxed text-ink/75">
+            <div className="mt-4 rounded-xl border-2 border-gold/50 bg-gold/10 px-3 py-2 text-xs leading-relaxed text-ink/70">
               You’re on the web. Open Lexigotchi inside Farcaster to add the app. You can still share from here.
             </div>
           )}
@@ -183,7 +183,7 @@ export function PreLaunchScreen() {
           {/* the two steps */}
           <div className="cel mt-5 rounded-2xl bg-card p-4">
             <h2 className="font-display text-lg font-extrabold">Be there for opening night</h2>
-            <p className="mb-3 text-xs text-ink/60">Do both before we launch, and we’ll remember you were here first.</p>
+            <p className="mb-3 text-xs text-ink/70">Do both before we launch, and we’ll remember you were here first.</p>
 
             <div className="space-y-2.5">
               <StepRow n={1} done={added} title="Add Lexigotchi" sub="Save it to your Farcaster mini apps.">
@@ -208,10 +208,10 @@ export function PreLaunchScreen() {
               </StepRow>
             </div>
 
-            {note && <p className="mt-3 text-center text-xs font-bold text-candy-ink">{note}</p>}
+            {note && <p className="mt-3 text-center text-xs font-medium text-candy-ink">{note}</p>}
           </div>
 
-          <p className="mx-auto mt-5 max-w-[24rem] text-center text-xs leading-relaxed text-ink/55">
+          <p className="mx-auto mt-5 max-w-[24rem] text-center text-xs leading-relaxed text-ink/70">
             We note it on your Farcaster account. No wallet needed yet.
           </p>
         </main>
@@ -241,7 +241,7 @@ function StepRow({
       }`}
     >
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink font-display text-sm font-extrabold ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink font-display text-sm font-medium ${
           done ? "bg-teal text-ink" : "bg-card text-ink"
         }`}
       >
@@ -249,7 +249,7 @@ function StepRow({
       </span>
       <div className="min-w-0 flex-1">
         <div className="font-display text-sm font-extrabold leading-tight">{title}</div>
-        <div className="text-xs leading-tight text-ink/60">{sub}</div>
+        <div className="text-xs leading-tight text-ink/70">{sub}</div>
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -258,7 +258,7 @@ function StepRow({
 
 function DoneTag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-extrabold text-teal-ink">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-ink">
       <Check weight="bold" size={13} /> {children}
     </span>
   );

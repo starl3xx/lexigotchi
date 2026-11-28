@@ -113,7 +113,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
             <div className="flex items-center justify-center gap-1 font-display text-2xl font-extrabold text-gold-deep">
               RAISED! <EngravedMark kind="crown" size={26} className="text-ink" />
             </div>
-            <p className="text-sm text-ink/60">Now UPPERCASE: the blue game tile. Spell it into any word, and once all five of a word’s letters are raised, it earns $WORD.</p>
+            <p className="text-sm text-ink/70">Now UPPERCASE: the blue game tile. Spell it into any word, and once all five of a word’s letters are raised, it earns $WORD.</p>
           </div>
         )}
         {/* The new odds, shown at once: the provider lays the pity this miss set over the chain
@@ -122,9 +122,9 @@ export function RollSheet({ target }: { target: RollTarget }) {
         {phase === "miss" && (
           <div className="w-full max-w-[16rem] text-center">
             <div className="font-display text-2xl font-extrabold text-candy-ink">No luck</div>
-            <p className="text-sm text-ink/60">
+            <p className="text-sm text-ink/70">
               Your letter is untouched, never burned. Your next roll on {char.toUpperCase()} is{" "}
-              <strong className="font-bold text-ink">{Math.round(g.rollProb(pity) * 100)}%</strong>.
+              <strong className="font-medium text-ink">{Math.round(g.rollProb(pity) * 100)}%</strong>.
             </p>
             <div className="mt-2 text-left">
               <PityMeter pity={pity} />
@@ -136,7 +136,7 @@ export function RollSheet({ target }: { target: RollTarget }) {
         {phase === "stranded" && (
           <div className="text-center">
             <div className="font-display text-2xl font-extrabold text-gold-deep">Still rolling</div>
-            <p className="text-sm text-ink/60">{stranded}</p>
+            <p className="text-sm text-ink/70">{stranded}</p>
           </div>
         )}
         {(phase === "ready" || phase === "rolling") && (

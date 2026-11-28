@@ -79,7 +79,7 @@ export function SellDesk({
         {kind === "words" && (
           <div>
             {sellable.length === 0 ? (
-              <p className="text-sm text-ink/55">
+              <p className="text-sm text-ink/70">
                 {staked > 0
                   ? "Your words are all staked. Unstake one in your bag to sell it: only a word in your wallet can be sold."
                   : "No words in this wallet to sell."}
@@ -108,7 +108,7 @@ export function SellDesk({
               </ul>
             )}
             {sellable.length > 0 && staked > 0 && (
-              <p className="mt-2 text-xs text-ink/55">
+              <p className="mt-2 text-xs text-ink/70">
                 {staked} more {staked === 1 ? "is" : "are"} staked. Unstake a word to sell it.
               </p>
             )}
@@ -117,9 +117,9 @@ export function SellDesk({
         {kind === "letters" && (
           <div>
             {g.market.lettersClosed ? (
-              <p className="text-sm text-ink/55">Letters open for sale here shortly.</p>
+              <p className="text-sm text-ink/70">Letters open for sale here shortly.</p>
             ) : tray.length === 0 ? (
-              <p className="text-sm text-ink/55">
+              <p className="text-sm text-ink/70">
                 {elsewhere > 0 ? "No loose letters in this wallet." : "No loose letters to sell. Letters inside a word go with the word."}
               </p>
             ) : (
@@ -132,7 +132,7 @@ export function SellDesk({
                 {letter !== null && tray.some((t) => t.id === letter) ? (
                   <SellLetters key={letter} letterId={letter} onDone={() => setLetter(null)} />
                 ) : (
-                  <p className="mt-2 text-xs text-ink/55">
+                  <p className="mt-2 text-xs text-ink/70">
                     Tap a letter to sell it: one or several, at a price each. They stay in your bag until they sell, and a buyer can take any number
                     of them.
                   </p>
@@ -142,10 +142,10 @@ export function SellDesk({
           </div>
         )}
         {kind === "letters" && elsewhere > 0 && !g.market.lettersClosed && (
-          <p className="mt-2 text-xs text-ink/55">
+          <p className="mt-2 text-xs text-ink/70">
             {elsewhere} more {elsewhere === 1 ? "is" : "are"} in your other wallets. Only the wallet that holds a letter can list it: switch to that
             wallet, or{" "}
-            <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.openSheet({ kind: "profile", focus: "move" })}>
+            <button type="button" className="font-medium text-teal-ink underline" onClick={() => g.openSheet({ kind: "profile", focus: "move" })}>
               move them here
             </button>
             .
@@ -155,7 +155,7 @@ export function SellDesk({
 
       <Part title="For sale by you">
         {nothingListed ? (
-          <p className="text-sm text-ink/55">Nothing of yours is for sale yet.</p>
+          <p className="text-sm text-ink/70">Nothing of yours is for sale yet.</p>
         ) : (
           <ul className="divide-y-2 divide-dashed divide-ink/15">
             {myWordListings.map((l) => (
@@ -163,15 +163,15 @@ export function SellDesk({
                 <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                   <WordTiles word={l.word} upper={l.upper} size={22} still />
                   <span className="text-sm">
-                    <span className="fig">{fmtWord(l.price)}</span> <span className="text-xs text-ink/60">$WORD</span>
+                    <span className="fig">{fmtWord(l.price)}</span> <span className="text-xs text-ink/70">$WORD</span>
                   </span>
                 </span>
                 {g.market.isHere(l.maker) ? (
-                  <button type="button" onClick={() => g.cancelWordListing(l.orderHash)} className="shrink-0 text-xs font-bold text-ink/55 underline">
+                  <button type="button" onClick={() => g.cancelWordListing(l.orderHash)} className="shrink-0 text-xs font-medium text-ink/70 underline">
                     Take off sale
                   </button>
                 ) : (
-                  <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From {shortAddress(l.maker)}. Switch to it to change it.</span>
+                  <span className="shrink-0 text-right text-xs leading-tight text-ink/70">From {shortAddress(l.maker)}. Switch to it to change it.</span>
                 )}
               </li>
             ))}
@@ -180,8 +180,8 @@ export function SellDesk({
                 <span className="flex min-w-0 items-center gap-3">
                   <LetterTile char={letterLabel(l.letterId)} upper={isUpperId(l.letterId)} size={34} count={l.unsold} dim={l.state === "paused"} />
                   <span className="min-w-0 text-sm">
-                    <span className="fig">{fmtWord(l.unitPrice)}</span> <span className="text-xs text-ink/60">$WORD each</span>
-                    <span className="block text-xs text-ink/60">
+                    <span className="fig">{fmtWord(l.unitPrice)}</span> <span className="text-xs text-ink/70">$WORD each</span>
+                    <span className="block text-xs text-ink/70">
                       {l.state === "live"
                         ? l.available < l.unsold
                           ? `${l.available} of ${l.unsold} can sell now: the wallet holds ${l.available}.`
@@ -191,7 +191,7 @@ export function SellDesk({
                   </span>
                 </span>
                 {g.market.isHere(l.maker) ? (
-                  <span className="flex shrink-0 flex-col items-end gap-1 text-xs font-bold">
+                  <span className="flex shrink-0 flex-col items-end gap-1 text-xs font-medium">
                     {l.state === "live" && (
                       <button
                         type="button"
@@ -206,12 +206,12 @@ export function SellDesk({
                         Change
                       </button>
                     )}
-                    <button type="button" onClick={() => g.market.cancelLetterListing(l.orderHash)} className="text-ink/55 underline">
+                    <button type="button" onClick={() => g.market.cancelLetterListing(l.orderHash)} className="text-ink/70 underline">
                       Take off sale
                     </button>
                   </span>
                 ) : (
-                  <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From {shortAddress(l.maker)}. Switch to it to change it.</span>
+                  <span className="shrink-0 text-right text-xs leading-tight text-ink/70">From {shortAddress(l.maker)}. Switch to it to change it.</span>
                 )}
               </li>
             ))}
@@ -219,16 +219,16 @@ export function SellDesk({
               <li key={o.orderHash} className="flex items-center justify-between gap-3 py-2">
                 <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
                   <LetterTile char={idxToChar(o.giveId % 26)} upper={o.giveId >= 26} size={30} />
-                  <span className="text-ink/55">for</span>
+                  <span className="text-ink/70">for</span>
                   <LetterTile char={idxToChar(o.wantId % 26)} upper={o.wantId >= 26} size={30} />
-                  <span className="text-xs text-ink/60">An old letter swap. Swaps are closed, but this one can still be taken until you cancel it.</span>
+                  <span className="text-xs text-ink/70">An old letter swap. Swaps are closed, but this one can still be taken until you cancel it.</span>
                 </span>
                 {g.market.isHere(o.maker) ? (
-                  <button type="button" onClick={() => g.market.cancelOldSwap(o.orderHash)} className="shrink-0 text-xs font-bold text-ink/55 underline">
+                  <button type="button" onClick={() => g.market.cancelOldSwap(o.orderHash)} className="shrink-0 text-xs font-medium text-ink/70 underline">
                     Cancel
                   </button>
                 ) : (
-                  <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From {shortAddress(o.maker)}. Switch to it to cancel.</span>
+                  <span className="shrink-0 text-right text-xs leading-tight text-ink/70">From {shortAddress(o.maker)}. Switch to it to cancel.</span>
                 )}
               </li>
             ))}
@@ -271,13 +271,13 @@ function SellLetters({ letterId, onDone }: { letterId: number; onDone: () => voi
     >
       <FormHead title={current ? `Change your ${name} listing` : `Sell ${name}`} onClose={onDone} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs font-bold text-ink/60">
+        <span className="text-xs font-medium text-ink/70">
           How many{held > 1 ? `, of your ${held}` : ""}
         </span>
         <span className="flex items-center gap-2">
           <Qty value={count} max={held} onChange={setQty} label={`How many ${name}`} />
           {held > 2 && count < held && (
-            <button type="button" onClick={() => setQty(held)} className="text-xs font-bold text-teal-ink underline">
+            <button type="button" onClick={() => setQty(held)} className="text-xs font-medium text-teal-ink underline">
               All {held}
             </button>
           )}
@@ -287,7 +287,7 @@ function SellLetters({ letterId, onDone }: { letterId: number; onDone: () => voi
       <div className="mt-3">
         <PriceIdeas ideas={ideas} current={price} onPick={(n) => setText(priceText(n))} />
       </div>
-      <label className="mt-3 block text-xs font-bold text-ink/60" htmlFor={`sell-letter-${letterId}`}>
+      <label className="mt-3 block text-xs font-medium text-ink/70" htmlFor={`sell-letter-${letterId}`}>
         {current ? "New price for each, in $WORD" : "Price for each, in $WORD"}
       </label>
       <div className="mt-1 flex gap-2">
@@ -303,7 +303,7 @@ function SellLetters({ letterId, onDone }: { letterId: number; onDone: () => voi
           <Versus price={price} reference={make} />
         </p>
       )}
-      <p className="mt-2 text-xs text-ink/60">
+      <p className="mt-2 text-xs text-ink/70">
         {price > 0
           ? `A buyer pays ${amount(price)} for each. You get ${fmtWord(price - fee)} $WORD for each${count > 1 ? `, ${fmtWord((price - fee) * count)} for all ${count}` : ""}, and ${fmtWord(fee)} of each goes to the Rewards Pool.`
           : `A buyer pays your price for each letter. You get ${100 - LETTER_FEE * 100}%, and ${LETTER_FEE * 100}% goes to the Rewards Pool.`}{" "}

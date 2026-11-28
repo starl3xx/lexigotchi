@@ -23,13 +23,13 @@ export function timeAgo(at: number, now = Date.now()): string {
 /** How many, between 1 and `max`. The buttons are a full 36 px for thumbs. */
 export function Qty({ value, max, onChange, label }: { value: number; max: number; onChange: (n: number) => void; label: string }) {
   const step = (by: number) => onChange(Math.min(max, Math.max(1, value + by)));
-  const btn = "press grid h-9 w-9 place-items-center rounded-lg border-2 border-ink bg-card font-display text-base font-extrabold disabled:border-ink/25 disabled:text-ink/30";
+  const btn = "press grid h-9 w-9 place-items-center rounded-lg border-2 border-ink bg-card font-display text-base font-extrabold disabled:border-ink/25 disabled:text-ink/40";
   return (
     <span className="inline-flex items-center gap-1.5" role="group" aria-label={label}>
       <button type="button" className={btn} onClick={() => step(-1)} disabled={value <= 1} aria-label="One fewer">
         −
       </button>
-      <span className="min-w-6 text-center font-display text-sm font-extrabold tabular-nums" aria-live="polite">
+      <span className="fig min-w-6 text-center text-sm" aria-live="polite">
         {value}
       </span>
       <button type="button" className={btn} onClick={() => step(1)} disabled={value >= max} aria-label="One more">
@@ -48,7 +48,7 @@ export function Versus({ price, reference, what = "what it costs to make" }: { p
   const label = versusLabel(v);
   if (v === null || !label) return null;
   return (
-    <span className={v <= -0.03 ? "font-bold text-teal-ink" : "text-ink/60"}>
+    <span className={v <= -0.03 ? "font-medium text-teal-ink" : "text-ink/70"}>
       {label[0].toUpperCase() + label.slice(1)} {what}
     </span>
   );
@@ -66,7 +66,7 @@ export function PriceIdeas({ ideas, current, onPick }: { ideas: readonly PriceId
             onClick={() => onPick(i.price)}
             aria-pressed={current === i.price}
             className={`press flex w-full items-center justify-between gap-3 rounded-lg border-2 px-2.5 py-1.5 text-left text-xs ${
-              current === i.price ? "border-ink bg-ink text-paper" : "border-ink/25 bg-card text-ink/75"
+              current === i.price ? "border-ink bg-ink text-paper" : "border-ink/25 bg-card text-ink/70"
             }`}
           >
             <span>{i.label}</span>
@@ -133,7 +133,7 @@ export const priceText = (n: number) => n.toLocaleString("en-US");
 export function PriceHint({ text }: { text: string }) {
   if (!priceUnclear(text)) return null;
   return (
-    <p role="alert" className="mt-1 text-xs font-bold text-candy-ink">
+    <p role="alert" className="mt-1 text-xs font-medium text-candy-ink">
       Type a whole number of $WORD, such as 250,000. No decimals.
     </p>
   );
@@ -145,7 +145,7 @@ export function Part({ title, aside, children, className = "" }: { title: ReactN
     <section className={className}>
       <div className="mb-2 flex items-baseline justify-between gap-3 border-b-[3px] border-ink pb-1">
         <h2 className="font-display text-base font-extrabold">{title}</h2>
-        {aside && <span className="text-xs text-ink/55">{aside}</span>}
+        {aside && <span className="text-xs text-ink/70">{aside}</span>}
       </div>
       {children}
     </section>

@@ -60,8 +60,8 @@ export function CardStampChoice() {
       <label className="mt-2 flex items-start gap-2 text-sm">
         <input type="checkbox" checked={shown} onChange={(e) => set(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#2a9d8f]" />
         <span className="min-w-0">
-          <span className="block font-bold leading-tight">Show my picture on my cards</span>
-          <span className="block text-xs text-ink/60">A small stamp of your picture on the back of your cards, and in the videos you make of them. This choice is kept on this device.</span>
+          <span className="block font-medium leading-tight">Show my picture on my cards</span>
+          <span className="block text-xs text-ink/70">A small stamp of your picture on the back of your cards, and in the videos you make of them. This choice is kept on this device.</span>
         </span>
       </label>
     </Card>

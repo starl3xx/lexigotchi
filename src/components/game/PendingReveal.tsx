@@ -22,11 +22,11 @@ export function PendingReveal() {
     <Card className="border-gold bg-gold/10">
       <div className="flex items-center gap-3">
         <MailThumb width={92} count={g.nextMail ?? 5} />
-        <div className="min-w-0 flex-1 text-sm text-ink/80">
+        <div className="min-w-0 flex-1 text-sm text-ink/70">
           <span className="font-display font-extrabold leading-tight">
             {g.pendingReveals === 1 ? "Your mail is waiting" : `${g.pendingReveals} pieces of mail are waiting`}
           </span>
-          <div className="text-xs text-ink/60">Yours, and safe onchain.</div>
+          <div className="text-xs text-ink/70">Yours, and safe onchain.</div>
         </div>
         <Button variant="primary" className="shrink-0" onClick={() => g.openPending()}>
           Open

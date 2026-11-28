@@ -59,7 +59,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   if (!word) {
     return (
       <Sheet open onClose={g.closeSheet} title="Word">
-        <p className="py-6 text-center text-ink/60">This word is no longer in your bag.</p>
+        <p className="py-6 text-center text-ink/70">This word is no longer in your bag.</p>
       </Sheet>
     );
   }
@@ -117,7 +117,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         <Card className="mb-3 bg-candy/10">
           <div className="text-sm">
             <strong className="font-display">You may hold today’s secret word</strong>, staked and awake.
-            <button onClick={() => g.nav("jackpot")} className="ml-1 font-bold text-candy-ink underline">
+            <button onClick={() => g.nav("jackpot")} className="ml-1 font-medium text-candy-ink underline">
               Open the jackpot →
             </button>
           </div>
@@ -177,22 +177,22 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </Button>
       </div>
       {word.mine && !word.staked && offGameWallet && (
-        <p className="mt-2 text-xs font-bold text-candy-ink">
+        <p className="mt-2 text-xs font-medium text-candy-ink">
           This isn’t your game wallet. Once staked here, only this wallet, and the caretakers it names, can wake {word.word}.
         </p>
       )}
-      {word.mine && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}
-      {word.care && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}
+      {word.mine && <p className="mb-3 mt-2 text-xs text-ink/70">{note}</p>}
+      {word.care && <p className="mb-3 mt-2 text-xs text-ink/70">{note}</p>}
       {!word.mine && !word.care && <div className="mb-3" />}
 
       {/* raise letters: the owner, or a caretaker of a staked word (Rolls.commitWordRoll) */}
       <Card className={`mb-3 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display font-extrabold">Raise to UPPERCASE</span>
-          <span className="text-xs text-ink/55">{word.upper.filter(Boolean).length}/5 · earns $WORD at 5/5</span>
+          <span className="text-xs text-ink/70">{word.upper.filter(Boolean).length}/5 · earns $WORD at 5/5</span>
         </div>
         {fullyRaised ? (
-          <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-ink">
+          <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-medium text-gold-ink">
             Fully raised <EngravedMark kind="crown" size={16} className="text-ink" />
           </div>
         ) : (
@@ -212,7 +212,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
             )}
           </div>
         )}
-        {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/55">tap a lowercase letter to roll it · {fmtWord(g.price("roll"))} $WORD</p>}
+        {!fullyRaised && <p className="mt-2 text-center text-xs text-ink/70">tap a lowercase letter to roll it · {fmtWord(g.price("roll"))} $WORD</p>}
       </Card>
 
       {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0), except for
@@ -224,7 +224,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
               <div className="flex items-center gap-1 font-display font-extrabold">
                 Ascend <EngravedMark kind="star" size={15} />
               </div>
-              <div className="text-xs text-ink/55">
+              <div className="text-xs text-ink/70">
                 {atTop
                   ? `${stageName(word.prestigeLevel)} · the top stage`
                   : `${stageName(word.prestigeLevel)} → ${stageName(word.prestigeLevel + 1)} · ${ascendOdds}% this try`}
@@ -240,7 +240,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
             </Button>
           </div>
           {!atTop && (
-            <p className="mt-2 text-xs text-ink/55">
+            <p className="mt-2 text-xs text-ink/70">
               A try costs {fmtWord(ascendFee + g.price("prestigeSnack"))} $WORD. A hit raises its share of earnings and the bounty{" "}
               {STAGE_SHARE}. A miss never harms it and raises the next try’s odds {MISS_POINTS} points.
             </p>
@@ -248,7 +248,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           {/* A try that ended paid and unfinished (the store remembers it for the session): the
               cue the old inline button's "Unfinished" label gave. */}
           {unfinishedAscent && (
-            <p className="mt-2 text-xs font-bold text-gold-ink">
+            <p className="mt-2 text-xs font-medium text-gold-ink">
               Your last attempt is paid for and may be unfinished. Tap Finish to finish it: it takes no new fee.
             </p>
           )}
@@ -272,7 +272,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
             </Button>
           </div>
         ) : (
-          <button onClick={() => setConfirmDissolve(true)} className="mx-auto block text-xs font-bold text-ink/45 underline">
+          <button onClick={() => setConfirmDissolve(true)} className="mx-auto block text-xs font-medium text-ink/70 underline">
             dissolve this word
           </button>
         )}
@@ -310,7 +310,7 @@ function EarningsRow({ word, h }: { word: OwnedWord; h: Hunger }) {
           <span className="block">
             Earned you <strong className="font-display">{fmtWord(mineE.total)} $WORD</strong>
             {mineE.latest > 0 && when ? (
-              <span className="font-bold text-gold-ink">
+              <span className="font-medium text-gold-ink">
                 {" "}
                 (+{fmtWord(mineE.latest)} {when})
               </span>
@@ -327,7 +327,7 @@ function EarningsRow({ word, h }: { word: OwnedWord; h: Hunger }) {
           </span>
         )}
       </span>
-      <CaretRight weight="bold" size={14} className="shrink-0 text-ink/45" />
+      <CaretRight weight="bold" size={14} className="shrink-0 text-ink/40" />
     </button>
   );
 }

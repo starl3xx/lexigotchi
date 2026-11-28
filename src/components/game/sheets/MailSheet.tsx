@@ -446,15 +446,15 @@ function MailStage({ mail }: { mail: Mail }) {
             <div className={cx("mail-piece", moving)} style={{ top: ENV_TOP, width: W, height: ENV_H, zIndex: 3 }}>
               <Pic src={a.front[n]} w={W} />
               {/* the envelope's lettering: the card's serif, for what a card says about its letters */}
-              <span className="mail-serif absolute overflow-hidden text-ellipsis whitespace-nowrap text-[15px] italic text-ink/80" style={{ left: 30, top: 48, maxWidth: 142 }}>
+              <span className="mail-serif absolute overflow-hidden text-ellipsis whitespace-nowrap text-[15px] italic text-ink/70" style={{ left: 30, top: 48, maxWidth: 142 }}>
                 For {name ?? "you"}
               </span>
-              <span className="mail-serif absolute overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-ink/60" style={{ left: 30, top: 77, maxWidth: 142 }}>
+              <span className="mail-serif absolute overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-ink/70" style={{ left: 30, top: 77, maxWidth: 142 }}>
                 from the Lexigotchi Mint
               </span>
               <span className="mail-serif absolute flex flex-col items-center justify-center text-ink" style={{ left: CONTENTS.x * EK, top: CONTENTS.y * EK, width: CONTENTS.w * EK, height: CONTENTS.h * EK }}>
-                <span className="text-[9.5px] leading-[1.25] text-ink/65">Contents:</span>
-                <span className="text-[12.5px] font-bold leading-[1.2]">{n === 1 ? "1 letter" : "5 letters"}</span>
+                <span className="text-[9.5px] leading-[1.25] text-ink/70">Contents:</span>
+                <span className="text-[12.5px] font-medium leading-[1.2]">{n === 1 ? "1 letter" : "5 letters"}</span>
               </span>
               {eyesOn && <WindowEyes count={n} look={ready && !torn ? "up" : torn ? "up" : undefined} asleep={asleep} gone={pos.map((v) => torn && v !== "in")} still={reduced} />}
               {stamped && (
@@ -467,7 +467,7 @@ function MailStage({ mail }: { mail: Mail }) {
                   <Pic src={a.postmark} w={112} />
                   <span className="mail-serif absolute text-center leading-none text-[#3a3734]" style={{ left: 0, width: 62, top: 20 }}>
                     <span className="block text-[7px]">No.</span>
-                    <span className={cx("block font-bold", (mail.number ?? 0) > 99_999 ? "text-[8px]" : "text-[10.5px]")}>{(mail.number ?? 0).toLocaleString("en-US")}</span>
+                    <span className={cx("block font-medium", (mail.number ?? 0) > 99_999 ? "text-[8px]" : "text-[10.5px]")}>{(mail.number ?? 0).toLocaleString("en-US")}</span>
                   </span>
                 </span>
               )}
@@ -487,7 +487,7 @@ function MailStage({ mail }: { mail: Mail }) {
                 if (!tag) return null;
                 return (
                   <span key={i} className="mail-tag absolute flex justify-center" style={{ left: slotX(i, n) - 14, width: size + 28, top: FEET + 8, zIndex: 4, animationDelay: `${i * 70}ms` }}>
-                    <span className={cx("rounded-full border-2 border-ink px-1.5 text-[11px] font-bold leading-[1.35]", tag.kind === "word" ? "bg-teal/25 text-teal-ink" : tag.kind === "rare" ? "bg-gold/30 text-gold-ink" : "bg-card text-ink")}>{tag.text}</span>
+                    <span className={cx("rounded-full border-2 border-ink px-1.5 text-[11px] font-medium leading-[1.35]", tag.kind === "word" ? "bg-teal/25 text-teal-ink" : tag.kind === "rare" ? "bg-gold/30 text-gold-ink" : "bg-card text-ink")}>{tag.text}</span>
                   </span>
                 );
               })}
@@ -517,7 +517,7 @@ function MailStage({ mail }: { mail: Mail }) {
               {fresh.length > 1 && (
                 <button
                   type="button"
-                  className="mt-2 text-xs font-bold text-teal-ink underline"
+                  className="mt-2 text-xs font-medium text-teal-ink underline"
                   onClick={() => {
                     g.closeSheet();
                     g.nav("claim");
@@ -547,14 +547,14 @@ function MailStage({ mail }: { mail: Mail }) {
                   </Button>
                 )}
               </div>
-              <button type="button" className="mt-2.5 w-full text-center text-xs font-bold text-candy-ink underline" onClick={again}>
+              <button type="button" className="mt-2.5 w-full text-center text-xs font-medium text-candy-ink underline" onClick={again}>
                 or rip {n === 1 ? "a" : "another"} pack · {fmtWord(packPrice)} $WORD
               </button>
             </div>
           ) : (
             <>
               {checking && !plain && (
-                <p className="mt-1 text-xs text-ink/55" aria-live="polite">
+                <p className="mt-1 text-xs text-ink/70" aria-live="polite">
                   Checking what you can spell now…
                 </p>
               )}
@@ -601,7 +601,7 @@ export function MailSheet() {
   const title = !mail ? "Mail" : mail.count === 1 ? "Your letter" : mail.free ? "Your free pack" : "Pack of 5";
   return (
     <Sheet open onClose={g.closeSheet} title={title}>
-      {mail ? <MailStage key={mail.seq} mail={mail} /> : <p className="py-6 text-center text-ink/60">There’s no mail to open right now.</p>}
+      {mail ? <MailStage key={mail.seq} mail={mail} /> : <p className="py-6 text-center text-ink/70">There’s no mail to open right now.</p>}
     </Sheet>
   );
 }

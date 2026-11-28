@@ -61,14 +61,14 @@ export function WordValue({
       </p>
     ) : null;
   const drawnLine = drawn ? (
-    <p className="font-bold text-candy-ink">
+    <p className="font-medium text-candy-ink">
       Already drawn for the jackpot. The locked order of secret words never repeats one, so it won’t be drawn again.
     </p>
   ) : null;
 
   if (compact) {
     return (
-      <div className="mt-1 space-y-0.5 text-xs text-ink/60">
+      <div className="mt-1 space-y-0.5 text-xs text-ink/70">
         {cost && (
           <details>
             <summary className="cursor-pointer select-none">
@@ -84,7 +84,7 @@ export function WordValue({
   }
 
   return (
-    <div className="mb-3 space-y-1 rounded-xl bg-paper-dark/30 px-3 py-2 text-xs text-ink/60">
+    <div className="mb-3 space-y-1 rounded-xl bg-paper-dark/30 px-3 py-2 text-xs text-ink/70">
       {cost && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -92,7 +92,7 @@ export function WordValue({
               Costs about <strong className="font-display text-ink">{amount(cost.total)}</strong> to make
             </span>
             {onUse && (
-              <button type="button" onClick={() => onUse(roundPrice(cost.total))} className="font-bold text-teal-ink underline">
+              <button type="button" onClick={() => onUse(roundPrice(cost.total))} className="font-medium text-teal-ink underline">
                 Use this price
               </button>
             )}

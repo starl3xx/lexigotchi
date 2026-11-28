@@ -45,7 +45,7 @@ export function ShopBuy({ card, about, size = "sm" }: { card: ShopCard; about: I
   // to lift this above its own open button.
   if (!offerIsButton(o)) {
     return (
-      <div className="text-center text-xs font-bold text-ink/55">
+      <div className="text-center text-xs font-medium text-ink/70">
         {o.kind === "off" ? STATUS[o.status] : o.why === "checking" ? "Checking what you have…" : "Couldn’t check what you have. Leave the Shop and come back."}
       </div>
     );

@@ -148,7 +148,7 @@ export function GameWalletNotice() {
           <X weight="bold" size={16} />
         </button>
       </div>
-      <div className="text-ink/75">{body}</div>
+      <div className="text-ink/70">{body}</div>
       {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}
     </Card>
   );

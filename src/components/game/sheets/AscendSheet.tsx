@@ -98,7 +98,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
   if (!word) {
     return (
       <Sheet open onClose={g.closeSheet} title="Ascend">
-        <p className="py-6 text-center text-ink/60">This word is no longer in your bag.</p>
+        <p className="py-6 text-center text-ink/70">This word is no longer in your bag.</p>
       </Sheet>
     );
   }
@@ -224,13 +224,13 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
               <div className="flex items-center justify-center gap-1.5 font-display text-2xl font-extrabold text-gold-deep">
                 {stageName(shown.level)}! <EngravedMark kind="star" size={26} className="text-ink" />
               </div>
-              <p className="text-sm text-ink/60">
+              <p className="text-sm text-ink/70">
                 {word.word} climbed a stage, and its share of earnings and the bounty grew {STAGE_SHARE}.
                 {atTop ? " It stands at the top of the ladder." : ""}
               </p>
               {!atTop && (
-                <p className="mt-1 text-sm text-ink/60">
-                  {stageName(goal)} is next, at <strong className="font-bold text-ink">{pct(prob)}</strong> on the first try.
+                <p className="mt-1 text-sm text-ink/70">
+                  {stageName(goal)} is next, at <strong className="font-medium text-ink">{pct(prob)}</strong> on the first try.
                 </p>
               )}
             </div>
@@ -240,9 +240,9 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
           {phase === "miss" && landed && (
             <div className="w-full text-center">
               <div className="font-display text-2xl font-extrabold text-candy-ink">Held its ground</div>
-              <p className="text-sm text-ink/60">
+              <p className="text-sm text-ink/70">
                 {word.word} is untouched. Your next try for {stageName(goal)} is{" "}
-                <strong className="font-bold text-ink">{pct(prob)}</strong>.
+                <strong className="font-medium text-ink">{pct(prob)}</strong>.
               </p>
               <div className="mt-2 text-left">
                 <OddsMeter prob={prob} firstTry={firstTry} pity={shown.pity} />
@@ -254,17 +254,17 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
           {phase === "stranded" && (
             <div className="w-full text-center">
               <div className="font-display text-2xl font-extrabold text-gold-deep">Still finishing</div>
-              <p className="text-sm text-ink/60">{stranded}</p>
+              <p className="text-sm text-ink/70">{stranded}</p>
             </div>
           )}
           {(phase === "ready" || waiting) && (
             <div className="w-full">
               {atTop ? (
-                <p className="text-center text-sm text-ink/60">{word.word} stands at the top of the ladder.</p>
+                <p className="text-center text-sm text-ink/70">{word.word} stands at the top of the ladder.</p>
               ) : (
                 <>
                   <OddsMeter prob={prob} firstTry={firstTry} pity={shown.pity} />
-                  <p className="mt-2 text-xs text-ink/60">
+                  <p className="mt-2 text-xs text-ink/70">
                     A hit raises its share of earnings and the bounty {STAGE_SHARE}. A miss never harms it, and raises the next
                     try’s odds {MISS_POINTS} points.
                   </p>
@@ -320,7 +320,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
             </>
           )}
         </div>
-        <p className="mt-2 min-h-4 text-center text-xs text-ink/55">
+        <p className="mt-2 min-h-4 text-center text-xs text-ink/70">
           {unfinished
             ? "Your last attempt is already paid for. Finishing it takes no new fee."
             : !offered
@@ -343,7 +343,7 @@ function GetMore({ amount }: { amount: number }) {
   return (
     <p className="mt-2 text-center text-xs text-candy-ink">
       You don’t have enough $WORD for this try.{" "}
-      <button className="font-bold underline" onClick={() => g.openSheet({ kind: "balance", need: { amount, action: "an ascension try" } })}>
+      <button className="font-medium underline" onClick={() => g.openSheet({ kind: "balance", need: { amount, action: "an ascension try" } })}>
         Get more
       </button>
     </p>
@@ -373,15 +373,15 @@ function Ladder({ level, max, goal, pulsing }: { level: number; max: number; goa
                 next ? `border-gold-deep bg-gold/15 ${pulsing ? "asc-goal" : ""}` : "border-transparent"
               }`}
             >
-              <EngravedMark kind="star" size={16} earned={has} className={has ? "text-ink" : next ? "text-gold-ink" : "text-ink/30"} />
+              <EngravedMark kind="star" size={16} earned={has} className={has ? "text-ink" : next ? "text-gold-ink" : "text-ink/40"} />
             </span>
           );
         })}
       </div>
-      <div className="text-sm font-bold text-ink/70">
+      <div className="text-sm font-medium text-ink/70">
         {goal ? (
           <>
-            {stageName(level)} <span className="text-ink/40">→</span> <span className="text-gold-ink">{stageName(goal)}</span>
+            {stageName(level)} <span className="text-ink/70">→</span> <span className="text-gold-ink">{stageName(goal)}</span>
           </>
         ) : (
           stageName(level)
@@ -396,7 +396,7 @@ function OddsMeter({ prob, firstTry, pity }: { prob: number; firstTry: number; p
   const added = Math.round((prob - firstTry) * 100);
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs font-bold text-ink/70">
+      <div className="flex items-center justify-between text-xs font-medium text-ink/70">
         <span>odds this try</span>
         <span className="fig text-sm text-ink">{pct(prob)}</span>
       </div>
@@ -404,7 +404,7 @@ function OddsMeter({ prob, firstTry, pity }: { prob: number; firstTry: number; p
         <div className="h-full bg-gold transition-[width]" style={{ width: `${prob * 100}%` }} />
       </div>
       {pity > 0 && added > 0 && (
-        <div className="text-xs text-ink/60">
+        <div className="text-xs text-ink/70">
           +{added} points from {pity} {pity === 1 ? "miss" : "misses"} · resets on a hit
         </div>
       )}

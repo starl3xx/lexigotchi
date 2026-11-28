@@ -113,7 +113,7 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
             </div>
           ))}
           {count > shown && (
-            <span className="animate-drop font-display text-xl font-extrabold text-ink/70" style={{ animationDelay: `${shown * 0.11}s` }}>
+            <span className="fig animate-drop text-xl text-ink/70" style={{ animationDelay: `${shown * 0.11}s` }}>
               +{(count - shown).toLocaleString("en-US")}
             </span>
           )}
@@ -134,7 +134,7 @@ export function BoughtLettersSheet({ letterId, count, unitPrice, had }: { letter
             {fresh.length > 1 && (
               <button
                 type="button"
-                className="mt-2 text-xs font-bold text-teal-ink underline"
+                className="mt-2 text-xs font-medium text-teal-ink underline"
                 onClick={() => {
                   g.closeSheet();
                   g.nav("claim");

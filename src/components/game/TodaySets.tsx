@@ -35,8 +35,8 @@ function Row({ set, now, gate, onOpen }: { set: ShownSet; now: number; gate: boo
         )}
         <span className="min-w-0 flex-1">
           <span className="block truncate font-display text-[15px] font-extrabold leading-tight">{set.name}</span>
-          {set.collab && <span className="block truncate text-xs leading-snug text-ink/60">A collaboration with {set.collab.partner}</span>}
-          <span className="block text-[13px] leading-snug text-ink/75">{todayLine(set, now, gate)}</span>
+          {set.collab && <span className="block truncate text-xs leading-snug text-ink/70">A collaboration with {set.collab.partner}</span>}
+          <span className="block text-[13px] leading-snug text-ink/70">{todayLine(set, now, gate)}</span>
         </span>
         <CaretRight className="shrink-0 text-ink/40" aria-hidden />
       </button>
@@ -62,7 +62,7 @@ export function TodaySets() {
         ))}
       </ul>
       {more > 0 && (
-        <button onClick={open} className="mt-2 w-full border-t-2 border-ink/10 pt-2 text-left text-xs font-bold text-ink/60 underline">
+        <button onClick={open} className="mt-2 w-full border-t-2 border-ink/10 pt-2 text-left text-xs font-medium text-ink/70 underline">
           and {more} more in the Dictionary
         </button>
       )}

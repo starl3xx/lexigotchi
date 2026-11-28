@@ -46,7 +46,7 @@ export function TodayLetters() {
 
   return (
     <Card>
-      <SectionTitle action={<span className="text-xs font-bold text-ink/55">{total} loose</span>}>Your letters</SectionTitle>
+      <SectionTitle action={<span className="text-xs font-medium text-ink/70">{total} loose</span>}>Your letters</SectionTitle>
 
       {/* today's free letter */}
       <div className="mb-3 rounded-xl border-2 border-dashed border-ink/25 p-2.5">
@@ -67,7 +67,7 @@ export function TodayLetters() {
                 )}
               </span>
             </span>
-            <span className="shrink-0 text-xs text-ink/50">
+            <span className="shrink-0 text-xs text-ink/70">
               {/* the 10th was the last: no countdown to a letter that isn't coming */}
               {g.freeLetters?.done ? "your last free one" : <>next in <Countdown /></>}
             </span>
@@ -89,8 +89,8 @@ export function TodayLetters() {
         ) : (
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-ink/70">
-              <span className="font-bold text-ink">Your free letter is ready.</span>
-              <div className="text-xs text-ink/50">
+              <span className="font-medium text-ink">Your free letter is ready.</span>
+              <div className="text-xs text-ink/70">
                 {g.freeLetters?.dailyLeft != null
                   ? `${g.freeLetters.dailyLeft} of your ${g.freeLetters.dailyLimit} free daily letters left`
                   : "One a day, on the house"}
@@ -113,7 +113,7 @@ export function TodayLetters() {
 
       {/* the loose letters, UPPERCASE first */}
       {loose.length === 0 ? (
-        <p className="py-2 text-center text-sm text-ink/60">
+        <p className="py-2 text-center text-sm text-ink/70">
           {/* "yet" is for a newcomer; while the words still load, the player may well have some */}
           No loose letters{state.words.length > 0 || wordsUnknown(state) ? " right now" : " yet"}. Mint a pack of 5
           {state.dailyMinted ? "" : ", or take your free letter"}.

@@ -29,7 +29,7 @@ export function WalletMismatch() {
     <Card className="border-gold bg-gold/10">
       <div className="flex items-start gap-2.5">
         <Warning weight="fill" size={20} className="mt-0.5 shrink-0 text-gold-ink" />
-        <div className="text-xs text-ink/75">
+        <div className="text-xs text-ink/70">
           <span className="font-display text-sm font-extrabold">This wallet isn’t linked to your Farcaster account.</span>
           <p className="mt-0.5">
             Letters mint to the connected wallet, and this one’s won’t follow you into the Farcaster
@@ -37,7 +37,7 @@ export function WalletMismatch() {
             (Warpcast → Settings → Verified addresses; your whole bag folds together, instantly),
             or connect a wallet your account has already verified.
           </p>
-          <button onClick={() => setDismissed(true)} className="mt-1.5 font-bold text-ink/45 underline">
+          <button onClick={() => setDismissed(true)} className="mt-1.5 font-medium text-ink/70 underline">
             I know what I’m doing
           </button>
         </div>

@@ -69,7 +69,7 @@ export function SignInWithCoinbaseWallet() {
 /** A hairline "or" between the two ways in. */
 export function OrDivider() {
   return (
-    <div className="my-3 flex items-center gap-3 text-xs font-bold text-ink/45" aria-hidden>
+    <div className="my-3 flex items-center gap-3 text-xs font-medium text-ink/70" aria-hidden>
       <span className="h-px flex-1 bg-ink/15" />
       or
       <span className="h-px flex-1 bg-ink/15" />

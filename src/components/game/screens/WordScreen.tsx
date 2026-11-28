@@ -108,7 +108,7 @@ export function WordScreen() {
           <p className="mt-3 text-sm">
             You hold <strong className="tabular-nums">{fmtWord(holder.balance)} $WORD</strong>
             {(holder.wallets ?? 0) > 1 && <> across {holder.wallets} wallets</>}
-            {d && d.price.usd > 0 && <span className="text-ink/60"> (about {fmtUsdShort(holder.balance * d.price.usd)})</span>}.
+            {d && d.price.usd > 0 && <span className="text-ink/70"> (about {fmtUsdShort(holder.balance * d.price.usd)})</span>}.
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
@@ -138,7 +138,7 @@ export function WordScreen() {
       {NETWORK.isTestnet && g.state.chainBacked && shopEnabled() && (
         <Card>
           <SectionTitle>For the test game</SectionTitle>
-          <p className="mb-3 text-xs text-ink/60">
+          <p className="mb-3 text-xs text-ink/70">
             The swap above trades real $WORD on Base. The test game on {NETWORK.name} plays with test tokens instead.
           </p>
           <TestFaucets size="md" />
@@ -164,7 +164,7 @@ export function WordScreen() {
                 ["Out of circulation", `${fmtWord(s.outOfCirculation)} (${pct(s.outOfCirculation / s.minted)})`],
               ]}
             />
-            <p className="text-xs text-ink/60">
+            <p className="text-xs text-ink/70">
               A burn destroys $WORD for good and lowers the supply. Tokens sent to the dead address can never move
               again, but the supply still counts them.
             </p>
@@ -186,7 +186,7 @@ export function WordScreen() {
                 ["Where it trades", "Uniswap v4 on Base", "name"],
               ]}
             />
-            <p className="text-xs text-ink/60">The pool is small, so a large trade moves the price.</p>
+            <p className="text-xs text-ink/70">The pool is small, so a large trade moves the price.</p>
           </div>
         ) : (
           <Empty loading={q.isLoading} />
@@ -196,25 +196,25 @@ export function WordScreen() {
       {/* how Lexigotchi uses it */}
       <Card>
         <SectionTitle>In Lexigotchi</SectionTitle>
-        <p className="text-sm text-ink/80">
+        <p className="text-sm text-ink/70">
           Packs, rolls, claims, and waking a word are all paid in $WORD, and part of each fee is burned for good:
         </p>
         <div className="mt-2.5 grid grid-cols-4 gap-2">
           {burnShares.map(([label, share]) => (
             <div key={label} className="cel-sm rounded-xl bg-card px-2 py-1.5 text-center">
-              <div className="flex items-center justify-center gap-0.5 font-display text-base font-extrabold text-candy-ink">
+              <div className="fig flex items-center justify-center gap-0.5 text-base text-candy-ink">
                 <Fire weight="fill" size={13} aria-hidden />
                 {pct(share)}
               </div>
-              <div className="text-xs text-ink/60">{label}</div>
+              <div className="text-xs text-ink/70">{label}</div>
             </div>
           ))}
         </div>
-        <p className="mt-2.5 text-xs text-ink/60">
+        <p className="mt-2.5 text-xs text-ink/70">
           The rest funds the Rewards Pool, the daily jackpot, and the treasury, all in $WORD. Lexigotchi’s burns count
           from launch.
         </p>
-        <button onClick={() => void openUrl(`${DOCS_URL}/fees`)} className="mt-2 text-xs font-bold text-ink/60 underline">
+        <button onClick={() => void openUrl(`${DOCS_URL}/fees`)} className="mt-2 text-xs font-medium text-ink/70 underline">
           Where fees go ↗
         </button>
       </Card>
@@ -232,7 +232,7 @@ export function WordScreen() {
         ) : (
           <Empty loading={q.isLoading} />
         )}
-        <p className="mt-2 text-xs text-ink/60">
+        <p className="mt-2 text-xs text-ink/70">
           Its burn count includes what its older contract sent to the dead address.
         </p>
         <Button variant="ghost" size="sm" className="mt-3" onClick={() => g.nav("lhaw")}>
@@ -261,7 +261,7 @@ export function WordScreen() {
 function Stat({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
   return (
     <div className={`min-w-0 ${className}`}>
-      <div className="text-xs font-bold text-ink/60">{label}</div>
+      <div className="text-xs font-medium text-ink/70">{label}</div>
       <div className="fig truncate text-xl md:text-2xl">{children}</div>
     </div>
   );
@@ -274,7 +274,7 @@ function Rows({ rows }: { rows: [label: string, value: string, kind?: "name"][] 
       {rows.map(([k, v, kind]) => (
         <div key={k} className="flex items-baseline justify-between gap-3 py-1.5">
           <dt className="text-ink/70">{k}</dt>
-          <dd className={kind === "name" ? "font-bold" : "fact"}>{v}</dd>
+          <dd className={kind === "name" ? "font-medium" : "fact"}>{v}</dd>
         </div>
       ))}
     </dl>
@@ -282,5 +282,5 @@ function Rows({ rows }: { rows: [label: string, value: string, kind?: "name"][] 
 }
 
 function Empty({ loading }: { loading: boolean }) {
-  return <p className="text-sm text-ink/60">{loading ? "Loading…" : "Couldn’t load this just now. It retries every minute."}</p>;
+  return <p className="text-sm text-ink/70">{loading ? "Loading…" : "Couldn’t load this just now. It retries every minute."}</p>;
 }

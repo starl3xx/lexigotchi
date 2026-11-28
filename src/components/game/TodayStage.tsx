@@ -306,7 +306,7 @@ export function TodayStage() {
           <Backpack weight="bold" size={26} className="press-icon shrink-0" />
           <span className="min-w-0">
             <span className="block font-display text-sm font-extrabold">My Bag</span>
-            <span className="block text-xs text-ink/60">
+            <span className="block text-xs text-ink/70">
               {state.words.length === 1 ? "Your 1 word" : `All ${state.words.length} words`}
             </span>
           </span>
@@ -342,7 +342,7 @@ function EmptyStage() {
       </div>
       {/* the placard: the one line for this player, and its one button */}
       <div className="tt-plate">
-        {say[shape] && <p className="text-balance text-center text-sm font-bold">{say[shape]}</p>}
+        {say[shape] && <p className="text-balance text-center text-sm font-medium">{say[shape]}</p>}
         <div className="tt-actions">
         {shape === "loading" && (
           <Button variant="ghost" full disabled>

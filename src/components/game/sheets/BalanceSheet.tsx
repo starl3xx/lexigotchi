@@ -70,13 +70,13 @@ export function BalanceSheet() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={me.pfpUrl} alt="" className="h-9 w-9 rounded-full border-2 border-ink object-cover" />
         ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-paper-dark text-ink/60">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-paper-dark text-ink/70">
             <Smiley weight="fill" size={18} />
           </span>
         )}
         <span className="min-w-0 flex-1 leading-tight">
           <span className="block truncate font-display font-extrabold">{me.name ?? "Your profile"}</span>
-          <span className="block text-xs text-ink/60">
+          <span className="block text-xs text-ink/70">
             {daily.eligible
               ? "Free daily letter: on"
               : daily.checking && (address || viewer.environment === "loading")
@@ -84,24 +84,24 @@ export function BalanceSheet() {
                 : "Link an account for free letters"}
           </span>
         </span>
-        <CaretRight weight="bold" className="text-ink/45" />
+        <CaretRight weight="bold" className="text-ink/40" />
       </button>
 
       <Card tint="gold" className="text-center">
-        <div className="flex items-center justify-center gap-1.5 text-ink/60">
+        <div className="flex items-center justify-center gap-1.5 text-ink/70">
           <Coins weight="fill" />
-          <span className="text-sm font-bold">Balance</span>
+          <span className="text-sm font-medium">Balance</span>
         </div>
         <div className="fig mt-1 text-4xl text-gold-deep">
           <TweenNumber value={state.balance} format={fmtWord} />
         </div>
         {testnet ? (
           <>
-            <div className="text-sm text-ink/60">Test $WORD on {NETWORK.name}</div>
-            <div className="mt-1 text-xs text-ink/55">Your real $WORD stays on Base. It doesn’t count in the test game.</div>
+            <div className="text-sm text-ink/70">Test $WORD on {NETWORK.name}</div>
+            <div className="mt-1 text-xs text-ink/70">Your real $WORD stays on Base. It doesn’t count in the test game.</div>
           </>
         ) : (
-          <div className="text-sm text-ink/60">{fmtUsd(state.balance)} · $WORD on Base</div>
+          <div className="text-sm text-ink/70">{fmtUsd(state.balance)} · $WORD on Base</div>
         )}
       </Card>
       {/* what the player's words have paid into it (decisions.md #16); opens Your earnings */}
@@ -121,14 +121,14 @@ export function BalanceSheet() {
           <Button full variant="ghost" className="mt-3" disabled={env === "loading"} onClick={buy}>
             <ArrowsLeftRight weight="bold" /> Buy real $WORD
           </Button>
-          <p className="mt-1.5 text-center text-xs text-ink/55">The real token on Base, for when the game launches there.</p>
+          <p className="mt-1.5 text-center text-xs text-ink/70">The real token on Base, for when the game launches there.</p>
         </>
       ) : (
         <>
           <Button full size="lg" variant="primary" className="mt-3" disabled={env === "loading"} onClick={buy}>
             <ArrowsLeftRight weight="bold" /> Buy $WORD
           </Button>
-          <p className="mt-1.5 text-center text-xs text-ink/55">
+          <p className="mt-1.5 text-center text-xs text-ink/70">
             Opens your wallet’s swap in Farcaster, or the $WORD swap page on the web.
           </p>
         </>
@@ -139,19 +139,19 @@ export function BalanceSheet() {
           <Wallet weight="bold" /> Wallet
         </div>
         {env === "loading" ? (
-          <div className="flex items-center gap-1.5 text-sm text-ink/55">
+          <div className="flex items-center gap-1.5 text-sm text-ink/70">
             <CircleNotch className="animate-spin" /> checking…
           </div>
         ) : env === "farcaster" ? (
           <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-1.5 font-bold text-teal-ink">
+            <span className="flex items-center gap-1.5 font-medium text-teal-ink">
               <Check weight="bold" /> Connected via Farcaster
             </span>
-            {address && <span className="font-mono text-xs text-ink/60">{short(address)}</span>}
+            {address && <span className="font-mono text-xs text-ink/70">{short(address)}</span>}
           </div>
         ) : address ? (
           <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-1.5 font-bold text-teal-ink">
+            <span className="flex items-center gap-1.5 font-medium text-teal-ink">
               <Check weight="bold" /> Connected
             </span>
             {/* A way OUT of a wallet on the web (the profile has one too). An extension wallet can be
@@ -160,9 +160,9 @@ export function BalanceSheet() {
                 connected the wrong wallet is stuck with it. wagmi's own disconnect, the call
                 RainbowKit's account modal made: that modal isn't offered on a network RainbowKit
                 doesn't know, which left this button dead in Rainbow's browser (2026-11-25). */}
-            <span className="flex items-center gap-2 text-xs text-ink/60">
+            <span className="flex items-center gap-2 text-xs text-ink/70">
               <span className="font-mono">{short(address)}</span>
-              <button onClick={() => disconnect()} className="font-bold text-ink/45 underline">
+              <button onClick={() => disconnect()} className="font-medium text-ink/70 underline">
                 Disconnect
               </button>
             </span>
@@ -182,7 +182,7 @@ export function BalanceSheet() {
             </Button>
             <OrDivider />
             <SignInWithCoinbaseWallet />
-            <p className="mt-2 text-xs text-ink/55">Any wallet works. $WORD lives on Base.</p>
+            <p className="mt-2 text-xs text-ink/70">Any wallet works. $WORD lives on Base.</p>
           </>
         )}
       </Card>
@@ -192,7 +192,7 @@ export function BalanceSheet() {
       {!g.state.chainBacked && (
         <button
           onClick={g.addDemoBalance}
-          className="mx-auto mt-3 flex items-center gap-1 text-xs font-bold text-ink/45 underline"
+          className="mx-auto mt-3 flex items-center gap-1 text-xs font-medium text-ink/70 underline"
         >
           <Plus /> add demo balance (practice)
         </button>

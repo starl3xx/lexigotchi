@@ -233,7 +233,7 @@ export function SwapCard() {
             { value: "sell", label: "Sell" },
           ]}
         />
-        <div className="flex items-center justify-between gap-2 text-xs font-bold text-ink/60">
+        <div className="flex items-center justify-between gap-2 text-xs font-medium text-ink/70">
           <span>{side === "buy" ? "Pay with" : "Receive"}</span>
           <Segmented
             className="w-40"
@@ -250,7 +250,7 @@ export function SwapCard() {
         </div>
 
         <label className="block">
-          <span className="flex items-center justify-between text-xs font-bold text-ink/60">
+          <span className="flex items-center justify-between text-xs font-medium text-ink/70">
             <span>You pay ({from === "WORD" ? "$WORD" : from})</span>
             {balance != null && (
               <button type="button" onClick={setMax} className="underline">
@@ -264,19 +264,19 @@ export function SwapCard() {
             placeholder="0.0"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-            className="mt-1 w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 font-display text-xl font-extrabold tabular-nums placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-candy"
+            className="mt-1 w-full rounded-xl border-[3px] border-ink bg-card px-3 py-2.5 fig text-xl placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
           />
         </label>
 
         <div className="rounded-xl border-2 border-dashed border-ink/25 px-3 py-2 text-sm">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-ink/60">You get about</span>
+            <span className="text-ink/70">You get about</span>
             <span className="fig text-lg">
               {out != null ? fmtAmount(to, out) : requoting ? "…" : "–"}
             </span>
           </div>
           {quote && out != null && (
-            <div className="mt-1 space-y-0.5 text-xs text-ink/60">
+            <div className="mt-1 space-y-0.5 text-xs text-ink/70">
               <div className="flex justify-between">
                 <span>At least, with {slippage / 100}% slippage</span>
                 <span className="fact">{fmtAmount(to, minOut(out, slippage))}</span>
@@ -291,7 +291,7 @@ export function SwapCard() {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs font-bold text-ink/60">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-ink/70">
           <span className="mr-1">Max slippage</span>
           {SLIPPAGES.map((bps) => (
             <button
@@ -314,7 +314,7 @@ export function SwapCard() {
         >
           {label}
         </Button>
-        <p className="text-xs text-ink/60">
+        <p className="text-xs text-ink/70">
           Swaps run on Base through KyberSwap’s router, which finds the best route to $WORD’s pool. The pool is
           small, so check the price impact on a large trade.
         </p>

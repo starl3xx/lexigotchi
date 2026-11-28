@@ -84,12 +84,12 @@ export function LetterOdds({
               </span>
               <span className="min-w-0 flex-1">
                 {gone ? (
-                  <span className="text-xs font-bold text-ink/55">Sold out</span>
+                  <span className="text-xs font-medium text-ink/70">Sold out</span>
                 ) : (
                   <>
                     {/* Scaled to the most common letter, with a floor so q's bar is still a bar. */}
                     <span aria-hidden className="block h-3 rounded-full border-2 border-ink bg-gold" style={{ width: `max(10px, ${(max > 0 ? p / max : 0) * 100}%)` }} />
-                    {low && <span className="mt-0.5 block text-xs font-bold leading-tight text-candy-ink">{left!.toLocaleString("en-US")} left</span>}
+                    {low && <span className="mt-0.5 block text-xs font-medium leading-tight text-candy-ink">{left!.toLocaleString("en-US")} left</span>}
                   </>
                 )}
               </span>
@@ -99,7 +99,7 @@ export function LetterOdds({
         })}
       </ul>
 
-      <div className="mt-2 space-y-1 text-xs text-ink/60">
+      <div className="mt-2 space-y-1 text-xs text-ink/70">
         {rarest >= 0 && (
           <p>
             About 1 pack in {Math.round(packsPer(odds[rarest])).toLocaleString("en-US")} has {article(ALPHABET[rarest])} {ALPHABET[rarest].toLowerCase()}.

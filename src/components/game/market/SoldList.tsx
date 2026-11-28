@@ -24,7 +24,7 @@ export function SoldList() {
   const openWord = useOpenWord();
   const sales = g.market.sales;
   if (sales.length === 0) {
-    return <p className="py-6 text-center text-sm text-ink/55">Nothing has sold yet. The first sale shows here.</p>;
+    return <p className="py-6 text-center text-sm text-ink/70">Nothing has sold yet. The first sale shows here.</p>;
   }
   return (
     <ul className="lg:grid lg:grid-cols-2 lg:gap-x-8">
@@ -39,10 +39,10 @@ export function SoldList() {
               ) : (
                 <SoldThing sale={s} />
               )}
-              {s.kind === "letter" && s.qty > 1 && <span className="text-sm text-ink/60">×{s.qty}</span>}
+              {s.kind === "letter" && s.qty > 1 && <span className="text-sm text-ink/70">×{s.qty}</span>}
               {s.kind === "word" && s.tier && <TierBadge tier={s.tier as Tier} />}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-ink/60">
+            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-ink/70">
               <PlayerChip address={s.seller} profile={g.market.faces[s.seller]} you={g.state.chainBacked && g.market.isMine(s.seller)} size={16} />
               <span>sold to</span>
               <PlayerChip address={s.buyer} profile={g.market.faces[s.buyer]} you={g.state.chainBacked && g.market.isMine(s.buyer)} size={16} />
@@ -50,15 +50,15 @@ export function SoldList() {
           </div>
           <div className="shrink-0 text-right">
             <div className="fig text-base leading-none">{fmtWord(s.price)}</div>
-            <div className="text-xs text-ink/55">
+            <div className="text-xs text-ink/70">
               {s.kind === "letter" && s.qty > 1 ? `${fmtWord(s.unitPrice)} each` : "$WORD"}
             </div>
             {/^0x[0-9a-f]{64}$/.test(s.tx) ? (
-              <button type="button" onClick={() => openUrl(explorerTx(s.tx))} className="text-xs text-ink/55 underline">
+              <button type="button" onClick={() => openUrl(explorerTx(s.tx))} className="text-xs text-ink/70 underline">
                 {timeAgo(s.at)}
               </button>
             ) : (
-              <div className="text-xs text-ink/55">{timeAgo(s.at)}</div>
+              <div className="text-xs text-ink/70">{timeAgo(s.at)}</div>
             )}
           </div>
         </li>

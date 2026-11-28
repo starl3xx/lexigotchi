@@ -42,7 +42,7 @@ export function AddAppSheet() {
           </p>
         </div>
 
-        {err && <p className="text-xs font-bold text-candy-ink">{err}</p>}
+        {err && <p className="text-xs font-medium text-candy-ink">{err}</p>}
 
         <div className="flex w-full flex-col items-center gap-2">
           <Button full size="lg" variant="primary" onClick={onAdd} disabled={adding || done || !inFarcaster}>
@@ -60,7 +60,7 @@ export function AddAppSheet() {
               </>
             )}
           </Button>
-          <button onClick={closeSheet} className="round-btn rounded-lg px-2 py-1 text-sm font-bold text-ink/45 hover:text-ink">
+          <button onClick={closeSheet} className="round-btn rounded-lg px-2 py-1 text-sm font-medium text-ink/70 hover:text-ink">
             Maybe later
           </button>
         </div>

@@ -188,13 +188,13 @@ export function ShareVideo({ word, text, scene, onMaking }: { word: OwnedWord; t
           <a
             href={made.url}
             download={`lexigotchi-${word.word.toLowerCase()}-${scene}.mp4`}
-            className={`cel-sm press flex items-center justify-center gap-1.5 rounded-xl bg-card px-3 py-2 text-sm font-bold ${canShareVideo() ? "" : "col-span-2"}`}
+            className={`cel-sm press flex items-center justify-center gap-1.5 rounded-xl bg-card px-3 py-2 text-sm font-extrabold ${canShareVideo() ? "" : "col-span-2"}`}
           >
             <DownloadSimple weight="bold" /> Save video
           </a>
         )}
       </div>
-      <p className="text-center text-xs text-ink/55">On X, add the video to your post: a link shows only a still.</p>
+      <p className="text-center text-xs text-ink/70">On X, add the video to your post: a link shows only a still.</p>
     </div>
   );
 }

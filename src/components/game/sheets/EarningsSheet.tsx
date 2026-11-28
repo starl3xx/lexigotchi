@@ -24,8 +24,8 @@ const STATUS: Record<EarningStatus["kind"], { label: (s: EarningStatus) => strin
   earning: { label: () => "earning", tone: "bg-gold/20 text-gold-ink" },
   half: { label: () => "sleepy: half", tone: "bg-gold/10 text-gold-ink" },
   paused: { label: () => "asleep: paused", tone: "bg-candy/10 text-candy-ink" },
-  unstaked: { label: () => "stake to earn", tone: "bg-card text-ink/60" },
-  raise: { label: (s) => (s.kind === "raise" ? `raise ${s.left} letter${s.left === 1 ? "" : "s"}` : ""), tone: "bg-card text-ink/60" },
+  unstaked: { label: () => "stake to earn", tone: "bg-card text-ink/70" },
+  raise: { label: (s) => (s.kind === "raise" ? `raise ${s.left} letter${s.left === 1 ? "" : "s"}` : ""), tone: "bg-card text-ink/70" },
 };
 
 /** Earning words first (biggest earners first), then the rest, best placed to earn first. */
@@ -56,9 +56,9 @@ export function EarningsSheet() {
   return (
     <Sheet open onClose={g.closeSheet} title="Your earnings">
       <Card tint="gold" className="text-center">
-        <div className="flex items-center justify-center gap-1.5 text-ink/60">
+        <div className="flex items-center justify-center gap-1.5 text-ink/70">
           <Coins weight="fill" />
-          <span className="text-sm font-bold">Earned by your words</span>
+          <span className="text-sm font-medium">Earned by your words</span>
         </div>
         {e ? (
           <>
@@ -66,7 +66,7 @@ export function EarningsSheet() {
               <TweenNumber value={e.total} format={fmtWord} />
             </div>
             {/* dollars hide on testnet, as everywhere (showsUsd): test $WORD isn't worth them */}
-            <div className="text-sm text-ink/60">{showsUsd(state) ? `${fmtUsd(e.total)} · $WORD` : state.chainBacked ? "test $WORD" : "$WORD"}</div>
+            <div className="text-sm text-ink/70">{showsUsd(state) ? `${fmtUsd(e.total)} · $WORD` : state.chainBacked ? "test $WORD" : "$WORD"}</div>
             <div className="mt-1 text-sm">
               {when && e.latest > 0 ? (
                 <>
@@ -74,19 +74,19 @@ export function EarningsSheet() {
                 </>
               ) : when ? (
                 // the latest payout paid other players' words, not these: say so, never "+0"
-                <span className="text-ink/60">Nothing earned {payoutPhrase(when)}</span>
+                <span className="text-ink/70">Nothing earned {payoutPhrase(when)}</span>
               ) : (
-                <span className="text-ink/60">No payouts yet</span>
+                <span className="text-ink/70">No payouts yet</span>
               )}
             </div>
           </>
         ) : (
-          <p aria-busy className="py-3 text-sm text-ink/60">
+          <p aria-busy className="py-3 text-sm text-ink/70">
             Adding up your earnings…
           </p>
         )}
       </Card>
-      <p className="mt-2 text-center text-xs text-ink/60">
+      <p className="mt-2 text-center text-xs text-ink/70">
         {state.chainBacked
           ? `Paid every day at ${payoutTimeLocal()} your time, straight to the wallet that holds each word. Nothing to collect.`
           : "In practice, your words are paid each time you skip to the next day."}
@@ -116,7 +116,7 @@ export function EarningsSheet() {
 
       <div className="mt-4 mb-2 font-display font-extrabold">Your words</div>
       {rows.length === 0 ? (
-        <p className="py-2 text-sm text-ink/60">Spell a word, raise all 5 letters to UPPERCASE, and stake it. Then it earns $WORD every day.</p>
+        <p className="py-2 text-sm text-ink/70">Spell a word, raise all 5 letters to UPPERCASE, and stake it. Then it earns $WORD every day.</p>
       ) : (
         <div className="space-y-2">
           {rows.map(({ w, s, earned }) => (
@@ -126,7 +126,7 @@ export function EarningsSheet() {
       )}
       {e && e.bounty > 0 && (
         <div className="cel-sm mt-2 flex items-center justify-between rounded-xl bg-card px-3 py-2 text-sm">
-          <span className="font-bold">Theme bounties</span>
+          <span className="font-medium">Theme bounties</span>
           <span className="fig text-gold-ink">{fmtWord(e.bounty)}</span>
         </div>
       )}
@@ -175,7 +175,7 @@ function ShareEarnings({ token, hero }: { token: string; hero: OwnedWord }) {
         <XLogo weight="bold" /> Post my earnings on X
       </Button>
       {/* The same wait as a word's card: X reads a new link before it shows the picture. */}
-      <p className="text-center text-xs text-ink/55">X adds the picture once it reads the link.</p>
+      <p className="text-center text-xs text-ink/70">X adds the picture once it reads the link.</p>
       <div className="grid grid-cols-2 gap-2">
         <Button variant="ghost" onClick={() => share({ text: words("fc"), embed: url })}>
           <ShareNetwork weight="fill" /> Cast
@@ -204,7 +204,7 @@ function WordRow({ word, status, total, latest, when }: { word: OwnedWord; statu
       <span className="text-right leading-tight">
         <span className="fig block">{total > 0 ? fmtWord(total) : "–"}</span>
         {latest > 0 && when && (
-          <span className="block text-xs font-bold text-gold-ink">
+          <span className="block text-xs font-medium text-gold-ink">
             +{fmtWord(latest)} {when}
           </span>
         )}

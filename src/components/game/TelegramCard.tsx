@@ -116,14 +116,14 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
   return (
     <Card className="mb-3">
       <div className="font-display font-extrabold">Telegram reminders</div>
-      <p className="mt-0.5 text-xs text-ink/60">The reminders you keep on under “What to tell me”, as a message from the Lexigotchi bot in Telegram.</p>
+      <p className="mt-0.5 text-xs text-ink/70">The reminders you keep on under “What to tell me”, as a message from the Lexigotchi bot in Telegram.</p>
 
       {linked ? (
         <div className="mt-2 flex items-center justify-between gap-2 text-sm">
           <span className="min-w-0 truncate">
-            Linked to <span className="font-bold">{linked.name}</span> on Telegram.
+            Linked to <span className="font-medium">{linked.name}</span> on Telegram.
           </span>
-          <button onClick={unlink} disabled={busy} className="shrink-0 text-xs font-bold text-ink/45 underline disabled:opacity-50">
+          <button onClick={unlink} disabled={busy} className="shrink-0 text-xs font-medium text-ink/70 underline disabled:opacity-50">
             Unlink
           </button>
         </div>
@@ -134,14 +134,14 @@ export function TelegramCard({ p }: { p: TelegramCardProfile }) {
           <Button size="sm" onClick={() => void openUrl(link.url)}>
             Open Telegram
           </Button>
-          <p className="text-xs text-ink/55">The link works once, for 15 minutes.</p>
+          <p className="text-xs text-ink/70">The link works once, for 15 minutes.</p>
         </div>
       ) : (
         <Button size="sm" variant="ghost" className="mt-2" onClick={start} disabled={busy || !p.address}>
           {busy ? "One moment…" : "Link Telegram"}
         </Button>
       )}
-      {note && <p className="mt-2 text-xs font-bold text-candy-ink">{note}</p>}
+      {note && <p className="mt-2 text-xs font-medium text-candy-ink">{note}</p>}
     </Card>
   );
 }

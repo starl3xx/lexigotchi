@@ -77,7 +77,7 @@ export function WalletNetworkNotice() {
       <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
         <Warning weight="fill" className="text-candy-ink" /> Your wallet is on {walletNetworkName(from)}
       </div>
-      <p className="text-ink/75">
+      <p className="text-ink/70">
         {why === "declined" ? (
           <>You said no in your wallet. Tap Switch to try again.</>
         ) : why === "unavailable" ? (

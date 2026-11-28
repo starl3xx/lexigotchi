@@ -28,7 +28,7 @@ export function EarningsLine({ onDark = false }: { onDark?: boolean }) {
         {text.amount && <strong className={onDark ? "text-gold" : "text-gold-ink"}>{text.amount}</strong>}
         {text.rest}
       </span>
-      <CaretRight weight="bold" size={14} className={`shrink-0 ${onDark ? "text-paper/60" : "text-ink/45"}`} />
+      <CaretRight weight="bold" size={14} className={`shrink-0 ${onDark ? "text-paper/70" : "text-ink/40"}`} />
     </button>
   );
 }

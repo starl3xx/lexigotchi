@@ -62,7 +62,7 @@ export function LettersBoard({
 
   return (
     <div>
-      <p className="mb-2 text-sm text-ink/60">
+      <p className="mb-2 text-sm text-ink/70">
         {g.market.loading
           ? "Reading the shelf…"
           : forSale === 0
@@ -91,7 +91,7 @@ export function LettersBoard({
               <span className="relative">
                 <LetterTile char={upperOnly ? ch : ch.toLowerCase()} upper={upperOnly} size={38} dim={s.lowest === undefined} />
                 {finishes && s.lowest !== undefined && (
-                  <span aria-hidden className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full border-2 border-ink bg-candy text-[9px] font-extrabold leading-none text-paper">
+                  <span aria-hidden className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full border-2 border-ink bg-candy text-[9px] font-medium leading-none text-paper">
                     !
                   </span>
                 )}
@@ -170,7 +170,7 @@ function Counter({
             </h3>
             {first && need && finishes && (
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                <span className="font-bold text-candy-ink">
+                <span className="font-medium text-candy-ink">
                   {/* "one more" only when the player holds one already (a doubled letter) */}
                   <NeedText tokens={finishTokens(ch.toLowerCase(), heldLower + heldUpper > 0, first)} />
                 </span>
@@ -178,7 +178,7 @@ function Counter({
                   <MiniTiles word={first} upper={need.upper} letters={need.letters} tier={tierOf(first)} />
                 </button>
                 {finishes.length > 1 && (
-                  <button type="button" className="font-bold text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${ch.toLowerCase()}`)}>
+                  <button type="button" className="font-medium text-teal-ink underline" onClick={() => g.nav("dictionary", `needs:${ch.toLowerCase()}`)}>
                     and {(finishes.length - 1).toLocaleString("en-US")} more word{finishes.length === 2 ? "" : "s"}
                   </button>
                 )}
@@ -186,7 +186,7 @@ function Counter({
             )}
           </div>
         </div>
-        <button type="button" onClick={onClose} className="shrink-0 text-xs font-bold text-ink/45 underline">
+        <button type="button" onClick={onClose} className="shrink-0 text-xs font-medium text-ink/70 underline">
           Close
         </button>
       </div>
@@ -195,11 +195,11 @@ function Counter({
       <Asks letterId={index + 26} book={upper} />
 
       {(heldLower > 0 || heldUpper > 0) && (
-        <p className="mt-3 border-t-2 border-dashed border-ink/20 pt-2 text-xs text-ink/60">
+        <p className="mt-3 border-t-2 border-dashed border-ink/20 pt-2 text-xs text-ink/70">
           You hold {heldLower > 0 && `${heldLower} × ${ch.toLowerCase()}`}
           {heldLower > 0 && heldUpper > 0 && " and "}
           {heldUpper > 0 && `${heldUpper} × ${ch}`}.{" "}
-          <button type="button" className="font-bold text-teal-ink underline" onClick={() => onSell(heldLower > 0 ? index : index + 26)}>
+          <button type="button" className="font-medium text-teal-ink underline" onClick={() => onSell(heldLower > 0 ? index : index + 26)}>
             Sell some
           </button>
         </p>
@@ -225,7 +225,7 @@ function Asks({ letterId, book }: { letterId: number; book?: LetterBook }) {
     <div className="mt-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b-2 border-ink pb-1">
         <h4 className="font-display text-sm font-extrabold">{isUpperId(letterId) ? `UPPERCASE ${letterLabel(letterId)}` : `lowercase ${letterLabel(letterId)}`}</h4>
-        <span className="text-xs text-ink/60">
+        <span className="text-xs text-ink/70">
           About {fmtWord(make)} to make{stat ? `. Last sold for ${fmtWord(stat.last)}, ${timeAgo(stat.lastAt)}` : ""}.
         </span>
       </div>
@@ -238,7 +238,7 @@ function Asks({ letterId, book }: { letterId: number; book?: LetterBook }) {
         <button
           type="button"
           disabled={loading}
-          className="mt-1 text-xs font-bold text-teal-ink underline disabled:text-ink/40"
+          className="mt-1 text-xs font-medium text-teal-ink underline disabled:text-ink/40"
           onClick={async () => {
             setLoading(true);
             const page = await g.market.moreAsks(letterId, extra?.next ?? book.asks.length);
@@ -264,27 +264,27 @@ function AskRow({ ask, make, best, amount }: { ask: LetterAsk; make: number; bes
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="fig text-base">{fmtWord(ask.unitPrice)}</span>
-          <span className="text-xs text-ink/60">$WORD each</span>
-          {best && <span className="rounded-full bg-teal/25 px-2 py-0.5 text-xs font-extrabold text-teal-ink">Lowest</span>}
+          <span className="text-xs text-ink/70">$WORD each</span>
+          {best && <span className="rounded-full bg-teal/25 px-2 py-0.5 text-xs font-medium text-teal-ink">Lowest</span>}
           {mine && <Pill className="bg-gold/30">Yours</Pill>}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink/60">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink/70">
           <span>{ask.available} for sale</span>
           <Versus price={ask.unitPrice} reference={make} />
         </div>
         {!mine && (
-          <span className="mt-1 block text-xs text-ink/60">
+          <span className="mt-1 block text-xs text-ink/70">
             <PlayerChip address={ask.maker} profile={g.market.faces[ask.maker]} size={18} />
           </span>
         )}
       </div>
       {mine ? (
         g.market.isHere(ask.maker) ? (
-          <button type="button" onClick={() => g.market.cancelLetterListing(ask.orderHash)} className="shrink-0 text-xs font-bold text-ink/55 underline">
+          <button type="button" onClick={() => g.market.cancelLetterListing(ask.orderHash)} className="shrink-0 text-xs font-medium text-ink/70 underline">
             Take off sale
           </button>
         ) : (
-          <span className="shrink-0 text-right text-xs leading-tight text-ink/55">From another of your wallets.</span>
+          <span className="shrink-0 text-right text-xs leading-tight text-ink/70">From another of your wallets.</span>
         )
       ) : (
         <div className="flex shrink-0 items-center gap-2">

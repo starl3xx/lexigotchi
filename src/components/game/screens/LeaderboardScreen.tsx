@@ -49,33 +49,33 @@ export function LeaderboardScreen() {
           </button>
         ))}
       </div>
-      <p className="text-xs text-ink/55">{meta.blurb} Updated every minute.</p>
+      <p className="text-xs text-ink/70">{meta.blurb} Updated every minute.</p>
 
       <Card className="p-0">
         {world.isLoading ? (
-          <p className="p-6 text-center text-sm text-ink/55">Loading the leaderboard…</p>
+          <p className="p-6 text-center text-sm text-ink/70">Loading the leaderboard…</p>
         ) : world.isError ? (
-          <p className="p-6 text-center text-sm text-ink/55">The leaderboard couldn’t load. Try again in a minute.</p>
+          <p className="p-6 text-center text-sm text-ink/70">The leaderboard couldn’t load. Try again in a minute.</p>
         ) : rows.length === 0 ? (
-          <p className="p-6 text-center text-sm text-ink/55">Nobody’s on this board yet. You could be first.</p>
+          <p className="p-6 text-center text-sm text-ink/70">Nobody’s on this board yet. You could be first.</p>
         ) : (
           <ol className="divide-y-2 divide-ink/10">
             {rows.map((r, i) => {
               const you = mine.has(r.address);
               return (
                 <li key={r.address} className={`flex items-center gap-3 px-3 py-2.5 text-sm ${you ? "bg-teal/10" : ""}`}>
-                  <span className={`fig w-6 shrink-0 text-center ${i < 3 ? "text-gold-ink" : "text-ink/45"}`}>
+                  <span className={`fig w-6 shrink-0 text-center ${i < 3 ? "text-gold-ink" : "text-ink/70"}`}>
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
                     <PlayerChip address={r.address} profile={profiles[r.address]} you={you} />
-                    {r.wallets ? <span className="mt-0.5 block text-[11px] text-ink/50">{r.wallets} linked wallets</span> : null}
+                    {r.wallets ? <span className="mt-0.5 block text-xs text-ink/70">{r.wallets} linked wallets</span> : null}
                   </span>
                   <span className="shrink-0 text-right tabular-nums">
                     <span className="fig">{r.value.toLocaleString("en-US")}</span>{" "}
-                    <span className="text-xs text-ink/55">{meta.unit(r.value)}</span>
+                    <span className="text-xs text-ink/70">{meta.unit(r.value)}</span>
                     {board === "wins" && r.amount ? (
-                      <span className="block text-xs text-ink/60">{fmtWord(r.amount)} $WORD</span>
+                      <span className="block text-xs text-ink/70">{fmtWord(r.amount)} $WORD</span>
                     ) : null}
                   </span>
                 </li>

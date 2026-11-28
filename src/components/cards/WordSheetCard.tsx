@@ -115,7 +115,7 @@ function ShareWord({ word, onMaking }: { word: OwnedWord; onMaking: (making: boo
       </Button>
       {/* X's composer shows no card for a link it hasn't read yet, and each new word or scene is a
           new link: the card comes once X has read it (tested 2026-11-24, even with a fast image). */}
-      <p className="text-center text-xs text-ink/55">X adds the picture once it reads the link.</p>
+      <p className="text-center text-xs text-ink/70">X adds the picture once it reads the link.</p>
       <div className="grid grid-cols-2 gap-2">
         <Button variant="ghost" onClick={() => share({ text: showcasePostText(text), embed: showcaseUrl(text, scene, word.prestigeLevel) })}>
           <ShareNetwork weight="fill" /> Cast
@@ -166,7 +166,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
     }
   };
   const spinner = (target: string) => busy === target && <CircleNotch className="animate-spin" />;
-  const signInFirst = !profile.signedIn && <p className="text-center text-xs text-ink/55">Your wallet asks you to sign in first.</p>;
+  const signInFirst = !profile.signedIn && <p className="text-center text-xs text-ink/70">Your wallet asks you to sign in first.</p>;
   const shopButton = (label: string, variant: "primary" | "ghost") =>
     cases.onSale && (
       <Button full variant={variant} onClick={() => g.nav("shop", "accessories")}>
@@ -178,7 +178,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
     <div className="space-y-2 rounded-2xl border-2 border-ink bg-card p-2.5 text-sm">
       {offer.kind === "cased" && (
         <>
-          <p className="text-center text-ink/75">{W} is in a case. Drag the case to turn it.</p>
+          <p className="text-center text-ink/70">{W} is in a case. Drag the case to turn it.</p>
           <Button full variant="ghost" disabled={busy !== null} onClick={() => void act(W, false)}>
             {spinner(W)} Take {W} out
           </Button>
@@ -187,7 +187,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
       )}
       {offer.kind === "put" && (
         <>
-          <p className="text-center text-ink/75">{offer.free === 1 ? "You have a case free." : `You have ${offer.free} cases free.`} One case holds one word.</p>
+          <p className="text-center text-ink/70">{offer.free === 1 ? "You have a case free." : `You have ${offer.free} cases free.`} One case holds one word.</p>
           <Button full variant="teal" disabled={busy !== null} onClick={() => void act(W, true)}>
             {spinner(W)} Put {W} in a case
           </Button>
@@ -196,7 +196,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
       )}
       {offer.kind === "full" && (
         <>
-          <p className="text-center text-ink/75">
+          <p className="text-center text-ink/70">
             {offer.holding.length === 1 ? `Your case holds ${offer.holding[0]}.` : `Your cases hold ${listWords(offer.holding)}.`} Take a word out to use its case here.
           </p>
           {offer.holding.map((w) => (
@@ -210,7 +210,7 @@ function CasePanel({ word, cases, offer }: { word: OwnedWord; cases: WordCases; 
       )}
       {offer.kind === "buy" && (
         <>
-          <p className="text-center text-ink/75">A clear case for a word’s card, with a label of its own. One case holds one word.</p>
+          <p className="text-center text-ink/70">A clear case for a word’s card, with a label of its own. One case holds one word.</p>
           {shopButton("Get a case", "primary")}
         </>
       )}
