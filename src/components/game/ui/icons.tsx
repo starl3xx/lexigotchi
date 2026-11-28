@@ -33,8 +33,7 @@ export {
   SmileyXEyes,
   SmileySad,
   Package,
-  Star,
-  Crown,
+  // No Star and no Crown: the game draws its own (EngravedMark; decisions.md #66, part 2).
   Ranking,
   Planet,
   Confetti,

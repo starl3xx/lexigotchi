@@ -1590,7 +1590,18 @@ bot posts). The hard rules:
   another. A box that belongs to one of the meanings takes a `<Card tint="gold" | "teal" |
   "candy">` (`wash` in tailwind.config.ts: the hue thinned into the card's own colour, a SOLID
   colour that takes the place of `bg-card`). Gold is 15% and no more, because `gold.deep` display
-  numbers stand on it. `tests/flat-tints.test.ts` holds it. **After changing tailwind.config.ts,
+  numbers stand on it. `tests/flat-tints.test.ts` holds it. **The star, the crown, and the
+  twinkle are the game's own** (part 2; `lib/engravedMark`, `components/game/EngravedMark`): an
+  ink outline, one flat gold fill, and ruled shade lines from 20 px (a line is never finer than a
+  pixel on the screen, so a smaller mark is its outline and its fill). The star is ascension, the
+  crown a raised letter, the twinkle "new". The game's icon set has NO Star and NO Crown: draw
+  `<EngravedMark kind size>`, with `earned={false}` for a stage not yet reached. The bought
+  sparkle is left only where it means Mint, and the bought confetti only in the "Wake them every
+  day" step picture: both wait for the owner (the audit's parts 5 and 6, and 5F or 5G), and
+  `tests/engraved-marks.test.tsx` lists the files. The jackpot has no burst: the winner's card
+  cheers with the letters' own engraved confetti. **When a mark is proposed large, draw it at
+  every size the game shows it before building** (the twinkle was shown at 52 px and is used at
+  13). **After changing tailwind.config.ts,
   touch `src/app/globals.css`:** a running dev server kept serving the old stylesheet (the new
   classes painted nothing), through a restart too.
 - **The game's visual system (UI proposal, Nov 2026).** One meaning per color: teal = grow and care

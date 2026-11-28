@@ -25,7 +25,8 @@ import { Button, Card, EmptyState, Pill, SectionTitle, TierBadge, Segmented } fr
 import { TierMark } from "../TierMark";
 import { useWorld } from "../useWorld";
 import { LetterTile, WordTiles } from "../LetterTile";
-import { Basket, Sparkle } from "../ui/icons";
+import { Basket } from "../ui/icons";
+import { EngravedMark } from "../EngravedMark";
 import { anagramsOf, canSpell, charToIdx, claimCase, fmtUsd, fmtWord, idxToChar, mineLower, mineUpper, showsUsd, spellableNow, useGame } from "../state";
 import { takeQueuedSpell } from "../spellHandoff";
 import { useDictionary } from "../useDictionary";
@@ -243,7 +244,7 @@ export function ClaimScreen() {
                   >
                     {ownersKnown ? (
                       <>
-                        Claim {w} <Sparkle weight="fill" size={13} />
+                        Claim {w} <EngravedMark kind="twinkle" size={14} />
                       </>
                     ) : (
                       `${w}: ${ownerWait.toLowerCase()}`

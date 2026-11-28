@@ -76,8 +76,9 @@ describe("a tile's size never changes in an animation", () => {
     walk(join(process.cwd(), "src/components"));
     walk(join(process.cwd(), "src/app"));
     const users = files.filter((f) => /\banimate-pop\b/.test(readFileSync(f, "utf8"))).map((f) => f.replace(process.cwd() + "/", ""));
-    // a toast, and the Jackpot's confetti icon: neither is a letter, a word, or a card
-    expect(users.sort()).toEqual(["src/components/game/primitives.tsx", "src/components/game/screens/JackpotScreen.tsx"]);
+    // a toast: not a letter, a word, or a card. (The Jackpot's confetti icon popped too, until the
+    // letters' own engraved confetti took its place: decisions.md #66, part 2.)
+    expect(users.sort()).toEqual(["src/components/game/primitives.tsx"]);
   });
 
   it("a press pushes a letter or a word down, and never squashes it", () => {

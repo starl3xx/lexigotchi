@@ -10,7 +10,8 @@ import { markInput, moodOfWord, stageMarks } from "../stageMarks";
 import { useForSale } from "../useForSale";
 import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
 import { WordSheetCard } from "../../cards/WordSheetCard";
-import { CaretRight, Check, Coins, Alarm, Crown, Star } from "../ui/icons";
+import { CaretRight, Check, Coins, Alarm } from "../ui/icons";
+import { EngravedMark } from "../EngravedMark";
 import { promptAccountSwitch } from "../walletSwitch";
 import { stageName } from "@/lib/ascension";
 import { MISS_POINTS, STAGE_SHARE } from "@/lib/howItWorks";
@@ -192,7 +193,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
         </div>
         {fullyRaised ? (
           <div className="flex items-center justify-center gap-1 rounded-xl bg-gold/15 py-2 text-center text-sm font-bold text-gold-ink">
-            Fully raised <Crown weight="fill" />
+            Fully raised <EngravedMark kind="crown" size={16} className="text-ink" />
           </div>
         ) : (
           <div className="flex items-center justify-center gap-1.5">
@@ -221,7 +222,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1 font-display font-extrabold">
-                Ascend <Star weight="fill" size={14} className="text-gold-ink" />
+                Ascend <EngravedMark kind="star" size={15} />
               </div>
               <div className="text-xs text-ink/55">
                 {atTop

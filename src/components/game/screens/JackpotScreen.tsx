@@ -12,7 +12,8 @@
  */
 import type { ReactNode } from "react";
 import { Button, Card, Countdown, SectionTitle, TweenNumber } from "../primitives";
-import { Confetti, DiceFive, Gift, SmileyMeh, Star } from "../ui/icons";
+import { DiceFive, Gift, SmileyMeh } from "../ui/icons";
+import { EngravedMark } from "../EngravedMark";
 import { fmtWord, hunger, jackpotEligible, useGame, type OwnedWord } from "../state";
 import { BountySection } from "./BountySection";
 import { FaceDownCard } from "../../cards/FaceDownCard";
@@ -85,7 +86,8 @@ export function JackpotScreen() {
             </>
           ) : won ? (
             <div className="py-2">
-              <Confetti weight="fill" size={48} className="mx-auto animate-pop text-gold-ink" />
+              {/* No burst here: the winner's card is under these words, and its letters cheer with
+                  their own engraved confetti (decisions.md #66, part 2). It was a bought icon that popped. */}
               <div className="font-display text-3xl font-extrabold text-gold-deep">JACKPOT!</div>
               <p className="text-sm text-ink/70">
                 You held <strong>{state.jackpotWord}</strong>, staked &amp; awake. The pot is yours.
@@ -160,7 +162,7 @@ export function JackpotScreen() {
                 key={w}
                 className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-card px-2 py-1 font-display text-sm font-bold text-gold-ink"
               >
-                <Star weight="fill" size={12} /> {w}
+                <EngravedMark kind="star" size={13} className="text-ink" /> {w}
               </span>
             ))}
           </div>

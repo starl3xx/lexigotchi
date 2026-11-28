@@ -3825,6 +3825,47 @@ setter. All small, riding existing suite patterns.
         pre-launch card (that screen does not show in the practice game). **Not changed:**
         the washes inside drawings (a card's ribbon, the plastic case, the letters' own
         finishes) are not interface boxes.
+    - **Part 2, the star, the crown, and the twinkle are the game's own (2C).** The bought
+      set's star, crown, and sparkle were solid shapes with no ink line, from somewhere else.
+      The game draws its own now (`lib/engravedMark`, `components/game/EngravedMark`): an even
+      ink outline, one flat gold fill (the letters' own gold), and ruled lines for shade on the
+      side turned from the light. The twinkle is the four-point star the letters already wear
+      when gilded and throw as confetti.
+      - **What each means has not changed:** the star is ascension, the crown is a raised
+        letter, the twinkle is "new".
+      - **Where they stand:** a word's stage beside its name (the Bag, an opened word, the
+        Market's rows), the ascend sheet's ladder (a stage not yet reached is the outline
+        alone) and its result, "Ascend" in an opened word, "Fully raised" and "RAISED!", the
+        roll step in Today's next steps, the recent jackpot words, "Claim" on Spell, and
+        "Coming soon" before launch.
+      - **A line is never finer than a pixel on the screen.** So the shade lines show only
+        from 20 px, and the twinkle's four rays only from 28. Under that a mark is its outline
+        and its fill. The page showed the twinkle at 52 px only; in the game most are 12 to 16
+        px. I drew every size from 11 to 48 beside the bought ones before building, and made
+        the shapes fatter than first drawn, because at 12 px the outline was most of the mark.
+      - **The jackpot's burst is gone, and nothing took its place.** It was a bought confetti
+        icon that popped above "JACKPOT!". The winner's card is right under those words with
+        its letters cheering, and their confetti is already engraved: that is the
+        celebration. (The page said "falling behind the card". The letters throw it in front
+        of the card's face, inside the card, which is where it already was.)
+      - **Left as they are, each for a reason:** the bought sparkle where it means Mint (the
+        rail, the phone's tab, the quick grid, the "Mint" buttons, the "get letters" step, the
+        cheat sheet's first step), because Mint's own icon and whether a button has an icon at
+        all are the audit's parts 5 and 6, not answered yet; and the confetti and sparkle
+        round the trophy in the "Wake them every day" step picture (the intro and the landing
+        page), because that picture waits for his choice (5F or 5G). The operator console
+        keeps its own icons.
+      - **My reading, to say plainly:** the choice said "wherever they are decoration". I
+        replaced EVERY star and crown, the ones that are signs too (the ladder, the stage
+        beside a name), because two drawings of one star in one sheet read as a mistake. The
+        sparkle I replaced only where it was decoration.
+      - `tests/engraved-marks.test.tsx` holds the drawings (closed, inside their box, shade
+        lines inside the outline), the sizes, and the list of files that may still draw the
+        bought sparkle and confetti. The game's icon set no longer exports a star or a crown.
+      - **Seen** in the practice game: the Bag, an opened word, the ascend sheet with a hit,
+        a raised letter, and the recent jackpot words. **Not seen:** the pre-launch chip, the
+        "Claim" button's twinkle (no word was ready to claim), and the roll step's crown (none
+        was offered); all three are the same drawing at sizes I did see on the sheet.
 
 ## Pricing & launch economics (decided June 2026)
 
