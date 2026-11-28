@@ -156,6 +156,15 @@ The single value-bearing upgrade. Capitals are **raised, never pulled**.
     balance of one token on Base, read when the voucher is asked for. The rule adds to
     “verified”; it never replaces it. The wallet that claims must be the one on the list, or the
     one that holds the token. The Dictionary says who the day is open to.
+  - **Where a player meets a set** (decisions.md #62). The Dictionary’s Sets section lists every
+    set: what is open to claim first, then what is revealed, then old sets folded to their names.
+    **Today** has a Sets card while a set is news: revealed, in its first day, or unlocked in the
+    last 24 hours (where a network has no first day, that day of news is all an unlock gets). A
+    tap opens the Dictionary at its Sets section, and so does a tap on any of the three set
+    reminders (`/play?go=sets`). **A revealed word can be got ready for:** it opens its word
+    view, which counts the player’s letters against it, offers the ways to get what is missing,
+    and says which set it is in and when that unlocks. It can’t be spelled until the unlock. A
+    held-back word of a set nobody has seen still says only “not available yet”.
 - **Collab sets** (decisions.md #53, built in parts): a set made with a partner. It has exactly
   five words, the partner’s name and link, and a card look of its own (two colors and a stamp).
   Collab changes how the card looks, and its words are Legendary rarity from the set’s reveal (a

@@ -3,17 +3,19 @@
  * Where the player's things are, said only when it matters (lib/profile/gameWalletAdvice.ts): choose
  * a game wallet, move things to it, switch to it, or gather what other wallets still hold. Shown at
  * the top of Today and the Bag. Silent for a player with one wallet, or when everything is where
- * they play.
+ * they play. The × hides it on both screens until it names a wallet it didn't before
+ * (useHiddenWalletNotices, `adviceKeys`): the profile's Wallets card keeps every wallet's holdings and Move.
  */
 import { useAccount } from "wagmi";
 import { Button, Card } from "./primitives";
-import { Wallet } from "./ui/icons";
+import { Wallet, X } from "./ui/icons";
 import { useGame } from "./state";
 import { useViewer } from "./useViewer";
 import { useProfile } from "./useProfile";
 import { useWalletHoldings } from "./useWalletHoldings";
 import { promptAccountSwitch } from "./walletSwitch";
-import { gameWalletAdvice, holdingsText } from "@/lib/profile/gameWalletAdvice";
+import { hideWalletNotice, useHiddenWalletNotices } from "./useHiddenWalletNotices";
+import { adviceKeys, gameWalletAdvice, holdingsText, noticeHidden } from "@/lib/profile/gameWalletAdvice";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -23,12 +25,19 @@ export function GameWalletNotice() {
   const viewer = useViewer();
   const p = useProfile();
   const { wallets, holdings, gameWallet } = useWalletHoldings();
+  const hidden = useHiddenWalletNotices();
   if (!state.chainBacked) return null;
   const inHost = viewer.environment === "farcaster";
   // Stakers that named this wallet a caretaker: their staked words are cared for from here.
   const caretakerOf = new Set(state.words.filter((w) => w.care && w.holder).map((w) => w.holder!.toLowerCase()));
   const advice = gameWalletAdvice({ connected: address ?? null, gameWallet, wallets, holdings, inHost, caretakerOf });
   if (advice.kind === "none") return null;
+  const keys = adviceKeys(advice, address ?? null, wallets);
+  if (noticeHidden(hidden, keys)) return null;
+  const hide = () => {
+    hideWalletNotice(keys);
+    toast("Hidden. Your wallets stay in your profile.", "info");
+  };
 
   const makeThisGame = async () => {
     if (!address) return;
@@ -125,8 +134,19 @@ export function GameWalletNotice() {
 
   return (
     <Card className="border-gold bg-gold/10 text-sm lg:col-span-2">
-      <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
-        <Wallet weight="bold" /> {title}
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-1.5 font-display font-extrabold">
+          <Wallet weight="bold" className="shrink-0" /> {title}
+        </div>
+        <button
+          type="button"
+          onClick={hide}
+          aria-label="Hide this notice"
+          title="Hide"
+          className="hit-44 round-btn -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-card"
+        >
+          <X weight="bold" size={16} />
+        </button>
       </div>
       <div className="text-ink/75">{body}</div>
       {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}

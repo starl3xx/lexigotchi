@@ -28,7 +28,7 @@ const revealed = (releaseAt: string | null): PublicSet => ({
   firstDayLabel: null,
   releaseAt,
 });
-const released = (gateUntil: string | null, perPlayerLimit = 1): PublicSet => ({
+const released = (gateUntil: string | null, perPlayerLimit = 1, releasedAt: string | null = iso(NOW - H)): PublicSet => ({
   kind: "released",
   id: 3,
   name: "Garden",
@@ -36,7 +36,7 @@ const released = (gateUntil: string | null, perPlayerLimit = 1): PublicSet => ({
   collab: null,
   firstDay: "verified",
   firstDayLabel: null,
-  releasedAt: iso(NOW - H),
+  releasedAt,
   gateUntil,
   perPlayerLimit,
 });
@@ -153,13 +153,23 @@ describe("the Dictionary's Sets section", () => {
     expect(container.querySelectorAll("button")).toHaveLength(0); // nothing to open
   });
 
-  it("a revealed set shows its name, its words, and its countdown, and its words aren't buttons", async () => {
+  it("a revealed set shows its name, its words, and its countdown, and a word opens its view (to get ready for it)", async () => {
     sets.list = [revealed(iso(NOW + 26 * H))];
     const { container } = render(<SetsSection />);
     expect(screen.getByText("Kitchen")).toBeTruthy();
     expect(screen.getByText("Unlocks in 26 h 00 min")).toBeTruthy();
-    expect(screen.getByText("CRANE")).toBeTruthy();
-    expect(container.querySelectorAll("button")).toHaveLength(0); // not claimable yet: nothing to tap
+    // not claimable yet, and its dashed edge says so; a tap still opens the word
+    const word = screen.getByText("CRANE").closest("button")!;
+    expect(word.className).toContain("border-dashed");
+    expect(container.querySelectorAll("button")).toHaveLength(2);
+    fireEvent.click(word);
+    expect(sets.opened).toEqual(["CRANE"]);
+  });
+
+  it("the section is where a link to the sets lands", async () => {
+    sets.list = [revealed(iso(NOW + H))];
+    const { container } = render(<SetsSection />);
+    expect(container.querySelector("section[data-section='sets']")).toBeTruthy();
   });
 
   it("a released set in its first day says the rule, and its words open like any word", async () => {
@@ -177,11 +187,13 @@ describe("the Dictionary's Sets section", () => {
     sets.list = [{ ...revealed(iso(NOW + 26 * H)), collab: partner }, { ...released(iso(NOW - H)), collab: { ...partner, url: null } }];
     render(<SetsSection />);
     expect(screen.getAllByText(/A collaboration with/)).toHaveLength(2);
-    const link = screen.getAllByText("Test partner")[0].closest("a")!;
+    // The unlocked set is listed first (it is news, and its words can be claimed); it has no link.
+    const [plain, linked] = screen.getAllByText("Test partner");
+    expect(plain.closest("a")).toBeNull(); // no link: only the name
+    const link = linked.closest("a")!;
     expect(link.getAttribute("href")).toBe("https://partner.example/");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer nofollow"); // an outside link, opened apart from the game
     expect(link.getAttribute("target")).toBe("_blank");
-    expect(screen.getAllByText("Test partner")[1].closest("a")).toBeNull(); // no link: only the name
   });
 
   it("says who a first day with its own rule is open to: before the unlock, and during the day", async () => {
@@ -212,8 +224,28 @@ describe("the Dictionary's Sets section", () => {
     expect(screen.queryByText(/first day is open to/i)).toBeNull();
   });
 
-  it("after the first day it says nothing of the rule, and folds to its name", async () => {
-    sets.list = [released(iso(NOW - H))];
+  it("for a day after its unlock, with no first day running, it still shows its words (it is news)", async () => {
+    sets.list = [released(null), { ...released(iso(NOW - H), 1, iso(NOW - 7 * H)), id: 4, name: "Orchard", words: [{ word: "ABOUT", headliner: false }] }];
+    render(<SetsSection />);
+    expect(screen.getAllByText("Unlocked")).toHaveLength(2);
+    expect(screen.queryByText(/First day/)).toBeNull();
+    expect(screen.getByText("GRAPE")).toBeTruthy(); // unlocked an hour ago, on a network with no first day
+    expect(screen.getByText("ABOUT")).toBeTruthy(); // a short first day ended; unlocked seven hours ago
+    expect(screen.queryByText(/Show its/)).toBeNull();
+  });
+
+  it("what can be claimed comes before what is coming, and old news comes last", async () => {
+    sets.list = [
+      { ...released(null, 1, iso(NOW - 9 * 24 * H)), id: 5, name: "Attic" },
+      revealed(iso(NOW + H)),
+      released(null),
+    ];
+    const { container } = render(<SetsSection />);
+    expect([...container.querySelectorAll("h3")].map((h) => h.textContent)).toEqual(["Garden", "Kitchen", "Attic"]);
+  });
+
+  it("once it is old news it says nothing of the rule, and folds to its name", async () => {
+    sets.list = [released(iso(NOW - 2 * H), 1, iso(NOW - 26 * H))];
     render(<SetsSection />);
     expect(screen.getByText("Unlocked")).toBeTruthy();
     expect(screen.queryByText(/First day/)).toBeNull();

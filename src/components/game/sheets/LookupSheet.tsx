@@ -17,6 +17,10 @@
  *   connected wallet (the Dictionary is public), nor on the player's own listing.
  * - **Its links land on the thing they name:** "Find a q in the Market" opens the Letters shelf at
  *   q, and a word for sale opens the Market on Words (`nav` with a section, state.tsx).
+ * - **A word of a revealed set can be got ready for** (decisions.md, "A set's moments in the
+ *   game"): it can't be claimed until its set unlocks, so there is no Spell here, but the view
+ *   counts the player's letters against it, offers the ways to get what's missing, and says which
+ *   set it is in and when that unlocks. A held word of a set nobody has seen says only "not yet".
  * The player's own words never open here: they open their card (sheets/WordSheet).
  */
 import { useMemo, type ReactNode } from "react";
@@ -37,6 +41,8 @@ import { useWorld } from "../useWorld";
 import { useDictionary } from "../useDictionary";
 import { useLetterSupply } from "../useLetterSupply";
 import { queueSpell } from "../spellHandoff";
+import { aheadLine, revealedSetOf } from "../sets";
+import { useMinuteClock, useSets } from "../useSets";
 import { THEMES, fmtWord, useGame } from "../state";
 import { aTierWord, claimLadderLive } from "@/lib/claimFee";
 import { useTierOf } from "../useRarity";
@@ -63,11 +69,17 @@ export function LookupSheet({ word }: { word: string }) {
   // a word on the board is its seller's, whatever the minute-old world read says (useDictionary)
   const holder = d.holderOf(word);
   const open = status === "open";
+  // A held word of a REVEALED set (decisions.md, "A set's moments in the game"): it can't be
+  // claimed yet, but its set is public, so the view counts the player's letters against it and they
+  // can get ready. A held word of a set nobody has seen names no set, and stays a plain "not yet".
+  const sets = useSets();
+  const now = useMinuteClock();
+  const ahead = status === "held" ? revealedSetOf(sets.sets, word) : null;
 
   const need = useMemo(() => wordNeed(word, d.here, d.all), [word, d.here, d.all]);
   const parts = useMemo(() => needParts(need, word), [need, word]);
   const canSpell = open && d.hasLetters && need.missing.length === 0 && need.away.length === 0;
-  const counting = open && d.hasLetters; // the player's letters are counted against this word
+  const counting = (open || ahead !== null) && d.hasLetters; // the player's letters are counted against this word
   const supply = useLetterSupply(counting && parts.length > 0);
 
   // unclaimed words the same letter would also finish, rarest first (one pass over the dictionary)
@@ -126,6 +138,11 @@ export function LookupSheet({ word }: { word: string }) {
         .
       </>
     ) : null;
+  } else if (ahead) {
+    // In a revealed set: what the player needs for it (never "spell it": that waits for the unlock),
+    // then the set and its countdown.
+    lead = d.hasLetters ? <NeedText tokens={needTokens(need, word, "lead")} /> : `${word} isn’t available yet.`;
+    sub = aheadLine(word, ahead, now);
   } else if (status === "held") {
     // Held back in a set that hasn't unlocked: a plain "not yet", and nothing to do about it here.
     lead = `${word} isn’t available yet.`;
@@ -150,6 +167,9 @@ export function LookupSheet({ word }: { word: string }) {
         ? `${words[0]} is still unclaimed, and you’re one ${letter} away.`
         : `${nameList(words)} are still unclaimed, and each needs only ${article(letter)} ${letter}.`;
   }
+
+  // For a word of a revealed set: what the player holds of it, and what else the letter would finish.
+  if (ahead && d.hasLetters) instead = needNote(need, word, also) || null;
 
   // ── what to do about it ──────────────────────────────────────────────────────────────────────
   // A letter the chain says is minted out can't come from a pack. Unknown (practice, or the read
@@ -264,7 +284,7 @@ export function LookupSheet({ word }: { word: string }) {
             </Button>
           </Action>
         )}
-        {open && !d.hasLetters && (
+        {(open || ahead !== null) && !d.hasLetters && (
           <Button full variant="primary" onClick={() => go("mint")}>
             Get letters
           </Button>
@@ -308,8 +328,9 @@ export function LookupSheet({ word }: { word: string }) {
         ) : null}
         <Fact label="Points">{wordPoints(word)}</Fact>
         {open && <Fact label="Owner">Nobody yet</Fact>}
+        {ahead && <Fact label="Set">{ahead.name}</Fact>}
         {/* The claim fee for THIS word, by its tier (decisions.md #60). */}
-        {open && (
+        {(open || ahead !== null) && (
           <Fact label="To claim">
             {fmtWord(g.claimFee(word))} $WORD{claimLadderLive() ? ` (${aTierWord(tier)})` : ""}
           </Fact>

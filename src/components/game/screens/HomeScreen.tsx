@@ -31,6 +31,7 @@ import { WalletMismatch } from "../WalletMismatch";
 import { NextSteps } from "../NextSteps";
 import { TodayStage } from "../TodayStage";
 import { TodayLetters } from "../TodayLetters";
+import { TodaySets } from "../TodaySets";
 import { GameWalletNotice } from "../GameWalletNotice";
 import { useWide } from "../useWide";
 
@@ -49,6 +50,10 @@ export function HomeScreen() {
       {/* a paid pull whose reveal never landed: recover it before offering anything new */}
       <div className="empty:hidden lg:col-span-2">
         <PendingReveal />
+      </div>
+      {/* a set that is news: coming, just unlocked, or in its first day (TodaySets) */}
+      <div className="empty:hidden lg:col-span-2">
+        <TodaySets />
       </div>
     </>
   );
