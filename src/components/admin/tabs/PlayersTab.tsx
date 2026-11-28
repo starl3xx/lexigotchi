@@ -1,20 +1,24 @@
 "use client";
 /**
- * Players — every wallet the game has seen, and how far each one got. Live: the contracts' events,
+ * Players — every player the game has seen (linked wallets are one player), and how far each got. Live: the contracts' events,
  * what each wallet holds now, and the database's sightings, profiles, and reminders
  * (lib/admin/playersData.ts). Gated on the server (useAdminApi), because it says who visited and when.
  *
  * The team's own wallets (the console's allowlist, the registry's roles, the server's keys) are
  * marked and left out of every count, so the numbers are testers only.
+ *
+ * Linked accounts, reminder channels, and reminder choices are per PLAYER (PlayerReach.tsx), never
+ * in the wallet table: they belong to the account, so a linked wallet's row would disagree.
  */
 import { useMemo, useState } from "react";
 import type { PlayersPayload } from "@/lib/admin/playersData";
-import type { Funnel, PlayerRow } from "@/lib/admin/playerRows";
+import type { Funnel, PlayerGroup } from "@/lib/admin/playerRows";
 import { basescanAddress, fmtNum, shortAddr } from "@/lib/admin/format";
 import { useAdminApi } from "../useAdminApi";
 import { GatedState } from "../GatedState";
 import { AdminCard, Banner, ErrorState, MetricCard, RefreshButton, SectionLabel, Spinner, StatusBadge, Toggle } from "../ui";
 import { Info, Plugs, TelegramLogo, Users, UserList, Warning } from "../icons";
+import { PlayerReach } from "./PlayerReach";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -55,8 +59,8 @@ export function PlayersTab() {
   const api = useAdminApi<PlayersPayload>("/api/admin/players");
   const [showTeam, setShowTeam] = useState(false);
   const data = api.data;
-  const rows = useMemo(() => (data?.rows ?? []).filter((r) => showTeam || !r.operator), [data, showTeam]);
-  const teamCount = data?.rows.filter((r) => r.operator).length ?? 0;
+  const players = useMemo(() => (data?.players ?? []).filter((p) => showTeam || !p.operator), [data, showTeam]);
+  const teamCount = data?.players.filter((p) => p.operator).length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -66,7 +70,10 @@ export function PlayersTab() {
           <h2 className="font-display text-lg font-extrabold">Players</h2>
           {data && <span className="text-xs text-ink/50">as of {whenUtc(new Date(data.at).toISOString())} · {data.network.name}</span>}
         </div>
-        <RefreshButton onClick={() => api.reload(true)} loading={api.loading} />
+        <div className="flex flex-wrap items-center gap-3">
+          {teamCount > 0 && <Toggle checked={showTeam} onChange={setShowTeam} label={`Show the team (${teamCount})`} />}
+          <RefreshButton onClick={() => api.reload(true)} loading={api.loading} />
+        </div>
       </div>
 
       {api.refusal ? (
@@ -87,7 +94,7 @@ export function PlayersTab() {
           <SourceBanners data={data} />
 
           <section>
-            <SectionLabel>Testers · the team&apos;s own wallets left out</SectionLabel>
+            <SectionLabel>Testers · counted by player (linked wallets are one) · the team left out</SectionLabel>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <MetricCard
                 icon={<TelegramLogo weight="bold" size={14} />}
@@ -98,9 +105,9 @@ export function PlayersTab() {
               />
               <MetricCard
                 icon={<Users weight="bold" size={14} />}
-                label="Wallets"
+                label="Players"
                 value={fmtNum(data.funnel.any)}
-                sub={`${data.newWallets.day} new today · ${data.newWallets.week} this week`}
+                sub={`${fmtNum(data.wallets)} wallets · ${data.newPlayers.day} new today · ${data.newPlayers.week} this week`}
               />
               <MetricCard
                 icon={<Plugs weight="bold" size={14} />}
@@ -119,14 +126,13 @@ export function PlayersTab() {
 
           <FunnelCard funnel={data.funnel} testnet={data.network.isTestnet} sightingsOk={data.sources.sightings === "ok"} />
 
+          {data.reach && <PlayerReach reach={data.reach} showTeam={showTeam} farcasterUsers={data.farcaster?.users ?? null} />}
+
           <section className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <SectionLabel>
-                Every wallet · {fmtNum(rows.length)} shown · most recent first
-              </SectionLabel>
-              {teamCount > 0 && <Toggle checked={showTeam} onChange={setShowTeam} label={`Show the team’s wallets (${teamCount})`} />}
-            </div>
-            <PlayerTable rows={rows} now={data.at} testnet={data.network.isTestnet} />
+            <SectionLabel>
+              Every player · {fmtNum(players.length)} shown · most recent first
+            </SectionLabel>
+            <PlayerTable rows={players} now={data.at} testnet={data.network.isTestnet} />
           </section>
         </>
       ) : null}
@@ -168,7 +174,7 @@ function FunnelCard({ funnel, testnet, sightingsOk }: { funnel: Funnel; testnet:
   const top = Math.max(1, funnel.any);
   const steps = FUNNEL_STEPS.filter((s) => !s.testnetOnly || testnet).filter((s) => s.key !== "seen" || sightingsOk);
   return (
-    <AdminCard title={`How far testers got · of ${fmtNum(funnel.any)} wallets`}>
+    <AdminCard title={`How far testers got · of ${fmtNum(funnel.any)} players`}>
       <div className="space-y-1.5">
         {steps.map((s) => {
           const n = funnel[s.key];
@@ -202,7 +208,7 @@ function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: 
   );
 }
 
-function didChips(r: PlayerRow, testnet: boolean) {
+function didChips(r: PlayerGroup, testnet: boolean) {
   const out: { k: string; label: string; warn?: boolean }[] = [];
   if (testnet && r.faucet) out.push({ k: "faucet", label: `faucet ×${r.faucet}` });
   if (r.dailies) out.push({ k: "dailies", label: `daily ×${r.dailies}` });
@@ -216,11 +222,11 @@ function didChips(r: PlayerRow, testnet: boolean) {
   return out;
 }
 
-function PlayerTable({ rows, now, testnet }: { rows: PlayerRow[]; now: number; testnet: boolean }) {
+function PlayerTable({ rows, now, testnet }: { rows: PlayerGroup[]; now: number; testnet: boolean }) {
   if (rows.length === 0) {
     return (
       <AdminCard>
-        <p className="text-sm text-ink/60">No wallets yet.</p>
+        <p className="text-sm text-ink/60">No players yet.</p>
       </AdminCard>
     );
   }
@@ -234,7 +240,6 @@ function PlayerTable({ rows, now, testnet }: { rows: PlayerRow[]; now: number; t
             <th className="px-3 py-2 font-bold">Last seen</th>
             <th className="px-3 py-2 font-bold">Did</th>
             <th className="px-3 py-2 font-bold">Holds now</th>
-            <th className="px-3 py-2 font-bold">Profile</th>
           </tr>
         </thead>
         <tbody>
@@ -252,15 +257,27 @@ function PlayerTable({ rows, now, testnet }: { rows: PlayerRow[]; now: number; t
                     )}
                     <div className="min-w-0">
                       <div className="font-bold">{r.name ? `@${r.name}` : shortAddr(r.address)}</div>
-                      <a href={basescanAddress(r.address)} target="_blank" rel="noreferrer" className="font-mono text-[11px] text-ink/50 underline">
-                        {shortAddr(r.address)}
-                      </a>
+                      {/* Every wallet of the player, the account first: one row per player (linked wallets are one). */}
+                      {r.wallets.map((w) => (
+                        <a
+                          key={w.address}
+                          href={basescanAddress(w.address)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={w.lastSeen ? `last seen ${whenUtc(w.lastSeen)}` : undefined}
+                          className="block font-mono text-[11px] text-ink/50 underline"
+                        >
+                          {shortAddr(w.address)}
+                        </a>
+                      ))}
                     </div>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {r.operator && <StatusBadge tone="accent">team</StatusBadge>}
-                    {r.account && <Chip>linked to {shortAddr(r.account)}</Chip>}
-                    {r.fid != null && <Chip>fid {r.fid}</Chip>}
+                    {r.wallets.length > 1 && <Chip>{r.wallets.length} wallets</Chip>}
+                    {r.fids.map((f) => (
+                      <Chip key={f}>fid {f}</Chip>
+                    ))}
                   </div>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
@@ -271,7 +288,9 @@ function PlayerTable({ rows, now, testnet }: { rows: PlayerRow[]; now: number; t
                   {ago(r.lastSeen, now)}
                   {r.sighting && (
                     <div className="text-[11px] text-ink/45">
-                      {r.sighting.days} day{r.sighting.days === 1 ? "" : "s"} · last via {r.sighting.lastVia}
+                      {/* Days are counted per wallet: with two wallets seen, the busiest one's days are a floor. */}
+                      {r.sighting.days}
+                      {r.seenWallets > 1 ? "+" : ""} day{r.sighting.days === 1 && r.seenWallets < 2 ? "" : "s"} · last via {r.sighting.lastVia}
                     </div>
                   )}
                 </td>
@@ -303,15 +322,6 @@ function PlayerTable({ rows, now, testnet }: { rows: PlayerRow[]; now: number; t
                       </div>
                     </>
                   )}
-                </td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    {r.xUsername && <Chip>X @{r.xUsername}</Chip>}
-                    {r.emailConfirmed && <Chip>email{r.emailReminders ? " · reminders on" : ""}</Chip>}
-                    {r.pushBrowsers > 0 && <Chip>push ×{r.pushBrowsers}</Chip>}
-                    {r.telegram && <Chip>Telegram</Chip>}
-                    {!r.xUsername && !r.emailConfirmed && r.pushBrowsers === 0 && !r.telegram && <span className="text-ink/45">–</span>}
-                  </div>
                 </td>
               </tr>
             );

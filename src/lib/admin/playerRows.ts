@@ -122,9 +122,9 @@ export interface PlayerRow {
 }
 
 export interface Funnel {
-  /** Wallets with any trace at all (a sighting, an onchain action, a profile, a reminder). */
+  /** Players (or wallets, when given wallet rows) with any trace at all (a sighting, an onchain action, a profile, a reminder). */
   any: number;
-  /** Wallets the game saw connected (the unverified count; needs migration 0012). */
+  /** Players the game saw connected (the unverified count; needs migration 0012). */
   seen: number;
   faucet: number;
   letters: number;
@@ -219,10 +219,112 @@ export function buildPlayerRows(input: PlayerInputs): PlayerRow[] {
   return rows.sort((a, b) => (b.lastSeen ?? "").localeCompare(a.lastSeen ?? "") || a.address.localeCompare(b.address));
 }
 
-/** How far players got, counting each wallet once and leaving the team's own wallets out. */
-export function funnelOf(rows: readonly PlayerRow[]): Funnel {
+/**
+ * One PLAYER: an account and every wallet of it the console saw (starl3xx, 2026-11-27: "players in
+ * admin should also be grouped... like this is one player"). Its fields are the wallets' added up,
+ * so the funnel and the "new" counts read players, never wallets.
+ */
+export interface PlayerGroup extends Omit<PlayerRow, "account" | "fid"> {
+  /** The account (its first wallet), lowercase. */
+  address: string;
+  /**
+   * Its wallets: the account first, then the most recently seen, then linked wallets the console
+   * never saw (a Farcaster-verified wallet joins without connecting), whose `lastSeen` is null.
+   */
+  wallets: { address: string; lastSeen: string | null }[];
+  /** Farcaster ids the game saw at a verified sign-in, on any of its wallets. */
+  fids: number[];
+  /** How many of its wallets the game saw connect: past one, `sighting.days` is a floor (the busiest wallet's days). */
+  seenWallets: number;
+}
+
+/** Rows that count in the funnel: a wallet row or a player. */
+type Counted = Omit<PlayerRow, "account" | "fid">;
+
+/**
+ * `walletsOf` is the link table's answer (lib/db/walletLinks.ts), when it could be read: it adds the
+ * account's wallets that left no trace. This is the ONE grouping: the "Reminders and accounts"
+ * section is built from its output (lib/admin/playerReach.ts), so the two tables can't disagree.
+ */
+export function groupPlayers(rows: readonly PlayerRow[], walletsOf?: (account: string) => string[]): PlayerGroup[] {
+  const byAccount = new Map<string, PlayerRow[]>();
+  for (const r of rows) {
+    const account = r.account ?? r.address;
+    byAccount.set(account, [...(byAccount.get(account) ?? []), r]);
+  }
+  const out: PlayerGroup[] = [];
+  for (const [account, list] of byAccount) {
+    const sorted = [...list].sort(
+      (a, b) => Number(b.address === account) - Number(a.address === account) || (b.lastSeen ?? "").localeCompare(a.lastSeen ?? ""),
+    );
+    const head = sorted[0];
+    const named = sorted.find((r) => r.name) ?? head;
+    const sum = (f: (r: PlayerRow) => number) => list.reduce((n, r) => n + f(r), 0);
+    const min = (xs: (string | null | undefined)[]) => xs.filter((x): x is string => !!x).sort()[0] ?? null;
+    const max = (xs: (string | null | undefined)[]) => xs.filter((x): x is string => !!x).sort().at(-1) ?? null;
+    const seen = list.filter((r) => r.sighting);
+    const firstSighting = [...seen].sort((a, b) => a.sighting!.first.localeCompare(b.sighting!.first))[0];
+    const lastSighting = [...seen].sort((a, b) => b.sighting!.last.localeCompare(a.sighting!.last))[0];
+    const onchain = list.filter((r) => r.onchain);
+    out.push({
+      address: account,
+      wallets: [
+        ...(sorted[0].address === account ? [] : [{ address: account, lastSeen: null }]),
+        ...sorted.map((r) => ({ address: r.address, lastSeen: r.lastSeen })),
+        ...(walletsOf?.(account) ?? [])
+          .map((w) => w.toLowerCase())
+          .filter((w) => w !== account && !list.some((r) => r.address === w))
+          .map((w) => ({ address: w, lastSeen: null })),
+      ],
+      name: named.name,
+      pfpUrl: named.pfpUrl,
+      nameSource: named.nameSource,
+      operator: list.some((r) => r.operator),
+      fids: [...new Set(list.map((r) => r.fid).filter((f): f is number => f != null))].sort((a, b) => a - b),
+      seenWallets: seen.length,
+      firstSeen: min(list.map((r) => r.firstSeen)),
+      lastSeen: max(list.map((r) => r.lastSeen)),
+      // Days are counted per wallet: the player's busiest wallet is a floor, never a sum (one day, two wallets).
+      sighting: firstSighting
+        ? {
+            first: firstSighting.sighting!.first,
+            last: lastSighting.sighting!.last,
+            days: Math.max(...seen.map((r) => r.sighting!.days)),
+            firstVia: firstSighting.sighting!.firstVia,
+            lastVia: lastSighting.sighting!.lastVia,
+          }
+        : null,
+      onchain: onchain.length ? { first: min(onchain.map((r) => r.onchain!.first))!, last: max(onchain.map((r) => r.onchain!.last))! } : null,
+      faucet: sum((r) => r.faucet),
+      packs: sum((r) => r.packs),
+      dailies: sum((r) => r.dailies),
+      waiting: sum((r) => r.waiting),
+      claims: sum((r) => r.claims),
+      rolls: sum((r) => r.rolls),
+      rollWins: sum((r) => r.rollWins),
+      stakes: sum((r) => r.stakes),
+      feeds: sum((r) => r.feeds),
+      listings: sum((r) => r.listings),
+      holds: {
+        letters: sum((r) => r.holds.letters),
+        upper: sum((r) => r.holds.upper),
+        words: sum((r) => r.holds.words),
+        staked: sum((r) => r.holds.staked),
+      },
+      xUsername: named.xUsername ?? list.find((r) => r.xUsername)?.xUsername ?? null,
+      emailConfirmed: list.some((r) => r.emailConfirmed),
+      emailReminders: list.some((r) => r.emailReminders),
+      pushBrowsers: sum((r) => r.pushBrowsers),
+      telegram: list.some((r) => r.telegram),
+    });
+  }
+  return out.sort((a, b) => (b.lastSeen ?? "").localeCompare(a.lastSeen ?? "") || a.address.localeCompare(b.address));
+}
+
+/** How far players got, counting each row once (pass players, so linked wallets count once) and leaving the team out. */
+export function funnelOf(rows: readonly Counted[]): Funnel {
   const t = rows.filter((r) => !r.operator);
-  const n = (f: (r: PlayerRow) => boolean) => t.filter(f).length;
+  const n = (f: (r: Counted) => boolean) => t.filter(f).length;
   return {
     any: t.length,
     seen: n((r) => r.sighting !== null),
@@ -239,8 +341,8 @@ export function funnelOf(rows: readonly PlayerRow[]): Funnel {
   };
 }
 
-/** New non-team wallets whose first trace falls in the last `ms` milliseconds. */
-export function newSince(rows: readonly PlayerRow[], now: number, ms: number): number {
+/** New non-team rows (players, when given players) whose first trace falls in the last `ms` milliseconds. */
+export function newSince(rows: readonly Counted[], now: number, ms: number): number {
   const from = now - ms;
   return rows.filter((r) => !r.operator && r.firstSeen && Date.parse(r.firstSeen) >= from).length;
 }
