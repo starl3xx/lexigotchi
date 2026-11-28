@@ -3606,6 +3606,67 @@ setter. All small, riding existing suite patterns.
       **Not seen:** the chain game's Today with a wallet, a real notice tapped on a phone, an
       email in a mail client.
 
+63. **Care is sleep: a word falls asleep, and the player wakes it. There is no snack.** (starl3xx,
+    2026-11-27, on a page of ways to make feeding a moment: "what if instead of *feeding* them, we
+    need to *wake* them? they get sleepy and then asleep - then we don't need an image or anything
+    to *give* them?"; "works for the earning too... they can't earn if they're asleep, and they
+    earn less when they're sleepy"; "I suppose the icon for it could be an alarm clock"; then
+    "Build it / 27B, 28A, 29A, 30A, 31B".) Until now a staked word got peckish, then hungry, and
+    the player fed it a snack. The letters were never drawn that way: a peckish letter is
+    heavy-lidded and sighs, and a hungry one sleeps, with z's rising from it. Only the words said
+    food, and the one thing drawn for it, a cookie on the letter's face, was the look he had turned
+    down ("the static cookie/circle thing").
+    - **This is the words. No rule changes:** a day to sleepy, three days to asleep, half and
+      nothing, $0.02, the first each day free, all of it burned.
+      | Was | Is |
+      |---|---|
+      | fed, full | awake ("Wide awake"; "Awake again" just after) |
+      | peckish | sleepy: still in the jackpot, half its earnings |
+      | hungry | asleep: out of the jackpot, earns nothing |
+      | feed, Feed all | wake, Wake all |
+      | snack | nothing named |
+      | staked and fed | staked and awake |
+      | Keep them fed | Wake them every day |
+      | "Your letters get hungry. Feed your words." | "Your letters nod off. Wake your words." |
+    - **28A, nothing is named.** "Waking a word costs $0.02 in $WORD. The first word you wake each
+      day is free. What you pay is burned." The other choice was a name that is not a thing ("a
+      wake-up call"). So "wake" is never a noun ("a free wake" reads as a vigil), and a sentence
+      that needed "a snack" now says what happens.
+    - **29A, the snack an ascension try burned:** "A try also burns $0.02 in $WORD." It has nothing
+      to do with sleep, and it is never free.
+    - **30A, three phrases:** the jackpot's rule phrase is "staked and awake"; the pet line is "Your
+      letters nod off. Wake your words."; the step is "Wake them every day". Mine, held as a rule:
+      never "keep them awake", which reads as the opposite of care.
+    - **The marks and the lines** (my drafts, shown to him in a playable frame before "Build it"):
+      the first mark is "Awake" ("Wide awake", "Awake again", "Sleepy, day 1", "Asleep, day 3"),
+      then "Out while asleep", "Half while sleepy", "Nothing while asleep".
+    - **The icon is an alarm clock** (his), on every Wake button and the first mark, from the icon
+      set the game has. The cookie is gone from the buttons, the marks, and the letters' faces: a
+      woken word still rocks for a moment, with smiling eyes and nothing on its face, until the
+      new act replaces that.
+    - **Reminder titles, which reach testers' phones** (mine, each made from his words and under
+      the 32-character limit): "Your words are getting sleepy", "Time to wake your words",
+      "Someone’s getting sleepy", "Your words are nodding off". The reminder's name in the profile
+      is "A word is about to fall asleep".
+    - **The code and the contracts keep their names,** as the code says "scene" for a face
+      (#54): `feed`, `feedAll`, `snack`, `hunger()`, the states "fed" / "peckish" / "hungry", the
+      mark key `fed`, the reminder kind `hunger`, `Staking.feed`, `feedWithSnack`. Base Sepolia's
+      contracts cannot be renamed, and a rename of the code is its own change.
+    - **Held by a test:** `tests/copy-rules.test.ts` bans feed, fed, snack, hungry, hunger, and
+      peckish in every string a player reads and in the player docs. The operator console keeps
+      the contracts' words; what it posts (the Broadcast tab) does not.
+    - **Where the words were:** 16 pages of the player docs (the care page is "Staking and waking",
+      and three of its anchors moved: `#sleep`, `#waking`, and the profile's
+      `#caretakers-wake-words-from-any-of-your-wallets`), the game's screens and sheets, the cheat
+      sheet, the intro and the landing page, the reminders (push, email, Telegram, the weekly
+      email), the Telegram bot's answers, the messaging guide, and two docs pictures (the moods
+      picture is three rows now: its "Eating" row is gone).
+    - **Still to come, as their own changes:** the act (27B: with no sound): a woken word wakes
+      letter by letter, raises its joined hands, and bows; and 31B, the sad brow on the sleepy and
+      asleep faces, which I said I would show him both ways before the letters change.
+    - **Today's card look (#61) stays.** A sleeping word's card fades toward paper. Its story in
+      the docs is now a card that fades while its word sleeps.
+
 ## Pricing & launch economics (decided June 2026)
 
 $WORD is **live** on Base — WORD/WETH pool `0xc5db…a275` (GeckoTerminal, as of 2026-06-11):

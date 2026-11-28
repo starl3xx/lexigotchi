@@ -74,7 +74,7 @@ export default async function EarningsSharePage({ params, searchParams }: Props)
       </div>
       <p className="max-w-md text-center text-lg font-semibold text-ink/75">
         Lexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own. A
-        word with all five letters UPPERCASE, staked and fed, earns $WORD every day.
+        word with all five letters UPPERCASE, staked and awake, earns $WORD every day.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link

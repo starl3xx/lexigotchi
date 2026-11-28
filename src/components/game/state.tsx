@@ -1116,7 +1116,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       toggleStake: (word) => dispatch({ t: "stake", word }),
       feed: (word) => {
         if (state.freeSnackUsed && state.balance < COST.snack) {
-          needWord(COST.snack, "a snack");
+          needWord(COST.snack, "waking this word");
           return;
         }
         dispatch({ t: "feed", word });
@@ -1124,18 +1124,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       feedAll: () => {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0);
         if (hungry.length === 0) {
-          toast("Everyone’s already fed", "info");
+          toast("Everyone’s already awake", "info");
           return;
         }
         const free = state.freeSnackUsed ? 0 : 1;
         const affordable = free + Math.floor(state.balance / COST.snack);
         if (affordable === 0) {
-          needWord(COST.snack * hungry.length, "snacks");
+          needWord(COST.snack * hungry.length, "waking your words");
           return;
         }
         dispatch({ t: "feedAll" });
         toast(
-          affordable >= hungry.length ? "Fed your collection" : `Fed ${affordable} of ${hungry.length}: out of $WORD`,
+          affordable >= hungry.length ? "Your words are awake" : `Woke ${affordable} of ${hungry.length}: out of $WORD`,
           affordable >= hungry.length ? "good" : "info",
         );
       },

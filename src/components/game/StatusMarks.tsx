@@ -4,10 +4,10 @@
  * `compact`: the three icons alone in the colours of their meaning, each with its words for a
  * screen reader and on hover (a card in the Bag).
  */
-import { Coins, Cookie, Ticket } from "./ui/icons";
+import { Coins, Alarm, Ticket } from "./ui/icons";
 import { marksSentence, type MarkKey, type MarkTone, type StageMark } from "./stageMarks";
 
-const ICON: Record<MarkKey, typeof Cookie> = { fed: Cookie, jackpot: Ticket, earns: Coins };
+const ICON: Record<MarkKey, typeof Alarm> = { fed: Alarm, jackpot: Ticket, earns: Coins };
 /** One meaning per colour (the game's rule): teal care and growth, gold chance, candy "it needs you", quiet nothing yet. */
 const TONE: Record<MarkTone, string> = {
   teal: "bg-teal/20 text-teal-ink",

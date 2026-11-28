@@ -350,7 +350,7 @@ export function LookupSheet({ word }: { word: string }) {
           <Fact label="Failed ascensions">{listing.prestigePity}, so better odds next time</Fact>
         )}
         {status === "sale" && listing && unfed > 0 && (
-          <Fact label="Unfed">
+          <Fact label="Not woken for">
             {unfed} day{unfed === 1 ? "" : "s"}
           </Fact>
         )}

@@ -32,12 +32,12 @@ export function BroadcastTab() {
     {
       label: "Daily jackpot",
       build: () =>
-        `🏆 Today's Lexigotchi jackpot: ${live?.buckets ? `${fmtWordCompact(live.buckets.jackpot)} ${coin}` : "–"}.\n\nStake a fed word that matches the day's secret answer to win the whole pot. Raise your letters, claim your word, check in daily. ↓`,
+        `🏆 Today's Lexigotchi jackpot: ${live?.buckets ? `${fmtWordCompact(live.buckets.jackpot)} ${coin}` : "–"}.\n\nHold the day's secret word, staked and awake, and the whole pot is yours. Raise your letters, claim your word, check in daily. ↓`,
     },
     {
       label: "New bounty theme",
       build: () =>
-        `🎯 This week's Lexigotchi bounty theme: ${theme.name}.\n\nHold a staked, well-fed match and you share the bounty pool when the period ends. Go claim one. ↓`,
+        `🎯 This week's Lexigotchi bounty theme: ${theme.name}.\n\nHold a match, staked and awake, and you share the bounty pool when the period ends. Go claim one. ↓`,
     },
     {
       label: "Collection milestone",
@@ -47,7 +47,7 @@ export function BroadcastTab() {
     {
       label: "General",
       build: () =>
-        `Raise your letters. Spell your words. Own the dictionary.\n\nLexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own. Keep them fed, and they’re in the running for the daily jackpot. ↓`,
+        `Raise your letters. Spell your words. Own the dictionary.\n\nLexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own. Wake them every day, and they’re in the running for the daily jackpot. ↓`,
     },
   ];
 

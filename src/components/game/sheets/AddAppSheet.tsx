@@ -37,7 +37,7 @@ export function AddAppSheet() {
         <div>
           <h3 className="font-display text-lg font-extrabold">Keep your letters close</h3>
           <p className="mx-auto mt-1 max-w-[22rem] text-sm leading-relaxed text-ink/70">
-            Add Lexigotchi to your Farcaster apps so your free daily letter, the jackpot, and your hungry
+            Add Lexigotchi to your Farcaster apps so your free daily letter, the jackpot, and your sleepy
             words are one tap away, and get a nudge before you miss a day.
           </p>
         </div>

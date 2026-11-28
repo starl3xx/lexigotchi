@@ -12,7 +12,7 @@
  */
 import type { ReactNode } from "react";
 import { Button, Sheet } from "../primitives";
-import { Cookie, DiceFive, Sparkle, TextAa } from "../ui/icons";
+import { Alarm, DiceFive, Sparkle, TextAa } from "../ui/icons";
 import { fmtUsd, fmtWord, showsUsd, useGame } from "../state";
 import { useOnboarding } from "../Onboarding";
 import { useOpenUrl } from "../useShare";
@@ -38,7 +38,7 @@ export function CheatSheet() {
   return (
     <Sheet open onClose={g.closeSheet} title="Cheat sheet">
       <p className="mb-4 text-sm text-ink/60">
-        The whole game in four steps: collect letters, raise them, spell words only you can own, and keep them fed.
+        The whole game in four steps: collect letters, raise them, spell words only you can own, and wake them every day.
       </p>
 
       <div className="space-y-3">
@@ -93,19 +93,19 @@ export function CheatSheet() {
           )}
         </Step>
 
-        <Step n={4} icon={<Cookie weight="fill" size={18} />} title="Keep them fed">
+        <Step n={4} icon={<Alarm weight="fill" size={18} />} title="Wake them every day">
           <li>
-            <strong>Stake your words and feed each one once a day.</strong> One snack a day is free for your
-            whole profile; after that, a snack is {price("snack")}. After {days(peckishAfterDays)} without food a
-            word gets peckish and earns half. After {days(hungryAfterDays)} it’s hungry: it sits out the jackpot
-            and earns no $WORD until you feed it.
+            <strong>Stake your words and wake each one once a day.</strong> The first word you wake each day is
+            free, for your whole profile; after that, waking a word costs {price("snack")}. A word you haven’t
+            woken for {days(peckishAfterDays)} gets sleepy and earns half. After {days(hungryAfterDays)} it’s
+            asleep: it sits out the jackpot and earns no $WORD until you wake it.
           </li>
           <li>
-            <strong>Every word you keep staked and fed is in the running for the daily jackpot.</strong> Each day
-            one secret word is drawn. If you hold it, staked and fed, the pot is yours.
+            <strong>Every word that is staked and awake is in the running for the daily jackpot.</strong> Each day
+            one secret word is drawn. If you hold it, staked and awake, the pot is yours.
           </li>
           <li>
-            <strong>All-UPPERCASE words earn $WORD</strong> every day, while they’re staked and fed. It’s paid
+            <strong>All-UPPERCASE words earn $WORD</strong> every day, while they’re staked and awake. It’s paid
             each day, straight to the wallet that holds the word: nothing to claim. Tap the line under your words
             on Today to see what each one has earned.
           </li>
@@ -117,7 +117,7 @@ export function CheatSheet() {
           {(emailEnabled || telegramEnabled) && (
             <li>
               <strong>Want a nudge?</strong> {emailEnabled && telegramEnabled ? "Add your email or link Telegram" : emailEnabled ? "Add your email" : "Link Telegram"} in
-              your profile, and the game tells you before a word goes hungry.
+              your profile, and the game tells you before a word falls asleep.
             </li>
           )}
         </Step>

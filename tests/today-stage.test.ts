@@ -113,10 +113,10 @@ describe("upNext (the cards under the stage)", () => {
 
 describe("stageLine", () => {
   it("says what the mood costs, and earning only for an all-UPPERCASE word", () => {
-    expect(stageLine({ word: word("VIVID", { upper: ALL_UP }), mood: "hungry" })).toBe("VIVID is hungry. It can’t win or earn today.");
-    expect(stageLine({ word: word("TEASE"), mood: "hungry" })).toBe("TEASE is hungry. It can’t win today.");
-    expect(stageLine({ word: word("VIVID", { upper: ALL_UP }), mood: "peckish" })).toBe("VIVID is peckish. It earns half until you feed it.");
-    expect(stageLine({ word: word("TEASE"), mood: "full" })).toBe("TEASE is full and in the daily jackpot.");
+    expect(stageLine({ word: word("VIVID", { upper: ALL_UP }), mood: "hungry" })).toBe("VIVID is asleep. It can’t win or earn today.");
+    expect(stageLine({ word: word("TEASE"), mood: "hungry" })).toBe("TEASE is asleep. It can’t win today.");
+    expect(stageLine({ word: word("VIVID", { upper: ALL_UP }), mood: "peckish" })).toBe("VIVID is sleepy. It earns half until you wake it.");
+    expect(stageLine({ word: word("TEASE"), mood: "full" })).toBe("TEASE is awake and in the daily jackpot.");
     expect(stageLine({ word: word("MOTEL"), mood: "unstaked" })).toBe("MOTEL is waiting. Stake it to enter the jackpot.");
   });
 });

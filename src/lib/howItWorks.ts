@@ -2,7 +2,7 @@
  * The four-step "how it works" copy, shared by the first-run onboarding (`Onboarding.tsx`) and the
  * landing page (`src/app/page.tsx`), so the two can never tell a player different things. The steps
  * follow the premise in the messaging guide (docs/messaging.md, decisions.md #24): collect letters,
- * raise them, spell words only you can own, and keep them fed.
+ * raise them, spell words only you can own, and wake them every day.
  *
  * Every number is DERIVED (dictionary size, roll odds, tier counts, supply, free letters), never
  * typed: the economy is tuned in `params.ts` and `economy.ts`, and a hardcoded "45%" is exactly the
@@ -100,7 +100,7 @@ export const HOW_IT_WORKS: readonly HowItWorksStep[] = [
   {
     n: 4,
     id: "feed",
-    title: "Keep them fed",
-    body: "Stake your words and feed them every day. A fed word is in the running for the daily jackpot, and an all-UPPERCASE one earns $WORD every day. A hungry word sits it out until you feed it.",
+    title: "Wake them every day",
+    body: "Stake your words and wake them every day. An awake word is in the running for the daily jackpot, and an all-UPPERCASE one earns $WORD every day. A word that falls asleep sits it out until you wake it.",
   },
 ];

@@ -22,8 +22,8 @@ import { decodeSnapshot, earningsCardPath, earningsPostText, earningsShareUrl, t
 
 const STATUS: Record<EarningStatus["kind"], { label: (s: EarningStatus) => string; tone: string }> = {
   earning: { label: () => "earning", tone: "bg-gold/20 text-gold-ink" },
-  half: { label: () => "peckish: half", tone: "bg-gold/10 text-gold-ink" },
-  paused: { label: () => "hungry: paused", tone: "bg-candy/10 text-candy-ink" },
+  half: { label: () => "sleepy: half", tone: "bg-gold/10 text-gold-ink" },
+  paused: { label: () => "asleep: paused", tone: "bg-candy/10 text-candy-ink" },
   unstaked: { label: () => "stake to earn", tone: "bg-card text-ink/60" },
   raise: { label: (s) => (s.kind === "raise" ? `raise ${s.left} letter${s.left === 1 ? "" : "s"}` : ""), tone: "bg-card text-ink/60" },
 };
@@ -135,7 +135,7 @@ export function EarningsSheet() {
         <div className="mb-1 font-display text-sm font-extrabold text-ink">How earning works</div>
         <ul className="list-disc space-y-1 pl-4">
           <li>A word earns once all 5 letters are UPPERCASE and it’s staked.</li>
-          <li>Fed, it earns a full share. Peckish, {half}%. Hungry, nothing until you feed it.</li>
+          <li>Awake, it earns a full share. Sleepy, {half}%. Asleep, nothing until you wake it.</li>
           <li>Each day’s payout is split between every earning word. Rarer words get bigger shares.</li>
         </ul>
       </div>

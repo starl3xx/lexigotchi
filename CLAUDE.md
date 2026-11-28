@@ -1410,7 +1410,7 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   balance or the stake; the word sheet's button into the sheet always opens for such a word
   (`ascendDoor`). Any new gate on trying must leave finishing alone.
 - Staking split: **yield is UPPERCASE-only**; **any** staked non-hungry word (any case) is
-  **jackpot-eligible**. Hunger gates both: peckish (1–2d) halves yield; hungry (3+d) zeroes
+  **jackpot-eligible**. Hunger gates both (a player reads sleep: sleepy, asleep): peckish (1–2d) halves yield; hungry (3+d) zeroes
   yield AND drops jackpot eligibility.
 - One word = one NFT, `tokenId = keccak256(word)`, case **derived** from escrow (never stored).
 - **The claim fee follows the word's rarity** (decisions.md #60, the "gentle ladder"): the base
@@ -1455,7 +1455,8 @@ bot posts). The hard rules:
   all", "Pokédex"). The comparison stays internal.
 - **Say / instead of:** letters, words (not NFTs, tokens, assets); yours, one owner, onchain (not
   Web3, decentralized); raise, roll (not gamble, bet, upgrade); spell, claim a word (not mint a
-  word); feed, snack, hungry (not maintain, upkeep); the daily word, the jackpot, in the running (not
+  word); wake, awake, sleepy, asleep (not feed, fed, snack, peckish, hungry, and not maintain or
+  upkeep: see "Care is sleep" below); the daily word, the jackpot, in the running (not
   lottery, draw as a noun, ticket); earns $WORD every day (not yield, APR, returns, passive income);
   Dictionary (not Lexidex); the Market (not marketplace, exchange); a card's front, its face or
   card face, and its back (never scene: see "A card's words" above).
@@ -1466,9 +1467,23 @@ bot posts). The hard rules:
   $WORD. A second (decisions.md #38, amended): the earnings share PICTURE says "about $X" under
   the player's total, signed by the server at a live price, never for test $WORD. Nowhere else
   (a post's own words, reminders, landing, docs, bot posts) gets a dollar figure for $WORD.
-- **The jackpot always carries "staked and fed".**
+- **The jackpot always carries "staked and awake".**
+- **Care is sleep** (decisions.md #63; starl3xx, 2026-11-27: "what if instead of *feeding* them, we
+  need to *wake* them? they get sleepy and then asleep - then we don't need an image or anything to
+  *give* them?"). A staked word is **awake**, then **sleepy** (after a day: still in the jackpot,
+  half its earnings), then **asleep** (after three: out of the jackpot, earns nothing), and the
+  player **wakes** it. **Nothing is given, so nothing is named: there is no snack.** Say what
+  happens: "Waking a word costs $0.02 in $WORD. The first word you wake each day is free. What you
+  pay is burned." An ascension try "also burns $0.02 in $WORD". Never use "wake" as a noun ("a free
+  wake" reads as a vigil), and never write "keep them awake" (it reads as the opposite of care):
+  "wake them every day". The care icon is an alarm clock (the owner: "the icon for it could be an
+  alarm clock"). **The code and the contracts keep their names**, as the code says "scene" for a
+  face: `feed`, `feedAll`, `snack`, `hunger()`, the states `"fed"` / `"peckish"` / `"hungry"`, the
+  mark key `fed`, the reminder kind `hunger`, `Staking.feed`. `tests/copy-rules.test.ts` bans the old
+  words in every string a player reads and in the player docs; the operator console keeps the
+  contracts' words, and what it POSTS (the Broadcast tab) does not.
 - **Lead with a pet, a word, or a rare letter, never with earning.** Letters are characters, written
-  in their case ("your q is hungry"); a reminder names the letter or word ("FUNKY is peckish").
+  in their case ("your q is asleep"); a reminder names the letter or word ("FUNKY is sleepy").
 - **Numbers are derived, never typed** (`src/lib/howItWorks.ts`: `WORDS`, `TOP_TIER`,
   `RAREST_LETTER`, `FREE_PACK`/`FREE_DAILIES`/`FREE_TO_START`, `LADDER`, `days`). The top tier's name
   comes from `TIERS`, so a tier rename flows through on its own (it reads Mythic since #23).

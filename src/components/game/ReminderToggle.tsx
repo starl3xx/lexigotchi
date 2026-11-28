@@ -9,7 +9,7 @@ import { useWebPush } from "./useWebPush";
 import { Button } from "./primitives";
 import { Bell, BellSlash, CircleNotch } from "./ui/icons";
 
-export function ReminderToggle({ compact = false, label = "Remind me before a word goes hungry" }: { compact?: boolean; /** The compact button's words: the reason on screen (hunger on Home, a listing on Sell). */ label?: string }) {
+export function ReminderToggle({ compact = false, label = "Remind me before a word falls asleep" }: { compact?: boolean; /** The compact button's words: the reason on screen (hunger on Home, a listing on Sell). */ label?: string }) {
   const { state, error, errorDetail, enable, disable } = useWebPush();
   if (state === "unavailable" || state === "no-wallet") return null;
 
@@ -44,7 +44,7 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
         Reminders {state === "on" ? "are on" : ""}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-ink/60">
-        Notifications in this browser: before a staked word goes hungry, when your free daily letter is
+        Notifications in this browser: before a staked word falls asleep, when your free daily letter is
         ready, when something of yours sells, and when your words win the jackpot or a share of the
         bounty. Your profile says which.
       </p>

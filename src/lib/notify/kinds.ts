@@ -25,7 +25,7 @@ export interface KindInfo {
 }
 
 export const KIND_INFO: Record<ReminderKind, KindInfo> = {
-  hunger: { label: "A word is about to go hungry", hint: "About a day before a staked word stops earning and sits out the jackpot.", on: true },
+  hunger: { label: "A word is about to fall asleep", hint: "About a day before a staked word stops earning and sits out the jackpot.", on: true },
   daily: { label: "My free daily letter is ready", hint: "Once a day, only on a day you haven’t taken it.", on: true },
   jackpot: { label: "I won the jackpot", hint: "When your word is the day’s word.", on: true },
   sold: { label: "Something of mine sold", hint: "When a word or letters of yours sell on the Market.", on: true },

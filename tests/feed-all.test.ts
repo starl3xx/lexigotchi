@@ -19,7 +19,7 @@ describe("Feed all", () => {
   });
 
   it("names one word, and counts more", () => {
-    expect(feedAllLabel([w("CRANE")])).toBe("Feed CRANE");
-    expect(feedAllLabel([w("CRANE"), w("VIVID"), w("MOTEL")])).toBe("Feed all 3");
+    expect(feedAllLabel([w("CRANE")])).toBe("Wake CRANE");
+    expect(feedAllLabel([w("CRANE"), w("VIVID"), w("MOTEL")])).toBe("Wake all 3");
   });
 });

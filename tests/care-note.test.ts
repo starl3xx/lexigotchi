@@ -17,15 +17,15 @@ describe("careNote", () => {
     expect(note).toMatch(/daily jackpot/);
     expect(note).toMatch(/earns \$WORD only once all 5 letters are UPPERCASE \(1\/5 now\)/);
     expect(note).not.toMatch(/earns \$WORD every day/);
-    expect(feedOff).toBe("Stake it first. Only a staked word can be fed.");
+    expect(feedOff).toBe("Stake it first. Only a staked word can be woken.");
   });
 
   it("unstaked but neglected: the clock kept running, so no jackpot promise until it's fed (Bugbot on #112)", () => {
     const hungry = careNote({ upper, staked: false, daysUnfed: 4 }, "hungry", base);
     expect(hungry.note).toMatch(/staking alone won’t enter it in the jackpot/);
     expect(hungry.note).not.toMatch(/earns \$WORD every day/);
-    expect(hungry.feedOff).toBe("Stake it first. Only a staked word can be fed.");
-    expect(careNote({ upper, staked: false, daysUnfed: 1 }, "peckish", base).note).toMatch(/peckish while unstaked: it earns half/);
+    expect(hungry.feedOff).toBe("Stake it first. Only a staked word can be woken.");
+    expect(careNote({ upper, staked: false, daysUnfed: 1 }, "peckish", base).note).toMatch(/sleepy while unstaked: it earns half/);
   });
 
   it("unstaked, fully UPPERCASE: staking earns $WORD every day", () => {
@@ -34,10 +34,10 @@ describe("careNote", () => {
 
   it("staked and full: says nothing needs feeding yet, and when that changes", () => {
     const { note, feedOff } = careNote({ upper: lower, staked: true, daysUnfed: 0, lastFedAt: NOW - 3_600 }, "fed", base);
-    expect(note).toMatch(/^Full: in the daily jackpot\./);
-    expect(note).toMatch(/No feeding needed until it gets peckish in about 23 hours/);
-    expect(note).not.toMatch(/\bfed\b/i); // nobody fed it; it started full
-    expect(feedOff).toBe("Not hungry yet");
+    expect(note).toMatch(/^Awake: in the daily jackpot\./);
+    expect(note).toMatch(/No waking needed until it gets sleepy in about 23 hours/);
+    expect(note).not.toMatch(/\b(fed|woken)\b/i); // nobody woke it; it started awake
+    expect(feedOff).toBe("Not sleepy yet");
   });
 
   it("staked and full with under an hour left: minutes", () => {
@@ -49,7 +49,7 @@ describe("careNote", () => {
   it("peckish: Feed is on; an UPPERCASE word says it earns half", () => {
     const up = careNote({ upper, staked: true, daysUnfed: 1 }, "peckish", base);
     expect(up.feedOff).toBeNull();
-    expect(up.note).toMatch(/earning half until you feed it/);
+    expect(up.note).toMatch(/earning half until you wake it/);
     expect(careNote({ upper: lower, staked: true, daysUnfed: 1 }, "peckish", base).note).toMatch(/still in the jackpot/);
   });
 
@@ -61,7 +61,7 @@ describe("careNote", () => {
   it("can't afford a snack: Feed is off, and the line says why", () => {
     const short = " A snack costs 84K $WORD, and you don’t have enough.";
     const { note, feedOff } = careNote({ upper, staked: true, daysUnfed: 2 }, "peckish", { ...base, snackShort: short });
-    expect(feedOff).toBe("Not enough $WORD for a snack");
+    expect(feedOff).toBe("Not enough $WORD to wake it");
     expect(note.endsWith(short)).toBe(true);
   });
 
@@ -83,7 +83,7 @@ describe("caseBadgeText", () => {
   it("says an UPPERCASE word earns only while staked and not hungry (it said 'earns yield' regardless)", () => {
     expect(caseBadgeText({ upper: up(5), staked: true }, "fed")).toBe("earning $WORD");
     expect(caseBadgeText({ upper: up(5), staked: true }, "peckish")).toBe("earns half");
-    expect(caseBadgeText({ upper: up(5), staked: true }, "hungry")).toBe("feed to earn");
+    expect(caseBadgeText({ upper: up(5), staked: true }, "hungry")).toBe("wake to earn");
     expect(caseBadgeText({ upper: up(5), staked: false }, "fed")).toBe("stake to earn");
   });
 });

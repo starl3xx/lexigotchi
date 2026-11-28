@@ -10,7 +10,7 @@ import { markInput, moodOfWord, stageMarks } from "../stageMarks";
 import { useForSale } from "../useForSale";
 import { CaseBadge, LetterTile, PrestigeStars } from "../LetterTile";
 import { WordSheetCard } from "../../cards/WordSheetCard";
-import { CaretRight, Check, Coins, Cookie, Crown, Star } from "../ui/icons";
+import { CaretRight, Check, Coins, Alarm, Crown, Star } from "../ui/icons";
 import { promptAccountSwitch } from "../walletSwitch";
 import { stageName } from "@/lib/ascension";
 import { MISS_POINTS, STAGE_SHARE } from "@/lib/howItWorks";
@@ -77,7 +77,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const snack = g.price("snack");
   const snackShort =
     word.staked && word.daysUnfed > 0 && state.freeSnackUsed && !g.canAfford(snack)
-      ? ` A snack costs ${fmtWord(snack)} $WORD, and you don’t have enough.`
+      ? ` Waking it costs ${fmtWord(snack)} $WORD, and you don’t have enough.`
       : null;
   const { note, feedOff } = careNote(word, h, { snackShort, nowSec: Math.floor(Date.now() / 1000) });
 
@@ -111,7 +111,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       {isAnswer && jackpotEligible(word) && (
         <Card className="mb-3 bg-candy/10">
           <div className="text-sm">
-            <strong className="font-display">You may hold today’s secret word</strong>, staked and fed.
+            <strong className="font-display">You may hold today’s secret word</strong>, staked and awake.
             <button onClick={() => g.nav("jackpot")} className="ml-1 font-bold text-candy-ink underline">
               Open the jackpot →
             </button>
@@ -132,13 +132,13 @@ export function WordSheet({ word: wordKey }: { word: string }) {
                   <strong className="font-display">
                     Staked by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "your other wallet"}.
                   </strong>{" "}
-                  This wallet takes care of it: you can feed, roll, and ascend it here, paying from this wallet. Only that
+                  This wallet takes care of it: you can wake, roll, and ascend it here, paying from this wallet. Only that
                   wallet can unstake it.
                 </>
               ) : (
                 <>
                   <strong className="font-display">Held by {word.holder ? `${word.holder.slice(0, 6)}…${word.holder.slice(-4)}` : "a linked wallet"}.</strong>{" "}
-                  It’s part of your bag. Switch to that wallet to stake, feed, or raise it.
+                  It’s part of your bag. Switch to that wallet to stake, wake, or raise it.
                 </>
               )}
             </div>
@@ -168,12 +168,12 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           title={feedOff ?? undefined}
           onClick={() => g.feed(word.word)}
         >
-          <Cookie weight="fill" /> Feed {word.staked && h === "fed" && <Check weight="bold" size={14} />}
+          <Alarm weight="fill" /> Wake {word.staked && h === "fed" && <Check weight="bold" size={14} />}
         </Button>
       </div>
       {word.mine && !word.staked && offGameWallet && (
         <p className="mt-2 text-xs font-bold text-candy-ink">
-          This isn’t your game wallet. Once staked here, only this wallet, and the caretakers it names, can feed {word.word}.
+          This isn’t your game wallet. Once staked here, only this wallet, and the caretakers it names, can wake {word.word}.
         </p>
       )}
       {word.mine && <p className="mb-3 mt-2 text-xs text-ink/60">{note}</p>}

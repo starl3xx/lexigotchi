@@ -159,9 +159,9 @@ export function jackpotText(f: JackpotFacts, nowSeconds: number): string {
   else if (f.last) {
     const word = f.last.word ? `Last draw: ${f.last.word}. ` : "Last draw: ";
     if (f.last.winner) lines.push(`${word}${f.last.winner.name} held ${f.last.word ? "it" : "the word"} and won ${fmtWord(f.last.winner.amount)} $WORD.`);
-    else lines.push(`${word}${f.last.word ? "Nobody held it" : "nobody held the word"} staked and fed, so the pot rolled over.`);
+    else lines.push(`${word}${f.last.word ? "Nobody held it" : "nobody held the word"} staked and awake, so the pot rolled over.`);
   }
-  lines.push("Every word you keep staked and fed is in the running.");
+  lines.push("Every word that is staked and awake is in the running.");
   return lines.join("\n");
 }
 
@@ -173,7 +173,7 @@ export function bountyText(pot: number | null, nowSeconds: number): string {
   const ends = (period + 1) * periodDays * DAY;
   const lines = [`This week’s bounty theme: ${THEMES[themeForPeriod(period)].name}.`];
   if (pot !== null) lines.push(`The pool is ${fmtWord(pot)} $WORD.`);
-  lines.push(`The week ends in ${spanText(ends - nowSeconds)}. Every matching word that is staked and not hungry then shares the pool.`);
+  lines.push(`The week ends in ${spanText(ends - nowSeconds)}. Every matching word that is staked and not asleep then shares the pool.`);
   return lines.join("\n");
 }
 
@@ -234,8 +234,8 @@ export function wordText(word: string, held: HeldWord | null | undefined, chainB
     // Only a word whose every letter is UPPERCASE earns, so only that one is told what hunger does
     // to its earnings. Any staked word is in the jackpot until it is hungry.
     const earns = held.upper !== null && held.upper.every(Boolean);
-    if (held.daysUnfed >= care.hungryAfterDays) lines.push(`It is hungry: it ${earns ? "earns nothing and " : ""}sits out the jackpot until it is fed.`);
-    else if (held.daysUnfed >= care.peckishAfterDays) lines.push(earns ? "It is peckish: it earns half until it is fed." : "It is peckish: feed it before it gets hungry.");
+    if (held.daysUnfed >= care.hungryAfterDays) lines.push(`It is asleep: it ${earns ? "earns nothing and " : ""}sits out the jackpot until it is woken.`);
+    else if (held.daysUnfed >= care.peckishAfterDays) lines.push(earns ? "It is sleepy: it earns half until it is woken." : "It is sleepy: wake it before it falls asleep.");
   }
   if (held.number) lines.push(`Card ${cardNumber(held.number)}.`);
   return lines.join("\n");

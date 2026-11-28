@@ -66,7 +66,7 @@ describe("jackpotStanding", () => {
 
   it("tells a player who holds today's word, in the running or not", () => {
     expect(jackpotStanding({ ...base, holds: "in" })).toMatchObject({ secret: true, tone: "candy" });
-    expect(jackpotStanding({ ...base, holds: "out" })?.text).toMatch(/Stake it and keep it fed/);
+    expect(jackpotStanding({ ...base, holds: "out" })?.text).toMatch(/Stake it and wake it/);
   });
 
   it("says nothing while the player's words load: a returning player never reads the newcomer's line", () => {
@@ -74,8 +74,8 @@ describe("jackpotStanding", () => {
   });
 
   it("tells a player with nothing in the running how to get in, staked and fed", () => {
-    expect(jackpotStanding({ ...base, words: 0, inTheRunning: 0 })?.text).toBe("Spell a word, stake it, and keep it fed to enter");
-    expect(jackpotStanding({ ...base, inTheRunning: 0 })?.text).toBe("Stake a word and keep it fed to enter");
+    expect(jackpotStanding({ ...base, words: 0, inTheRunning: 0 })?.text).toBe("Spell a word, stake it, and wake it every day to enter");
+    expect(jackpotStanding({ ...base, inTheRunning: 0 })?.text).toBe("Stake a word and wake it every day to enter");
   });
 
   it("tells a player in the running so", () => {

@@ -12,7 +12,7 @@ export function wordsToFeed(words: readonly OwnedWord[], hungerOf: (w: OwnedWord
   return words.filter((w) => (w.mine || w.care) && w.staked && hungerOf(w) !== "fed");
 }
 
-/** "Feed CRANE" for one word, "Feed all 3" for more. */
+/** "Wake CRANE" for one word, "Wake all 3" for more. */
 export function feedAllLabel(toFeed: readonly OwnedWord[]): string {
-  return toFeed.length === 1 ? `Feed ${toFeed[0].word}` : `Feed all ${toFeed.length}`;
+  return toFeed.length === 1 ? `Wake ${toFeed[0].word}` : `Wake all ${toFeed.length}`;
 }

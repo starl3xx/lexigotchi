@@ -67,7 +67,7 @@ describe("What to tell me", () => {
     // the one kind that comes every day starts off
     expect(box(/My words were paid/).checked).toBe(false);
     await waitFor(() => expect(box(/free daily letter/).checked).toBe(false));
-    expect(box(/about to go hungry/).checked).toBe(true);
+    expect(box(/about to fall asleep/).checked).toBe(true);
     expect(calls[0]).toMatchObject({ method: "GET", token: "tok" });
   });
 

@@ -4,7 +4,7 @@
 Lexigotchi is a word-pet game: collect living letters, raise them, and spell words nobody else can own.
 
 That makes "word pets" the category, and Lexigotchi the first game in it. The line covers the three things no other game puts together:
-- Pets: care, moods, a reason to come back every day. "Your letters get hungry. Feed your words."
+- Pets: care, moods, a reason to come back every day. "Your letters nod off. Wake your words."
 - Collecting and raising: rarity, chasing the rare one, a glow-up you earn. "Every letter starts lowercase. The rare ones are really rare."
 - Words: a finite dictionary everyone already knows. "4,584 words. One owner each."
 
@@ -17,31 +17,31 @@ Every piece of marketing, whatever its hook, has to be true to this loop and nev
 1. Collect letters. Free to start: a pack of 5, plus 10 free daily letters, for linking Farcaster, X or a Coinbase-verified wallet.
 2. Raise them. Roll a letter from lowercase to UPPERCASE. A miss never hurts it.
 3. Spell words. Five letters make a word from the dictionary, and that word is yours alone.
-4. Keep them fed. Stake your words and feed them every day. A fed word is in the running for the daily jackpot, and an all-UPPERCASE one earns $WORD every day.
-One sentence: Collect letters, raise them, spell words only you can own, and keep them fed.
+4. Wake them every day. Stake your words and wake them every day. An awake word is in the running for the daily jackpot, and an all-UPPERCASE one earns $WORD every day.
+One sentence: Collect letters, raise them, spell words only you can own, and wake them every day.
 
 ## Hooks
 One hook per post or page section, and always land on the premise.
 | Hook | Lead line | Best for | Where |
 | Own a word | There's only one CRANE. It could be yours. | Collectors, crypto natives | X, landing hero, Market |
-| Pets made of letters | Your letters get hungry. | Casual players, '90s kids | X, Base App, onboarding |
+| Pets made of letters | Your letters nod off. | Casual players, '90s kids | X, Base App, onboarding |
 | The rare ones | Only 138 q's will ever exist. | Collectors, completionists | X, countdown posts |
 | The glow-up | Every letter starts lowercase. | Gamers | Roll and ascension moments |
-| The daily word | One word wins every day. Is yours staked and fed? | LHAW players, word-game fans | Farcaster, daily posts |
+| The daily word | One word wins every day. Is yours staked and awake? | LHAW players, word-game fans | Farcaster, daily posts |
 | Word nerd | The cheapest word in the game is ASSES. We don't make the rules. | Everyone, for shares | X replies, launch thread |
 | Make it yours | Give your words a home. | Players who already have a word | Shop drops, card faces |
 | Made by one person | One builder, two word games, a $WORD universe. | Farcaster, Base builders | Jake's own posts |
-Rules: lead with a pet, a word or a rare letter, never with earning. Facts beat adjectives. The jackpot always carries "staked and fed".
+Rules: lead with a pet, a word or a rare letter, never with earning. Facts beat adjectives. The jackpot always carries "staked and awake".
 
 ## Voice and words
-Warm and mischievous, with a bit of vaudeville. A game about the alphabet that takes its silliness seriously; the dictionary supplies half the jokes. Short sentences. Letters are characters, written in their case ("your q is hungry"). House greeting: HEYOO.
+Warm and mischievous, with a bit of vaudeville. A game about the alphabet that takes its silliness seriously; the dictionary supplies half the jokes. Short sentences. Letters are characters, written in their case ("your q is asleep"). House greeting: HEYOO.
 The Tamagotchi/Pokémon comparison stays internal: both are guarded trademarks, so never name them in player-facing copy, and avoid near-quotes ("gotta spell 'em all") and "Pokédex".
 | Say | Instead of |
 | letters, words | NFTs, tokens, assets |
 | yours, one owner, onchain | Web3, decentralized |
 | raise, roll | gamble, bet, upgrade |
 | spell, claim (a word) | mint (a word) |
-| feed, snack, hungry | maintain, upkeep |
+| wake, awake, sleepy, asleep | feed, fed, snack, peckish, hungry (the old words: decisions.md #63); maintain, upkeep; "keep them awake" (it reads as the opposite of care) |
 | the daily word, the jackpot | lottery, draw, ticket |
 | earns $WORD every day | yield, APR, returns, passive income |
 | Dictionary | Lexidex |
@@ -57,21 +57,21 @@ The claim fee follows the word's rarity (owner, 2026-11-27, decisions.md #60): C
 | Section | Proposed |
 | Eyebrow | A word-pet game on Base |
 | Headline | Raise your letters. Spell your words. Own the dictionary. (keep) |
-| Subhead | Collect little letter characters, raise them to UPPERCASE, and spell five-letter words nobody else can own. Keep them fed, and every word you hold is in the running when the day's word is drawn. |
+| Subhead | Collect little letter characters, raise them to UPPERCASE, and spell five-letter words nobody else can own. Wake them every day, and every word you hold is in the running when the day's word is drawn. |
 | Main button | Get your free letters |
 | Fact strip | 4,584 words, one owner each · 46 Mythic words · 138 q's, ever · 15 free letters to start |
 | How it works | From one letter to a word that's yours. (keep the four steps) |
 | Ownership | Every word has one owner. Your letters and words live in your wallet, not on our server. Sell a word on the Market, buy the one letter you're missing, or keep the whole set. |
-| Care | They get hungry. A fed word bounces. Miss a day and it's peckish; miss three and it's hungry, and it sits out the jackpot until you feed it. The first snack every day is free. |
+| Care | They nod off. An awake word bounces. Miss a day and it's sleepy; miss three and it's asleep, and it sits out the jackpot until you wake it. The first word you wake each day is free. |
 | The ladder | Every letter starts lowercase. Raise it to UPPERCASE, then take a finished word up the ladder: Gilded 1 through 4, then Holographic. A miss never hurts it. |
-| Jackpot and bounty | Each day one word is drawn. If you hold it, staked and fed, the pot is yours. |
+| Jackpot and bounty | Each day one word is drawn. If you hold it, staked and awake, the pot is yours. |
 | $WORD universe | Same dictionary as Let's Have A Word! The words you guess there, you can own here. |
 | Closing | Your letters are waiting. (keep) |
 Page title and share description: "Lexigotchi: a word-pet game on Base. Collect letters, raise them, and spell words only you can own."
 
 ## Docs and in-game
 - Docs welcome: "Lexigotchi is a word-pet game on Base. Collect living letters, raise them, and spell words nobody else can own." Then the four steps. Keep the testnet note.
-- Reminders: the pet voice, naming the letter or word: "your q is hungry", "FUNKY is peckish", "your free letter is here".
+- Reminders: the pet voice, naming the letter or word: "your q is asleep", "FUNKY is sleepy", "your free letter is here".
 - A pack comes **by mail** (decisions.md #49; the owner: "We should use 'Mail' instead of Post"): an envelope, a stamp, a postmark with its number, torn open by the player. Say mail, envelope, tear, "is waiting"; never post, parcel, delivery, or shipping. The envelope says "For @handle" (else "For you"), "from the Lexigotchi Mint", and "Contents: 5 letters". Its status line says only what is true at that moment ("Paid. It's in the mail.", "No. 4,512 is yours. Minting your letters…", "They're here. Tear along the top."). Letters from the Market never come by mail.
 - Empty states: an empty bag says "No letters yet. Your free pack is waiting." An empty word list says "No words yet. Five letters make one."
 - Card backs keep "1 of 1" and "One of 46 Mythic words".
@@ -79,12 +79,12 @@ Page title and share description: "Lexigotchi: a word-pet game on Base. Collect 
 
 ## Social (reference only; nothing to build)
 Letter reveal: "Meet q. Rarest letter in the game. Only 138 will ever exist. Most players will never hold one."
-Daily word: "Today's word: CRANE. Held by @name, staked and fed. The pot is theirs." / "Today's word: GLOAT. Nobody had it staked and fed, so the pot rolls over."
+Daily word: "Today's word: CRANE. Held by @name, staked and awake. The pot is theirs." / "Today's word: GLOAT. Nobody had it staked and awake, so the pot rolls over."
 A Mythic is claimed: "JAZZY has an owner. 1 of 46 Mythic words. 45 still out there."
 Word nerd: "The cheapest word to spell in Lexigotchi is ASSES. We didn't write the dictionary. We just respect it."
-The pet: "somewhere, a lowercase y is hungry. feed your words."
+The pet: "somewhere, a lowercase y is nodding off. wake your words."
 Glow-up: "lowercase → UPPERCASE → Gilded → Holographic. First Holographic word in the game: PUFFY, raised by @name."
-Weekly bounty: "This week's bounty: words that end in Y. Hold one, staked and fed, and you share the pool. Rarer words take a bigger share."
+Weekly bounty: "This week's bounty: words that end in Y. Hold one, staked and awake, and you share the pool. Rarer words take a bigger share."
 Launch: "Lexigotchi is live on Base. Collect little letter characters, raise them, and spell words nobody else can own. There's only one of each. Your first 15 letters are free."
 Jake's builder posts stay in Jake's own voice.
 

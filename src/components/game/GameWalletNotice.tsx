@@ -122,7 +122,7 @@ export function GameWalletNotice() {
           {staked && (
             <>
               {" "}
-              Staked words stay with the wallet that staked them. Feed them from there, or, in that wallet’s profile, let this
+              Staked words stay with the wallet that staked them. Wake them from there, or, in that wallet’s profile, let this
               one care for them.
             </>
           )}

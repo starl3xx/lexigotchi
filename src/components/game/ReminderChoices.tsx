@@ -120,7 +120,7 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
           {(
             [
               ["each", "Each one as it happens", null],
-              ["weekly", "One email a week", "In place of the ones that can come every day. A word about to go hungry, a win, a sale, and a bounty share still come at once."],
+              ["weekly", "One email a week", "In place of the ones that can come every day. A word about to fall asleep, a win, a sale, and a bounty share still come at once."],
             ] as const
           ).map(([value, label, hint]) => (
             <label key={value} className="flex items-start gap-2 text-sm">

@@ -59,7 +59,7 @@ function drawLine(draw: LastDraw, pot: number | null): string {
     const won = `${draw.winner.name} held ${draw.word ?? "the secret word"} and won the jackpot: ${fmtWord(draw.winner.amount)} $WORD.`;
     return pot === null ? won : `${won} The next one starts at ${fmtWord(pot)} $WORD.`;
   }
-  const rolled = `${draw.word ? `The secret word was ${draw.word}. Nobody held it` : "Nobody held the secret word"} staked and fed, so the jackpot rolled over`;
+  const rolled = `${draw.word ? `The secret word was ${draw.word}. Nobody held it` : "Nobody held the secret word"} staked and awake, so the jackpot rolled over`;
   return pot === null ? `${rolled}.` : `${rolled}: it is now ${fmtWord(pot)} $WORD.`;
 }
 

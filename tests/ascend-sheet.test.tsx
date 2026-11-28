@@ -76,13 +76,13 @@ afterEach(() => {
 });
 
 describe("before a try", () => {
-  it("names the stage it is for, its odds, and its whole price (the fee and the snack it burns)", () => {
+  it("names the stage it is for, its odds, and its whole price (the fee and what the try burns)", () => {
     show(fakeGame(vivid({ prestigePity: 1 })).api);
     expect(screen.getByRole("button", { name: "Try for Gilded 2 · 202 $WORD" })).toBeTruthy();
     // Gilded 2's first try is 35%; one miss has added 10 points
     expect(sheet().textContent).toContain("45%");
     expect(sheet().textContent).toContain("+10 points from 1 miss");
-    expect(sheet().textContent).toContain("snack, burned with each try");
+    expect(sheet().textContent).toContain("$WORD that is burned with each try");
   });
 
   it("offers no try on a word that isn't staked, and says why", () => {
@@ -104,7 +104,7 @@ describe("before a try", () => {
     const g = fakeGame(vivid(), { unfinishedAscents: new Set(["VIVID"]) });
     show(g.api);
     expect(sheet().textContent).toContain("Your last attempt is already paid for. Finishing it takes no new fee.");
-    expect(sheet().textContent).not.toContain("snack, burned with each try");
+    expect(sheet().textContent).not.toContain("$WORD that is burned with each try");
     expect(tryButton()).toBeNull();
     const finishIt = screen.getByRole("button", { name: "Finish your attempt" }) as HTMLButtonElement;
     expect(finishIt.textContent).not.toContain("$WORD");

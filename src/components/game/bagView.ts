@@ -20,12 +20,12 @@ export const WORD_FILTER_LABEL: Record<WordFilter, string> = {
   staked: "Staked",
   unstaked: "Not staked",
   earning: "Earning",
-  needsFood: "Needs food",
+  needsFood: "Needs waking",
   forSale: "For sale",
 };
 export const WORD_SORT_LABEL: Record<WordSort, string> = {
   best: "Best first",
-  hungriest: "Hungriest first",
+  hungriest: "Sleepiest first",
   az: "A to Z",
 };
 

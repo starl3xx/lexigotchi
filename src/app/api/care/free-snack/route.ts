@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   try {
     ({ account: profile, wallets } = await accountWalletsStrict(staker));
   } catch (err) {
-    console.error("[free-snack] couldn't read the staker's profile:", String((err as Error)?.message ?? err).slice(0, 120));
+    console.error("[care/free] couldn't read the staker's profile:", String((err as Error)?.message ?? err).slice(0, 120));
     return NextResponse.json({ ok: false, error: "try_again" }, { status: 503 });
   }
 
