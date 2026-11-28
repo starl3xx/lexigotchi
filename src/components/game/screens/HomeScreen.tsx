@@ -193,7 +193,7 @@ function PotTile({
       {/* Sized to fit "776.74M" (the test game's Rewards Pool) in every tile: one size down under
           380 px (a 360 px phone's tile has 80 px), and 24 px from md, where the rail leaves a 768 px
           screen's tile 117 px inside. The full 30 px from lg. */}
-      <span className={`mt-1 font-display text-lg font-extrabold leading-none min-[380px]:text-xl md:text-2xl lg:text-3xl ${t.amount}`}>
+      <span className={`fig mt-1 text-lg leading-none min-[380px]:text-xl md:text-2xl lg:text-3xl ${t.amount}`}>
         {known ? <TweenNumber value={word} format={(v) => potLine(v, o).amount} /> : line.amount}
       </span>
       <span className="mt-1 text-xs text-ink/60">{line.unit}</span>

@@ -62,7 +62,7 @@ export function EarningsSheet() {
         </div>
         {e ? (
           <>
-            <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">
+            <div className="fig mt-1 text-4xl text-gold-deep">
               <TweenNumber value={e.total} format={fmtWord} />
             </div>
             {/* dollars hide on testnet, as everywhere (showsUsd): test $WORD isn't worth them */}
@@ -127,7 +127,7 @@ export function EarningsSheet() {
       {e && e.bounty > 0 && (
         <div className="cel-sm mt-2 flex items-center justify-between rounded-xl bg-card px-3 py-2 text-sm">
           <span className="font-bold">Theme bounties</span>
-          <span className="font-display font-extrabold text-gold-ink">{fmtWord(e.bounty)}</span>
+          <span className="fig text-gold-ink">{fmtWord(e.bounty)}</span>
         </div>
       )}
 
@@ -202,7 +202,7 @@ function WordRow({ word, status, total, latest, when }: { word: OwnedWord; statu
         <Pill className={st.tone}>{st.label(status)}</Pill>
       </span>
       <span className="text-right leading-tight">
-        <span className="block font-display font-extrabold">{total > 0 ? fmtWord(total) : "–"}</span>
+        <span className="fig block">{total > 0 ? fmtWord(total) : "–"}</span>
         {latest > 0 && when && (
           <span className="block text-xs font-bold text-gold-ink">
             +{fmtWord(latest)} {when}

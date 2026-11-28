@@ -49,7 +49,7 @@ export function SoldList() {
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <div className="font-display text-base font-extrabold leading-none tabular-nums">{fmtWord(s.price)}</div>
+            <div className="fig text-base leading-none">{fmtWord(s.price)}</div>
             <div className="text-xs text-ink/55">
               {s.kind === "letter" && s.qty > 1 ? `${fmtWord(s.unitPrice)} each` : "$WORD"}
             </div>

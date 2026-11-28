@@ -120,7 +120,7 @@ export function ShopScreen() {
             under them (beside the price, a narrow card squeezed them into a column of two words). */}
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0 font-display font-extrabold">{name}</div>
-          <div className="shrink-0 text-right text-sm font-bold">{usdcLabel(card.item.priceUsdc, testnet)}</div>
+          <div className="fig shrink-0 text-right text-sm">{usdcLabel(card.item.priceUsdc, testnet)}</div>
         </div>
         <div className="mt-0.5 text-xs text-ink/60">{itemWords(card, about)}</div>
       </>
@@ -176,7 +176,7 @@ export function ShopScreen() {
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-card px-3 py-2 text-sm">
           <span className="text-ink/70">{testnet ? "Your test USDC" : "Your USDC"}</span>
           <span className="flex items-center gap-2">
-            <span className="font-bold">{balance === undefined ? "–" : usdcLabel(balance, testnet)}</span>
+            <span className="fig">{balance === undefined ? "–" : usdcLabel(balance, testnet)}</span>
             {testnet && tooLow && (
               <Button variant="teal" size="sm" onClick={() => void getUsdc()}>
                 <Plus weight="bold" /> Get test USDC

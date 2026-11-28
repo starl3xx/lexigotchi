@@ -92,7 +92,7 @@ export function BalanceSheet() {
           <Coins weight="fill" />
           <span className="text-sm font-bold">Balance</span>
         </div>
-        <div className="mt-1 font-display text-4xl font-extrabold text-gold-deep">
+        <div className="fig mt-1 text-4xl text-gold-deep">
           <TweenNumber value={state.balance} format={fmtWord} />
         </div>
         {testnet ? (

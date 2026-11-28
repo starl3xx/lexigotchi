@@ -320,42 +320,42 @@ export function LookupSheet({ word }: { word: string }) {
             <PlayerChip address={holder.address} profile={holder.profile} size={18} />
           </Fact>
         )}
-        {number ? <Fact label="Card">{cardNumber(number)}</Fact> : null}
+        {number ? <Fact label="Card" fact>{cardNumber(number)}</Fact> : null}
         {rarest ? (
-          <Fact label="Rarity">
+          <Fact label="Rarity" fact>
             {tier} · the {ordinal(rarest)} rarest of {WORD_COUNT.toLocaleString("en-US")}
           </Fact>
         ) : null}
-        <Fact label="Points">{wordPoints(word)}</Fact>
-        {open && <Fact label="Owner">Nobody yet</Fact>}
+        <Fact label="Points" fact>{wordPoints(word)}</Fact>
+        {open && <Fact label="Owner" fact>Nobody yet</Fact>}
         {ahead && <Fact label="Set">{ahead.name}</Fact>}
         {/* The claim fee for THIS word, by its tier (decisions.md #60). */}
         {(open || ahead !== null) && (
-          <Fact label="To claim">
+          <Fact label="To claim" fact>
             {fmtWord(g.claimFee(word))} $WORD{claimLadderLive() ? ` (${aTierWord(tier)})` : ""}
           </Fact>
         )}
-        {open && drawn !== null && <Fact label="The daily word">{drawn === "never" ? "Not drawn yet" : `Drawn already (draw ${drawn})`}</Fact>}
-        {open && cost && <Fact label="Cost to make">~{fmtWord(cost.total)} $WORD</Fact>}
-        {open && earns ? <Fact label="Earns staked">~{fmtWord(earns)} $WORD a day, once all UPPERCASE</Fact> : null}
+        {open && drawn !== null && <Fact label="The daily word" fact>{drawn === "never" ? "Not drawn yet" : `Drawn already (draw ${drawn})`}</Fact>}
+        {open && cost && <Fact label="Cost to make" fact>~{fmtWord(cost.total)} $WORD</Fact>}
+        {open && earns ? <Fact label="Earns staked" fact>~{fmtWord(earns)} $WORD a day, once all UPPERCASE</Fact> : null}
         {open && theme.test(word) && <Fact label="Fits this week’s bounty">{theme.name}</Fact>}
-        {status === "taken" && <Fact label="In the Market">Not for sale</Fact>}
+        {status === "taken" && <Fact label="In the Market" fact>Not for sale</Fact>}
         {status === "sale" && listing && (
-          <Fact label="In the Market">
+          <Fact label="In the Market" fact>
             {fmtWord(listing.price)} $WORD{listing.listedAt ? `, listed ${timeAgo(Date.parse(listing.listedAt))}` : ""}
           </Fact>
         )}
-        {status === "sale" && listing && listing.prestigeLevel > 0 && <Fact label="Ascension">{stageName(listing.prestigeLevel)}</Fact>}
+        {status === "sale" && listing && listing.prestigeLevel > 0 && <Fact label="Ascension" fact>{stageName(listing.prestigeLevel)}</Fact>}
         {status === "sale" && listing && listing.prestigePity > 0 && (
-          <Fact label="Failed ascensions">{listing.prestigePity}, so better odds next time</Fact>
+          <Fact label="Failed ascensions" fact>{listing.prestigePity}, so better odds next time</Fact>
         )}
         {status === "sale" && listing && unfed > 0 && (
-          <Fact label="Not woken for">
+          <Fact label="Not woken for" fact>
             {unfed} day{unfed === 1 ? "" : "s"}
           </Fact>
         )}
         {status === "sale" && listing?.lastSale && (
-          <Fact label="Last sold for">
+          <Fact label="Last sold for" fact>
             {fmtWord(listing.lastSale.price)} $WORD, {timeAgo(listing.lastSale.at)}
           </Fact>
         )}
@@ -374,11 +374,16 @@ function Action({ hint, children }: { hint: string; children: ReactNode }) {
   );
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * One row of the word's ledger. `fact` sets its value in the card's serif: a figure, or a fact in
+ * words. Never set it for a NAME (the owner, a set, the bounty's theme, which may name a letter):
+ * the serif never letters a name, a word, or a letter of the game (decisions.md #66, part 3).
+ */
+function Fact({ label, fact = false, children }: { label: string; fact?: boolean; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-ink/15 py-2 text-sm">
       <dt className="shrink-0 font-semibold text-ink/65">{label}</dt>
-      <dd className="min-w-0 text-right">{children}</dd>
+      <dd className={`min-w-0 text-right ${fact ? "fact" : ""}`}>{children}</dd>
     </div>
   );
 }

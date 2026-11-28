@@ -47,15 +47,15 @@ export function LhawScreen() {
         <SectionTitle>Live round</SectionTitle>
         {d?.live ? (
           <div className="space-y-2">
-            <Stat label={`Round ${d.live.round} pot`} big>
+            <Stat label={`Round ${d.live.round} pot`} big fig>
               {d.live.potWord != null ? `${fmtWord(d.live.potWord)} $WORD` : usd(d.live.potUsd)}
               {d.live.potWord != null && d.live.potUsd != null && (
                 <span className="ml-1 text-sm font-bold text-ink/55">({usd(d.live.potUsd)})</span>
               )}
             </Stat>
-            <Stat label="Guesses so far">{d.live.guesses.toLocaleString("en-US")}</Stat>
+            <Stat label="Guesses so far" fig>{d.live.guesses.toLocaleString("en-US")}</Stat>
             {d.live.top10Left != null && (
-              <Stat label="Top 10 Early Guessers">
+              <Stat label="Top 10 Early Guessers" fig>
                 {d.live.top10Left > 0 ? `${d.live.top10Left.toLocaleString("en-US")} guesses left to get in` : "locked for this round"}
               </Stat>
             )}
@@ -72,11 +72,11 @@ export function LhawScreen() {
             <Stat label={`Round ${d.last.round}’s word`} big>
               {d.last.word}
             </Stat>
-            <Stat label="Jackpot">{usd(d.last.jackpotUsd)}</Stat>
-            <Stat label="Players">
+            <Stat label="Jackpot" fig>{usd(d.last.jackpotUsd)}</Stat>
+            <Stat label="Players" fig>
               {d.last.players.toLocaleString("en-US")} players, {d.last.guesses.toLocaleString("en-US")} guesses
             </Stat>
-            {d.roundsPlayed != null && <Stat label="Rounds played">{d.roundsPlayed.toLocaleString("en-US")}</Stat>}
+            {d.roundsPlayed != null && <Stat label="Rounds played" fig>{d.roundsPlayed.toLocaleString("en-US")}</Stat>}
           </div>
         ) : (
           <Empty loading={q.isLoading} />
@@ -133,11 +133,17 @@ export function LhawScreen() {
   );
 }
 
-function Stat({ label, big = false, children }: { label: string; big?: boolean; children: ReactNode }) {
+/**
+ * A label and its value. `fig` sets the value in the card's serif: a figure, large (bold) or small
+ * (a quiet fact). Not for last round's WORD, which stands in the same place: a word is always
+ * Söhne (decisions.md #66, part 3). So the serif is asked for by what the value IS.
+ */
+function Stat({ label, big = false, fig = false, children }: { label: string; big?: boolean; fig?: boolean; children: ReactNode }) {
+  const value = big ? (fig ? "fig text-2xl text-gold-deep" : "font-display text-2xl font-extrabold text-gold-deep") : fig ? "fact text-sm" : "text-sm font-bold";
   return (
     <div>
       <div className="text-xs font-bold text-ink/60">{label}</div>
-      <div className={big ? "font-display text-2xl font-extrabold text-gold-deep" : "text-sm font-bold"}>{children}</div>
+      <div className={value}>{children}</div>
     </div>
   );
 }

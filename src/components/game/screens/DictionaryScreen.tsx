@@ -222,7 +222,7 @@ export function DictionaryScreen() {
                   </span>
                 )}
                 {number && status !== "open" && status !== "unknown" ? (
-                  <span className="shrink-0 font-bold tabular-nums text-ink/60">{cardNumber(number)}</span>
+                  <span className="fact shrink-0 text-ink/60">{cardNumber(number)}</span>
                 ) : null}
               </span>
             </button>

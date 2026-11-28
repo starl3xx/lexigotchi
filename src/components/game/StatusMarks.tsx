@@ -40,7 +40,7 @@ export function StatusMarks({ marks, compact = false, className = "" }: { marks:
             <Icon weight="fill" size={18} aria-hidden className="shrink-0" />
             <span>
               <small>{m.about}</small>
-              <b>{m.value}</b>
+              <span className="tm-val">{m.value}</span>
             </span>
           </li>
         );

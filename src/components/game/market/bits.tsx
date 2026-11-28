@@ -70,7 +70,7 @@ export function PriceIdeas({ ideas, current, onPick }: { ideas: readonly PriceId
             }`}
           >
             <span>{i.label}</span>
-            <strong className="shrink-0 font-display tabular-nums">{fmtWord(i.price)}</strong>
+            <span className="fig shrink-0">{fmtWord(i.price)}</span>
           </button>
         </li>
       ))}

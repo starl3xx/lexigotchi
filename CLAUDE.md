@@ -992,6 +992,8 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `StatusMarks.tsx`): **Fed, Jackpot, Earns**, always in that order, each in the colour of its meaning.
   In full on the Today placard and the word's sheet; as three icons beside the name in the Bag
   (`compact`). Add a status fact as a mark's wording, never as a new badge or a sentence on the art.
+  **Status is never bold** (the owner's rule; decisions.md #66, part 3): a mark's value is a fact,
+  in the card's serif at regular weight (`.tm-val`), and the mark's own name is Söhne, medium.
   **The Today stage is a clean card and a placard under it** (`.tt`, `.tt-plate`): the marks, the one
   thing to do, the earnings line, and a pager with the arrows. **The placard never names the word**
   (starl3xx: "seeing JAZZY immediately underneath the card is redundant"); the action's label does.
@@ -1599,7 +1601,16 @@ bot posts). The hard rules:
   sparkle is left only where it means Mint, and the bought confetti only in the "Wake them every
   day" step picture: both wait for the owner (the audit's parts 5 and 6, and 5F or 5G), and
   `tests/engraved-marks.test.tsx` lists the files. The jackpot has no burst: the winner's card
-  cheers with the letters' own engraved confetti. **When a mark is proposed large, draw it at
+  cheers with the letters' own engraved confetti. **Figures and facts are in the card's serif**
+  (part 3; globals.css): `.fig` for a FIGURE that stands as a value (a pot, a balance, a price,
+  a count, a rank: bold, as the card's back sets its number) and `.fact` for a FACT in words or a
+  quiet value in a ledger (regular). Two weights, and never a weight class beside them. **Never in
+  the serif: a word or a letter of the game, a player's or a set's name, the bounty's theme (it
+  can name a letter), a button, a tab, a chip, a heading, or a sentence.** So put the class on
+  the figure ITSELF, never on a slot that several things share (the Let's Have A Word! page shows
+  a WORD where it shows a figure): a ledger row asks for it with `fact`, a stat with `fig`. A
+  number inside a sentence or a button stays one face with its sentence.
+  `tests/serif-figures.test.tsx` holds it. **When a mark is proposed large, draw it at
   every size the game shows it before building** (the twinkle was shown at 52 px and is used at
   13). **After changing tailwind.config.ts,
   touch `src/app/globals.css`:** a running dev server kept serving the old stylesheet (the new

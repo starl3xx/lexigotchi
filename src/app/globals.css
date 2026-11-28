@@ -29,13 +29,28 @@
   --font-display: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Soehne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   /* The card's serif, for what a card says ABOUT a word (its rarity, its number), never for the
-     word itself: words are only ever set in Söhne (starl3xx, 2026-11-25). It is Source Serif 4,
+     word itself: words are only ever set in Söhne (starl3xx, 2026-11-25). In the interface it is
+     the voice for figures and facts (.fig and .fact below; decisions.md #66, part 3). It is Source Serif 4,
      shipped with the game, the same face for every player and on the server's pictures
      (decisions.md #52; starl3xx, 2026-11-27: "let's go 3H for consistency"). It was Iowan Old
      Style where a device had it and the device's own serif elsewhere, so most players saw
      another face than a Mac shows. Those stay behind it, for the moment before the file loads. */
   --font-card: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "Noto Serif", Georgia, serif;
 }
+
+/* ---- figures and facts (decisions.md #66, part 3; starl3xx, 2026-11-27: "3C and 3G are g2g") ----
+   The card's serif in the interface, in two weights and no more:
+   - .fig: a FIGURE that stands as a value: a pot, a balance, a price, a count, a rank, a card's
+     number. Bold, as the card's back sets its number. The face's own figures are lining and all
+     one width, so a number that counts up does not shift.
+   - .fact: a FACT in words, or a quiet value in a ledger: a status ("Asleep, day 3"), a date,
+     "One of 312 Legendary words". Regular: status is never bold.
+   Never in the serif: a word or a letter of the game, a player's or a set's name, a button, a
+   tab, a chip, a heading, or a sentence. So the class goes on the FIGURE ITSELF, never on a slot
+   that several things share: a "value" slot holds a word on one screen and a number on the next.
+   tests/serif-figures.test.ts holds it. */
+.fig { font-family: var(--font-card); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; letter-spacing: 0; }
+.fact { font-family: var(--font-card); font-weight: 400; font-variant-numeric: lining-nums tabular-nums; letter-spacing: 0; }
 
 /* Accessibility: respect reduced-motion for the cel-animation rigs (spec §7 — every
    TileCharacter state still reads from its static eyes + brow + tilt pose). */
@@ -694,8 +709,10 @@ body {
 .tm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tm-mark { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 12px; }
 .tm-mark > span { display: grid; gap: 1px; min-width: 0; }
-.tm-mark small { font-size: 12px; font-weight: 600; line-height: 1.1; opacity: 0.8; }
-.tm-mark b { font-size: 13.5px; font-weight: 800; line-height: 1.15; color: #1b1714; }
+.tm-mark small { font-size: 12px; font-weight: 500; line-height: 1.1; opacity: 0.85; }
+/* The value is a fact about the word: the card's serif, regular. STATUS IS NEVER BOLD (the owner's
+   rule; it was Söhne at 800, heavier than the mark's own name). 13.5px is the size he saw. */
+.tm-val { font-family: var(--font-card); font-size: 13.5px; font-weight: 400; line-height: 1.15; color: #1b1714; }
 .tm-compact { display: flex; gap: 4px; }
 .tm-compact .tm-mark { padding: 4px; border-radius: 999px; }
 /* the marks on their own row somewhere narrow (a phone's placard, the word's sheet on a phone) */

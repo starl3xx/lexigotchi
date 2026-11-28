@@ -87,13 +87,13 @@ export function WordScreen() {
         <p className="mt-0.5 text-sm text-ink/70">The token behind Lexigotchi and Let’s Have A Word!, on Base.</p>
         {/* Phones: the price gets its own row (a sub-cent price is wide); desktop: three across. */}
         <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
-          <Stat label="Price" big className="col-span-2 md:col-span-1">
+          <Stat label="Price" className="col-span-2 md:col-span-1">
             {d ? fmtPrice(d.price.usd) : "–"}
           </Stat>
-          <Stat label="Market cap" big>
+          <Stat label="Market cap">
             {fmtMarketCap(d?.price.marketCapUsd)}
           </Stat>
-          <Stat label="24 hours" big>
+          <Stat label="24 hours">
             {change == null ? (
               "–"
             ) : (
@@ -150,7 +150,7 @@ export function WordScreen() {
         <SectionTitle>Supply</SectionTitle>
         {s ? (
           <div className="space-y-2.5">
-            <Stat label="Total supply now" big>
+            <Stat label="Total supply now">
               {fmtWord(s.total)}
             </Stat>
             <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-card" aria-hidden>
@@ -183,7 +183,7 @@ export function WordScreen() {
               rows={[
                 ["Pool liquidity (both sides)", fmtUsdShort(d.pool.liquidityUsd)],
                 ["Traded in 24 hours", fmtUsdShort(d.pool.volume24hUsd)],
-                ["Where it trades", "Uniswap v4 on Base"],
+                ["Where it trades", "Uniswap v4 on Base", "name"],
               ]}
             />
             <p className="text-xs text-ink/60">The pool is small, so a large trade moves the price.</p>
@@ -257,22 +257,24 @@ export function WordScreen() {
   );
 }
 
-function Stat({ label, big = false, className = "", children }: { label: string; big?: boolean; className?: string; children: ReactNode }) {
+/** A label and its figure, in the card's serif (every stat on this page is a number). */
+function Stat({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
   return (
     <div className={`min-w-0 ${className}`}>
       <div className="text-xs font-bold text-ink/60">{label}</div>
-      <div className={big ? "truncate font-display text-xl font-extrabold tabular-nums md:text-2xl" : "text-sm font-bold"}>{children}</div>
+      <div className="fig truncate text-xl md:text-2xl">{children}</div>
     </div>
   );
 }
 
-function Rows({ rows }: { rows: [string, string][] }) {
+/** A ledger. A value is a figure (the card's serif) unless its row says it is a `name`: a name is Söhne. */
+function Rows({ rows }: { rows: [label: string, value: string, kind?: "name"][] }) {
   return (
     <dl className="divide-y-2 divide-ink/10 text-sm">
-      {rows.map(([k, v]) => (
+      {rows.map(([k, v, kind]) => (
         <div key={k} className="flex items-baseline justify-between gap-3 py-1.5">
           <dt className="text-ink/70">{k}</dt>
-          <dd className="font-bold tabular-nums">{v}</dd>
+          <dd className={kind === "name" ? "font-bold" : "fact"}>{v}</dd>
         </div>
       ))}
     </dl>
