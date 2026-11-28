@@ -11,7 +11,7 @@ import { VEIL, loopPose, LOOP_SECONDS } from "@/components/cards/loop/loopRender
 import { PLATE_BORDER, PLATE_SEAL, backPlate } from "@/lib/cardArt/plate";
 import { CARD_H, CARD_W, svgDoc } from "@/lib/cardArt/engrave";
 import { MATERIAL_GROUND, MATERIAL_LINE, collabPlate, materialPlate, type CardMaterial } from "@/components/cards/material";
-import { LIGHT, LIGHT_INK, lightBand, lightLines, type LightInk } from "@/lib/cardArt/light";
+import { LIGHT, LIGHT_INK, lightBand, lightLines, lightStrokes, type LightInk } from "@/lib/cardArt/light";
 import { WEAVE, sheetMeasures, weaveSheet, weaveTile, type StockSide } from "@/lib/cardArt/stock";
 import { DARK_SCENES, PALE_SCENES } from "@/lib/cardArt/scenes";
 import { SCENES } from "@/lib/scenes";
@@ -190,11 +190,31 @@ describe("the front's light is a ruled band (part 3: \"I love the ruled band, bu
     expect(new Set(ids).size).toBe(ids.length);
     for (const ref of art.matchAll(/url\(#([\w-]+)\)/g)) expect(ids, ref[1]).toContain(ref[1]);
     // fine lines, leaning: the measures the owner saw
-    expect(art).toContain(`<pattern id="r" width="${LIGHT.pitch}" height="${LIGHT.pitch}" patternUnits="userSpaceOnUse" patternTransform="rotate(${LIGHT.lean})">`);
+    expect(art).toContain(`<path transform="rotate(${LIGHT.lean})" d="${lightStrokes()}" fill="none" stroke="`);
     expect(art).toContain(`stroke-width="${LIGHT.weight}"`);
+    // plain strokes, never a pattern: WebKit draws a turned pattern upright into a bitmap, and the card in focus keeps its lines as one
+    expect(art).not.toMatch(/<pattern|patternTransform/);
     // at half strength in the picture itself, whichever way it is inked
     expect(art).toContain(ink === "spectrum" ? `opacity="${LIGHT.ink}"` : `stroke-opacity="${LIGHT.ink}"`);
     expect(svgDoc(art)).toContain("</svg>");
+  });
+
+  it("the strokes stand a pitch apart in the turned frame, where the pattern's stood, and cover the whole card", () => {
+    const xs = [...lightStrokes().matchAll(/M(-?[\d.]+) (-?\d+)V(-?\d+)/g)].map((m) => ({ x: +m[1], top: +m[2], bottom: +m[3] }));
+    expect(xs.length).toBeGreaterThan(150);
+    for (let i = 1; i < xs.length; i++) expect(xs[i].x - xs[i - 1].x).toBeCloseTo(LIGHT.pitch, 5);
+    // each where a pattern tile's line stood: `at` into a tile, tiles a pitch wide from the frame's origin
+    for (const s of xs) expect((((s.x - LIGHT.at) / LIGHT.pitch) % 1) + 0).toBeCloseTo(0, 5);
+    // every point of the card is between two strokes, and under their length
+    const rad = (LIGHT.lean * Math.PI) / 180;
+    for (const [x, y] of [[0, 0], [CARD_W, 0], [0, CARD_H], [CARD_W, CARD_H]]) {
+      const u = x * Math.cos(rad) + y * Math.sin(rad);
+      const v = y * Math.cos(rad) - x * Math.sin(rad);
+      expect(xs[0].x).toBeLessThanOrEqual(u);
+      expect(xs[xs.length - 1].x).toBeGreaterThanOrEqual(u);
+      expect(xs[0].top).toBeLessThan(v);
+      expect(xs[0].bottom).toBeGreaterThan(v);
+    }
   });
 
   it("the ink is the rarity's: white, warm for Legendary, a spectrum printed across the card for Mythic", () => {
@@ -213,7 +233,10 @@ describe("the front's light is a ruled band (part 3: \"I love the ruled band, bu
     expect(band).toBeGreaterThan(at('<div className="cf-tex" />'));
     expect(band).toBeLessThan(at("className={`cf-word "));
     expect(frame).toContain("const lit = useContext(CardLit);");
-    expect(frame).toMatch(/\{lit && \(\s*<i aria-hidden className="cf-light">\s*<i style=\{\{ backgroundImage: cardLightImage\(lightInk\) \}\} \/>\s*<\/i>\s*\)\}/);
+    expect(frame).toMatch(/\{lit && \(\s*<i aria-hidden className="cf-light">\s*<i ref=\{lines\} style=\{\{ backgroundImage: linesBitmap \?\? linesPicture \}\} \/>\s*<\/i>\s*\)\}/);
+    // the lines are the one drawing, shown as a picture or as a bitmap made of that picture (the pointer moves the band)
+    expect(frame).toContain("const linesPicture = cardLightImage(lightInk);");
+    expect(frame).toContain("const linesBitmap = useLinesBitmap(lines, linesPicture, lit);");
     // the card draws no band of its own over the whole front any more
     const card = read("src/components/cards/SceneCard.tsx");
     expect(card).toContain("<CardLit.Provider value={light.lit}>{front}</CardLit.Provider>");
@@ -254,6 +277,27 @@ describe("the front's light is a ruled band (part 3: \"I love the ruled band, bu
     // transforms only: a mask moved by its position, or anything else, is painted again on every frame
     for (const k of css.matchAll(/@keyframes cf-light[\w-]* \{([\s\S]*?\})\s*\}/g)) expect(k[1].replace(/transform: translateX\([^)]*\);/g, "")).not.toMatch(/[a-z-]+:/);
     expect(css).not.toMatch(/cf-light[^{]*\{[^}]*infinite/);
+  });
+
+  it("no glare under the pointer: the pointer moves the band (12F, decisions.md #65)", () => {
+    // a round white light is a hot spot, and it lay over the letters: none is left in the styles or the card
+    expect(css).not.toMatch(/sc-glare/);
+    expect(css).not.toMatch(/radial-gradient\(closest-side, rgb\(255 255 255/);
+    const card = read("src/components/cards/SceneCard.tsx");
+    expect(card).not.toMatch(/glare/);
+    // the card finds the front's band and stands it under the pointer: transforms, written straight to the two elements
+    const hook = read("src/components/cards/useCardLight.ts");
+    expect(hook).toContain('querySelector<HTMLElement>(".sc-front .cf-light")');
+    expect(hook).toContain("b.win.style.transform = left === null ? \"\" : `translateX(${left.toFixed(2)}cqw)`;");
+    expect(hook).toContain("b.lines.style.transform = left === null ? \"\" : `translateX(${(-left).toFixed(2)}cqw)`;");
+    expect(hook).not.toMatch(/setProperty|--[a-z]/); // never a custom property: one is inherited by every shape inside
+    // it rests off the card on either side, by the drawing's own measure
+    expect(hook).toContain("const BAND = lightBand().box;");
+    // the window and its lines ease by ONE rule, so they stay in step and the lines stand still; only where motion is welcome
+    const ease = ".sc-ease .cf-light, .sc-ease .cf-light > i { transition: transform 240ms var(--ease-out); }";
+    expect(css).toContain(ease);
+    const motion = css.slice(css.indexOf(".sc-ease { transition:") - 60, css.indexOf(".sc-moment .cf-light > i"));
+    expect(motion).toContain(ease);
   });
 
   it("its strength follows the face: quiet on colour, quieter on a dark plate, and more on the pale stock card", () => {

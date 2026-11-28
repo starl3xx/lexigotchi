@@ -806,11 +806,12 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   listed yet (the owner's: `Shop.addItem`, then a `shop_items` row of kind "case"). **Curved ground is one rule:** a
   scene gives its ground's height across the card (`GROUND` in `cardArt/scenes.ts`) and each letter
   is lowered to it and turned to its slope (`wordFootings`); keep a slope under about 12° so hands
-  stay joined. **The card's own light** (`cards/useCardLight`, `.cf-light`/`.sc-glare`/`.sc-lean`) is
+  stay joined. **The card's own light** (`cards/useCardLight`, `.cf-light`/`.sc-lean`) is
   the only motion: a faint band of RULED LINES in moments (decisions.md #58, part 3: see "The cards
   are matte"), and a lean toward a mouse pointer, on the card in
   focus only, never for a hungry word; the lean's transform is written directly with no transition
-  while it follows (a transition restarted each frame cost a third of a core). Keep such effects
+  while it follows (a transition restarted each frame cost a third of a core). **There is no glare
+  under the pointer: the pointer moves the band** (decisions.md #65; see "The cards are matte"). Keep such effects
   faint (the owner: "much more subtle/transparent"). The Today stage walks the player's words with
   ← and → (and swipe and arrow keys; `stageLineup`, staked neediest first, then unstaked), with the
   next three as cards and a My Bag tile. **A hungry word's card: the ink runs low** (decisions.md #61; `toneOf`,
@@ -864,7 +865,19 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   hold it). Its ink is the rarity's (`LIGHT_INK`: white, warm for Legendary, for Mythic a
   spectrum printed across the card). Measured against the old white band, made to pass again and
   again: a few points of a core more while it passes, in both engines, and under one point on
-  average. **The stock is in EVERY place a card is drawn** (starl3xx, 2026-11-27: "crosshatch isn't in the
+  average. **The pointer moves the band, and there is no glare** (decisions.md #65; starl3xx,
+  2026-11-27, of 12F and the other open choices: "these are all good"): while a mouse is over the
+  card in focus the band stands under it and no timed pass plays; a phone has no pointer, so the
+  band passes by itself. Never lay a round or soft white light on a card again. The card finds
+  the front's band and writes two transforms to it, once a frame, with no transition while it
+  follows (`useCardLight`). **Two things make that free, and both are needed** (WebKit, pointer
+  moving all the time: 53% of a core without them, 25% with, and 25% with no band at all): under
+  a pointer the two elements are layers of their own, and the card in focus keeps its lines as a
+  BITMAP made once at the exact size shown (`scenes/useLinesBitmap`; a vector picture is drawn
+  again on every frame its layer moves). **The lines are plain strokes, never a `<pattern>`**
+  (`lightStrokes`): WebKit draws a turned pattern upright when a picture is drawn into a bitmap.
+  **Anything else that is drawn into a canvas or a bitmap must be compared with its vector
+  picture in WebKit first.** **The stock is in EVERY place a card is drawn** (starl3xx, 2026-11-27: "crosshatch isn't in the
   share cards images/videos, either... make sure those are all updated with the latest changes"):
   `lib/cardArt/stock` is its one source. The game's styles hold its tile (`weaveTile`: a test compares
   them character for character, so change the weave in the module and copy the tile into the two
@@ -879,8 +892,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   (enlarged three times) at its true size, a third of a pixel at 7%, and he said "i can't see the
   weave on any cards". Each direction is a dark hairline with a light one beside it, so both
   directions show on dark art and on pale paper. **When he approves something from an enlarged
-  swatch, show it at real size too before building, and compare the build with what it replaces.** All four parts he chose are built. Still his to
-  answer: the glare under the pointer, the letters' finishes, the Holographic stage, the case.
+  swatch, show it at real size too before building, and compare the build with what it replaces.** All four parts he chose are built, and
+  the open choices are answered (decisions.md #65). **The rule is four sentences, and it is about
+  CARDS:** (1) a card is paper and ink: nothing on it is metal, glass, or a gem, and a rarity is
+  an ink and a pattern, never a material; (2) light is drawn in lines, and it is quiet: a band of
+  fine ruled lines, or the card's own lines in a lighter ink, never a soft white wash over the
+  card, and never a line over a letter; (3) no hot spot, no glitter, no moving rainbow; (4) the
+  same in the game, the video, and every picture the server draws. **Three things are NOT cards
+  and keep what they have:** the letters keep their rarity finishes for now (he decides after
+  living with matte cards), the Holographic stage stays foil (earned, rare, and on the letter),
+  and the plastic case keeps its shine. A back has no light of its own, Mythic's spectrum is
+  printed and never moves, and the "standard" emblem is the emblem with no ring.
   `tests/matte-cards.test.ts` holds what is built.
 - **Rarity finishes** (decisions.md #23): tiers are Common, Uncommon, Rare, **Legendary** (was Epic),
   **Mythic** (was Legendary); `MYTHICS` replaced `LEGENDARIES`. Each tier above Common wears a
