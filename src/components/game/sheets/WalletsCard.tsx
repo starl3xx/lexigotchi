@@ -163,7 +163,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
         <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
           <LinkIcon weight="bold" /> Link a wallet
         </div>
-        <p className="text-sm text-ink/75">Connect the wallet you want to link. This card then asks it to sign.</p>
+        <p className="text-sm text-ink/70">Connect the wallet you want to link. This card then asks it to sign.</p>
       </Card>
     ) : null;
   }
@@ -249,7 +249,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
           <div className="mb-1 flex items-center gap-1.5 font-display font-extrabold">
             <LinkIcon weight="bold" /> Link this wallet?
           </div>
-          <p className="text-sm text-ink/75">
+          <p className="text-sm text-ink/70">
             {pending.account ? (
               <>
                 Sign to add this wallet (<span className="font-mono text-xs">{short(address)}</span>) to the account{" "}
@@ -268,7 +268,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
               Not now
             </Button>
           </div>
-          {note && <p role="status" className="mt-2 text-xs font-bold text-candy-ink">{note}</p>}
+          {note && <p role="status" className="mt-2 text-xs font-medium text-candy-ink">{note}</p>}
         </Card>
       </div>
     );
@@ -279,14 +279,14 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
     <Card className="mb-3">
       <div className="mb-1 font-display font-extrabold">Wallets</div>
       {choosing && (
-        <div className="mb-2 rounded-xl bg-gold/15 p-3 text-sm text-ink/80">
-          <div className="font-bold text-ink">Choose your game wallet</div>
+        <div className="mb-2 rounded-xl bg-gold/15 p-3 text-sm text-ink/70">
+          <div className="font-medium text-ink">Choose your game wallet</div>
           <p className="mt-1">
             Your letters, words, and $WORD are onchain, in whichever wallet holds them. You can only spell, roll, stake, and
             wake with the connected wallet’s own. So pick one wallet to keep everything in, and play with it.
           </p>
           {inHost && (
-            <p className="mt-1 text-xs text-ink/65">
+            <p className="mt-1 text-xs text-ink/70">
               Inside Farcaster you can only use this Farcaster wallet ({short(here)}). If you play mostly here, choose it.
             </p>
           )}
@@ -305,10 +305,10 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                 <div className="flex items-center gap-1.5">
                   <span className="font-mono text-sm">{short(w)}</span>
                   {w === gameWallet && wallets.length > 1 && (
-                    <span className="rounded-full border-2 border-ink bg-teal/20 px-1.5 py-0.5 text-[10px] font-bold">Game wallet</span>
+                    <span className="rounded-full border-2 border-ink bg-teal/20 px-1.5 py-0.5 text-[10px] font-medium">Game wallet</span>
                   )}
                 </div>
-                <div className="text-xs text-ink/55">
+                <div className="text-xs text-ink/70">
                   {isHere
                     ? "Connected now"
                     : w === account && wallets.length > 1
@@ -320,7 +320,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                 </div>
                 {/* Only a wallet whose things are in the wrong place gets the hint: never the game wallet. */}
                 {!isHere && movable(h) > 0 && w !== gameWallet && (
-                  <div className="mt-0.5 text-[11px] text-ink/50">
+                  <div className="mt-0.5 text-xs text-ink/70">
                     {inHost ? "Open Lexigotchi on the web with this wallet" : "Switch to this wallet"} to move them
                     {gameWallet ? " to your game wallet" : ""}.
                   </div>
@@ -331,13 +331,13 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                   <button
                     onClick={() => void makeGameWallet(w)}
                     disabled={p.busy}
-                    className={`text-xs font-bold underline ${choosing ? "text-teal-ink" : "text-ink/45"}`}
+                    className={`text-xs font-medium underline ${choosing ? "text-teal-ink" : "text-ink/70"}`}
                   >
                     Make game wallet
                   </button>
                 )}
                 {wallets.length > 1 && w !== account && !viaFarcaster.has(w) && (
-                  <button onClick={() => void unlink(w)} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
+                  <button onClick={() => void unlink(w)} disabled={p.busy} className="text-xs font-medium text-ink/70 underline">
                     Unlink
                   </button>
                 )}
@@ -355,8 +355,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
         </div>
       )}
       {moving && hereHoldings && (
-        <div className="mt-2 rounded-xl border-2 border-ink/25 p-3 text-sm text-ink/75">
-          <div className="font-bold text-ink">Move to another wallet</div>
+        <div className="mt-2 rounded-xl border-2 border-ink/25 p-3 text-sm text-ink/70">
+          <div className="font-medium text-ink">Move to another wallet</div>
           {others.length > 1 ? (
             <div role="radiogroup" aria-label="Destination wallet" className="mt-1.5 space-y-1">
               {others.map((w) => (
@@ -397,7 +397,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
               </span>
             </label>
           )}
-          <p className="mt-1.5 text-xs text-ink/60">
+          <p className="mt-1.5 text-xs text-ink/70">
             {process.env.NEXT_PUBLIC_PAYMASTER_ENABLED === "1"
               ? `With Coinbase Wallet the move is free: the game pays the network fee. Other wallets need a little ETH on ${NETWORK.name}.`
               : `This wallet sends the move, so it needs a little ETH on ${NETWORK.name} for the network fee.`}{" "}
@@ -412,7 +412,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             >
               {dest ? `Move to ${short(dest)}` : "Pick a wallet"}
             </Button>
-            <button onClick={() => setMoving(false)} className="text-xs font-bold text-ink/45 underline">
+            <button onClick={() => setMoving(false)} className="text-xs font-medium text-ink/70 underline">
               Cancel
             </button>
           </div>
@@ -421,8 +421,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
 
       {state.chainBacked && others.length > 0 && (
         <div className="mt-3 rounded-xl border-2 border-ink/15 p-3 text-sm">
-          <div className="font-bold text-ink">Care for staked words from any wallet</div>
-          <p className="mt-1 text-xs text-ink/65">
+          <div className="font-medium text-ink">Care for staked words from any wallet</div>
+          <p className="mt-1 text-xs text-ink/70">
             Only this wallet can wake the words it stakes, unless you name your other wallets as caretakers. A caretaker can
             wake, roll, and ascend them, paying from its own wallet. Only this wallet can unstake them.
           </p>
@@ -433,12 +433,12 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                 <div key={w} className="flex items-center justify-between gap-2">
                   <span className="font-mono text-xs">
                     {short(w)}
-                    {on && <span className="ml-1.5 font-sans font-bold text-teal-ink">Caretaker</span>}
+                    {on && <span className="ml-1.5 font-sans font-medium text-teal-ink">Caretaker</span>}
                   </span>
                   <button
                     disabled={busy !== null || !caretakersQ.data}
                     onClick={() => void setCaretaker(w, !on)}
-                    className={`shrink-0 text-xs font-bold underline ${on ? "text-ink/45" : "text-teal-ink"}`}
+                    className={`shrink-0 text-xs font-medium underline ${on ? "text-ink/70" : "text-teal-ink"}`}
                   >
                     {on ? "Stop" : "Let it care for them"}
                   </button>
@@ -450,8 +450,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
       )}
 
       {madeHere && pending ? (
-        <div className="mt-2 rounded-xl border-2 border-dashed border-ink/25 p-3 text-sm text-ink/75">
-          <div className="font-bold text-ink">Now sign with the other wallet</div>
+        <div className="mt-2 rounded-xl border-2 border-dashed border-ink/25 p-3 text-sm text-ink/70">
+          <div className="font-medium text-ink">Now sign with the other wallet</div>
           <ul className="mt-1 list-disc space-y-1 pl-4">
             {!inHost && <li>On this device: switch to it in your wallet app, or with Switch wallet below. This card then asks it to sign.</li>}
             <li>On another device, or in Farcaster: open the link there with that wallet connected.</li>
@@ -467,11 +467,11 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             <Button size="sm" variant="ghost" onClick={() => void copyLink()}>
               Copy link
             </Button>
-            <button onClick={() => writePendingLink(null)} className="text-xs font-bold text-ink/45 underline">
+            <button onClick={() => writePendingLink(null)} className="text-xs font-medium text-ink/70 underline">
               Cancel
             </button>
           </div>
-          <p className="mt-2 text-xs text-ink/55">The link works once, for 15 minutes.</p>
+          <p className="mt-2 text-xs text-ink/70">The link works once, for 15 minutes.</p>
         </div>
       ) : (
         wallets.length < MAX_WALLETS &&
@@ -484,7 +484,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
                 </>
               )}
             </Button>
-            <p className="mt-1.5 text-[11px] leading-snug text-ink/55">
+            <p className="mt-1.5 text-xs leading-snug text-ink/70">
               Linked wallets share one bag, one profile, and one set of free letters, and the links are public. Letters and
               words stay in the wallet that holds them: you play with the connected one, or move them into it.
             </p>
@@ -492,16 +492,16 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
         )
       )}
       {viaFarcaster.size > 0 && (
-        <p className="mt-2 text-[11px] leading-snug text-ink/55">
+        <p className="mt-2 text-xs leading-snug text-ink/70">
           Wallets your Farcaster account verified join on their own. To take one out, remove its verification in Farcaster.
         </p>
       )}
       {wallets.length > 1 && (
-        <p className="mt-2 flex items-center gap-1 text-xs text-ink/55">
+        <p className="mt-2 flex items-center gap-1 text-xs text-ink/70">
           <Check weight="bold" className="text-teal-ink" /> Your bag shows all {wallets.length} wallets.
         </p>
       )}
-      {note && <p role="status" className="mt-2 text-xs font-bold text-candy-ink">{note}</p>}
+      {note && <p role="status" className="mt-2 text-xs font-medium text-candy-ink">{note}</p>}
     </Card>
   );
 }

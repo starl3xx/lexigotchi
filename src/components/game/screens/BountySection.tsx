@@ -54,7 +54,7 @@ export function BountySection() {
       <Card tint="teal">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-sm font-bold text-teal-ink">This week’s bounty</div>
+            <div className="text-sm font-medium text-teal-ink">This week’s bounty</div>
             <div className="font-display text-xl font-extrabold">{theme.name}</div>
           </div>
           <Medal weight="fill" size={40} className="text-teal-ink" />
@@ -62,12 +62,12 @@ export function BountySection() {
         <div className="mt-2 flex items-end justify-between">
           <div>
             <div className="fig text-2xl text-teal-ink">{fmtWord(POOL)}</div>
-            <div className="text-xs text-ink/60">pool · fresh theme each week</div>
+            <div className="text-xs text-ink/70">pool · fresh theme each week</div>
           </div>
           {!state.chainBacked && (
             <div className="text-right">
               <div className="fig text-lg">~{fmtWord(POOL * share)}</div>
-              <div className="text-xs text-ink/60">your projected cut</div>
+              <div className="text-xs text-ink/70">your projected cut</div>
             </div>
           )}
         </div>
@@ -80,7 +80,7 @@ export function BountySection() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-display font-extrabold">{fmtWord(claimTotal)} $WORD not paid out yet</div>
-              <div className="text-xs text-ink/60">
+              <div className="text-xs text-ink/70">
                 It goes out by itself with the next payout. Each share pays the wallet that holds its word.
               </div>
             </div>
@@ -92,10 +92,10 @@ export function BountySection() {
       )}
 
       <Card>
-        <SectionTitle action={<span className="text-xs text-ink/55">{eligible.length}/{matching.length} eligible</span>}>
+        <SectionTitle action={<span className="text-xs text-ink/70">{eligible.length}/{matching.length} eligible</span>}>
           Your matching words
         </SectionTitle>
-        <p className="mb-2 text-xs text-ink/60">
+        <p className="mb-2 text-xs text-ink/70">
           Pays when the week ends, {paysIn(Date.now())}, to every matching word that is{" "}
           <strong>staked and not asleep</strong> at that moment. Rarer matches earn a bigger slice
           (tier-weighted).
@@ -121,13 +121,13 @@ export function BountySection() {
             .map((r, i) => (
               <div
                 key={r.who}
-                className={`flex items-center justify-between rounded-lg border-2 border-ink px-3 py-1.5 text-sm ${r.who === "you" ? "bg-ink/10 font-extrabold" : "bg-card"}`}
+                className={`flex items-center justify-between rounded-lg border-2 border-ink px-3 py-1.5 text-sm ${r.who === "you" ? "bg-ink/10 font-medium" : "bg-card"}`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="font-display text-ink/50">#{i + 1}</span>
+                  <span className="font-display text-ink/70">#{i + 1}</span>
                   {r.who}
                 </span>
-                <span className="font-bold">{r.n} {r.n === 1 ? "word" : "words"}</span>
+                <span className="font-medium">{r.n} {r.n === 1 ? "word" : "words"}</span>
               </div>
             ))}
         </div>

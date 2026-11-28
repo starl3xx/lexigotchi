@@ -114,7 +114,7 @@ export function ConnectPanel() {
       {/* Farcaster linked but no wallet yet: a tester read the green "@name" as being done and
           asked whether they still needed a wallet (2026-11-24). Say it's the one step left. */}
       <div className="text-center font-display text-lg font-extrabold">{viewer.isAuthed ? "One more step" : "Start playing"}</div>
-      <p className="mt-1 text-center text-sm text-ink/60">
+      <p className="mt-1 text-center text-sm text-ink/70">
         {viewer.isAuthed
           ? `${viewer.username ? `@${viewer.username}` : "Your Farcaster account"} is linked. Now connect a wallet: your letters and words live in it, and it’s your Lexigotchi account.`
           : "Your wallet is your Lexigotchi account. Your letters and words live in it."}
@@ -123,7 +123,7 @@ export function ConnectPanel() {
       {inHost && (
         <div className="mt-4">
           {chainRefused ? (
-            <p className="rounded-xl border-2 border-ink/20 bg-paper-dark/40 p-3 text-sm text-ink/75">
+            <p className="rounded-xl border-2 border-ink/20 bg-paper-dark/40 p-3 text-sm text-ink/70">
               Your Farcaster wallet doesn’t support {NETWORK.name}, the test network this beta runs on. Connect another wallet
               below. When the game launches on Base, your Farcaster wallet connects on its own.
             </p>
@@ -139,7 +139,7 @@ export function ConnectPanel() {
                 {hostPending ? "Check your Farcaster wallet…" : hostError ? "Try my Farcaster wallet again" : "Use my Farcaster wallet"}
               </button>
               {hostError && (
-                <p role="status" className="mt-2 text-xs text-ink/60">
+                <p role="status" className="mt-2 text-xs text-ink/70">
                   Your Farcaster wallet didn’t connect ({hostError.slice(0, 90)}). Try again, or connect another wallet below.
                 </p>
               )}
@@ -166,15 +166,15 @@ export function ConnectPanel() {
       <div className="mt-5 border-t-2 border-dashed border-ink/15 pt-4">
         <div className="flex items-center gap-2">
           <span className="font-display text-sm font-extrabold">Link Farcaster</span>
-          <span className="text-xs font-bold text-ink/50">Optional</span>
+          <span className="text-xs font-medium text-ink/70">Optional</span>
         </div>
         {viewer.isAuthed ? (
-          <div className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border-2 border-teal/40 bg-teal/10 px-4 py-2 text-xs font-bold text-teal-ink">
+          <div className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border-2 border-teal/40 bg-teal/10 px-4 py-2 text-xs font-medium text-teal-ink">
             <Check weight="bold" size={13} /> {viewer.username ? `@${viewer.username}` : `fid ${viewer.fid}`}
           </div>
         ) : (
           <>
-            <p className="mt-1 text-xs text-ink/55">
+            <p className="mt-1 text-xs text-ink/70">
               Proves you’re one person, which unlocks a free pack of 5 plus 10 free daily letters.{" "}
               {xEnabled
                 ? "A linked X account or a Coinbase-verified wallet does the same, so you can skip this and link one later in your profile."

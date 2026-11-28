@@ -184,17 +184,17 @@ export function ClaimScreen() {
     <div className="space-y-3">
       <div>
         <h1 className="font-display text-2xl font-extrabold md:hidden">Spell a word</h1>
-        <p className="text-sm text-ink/60">
+        <p className="text-sm text-ink/70">
           Any five letters, any mix of lowercase and UPPERCASE.{" "}
           {ladder ? (
             <>
-              Claiming a dictionary word costs from <strong className="font-bold text-ink">{amountText(baseFee)}</strong> for a
+              Claiming a dictionary word costs from <strong className="font-medium text-ink">{amountText(baseFee)}</strong> for a
               Common word to {amountText(topFee)} for a {TIERS[TIERS.length - 1].name} one: rarer words cost more. It locks the
               word’s five letters inside it.
             </>
           ) : (
             <>
-              Claiming a dictionary word costs <strong className="font-bold text-ink">{amountText(baseFee)}</strong> and locks its
+              Claiming a dictionary word costs <strong className="font-medium text-ink">{amountText(baseFee)}</strong> and locks its
               five letters inside it.
             </>
           )}{" "}
@@ -225,14 +225,14 @@ export function ClaimScreen() {
         {/* result */}
         <div className="mt-3 min-h-[2.25rem] text-center">
           {rack.length < 5 ? (
-            <span className="text-sm text-ink/50">{5 - rack.length} more letter{rack.length === 4 ? "" : "s"}…</span>
+            <span className="text-sm text-ink/70">{5 - rack.length} more letter{rack.length === 4 ? "" : "s"}…</span>
           ) : spelled.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="text-xs text-ink/60">spells</span>
+              <span className="text-xs text-ink/70">spells</span>
               {spelled.map((w) =>
                 // Someone else's word: say so, rather than offer a claim the contract reverts.
                 taken(w) ? (
-                  <span key={w} className="rounded-lg border-2 border-ink/30 px-2 py-1 text-sm font-bold text-ink/55">
+                  <span key={w} className="rounded-lg border-2 border-ink/30 px-2 py-1 text-sm font-medium text-ink/70">
                     {statusOf(w) === "held" ? `${w} isn’t available yet` : `${w} is already owned`}
                   </span>
                 ) : (
@@ -254,7 +254,7 @@ export function ClaimScreen() {
               )}
             </div>
           ) : (
-            <span className="text-sm font-bold text-candy-ink">not a dictionary word</span>
+            <span className="text-sm font-medium text-candy-ink">not a dictionary word</span>
           )}
         </div>
         {/* The fee only for a word the rack spells that you could claim, not one someone else owns:
@@ -271,7 +271,7 @@ export function ClaimScreen() {
               />
             ))}
         {rack.length > 0 && (
-          <button onClick={() => setRack([])} className="mx-auto mt-2 block text-xs font-bold text-ink/50 underline">
+          <button onClick={() => setRack([])} className="mx-auto mt-2 block text-xs font-medium text-ink/70 underline">
             clear rack
           </button>
         )}
@@ -282,7 +282,7 @@ export function ClaimScreen() {
         {/* Unused: letters already spelled into your words are locked inside them and never show
             here. "your letters" read as everything you own. */}
         <SectionTitle>Your unused letters</SectionTitle>
-        <p className="-mt-1 mb-2 text-xs text-ink/50">Letters already in your words stay in them, so they aren’t listed.</p>
+        <p className="-mt-1 mb-2 text-xs text-ink/70">Letters already in your words stay in them, so they aren’t listed.</p>
         <Segmented
           className="mb-3 md:max-w-sm"
           value={show}
@@ -326,9 +326,9 @@ export function ClaimScreen() {
 
       {/* A filtered case that spells nothing on its own: say so, and where the words are. */}
       {spellable.length === 0 && show !== "all" && trayLetters.length > 0 && (
-        <p className="text-sm text-ink/60">
+        <p className="text-sm text-ink/70">
           Your {show === "upper" ? "UPPERCASE" : "lowercase"} letters don’t spell a word on their own yet. Show{" "}
-          <button onClick={() => setShow("all")} className="font-bold text-ink underline">
+          <button onClick={() => setShow("all")} className="font-medium text-ink underline">
             All
           </button>{" "}
           to mix them with your {show === "upper" ? "lowercase" : "UPPERCASE"} ones.
@@ -345,24 +345,24 @@ export function ClaimScreen() {
             {spellable.length === 1 ? "1 possible word" : `${spellable.length.toLocaleString("en-US")} possible words`}
           </SectionTitle>
           {spellable.length > 1 && (
-            <p className="-mt-1 mb-1 text-xs text-ink/60">One at a time: each word uses five of your letters, so spelling one can use letters another needs.</p>
+            <p className="-mt-1 mb-1 text-xs text-ink/70">One at a time: each word uses five of your letters, so spelling one can use letters another needs.</p>
           )}
-          {show === "upper" && <p className="-mt-1 mb-1 text-xs text-ink/60">All five raised: each earns $WORD from day one once staked.</p>}
-          <p className="text-xs text-ink/60">
+          {show === "upper" && <p className="-mt-1 mb-1 text-xs text-ink/70">All five raised: each earns $WORD from day one once staked.</p>}
+          <p className="text-xs text-ink/70">
             {ladder ? (
               <>
                 The claim fee follows the word’s rarity:{" "}
                 {TIERS.map((t, i) => (
                   <span key={t.name}>
                     {i > 0 ? " · " : ""}
-                    {t.name} <strong className="font-bold text-ink">{fmtWord(g.tierClaimFee(t.name))}</strong>
+                    {t.name} <strong className="font-medium text-ink">{fmtWord(g.tierClaimFee(t.name))}</strong>
                   </span>
                 ))}{" "}
                 $WORD.
               </>
             ) : (
               <>
-                Each claim costs <strong className="font-bold text-ink">{amountText(baseFee)}</strong>.
+                Each claim costs <strong className="font-medium text-ink">{amountText(baseFee)}</strong>.
               </>
             )}
           </p>
@@ -382,7 +382,7 @@ export function ClaimScreen() {
                   <Pill className={activeTier === t ? "bg-ink text-paper" : "bg-card transition-colors group-hover:bg-paper-dark"}>
                     {t !== "All" && <TierMark tier={t} size={12} />}
                     {t}
-                    <span className={activeTier === t ? "text-paper/60" : "text-ink/40"}>·{t === "All" ? spellable.length : tierCounts[t]}</span>
+                    <span className={activeTier === t ? "text-paper/70" : "text-ink/70"}>·{t === "All" ? spellable.length : tierCounts[t]}</span>
                   </Pill>
                 </button>
               ))}
@@ -440,12 +440,12 @@ const SPELL_PAGE = 60;
 /** A word's claim fee, said plainly with its tier; when the balance can't cover it, the way to get more. */
 function FeeLine({ text, canClaim, onGetWord }: { text: string; canClaim: boolean; onGetWord: () => void }) {
   return (
-    <div className="mt-1 text-center text-xs text-ink/60">
-      <strong className="font-bold text-ink">{text}</strong>
+    <div className="mt-1 text-center text-xs text-ink/70">
+      <strong className="font-medium text-ink">{text}</strong>
       {!canClaim && (
         <>
           {" "}You don’t have enough.{" "}
-          <button onClick={onGetWord} className="font-bold text-candy-ink underline">
+          <button onClick={onGetWord} className="font-medium text-candy-ink underline">
             Get $WORD
           </button>
         </>

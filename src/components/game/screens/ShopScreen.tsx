@@ -80,7 +80,7 @@ export function ShopScreen() {
     return (
       <div className="space-y-3">
         <h1 className="font-display text-2xl font-extrabold md:hidden">Shop</h1>
-        <p className="text-sm text-ink/60">The Shop isn’t open here.</p>
+        <p className="text-sm text-ink/70">The Shop isn’t open here.</p>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function ShopScreen() {
           <div className="min-w-0 font-display font-extrabold">{name}</div>
           <div className="fig shrink-0 text-right text-sm">{usdcLabel(card.item.priceUsdc, testnet)}</div>
         </div>
-        <div className="mt-0.5 text-xs text-ink/60">{itemWords(card, about)}</div>
+        <div className="mt-0.5 text-xs text-ink/70">{itemWords(card, about)}</div>
       </>
     );
     const opens = card.kind === "item";
@@ -145,8 +145,8 @@ export function ShopScreen() {
         ) : (
           look
         )}
-        {limited && <div className="mt-1 text-xs font-bold text-ink/75">{editionLine(limited)}</div>}
-        {about.have && <div className="mt-1 text-xs font-bold text-teal-ink">{about.owned > 1 ? `You have ${about.owned}` : "You have it"}</div>}
+        {limited && <div className="mt-1 text-xs font-medium text-ink/70">{editionLine(limited)}</div>}
+        {about.have && <div className="mt-1 text-xs font-medium text-teal-ink">{about.owned > 1 ? `You have ${about.owned}` : "You have it"}</div>}
         {/* the button sits at the foot of its card, so a row of cards lines its buttons up; a face
             the player has shows no button, and no empty foot either */}
         {/* Only a BUTTON is lifted above the card's own open button. A line that says why there is no
@@ -169,7 +169,7 @@ export function ShopScreen() {
     <div className="space-y-4">
       <div>
         <h1 className="font-display text-2xl font-extrabold md:hidden">Shop</h1>
-        <p className="text-sm text-ink/60">Card faces and accessories for your words’ cards. What you buy stays with you, never with a word.</p>
+        <p className="text-sm text-ink/70">Card faces and accessories for your words’ cards. What you buy stays with you, never with a word.</p>
       </div>
 
       {v.wallet && (
@@ -196,17 +196,17 @@ export function ShopScreen() {
       />
 
       {v.loading ? (
-        <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/60">
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/70">
           <CircleNotch className="animate-spin" /> Opening the Shop…
         </div>
       ) : !known ? (
-        <p className="py-6 text-center text-sm text-ink/60">The Shop didn’t load. Leave it and come back.</p>
+        <p className="py-6 text-center text-sm text-ink/70">The Shop didn’t load. Leave it and come back.</p>
       ) : (
         <section data-section={tab} aria-label={CATEGORY_NAME[tab]}>
           {shown.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-ink/25 p-6 text-center">
               <ShoppingBag size={32} weight="bold" className="mx-auto text-ink/40" />
-              <p className="mt-2 text-sm text-ink/60">{EMPTY[tab]}</p>
+              <p className="mt-2 text-sm text-ink/70">{EMPTY[tab]}</p>
             </div>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{shown.map(itemCard)}</ul>
@@ -222,7 +222,7 @@ export function ShopScreen() {
         </section>
       )}
 
-      <p className="border-t-2 border-ink/15 pt-3 text-xs text-ink/55">
+      <p className="border-t-2 border-ink/15 pt-3 text-xs text-ink/70">
         Paid in {testnet ? "test USDC" : "USDC"} on {NETWORK.name}. {100 - poolPct}% goes to the studio, and {poolPct}% buys $WORD for the
         Rewards Pool in the same transaction. What you buy stays with your profile: it never goes with a word you sell, dissolve, or move.
       </p>

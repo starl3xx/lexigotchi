@@ -41,9 +41,9 @@ const SORT_LABEL: Record<WordSort, string> = {
 const PAGE = 20;
 
 const chip = (on: boolean) =>
-  `press inline-flex min-h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-bold ${on ? "bg-ink text-paper" : "bg-card text-ink/75"}`;
+  `press inline-flex min-h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-medium ${on ? "bg-ink text-paper" : "bg-card text-ink/70"}`;
 /** A chip's count, stepped back from its name (as the Dictionary's and Spell's are). */
-const count = (on: boolean) => (on ? "text-paper/60" : "text-ink/40");
+const count = (on: boolean) => (on ? "text-paper/70" : "text-ink/70");
 
 export function useCostPrices(): CostPrices {
   const g = useGame();
@@ -86,7 +86,7 @@ export function WordsBoard() {
 
   if (listings.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-ink/55">
+      <p className="py-6 text-center text-sm text-ink/70">
         {g.market.loading ? "Reading what’s for sale…" : "No words are for sale right now. To sell one of yours, open Sell."}
       </p>
     );
@@ -109,11 +109,11 @@ export function WordsBoard() {
           autoComplete="off"
           autoCapitalize="characters"
           spellCheck={false}
-          className="min-h-9 min-w-0 flex-1 rounded-xl border-2 border-ink bg-card px-3 text-sm font-bold uppercase tracking-wide placeholder:normal-case placeholder:tracking-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
+          className="min-h-9 min-w-0 flex-1 rounded-xl border-2 border-ink bg-card px-3 text-sm font-medium uppercase tracking-wide placeholder:normal-case placeholder:tracking-normal placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-candy"
         />
-        <label className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-ink/60">
+        <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-ink/70">
           Sort
-          <select value={sort} onChange={(e) => setSort(e.target.value as WordSort)} className="min-h-9 rounded-lg border-2 border-ink bg-card px-2 text-xs font-bold text-ink">
+          <select value={sort} onChange={(e) => setSort(e.target.value as WordSort)} className="min-h-9 rounded-lg border-2 border-ink bg-card px-2 text-xs font-medium text-ink">
             {SORTS.map((s) => (
               <option key={s} value={s}>
                 {SORT_LABEL[s]}
@@ -146,9 +146,9 @@ export function WordsBoard() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="py-6 text-center text-sm text-ink/55">
+        <p className="py-6 text-center text-sm text-ink/70">
           Nothing for sale matches that.{" "}
-          <button type="button" className="font-bold text-teal-ink underline" onClick={() => { setQ(""); setTier("all"); setCases("all"); setMine(false); }}>
+          <button type="button" className="font-medium text-teal-ink underline" onClick={() => { setQ(""); setTier("all"); setCases("all"); setMine(false); }}>
             Show everything
           </button>
         </p>
@@ -167,7 +167,7 @@ export function WordsBoard() {
         </div>
       )}
       {narrowed && rows.length > 0 && (
-        <p className="mt-2 text-center text-xs text-ink/50">
+        <p className="mt-2 text-center text-xs text-ink/70">
           {rows.length} of {listings.length} words for sale.
         </p>
       )}
@@ -196,10 +196,10 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
           </button>
           <TierBadge tier={tier} />
           <PrestigeStars level={l.prestigeLevel} />
-          {number ? <span className="fact text-xs text-ink/60">{cardNumber(number)}</span> : null}
+          {number ? <span className="fact text-xs text-ink/70">{cardNumber(number)}</span> : null}
           {mine && <Pill className="bg-card">Yours</Pill>}
         </div>
-        <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-ink/60">
+        <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-ink/70">
           <Versus price={l.price} reference={cost} />
           {l.lastSale && <span>Last sold for {fmtWord(l.lastSale.price)}, {timeAgo(l.lastSale.at)}.</span>}
           {l.prestigePity > 0 && <span>{l.prestigePity} failed ascension{l.prestigePity === 1 ? "" : "s"}, so better odds next time.</span>}
@@ -207,7 +207,7 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
         </div>
         <WordValue word={shape} cost={cost ? parts : null} compact />
         {!mine && (
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink/60">
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink/70">
             <PlayerChip address={l.maker} profile={l.face} size={18} />
             {l.listedAt && <span>{timeAgo(Date.parse(l.listedAt))}</span>}
           </span>
@@ -216,15 +216,15 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <div className="text-right" title={amount(l.price)}>
           <div className="fig text-lg leading-none">{fmtWord(l.price)}</div>
-          <div className="text-xs text-ink/55">$WORD</div>
+          <div className="text-xs text-ink/70">$WORD</div>
         </div>
         {mine ? (
           here ? (
-            <button type="button" onClick={() => g.cancelWordListing(l.orderHash)} className="text-xs font-bold text-ink/55 underline">
+            <button type="button" onClick={() => g.cancelWordListing(l.orderHash)} className="text-xs font-medium text-ink/70 underline">
               Take off sale
             </button>
           ) : (
-            <span className="max-w-28 text-right text-xs leading-tight text-ink/55">From {shortAddress(l.maker)}. Switch to it to take it off sale.</span>
+            <span className="max-w-28 text-right text-xs leading-tight text-ink/70">From {shortAddress(l.maker)}. Switch to it to take it off sale.</span>
           )
         ) : (
           <Button size="sm" variant="teal" onClick={() => g.buyWord(l.orderHash)}>

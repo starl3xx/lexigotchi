@@ -413,14 +413,14 @@ function TopBar({ still }: { still: boolean }) {
         {/* Hidden on the chain store: there is no on-chain streak yet, and a hardcoded 0 in a
             flame chip reads as a real streak the player just lost. Absent beats wrong. */}
         {!state.chainBacked && (
-          <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy-deep px-1.5 py-0.5 text-[10px] font-bold text-paper">
+          <span className="inline-flex items-center gap-0.5 rounded-full border-2 border-ink bg-candy-deep px-1.5 py-0.5 text-[10px] font-medium text-paper">
             <Fire weight="fill" size={12} /> {state.streak}
           </span>
         )}
         {/* The chain game on Base Sepolia: say so, so nobody takes test $WORD for the real token. */}
         {state.chainBacked && NETWORK.isTestnet && (
           <span
-            className="whitespace-nowrap rounded-full border-2 border-ink bg-card px-1.5 py-0.5 text-[10px] font-bold text-ink/70"
+            className="whitespace-nowrap rounded-full border-2 border-ink bg-card px-1.5 py-0.5 text-[10px] font-medium text-ink/70"
             title="This game runs on Base Sepolia, a test network, with test $WORD."
           >
             Testnet
@@ -441,7 +441,7 @@ function TopBar({ still }: { still: boolean }) {
           <div className="fig text-sm">
             {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
-          <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/60">
+          <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/70">
             {/* Test $WORD has no value, so the testnet game shows no dollar figure for it. */}
             {state.status !== "ready" ? "$WORD" : showsUsd(state) ? `${fmtUsd(state.balance)} · $WORD` : "test $WORD"}
           </div>
@@ -488,7 +488,7 @@ function ViewerChip() {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={me.pfpUrl} alt="" className="h-8 w-8 rounded-full border-2 border-ink object-cover" />
       ) : (
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/60">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card text-ink/70">
           <Smiley weight="fill" size={17} />
         </span>
       )}
@@ -569,8 +569,8 @@ function SideRail({ still }: { still: boolean }) {
         key={view}
         onClick={() => nav(view)}
         aria-current={active ? "page" : undefined}
-        className={`group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold ${
-          active ? "bg-ink text-paper" : "text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
+        className={`group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-medium ${
+          active ? "bg-ink text-paper" : "text-ink/70 hover:bg-ink/[0.06] hover:text-ink"
         }`}
       >
         <Icon size={20} weight={active ? "fill" : "regular"} className="transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -587,7 +587,7 @@ function SideRail({ still }: { still: boolean }) {
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Game">
         {RAIL.map((group) => (
           <div key={group.heading}>
-            <div className="px-3 pb-1.5 text-xs font-bold text-ink/50">{group.heading}</div>
+            <div className="px-3 pb-1.5 text-xs font-medium text-ink/70">{group.heading}</div>
             <div className="space-y-1">
               {group.items.map((i) => item(i.view, i.label, i.Icon))}
               {/* The Shop is a screen of its own (decisions.md #55), behind SHOP_ENABLED: no entry while
@@ -602,19 +602,19 @@ function SideRail({ still }: { still: boolean }) {
       <div className="space-y-1 border-t-2 border-ink/15 px-3 py-3">
         <button
           onClick={() => openSheet({ kind: "cheatsheet" })}
-          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-bold text-ink/75 hover:bg-ink/[0.06] hover:text-ink"
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 active:scale-[0.98] text-left text-sm font-medium text-ink/70 hover:bg-ink/[0.06] hover:text-ink"
         >
           <Question size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Cheat sheet
         </button>
         <button
           onClick={() => void openUrl(X_URL)}
-          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink/70 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
         >
           <XLogo size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> @{X_HANDLE} on X ↗
         </button>
         <button
           onClick={() => void openUrl(DOCS_URL)}
-          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold text-ink/75 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
+          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink/70 transition-[background-color,color,transform] duration-150 hover:bg-ink/[0.06] hover:text-ink active:scale-[0.98]"
         >
           <BookBookmark size={20} weight="regular" className="transition-transform duration-200 group-hover:translate-x-0.5" /> Docs ↗
         </button>
@@ -663,7 +663,7 @@ function NavBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-xs font-bold transition-colors ${
+      className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-xs font-medium transition-colors ${
         active ? "bg-ink text-paper" : "text-ink/70"
       }`}
     >

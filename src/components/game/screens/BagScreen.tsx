@@ -88,13 +88,13 @@ export function BagScreen() {
             />
           )}
           {elsewhere > 0 && (
-            <p className="text-xs text-ink/55">
+            <p className="text-xs text-ink/70">
               {elsewhere} of these live in your linked wallets. They count in your bag, but
               spelling and rolling use the connected wallet’s letters.
             </p>
           )}
           <div>
-            <SectionTitle action={<span className="text-xs text-ink/55">tap to raise →</span>}>
+            <SectionTitle action={<span className="text-xs text-ink/70">tap to raise →</span>}>
               lowercase · {lowerCount}
             </SectionTitle>
             {lowerOwned.length === 0 ? (
@@ -126,7 +126,7 @@ export function BagScreen() {
                   <BagLetter key={i} char={idxToChar(i)} upper count={c} title={`${idxToChar(i)} (raised)`} />
                 ))}
               </div>
-              <p className="mt-2 text-xs text-ink/55">Raised letters go into any word, with lowercase ones or on their own. Spell one in Spell.</p>
+              <p className="mt-2 text-xs text-ink/70">Raised letters go into any word, with lowercase ones or on their own. Spell one in Spell.</p>
             </div>
           )}
 
@@ -174,20 +174,20 @@ export function BagScreen() {
                       type="button"
                       aria-pressed={filter === f}
                       onClick={() => setWordFilter(f)}
-                      className={`press min-h-8 shrink-0 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-bold ${
-                        filter === f ? "bg-ink text-paper" : "bg-card text-ink/75"
+                      className={`press min-h-8 shrink-0 whitespace-nowrap rounded-full border-2 border-ink px-3 text-xs font-medium ${
+                        filter === f ? "bg-ink text-paper" : "bg-card text-ink/70"
                       }`}
                     >
                       {WORD_FILTER_LABEL[f]} {f === "all" ? state.words.length : counts[f]}
                     </button>
                   ))}
                 </div>
-                <label className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-ink/60">
+                <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-ink/70">
                   Sort
                   <select
                     value={wordSort}
                     onChange={(e) => setWordSort(e.target.value as WordSort)}
-                    className="min-h-8 rounded-lg border-2 border-ink bg-card px-2 text-xs font-bold text-ink"
+                    className="min-h-8 rounded-lg border-2 border-ink bg-card px-2 text-xs font-medium text-ink"
                   >
                     {WORD_SORTS.map((s) => (
                       <option key={s} value={s}>

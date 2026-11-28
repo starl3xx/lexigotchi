@@ -104,8 +104,8 @@ function Wordmark({ small = false }: { small?: boolean }) {
 function SectionHead({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
   return (
     <div className="max-w-2xl">
-      <p className="text-sm font-bold uppercase tracking-[0.14em] text-candy">{kicker}</p>
-      <h2 className="mt-2 font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl">{title}</h2>
+      <p className="text-sm font-medium text-candy">{kicker}</p>
+      <h2 className="mt-2 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl">{title}</h2>
       {children && <p className="mt-4 text-lg leading-relaxed text-ink/70">{children}</p>}
     </div>
   );
@@ -134,7 +134,7 @@ function Stage() {
           <SceneFrame scene="stage" word={RAREST_WORD} upper={upper} tier="Mythic" />
         </div>
       </div>
-      <p className="whitespace-nowrap rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-ink shadow-[2px_2px_0_#1b1714] sm:text-sm">
+      <p className="whitespace-nowrap rounded-full border-2 border-ink bg-gold px-3 py-1 text-xs font-medium text-ink shadow-[2px_2px_0_#1b1714] sm:text-sm">
         The rarest word: {RAREST_WORD}
       </p>
     </div>
@@ -175,8 +175,8 @@ const STEP_VISUALS: Record<HowItWorksStep["id"], ReactNode> = {
 function Stat({ figure, children }: { figure: ReactNode; children: ReactNode }) {
   return (
     <div className="cel rounded-2xl bg-tileFace px-5 py-4">
-      <div className="flex min-h-[44px] items-center gap-2 font-display text-4xl font-black tracking-tight">{figure}</div>
-      <p className="mt-1 text-sm font-bold leading-snug text-ink/70">{children}</p>
+      <div className="fig flex min-h-[44px] items-center gap-2 text-4xl">{figure}</div>
+      <p className="mt-1 text-sm font-medium leading-snug text-ink/70">{children}</p>
     </div>
   );
 }
@@ -210,8 +210,8 @@ function Door({
       <div className="flex items-center justify-between">
         <span className={`flex h-12 w-12 items-center justify-center rounded-xl border-[3px] border-ink ${iconBg}`}>{icon}</span>
         <span
-          className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wider ${
-            tag === "Needed" ? "bg-candy text-paper" : "bg-paper text-ink/60"
+          className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-medium ${
+            tag === "Needed" ? "bg-candy text-paper" : "bg-paper text-ink/70"
           }`}
         >
           {tag}
@@ -235,13 +235,13 @@ function Qa({ q, children }: { q: string; children: ReactNode }) {
           +
         </span>
       </summary>
-      <div className="mt-3 leading-relaxed text-ink/75">{children}</div>
+      <div className="mt-3 leading-relaxed text-ink/70">{children}</div>
     </details>
   );
 }
 
 const A = ({ href, children }: { href: string; children: ReactNode }) => (
-  <a href={href} target="_blank" rel="noopener noreferrer" className="font-semibold underline decoration-2 underline-offset-2 hover:text-candy">
+  <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium underline decoration-2 underline-offset-2 hover:text-candy">
     {children}
   </a>
 );
@@ -268,7 +268,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
         <Link href="/" className="min-w-0 shrink">
           <Wordmark />
         </Link>
-        <nav className="flex shrink-0 items-center gap-6 text-sm font-bold">
+        <nav className="flex shrink-0 items-center gap-6 text-sm font-medium">
           <a href="#how-it-works" className="hidden hover:text-candy md:inline">
             How it works
           </a>
@@ -288,17 +288,17 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
       {/* Hero */}
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-8 sm:px-8 lg:grid-cols-[1.15fr_1fr] lg:pt-14">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-tileFace px-3 py-1 text-sm font-bold">
+          <p className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-tileFace px-3 py-1 text-sm font-medium">
             <span className="h-2 w-2 rounded-full bg-teal" aria-hidden />A word-pet game on Base
           </p>
-          <h1 className="mt-6 font-display text-[40px] font-black leading-[0.98] tracking-tight sm:text-6xl lg:text-5xl xl:text-[60px]">
+          <h1 className="mt-6 font-display text-[40px] font-extrabold leading-[0.98] tracking-tight sm:text-6xl lg:text-5xl xl:text-[60px]">
             Raise your letters.
             <br />
             Spell your words.
             <br />
             <span className="text-candy">Own the dictionary.</span>
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/75 sm:text-xl">
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/70 sm:text-xl">
             Collect little letter characters, raise them to UPPERCASE, and spell five-letter words nobody else can
             own. Wake them every day, and every word you hold is in the running when the day’s word is drawn.
           </p>
@@ -308,10 +308,10 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
               How it works
             </a>
           </div>
-          <p className="mt-6 text-sm text-ink/60">Any wallet works. It also plays inside Farcaster and the Base App.</p>
+          <p className="mt-6 text-sm text-ink/70">Any wallet works. It also plays inside Farcaster and the Base App.</p>
           {practice && (
-            <p className="mt-2 text-sm text-ink/60">
-              <span className="mr-1.5 rounded border-2 border-ink/70 px-1.5 py-px text-[11px] font-extrabold uppercase tracking-wider text-ink/70">
+            <p className="mt-2 text-sm text-ink/70">
+              <span className="mr-1.5 rounded border-2 border-ink/70 px-1.5 py-px text-xs font-medium text-ink/70">
                 {testnet ? "Testnet" : "Preview"}
               </span>
               {testnet
@@ -361,7 +361,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
               <li key={s.n} className="cel flex flex-col rounded-2xl bg-paper p-6">
                 <div className="flex h-[132px] items-center justify-center">{STEP_VISUALS[s.id]}</div>
                 <div className="mt-5 flex items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-candy text-sm font-extrabold text-paper">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-candy text-sm font-medium text-paper">
                     {s.n}
                   </span>
                   <h3 className="font-display text-xl font-extrabold">{s.title}</h3>
@@ -382,7 +382,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             visual={
               <div className="flex flex-col items-center gap-3">
                 <TileWord word="CRANE" upper={[true, false, true, false, false]} detail="full" size={42} />
-                <span className="rounded-full border-2 border-ink bg-gold px-3 py-0.5 text-xs font-extrabold text-ink">1 of 1</span>
+                <span className="rounded-full border-2 border-ink bg-gold px-3 py-0.5 text-xs font-medium text-ink">1 of 1</span>
               </div>
             }
           >
@@ -424,20 +424,20 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
       <section id="jackpot" className="scroll-mt-6 border-y-[3px] border-ink bg-night text-paper">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[1.2fr_1fr]">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.14em] text-gold">The daily jackpot</p>
-            <h2 className="mt-2 font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl">
+            <p className="text-sm font-medium text-gold">The daily jackpot</p>
+            <h2 className="mt-2 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl">
               One word wins every day.
               <br />
               <span className="text-gold">Is yours staked and awake?</span>
             </h2>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-paper/80">
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-paper/70">
               Each day one word is drawn. If you hold it, staked and awake, the pot is yours. If nobody does, the pot
               rolls over and grows. The words were locked in onchain before launch, so nobody can steer them, not even
               the team.
             </p>
             <div className="mt-8 max-w-xl rounded-2xl border-[3px] border-paper/80 p-6">
               <h3 className="font-display text-xl font-extrabold">The weekly bounty</h3>
-              <p className="mt-2 leading-relaxed text-paper/80">
+              <p className="mt-2 leading-relaxed text-paper/70">
                 Each week has a theme, like words with a double letter or words that end in -ING. Hold a match, staked
                 and awake, and you share the pool. Rarer words take a bigger share.
               </p>
@@ -468,7 +468,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             <Planet weight="fill" size={24} aria-hidden />
           </span>
           <p className="text-lg leading-relaxed">
-            <strong className="font-display font-extrabold">Same dictionary as <A href={LINKS.lhaw}>Let’s Have A Word!</A></strong>{" "}
+            <strong className="font-display font-medium">Same dictionary as <A href={LINKS.lhaw}>Let’s Have A Word!</A></strong>{" "}
             <span className="text-ink/70">The words you guess there, you can own here.</span>
           </p>
         </div>
@@ -551,7 +551,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-5 py-20 text-center sm:px-8">
           <TileWord word="HEYOO" upper={[true, true, true, true, true]} state="celebrate" detail="full" size={64} className="sm:hidden" />
           <TileWord word="HEYOO" upper={[true, true, true, true, true]} state="celebrate" detail="full" size={96} className="hidden sm:flex" />
-          <h2 className="font-display text-4xl font-black tracking-tight sm:text-5xl">Your letters are waiting.</h2>
+          <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Your letters are waiting.</h2>
           <PlayButton size="lg" tone="gold" />
         </div>
       </section>
@@ -564,11 +564,11 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 py-10 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex items-center gap-3">
             <Wordmark small />
-            <span className="text-ink/60">
+            <span className="text-ink/70">
               Made by <A href={LINKS.starl3xx}>starl3xx</A>
             </span>
           </div>
-          <nav className="flex flex-wrap gap-x-6 gap-y-2 font-semibold text-ink/70">
+          <nav className="flex flex-wrap gap-x-6 gap-y-2 font-medium text-ink/70">
             <Link href="/play" className="hover:text-candy">
               Play
             </Link>

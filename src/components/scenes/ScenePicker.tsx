@@ -69,10 +69,10 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
                 <span className="card-corner block overflow-hidden border-2 border-ink">
                   <SceneThumb scene={s.id} tier={tier} word={word} />
                 </span>
-                <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
+                <span className="flex items-center gap-1 truncate px-0.5 text-xs font-medium">
                   <ShoppingBag weight="fill" size={11} className="shrink-0 text-candy-ink" aria-hidden />
                   <span className="truncate">{s.name}</span>
-                  <span className="ml-auto shrink-0 font-semibold text-ink/60">{price}</span>
+                  <span className="ml-auto shrink-0 font-medium text-ink/70">{price}</span>
                 </span>
               </button>
             );
@@ -91,7 +91,7 @@ export function ScenePicker({ word, tier }: { word: string; tier?: Tier }) {
               <span className={`card-corner block overflow-hidden border-2 border-ink ${open ? "" : "opacity-45 grayscale"}`}>
                 <SceneThumb scene={s.id} tier={tier} word={word} />
               </span>
-              <span className="flex items-center gap-1 truncate px-0.5 text-xs font-bold">
+              <span className="flex items-center gap-1 truncate px-0.5 text-xs font-medium">
                 {!open && <Lock weight="fill" size={11} className="shrink-0" aria-label="locked" />}
                 {s.name}
               </span>

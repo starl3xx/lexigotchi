@@ -60,6 +60,26 @@
   }
 }
 
+/* ---- three weights (decisions.md #66, part 4) ----
+   Söhne has three weights in the interface: regular (400) for reading, medium (500) for labels and
+   for emphasis inside a sentence, and extra bold (800) for headings and buttons only. So a phrase
+   marked strong inside running text is medium, never "bolder": when everything is heavy, nothing
+   leads. (A card's own lettering sets its own weights, below.) tests/type-rules.test.ts holds it. */
+b,
+strong {
+  font-weight: 500;
+}
+/* Not the interface, so not this rule's: the operator console keeps the browser's own bold, and
+   the label on a card's case is the case's own lettering, as heavy as it always was. (A card's
+   back sets its own too: .cb-oneof b, .cb-foot b.) */
+.operator b,
+.operator strong {
+  font-weight: bolder;
+}
+.cc-small b {
+  font-weight: 700;
+}
+
 body {
   background-color: theme(colors.paper.DEFAULT);
   color: theme(colors.ink);
@@ -705,7 +725,7 @@ body {
 .tt-dots { display: flex; gap: 5px; }
 .tt-dots i { width: 7px; height: 7px; border-radius: 999px; background: rgb(27 23 20 / 0.22); }
 .tt-dots i.on { background: #1b1714; }
-.tt-count { font-size: 12px; font-weight: 600; color: rgb(27 23 20 / 0.6); font-variant-numeric: tabular-nums; }
+.tt-count { font-size: 12px; font-weight: 500; color: rgb(27 23 20 / 0.7); font-variant-numeric: tabular-nums; }
 .tm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tm-mark { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 12px; }
 .tm-mark > span { display: grid; gap: 1px; min-width: 0; }
@@ -879,8 +899,8 @@ body {
 .mail-lift { position: absolute; inset: 0; }
 .mail-piece { position: absolute; left: 0; pointer-events: none; }
 .mail-letter { position: absolute; }
-.mail-status { min-height: 2.9em; margin-top: 8px; display: flex; align-items: center; justify-content: center; text-align: center; text-wrap: balance; font-size: 0.875rem; color: rgb(27 23 20 / 0.72); }
-.mail-status.is-note { color: theme(colors.ink); font-weight: 700; }
+.mail-status { min-height: 2.9em; margin-top: 8px; display: flex; align-items: center; justify-content: center; text-align: center; text-wrap: balance; font-size: 0.875rem; color: rgb(27 23 20 / 0.7); }
+.mail-status.is-note { color: theme(colors.ink); font-weight: 500; }
 /* the tear strip: it takes the pointer only while the envelope can be opened */
 .mail-grab { display: block; pointer-events: auto; background: none; border: 0; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
 .mail-grab:disabled { pointer-events: none; }
@@ -1095,6 +1115,9 @@ body {
 /* A list's word as flat tiles (components/game/MiniTiles.tsx): the rig's colors, the finish baked
    into a background per tier. A lowercase tile sits on its wooden edge; an UPPERCASE one wears the
    pale blue ring. */
+/* A letter is always Söhne. These three draw a letter as plain text, so they NAME the face: left to
+   inherit, a tile inside a figure or a fact would be lettered in the card's serif. */
+.mini-tile, .need-letter, .lk-slot { font-family: var(--font-body); }
 .mini-tile { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #2a1e1a; background-color: #f8efdd; box-shadow: 0 2px 0 #c7ae84; font-size: 12px; font-weight: 800; line-height: 1; color: #2a1e1a; }
 .mini-tile.is-up { background-color: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 2px #bbd1fd; color: #111827; }
 /* The Dictionary's tile (decisions.md #31): a size up, and the two letters a player doesn't hold

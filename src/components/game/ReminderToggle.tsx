@@ -22,14 +22,14 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
         <button
           onClick={enable}
           disabled={state === "working"}
-          className="mt-2 flex items-center gap-1.5 text-xs font-bold text-ink/60 underline disabled:opacity-50"
+          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-ink/70 underline disabled:opacity-50"
         >
           {state === "working" ? <CircleNotch className="animate-spin" /> : <Bell weight="bold" />}
           {state === "working" ? "One moment…" : label}
         </button>
         {/* A tap that failed must not look ignored: say why here too (More has the browser's own words). */}
         {error && (
-          <p role="alert" className="mt-1 text-xs font-bold text-candy-ink">
+          <p role="alert" className="mt-1 text-xs font-medium text-candy-ink">
             {error}
           </p>
         )}
@@ -40,24 +40,24 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
   return (
     <div className="cel rounded-2xl bg-card p-4">
       <div className="flex items-center gap-2 font-display font-extrabold">
-        {state === "on" ? <Bell weight="fill" className="text-teal-ink" /> : <BellSlash weight="bold" className="text-ink/50" />}
+        {state === "on" ? <Bell weight="fill" className="text-teal-ink" /> : <BellSlash weight="bold" className="text-ink/40" />}
         Reminders {state === "on" ? "are on" : ""}
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-ink/60">
+      <p className="mt-1 text-xs leading-relaxed text-ink/70">
         Notifications in this browser: before a staked word falls asleep, when your free daily letter is
         ready, when something of yours sells, and when your words win the jackpot or a share of the
         bounty. Your profile says which.
       </p>
 
       {state === "needs-home-screen" && (
-        <p className="mt-3 text-xs font-bold text-ink/70">
+        <p className="mt-3 text-xs font-medium text-ink/70">
           On iPhone and iPad, add Lexigotchi to your Home Screen first: tap Share, then Add to Home Screen,
           and open it from there.
         </p>
       )}
-      {state === "unsupported" && <p className="mt-3 text-xs font-bold text-ink/70">This browser can’t show notifications.</p>}
+      {state === "unsupported" && <p className="mt-3 text-xs font-medium text-ink/70">This browser can’t show notifications.</p>}
       {state === "denied" && (
-        <p className="mt-3 text-xs font-bold text-ink/70">
+        <p className="mt-3 text-xs font-medium text-ink/70">
           Notifications are blocked for this site. Allow them in your browser’s site settings, then come back.
         </p>
       )}
@@ -73,17 +73,17 @@ export function ReminderToggle({ compact = false, label = "Remind me before a wo
         </Button>
       )}
       {state === "on" && (
-        <button onClick={disable} className="mt-3 text-xs font-bold text-ink/50 underline">
+        <button onClick={disable} className="mt-3 text-xs font-medium text-ink/70 underline">
           Turn off
         </button>
       )}
       {error && (
-        <p role="alert" className="mt-2 text-xs font-bold text-candy-ink">
+        <p role="alert" className="mt-2 text-xs font-medium text-candy-ink">
           {error}
         </p>
       )}
       {/* The browser's own words, so a report can name the cause. */}
-      {error && errorDetail && <p className="mt-1 break-words text-xs text-ink/55">What the browser said: {errorDetail}</p>}
+      {error && errorDetail && <p className="mt-1 break-words text-xs text-ink/70">What the browser said: {errorDetail}</p>}
     </div>
   );
 }

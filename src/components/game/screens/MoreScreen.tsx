@@ -25,7 +25,7 @@ export function MoreScreen() {
           <ShoppingBag size={26} weight="bold" className="press-icon text-candy-ink" />
           <span>
             <span className="block font-display text-sm font-extrabold">Shop</span>
-            <span className="block text-xs text-ink/60">Card faces and accessories for your words’ cards</span>
+            <span className="block text-xs text-ink/70">Card faces and accessories for your words’ cards</span>
           </span>
         </button>
       )}
@@ -37,7 +37,7 @@ export function MoreScreen() {
           <div className="flex items-center gap-2 font-display font-extrabold">
             <EnvelopeSimple weight="bold" /> Email reminders
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-ink/60">
+          <p className="mt-1 text-xs leading-relaxed text-ink/70">
             Before a word falls asleep, when your daily letter is ready, when something of yours sells, and when your
             words win the jackpot or a share of the bounty. Each one as it happens, or one email a week. Your email is
             never shown to anyone.
@@ -53,21 +53,21 @@ export function MoreScreen() {
           <div className="flex items-center gap-2 font-display font-extrabold">
             <TelegramLogo weight="bold" /> Telegram reminders
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-ink/60">The same reminders, as a message from the Lexigotchi bot in Telegram.</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink/70">The same reminders, as a message from the Lexigotchi bot in Telegram.</p>
           <Button size="sm" variant="ghost" className="mt-3" onClick={() => openSheet({ kind: "profile" })}>
             Set up in your profile
           </Button>
         </div>
       )}
       <SectionTitle>About</SectionTitle>
-      <p className="text-xs text-ink/55">
+      <p className="text-xs text-ink/70">
         Raise your letters. Spell your words. Own the dictionary. A word-pet game on Base.
       </p>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        <button onClick={() => void openUrl(DOCS_URL)} className="text-xs font-bold text-ink/60 underline">
+        <button onClick={() => void openUrl(DOCS_URL)} className="text-xs font-medium text-ink/70 underline">
           How to play: read the docs ↗
         </button>
-        <button onClick={() => void openUrl(X_URL)} className="text-xs font-bold text-ink/60 underline">
+        <button onClick={() => void openUrl(X_URL)} className="text-xs font-medium text-ink/70 underline">
           Follow @{X_HANDLE} on X ↗
         </button>
       </div>

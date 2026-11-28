@@ -41,7 +41,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
             {(earning || latest > 0) && (
               <span
                 title={latest > 0 ? `earned ${fmtWord(latest)} $WORD at the latest payout` : "earning $WORD"}
-                className="inline-flex items-center gap-0.5 text-xs font-bold text-gold-ink"
+                className="inline-flex items-center gap-0.5 text-xs font-medium text-gold-ink"
               >
                 <Coins weight="fill" size={14} />
                 {latest > 0 && `+${fmtWord(latest)}`}
@@ -57,7 +57,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
                 <Storefront weight="fill" size={11} /> for sale · {fmtWord(price)}
               </Pill>
             ) : (
-              <Pill className="bg-card text-ink/60">unstaked</Pill>
+              <Pill className="bg-card text-ink/70">unstaked</Pill>
             )}
             <CaseBadge word={word} />
             {answerReady && (

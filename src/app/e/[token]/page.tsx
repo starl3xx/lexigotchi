@@ -72,7 +72,7 @@ export default async function EarningsSharePage({ params, searchParams }: Props)
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={earningsCardPath(token, "wide", look)} width={1200} height={675} alt="A word’s card in Lexigotchi, beside a tag that says what its player’s words have earned" className="block h-auto w-full" />
       </div>
-      <p className="max-w-md text-center text-lg font-semibold text-ink/75">
+      <p className="max-w-md text-center text-lg font-medium text-ink/70">
         Lexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own. A
         word with all five letters UPPERCASE, staked and awake, earns $WORD every day.
       </p>
@@ -83,7 +83,7 @@ export default async function EarningsSharePage({ params, searchParams }: Props)
         >
           Play Lexigotchi
         </Link>
-        <Link href="/" className="font-semibold text-ink/70 underline hover:text-candy">
+        <Link href="/" className="font-medium text-ink/70 underline hover:text-candy">
           How it works
         </Link>
       </div>

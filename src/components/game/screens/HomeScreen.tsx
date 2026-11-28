@@ -94,7 +94,7 @@ export function HomeScreen() {
   );
 }
 
-const STANDING_TONE = { gold: "font-bold text-gold-ink", candy: "font-bold text-candy-ink", quiet: "text-ink/60" } as const;
+const STANDING_TONE = { gold: "font-medium text-gold-ink", candy: "font-medium text-candy-ink", quiet: "text-ink/70" } as const;
 
 /**
  * The three pots, three equal tiles in one row: today's jackpot, the week's bounty, and the Rewards
@@ -136,7 +136,7 @@ export function TodayPots() {
             {standing.word && (
               <>
                 {" "}
-                <strong className="font-display">{standing.word}</strong>
+                {standing.word}
               </>
             )}
           </span>
@@ -187,7 +187,7 @@ function PotTile({
           goes above the name, so "Rewards Pool" keeps one line and the three amounts stand level.
           From lg, beside it. */}
       <span className="flex flex-col-reverse items-start gap-1 lg:flex-row lg:justify-between">
-        <span className="min-w-0 text-xs font-bold leading-tight text-ink/60 md:text-sm">{label}</span>
+        <span className="min-w-0 text-xs font-medium leading-tight text-ink/70 md:text-sm">{label}</span>
         <span className={`press-icon shrink-0 ${t.icon}`}>{icon}</span>
       </span>
       {/* Sized to fit "776.74M" (the test game's Rewards Pool) in every tile: one size down under
@@ -196,13 +196,13 @@ function PotTile({
       <span className={`fig mt-1 text-lg leading-none min-[380px]:text-xl md:text-2xl lg:text-3xl ${t.amount}`}>
         {known ? <TweenNumber value={word} format={(v) => potLine(v, o).amount} /> : line.amount}
       </span>
-      <span className="mt-1 text-xs text-ink/60">{line.unit}</span>
+      <span className="mt-1 text-xs text-ink/70">{line.unit}</span>
       {line.usd && (
-        <span className="text-xs font-bold text-ink/80">
+        <span className="text-xs font-medium text-ink/70">
           <TweenNumber value={word} format={(v) => potLine(v, o).usd ?? ""} />
         </span>
       )}
-      <span className="mt-2 block text-xs text-ink/60">{children}</span>
+      <span className="mt-2 block text-xs text-ink/70">{children}</span>
     </button>
   );
 }

@@ -27,14 +27,14 @@ export function fmtMarketCap(usd: number | null | undefined): string {
 export function WordStrip({ marketCapUsd, className = "" }: { marketCapUsd: number | null | undefined; className?: string }) {
   const link = "underline-offset-2 hover:text-candy hover:underline";
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-ink/55 ${className}`}>
-      <span className="font-bold text-ink/70">$WORD</span>
+    <div className={`flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-ink/70 ${className}`}>
+      <span className="font-medium text-ink/70">$WORD</span>
       <a href={BASESCAN} target="_blank" rel="noopener noreferrer" title={`${WORD_TOKEN} on Basescan`} className={`font-mono ${link}`}>
         {SHORT}
       </a>
       <span aria-hidden>·</span>
       <span>
-        Market cap <span className="font-bold tabular-nums text-ink/70">{fmtMarketCap(marketCapUsd)}</span>
+        Market cap <span className="font-medium tabular-nums text-ink/70">{fmtMarketCap(marketCapUsd)}</span>
       </span>
       <span aria-hidden>·</span>
       <a href={CHART} target="_blank" rel="noopener noreferrer" className={link}>

@@ -3912,6 +3912,54 @@ setter. All small, riding existing suite patterns.
       - **Not built, and still his to answer (8B):** an email's ledger still sets a word and a
         letter in the serif. An email cannot load Söhne, and no real mail program has shown
         the result, so that waits for his word.
+    - **Part 4, three weights, one grey, a 12 px floor, and no decorative capitals (3G).** The
+      audit counted 201 bold, 160 extra bold, and 70 bold phrases inside sentences: when
+      everything is heavy, nothing leads. And the two most used greys failed the contrast the
+      palette itself asks of small text (ink at 55%, 3.76 : 1, used 86 times; at 60%, 4.38 :
+      1, used 172 times; small text needs 4.5).
+      - **Three weights.** Söhne is regular (400) for reading, medium (500) for labels and for
+        emphasis inside a sentence, and extra bold (800) for headings and buttons only. No
+        other weight is asked for anywhere in the interface. A phrase marked strong in running
+        text is medium (it was the browser's "bolder").
+      - **What counts as a heading or a button** (my reading, written into the sweep): a
+        heading tag, or a line that is a title by its role (a card's title, an item's name, a
+        result like "RAISED!"); and a button that is drawn as one (a cel, or a press that is
+        not a round chip). **Labels:** a row of the rail, a tab, a filter chip, a pill, a quiet
+        text button, a link, and a toast are medium.
+      - **A word's or a player's name inside a sentence carries no weight at all.** "MOTEL
+        isn't staked." A word is already in capitals. (A single letter in a sentence keeps its
+        emphasis: "Roll the e in MOTEL".)
+      - **One grey.** Secondary text is ink at 70% (6.0 : 1 on the page, and it reads on a
+        card and on every tint). The interface used ten strengths; they are all that one now.
+        Ink at 40% is left for what is NOT text, and a test holds it to that: an icon, a mark
+        not yet earned, a placeholder, a disabled control, a list's bullet. On a dark ground
+        the same rule gives paper at 70%.
+      - **The floor.** Nine places set running text at 10 or 11 px (the small print in the
+        profile and the wallets card, a set's claim fee in the Dictionary, the leaderboard's
+        "linked wallets", and an error's detail). They are 12 px. Chips, tags, compact
+        figures, and the envelope's own lettering may still go under it: a test lists them.
+      - **Capitals.** Five labels on the landing page were set in capitals with wide spacing.
+        They are in plain case. A card's ribbon keeps its small capitals: that is the card's
+        own lettering. The Market's word search still shows what is typed in capitals, as the
+        game writes a word.
+      - **A letter is always Söhne, by its own rule now.** The flat tiles and the letter chips
+        draw a letter as plain text and took their face from whatever stood around them, so a
+        tile inside a figure would have been lettered in the serif. They name their face.
+      - **Also here:** a few figures part 3 had missed, because they were not in lists I
+        searched (the Market's quantity, the swap's amount, the burn shares on the $WORD page,
+        the "+3" on a purchase, and the landing page's four figures).
+      - **How it was done, and how to do it again:** a sweep that reads each class list with
+        the tag that owns it and rewrites it by the rules above (about 370 changes in 74
+        files), then a short list of changes by hand. `tests/type-rules.test.ts` holds all
+        four rules, so a new screen cannot bring the old habits back.
+      - **Not the interface, and not swept:** what is on a letter (the rig, the tiles), a
+        card's own lettering, the server's pictures, and the operator console.
+      - **Seen** in the practice game at 1,280 and 390 px: Today, the Bag, an opened word, the
+        Market, Mint, the Jackpot, the Dictionary, the $WORD page, and the landing page. On
+        screen there are exactly three Söhne weights, two serif weights, and one grey
+        (measured, not only read from the code). The docs' screenshots are made again.
+        **Not seen:** the profile's sheets beyond the docs' picture, the wallets card, the
+        Shop, and a real phone.
 
 ## Pricing & launch economics (decided June 2026)
 

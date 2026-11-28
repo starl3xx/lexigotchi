@@ -132,7 +132,7 @@ export function LookupSheet({ word }: { word: string }) {
         Its owner is asking {fmtWord(listing.price)} $WORD
         {beside && (
           <>
-            , <span className={v !== null && v <= -0.03 ? "font-bold text-teal-ink" : undefined}>{beside} what it costs to make</span>
+            , <span className={v !== null && v <= -0.03 ? "font-medium text-teal-ink" : undefined}>{beside} what it costs to make</span>
           </>
         )}
         .
@@ -369,7 +369,7 @@ function Action({ hint, children }: { hint: string; children: ReactNode }) {
   return (
     <div>
       {children}
-      <p className="mt-1.5 text-center text-xs text-ink/60">{hint}</p>
+      <p className="mt-1.5 text-center text-xs text-ink/70">{hint}</p>
     </div>
   );
 }
@@ -382,7 +382,7 @@ function Action({ hint, children }: { hint: string; children: ReactNode }) {
 function Fact({ label, fact = false, children }: { label: string; fact?: boolean; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-ink/15 py-2 text-sm">
-      <dt className="shrink-0 font-semibold text-ink/65">{label}</dt>
+      <dt className="shrink-0 font-medium text-ink/70">{label}</dt>
       <dd className={`min-w-0 text-right ${fact ? "fact" : ""}`}>{children}</dd>
     </div>
   );

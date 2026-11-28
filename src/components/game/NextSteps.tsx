@@ -98,12 +98,12 @@ export function NextSteps() {
         ))}
       </ul>
       {hidden > 0 && (
-        <button onClick={() => setAll(true)} className="mt-2 w-full border-t-2 border-ink/10 pt-2 text-left text-xs font-bold text-ink/60 underline">
+        <button onClick={() => setAll(true)} className="mt-2 w-full border-t-2 border-ink/10 pt-2 text-left text-xs font-medium text-ink/70 underline">
           Show {hidden} more {hidden === 1 ? "step" : "steps"}
         </button>
       )}
       {visible.some((s) => s.kind === "roll") && (
-        <p className="mt-2 text-xs text-ink/60">A word earns $WORD once all 5 of its letters are UPPERCASE.</p>
+        <p className="mt-2 text-xs text-ink/70">A word earns $WORD once all 5 of its letters are UPPERCASE.</p>
       )}
     </Card>
   );
@@ -148,7 +148,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
         icon: <Ticket weight="fill" size={20} />,
         text: (
           <>
-            <strong className="font-display">{s.word}</strong> isn’t staked. Stake it to enter the daily jackpot
+            {s.word} isn’t staked. Stake it to enter the daily jackpot
             {s.earns ? " and earn $WORD every day" : ""}.
           </>
         ),
@@ -161,17 +161,17 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
         text:
           raised === 5 ? (
             <>
-              You can spell <strong className="font-display">{s.word}</strong> with your UPPERCASE letters. It earns $WORD
+              You can spell {s.word} with your UPPERCASE letters. It earns $WORD
               from day one once staked.
             </>
           ) : raised > 0 ? (
             <>
-              You can spell <strong className="font-display">{s.word}</strong> with your letters, {raised} of them
+              You can spell {s.word} with your letters, {raised} of them
               UPPERCASE.
             </>
           ) : (
             <>
-              You can spell <strong className="font-display">{s.word}</strong> with your letters.
+              You can spell {s.word} with your letters.
             </>
           ),
       };
@@ -181,7 +181,7 @@ function describe(s: NextStep): { icon: ReactNode; text: ReactNode } {
         icon: <EngravedMark kind="crown" size={20} className="text-ink" />,
         text: (
           <>
-            Roll the <strong className="font-display">{s.letter}</strong> in <strong className="font-display">{s.word}</strong> to
+            Roll the <strong className="font-display">{s.letter}</strong> in {s.word} to
             raise it: {Math.round(s.odds * 100)}% odds.
           </>
         ),

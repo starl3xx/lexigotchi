@@ -39,7 +39,7 @@ export function QuickGrid({ extended = false }: { extended?: boolean }) {
         >
           <t.Icon size={26} weight="bold" className="press-icon text-candy-ink" />
           <span className="font-display text-sm font-extrabold leading-tight">{t.label}</span>
-          <span className="text-xs text-ink/60">{t.sub}</span>
+          <span className="text-xs text-ink/70">{t.sub}</span>
         </button>
       ))}
     </div>

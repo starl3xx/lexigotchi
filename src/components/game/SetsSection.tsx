@@ -49,35 +49,35 @@ function SetCard({ set, now, gate }: { set: ShownSet; now: number; gate: boolean
     <div className="cel-sm rounded-xl bg-card p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h3 className="font-display text-[15px] font-extrabold leading-tight">{lines.title}</h3>
-        <span className={`text-xs font-bold ${released && !lines.gated ? "text-teal-ink" : "text-ink/60"}`}>{lines.status}</span>
+        <span className={`text-xs font-medium ${released && !lines.gated ? "text-teal-ink" : "text-ink/70"}`}>{lines.status}</span>
       </div>
       {lines.partner && (
-        <p className="mt-0.5 text-[13px] leading-snug text-ink/75">
+        <p className="mt-0.5 text-[13px] leading-snug text-ink/70">
           A collaboration with{" "}
           {lines.partner.url ? (
             // A partner's link is the operator's own entry, checked to be https; it still opens apart from the game.
-            <a href={lines.partner.url} target="_blank" rel="noopener noreferrer nofollow" className="font-extrabold text-ink underline underline-offset-2">
+            <a href={lines.partner.url} target="_blank" rel="noopener noreferrer nofollow" className="font-medium text-ink underline underline-offset-2">
               {lines.partner.name}
             </a>
           ) : (
-            <span className="font-extrabold text-ink">{lines.partner.name}</span>
+            <span className="font-medium text-ink">{lines.partner.name}</span>
           )}
         </p>
       )}
       {lines.rule && (
-        <p className="mt-1 text-[13px] leading-snug text-ink/75">
-          <span className="font-extrabold text-gold-ink">{lines.rule}.</span>{" "}
+        <p className="mt-1 text-[13px] leading-snug text-ink/70">
+          <span className="font-medium text-gold-ink">{lines.rule}.</span>{" "}
           {set.kind === "released" ? firstDayNote(set.perPlayerLimit, lines.openTo ? set.firstDay : "verified", set.firstDayLabel) : null}
         </p>
       )}
-      {!lines.rule && lines.openTo && <p className="mt-1 text-[13px] leading-snug text-ink/75">{firstDayAhead(lines.openTo)}</p>}
+      {!lines.rule && lines.openTo && <p className="mt-1 text-[13px] leading-snug text-ink/70">{firstDayAhead(lines.openTo)}</p>}
       <div className={words.length > 0 ? "mt-2 flex flex-wrap gap-2" : "hidden"}>
         {words.map((w) =>
           released ? (
             <button key={w.word} onClick={() => openWord(w.word)} className="press cel-sm flex flex-col items-start gap-1 rounded-lg bg-paper p-2 text-left">
               <MiniTiles word={w.word} upper={LOWER} tier={tierOf(w.word)} />
               <span className="font-display text-xs font-extrabold">{w.word}</span>
-              {g && <span className="text-[11px] leading-none text-ink/60">{fmtWord(g.claimFee(w.word))} to claim</span>}
+              {g && <span className="text-xs leading-none text-ink/70">{fmtWord(g.claimFee(w.word))} to claim</span>}
             </button>
           ) : (
             // Revealed, not released: it can't be spelled or claimed yet, and its dashed edge says so.
@@ -85,13 +85,13 @@ function SetCard({ set, now, gate }: { set: ShownSet; now: number; gate: boolean
             <button key={w.word} onClick={() => openWord(w.word)} className="press flex flex-col items-start gap-1 rounded-lg border-2 border-dashed border-ink/25 p-2 text-left">
               <MiniTiles word={w.word} upper={LOWER} tier={tierOf(w.word)} className="opacity-60" />
               <span className="font-display text-xs font-extrabold text-ink/70">{w.word}</span>
-              {g && <span className="text-[11px] leading-none text-ink/55">{fmtWord(g.claimFee(w.word))} to claim</span>}
+              {g && <span className="text-xs leading-none text-ink/70">{fmtWord(g.claimFee(w.word))} to claim</span>}
             </button>
           ),
         )}
       </div>
       {(folded || set.words.length > PREVIEW) && (
-        <button onClick={() => setAll((v) => !v)} className="round-btn mt-2 rounded-full text-xs font-bold text-ink/70 underline underline-offset-2">
+        <button onClick={() => setAll((v) => !v)} className="round-btn mt-2 rounded-full text-xs font-medium text-ink/70 underline underline-offset-2">
           {all ? (folded ? "Hide its words" : "Show fewer") : folded ? `Show its ${set.words.length} ${set.words.length === 1 ? "word" : "words"}` : `Show all ${set.words.length} words`}
         </button>
       )}
@@ -111,7 +111,7 @@ export function SetsSection() {
     <section className="space-y-2" aria-label="Sets" data-section="sets">
       <div className="flex items-baseline justify-between">
         <h2 className="font-display text-lg font-extrabold">Sets</h2>
-        <span className="text-xs text-ink/55">groups of words that unlock later</span>
+        <span className="text-xs text-ink/70">groups of words that unlock later</span>
       </div>
       <div className="grid gap-2 lg:grid-cols-2">
         {shown.map((s) => (
@@ -122,7 +122,7 @@ export function SetsSection() {
             <Pill className="bg-paper-dark">
               <Lock weight="bold" size={12} /> Locked
             </Pill>
-            <span className="font-display text-[15px] font-extrabold text-ink/75">A new set is coming</span>
+            <span className="font-display text-[15px] font-extrabold text-ink/70">A new set is coming</span>
           </div>
         ))}
       </div>

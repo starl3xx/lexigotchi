@@ -43,10 +43,10 @@ export class ScreenErrorBoundary extends Component<
     return (
       <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5 text-center">
         <div className="font-display text-lg font-extrabold">That screen fell over.</div>
-        <p className="mt-1 text-sm text-ink/60">
+        <p className="mt-1 text-sm text-ink/70">
           The rest of the game still works. This is a bug on our side, not something you did.
         </p>
-        <p className="mt-2 break-words font-mono text-[10px] text-ink/40">{this.state.error.message}</p>
+        <p className="mt-2 break-words font-mono text-xs text-ink/70">{this.state.error.message}</p>
         <button
           onClick={() => {
             this.setState({ error: null });
@@ -65,7 +65,7 @@ function Shell({ title, body, action }: { title: string; body: string; action?: 
   return (
     <div className="cel mx-auto mt-8 max-w-sm rounded-2xl bg-card p-5 text-center">
       <div className="font-display text-lg font-extrabold">{title}</div>
-      <p className="mt-1 text-sm text-ink/60">{body}</p>
+      <p className="mt-1 text-sm text-ink/70">{body}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -78,7 +78,7 @@ export function ChainSkeleton() {
       {[0, 1, 2].map((i) => (
         <div key={i} className="h-16 rounded-2xl border-[3px] border-ink/10 bg-ink/[0.04]" />
       ))}
-      <p className="text-center text-xs text-ink/40">Reading the chain…</p>
+      <p className="text-center text-xs text-ink/70">Reading the chain…</p>
     </div>
   );
 }

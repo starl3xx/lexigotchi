@@ -53,11 +53,11 @@ export function ShopItemSheet({ id, word }: { id: number; word?: string }) {
       {card && about ? (
         <ItemView card={card} about={about} pictured={pictured} now={v.now} poolPct={v.poolPct} word={word} />
       ) : v.loading ? (
-        <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/60">
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/70">
           <CircleNotch className="animate-spin" /> Opening the Shop…
         </div>
       ) : (
-        <p className="py-6 text-center text-sm text-ink/60">{v.known ? "This isn’t in the Shop right now." : "The Shop didn’t load. Close this and come back."}</p>
+        <p className="py-6 text-center text-sm text-ink/70">{v.known ? "This isn’t in the Shop right now." : "The Shop didn’t load. Close this and come back."}</p>
       )}
     </Sheet>
   );
@@ -94,7 +94,7 @@ function ItemView({ card, about, pictured, now, poolPct, word }: { card: ItemCar
         ) : null}
         {face && words.length > 0 && (
           <div>
-            <div className="text-xs font-bold text-ink/60">See it on</div>
+            <div className="text-xs font-medium text-ink/70">See it on</div>
             {/* A player may hold dozens of words: one line that scrolls sideways on a phone, and
                 at most three lines on a computer, so the row never pushes the price off the screen. */}
             <div role="radiogroup" aria-label="See it on" className="shop-words mt-1 flex gap-1.5 overflow-x-auto pb-1 md:max-h-[6.75rem] md:flex-wrap md:overflow-y-auto md:overflow-x-hidden">
@@ -120,25 +120,25 @@ function ItemView({ card, about, pictured, now, poolPct, word }: { card: ItemCar
 
       <div className="min-w-0 space-y-3">
         <div>
-          <div className="text-xs font-bold text-ink/60">{KIND_NAME[card.meta.kind]}</div>
+          <div className="text-xs font-medium text-ink/70">{KIND_NAME[card.meta.kind]}</div>
           <div className="fig text-xl">{usdcLabel(card.item.priceUsdc, testnet)}</div>
         </div>
-        <p className="text-sm text-ink/75">
+        <p className="text-sm text-ink/70">
           {/* a face's own line first ("A small world under the stars."), then what any face is */}
           {face && <strong className="text-ink">{sceneMeta(face).blurb} </strong>}
           {itemWords(card, about)}
         </p>
         {(about.limited || sale || about.have) && (
           <div className="space-y-1 text-sm">
-            {about.limited && <div className="font-bold text-ink/75">{editionLine(about.limited)}</div>}
-            {sale && <div className="text-ink/75">{"until" in sale ? `On sale until ${when(sale.until)}.` : `On sale from ${when(sale.from)}.`}</div>}
-            {about.have && <div className="font-bold text-teal-ink">{about.owned > 1 ? `You have ${about.owned}` : "You have it"}</div>}
+            {about.limited && <div className="font-medium text-ink/70">{editionLine(about.limited)}</div>}
+            {sale && <div className="text-ink/70">{"until" in sale ? `On sale until ${when(sale.until)}.` : `On sale from ${when(sale.from)}.`}</div>}
+            {about.have && <div className="font-medium text-teal-ink">{about.owned > 1 ? `You have ${about.owned}` : "You have it"}</div>}
           </div>
         )}
         <ShopBuy card={card} about={about} size="md" />
         {/* Only on a positive "you have it" (the offer's own answer), and only for the word shown. */}
         {face && on && about.offer.kind === "have" && <PutOn scene={face} w={on} />}
-        <ul className="space-y-1.5 border-t-2 border-ink/15 pt-3 text-xs text-ink/60">
+        <ul className="space-y-1.5 border-t-2 border-ink/15 pt-3 text-xs text-ink/70">
           <li>It stays with your profile. It never goes with a word you sell, dissolve, or move.</li>
           <li>
             Paid in {testnet ? "test USDC" : "USDC"} on {NETWORK.name}. {100 - poolPct}% goes to the studio, and {poolPct}% buys $WORD for the Rewards Pool in the same
@@ -166,7 +166,7 @@ function OnWord({ scene, w }: { scene: SceneId; w: OwnedWord }) {
 /** Put a face the player has on the word shown: the face picker's own save, from here. */
 function PutOn({ scene, w }: { scene: SceneId; w: OwnedWord }) {
   const { scene: showing, set } = useWordScene(w.word);
-  if (showing === scene) return <p className="text-center text-sm font-bold text-ink/60">{w.word}’s card has this face.</p>;
+  if (showing === scene) return <p className="text-center text-sm font-medium text-ink/70">{w.word}’s card has this face.</p>;
   return (
     <Button variant="ghost" full onClick={() => set(scene)}>
       Put it on {w.word}
@@ -220,7 +220,7 @@ function Closer({ children }: { children: ReactNode }) {
         </div>
       </div>
       <div className="flex justify-end">
-        <button type="button" aria-pressed={close} onClick={() => setClose((c) => !c)} className="flex items-center gap-1 text-xs font-bold text-ink/60 underline">
+        <button type="button" aria-pressed={close} onClick={() => setClose((c) => !c)} className="flex items-center gap-1 text-xs font-medium text-ink/70 underline">
           <MagnifyingGlass weight="bold" size={12} aria-hidden />
           {close ? "Show the whole card" : "Look closer"}
         </button>

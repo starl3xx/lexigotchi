@@ -41,7 +41,7 @@ export function Button({
     <button
       className={`relative inline-flex select-none items-center justify-center gap-2 rounded-xl border-[3px] border-ink font-display font-extrabold
         press [--sh:3px] [box-shadow:3px_3px_0_#1b1714]
-        disabled:cursor-not-allowed disabled:border-ink/25 disabled:bg-paper-dark disabled:text-ink/45 disabled:shadow-none
+        disabled:cursor-not-allowed disabled:border-ink/25 disabled:bg-paper-dark disabled:text-ink/40 disabled:shadow-none
         ${VAR[variant]} ${pad} ${full ? "w-full" : ""} ${className}`}
       {...rest}
     >
@@ -68,7 +68,7 @@ export function Segmented<T extends string>({
 }) {
   const at = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div className={`relative flex rounded-xl border-[3px] border-ink bg-card p-1 text-sm font-bold ${className}`}>
+    <div className={`relative flex rounded-xl border-[3px] border-ink bg-card p-1 text-sm font-medium ${className}`}>
       <span
         aria-hidden
         className="seg-thumb absolute inset-y-1 left-1 rounded-lg bg-ink"
@@ -114,7 +114,7 @@ export function TweenNumber({ value, format, className = "" }: { value: number; 
 
 export function Pill({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex max-w-full items-center gap-1 rounded-full border-2 border-ink px-2 py-0.5 text-xs font-bold ${className}`}>
+    <span className={`inline-flex max-w-full items-center gap-1 rounded-full border-2 border-ink px-2 py-0.5 text-xs font-medium ${className}`}>
       {children}
     </span>
   );
@@ -162,14 +162,14 @@ export function PityMeter({ pity }: { pity: number }) {
   const prob = useGame().rollProb(pity);
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs font-bold text-ink/70">
+      <div className="flex items-center justify-between text-xs font-medium text-ink/70">
         <span>roll odds</span>
         <span className="font-display text-sm text-ink">{Math.round(prob * 100)}%</span>
       </div>
       <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-paper-dark">
         <div className="h-full bg-teal transition-[width]" style={{ width: `${prob * 100}%` }} />
       </div>
-      {pity > 0 && <div className="text-xs text-ink/60">pity +{pity} · resets on a hit</div>}
+      {pity > 0 && <div className="text-xs text-ink/70">pity +{pity} · resets on a hit</div>}
     </div>
   );
 }
@@ -253,8 +253,8 @@ export function EmptyState({ Icon, title, sub }: { Icon: typeof Basket; title: s
   return (
     <div className="flex flex-col items-center gap-1.5 rounded-2xl border-[3px] border-dashed border-ink/30 px-4 py-8 text-center">
       <Icon size={32} weight="bold" className="text-ink/40" />
-      <div className="font-display font-bold">{title}</div>
-      {sub && <div className="max-w-[28ch] text-xs text-ink/60">{sub}</div>}
+      <div className="font-display font-medium">{title}</div>
+      {sub && <div className="max-w-[28ch] text-xs text-ink/70">{sub}</div>}
     </div>
   );
 }
@@ -325,7 +325,7 @@ export function Sheet({
           <div className="font-display text-lg font-extrabold">{title}</div>
           <button
             onClick={onClose}
-            className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink font-bold"
+            className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink font-medium"
             aria-label="Close"
           >
             <X weight="bold" size={16} />
@@ -399,11 +399,11 @@ function BusyPill({ busy, onDismiss }: { busy: Busy; onDismiss: () => void }) {
     >
       <CircleNotch weight="bold" size={18} className="shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />
       <span className="min-w-0 leading-tight">
-        <span className="block truncate font-bold">{busy.label}</span>
-        <span className="block text-xs font-medium text-ink/60">{BUSY_PHASE[busy.phase]}</span>
+        <span className="block truncate font-medium">{busy.label}</span>
+        <span className="block text-xs font-medium text-ink/70">{BUSY_PHASE[busy.phase]}</span>
       </span>
       {stale && (
-        <button onClick={onDismiss} className="shrink-0 text-xs font-bold text-ink/50 underline">
+        <button onClick={onDismiss} className="shrink-0 text-xs font-medium text-ink/70 underline">
           Hide
         </button>
       )}
@@ -468,7 +468,7 @@ function ToastItem({ toast, onDone }: { toast: Toast; onDone: (id: number) => vo
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
       title="Dismiss"
-      className={`toast pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border-[3px] border-ink px-3 py-2 text-left text-sm font-bold shadow-[3px_3px_0_#1b1714] ${tone.cls}`}
+      className={`toast pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border-[3px] border-ink px-3 py-2 text-left text-sm font-medium shadow-[3px_3px_0_#1b1714] ${tone.cls}`}
     >
       <tone.Icon weight="fill" size={18} className="shrink-0" aria-hidden />
       <span>{toast.text}</span>

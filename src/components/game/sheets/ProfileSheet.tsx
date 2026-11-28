@@ -77,13 +77,13 @@ export function ProfileSheet() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={me.pfpUrl} alt="" className="h-14 w-14 rounded-full border-[3px] border-ink object-cover" />
         ) : (
-          <span className="flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-ink bg-paper-dark text-ink/50">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-ink bg-paper-dark text-ink/70">
             <Smiley weight="fill" size={26} />
           </span>
         )}
         <div className="min-w-0 flex-1 leading-tight">
           <div className="truncate font-display text-xl font-extrabold">{me.name ?? (address ? short(address) : "No wallet yet")}</div>
-          <div className="text-xs text-ink/55">
+          <div className="text-xs text-ink/70">
             {address ? (me.name ? short(address) : `Link ${unlockWith} for a name and picture`) : "Your wallet is your account"}
           </div>
         </div>
@@ -109,7 +109,7 @@ export function ProfileSheet() {
         <div className="flex items-center gap-1.5 font-display font-extrabold">
           <Gift weight="fill" className={daily.eligible ? "text-teal-ink" : "text-gold-ink"} /> Free letters
         </div>
-        <p className="mt-1 text-sm text-ink/75">
+        <p className="mt-1 text-sm text-ink/70">
           {daily.eligible ? (
             <>You get a free pack of 5 plus 10 free daily letters, one a day.</>
           ) : checking ? (
@@ -148,7 +148,7 @@ export function ProfileSheet() {
             {fcLinked ? (
               // Sign-out exists only on the web: inside a Farcaster host the identity IS the host's.
               viewer.environment === "web" ? (
-                <button onClick={viewer.signOut} className="text-xs font-bold text-ink/45 underline">
+                <button onClick={viewer.signOut} className="text-xs font-medium text-ink/70 underline">
                   Sign out
                 </button>
               ) : (
@@ -184,7 +184,7 @@ export function ProfileSheet() {
                 flush
               >
                 {x ? (
-                  <button onClick={() => void p.unlinkX()} disabled={p.busy} className="text-xs font-bold text-ink/45 underline">
+                  <button onClick={() => void p.unlinkX()} disabled={p.busy} className="text-xs font-medium text-ink/70 underline">
                     Unlink
                   </button>
                 ) : p.xEnabled && (address || openConnectModal) ? (
@@ -196,7 +196,7 @@ export function ProfileSheet() {
                 ) : null}
               </Row>
               {!x && p.xEnabled && (
-                <p className="mt-1 pl-[38px] text-[11px] leading-snug text-ink/55">
+                <p className="mt-1 pl-[38px] text-xs leading-snug text-ink/70">
                   {!address && "Connect a wallet first: X links to it. "}Your X account will show publicly next to your wallet. The account must be older than 90 days for the free letters. You can unlink anytime.
                 </p>
               )}
@@ -235,7 +235,7 @@ export function ProfileSheet() {
                 </a>
                 {/* Verification usually outlasts the 4-second re-check, and a "no" gets cached. */}
                 {verified === false && (
-                  <button onClick={recheck} className="text-[11px] font-bold text-ink/45 underline">
+                  <button onClick={recheck} className="text-xs font-medium text-ink/70 underline">
                     Check again
                   </button>
                 )}
@@ -256,17 +256,17 @@ export function ProfileSheet() {
       <Card className="mb-3">
         <div className="mb-1 font-display font-extrabold">Name and picture</div>
         {sources.length === 0 ? (
-          <p className="flex items-center gap-1.5 text-sm text-ink/65">
-            <Lock weight="fill" className="shrink-0 text-ink/45" /> Link {unlockWith} to unlock a name and picture.
+          <p className="flex items-center gap-1.5 text-sm text-ink/70">
+            <Lock weight="fill" className="shrink-0 text-ink/40" /> Link {unlockWith} to unlock a name and picture.
           </p>
         ) : sources.length === 1 || !p.enabled ? (
           <p className="text-sm text-ink/70">
-            From {me.source === "x" ? "X" : "Farcaster"}: <strong>{me.name}</strong>.
+            From {me.source === "x" ? "X" : "Farcaster"}: {me.name}.
           </p>
         ) : !p.signedIn ? (
           <>
             <p className="text-sm text-ink/70">
-              Showing <strong>{me.name}</strong>. To choose which account names you, sign in with your wallet.
+              Showing {me.name}. To choose which account names you, sign in with your wallet.
             </p>
             <SignInButton p={p} />
           </>
@@ -287,17 +287,17 @@ export function ProfileSheet() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={s.pfpUrl} alt="" className="h-7 w-7 rounded-full border-2 border-ink object-cover" />
                   ) : (
-                    <Smiley weight="fill" size={22} className="text-ink/45" />
+                    <Smiley weight="fill" size={22} className="text-ink/40" />
                   )}
-                  <span className="flex-1 font-bold">{s.label}</span>
-                  <span className="text-xs text-ink/55">{s.id === "x" ? "X" : "Farcaster"}</span>
+                  <span className="flex-1 font-medium">{s.label}</span>
+                  <span className="text-xs text-ink/70">{s.id === "x" ? "X" : "Farcaster"}</span>
                   {on && <Check weight="bold" className="text-teal-ink" />}
                 </button>
               );
             })}
           </div>
         )}
-        {p.error && <p className="mt-2 text-xs font-bold text-candy-ink">{p.error}</p>}
+        {p.error && <p className="mt-2 text-xs font-medium text-candy-ink">{p.error}</p>}
       </Card>
 
       {/* Keyed by wallet: switching wallets starts the card fresh, so one wallet's typed address,
@@ -332,7 +332,7 @@ export function ProfileSheet() {
 
       <button
         onClick={() => g.openSheet({ kind: "balance" })}
-        className="mx-auto flex items-center gap-1.5 text-sm font-bold text-ink/60 underline"
+        className="mx-auto flex items-center gap-1.5 text-sm font-medium text-ink/70 underline"
       >
         <Wallet weight="bold" /> Your $WORD and wallet
       </button>
@@ -360,8 +360,8 @@ function Row({
     <div className={`flex items-center gap-2.5 ${flush ? "" : "py-2"}`}>
       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink ${iconBg}`}>{icon}</span>
       <div className="min-w-0 flex-1 leading-tight">
-        <div className="text-sm font-bold">{name}</div>
-        <div className="truncate text-xs text-ink/55">{detail}</div>
+        <div className="text-sm font-medium">{name}</div>
+        <div className="truncate text-xs text-ink/70">{detail}</div>
       </div>
       {children}
     </div>
@@ -370,7 +370,7 @@ function Row({
 
 function Linked() {
   return (
-    <span className="flex items-center gap-1 text-xs font-bold text-teal-ink">
+    <span className="flex items-center gap-1 text-xs font-medium text-teal-ink">
       <CheckCircle weight="fill" /> Linked
     </span>
   );
@@ -403,19 +403,19 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
   return (
     <Card className="mb-3">
       <div className="font-display font-extrabold">Email reminders</div>
-      <p className="mt-0.5 text-xs text-ink/60">
+      <p className="mt-0.5 text-xs text-ink/70">
         The reminders you keep on under “What to tell me”, by email. Your email is never shown to anyone.
       </p>
 
       {p.signedIn && !p.ownLoaded ? (
         // Signed in, but the own view (the only one with the email) hasn't arrived: never offer
         // "Add email" to a player who may already have one (Bugbot on #139).
-        <p className="mt-2 text-xs text-ink/55">{p.ownFailed ? "Couldn’t load your email settings. Close and reopen your profile to try again." : "Loading your email settings…"}</p>
+        <p className="mt-2 text-xs text-ink/70">{p.ownFailed ? "Couldn’t load your email settings. Close and reopen your profile to try again." : "Loading your email settings…"}</p>
       ) : saved ? (
         <div className="mt-2 space-y-2">
           <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="min-w-0 truncate font-bold">{saved.address}</span>
-            <button onClick={async () => say(await p.removeEmail())} disabled={p.busy} className="shrink-0 text-xs font-bold text-ink/45 underline">
+            <span className="min-w-0 truncate font-medium">{saved.address}</span>
+            <button onClick={async () => say(await p.removeEmail())} disabled={p.busy} className="shrink-0 text-xs font-medium text-ink/70 underline">
               Remove
             </button>
           </div>
@@ -454,7 +454,7 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
             if (!r.error) setStage("code");
           }}
         >
-          <label className="block text-xs font-bold text-ink/60" htmlFor="profile-email">
+          <label className="block text-xs font-medium text-ink/70" htmlFor="profile-email">
             Email address
           </label>
           <div className="flex gap-2">
@@ -509,13 +509,13 @@ function EmailCard({ p }: { p: ReturnType<typeof useProfile> }) {
               {p.busy ? <CircleNotch className="animate-spin" /> : "Confirm"}
             </Button>
           </div>
-          <button type="button" onClick={() => setStage("enter")} className="text-xs font-bold text-ink/45 underline">
+          <button type="button" onClick={() => setStage("enter")} className="text-xs font-medium text-ink/70 underline">
             Use a different email
           </button>
         </form>
       )}
       {note && (
-        <p role="status" className="mt-2 text-xs font-bold text-candy-ink">
+        <p role="status" className="mt-2 text-xs font-medium text-candy-ink">
           {note}
         </p>
       )}

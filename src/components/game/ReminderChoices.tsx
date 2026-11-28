@@ -89,7 +89,7 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
   return (
     <Card className="mb-3">
       <div className="font-display font-extrabold">What to tell me</div>
-      <p className="mt-0.5 text-xs text-ink/60">
+      <p className="mt-0.5 text-xs text-ink/70">
         Your choice for every way we reach you: email, your browser, {telegram ? "Farcaster, and Telegram" : "and Farcaster"}.
       </p>
       <ul className="mt-2 space-y-2">
@@ -104,8 +104,8 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
                 className="mt-0.5 h-4 w-4 shrink-0 accent-[#2a9d8f]"
               />
               <span className="min-w-0">
-                <span className="block font-bold leading-tight">{KIND_INFO[kind].label}</span>
-                <span className="block text-xs text-ink/60">{KIND_INFO[kind].hint}</span>
+                <span className="block font-medium leading-tight">{KIND_INFO[kind].label}</span>
+                <span className="block text-xs text-ink/70">{KIND_INFO[kind].hint}</span>
               </span>
             </label>
           </li>
@@ -133,16 +133,16 @@ export function ReminderChoices({ p, hasEmail = false, telegram = false }: { p: 
                 className="mt-0.5 h-4 w-4 shrink-0 accent-[#2a9d8f]"
               />
               <span className="min-w-0">
-                <span className="block font-bold leading-tight">{label}</span>
-                {hint && <span className="block text-xs text-ink/60">{hint}</span>}
+                <span className="block font-medium leading-tight">{label}</span>
+                {hint && <span className="block text-xs text-ink/70">{hint}</span>}
               </span>
             </label>
           ))}
         </div>
       )}
-      {q.isError && <p className="mt-2 text-xs text-ink/55">Couldn’t load your choices. These are the usual ones.</p>}
+      {q.isError && <p className="mt-2 text-xs text-ink/70">Couldn’t load your choices. These are the usual ones.</p>}
       {note && (
-        <p role="alert" className="mt-2 text-xs font-bold text-candy-ink">
+        <p role="alert" className="mt-2 text-xs font-medium text-candy-ink">
           {note}
         </p>
       )}

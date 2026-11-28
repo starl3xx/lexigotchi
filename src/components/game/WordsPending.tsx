@@ -21,7 +21,7 @@ export function WordsPending() {
   const { state } = g;
   if (state.wordsLoading) {
     return (
-      <p aria-busy className="py-6 text-center text-sm text-ink/60">
+      <p aria-busy className="py-6 text-center text-sm text-ink/70">
         Bringing out your words…
       </p>
     );

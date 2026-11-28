@@ -108,7 +108,7 @@ export function WebSignInHost() {
         <h2 className="font-display text-xl font-extrabold">Sign in with Farcaster</h2>
 
         {phase === "starting" && (
-          <div className="mt-6 flex flex-col items-center gap-2 text-ink/60">
+          <div className="mt-6 flex flex-col items-center gap-2 text-ink/70">
             <CircleNotch weight="bold" size={24} className="animate-spin" />
             <span className="text-sm">Opening a secure channel…</span>
           </div>
@@ -116,7 +116,7 @@ export function WebSignInHost() {
 
         {phase === "waiting" && (
           <>
-            <p className="mt-1 text-sm text-ink/60">
+            <p className="mt-1 text-sm text-ink/70">
               Scan with your phone, or tap through if you’re already on it.
             </p>
             {qr && (
@@ -136,7 +136,7 @@ export function WebSignInHost() {
             >
               Open Farcaster
             </a>
-            <p className="mt-3 text-xs text-ink/45">Waiting for you to approve…</p>
+            <p className="mt-3 text-xs text-ink/70">Waiting for you to approve…</p>
           </>
         )}
 
@@ -162,7 +162,7 @@ export function WebSignInHost() {
           </>
         )}
 
-        <button onClick={close} className="mt-4 block w-full text-xs font-bold text-ink/45">
+        <button onClick={close} className="mt-4 block w-full text-xs font-medium text-ink/70">
           Cancel
         </button>
       </div>

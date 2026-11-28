@@ -45,7 +45,7 @@ export function DailyUnlock() {
     <div className="space-y-2">
       <div className="text-sm text-ink/70">
         A free pack of 5 plus 10 free daily letters, for linking Farcaster{xEnabled ? ", X," : ""} or a Coinbase-verified wallet.
-        <div className="text-xs text-ink/50">
+        <div className="text-xs text-ink/70">
           {checking ? "Checking your wallet…" : `${xEnabled ? "Any one" : "Either one"} proves you’re one person.`}
         </div>
       </div>
@@ -71,7 +71,7 @@ export function DailyUnlock() {
           <SealCheck weight="fill" size={15} /> Verify with Coinbase
         </a>
         {verified === false && (
-          <button onClick={recheck} className="text-xs font-bold text-ink/45 underline">
+          <button onClick={recheck} className="text-xs font-medium text-ink/70 underline">
             I verified. Check again
           </button>
         )}

@@ -360,7 +360,7 @@ export function CardMore({ word }: { word: OwnedWord }) {
 function Row({ label, fact = false, children }: { label: string; /** a figure or a fact in words: the card's serif. Never set for a name. */ fact?: boolean; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
-      <dt className="shrink-0 font-semibold text-ink/60">{label}</dt>
+      <dt className="shrink-0 font-medium text-ink/70">{label}</dt>
       <dd className={`min-w-0 text-right ${fact ? "fact" : ""}`}>{children}</dd>
     </div>
   );

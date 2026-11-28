@@ -32,7 +32,7 @@ export function MintScreen() {
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       <div className="lg:col-span-2">
         <h1 className="font-display text-2xl font-extrabold md:hidden">Mint letters</h1>
-        <p className="text-sm text-ink/60">
+        <p className="text-sm text-ink/70">
           Every pull is <strong>lowercase</strong>. Capitals are <em>raised</em> in the Roll, never pulled.
         </p>
       </div>
@@ -46,7 +46,7 @@ export function MintScreen() {
       <Card className="bg-card">
         <SectionTitle
           action={
-            <span className="text-xs font-bold text-teal-ink">
+            <span className="text-xs font-medium text-teal-ink">
               {!daily.eligible ? "Free" : free?.dailyLeft != null ? `Free · ${free.dailyLeft} of ${free.dailyLimit} left` : "Free · 1 a day"}
             </span>
           }
@@ -65,9 +65,9 @@ export function MintScreen() {
             </span>
             {/* the 10th was the last: no countdown to a letter that isn't coming */}
             {free?.done ? (
-              <span className="text-xs text-ink/50">your last free one</span>
+              <span className="text-xs text-ink/70">your last free one</span>
             ) : (
-              <span className="text-xs text-ink/50">resets in <Countdown /></span>
+              <span className="text-xs text-ink/70">resets in <Countdown /></span>
             )}
           </div>
         ) : daily.eligible && free && (free.done || free.stop) ? (
@@ -97,7 +97,7 @@ export function MintScreen() {
           DailyUnlock, in the daily card above. */}
       {state.chainBacked && daily.eligible && free && !free.packTaken && !free.packStop && (
         <Card className="bg-card">
-          <SectionTitle action={<span className="text-xs font-bold text-teal-ink">Free · once</span>}>Your free pack</SectionTitle>
+          <SectionTitle action={<span className="text-xs font-medium text-teal-ink">Free · once</span>}>Your free pack</SectionTitle>
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-ink/70">Five letters, on the house, for proving you’re one person.</span>
             <Button onClick={() => g.openPack()}>
@@ -112,7 +112,7 @@ export function MintScreen() {
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>
-            <div className="text-xs text-ink/60">{showsUsd(state) ? `${fmtWord(packPrice)} $WORD · ${fmtUsd(packPrice)}` : `${fmtWord(packPrice)} $WORD`}</div>
+            <div className="text-xs text-ink/70">{showsUsd(state) ? `${fmtWord(packPrice)} $WORD · ${fmtUsd(packPrice)}` : `${fmtWord(packPrice)} $WORD`}</div>
           </div>
           <Package weight="fill" size={40} className="text-candy-ink" />
         </div>
@@ -146,10 +146,10 @@ export function MintScreen() {
         {free?.dictionaryFull && (
           // About 95% of the words have owners (decisions.md #21): letters still sell, but a new word is
           // more likely to come from the Market than from a pack.
-          <p className="mt-2 text-center text-xs text-ink/60">
+          <p className="mt-2 text-center text-xs text-ink/70">
             The dictionary is nearly full: most words already have an owner. Packs still sell, and the Market has words and
             letters for sale.{" "}
-            <button onClick={() => g.nav("swap")} className="font-bold text-teal-ink underline">
+            <button onClick={() => g.nav("swap")} className="font-medium text-teal-ink underline">
               See the Market
             </button>
           </p>

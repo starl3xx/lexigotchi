@@ -95,7 +95,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
         </div>
       </div>
       <h1 className="sr-only">{text}</h1>
-      <p className="max-w-md text-center text-lg font-semibold text-ink/75">
+      <p className="max-w-md text-center text-lg font-medium text-ink/70">
         Lexigotchi is a word-pet game on Base. Collect little letter characters, raise them to UPPERCASE, and spell words nobody else can own.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -105,7 +105,7 @@ export default async function ShowcasePage({ params, searchParams }: Props) {
         >
           Play Lexigotchi
         </Link>
-        <Link href="/" className="font-semibold text-ink/70 underline hover:text-candy">
+        <Link href="/" className="font-medium text-ink/70 underline hover:text-candy">
           How it works
         </Link>
       </div>
