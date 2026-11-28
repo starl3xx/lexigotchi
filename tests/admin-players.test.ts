@@ -186,3 +186,13 @@ describe("groupPlayers: one row per player", () => {
     expect(json).not.toMatch(/endpoint|p256dh/);
   });
 });
+
+describe("groupPlayers never lists a wallet twice", () => {
+  it("leaves a linked wallet with a row of its own in that row, whatever the link table says (Bugbot on #332)", () => {
+    // The rows didn't group B under A (a link read that failed quietly), but the link table lists B under A.
+    const players = groupPlayers(buildPlayerRows(inputs()), (account) => (account === A ? [A, B] : [account]));
+    const listed = players.flatMap((p) => p.wallets.map((w) => w.address));
+    expect(listed.filter((w) => w === B)).toHaveLength(1);
+    expect(players.find((p) => p.address === A)?.wallets.map((w) => w.address)).toEqual([A]);
+  });
+});

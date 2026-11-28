@@ -247,6 +247,8 @@ type Counted = Omit<PlayerRow, "account" | "fid">;
  * section is built from its output (lib/admin/playerReach.ts), so the two tables can't disagree.
  */
 export function groupPlayers(rows: readonly PlayerRow[], walletsOf?: (account: string) => string[]): PlayerGroup[] {
+  // A wallet with a row of its own belongs where its row says: never listed under a second player.
+  const rowAccount = new Map(rows.map((r) => [r.address, r.account ?? r.address]));
   const byAccount = new Map<string, PlayerRow[]>();
   for (const r of rows) {
     const account = r.account ?? r.address;
@@ -273,7 +275,7 @@ export function groupPlayers(rows: readonly PlayerRow[], walletsOf?: (account: s
         ...sorted.map((r) => ({ address: r.address, lastSeen: r.lastSeen })),
         ...(walletsOf?.(account) ?? [])
           .map((w) => w.toLowerCase())
-          .filter((w) => w !== account && !list.some((r) => r.address === w))
+          .filter((w) => w !== account && !list.some((r) => r.address === w) && !rowAccount.has(w))
           .map((w) => ({ address: w, lastSeen: null })),
       ],
       name: named.name,

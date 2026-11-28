@@ -316,8 +316,9 @@ export async function loadPlayers(): Promise<PlayersPayload> {
     pushBrowsers,
     listings,
     telegram,
-    // The names' lookup groups wallets into accounts; the link table is the same answer when it failed.
-    accountOf: (a) => accountFor.get(a.toLowerCase()) ?? links?.accountOf(a) ?? a.toLowerCase(),
+    // The link table read strictly, when it could be read: the same answer groupPlayers lists wallets
+    // by. The names' lookup is only the fallback, since it reads a failure as "no links" silently.
+    accountOf: (a) => (links ? links.accountOf(a) : (accountFor.get(a.toLowerCase()) ?? a.toLowerCase())),
     faces,
   });
   // One grouping for both tables (lib/admin/playerRows.ts groupPlayers): the reminders are built from it.
