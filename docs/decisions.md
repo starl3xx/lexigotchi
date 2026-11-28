@@ -3367,10 +3367,10 @@ setter. All small, riding existing suite patterns.
         front picture, the back picture, and a real video all show it.
     - **All four parts he chose are built** (the video, the backs, the front's light, the
       stock), with the emblem made standard on the way.
-    - **Still open, and unchanged until he answers:** the round glare under the pointer (12F), a
-      light on the back drawn in its lines (13E: today a back has no light at all), Mythic's
-      rainbow (13F), and whether matte reaches the letters' finishes, the Holographic stage, and
-      the plastic case (part 16).
+    - **Answered since (#65):** the round glare under the pointer is gone and the pointer moves
+      the band (12F); a back has no light of its own (13E); Mythic's spectrum is printed (13F);
+      the letters' finishes, the Holographic stage, and the plastic case keep what they have
+      (part 16).
 
 59. **A face change slides in, in the face picker** (starl3xx, 2026-11-27, with a picture of the
     picker: "when switching faces, the faces should have a nice swipe animation/transition rather
@@ -3721,6 +3721,60 @@ setter. All small, riding existing suite patterns.
       the game (the practice game wakes at once, so the wait is covered by the rules' tests and
       by the proposal page), a real phone, a wallet, a mini-app host. **Not measured:** its cost
       in WebKit under load. It adds no loop: every part is a moment.
+65. **The cards' open questions, answered. No glare: the pointer moves the band.** (starl3xx,
+    2026-11-27, of the open choices carried from the Matte Cards page onto the design audit's
+    "what is left" page: "these are all good".) The list showed my picks marked, and two pairs on
+    it exclude each other (16A against 16B, 16D against 16E), so "all good" is the marked picks
+    and my reading of 17A. Only one of them changes the game.
+    - **10A: the rule's four sentences stand, as the page words them** (#58). (1) A card is
+      paper and ink: nothing on a card is metal, glass, or a gem, and a rarity is an ink and a
+      pattern, never a material. (2) Light is drawn in lines, and it is quiet: a band of fine
+      ruled lines, or the card's own lines in a lighter ink; never a soft white wash over the
+      card, and never a line over a letter. (3) No hot spot, no glitter, no moving rainbow: a
+      reflection is broad and quiet, and has no bright centre. (4) The same in every place: the
+      game, the video, and every picture the server draws. **They are about CARDS.** A letter
+      is not a card (16B and 16C below), and nor is the case (16D).
+    - **12F: no glare under the pointer. The pointer moves the band.** A round white light
+      followed a mouse across the front. It was a hot spot, it was a soft wash, and it lay over
+      the letters: three breaks of the rule. It is gone. While a mouse is over the card in
+      focus, the band of ruled lines stands under the pointer, and no timed pass plays. When
+      the pointer leaves, the band slides off the nearer side and the passes come back. A phone
+      has no pointer: there the band passes by itself, as before. The card still leans.
+      - **How it is built.** The band is the front's (it lies under the letters), so the card
+        finds it and writes two transforms straight to its two elements, at most once a frame,
+        with no transition while it follows: the window one way and the lines the other by the
+        same length, so the lines stand still on the card (`cards/useCardLight`). It eases
+        only as the pointer arrives and as it leaves. A pass in flight ends when the pointer
+        arrives, and the band goes on from where the pass had carried it.
+      - **What it cost at first, and why it costs nothing now.** Measured in WebKit on an
+        opened word's card, with the pointer moving all the time: the lean alone 24% of a
+        processor core; with the band following, 53%. The lines were a vector picture, and
+        the browser drew them again on every frame their layer moved. Two changes took it to
+        25%, which I cannot tell from no band at all: under a pointer the two elements are
+        layers of their own, and the card in focus keeps its lines as a BITMAP, made once at
+        the exact size the card is shown at (`scenes/useLinesBitmap`). Either change alone
+        left it at 44% or 52%. Chromium was indifferent throughout (about two points).
+      - **The lines are plain strokes now, never a pattern.** WebKit draws a turned
+        `<pattern>` upright when it draws a picture into a bitmap: the lines lost their lean
+        and their spacing went uneven. I saw it only because I compared the bitmap with the
+        vector picture before trusting it. The drawing is now one path of strokes that stand
+        exactly where the pattern's lines stood (`lib/cardArt/light`, `lightStrokes`). Bitmap
+        and vector were compared in both engines at three screen settings, in all three inks.
+      - **One thing this changes that he has not seen.** In WebKit a Mythic card's rainbow
+        lines were soft as a vector picture (the browser blurs a masked picture there). As a
+        bitmap they are as fine as the other inks' lines, as Chromium always drew them.
+    - **13E and 13F: a back has no light of its own, and Mythic's spectrum is printed and never
+      moves.** Both were built that way on my reading (#58, part 2). They are his answers now.
+      Nothing on a back moves.
+    - **16B: the letters keep their rarity finishes for now.** He decides after living with
+      matte cards. **16C: the Holographic stage stays foil:** it is earned, rare, and on the
+      letter. **16D: the plastic case keeps its shine.** None of the three breaks the rule,
+      because the rule is about cards.
+    - **17A: the "standard" emblem is the emblem with no ring** (#58, as built).
+    - **Seen:** a real pointer on an opened word's card, in Chromium and in WebKit, on a face
+      with colour, on the dark stock face, and on the pale one. **Not seen:** a Mythic card in
+      the game (the practice game has none: its lines were compared as pictures), a collab
+      card, Safari on a real Mac, a trackpad, and a pen.
 
 ## Pricing & launch economics (decided June 2026)
 

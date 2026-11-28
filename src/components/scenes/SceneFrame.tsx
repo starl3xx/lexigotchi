@@ -35,6 +35,7 @@ import { tileTierOf, useCollabLook } from "../game/collabLooksContext";
 import { DARK_SCENES, PALE_SCENES, RARITY_FACES, cardArt, cardFrame } from "@/lib/cardArt/scenes";
 import { LIGHT_INK, lightLines, type LightInk } from "@/lib/cardArt/light";
 import { CardLit } from "./cardLit";
+import { useLinesBitmap } from "./useLinesBitmap";
 import { FOOT_SHARE, wordFootings, wordLayout } from "./layout";
 
 /** The card's shape. The share picture sets the same card on a table (1.91:1 for X, 3:2 for Farcaster). */
@@ -167,6 +168,11 @@ export function SceneFrame({
   // plain white for a collab word, whose card is its set's colors and no metal.
   const lit = useContext(CardLit);
   const lightInk: LightInk = mine ? "white" : LIGHT_INK[tier ?? PLAIN];
+  // Its lines are kept as a bitmap while the card is lit: the pointer moves the band, and a
+  // vector picture is drawn again on every frame it moves (./useLinesBitmap).
+  const lines = useRef<HTMLElement>(null);
+  const linesPicture = cardLightImage(lightInk);
+  const linesBitmap = useLinesBitmap(lines, linesPicture, lit);
   // The word's row in percent of the card, so it draws on the first paint and on the server (the
   // share page), with nothing measured first.
   const L = wordLayout(word.length);
@@ -333,7 +339,7 @@ export function SceneFrame({
           frame, and the stock; UNDER the word, so no line ever crosses a letter. */}
       {lit && (
         <i aria-hidden className="cf-light">
-          <i style={{ backgroundImage: cardLightImage(lightInk) }} />
+          <i ref={lines} style={{ backgroundImage: linesBitmap ?? linesPicture }} />
         </i>
       )}
       {/* The set's stamp, in ONE fixed place on every collab card: the window's upper left, clear of

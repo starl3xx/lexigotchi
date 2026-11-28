@@ -82,8 +82,7 @@ export function SceneCard({
   // The card's own light: only the card in focus, front up, at rest, with a word that isn't hungry.
   const root = useRef<HTMLDivElement>(null);
   const lean = useRef<HTMLDivElement>(null);
-  const glare = useRef<HTMLElement>(null);
-  const light = useCardLight({ root, lean, glare, tier: word.tier, active: live && !small && !back && !turning && !reduced && !lowPower && hunger(word) !== "hungry" });
+  const light = useCardLight({ root, lean, tier: word.tier, active: live && !small && !back && !turning && !reduced && !lowPower && hunger(word) !== "hungry" });
 
   const W = word.word;
   return (
@@ -97,7 +96,6 @@ export function SceneCard({
           <div className="sc-face sc-front" inert={back} aria-hidden={back || undefined}>
             {/* the front draws the band of light itself, under its letters; the card says when */}
             <CardLit.Provider value={light.lit}>{front}</CardLit.Provider>
-            {light.lit && <i ref={glare} aria-hidden className="sc-glare" />}
           </div>
           {showBack && (
             <div className="sc-face sc-back" inert={!back} aria-hidden={!back || undefined}>

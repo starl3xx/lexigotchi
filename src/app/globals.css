@@ -1034,7 +1034,8 @@ body {
    - the lean: the card turns a few degrees toward the pointer (.sc-lean's transform, written by
      SceneCard with no transition while it follows: a transition restarted on every frame cost a
      third of a processor core in WebKit; it eases only as the pointer arrives and leaves, .sc-ease);
-   - the glare: a faint round light that follows the pointer across the front;
+   - no glare: there was a round white light under the pointer. It is gone (decisions.md #65): a
+     bright spot is a hot spot, and it lay over the letters. The pointer moves the band instead;
    - the band: a reflection DRAWN IN LINES (decisions.md #58, part 3: the cards are matte). A ground
      of fine ruled lines stands still on the card (.cf-light > i: a picture, lib/cardArt/light, in
      the rarity's ink), and a soft-edged window crosses the front in a moment (.sc-moment) and
@@ -1053,22 +1054,24 @@ body {
    breaking the grey engraving under it, and is still the quietest of the three. A face nobody has
    sorted takes the middle. Kept quiet on purpose (starl3xx, 2026-11-25: "much more
    subtle/transparent"; 2026-11-27, of this band as first drawn: "it's too strong rn"). */
-.sc-glare { position: absolute; pointer-events: none; z-index: 2; }
-.sc-glare { left: 50%; top: 50%; width: 76%; aspect-ratio: 1; margin: -38% 0 0 -38%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.16) 55%, transparent); opacity: 0; }
 .cf-light { top: 0; bottom: 0; left: 0; width: 54cqw; pointer-events: none; opacity: 0.36; transform: translateX(-54cqw); -webkit-mask-image: linear-gradient(100deg, transparent calc(50% - 21.67cqw), #000 50%, transparent calc(50% + 21.67cqw)); mask-image: linear-gradient(100deg, transparent calc(50% - 21.67cqw), #000 50%, transparent calc(50% + 21.67cqw)); }
 .cf-light > i { position: absolute; top: 0; left: 0; width: 100cqw; height: 100%; background-size: 100% 100%; transform: translateX(54cqw); }
 .cf-pale .cf-light { opacity: 0.79; }
 .cf-dark .cf-light { opacity: 0.16; }
 @media (prefers-reduced-motion: no-preference) {
   .sc-ease { transition: transform 240ms var(--ease-out); }
-  .sc-glare { transition: opacity 260ms ease; }
-  .sc-ease .sc-glare { transition: opacity 260ms ease, transform 240ms var(--ease-out); }
+  /* The pointer moves the band (useCardLight): while a mouse is over the card the window stands
+     under it, written straight to the two elements with no transition, as the lean is. They ease
+     only as the pointer arrives and leaves, and by the same time and curve, so the lines still
+     stand still on the card while the window slides. */
+  .sc-ease .cf-light, .sc-ease .cf-light > i { transition: transform 240ms var(--ease-out); }
+  /* Under a pointer the two are layers of their own, so moving them paints nothing again. With
+     the lines kept as a bitmap too (scenes/useLinesBitmap), the band following the pointer costs
+     nothing measurable in WebKit; without both, thirty points of a processor core. */
+  @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .cf-light, .sc.is-lit:hover .cf-light > i { will-change: transform; } }
   .sc-moment .cf-light { animation: cf-light 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
   .sc-moment .cf-light > i { animation: cf-light-back 1.3s cubic-bezier(0.3, 0, 0.2, 1) both; }
-  @media (hover: hover) and (pointer: fine) { .sc.is-lit:hover .sc-glare { opacity: var(--sc-glare-a, 0.3); } }
 }
-/* over a face on a dark plate, the same white shows far more: the glare is fainter */
-.sc:has(.cf-dark) { --sc-glare-a: 0.12; }
 @keyframes cf-light { from { transform: translateX(-54cqw); } to { transform: translateX(100cqw); } }
 @keyframes cf-light-back { from { transform: translateX(54cqw); } to { transform: translateX(-100cqw); } }
 

@@ -41,16 +41,38 @@ const PAINT: Record<Exclude<LightInk, "spectrum">, string> = { white: "#ffffff",
 /** Mythic's, left to right across the card: the tiles' own four colors around a white. */
 const SPECTRUM = ["#ff9ad5", "#ffe28a", "#ffffff", "#8ff0d0", "#8ec5ff"] as const;
 
+/**
+ * Every line as ONE path: upright strokes a pitch apart, in a frame turned `lean` degrees about
+ * the card's corner, as many as cross the card.
+ *
+ * Plain strokes, never a `<pattern>`. The card in focus keeps these lines as a bitmap
+ * (components/scenes/useLinesBitmap), and WebKit draws a TURNED pattern upright when it draws a
+ * picture into a bitmap: the lines lost their lean, and their spacing went uneven. A path is drawn
+ * the same way everywhere. Its strokes stand exactly where the pattern's did.
+ */
+export function lightStrokes(): string {
+  const { pitch, at, lean } = LIGHT;
+  const rad = (lean * Math.PI) / 180;
+  // the card's four corners, seen in the turned frame
+  const corners = [0, CARD_W].flatMap((x) => [0, CARD_H].map((y) => [x * Math.cos(rad) + y * Math.sin(rad), y * Math.cos(rad) - x * Math.sin(rad)]));
+  const xs = corners.map((c) => c[0]);
+  const ys = corners.map((c) => c[1]);
+  const top = Math.floor(Math.min(...ys)) - 2;
+  const bottom = Math.ceil(Math.max(...ys)) + 2;
+  let d = "";
+  for (let k = Math.floor((Math.min(...xs) - at) / pitch); k * pitch + at <= Math.max(...xs) + pitch; k++) d += `M${+(k * pitch + at).toFixed(2)} ${top}V${bottom}`;
+  return d;
+}
+
 /** The lines, as the inside of an SVG document the size of a card (lib/cardArt/engrave, `svgDoc`). */
 export function lightLines(ink: LightInk): string {
-  const { pitch, weight, at, lean } = LIGHT;
-  const ruled = (stroke: string, strength: string) =>
-    `<pattern id="r" width="${pitch}" height="${pitch}" patternUnits="userSpaceOnUse" patternTransform="rotate(${lean})"><line x1="${at}" y1="0" x2="${at}" y2="${pitch}" stroke="${stroke}"${strength} stroke-width="${weight}"/></pattern>`;
-  const all = `width="${CARD_W}" height="${CARD_H}"`;
-  if (ink !== "spectrum") return `<defs>${ruled(PAINT[ink], ` stroke-opacity="${LIGHT.ink}"`)}</defs><rect ${all} fill="url(#r)"/>`;
+  const { weight, lean } = LIGHT;
+  const ruled = (stroke: string, strength: string) => `<path transform="rotate(${lean})" d="${lightStrokes()}" fill="none" stroke="${stroke}"${strength} stroke-width="${weight}"/>`;
+  if (ink !== "spectrum") return ruled(PAINT[ink], ` stroke-opacity="${LIGHT.ink}"`);
   // the same lines, cut out of a spectrum that runs the width of the card
+  const all = `width="${CARD_W}" height="${CARD_H}"`;
   const stops = SPECTRUM.map((c, i) => `<stop offset="${i / (SPECTRUM.length - 1)}" stop-color="${c}"/>`).join("");
-  return `<defs>${ruled("#ffffff", "")}<linearGradient id="ink" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CARD_W}" y2="0">${stops}</linearGradient><mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" ${all}><rect ${all} fill="url(#r)"/></mask></defs><rect ${all} fill="url(#ink)" mask="url(#m)" opacity="${LIGHT.ink}"/>`;
+  return `<defs><linearGradient id="ink" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CARD_W}" y2="0">${stops}</linearGradient><mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" ${all}>${ruled("#ffffff", "")}</mask></defs><rect ${all} fill="url(#ink)" mask="url(#m)" opacity="${LIGHT.ink}"/>`;
 }
 
 /**
