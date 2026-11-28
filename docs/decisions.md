@@ -3551,6 +3551,60 @@ setter. All small, riding existing suite patterns.
     - **Not measured:** the fog was three drifting layers and its replacement stands still, so
       a hungry card should cost less to show. I have not measured it.
     - **Not seen:** a dark face with colour (Outer Space) hungry, a collab card, a real phone.
+62. **A set's moments in the game: Today's card, a notice that opens the set, and getting ready**
+    (starl3xx, 2026-11-27: "btw did you think through *how* these sets are released in the game?
+    where in the UI etc"; and, of the three additions I offered, "I like all 3..."). Until now a
+    set (#51, #53) lived in one place, the Dictionary's Sets section, which a phone reaches
+    through More. A player with notices off could miss a set completely, a notice opened Today
+    and left the player to find the set, and a revealed word said only "not available yet", with
+    no way to learn which letters to get before the unlock. No contract change, no migration, and
+    nothing here reads more than the public sets answer, so nothing of a draft reaches a player.
+    - **One rule says whether a set is still news** (`components/game/sets.ts` `setPhase`):
+      `revealed` (named, counting down), `firstDay` (unlocked, its limit still up), `fresh`
+      (unlocked within the last 24 hours with no first day running), and `old`. Today and the
+      Dictionary read the same rule. **The 24 hours are mine, not the owner's words:** on a
+      network whose Words has no gate a release records no first day at all (`gateUntil` is
+      null), so without `fresh` an unlock there would be old news the moment it happened, and
+      the test build would never show one. The Dictionary used to fold a set to its name as
+      soon as it was simply unlocked; it now folds an `old` set only, so a tap from Today lands
+      on the set's words. Its order is: a first day, then fresh, then revealed (the nearest
+      unlock first), then old (`byNews`).
+    - **Today's Sets card** (`TodaySets.tsx`, above the stage): one row per set that is news,
+      two rows at most, then "and N more in the Dictionary". A row has one of the set's words in
+      its own tiles, the set's name, "A collaboration with …" for a collab, and one line in the
+      Dictionary's own words (`todayLine`): "Unlocks in 3 h 05 min.", "Unlocks soon." when no
+      time is set, "First day: one word per player. Opens to everyone in 20 h 00 min.", or
+      "Unlocked. Its words are open to claim." A tap opens the Dictionary at its Sets section.
+      A locked slot never shows on Today (a draft can wait for weeks, and a standing "A new set
+      is coming" there would be noise), and the card is absent while the sets aren't known.
+    - **A notice opens the set** (`lib/gameLinks.ts`): the three set notices carry
+      `/play?go=sets`. The game reads `go` once (`GoHost.tsx`), opens the screen and part that
+      key names, and takes it out of the address. Only the keys in `GO` mean anything: a link is
+      the outside world's text, and a part's name ends in a selector. Farcaster, the browser
+      notice, and Telegram already carried a note's link; an email always opened Today, and now
+      uses the note's link when it is on the game's own site (`ownLink`) and the front door
+      otherwise. A browser notice tapped while the game is open reloads that tab at the link
+      (`public/sw.js`, unchanged).
+    - **Getting ready for a revealed word.** A revealed set's words are buttons now (still drawn
+      with a dashed edge: they can't be claimed). The word view (`LookupSheet`) counts the
+      player's letters against the word, as it does for an open one: the letters they hold and a
+      slot for each one they lack, "You only need an e.", "Mint a pack", "Find an e in the
+      Market", and "Move them here". Under the first line it says "CRANE is in the set <name>.
+      Unlocks in 2 h 47 min." It offers no Spell, and with all five letters it says only "You
+      have all five letters." Its facts add the set's name and the claim fee. **A held word of a
+      set nobody has seen is unchanged:** "isn't available yet", no set named, no letters
+      counted, nothing offered (`revealedSetOf` knows revealed sets only; a test holds it).
+    - **Not done, on purpose.** No page for a set and no share card for one (to consider after
+      the test sets show how players react). Nothing happens on screen at the instant of an
+      unlock beyond the line changing. Spell still says "isn't available yet" for a held word.
+      The card doesn't say how many of a set's words the player can already spell.
+    - **Tests:** `tests/set-moments.test.tsx` (the rule, Today's card, the links on each
+      channel, the link reader, the word view) and `tests/sets-game.test.tsx` (the Dictionary's
+      order, fold, and buttons). **Seen:** the practice game in a headless browser at phone
+      size: the card, the tap, the Dictionary, two revealed words, and `/play?go=sets`. The
+      practice game has no collab looks, so the tiles there are in their own rarity colors.
+      **Not seen:** the chain game's Today with a wallet, a real notice tapped on a phone, an
+      email in a mail client.
 
 ## Pricing & launch economics (decided June 2026)
 

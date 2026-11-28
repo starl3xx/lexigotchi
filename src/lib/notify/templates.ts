@@ -36,6 +36,7 @@
 import { LIMITS } from "./limits";
 import { DEFAULT_PARAMS } from "@/lib/params";
 import { fmtWord } from "@/lib/wordAmount";
+import { goUrl } from "@/lib/gameLinks";
 
 /** The pity cap, as titles and bodies quote it ("85%"): a param, so a static string per build. */
 const PITY_CAP = `${Math.round(DEFAULT_PARAMS.roll.pityCap * 100)}%`;
@@ -322,6 +323,7 @@ export function remindersOn(): Notification {
 // the moment: a set is revealed once, unlocks once, and its first day ends once. The titles are
 // fixed (the 32-character cap is provable); the body carries the set's name, which is at most 60
 // characters (lib/sets/rules.ts NAME_MAX), and every body fits the cap with a name that long.
+// A tap opens the Dictionary at its Sets section (lib/gameLinks.ts), on every channel.
 const SET_REVEALED_TITLES = ["A new set is revealed"] as const;
 const SET_UNLOCKED_TITLES = ["A new set just unlocked"] as const;
 const SET_OPEN_TITLES = ["A set is open to everyone"] as const;
@@ -331,6 +333,7 @@ export function setRevealed(set: { id: number; name: string }): Notification {
   return {
     title: SET_REVEALED_TITLES[0],
     body: `${set.name} is revealed. See its words in the Dictionary.`,
+    targetUrl: goUrl("sets"),
     notificationId: `set-revealed-${set.id}`,
   };
 }
@@ -341,6 +344,7 @@ export function setUnlocked(set: { id: number; name: string }, firstDay: { limit
   return {
     title: SET_UNLOCKED_TITLES[0],
     body: `${set.name} is unlocked.${rule}`,
+    targetUrl: goUrl("sets"),
     notificationId: `set-unlocked-${set.id}`,
   };
 }
@@ -350,6 +354,7 @@ export function setOpen(set: { id: number; name: string }): Notification {
   return {
     title: SET_OPEN_TITLES[0],
     body: `${set.name} is open to everyone now. Claim any word that’s left.`,
+    targetUrl: goUrl("sets"),
     notificationId: `set-open-${set.id}`,
   };
 }

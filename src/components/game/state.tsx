@@ -217,7 +217,7 @@ export type View =
  * On the Shop, "faces" and "accessories" open that category (lib/shop/rules, ShopCategory): the
  * face picker's tile for a face on sale, and an opened word's Case button.
  */
-export type ViewSection = "bounty" | "letters" | "sellLetters" | "words" | "faces" | "accessories" | `letter:${string}` | `needs:${string}`;
+export type ViewSection = "bounty" | "letters" | "sellLetters" | "words" | "faces" | "accessories" | "sets" | `letter:${string}` | `needs:${string}`;
 
 /** The letter (0-25) a `letter:q` or `needs:q` link names, or null when the link isn't one. */
 export function sectionLetter(section: ViewSection | undefined, kind: "letter" | "needs"): number | null {

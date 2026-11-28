@@ -231,6 +231,17 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   "A new set of words" choice shows in the profile only once a set exists. Player docs:
   `docs-site/sets.mdx` (its first-day section says the limit starts on the test build with its
   next reset: the redeploy's PR removes that sentence). Never name a reserved word in public copy.
+  **A set's moments** (decisions.md #62): ONE rule says whether a set is still news, `sets.ts`
+  `setPhase` (`revealed` / `firstDay` / `fresh` = unlocked under 24 h ago with no first day
+  running / `old`); Today's card (`TodaySets.tsx`, two rows at most, never a locked slot) and the
+  Dictionary's order and fold (`byNews`) both read it, so don't write a second test of "is it
+  news". On a network without the gate a release has `gateUntil: null`: every unlock there is
+  `fresh`. **Links into the game** are `lib/gameLinks.ts` only: `/play?go=<key>`, read once by
+  `GoHost.tsx` and removed from the address; add a key to `GO`, never read a raw value (the
+  section's name ends in a selector). The three set notices carry `goUrl("sets")`; an email uses a
+  note's link only when it is on the game's own site (`ownLink`). **A revealed word** is a button,
+  and `LookupSheet` counts the player's letters against it (`revealedSetOf`, `aheadLine`), with no
+  Spell; a held word of an unrevealed set must stay a plain "not yet" that names no set.
 - `src/lib/db/` → Drizzle + Neon Postgres — the **server-side** campaign / add-tracking backend
   (replaces the client's optimistic localStorage flags). `schema.ts` (users by FID, campaign cast
   proofs, the idempotent pack-grant ledger), `client.ts` (lazy pooled `getDb()`), `queries.ts`
@@ -375,6 +386,10 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   `game_wallets`, migration 0010; its own table because `getProfile` selects every profiles column):
   the wallet the player keeps everything in; a stored wallet that left the account reads as none.
   `gameWalletAdvice` (pure, tested) decides the notice on Today and the Bag (GameWalletNotice);
+  its × hides it in this browser on both screens (`useHiddenWalletNotices`), one key per wallet it
+  names (`adviceKeys`: kind, connected wallet, that wallet; never counts): it stays hidden with less
+  to say (a named wallet emptied or unlinked) and returns only for a wallet it never named, and
+  "none" (also said while holdings load) never clears one;
   `useWalletHoldings` reads each wallet's letters and $WORD; Move can carry $WORD (opt-in).
   **Caretakers** (contracts: `Staking.setCaretaker`, design `docs/linked-wallets-onchain.md`): a
   staker names its other wallets, which may feed, roll, and ascend its STAKED words (the caller pays;
