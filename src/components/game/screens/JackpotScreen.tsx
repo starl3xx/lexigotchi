@@ -57,7 +57,7 @@ export function JackpotScreen() {
       {/* the jackpot's column */}
       <div className="space-y-3 lg:space-y-4">
         {/* the draw */}
-        <Card className="overflow-hidden bg-gradient-to-b from-gold/20 to-paper text-center">
+        <Card tint="gold" className="overflow-hidden text-center">
           <div className="text-sm font-bold text-ink/60">Daily jackpot</div>
           {!state.jackpotRevealed ? (
             <>

@@ -227,8 +227,17 @@ export function Countdown({ className = "" }: { className?: string }) {
 // Layout helpers
 // ---------------------------------------------------------------------------
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`cel rounded-2xl bg-card p-4 ${className}`}>{children}</div>;
+/**
+ * A card's flat tint (tailwind.config.ts, `wash`): the hue of what the box is about, thinned into
+ * the card's own colour. It takes the place of `bg-card`, never sits beside it (two background
+ * colours on one element are settled by the stylesheet's order, not by which is written last).
+ * Flat, never a fade: decisions.md #66.
+ */
+export type Tint = "gold" | "teal" | "candy";
+export const TINT: Record<Tint, string> = { gold: "bg-wash-gold", teal: "bg-wash-teal", candy: "bg-wash-candy" };
+
+export function Card({ children, className = "", tint }: { children: ReactNode; className?: string; tint?: Tint }) {
+  return <div className={`cel rounded-2xl ${tint ? TINT[tint] : "bg-card"} p-4 ${className}`}>{children}</div>;
 }
 
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {

@@ -82,7 +82,7 @@ export function WordScreen() {
   return (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       {/* hero: price, market cap, buy */}
-      <Card className="bg-gradient-to-b from-card to-gold/15 lg:col-span-2">
+      <Card tint="gold" className="lg:col-span-2">
         <h1 className="font-display text-2xl font-extrabold">$WORD</h1>
         <p className="mt-0.5 text-sm text-ink/70">The token behind Lexigotchi and Let’s Have A Word!, on Base.</p>
         {/* Phones: the price gets its own row (a sub-cent price is wide); desktop: three across. */}

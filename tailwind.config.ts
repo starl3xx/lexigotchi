@@ -42,6 +42,16 @@ const config: Config = {
           ink: "#6f4e10", // gold-colored small text
           bright: "#f0a617", // spec gold — gild pips / crown / sparkles
         },
+        // Flat tints of a card (decisions.md #66): a box that belongs to one of the meanings wears
+        // that hue, thinned into the card's own colour. SOLID colours: nothing shows through
+        // them, and a box is never a fade from one colour to another (the interface is flat, as
+        // paper is). Gold is 15% and no more: `gold.deep` display numbers stand on it, and at
+        // 20% they fell under 3:1. Teal is 15%, candy 12%. A `<Card tint>` takes one.
+        wash: {
+          gold: "#f7e9ca",
+          teal: "#dce7d6",
+          candy: "#f7dfcf",
+        },
         tile: "#e8c98a", // Scrabble-tile wood (legacy flat tile)
         // --- TileCharacter (vaudeville tile) palette — spec §2, added additively ---
         tileFace: "#f8efdd", // lowercase tile face (warm cream "wood")

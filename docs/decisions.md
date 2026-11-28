@@ -3746,6 +3746,11 @@ setter. All small, riding existing suite patterns.
         same length, so the lines stand still on the card (`cards/useCardLight`). It eases
         only as the pointer arrives and as it leaves. A pass in flight ends when the pointer
         arrives, and the band goes on from where the pass had carried it.
+      - **It always comes to the pointer from where it is** (Bugbot on #335, two findings): a
+        pointer back within the slide off takes the band from part way across, never from off
+        the card first; and the first move on a card that was lit under a still pointer (turned
+        back to its front: no "enter" is told) is its arrival, eased. Both checked with a real
+        pointer in both engines, frame by frame.
       - **What it cost at first, and why it costs nothing now.** Measured in WebKit on an
         opened word's card, with the pointer moving all the time: the lean alone 24% of a
         processor core; with the band following, 53%. The lines were a vector picture, and
@@ -3775,6 +3780,51 @@ setter. All small, riding existing suite patterns.
       with colour, on the dark stock face, and on the pale one. **Not seen:** a Mythic card in
       the game (the practice game has none: its lines were compared as pictures), a collab
       card, Safari on a real Mac, a trackpad, and a pen.
+66. **The design language: three kinds of thing, and one test.** (starl3xx, 2026-11-27, of the
+    design audit's "what is left" page: "1A is g2g", "2C and 2D are g2g", "3C and 3G are g2g...
+    implement and update the artifact".) He gave the first two rules himself (#48: what is on a
+    letter is flat and colourful, and what is around a letter is drawn like the cards). The
+    audit proposed the third, for everything that is neither, and he adopted the three together.
+    - **A letter** is a character: the tile, its face, arms, legs, and what it wears (its
+      gilding and its rarity's finish). Flat and colourful, with an even ink outline. It moves
+      all the time, and it never changes size. Its type is Söhne, always.
+    - **A card, and what is around a letter,** is an object: the card, its face, frame, ribbon,
+      and back, and every effect that is not the letter (shadow, rays, confetti, halo, rack,
+      table). Neo-Victorian engraving illustration: ruled linework in ink, on paper. It moves
+      in moments, then rests. The serif says what is true about the word; the word is Söhne.
+    - **The interface** is the desk the cards lie on, and the labels and controls beside them.
+      Paper and ink: flat, quiet, ruled where it needs a line, with no engraving of its own to
+      compete with a card. Colour there means something (grow, chance, spend, here). It moves
+      only when touched, or when something arrives. Söhne for names and controls, the serif
+      for figures and facts, and status is never bold.
+    - **The test for any element is one question: is it on the letter?** If yes, it is flat and
+      colourful. If it is around the letter, it is engraved. If it is neither, it is
+      interface, and it stays quiet.
+    - **Two phrases of the page's wording are NOT adopted,** because each is its own open
+      choice: a colour that names a room (4C), and one settling time for the interface, "a
+      fifth of a second" (7B).
+    - **It is built in parts, a pull request each.** Part 1 is here. The engraved marks (2C),
+      the serif for figures (3C), and the weights, the grey, the 12 px floor, and the capitals
+      (3G) follow, each with its own entry below.
+    - **Part 1, a box is flat (2D).** Ten places in the interface were a soft fade from the
+      card's colour to a tint: Today's three pots, the Jackpot and the bounty cards, the Mint
+      pack, Your $WORD, the earnings sheet, the $WORD and the Let's Have A Word! pages, an
+      opened word's Ascend box, and the pre-launch card. Each is one flat colour now: the hue
+      of what the box is about, thinned into the card's own colour (`wash` in
+      tailwind.config.ts; a `<Card tint>`). Gold and teal are 15% of the hue, candy 12%.
+      - **Why gold is 15% and no more.** I drew three strengths and liked 20% best. But the
+        pots' big gold amounts stand on the tint, and their colour (`gold.deep`) is for large
+        text only, at 3 : 1. On gold at 20% it is 2.91 : 1; at 15% it is 3.01. The Jackpot
+        card's amount stood on gold at 20% before, so that one got better.
+      - **The tints are solid colours,** so nothing shows through them, and a tint takes the
+        place of the card's colour (two background colours on one element are settled by the
+        stylesheet's order, not by which is written last).
+      - `tests/flat-tints.test.ts` holds it: no fade class in player-facing code, each tint
+        is its hue at its share, and what stands on a tint still reads.
+      - **Seen:** every one of the ten in the practice game at 1,280 and 390 px, but for the
+        pre-launch card (that screen does not show in the practice game). **Not changed:**
+        the washes inside drawings (a card's ribbon, the plastic case, the letters' own
+        finishes) are not interface boxes.
 
 ## Pricing & launch economics (decided June 2026)
 

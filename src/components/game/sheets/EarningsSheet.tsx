@@ -55,7 +55,7 @@ export function EarningsSheet() {
 
   return (
     <Sheet open onClose={g.closeSheet} title="Your earnings">
-      <Card className="bg-gradient-to-b from-card to-gold/15 text-center">
+      <Card tint="gold" className="text-center">
         <div className="flex items-center justify-center gap-1.5 text-ink/60">
           <Coins weight="fill" />
           <span className="text-sm font-bold">Earned by your words</span>
