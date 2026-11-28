@@ -140,6 +140,14 @@ describe("reachSummary", () => {
     expect(s.kinds!.hunger).toEqual({ getting: 2, changed: 0 });
   });
 
+  it("counts the weekly email only where email reaches the player, as the table shows it (Bugbot on #332)", () => {
+    // B chose the weekly email but has no confirmed email: email can't reach B, weekly or not.
+    const prefs = [...inputs().prefs!, { account: B, kinds: {}, emailCadence: "weekly" }];
+    expect(reachSummary(buildReachRows(inputs({ prefs }))).channels.weekly).toBe(1);
+    // Unread email is unknown; a known "no email" is a no whatever the cadence.
+    expect(reachSummary(buildReachRows(inputs({ prefs, profiles: null }))).channels.weekly).toBeNull();
+  });
+
   it("leaves a count unknown when a player's answer is", () => {
     const s = reachSummary(buildReachRows(inputs({ coinbase: null, prefs: null })));
     expect(s.accounts.coinbase).toBeNull();

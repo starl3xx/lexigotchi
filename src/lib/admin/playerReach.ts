@@ -220,7 +220,12 @@ export function reachSummary(rows: readonly ReachRow[]): ReachSummary {
         if (c.farcasterApp || (c.browsers ?? 0) > 0 || c.email || c.telegram) return true;
         return c.farcasterApp === null || c.browsers === null || c.email === null || c.telegram === null ? null : false;
       }),
-      weekly: count((r) => (r.emailCadence === null ? null : r.emailCadence === "weekly")),
+      // Weekly only where email reaches the player, as the table shows it: a choice with no email is no.
+      weekly: count((r) => {
+        if (r.channels.email === false) return false;
+        if (r.channels.email === null || r.emailCadence === null) return null;
+        return r.emailCadence === "weekly";
+      }),
     },
     kinds: known
       ? (Object.fromEntries(
