@@ -327,7 +327,7 @@ export function LookupSheet({ word }: { word: string }) {
           </Fact>
         ) : null}
         <Fact label="Points" fact>{wordPoints(word)}</Fact>
-        {open && <Fact label="Owner">Nobody yet</Fact>}
+        {open && <Fact label="Owner" fact>Nobody yet</Fact>}
         {ahead && <Fact label="Set">{ahead.name}</Fact>}
         {/* The claim fee for THIS word, by its tier (decisions.md #60). */}
         {(open || ahead !== null) && (
@@ -345,17 +345,17 @@ export function LookupSheet({ word }: { word: string }) {
             {fmtWord(listing.price)} $WORD{listing.listedAt ? `, listed ${timeAgo(Date.parse(listing.listedAt))}` : ""}
           </Fact>
         )}
-        {status === "sale" && listing && listing.prestigeLevel > 0 && <Fact label="Ascension">{stageName(listing.prestigeLevel)}</Fact>}
+        {status === "sale" && listing && listing.prestigeLevel > 0 && <Fact label="Ascension" fact>{stageName(listing.prestigeLevel)}</Fact>}
         {status === "sale" && listing && listing.prestigePity > 0 && (
-          <Fact label="Failed ascensions">{listing.prestigePity}, so better odds next time</Fact>
+          <Fact label="Failed ascensions" fact>{listing.prestigePity}, so better odds next time</Fact>
         )}
         {status === "sale" && listing && unfed > 0 && (
-          <Fact label="Not woken for">
+          <Fact label="Not woken for" fact>
             {unfed} day{unfed === 1 ? "" : "s"}
           </Fact>
         )}
         {status === "sale" && listing?.lastSale && (
-          <Fact label="Last sold for">
+          <Fact label="Last sold for" fact>
             {fmtWord(listing.lastSale.price)} $WORD, {timeAgo(listing.lastSale.at)}
           </Fact>
         )}

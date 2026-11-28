@@ -87,6 +87,13 @@ describe("the serif's two voices", () => {
     expect(more).toContain('<Row label="Points" fact>{f.points}</Row>');
     // a word's ledger: its owner, its set, and the bounty's theme (a theme may name a letter: "Ends in Y")
     const look = readFileSync("src/components/game/sheets/LookupSheet.tsx", "utf8");
+    // EVERY other row of it is a fact (Bugbot on #338: five rows were left in Söhne, so one ledger had two faces)
+    const rows = [...look.matchAll(/<Fact label="([^"]+)"( fact)?>/g)].map((m) => ({ label: m[1], fact: !!m[2] }));
+    expect(rows.length).toBeGreaterThanOrEqual(17);
+    expect(rows.filter((r) => !r.fact).map((r) => r.label)).toEqual(["Owner", "Set", "Fits this week’s bounty"]);
+    // and under an opened card: every row but the three names
+    const cardRows = [...readFileSync("src/components/cards/CardBack.tsx", "utf8").matchAll(/<Row label="([^"]+)"( fact)?>/g)].map((m) => ({ label: m[1], fact: !!m[2] }));
+    expect(cardRows.filter((r) => !r.fact).map((r) => r.label)).toEqual(["Found by", "Set", "Collab"]);
     expect(look).toContain('<Fact label="Owner">');
     expect(look).toContain('{ahead && <Fact label="Set">{ahead.name}</Fact>}');
     expect(look).toContain('<Fact label="Fits this week’s bounty">{theme.name}</Fact>');
