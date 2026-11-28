@@ -26,6 +26,7 @@ import { Lockup } from "../brand/Lockup";
 import { ScreenErrorBoundary, ChainGate } from "./ChainGate";
 import { WebSignInHost } from "./WebSignInHost";
 import { ChainGameProvider } from "./ChainGameProvider";
+import { GoHost } from "./GoHost";
 import { isChainBacked } from "@/lib/onchain/gameMode";
 import { NETWORK } from "@/lib/onchain/network";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -221,6 +222,7 @@ function Frame({ onboarded, onFinishOnboarding }: { onboarded: boolean; onFinish
         <WebSignInHost />
         <XReturnHost />
         <LinkCodeHost />
+        <GoHost />
         <FarcasterWalletsHost />
         {!onboarded && <Onboarding onDone={onFinishOnboarding} />}
       </div>

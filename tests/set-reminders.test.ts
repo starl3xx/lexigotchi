@@ -9,6 +9,7 @@ import { NAME_MAX, STANDARD_FIELDS } from "@/lib/sets/rules";
 import { KIND_INFO, REMINDER_KINDS, wantsKind, emailedNow } from "@/lib/notify/kinds";
 import { ALL_TITLE_POOLS, setOpen, setRevealed, setUnlocked, withinLimits } from "@/lib/notify/templates";
 import { TELL_WINDOW_MS, setEvents, setRemindersOn, tellSetEvents, type SetEvent } from "@/lib/notify/sets";
+import { goUrl } from "@/lib/gameLinks";
 
 const NOW = Date.parse("2026-12-10T12:00:00Z");
 const ago = (ms: number) => new Date(NOW - ms);
@@ -31,11 +32,12 @@ describe("the messages", () => {
   });
   it("say the set's name and what happened", () => {
     const s = { id: 7, name: "Kitchen" };
-    expect(setRevealed(s)).toEqual({ title: "A new set is revealed", body: "Kitchen is revealed. See its words in the Dictionary.", notificationId: "set-revealed-7" });
+    // Its tap opens the Dictionary's Sets section (lib/gameLinks.ts; tests/set-moments.test.tsx).
+    expect(setRevealed(s)).toEqual({ title: "A new set is revealed", body: "Kitchen is revealed. See its words in the Dictionary.", targetUrl: goUrl("sets"), notificationId: "set-revealed-7" });
     expect(setUnlocked(s, { limit: 1 }).body).toBe("Kitchen is unlocked. First day: one word per player.");
     expect(setUnlocked(s, { limit: 3 }).body).toBe("Kitchen is unlocked. First day: 3 words per player.");
     expect(setUnlocked(s, null).body).toBe("Kitchen is unlocked. Its words are open to claim.");
-    expect(setOpen(s)).toEqual({ title: "A set is open to everyone", body: "Kitchen is open to everyone now. Claim any word that’s left.", notificationId: "set-open-7" });
+    expect(setOpen(s)).toEqual({ title: "A set is open to everyone", body: "Kitchen is open to everyone now. Claim any word that’s left.", targetUrl: goUrl("sets"), notificationId: "set-open-7" });
   });
   it("are in the title pools the length test reads", () => {
     for (const k of ["setRevealed", "setUnlocked", "setOpen"]) expect(ALL_TITLE_POOLS[k]).toHaveLength(1);
