@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Button, EmptyState, SectionTitle, Segmented } from "../primitives";
 import { LetterTile } from "../LetterTile";
 import { BagWordCard } from "../../cards/BagWordCard";
-import { Basket, Cookie, Sparkle, Storefront, TextAa } from "../ui/icons";
+import { Basket, Alarm, Sparkle, Storefront, TextAa } from "../ui/icons";
 import { feedAllLabel, wordsToFeed } from "../feedAll";
 import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
@@ -145,7 +145,7 @@ export function BagScreen() {
                   {/* Feed all (yours and the words you care for): one send, the free snack first. */}
                   {toFeed.length > 0 && (
                     <Button size="sm" variant="teal" onClick={() => g.feedAll()}>
-                      <Cookie weight="fill" /> {feedAllLabel(toFeed)}
+                      <Alarm weight="fill" /> {feedAllLabel(toFeed)}
                     </Button>
                   )}
                   <Button size="sm" variant="primary" onClick={() => g.nav("claim")}>+ Spell</Button>

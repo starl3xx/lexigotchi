@@ -39,7 +39,7 @@ import { WordStripLive } from "@/components/WordStrip";
 import {
   ArrowRight,
   Confetti,
-  Cookie,
+  Alarm,
   Planet,
   SealCheck,
   Sparkle,
@@ -164,7 +164,7 @@ const STEP_VISUALS: Record<HowItWorksStep["id"], ReactNode> = {
       <Confetti weight="fill" size={112} className="absolute text-candy/30" aria-hidden />
       <Trophy weight="fill" size={78} className="relative text-gold-deep" aria-hidden />
       <span className="absolute -left-4 bottom-0 flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-ink bg-paper text-candy shadow-[2px_2px_0_#1b1714]">
-        <Cookie weight="fill" size={18} aria-hidden />
+        <Alarm weight="fill" size={18} aria-hidden />
       </span>
       <Sparkle weight="fill" size={20} className="absolute -right-2 -top-2 text-gold" aria-hidden />
     </div>
@@ -300,7 +300,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/75 sm:text-xl">
             Collect little letter characters, raise them to UPPERCASE, and spell five-letter words nobody else can
-            own. Keep them fed, and every word you hold is in the running when the day’s word is drawn.
+            own. Wake them every day, and every word you hold is in the running when the day’s word is drawn.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <PlayButton size="lg" label="Get your free letters" />
@@ -391,18 +391,17 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
           </Feature>
           <Feature
             id="care"
-            title="They get hungry."
+            title="They nod off."
             visual={
-              // a hungry y, and the y fed: no icon between them, and no letter at its snack (the
-              // owner, of the snack held still at this size: "I don't like the static cookie/circle thing")
+              // a y asleep, and the y woken: no icon between them (decisions.md #50, part 5; #63)
               <div className="flex items-end justify-center gap-2">
                 <TileCharacter char="y" detail="full" state="hungry" size={56} />
                 <TileCharacter char="y" detail="full" state="celebrate" size={64} />
               </div>
             }
           >
-            A fed word bounces. Miss {days(care.peckishAfterDays)} and it’s peckish; miss {spelled(care.hungryAfterDays)} and it’s
-            hungry, and it sits out the jackpot until you feed it.{care.freeDailySnack && " The first snack every day is free."}
+            An awake word bounces. Miss {days(care.peckishAfterDays)} and it’s sleepy; miss {spelled(care.hungryAfterDays)} and it’s
+            asleep, and it sits out the jackpot until you wake it.{care.freeDailySnack && " The first word you wake each day is free."}
           </Feature>
           <Feature
             id="ladder"
@@ -429,10 +428,10 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             <h2 className="mt-2 font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl">
               One word wins every day.
               <br />
-              <span className="text-gold">Is yours staked and fed?</span>
+              <span className="text-gold">Is yours staked and awake?</span>
             </h2>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-paper/80">
-              Each day one word is drawn. If you hold it, staked and fed, the pot is yours. If nobody does, the pot
+              Each day one word is drawn. If you hold it, staked and awake, the pot is yours. If nobody does, the pot
               rolls over and grows. The words were locked in onchain before launch, so nobody can steer them, not even
               the team.
             </p>
@@ -440,7 +439,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
               <h3 className="font-display text-xl font-extrabold">The weekly bounty</h3>
               <p className="mt-2 leading-relaxed text-paper/80">
                 Each week has a theme, like words with a double letter or words that end in -ING. Hold a match, staked
-                and fed, and you share the pool. Rarer words take a bigger share.
+                and awake, and you share the pool. Rarer words take a bigger share.
               </p>
             </div>
           </div>
@@ -527,7 +526,7 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
             </Qa>
             <Qa q="What is $WORD?">
               <A href={LINKS.word}>$WORD</A> is the token on Base behind Lexigotchi and{" "}
-              <A href={LINKS.lhaw}>Let’s Have A Word!</A> It pays for packs, rolls, words, and snacks, and it funds the
+              <A href={LINKS.lhaw}>Let’s Have A Word!</A> It pays for packs, rolls, words, and waking them, and it funds the
               daily jackpot. Your all-UPPERCASE words earn it every day, paid to you automatically.
             </Qa>
             <Qa q="Can a roll cost me my letter?">
@@ -538,9 +537,9 @@ export function LandingPage({ xOn = false, emailOn = false }: { xOn?: boolean; e
               Rolls use a commit and reveal, and every daily word comes from a sequence committed onchain before launch.
               Nobody can change a future answer.
             </Qa>
-            <Qa q="What happens if I stop feeding a word?">
-              After {days(care.peckishAfterDays)} unfed it gets peckish and earns {fraction(care.peckishYieldFactor)}.
-              After {days(care.hungryAfterDays)} it’s hungry: it earns nothing and sits out the jackpot until you feed
+            <Qa q="What happens if I stop waking a word?">
+              After {days(care.peckishAfterDays)} it gets sleepy and earns {fraction(care.peckishYieldFactor)}.
+              After {days(care.hungryAfterDays)} it’s asleep: it earns nothing and sits out the jackpot until you wake
               it.
             </Qa>
           </div>

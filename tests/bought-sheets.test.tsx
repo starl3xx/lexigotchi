@@ -192,9 +192,9 @@ describe("stakeStep", () => {
 
   it("a bought word that arrives hungry is told to feed too: staking alone wouldn’t put it in the running", () => {
     // The hunger clock keeps running while a word is unstaked and for sale (Staking.stake).
-    expect(stakeStep(word({ daysUnfed: 5 }), false, true)).toEqual({ line: "It arrives hungry: stake it and feed it to enter it in the daily jackpot.", offer: true });
-    expect(stakeStep(word({ daysUnfed: 5, upper: UP }), false, true).line).toBe("It arrives hungry: stake it and feed it to enter it in the daily jackpot and start earning $WORD.");
-    expect(stakeStep(word({ daysUnfed: 5, upper: UP }), true, true).line).toMatch(/^It arrives hungry: stake it and feed it to start earning \$WORD\./);
+    expect(stakeStep(word({ daysUnfed: 5 }), false, true)).toEqual({ line: "It arrives asleep: stake it and wake it to enter it in the daily jackpot.", offer: true });
+    expect(stakeStep(word({ daysUnfed: 5, upper: UP }), false, true).line).toBe("It arrives asleep: stake it and wake it to enter it in the daily jackpot and start earning $WORD.");
+    expect(stakeStep(word({ daysUnfed: 5, upper: UP }), true, true).line).toMatch(/^It arrives asleep: stake it and wake it to start earning \$WORD\./);
     // fed, or only peckish (still in the running): the plain line
     expect(stakeStep(word({ daysUnfed: 1 }), false, true).line).toBe("Stake it to enter it in the daily jackpot.");
   });

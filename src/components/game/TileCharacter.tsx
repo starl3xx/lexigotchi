@@ -152,7 +152,6 @@ const INK = "#2a1e1a"; // outlines, pupils, shoes, lowercase letter
 const TILE_FACE = "#f8efdd";
 const EDGE_WOOD = "#c7ae84";
 const EYE_WHITE = "#ffffff";
-const CURTAIN = "#7b1e26";
 const BRASS = "#c8962b";
 const GOLD = "#f0a617";
 const SHEEN = "#fce8a8";
@@ -811,22 +810,6 @@ function Bead({ x, y, turn }: { x: number; y: number; turn: number }) {
   return <path d={BEAD} fill={EYE_WHITE} stroke={INK} strokeWidth={2} transform={`translate(${x} ${y}) rotate(${turn})`} />;
 }
 
-function Snack() {
-  // a cookie where a mouth would be (no mouth — it's being fed), with chips + crumbs
-  const x = CX;
-  const y = BOT - 26;
-  return (
-    <g>
-      <circle cx={x} cy={y} r={12} fill={CURTAIN} stroke={INK} strokeWidth={2.2} />
-      <circle cx={x - 4} cy={y - 3} r={1.7} fill={INK} />
-      <circle cx={x + 4} cy={y + 2} r={1.7} fill={INK} />
-      <circle cx={x + 1} cy={y - 5} r={1.4} fill={INK} />
-      <circle cx={x - 18} cy={y + 8} r={1.6} fill={CURTAIN} />
-      <circle cx={x + 17} cy={y + 10} r={2} fill={CURTAIN} />
-    </g>
-  );
-}
-
 // ===========================================================================
 // Main component
 // ===========================================================================
@@ -1206,7 +1189,7 @@ export function TileCharacter({
 
   // A layer with nothing in it isn't drawn, so a small tile in a grid is one <svg>, as it was.
   const hasFloor = showLimbs;
-  const hasTop = (showLimbs && linkLeft) || (showFace && state === "eating");
+  const hasTop = showLimbs && linkLeft;
   // A still frame shows no sweat: a bead frozen in the air reads as an ear.
   const sweating = showFace && state === "rolling" && !reduced;
   const asleep = showFace && state === "hungry";
@@ -1342,8 +1325,6 @@ export function TileCharacter({
         <>
           {/* the hands this letter and its left neighbour hold */}
           {showLimbs && linkLeft && <Clasp darts={darts} />}
-          {/* per-state extras anchored to the scene */}
-          {showFace && state === "eating" && <Snack />}
         </>,
       ),
 

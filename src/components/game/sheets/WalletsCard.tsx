@@ -42,7 +42,7 @@ const LINK_ERRORS: Record<string, string> = {
   same_wallet: "That’s the wallet that made the link. Switch to the other wallet to link it.",
   stale_code: "That link expired or was already used. Make a new one from your other wallet.",
   bad_signature: "The signature didn’t match this wallet. Try again.",
-  claimed_today: "This account took today’s free letter or free snack, so its wallets stay together until tomorrow (UTC).",
+  claimed_today: "This account took today’s free letter or woke a word for free today, so its wallets stay together until tomorrow (UTC).",
   first_wallet: "The account’s first wallet can’t leave. Unlink the others instead.",
   farcaster_wallet: "This wallet joined through your Farcaster account. Remove its verification in Farcaster to take it out.",
   no_session: "Sign in with your wallet first.",
@@ -283,7 +283,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
           <div className="font-bold text-ink">Choose your game wallet</div>
           <p className="mt-1">
             Your letters, words, and $WORD are onchain, in whichever wallet holds them. You can only spell, roll, stake, and
-            feed with the connected wallet’s own. So pick one wallet to keep everything in, and play with it.
+            wake with the connected wallet’s own. So pick one wallet to keep everything in, and play with it.
           </p>
           {inHost && (
             <p className="mt-1 text-xs text-ink/65">
@@ -392,7 +392,7 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
             <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={includeWord} onChange={(e) => setIncludeWord(e.target.checked)} />
               <span>
-                Also move my {hereHoldings.word.toLocaleString("en-US")} $WORD. It pays for spelling, rolling, and snacks, so the
+                Also move my {hereHoldings.word.toLocaleString("en-US")} $WORD. It pays for spelling, rolling, and waking your words, so the
                 wallet you play with needs it.
               </span>
             </label>
@@ -423,8 +423,8 @@ export function WalletsCard({ p }: { p: ReturnType<typeof useProfile> }) {
         <div className="mt-3 rounded-xl border-2 border-ink/15 p-3 text-sm">
           <div className="font-bold text-ink">Care for staked words from any wallet</div>
           <p className="mt-1 text-xs text-ink/65">
-            Only this wallet can feed the words it stakes, unless you name your other wallets as caretakers. A caretaker can
-            feed, roll, and ascend them, paying from its own wallet. Only this wallet can unstake them.
+            Only this wallet can wake the words it stakes, unless you name your other wallets as caretakers. A caretaker can
+            wake, roll, and ascend them, paying from its own wallet. Only this wallet can unstake them.
           </p>
           <div className="mt-2 space-y-1.5">
             {others.map((w) => {

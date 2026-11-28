@@ -213,9 +213,9 @@ export function earningLine(word: string, s: EarningStatus): string {
     case "earning":
       return `${word} earns a full share of $WORD every day.`;
     case "half":
-      return `${word} is peckish, so it earns half until you feed it.`;
+      return `${word} is sleepy, so it earns half until you wake it.`;
     case "paused":
-      return `${word} is hungry, so it earns nothing until you feed it.`;
+      return `${word} is asleep, so it earns nothing until you wake it.`;
     case "unstaked":
       return `Stake ${word} and it earns $WORD every day.`;
     case "raise":

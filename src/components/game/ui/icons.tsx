@@ -17,6 +17,7 @@ export {
   Fire,
   SkipForward,
   Cookie,
+  Alarm,
   Ticket,
   Medal,
   TextAa,

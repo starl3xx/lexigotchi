@@ -57,7 +57,7 @@ export function WordValue({
       <p>Earns $WORD once all five letters are UPPERCASE.</p>
     ) : earn > 0 ? (
       <p>
-        Earns about <strong className="font-display text-ink">{fmtWord(earn)} $WORD a day</strong>, staked and fed, at today’s pool.
+        Earns about <strong className="font-display text-ink">{fmtWord(earn)} $WORD a day</strong>, staked and awake, at today’s pool.
       </p>
     ) : null;
   const drawnLine = drawn ? (

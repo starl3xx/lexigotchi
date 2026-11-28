@@ -66,10 +66,10 @@ describe("weeklyDigest", () => {
   it("leads with a word that needs care, then the week", () => {
     const d = weeklyDigest(week({ hungry: ["CRANE", "TEASE"], peckish: ["VIVID"] }), PERIOD)!;
     expect(d.note.title).toBe("Your week in Lexigotchi");
-    expect(d.note.body).toMatch(/^CRANE and 1 more are hungry: a hungry word earns nothing and sits out the jackpot until it’s fed\./);
+    expect(d.note.body).toMatch(/^CRANE and 1 more are asleep: a word that is asleep earns nothing and sits out the jackpot until it’s woken\./);
     expect(d.facts).toEqual([
-      ["Hungry now", "CRANE and 1 more"],
-      ["Peckish now", "VIVID"],
+      ["Asleep now", "CRANE and 1 more"],
+      ["Sleepy now", "VIVID"],
       ["Your words earned", "84.0K $WORD"],
       ["2 sales on the Market", "3.40M $WORD"],
     ]);

@@ -46,7 +46,7 @@ describe("the step pictures", () => {
   });
 
   it("“They get hungry.” is a hungry letter and the letter fed, with nothing between them", () => {
-    const a = landing.indexOf('title="They get hungry."');
+    const a = landing.indexOf('title="They nod off."');
     const care = landing.slice(a, landing.indexOf("</Feature>", a));
     const visual = care.slice(care.indexOf("visual={"), care.indexOf("\n          >"));
     expect(states(visual)).toEqual(["hungry", "celebrate"]);

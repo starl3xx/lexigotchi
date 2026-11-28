@@ -131,8 +131,8 @@ describe("/jackpot", () => {
       [
         "The jackpot is 1.20M $WORD.",
         "The next secret word is revealed just after midnight UTC, in about 3 h 12 min.",
-        "Last draw: CRANE. Nobody held it staked and fed, so the pot rolled over.",
-        "Every word you keep staked and fed is in the running.",
+        "Last draw: CRANE. Nobody held it staked and awake, so the pot rolled over.",
+        "Every word that is staked and awake is in the running.",
       ].join("\n"),
     );
     expect(jackpotText({ pot: 512, last: { word: "CRANE", winner: { name: "ann", amount: 96_300 } }, ...drawn }, now)).toContain("Last draw: CRANE. ann held it and won 96.3K $WORD.");
@@ -154,7 +154,7 @@ describe("/jackpot", () => {
   });
 
   it("names no word it couldn't match to the draw", () => {
-    expect(jackpotText({ pot: 1, last: { word: null, winner: null }, ...drawn }, now)).toContain("Last draw: nobody held the word staked and fed, so the pot rolled over.");
+    expect(jackpotText({ pot: 1, last: { word: null, winner: null }, ...drawn }, now)).toContain("Last draw: nobody held the word staked and awake, so the pot rolled over.");
     expect(jackpotText({ pot: 1, last: { word: null, winner: { name: "0x12ab…cdef", amount: 5 } }, ...drawn }, now)).toContain("Last draw: 0x12ab…cdef held the word and won 5 $WORD.");
   });
 
@@ -197,7 +197,7 @@ describe("/bounty", () => {
       [
         `This week’s bounty theme: ${THEMES[1].name}.`,
         "The pool is 310.0K $WORD.",
-        "The week ends in 3 days 12 h. Every matching word that is staked and not hungry then shares the pool.",
+        "The week ends in 3 days 12 h. Every matching word that is staked and not asleep then shares the pool.",
       ].join("\n"),
     );
   });
@@ -230,16 +230,16 @@ describe("/word", () => {
 
   it("says when a staked word is peckish or hungry, and never for one that isn't staked", () => {
     const all = [true, true, true, true, true];
-    expect(wordText("CRANE", { ...held, upper: all, daysUnfed: 1 })).toContain("It is peckish: it earns half until it is fed.");
-    expect(wordText("CRANE", { ...held, upper: all, daysUnfed: 3 })).toContain("It is hungry: it earns nothing and sits out the jackpot until it is fed.");
-    expect(wordText("CRANE", { ...held, staked: false, daysUnfed: 9 })).not.toMatch(/hungry|peckish/);
+    expect(wordText("CRANE", { ...held, upper: all, daysUnfed: 1 })).toContain("It is sleepy: it earns half until it is woken.");
+    expect(wordText("CRANE", { ...held, upper: all, daysUnfed: 3 })).toContain("It is asleep: it earns nothing and sits out the jackpot until it is woken.");
+    expect(wordText("CRANE", { ...held, staked: false, daysUnfed: 9 })).not.toMatch(/asleep|sleepy/);
   });
 
   it("tells only an all-UPPERCASE word what hunger does to its earnings: no other word earns", () => {
     // 3 of 5 raised, and a word whose case couldn't be read
     for (const upper of [held.upper, null]) {
-      expect(wordText("CRANE", { ...held, upper, daysUnfed: 1 })).toContain("It is peckish: feed it before it gets hungry.");
-      expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).toContain("It is hungry: it sits out the jackpot until it is fed.");
+      expect(wordText("CRANE", { ...held, upper, daysUnfed: 1 })).toContain("It is sleepy: wake it before it falls asleep.");
+      expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).toContain("It is asleep: it sits out the jackpot until it is woken.");
       expect(wordText("CRANE", { ...held, upper, daysUnfed: 3 })).not.toMatch(/earns/);
     }
   });

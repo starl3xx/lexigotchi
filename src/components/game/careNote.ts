@@ -25,51 +25,51 @@ export function careNote(
   if (!word.staked) {
     // The hunger clock keeps running while a word is unstaked (decisions.md, PR #101), so a
     // neglected word comes back peckish or hungry. Promise only what a restake actually gives.
-    const feedOff = "Stake it first. Only a staked word can be fed.";
+    const feedOff = "Stake it first. Only a staked word can be woken.";
     if (h === "hungry") {
       return {
-        note: `It went hungry while unstaked, so staking alone won’t enter it in the jackpot. Stake it, then feed it.${earns}`,
+        note: `It fell asleep while unstaked, so staking alone won’t enter it in the jackpot. Stake it, then wake it.${earns}`,
         feedOff,
       };
     }
     if (h === "peckish") {
       return {
         note: full5
-          ? `Staking enters it in the daily jackpot, but it got peckish while unstaked: it earns ${part} until you feed it.`
-          : `Staking enters it in the daily jackpot, but it got peckish while unstaked. Feed it soon after staking.${earns}`,
+          ? `Staking enters it in the daily jackpot, but it got sleepy while unstaked: it earns ${part} until you wake it.`
+          : `Staking enters it in the daily jackpot, but it got sleepy while unstaked. Wake it soon after staking.${earns}`,
         feedOff,
       };
     }
     return {
       note: full5
-        ? "Staking enters it in the daily jackpot and earns $WORD every day while it stays full. Feeding starts once it’s staked."
-        : `Staking enters it in the daily jackpot.${earns} Feeding starts once it’s staked.`,
+        ? "Staking enters it in the daily jackpot and earns $WORD every day while it is awake. You can wake it once it’s staked."
+        : `Staking enters it in the daily jackpot.${earns} You can wake it once it’s staked.`,
       feedOff,
     };
   }
   if (h === "hungry") {
     return {
-      note: `Hungry: out of the jackpot${full5 ? " and earning nothing" : ""} until you feed it.${opts.snackShort ?? ""}`,
-      feedOff: opts.snackShort ? "Not enough $WORD for a snack" : null,
+      note: `Asleep: out of the jackpot${full5 ? " and earning nothing" : ""} until you wake it.${opts.snackShort ?? ""}`,
+      feedOff: opts.snackShort ? "Not enough $WORD to wake it" : null,
     };
   }
   if (h === "peckish") {
     return {
       note: full5
-        ? `Peckish: earning ${part} until you feed it. Still in the jackpot.${opts.snackShort ?? ""}`
-        : `Peckish: still in the jackpot. Feed it before it goes hungry.${earns}${opts.snackShort ?? ""}`,
-      feedOff: opts.snackShort ? "Not enough $WORD for a snack" : null,
+        ? `Sleepy: earning ${part} until you wake it. Still in the jackpot.${opts.snackShort ?? ""}`
+        : `Sleepy: still in the jackpot. Wake it before it falls asleep.${earns}${opts.snackShort ?? ""}`,
+      feedOff: opts.snackShort ? "Not enough $WORD to wake it" : null,
     };
   }
-  // Full: nothing to feed yet. Say when that changes, when the chain told us the exact time.
+  // Awake (the code's "full"): nothing to feed yet. Say when that changes, when the chain told us the exact time.
   let when = "";
   if (word.lastFedAt) {
     const left = word.lastFedAt + p.care.peckishAfterDays * 86_400 - opts.nowSec;
     if (left > 0) when = left >= 3_600 ? ` in about ${Math.ceil(left / 3_600)} hours` : ` in about ${Math.max(1, Math.ceil(left / 60))} minutes`;
   }
   return {
-    note: `Full: in the daily jackpot${full5 ? " and earning $WORD every day" : ""}. No feeding needed until it gets peckish${when}.${earns}`,
-    feedOff: "Not hungry yet",
+    note: `Awake: in the daily jackpot${full5 ? " and earning $WORD every day" : ""}. No waking needed until it gets sleepy${when}.${earns}`,
+    feedOff: "Not sleepy yet",
   };
 }
 
@@ -89,7 +89,7 @@ export function caseBadgeText(
   if (raised === 0) return "lowercase";
   if (raised < word.upper.length) return `${raised}/${word.upper.length} raised`;
   if (!word.staked) return "stake to earn";
-  if (h === "hungry") return "feed to earn";
+  if (h === "hungry") return "wake to earn";
   if (h === "peckish") {
     return p.care.peckishYieldFactor === 0.5 ? "earns half" : `earns ${pct(p.care.peckishYieldFactor)}`;
   }

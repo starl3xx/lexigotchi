@@ -9,10 +9,10 @@ import { ALPHABET } from "@/lib/economy";
 
 const STATES: TileState[] = ["idle", "peckish", "hungry", "eating", "rolling", "upgrade", "celebrate"];
 const MEANS: Record<TileState, string> = {
-  idle: "fed / healthy",
-  peckish: "unfed 1–2d · earns half",
-  hungry: "unfed 3+d · earns nothing, sits out the jackpot",
-  eating: "being fed a snack",
+  idle: "awake",
+  peckish: "sleepy: 1–2d since it was woken · earns half",
+  hungry: "asleep: 3+d · earns nothing, sits out the jackpot",
+  eating: "just woken",
   rolling: "mid roll",
   upgrade: "roll succeeded → UPPERCASE",
   celebrate: "win / jackpot",

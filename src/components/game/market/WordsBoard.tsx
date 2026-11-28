@@ -203,7 +203,7 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
           <Versus price={l.price} reference={cost} />
           {l.lastSale && <span>Last sold for {fmtWord(l.lastSale.price)}, {timeAgo(l.lastSale.at)}.</span>}
           {l.prestigePity > 0 && <span>{l.prestigePity} failed ascension{l.prestigePity === 1 ? "" : "s"}, so better odds next time.</span>}
-          {unfed > 0 && <span>Unfed {unfed} day{unfed === 1 ? "" : "s"}.</span>}
+          {unfed > 0 && <span>Not woken for {unfed} day{unfed === 1 ? "" : "s"}.</span>}
         </div>
         <WordValue word={shape} cost={cost ? parts : null} compact />
         {!mine && (

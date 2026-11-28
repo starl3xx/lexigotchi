@@ -19,7 +19,7 @@ import type { Gild } from "./TileCharacter";
 import { WordTiles, careState } from "./LetterTile";
 import { Button, HungerBadge, Pill } from "./primitives";
 import { ReminderToggle } from "./ReminderToggle";
-import { Backpack, CaretLeft, CaretRight, Cookie, Palette, Sparkle, Storefront, TextAa, Ticket } from "./ui/icons";
+import { Backpack, CaretLeft, CaretRight, Alarm, Palette, Sparkle, Storefront, TextAa, Ticket } from "./ui/icons";
 import { fmtWord, hunger, useGame } from "./state";
 import { payoutWhen } from "./earnings";
 import { EarningsLine } from "./EarningsLine";
@@ -187,7 +187,7 @@ export function TodayStage() {
         <div className="tt-plate">
           {/* the same status as one sentence, for a screen reader, said again when it changes */}
           <p className="sr-only" aria-live="polite">
-            {eating ? `${W} is full again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
+            {eating ? `${W} is awake again. Thank you!` : stageLine({ word: w, mood }, earnedLatest)}
           </p>
           <StatusMarks marks={marks} />
           <div className="tt-actions">
@@ -201,7 +201,7 @@ export function TodayStage() {
                     g.feed(W);
                   }}
                 >
-                  <Cookie weight="fill" /> Feed {W}
+                  <Alarm weight="fill" /> Wake {W}
                 </Button>
                 {toFeed.length > 1 && (
                   <Button
@@ -212,7 +212,7 @@ export function TodayStage() {
                       g.feedAll();
                     }}
                   >
-                    Feed all {toFeed.length}
+                    Wake all {toFeed.length}
                   </Button>
                 )}
               </>
@@ -236,7 +236,7 @@ export function TodayStage() {
                 away, whichever word the pager has put on stage. */}
             {mood !== "hungry" && mood !== "peckish" && toFeed.length > 0 && (
               <Button variant="ghost" className={SECOND} onClick={() => g.feedAll()}>
-                <Cookie weight="fill" /> {feedAllLabel(toFeed)}
+                <Alarm weight="fill" /> {feedAllLabel(toFeed)}
               </Button>
             )}
             <Button

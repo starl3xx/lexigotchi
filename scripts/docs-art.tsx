@@ -205,13 +205,13 @@ function marksFigure(): string {
 /** Where each fee goes, as one stacked bar per fee, from the game's split table. */
 function feeChart(): string {
   const s = DEFAULT_PARAMS.splits;
-  // Rewards first (decisions.md #19): every paid action splits the same; snacks are 100% burned.
+  // Rewards first (decisions.md #19): every paid action splits the same; what a player pays to wake a word is 100% burned.
   const rows: [string, { burn: number; pool: number; jackpot: number; treasury: number }][] = [
     ["Pack", s.packMint],
     ["Roll", s.roll],
     ["Claim", s.claim],
     ["Ascend", s.prestige ?? s.roll],
-    ["Snack", s.snack],
+    ["Waking", s.snack],
   ];
   const keys = ["burn", "pool", "jackpot", "treasury"] as const;
   const names = { burn: "Burned", pool: "Rewards Pool", jackpot: "Jackpot", treasury: "Treasury" };
@@ -304,15 +304,12 @@ const FIGURES: Record<string, string> = {
   "moods.svg": figure(
     [
       [
-        { chars: word("tease"), size: 68, label: "Full", sub: "fed in the last day" },
-        { chars: word("tease", { state: "peckish" }), size: 68, label: "Peckish", sub: "1 to 2 days unfed" },
+        { chars: word("tease"), size: 68, label: "Awake", sub: "woken in the last day" },
+        { chars: word("tease", { state: "peckish" }), size: 68, label: "Sleepy", sub: "after 1 to 2 days" },
       ],
-      [
-        { chars: word("tease", { state: "hungry" }), size: 68, label: "Hungry", sub: "3 or more days unfed" },
-        { chars: word("tease", { state: "eating" }), size: 68, label: "Eating", sub: "a snack makes it full" },
-      ],
+      [{ chars: word("tease", { state: "hungry" }), size: 68, label: "Asleep", sub: "after 3 days or more" }],
     ],
-    { gap: 44, title: "The word tease full, peckish, hungry, and eating a snack" },
+    { gap: 44, title: "The word tease three ways: awake, sleepy, and asleep" },
   ),
   "jackpot.svg": figure([[{ chars: word("lucky", { state: "celebrate" }), size: 96, label: "Today’s secret word", sub: "its owner takes the whole pot" }]], {
     title: "The word lucky celebrating a jackpot win",

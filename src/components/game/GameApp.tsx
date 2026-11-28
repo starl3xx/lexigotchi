@@ -451,7 +451,7 @@ function TopBar({ still }: { still: boolean }) {
         {!state.chainBacked && (
         <button
           onClick={skipDay}
-          title="Skip a day (practice): pays your earning words, advances hunger, and draws a new daily word"
+          title="Skip a day (practice): pays your earning words, makes your words a day sleepier, and draws a new daily word"
           className="hit-44 round-btn flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card"
           aria-label="Skip a day"
         >

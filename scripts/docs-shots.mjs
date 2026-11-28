@@ -99,12 +99,12 @@ if (want("market")) {
   console.log("wrote docs-site/images/screen-market.jpg");
 }
 
-// Your earnings: feed the hungry VIVID, let a practice day pass so it earns, and open the sheet from
+// Your earnings: wake VIVID (it is asleep), let a practice day pass so it earns, and open the sheet from
 // the line under the stage. Last of the practice shots, because it changes the practice game.
 if (want("earnings")) {
   await page.locator("nav").getByRole("button", { name: "Today", exact: true }).first().click();
   await page.waitForTimeout(1000);
-  await page.getByRole("button", { name: /Feed VIVID/ }).first().click();
+  await page.getByRole("button", { name: /Wake VIVID/ }).first().click();
   await page.waitForTimeout(800);
   // The skip button is hidden from the pictures above, so press it without showing it.
   await page.locator('[aria-label="Skip a day"]').first().dispatchEvent("click");

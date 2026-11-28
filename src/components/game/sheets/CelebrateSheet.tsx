@@ -41,7 +41,7 @@ export function stakeStep(w: OwnedWord, drawn: boolean, bought = false): { line:
     return { line: `It’s staked and in the daily jackpot${allUpper ? ", earning $WORD" : ""}.`, offer: false };
   }
   const hungry = bought && hunger(w) === "hungry";
-  const stake = hungry ? "It arrives hungry: stake it and feed it" : "Stake it";
+  const stake = hungry ? "It arrives asleep: stake it and wake it" : "Stake it";
   if (!drawn) return { line: `${stake} to enter it in the daily jackpot${allUpper ? " and start earning $WORD" : ""}.`, offer: true };
   if (allUpper) return { line: `${stake} to start earning $WORD. The jackpot already drew it, so it won’t be drawn again.`, offer: true };
   return { line: "The jackpot already drew it, so it won’t be drawn again. It earns $WORD once every letter is UPPERCASE and it’s staked.", offer: false };

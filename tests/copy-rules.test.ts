@@ -123,7 +123,7 @@ const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: 
   { term: "APR", re: /\bAPR\b/, sample: "Up to 40% APR." },
   { term: "APY", re: /\bAPY\b/, sample: "A 12% APY." },
   { term: "passive income", re: /\bpassive income\b/i, sample: "Earn passive income." },
-  { term: "yield", re: /\byield(s|ed|ing)?\b/i, sample: "A peckish word earns half its yield." },
+  { term: "yield", re: /\byield(s|ed|ing)?\b/i, sample: "A sleepy word earns half its yield." },
   { term: "pump", re: /\bpump(s|ed|ing)?\b/i, sample: "Watch $WORD pump." },
   { term: "moon", re: /\bmoon(s|ing)?\b/i, sample: "To the moon." },
   // The card's vocabulary (decisions.md #54; starl3xx, 2026-11-27): the picture on a card's front
@@ -132,6 +132,17 @@ const BANNED: readonly { term: string; re: RegExp; sample: string; everywhere?: 
   // "lexigotchi:scene:local"). A colon after it is a key only when no space follows: "Scene: Spring"
   // is a label a player reads, and the first pattern let it through.
   { term: "scene", re: /(?<![-\w./:])scenes?(?![-\w=])(?!:\S)/i, sample: "Pick a scene." },
+  // Care is SLEEP (decisions.md #63; starl3xx, 2026-11-27: "what if instead of *feeding* them, we
+  // need to *wake* them? they get sleepy and then asleep - then we don't need an image or anything
+  // to *give* them?"). A word is awake, sleepy, or asleep, and a player wakes it. Nothing is given,
+  // so nothing is named: there is no snack. The contracts and the code keep their own names (`feed`,
+  // `snack`, `hunger`, the states "peckish" and "hungry"): a bare code value is not prose.
+  { term: "feed", re: /\b(un)?feed(s|ing)?\b/i, sample: "Feed your words." },
+  { term: "fed", re: /\b(un)?fed\b/i, sample: "Is yours staked and fed?" },
+  { term: "snack", re: /\bsnacks?\b/i, sample: "The first snack every day is free." },
+  { term: "hungry", re: /\bhungr(y|ier|iest)\b/i, sample: "Your q is hungry." },
+  { term: "hunger", re: /\bhunger\b/i, sample: "The hunger clock keeps running." },
+  { term: "peckish", re: /\bpeckish\b/i, sample: "FUNKY is peckish." },
   // Never a code value either, so these are checked in every string, single words included: the
   // manifest's discovery tag "tamagotchi" was one (decisions.md #24).
   { term: "Lexidex", re: /\blexidex\b/i, sample: "Fill your Lexidex.", everywhere: true },
@@ -181,6 +192,14 @@ const VOCAB_ALLOW: readonly { where: string; term: string; reason: string }[] = 
     term: "scene",
     reason: "the operator console names the stored kind: a card face is still kind `scene` in shop_items and word_picks (the Broadcast tab is not excused)",
   },
+  // The contracts keep their own names for care (Staking.feed, snackPrice, peckishAfter, hungryAfter,
+  // the Fed event), and the reminder's stored kind is still `hunger`. An operator sets and reads
+  // those by name. What an operator POSTS is players' copy, so the Broadcast tab is not excused.
+  ...(["fed", "snack", "peckish", "hungry", "hunger"] as const).map((term) => ({
+    where: "src/components/admin/",
+    term,
+    reason: "the operator console names the contracts' own parameters and events and the reminder's stored kind (the Broadcast tab is not excused)",
+  })),
 ];
 const allowed = (where: string, term: string) =>
   VOCAB_ALLOW.some((a) => a.term === term && where.startsWith(a.where) && !where.startsWith("src/components/admin/tabs/BroadcastTab.tsx"));

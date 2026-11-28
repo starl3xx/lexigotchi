@@ -97,7 +97,7 @@ export function BountySection() {
         </SectionTitle>
         <p className="mb-2 text-xs text-ink/60">
           Pays when the week ends, {paysIn(Date.now())}, to every matching word that is{" "}
-          <strong>staked and not hungry</strong> at that moment. Rarer matches earn a bigger slice
+          <strong>staked and not asleep</strong> at that moment. Rarer matches earn a bigger slice
           (tier-weighted).
         </p>
         {matching.length === 0 ? (

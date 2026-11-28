@@ -51,7 +51,7 @@ describe("the recap's words", () => {
       [
         "📅 Daily recap",
         "---------------",
-        "The secret word was CRANE. Nobody held it staked and fed, so the jackpot rolled over: it is now 143.49M $WORD.",
+        "The secret word was CRANE. Nobody held it staked and awake, so the jackpot rolled over: it is now 143.49M $WORD.",
         "",
         "New words yesterday: OXBOW, STORE, and DOUGH.",
       ].join("\n"),
@@ -71,8 +71,8 @@ describe("the recap's words", () => {
   it("leaves out what it couldn't read, and names no word it couldn't match to the draw", async () => {
     const { recapPost } = await vi.importActual<typeof import("@/lib/telegramRecap")>("@/lib/telegramRecap");
     const line = (f: Parameters<typeof recapPost>[0]) => recapPost(f).text.split("\n").slice(2).join("\n");
-    expect(line({ draw: rolled, pot: null, made: null, newTheme: null })).toBe("The secret word was CRANE. Nobody held it staked and fed, so the jackpot rolled over.");
-    expect(line({ draw: { word: null, winner: null }, pot: 5, made: null, newTheme: null })).toBe("Nobody held the secret word staked and fed, so the jackpot rolled over: it is now 5 $WORD.");
+    expect(line({ draw: rolled, pot: null, made: null, newTheme: null })).toBe("The secret word was CRANE. Nobody held it staked and awake, so the jackpot rolled over.");
+    expect(line({ draw: { word: null, winner: null }, pot: 5, made: null, newTheme: null })).toBe("Nobody held the secret word staked and awake, so the jackpot rolled over: it is now 5 $WORD.");
     expect(line({ draw: { word: null, winner: { name: "0x12ab…cdef", amount: 9 } }, pot: null, made: null, newTheme: null })).toBe("0x12ab…cdef held the secret word and won the jackpot: 9 $WORD.");
     // an empty pot is a fact
     expect(line({ draw: rolled, pot: 0, made: null, newTheme: null })).toContain("it is now 0 $WORD.");

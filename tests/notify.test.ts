@@ -136,7 +136,7 @@ describe("length limits", () => {
   });
 
   it("leaves short strings untouched", () => {
-    expect(clamp("Feeding time", LIMITS.title)).toBe("Feeding time");
+    expect(clamp("Time to wake your words", LIMITS.title)).toBe("Time to wake your words");
   });
 
   it("clamps every field in the payload it actually sends", () => {
@@ -356,7 +356,7 @@ describe("limits are importable without the fail-fast throw", () => {
     vi.resetModules();
     const mod = await import("@/lib/notify/limits");
     expect(mod.LIMITS.title).toBe(32);
-    expect(mod.clamp("Feeding time", 32)).toBe("Feeding time");
+    expect(mod.clamp("Time to wake your words", 32)).toBe("Time to wake your words");
   });
 
   it("is the module the status route and the tab import from", async () => {
@@ -382,10 +382,10 @@ describe("limits are importable without the fail-fast throw", () => {
 describe("reminders speak in the pet voice", () => {
   it("the hunger reminder names the word on the soonest clock, and counts the rest", () => {
     expect(hungerWarning({ word: "funky", words: 1, hoursLeft: 6 }).body).toBe(
-      "FUNKY is peckish. Feed it within 6h, or it goes hungry and sits out the jackpot.",
+      "FUNKY is sleepy. Wake it within 6h, or it falls asleep and sits out the jackpot.",
     );
-    expect(hungerWarning({ word: "FUNKY", words: 2, hoursLeft: 6 }).body).toContain("FUNKY and 1 more word are peckish");
-    expect(hungerWarning({ word: "FUNKY", words: 4, hoursLeft: 6 }).body).toContain("FUNKY and 3 more words are peckish");
+    expect(hungerWarning({ word: "FUNKY", words: 2, hoursLeft: 6 }).body).toContain("FUNKY and 1 more word are sleepy");
+    expect(hungerWarning({ word: "FUNKY", words: 4, hoursLeft: 6 }).body).toContain("FUNKY and 3 more words are sleepy");
   });
 
   it("calls every warned word peckish only because the warning window sits inside the peckish stretch", () => {
@@ -397,8 +397,8 @@ describe("reminders speak in the pet voice", () => {
     expect(pityCapped("Q").body).toContain("your q:");
   });
 
-  it("says staked and fed wherever the jackpot is won or rolls over", () => {
-    expect(jackpotWon("cabin", "1 $WORD").body).toContain("staked and fed");
-    expect(jackpotRollover("1 $WORD").body).toContain("staked and fed");
+  it("says staked and awake wherever the jackpot is won or rolls over", () => {
+    expect(jackpotWon("cabin", "1 $WORD").body).toContain("staked and awake");
+    expect(jackpotRollover("1 $WORD").body).toContain("staked and awake");
   });
 });

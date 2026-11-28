@@ -2130,7 +2130,7 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
                 const now = ws.find((x) => x.word === word);
                 return now && jackpotEligible(toOwnedWord(now, tierOf))
                   ? `${word} is staked. It’s in the daily jackpot.`
-                  : `${word} is staked. Feed it to enter the daily jackpot.`;
+                  : `${word} is staked. Wake it to enter the daily jackpot.`;
               },
               pending: `Sent. ${word} will show as ${staking ? "staked" : "unstaked"} once the chain confirms it.`,
             },
@@ -2144,19 +2144,19 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         const before = w?.lastFedAt ?? 0;
         // The day's free snack is the staker's profile's: ask for its voucher, else feed paid.
         const staker = w?.mine ? address : w?.holder;
-        void track(`Feeding ${word}`, async (run) => {
+        void track(`Waking ${word}`, async (run) => {
           const voucher = await snackVoucher(staker);
           return sendAndSettle(
             run,
-            `Feed ${word}`,
+            `Wake ${word}`,
             () =>
               voucher
                 ? feedWithSnackCalls([tokenIdOf(word)], voucher, chain.params!, chain.player!)
                 : feedCalls(tokenIdOf(word), chain.params!, chain.player!),
             (ws) => ws.some((x) => x.word === word && x.lastFedAt > before),
             {
-              done: () => `${word} is fed.`,
-              pending: `Sent. ${word} will show as fed once the chain confirms it.`,
+              done: () => `${word} is awake.`,
+              pending: `Sent. ${word} will show as awake once the chain confirms it.`,
             },
           );
         }, false);
@@ -2170,24 +2170,24 @@ export function ChainGameProvider({ children }: { children: ReactNode }) {
         // Any other linked wallet's word would revert the batch.
         const hungryWords = wordsToFeed(state.words);
         const hungry = hungryWords.map((w) => tokenIdOf(w.word));
-        if (hungry.length === 0) return void toast("Nobody’s hungry", "info");
+        if (hungry.length === 0) return void toast("Everyone’s awake", "info");
         const before = new Map(hungryWords.map((w) => [w.word, w.lastFedAt ?? 0]));
         // One voucher, for the first word's staker's profile: it frees that word, the rest are paid.
         const first = hungryWords[0];
         const firstStaker = first.mine ? address : first.holder;
-        void track("Feeding your words", async (run) => {
+        void track("Waking your words", async (run) => {
           const voucher = await snackVoucher(firstStaker);
           return sendAndSettle(
             run,
-            "Feed all",
+            "Wake all",
             () =>
               voucher
                 ? feedWithSnackCalls(hungry, voucher, chain.params!, chain.player!)
                 : feedManyCalls(hungry, chain.params!, chain.player!),
             (ws) => [...before].every(([w, t]) => ws.some((x) => x.word === w && x.lastFedAt > t)),
             {
-              done: () => (before.size === 1 ? `${[...before.keys()][0]} is fed.` : "Your words are fed."),
-              pending: "Sent. Your words will show as fed once the chain confirms it.",
+              done: () => (before.size === 1 ? `${[...before.keys()][0]} is awake.` : "Your words are awake."),
+              pending: "Sent. Your words will show as awake once the chain confirms it.",
             },
           );
         }, false);

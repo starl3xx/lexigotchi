@@ -229,7 +229,7 @@ function DealRow({
           </div>
           <p className="mt-0.5 text-xs text-ink/70">
             <strong className="text-teal-ink">{pct(d.under)[0].toUpperCase() + pct(d.under).slice(1)}</strong>
-            {d.earns ? `. Earns about ${fmtWord(d.earns)} $WORD a day, staked and fed` : ""}
+            {d.earns ? `. Earns about ${fmtWord(d.earns)} $WORD a day, staked and awake` : ""}
           </p>
         </div>
         <Button size="sm" variant="teal" className="shrink-0" onClick={() => g.buyWord(l.orderHash)}>
