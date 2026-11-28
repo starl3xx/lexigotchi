@@ -29,7 +29,9 @@ import {
   type OwnedWord,
 } from "../state";
 import { careNote } from "../careNote";
-import { useEatingFlash } from "../useEatingFlash";
+import { usePrefersReducedMotion } from "../motionPrefs";
+import { useWakeAct } from "../wake/useWakeAct";
+import { useWake } from "../wake/wakeRun";
 import { earningLine, earningStatus, earningsRowTarget, payoutWhen } from "../earnings";
 import { SellWord } from "../market/SellWord";
 import { ascendDoor } from "../ascendFlow";
@@ -44,8 +46,10 @@ export function WordSheet({ word: wordKey }: { word: string }) {
   const offGameWallet = Boolean(gameWallet && address && gameWallet !== address.toLowerCase());
   const word = state.words.find((w) => w.word === wordKey);
   const [confirmDissolve, setConfirmDissolve] = useState(false);
-  // The tiles chew for a moment when a feed lands (useEatingFlash).
-  const eating = useEatingFlash(wordKey, word ? hunger(word) : "fed");
+  // This card's part in a wake (../wake): what its letters wear from the tap to the bow.
+  const wake = useWake();
+  const reduced = usePrefersReducedMotion();
+  const act = useWakeAct(wordKey, true);
   // Every hook stands above the early return below: a word can leave the bag while its sheet is
   // open (sold, dissolved, moved), and a hook that ran only while the word was there would change
   // the hook count and crash the sheet in place of showing its fallback (Bugbot on #233).
@@ -93,7 +97,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
     >
       {/* the word's card: its scene (in its care state), its story on the back, and the scene and
           share buttons the Showcase used to hold (components/cards) */}
-      <WordSheetCard word={word} eating={eating} />
+      <WordSheetCard word={word} act={act} />
 
       {/* status */}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
@@ -102,7 +106,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       </div>
       {/* how it stands: the same three marks as the Today placard and the Bag (game/stageMarks) */}
       <div className="tm-host mb-3">
-        <StatusMarks marks={stageMarks(markInput(word, moodOfWord(word, h, forSale.has(word.word)), { justFed: eating, earned: earnedLatest }))} />
+        <StatusMarks marks={stageMarks(markInput(word, moodOfWord(word, h, forSale.has(word.word)), { justFed: act.acting, earned: earnedLatest }))} />
       </div>
 
       {/* earnings: what this word has earned for the player, and what would make it earn */}
@@ -166,7 +170,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
           variant="teal"
           disabled={feedOff !== null}
           title={feedOff ?? undefined}
-          onClick={() => g.feed(word.word)}
+          onClick={() => wake([word], { focus: word.word, reduced })}
         >
           <Alarm weight="fill" /> Wake {word.staked && h === "fed" && <Check weight="bold" size={14} />}
         </Button>

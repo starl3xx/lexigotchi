@@ -116,6 +116,20 @@ export const CLASP_Y = 207;
 /** the arm to my left neighbour, and to my right */
 export const LINK_L = `M 58 162 C 38 163 27 176 ${CLASP_X + 6.2} ${CLASP_Y + 1}`;
 export const LINK_R = `M 182 162 C 202 163 213 176 ${PITCH + CLASP_X - 6.2} ${CLASP_Y + 2}`;
+// A curtain call (a woken word, decisions.md #64): the joined hands raised. The same clasp, turned
+// over (its cuffs under the hands, since the arms now come from below) and lifted beside the top of
+// the tiles; the two end letters wave their free arms up. A second drawing of the arms, swapped in
+// for a moment, as a blink swaps the eye: nothing is animated inside the layer.
+export const CLASP_UP_Y = 124;
+/** the raised arm to my left neighbour, and to my right */
+export const LINK_L_UP = `M 58 164 C 40 162 27 150 ${CLASP_X + 6.2} ${CLASP_UP_Y + 3}`;
+export const LINK_R_UP = `M 182 164 C 200 162 213 150 ${PITCH + CLASP_X - 6.2} ${CLASP_UP_Y + 2}`;
+/** carries CLASP to the raised hands: mirrored top to bottom about its own height, then lifted */
+export const CLASP_UP = `translate(0 ${CLASP_UP_Y + CLASP_Y}) scale(1 -1)`;
+/** an end letter's free arm, up: the wave, on either side */
+export const ARM_UP_R: Arm = ARM_WAVE;
+export const ARM_UP_L = mirrorArm(ARM_WAVE);
+
 /** The clasp, back to front: two cuffs (each along its own arm), the hand under (my neighbour's),
  *  my thumb across it, my hand over, and its stitches. */
 export const CLASP = (() => {

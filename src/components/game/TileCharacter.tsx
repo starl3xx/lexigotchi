@@ -82,6 +82,11 @@ import {
   ringOuter,
   ringRects,
   type Arm,
+  ARM_UP_L,
+  ARM_UP_R,
+  CLASP_UP,
+  LINK_L_UP,
+  LINK_R_UP,
   type Hand,
   type RingPart,
   tileOuter,
@@ -90,7 +95,7 @@ import {
 export { WORD_LEAN, leanFor } from "./tileShapes";
 import { FinishAura, finishHasAura, FinishDefs, FinishLight, FinishMotes, FinishShine, FinishSurface, Glint, MOMENT_END_S, finishFace, finishHasMotes, momentPieces, type FinishMotion, type MomentPiece } from "./TileFinish";
 
-export type TileState = "idle" | "peckish" | "hungry" | "eating" | "rolling" | "upgrade" | "celebrate";
+export type TileState = "idle" | "peckish" | "hungry" | "glad" | "rolling" | "upgrade" | "celebrate";
 export type TilePose = "rest" | "hero";
 export type TileDetail = "auto" | "full" | "bust" | "tile";
 /** Ascension stage, UPPERCASE only: 0 plain, 1–4 Gilded, 5 Holographic (the word ladder, decisions.md #19). */
@@ -138,6 +143,9 @@ export interface TileCharacterProps {
    *  drawn once, by the letter on the right; an end letter's outer arm hangs at rest. */
   linkLeft?: boolean;
   linkRight?: boolean;
+  /** A curtain call: the hands this letter holds are raised, and an end letter's free arm waves up
+   *  (tileShapes, CLASP_UP). A second drawing of the arms, shown for a moment by a woken word. */
+  armsUp?: boolean;
   /** A resting lean in degrees, about the feet (a hand-placed tile; leanFor). Mood adds to it. */
   lean?: number;
   /** One <svg> instead of four stacked layers, for a picture that must be a single file (the docs'
@@ -187,7 +195,9 @@ const EXPR: Record<TileState, Expr> = {
   idle: { eyes: "open", lid: 0, slant: 0, brow: "none" },
   peckish: { eyes: "open", lid: 0.4, slant: 3.5, brow: "sad" },
   hungry: { eyes: "closed", lid: 0, slant: 0, brow: "sad" },
-  eating: { eyes: "open", lid: 0, slant: 0, smile: 0.5, brow: "raised" },
+  // just woken (decisions.md #63, #64): smiling eyes, and nothing on the face. It replaced the
+  // old eating look, which rocked with a cookie where a mouth would be.
+  glad: { eyes: "open", lid: 0, slant: 0, smile: 0.5, brow: "none" },
   // can't look: eyes squeezed shut, one peeking now and then (no "?" over the head)
   rolling: { eyes: "squeeze", lid: 0, slant: 0, brow: "worried" },
   upgrade: { eyes: "open", lid: 0, slant: 0, brow: "raised" },
@@ -199,7 +209,7 @@ const BODY_ANIM: Record<TileState, string> = {
   idle: "animate-tc-breathe",
   peckish: "animate-tc-sigh",
   hungry: "animate-tc-sleep",
-  eating: "animate-tc-eat",
+  glad: "animate-tc-breathe",
   rolling: "animate-tc-brace",
   upgrade: "animate-tc-hop",
   celebrate: "animate-tc-jump",
@@ -209,7 +219,7 @@ const LEG_ANIM: Record<TileState, string> = {
   idle: "animate-tc-legbreathe",
   peckish: "animate-tc-legsigh",
   hungry: "",
-  eating: "",
+  glad: "animate-tc-legbreathe",
   rolling: "animate-tc-knock",
   upgrade: "animate-tc-leghop",
   celebrate: "animate-tc-legjump",
@@ -218,7 +228,7 @@ const TILT: Record<TileState, number> = {
   idle: 0,
   peckish: -3,
   hungry: -6,
-  eating: 0,
+  glad: 0,
   rolling: 0,
   upgrade: 0,
   celebrate: 0,
@@ -841,6 +851,7 @@ export function TileCharacter({
   linkRight = false,
   lean = 0,
   flat = false,
+  armsUp = false,
 }: TileCharacterProps) {
   // A still frame holds the whole character still, not only its finish: a grid of cards would
   // otherwise run each tile's idle loop, hundreds of animations (the Bag's words).
@@ -934,8 +945,8 @@ export function TileCharacter({
   // rest, holds on to the tile's corner when rolling, or strikes the hero pose.
   // A raised letter strikes the hero pose too: a hand on the hip, a wave (decisions.md #48).
   const hero = pose === "hero" || state === "upgrade";
-  const armL: Arm | null = !showLimbs || linkLeft ? null : state === "rolling" ? ARM_BRACE : hero ? ARM_HIP : ARM_REST;
-  const armR: Arm | null = !showLimbs || linkRight ? null : state === "rolling" ? ARM_BRACE_R : hero ? ARM_WAVE : ARM_REST_R;
+  const armL: Arm | null = !showLimbs || linkLeft ? null : armsUp ? ARM_UP_L : state === "rolling" ? ARM_BRACE : hero ? ARM_HIP : ARM_REST;
+  const armR: Arm | null = !showLimbs || linkRight ? null : armsUp ? ARM_UP_R : state === "rolling" ? ARM_BRACE_R : hero ? ARM_WAVE : ARM_REST_R;
   const darts = size >= DARTS_FROM; // the mitt's two stitches: only where they are more than a speck
   const limb = (d: string) => <path d={d} stroke={INK} strokeWidth={LIMB_W} fill="none" strokeLinecap="round" />;
   const freeArm = (a: Arm | null) =>
@@ -1014,8 +1025,8 @@ export function TileCharacter({
           upright whatever the lean (the lean undone), toward where the hands meet. */}
       {showLimbs && (linkLeft || linkRight) && (
         <g transform={tilt ? `rotate(${-tilt} ${CX} ${BOT})` : undefined} filter={boilFilter}>
-          {linkLeft && limb(LINK_L)}
-          {linkRight && limb(LINK_R)}
+          {linkLeft && limb(armsUp ? LINK_L_UP : LINK_L)}
+          {linkRight && limb(armsUp ? LINK_R_UP : LINK_R)}
         </g>
       )}
       {freeArm(armL)}
@@ -1324,7 +1335,7 @@ export function TileCharacter({
         "top",
         <>
           {/* the hands this letter and its left neighbour hold */}
-          {showLimbs && linkLeft && <Clasp darts={darts} />}
+          {showLimbs && linkLeft && (armsUp ? <g transform={CLASP_UP}><Clasp darts={darts} /></g> : <Clasp darts={darts} />)}
         </>,
       ),
 

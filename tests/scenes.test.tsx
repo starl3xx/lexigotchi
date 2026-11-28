@@ -446,7 +446,7 @@ describe("the front of a word's card (SceneFrame)", () => {
 
   it("prints the face with less ink as the word gets hungry: the art only, never the frame, and nothing laid over the card", () => {
     expect(toneOf("hungry")).toBe("hungry");
-    expect(toneOf("eating")).toBe("fed");
+    expect(toneOf("glad")).toBe("fed");
     const c = card({ tone: "hungry", state: "hungry" });
     // the tone is on the GROUP of art layers, never on a picture itself
     expect(c.querySelector(".cf-arts")!.className).toContain("scene-hungry");

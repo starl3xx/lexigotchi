@@ -8,6 +8,7 @@
  * Determinism: a seeded RNG (held in a ref) computes every random outcome; the reducer stays
  * pure (it only applies already-computed results), mirroring the commit→reveal contract pattern.
  */
+import type { WakeOutcome, WakeResult } from "./wake/wakeFlow";
 import {
   createContext,
   useCallback,
@@ -857,8 +858,13 @@ export interface GameApi {
    */
   claim: (word: string, cases: boolean[]) => void;
   toggleStake: (word: string) => void;
-  feed: (word: string) => void;
-  feedAll: () => void;
+  /**
+   * Wake a word, or every word that needs it (the code's "feed"). Each answers how it ended:
+   * the words read back awake, it was sent but not seen yet, or nothing was sent. The cards act
+   * the wake out from that (./wake), so a Wake button calls `useWake`, never these on their own.
+   */
+  feed: (word: string) => Promise<WakeResult>;
+  feedAll: () => Promise<WakeResult>;
   /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
   /**
    * `finishOnly`: finish the attempt that is already paid for and open on this word, and never
@@ -1115,29 +1121,36 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       toggleStake: (word) => dispatch({ t: "stake", word }),
       feed: (word) => {
+        const target = state.words.find((w) => w.word === word);
+        // nothing to wake: the reducer would do nothing, so nothing is acted out
+        if (!target || !target.staked || target.daysUnfed === 0) return Promise.resolve<WakeOutcome>("none");
         if (state.freeSnackUsed && state.balance < COST.snack) {
           needWord(COST.snack, "waking this word");
-          return;
+          return Promise.resolve<WakeOutcome>("none");
         }
         dispatch({ t: "feed", word });
+        return Promise.resolve<WakeOutcome>("landed");
       },
       feedAll: () => {
         const hungry = state.words.filter((w) => w.staked && w.daysUnfed > 0);
         if (hungry.length === 0) {
           toast("Everyone’s already awake", "info");
-          return;
+          return Promise.resolve<WakeOutcome>("none");
         }
         const free = state.freeSnackUsed ? 0 : 1;
         const affordable = free + Math.floor(state.balance / COST.snack);
         if (affordable === 0) {
           needWord(COST.snack * hungry.length, "waking your words");
-          return;
+          return Promise.resolve<WakeOutcome>("none");
         }
         dispatch({ t: "feedAll" });
         toast(
           affordable >= hungry.length ? "Your words are awake" : `Woke ${affordable} of ${hungry.length}: out of $WORD`,
           affordable >= hungry.length ? "good" : "info",
         );
+        // The reducer wakes them in the list's order, the free one first, for as long as the balance
+        // lasts: only those have a part in the act.
+        return Promise.resolve<WakeResult>(affordable >= hungry.length ? "landed" : { landed: hungry.slice(0, affordable).map((w) => w.word) });
       },
       prestige: (word) => {
         const w = state.words.find((x) => x.word === word);

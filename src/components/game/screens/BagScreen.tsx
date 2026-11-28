@@ -10,6 +10,8 @@ import { LetterTile } from "../LetterTile";
 import { BagWordCard } from "../../cards/BagWordCard";
 import { Basket, Alarm, Sparkle, Storefront, TextAa } from "../ui/icons";
 import { feedAllLabel, wordsToFeed } from "../feedAll";
+import { usePrefersReducedMotion } from "../motionPrefs";
+import { useWake } from "../wake/wakeRun";
 import { hunger, idxToChar, useGame, mineLower, mineUpper, type OwnedWord } from "../state";
 import { GameWalletNotice } from "../GameWalletNotice";
 import { WordsPending, wordsUnknown } from "../WordsPending";
@@ -37,6 +39,9 @@ export function BagScreen() {
   const filter = counts[wordFilter] > 0 ? wordFilter : "all";
   const shown = sortWords(state.words.filter((w) => matchesWord(w, filter, ctx)), wordSort, ctx.hungerOf);
   const toFeed = wordsToFeed(state.words);
+  // Wake all: every card on the screen takes its small part (cards/BagWordCard, game/wake)
+  const wake = useWake();
+  const reduced = usePrefersReducedMotion();
 
   const lowerOwned = sortLetters(state.lower.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
   const upperOwned = sortLetters(state.upper.map((c, i) => ({ i, c })).filter((x) => x.c > 0), letterSort);
@@ -144,7 +149,7 @@ export function BagScreen() {
                 <div className="flex gap-2">
                   {/* Feed all (yours and the words you care for): one send, the free snack first. */}
                   {toFeed.length > 0 && (
-                    <Button size="sm" variant="teal" onClick={() => g.feedAll()}>
+                    <Button size="sm" variant="teal" onClick={() => wake(toFeed, { all: true, reduced })}>
                       <Alarm weight="fill" /> {feedAllLabel(toFeed)}
                     </Button>
                   )}

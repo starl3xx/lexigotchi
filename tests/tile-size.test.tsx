@@ -28,7 +28,7 @@ const animations = (config.theme?.extend?.animation ?? {}) as Record<string, str
 const transformsOf = (name: string) => Object.values(keyframes[name] ?? {}).map((f) => String((f as Record<string, string>).transform ?? ""));
 
 /** The loops that move a tile's BODY: the tile itself. None may scale. */
-const BODY = ["tcBreathe", "tcSigh", "tcSleep", "tcEat", "tcHop", "tcJump", "tcBrace"];
+const BODY = ["tcBreathe", "tcSigh", "tcSleep", "tcHop", "tcJump", "tcBrace"];
 /** The loops that stretch the LEGS under it: allowed, and how the feet stay down. */
 const LEGS = ["tcLegBreathe", "tcLegSigh", "tcLegHop", "tcLegJump", "tcKnock"];
 /** Loops of things that are not the tile: what flies off a letter, its eyes' swap, the rays behind it. */

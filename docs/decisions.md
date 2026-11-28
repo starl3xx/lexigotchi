@@ -3661,11 +3661,66 @@ setter. All small, riding existing suite patterns.
       sheet, the intro and the landing page, the reminders (push, email, Telegram, the weekly
       email), the Telegram bot's answers, the messaging guide, and two docs pictures (the moods
       picture is three rows now: its "Eating" row is gone).
-    - **Still to come, as their own changes:** the act (27B: with no sound): a woken word wakes
-      letter by letter, raises its joined hands, and bows; and 31B, the sad brow on the sleepy and
-      asleep faces, which I said I would show him both ways before the letters change.
+    - **After this:** the act is #64. Still to come is 31B, the sad brow on the sleepy and asleep
+      faces, which I said I would show him both ways before the letters change.
     - **Today's card look (#61) stays.** A sleeping word's card fades toward paper. Its story in
       the docs is now a card that fades while its word sleeps.
+
+64. **Waking a word is an act: a wake, a stretch, and a bow.** (starl3xx, 2026-11-27, of three
+    playable ways to make the daily care a moment: "okay we're onto something here, because I
+    like A the most by far"; then, with the words settled as sleep (#63), "Build it". A was the
+    one with no prop: nothing is given to the word, so nothing is drawn but the letters.) Until
+    now a woken word rocked from side to side for 1.8 seconds, on Today's stage or in the opened
+    word only, and a card anywhere else got its ink back and nothing more.
+    - **The letters are vaudeville players, and a word already stands hand in hand.** So a woken
+      word does what a cast does at the end of a show: the wake passes along the word, a letter
+      every 85 ms, each rising onto its toes with smiling eyes as the card's ink comes back; then
+      the word raises its joined hands, and bows, eyes shut. About 2.5 seconds, against 1.8.
+    - **Four beats, because a wake is not instant** (the wallet asks, then the chain takes 2 to 20
+      seconds), and **nothing looks awake before the chain says so:** the tap (one sleeper half
+      opens its eyes); the wait (the letters do the waiting: about once a second another one
+      peeks and dozes again, never two in step, and no spinner goes on the card); it lands (the
+      act); it does not (the letters settle back as they were, and the action's own line says
+      what happened).
+    - **A card HOLDS the look it had while its wake is on its way,** whatever the words list says
+      by then. The chain's read can show the word awake a moment before the card is told the
+      wake landed, and a word that woke early would have nothing left to act.
+    - **One, two, or all, on every screen.** The card in focus (Today's stage, an opened word)
+      plays the whole act. A small card is a still picture, so its part is small: it keeps its
+      look until its turn, then shows its word awake and its letters hop once, one card after
+      another, 95 ms apart (the Bag's cards; Today's word chips, which have no card, hop their
+      tiles). A card that is not on the screen when the wake lands simply shows its word awake.
+    - **The wake outlives the screen it was started on,** as a piece of mail does: the wake in
+      hand (`components/game/wake/wakeRun`) is outside any screen, so the player can turn to
+      another word, close the opened word, or scroll the Bag. Today holds the woken word on
+      stage from the tap until its bow ends, then the next sleepy word steps up.
+    - **The hardest part was that a screen was never told how a wake ended.** The store's `feed`
+      and `feedAll` answered nothing, and Today only stopped waiting after 30 seconds. They now
+      answer `landed`, `pending` (sent, not seen yet), or `none` (nothing was sent). Every Wake
+      button goes through `useWake`, never the store's `feed` on its own.
+    - **The rules are one pure file with tests** (`wake/wakeFlow.ts`, `tests/wake-flow.test.ts`),
+      as the mail's are: the order and the times of the act, what a card holds, which letter
+      stirs, and each small card's turn.
+    - **No tile is scaled.** A rise and a dip are moments on the box around a letter, taken up
+      by its legs, in the hover's own way (globals.css, `.wk-rise`, `.wk-bow`; the bow shuts the
+      eyes with the rig's own blink). The raised hands are a second drawing of the arms, swapped
+      in for a moment as a blink swaps the eye (`armsUp`; `tileShapes`, `CLASP_UP`). A small
+      card's hop is the `translate` property on the tile, never a `transform`: a letter's stance
+      on curved ground is the transform of the box around it, and it stays through the hop.
+    - **In the rig:** the state `glad` (smiling eyes, a breath) replaced `eating`, with its
+      rocking loop, its timer (`useEatingFlash`), and Today's 1.8 s hold. The card's front takes
+      a state, a moment's class, and the arm pose for each letter, as a plain word row already
+      took a state.
+    - **Less is asked for, less is given.** Under reduced motion the letters still wake one by
+      one (a change of picture), and nothing rises, lifts, bows, or hops. A tap on the card in
+      focus ends the act at once. No short version: a player wakes words once or twice a day,
+      and "Wake all" is one moment however many words it wakes.
+    - **No sound** (his 27B). No hook was built for one.
+    - **Seen:** the practice game in Chromium at 390 and 1,280 px and in WebKit at 390 px: one
+      word on Today, Wake all, an opened word, and the Bag. **Not seen:** a real chain wait in
+      the game (the practice game wakes at once, so the wait is covered by the rules' tests and
+      by the proposal page), a real phone, a wallet, a mini-app host. **Not measured:** its cost
+      in WebKit under load. It adds no loop: every part is a moment.
 
 ## Pricing & launch economics (decided June 2026)
 
