@@ -8,7 +8,7 @@
  */
 import { count, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "./client";
-import { letterListings, profiles, swapOrders, users, webPushSubscriptions, wordListings } from "./schema";
+import { letterListings, profiles, reminderPrefs, swapOrders, users, webPushSubscriptions, wordListings } from "./schema";
 import { isMissingTable } from "./profiles";
 import type { ProfileFlags } from "@/lib/admin/playerRows";
 
@@ -81,6 +81,22 @@ export function farcasterUserCounts(): Promise<Read<{ users: number; added: numb
     const [added] = await getDb().select({ n: count() }).from(users).where(isNotNull(users.addedMiniAppAt));
     return { users: Number(all?.n ?? 0), added: Number(added?.n ?? 0) };
   });
+}
+
+/**
+ * Every player's reminder choices (migration 0018): only players who changed something have a row,
+ * and only the account, the kinds, and the email cadence are read. Missing before 0018: then nobody
+ * has chosen, and everyone gets the defaults.
+ */
+export function reminderPrefRows(): Promise<Read<{ account: string; kinds: unknown; emailCadence: unknown }[]>> {
+  return read([], () =>
+    getDb().select({ account: reminderPrefs.account, kinds: reminderPrefs.kinds, emailCadence: reminderPrefs.emailCadence }).from(reminderPrefs),
+  );
+}
+
+/** The Farcaster ids that added the mini app: the ones the Farcaster pass can notify (as `notifiableFids`). */
+export function addedMiniAppFids(): Promise<Read<number[]>> {
+  return read([], async () => (await getDb().select({ fid: users.fid }).from(users).where(isNotNull(users.addedMiniAppAt))).map((r) => r.fid));
 }
 
 /** Opted-in counts for the Notifications tab: confirmed emails with reminders on, and browsers. */

@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { buildPlayerRows, emptyActivity, funnelOf, newSince, type PlayerInputs } from "@/lib/admin/playerRows";
+import { buildPlayerRows, emptyActivity, funnelOf, groupPlayers, newSince, type PlayerInputs } from "@/lib/admin/playerRows";
 import { parseSighting, utcDay } from "@/lib/sightings";
 import { serverKey } from "@/lib/admin/serverKeys";
 
@@ -140,5 +140,59 @@ describe("team wallets", () => {
     const rows = buildPlayerRows(inputs({ accountOf: (a) => (a === B ? TEAM : a) }));
     expect(rows.find((r) => r.address === B)?.operator).toBe(true);
     expect(funnelOf(rows).any).toBe(1);
+  });
+});
+
+describe("groupPlayers: one row per player", () => {
+  // B is linked into A's account: one player with two wallets (starl3xx, 2026-11-27: "this is one player").
+  const linked = () => buildPlayerRows(inputs({ accountOf: (a) => (a === B ? A : a), chain: new Map([[A, { ...emptyActivity(T0 + 60_000), packs: 1, reveals: 1 }], [B, { ...emptyActivity(T0 + 90_000), packs: 2, claims: 1, reveals: 2 }]]) }));
+
+  it("puts linked wallets in their account's row, the account first, and adds them up", () => {
+    const players = groupPlayers(linked());
+    expect(players.map((p) => p.address)).toEqual([A]);
+    const a = players[0];
+    expect(a.wallets.map((w) => w.address)).toEqual([A, B]);
+    expect([a.packs, a.claims, a.waiting]).toEqual([3, 1, 0]);
+    expect(a.holds).toEqual({ letters: 5, upper: 1, words: 1, staked: 1 });
+    expect(a.fids).toEqual([1017205]); // B's verified sign-in
+    expect(a.name).toBe("coolhat"); // the account has no name: a wallet's that has one
+    expect(a.firstSeen).toBe(new Date(T0).toISOString());
+    expect(a.lastSeen).toBe(new Date(T0 + 120_000).toISOString());
+  });
+
+  it("takes the busiest wallet's days as a floor, never a sum", () => {
+    const a = groupPlayers(linked())[0];
+    expect(a.sighting).toMatchObject({ days: 1, firstVia: "web", lastVia: "web" });
+    expect(a.seenWallets).toBe(2);
+  });
+
+  it("counts the funnel and new players by player", () => {
+    const players = groupPlayers(linked());
+    expect(funnelOf(players).any).toBe(1);
+    expect(newSince(players, T0 + 10 * 60_000, 60 * 60_000)).toBe(1);
+  });
+
+  it("marks a player the team's when any wallet is", () => {
+    const players = groupPlayers(buildPlayerRows(inputs({ accountOf: (a) => (a === B ? TEAM : a) })));
+    expect(players.find((p) => p.address === TEAM)).toMatchObject({ operator: true, wallets: [{ address: TEAM }, { address: B }] });
+    expect(funnelOf(players).any).toBe(1);
+  });
+
+  it("carries no email address or push endpoint", () => {
+    const json = JSON.stringify(
+      groupPlayers(buildPlayerRows(inputs({ profiles: [{ address: A, xUsername: null, emailConfirmed: true, emailReminders: false, email: "a@b.co" } as never] }))),
+    );
+    expect(json).not.toContain("a@b.co");
+    expect(json).not.toMatch(/endpoint|p256dh/);
+  });
+});
+
+describe("groupPlayers never lists a wallet twice", () => {
+  it("leaves a linked wallet with a row of its own in that row, whatever the link table says (Bugbot on #332)", () => {
+    // The rows didn't group B under A (a link read that failed quietly), but the link table lists B under A.
+    const players = groupPlayers(buildPlayerRows(inputs()), (account) => (account === A ? [A, B] : [account]));
+    const listed = players.flatMap((p) => p.wallets.map((w) => w.address));
+    expect(listed.filter((w) => w === B)).toHaveLength(1);
+    expect(players.find((p) => p.address === A)?.wallets.map((w) => w.address)).toEqual([A]);
   });
 });
