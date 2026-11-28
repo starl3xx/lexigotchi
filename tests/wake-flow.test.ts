@@ -6,7 +6,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BLINK, BOW, RISE, WAKE, hopDelay, stirFrame, stirLetter, wakeActMs, wakeScore } from "@/components/game/wake/wakeFlow";
-import { beginWake, endWake, resetWake } from "@/components/game/wake/wakeRun";
+import { beginWake, currentWake, endWake, releaseWake, resetWake } from "@/components/game/wake/wakeRun";
 
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const word = (w: string, daysUnfed: number) => ({ word: w, staked: true, daysUnfed });
@@ -103,17 +103,57 @@ describe("the wake in hand", () => {
     resetWake();
     vi.useRealTimers();
   });
-  // the store has no reader of its own outside React: read it through a second begin's id
-  const phaseOf = async () => (await import("@/components/game/wake/wakeRun")).useWakeRun;
+  it("remembers how each word looked when the player pressed Wake, and which word was in focus", () => {
+    beginWake([word("VIVID", 3), word("CRANE", 1)], "VIVID");
+    expect(currentWake()).toMatchObject({ words: ["VIVID", "CRANE"], before: { VIVID: "hungry", CRANE: "peckish" }, focus: "VIVID", phase: "waiting" });
+  });
 
-  it("remembers how each word looked when the player pressed Wake", async () => {
-    expect(await phaseOf()).toBeTypeOf("function");
-    const id = beginWake([word("VIVID", 3), word("CRANE", 1)], "VIVID");
-    expect(id).toBeGreaterThan(0);
-    // a later wake has a later id, and an older one's ending is ignored
+  it("landed: the act plays, and then the wake is let go", () => {
+    const id = beginWake([word("VIVID", 3)], "VIVID");
+    endWake(id, "landed");
+    expect(currentWake()?.phase).toBe("landed");
+    vi.advanceTimersByTime(wakeActMs(5, false) + 300);
+    expect(currentWake()).toBeNull();
+  });
+
+  it("nothing sent, or sent and not seen: the letters settle back at once", () => {
+    for (const outcome of ["none", "pending"] as const) {
+      const id = beginWake([word("VIVID", 3)], "VIVID");
+      endWake(id, outcome);
+      expect(currentWake()).toBeNull();
+    }
+  });
+
+  it("an older wake's ending never touches a newer wake", () => {
+    const old = beginWake([word("VIVID", 3)], "VIVID");
     const next = beginWake([word("TEASE", 1)], null);
-    expect(next).toBeGreaterThan(id);
-    expect(() => endWake(id, "landed")).not.toThrow();
+    endWake(old, "none");
+    expect(currentWake()?.id).toBe(next);
+  });
+
+  it("a wake that woke only some words keeps only those: a word that stayed asleep has no part (Bugbot on #334)", () => {
+    const id = beginWake([word("VIVID", 3), word("CRANE", 1), word("TEASE", 2)], "TEASE");
+    endWake(id, "landed", false, ["VIVID"]);
+    expect(currentWake()).toMatchObject({ words: ["VIVID"], phase: "landed", focus: null });
+    // and none at all is no wake
+    const none = beginWake([word("VIVID", 3)], "VIVID");
+    endWake(none, "landed", false, []);
+    expect(currentWake()).toBeNull();
+  });
+
+  it("a skipped bow lets the wake go, so Today stops holding the word on stage (Bugbot on #334)", () => {
+    const id = beginWake([word("VIVID", 3)], "VIVID");
+    releaseWake(id); // not while it is still on its way: the chain has not answered
+    expect(currentWake()?.phase).toBe("waiting");
+    endWake(id, "landed");
+    releaseWake(id);
+    expect(currentWake()).toBeNull();
+  });
+
+  it("a wallet that never answers does not leave the letters stirring for good", () => {
+    beginWake([word("VIVID", 3)], "VIVID");
+    vi.advanceTimersByTime(WAKE.giveUp + 10);
+    expect(currentWake()).toBeNull();
   });
 });
 
@@ -121,6 +161,20 @@ describe("no letter is scaled, and a small card's stance is kept", () => {
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), body: m[2] })).filter((r) => /\.wk-/.test(r.sel));
 
   it("finds the wake's rules", () => expect(rules.length).toBe(7));
+
+  it("a pointer resting on the word cannot cancel the rise or the bow: each rule outranks the hover's (Bugbot on #334)", () => {
+    for (const part of ["tc-perk", "tc-perk-layer", "tc-legs-perk"]) {
+      for (const moment of ["wk-rise", "wk-bow"]) {
+        expect(css, `${moment} ${part}`).toContain(`.tc-perks:hover:not(:active) .${moment} .${part}`);
+      }
+    }
+  });
+
+  it("Today sets the next word's side while rendering, never in an effect (Bugbot on #334)", () => {
+    const src = readFileSync(join(process.cwd(), "src/components/game/TodayStage.tsx"), "utf8");
+    expect(src).toMatch(/if \(held !== heldSeen\) \{\s*setHeldSeen\(held\);\s*if \(heldSeen && !held\) setEnter\("next"\);/);
+    expect(src).not.toMatch(/useEffect\(/);
+  });
 
   it("a rise and a bow move the body, and only the legs stretch", () => {
     for (const r of rules) {

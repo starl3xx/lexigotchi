@@ -48,7 +48,8 @@ export function WordSheetCard({ word, act }: { word: OwnedWord; /** its part in 
   // while the share loop is made, it holds the one WebGL context: the live back waits
   const [making, setMaking] = useState(false);
   const face = careState(word);
-  // what the letters wear while the word is woken; a tap on the card ends the act
+  // what the letters wear while the word is woken. (No tap to end it here: making the word a
+  // button only for the act would take the letters out of the page and put them back.)
   const woke = { states: act.states, armsUp: act.armsUp, moments: act.moments, tone: act.tone ?? toneOf(face) };
   const gild = Math.max(0, Math.min(5, Math.round(word.prestigeLevel))) as Gild;
   return (
@@ -63,7 +64,7 @@ export function WordSheetCard({ word, act }: { word: OwnedWord; /** its part in 
           drag
           since={cases.cased.get(word.word)}
           onFlip={setBack}
-          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} {...woke} gild={gild} tier={word.tier} number={number} animated={!back} onWord={act.acting ? act.hurry : undefined} wordLabel={act.acting ? `${word.word} is awake again` : undefined} />}
+          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} {...woke} gild={gild} tier={word.tier} number={number} animated={!back} />}
         />
       ) : (
         <SceneCard
@@ -72,7 +73,7 @@ export function WordSheetCard({ word, act }: { word: OwnedWord; /** its part in 
           flipped={back}
           live={!making}
           onFlip={setBack}
-          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} {...woke} gild={gild} tier={word.tier} number={number} animated={!back} onWord={act.acting ? act.hurry : undefined} wordLabel={act.acting ? `${word.word} is awake again` : undefined} />}
+          front={<SceneFrame scene={scene} word={word.word} upper={word.upper} state={face} {...woke} gild={gild} tier={word.tier} number={number} animated={!back} />}
         />
       )}
       {back && <CardMore word={word} />}

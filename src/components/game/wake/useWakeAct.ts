@@ -15,7 +15,7 @@ import { usePrefersReducedMotion } from "../motionPrefs";
 import type { TileState } from "../TileCharacter";
 import { toneOf, type SceneTone } from "../../scenes/SceneFrame";
 import { WAKE, hopDelay, stirFrame, stirLetter, wakeScore, type ActFrame } from "./wakeFlow";
-import { useWakeRun } from "./wakeRun";
+import { releaseWake, useWakeRun } from "./wakeRun";
 
 export interface WakeAct {
   /** a state for each letter, an arm pose, and a moment's class for each, while this card has a part; else undefined */
@@ -92,7 +92,9 @@ export function useWakeAct(word: string, big: boolean): WakeAct {
     if (!id) return;
     clear();
     setShown((s) => (s.id === id ? { ...s, frame: null, hop: false, over: true } : s));
-  }, [id]);
+    // the card in focus ends the wake itself: Today stops holding the word on stage
+    if (big) releaseWake(id);
+  }, [id, big]);
 
   if (!id || !phase) return NONE;
   // the first render of a wake, before its effect has run: hold the look, never show the word early

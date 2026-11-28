@@ -12,7 +12,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import type { TileState } from "../TileCharacter";
 import { careState } from "../LetterTile";
 import { useGame, type OwnedWord } from "../state";
-import { WAKE, wakeActMs, type WakeOutcome, type WakePhase } from "./wakeFlow";
+import { WAKE, wakeActMs, type WakeOutcome, type WakePhase, type WakeResult } from "./wakeFlow";
 
 export interface WakeRun {
   id: number;
@@ -47,17 +47,36 @@ export function beginWake(words: readonly Pick<OwnedWord, "word" | "staked" | "d
   return id;
 }
 
-/** The wake ended. Landed: the act plays, then the wake is let go. Anything else: the letters settle back at once. */
-export function endWake(id: number, outcome: WakeOutcome, reduced = false) {
+/**
+ * The wake ended. Landed: the act plays, then the wake is let go. Anything else: the letters
+ * settle back at once. `woke` narrows the wake to the words that did wake: one that stayed asleep
+ * has no part, or it would bow and then go back to sleep (Bugbot on #334).
+ */
+export function endWake(id: number, outcome: WakeOutcome, reduced = false, woke?: readonly string[]) {
   if (run?.id !== id) return;
-  if (outcome !== "landed") {
+  const words = woke ? run.words.filter((w) => woke.includes(w)) : run.words;
+  if (outcome !== "landed" || words.length === 0) {
     if (timer) clearTimeout(timer);
     return set(null);
   }
-  const longest = Math.max(1, ...run.words.map((w) => w.length));
-  set({ ...run, phase: "landed" });
+  const longest = Math.max(1, ...words.map((w) => w.length));
+  set({ ...run, words, focus: run.focus && words.includes(run.focus) ? run.focus : null, phase: "landed" });
   later(() => run?.id === id && set(null), Math.max(wakeActMs(longest, reduced), WAKE.hopFirst + WAKE.hopCards * WAKE.hopStep + WAKE.hopMs) + 250);
 }
+
+/**
+ * Let the wake go before its act is over: the player tapped the card in focus to end the bow.
+ * Today holds the woken word on stage for as long as the wake is in hand, so a skipped bow must
+ * let go of it too, or the word stays parked for the rest of the act (Bugbot on #334).
+ */
+export function releaseWake(id: number) {
+  if (run?.id !== id || run.phase !== "landed") return;
+  if (timer) clearTimeout(timer);
+  set(null);
+}
+
+/** The wake in hand, outside React (tests). */
+export const currentWake = (): WakeRun | null => run;
 
 /** For tests, and for a store that is swapped out under the game. */
 export function resetWake() {
@@ -86,7 +105,7 @@ export function useWake() {
       if (run?.phase === "waiting") return void send();
       const id = beginWake(words, opts.focus ?? null);
       void send().then(
-        (outcome) => endWake(id, outcome, opts.reduced),
+        (r: WakeResult) => (typeof r === "string" ? endWake(id, r, opts.reduced) : endWake(id, "landed", opts.reduced, r.landed)),
         () => endWake(id, "none"),
       );
     },

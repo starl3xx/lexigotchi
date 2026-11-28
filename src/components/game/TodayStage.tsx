@@ -14,7 +14,7 @@
  * It replaces the old "N words need feeding" card: hunger was a text badge two taps away, and it
  * is the reason a tamagotchi gets opened every day.
  */
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import type { Gild } from "./TileCharacter";
 import { WordTiles, careState } from "./LetterTile";
 import { Button, HungerBadge, Pill } from "./primitives";
@@ -103,15 +103,15 @@ export function TodayStage() {
   const [chosen, setChosen] = useState<string | null>(null);
   // Which side the next word slides in from (SceneFrame). None on first show.
   const [enter, setEnter] = useState<"next" | "prev" | null>(null);
-  // The act is over: the next sleepy word steps up, from the right.
-  const wasHeld = useRef<string | null>(null);
-  useEffect(() => {
-    if (held) wasHeld.current = held;
-    else if (wasHeld.current) {
-      wasHeld.current = null;
-      setEnter("next");
-    }
-  }, [held]);
+  // The act is over: the next sleepy word steps up, from the right. The side is set WHILE
+  // rendering, in the very render the stage lets go of the woken word: SceneFrame takes the side
+  // at the moment its word changes, so an effect (one render late) would leave the next word to
+  // pop in with no slide (Bugbot on #334).
+  const [heldSeen, setHeldSeen] = useState<string | null>(null);
+  if (held !== heldSeen) {
+    setHeldSeen(held);
+    if (heldSeen && !held) setEnter("next");
+  }
 
   const indexOf = (name: string | null) => (name ? items.findIndex((i) => i.word.word === name) : -1);
   const featured = indexOf(chosen) >= 0 ? chosen : indexOf(held) >= 0 ? held : (items[0]?.word.word ?? null);

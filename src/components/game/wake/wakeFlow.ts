@@ -21,6 +21,12 @@ import type { TileState } from "../TileCharacter";
 
 /** How a wake ended: the words read back awake; sent, but not seen yet; or nothing was sent. */
 export type WakeOutcome = "landed" | "pending" | "none";
+/**
+ * What a store's wake answers: the outcome, or, when only SOME of the words woke (the practice
+ * game's "Wake all" with too little $WORD for all of them), the ones that did. A word that
+ * stayed asleep has nothing to act.
+ */
+export type WakeResult = WakeOutcome | { landed: readonly string[] };
 export type WakePhase = "waiting" | "landed";
 
 /** What a card's letters wear at one moment of the act: a state and a moment's class for each, and the hands. */

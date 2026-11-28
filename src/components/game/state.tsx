@@ -8,7 +8,7 @@
  * Determinism: a seeded RNG (held in a ref) computes every random outcome; the reducer stays
  * pure (it only applies already-computed results), mirroring the commit→reveal contract pattern.
  */
-import type { WakeOutcome } from "./wake/wakeFlow";
+import type { WakeOutcome, WakeResult } from "./wake/wakeFlow";
 import {
   createContext,
   useCallback,
@@ -863,8 +863,8 @@ export interface GameApi {
    * the words read back awake, it was sent but not seen yet, or nothing was sent. The cards act
    * the wake out from that (./wake), so a Wake button calls `useWake`, never these on their own.
    */
-  feed: (word: string) => Promise<WakeOutcome>;
-  feedAll: () => Promise<WakeOutcome>;
+  feed: (word: string) => Promise<WakeResult>;
+  feedAll: () => Promise<WakeResult>;
   /** null = didn't attempt; true = ascended; false = failed. Chain store resolves asynchronously. */
   /**
    * `finishOnly`: finish the attempt that is already paid for and open on this word, and never
@@ -1148,7 +1148,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
           affordable >= hungry.length ? "Your words are awake" : `Woke ${affordable} of ${hungry.length}: out of $WORD`,
           affordable >= hungry.length ? "good" : "info",
         );
-        return Promise.resolve<WakeOutcome>("landed");
+        // The reducer wakes them in the list's order, the free one first, for as long as the balance
+        // lasts: only those have a part in the act.
+        return Promise.resolve<WakeResult>(affordable >= hungry.length ? "landed" : { landed: hungry.slice(0, affordable).map((w) => w.word) });
       },
       prestige: (word) => {
         const w = state.words.find((x) => x.word === word);
