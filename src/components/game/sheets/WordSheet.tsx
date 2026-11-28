@@ -217,7 +217,7 @@ export function WordSheet({ word: wordKey }: { word: string }) {
       {/* prestige: hidden entirely while the contract has it switched off (maxLevel 0), except for
           a word with a paid, unfinished attempt: that one keeps its way to the sheet that finishes it */}
       {((fullyRaised && maxLevel > 0) || unfinishedAscent) && (
-        <Card className={`mb-3 bg-gradient-to-b from-card to-gold/10 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
+        <Card tint="gold" className={`mb-3 ${word.mine || word.care ? "" : "pointer-events-none opacity-40"}`}>
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1 font-display font-extrabold">

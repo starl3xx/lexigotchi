@@ -51,7 +51,7 @@ export function BountySection() {
 
   return (
     <section data-section="bounty" aria-label="Weekly bounty" className="space-y-3 lg:space-y-4">
-      <Card className="bg-gradient-to-b from-teal/15 to-paper">
+      <Card tint="teal">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm font-bold text-teal-ink">This week’s bounty</div>

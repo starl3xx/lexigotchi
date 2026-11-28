@@ -20,7 +20,7 @@
  * that never revealed) come first, across both columns, when there is one.
  */
 import type { ReactNode } from "react";
-import { Countdown, SectionTitle, TweenNumber } from "../primitives";
+import { Countdown, SectionTitle, TINT, TweenNumber } from "../primitives";
 import { Coins, Eye, Medal, Trophy } from "../ui/icons";
 import { THEMES, jackpotEligible, showsUsd, useGame } from "../state";
 import { POOL_DAILY_SHARE, jackpotStanding, potLine } from "../todayPots";
@@ -153,8 +153,8 @@ export function TodayPots() {
 }
 
 const TILE_TONE = {
-  gold: { tile: "from-card to-gold/15", amount: "text-gold-deep", icon: "text-gold-ink" },
-  teal: { tile: "from-card to-teal/15", amount: "text-teal-ink", icon: "text-teal-ink" },
+  gold: { tile: TINT.gold, amount: "text-gold-deep", icon: "text-gold-ink" },
+  teal: { tile: TINT.teal, amount: "text-teal-ink", icon: "text-teal-ink" },
 } as const;
 
 /** One pot: its name, its $WORD amount, about what that is in dollars, and a line of its own. */
@@ -181,7 +181,7 @@ function PotTile({
   return (
     <button
       onClick={onClick}
-      className={`cel-sm press flex min-w-0 flex-col rounded-2xl bg-card bg-gradient-to-b p-3 text-left md:p-4 ${t.tile}`}
+      className={`cel-sm press flex min-w-0 flex-col rounded-2xl p-3 text-left md:p-4 ${t.tile}`}
     >
       {/* A narrow tile (a phone's ~114 px, a 768 px tablet's ~149 px beside the rail): the icon
           goes above the name, so "Rewards Pool" keeps one line and the three amounts stand level.

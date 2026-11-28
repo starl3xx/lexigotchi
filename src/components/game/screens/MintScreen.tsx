@@ -108,7 +108,7 @@ export function MintScreen() {
       )}
 
       {/* pack of 5: paid, for every wallet */}
-      <Card className="bg-gradient-to-b from-card to-candy/10">
+      <Card tint="candy">
         <div className="flex items-start justify-between">
           <div>
             <div className="font-display text-xl font-extrabold">Pack of 5</div>

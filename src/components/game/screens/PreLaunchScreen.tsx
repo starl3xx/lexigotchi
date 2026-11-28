@@ -158,7 +158,7 @@ export function PreLaunchScreen() {
           </div>
 
           {/* what every verified player gets at launch (not exclusive to this campaign) */}
-          <div className="cel mt-6 rounded-2xl bg-gradient-to-b from-card to-gold/20 p-4">
+          <div className="cel mt-6 rounded-2xl bg-wash-gold p-4">
             <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-extrabold text-gold-ink">
               <Gift weight="fill" size={14} /> Free letters at launch
             </div>

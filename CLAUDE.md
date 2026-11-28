@@ -1572,6 +1572,27 @@ bot posts). The hard rules:
   notification templates: no em dashes (pick the mark the sentence needs: colon, comma, period, or
   brackets; a missing value shows an en dash "–"), curly apostrophes and quotes, and "onchain" as one
   word. Code comments are exempt.
+- **The design language: three kinds of thing, and one test** (decisions.md #66; starl3xx,
+  2026-11-27, adopting the design audit's 1A). **A letter** is a character (the tile, its face,
+  arms, legs, and what it wears: its gilding and its rarity's finish): flat and colourful with an
+  even ink outline, moving all the time, never changing size, set in Söhne. **A card, and what is
+  around a letter,** is an object (the card, its face, frame, ribbon, and back, and every effect
+  that is not the letter: shadow, rays, confetti, halo, rack, table): engraved, ruled linework in
+  ink on paper; it moves in moments; the serif says what is true about the word, and the word is
+  Söhne. **The interface** is the desk the cards lie on, and the labels and controls beside them:
+  paper and ink, flat, quiet, ruled where it needs a line, with NO engraving of its own to compete
+  with a card. Colour there means something (below). It moves only when touched, or when
+  something arrives. Söhne for names and controls, the serif for figures and facts, and status is
+  never bold. **The test for any element is one question: is it on the letter?** Yes: flat and
+  colourful. Around the letter: engraved. Neither: interface, and it stays quiet. Not adopted
+  yet, because each is its own open choice: a colour that names a room, and one settling time for
+  the interface. **A box is flat** (part 1): no box in the interface fades from one colour to
+  another. A box that belongs to one of the meanings takes a `<Card tint="gold" | "teal" |
+  "candy">` (`wash` in tailwind.config.ts: the hue thinned into the card's own colour, a SOLID
+  colour that takes the place of `bg-card`). Gold is 15% and no more, because `gold.deep` display
+  numbers stand on it. `tests/flat-tints.test.ts` holds it. **After changing tailwind.config.ts,
+  touch `src/app/globals.css`:** a running dev server kept serving the old stylesheet (the new
+  classes painted nothing), through a restart too.
 - **The game's visual system (UI proposal, Nov 2026).** One meaning per color: teal = grow and care
   (claim, stake, feed), gold = chance (roll, jackpot), candy = spend (packs, Buy $WORD, connect),
   ink = "you are here" (active tab, switches, filters). Colored text uses the `-ink` shades and
