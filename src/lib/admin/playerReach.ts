@@ -92,7 +92,10 @@ export interface ReachSummary {
   /** Each a count of players; null when that fact couldn't be read. */
   accounts: { farcaster: number | null; x: number | null; email: number | null; telegram: number | null; coinbase: number | null; wallets: number | null };
   channels: { farcasterApp: number | null; browsers: number | null; email: number | null; telegram: number | null; any: number | null; weekly: number | null };
-  /** Per kind: how many players get it, and how many changed it from its default. Null: the choices couldn't be read. */
+  /**
+   * Per kind: how many players keep it on (their choice, whatever channels they have: a player with
+   * none still chose), and how many changed it from its default. Null: the choices couldn't be read.
+   */
   kinds: Record<ReminderKind, { getting: number; changed: number }> | null;
 }
 

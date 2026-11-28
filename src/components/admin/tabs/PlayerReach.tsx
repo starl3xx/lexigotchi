@@ -104,7 +104,7 @@ function SummaryCard({ summary: s, on, farcasterUsers }: { summary: ReachSummary
           {line("At least one of these", s.channels.any)}
         </div>
         <div className="space-y-1">
-          <SectionLabel>Kinds · players who get each</SectionLabel>
+          <SectionLabel>Kinds · players who keep each on</SectionLabel>
           {s.kinds ? (
             REMINDER_KINDS.map((k) => (
               <div key={k} className="flex items-baseline justify-between gap-3 text-sm">
