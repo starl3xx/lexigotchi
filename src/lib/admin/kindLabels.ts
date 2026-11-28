@@ -7,7 +7,7 @@
 import type { ReminderKind } from "@/lib/notify/kinds";
 
 export const KIND_SHORT: Record<ReminderKind, string> = {
-  hunger: "hungry word",
+  hunger: "word falling asleep",
   daily: "daily letter",
   jackpot: "jackpot win",
   sold: "sales",
