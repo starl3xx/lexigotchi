@@ -196,7 +196,7 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
           </button>
           <TierBadge tier={tier} />
           <PrestigeStars level={l.prestigeLevel} />
-          {number ? <span className="text-xs font-bold tabular-nums text-ink/60">{cardNumber(number)}</span> : null}
+          {number ? <span className="fact text-xs text-ink/60">{cardNumber(number)}</span> : null}
           {mine && <Pill className="bg-card">Yours</Pill>}
         </div>
         <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-ink/60">
@@ -215,7 +215,7 @@ function WordRow({ listing: l, cost, prices, number }: { listing: WordListing; c
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <div className="text-right" title={amount(l.price)}>
-          <div className="font-display text-lg font-extrabold leading-none tabular-nums">{fmtWord(l.price)}</div>
+          <div className="fig text-lg leading-none">{fmtWord(l.price)}</div>
           <div className="text-xs text-ink/55">$WORD</div>
         </div>
         {mine ? (

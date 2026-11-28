@@ -398,7 +398,7 @@ function OddsMeter({ prob, firstTry, pity }: { prob: number; firstTry: number; p
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs font-bold text-ink/70">
         <span>odds this try</span>
-        <span className="font-display text-sm text-ink">{pct(prob)}</span>
+        <span className="fig text-sm text-ink">{pct(prob)}</span>
       </div>
       <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-paper-dark">
         <div className="h-full bg-gold transition-[width]" style={{ width: `${prob * 100}%` }} />

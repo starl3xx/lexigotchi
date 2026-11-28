@@ -3866,6 +3866,52 @@ setter. All small, riding existing suite patterns.
         a raised letter, and the recent jackpot words. **Not seen:** the pre-launch chip, the
         "Claim" button's twinkle (no word was ready to claim), and the roll step's crown (none
         was offered); all three are the same drawing at sizes I did see on the sheet.
+    - **Part 3, figures and facts are in the card's serif, and status is never bold (3C).**
+      "Status should never be bold" was his own rule from the audit's brief, and the game broke
+      it: a status mark's value was Söhne at 800, heavier than the mark's own name. The audit
+      asked which face the value takes (3A Söhne, 3B the serif). **He did not say 3A or 3B.**
+      He approved 3C, whose own list names "a status value" as the serif's, so I built 3B. The
+      face is one rule (`.tm-val` in globals.css), so 3A is a one-line change if he prefers it.
+      - **The serif has two voices in the interface, and no more** (globals.css). `.fig` is a
+        FIGURE that stands as a value: a pot, a balance, a price, a count, a rank. Bold, as the
+        card's back sets its number. `.fact` is a FACT in words, or a quiet value in a ledger:
+        a status, a card's number in a list, "One of 312 Legendary words". Regular.
+      - **Where it went:** the status values; Today's pots; the balance in the header and in
+        Your $WORD; the earnings sheet; the Jackpot's pot and the bounty's pool; every price
+        in the Market (just sold, the words, the letters' shelf and their sellers, the sell
+        desk, the price ideas, the sold list) and in the Shop; the $WORD page's stats and its
+        ledgers; the Let's Have A Word! page's figures; the swap's quote; the leaderboard's
+        ranks and counts; the letter odds; the ascend sheet's odds; a card's number beside a
+        word; and the value side of the two fact lists (under an opened card, and in the word
+        view).
+      - **Never in the serif: a word or a letter of the game, a name, a button, a tab, a chip,
+        a heading, or a sentence.** So the class goes on the figure itself, never on a slot
+        that several things share. Three places showed why: the Let's Have A Word! page shows
+        last round's WORD where it shows the pot's figure; the $WORD page's ledger has one
+        name among its numbers; and the fact lists hold a player's name, a set's name, and the
+        bounty's theme. **The bounty's theme stays Söhne everywhere**, because a theme can name
+        a letter ("Ends in Y"). In the picture he approved, the theme on Today's bounty pot was
+        in the serif: my restyle caught every heavy line in the tile. It is the one thing I
+        built differently from that picture.
+      - **A number inside a sentence or a button is not changed here.** "Buy for 9.80M" and
+        "Costs about 4.93M to make" stay one face. Their weight is part 4's.
+      - **The figures are narrower than they were**, and the face's own digits are all one
+        width (measured in both engines), so a number that counts up does not shift. The
+        longest pot the test game shows ("776.74M") fits its tile from 360 px up, where it was
+        sized to fit before.
+      - `tests/serif-figures.test.tsx` holds it: the two weights, no weight class beside a
+        serif class, no word, letter, or name inside one, the shared slots listed above, and
+        "status is never bold" on the marks.
+      - **Seen** in the practice game at 1,280 px (Today, the Market, the $WORD page, an
+        opened word, the ascend sheet) and at 320, 390, and 768 px (Today; the ledgers at
+        390). **Not seen:** the leaderboard with rows (the practice game has none), the Shop
+        (it does not show in the practice game), and the swap's quote (it needs a wallet).
+        **Found, and not from this change:** the practice game's phone header runs past a
+        screen under 364 px wide (its extra "skip a day" button); it measures the same with the
+        old type.
+      - **Not built, and still his to answer (8B):** an email's ledger still sets a word and a
+        letter in the serif. An email cannot load Söhne, and no real mail program has shown
+        the result, so that waits for his word.
 
 ## Pricing & launch economics (decided June 2026)
 

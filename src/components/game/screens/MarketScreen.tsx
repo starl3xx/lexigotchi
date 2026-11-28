@@ -130,7 +130,7 @@ export function MarketScreen() {
               {s.kind === "word" && s.word && <TierMark tier={tierOf(s.word)} size={12} />}
               <SoldThing sale={s} size={24} />
               {s.kind === "letter" && s.qty > 1 && <span>×{s.qty}</span>}
-              <strong className="font-display text-ink tabular-nums">{fmtWord(s.kind === "letter" ? s.unitPrice : s.price)}</strong>
+              <span className="fig text-ink">{fmtWord(s.kind === "letter" ? s.unitPrice : s.price)}</span>
             </button>
           ))}
         </div>
@@ -225,7 +225,7 @@ function DealRow({
               <WordTiles word={l.word} upper={[...l.upper]} size={22} tier={tierOf(l.word)} still />
             </button>
             <TierBadge tier={tierOf(l.word)} />
-            {number ? <span className="text-xs font-bold tabular-nums text-ink/60">{cardNumber(number)}</span> : null}
+            {number ? <span className="fact text-xs text-ink/60">{cardNumber(number)}</span> : null}
           </div>
           <p className="mt-0.5 text-xs text-ink/70">
             <strong className="text-teal-ink">{pct(d.under)[0].toUpperCase() + pct(d.under).slice(1)}</strong>

@@ -61,12 +61,12 @@ export function BountySection() {
         </div>
         <div className="mt-2 flex items-end justify-between">
           <div>
-            <div className="font-display text-2xl font-extrabold text-teal-ink">{fmtWord(POOL)}</div>
+            <div className="fig text-2xl text-teal-ink">{fmtWord(POOL)}</div>
             <div className="text-xs text-ink/60">pool · fresh theme each week</div>
           </div>
           {!state.chainBacked && (
             <div className="text-right">
-              <div className="font-display text-lg font-extrabold">~{fmtWord(POOL * share)}</div>
+              <div className="fig text-lg">~{fmtWord(POOL * share)}</div>
               <div className="text-xs text-ink/60">your projected cut</div>
             </div>
           )}

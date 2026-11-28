@@ -331,18 +331,20 @@ export function CardMore({ word }: { word: OwnedWord }) {
   const tokenHref = tokenHrefOf(word.word, state.chainBacked);
   return (
     <dl className="sc-more">
-      <Row label="Rarity">
+      {/* A fact is in the card's serif. A NAME is not (who found it, its set, its partner): the
+          serif never letters a name in the interface (decisions.md #66, part 3). */}
+      <Row label="Rarity" fact>
         One of {fmt(f.ofTier)} {f.tier} words
       </Row>
       <Row label="Found by">{s.found}</Row>
       {f.set && <Row label="Set">{f.set}</Row>}
       {f.collab && <Row label="Collab">{collabLine(f.collab)}</Row>}
-      <Row label="Earned so far">{s.earned}</Row>
-      <Row label="Earns staked">{s.perDay}</Row>
-      <Row label="Cost to make">{s.cost}</Row>
-      <Row label="Points">{f.points}</Row>
-      <Row label="Jackpot">{s.jackpot ?? DASH}</Row>
-      <Row label="Token">
+      <Row label="Earned so far" fact>{s.earned}</Row>
+      <Row label="Earns staked" fact>{s.perDay}</Row>
+      <Row label="Cost to make" fact>{s.cost}</Row>
+      <Row label="Points" fact>{f.points}</Row>
+      <Row label="Jackpot" fact>{s.jackpot ?? DASH}</Row>
+      <Row label="Token" fact>
         {tokenHref ? (
           <a href={tokenHref} target="_blank" rel="noreferrer" className="underline underline-offset-2" aria-label={`${word.word} on the block explorer`}>
             {f.token}
@@ -355,11 +357,11 @@ export function CardMore({ word }: { word: OwnedWord }) {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({ label, fact = false, children }: { label: string; /** a figure or a fact in words: the card's serif. Never set for a name. */ fact?: boolean; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
       <dt className="shrink-0 font-semibold text-ink/60">{label}</dt>
-      <dd className="min-w-0 text-right">{children}</dd>
+      <dd className={`min-w-0 text-right ${fact ? "fact" : ""}`}>{children}</dd>
     </div>
   );
 }

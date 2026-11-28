@@ -62,7 +62,7 @@ export function JackpotScreen() {
           <div className="text-sm font-bold text-ink/60">Daily jackpot</div>
           {!state.jackpotRevealed ? (
             <>
-              <div className="my-1 font-display text-4xl font-extrabold text-gold-deep">
+              <div className="fig my-1 text-4xl text-gold-deep">
                 <TweenNumber value={state.jackpotPot} format={fmtWord} />
               </div>
               <div className="text-xs text-ink/60">$WORD · draws in <Countdown /></div>

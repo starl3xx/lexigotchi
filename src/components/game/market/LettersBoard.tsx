@@ -99,7 +99,7 @@ export function LettersBoard({
               <span className="mk-rule" />
               {s.lowest !== undefined ? (
                 <span className="mk-tag">
-                  <span className="block font-display text-[11px] font-extrabold tabular-nums">{fmtWord(s.lowest)}</span>
+                  <span className="fig block text-[11px]">{fmtWord(s.lowest)}</span>
                   <span className="block text-[10px] opacity-70">×{s.available}</span>
                 </span>
               ) : (
@@ -263,7 +263,7 @@ function AskRow({ ask, make, best, amount }: { ask: LetterAsk; make: number; bes
     <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2">
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <strong className="font-display text-base tabular-nums">{fmtWord(ask.unitPrice)}</strong>
+          <span className="fig text-base">{fmtWord(ask.unitPrice)}</span>
           <span className="text-xs text-ink/60">$WORD each</span>
           {best && <span className="rounded-full bg-teal/25 px-2 py-0.5 text-xs font-extrabold text-teal-ink">Lowest</span>}
           {mine && <Pill className="bg-gold/30">Yours</Pill>}

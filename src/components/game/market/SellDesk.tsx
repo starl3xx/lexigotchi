@@ -163,7 +163,7 @@ export function SellDesk({
                 <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                   <WordTiles word={l.word} upper={l.upper} size={22} still />
                   <span className="text-sm">
-                    <strong className="font-display tabular-nums">{fmtWord(l.price)}</strong> <span className="text-xs text-ink/60">$WORD</span>
+                    <span className="fig">{fmtWord(l.price)}</span> <span className="text-xs text-ink/60">$WORD</span>
                   </span>
                 </span>
                 {g.market.isHere(l.maker) ? (
@@ -180,7 +180,7 @@ export function SellDesk({
                 <span className="flex min-w-0 items-center gap-3">
                   <LetterTile char={letterLabel(l.letterId)} upper={isUpperId(l.letterId)} size={34} count={l.unsold} dim={l.state === "paused"} />
                   <span className="min-w-0 text-sm">
-                    <strong className="font-display tabular-nums">{fmtWord(l.unitPrice)}</strong> <span className="text-xs text-ink/60">$WORD each</span>
+                    <span className="fig">{fmtWord(l.unitPrice)}</span> <span className="text-xs text-ink/60">$WORD each</span>
                     <span className="block text-xs text-ink/60">
                       {l.state === "live"
                         ? l.available < l.unsold

@@ -64,7 +64,7 @@ export function LeaderboardScreen() {
               const you = mine.has(r.address);
               return (
                 <li key={r.address} className={`flex items-center gap-3 px-3 py-2.5 text-sm ${you ? "bg-teal/10" : ""}`}>
-                  <span className={`w-6 shrink-0 text-center font-display font-extrabold ${i < 3 ? "text-gold-ink" : "text-ink/45"}`}>
+                  <span className={`fig w-6 shrink-0 text-center ${i < 3 ? "text-gold-ink" : "text-ink/45"}`}>
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -72,7 +72,7 @@ export function LeaderboardScreen() {
                     {r.wallets ? <span className="mt-0.5 block text-[11px] text-ink/50">{r.wallets} linked wallets</span> : null}
                   </span>
                   <span className="shrink-0 text-right tabular-nums">
-                    <span className="font-display font-extrabold">{r.value.toLocaleString("en-US")}</span>{" "}
+                    <span className="fig">{r.value.toLocaleString("en-US")}</span>{" "}
                     <span className="text-xs text-ink/55">{meta.unit(r.value)}</span>
                     {board === "wins" && r.amount ? (
                       <span className="block text-xs text-ink/60">{fmtWord(r.amount)} $WORD</span>

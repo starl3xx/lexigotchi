@@ -121,7 +121,7 @@ function ItemView({ card, about, pictured, now, poolPct, word }: { card: ItemCar
       <div className="min-w-0 space-y-3">
         <div>
           <div className="text-xs font-bold text-ink/60">{KIND_NAME[card.meta.kind]}</div>
-          <div className="font-display text-xl font-extrabold">{usdcLabel(card.item.priceUsdc, testnet)}</div>
+          <div className="fig text-xl">{usdcLabel(card.item.priceUsdc, testnet)}</div>
         </div>
         <p className="text-sm text-ink/75">
           {/* a face's own line first ("A small world under the stars."), then what any face is */}

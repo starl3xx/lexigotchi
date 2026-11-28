@@ -93,7 +93,7 @@ export function LetterOdds({
                   </>
                 )}
               </span>
-              <strong className="w-[3.25rem] shrink-0 text-right font-display text-sm tabular-nums">{gone ? "–" : fmtOdds(p)}</strong>
+              <span className="fig w-[3.25rem] shrink-0 text-right text-sm">{gone ? "–" : fmtOdds(p)}</span>
             </li>
           );
         })}

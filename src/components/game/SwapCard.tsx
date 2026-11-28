@@ -271,7 +271,7 @@ export function SwapCard() {
         <div className="rounded-xl border-2 border-dashed border-ink/25 px-3 py-2 text-sm">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-ink/60">You get about</span>
-            <span className="font-display text-lg font-extrabold tabular-nums">
+            <span className="fig text-lg">
               {out != null ? fmtAmount(to, out) : requoting ? "…" : "–"}
             </span>
           </div>
@@ -279,11 +279,11 @@ export function SwapCard() {
             <div className="mt-1 space-y-0.5 text-xs text-ink/60">
               <div className="flex justify-between">
                 <span>At least, with {slippage / 100}% slippage</span>
-                <span className="tabular-nums">{fmtAmount(to, minOut(out, slippage))}</span>
+                <span className="fact">{fmtAmount(to, minOut(out, slippage))}</span>
               </div>
               <div className="flex justify-between">
                 <span>Price impact and fees</span>
-                <span className={`tabular-nums ${impact != null && impact > 3 ? "font-bold text-candy-ink" : ""}`}>
+                <span className={impact != null && impact > 3 ? "fig text-candy-ink" : "fact"}>
                   {impact == null ? "–" : `${impact.toFixed(2)}%`}
                 </span>
               </div>

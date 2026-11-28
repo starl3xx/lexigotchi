@@ -438,7 +438,7 @@ function TopBar({ still }: { still: boolean }) {
         >
           {/* An unknown balance renders as "—", never as 0: a player who sees 0 concludes they
               are broke (or robbed), and every affordability affordance downstream agrees with it. */}
-          <div className="font-display text-sm font-extrabold">
+          <div className="fig text-sm">
             {state.status === "ready" ? <TweenNumber value={state.balance} format={fmtWord} /> : "–"}
           </div>
           <div className="mt-0.5 whitespace-nowrap text-[9px] text-ink/60">
