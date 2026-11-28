@@ -206,3 +206,33 @@ export async function isCoinbaseVerified(wallet: `0x${string}`): Promise<boolean
   });
   return attestationProves(att, wallet, Math.floor(Date.now() / 1000));
 }
+
+/**
+ * `isCoinbaseVerified` for many wallets at once, in two multicalls (the indexer's uids, then the
+ * attestations that exist), for the operator console's Players tab. Throws when either read fails,
+ * so a caller can tell "not verified" from "couldn't check".
+ */
+export async function coinbaseVerifiedMany(wallets: readonly string[]): Promise<Map<string, boolean>> {
+  const list = [...new Set(wallets.map((w) => w.toLowerCase()))].filter((w): w is `0x${string}` => isAddress(w));
+  const out = new Map<string, boolean>(list.map((w) => [w, false]));
+  if (list.length === 0) return out;
+  const client = getMainnetClient();
+  const uids = await client.multicall({
+    allowFailure: false,
+    contracts: list.map((w) => ({
+      address: COINBASE_INDEXER,
+      abi: indexerAbi,
+      functionName: "getAttestationUid" as const,
+      args: [w, VERIFIED_ACCOUNT_SCHEMA] as const,
+    })),
+  });
+  const held = list.map((w, i) => ({ w, uid: uids[i] })).filter((x) => x.uid && !/^0x0+$/.test(x.uid));
+  if (held.length === 0) return out;
+  const atts = await client.multicall({
+    allowFailure: false,
+    contracts: held.map((x) => ({ address: EAS, abi: easAbi, functionName: "getAttestation" as const, args: [x.uid] as const })),
+  });
+  const now = Math.floor(Date.now() / 1000);
+  held.forEach((x, i) => out.set(x.w, attestationProves(atts[i], x.w, now)));
+  return out;
+}

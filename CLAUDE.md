@@ -1196,9 +1196,18 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   → pure `playerRows.ts`): every wallet seen, from the contracts' events since deploy (faucet on
   testnet only; packs and dailies from `Committed`'s count; reveals, claims, rolls, stakes, feeds),
   `scanWorld` holdings, and the database (sightings, profile flags, push browsers, swap listings,
-  Farcaster users), plus the beta group's Telegram member count; a funnel and new-wallet counts that
+  Farcaster users), plus the beta group's Telegram member count; a funnel and new-player counts that
   leave out the TEAM's wallets (the allowlist, `TEAM_WALLETS`, registry roles, server keys, and any
-  wallet linked into a team account). **System** (`/api/admin/system`, `systemStatus.ts`): game mode,
+  wallet linked into a team account). **One row per PLAYER** (`groupPlayers`; starl3xx, 2026-11-27:
+  "this is one player"): an account's wallets are listed in its row and added up, and the funnel
+  counts players. **Reminders and accounts** (`playerReach.ts` pure, `tabs/PlayerReach.tsx`), per
+  player: linked accounts (Farcaster ids from Neynar, X, a confirmed email, Telegram, Coinbase
+  verification in two time-capped mainnet multicalls), reminder channels (Farcaster = an id that
+  added the mini app, as `reachableFid` decides; browsers; email reminders and the weekly email;
+  Telegram, struck through while a channel is off for everyone), and the kinds changed from the
+  defaults (`effectiveKinds`). Whether, never which. Every read has its own state, and one that
+  failed shows "?" (never "no"): `loadPrefs` answers all-off on a failure, so the tab reads the rows
+  itself. **System** (`/api/admin/system`, `systemStatus.ts`): game mode,
   every server key as its public address (`serverKeys.ts`, never the key) with gas and onchain wiring,
   the keeper's last resolve, every feature switch with the setting NAMES it still needs
   (`switches.ts`, shared with Notifications), and applied migrations (drizzle's own table against the
