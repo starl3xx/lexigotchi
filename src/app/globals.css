@@ -955,7 +955,24 @@ body {
 .sc-lean { position: absolute; inset: 0; transform-style: preserve-3d; }
 .sc-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.25, 1.12); }
 .sc.is-back .sc-inner { transform: rotateY(180deg); }
-.sc-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #1b1714; transform: translateZ(0); }
+/* `contain: paint` on a face keeps its letters from JUMPING A PIXEL when the card leans (starl3xx,
+   2026-11-27, with a recording: "when I mouse over a card, the letters shift down a pixel or two
+   and then pop back when my mouse isn't over the card anymore").
+   What happened, in Chromium: a letter stands at a place that is a fraction of a pixel (its row is
+   set in percent of the card), and the browser rounds it to a whole pixel. At rest it rounded the
+   letter's place ON THE PAGE (the card's own place, plus the letter's place in the card). While
+   the card leaned, or turned over, it rounded only the letter's place IN THE CARD. Where the two
+   roundings disagreed, every letter moved one whole pixel the moment the lean began and back the
+   moment it ended, while the scene behind them stood still. Whether they disagreed depended on
+   where the card sat on the page, so it showed at some window sizes and not at others.
+   Paint containment makes the face the place the rounding starts from, always, so both states
+   round the same way. Measured in Chrome over ten positions a tenth of a pixel apart, at two card
+   positions and two pixel ratios: a jump of one pixel at about half of them before, none after.
+   WebKit never jumped. The face already clips (overflow: hidden) and is already its own layer, so
+   containment changes nothing else. Anything on a face that has a transform of its own (the
+   ribbon, a stamp, the band of light) is covered the same way. KEEP IT, and if a letter is ever
+   seen to tick by a pixel as a card starts to move, look here first. */
+.sc-face { position: absolute; inset: 0; overflow: hidden; contain: paint; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #1b1714; transform: translateZ(0); }
 .sc-back { transform: rotateY(180deg) translateZ(0); }
 /* the face turned away takes no taps: under reduced motion the faces stack, the hidden one only
    see-through, and an inert face still caught the front's taps and swipes in Chromium (Bugbot #211) */
