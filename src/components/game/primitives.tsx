@@ -139,11 +139,10 @@ export function TierBadge({ tier }: { tier: Tier }) {
 }
 
 const HUNGER_STYLE: Record<Hunger, { bg: string; Icon: typeof Smiley; label: string }> = {
-  // "full", not "fed": a freshly claimed or staked word starts full with nobody feeding it, and a
-  // tester read "fed" as a claim that they had (decisions.md #13).
-  fed: { bg: "bg-teal/20 text-teal-ink", Icon: Smiley, label: "full" },
-  peckish: { bg: "bg-gold/25 text-gold-ink", Icon: SmileyMeh, label: "peckish" },
-  hungry: { bg: "bg-candy/20 text-candy-ink", Icon: SmileyXEyes, label: "hungry" },
+  // The player's words for the code's three states (decisions.md #63): awake, sleepy, asleep.
+  fed: { bg: "bg-teal/20 text-teal-ink", Icon: Smiley, label: "awake" },
+  peckish: { bg: "bg-gold/25 text-gold-ink", Icon: SmileyMeh, label: "sleepy" },
+  hungry: { bg: "bg-candy/20 text-candy-ink", Icon: SmileyXEyes, label: "asleep" },
 };
 export function HungerBadge({ state }: { state: Hunger }) {
   const s = HUNGER_STYLE[state];

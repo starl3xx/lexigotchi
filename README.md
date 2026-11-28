@@ -11,11 +11,11 @@
 
 A word-pet game on **Base**, a Farcaster Mini App and web app in the _Let's Have A Word!_ $WORD
 universe. Collect animated rubber-hose **letter characters**, roll them from lowercase to
-**UPPERCASE**, spell words from a 4,584-word dictionary that are yours alone, then **stake and
-feed** them to earn $WORD and stay in the running for the daily jackpot. How the game talks about
+**UPPERCASE**, spell words from a 4,584-word dictionary that are yours alone, then **stake them and
+wake** them every day to earn $WORD and stay in the running for the daily jackpot. How the game talks about
 itself is in [`docs/messaging.md`](docs/messaging.md).
 
-<p align="center"><em>Mint → Raise → Claim → Stake &amp; Snack → Win</em></p>
+<p align="center"><em>Mint → Raise → Claim → Stake &amp; Wake → Win</em></p>
 
 ---
 
@@ -74,10 +74,11 @@ served at `/.well-known/farcaster.json`.
    one ERC-721 per word (`tokenId = keccak256(word)`); case is derived from the escrow. The claim fee
    follows the word's rarity, from $0.50 for a Common word to $4.00 for a Mythic one (the tier's
    earning weight × the base; decisions.md #60).
-4. **Stake & Snack** — UPPERCASE words draw yield; any staked, fed word is a jackpot ticket. Feed
-   snacks or they get hungry.
+4. **Stake & Wake** — UPPERCASE words draw yield; any staked, awake word is in the running for the
+   jackpot. Wake them every day or they fall asleep (the code and the contracts still say feed,
+   snack, and hungry: decisions.md #63).
 5. **Win** — Lexigotchi reveals a secret word daily from its own pre-committed hash-chain; hold it
-   staked and fed and you take the whole pot.
+   staked and awake and you take the whole pot.
 
 Two renewable late-game loops sit on top: a **weekly theme bounty** (broad) and **prestige/ascension**
 (deep). Plus **showcases** (share a word you own, X first), the **Market** (words and letters
@@ -121,7 +122,7 @@ npm run typecheck && npm run build
 ```
 
 What the sim shows: solvency is structural; the mint sink is finite (letters mint out ~day 69), so the
-durable economy runs on rolls + snacks; the Rewards Pool finds an equilibrium; and the renewable
+durable economy runs on rolls + waking words (the sim's "snacks"); the Rewards Pool finds an equilibrium; and the renewable
 loops are what keep the late game alive. Full findings in [`docs/decisions.md`](./docs/decisions.md).
 
 ---
@@ -158,7 +159,7 @@ security boundary for any action is the owner's wallet signature, not the route 
 ## Status
 
 Phase 0 prototype → Phase 1 Mint &amp; Claim → Phase 2 Roll &amp; Shine (+ Showcase) → Phase 3 Stake
-&amp; Snack (+ jackpot) → Phase 4 Deepen. The app and the contract suite run on Base Sepolia,
+&amp; Wake (+ jackpot) → Phase 4 Deepen. The app and the contract suite run on Base Sepolia,
 with the hosted keeper and signer; Base mainnet is next. Prices in `params.ts`
 are USD-pegged placeholders the tokenomics sim exists to set.
 

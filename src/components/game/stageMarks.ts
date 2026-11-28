@@ -46,21 +46,21 @@ export function stageMarks(i: MarkInput): [StageMark, StageMark, StageMark] {
 
   const fed: StageMark =
     i.mood === "full"
-      ? { key: "fed", about: "Fed", value: i.justFed ? "Full again" : "Full", tone: "teal" }
+      ? { key: "fed", about: "Awake", value: i.justFed ? "Awake again" : "Wide awake", tone: "teal" }
       : i.mood === "peckish"
-        ? { key: "fed", about: "Fed", value: `Peckish, day ${i.daysUnfed}`, tone: "gold" }
+        ? { key: "fed", about: "Awake", value: `Sleepy, day ${i.daysUnfed}`, tone: "gold" }
         : i.mood === "hungry"
-          ? { key: "fed", about: "Fed", value: `Hungry, day ${i.daysUnfed}`, tone: "candy" }
+          ? { key: "fed", about: "Awake", value: `Asleep, day ${i.daysUnfed}`, tone: "candy" }
           : i.mood === "forSale"
-            ? { key: "fed", about: "Fed", value: "For sale", tone: "quiet" }
-            : { key: "fed", about: "Fed", value: "Not staked", tone: "quiet" };
+            ? { key: "fed", about: "Awake", value: "For sale", tone: "quiet" }
+            : { key: "fed", about: "Awake", value: "Not staked", tone: "quiet" };
 
   // "In the running", never a draw or a ticket (docs/messaging.md). A word is in while it is staked and fed.
   const jackpot: StageMark =
     i.mood === "full" || i.mood === "peckish"
       ? { key: "jackpot", about: "Jackpot", value: "In the running", tone: "gold" }
       : i.mood === "hungry"
-        ? { key: "jackpot", about: "Jackpot", value: "Out until fed", tone: "candy" }
+        ? { key: "jackpot", about: "Jackpot", value: "Out while asleep", tone: "candy" }
         : i.mood === "forSale"
           ? { key: "jackpot", about: "Jackpot", value: "Out while for sale", tone: "quiet" }
           : { key: "jackpot", about: "Jackpot", value: "Stake to enter", tone: "quiet" };
@@ -76,8 +76,8 @@ export function stageMarks(i: MarkInput): [StageMark, StageMark, StageMark] {
           : i.mood === "full"
             ? { key: "earns", about: "Earns", value: i.earned ? `+${i.earned.amount} ${i.earned.when}` : "$WORD every day", tone: "teal" }
             : i.mood === "peckish"
-              ? { key: "earns", about: "Earns", value: "Half until fed", tone: "gold" }
-              : { key: "earns", about: "Earns", value: "Nothing until fed", tone: "candy" };
+              ? { key: "earns", about: "Earns", value: "Half while sleepy", tone: "gold" }
+              : { key: "earns", about: "Earns", value: "Nothing while asleep", tone: "candy" };
 
   return [fed, jackpot, earns];
 }

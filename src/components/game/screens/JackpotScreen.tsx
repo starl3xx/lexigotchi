@@ -75,7 +75,7 @@ export function JackpotScreen() {
                   if (res === "win") g.toast("JACKPOT! You held the word", "good");
                   else if (res === "lose")
                     g.toast(
-                      ownedAnswer ? "So close: you held it, but it wasn’t staked and fed" : "Not your word today. It rolls over",
+                      ownedAnswer ? "So close: you held it, but it wasn’t staked and awake" : "Not your word today. It rolls over",
                       ownedAnswer ? "bad" : "info",
                     );
                 }}
@@ -88,7 +88,7 @@ export function JackpotScreen() {
               <Confetti weight="fill" size={48} className="mx-auto animate-pop text-gold-ink" />
               <div className="font-display text-3xl font-extrabold text-gold-deep">JACKPOT!</div>
               <p className="text-sm text-ink/70">
-                You held <strong>{state.jackpotWord}</strong>, staked &amp; fed. The pot is yours.
+                You held <strong>{state.jackpotWord}</strong>, staked &amp; awake. The pot is yours.
               </p>
               {ownedAnswer && <WonCard word={ownedAnswer} />}
             </div>
@@ -101,7 +101,7 @@ export function JackpotScreen() {
               </FaceUp>
               <p className="text-sm">
                 {ownedAnswer
-                  ? "You owned it, but it wasn’t staked and fed. Feed your words!"
+                  ? "You owned it, but it wasn’t staked and awake. Wake your words!"
                   : "You didn’t hold it. The pot rolls over."}
               </p>
               <Button full variant="ghost" className="mt-3" onClick={g.skipDay}>
@@ -114,9 +114,9 @@ export function JackpotScreen() {
         {/* your words in the running */}
         <Card>
           <SectionTitle action={<span className="text-xs text-ink/55">{tickets.length} in play</span>}>Your words in the running</SectionTitle>
-          <p className="mb-2 text-xs text-ink/60">Every word you keep staked and fed is in the running. If it’s today’s secret word, the pot is yours.</p>
+          <p className="mb-2 text-xs text-ink/60">Every word that is staked and awake is in the running. If it’s today’s secret word, the pot is yours.</p>
           {tickets.length === 0 ? (
-            <p className="text-sm text-candy-ink">None of your words is in the running. Stake one and keep it fed.</p>
+            <p className="text-sm text-candy-ink">None of your words is in the running. Stake one and wake it every day.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {tickets.map((w) => (

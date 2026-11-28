@@ -60,9 +60,9 @@ export function jackpotStanding(i: {
 }): JackpotStanding | null {
   if (i.revealedWord) return { text: "Today’s word was", word: i.revealedWord, tone: "quiet" };
   if (i.holds === "in") return { text: "You may be holding today’s word", tone: "candy", secret: true };
-  if (i.holds === "out") return { text: "You hold today’s word. Stake it and keep it fed!", tone: "candy" };
+  if (i.holds === "out") return { text: "You hold today’s word. Stake it and wake it!", tone: "candy" };
   if (!i.wordsKnown) return null;
-  if (i.words === 0) return { text: "Spell a word, stake it, and keep it fed to enter", tone: "quiet" };
-  if (i.inTheRunning === 0) return { text: "Stake a word and keep it fed to enter", tone: "quiet" };
+  if (i.words === 0) return { text: "Spell a word, stake it, and wake it every day to enter", tone: "quiet" };
+  if (i.inTheRunning === 0) return { text: "Stake a word and wake it every day to enter", tone: "quiet" };
   return { text: "You’re in the running", tone: "gold" };
 }

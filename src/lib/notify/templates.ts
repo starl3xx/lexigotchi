@@ -1,7 +1,7 @@
 /**
  * Notification copy, in Lexigotchi's voice: the pet voice of the messaging guide (docs/messaging.md,
  * decisions.md #24). A reminder names the letter or word it's about, written in its case ("FUNKY is
- * peckish", "your q"), and a jackpot line always carries "staked and fed".
+ * sleepy", "your q"), and a jackpot line always carries "staked and awake".
  *
  * TWO RULES, both learned from reading LHAW's production notifier:
  *
@@ -62,10 +62,10 @@ function rotate<T>(variants: readonly T[], day: number): T {
 // A hungry word earns nothing AND loses jackpot eligibility. Without a warning that's a tax on
 // people who were asleep; with one, hunger becomes a mechanic you can actually play around.
 const HUNGER_TITLES = [
-  "Your words are getting hungry",
-  "Feeding time",
-  "Someone’s feeling peckish",
-  "Your words need a snack",
+  "Your words are getting sleepy",
+  "Time to wake your words",
+  "Someone’s getting sleepy",
+  "Your words are nodding off",
 ] as const;
 
 /**
@@ -80,8 +80,8 @@ export function hungerWarning(t: { word: string; words: number; hoursLeft: numbe
     title: rotate(HUNGER_TITLES, day),
     body:
       others <= 0
-        ? `${word} is peckish. Feed it within ${t.hoursLeft}h, or it goes hungry and sits out the jackpot.`
-        : `${word} and ${others} more ${others === 1 ? "word" : "words"} are peckish. Feed them within ${t.hoursLeft}h, or they go hungry and sit out the jackpot.`,
+        ? `${word} is sleepy. Wake it within ${t.hoursLeft}h, or it falls asleep and sits out the jackpot.`
+        : `${word} and ${others} more ${others === 1 ? "word" : "words"} are sleepy. Wake them within ${t.hoursLeft}h, or they fall asleep and sit out the jackpot.`,
     notificationId: `hunger-${day}`,
   };
 }
@@ -115,7 +115,7 @@ const WON_TITLES = ["You won the jackpot", "The pot is yours", "Your word came u
 export function jackpotWon(word: string, amount: string, day = epochDay()): Notification {
   return {
     title: rotate(WON_TITLES, day),
-    body: `${word.toUpperCase()} was today’s word, and you held it staked and fed. ${amount} just landed in your wallet.`,
+    body: `${word.toUpperCase()} was today’s word, and you held it staked and awake. ${amount} just landed in your wallet.`,
     notificationId: `won-${day}`,
   };
 }
@@ -126,7 +126,7 @@ const ROLLOVER_TITLES = ["The pot keeps growing", "Nobody had it", "The jackpot 
 export function jackpotRollover(amount: string, day = epochDay()): Notification {
   return {
     title: rotate(ROLLOVER_TITLES, day),
-    body: `Nobody held today’s word staked and fed, so the pot rolled over. It’s up to ${amount} now.`,
+    body: `Nobody held today’s word staked and awake, so the pot rolled over. It’s up to ${amount} now.`,
     notificationId: `rollover-${day}`,
   };
 }
@@ -284,15 +284,15 @@ const some = (words: readonly string[]) => (words.length === 1 ? words[0] : `${w
  */
 export function weeklyDigest(w: WeekFacts, period: number): { note: Notification; facts: [string, string][] } | null {
   const facts: [string, string][] = [];
-  if (w.hungry.length > 0) facts.push(["Hungry now", some(w.hungry)]);
-  if (w.peckish.length > 0) facts.push(["Peckish now", some(w.peckish)]);
+  if (w.hungry.length > 0) facts.push(["Asleep now", some(w.hungry)]);
+  if (w.peckish.length > 0) facts.push(["Sleepy now", some(w.peckish)]);
   if (w.earned > 0) facts.push(["Your words earned", wordAmount(w.earned)]);
   // The count goes in the name: a ledger's value stays short, so its row of dots has room on a phone.
   if (w.sold.count > 0) facts.push([`${w.sold.count} ${w.sold.count === 1 ? "sale" : "sales"} on the Market`, wordAmount(w.sold.amount)]);
   if (facts.length === 0) return null;
   const body =
     w.hungry.length > 0
-      ? `${some(w.hungry)} ${w.hungry.length === 1 ? "is" : "are"} hungry: a hungry word earns nothing and sits out the jackpot until it’s fed. Here is the rest of your week.`
+      ? `${some(w.hungry)} ${w.hungry.length === 1 ? "is" : "are"} asleep: a word that is asleep earns nothing and sits out the jackpot until it’s woken. Here is the rest of your week.`
       : "Here is how your words did this week.";
   return { note: { title: "Your week in Lexigotchi", body, notificationId: `week-${period}` }, facts };
 }

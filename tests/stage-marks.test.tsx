@@ -17,12 +17,12 @@ const tones = (i: MarkInput) => stageMarks(i).map((m) => m.tone);
 describe("a word's three marks", () => {
   it("are always Fed, Jackpot, Earns, in that order", () => {
     for (const mood of ["full", "peckish", "hungry", "unstaked", "forSale"] as const) {
-      expect(stageMarks({ ...ALL, mood }).map((m) => [m.key, m.about])).toEqual([["fed", "Fed"], ["jackpot", "Jackpot"], ["earns", "Earns"]]);
+      expect(stageMarks({ ...ALL, mood }).map((m) => [m.key, m.about])).toEqual([["fed", "Awake"], ["jackpot", "Jackpot"], ["earns", "Earns"]]);
     }
   });
 
   it("a full, all-UPPERCASE word: full, in the running, earning", () => {
-    expect(values({ ...ALL, mood: "full" })).toEqual(["Full", "In the running", "$WORD every day"]);
+    expect(values({ ...ALL, mood: "full" })).toEqual(["Wide awake", "In the running", "$WORD every day"]);
     expect(tones({ ...ALL, mood: "full" })).toEqual(["teal", "gold", "teal"]);
   });
 
@@ -31,16 +31,16 @@ describe("a word's three marks", () => {
   });
 
   it("a word that just ate says so", () => {
-    expect(values({ ...ALL, mood: "full", justFed: true })[0]).toBe("Full again");
+    expect(values({ ...ALL, mood: "full", justFed: true })[0]).toBe("Awake again");
   });
 
   it("a peckish word: still in the running, earning half, and it says which day", () => {
-    expect(values({ ...ALL, mood: "peckish", daysUnfed: 2 })).toEqual(["Peckish, day 2", "In the running", "Half until fed"]);
+    expect(values({ ...ALL, mood: "peckish", daysUnfed: 2 })).toEqual(["Sleepy, day 2", "In the running", "Half while sleepy"]);
     expect(tones({ ...ALL, mood: "peckish", daysUnfed: 2 })).toEqual(["gold", "gold", "gold"]);
   });
 
   it("a hungry word needs the player: out of the jackpot, earning nothing, all three in candy", () => {
-    expect(values({ ...ALL, mood: "hungry", daysUnfed: 4 })).toEqual(["Hungry, day 4", "Out until fed", "Nothing until fed"]);
+    expect(values({ ...ALL, mood: "hungry", daysUnfed: 4 })).toEqual(["Asleep, day 4", "Out while asleep", "Nothing while asleep"]);
     expect(tones({ ...ALL, mood: "hungry", daysUnfed: 4 })).toEqual(["candy", "candy", "candy"]);
   });
 
@@ -92,16 +92,16 @@ describe("the marks, drawn", () => {
   it("in full: each mark's label and its words, three in a row", () => {
     const { container } = render(<StatusMarks marks={marks} />);
     const items = [...container.querySelectorAll(".tm > .tm-mark")];
-    expect(items.map((li) => li.textContent)).toEqual(["FedHungry, day 3", "JackpotOut until fed", "EarnsNothing until fed"]);
+    expect(items.map((li) => li.textContent)).toEqual(["AwakeAsleep, day 3", "JackpotOut while asleep", "EarnsNothing while asleep"]);
     expect(container.querySelector(".tm-compact")).toBeNull();
   });
 
   it("compact (the Bag): three icons, with every word of them for a screen reader and on hover", () => {
     const { container } = render(<StatusMarks marks={marks} compact />);
     const list = container.querySelector(".tm-compact")!;
-    expect(list.getAttribute("aria-label")).toBe("Fed: Hungry, day 3. Jackpot: Out until fed. Earns: Nothing until fed.");
+    expect(list.getAttribute("aria-label")).toBe("Awake: Asleep, day 3. Jackpot: Out while asleep. Earns: Nothing while asleep.");
     const items = [...list.querySelectorAll(".tm-mark")];
-    expect(items.map((li) => li.getAttribute("title"))).toEqual(["Fed: Hungry, day 3", "Jackpot: Out until fed", "Earns: Nothing until fed"]);
+    expect(items.map((li) => li.getAttribute("title"))).toEqual(["Awake: Asleep, day 3", "Jackpot: Out while asleep", "Earns: Nothing while asleep"]);
     expect(list.textContent).toBe(""); // the icons alone
   });
 

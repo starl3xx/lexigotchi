@@ -92,6 +92,6 @@ describe("Today's pots", () => {
 
   it("tells a player with no words how to get into the jackpot", () => {
     fakeGame();
-    expect(tiles()[0].textContent).toContain("Spell a word, stake it, and keep it fed to enter");
+    expect(tiles()[0].textContent).toContain("Spell a word, stake it, and wake it every day to enter");
   });
 });

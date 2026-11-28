@@ -83,7 +83,7 @@ describe("earningStatus and earningLine", () => {
     expect(earningLine("CRANE", { kind: "raise", left: 1, staked: false })).toBe("Raise 1 more letter to UPPERCASE and stake CRANE to earn $WORD every day.");
     // already staked: never asked to stake it again (Bugbot on #177)
     expect(earningLine("CRANE", { kind: "raise", left: 2, staked: true })).toBe("Raise 2 more letters to UPPERCASE, and CRANE earns $WORD every day.");
-    expect(earningLine("VIVID", { kind: "paused" })).toBe("VIVID is hungry, so it earns nothing until you feed it.");
+    expect(earningLine("VIVID", { kind: "paused" })).toBe("VIVID is asleep, so it earns nothing until you wake it.");
   });
 });
 
@@ -173,12 +173,12 @@ describe("practice payouts", () => {
 describe("stageLine with earnings", () => {
   it("a full all-UPPERCASE star says what it earned at the latest payout", () => {
     expect(stageLine({ word: word("VIVID"), mood: "full" }, { amount: "40.2K", when: "today" })).toBe(
-      "VIVID is full, in the jackpot, and earned 40.2K $WORD today.",
+      "VIVID is awake, in the jackpot, and earned 40.2K $WORD today.",
     );
-    expect(stageLine({ word: word("VIVID"), mood: "full" })).toBe("VIVID is full, in the jackpot, and earning $WORD.");
+    expect(stageLine({ word: word("VIVID"), mood: "full" })).toBe("VIVID is awake, in the jackpot, and earning $WORD.");
     // a mixed-case word doesn't earn, whatever is passed
     expect(stageLine({ word: word("TEASE", { upper: [false, false, false, false, false] }), mood: "full" }, { amount: "1K", when: "today" })).toBe(
-      "TEASE is full and in the daily jackpot.",
+      "TEASE is awake and in the daily jackpot.",
     );
   });
 });

@@ -130,12 +130,12 @@ export function stageLine(pick: Pick<StagePick, "word" | "mood">, earned?: { amo
   const full5 = raised(pick.word) === pick.word.upper.length;
   switch (pick.mood) {
     case "hungry":
-      return full5 ? `${W} is hungry. It can’t win or earn today.` : `${W} is hungry. It can’t win today.`;
+      return full5 ? `${W} is asleep. It can’t win or earn today.` : `${W} is asleep. It can’t win today.`;
     case "peckish":
-      return full5 ? `${W} is peckish. It earns half until you feed it.` : `${W} is peckish. Feed it before it goes hungry.`;
+      return full5 ? `${W} is sleepy. It earns half until you wake it.` : `${W} is sleepy. Wake it before it falls asleep.`;
     case "full":
-      if (full5 && earned) return `${W} is full, in the jackpot, and earned ${earned.amount} $WORD ${earned.when}.`;
-      return full5 ? `${W} is full, in the jackpot, and earning $WORD.` : `${W} is full and in the daily jackpot.`;
+      if (full5 && earned) return `${W} is awake, in the jackpot, and earned ${earned.amount} $WORD ${earned.when}.`;
+      return full5 ? `${W} is awake, in the jackpot, and earning $WORD.` : `${W} is awake and in the daily jackpot.`;
     case "unstaked":
       return `${W} is waiting. Stake it to enter the jackpot.`;
     case "forSale":

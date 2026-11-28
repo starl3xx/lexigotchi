@@ -9,7 +9,7 @@ import { HOW_IT_WORKS, type HowItWorksStep } from "@/lib/howItWorks";
 import { Button } from "./primitives";
 import { Lockup } from "../brand/Lockup";
 import { TileCharacter, TileWord } from "./TileCharacter";
-import { Confetti, Cookie, Sparkle, Trophy } from "./ui/icons";
+import { Alarm, Confetti, Sparkle, Trophy } from "./ui/icons";
 
 /** Lets any screen (e.g. the FAQ) replay the intro. Provided by GameApp's OnboardingHost. */
 export const OnboardingContext = createContext<{ replay: () => void }>({ replay: () => {} });
@@ -46,7 +46,7 @@ const VISUALS: Record<HowItWorksStep["id"], ReactNode> = {
       <Confetti weight="fill" size={150} className="absolute text-candy/30" />
       <Trophy weight="fill" size={104} className="relative text-gold-ink" />
       <span className="absolute -left-3 bottom-1 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-ink bg-card text-candy-ink shadow-[2px_2px_0_#1b1714]">
-        <Cookie weight="fill" size={22} />
+        <Alarm weight="fill" size={22} />
       </span>
       <Sparkle weight="fill" size={24} className="absolute -right-1 -top-1 text-gold" />
     </div>

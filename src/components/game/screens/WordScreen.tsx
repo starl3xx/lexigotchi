@@ -76,7 +76,7 @@ export function WordScreen() {
     ["Pack", splits.packMint.burn],
     ["Roll", splits.roll.burn],
     ["Claim", splits.claim.burn],
-    ["Snack", splits.snack.burn],
+    ["Waking", splits.snack.burn],
   ];
 
   return (
@@ -197,7 +197,7 @@ export function WordScreen() {
       <Card>
         <SectionTitle>In Lexigotchi</SectionTitle>
         <p className="text-sm text-ink/80">
-          Every pack, roll, claim, and snack is paid in $WORD, and part of each fee is burned for good:
+          Packs, rolls, claims, and waking a word are all paid in $WORD, and part of each fee is burned for good:
         </p>
         <div className="mt-2.5 grid grid-cols-4 gap-2">
           {burnShares.map(([label, share]) => (

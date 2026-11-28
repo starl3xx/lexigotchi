@@ -327,7 +327,7 @@ export function AscendSheet({ word: wordKey }: { word: string }) {
               ? ""
               : !word.staked
                 ? "Stake it first to ascend."
-                : `The price includes a ${fmtWord(g.price("prestigeSnack"))} $WORD snack, burned with each try.`}
+                : `The price includes ${fmtWord(g.price("prestigeSnack"))} $WORD that is burned with each try.`}
         </p>
         {offered && !waiting && !unfinished && word.staked && short && <GetMore amount={total} />}
       </div>

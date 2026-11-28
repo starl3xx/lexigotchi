@@ -65,7 +65,7 @@ export function WordCard({ word }: { word: OwnedWord }) {
                 <Ticket weight="fill" size={11} /> today’s word?
               </Pill>
             )}
-            {isAnswer && !answerReady && <Pill className="bg-candy/15 text-candy-ink">today’s word: stake and feed it!</Pill>}
+            {isAnswer && !answerReady && <Pill className="bg-candy/15 text-candy-ink">today’s word: stake and wake it!</Pill>}
             {word.staked && jackpotEligible(word) && !isAnswer && (
               <Pill className="bg-teal/20 text-teal-ink">
                 <Ticket weight="fill" size={11} /> jackpot-eligible
