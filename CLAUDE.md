@@ -228,8 +228,9 @@ for the mini app; sim/economy core is **zero-runtime-dependency TS** (runs via `
   unlocked, first day over; one mark per set and moment in `reminder_marks` (account "all"),
   claimed first and given back when it reached nobody; nothing older than six hours is announced;
   `SET_REMINDERS=off` mutes them. The same route reveals what is due and marks releases. The
-  "A new set of words" choice shows in the profile only once a set exists. Never name a reserved
-  word in public copy.
+  "A new set of words" choice shows in the profile only once a set exists. Player docs:
+  `docs-site/sets.mdx` (its first-day section says the limit starts on the test build with its
+  next reset: the redeploy's PR removes that sentence). Never name a reserved word in public copy.
   **A set's moments** (decisions.md #62): ONE rule says whether a set is still news, `sets.ts`
   `setPhase` (`revealed` / `firstDay` / `fresh` = unlocked under 24 h ago with no first day
   running / `old`); Today's card (`TodaySets.tsx`, two rows at most, never a locked slot) and the

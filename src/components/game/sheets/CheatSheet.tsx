@@ -91,6 +91,7 @@ export function CheatSheet() {
               rarer word also earns more once it’s all UPPERCASE.
             </li>
           )}
+          <li>Some words are held back in sets that unlock later. The Dictionary shows which sets are coming.</li>
         </Step>
 
         <Step n={4} icon={<Cookie weight="fill" size={18} />} title="Keep them fed">
